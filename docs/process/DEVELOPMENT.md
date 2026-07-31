@@ -88,11 +88,6 @@ Do not leave “temporary” undocumented behavior in main.
 
 ## Next engineering milestone
 
-MVP coding may start under [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md). First implementation step remains **test infrastructure**:
+**Milestone 1 (scaffold)** is in progress on `feat/scaffold-test-harness`: Vite library, Vitest, Playwright, playground, green scaffold smokes (`PR-SCAFFOLD-*`). See [tests/README.md](../../tests/README.md).
 
-1. Scaffold package + Vite + Vue 3 + TypeScript (repo-root `src/` per interim Q16)
-2. Vitest (+ Vue Test Utils) and Playwright
-3. Playground that loads `data/out.rep` (I-Q4)
-4. Placeholder failing tests (e.g. `parseRep` smoke, playground “loads report” e2e)
-
-Feature implementation starts only when that scaffold is merged and CI runs the empty/failing suite successfully. Do not invent Product-final formulas for hidden summary tiles (I-Q6a).
+**Next:** Milestone 2 — add failing feature tests (`PR-FMT-*`, `PR-VM-*`, …), then implement slices to green under [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md).

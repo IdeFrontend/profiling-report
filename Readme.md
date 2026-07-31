@@ -36,4 +36,12 @@ python3 data/unpack_rep.py data/out.rep /tmp/out-rep
 
 ## Status
 
-Documentation, specs, process guides, sample data, and **interim engineering defaults** for MVP coding ([INTERIM_DECISIONS](docs/context/INTERIM_DECISIONS.md)). Product-final specs still await data/format answers (esp. Q6). Library and test infrastructure are not scaffolded yet — next step per [DEVELOPMENT](docs/process/DEVELOPMENT.md).
+Documentation and specs are in place with [interim MVP defaults](docs/context/INTERIM_DECISIONS.md). **Milestone 1 scaffold** (Vite library, Vitest, Playwright, playground) lives on the implementation branch — run:
+
+```bash
+npm install
+npm run ci
+npm run playground
+```
+
+Feature slices follow TDD from [tests/README.md](tests/README.md).
