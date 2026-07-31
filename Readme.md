@@ -36,12 +36,11 @@ python3 data/unpack_rep.py data/out.rep /tmp/out-rep
 
 ## Status
 
-Documentation and specs are in place with [interim MVP defaults](docs/context/INTERIM_DECISIONS.md). **Milestone 1 scaffold** (Vite library, Vitest, Playwright, playground) lives on the implementation branch — run:
+Documentation and specs are in place with [interim MVP defaults](docs/context/INTERIM_DECISIONS.md). **Milestone 1 scaffold** is green (`npm run ci`). **Milestone 2** adds failing feature specs (`npm run test:feature` / `test:e2e:feature`) — implement slices to make them green. See [tests/README.md](tests/README.md).
 
 ```bash
 npm install
-npm run ci
+npm run ci              # lint, typecheck, scaffold tests
+npm run test:feature    # expected red until parse/UI slices
 npm run playground
 ```
-
-Feature slices follow TDD from [tests/README.md](tests/README.md).

@@ -1,16 +1,50 @@
 <script setup lang="ts">
+import { onMounted, ref, shallowRef } from 'vue';
 import { ProfilingReport } from '../src/index';
+
+const status = ref('loading');
+const source = shallowRef<ArrayBuffer | undefined>(undefined);
+const error = ref<string | null>(null);
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/data/out.rep');
+    if (!res.ok) {
+      throw new Error(`Failed to fetch out.rep: ${res.status}`);
+    }
+    source.value = await res.arrayBuffer();
+    status.value = 'ready';
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e);
+    status.value = 'error';
+  }
+});
 </script>
 
 <template>
   <main class="playground">
     <h1>profiling-report playground</h1>
-    <ProfilingReport title="Milestone 1 scaffold" />
+    <ProfilingReport
+      v-if="source"
+      title="out.rep"
+      :source="source"
+    />
+    <ProfilingReport
+      v-else
+      title="Milestone 2 — waiting for out.rep"
+    />
     <p
       class="playground__note"
       data-testid="playground-ready"
     >
-      Ready. Feature slices will load <code>data/out.rep</code> here.
+      Status: {{ status }}. Feature e2e expects timeline after parse/UI slices.
+    </p>
+    <p
+      v-if="error"
+      class="playground__error"
+      data-testid="playground-error"
+    >
+      {{ error }}
     </p>
   </main>
 </template>
@@ -35,6 +69,11 @@ body,
   margin-top: 16px;
   font-size: 14px;
   opacity: 0.8;
+}
+
+.playground__error {
+  color: #f88;
+  font-size: 14px;
 }
 
 code {

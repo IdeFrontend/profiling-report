@@ -1,11 +1,24 @@
 <script setup lang="ts">
 /**
- * Root host entry stub. Real props/emits arrive with the UI-shell slice.
- * Milestone 1: mountable placeholder for playground + component smoke tests.
+ * Root host entry. Milestone 2: props/emits contract for failing UI tests.
+ * Real timeline / panels land in UI-shell + view-model slices.
  */
+import type { ReportCapability, ReportViewModel, SelectedEvent, SwimlaneModel } from '../core/types';
+
 defineProps<{
-  /** Optional label shown in the scaffold placeholder. */
   title?: string;
+  source?: ArrayBuffer | Uint8Array;
+  swimlaneModel?: SwimlaneModel;
+  reportModel?: ReportViewModel;
+  theme?: 'light' | 'dark';
+  locale?: string;
+  capabilities?: ReportCapability[];
+}>();
+
+defineEmits<{
+  ready: [];
+  select: [event: SelectedEvent | null];
+  error: [error: { message: string; cause?: unknown }];
 }>();
 </script>
 
@@ -18,8 +31,17 @@ defineProps<{
       {{ title ?? 'profiling-report' }}
     </p>
     <p class="pr-root__hint">
-      Scaffold placeholder — feature UI lands in later TDD slices.
+      Scaffold placeholder — timeline and panels land in later TDD slices.
     </p>
+    <!-- Feature surfaces (absent until UI-shell slice — PR-UI-* / PR-E2E-* assert these):
+    <div data-testid="swimlane" />
+    <div data-testid="time-axis" />
+    <div data-testid="stats-summary" />
+    <div data-testid="pipe-occupancy" />
+    <div data-testid="overview-charts" />
+    <div data-testid="event-tooltip" />
+    <div data-testid="detail-strip" />
+    -->
   </div>
 </template>
 

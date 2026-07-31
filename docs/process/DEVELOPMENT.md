@@ -88,6 +88,8 @@ Do not leave “temporary” undocumented behavior in main.
 
 ## Next engineering milestone
 
-**Milestone 1 (scaffold)** is in progress on `feat/scaffold-test-harness`: Vite library, Vitest, Playwright, playground, green scaffold smokes (`PR-SCAFFOLD-*`). See [tests/README.md](../../tests/README.md).
+**Milestone 1 (scaffold)** is on `feat/scaffold-test-harness`: Vite library, Vitest, Playwright, playground, green scaffold smokes (`PR-SCAFFOLD-*`).
 
-**Next:** Milestone 2 — add failing feature tests (`PR-FMT-*`, `PR-VM-*`, …), then implement slices to green under [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md).
+**Milestone 2 (failing feature specs):** executable tests `PR-FMT-*` / `PR-VM-*` / `PR-SWIM-*` / `PR-UI-*` / `PR-E2E-*` in [tests/README.md](../../tests/README.md) — **expected red** until implementation.
+
+**Next:** implement slices to green under [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md): parse → view-models → swimlane → UI shell → renderer.

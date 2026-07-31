@@ -1,17 +1,12 @@
 /**
- * Public library entry. Feature APIs land in later TDD slices.
- * Milestone 1: stub only so the harness and playground can import the package.
+ * Public library entry.
+ * Milestone 2: typed stubs + failing feature tests drive the API; implementations follow.
  */
 
 export const LIBRARY_NAME = 'profiling-report' as const;
 
-export function notImplemented(api: string): never {
-  throw new Error(`[profiling-report] ${api} is not implemented yet (Milestone 1 scaffold)`);
-}
-
-/** Placeholder — implemented in the core-parse slice (PR-FMT-*). */
-export function parseRep(_source: ArrayBuffer | Uint8Array): never {
-  return notImplemented('parseRep');
-}
+export { notImplemented } from './core/notImplemented';
+export { parseRep, adaptRep, chromeTraceToSwimlane } from './core/adapters';
+export type * from './core/types';
 
 export { default as ProfilingReport } from './ui/ProfilingReport.vue';

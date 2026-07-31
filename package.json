@@ -25,9 +25,14 @@
     "typecheck": "vue-tsc -p tsconfig.lib.json --noEmit && vue-tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:scaffold": "vitest run tests/unit/scaffold.spec.ts tests/component/ProfilingReport.spec.ts",
+    "test:feature": "vitest run tests/unit/parseRep.spec.ts tests/unit/viewModels.spec.ts tests/unit/swimlaneModel.spec.ts tests/component/ProfilingReport.feature.spec.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "ci": "npm run lint && npm run typecheck && npm run test && npm run test:e2e"
+    "test:e2e:scaffold": "playwright test tests/e2e/playground.spec.ts",
+    "test:e2e:feature": "playwright test tests/e2e/feature.spec.ts",
+    "ci": "npm run lint && npm run typecheck && npm run test:scaffold && npm run test:e2e:scaffold",
+    "ci:tdd": "npm run ci && npm run test:feature && npm run test:e2e:feature"
   },
   "peerDependencies": {
     "vue": "^3.5.0"

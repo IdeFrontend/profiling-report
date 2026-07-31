@@ -30,8 +30,16 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit and component tests
-        run: npm test
+      - name: Scaffold unit/component tests (must pass)
+        run: npm run test:scaffold
 
-      - name: E2E tests
-        run: npm run test:e2e
+      - name: Scaffold e2e (must pass)
+        run: npm run test:e2e:scaffold
+
+      - name: Feature TDD tests (expected fail until implemented)
+        continue-on-error: true
+        run: npm run test:feature
+
+      - name: Feature e2e TDD (expected fail until implemented)
+        continue-on-error: true
+        run: npm run test:e2e:feature
