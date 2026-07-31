@@ -2,6 +2,8 @@
 
 Written layout specification derived from design sketches in this folder. Filenames below are relative to `docs/specs/ui/`.
 
+For usage scenarios, static vs interactive surfaces, and cross-view sync, see **[UX_SPEC.md](UX_SPEC.md)**.
+
 ## Product chrome
 
 Sketches place the viewer inside a VS Code–like IDE with:
