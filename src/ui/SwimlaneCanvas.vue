@@ -24,7 +24,10 @@ const emit = defineEmits<{
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const wrapRef = ref<HTMLDivElement | null>(null);
+/** Drives scroll height without letting canvas `style.height` feed flex layout. */
+const sizerHeight = ref(120);
 const renderer = new CanvasSwimlaneRenderer();
+let attached = false;
 let dragging = false;
 let lastX = 0;
 let downX = 0;
@@ -43,10 +46,15 @@ function resize(): void {
   const wrap = wrapRef.value;
   const canvas = canvasRef.value;
   if (!wrap || !canvas) return;
-  const contentH = Math.max(120, props.lanes.length * LANE_HEIGHT || 120);
+  if (!attached) {
+    renderer.attach(canvas);
+    attached = true;
+  }
+  const contentH = Math.max(120, (props.lanes.length || 1) * LANE_HEIGHT);
+  const w = Math.max(1, wrap.clientWidth);
   const h = Math.max(contentH, wrap.clientHeight || 0);
-  renderer.attach(canvas);
-  renderer.resize(wrap.clientWidth, h);
+  sizerHeight.value = h;
+  renderer.resize(w, h);
   sync();
 }
 
@@ -157,6 +165,11 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
     class="pr-swim-canvas-wrap"
     data-testid="swimlane"
   >
+    <div
+      class="pr-swim-canvas-sizer"
+      aria-hidden="true"
+      :style="{ height: `${sizerHeight}px` }"
+    />
     <canvas
       ref="canvasRef"
       class="pr-swim-canvas"
@@ -172,6 +185,7 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
 
 <style scoped>
 .pr-swim-canvas-wrap {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 160px;
@@ -179,9 +193,16 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
   background: #1a1a1a;
 }
 
-.pr-swim-canvas {
-  display: block;
+.pr-swim-canvas-sizer {
   width: 100%;
+  pointer-events: none;
+}
+
+.pr-swim-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
   cursor: crosshair;
   touch-action: none;
 }

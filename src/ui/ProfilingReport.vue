@@ -162,28 +162,31 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
   }
 }
 
-onMounted(() => {
-  if (props.source) {
-    loadFromSource(props.source);
-  } else if (props.swimlaneModel || props.reportModel) {
-    resetViewFromModel(props.swimlaneModel ?? null, asideHasContent(props.reportModel));
-    emit('ready');
-  }
-});
-
+/** Parse before first paint when `source` is already available (avoids empty→loaded height jump). */
 watch(
   () => props.source,
   (src) => {
     if (src) loadFromSource(src);
   },
+  { immediate: true },
 );
 
 watch(
   () => props.swimlaneModel,
   (m) => {
-    if (m && !props.source) resetViewFromModel(m, asideHasContent(props.reportModel ?? report.value));
+    if (m && !props.source) {
+      resetViewFromModel(m, asideHasContent(props.reportModel ?? report.value));
+    }
   },
 );
+
+onMounted(() => {
+  if (props.source) return;
+  if (props.swimlaneModel || props.reportModel) {
+    resetViewFromModel(props.swimlaneModel ?? null, asideHasContent(props.reportModel));
+    emit('ready');
+  }
+});
 
 watch(
   () => props.timeUnit,
@@ -399,7 +402,7 @@ defineExpose({ selectEventById, viewState });
           </div>
         </div>
 
-        <div class="pr-swim-row">
+        <div class="pr-swim-row pr-swim-row--body">
           <div
             class="pr-gutter"
             data-testid="lane-gutter"
@@ -637,11 +640,6 @@ defineExpose({ selectEventById, viewState });
   flex: 0 0 auto;
 }
 
-.pr-swim-row--head {
-  flex: 0 0 auto;
-  min-height: 0;
-}
-
 .pr-gutter--axis-spacer {
   border-bottom: 1px solid #3a3a3a;
 }
@@ -674,21 +672,29 @@ defineExpose({ selectEventById, viewState });
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-.pr-swim-row--overview {
-  flex: 0 0 auto;
-  min-height: 0;
-  align-items: stretch;
-}
-
-.pr-swim-row--overview .pr-gutter--axis-spacer {
-  border-bottom: 1px solid #4a4a4a;
-}
-
 .pr-swim-row {
   display: grid;
   grid-template-columns: 240px 1fr;
   gap: 0;
   align-items: stretch;
+  min-height: 0;
+}
+
+/* Higher specificity so head/overview keep flex-shrink; body takes remaining height. */
+.pr-swim-row.pr-swim-row--head,
+.pr-swim-row.pr-swim-row--overview {
+  flex: 0 0 auto;
+}
+
+.pr-swim-row.pr-swim-row--overview {
+  align-items: stretch;
+}
+
+.pr-swim-row.pr-swim-row--overview .pr-gutter--axis-spacer {
+  border-bottom: 1px solid #4a4a4a;
+}
+
+.pr-swim-row.pr-swim-row--body {
   flex: 1 1 auto;
   min-height: 0;
 }

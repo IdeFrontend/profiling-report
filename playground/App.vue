@@ -69,10 +69,20 @@ onMounted(async () => {
         :source="source"
         locale="zh-CN"
       />
-      <ProfilingReport
-        v-else
-        title="Loading…"
-      />
+      <div
+        v-else-if="!error"
+        class="playground__loading"
+        data-testid="playground-loading"
+      >
+        <div class="playground__loading-frame">
+          <div class="playground__loading-bar" />
+          <div class="playground__loading-axis" />
+          <div class="playground__loading-body" />
+        </div>
+        <p class="playground__loading-label">
+          Loading report…
+        </p>
+      </div>
     </div>
   </main>
 </template>
@@ -139,5 +149,52 @@ body,
   flex: 1 1 auto;
   width: 100%;
   min-height: 0;
+}
+
+.playground__loading {
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+}
+
+.playground__loading-frame {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  opacity: 0.55;
+}
+
+.playground__loading-bar {
+  flex: 0 0 36px;
+  background: #242424;
+  border-bottom: 1px solid #333;
+}
+
+.playground__loading-axis {
+  flex: 0 0 45px;
+  background: #222;
+  border-bottom: 1px solid #333;
+}
+
+.playground__loading-body {
+  flex: 1 1 auto;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      #1a1a1a 0,
+      #1a1a1a 21px,
+      #202020 21px,
+      #202020 22px
+    );
+}
+
+.playground__loading-label {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #9a9a9a;
+  border-top: 1px solid #333;
 }
 </style>
