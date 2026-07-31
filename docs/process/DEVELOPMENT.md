@@ -94,4 +94,6 @@ Do not leave “temporary” undocumented behavior in main.
 
 **Milestone 3 (renderer + navigation)** — Canvas `SwimlaneRenderer`, view-state zoom/pan, toolbar (search / zoom / fit / toggle aside), I-Q14 time formatting (`PR-TIME-*` / `PR-VIEW-*` / `PR-RENDER-*` / `PR-UI-004+` / `PR-E2E-004`).
 
-**Next:** standalone Chrome Trace `.json` open path; polish MVP matrix gaps; then **MSTT host** in a separate `mstt` PR ([MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)).
+**Milestone 4 (trace JSON + MVP polish)** — standalone Chrome Trace open path (Q15), gutter util bars, time-unit control, i18n hooks, CSS tokens (`PR-JSON-*` / `PR-UI-006` / `PR-E2E-005`).
+
+**Next:** merge library to `master` when ready; then **MSTT host** in a separate `mstt` PR ([MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)).

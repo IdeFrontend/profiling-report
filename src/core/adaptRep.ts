@@ -6,6 +6,7 @@ import type {
   SummaryMetrics,
 } from './types';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
+import { withDerivedUtilizations } from './utilization';
 
 function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
@@ -107,7 +108,7 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
 function swimlaneFromParsed(parsed: ParsedRep) {
   const bytes = parsed.payloads['trace.json'];
   if (!bytes) {
-    return { processes: [], minTime: 0, maxTime: 0 };
+    return withDerivedUtilizations({ processes: [], minTime: 0, maxTime: 0 });
   }
   const trace = JSON.parse(decodeUtf8(bytes)) as unknown;
   return chromeTraceToSwimlane(trace);

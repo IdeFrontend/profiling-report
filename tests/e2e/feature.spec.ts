@@ -43,4 +43,13 @@ test.describe('PR-E2E feature paths', () => {
     await page.getByTestId('zoom-to-fit').click();
     await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
   });
+
+  test('PR-E2E-005: standalone Chrome Trace hides aside (Q15)', async ({ page }) => {
+    await page.goto('/?fixture=trace');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('pipe-occupancy')).toHaveCount(0);
+    await expect(page.getByTestId('stats-summary')).toHaveCount(0);
+    await expect(page.getByTestId('lane-util').first()).toBeVisible();
+  });
 });

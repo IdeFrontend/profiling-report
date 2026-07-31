@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { adaptRep, parseRep } from '../core/adapters';
+import { loadReportSource } from '../core/adapters';
 import { formatTime } from '../core/formatTime';
+import { t } from '../core/i18n';
 import {
   applyWindow,
   createViewState,
@@ -9,6 +10,7 @@ import {
   zoomAt,
   zoomToFitWindow,
 } from '../core/viewState';
+import { withDerivedUtilizations } from '../core/utilization';
 import type {
   ReportCapability,
   ReportViewModel,
@@ -20,6 +22,7 @@ import type {
 } from '../core/types';
 import ReportToolbar from './ReportToolbar.vue';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
+import './tokens.css';
 
 const props = defineProps<{
   title?: string;
@@ -39,14 +42,14 @@ const emit = defineEmits<{
 }>();
 
 const COLOR: Record<string, string> = {
-  cube: '#007084',
-  vector: '#007464',
-  mte1: '#885C00',
-  mte2: '#985000',
-  mte3: '#A44830',
-  fixp: '#586C0C',
-  scalar: '#38702C',
-  default: '#3860A8',
+  cube: 'var(--pr-color-cube)',
+  vector: 'var(--pr-color-vector)',
+  mte1: 'var(--pr-color-mte1)',
+  mte2: 'var(--pr-color-mte2)',
+  mte3: 'var(--pr-color-mte3)',
+  fixp: 'var(--pr-color-fixp)',
+  scalar: 'var(--pr-color-scalar)',
+  default: 'var(--pr-color-default)',
 };
 
 const internalSwim = ref<SwimlaneModel | null>(null);
@@ -56,10 +59,14 @@ const viewState = ref<SwimlaneViewState>(createViewState(null));
 const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
+const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 
-const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
+const swim = computed(() => {
+  const raw = props.swimlaneModel ?? internalSwim.value;
+  return raw ? withDerivedUtilizations(raw) : null;
+});
 const report = computed(() => props.reportModel ?? internalReport.value);
-const unit = computed<TimeDisplayUnit>(() => props.timeUnit ?? 'ms');
+const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
 
 const hasSummary = computed(() => {
   const s = report.value?.summary;
@@ -68,12 +75,13 @@ const hasSummary = computed(() => {
 
 const showPipe = computed(() => (report.value?.pipeOccupancy?.length ?? 0) > 0);
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
+const asideAvailable = computed(() => hasSummary.value || showPipe.value);
 
 const lanes = computed(() => {
-  const out: { id: string; name: string }[] = [];
+  const out: { id: string; name: string; utilization: number }[] = [];
   for (const p of swim.value?.processes ?? []) {
     for (const t of p.threads) {
-      out.push({ id: t.id, name: t.name });
+      out.push({ id: t.id, name: t.name, utilization: t.utilization ?? 0 });
     }
   }
   return out;
@@ -101,23 +109,32 @@ const axisTicks = computed(() => {
   const { startTime, endTime } = viewState.value;
   const ticks = 5;
   return Array.from({ length: ticks + 1 }, (_, i) => {
-    const t = startTime + ((endTime - startTime) * i) / ticks;
-    return { t, label: formatTime(t, unit.value) };
+    const tm = startTime + ((endTime - startTime) * i) / ticks;
+    return { t: tm, label: formatTime(tm, unit.value) };
   });
 });
 
-function resetViewFromModel(model: SwimlaneModel | null): void {
-  viewState.value = createViewState(model);
+function resetViewFromModel(model: SwimlaneModel | null, showAside: boolean): void {
+  const next = createViewState(model);
+  next.asideVisible = showAside;
+  viewState.value = next;
   selected.value = null;
   hovered.value = null;
 }
 
+function asideHasContent(rm: ReportViewModel | null | undefined): boolean {
+  if (!rm) return false;
+  const s = rm.summary;
+  const hasSum = Boolean(s && (s.opName || s.opType || s.taskDurationUs != null));
+  return hasSum || (rm.pipeOccupancy?.length ?? 0) > 0;
+}
+
 function loadFromSource(source: ArrayBuffer | Uint8Array) {
   try {
-    const adapted = adaptRep(parseRep(source));
+    const adapted = loadReportSource(source);
     internalSwim.value = adapted.swimlaneModel;
     internalReport.value = adapted.reportModel;
-    resetViewFromModel(adapted.swimlaneModel);
+    resetViewFromModel(adapted.swimlaneModel, asideHasContent(adapted.reportModel));
     loadError.value = null;
     emit('ready');
   } catch (cause) {
@@ -130,7 +147,7 @@ onMounted(() => {
   if (props.source) {
     loadFromSource(props.source);
   } else if (props.swimlaneModel || props.reportModel) {
-    resetViewFromModel(props.swimlaneModel ?? null);
+    resetViewFromModel(props.swimlaneModel ?? null, asideHasContent(props.reportModel));
     emit('ready');
   }
 });
@@ -145,7 +162,14 @@ watch(
 watch(
   () => props.swimlaneModel,
   (m) => {
-    if (m && !props.source) resetViewFromModel(m);
+    if (m && !props.source) resetViewFromModel(m, asideHasContent(props.reportModel ?? report.value));
+  },
+);
+
+watch(
+  () => props.timeUnit,
+  (u) => {
+    if (u) localTimeUnit.value = u;
   },
 );
 
@@ -242,10 +266,14 @@ function onAside(visible: boolean) {
   viewState.value = { ...viewState.value, asideVisible: visible };
 }
 
+function onTimeUnit(u: TimeDisplayUnit) {
+  localTimeUnit.value = u;
+}
+
 /** Used by component tests to select an event without canvas pointer geometry. */
 function selectEventById(eventId: string) {
   const ev = swim.value?.processes
-    .flatMap((p) => p.threads.flatMap((t) => t.events))
+    .flatMap((p) => p.threads.flatMap((th) => th.events))
     .find((e) => e.id === eventId);
   onSelect(ev ?? null);
 }
@@ -275,9 +303,13 @@ defineExpose({ selectEventById, viewState });
     <ReportToolbar
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
+      :aside-available="asideAvailable"
       :zoom-percent="zoomPercent"
+      :time-unit="unit"
+      :locale="locale"
       @update:search-query="onSearch"
       @update:aside-visible="onAside"
+      @update:time-unit="onTimeUnit"
       @update:zoom-percent="onZoomPercent"
       @zoom-to-fit="onZoomToFit"
       @zoom-in="onZoomIn"
@@ -286,7 +318,7 @@ defineExpose({ selectEventById, viewState });
 
     <div
       class="pr-layout"
-      :class="{ 'pr-layout--no-aside': !viewState.asideVisible }"
+      :class="{ 'pr-layout--no-aside': !(viewState.asideVisible && asideAvailable) }"
     >
       <section class="pr-main">
         <div
@@ -318,7 +350,17 @@ defineExpose({ selectEventById, viewState });
               :key="lane.id"
               class="pr-gutter__lane"
             >
-              {{ lane.name }}
+              <span class="pr-gutter__name">{{ lane.name }}</span>
+              <span
+                class="pr-gutter__util"
+                data-testid="lane-util"
+                :title="`${Math.round(lane.utilization * 100)}%`"
+              >
+                <span
+                  class="pr-gutter__util-bar"
+                  :style="{ width: `${Math.min(100, lane.utilization * 100)}%` }"
+                />
+              </span>
             </div>
           </div>
           <SwimlaneCanvas
@@ -346,7 +388,7 @@ defineExpose({ selectEventById, viewState });
       </section>
 
       <aside
-        v-if="viewState.asideVisible"
+        v-if="viewState.asideVisible && asideAvailable"
         class="pr-aside"
       >
         <div
@@ -354,22 +396,22 @@ defineExpose({ selectEventById, viewState });
           class="pr-panel"
           data-testid="stats-summary"
         >
-          <h3>Report summary</h3>
+          <h3>{{ t('summary', locale) }}</h3>
           <dl>
             <div v-if="report?.summary.opName">
-              <dt>Op</dt>
+              <dt>{{ t('op', locale) }}</dt>
               <dd>{{ report.summary.opName }}</dd>
             </div>
             <div v-if="report?.summary.opType">
-              <dt>Type</dt>
+              <dt>{{ t('type', locale) }}</dt>
               <dd>{{ report.summary.opType }}</dd>
             </div>
             <div v-if="report?.summary.taskDurationUs != null">
-              <dt>Duration</dt>
+              <dt>{{ t('duration', locale) }}</dt>
               <dd>{{ report.summary.taskDurationUs }} µs</dd>
             </div>
             <div v-if="report?.summary.currentFreq != null">
-              <dt>Freq</dt>
+              <dt>{{ t('freq', locale) }}</dt>
               <dd>{{ report.summary.currentFreq }} / {{ report.summary.ratedFreq }}</dd>
             </div>
           </dl>
@@ -380,7 +422,7 @@ defineExpose({ selectEventById, viewState });
           class="pr-panel"
           data-testid="pipe-occupancy"
         >
-          <h3>PIPE occupancy</h3>
+          <h3>{{ t('pipeOccupancy', locale) }}</h3>
           <ul class="pr-pipe-list">
             <li
               v-for="pipe in report?.pipeOccupancy ?? []"
@@ -409,7 +451,7 @@ defineExpose({ selectEventById, viewState });
     >
       <strong>{{ selected.name }}</strong>
       <span>{{ formatTime(selected.startTime, unit) }} → {{ formatTime(selected.endTime, unit) }}</span>
-      <span>dur {{ formatTime(selected.duration, unit) }}</span>
+      <span>{{ t('dur', locale) }} {{ formatTime(selected.duration, unit) }}</span>
     </footer>
 
     <div
@@ -419,18 +461,15 @@ defineExpose({ selectEventById, viewState });
       :style="tooltipStyle"
     >
       <div>{{ hovered.name }}</div>
-      <div>start {{ formatTime(hovered.startTime, unit) }}</div>
-      <div>dur {{ formatTime(hovered.duration, unit) }}</div>
-      <div>end {{ formatTime(hovered.startTime + hovered.duration, unit) }}</div>
+      <div>{{ t('start', locale) }} {{ formatTime(hovered.startTime, unit) }}</div>
+      <div>{{ t('dur', locale) }} {{ formatTime(hovered.duration, unit) }}</div>
+      <div>{{ t('end', locale) }} {{ formatTime(hovered.startTime + hovered.duration, unit) }}</div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .pr-root {
-  --pr-bg-panel: #303030;
-  --pr-bg-deep: #202830;
-  --pr-playhead: #3078f0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -518,11 +557,33 @@ defineExpose({ selectEventById, viewState });
 }
 
 .pr-gutter__lane {
+  display: grid;
+  grid-template-columns: 1fr 36px;
+  gap: 6px;
+  align-items: center;
   height: 28px;
-  line-height: 28px;
+}
+
+.pr-gutter__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pr-gutter__util {
+  display: block;
+  height: 6px;
+  background: #1a1a1a;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.pr-gutter__util-bar {
+  display: block;
+  height: 100%;
+  background: var(--pr-color-vector);
+  border-radius: 2px;
+  min-width: 0;
 }
 
 .pr-aside {

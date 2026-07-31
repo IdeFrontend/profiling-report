@@ -125,4 +125,19 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     const vm = wrapper.vm as unknown as { viewState: { searchQuery: string } };
     expect(vm.viewState.searchQuery).toBe('PIPE_V');
   });
+
+  it('PR-UI-006: Chrome Trace source hides analytics aside (Q15)', async () => {
+    const { loadOutTraceBuffer } = await import('../helpers/fixtures');
+    const wrapper = mount(ProfilingReport, {
+      props: { source: loadOutTraceBuffer(), locale: 'en' },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="swimlane"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="lane-util"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(true);
+  });
 });

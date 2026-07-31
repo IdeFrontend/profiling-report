@@ -1,16 +1,29 @@
 <script setup lang="ts">
-import { onMounted, ref, shallowRef } from 'vue';
+import { computed, onMounted, ref, shallowRef } from 'vue';
 import { ProfilingReport } from '../src/index';
 
 const status = ref('loading');
 const source = shallowRef<ArrayBuffer | undefined>(undefined);
 const error = ref<string | null>(null);
 
+const fixture = computed(() => {
+  if (typeof window === 'undefined') return 'rep';
+  return new URLSearchParams(window.location.search).get('fixture') === 'trace'
+    ? 'trace'
+    : 'rep';
+});
+
+const title = computed(() =>
+  (fixture.value === 'trace' ? 'out.trace.json' : 'out.rep'),
+);
+
 onMounted(async () => {
   try {
-    const res = await fetch('/data/out.rep');
+    const url =
+      fixture.value === 'trace' ? '/data/out.trace.json' : '/data/out.rep';
+    const res = await fetch(url);
     if (!res.ok) {
-      throw new Error(`Failed to fetch out.rep: ${res.status}`);
+      throw new Error(`Failed to fetch ${url}: ${res.status}`);
     }
     source.value = await res.arrayBuffer();
     status.value = 'ready';
@@ -24,20 +37,32 @@ onMounted(async () => {
 <template>
   <main class="playground">
     <h1>profiling-report playground</h1>
+    <p class="playground__switch">
+      <a
+        href="/?fixture=rep"
+        data-testid="fixture-rep"
+      >out.rep</a>
+      ·
+      <a
+        href="/?fixture=trace"
+        data-testid="fixture-trace"
+      >out.trace.json</a>
+    </p>
     <ProfilingReport
       v-if="source"
-      title="out.rep"
+      :title="title"
       :source="source"
+      locale="zh-CN"
     />
     <ProfilingReport
       v-else
-      title="Milestone 2 — waiting for out.rep"
+      title="Loading fixture…"
     />
     <p
       class="playground__note"
       data-testid="playground-ready"
     >
-      Status: {{ status }}. Feature e2e expects timeline after parse/UI slices.
+      Status: {{ status }}. Fixture: {{ fixture }}.
     </p>
     <p
       v-if="error"
@@ -62,7 +87,16 @@ body,
 
 .playground {
   padding: 24px;
-  max-width: 960px;
+  max-width: 1100px;
+}
+
+.playground__switch {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.playground__switch a {
+  color: #8ab4ff;
 }
 
 .playground__note {
@@ -74,9 +108,5 @@ body,
 .playground__error {
   color: #f88;
   font-size: 14px;
-}
-
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 </style>

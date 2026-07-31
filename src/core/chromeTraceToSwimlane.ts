@@ -1,4 +1,5 @@
 import type { SwimEvent, SwimlaneModel, SwimProcess, SwimThread } from './types';
+import { withDerivedUtilizations } from './utilization';
 
 interface ChromeTraceEvent {
   ph?: string;
@@ -20,7 +21,11 @@ function key(pid: number | string | undefined, tid: number | string | undefined)
   return `${pid ?? 0}:${tid ?? 0}`;
 }
 
-/** Chrome Trace Event Format → SwimlaneModel (times kept in trace units; sample uses ns). */
+/** Fill utilization from event coverage when metadata omits it. */
+function finalizeModel(model: SwimlaneModel): SwimlaneModel {
+  return withDerivedUtilizations(model);
+}
+
 export function chromeTraceToSwimlane(trace: unknown): SwimlaneModel {
   const doc = (trace ?? {}) as ChromeTraceDoc;
   const events = doc.traceEvents ?? [];
@@ -91,10 +96,10 @@ export function chromeTraceToSwimlane(trace: unknown): SwimlaneModel {
     })),
   }));
 
-  return {
+  return finalizeModel({
     processes,
     minTime,
     maxTime,
     metadata: { displayTimeUnit: doc.displayTimeUnit },
-  };
+  });
 }

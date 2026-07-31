@@ -2,11 +2,21 @@
  * Public library entry.
  */
 
+import './ui/tokens.css';
+
 export const LIBRARY_NAME = 'profiling-report' as const;
 
 export { notImplemented } from './core/notImplemented';
-export { parseRep, adaptRep, chromeTraceToSwimlane } from './core/adapters';
+export {
+  parseRep,
+  adaptRep,
+  chromeTraceToSwimlane,
+  loadReportSource,
+  adaptChromeTrace,
+} from './core/adapters';
 export { formatTime } from './core/formatTime';
+export { t, resolveLocale } from './core/i18n';
+export { computeThreadUtilization, withDerivedUtilizations } from './core/utilization';
 export {
   createViewState,
   zoomToFitWindow,
