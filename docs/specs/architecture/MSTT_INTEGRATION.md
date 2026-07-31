@@ -53,19 +53,11 @@ Prefer feeding the library via Vue props inside the webview when possible; use p
 
 ## Capabilities
 
-Host may pass capability flags so the library hides Phase 2 UI until ready:
+Host may pass capability flags so the library hides Phase 2 UI until ready. **Canonical union** is defined in [COMPONENTS.md](COMPONENTS.md) (`ReportCapability`), including at least:
 
-```ts
-type ReportCapability =
-  | 'roofline'
-  | 'memoryDiagram'
-  | 'dependencies'
-  | 'hardwareDetails'
-  | 'sourceTab'
-  | 'cacheTab';
-```
+`roofline` | `memoryDiagram` | `dependencies` | `hardwareDetails` | `sourceTab` | `cacheTab` | `aicpu`
 
-MVP host can pass `[]` or omit; library shows MVP surfaces only.
+MVP host can pass `[]` or omit; library shows MVP surfaces (summary, PIPE bars, timeline) without requiring capability flags for those.
 
 ## Non-goals for MSTT in v1
 

@@ -25,9 +25,20 @@ English documentation and specifications for the reusable Vue profiling-report l
 
 | Doc | Role |
 |-----|------|
+| [context/PROJECT_GOALS.md](context/PROJECT_GOALS.md) | Goals, non-goals, consumers, success criteria |
+| [context/OPEN_QUESTIONS.md](context/OPEN_QUESTIONS.md) | P0–P2 blockers before acceptance-complete specs |
 | [process/DEVELOPMENT.md](process/DEVELOPMENT.md) | Spec-driven TDD workflow, slice order, Definition of Done |
 | [process/TESTING.md](process/TESTING.md) | Unit / component / e2e stack and fixture rules |
 | [process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md) | Pre-coding checklist per slice |
+
+## Specs (quick links)
+
+| Doc | Role |
+|-----|------|
+| [specs/ui/UX_SPEC.md](specs/ui/UX_SPEC.md) | Scenarios S1–S9, static vs interactive, sync |
+| [specs/ui/FEATURE_MATRIX.md](specs/ui/FEATURE_MATRIX.md) | MVP vs Phase 2+ checklist |
+| [specs/architecture/COMPONENTS.md](specs/architecture/COMPONENTS.md) | Canonical models and Vue component catalog |
+| [specs/architecture/ARCHITECTURE.md](specs/architecture/ARCHITECTURE.md) | Packaging, adapters, data flow |
 
 ## Design sketches
 

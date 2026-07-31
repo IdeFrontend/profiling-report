@@ -52,7 +52,7 @@ Implement in this order unless a blocking dependency forces a temporary exceptio
 2. **Core parse** — [REP_FORMAT](../specs/formats/REP_FORMAT.md) + golden [`data/out.rep`](../../data/out.rep)
 3. **View-models** — [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md) (PIPE bars, report summary)
 4. **Swimlane model** — trace → `SwimlaneModel` ([ARCHITECTURE](../specs/architecture/ARCHITECTURE.md))
-5. **UI shell** — panels + interactions ([UI_OVERVIEW](../specs/ui/UI_OVERVIEW.md), [INTERACTIONS](../specs/ui/INTERACTIONS.md))
+5. **UI shell** — panels + interactions ([UI_OVERVIEW](../specs/ui/UI_OVERVIEW.md), [UX_SPEC](../specs/ui/UX_SPEC.md), [INTERACTIONS](../specs/ui/INTERACTIONS.md), [COMPONENTS](../specs/architecture/COMPONENTS.md))
 6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../research/SWIMLANE_IMPLEMENTATIONS.md))
 7. **MSTT host** — separate PR in `mstt` per [MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)
 

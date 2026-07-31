@@ -86,16 +86,16 @@ Fidelity of lane content depends on trace richness ([OPEN_QUESTIONS](../../conte
 | **Success** | User can point to hottest / coldest lanes |
 | **Sketches** | Util bars in `general.png`, `with_sidebar.png`, `swimlane.png` |
 
-### S5 — Drill into PIPE metrics (M for aside presence; field-list search P2-complete)
+### S5 — Drill into PIPE metrics (M for bars; searchable field list P2)
 
 | | |
 |--|--|
-| **Goal** | Inspect raw or searchable pipe counters |
-| **Trigger** | User needs more than bar chart (or switches aside to pipe details) |
-| **Steps** | Open pipe details mode; search/filter fields (e.g. `aic_mte3`); read values / NA |
-| **Success** | User finds a specific counter for the current report (and selection scope when defined) |
-| **Sketches** | `pipe_utilization.png`, `pipe_details.png` |
-| **Note** | MVP: PIPE occupancy bars required; full searchable field list is P2 unless delivered early with bars |
+| **Goal** | Inspect pipe occupancy at a glance (MVP); later drill into raw searchable counters |
+| **Trigger** | After S1; user needs more than bar chart (aside switches to pipe details) |
+| **Steps** | **MVP:** read PIPE occupancy bars in aside. **P2:** open pipe details mode; search/filter fields (e.g. `aic_mte3`); read values / NA |
+| **Success** | MVP: user ranks pipes by occupancy. P2: user finds a specific counter for the current report (and selection scope when defined) |
+| **Sketches** | Bars: `general.png`, `with_sidebar.png`. Field list: `pipe_utilization.png`, `pipe_details.png` |
+| **Components** | `PipeOccupancyPanel` (M); `PipeDetailsPanel` (P2) — see [COMPONENTS](../architecture/COMPONENTS.md) |
 
 ### S6 — Analyze memory paths (P2)
 
