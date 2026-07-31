@@ -2,6 +2,8 @@
 
 Interaction specification for the Timeline view. Sketch references are under `docs/specs/ui/`.
 
+For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
+
 ## Navigation
 
 | Input | Behavior | Phase |
