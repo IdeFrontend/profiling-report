@@ -6,22 +6,26 @@ MSTT (Huawei OP DevTools) visualizes operator profiling through an externally do
 
 Operators and toolkit teams want a **unified profiling UX** for OP development: a pypto-like swimlane timeline plus report analytics, delivered as a reusable component that MSTT can own and evolve without shipping the full Insight stack for the new report format.
 
+**“Unified UX” means shared swimlane/report components and format adapters** — not one uber-viewer that replaces Insight, swallows all PyPTO schedule features, and handles every on-disk format as a single product mode. See [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md).
+
 ## Goals
 
-1. Provide a **reusable Vue 3 library** that renders Ascend / CANN operator profiling reports (`.rep` / `.ncrep`).
+1. Provide a **reusable Vue 3 library** (shared UI + `.rep` adapter first) that renders Ascend / CANN operator profiling reports (`.rep` / `.ncrep`).
 2. Align visual and interaction patterns with **PyPTO swimlane** (timeline, lanes, zoom/pan, selection, detail panels) while matching the product sketches in [`docs/specs/ui/`](../specs/ui/).
 3. Integrate first into **MSTT** as a first-party webview panel, sibling to Insight — not injected into Insight iframes.
 4. Keep **msinsight** as the viewer for legacy **`.bin`** (and existing Insight JSON/DB workflows) until those formats are retired separately.
 5. Allow **copy-paste** of useful pieces from PyPTO; **do not** require changes to the pypto plugin for v1.
-6. Leave the door open for optional later reuse by **pypto-tools**, without committing to shared packages in pypto itself for now.
+6. Leave the door open for optional later reuse by **pypto-tools** via an adapter into the same canonical models, without requiring pypto changes for MVP.
 
 ## Non-goals (v1)
 
+- Building an **uber-viewer** that natively unifies Insight operator `.bin`, full PyPTO swimGraph feature surface, and `.rep` as one combinatorial component.
 - Replacing all MindStudio Insight modes (system Timeline, cluster Summary/Communication, serving, memory leaks).
 - Full PyPTO feature parity (PMU tabs, AICPU E2E mode, Mix/wrap, three-column compute-graph linkage, SQLite cache, `@pypto/data-compress`).
 - Publishing a sealed HTML webview bundle as the primary packaging form (see architecture: Vue library).
 - Depending on `sudu-editor` binaries or TeaVM toolchain.
 - Modifying pypto-tools, msinsight, or sudu-editor repositories as part of this project’s delivery.
+- Parsing Insight `.bin` inside this library.
 
 ## Consumers
 

@@ -60,6 +60,8 @@ Insight operator report semantics  +  PyPTO-like timeline UX
                  .rep  →  Vue library
 ```
 
+Semantic **overlap** (timed lanes, pipe util concepts, op identity) justifies a **shared Vue swimlane/report UI**. Semantic **differences** (instruction vs task vs pipe-busy grain; CSV packs vs schedule/PMU side files; Insight Source/Cache depth) justify **per-format adapters** into canonical models — not merging all on-disk formats into one uber component. Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) (shared UI + adapters).
+
 - **Aim to cover:** op identity, pipe utilization aggregates, memory/L2 aggregates, timed lane activity for a swimlane UI.
 - **Do not claim by default:** bit-parity with Insight instruction-level Source/Cache graphs or PyPTO AICPU/Mix/wrap schedule features.
 - **Sample gap:** current [`data/out.rep`](../../../data/out.rep) `trace.json` is pipe-state busy intervals, thinner than Insight’s instruction Gantt and thinner than many product sketches — fidelity tracked in open questions Q4/Q5/Q8.
