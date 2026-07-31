@@ -34,6 +34,27 @@ Start here: **[docs/README.md](docs/README.md)**
 python3 data/unpack_rep.py data/out.rep /tmp/out-rep
 ```
 
+## Demo (playground)
+
+Static playground demo is what Vercel deploys (`vercel.json` → `npm run build:demo` → `playground/dist`).
+
+Fixtures are synced from the repo into `playground/public/data/` via `npm run sync:demo-fixtures` (runs automatically before `dev` / `build:demo`):
+
+- `data/out.rep` → `/data/out.rep`
+- `tests/fixtures/out.trace.json` → `/data/out.trace.json`
+
+```bash
+npm run playground          # local SPA (syncs fixtures first)
+npm run build:demo          # production static build
+npm run preview:demo        # preview playground/dist
+```
+
+Fixture switcher: `?fixture=rep` (default) or `?fixture=trace`.
+
+Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
+
+Redeploys on every push to `master` via [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml) (Vercel Hobby cannot attach **private org** GitHub repos; Pro or a public repo would allow native Vercel Git integration instead).
+
 ## Status
 
 Documentation and specs are in place with [interim MVP defaults](docs/context/INTERIM_DECISIONS.md). **Milestone 1 scaffold** is green (`npm run ci`). **Milestone 2** adds failing feature specs (`npm run test:feature` / `test:e2e:feature`) — implement slices to make them green. See [tests/README.md](tests/README.md).

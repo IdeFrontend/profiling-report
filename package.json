@@ -19,9 +19,14 @@
     "dist"
   ],
   "scripts": {
+    "sync:demo-fixtures": "node scripts/sync-demo-fixtures.mjs",
+    "predev": "npm run sync:demo-fixtures",
     "dev": "vite --config playground/vite.config.ts --host 127.0.0.1 --port 5173",
     "playground": "npm run dev",
     "build": "vue-tsc -p tsconfig.lib.json --noEmit && vite build",
+    "prebuild:demo": "npm run sync:demo-fixtures",
+    "build:demo": "vite build --config playground/vite.config.ts",
+    "preview:demo": "vite preview --config playground/vite.config.ts --host 127.0.0.1 --port 4173",
     "typecheck": "vue-tsc -p tsconfig.lib.json --noEmit && vue-tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
