@@ -66,6 +66,8 @@ Logical names used in docs:
 | **swimlane** | Timeline renderer + lane layout; no VS Code APIs |
 | **ui** | Vue components composing the report shell |
 
+Normative inventory of models, adapters, renderer APIs, and Vue components (with design justifications): **[COMPONENTS.md](COMPONENTS.md)**.
+
 ## Data flow (v1: `.rep` adapter)
 
 The diagram below is the **first adapter path**. Other adapters would produce the same models and skip the `.rep`-specific parse.

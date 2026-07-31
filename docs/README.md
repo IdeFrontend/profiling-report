@@ -16,8 +16,9 @@ English documentation and specifications for the reusable Vue profiling-report l
 10. **[specs/ui/FEATURE_MATRIX.md](specs/ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
 11. **[specs/ui/INTERACTIONS.md](specs/ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
 12. **[specs/architecture/ARCHITECTURE.md](specs/architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
-13. **[specs/architecture/MSTT_INTEGRATION.md](specs/architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` beside Insight
-14. **[research/SWIMLANE_IMPLEMENTATIONS.md](research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
+13. **[specs/architecture/COMPONENTS.md](specs/architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
+14. **[specs/architecture/MSTT_INTEGRATION.md](specs/architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` beside Insight
+15. **[research/SWIMLANE_IMPLEMENTATIONS.md](research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
 ## Process
 
