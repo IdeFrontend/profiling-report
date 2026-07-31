@@ -9,7 +9,7 @@ English documentation and specifications for the reusable Vue profiling-report l
 3. **[process/DEVELOPMENT.md](process/DEVELOPMENT.md)** — top-down workflow: docs → specs → tests → code
 4. **[process/TESTING.md](process/TESTING.md)** — Vitest / Playwright pyramid, fixtures, matrix → test ids
 5. **[process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md)** — checklist before implementing a slice
-6. **[specs/formats/FORMATS_COMPARISON.md](specs/formats/FORMATS_COMPARISON.md)** — legacy Insight vs `.rep` vs PyPTO
+6. **[specs/formats/FORMATS_COMPARISON.md](specs/formats/FORMATS_COMPARISON.md)** — semantic data comparison: Insight operator vs `.rep` vs PyPTO
 7. **[specs/formats/REP_FORMAT.md](specs/formats/REP_FORMAT.md)** — CANN `.rep` / `.ncrep` container layout
 8. **[specs/formats/METRICS_AND_TRACE.md](specs/formats/METRICS_AND_TRACE.md)** — embedded CSVs and `trace.json`
 9. **[specs/ui/UI_OVERVIEW.md](specs/ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
