@@ -192,6 +192,7 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../specs/forma
 ## Related docs
 
 - [PROJECT_GOALS.md](PROJECT_GOALS.md) — product goals and non-goals
+- [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md) — NVIDIA Nsight analogues and competitor landscape
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — unresolved producer / fixture / formula questions
 - [UX_SPEC.md](../specs/ui/UX_SPEC.md) — scenarios S1–S9 and sync model
 - [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist

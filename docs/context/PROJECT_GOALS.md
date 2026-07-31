@@ -54,6 +54,7 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 ## Design references
 
 - Domain / users / glossary: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md)
+- Market / competitors (NVIDIA Nsight analogues): [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md)
 - UI sketches: [`docs/specs/ui/*.png`](../specs/ui/)
 - UX specification: [UX_SPEC.md](../specs/ui/UX_SPEC.md)
 - Feature phasing: [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md)
