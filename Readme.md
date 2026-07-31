@@ -11,6 +11,8 @@ Start here: **[docs/README.md](docs/README.md)**
 | Area | Entry |
 |------|--------|
 | Goals & context | [docs/context/PROJECT_GOALS.md](docs/context/PROJECT_GOALS.md) |
+| Development process | [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) (docs → specs → tests → code) |
+| Testing | [docs/process/TESTING.md](docs/process/TESTING.md) |
 | Data formats | [docs/specs/formats/FORMATS_COMPARISON.md](docs/specs/formats/FORMATS_COMPARISON.md) |
 | UI & MVP scope | [docs/specs/ui/FEATURE_MATRIX.md](docs/specs/ui/FEATURE_MATRIX.md) |
 | Architecture | [docs/specs/architecture/ARCHITECTURE.md](docs/specs/architecture/ARCHITECTURE.md) |
@@ -27,4 +29,4 @@ python3 data/unpack_rep.py data/out.rep /tmp/out-rep
 
 ## Status
 
-Documentation and sample data only. Library implementation is not started yet.
+Documentation, specs, process guides, and sample data. Library and test infrastructure are not scaffolded yet — see [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) for the next milestone.
