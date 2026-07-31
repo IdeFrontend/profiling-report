@@ -6,6 +6,8 @@ MSTT (Huawei OP DevTools) visualizes operator profiling through an externally do
 
 Operators and toolkit teams want a **unified profiling UX** for OP development: a pypto-like swimlane timeline plus report analytics, delivered as a reusable component that MSTT can own and evolve without shipping the full Insight stack for the new report format.
 
+Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
+
 **“Unified UX” means shared swimlane/report components and format adapters** — not one uber-viewer that replaces Insight, swallows all PyPTO schedule features, and handles every on-disk format as a single product mode. See [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md).
 
 ## Goals
@@ -51,6 +53,7 @@ Operators and toolkit teams want a **unified profiling UX** for OP development: 
 
 ## Design references
 
+- Domain / users / glossary: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md)
 - UI sketches: [`docs/specs/ui/*.png`](../specs/ui/)
 - UX specification: [UX_SPEC.md](../specs/ui/UX_SPEC.md)
 - Feature phasing: [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md)

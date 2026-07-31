@@ -11,6 +11,7 @@ Start here: **[docs/README.md](docs/README.md)**
 | Area | Entry |
 |------|--------|
 | Goals & context | [docs/context/PROJECT_GOALS.md](docs/context/PROJECT_GOALS.md) |
+| Domain & users | [docs/context/DOMAIN_AND_USERS.md](docs/context/DOMAIN_AND_USERS.md) (pain points, glossary, UX link) |
 | Open questions | [docs/context/OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) (blockers before complete specs) |
 | Development process | [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) (docs → specs → tests → code) |
 | Testing | [docs/process/TESTING.md](docs/process/TESTING.md) |
