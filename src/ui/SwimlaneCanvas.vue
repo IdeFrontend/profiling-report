@@ -41,7 +41,8 @@ function resize(): void {
   const wrap = wrapRef.value;
   const canvas = canvasRef.value;
   if (!wrap || !canvas) return;
-  const h = Math.max(120, props.lanes.length * LANE_HEIGHT || 120);
+  const contentH = Math.max(120, props.lanes.length * LANE_HEIGHT || 120);
+  const h = Math.max(contentH, wrap.clientHeight || 0);
   renderer.attach(canvas);
   renderer.resize(wrap.clientWidth, h);
   sync();
@@ -164,7 +165,9 @@ defineExpose({ eventScreenRect, renderer });
 <style scoped>
 .pr-swim-canvas-wrap {
   width: 100%;
-  overflow: hidden;
+  height: 100%;
+  min-height: 160px;
+  overflow: auto;
   background: #1a1a1a;
   border-radius: 2px;
 }

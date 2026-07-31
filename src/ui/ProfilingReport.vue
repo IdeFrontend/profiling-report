@@ -474,6 +474,8 @@ defineExpose({ selectEventById, viewState });
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+  height: 100%;
   min-height: 240px;
   padding: 12px;
   color: #e8e8e8;
@@ -486,6 +488,7 @@ defineExpose({ selectEventById, viewState });
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 0 0 auto;
 }
 
 .pr-title {
@@ -501,9 +504,10 @@ defineExpose({ selectEventById, viewState });
 
 .pr-layout {
   display: grid;
-  grid-template-columns: 1fr minmax(200px, 280px);
+  grid-template-columns: 1fr minmax(220px, 320px);
   gap: 12px;
-  min-height: 200px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .pr-layout--no-aside {
@@ -515,6 +519,7 @@ defineExpose({ selectEventById, viewState });
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  min-height: 0;
   background: var(--pr-bg-panel);
   border-radius: 4px;
   padding: 8px;
@@ -544,9 +549,11 @@ defineExpose({ selectEventById, viewState });
 
 .pr-swim-row {
   display: grid;
-  grid-template-columns: minmax(120px, 28%) 1fr;
+  grid-template-columns: minmax(140px, 22%) 1fr;
   gap: 8px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .pr-gutter {
@@ -554,6 +561,8 @@ defineExpose({ selectEventById, viewState });
   flex-direction: column;
   font-size: 11px;
   opacity: 0.9;
+  overflow: auto;
+  min-height: 0;
 }
 
 .pr-gutter__lane {
@@ -590,6 +599,8 @@ defineExpose({ selectEventById, viewState });
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+  overflow: auto;
 }
 
 .pr-panel {

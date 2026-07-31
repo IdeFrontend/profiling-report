@@ -36,41 +36,45 @@ onMounted(async () => {
 
 <template>
   <main class="playground">
-    <h1>profiling-report playground</h1>
-    <p class="playground__switch">
-      <a
-        href="/?fixture=rep"
-        data-testid="fixture-rep"
-      >out.rep</a>
-      ·
-      <a
-        href="/?fixture=trace"
-        data-testid="fixture-trace"
-      >out.trace.json</a>
-    </p>
-    <ProfilingReport
-      v-if="source"
-      :title="title"
-      :source="source"
-      locale="zh-CN"
-    />
-    <ProfilingReport
-      v-else
-      title="Loading fixture…"
-    />
-    <p
-      class="playground__note"
-      data-testid="playground-ready"
-    >
-      Status: {{ status }}. Fixture: {{ fixture }}.
-    </p>
-    <p
-      v-if="error"
-      class="playground__error"
-      data-testid="playground-error"
-    >
-      {{ error }}
-    </p>
+    <header class="playground__chrome">
+      <h1>profiling-report playground</h1>
+      <p class="playground__switch">
+        <a
+          href="/?fixture=rep"
+          data-testid="fixture-rep"
+        >out.rep</a>
+        ·
+        <a
+          href="/?fixture=trace"
+          data-testid="fixture-trace"
+        >out.trace.json</a>
+      </p>
+      <p
+        class="playground__note"
+        data-testid="playground-ready"
+      >
+        Status: {{ status }}. Fixture: {{ fixture }}.
+      </p>
+      <p
+        v-if="error"
+        class="playground__error"
+        data-testid="playground-error"
+      >
+        {{ error }}
+      </p>
+    </header>
+    <div class="playground__report">
+      <ProfilingReport
+        v-if="source"
+        :title="title"
+        :source="source"
+        locale="zh-CN"
+      />
+      <ProfilingReport
+        v-else
+        title="Loading fixture…"
+      />
+    </div>
   </main>
 </template>
 
@@ -79,20 +83,39 @@ html,
 body,
 #app {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
   background: #1e1e1e;
   color: #ddd;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
 .playground {
-  padding: 24px;
-  max-width: 1100px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  padding: 10px 12px;
+  gap: 8px;
+}
+
+.playground__chrome {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+}
+
+.playground__chrome h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .playground__switch {
-  margin: 0 0 12px;
-  font-size: 14px;
+  margin: 0;
+  font-size: 13px;
 }
 
 .playground__switch a {
@@ -100,13 +123,27 @@ body,
 }
 
 .playground__note {
-  margin-top: 16px;
-  font-size: 14px;
-  opacity: 0.8;
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.75;
 }
 
 .playground__error {
+  margin: 0;
   color: #f88;
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.playground__report {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+
+.playground__report > * {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
 }
 </style>
