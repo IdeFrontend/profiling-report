@@ -6,6 +6,7 @@ Complete user-experience specification for the Ascend OP profiling report viewer
 
 | Doc | Role |
 |-----|------|
+| [DOMAIN_AND_USERS.md](../../context/DOMAIN_AND_USERS.md) | Who the user is, pain points, glossary |
 | [UI_OVERVIEW.md](UI_OVERVIEW.md) | Layout regions |
 | [INTERACTIONS.md](INTERACTIONS.md) | Low-level gestures and pointer rules |
 | [FEATURE_MATRIX.md](FEATURE_MATRIX.md) | MVP vs Phase 2+ feature checklist |
@@ -21,7 +22,7 @@ Sketch filenames below are relative to `docs/specs/ui/`.
 
 ### User
 
-Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later similar Vue hosts). Goal: understand where time goes on AI Core pipes, whether utilization is balanced, and which intervals dominate latency.
+Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later similar Vue hosts). Goal: understand where time goes on AI Core pipes, whether utilization is balanced, and which intervals dominate latency. Full domain narrative, pain points, and glossary: [DOMAIN_AND_USERS.md](../../context/DOMAIN_AND_USERS.md).
 
 ### In scope
 

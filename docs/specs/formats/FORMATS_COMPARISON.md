@@ -88,6 +88,7 @@ Performance results tree file click
 
 ## Related docs
 
+- [DOMAIN_AND_USERS.md](../../context/DOMAIN_AND_USERS.md) — OP developer context, pain points, glossary
 - [REP_FORMAT.md](REP_FORMAT.md) — container binary layout
 - [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.rep` embeds → UI panels
 - [OPEN_QUESTIONS.md](../../context/OPEN_QUESTIONS.md) — Q4–Q9 fidelity and metadata gaps
