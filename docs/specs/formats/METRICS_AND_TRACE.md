@@ -27,7 +27,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | Embedded file | Feeds (MVP) | Feeds (Phase 2+) |
 |---------------|-------------|------------------|
 | `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
-| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization %; Cube/Vector overview (from ratios) | Pipe details list (`pipe_utilization.png`, `pipe_details.png`) |
+| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter | Searchable pipe field list (`pipe_utilization.png`, `pipe_details.png`) |
 | `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
 | `Memory.csv` | Optional summary bandwidth tiles | Memory topology diagram + field drill-down |
 | `MemoryL0.csv` | — | L0 path details on memory diagram |
@@ -73,7 +73,9 @@ Important AIV columns (sample is vector-heavy):
 
 AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cube / FixPipe bars when present.
 
-**MVP aggregation:** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), average or max ratio across `block_id` rows (product choice; document choice in implementation). Display as horizontal bars matching sketch colors.
+**MVP aggregation (default until [Q6](../../context/OPEN_QUESTIONS.md) says otherwise):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching sketch colors.
+
+**Overview Cube/Vector charts** are **not** taken directly from these per-block CSV ratios. They require `OverviewSeries` time-series points ([COMPONENTS](../architecture/COMPONENTS.md)); how to derive them is open ([Q5](../../context/OPEN_QUESTIONS.md)). If no series are produced, hide the charts ([UX_SPEC](../ui/UX_SPEC.md)).
 
 ---
 

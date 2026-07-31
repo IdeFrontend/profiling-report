@@ -15,7 +15,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 | Zoom to fit | Fit full `[minTime, maxTime]` in view | MVP |
 | Click lane header expand/collapse | Toggle children | MVP |
 
-Gesture details may follow PyPTO swimlane (W/S zoom, A/D pan) as optional shortcuts in Phase 2.
+**MVP gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, drag pan, toolbar zoom / zoom-to-fit (table above). PyPTO keyboard shortcuts (W/S zoom, A/D pan) are **Phase 2** unless [Q19](../../context/OPEN_QUESTIONS.md) resolves otherwise — do not treat them as MVP parity.
 
 ## Hover
 

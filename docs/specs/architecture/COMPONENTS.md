@@ -28,7 +28,11 @@ ProfilingReport
 │  │  └─ SwimlaneCanvas  →  SwimlaneRenderer
 │  ├─ StatsAside
 │  │  ├─ StatsSummaryPanel
-│  │  └─ PipeOccupancyPanel
+│  │  ├─ PipeOccupancyPanel
+│  │  ├─ PipeDetailsPanel (P2)
+│  │  ├─ RooflinePanel (P2)
+│  │  ├─ HardwareDetailsPanel (P2)
+│  │  └─ MemoryTopologyPanel (P2)
 │  └─ DetailStrip
 └─ EventTooltip (overlay)
 ```
@@ -47,9 +51,9 @@ ProfilingReport
 
 ### `SwimlaneModel` (M)
 
-Root timeline document: `processes[]`, `minTime`, `maxTime`, optional `metadata`.
+Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), optional `metadata`.
 
-**Why:** Single contract for every adapter. Shared swimlane UI and renderer depend only on this shape ([ARCHITECTURE](ARCHITECTURE.md)).
+**Why:** Single contract for every adapter. Shared swimlane UI and renderer depend only on this shape ([ARCHITECTURE](ARCHITECTURE.md)). Adapters convert CSV µs / Chrome Trace units into ns before UI.
 
 ### `SwimProcess` / `SwimThread` / `SwimEvent` (M)
 
@@ -184,7 +188,7 @@ Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced wit
 
 ### `TimeAxis` (M)
 
-Millisecond ticks and playhead aligned to `SwimlaneViewState` time window.
+Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**; **MVP display** uses millisecond labels (sketches). Other units / clock-cycle mode → P2 ([Q14](../../context/OPEN_QUESTIONS.md)).
 
 **Why:** Shared alignment for overview charts and swimlane; playhead per INTERACTIONS.
 
@@ -192,7 +196,7 @@ Millisecond ticks and playhead aligned to `SwimlaneViewState` time window.
 
 Renders `OverviewSeries` (Cube/Vector); **hidden** when empty.
 
-**Why:** MVP feature in sketches; empty state avoids blocking on unresolved series math (Q5).
+**Why:** MVP feature in sketches; hiding when empty avoids blocking on unresolved series math (Q5).
 
 ### `SwimlaneCanvas` (M)
 
@@ -223,6 +227,12 @@ Cards from `SummaryMetrics`.
 Horizontal bars from `PipeOccupancyItem[]`.
 
 **Why:** Highest-value `.rep` analytics panel in sketches; data from `PipeUtilization.csv` via adapter.
+
+### `PipeDetailsPanel` (P2)
+
+Searchable list of raw `PipeUtilization` fields (per sketch `pipe_details.png` / `pipe_utilization.png`).
+
+**Why:** Separates MVP bars ([UX S5](../ui/UX_SPEC.md)) from Phase 2 field-list drill-down; capability may gate later if needed.
 
 ### `RooflinePanel` (P2)
 
@@ -271,6 +281,7 @@ Pin/context actions and multi-select aggregate table.
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — packaging and adapter strategy
 - [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs P2 features
+- [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios and sync model
 - [INTERACTIONS.md](../ui/INTERACTIONS.md) — hover/select/zoom behavior
 - [METRICS_AND_TRACE.md](../formats/METRICS_AND_TRACE.md) — `.rep` embeds → report model fields
 - [SWIMLANE_IMPLEMENTATIONS.md](../../research/SWIMLANE_IMPLEMENTATIONS.md) — Canvas vs WebGL

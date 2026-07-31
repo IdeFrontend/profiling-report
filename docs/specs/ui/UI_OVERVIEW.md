@@ -46,7 +46,7 @@ Primary overview sketches: `general.png`, `with_sidebar.png`, `swimlane.png`.
 - Vertical playhead / scrubber with precise timestamp (e.g. `00:06.456`)
 - **统计分析**: stacked area/line charts for **Cube** (blue) and **Vector** (teal), time-aligned with the swimlane
 
-**MVP:** time axis + zoom-linked overview charts when metrics allow; otherwise hide charts or show empty state.
+**MVP:** time axis + zoom-linked overview charts when `OverviewSeries` is present; otherwise **hide** the chart region (no empty chart chrome). See [UX_SPEC](UX_SPEC.md) / [Q5](../../context/OPEN_QUESTIONS.md).
 
 ### 3. Left lane hierarchy
 
@@ -73,14 +73,15 @@ Visual language should feel close to PyPTO swimlane (dark gutter, dense bars, id
 
 Modes observed in sketches:
 
-| Mode | Sketch | Content |
-|------|--------|---------|
-| Report statistics | `general.png`, `with_sidebar.png` | HW blurb, total time, compute, I/O BW, avg core util; Roofline; PIPE bars |
-| Hardware details | `sidebar_details.png` | Host CPU, NPU chip, AI Core counts, HBM |
-| Pipe field list | `pipe_utilization.png`, `pipe_details.png` | Searchable PipeUtilization columns |
-| Memory analysis | `memory_chart.png`, `memory_details.png` | Topology diagram + Memory.csv fields |
+| Mode | Sketch | Content | Phase |
+|------|--------|---------|------:|
+| Report statistics | `general.png`, `with_sidebar.png` | Total time, compute, I/O BW, avg core util; PIPE bars | M |
+| Roofline (within stats aside or sibling) | `general.png`, `with_sidebar.png` | Log-log bottleneck chart | P2 |
+| Hardware details | `sidebar_details.png` | Host CPU, NPU chip, AI Core counts, HBM | P2 |
+| Pipe field list | `pipe_utilization.png`, `pipe_details.png` | Searchable PipeUtilization columns | P2 |
+| Memory analysis | `memory_chart.png`, `memory_details.png` | Topology diagram + Memory.csv fields | P2 |
 
-**MVP:** Report statistics summary + PIPE occupancy bars. Roofline, hardware, memory diagram, raw field lists → Phase 2+.
+**MVP:** Report statistics summary + PIPE occupancy bars only. Roofline, hardware, memory diagram, and raw field lists → Phase 2+ (see [UX_SPEC.md](UX_SPEC.md), [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
 
 ### 6. Bottom / selection details
 

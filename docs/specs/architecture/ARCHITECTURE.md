@@ -46,16 +46,17 @@ Adapters must not call `useViewServer()`, `window.vscode`, or host routers. Capa
 
 ## Single package, internal modules
 
-Prefer one publishable package with clear folders (can split later if needed):
+Prefer **one package at the repo root** (matches [DEVELOPMENT.md](../../process/DEVELOPMENT.md)); split into a `packages/` workspace later only if publishing requires it:
 
 ```text
 profiling-report/
-  packages/profiling-report/          # or repo root src/ when implementation starts
-    src/
-      core/           # adapters: .rep first (parse → models); room for more adapters later
-      swimlane/       # renderer (Canvas and/or WebGL) + swimlane Vue wrapper
-      ui/             # ReportShell, StatsPanel, PipePanel, DetailStrip, …
-      index.ts        # public exports
+  src/
+    core/           # adapters: .rep first (parse → models); room for more adapters later
+    swimlane/       # renderer (Canvas and/or WebGL) + swimlane Vue wrapper
+    ui/             # ProfilingReport, panels, …
+    index.ts        # public exports
+  playground/       # Vite demo / Playwright target
+  tests/
 ```
 
 Logical names used in docs:
@@ -79,7 +80,7 @@ flowchart LR
   RepAdapter --> Trace["trace.json"]
   CSVs --> ViewModel["ReportViewModel"]
   Trace --> SwimModel["SwimlaneModel"]
-  ViewModel --> VueUI["ui: ReportShell"]
+  ViewModel --> VueUI["ui: ProfilingReport"]
   SwimModel --> Swimlane["swimlane: Vue + renderer"]
   VueUI --> Host["MSTT webview panel"]
   Swimlane --> VueUI
@@ -99,7 +100,7 @@ flowchart LR
 - Run the selected adapter (v1: `.rep`)
 - Build canonical view-models
 - Render shared swimlane and panels according to capabilities
-- Emit events: `ready`, `select`, `error`, `configChange`
+- Emit events: `ready`, `select`, `error` (canonical set in [COMPONENTS.md](COMPONENTS.md); host persistence of zoom/selection is optional via props/state, not a required `configChange` emit)
 
 ### Suggested public API (illustrative)
 
@@ -111,7 +112,7 @@ interface ProfilingReportProps {
   reportModel?: ReportViewModel;
   theme?: 'light' | 'dark';
   locale?: string;
-  capabilities?: ReportCapability[]; // e.g. 'dependencies' | 'roofline'
+  capabilities?: ReportCapability[]; // see COMPONENTS.md for full union
 }
 
 // Emits
@@ -178,7 +179,7 @@ See [SWIMLANE_IMPLEMENTATIONS.md](../../research/SWIMLANE_IMPLEMENTATIONS.md).
 
 - Golden unpack of `data/out.rep`
 - Unit tests for head/file-info parsing and adapter → model mapping
-- Component fixture: load sample bytes in Storybook or Vite demo app (implementation phase)
+- Component / e2e fixture: load sample bytes in the Vite **playground** ([TESTING.md](../../process/TESTING.md))
 
 ## Copy-paste policy
 

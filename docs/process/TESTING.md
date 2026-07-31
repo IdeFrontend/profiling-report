@@ -13,7 +13,7 @@ Automated verification for profiling-report. Complements [DEVELOPMENT.md](DEVELO
 | Layer | Tool | Role |
 |-------|------|------|
 | Unit | **Vitest** | `.rep` parse, CSV parse, aggregations, Trace → `SwimlaneModel`, layout math |
-| Component | **Vitest + Vue Test Utils** (+ happy-dom or jsdom) | `ReportShell`, stats/PIPE panels, selection emits |
+| Component | **Vitest + Vue Test Utils** (+ happy-dom or jsdom) | `ProfilingReport`, stats/PIPE panels, selection emits |
 | E2E | **Playwright** vs Vite **playground** | Load report, zoom/pan smoke, hover tooltip, select → detail |
 | Visual (Phase 2) | Playwright screenshots | Optional baselines for swimlane frames |
 | Lint / types | ESLint + `vue-tsc` (when scaffolded) | Static checks in CI before tests |
@@ -39,8 +39,8 @@ Prefer unit tests for anything that does not need DOM or Canvas. Prefer componen
 **In scope (this repo)**
 
 - Playground mounts the library with `data/out.rep` (or fixture bytes)
-- Timeline visible; zoom/pan smoke; hover tooltip; single select → detail strip
-- Smoke that PIPE / summary panels render without crash
+- Timeline visible; zoom/pan smoke; hover tooltip; single select → detail strip (maps to [UX_SPEC](../specs/ui/UX_SPEC.md) scenarios S1–S3)
+- Smoke that PIPE / summary panels render without crash (S1 / S4 bars; not S5 field list)
 
 **Out of scope (v1 CI)**
 
@@ -76,16 +76,16 @@ PR-FMT-002   embed list matches out.rep
 PR-VM-001    OpBasicInfo → summary fields
 PR-VM-002    PipeUtilization → PIPE bar model
 PR-SWIM-001  trace.json → processes/threads/events
-PR-UI-001    ReportShell renders with fixture
+PR-UI-001    ProfilingReport renders with fixture
 PR-UI-002    select event emits detail payload
-PR-E2E-001   playground loads out.rep
-PR-E2E-002   hover shows tooltip
-PR-E2E-003   click selects event
+PR-E2E-001   playground loads out.rep          (UX S1)
+PR-E2E-002   hover shows tooltip               (UX S3)
+PR-E2E-003   click selects event               (UX S3)
 ```
 
 Put the id in the test title, e.g. `it('PR-E2E-002: hover shows tooltip', …)`.
 
-Maintain a short checklist in the PR or in `tests/README.md` (when scaffolded) listing matrix feature → test id(s). Phase 2 (P2) features may land without e2e until that phase starts, but must not be marked M without tests.
+Maintain a short checklist in the PR or in `tests/README.md` (when scaffolded) listing matrix feature → test id(s), and optionally UX scenario ids (S1–S9). Phase 2 (P2) features may land without e2e until that phase starts, but must not be marked M without tests.
 
 ## CI gate
 

@@ -31,12 +31,12 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Time axis (ms) + playhead | M | |
-| Cube / Vector overview charts | M | Hide if no data |
+| Time axis + playhead | M | Canonical times in **ns**; axis labels default to **ms** (sketches). Unit switching → P2 / [Q14](../../context/OPEN_QUESTIONS.md) |
+| Cube / Vector overview charts | M | Hide if no `OverviewSeries` (Q5); not derived from PipeUtilization ratios alone |
 | Hierarchical lane gutter + util bars | M | Collapse to available lanes |
 | Colored event rectangles | M | |
 | Event labels when wide enough | M | |
-| Zoom / pan (wheel, drag) | M | Align with PyPTO gestures where practical |
+| Zoom / pan (wheel, drag, slider) | M | See [INTERACTIONS](INTERACTIONS.md); PyPTO W/S/A/D shortcuts → P2 ([Q19](../../context/OPEN_QUESTIONS.md)) |
 | ProfilerStep background bands | P2 | Needs data |
 | Dependency bezier links | P2 | `swimlane_selection.png` |
 | Pin lane / context menu | P2 | `swimlane_context_menu.png` |
@@ -61,7 +61,8 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Roofline bottleneck chart | P2 | `general.png` |
 | Hardware info details | P2 | `sidebar_details.png` |
 | Memory topology diagram | P2 | `memory_chart.png` |
-| Memory / pipe raw field lists | P2 | `memory_details.png`, `pipe_details.png` |
+| Pipe raw field list (searchable) | P2 | `pipe_utilization.png`, `pipe_details.png` — MVP keeps bars only ([UX S5](UX_SPEC.md)) |
+| Memory raw field list | P2 | `memory_details.png` |
 | L2 / cache analytics | P2 | Cache tab + L2Cache.csv |
 
 ## Selection details

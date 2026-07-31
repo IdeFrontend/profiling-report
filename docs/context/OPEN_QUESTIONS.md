@@ -2,7 +2,7 @@
 
 Status values: **Open** | **Proposed** | **Resolved** (link the resolving spec when Resolved).
 
-Answers must update the relevant specs ([REP_FORMAT](../specs/formats/REP_FORMAT.md), [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md), etc.). Do not leave permanent TBDs only in code.
+Answers must update the relevant specs ([REP_FORMAT](../specs/formats/REP_FORMAT.md), [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md), [UX_SPEC](../specs/ui/UX_SPEC.md), [COMPONENTS](../specs/architecture/COMPONENTS.md), etc.). Do not leave permanent TBDs only in code.
 
 ## Why specs are incomplete
 
@@ -36,12 +36,12 @@ Please provide:
 |----|----------|--------|-------------------------------|
 | **Q1** | **Producer of `.rep` / `.ncrep`.** Which tool/version writes the container (msprof? another CANN tool)? Is there an existing normative producer document we must align with, or is [REP_FORMAT](../specs/formats/REP_FORMAT.md) the first normative write-up? | Open | REP_FORMAT, FORMATS_COMPARISON |
 | **Q2** | **`.ncrep` vs `.rep`.** Same magic/layout forever, or planned divergence (version field, required embeds)? Who owns product extension naming? | Open | REP_FORMAT, FORMATS_COMPARISON, MSTT_INTEGRATION |
-| **Q3** | **Required embeds.** Minimum file set to open Timeline successfully (`trace.json` only? + `OpBasicInfo` + `PipeUtilization`?). Behavior when optional CSVs are missing (hide panels vs hard error). | Open | REP_FORMAT, METRICS_AND_TRACE, FEATURE_MATRIX |
-| **Q4** | **Authoritative MVP fixture.** Will product traces look like the sketches (multi-core Cube/Vec instruction lanes, named ops, ProfilerStep, deps) or like `out.rep` (pipe busy intervals)? Need a representative golden for UI/data mapping; current sample is insufficient for sketch-faithful specs. | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, TESTING |
-| **Q5** | **Cube/Vector overview charts data source.** Sketches show **time-series** area charts; CSVs are **per-block aggregates**. Derive from trace busy intervals, from a missing time-series embed, or drop/simplify for MVP? | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX |
-| **Q6** | **Report summary formulas.** Exact definitions for compute power (e.g. sketch values like 172/320 TFLOPS), I/O bandwidth tiles, avg core util % — which columns, and which aggregation (mean vs max across `block_id`)? | Open | METRICS_AND_TRACE, UI_OVERVIEW |
-| **Q7** | **Hardware details sidebar source.** Host CPU, NPU chip (`Ascend950…`), HBM are not in sample `.rep`. Separate embed? Host-injected metadata? Phase 2 only? | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, ARCHITECTURE |
-| **Q8** | **Lane hierarchy mapping.** Rules from Chrome Trace `thread_name` / pid/tid → `CoreN.Cube` / pipe children. Fixed producer naming convention, or viewer heuristics? | Open | METRICS_AND_TRACE, UI_OVERVIEW, ARCHITECTURE |
+| **Q3** | **Required embeds.** Minimum file set to open Timeline successfully (`trace.json` only? + `OpBasicInfo` + `PipeUtilization`?). Behavior when optional CSVs are missing (hide panels vs hard error). | Open | REP_FORMAT, METRICS_AND_TRACE, FEATURE_MATRIX, COMPONENTS |
+| **Q4** | **Authoritative MVP fixture.** Will product traces look like the sketches (multi-core Cube/Vec instruction lanes, named ops, ProfilerStep, deps) or like `out.rep` (pipe busy intervals)? Need a representative golden for UI/data mapping; current sample is insufficient for sketch-faithful specs. | Open | METRICS_AND_TRACE, UI_OVERVIEW, UX_SPEC, FEATURE_MATRIX, TESTING |
+| **Q5** | **Cube/Vector overview charts data source.** Sketches show **time-series** area charts; CSVs are **per-block aggregates**. Derive from trace busy intervals, from a missing time-series embed, or drop/simplify for MVP? Specs already say: populate `OverviewSeries` or hide charts — not derive from PipeUtilization ratios alone. | Open | METRICS_AND_TRACE, UI_OVERVIEW, UX_SPEC, FEATURE_MATRIX, COMPONENTS |
+| **Q6** | **Report summary formulas.** Exact definitions for compute power (e.g. sketch values like 172/320 TFLOPS), I/O bandwidth tiles, avg core util % — which columns, and which aggregation (mean vs max across `block_id`)? **PIPE bars:** docs default to mean of non-`NA` until answered. | Open | METRICS_AND_TRACE, UI_OVERVIEW, COMPONENTS |
+| **Q7** | **Hardware details sidebar source.** Host CPU, NPU chip (`Ascend950…`), HBM are not in sample `.rep`. Separate embed? Host-injected metadata? Phase 2 only? | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, UX_SPEC, ARCHITECTURE, COMPONENTS |
+| **Q8** | **Lane hierarchy mapping.** Rules from Chrome Trace `thread_name` / pid/tid → `CoreN.Cube` / pipe children. Fixed producer naming convention, or viewer heuristics? | Open | METRICS_AND_TRACE, UI_OVERVIEW, UX_SPEC, ARCHITECTURE, COMPONENTS |
 
 ---
 
@@ -49,12 +49,12 @@ Please provide:
 
 | ID | Question | Status | Specs to update when resolved |
 |----|----------|--------|-------------------------------|
-| **Q9** | **Dependencies encoding.** Field names in `trace.json` args (or side file) for predecessors/successors; or explicitly out of scope until the producer defines it. | Open | METRICS_AND_TRACE, INTERACTIONS, FEATURE_MATRIX |
-| **Q10** | **Source / Details / Cache tabs.** Data contracts (BIN? paths in event args? L2Cache only?). Relationship to keeping Insight for `.bin`. | Open | FEATURE_MATRIX, MSTT_INTEGRATION, FORMATS_COMPARISON |
-| **Q11** | **Roofline.** Axes, peak lines, how points (`Vec_FP32`, …) are computed from `ArithmeticUtilization` (+ Memory?). | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX |
-| **Q12** | **Memory topology.** Which CSV fields map to which diagram edges; static diagram vs data-driven thicknesses. | Open | METRICS_AND_TRACE, UI_OVERVIEW |
-| **Q13** | **Color / category legend.** Normative colors for Cube/Vector/MTE/FixP/Scalar and event types (match sketches vs MSTT theme tokens). | Open | UI_OVERVIEW, ARCHITECTURE |
-| **Q14** | **Time units UX.** Default display ns vs µs vs ms; clock-cycle mode — frequency from where (`OpBasicInfo` Current Freq?)? | Open | INTERACTIONS, UI_OVERVIEW, METRICS_AND_TRACE |
+| **Q9** | **Dependencies encoding.** Field names in `trace.json` args (or side file) for predecessors/successors; or explicitly out of scope until the producer defines it. | Open | METRICS_AND_TRACE, INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS |
+| **Q10** | **Source / Details / Cache tabs.** Data contracts (BIN? paths in event args? L2Cache only?). Relationship to keeping Insight for `.bin`. | Open | FEATURE_MATRIX, UX_SPEC, MSTT_INTEGRATION, FORMATS_COMPARISON |
+| **Q11** | **Roofline.** Axes, peak lines, how points (`Vec_FP32`, …) are computed from `ArithmeticUtilization` (+ Memory?). | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, COMPONENTS |
+| **Q12** | **Memory topology.** Which CSV fields map to which diagram edges; static diagram vs data-driven thicknesses. | Open | METRICS_AND_TRACE, UI_OVERVIEW, UX_SPEC, COMPONENTS |
+| **Q13** | **Color / category legend.** Normative colors for Cube/Vector/MTE/FixP/Scalar and event types (match sketches vs MSTT theme tokens). | Open | UI_OVERVIEW, ARCHITECTURE, COMPONENTS |
+| **Q14** | **Time units UX.** Default display ns vs µs vs ms; clock-cycle mode — frequency from where (`OpBasicInfo` Current Freq?)? | Open | INTERACTIONS, UI_OVERVIEW, UX_SPEC, METRICS_AND_TRACE |
 | **Q15** | **MSTT `.json` policy.** Always Insight, or Chrome Trace `.json` → profiling-report? | Open | FORMATS_COMPARISON, MSTT_INTEGRATION |
 
 ---
@@ -63,10 +63,10 @@ Please provide:
 
 | ID | Question | Status | Specs to update when resolved |
 |----|----------|--------|-------------------------------|
-| **Q16** | **Package identity.** npm package name, license for *this* repo, publish to registry vs MSTT workspace path dependency. | Open | ARCHITECTURE, PROJECT_GOALS, root Readme |
-| **Q17** | **Design system.** Ant Design Vue (MSTT-aligned) vs custom CSS matching sketches; i18n default locale (zh-CN vs en). | Open | UI_OVERVIEW, ARCHITECTURE, PROJECT_GOALS |
+| **Q16** | **Package identity.** npm package name, license for *this* repo, publish to registry vs MSTT workspace path dependency. Default layout until answered: **repo-root** `src/` (not `packages/` workspace). | Open | ARCHITECTURE, PROJECT_GOALS, DEVELOPMENT, root Readme |
+| **Q17** | **Design system.** Ant Design Vue (MSTT-aligned) vs custom CSS matching sketches; i18n default locale (zh-CN vs en). | Open | UI_OVERVIEW, UX_SPEC, ARCHITECTURE, PROJECT_GOALS |
 | **Q18** | **PyPTO copy-paste license clearance.** Confirm CANN OSL / internal policy before treating “copy render helpers” as an official approach. | Open | DEVELOPMENT, SWIMLANE_IMPLEMENTATIONS, ARCHITECTURE |
-| **Q19** | **Gesture parity.** Must MVP match PyPTO shortcuts (W/S/A/D) or only wheel/slider? | Open | INTERACTIONS, FEATURE_MATRIX |
+| **Q19** | **Gesture parity.** Must MVP match PyPTO shortcuts (W/S/A/D) or only wheel/slider? Specs currently: wheel/slider/drag = MVP; W/S/A/D = P2. | Open | INTERACTIONS, UX_SPEC, FEATURE_MATRIX |
 | **Q20** | **Cursor skills / agent rules.** Which skills to add (e.g. update FEATURE_MATRIX + test ids when changing MVP; never code before Ready checklist)? | Open | process docs, `.cursor` skills/rules |
 | **Q21** | **Acceptance owner.** Who signs off P0 answers (OP tooling? frontend? profiling backend)? | Open | PROJECT_GOALS, this file |
 
