@@ -5,28 +5,74 @@ import { ProfilingReport } from '../src/index';
 const status = ref('loading');
 const source = shallowRef<ArrayBuffer | undefined>(undefined);
 const error = ref<string | null>(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const openedName = ref<string | null>(null);
+const loadToken = ref(0);
 
-const fixture = computed(() => {
+const queryFixture = computed((): 'rep' | 'trace' => {
   if (typeof window === 'undefined') return 'rep';
   return new URLSearchParams(window.location.search).get('fixture') === 'trace'
     ? 'trace'
     : 'rep';
 });
 
-const title = computed(() =>
-  (fixture.value === 'trace' ? 'out.trace.json' : 'out.rep'),
-);
+const title = computed(() => {
+  if (openedName.value) return openedName.value;
+  return queryFixture.value === 'trace' ? 'out.trace.json' : 'out.rep';
+});
+
+async function loadUrl(url: string): Promise<void> {
+  status.value = 'loading';
+  error.value = null;
+  source.value = undefined;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${url}: ${res.status}`);
+  }
+  source.value = await res.arrayBuffer();
+  loadToken.value += 1;
+  status.value = 'ready';
+}
+
+async function loadFixture(kind: 'rep' | 'trace'): Promise<void> {
+  openedName.value = null;
+  const url = kind === 'trace' ? '/data/out.trace.json' : '/data/out.rep';
+  await loadUrl(url);
+}
+
+function onOpenFileClick(e: MouseEvent): void {
+  e.preventDefault();
+  fileInputRef.value?.click();
+}
+
+async function onFileChosen(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+
+  status.value = 'loading';
+  error.value = null;
+  source.value = undefined;
+  try {
+    source.value = await file.arrayBuffer();
+    openedName.value = file.name;
+    loadToken.value += 1;
+    status.value = 'ready';
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('fixture');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+    status.value = 'error';
+  }
+}
 
 onMounted(async () => {
   try {
-    const url =
-      fixture.value === 'trace' ? '/data/out.trace.json' : '/data/out.rep';
-    const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`Failed to fetch ${url}: ${res.status}`);
-    }
-    source.value = await res.arrayBuffer();
-    status.value = 'ready';
+    await loadFixture(queryFixture.value);
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e);
     status.value = 'error';
@@ -47,12 +93,25 @@ onMounted(async () => {
           href="/?fixture=trace"
           data-testid="fixture-trace"
         >out.trace.json</a>
+        <a
+          href="#"
+          data-testid="open-file"
+          @click="onOpenFileClick"
+        >Open file…</a>
+        <input
+          ref="fileInputRef"
+          class="playground__file"
+          type="file"
+          accept=".rep,.ncrep,.json,application/json,application/octet-stream"
+          data-testid="open-file-input"
+          @change="onFileChosen"
+        >
       </div>
       <p
         class="playground__note"
         data-testid="playground-ready"
       >
-        {{ status }} · {{ fixture }}
+        {{ status }} · {{ title }}
       </p>
       <p
         v-if="error"
@@ -65,6 +124,7 @@ onMounted(async () => {
     <div class="playground__report">
       <ProfilingReport
         v-if="source"
+        :key="loadToken"
         :title="title"
         :source="source"
         locale="zh-CN"
@@ -126,6 +186,18 @@ body,
 
 .playground__left a {
   color: #8ab4ff;
+}
+
+.playground__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .playground__note {
