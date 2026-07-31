@@ -39,10 +39,12 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 
 ## Success criteria (MVP)
 
+Under [INTERIM_DECISIONS](INTERIM_DECISIONS.md) until Product/data spec completes:
+
 - Unpack and interpret sample [`data/out.rep`](../../data/out.rep) (CSVs + Chrome Trace).
-- Render timeline swimlane with hierarchical lanes, time axis, zoom/pan, hover tooltip, and single-event selection details.
-- Show report summary stats and PIPE occupancy derived from embedded CSVs.
-- MSTT can open a `.rep` / `.ncrep` file into a profiling-report panel while `.bin` continues to open Insight.
+- Render timeline swimlane with hierarchical lanes (producer names), time axis, zoom/pan, hover tooltip, and single-event selection details.
+- Show thin report summary (op identity + duration) and PIPE occupancy when CSV data exists; hide undecidable tiles and overview charts without series.
+- MSTT can open `.rep` / `.ncrep` / Chrome Trace `.json` into a profiling-report panel while `.bin` continues to open Insight.
 
 ## Phasing
 
@@ -55,7 +57,11 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 
 - Domain / users / glossary: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md)
 - Market / competitors (NVIDIA Nsight analogues): [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md)
+- Packaging proposals (Q16–Q19): [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md)
+- **Interim MVP defaults:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) (not Product-final)
 - UI sketches: [`docs/specs/ui/*.png`](../specs/ui/)
+- Color tokens: [COLOR_TOKENS.md](../specs/ui/COLOR_TOKENS.md)
+- View data requirements: [VIEW_DATA_REQUIREMENTS.md](../specs/formats/VIEW_DATA_REQUIREMENTS.md)
 - UX specification: [UX_SPEC.md](../specs/ui/UX_SPEC.md)
 - Feature phasing: [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md)
 - Components & models: [COMPONENTS.md](../specs/architecture/COMPONENTS.md)

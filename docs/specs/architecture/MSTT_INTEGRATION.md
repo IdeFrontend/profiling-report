@@ -8,7 +8,7 @@ How the profiling-report Vue library plugs into Huawei OP DevTools (`mstt`) besi
 |-----------|--------|
 | `.csv` | Existing `CsvEditorProvider` |
 | `.bin` | **MindStudio Insight** (`InsightDataViewerPanel` + `profiler_server`) — unchanged |
-| `.json` | Insight today (revisit later if pure Chrome Trace should open profiling-report) |
+| `.json` | **profiling-report** when the file is Chrome Trace (same swimlane path as embedded `trace.json`; analytics aside hidden without CSV pack). Non-trace JSON policy: host decides; default do not send opaque Insight JSON here. |
 | `.rep` / `.ncrep` | **profiling-report** panel (new) |
 
 Do **not** inject the library into Insight iframes. Insight remains a sealed third-party shell.
@@ -37,7 +37,7 @@ Relevant existing MSTT touchpoints (paths may drift; search symbols):
 ## Required MSTT changes (implementation phase)
 
 1. **Scan / tree:** include `.rep` / `.ncrep` in performance result file discovery (`PerformanceRunData.scanSubFiles` or equivalent).
-2. **Open dispatch:** branch `openPerformanceFile` / `ViewOpener` for report extensions → profiling-report panel; keep `.bin` → `openInsight`.
+2. **Open dispatch:** branch `openPerformanceFile` / `ViewOpener` for `.rep` / `.ncrep` **and** Chrome Trace `.json` → profiling-report panel; keep `.bin` → `openInsight`.
 3. **Panel registration:** flavor/constants panel type id; contribute to `package.json` views/commands as needed.
 4. **Dependency:** workspace package or npm link to profiling-report; Vite resolves Vue SFC from the library.
 5. **i18n:** strings for “Profiling report”, load errors, etc.

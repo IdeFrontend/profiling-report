@@ -21,7 +21,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 
 Sketch: `swimlane_hover.png`
 
-- Hovering an event shows a tooltip: **name**, **start**, **duration**, **end** (ns or converted units).
+- Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Display time **unit is configurable** ([Q14](../../context/OPEN_QUESTIONS.md)); default formatting uses ms-style labels unless host sets µs/ns/cycles.
 - Highlight the hovered rectangle (outline or brightness).
 - No selection change on hover alone.
 

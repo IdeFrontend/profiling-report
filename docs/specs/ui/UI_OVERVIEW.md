@@ -46,7 +46,7 @@ Primary overview sketches: `general.png`, `with_sidebar.png`, `swimlane.png`.
 - Vertical playhead / scrubber with precise timestamp (e.g. `00:06.456`)
 - **统计分析**: stacked area/line charts for **Cube** (blue) and **Vector** (teal), time-aligned with the swimlane
 
-**MVP:** time axis + zoom-linked overview charts when `OverviewSeries` is present; otherwise **hide** the chart region (no empty chart chrome). See [UX_SPEC](UX_SPEC.md) / [Q5](../../context/OPEN_QUESTIONS.md).
+**MVP:** time axis + zoom-linked overview charts **only when** `OverviewSeries` is present; otherwise **hide** the chart region (Product [Q5](../../context/OPEN_QUESTIONS.md)). See [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md).
 
 ### 3. Left lane hierarchy
 
@@ -56,7 +56,7 @@ Under a **Kernel** (or process) group:
 - Expandable pipe children: `SCALAR`, `FLOWCTRL`, `MTE1`, `CUBE`, `FIXP`, `MTE2`, `MTE3`, `CACHEMISS`
 - Per-row utilization % + mini bar (color encodes load; low util may use grey/red accents in mocks)
 
-When the trace only exposes AIV pipe lanes (sample `.rep`), render the available hierarchy without inventing cores.
+**Lane names:** producer supplies fixed naming for now ([Q8](../../context/OPEN_QUESTIONS.md)); viewer does not invent hierarchy. Product **target** is sketch-like multi-core instruction lanes ([Q4](../../context/OPEN_QUESTIONS.md)); until a matching golden exists, render whatever lanes the trace provides (e.g. sample AIV pipe lanes).
 
 Reference: `swimlane.png`, `sidebar_details.png` (expanded Core2.Cube).
 
@@ -77,11 +77,11 @@ Modes observed in sketches:
 |------|--------|---------|------:|
 | Report statistics | `general.png`, `with_sidebar.png` | Total time, compute, I/O BW, avg core util; PIPE bars | M |
 | Roofline (within stats aside or sibling) | `general.png`, `with_sidebar.png` | Log-log bottleneck chart | P2 |
-| Hardware details | `sidebar_details.png` | Host CPU, NPU chip, AI Core counts, HBM | P2 |
+| Hardware details | `sidebar_details.png` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([Q7](../../context/OPEN_QUESTIONS.md)) |
 | Pipe field list | `pipe_utilization.png`, `pipe_details.png` | Searchable PipeUtilization columns | P2 |
-| Memory analysis | `memory_chart.png`, `memory_details.png` | Topology diagram + Memory.csv fields | P2 |
+| Memory analysis | `memory_chart.png`, `memory_details.png` | **Static SVG** + **data-driven edge labels** ([Q12](../../context/OPEN_QUESTIONS.md)) | P2 |
 
-**MVP:** Report statistics summary + PIPE occupancy bars only. Roofline, hardware, memory diagram, and raw field lists → Phase 2+ (see [UX_SPEC.md](UX_SPEC.md), [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
+**MVP:** Summary tiles that have clear data + PIPE bars when CSV present; **hide** anything without inputs ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)). Overview charts hidden until series exist. Colors: [COLOR_TOKENS.md](COLOR_TOKENS.md).
 
 ### 6. Bottom / selection details
 
@@ -97,7 +97,7 @@ On event select (`swimlane_selection.png`, `swimlane_selection2.png`):
 
 - Dark IDE-aligned surfaces (sketches are dark)
 - Chinese labels match product mocks; library should expose message keys for EN/ZH
-- Color coding should stay consistent across lane bars, PIPE chart, and overview series (Cube blue, Vector teal, MTE warm tones, etc.)
+- Color coding is normative — [COLOR_TOKENS.md](COLOR_TOKENS.md)
 
 ## Host vs library chrome
 
@@ -105,6 +105,6 @@ On event select (`swimlane_selection.png`, `swimlane_selection2.png`):
 |----------------------|------------------|
 | VS Code tab title, explorer tree | Secondary Timeline tabs (when implemented) |
 | Theme CSS variables injection | Toolbar inside report |
-| Opening `.rep` | All layout regions above |
+| Opening `.rep` / `.ncrep` / Chrome Trace `.json` | All layout regions above |
 
 Explorer annotation in `swimlane.png` (anomaly detection / performance tuning folders) is **host tree UX**, not part of the Vue report component.

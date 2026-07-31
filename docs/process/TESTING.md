@@ -54,7 +54,7 @@ MSTT integration is verified manually or via mstt’s own tests after the librar
 
 | Source | Use |
 |--------|-----|
-| [`data/out.rep`](../../data/out.rep) | Primary golden container |
+| [`data/out.rep`](../../data/out.rep) | Primary golden container for MVP CI (**Interim [I-Q4](../context/INTERIM_DECISIONS.md)** — not sketch pixel-parity) |
 | `tests/fixtures/` (when code exists) | Unpacked snapshots, expected `SwimlaneModel` / `ReportViewModel` JSON |
 | Synthetic tiny traces | Edge cases (empty events, NA-only AIC columns, single lane) |
 
@@ -66,7 +66,7 @@ Rules:
 
 ## Mapping FEATURE_MATRIX → tests
 
-Every **MVP (M)** row in [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md) must eventually have ≥1 automated test.
+Every **MVP (M)** row in [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md) must eventually have ≥1 automated test. Where behavior is **Interim**, assert the interim rule and cite [INTERIM_DECISIONS](../context/INTERIM_DECISIONS.md) in the test title or comment (e.g. thin summary, hidden overview).
 
 Suggested id scheme:
 

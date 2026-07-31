@@ -73,9 +73,11 @@ Important AIV columns (sample is vector-heavy):
 
 AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cube / FixPipe bars when present.
 
-**MVP aggregation (default until [Q6](../../context/OPEN_QUESTIONS.md) says otherwise):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching sketch colors.
+**MVP aggregation ([I-Q6b](../../context/INTERIM_DECISIONS.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md). Superseded when Q6 / data spec says otherwise.
 
-**Overview Cube/Vector charts** are **not** taken directly from these per-block CSV ratios. They require `OverviewSeries` time-series points ([COMPONENTS](../architecture/COMPONENTS.md)); how to derive them is open ([Q5](../../context/OPEN_QUESTIONS.md)). If no series are produced, hide the charts ([UX_SPEC](../ui/UX_SPEC.md)).
+**Overview Cube/Vector charts:** Product decision ([Q5](../../context/OPEN_QUESTIONS.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
+
+**Lane hierarchy:** Use producer `thread_name` / process names as-is ([Q8](../../context/OPEN_QUESTIONS.md)); do not invent `CoreN.*` hierarchy in the viewer.
 
 ---
 
@@ -99,7 +101,7 @@ Used for summary “computing power” tiles and later **roofline** category poi
 | `MemoryUB.csv` | UB vector/scalar R/W BW |
 | `L2Cache.csv` | Write/read hits, miss-allocate, hit rates (%) |
 
-Phase 2 memory diagram (`memory_chart.png`, `memory_details.png`) annotates AIC / L1 / L2 / UB / Cube / Vector with these fields. Detail lists can mirror CSV headers 1:1 (as in sketches).
+Phase 2 memory diagram (`memory_chart.png`, `memory_details.png`): **static SVG** topology with **data-driven edge labels** from these fields ([Q12](../../context/OPEN_QUESTIONS.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
 
 ---
 
@@ -153,10 +155,11 @@ The sample trace is a **single-channel AIV pipe-state busy timeline**, not a ful
 
 | Expectation | Sample reality | Spec stance |
 |-------------|----------------|-------------|
-| Multi-core Kernel tree | One AIV0 pipe set | MVP renders whatever lanes the trace provides; hierarchy collapses to available processes/threads |
+| Multi-core Kernel tree | One AIV0 pipe set | **Product target** is sketch-like multi-core ([Q4](../../context/OPEN_QUESTIONS.md)); until golden arrives, render available lanes with **producer names** ([Q8](../../context/OPEN_QUESTIONS.md)) |
 | Instruction names on bars | Marker / busy names | Show event `name`; richer labels when future traces include them |
 | ProfilerStep bands | Not in sample | Phase 2 / when args or counter tracks exist |
 | Dependencies | Not in sample | Phase 2; parse when predecessor/successor args appear |
+| Overview Cube/Vector series | Not in sample | **Hide** charts ([Q5](../../context/OPEN_QUESTIONS.md)) |
 
 Writers of `.rep` files should eventually emit traces that match the product hierarchy (per-core Cube/Vector/MTE lanes). Until then, the viewer must remain useful on pipe-state traces like the fixture.
 

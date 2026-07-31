@@ -23,7 +23,8 @@ A slice is **Ready** only when every applicable item below is checked.
 
 - [ ] Primary fixture identified (`data/out.rep` and/or a synthetic fixture)
 - [ ] Expected outcomes known (e.g. file count in container, lane names, summary fields)
-- [ ] Gaps vs sketches acknowledged (see METRICS_AND_TRACE “Gap vs UI sketches”) — no silent inventing of multi-core data the fixture lacks
+- [ ] Gaps vs sketches acknowledged — use interim fixture rules ([INTERIM_DECISIONS](../context/INTERIM_DECISIONS.md) I-Q4); no silent inventing of multi-core data the fixture lacks
+- [ ] If the slice depends on an **Interim** decision, the interim id is named in the PR (and tests assert that interim)
 
 ## 4. Scope and boundaries
 

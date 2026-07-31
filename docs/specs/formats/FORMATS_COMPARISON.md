@@ -64,7 +64,7 @@ Semantic **overlap** (timed lanes, pipe util concepts, op identity) justifies a 
 
 - **Aim to cover:** op identity, pipe utilization aggregates, memory/L2 aggregates, timed lane activity for a swimlane UI.
 - **Do not claim by default:** bit-parity with Insight instruction-level Source/Cache graphs or PyPTO AICPU/Mix/wrap schedule features.
-- **Sample gap:** current [`data/out.rep`](../../../data/out.rep) `trace.json` is pipe-state busy intervals, thinner than Insight’s instruction Gantt and thinner than many product sketches — fidelity tracked in open questions Q4/Q5/Q8.
+- **Sample gap:** current [`data/out.rep`](../../../data/out.rep) `trace.json` is pipe-state busy intervals, thinner than product **target** (sketch-like multi-core instruction Gantt — [Q4](../../context/OPEN_QUESTIONS.md)). Use sample until a sketch-faithful golden arrives; lane naming follows **producer fixed names** ([Q8](../../context/OPEN_QUESTIONS.md)).
 
 ## Delivery note (MSTT viewers)
 
@@ -74,11 +74,11 @@ Semantic payloads above are delivered differently in MSTT:
 Performance results tree file click
   ├─ .csv          → CsvEditorProvider (raw table; not this comparison)
   ├─ .bin          → MindStudio Insight (operator semantics above)
-  ├─ .json         → Insight today (revisit if pure Chrome Trace)
+  ├─ .json         → profiling-report when Chrome Trace ([Q15](../../context/OPEN_QUESTIONS.md))
   └─ .rep / .ncrep → profiling-report Vue panel
 ```
 
-`.rep` and `.ncrep` share the same container semantics (product alias for OP reports). Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
+`.rep` and `.ncrep` share the same container semantics (**Interim [I-Q2](../../context/INTERIM_DECISIONS.md)** — product alias until divergence is defined). Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
 
 | Axis | Insight operator | `.rep` / profiling-report | PyPTO swimlane |
 |------|------------------|---------------------------|----------------|
@@ -89,7 +89,8 @@ Performance results tree file click
 ## Related docs
 
 - [DOMAIN_AND_USERS.md](../../context/DOMAIN_AND_USERS.md) — OP developer context, pain points, glossary
+- [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — per-view required inputs / hide rules
 - [REP_FORMAT.md](REP_FORMAT.md) — container binary layout
 - [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.rep` embeds → UI panels
-- [OPEN_QUESTIONS.md](../../context/OPEN_QUESTIONS.md) — Q4–Q9 fidelity and metadata gaps
+- [OPEN_QUESTIONS.md](../../context/OPEN_QUESTIONS.md) — remaining blockers (esp. Q6)
 - [SWIMLANE_IMPLEMENTATIONS.md](../../research/SWIMLANE_IMPLEMENTATIONS.md) — renderer tech, not data semantics

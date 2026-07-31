@@ -31,7 +31,7 @@ ProfilingReport
 │  │  ├─ PipeOccupancyPanel
 │  │  ├─ PipeDetailsPanel (P2)
 │  │  ├─ RooflinePanel (P2)
-│  │  ├─ HardwareDetailsPanel (P2)
+│  │  ├─ HardwareDetailsPanel (deferred)
 │  │  └─ MemoryTopologyPanel (P2)
 │  └─ DetailStrip
 └─ EventTooltip (overlay)
@@ -71,13 +71,13 @@ OP-report analytics bundle: `summary`, `pipeOccupancy[]`, optional `overviewSeri
 
 ### `SummaryMetrics` (M)
 
-Op name/type, task duration, frequencies, and placeholder fields for compute / bandwidth / avg util (exact formulas still open — [Q6](../../context/OPEN_QUESTIONS.md)).
+Op name/type, task duration, optional raw frequency fields. Compute / bandwidth / avg util fields remain optional and **unset under Interim [I-Q6a](../../context/INTERIM_DECISIONS.md)** until Q6 / data spec.
 
-**Why:** `StatsSummaryPanel` must not import CSV header strings; adapter performs aggregation.
+**Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns.
 
 ### `PipeOccupancyItem` (M)
 
-`{ id, label, ratio, colorKey }` for PIPE bars (Cube, Vector, MTE*, …).
+`{ id, label, ratio, colorKey }` for PIPE bars (Cube, Vector, MTE*, …). `colorKey` maps to [COLOR_TOKENS](../ui/COLOR_TOKENS.md).
 
 **Why:** Stable panel props; color keys align gutter/timeline/legend without hard-coding hex in three places.
 
@@ -188,7 +188,7 @@ Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced wit
 
 ### `TimeAxis` (M)
 
-Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**; **MVP display** uses millisecond labels (sketches). Other units / clock-cycle mode → P2 ([Q14](../../context/OPEN_QUESTIONS.md)).
+Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**; **display unit is configurable** ([Q14](../../context/OPEN_QUESTIONS.md)). **Interim MVP ([I-Q14](../../context/INTERIM_DECISIONS.md)):** ms / µs / ns only; default **ms**; no clock-cycle mode.
 
 **Why:** Shared alignment for overview charts and swimlane; playhead per INTERACTIONS.
 
@@ -242,15 +242,15 @@ Log-log roofline chart.
 
 ### `MemoryTopologyPanel` (P2)
 
-Memory path diagram + optional field list.
+Static SVG memory path diagram with **data-driven edge labels** from `Memory*.csv` ([Q12](../../context/OPEN_QUESTIONS.md)); optional field list.
 
-**Why:** Named stub; driven by `Memory*.csv` later.
+**Why:** Named stub; geometry stays in asset, labels from adapter.
 
-### `HardwareDetailsPanel` (P2)
+### `HardwareDetailsPanel` (out of MVP)
 
 Host/NPU/HBM inventory.
 
-**Why:** Depends on metadata source ([Q7](../../context/OPEN_QUESTIONS.md)).
+**Why:** Product deferred until further specs ([Q7](../../context/OPEN_QUESTIONS.md)).
 
 ### `DependencyLinksLayer` (P2)
 
@@ -281,6 +281,8 @@ Pin/context actions and multi-select aggregate table.
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — packaging and adapter strategy
 - [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs P2 features
+- [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md) — per-view inputs
+- [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) — normative colors
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios and sync model
 - [INTERACTIONS.md](../ui/INTERACTIONS.md) — hover/select/zoom behavior
 - [METRICS_AND_TRACE.md](../formats/METRICS_AND_TRACE.md) — `.rep` embeds → report model fields
