@@ -1,14 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { adaptRep, parseRep } from '../core/adapters';
+import { formatTime } from '../core/formatTime';
+import {
+  applyWindow,
+  createViewState,
+  panBy,
+  zoomAt,
+  zoomToFitWindow,
+} from '../core/viewState';
 import type {
   ReportCapability,
   ReportViewModel,
   SelectedEvent,
   SwimEvent,
   SwimlaneModel,
-  SwimThread,
+  SwimlaneViewState,
+  TimeDisplayUnit,
 } from '../core/types';
+import ReportToolbar from './ReportToolbar.vue';
+import SwimlaneCanvas from './SwimlaneCanvas.vue';
 
 const props = defineProps<{
   title?: string;
@@ -17,6 +28,7 @@ const props = defineProps<{
   reportModel?: ReportViewModel;
   theme?: 'light' | 'dark';
   locale?: string;
+  timeUnit?: TimeDisplayUnit;
   capabilities?: ReportCapability[];
 }>();
 
@@ -25,13 +37,6 @@ const emit = defineEmits<{
   select: [event: SelectedEvent | null];
   error: [error: { message: string; cause?: unknown }];
 }>();
-
-const internalSwim = ref<SwimlaneModel | null>(null);
-const internalReport = ref<ReportViewModel | null>(null);
-const loadError = ref<string | null>(null);
-const hovered = ref<SwimEvent | null>(null);
-const selected = ref<SelectedEvent | null>(null);
-const tooltipStyle = ref({ left: '0px', top: '0px' });
 
 const COLOR: Record<string, string> = {
   cube: '#007084',
@@ -44,8 +49,17 @@ const COLOR: Record<string, string> = {
   default: '#3860A8',
 };
 
+const internalSwim = ref<SwimlaneModel | null>(null);
+const internalReport = ref<ReportViewModel | null>(null);
+const loadError = ref<string | null>(null);
+const viewState = ref<SwimlaneViewState>(createViewState(null));
+const hovered = ref<SwimEvent | null>(null);
+const selected = ref<SelectedEvent | null>(null);
+const tooltipStyle = ref({ left: '0px', top: '0px' });
+
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
+const unit = computed<TimeDisplayUnit>(() => props.timeUnit ?? 'ms');
 
 const hasSummary = computed(() => {
   const s = report.value?.summary;
@@ -55,17 +69,47 @@ const hasSummary = computed(() => {
 const showPipe = computed(() => (report.value?.pipeOccupancy?.length ?? 0) > 0);
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 
-const timeSpan = computed(() => {
-  const m = swim.value;
-  if (!m) return { min: 0, max: 1 };
-  const min = m.minTime;
-  const max = m.maxTime > m.minTime ? m.maxTime : m.minTime + 1;
-  return { min, max };
+const lanes = computed(() => {
+  const out: { id: string; name: string }[] = [];
+  for (const p of swim.value?.processes ?? []) {
+    for (const t of p.threads) {
+      out.push({ id: t.id, name: t.name });
+    }
+  }
+  return out;
 });
 
-function formatNs(ns: number): string {
-  const ms = ns / 1e6;
-  return `${ms.toFixed(3)} ms`;
+const bounds = computed(() => {
+  const m = swim.value;
+  if (!m) return { minTime: 0, maxTime: 1 };
+  return {
+    minTime: m.minTime,
+    maxTime: m.maxTime > m.minTime ? m.maxTime : m.minTime + 1,
+  };
+});
+
+/** 0 = fit (full span); 100 = max zoom (~1/100 of full span). */
+const zoomPercent = computed(() => {
+  const full = bounds.value.maxTime - bounds.value.minTime;
+  const span = Math.max(1, viewState.value.endTime - viewState.value.startTime);
+  if (span >= full) return 0;
+  const ratio = full / span;
+  return Math.min(100, Math.round((Math.log2(ratio) / Math.log2(100)) * 100));
+});
+
+const axisTicks = computed(() => {
+  const { startTime, endTime } = viewState.value;
+  const ticks = 5;
+  return Array.from({ length: ticks + 1 }, (_, i) => {
+    const t = startTime + ((endTime - startTime) * i) / ticks;
+    return { t, label: formatTime(t, unit.value) };
+  });
+});
+
+function resetViewFromModel(model: SwimlaneModel | null): void {
+  viewState.value = createViewState(model);
+  selected.value = null;
+  hovered.value = null;
 }
 
 function loadFromSource(source: ArrayBuffer | Uint8Array) {
@@ -73,6 +117,7 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     const adapted = adaptRep(parseRep(source));
     internalSwim.value = adapted.swimlaneModel;
     internalReport.value = adapted.reportModel;
+    resetViewFromModel(adapted.swimlaneModel);
     loadError.value = null;
     emit('ready');
   } catch (cause) {
@@ -85,6 +130,7 @@ onMounted(() => {
   if (props.source) {
     loadFromSource(props.source);
   } else if (props.swimlaneModel || props.reportModel) {
+    resetViewFromModel(props.swimlaneModel ?? null);
     emit('ready');
   }
 });
@@ -96,37 +142,20 @@ watch(
   },
 );
 
-function eventLeft(ev: SwimEvent): string {
-  const { min, max } = timeSpan.value;
-  return `${((ev.startTime - min) / (max - min)) * 100}%`;
-}
+watch(
+  () => props.swimlaneModel,
+  (m) => {
+    if (m && !props.source) resetViewFromModel(m);
+  },
+);
 
-function eventWidth(ev: SwimEvent): string {
-  const { min, max } = timeSpan.value;
-  const pct = (ev.duration / (max - min)) * 100;
-  return `${Math.max(pct, 0.15)}%`;
-}
-
-/** Shorter bars stack above longer ones so nested markers stay hoverable/clickable. */
-function eventZIndex(ev: SwimEvent): number {
-  const { min, max } = timeSpan.value;
-  const span = max - min || 1;
-  return Math.max(1, Math.round(1000 - (ev.duration / span) * 1000));
-}
-
-function colorForThread(thread: SwimThread): string {
-  const n = thread.name.toUpperCase();
-  if (n.includes('PIPE_V') || n.includes('VEC')) return COLOR.vector;
-  if (n.includes('PIPE_S') || n.includes('SCALAR')) return COLOR.scalar;
-  if (n.includes('MTE1')) return COLOR.mte1;
-  if (n.includes('MTE2')) return COLOR.mte2;
-  if (n.includes('MTE3')) return COLOR.mte3;
-  if (n.includes('FIX')) return COLOR.fixp;
-  if (n.includes('CUBE')) return COLOR.cube;
-  return COLOR.default;
-}
-
-function onEventClick(ev: SwimEvent) {
+function onSelect(ev: SwimEvent | null) {
+  if (!ev) {
+    selected.value = null;
+    viewState.value = { ...viewState.value, selectedEventId: null };
+    emit('select', null);
+    return;
+  }
   const payload: SelectedEvent = {
     id: ev.id,
     name: ev.name,
@@ -136,37 +165,92 @@ function onEventClick(ev: SwimEvent) {
     args: ev.args,
   };
   selected.value = payload;
+  viewState.value = { ...viewState.value, selectedEventId: ev.id };
   emit('select', payload);
 }
 
-function onEventEnter(ev: SwimEvent, e: MouseEvent) {
+function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
   hovered.value = ev;
-  tooltipStyle.value = {
-    left: `${e.clientX + 12}px`,
-    top: `${e.clientY + 12}px`,
-  };
+  viewState.value = { ...viewState.value, hoveredEventId: ev?.id ?? null };
+  if (ev) {
+    tooltipStyle.value = {
+      left: `${clientX + 12}px`,
+      top: `${clientY + 12}px`,
+    };
+  }
 }
 
-function onEventMove(e: MouseEvent) {
-  if (!hovered.value) return;
-  tooltipStyle.value = {
-    left: `${e.clientX + 12}px`,
-    top: `${e.clientY + 12}px`,
-  };
+function onPan(deltaTime: number) {
+  viewState.value = applyWindow(
+    viewState.value,
+    panBy(viewState.value, deltaTime, bounds.value),
+  );
 }
 
-function onEventLeave() {
-  hovered.value = null;
+function onZoom(factor: number, anchorTime: number) {
+  viewState.value = applyWindow(
+    viewState.value,
+    zoomAt(viewState.value, factor, anchorTime, bounds.value),
+  );
 }
 
-const axisTicks = computed(() => {
-  const { min, max } = timeSpan.value;
-  const ticks = 5;
-  return Array.from({ length: ticks + 1 }, (_, i) => {
-    const t = min + ((max - min) * i) / ticks;
-    return { t, label: formatNs(t) };
+function onZoomToFit() {
+  viewState.value = applyWindow(viewState.value, zoomToFitWindow(swim.value));
+}
+
+function onZoomIn() {
+  const mid = (viewState.value.startTime + viewState.value.endTime) / 2;
+  onZoom(1.25, mid);
+}
+
+function onZoomOut() {
+  const mid = (viewState.value.startTime + viewState.value.endTime) / 2;
+  onZoom(1 / 1.25, mid);
+}
+
+function onZoomPercent(pct: number) {
+  const full = bounds.value.maxTime - bounds.value.minTime;
+  const ratio = 2 ** ((pct / 100) * Math.log2(100));
+  const span = Math.max(1, full / Math.max(1, ratio));
+  const mid = (viewState.value.startTime + viewState.value.endTime) / 2;
+  let startTime = mid - span / 2;
+  let endTime = mid + span / 2;
+  if (startTime < bounds.value.minTime) {
+    startTime = bounds.value.minTime;
+    endTime = startTime + span;
+  }
+  if (endTime > bounds.value.maxTime) {
+    endTime = bounds.value.maxTime;
+    startTime = endTime - span;
+  }
+  viewState.value = applyWindow(viewState.value, {
+    startTime,
+    endTime,
+    scrollY: viewState.value.scrollY,
   });
-});
+}
+
+function onScrollY(scrollY: number) {
+  viewState.value = { ...viewState.value, scrollY };
+}
+
+function onSearch(q: string) {
+  viewState.value = { ...viewState.value, searchQuery: q };
+}
+
+function onAside(visible: boolean) {
+  viewState.value = { ...viewState.value, asideVisible: visible };
+}
+
+/** Used by component tests to select an event without canvas pointer geometry. */
+function selectEventById(eventId: string) {
+  const ev = swim.value?.processes
+    .flatMap((p) => p.threads.flatMap((t) => t.events))
+    .find((e) => e.id === eventId);
+  onSelect(ev ?? null);
+}
+
+defineExpose({ selectEventById, viewState });
 </script>
 
 <template>
@@ -188,7 +272,22 @@ const axisTicks = computed(() => {
       </p>
     </header>
 
-    <div class="pr-layout">
+    <ReportToolbar
+      :search-query="viewState.searchQuery"
+      :aside-visible="viewState.asideVisible"
+      :zoom-percent="zoomPercent"
+      @update:search-query="onSearch"
+      @update:aside-visible="onAside"
+      @update:zoom-percent="onZoomPercent"
+      @zoom-to-fit="onZoomToFit"
+      @zoom-in="onZoomIn"
+      @zoom-out="onZoomOut"
+    />
+
+    <div
+      class="pr-layout"
+      :class="{ 'pr-layout--no-aside': !viewState.asideVisible }"
+    >
       <section class="pr-main">
         <div
           class="pr-time-axis"
@@ -199,59 +298,42 @@ const axisTicks = computed(() => {
             :key="tick.t"
             class="pr-time-axis__tick"
           >{{ tick.label }}</span>
+          <div
+            v-if="viewState.playheadTime != null"
+            class="pr-playhead"
+            data-testid="playhead"
+            :style="{
+              left: `${((viewState.playheadTime - viewState.startTime) / Math.max(1, viewState.endTime - viewState.startTime)) * 100}%`,
+            }"
+          />
         </div>
 
-        <div
-          class="pr-swimlane"
-          data-testid="swimlane"
-        >
-          <template
-            v-for="proc in swim?.processes ?? []"
-            :key="proc.id"
+        <div class="pr-swim-row">
+          <div
+            class="pr-gutter"
+            data-testid="lane-gutter"
           >
-            <div class="pr-process">
-              <div class="pr-process__name">
-                {{ proc.name }}
-              </div>
-              <div
-                v-for="thread in proc.threads"
-                :key="thread.id"
-                class="pr-lane"
-              >
-                <div class="pr-lane__label">
-                  {{ thread.name }}
-                </div>
-                <div class="pr-lane__track">
-                  <button
-                    v-for="ev in thread.events"
-                    :key="ev.id"
-                    type="button"
-                    class="pr-event"
-                    :data-testid="`swim-event-${ev.id}`"
-                    :style="{
-                      left: eventLeft(ev),
-                      width: eventWidth(ev),
-                      zIndex: eventZIndex(ev),
-                      background: colorForThread(thread),
-                    }"
-                    :title="ev.name"
-                    @click="onEventClick(ev)"
-                    @mouseenter="onEventEnter(ev, $event)"
-                    @mousemove="onEventMove"
-                    @mouseleave="onEventLeave"
-                  >
-                    <span class="pr-event__label">{{ ev.name }}</span>
-                  </button>
-                </div>
-              </div>
+            <div
+              v-for="lane in lanes"
+              :key="lane.id"
+              class="pr-gutter__lane"
+            >
+              {{ lane.name }}
             </div>
-          </template>
-          <p
-            v-if="!(swim?.processes?.length)"
-            class="pr-empty"
-          >
-            No timeline events
-          </p>
+          </div>
+          <SwimlaneCanvas
+            :model="swim"
+            :view="viewState"
+            :selected-event-id="viewState.selectedEventId"
+            :hovered-event-id="viewState.hoveredEventId"
+            :search-query="viewState.searchQuery"
+            :lanes="lanes"
+            @select="onSelect"
+            @hover="onHover"
+            @pan="onPan"
+            @zoom="onZoom"
+            @scroll-y="onScrollY"
+          />
         </div>
 
         <div
@@ -263,7 +345,10 @@ const axisTicks = computed(() => {
         </div>
       </section>
 
-      <aside class="pr-aside">
+      <aside
+        v-if="viewState.asideVisible"
+        class="pr-aside"
+      >
         <div
           v-if="hasSummary"
           class="pr-panel"
@@ -288,7 +373,6 @@ const axisTicks = computed(() => {
               <dd>{{ report.summary.currentFreq }} / {{ report.summary.ratedFreq }}</dd>
             </div>
           </dl>
-          <!-- Interim I-Q6a: no compute / BW / avg util tiles -->
         </div>
 
         <div
@@ -324,8 +408,8 @@ const axisTicks = computed(() => {
       data-testid="detail-strip"
     >
       <strong>{{ selected.name }}</strong>
-      <span>{{ formatNs(selected.startTime) }} → {{ formatNs(selected.endTime) }}</span>
-      <span>dur {{ formatNs(selected.duration) }}</span>
+      <span>{{ formatTime(selected.startTime, unit) }} → {{ formatTime(selected.endTime, unit) }}</span>
+      <span>dur {{ formatTime(selected.duration, unit) }}</span>
     </footer>
 
     <div
@@ -335,9 +419,9 @@ const axisTicks = computed(() => {
       :style="tooltipStyle"
     >
       <div>{{ hovered.name }}</div>
-      <div>start {{ formatNs(hovered.startTime) }}</div>
-      <div>dur {{ formatNs(hovered.duration) }}</div>
-      <div>end {{ formatNs(hovered.startTime + hovered.duration) }}</div>
+      <div>start {{ formatTime(hovered.startTime, unit) }}</div>
+      <div>dur {{ formatTime(hovered.duration, unit) }}</div>
+      <div>end {{ formatTime(hovered.startTime + hovered.duration, unit) }}</div>
     </div>
   </div>
 </template>
@@ -346,6 +430,7 @@ const axisTicks = computed(() => {
 .pr-root {
   --pr-bg-panel: #303030;
   --pr-bg-deep: #202830;
+  --pr-playhead: #3078f0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -382,6 +467,10 @@ const axisTicks = computed(() => {
   min-height: 200px;
 }
 
+.pr-layout--no-aside {
+  grid-template-columns: 1fr;
+}
+
 .pr-main {
   display: flex;
   flex-direction: column;
@@ -393,6 +482,7 @@ const axisTicks = computed(() => {
 }
 
 .pr-time-axis {
+  position: relative;
   display: flex;
   justify-content: space-between;
   opacity: 0.8;
@@ -400,67 +490,39 @@ const axisTicks = computed(() => {
   font-size: 11px;
   border-bottom: 1px solid #444;
   padding-bottom: 4px;
+  min-height: 20px;
 }
 
-.pr-swimlane {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: auto;
-  max-height: 420px;
+.pr-playhead {
+  position: absolute;
+  top: 0;
+  bottom: -4px;
+  width: 2px;
+  background: var(--pr-playhead);
+  pointer-events: none;
+  transform: translateX(-1px);
 }
 
-.pr-process__name {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.pr-lane {
+.pr-swim-row {
   display: grid;
   grid-template-columns: minmax(120px, 28%) 1fr;
   gap: 8px;
-  align-items: center;
-  margin-bottom: 4px;
+  align-items: start;
 }
 
-.pr-lane__label {
+.pr-gutter {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.pr-gutter__lane {
+  height: 28px;
+  line-height: 28px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.9;
-  font-size: 11px;
-}
-
-.pr-lane__track {
-  position: relative;
-  height: 22px;
-  overflow: hidden;
-  background: #1a1a1a;
-  border-radius: 2px;
-}
-
-.pr-event {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  margin: 0;
-  padding: 0 4px;
-  border: none;
-  border-radius: 2px;
-  color: #fff;
-  cursor: pointer;
-  overflow: hidden;
-  text-align: left;
-}
-
-.pr-event__label {
-  font-size: 10px;
-  white-space: nowrap;
-}
-
-.pr-empty {
-  opacity: 0.6;
-  margin: 12px 0;
 }
 
 .pr-aside {
@@ -552,6 +614,10 @@ const axisTicks = computed(() => {
 
 @media (max-width: 800px) {
   .pr-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .pr-swim-row {
     grid-template-columns: 1fr;
   }
 }

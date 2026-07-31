@@ -108,3 +108,33 @@ export interface SelectedEvent {
   endTime: number;
   args?: Record<string, unknown>;
 }
+
+/** Interim I-Q14: ms / µs / ns only (no clock-cycle mode). */
+export type TimeDisplayUnit = 'ms' | 'us' | 'ns';
+
+/** Interaction state — not part of the immutable report model (COMPONENTS). */
+export interface SwimlaneViewState {
+  startTime: number;
+  endTime: number;
+  scrollY: number;
+  selectedEventId: string | null;
+  hoveredEventId: string | null;
+  searchQuery: string;
+  asideVisible: boolean;
+  playheadTime: number | null;
+}
+
+export interface SwimlaneViewWindow {
+  startTime: number;
+  endTime: number;
+  scrollY: number;
+}
+
+/** Imperative timeline backend — Canvas MVP; WebGL later (COMPONENTS). */
+export interface SwimlaneRenderer {
+  setModel(model: SwimlaneModel): void;
+  setView(view: SwimlaneViewWindow): void;
+  render(): void;
+  hitTest(x: number, y: number): string | null;
+  dispose(): void;
+}

@@ -88,8 +88,10 @@ Do not leave “temporary” undocumented behavior in main.
 
 ## Next engineering milestone
 
-**Milestone 1 (scaffold)** is on `feat/scaffold-test-harness`: Vite library, Vitest, Playwright, playground, green scaffold smokes (`PR-SCAFFOLD-*`).
+**Milestone 1 (scaffold)** — green: Vite library, Vitest, Playwright, playground (`PR-SCAFFOLD-*`).
 
-**Milestone 2 (failing feature specs):** executable tests `PR-FMT-*` / `PR-VM-*` / `PR-SWIM-*` / `PR-UI-*` / `PR-E2E-*` in [tests/README.md](../../tests/README.md) — **expected red** until implementation.
+**Milestone 2 (parse → view-models → swimlane → UI shell)** — green on `feat/scaffold-test-harness` (`PR-FMT-*` / `PR-VM-*` / `PR-SWIM-*` / `PR-UI-*` / `PR-E2E-*`).
 
-**Next:** implement slices to green under [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md): parse → view-models → swimlane → UI shell → renderer.
+**Milestone 3 (renderer + navigation)** — Canvas `SwimlaneRenderer`, view-state zoom/pan, toolbar (search / zoom / fit / toggle aside), I-Q14 time formatting (`PR-TIME-*` / `PR-VIEW-*` / `PR-RENDER-*` / `PR-UI-004+` / `PR-E2E-004`).
+
+**Next:** standalone Chrome Trace `.json` open path; polish MVP matrix gaps; then **MSTT host** in a separate `mstt` PR ([MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)).

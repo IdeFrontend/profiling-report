@@ -13,7 +13,9 @@ describe('PR-UI: ProfilingReport feature contract', () => {
 
     expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="swimlane"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="swimlane-canvas"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="time-axis"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="report-toolbar"]').exists()).toBe(true);
   });
 
   it('PR-UI-002: select emits detail payload', async () => {
@@ -30,7 +32,11 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     });
     await flushPromises();
 
-    await wrapper.get(`[data-testid="swim-event-${event!.id}"]`).trigger('click');
+    await (wrapper.vm as unknown as { selectEventById: (id: string) => void }).selectEventById(
+      event!.id,
+    );
+    await flushPromises();
+
     const select = wrapper.emitted('select');
     expect(select?.[0]?.[0]).toMatchObject({
       id: event!.id,
@@ -76,5 +82,47 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(full.find('[data-testid="stats-summary"]').exists()).toBe(true);
     expect(full.find('[data-testid="overview-charts"]').exists()).toBe(false);
     expect(full.find('[data-testid="stats-compute"]').exists()).toBe(false);
+  });
+
+  it('PR-UI-004: zoom-to-fit resets time window', async () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: adapted.swimlaneModel,
+        reportModel: adapted.reportModel,
+      },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="zoom-in"]').trigger('click');
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      viewState: { startTime: number; endTime: number };
+    };
+    const spanZoomed = vm.viewState.endTime - vm.viewState.startTime;
+    const full = adapted.swimlaneModel.maxTime - adapted.swimlaneModel.minTime;
+
+    expect(spanZoomed).toBeLessThan(full);
+
+    await wrapper.get('[data-testid="zoom-to-fit"]').trigger('click');
+    await flushPromises();
+    expect(vm.viewState.startTime).toBe(adapted.swimlaneModel.minTime);
+    expect(vm.viewState.endTime).toBe(adapted.swimlaneModel.maxTime);
+  });
+
+  it('PR-UI-005: search query updates view state', async () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: adapted.swimlaneModel,
+        reportModel: adapted.reportModel,
+      },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="search-input"]').setValue('PIPE_V');
+    await flushPromises();
+    const vm = wrapper.vm as unknown as { viewState: { searchQuery: string } };
+    expect(vm.viewState.searchQuery).toBe('PIPE_V');
   });
 });

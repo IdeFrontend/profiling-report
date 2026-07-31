@@ -36,10 +36,8 @@ jobs:
       - name: Scaffold e2e (must pass)
         run: npm run test:e2e:scaffold
 
-      - name: Feature TDD tests (expected fail until implemented)
-        continue-on-error: true
+      - name: Feature unit/component tests
         run: npm run test:feature
 
-      - name: Feature e2e TDD (expected fail until implemented)
-        continue-on-error: true
+      - name: Feature e2e
         run: npm run test:e2e:feature

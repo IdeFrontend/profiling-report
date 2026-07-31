@@ -1,8 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Feature e2e — expected RED until UI-shell + parse slices land.
- * Playground must load data/out.rep into ProfilingReport.
+ * Feature e2e — playground loads data/out.rep into ProfilingReport.
  */
 
 test.describe('PR-E2E feature paths', () => {
@@ -11,24 +10,37 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('playground-ready')).toBeVisible();
     await expect(page.getByTestId('profiling-report')).toBeVisible();
     await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
     await expect(page.getByTestId('pipe-occupancy')).toBeVisible();
     await expect(page.getByTestId('overview-charts')).toHaveCount(0);
   });
 
   test('PR-E2E-002: hover shows tooltip (UX S3)', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 15_000 });
-    const event = page.locator('[data-testid^="swim-event-"]').first();
-    await expect(event).toBeVisible();
-    await event.hover();
+    const canvas = page.getByTestId('swimlane-canvas');
+    await expect(canvas).toBeVisible({ timeout: 15_000 });
+    const box = await canvas.boundingBox();
+    expect(box).toBeTruthy();
+    // First lane, near t=min — short marker sits above long busy bar
+    await page.mouse.move(box!.x + 8, box!.y + 14);
     await expect(page.getByTestId('event-tooltip')).toBeVisible();
   });
 
   test('PR-E2E-003: click selects event (UX S3)', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 15_000 });
-    const event = page.locator('[data-testid^="swim-event-"]').first();
-    await event.click();
+    const canvas = page.getByTestId('swimlane-canvas');
+    await expect(canvas).toBeVisible({ timeout: 15_000 });
+    const box = await canvas.boundingBox();
+    expect(box).toBeTruthy();
+    await page.mouse.click(box!.x + 8, box!.y + 14);
     await expect(page.getByTestId('detail-strip')).toBeVisible();
+  });
+
+  test('PR-E2E-004: zoom-to-fit toolbar (UX S2)', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('report-toolbar')).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId('zoom-in').click();
+    await page.getByTestId('zoom-to-fit').click();
+    await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
   });
 });
