@@ -19,6 +19,22 @@ export function formatAxisTime(ns: number, unit: TimeDisplayUnit = 'ms'): string
   }
 }
 
+/**
+ * Cursor / playhead label as in sketches (`00:04.456`).
+ * Maps absolute ns → ms, then `00:WW.fff` (whole ms : fractional×1000).
+ */
+export function formatCursorTime(ns: number): string {
+  const ms = Math.max(0, ns / 1e6);
+  const whole = Math.floor(ms);
+  const frac = Math.min(999, Math.round((ms - whole) * 1000));
+  if (whole >= 60) {
+    const mins = Math.floor(whole / 60);
+    const secs = whole % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(frac).padStart(3, '0')}`;
+  }
+  return `00:${String(whole).padStart(2, '0')}.${String(frac).padStart(3, '0')}`;
+}
+
 /** Format tooltip / detail times (sketch hover uses ns). */
 export function formatTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
   switch (unit) {

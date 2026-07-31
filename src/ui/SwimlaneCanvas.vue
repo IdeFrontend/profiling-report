@@ -15,9 +15,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
+  cursor: [payload: { time: number; xRatio: number } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
   'scroll-y': [scrollY: number];
+  'set-playhead': [time: number];
 }>();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -88,12 +90,18 @@ function onPointerMove(e: PointerEvent): void {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
+  const w = Math.max(1, rect.width);
+  const time = timeAtX(x);
+
+  renderer.setCursorX(x);
+  renderer.render();
+  emit('cursor', { time, xRatio: x / w });
 
   if (dragging) {
     const span = Math.max(1, props.view.endTime - props.view.startTime);
     const dx = e.clientX - lastX;
     lastX = e.clientX;
-    const deltaTime = -(dx / Math.max(1, rect.width)) * span;
+    const deltaTime = -(dx / w) * span;
     emit('pan', deltaTime);
     emit('hover', null, e.clientX, e.clientY);
     return;
@@ -106,18 +114,23 @@ function onPointerMove(e: PointerEvent): void {
 
 function onPointerUp(e: PointerEvent): void {
   dragging = false;
-  if (Math.abs(e.clientX - downX) > 4) return;
   const canvas = canvasRef.value;
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
+  const time = timeAtX(x);
+  emit('set-playhead', time);
+  if (Math.abs(e.clientX - downX) > 4) return;
   const id = renderer.hitTest(x, y);
   emit('select', id ? renderer.findEvent(id) : null);
 }
 
 function onPointerLeave(): void {
   dragging = false;
+  renderer.setCursorX(null);
+  renderer.render();
+  emit('cursor', null);
   emit('hover', null, 0, 0);
 }
 
@@ -135,12 +148,7 @@ function onWheel(e: WheelEvent): void {
   }
 }
 
-/** Test helper: screen rect for an event in the current view. */
-function eventScreenRect(eventId: string) {
-  return renderer.eventScreenRect(eventId);
-}
-
-defineExpose({ eventScreenRect, renderer });
+defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), renderer });
 </script>
 
 <template>
@@ -169,13 +177,12 @@ defineExpose({ eventScreenRect, renderer });
   min-height: 160px;
   overflow: auto;
   background: #1a1a1a;
-  border-radius: 2px;
 }
 
 .pr-swim-canvas {
   display: block;
   width: 100%;
-  cursor: default;
+  cursor: crosshair;
   touch-action: none;
 }
 </style>

@@ -12,7 +12,7 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     hoveredEventId: null,
     searchQuery: '',
     asideVisible: true,
-    playheadTime: fit.startTime + (fit.endTime - fit.startTime) / 2,
+    playheadTime: null,
   };
 }
 
@@ -86,6 +86,5 @@ export function applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow
     startTime: window.startTime,
     endTime: window.endTime,
     scrollY: window.scrollY,
-    playheadTime: window.startTime + (window.endTime - window.startTime) / 2,
   };
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { loadReportSource } from '../core/adapters';
-import { formatAxisTime, formatTime } from '../core/formatTime';
+import { formatAxisTime, formatCursorTime, formatTime } from '../core/formatTime';
 import { t } from '../core/i18n';
 import {
   applyWindow,
@@ -22,6 +22,7 @@ import type {
 } from '../core/types';
 import ReportToolbar from './ReportToolbar.vue';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
+import TimeOverviewBar from './TimeOverviewBar.vue';
 import './tokens.css';
 
 const props = defineProps<{
@@ -60,6 +61,7 @@ const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
+const cursor = ref<{ time: number; xRatio: number } | null>(null);
 
 const swim = computed(() => {
   const raw = props.swimlaneModel ?? internalSwim.value;
@@ -221,6 +223,21 @@ function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
   }
 }
 
+function onCursor(payload: { time: number; xRatio: number } | null) {
+  cursor.value = payload;
+}
+
+function onSetPlayhead(time: number) {
+  viewState.value = { ...viewState.value, playheadTime: time };
+}
+
+function onOverviewWindow(window: { startTime: number; endTime: number }) {
+  viewState.value = applyWindow(viewState.value, {
+    ...window,
+    scrollY: viewState.value.scrollY,
+  });
+}
+
 function onPan(deltaTime: number) {
   viewState.value = applyWindow(
     viewState.value,
@@ -338,6 +355,22 @@ defineExpose({ selectEventById, viewState });
       :class="{ 'pr-layout--no-aside': !(viewState.asideVisible && asideAvailable) }"
     >
       <section class="pr-main">
+        <!-- Total X-axis (full range) above detail axis — sketch / PyPTO layout -->
+        <div class="pr-swim-row pr-swim-row--overview">
+          <div
+            class="pr-gutter pr-gutter--axis-spacer"
+            aria-hidden="true"
+          />
+          <TimeOverviewBar
+            :min-time="bounds.minTime"
+            :max-time="bounds.maxTime"
+            :start-time="viewState.startTime"
+            :end-time="viewState.endTime"
+            :time-unit="unit"
+            @update:window="onOverviewWindow"
+          />
+        </div>
+
         <div class="pr-swim-row pr-swim-row--head">
           <div
             class="pr-gutter pr-gutter--axis-spacer"
@@ -353,14 +386,15 @@ defineExpose({ selectEventById, viewState });
               class="pr-time-axis__tick"
             >{{ tick.label }}</span>
             <div
-              v-if="viewState.playheadTime != null"
-              class="pr-playhead"
-              data-testid="playhead"
-              :style="{
-                left: `${((viewState.playheadTime - viewState.startTime) / Math.max(1, viewState.endTime - viewState.startTime)) * 100}%`,
-              }"
+              v-if="cursor"
+              class="pr-cursor"
+              data-testid="cursor-line"
+              :style="{ left: `${cursor.xRatio * 100}%` }"
             >
-              <span class="pr-playhead__label">{{ formatAxisTime(viewState.playheadTime, unit) }}</span>
+              <span
+                class="pr-cursor__label"
+                data-testid="cursor-label"
+              >{{ formatCursorTime(cursor.time) }}</span>
             </div>
           </div>
         </div>
@@ -406,6 +440,8 @@ defineExpose({ selectEventById, viewState });
             :lanes="lanes"
             @select="onSelect"
             @hover="onHover"
+            @cursor="onCursor"
+            @set-playhead="onSetPlayhead"
             @pan="onPan"
             @zoom="onZoom"
             @scroll-y="onScrollY"
@@ -592,12 +628,12 @@ defineExpose({ selectEventById, viewState });
   position: relative;
   display: flex;
   justify-content: space-between;
-  color: #a8a8a8;
+  color: #c8c8c8;
   font-variant-numeric: tabular-nums;
   font-size: 11px;
   border-bottom: 1px solid #3a3a3a;
-  padding: 4px 8px 6px;
-  min-height: 22px;
+  padding: 10px 8px 6px;
+  min-height: 28px;
   flex: 0 0 auto;
 }
 
@@ -610,26 +646,42 @@ defineExpose({ selectEventById, viewState });
   border-bottom: 1px solid #3a3a3a;
 }
 
-.pr-playhead {
+.pr-cursor {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--pr-playhead);
+  background: #3078f0;
   pointer-events: none;
-  z-index: 2;
+  z-index: 5;
+  transform: translateX(-0.5px);
 }
 
-.pr-playhead__label {
+.pr-cursor__label {
   position: absolute;
-  top: 0;
-  left: 4px;
-  padding: 0 4px;
-  background: #1a2a48;
-  color: #9ec0ff;
-  font-size: 10px;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 8px;
+  background: #3078f0;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  border-radius: 2px;
+  border-radius: 4px;
+  line-height: 1.35;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.pr-swim-row--overview {
+  flex: 0 0 auto;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.pr-swim-row--overview .pr-gutter--axis-spacer {
+  border-bottom: 1px solid #4a4a4a;
 }
 
 .pr-swim-row {

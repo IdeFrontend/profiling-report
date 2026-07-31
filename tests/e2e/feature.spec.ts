@@ -52,4 +52,21 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('stats-summary')).toHaveCount(0);
     await expect(page.getByTestId('lane-util').first()).toBeVisible();
   });
+
+  test('PR-E2E-006: time overview and mouse cursor line (sketch parity)', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('time-overview')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('time-overview-window')).toBeVisible();
+    await expect(page.getByTestId('time-overview-handle-left')).toBeVisible();
+    await expect(page.getByTestId('time-overview-handle-right')).toBeVisible();
+    // No stale playhead before mouse move
+    await expect(page.getByTestId('playhead')).toHaveCount(0);
+    const canvas = page.getByTestId('swimlane-canvas');
+    const box = await canvas.boundingBox();
+    expect(box).toBeTruthy();
+    await page.mouse.move(box!.x + 40, box!.y + 20);
+    await expect(page.getByTestId('cursor-line')).toBeVisible();
+    await expect(page.getByTestId('cursor-label')).toBeVisible();
+    await expect(page.getByTestId('cursor-label')).toHaveText(/^\d{2}:\d{2}\.\d{3}$/);
+  });
 });

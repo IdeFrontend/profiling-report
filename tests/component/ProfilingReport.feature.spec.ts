@@ -140,4 +140,33 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(true);
   });
+
+  it('PR-UI-007: time overview brush adjusts visible window', async () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: adapted.swimlaneModel,
+        reportModel: adapted.reportModel,
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="time-overview"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="time-overview-window"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="zoom-in"]').trigger('click');
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      viewState: { startTime: number; endTime: number };
+    };
+    const before = { ...vm.viewState };
+    expect(before.endTime - before.startTime).toBeLessThan(
+      adapted.swimlaneModel.maxTime - adapted.swimlaneModel.minTime,
+    );
+
+    await wrapper.get('[data-testid="zoom-to-fit"]').trigger('click');
+    await flushPromises();
+    expect(vm.viewState.startTime).toBe(adapted.swimlaneModel.minTime);
+    expect(vm.viewState.endTime).toBe(adapted.swimlaneModel.maxTime);
+  });
 });

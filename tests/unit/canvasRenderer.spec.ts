@@ -51,4 +51,15 @@ describe('PR-RENDER: CanvasSwimlaneRenderer', () => {
     const long = renderer.eventScreenRect('e-long')!;
     expect(renderer.hitTest(long.x + 1, long.y + long.h / 2)).toBe('e-short');
   });
+
+  it('PR-RENDER-003: render accepts cursor and rounded event path without throw', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 80);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setCursorX(40);
+    expect(() => renderer.render()).not.toThrow();
+  });
 });

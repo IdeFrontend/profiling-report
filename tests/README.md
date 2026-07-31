@@ -31,10 +31,12 @@ Maps product specs and interim decisions to stable **test ids**. See [docs/proce
 | PR-UI-004 | component | `tests/component/ProfilingReport.feature.spec.ts` | UX S2 zoom-to-fit |
 | PR-UI-005 | component | `tests/component/ProfilingReport.feature.spec.ts` | Search |
 | PR-UI-006 | component | `tests/component/ProfilingReport.feature.spec.ts` | Q15 hide aside |
+| PR-UI-007 | component | `tests/component/ProfilingReport.feature.spec.ts` | Time overview brush |
 | PR-E2E-001 | e2e | `tests/e2e/feature.spec.ts` | UX S1, I-Q4 |
 | PR-E2E-002 | e2e | `tests/e2e/feature.spec.ts` | UX S3 |
 | PR-E2E-003 | e2e | `tests/e2e/feature.spec.ts` | UX S3 |
 | PR-E2E-004 | e2e | `tests/e2e/feature.spec.ts` | UX S2 |
 | PR-E2E-005 | e2e | `tests/e2e/feature.spec.ts` | Q15 |
+| PR-E2E-006 | e2e | `tests/e2e/feature.spec.ts` | Overview brush + cursor line |
 
 Put the id in the test title, e.g. `it('PR-E2E-002: hover shows tooltip', …)`.

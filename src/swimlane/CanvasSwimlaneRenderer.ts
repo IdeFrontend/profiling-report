@@ -8,6 +8,8 @@ import type {
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
+/** Corner radius for event blocks (sketch / design: rounded, not sharp). */
+export const EVENT_RADIUS = 5;
 
 const COLOR: Record<string, string> = {
   cube: '#007084',
@@ -46,6 +48,28 @@ function colorForThread(name: string): string {
   return COLOR.default;
 }
 
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  const radius = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, radius);
+    return;
+  }
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
 /** Canvas 2D SwimlaneRenderer (COMPONENTS). Layout + hit-test are independent of pixels. */
 export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
@@ -57,6 +81,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private searchQuery = '';
+  private cursorX: number | null = null;
   private width = 0;
   private height = 0;
 
@@ -97,6 +122,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   setSearchQuery(query: string): void {
     this.searchQuery = query.trim().toLowerCase();
+  }
+
+  /** CSS-pixel x of mouse cursor within the canvas, or null when absent. */
+  setCursorX(x: number | null): void {
+    this.cursorX = x;
   }
 
   contentHeight(): number {
@@ -158,6 +188,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
+    const hasSelection = this.selectedId != null;
 
     for (const item of this.events) {
       const ev = item.event;
@@ -171,26 +202,43 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       if (y + h < 0 || y > this.height) continue;
 
       const matches = !q || ev.name.toLowerCase().includes(q);
-      ctx.globalAlpha = q && !matches ? 0.25 : 1;
+      const dim =
+        (q && !matches ? 0.25 : 1) * (hasSelection && item.id !== this.selectedId ? 0.45 : 1);
+      ctx.globalAlpha = dim;
       ctx.fillStyle = item.color;
-      ctx.fillRect(x, y, w, h);
+      roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
+      ctx.fill();
 
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+        roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, EVENT_RADIUS);
+        ctx.stroke();
       } else if (item.id === this.hoveredId) {
         ctx.strokeStyle = '#c8e0ff';
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+        roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, EVENT_RADIUS);
+        ctx.stroke();
       }
 
       if (w > 40 && matches) {
         ctx.fillStyle = '#ffffff';
         ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(ev.name, x + 4, y + h - 6, w - 8);
+        ctx.fillText(ev.name, x + 4, y + h - 6, Math.max(8, w - 8));
       }
       ctx.globalAlpha = 1;
+    }
+
+    // Mouse-following timestamp cursor — solid line (sketch)
+    if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {
+      ctx.save();
+      ctx.strokeStyle = '#3078F0';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(this.cursorX + 0.5, 0);
+      ctx.lineTo(this.cursorX + 0.5, this.height);
+      ctx.stroke();
+      ctx.restore();
     }
   }
 
