@@ -1,7 +1,17 @@
 # Отчёт: переиспользование Swimlane Webview в другом VS Code-плагине
 
+> **Supersession notice (English, 2026-07-31)**  
+> This document is an **archival** research note (Russian). For profiling-report decisions, prefer:
+>
+> - [PROJECT_GOALS.md](../context/PROJECT_GOALS.md)
+> - [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md) — packaging is a **Vue 3 library**, not a sealed HTML webview bundle
+> - [SWIMLANE_IMPLEMENTATIONS.md](SWIMLANE_IMPLEMENTATIONS.md) — PyPTO Canvas vs Sudu WebGL vs hybrid
+>
+> **Still useful from this report:** PyPTO swimGraph structure, coupling risks, TraceModel DTO sketch, streaming chunk idea, capability flags, extraction risks (singletons, license check).  
+> **Overridden:** primary delivery as `swimlane-webview` HTML bundle + host `postMessage` protocol. MSTT will import Vue components into its existing Vite webviews instead. PyPTO itself is not required to adopt the shared library in v1 (copy-paste allowed).
+
 **Дата:** 30 июля 2026 года  
-**Статус:** архитектурное исследование  
+**Статус:** архитектурное исследование (**архив** / archived)  
 **Область:** `vscode_plugins/pypto_toolkit`  
 
 ## 1. Цель исследования

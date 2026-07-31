@@ -1,0 +1,166 @@
+# Metrics CSVs and Trace Semantics
+
+How embedded files inside a `.rep` / `.ncrep` map to UI panels, and what the sample `trace.json` actually contains.
+
+## Common CSV conventions
+
+Most metric CSVs are keyed by:
+
+| Column | Meaning |
+|--------|---------|
+| `block_id` | AI Core / block index (0…N−1) |
+| `sub_block_id` | Sub-unit label (sample: `vector0`) |
+
+Dual-prefix fields:
+
+- `aic_*` — AI Cube / AIC-side counters (often `NA` for vector-only kernels)
+- `aiv_*` — AI Vector / AIV-side counters
+
+Missing values appear as the token `NA` (not empty). Aggregations for UI should ignore `NA` or treat as null.
+
+Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns use **GB/s**. Ratios are unitless fractions (0–1) unless labeled `%`.
+
+---
+
+## File → UI mapping
+
+| Embedded file | Feeds (MVP) | Feeds (Phase 2+) |
+|---------------|-------------|------------------|
+| `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
+| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization %; Cube/Vector overview (from ratios) | Pipe details list (`pipe_utilization.png`, `pipe_details.png`) |
+| `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
+| `Memory.csv` | Optional summary bandwidth tiles | Memory topology diagram + field drill-down |
+| `MemoryL0.csv` | — | L0 path details on memory diagram |
+| `MemoryUB.csv` | — | UB path details |
+| `L2Cache.csv` | — | Cache tab / L2 hit-rate panels |
+| `ResourceConflictRatio.csv` | — | Stall/conflict insights in details |
+| `trace.json` | Swimlane lanes and event intervals | Dependency overlays if args provide them; markers |
+
+Sketches: [`docs/specs/ui/`](../ui/).
+
+---
+
+## OpBasicInfo.csv
+
+Sample row (abridged):
+
+| Field | Sample | UI use |
+|-------|--------|--------|
+| Op Name | `add_custom` | Title / breadcrumb |
+| Op Type | `vector` | Badge / filter |
+| Task Duration(us) | `1.800036` | Total time |
+| Block Dim | `8` | Core count hint |
+| Mix Block Dim | `NA` | Mix mode (later) |
+| Device Id | `0` | Device label |
+| Pid | process id | Debug |
+| Current Freq / Rated Freq | e.g. `1650` | Freq in summary / hardware panel |
+
+---
+
+## PipeUtilization.csv
+
+Primary source for **PIPE 占用率** and per-core utilization bars.
+
+Important AIV columns (sample is vector-heavy):
+
+| Column | Role |
+|--------|------|
+| `aiv_time(us)`, `aiv_total_cycles` | Block duration / cycles |
+| `aiv_vec_time(us)`, `aiv_vec_ratio` | Vector pipe |
+| `aiv_mte2_*`, `aiv_mte3_*` | MTE pipes + active BW |
+| `aiv_scalar_*` | Scalar time, stalls, waits |
+| `aiv_icache_miss_rate` | I-cache |
+
+AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cube / FixPipe bars when present.
+
+**MVP aggregation:** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), average or max ratio across `block_id` rows (product choice; document choice in implementation). Display as horizontal bars matching sketch colors.
+
+---
+
+## ArithmeticUtilization.csv
+
+| Column group | Role |
+|--------------|------|
+| `aic_cube_*_ratio`, `aic_cube_fops` | Cube arithmetic intensity / FOPS |
+| `aiv_vec_*_ratio`, `aiv_vec_fops` | Vector FP32/FP16/int/misc split |
+
+Used for summary “computing power” tiles and later **roofline** category points (`Vec_FP32`, `Vec_MISC`, …).
+
+---
+
+## Memory*.csv and L2Cache.csv
+
+| File | Highlights |
+|------|------------|
+| `Memory.csv` | L1/GM/UB BW, MTE instruction counts, path datas (KB) and BW usage % |
+| `MemoryL0.csv` | L0A/L0B/L0C BW |
+| `MemoryUB.csv` | UB vector/scalar R/W BW |
+| `L2Cache.csv` | Write/read hits, miss-allocate, hit rates (%) |
+
+Phase 2 memory diagram (`memory_chart.png`, `memory_details.png`) annotates AIC / L1 / L2 / UB / Cube / Vector with these fields. Detail lists can mirror CSV headers 1:1 (as in sketches).
+
+---
+
+## ResourceConflictRatio.csv
+
+Wait and conflict ratios (`aic_*_wait_ratio`, `aiv_vec_*_cflt_ratio`, …). Phase 2 diagnostics; not required for MVP swimlane.
+
+---
+
+## trace.json (Chrome Trace)
+
+### Shape (sample)
+
+```json
+{
+  "displayTimeUnit": "ns",
+  "traceEvents": [ /* metadata + complete events */ ]
+}
+```
+
+### Sample content characteristics
+
+| Property | Sample `data/out.rep` |
+|----------|------------------------|
+| Event count | ~61 (7 metadata + 54 complete) |
+| Metadata | `ph: "M"`, `name: "thread_name"` |
+| Threads | `AIV0/PIPE_{S,V,M,MTE1,MTE2,MTE3,FIX}/status` |
+| Complete events | `ph: "X"` with `ts`, `dur` |
+| Categories | `PIPE_STATE` (state markers), `pipe_state_busy` (busy intervals) |
+| Case id (args) | e.g. `MYPROF_20260711_102038`, `channel: "aiv0"` |
+
+Busy events such as `PIPE_V_busy` / `PIPE_S_busy` are the natural rectangles for swimlane lanes. Marker events carry bitfield-like `state_PIPE_*` args useful for debugging, not necessarily as separate painted intervals.
+
+### Mapping to swimlane model
+
+Recommended library mapping:
+
+```text
+pid / process     → process group (e.g. Kernel / AIV0)
+tid / thread_name → lane (PIPE_V, PIPE_S, …)
+ph=X event        → Event { name, startTime=ts, duration=dur, args }
+```
+
+Time unit: prefer nanoseconds internally; convert UI axis to ms as in sketches (`0.0ms` …).
+
+### Gap vs UI sketches
+
+Design sketches show a **multi-core instruction Gantt** (`Core0.Cube`, `Core0.Vec0`, …) with named ops (`MOV_OUT_TO_L1_MULTI_ND2NZ`, `DC_PRELOAD_XN_IMM`, `ProfilerStep#N`, Aten ops) and dependency links.
+
+The sample trace is a **single-channel AIV pipe-state busy timeline**, not a full instruction-level multi-core schedule.
+
+| Expectation | Sample reality | Spec stance |
+|-------------|----------------|-------------|
+| Multi-core Kernel tree | One AIV0 pipe set | MVP renders whatever lanes the trace provides; hierarchy collapses to available processes/threads |
+| Instruction names on bars | Marker / busy names | Show event `name`; richer labels when future traces include them |
+| ProfilerStep bands | Not in sample | Phase 2 / when args or counter tracks exist |
+| Dependencies | Not in sample | Phase 2; parse when predecessor/successor args appear |
+
+Writers of `.rep` files should eventually emit traces that match the product hierarchy (per-core Cube/Vector/MTE lanes). Until then, the viewer must remain useful on pipe-state traces like the fixture.
+
+---
+
+## Fixture reference
+
+- Container: [`data/out.rep`](../../../data/out.rep)
+- Unpack: `python3 data/unpack_rep.py data/out.rep /tmp/out-rep`
