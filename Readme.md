@@ -11,6 +11,7 @@ Start here: **[docs/README.md](docs/README.md)**
 | Area | Entry |
 |------|--------|
 | Goals & context | [docs/context/PROJECT_GOALS.md](docs/context/PROJECT_GOALS.md) |
+| Open questions | [docs/context/OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) (blockers before complete specs) |
 | Development process | [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) (docs → specs → tests → code) |
 | Testing | [docs/process/TESTING.md](docs/process/TESTING.md) |
 | Data formats | [docs/specs/formats/FORMATS_COMPARISON.md](docs/specs/formats/FORMATS_COMPARISON.md) |
@@ -29,4 +30,4 @@ python3 data/unpack_rep.py data/out.rep /tmp/out-rep
 
 ## Status
 
-Documentation, specs, process guides, and sample data. Library and test infrastructure are not scaffolded yet — see [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) for the next milestone.
+Documentation, specs, process guides, and sample data. Specs are not acceptance-complete until [open questions](docs/context/OPEN_QUESTIONS.md) (especially P0) are resolved. Library and test infrastructure are not scaffolded yet.
