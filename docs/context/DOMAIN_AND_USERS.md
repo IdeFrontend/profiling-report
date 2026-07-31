@@ -60,15 +60,15 @@ flowchart LR
 | Pain point | Developer question | Product response | UX / phase |
 |------------|--------------------|------------------|------------|
 | Opaque total cost | How long did the op take? What’s compute vs I/O BW? | Report summary tiles from OpBasicInfo + aggregates | **S1** · M |
-| Boundedness unclear | Am I compute-bound or memory-bound? | Summary + later **roofline** | **S1**, **S6** · roofline P2 ([Q11](OPEN_QUESTIONS.md)) |
-| Pipe imbalance | Which pipes dominate or sit idle? | PIPE occupancy bars; gutter util % | **S4**, **S5** · M (field list P2) |
+| Boundedness unclear | Am I compute-bound or memory-bound? | Summary tiles when formulas known; later **roofline** | **S1**, **S6** · compute tiles blocked on [Q6](OPEN_QUESTIONS.md); roofline P2 |
+| Pipe imbalance | Which pipes dominate or sit idle? | PIPE occupancy bars; gutter util % | **S4**, **S5** · M (field list P2); hide if no CSV |
 | Timeline blindness | Where is wall time spent across lanes? | Swimlane zoom / pan / hover / select | **S2**, **S3** · M |
 | Core imbalance | Do some `block_id`s lag? | Gutter hierarchy + per-lane util; CSV keyed by block | **S4** · M |
-| Memory path pressure | Is L1 / UB / GM / HBM the limiter? | Memory topology + field lists | **S6** · P2 |
+| Memory path pressure | Is L1 / UB / GM / HBM the limiter? | Static SVG + data-driven labels | **S6** · P2 ([Q12](OPEN_QUESTIONS.md)) |
 | Sync / deps | Why is this interval waiting? | Dependency links + detail graph | **S8** · P2 ([Q9](OPEN_QUESTIONS.md)) |
 | Source ↔ insn | Which line caused this stall? | Insight Source/Cache on `.bin`; optional later tabs | **S9** · P2 / Insight |
-| Wrong hardware context | Which chip / HBM / core count was this run? | Hardware aside | **S7** · P2 ([Q7](OPEN_QUESTIONS.md)) |
-| Fixture thinner than sketches | Why don’t I see multi-core instruction Gantt? | Render available lanes; hide empty charts | Honesty: [Q4](OPEN_QUESTIONS.md)/[Q5](OPEN_QUESTIONS.md)/[Q8](OPEN_QUESTIONS.md) |
+| Wrong hardware context | Which chip / HBM / core count was this run? | Hardware aside | **Out of MVP** ([Q7](OPEN_QUESTIONS.md)) |
+| Fixture thinner than sketches | Why don’t I see multi-core instruction Gantt? | Target = sketches ([Q4](OPEN_QUESTIONS.md)); render available lanes; hide empty charts ([Q5](OPEN_QUESTIONS.md)) | Interim `out.rep` until golden |
 
 MVP is deliberately scoped to the **highest-frequency questions** after opening a report: duration, pipe ranking, and timeline navigation. Deeper microarchitecture and schedule-orchestration features stay Phase 2 or in Insight / PyPTO.
 
@@ -192,6 +192,7 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../specs/forma
 ## Related docs
 
 - [PROJECT_GOALS.md](PROJECT_GOALS.md) — product goals and non-goals
+- [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) — MVP engineering defaults (not Product-final)
 - [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md) — NVIDIA Nsight analogues and competitor landscape
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — unresolved producer / fixture / formula questions
 - [UX_SPEC.md](../specs/ui/UX_SPEC.md) — scenarios S1–S9 and sync model

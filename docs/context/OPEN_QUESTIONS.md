@@ -1,74 +1,73 @@
 # Open Questions Before Complete Specs
 
-Status values: **Open** | **Proposed** | **Resolved** (link the resolving spec when Resolved).
+Status values: **Open** | **Proposed** | **Resolved** | **Interim** (engineering default — see [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); not Product-final).
 
-Answers must update the relevant specs ([REP_FORMAT](../specs/formats/REP_FORMAT.md), [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md), [UX_SPEC](../specs/ui/UX_SPEC.md), [COMPONENTS](../specs/architecture/COMPONENTS.md), etc.). Do not leave permanent TBDs only in code.
+Answers must update the relevant specs ([REP_FORMAT](../specs/formats/REP_FORMAT.md), [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../specs/formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md), [UX_SPEC](../specs/ui/UX_SPEC.md), [COMPONENTS](../specs/architecture/COMPONENTS.md), etc.). Do not leave permanent TBDs only in code.
 
-## Why specs are incomplete
+## Why Product-complete specs are still incomplete
 
-Current docs capture **goals and UI sketches**, but several **producers, formulas, fixtures, and product decisions** are unknown. The sample [`data/out.rep`](../../data/out.rep) does not match sketch richness (pipe-state AIV0 vs multi-core instruction Gantt). Until the items below are resolved, format/UI specs cannot be treated as acceptance-complete.
+Producer **format/data specification is still forthcoming**. Product has answered many P0 items; remaining Product gaps (especially **Q6 formulas** and a **sketch-faithful golden**) are covered by **Interim** defaults so MVP coding can start.
 
-## What you can still do without P0 answers
+**MVP unblock doc:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md)
 
-- Process and agent/skills docs
-- UI interaction prose that is data-independent
-- Container binary layout / format comparison (largely done)
-- Swimlane renderer research (done)
+## What you can do now
 
-## What is not “complete” until P0
+- Implement per [INTERIM_DECISIONS](INTERIM_DECISIONS.md) + [VIEW_DATA_REQUIREMENTS](../specs/formats/VIEW_DATA_REQUIREMENTS.md)
+- Timeline with minimal data; hide panels without inputs (Q3)
+- Hide overview charts (Q5 / I-Q5+)
+- Thin summary + PIPE mean aggregation (I-Q6a / I-Q6b)
+- Fixture `data/out.rep` for CI (I-Q4); colors [COLOR_TOKENS](../specs/ui/COLOR_TOKENS.md)
+- Open Chrome Trace `.json` in profiling-report (Q15)
+- Packaging scaffold per [PACKAGING_SUGGESTIONS](PACKAGING_SUGGESTIONS.md) (I-Q16–19)
 
-- End-to-end data → widget mapping for MVP summary and overview charts
-- Swimlane lane taxonomy matching product sketches
-- Golden acceptance fixtures for e2e
+## Still blocking Product-final (not coding) acceptance
 
-## Stakeholder starter pack
-
-Please provide:
-
-1. One representative **production-like** `.ncrep` / `.rep` (or explicit confirmation that `data/out.rep` is the target shape)
-2. Answers to questions **Q1, Q3, Q4, Q5, Q6**
-
----
-
-## P0 — Block complete format + MVP UI specs
-
-| ID | Question | Status | Specs to update when resolved |
-|----|----------|--------|-------------------------------|
-| **Q1** | **Producer of `.rep` / `.ncrep`.** Which tool/version writes the container (msprof? another CANN tool)? Is there an existing normative producer document we must align with, or is [REP_FORMAT](../specs/formats/REP_FORMAT.md) the first normative write-up? | Open | REP_FORMAT, FORMATS_COMPARISON |
-| **Q2** | **`.ncrep` vs `.rep`.** Same magic/layout forever, or planned divergence (version field, required embeds)? Who owns product extension naming? | Open | REP_FORMAT, FORMATS_COMPARISON, MSTT_INTEGRATION |
-| **Q3** | **Required embeds.** Minimum file set to open Timeline successfully (`trace.json` only? + `OpBasicInfo` + `PipeUtilization`?). Behavior when optional CSVs are missing (hide panels vs hard error). | Open | REP_FORMAT, METRICS_AND_TRACE, FEATURE_MATRIX, COMPONENTS |
-| **Q4** | **Authoritative MVP fixture.** Will product traces look like the sketches (multi-core Cube/Vec instruction lanes, named ops, ProfilerStep, deps) or like `out.rep` (pipe busy intervals)? Need a representative golden for UI/data mapping; current sample is insufficient for sketch-faithful specs. | Open | METRICS_AND_TRACE, UI_OVERVIEW, UX_SPEC, FEATURE_MATRIX, TESTING |
-| **Q5** | **Cube/Vector overview charts data source.** Sketches show **time-series** area charts; CSVs are **per-block aggregates**. Derive from trace busy intervals, from a missing time-series embed, or drop/simplify for MVP? Specs already say: populate `OverviewSeries` or hide charts — not derive from PipeUtilization ratios alone. | Open | METRICS_AND_TRACE, UI_OVERVIEW, UX_SPEC, FEATURE_MATRIX, COMPONENTS |
-| **Q6** | **Report summary formulas.** Exact definitions for compute power (e.g. sketch values like 172/320 TFLOPS), I/O bandwidth tiles, avg core util % — which columns, and which aggregation (mean vs max across `block_id`)? **PIPE bars:** docs default to mean of non-`NA` until answered. | Open | METRICS_AND_TRACE, UI_OVERVIEW, COMPONENTS |
-| **Q7** | **Hardware details sidebar source.** Host CPU, NPU chip (`Ascend950…`), HBM are not in sample `.rep`. Separate embed? Host-injected metadata? Phase 2 only? | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, UX_SPEC, ARCHITECTURE, COMPONENTS |
-| **Q8** | **Lane hierarchy mapping.** Rules from Chrome Trace `thread_name` / pid/tid → `CoreN.Cube` / pipe children. Fixed producer naming convention, or viewer heuristics? | Open | METRICS_AND_TRACE, UI_OVERVIEW, UX_SPEC, ARCHITECTURE, COMPONENTS |
+- Exact summary tile formulas (Q6) — interim hides undecidable tiles
+- Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
+- Overview chart producer — interim keeps charts hidden
+- Phase 2 contracts Q9–Q11, Q10
 
 ---
 
-## P1 — Block complete interaction / Phase 2 specs
+## P0 — Format + MVP UI
 
-| ID | Question | Status | Specs to update when resolved |
-|----|----------|--------|-------------------------------|
-| **Q9** | **Dependencies encoding.** Field names in `trace.json` args (or side file) for predecessors/successors; or explicitly out of scope until the producer defines it. | Open | METRICS_AND_TRACE, INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS |
-| **Q10** | **Source / Details / Cache tabs.** Data contracts (BIN? paths in event args? L2Cache only?). Relationship to keeping Insight for `.bin`. | Open | FEATURE_MATRIX, UX_SPEC, MSTT_INTEGRATION, FORMATS_COMPARISON |
-| **Q11** | **Roofline.** Axes, peak lines, how points (`Vec_FP32`, …) are computed from `ArithmeticUtilization` (+ Memory?). | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, COMPONENTS |
-| **Q12** | **Memory topology.** Which CSV fields map to which diagram edges; static diagram vs data-driven thicknesses. | Open | METRICS_AND_TRACE, UI_OVERVIEW, UX_SPEC, COMPONENTS |
-| **Q13** | **Color / category legend.** Normative colors for Cube/Vector/MTE/FixP/Scalar and event types (match sketches vs MSTT theme tokens). | Open | UI_OVERVIEW, ARCHITECTURE, COMPONENTS |
-| **Q14** | **Time units UX.** Default display ns vs µs vs ms; clock-cycle mode — frequency from where (`OpBasicInfo` Current Freq?)? | Open | INTERACTIONS, UI_OVERVIEW, UX_SPEC, METRICS_AND_TRACE |
-| **Q15** | **MSTT `.json` policy.** Always Insight, or Chrome Trace `.json` → profiling-report? | Open | FORMATS_COMPARISON, MSTT_INTEGRATION |
+| ID | Question | Status | Specs / notes |
+|----|----------|--------|---------------|
+| **Q1** | Producer of `.rep` / `.ncrep` | **Resolved** | Tool WIP. Sample `.rep` + [REP_FORMAT](../specs/formats/REP_FORMAT.md) until producer spec. |
+| **Q2** | `.ncrep` vs `.rep` | **Interim** | Same layout/alias — [I-Q2](INTERIM_DECISIONS.md). |
+| **Q3** | Required embeds / missing data | **Resolved** | Minimal open; **hide** missing panels. → [VIEW_DATA_REQUIREMENTS](../specs/formats/VIEW_DATA_REQUIREMENTS.md) |
+| **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
+| **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
+| **Q6** | Report summary formulas | **Interim** | Thin OpBasicInfo tiles only; hide compute/BW/avg util; PIPE = mean non-`NA` — [I-Q6a](INTERIM_DECISIONS.md) / [I-Q6b](INTERIM_DECISIONS.md). |
+| **Q7** | Hardware details sidebar | **Resolved (MVP)** | **Out of MVP** until further product/spec docs. |
+| **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer fixed naming (A); may revisit. No viewer heuristics. |
 
 ---
 
-## P2 — Block packaging / process / skills completeness
+## P1 — Interaction / Phase 2
 
-| ID | Question | Status | Specs to update when resolved |
-|----|----------|--------|-------------------------------|
-| **Q16** | **Package identity.** npm package name, license for *this* repo, publish to registry vs MSTT workspace path dependency. Default layout until answered: **repo-root** `src/` (not `packages/` workspace). | Open | ARCHITECTURE, PROJECT_GOALS, DEVELOPMENT, root Readme |
-| **Q17** | **Design system.** Ant Design Vue (MSTT-aligned) vs custom CSS matching sketches; i18n default locale (zh-CN vs en). | Open | UI_OVERVIEW, UX_SPEC, ARCHITECTURE, PROJECT_GOALS |
-| **Q18** | **PyPTO copy-paste license clearance.** Confirm CANN OSL / internal policy before treating “copy render helpers” as an official approach. | Open | DEVELOPMENT, SWIMLANE_IMPLEMENTATIONS, ARCHITECTURE |
-| **Q19** | **Gesture parity.** Must MVP match PyPTO shortcuts (W/S/A/D) or only wheel/slider? Specs currently: wheel/slider/drag = MVP; W/S/A/D = P2. | Open | INTERACTIONS, UX_SPEC, FEATURE_MATRIX |
-| **Q20** | **Cursor skills / agent rules.** Which skills to add (e.g. update FEATURE_MATRIX + test ids when changing MVP; never code before Ready checklist)? | Open | process docs, `.cursor` skills/rules |
-| **Q21** | **Acceptance owner.** Who signs off P0 answers (OP tooling? frontend? profiling backend)? | Open | PROJECT_GOALS, this file |
+| ID | Question | Status | Specs |
+|----|----------|--------|-------|
+| **Q9** | Dependencies encoding | Open | METRICS_AND_TRACE, INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS |
+| **Q10** | Source / Details / Cache tabs | Open | FEATURE_MATRIX, UX_SPEC, MSTT_INTEGRATION, FORMATS_COMPARISON |
+| **Q11** | Roofline formulas | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, COMPONENTS |
+| **Q12** | Memory topology | **Resolved** | Static SVG + data-driven edge labels. |
+| **Q13** | Color / category legend | **Resolved** | [COLOR_TOKENS.md](../specs/ui/COLOR_TOKENS.md) |
+| **Q14** | Time units UX | **Resolved (partial)** + **Interim (MVP units)** | Configurable; MVP = ms/µs/ns only, default ms; no cycles — [I-Q14](INTERIM_DECISIONS.md). |
+| **Q15** | MSTT `.json` policy | **Resolved** | Chrome Trace `.json` → profiling-report. |
+
+---
+
+## P2 — Packaging / process
+
+| ID | Question | Status | Specs |
+|----|----------|--------|-------|
+| **Q16** | Package identity | **Interim** | [PACKAGING_SUGGESTIONS](PACKAGING_SUGGESTIONS.md) / [I-Q16–19](INTERIM_DECISIONS.md) |
+| **Q17** | Design system / i18n | **Interim** | same |
+| **Q18** | PyPTO copy-paste license | **Interim** | same — Legal before verbatim paste |
+| **Q19** | Gesture parity | **Interim** | Wheel/slider/drag MVP; W/S/A/D P2 |
+| **Q20** | Cursor skills / agent rules | Open | process docs, `.cursor` skills/rules |
+| **Q21** | Acceptance owner | Open | PROJECT_GOALS, this file |
 
 ---
 
@@ -76,4 +75,15 @@ Please provide:
 
 | ID | Resolved date | Summary | Link |
 |----|---------------|---------|------|
-| — | — | None yet | — |
+| Q1 | 2026-07-31 | Producer WIP; use sample `.rep` until format spec | REP_FORMAT |
+| Q3 | 2026-07-31 | Minimal open; hide missing panels | VIEW_DATA_REQUIREMENTS |
+| Q4 | 2026-07-31 | Target = sketch-like multi-core Gantt (A) | UI_OVERVIEW, METRICS gap |
+| Q5 | 2026-07-31 | Hide overview until OverviewSeries (C) | VIEW_DATA_REQUIREMENTS |
+| Q7 | 2026-07-31 | Hardware aside out of MVP | FEATURE_MATRIX |
+| Q8 | 2026-07-31 | Producer fixed naming for now (A) | METRICS_AND_TRACE |
+| Q12 | 2026-07-31 | Static SVG + data-driven labels | VIEW_DATA_REQUIREMENTS |
+| Q13 | 2026-07-31 | Sketch colors normative | COLOR_TOKENS |
+| Q14 | 2026-07-31 | Time unit configurable | INTERACTIONS |
+| Q15 | 2026-07-31 | `.json` → profiling-report | MSTT_INTEGRATION |
+| Q16–Q19 | 2026-07-31 | Engineering proposals filed | PACKAGING_SUGGESTIONS |
+| Interim set | 2026-07-31 | I-Q2, I-Q4, I-Q6a/b, I-Q5+, I-Q14, I-Q16–19 for MVP code | INTERIM_DECISIONS |

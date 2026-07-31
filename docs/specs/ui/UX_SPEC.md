@@ -7,6 +7,8 @@ Complete user-experience specification for the Ascend OP profiling report viewer
 | Doc | Role |
 |-----|------|
 | [DOMAIN_AND_USERS.md](../../context/DOMAIN_AND_USERS.md) | Who the user is, pain points, glossary |
+| [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md) | Required inputs per chart/view; hide rules |
+| [COLOR_TOKENS.md](COLOR_TOKENS.md) | Normative sketch colors |
 | [UI_OVERVIEW.md](UI_OVERVIEW.md) | Layout regions |
 | [INTERACTIONS.md](INTERACTIONS.md) | Low-level gestures and pointer rules |
 | [FEATURE_MATRIX.md](FEATURE_MATRIX.md) | MVP vs Phase 2+ feature checklist |
@@ -41,7 +43,7 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 - **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select).
 - **P2:** Secondary tabs (OP算子 / 源码 / 详情 / 缓存), roofline, memory topology, hardware aside, deps, multiselect, context menu.
 
-Fidelity of lane content depends on trace richness ([OPEN_QUESTIONS](../../context/OPEN_QUESTIONS.md) Q4/Q5/Q8). UX still applies; empty or thinner data hides optional surfaces.
+Fidelity of lane content depends on trace richness. Product **target** is sketch-like multi-core lanes ([OPEN_QUESTIONS](../../context/OPEN_QUESTIONS.md) Q4); sample fixture may be thinner. UX still applies; empty or thinner data **hides** optional surfaces ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)).
 
 ---
 
@@ -117,7 +119,7 @@ Fidelity of lane content depends on trace richness ([OPEN_QUESTIONS](../../conte
 | **Steps** | Open hardware details; read chip / core / memory inventory |
 | **Success** | User knows which NPU configuration produced the report |
 | **Sketches** | `sidebar_details.png`, `with_sidebar.png` annotations |
-| **Depends** | Metadata source ([Q7](../../context/OPEN_QUESTIONS.md)) |
+| **Depends** | **Out of MVP** until further specs ([Q7](../../context/OPEN_QUESTIONS.md)) |
 
 ### S8 — Follow dependencies / multi-select (P2)
 
@@ -268,8 +270,8 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S6–S9 (P2)
 
-- **S6:** Aside → memory topology → optional details list (`memory_chart.png`, `memory_details.png`).
-- **S7:** Summary “更多” or aside → hardware (`sidebar_details.png`).
+- **S6:** Aside → memory topology (static SVG + data-driven labels, [Q12](../../context/OPEN_QUESTIONS.md)) → optional details list.
+- **S7:** Deferred — hardware aside **out of MVP** ([Q7](../../context/OPEN_QUESTIONS.md)).
 - **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`swimlane_multiselect.png`, `swimlane_context_menu.png`).
 - **S9:** Click 源码 / 详情 / 缓存 / OP算子 → different main surface; return to 时间线 restores view state.
 
@@ -279,10 +281,11 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 | Condition | UX |
 |-----------|-----|
-| No `OverviewSeries` | Hide `OverviewCharts` (no empty chart chrome) |
-| Optional CSV missing (e.g. Memory) | Hide related aside panel; Timeline still works if trace present |
+| No `OverviewSeries` | Hide `OverviewCharts` ([Q5](../../context/OPEN_QUESTIONS.md)) |
+| Optional CSV / panel inputs missing | Hide related surface ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)); Timeline still works if trace present |
+| Summary formula unknown (Q6) | **Interim [I-Q6a](../../context/INTERIM_DECISIONS.md):** show name / type / duration only; hide compute / BW / avg-util |
 | Trace missing / invalid | Error state on root; emit `error`; do not show broken swimlane |
-| All AIC fields `NA` (vector-only) | Show AIV-derived PIPE/summary; do not invent Cube series |
+| All AIC fields `NA` (vector-only) | Show AIV-derived PIPE; do not invent Cube series |
 | Search no matches | Neutral empty hint in toolbar/results; swimlane unchanged except clear highlights |
 | Loading | Progress/placeholder in panel until `ready` |
 
@@ -321,7 +324,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-------|----------|---------------------------|
 | Trace richness | Q4, Q8 | Lane taxonomy may be thinner than sketches; hierarchy collapses to available threads |
 | Overview series | Q5 | Charts hidden if no series |
-| Summary formulas | Q6 | Card values TBD; layout still required |
+| Summary formulas | Q6 / [I-Q6a](../../context/INTERIM_DECISIONS.md) | Thin OpBasicInfo tiles only until data spec |
 | Hardware aside | Q7 | S7 blocked |
 | Dependencies | Q9 | S8 dep flows blocked |
 | Gestures | Q19 | MVP uses wheel/slider only |
