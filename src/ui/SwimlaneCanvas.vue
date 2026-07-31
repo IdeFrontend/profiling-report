@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { CanvasSwimlaneRenderer, LANE_HEIGHT } from '../swimlane/CanvasSwimlaneRenderer';
+import { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../swimlane/CanvasSwimlaneRenderer';
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow } from '../core/types';
 
 const props = defineProps<{
@@ -50,7 +50,10 @@ function resize(): void {
     renderer.attach(canvas);
     attached = true;
   }
-  const contentH = Math.max(120, (props.lanes.length || 1) * LANE_HEIGHT);
+  const contentH = Math.max(
+    120,
+    LANE_GROUP_HEADER_HEIGHT + (props.lanes.length || 1) * LANE_HEIGHT,
+  );
   const w = Math.max(1, wrap.clientWidth);
   const h = Math.max(contentH, wrap.clientHeight || 0);
   sizerHeight.value = h;

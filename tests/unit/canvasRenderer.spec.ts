@@ -62,4 +62,19 @@ describe('PR-RENDER: CanvasSwimlaneRenderer', () => {
     renderer.setCursorX(40);
     expect(() => renderer.render()).not.toThrow();
   });
+
+  it('PR-RENDER-004: first lane is offset below group header (gutter Kernel row)', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+
+    const rect = renderer.eventScreenRect('e-long');
+    expect(rect).toBeTruthy();
+    // Must sit in first lane below the 28px group header, not at y≈0
+    expect(rect!.y).toBeGreaterThanOrEqual(28);
+    expect(rect!.y).toBeLessThan(28 + 22);
+  });
 });

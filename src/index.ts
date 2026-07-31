@@ -24,7 +24,7 @@ export {
   panBy,
   applyWindow,
 } from './core/viewState';
-export { CanvasSwimlaneRenderer, LANE_HEIGHT } from './swimlane/CanvasSwimlaneRenderer';
+export { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from './swimlane/CanvasSwimlaneRenderer';
 export type * from './core/types';
 
 export { default as ProfilingReport } from './ui/ProfilingReport.vue';

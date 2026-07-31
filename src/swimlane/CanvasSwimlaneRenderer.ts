@@ -8,6 +8,8 @@ import type {
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
+/** Matches `.pr-gutter__group` height so canvas lanes align with gutter labels. */
+export const LANE_GROUP_HEADER_HEIGHT = 28;
 /** Corner radius for event blocks (sketch / design: rounded, not sharp). */
 export const EVENT_RADIUS = 5;
 
@@ -130,7 +132,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   contentHeight(): number {
-    return this.lanes.length * LANE_HEIGHT;
+    return LANE_GROUP_HEADER_HEIGHT + this.lanes.length * LANE_HEIGHT;
   }
 
   /** Map event id → CSS-pixel rect in current view (for tests / overlays). */
@@ -172,6 +174,18 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     ctx.clearRect(0, 0, this.width, this.height);
     ctx.fillStyle = '#252525';
     ctx.fillRect(0, 0, this.width, this.height);
+
+    // Spacer matching gutter process/group header ("Kernel")
+    const headerTop = -this.view.scrollY;
+    if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < this.height) {
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, headerTop, this.width, LANE_GROUP_HEADER_HEIGHT);
+      ctx.strokeStyle = '#3a3a3a';
+      ctx.beginPath();
+      ctx.moveTo(0, headerTop + LANE_GROUP_HEADER_HEIGHT - 0.5);
+      ctx.lineTo(this.width, headerTop + LANE_GROUP_HEADER_HEIGHT - 0.5);
+      ctx.stroke();
+    }
 
     // Alternating lane stripes (sketch-like density)
     for (let i = 0; i < this.lanes.length; i++) {
@@ -254,7 +268,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.lanes = [];
     this.events = [];
     if (!this.model) return;
-    let y = 0;
+    // Offset by group header so lane 0 lines up with first gutter label, not "Kernel"
+    let y = LANE_GROUP_HEADER_HEIGHT;
     for (const proc of this.model.processes) {
       for (const thread of proc.threads) {
         const color = colorForThread(thread.name);

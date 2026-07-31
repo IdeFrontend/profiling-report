@@ -712,11 +712,15 @@ defineExpose({ selectEventById, viewState });
 }
 
 .pr-gutter__group {
-  padding: 6px 0 4px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 28px; /* keep in sync with LANE_GROUP_HEADER_HEIGHT */
+  padding: 0;
+  margin: 0;
   font-weight: 600;
   color: #ddd;
   border-bottom: 1px solid #3a3a3a;
-  margin-bottom: 2px;
 }
 
 .pr-gutter__lane {
