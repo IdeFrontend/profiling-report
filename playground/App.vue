@@ -37,23 +37,22 @@ onMounted(async () => {
 <template>
   <main class="playground">
     <header class="playground__chrome">
-      <h1>profiling-report playground</h1>
-      <p class="playground__switch">
+      <div class="playground__left">
+        <strong>playground</strong>
         <a
           href="/?fixture=rep"
           data-testid="fixture-rep"
         >out.rep</a>
-        ·
         <a
           href="/?fixture=trace"
           data-testid="fixture-trace"
         >out.trace.json</a>
-      </p>
+      </div>
       <p
         class="playground__note"
         data-testid="playground-ready"
       >
-        Status: {{ status }}. Fixture: {{ fixture }}.
+        {{ status }} · {{ fixture }}
       </p>
       <p
         v-if="error"
@@ -72,7 +71,7 @@ onMounted(async () => {
       />
       <ProfilingReport
         v-else
-        title="Loading fixture…"
+        title="Loading…"
       />
     </div>
   </main>
@@ -84,7 +83,7 @@ body,
 #app {
   margin: 0;
   height: 100%;
-  background: #1e1e1e;
+  background: #202830;
   color: #ddd;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
@@ -95,43 +94,38 @@ body,
   flex-direction: column;
   height: 100vh;
   width: 100%;
-  padding: 10px 12px;
-  gap: 8px;
 }
 
 .playground__chrome {
   flex: 0 0 auto;
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 10px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  font-size: 12px;
 }
 
-.playground__chrome h1 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+.playground__left {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
-.playground__switch {
-  margin: 0;
-  font-size: 13px;
-}
-
-.playground__switch a {
+.playground__left a {
   color: #8ab4ff;
 }
 
 .playground__note {
   margin: 0;
-  font-size: 12px;
-  opacity: 0.75;
+  opacity: 0.7;
 }
 
 .playground__error {
   margin: 0;
   color: #f88;
-  font-size: 13px;
 }
 
 .playground__report {

@@ -14,7 +14,7 @@ export {
   loadReportSource,
   adaptChromeTrace,
 } from './core/adapters';
-export { formatTime } from './core/formatTime';
+export { formatTime, formatAxisTime } from './core/formatTime';
 export { t, resolveLocale } from './core/i18n';
 export { computeThreadUtilization, withDerivedUtilizations } from './core/utilization';
 export {

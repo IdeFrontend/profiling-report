@@ -60,7 +60,7 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
-/** Pipe family → preferred CSV columns (AIV first for vector-heavy fixture). */
+/** Pipe family → preferred CSV columns (sketch order: Cube→Vector→MTE2→MTE1→FixP→MTE3→Scalar). */
 const PIPE_COLUMNS: {
   id: string;
   label: string;

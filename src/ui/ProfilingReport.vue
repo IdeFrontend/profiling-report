@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { loadReportSource } from '../core/adapters';
-import { formatTime } from '../core/formatTime';
+import { formatAxisTime, formatTime } from '../core/formatTime';
 import { t } from '../core/i18n';
 import {
   applyWindow,
@@ -78,14 +78,31 @@ const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) 
 const asideAvailable = computed(() => hasSummary.value || showPipe.value);
 
 const lanes = computed(() => {
-  const out: { id: string; name: string; utilization: number }[] = [];
+  const out: { id: string; name: string; utilization: number; color: string }[] = [];
   for (const p of swim.value?.processes ?? []) {
     for (const t of p.threads) {
-      out.push({ id: t.id, name: t.name, utilization: t.utilization ?? 0 });
+      out.push({
+        id: t.id,
+        name: t.name,
+        utilization: t.utilization ?? 0,
+        color: colorForLaneName(t.name),
+      });
     }
   }
   return out;
 });
+
+function colorForLaneName(name: string): string {
+  const n = name.toUpperCase();
+  if (n.includes('PIPE_V') || n.includes('VEC')) return 'var(--pr-color-vector)';
+  if (n.includes('PIPE_S') || n.includes('SCALAR')) return 'var(--pr-color-scalar)';
+  if (n.includes('MTE1')) return 'var(--pr-color-mte1)';
+  if (n.includes('MTE2')) return 'var(--pr-color-mte2)';
+  if (n.includes('MTE3')) return 'var(--pr-color-mte3)';
+  if (n.includes('FIX')) return 'var(--pr-color-fixp)';
+  if (n.includes('CUBE')) return 'var(--pr-color-cube)';
+  return '#6a6a6a';
+}
 
 const bounds = computed(() => {
   const m = swim.value;
@@ -110,7 +127,7 @@ const axisTicks = computed(() => {
   const ticks = 5;
   return Array.from({ length: ticks + 1 }, (_, i) => {
     const tm = startTime + ((endTime - startTime) * i) / ticks;
-    return { t: tm, label: formatTime(tm, unit.value) };
+    return { t: tm, label: formatAxisTime(tm, unit.value) };
   });
 });
 
@@ -270,6 +287,11 @@ function onTimeUnit(u: TimeDisplayUnit) {
   localTimeUnit.value = u;
 }
 
+function formatDurationUs(us: number): string {
+  if (us >= 1000) return `${(us / 1000).toFixed(2)} ms`;
+  return `${us.toFixed(us >= 10 ? 2 : 5)} µs`;
+}
+
 /** Used by component tests to select an event without canvas pointer geometry. */
 function selectEventById(eventId: string) {
   const ev = swim.value?.processes
@@ -287,19 +309,6 @@ defineExpose({ selectEventById, viewState });
     data-testid="profiling-report"
     :data-theme="theme ?? 'dark'"
   >
-    <header class="pr-header">
-      <h2 class="pr-title">
-        {{ title ?? report?.summary.opName ?? 'profiling-report' }}
-      </h2>
-      <p
-        v-if="loadError"
-        class="pr-error"
-        data-testid="load-error"
-      >
-        {{ loadError }}
-      </p>
-    </header>
-
     <ReportToolbar
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
@@ -316,28 +325,44 @@ defineExpose({ selectEventById, viewState });
       @zoom-out="onZoomOut"
     />
 
+    <p
+      v-if="loadError"
+      class="pr-error"
+      data-testid="load-error"
+    >
+      {{ loadError }}
+    </p>
+
     <div
       class="pr-layout"
       :class="{ 'pr-layout--no-aside': !(viewState.asideVisible && asideAvailable) }"
     >
       <section class="pr-main">
-        <div
-          class="pr-time-axis"
-          data-testid="time-axis"
-        >
-          <span
-            v-for="tick in axisTicks"
-            :key="tick.t"
-            class="pr-time-axis__tick"
-          >{{ tick.label }}</span>
+        <div class="pr-swim-row pr-swim-row--head">
           <div
-            v-if="viewState.playheadTime != null"
-            class="pr-playhead"
-            data-testid="playhead"
-            :style="{
-              left: `${((viewState.playheadTime - viewState.startTime) / Math.max(1, viewState.endTime - viewState.startTime)) * 100}%`,
-            }"
+            class="pr-gutter pr-gutter--axis-spacer"
+            aria-hidden="true"
           />
+          <div
+            class="pr-time-axis"
+            data-testid="time-axis"
+          >
+            <span
+              v-for="tick in axisTicks"
+              :key="tick.t"
+              class="pr-time-axis__tick"
+            >{{ tick.label }}</span>
+            <div
+              v-if="viewState.playheadTime != null"
+              class="pr-playhead"
+              data-testid="playhead"
+              :style="{
+                left: `${((viewState.playheadTime - viewState.startTime) / Math.max(1, viewState.endTime - viewState.startTime)) * 100}%`,
+              }"
+            >
+              <span class="pr-playhead__label">{{ formatAxisTime(viewState.playheadTime, unit) }}</span>
+            </div>
+          </div>
         </div>
 
         <div class="pr-swim-row">
@@ -345,20 +370,29 @@ defineExpose({ selectEventById, viewState });
             class="pr-gutter"
             data-testid="lane-gutter"
           >
+            <div class="pr-gutter__group">
+              {{ t('kernel', locale) }}
+            </div>
             <div
               v-for="lane in lanes"
               :key="lane.id"
               class="pr-gutter__lane"
             >
-              <span class="pr-gutter__name">{{ lane.name }}</span>
+              <span
+                class="pr-gutter__name"
+                :title="lane.name"
+              >{{ lane.name }}</span>
+              <span class="pr-gutter__pct">{{ Math.round(lane.utilization * 100) }}%</span>
               <span
                 class="pr-gutter__util"
                 data-testid="lane-util"
-                :title="`${Math.round(lane.utilization * 100)}%`"
               >
                 <span
                   class="pr-gutter__util-bar"
-                  :style="{ width: `${Math.min(100, lane.utilization * 100)}%` }"
+                  :style="{
+                    width: `${Math.min(100, lane.utilization * 100)}%`,
+                    background: lane.color,
+                  }"
                 />
               </span>
             </div>
@@ -390,39 +424,65 @@ defineExpose({ selectEventById, viewState });
       <aside
         v-if="viewState.asideVisible && asideAvailable"
         class="pr-aside"
+        data-testid="stats-aside"
       >
+        <header class="pr-aside__head">
+          <h3>{{ t('summary', locale) }}</h3>
+          <p
+            v-if="report?.summary.currentFreq != null"
+            class="pr-aside__meta"
+          >
+            {{ t('freq', locale) }}: {{ report.summary.currentFreq }}
+            <template v-if="report.summary.ratedFreq != null">
+              / {{ report.summary.ratedFreq }}
+            </template>
+            <template v-if="report?.summary.opType">
+              · {{ report.summary.opType }}
+            </template>
+          </p>
+        </header>
+
         <div
           v-if="hasSummary"
-          class="pr-panel"
+          class="pr-cards"
           data-testid="stats-summary"
         >
-          <h3>{{ t('summary', locale) }}</h3>
-          <dl>
-            <div v-if="report?.summary.opName">
-              <dt>{{ t('op', locale) }}</dt>
-              <dd>{{ report.summary.opName }}</dd>
+          <div
+            v-if="report?.summary.taskDurationUs != null"
+            class="pr-card"
+          >
+            <div class="pr-card__label">
+              {{ t('duration', locale) }}
             </div>
-            <div v-if="report?.summary.opType">
-              <dt>{{ t('type', locale) }}</dt>
-              <dd>{{ report.summary.opType }}</dd>
+            <div class="pr-card__value">
+              {{ formatDurationUs(report.summary.taskDurationUs) }}
             </div>
-            <div v-if="report?.summary.taskDurationUs != null">
-              <dt>{{ t('duration', locale) }}</dt>
-              <dd>{{ report.summary.taskDurationUs }} µs</dd>
+            <div
+              v-if="report?.summary.opName"
+              class="pr-card__sub"
+            >
+              {{ report.summary.opName }}
             </div>
-            <div v-if="report?.summary.currentFreq != null">
-              <dt>{{ t('freq', locale) }}</dt>
-              <dd>{{ report.summary.currentFreq }} / {{ report.summary.ratedFreq }}</dd>
+          </div>
+          <div
+            v-if="report?.summary.opType"
+            class="pr-card"
+          >
+            <div class="pr-card__label">
+              {{ t('type', locale) }}
             </div>
-          </dl>
+            <div class="pr-card__value pr-card__value--sm">
+              {{ report.summary.opType }}
+            </div>
+          </div>
         </div>
 
         <div
           v-if="showPipe"
-          class="pr-panel"
+          class="pr-panel pr-panel--pipe"
           data-testid="pipe-occupancy"
         >
-          <h3>{{ t('pipeOccupancy', locale) }}</h3>
+          <h4>{{ t('pipeOccupancy', locale) }}</h4>
           <ul class="pr-pipe-list">
             <li
               v-for="pipe in report?.pipeOccupancy ?? []"
@@ -430,14 +490,16 @@ defineExpose({ selectEventById, viewState });
               class="pr-pipe-row"
             >
               <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-              <span
-                class="pr-pipe-row__bar"
-                :style="{
-                  width: `${Math.min(100, pipe.ratio * 100)}%`,
-                  background: COLOR[pipe.colorKey] ?? COLOR.default,
-                }"
-              />
-              <span class="pr-pipe-row__pct">{{ (pipe.ratio * 100).toFixed(1) }}%</span>
+              <span class="pr-pipe-row__track">
+                <span
+                  class="pr-pipe-row__bar"
+                  :style="{
+                    width: `${Math.min(100, pipe.ratio * 100)}%`,
+                    background: COLOR[pipe.colorKey] ?? COLOR.default,
+                  }"
+                />
+              </span>
+              <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
             </li>
           </ul>
         </div>
@@ -449,9 +511,17 @@ defineExpose({ selectEventById, viewState });
       class="pr-detail"
       data-testid="detail-strip"
     >
-      <strong>{{ selected.name }}</strong>
-      <span>{{ formatTime(selected.startTime, unit) }} → {{ formatTime(selected.endTime, unit) }}</span>
-      <span>{{ t('dur', locale) }} {{ formatTime(selected.duration, unit) }}</span>
+      <div class="pr-detail__name">
+        {{ selected.name }}
+      </div>
+      <div class="pr-detail__times">
+        {{ formatTime(selected.startTime, 'ns') }}
+        →
+        {{ formatTime(selected.duration, 'ns') }}
+      </div>
+      <div class="pr-detail__end">
+        {{ t('end', locale) }} {{ formatTime(selected.endTime, unit) }}
+      </div>
     </footer>
 
     <div
@@ -460,10 +530,12 @@ defineExpose({ selectEventById, viewState });
       data-testid="event-tooltip"
       :style="tooltipStyle"
     >
-      <div>{{ hovered.name }}</div>
-      <div>{{ t('start', locale) }} {{ formatTime(hovered.startTime, unit) }}</div>
-      <div>{{ t('dur', locale) }} {{ formatTime(hovered.duration, unit) }}</div>
-      <div>{{ t('end', locale) }} {{ formatTime(hovered.startTime + hovered.duration, unit) }}</div>
+      <div class="pr-tooltip__name">
+        {{ hovered.name }}
+      </div>
+      <div>{{ t('start', locale) }}: {{ formatTime(hovered.startTime, 'ns') }}</div>
+      <div>{{ t('dur', locale) }}: {{ formatTime(hovered.duration, 'ns') }}</div>
+      <div>{{ t('end', locale) }}: {{ formatTime(hovered.startTime + hovered.duration, 'ns') }}</div>
     </div>
   </div>
 </template>
@@ -473,41 +545,32 @@ defineExpose({ selectEventById, viewState });
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   width: 100%;
   height: 100%;
   min-height: 240px;
-  padding: 12px;
+  padding: 0;
   color: #e8e8e8;
   background: var(--pr-bg-deep);
   font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 13px;
-}
-
-.pr-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 0 0 auto;
-}
-
-.pr-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 12px;
+  overflow: hidden;
 }
 
 .pr-error {
   margin: 0;
+  padding: 6px 10px;
   color: #f88;
+  flex: 0 0 auto;
 }
 
 .pr-layout {
   display: grid;
-  grid-template-columns: 1fr minmax(220px, 320px);
-  gap: 12px;
+  grid-template-columns: 1fr minmax(260px, 300px);
+  gap: 0;
   flex: 1 1 auto;
   min-height: 0;
+  border-top: 1px solid #3a3a3a;
 }
 
 .pr-layout--no-aside {
@@ -517,40 +580,62 @@ defineExpose({ selectEventById, viewState });
 .pr-main {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   min-width: 0;
   min-height: 0;
   background: var(--pr-bg-panel);
-  border-radius: 4px;
-  padding: 8px;
+  padding: 0;
+  border-right: 1px solid #3a3a3a;
 }
 
 .pr-time-axis {
   position: relative;
   display: flex;
   justify-content: space-between;
-  opacity: 0.8;
+  color: #a8a8a8;
   font-variant-numeric: tabular-nums;
   font-size: 11px;
-  border-bottom: 1px solid #444;
-  padding-bottom: 4px;
-  min-height: 20px;
+  border-bottom: 1px solid #3a3a3a;
+  padding: 4px 8px 6px;
+  min-height: 22px;
+  flex: 0 0 auto;
+}
+
+.pr-swim-row--head {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.pr-gutter--axis-spacer {
+  border-bottom: 1px solid #3a3a3a;
 }
 
 .pr-playhead {
   position: absolute;
   top: 0;
-  bottom: -4px;
-  width: 2px;
+  bottom: 0;
+  width: 1px;
   background: var(--pr-playhead);
   pointer-events: none;
-  transform: translateX(-1px);
+  z-index: 2;
+}
+
+.pr-playhead__label {
+  position: absolute;
+  top: 0;
+  left: 4px;
+  padding: 0 4px;
+  background: #1a2a48;
+  color: #9ec0ff;
+  font-size: 10px;
+  white-space: nowrap;
+  border-radius: 2px;
 }
 
 .pr-swim-row {
   display: grid;
-  grid-template-columns: minmax(140px, 22%) 1fr;
-  gap: 8px;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
@@ -560,17 +645,28 @@ defineExpose({ selectEventById, viewState });
   display: flex;
   flex-direction: column;
   font-size: 11px;
-  opacity: 0.9;
+  color: #c8c8c8;
   overflow: auto;
   min-height: 0;
+  background: #2a2a2a;
+  border-right: 1px solid #3a3a3a;
+  padding: 0 6px 0 8px;
+}
+
+.pr-gutter__group {
+  padding: 6px 0 4px;
+  font-weight: 600;
+  color: #ddd;
+  border-bottom: 1px solid #3a3a3a;
+  margin-bottom: 2px;
 }
 
 .pr-gutter__lane {
   display: grid;
-  grid-template-columns: 1fr 36px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 34px 40px;
+  gap: 4px;
   align-items: center;
-  height: 28px;
+  height: 22px;
 }
 
 .pr-gutter__name {
@@ -579,59 +675,96 @@ defineExpose({ selectEventById, viewState });
   white-space: nowrap;
 }
 
+.pr-gutter__pct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+  font-size: 10px;
+}
+
 .pr-gutter__util {
   display: block;
   height: 6px;
   background: #1a1a1a;
-  border-radius: 2px;
+  border-radius: 1px;
   overflow: hidden;
 }
 
 .pr-gutter__util-bar {
   display: block;
   height: 100%;
-  background: var(--pr-color-vector);
-  border-radius: 2px;
+  border-radius: 1px;
   min-width: 0;
 }
 
 .pr-aside {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-height: 0;
   overflow: auto;
-}
-
-.pr-panel {
   background: var(--pr-bg-panel);
-  border-radius: 4px;
   padding: 10px 12px;
 }
 
-.pr-panel h3 {
-  margin: 0 0 8px;
-  font-size: 13px;
-}
-
-.pr-panel dl {
+.pr-aside__head h3 {
   margin: 0;
-  display: grid;
-  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.pr-panel dl > div {
+.pr-aside__meta {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #a8a8a8;
+}
+
+.pr-cards {
   display: grid;
-  grid-template-columns: 72px 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-.pr-panel dt {
-  opacity: 0.7;
+.pr-card {
+  background: #262626;
+  border: 1px solid #3a3a3a;
+  border-radius: 2px;
+  padding: 8px 10px;
 }
 
-.pr-panel dd {
-  margin: 0;
+.pr-card__label {
+  font-size: 11px;
+  color: #9a9a9a;
+  margin-bottom: 4px;
+}
+
+.pr-card__value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.pr-card__value--sm {
+  font-size: 14px;
+}
+
+.pr-card__sub {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #8a8a8a;
+}
+
+.pr-panel--pipe {
+  background: transparent;
+  border-radius: 0;
+  padding: 4px 0 0;
+}
+
+.pr-panel--pipe h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .pr-pipe-list {
@@ -640,20 +773,33 @@ defineExpose({ selectEventById, viewState });
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .pr-pipe-row {
   display: grid;
-  grid-template-columns: 56px 1fr 48px;
+  grid-template-columns: 52px 1fr 36px;
   gap: 8px;
   align-items: center;
 }
 
-.pr-pipe-row__bar {
+.pr-pipe-row__label {
+  font-size: 11px;
+  color: #c0c0c0;
+}
+
+.pr-pipe-row__track {
+  display: block;
   height: 10px;
-  border-radius: 2px;
-  justify-self: start;
+  background: #1f1f1f;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.pr-pipe-row__bar {
+  display: block;
+  height: 100%;
+  border-radius: 1px;
   min-width: 2px;
 }
 
@@ -661,15 +807,31 @@ defineExpose({ selectEventById, viewState });
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-size: 11px;
+  color: #b8b8b8;
 }
 
 .pr-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 8px 10px;
-  background: var(--pr-bg-panel);
-  border-radius: 4px;
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 12px;
+  background: #2a2a2a;
+  border-top: 1px solid #3a3a3a;
+  flex: 0 0 auto;
+}
+
+.pr-detail__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-detail__times,
+.pr-detail__end {
+  font-variant-numeric: tabular-nums;
+  color: #c0c0c0;
 }
 
 .pr-tooltip {
@@ -677,20 +839,44 @@ defineExpose({ selectEventById, viewState });
   z-index: 20;
   pointer-events: none;
   padding: 8px 10px;
-  background: #111;
+  background: #2a2a2a;
   border: 1px solid #555;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
   font-size: 12px;
+  line-height: 1.45;
+  min-width: 180px;
 }
 
-@media (max-width: 800px) {
+.pr-tooltip__name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 900px) {
   .pr-layout {
     grid-template-columns: 1fr;
+  }
+
+  .pr-main {
+    border-right: none;
   }
 
   .pr-swim-row {
     grid-template-columns: 1fr;
   }
+
+  .pr-swim-row--head {
+    display: block;
+  }
+
+  .pr-gutter--axis-spacer {
+    display: none;
+  }
+
+  .pr-detail {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
+

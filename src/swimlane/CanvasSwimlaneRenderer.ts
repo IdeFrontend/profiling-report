@@ -6,8 +6,8 @@ import type {
   SwimThread,
 } from '../core/types';
 
-export const LANE_HEIGHT = 28;
-export const LANE_PAD_Y = 4;
+export const LANE_HEIGHT = 22;
+export const LANE_PAD_Y = 3;
 
 const COLOR: Record<string, string> = {
   cube: '#007084',
@@ -140,8 +140,21 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const ctx = this.ctx;
     if (!ctx || !this.canvas) return;
     ctx.clearRect(0, 0, this.width, this.height);
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = '#252525';
     ctx.fillRect(0, 0, this.width, this.height);
+
+    // Alternating lane stripes (sketch-like density)
+    for (let i = 0; i < this.lanes.length; i++) {
+      const y = this.lanes[i]!.y - this.view.scrollY;
+      if (y + LANE_HEIGHT < 0 || y > this.height) continue;
+      ctx.fillStyle = i % 2 === 0 ? '#2a2a2a' : '#262626';
+      ctx.fillRect(0, y, this.width, LANE_HEIGHT);
+      ctx.strokeStyle = '#3a3a3a';
+      ctx.beginPath();
+      ctx.moveTo(0, y + LANE_HEIGHT - 0.5);
+      ctx.lineTo(this.width, y + LANE_HEIGHT - 0.5);
+      ctx.stroke();
+    }
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
