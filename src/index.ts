@@ -1,6 +1,5 @@
 /**
  * Public library entry.
- * Milestone 2: typed stubs + failing feature tests drive the API; implementations follow.
  */
 
 export const LIBRARY_NAME = 'profiling-report' as const;
