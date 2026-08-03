@@ -1,7 +1,8 @@
 name: Deploy demo
 
-# Hobby plan cannot link private org repos to Vercel Git.
-# This workflow redeploys the playground demo on pushes to master (and optional PRs).
+# Backup redeploy path. Primary: Vercel Git on IDE Frontend (team) → master.
+# Secrets: VERCEL_TOKEN, VERCEL_ORG_ID (team_7EopUplhfu3eyVh8yU7zl1wV),
+# VERCEL_PROJECT_ID (prj_46jz1jauCqaPc5z19gohXAFb2aec).
 on:
   push:
     branches: [master]

@@ -53,7 +53,7 @@ Fixture switcher: `?fixture=rep` (default) or `?fixture=trace`.
 
 Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
 
-Redeploys on every push to `master` via [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml) (Vercel Hobby cannot attach **private org** GitHub repos; Pro or a public repo would allow native Vercel Git integration instead).
+Redeploys on every push to `master` via Vercel Git integration on the **IDE Frontend** team (`vercel.json` → `npm run build:demo` → `playground/dist`). [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml) remains as a backup deploy path.
 
 ## Status
 
