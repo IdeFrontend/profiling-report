@@ -104,7 +104,7 @@ Payloads are addressed by absolute byte offsets from the start of the container.
 | `PipeUtilization.csv` | CSV | `block_id` + `sub_block_id` | Roofline tabs, pipe occupancy, pipe details |
 | `Memory.csv` | CSV | block / sub-block | Memory load edges (GM/L2/L1) |
 | `MemoryL0.csv` | CSV | block / sub-block | L0A/B/C ↔ Cube edges |
-| `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / GM edges |
+| `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / Scalar edges (GM↔UB BW is on `Memory.csv` in the sample) |
 | `L2Cache.csv` | CSV | block / sub-block | L2 hit-rate overlay |
 | `MemoryL1.csv` | CSV | (docx mockup annotation only) | L2→L1 path — **not in sample** |
 | Timeline / kernel events | (unspecified in tables) | Block / pipe event | Kernel block timeline + event details |
@@ -321,12 +321,15 @@ Verified against unpacked payloads (2026-08-03 local sample):
 
 ## 6. Open / TBD (formats)
 
+See prioritized product-owner list: [OPEN_QUESTIONS.md](../OPEN_QUESTIONS.md).
+
 | Item | Notes |
 | --- | --- |
 | `npu-rep` vs `cann-rep` | Product diagram vs repo packer; same conceptual layout |
 | `HardwareInfo.jsonl` | Required by hardware details UI; missing from sample archive |
 | `MemoryL1.csv` | Annotated on topology mockup; L1 BW currently on `Memory.csv` in sample |
-| UB↔GM field names | Docx `aiv_ub_*_bw_gm` on `MemoryUB.csv` vs sample `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` on `Memory.csv` |
-| L0C → UB edge | Docx 待确定; no sample column |
-| Timeline event schema for full details panel | Docx tables empty; sample trace is pipe-state oriented only |
-| Report-stat derived cards | 算力 / 输入带宽 / 输出带宽 / 平均核利用率 have empty field mappings in docx |
+| UB↔GM field names | Product `aiv_ub_*_bw_gm` on `MemoryUB.csv` vs sample `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` on `Memory.csv` |
+| L0C → UB edge | 待确定; no sample column |
+| Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
+| Report-stat derived cards | 算力 / 输入带宽 / 输出带宽 / 平均核利用率 have empty field mappings |
+| Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |

@@ -68,7 +68,7 @@ Mockups extracted from the source docx live under [`docs/specs/ui/source/`](../u
 
 | Element | Behavior |
 | --- | --- |
-| Header | Core count (核数) and AIC frequency; NPU ARCH peak (e.g. teraOPs) |
+| Header | Core count (核数) and AIC frequency; NPU ARCH peak (e.g. teraOPs). **Source conflict:** mockup values look like hardware caps (`HardwareInfo.jsonl` / AI Core info), while `OpBasicInfo.csv` also has `Current Freq` / `Rated Freq` — which feeds the header is unspecified. |
 | 更多 | Drill-down to **硬件信息详情** (§11.2.3.1) |
 | 整体耗时 card | Large duration + progress bar; secondary text like iterations/core |
 | 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak |
@@ -116,9 +116,12 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 - Log–log chart: Y = performance (TOps/s), X = arithmetic intensity (Ops/Byte).
 - Theoretical roof: bandwidth slope + compute plateau; filled achievable region.
 - Measured point(s) for GM vs L2 series (legend: GM Read+Write solid; L2 Read+Write hollow in mockup).
-- Op-mix annotation (e.g. `Vec_FP32` / `Vec_MISC` %) — likely from `ArithmeticUtilization.csv` in sample (not listed in docx table).
+- Op-mix annotation (e.g. `Vec_FP32` / `Vec_MISC` %) — candidate source `ArithmeticUtilization.csv` (not listed in product field table).
 
-**Caveat:** tab labels are memory-oriented while mapped fields are **pipe utilization ratios**. Documented as-in-source; treat naming as a possible product mislabel until clarified.
+**Contradictions / gaps (do not implement as-is):**
+
+1. Tab labels are memory-oriented (内存单元 / 通路 / 搬运) while mapped fields are **pipe utilization ratios** (`aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio`). Possible mislabel or incomplete mapping.
+2. Those ratios alone **cannot** supply Ops/Byte or TOps/s for the chart axes, nor peak bandwidth / peak compute for the roof. Product must define the real formulas and hardware-limit sources.
 
 ---
 
@@ -126,7 +129,9 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 
 ![Pipe occupancy](../ui/source/pipe-occupancy.png)
 
-**Rule (docx):** for `OpType == MIX`, split **Cube / Vector** and show **ICache** rates.
+**Rule (product table):** for `OpType == MIX`, split **Cube / Vector** and show **ICache** rates.
+
+**Mockup vs tables:** `pipe-occupancy.png` shows a **single** combined bar list (Cube, Vector, MTE2, MTE1, FixP, MTE3, Scalar). The field tables below are **two separate** Cube / Vector sets. Until product confirms layout, prefer the tables for field binding and treat the mockup as a visual style reference only.
 
 ### Cube occupancy
 
@@ -194,8 +199,8 @@ Docx detail table is **empty**. Render a searchable key–value list of all `Pip
 | L0C → L1 | `L0C_to_L1_datas` | 待确定 | `L0C_to_L1_datas(KB)` on `Memory.csv` |
 | L0C → L2 | `L0C_to_GM_datas` | 待确定 | `L0C_to_GM_datas(KB)` on `Memory.csv` |
 | L0C → UB | — | 待确定 | absent |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | `MemoryUB.csv` | name mismatch; see `aiv_ub_to_gm_bw` on `Memory.csv` |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | `MemoryUB.csv` | see `aiv_gm_to_ub_bw` on `Memory.csv` |
+| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | `MemoryUB.csv` | name/file mismatch; sample `aiv_ub_to_gm_bw` on `Memory.csv`. **Also:** display direction vs `read`/`write` naming may be inverted — confirm with PO. |
+| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | `MemoryUB.csv` | sample `aiv_gm_to_ub_bw` on `Memory.csv`; same direction/name caveat |
 | Vec → UB | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | present |
 | UB → Vec | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | present |
 | L2Cache Hit Rate | (unspecified column) | `L2Cache.csv` | use `*_hit_rate(%)` columns |
@@ -206,8 +211,9 @@ Annotated mockup also mentions `MemoryL1.csv` on L2→L1; that file is **not** i
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
 - Overlay **GB/s** on edges; emphasize non-zero paths (e.g. blue vs grey).
-- Overlay **Peak (%)** utilization on units with a heatmap legend (0–100).
-- L2↔GM link uses L2Cache hit-rate metrics in addition to BW.
+- Overlay **Peak (%)** utilization on units with a heatmap legend (0–100). **Gap:** no product field mapping for per-unit Peak % (pipe ratios? conflict ratios? something else?).
+- L2↔GM link uses L2Cache hit-rate metrics in addition to BW — which hit-rate column (read / write / total; AIC vs AIV) is unspecified.
+- Annotated topology mentions `MemoryL1.csv` for L2→L1 while the edge table uses `Memory.csv` `aic_l1_*_bw` — pick one canonical source.
 
 ---
 
@@ -293,18 +299,25 @@ Docx table empty. Mockup layout:
 
 ## Open questions / TBD (visualization)
 
+Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../OPEN_QUESTIONS.md).
+
 | Topic | Source status |
 | --- | --- |
-| Report-stat cards 5–8 field derivation | Empty in docx |
-| Roofline tab names vs pipe-ratio fields | Possible mislabel |
-| Dual-Die remote memory right-click details | Explicit question in docx |
+| Report-stat cards 5–8 field derivation | Empty in product tables |
+| Stats header 核数 / freq / NPU ARCH source | HardwareInfo vs OpBasicInfo unresolved |
+| Roofline tab names vs pipe-ratio fields; missing axis formulas | Contradictory / incomplete |
+| Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |
+| Dual-Die remote memory right-click details | Explicit product question |
+| Memory Peak (%) per unit | No field mapping |
+| L2 hit-rate column choice; MemoryL1 vs Memory.csv | Incomplete |
 | L0C → UB edge | 待确定 |
+| UB↔GM column file + read/write direction | Name mismatch |
 | Statistical analysis series schema | Placeholder only |
 | Timeline + event-detail field tables | Empty; mockup-driven |
 | HardwareInfo / MemoryL1 availability | Missing from sample archive |
-| UB↔GM column naming | Docx vs sample mismatch (see [INPUT_FORMATS §5](../formats/INPUT_FORMATS.md#5-sample-cross-check-dataoutrep)) |
-| Container magic `npu-rep` vs local `cann-rep` | Documented in [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
-| `ResourceConflictRatio.csv` | In sample; no docx UI mapping |
+| Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
+| `ResourceConflictRatio.csv` | In sample; no UI mapping |
+| Block-level aggregation for OP summary cards | Unspecified (sample has 8 blocks) |
 
 ---
 
