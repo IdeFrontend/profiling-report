@@ -1,6 +1,6 @@
 # Visualization View ↔ Data Mapping
 
-Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from [docs/source/profiling-report-spec.docx](../../source/profiling-report-spec.docx) §11.2 可视化界面数据关联.
+Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from product spec §11.2 可视化界面数据关联. Source mockups live under [`docs/specs/ui/source/`](../ui/source/).
 
 Input schemas: [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md).
 

@@ -1,6 +1,6 @@
 # Input Formats
 
-Clean specification of profiling-report **input container** and **embedded metric files**, derived from [docs/source/profiling-report-spec.docx](../../source/profiling-report-spec.docx) §11.2 and cross-checked against the local sample [`data/out.rep`](../../../data/out.rep) / packer [`data/pack_rep.py`](../../../data/pack_rep.py).
+Clean specification of profiling-report **input container** and **embedded metric files**, derived from product spec §11.2 (可视化界面数据关联) and cross-checked against the local sample [`data/out.rep`](../../../data/out.rep) / packer [`data/pack_rep.py`](../../../data/pack_rep.py). Mockups: [`docs/specs/ui/source/`](../ui/source/).
 
 Related visualization mappings: [VIEW_DATA_MAPPING.md](../visualization/VIEW_DATA_MAPPING.md).
 
