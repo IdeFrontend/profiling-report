@@ -1,0 +1,68 @@
+{
+  "name": "@huawei/profiling-report",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vue 3 library for Ascend/CANN OP profiling report visualization",
+  "main": "./dist/profiling-report.umd.cjs",
+  "module": "./dist/profiling-report.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/profiling-report.js",
+      "require": "./dist/profiling-report.umd.cjs"
+    },
+    "./style.css": "./dist/profiling-report.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "sync:demo-fixtures": "node scripts/sync-demo-fixtures.mjs",
+    "predev": "npm run sync:demo-fixtures",
+    "dev": "vite --config playground/vite.config.ts --host 127.0.0.1 --port 5173",
+    "playground": "npm run dev",
+    "build": "vue-tsc -p tsconfig.lib.json --noEmit && vite build",
+    "prebuild:demo": "npm run sync:demo-fixtures",
+    "build:demo": "vite build --config playground/vite.config.ts",
+    "preview:demo": "vite preview --config playground/vite.config.ts --host 127.0.0.1 --port 4173",
+    "typecheck": "vue-tsc -p tsconfig.lib.json --noEmit && vue-tsc -p tsconfig.app.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:scaffold": "vitest run tests/unit/scaffold.spec.ts tests/component/ProfilingReport.spec.ts",
+    "test:feature": "vitest run --exclude tests/unit/scaffold.spec.ts --exclude tests/component/ProfilingReport.spec.ts",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:scaffold": "playwright test tests/e2e/playground.spec.ts",
+    "test:e2e:feature": "playwright test tests/e2e/feature.spec.ts",
+    "ci": "npm run lint && npm run typecheck && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
+    "ci:tdd": "npm run ci && npm run test:e2e:feature"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.54.2",
+    "@types/node": "^22.17.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.7.0",
+    "eslint": "^9.32.0",
+    "eslint-plugin-vue": "^10.4.0",
+    "globals": "^16.3.0",
+    "happy-dom": "^20.11.1",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.38.0",
+    "vite": "^7.0.6",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.2.4",
+    "vue": "^3.5.18",
+    "vue-eslint-parser": "^10.2.0",
+    "vue-tsc": "^3.0.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

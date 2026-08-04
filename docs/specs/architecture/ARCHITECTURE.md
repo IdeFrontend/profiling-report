@@ -4,7 +4,7 @@
 
 profiling-report ships as a **reusable Vue 3 library** consumed by host apps (MSTT first), **not** as a sealed HTML webview bundle.
 
-This supersedes the webview-bundle recommendation in the archived [SWIMLANE_WEBVIEW_REUSE_REPORT.md](../../research/SWIMLANE_WEBVIEW_REUSE_REPORT.md) for this project. Reasons:
+This supersedes the webview-bundle recommendation in the archived [SWIMLANE_WEBVIEW_REUSE_REPORT.md](../../archive/research/SWIMLANE_WEBVIEW_REUSE_REPORT.md) for this project. Reasons:
 
 - MSTT already builds first-party panels with Vue 3 + Vite + Ant Design Vue.
 - A library integrates via normal imports, shared theming, and typed props/emits.
@@ -51,20 +51,24 @@ Prefer **one package at the repo root** (matches [DEVELOPMENT.md](../../process/
 ```text
 profiling-report/
   src/
-    core/           # adapters: .rep first (parse → models); room for more adapters later
-    swimlane/       # renderer (Canvas and/or WebGL) + swimlane Vue wrapper
-    ui/             # ProfilingReport, panels, …
-    index.ts        # public exports
+    adapters/       # .rep / CTEF parse → canonical models
+    domain/         # types, viewState, utilization, formatTime, laneColors
+    i18n/           # message catalogs
+    swimlane/       # CanvasSwimlaneRenderer + SwimlaneCanvas.vue
+    ui/             # ProfilingReport + composed panels
+    index.ts        # narrow public exports
   playground/       # Vite demo / Playwright target
   tests/
+  data/             # canonical golden fixtures
 ```
 
 Logical names used in docs:
 
 | Module | Responsibility |
 |--------|-----------------|
-| **core** | Format adapters — v1: `.rep` reader, CSV → `ReportViewModel`, Chrome Trace → `SwimlaneModel` |
-| **swimlane** | Timeline renderer + lane layout; no VS Code APIs |
+| **adapters** | Format adapters — v1: `.rep` reader, CSV → `ReportViewModel`, Chrome Trace → `SwimlaneModel` |
+| **domain** | Format-agnostic models and pure helpers (time, view window, colors, utilization) |
+| **swimlane** | Timeline renderer + Vue canvas wrapper; no VS Code APIs |
 | **ui** | Vue components composing the report shell |
 
 Normative inventory of models, adapters, renderer APIs, and Vue components (with design justifications): **[COMPONENTS.md](COMPONENTS.md)**.
@@ -75,7 +79,7 @@ The diagram below is the **first adapter path**. Other adapters would produce th
 
 ```mermaid
 flowchart LR
-  RepFile[".rep / .ncrep bytes"] --> RepAdapter["core: .rep adapter"]
+  RepFile[".rep / .ncrep bytes"] --> RepAdapter["adapters: .rep"]
   RepAdapter --> CSVs["CSV tables"]
   RepAdapter --> Trace["trace.json"]
   CSVs --> ViewModel["ReportViewModel"]
@@ -164,7 +168,7 @@ interface SwimEvent {
 
 ## Renderer strategy
 
-See [SWIMLANE_IMPLEMENTATIONS.md](../../research/SWIMLANE_IMPLEMENTATIONS.md).
+See [SWIMLANE_IMPLEMENTATIONS.md](../../archive/research/SWIMLANE_IMPLEMENTATIONS.md).
 
 - **MVP:** Canvas 2D (or thin WebGL) sufficient for sample-scale traces; Vue chrome around it.
 - **Target:** Hybrid — TypeScript WebGL interval layer (Sudu coverage-AA idea) + DOM/Canvas overlays for text and hit-testing.

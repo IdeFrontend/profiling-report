@@ -23,17 +23,46 @@ Start here: **[docs/README.md](docs/README.md)**
 | UX specification | [docs/specs/ui/UX_SPEC.md](docs/specs/ui/UX_SPEC.md) |
 | Architecture | [docs/specs/architecture/ARCHITECTURE.md](docs/specs/architecture/ARCHITECTURE.md) (shared UI + adapters) |
 | Components & models | [docs/specs/architecture/COMPONENTS.md](docs/specs/architecture/COMPONENTS.md) |
-| Swimlane tech options | [docs/research/SWIMLANE_IMPLEMENTATIONS.md](docs/research/SWIMLANE_IMPLEMENTATIONS.md) |
+| Swimlane tech options | [docs/archive/research/SWIMLANE_IMPLEMENTATIONS.md](docs/archive/research/SWIMLANE_IMPLEMENTATIONS.md) |
 
 ## Sample data
 
 - [`data/out.rep`](data/out.rep) — sample CANN report container
+- [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
 - [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers
 
 ```bash
 python3 data/unpack_rep.py data/out.rep /tmp/out-rep
 ```
 
+## Demo (playground)
+
+Static playground demo is what Vercel deploys (`vercel.json` → `npm run build:demo` → `playground/dist`).
+
+Fixtures are synced from the repo into `playground/public/data/` via `npm run sync:demo-fixtures` (runs automatically before `dev` / `build:demo`):
+
+- `data/out.rep` → `/data/out.rep`
+- `data/out.trace.json` → `/data/out.trace.json`
+
+```bash
+npm run playground          # local SPA (syncs fixtures first)
+npm run build:demo          # production static build
+npm run preview:demo        # preview playground/dist
+```
+
+Fixture switcher: `?fixture=rep` (default) or `?fixture=trace`.
+
+Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
+
+Redeploys on every push to `master` (and PR previews) via Vercel Git on the **IDE Frontend** team (`vercel.json` → `npm run build:demo` → `playground/dist`). Manual backup: [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml) (`workflow_dispatch` only).
+
 ## Status
 
-Documentation, specs, process guides, sample data, and **interim engineering defaults** for MVP coding ([INTERIM_DECISIONS](docs/context/INTERIM_DECISIONS.md)). Product-final specs still await data/format answers (esp. Q6). Library and test infrastructure are not scaffolded yet — next step per [DEVELOPMENT](docs/process/DEVELOPMENT.md).
+Documentation and specs are in place with [interim MVP defaults](docs/context/INTERIM_DECISIONS.md). **Milestone 1 scaffold** is green (`npm run ci`). **Milestone 2** adds failing feature specs (`npm run test:feature` / `test:e2e:feature`) — implement slices to make them green. See [tests/README.md](tests/README.md).
+
+```bash
+npm install
+npm run ci              # lint, typecheck, scaffold tests
+npm run test:feature    # expected red until parse/UI slices
+npm run playground
+```

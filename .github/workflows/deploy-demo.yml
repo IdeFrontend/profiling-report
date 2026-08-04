@@ -1,0 +1,67 @@
+# Vercel Git on IDE Frontend already builds/previews this repo.
+# Keep a manual backup only — do not run on PR/push (stale tokens fail checks).
+name: Deploy demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+
+concurrency:
+  group: deploy-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pull Vercel project settings
+        run: |
+          env_name="${{ inputs.environment }}"
+          npx vercel pull --yes --environment="$env_name" --token="$VERCEL_TOKEN"
+
+      - name: Build demo
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            npx vercel build --prod --token="$VERCEL_TOKEN"
+          else
+            npx vercel build --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Deploy
+        id: deploy
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            url=$(npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          else
+            url=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $url"
+
+      - name: Summary
+        run: |
+          echo "### Demo deploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.deploy.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Production: https://profiling-report.vercel.app" >> "$GITHUB_STEP_SUMMARY"

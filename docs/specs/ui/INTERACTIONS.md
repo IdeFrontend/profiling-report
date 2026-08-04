@@ -87,4 +87,4 @@ Sketch: `swimlane_selection.png` annotations
 ## Accessibility and robustness
 
 - Tooltips must not block pan/zoom hit-testing incorrectly (dismiss on pan start).
-- Large traces: hit-testing must use spatial index or GPU pick buffer when WebGL renderer is adopted (see [SWIMLANE_IMPLEMENTATIONS.md](../../research/SWIMLANE_IMPLEMENTATIONS.md)).
+- Large traces: hit-testing must use spatial index or GPU pick buffer when WebGL renderer is adopted (see [SWIMLANE_IMPLEMENTATIONS.md](../../archive/research/SWIMLANE_IMPLEMENTATIONS.md)).

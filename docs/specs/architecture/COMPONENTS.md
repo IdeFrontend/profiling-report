@@ -7,28 +7,26 @@ Normative catalog of models, adapters, renderer APIs, and Vue components for the
 ## Layering
 
 ```text
-adapters (core)  →  canonical models  →  Vue ui + swimlane renderer
+    adapters  →  domain models  →  Vue ui + swimlane renderer
 ```
 
 | Layer | Ships | Public? |
 |-------|-------|---------|
-| Adapters | Format → models | Yes (hosts may pre-parse) |
-| Models / types | Canonical DTOs + capabilities | Yes |
-| `SwimlaneRenderer` | Imperative timeline backend | Yes (advanced hosts) |
+| Adapters | Format → models | Yes (`parseRep`, `loadReportSource`, …) |
+| Domain | Canonical DTOs + pure helpers | Types yes; helpers via deep import |
+| `SwimlaneRenderer` | Imperative timeline backend | Deep import (advanced hosts) |
 | Vue UI | `ProfilingReport` and panels | Yes — `ProfilingReport` is the default host entry |
 
 ```text
 ProfilingReport
 ├─ ReportToolbar
-├─ ReportLayout (gutter | main | aside)
+├─ ReportLayout (main | aside)
+│  ├─ TimeOverviewBar
 │  ├─ LaneGutter
-│  ├─ SwimlanePane
-│  │  ├─ OverviewCharts
-│  │  ├─ TimeAxis
-│  │  └─ SwimlaneCanvas  →  SwimlaneRenderer
+│  ├─ SwimlaneCanvas  →  SwimlaneRenderer   (src/swimlane/)
 │  ├─ StatsAside
-│  │  ├─ StatsSummaryPanel
-│  │  ├─ PipeOccupancyPanel
+│  │  ├─ StatsSummaryPanel (inline MVP)
+│  │  ├─ PipeOccupancyPanel (inline MVP)
 │  │  ├─ PipeDetailsPanel (P2)
 │  │  ├─ RooflinePanel (P2)
 │  │  ├─ HardwareDetailsPanel (deferred)
@@ -144,7 +142,7 @@ interface SwimlaneRenderer {
 }
 ```
 
-**Why:** Swap Canvas ↔ WebGL without rewriting `SwimlaneCanvas` or e2e selectors on Vue chrome ([SWIMLANE_IMPLEMENTATIONS](../../research/SWIMLANE_IMPLEMENTATIONS.md)).
+**Why:** Swap Canvas ↔ WebGL without rewriting `SwimlaneCanvas` or e2e selectors on Vue chrome ([SWIMLANE_IMPLEMENTATIONS](../../archive/research/SWIMLANE_IMPLEMENTATIONS.md)).
 
 ### `CanvasSwimlaneRenderer` (M)
 
@@ -286,4 +284,4 @@ Pin/context actions and multi-select aggregate table.
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios and sync model
 - [INTERACTIONS.md](../ui/INTERACTIONS.md) — hover/select/zoom behavior
 - [METRICS_AND_TRACE.md](../formats/METRICS_AND_TRACE.md) — `.rep` embeds → report model fields
-- [SWIMLANE_IMPLEMENTATIONS.md](../../research/SWIMLANE_IMPLEMENTATIONS.md) — Canvas vs WebGL
+- [SWIMLANE_IMPLEMENTATIONS.md](../../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — Canvas vs WebGL
