@@ -8,6 +8,7 @@ export default defineConfig({
     vue(),
     dts({
       include: ['src'],
+      exclude: ['**/*.spec.ts', '**/*.spec.md'],
       tsconfigPath: './tsconfig.lib.json',
       rollupTypes: true,
     }),

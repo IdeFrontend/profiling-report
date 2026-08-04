@@ -20,4 +20,4 @@ export {
 
 export type * from './domain/types';
 
-export { default as ProfilingReport } from './ui/ProfilingReport.vue';
+export { default as ProfilingReport } from './ui/ProfilingReport/ProfilingReport.vue';

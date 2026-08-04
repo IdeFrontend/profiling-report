@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import ProfilingReport from '../../src/ui/ProfilingReport.vue';
+import ProfilingReport from './ProfilingReport.vue';
 
 describe('ProfilingReport scaffold', () => {
   it('PR-SCAFFOLD-003: mounts report root with timeline chrome', () => {

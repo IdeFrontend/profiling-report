@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { formatTime } from '../domain/formatTime';
-import { t } from '../i18n';
-import type { SwimEvent, TimeDisplayUnit } from '../domain/types';
+import { formatTime } from '../../domain/formatTime';
+import { t } from '../../i18n';
+import type { SwimEvent, TimeDisplayUnit } from '../../domain/types';
 
 defineProps<{
   event: SwimEvent;
