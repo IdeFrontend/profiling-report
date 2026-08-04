@@ -4,7 +4,7 @@ How we build profiling-report: **docs → specs → tests → code**.
 
 ## Principles
 
-1. **Specs before code.** Product behavior lives under [`specs/`](../../specs/) (root-level specs for core and architecture) with co-located `.spec.md` files per Vue component. Behavioral specs previously under [`docs/specs/`](../specs/) are being migrated to this canonical location. Code implements the specs; it does not invent undocumented behavior.
+1. **Specs before code.** Product behavior lives in spec files — root-level [`specs/`](../../specs/) for core and architecture, co-located `.spec.md` files per Vue component. See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for the canonical layout. Code implements the specs; it does not invent undocumented behavior.
 2. **Tests before (or with) implementation.** For each work slice, write failing automated tests that encode the relevant specs, then implement until green, then refactor.
 3. **Outside-in slices.** Prefer vertical slices (parse → model → UI for one capability) over building an entire layer with nothing wired.
 4. **Library first, host second.** Prove the Vue library in this repo (unit + component + playground e2e). Wire MSTT after the library CI is green.
