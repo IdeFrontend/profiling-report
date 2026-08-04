@@ -54,6 +54,8 @@ const props = defineProps<{
   theme?: 'light' | 'dark';
   locale?: string;
   timeUnit?: TimeDisplayUnit;
+  /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
+  preferRenderer?: 'auto' | 'webgl' | 'canvas';
   /** Future feature-gate: controls which sub-panels/tabs are rendered. Currently exposed
    *  as a data attribute for CSS/test hooking; intended to drive conditional sections
    *  (roofline, memory diagram, etc.) once those views land. */
@@ -572,6 +574,7 @@ defineExpose({ selectEventById, viewState });
               :measure-mode="viewState.measureMode"
               :measure-range="viewState.measureRange"
               :time-unit="unit"
+              :prefer-renderer="preferRenderer ?? 'auto'"
               @select="onSelect"
               @hover="onHover"
               @cursor="onCursor"
@@ -582,7 +585,6 @@ defineExpose({ selectEventById, viewState });
               @update:measure-range="onMeasureRange"
             />
           </div>
-
           <div
             v-if="showOverview"
             data-testid="overview-charts"

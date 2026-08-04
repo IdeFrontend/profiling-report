@@ -22,6 +22,8 @@ const props = defineProps<{
   measureMode?: boolean;
   measureRange?: MeasureRange | null;
   timeUnit?: TimeDisplayUnit;
+  /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
+  preferRenderer?: 'auto' | 'webgl' | 'canvas';
 }>();
 
 const emit = defineEmits<{
@@ -112,7 +114,14 @@ function resize(): void {
   sizerHeight.value = h;
 
   if (!attached) {
-    if (glCanvasRef.value && overlayCanvasRef.value && WebGlSwimlaneRenderer.isSupported(glCanvasRef.value)) {
+    const prefer = props.preferRenderer ?? 'auto';
+    const tryWebGl = prefer !== 'canvas';
+    if (
+      tryWebGl &&
+      glCanvasRef.value &&
+      overlayCanvasRef.value &&
+      WebGlSwimlaneRenderer.isSupported(glCanvasRef.value)
+    ) {
       const glBackend = new WebGlSwimlaneRenderer();
       if (glBackend.attach(glCanvasRef.value)) {
         backend = glBackend;
@@ -121,6 +130,13 @@ function resize(): void {
         attached = true;
       }
     }
+    if (!attached && prefer !== 'webgl' && fallbackCanvasRef.value) {
+      backend = new CanvasSwimlaneRenderer();
+      backend.attach(fallbackCanvasRef.value);
+      useWebGl.value = false;
+      attached = true;
+    }
+    // prefer=webgl but attach failed → canvas fallback
     if (!attached && fallbackCanvasRef.value) {
       backend = new CanvasSwimlaneRenderer();
       backend.attach(fallbackCanvasRef.value);
