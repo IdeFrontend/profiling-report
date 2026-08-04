@@ -1,5 +1,6 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer, SwimlaneViewWindow } from '../domain/types';
 import {
+  EVENT_RADIUS,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   LANE_PAD_Y,
@@ -24,6 +25,8 @@ interface GlProgram {
   uSizePos: WebGLUniformLocation;
   uResolution: WebGLUniformLocation | null;
   uColor: WebGLUniformLocation;
+  uYBounds: WebGLUniformLocation | null;
+  uRadius: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -78,6 +81,8 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uSizePos,
     uResolution: gl.getUniformLocation(program, 'uResolution'),
     uColor,
+    uYBounds: gl.getUniformLocation(program, 'uYBounds'),
+    uRadius: gl.getUniformLocation(program, 'uRadius'),
   };
 }
 
@@ -163,7 +168,7 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
 
 /**
  * WebGL2 coverage-AA interval backend (Sudu-inspired; no sudu-editor dependency).
- * Draws background, lane stripes, and interval fills. Labels/selection use overlay.
+ * Draws background, lane stripes, and rounded interval fills. Labels/selection use overlay.
  */
 export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
@@ -296,6 +301,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, resX, resY);
+    if (swim.uRadius) gl.uniform1f(swim.uRadius, EVENT_RADIUS);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const sx = 2 / span;
@@ -316,6 +322,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
       gl.uniform4f(swim.uColor, r, g, b, 1);
+      if (swim.uYBounds) gl.uniform2f(swim.uYBounds, top, top + bandH);
 
       for (const chunk of meshes.chunks) {
         gl.bindVertexArray(chunk.vao);

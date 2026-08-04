@@ -5,7 +5,7 @@ export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
 /** Matches `.pr-gutter__group` height so canvas lanes align with gutter labels. */
 export const LANE_GROUP_HEADER_HEIGHT = 28;
-/** Corner radius for event blocks on Canvas overlay (sketch / design). */
+/** Corner radius for event blocks (Canvas fills/strokes + WebGL SDF fills). */
 export const EVENT_RADIUS = 5;
 
 /** Max quads per mesh (ushort indices: 65536 / 4 vertices). */
