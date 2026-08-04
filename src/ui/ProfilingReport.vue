@@ -11,6 +11,7 @@ import {
   zoomToFitWindow,
 } from '../core/viewState';
 import { withDerivedUtilizations } from '../core/utilization';
+import { colorVarForLaneName } from '../core/laneColors';
 import type {
   ReportCapability,
   ReportViewModel,
@@ -62,6 +63,7 @@ const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
+const gutterRef = ref<HTMLElement | null>(null);
 
 const swim = computed(() => {
   const raw = props.swimlaneModel ?? internalSwim.value;
@@ -87,24 +89,12 @@ const lanes = computed(() => {
         id: t.id,
         name: t.name,
         utilization: t.utilization ?? 0,
-        color: colorForLaneName(t.name),
+        color: colorVarForLaneName(t.name),
       });
     }
   }
   return out;
 });
-
-function colorForLaneName(name: string): string {
-  const n = name.toUpperCase();
-  if (n.includes('PIPE_V') || n.includes('VEC')) return 'var(--pr-color-vector)';
-  if (n.includes('PIPE_S') || n.includes('SCALAR')) return 'var(--pr-color-scalar)';
-  if (n.includes('MTE1')) return 'var(--pr-color-mte1)';
-  if (n.includes('MTE2')) return 'var(--pr-color-mte2)';
-  if (n.includes('MTE3')) return 'var(--pr-color-mte3)';
-  if (n.includes('FIX')) return 'var(--pr-color-fixp)';
-  if (n.includes('CUBE')) return 'var(--pr-color-cube)';
-  return '#6a6a6a';
-}
 
 const bounds = computed(() => {
   const m = swim.value;
@@ -295,6 +285,24 @@ function onScrollY(scrollY: number) {
   viewState.value = { ...viewState.value, scrollY };
 }
 
+watch(
+  () => viewState.value.scrollY,
+  (y) => {
+    const el = gutterRef.value;
+    if (el && Math.abs(el.scrollTop - y) > 0.5) {
+      el.scrollTop = y;
+    }
+  },
+);
+
+function onGutterScroll(): void {
+  const el = gutterRef.value;
+  if (!el) return;
+  if (Math.abs(el.scrollTop - viewState.value.scrollY) > 0.5) {
+    onScrollY(el.scrollTop);
+  }
+}
+
 function onSearch(q: string) {
   viewState.value = { ...viewState.value, searchQuery: q };
 }
@@ -328,6 +336,7 @@ defineExpose({ selectEventById, viewState });
     class="pr-root"
     data-testid="profiling-report"
     :data-theme="theme ?? 'dark'"
+    :data-capabilities="(capabilities ?? []).join(',')"
   >
     <ReportToolbar
       :search-query="viewState.searchQuery"
@@ -404,8 +413,10 @@ defineExpose({ selectEventById, viewState });
 
         <div class="pr-swim-row pr-swim-row--body">
           <div
+            ref="gutterRef"
             class="pr-gutter"
             data-testid="lane-gutter"
+            @scroll="onGutterScroll"
           >
             <div class="pr-gutter__group">
               {{ t('kernel', locale) }}
@@ -554,9 +565,9 @@ defineExpose({ selectEventById, viewState });
         {{ selected.name }}
       </div>
       <div class="pr-detail__times">
-        {{ formatTime(selected.startTime, 'ns') }}
-        →
-        {{ formatTime(selected.duration, 'ns') }}
+        {{ t('start', locale) }} {{ formatTime(selected.startTime, 'ns') }}
+        ·
+        {{ t('dur', locale) }} {{ formatTime(selected.duration, 'ns') }}
       </div>
       <div class="pr-detail__end">
         {{ t('end', locale) }} {{ formatTime(selected.endTime, unit) }}

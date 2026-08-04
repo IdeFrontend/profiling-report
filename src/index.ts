@@ -16,7 +16,8 @@ export {
 } from './core/adapters';
 export { formatTime, formatAxisTime, formatCursorTime } from './core/formatTime';
 export { t, resolveLocale } from './core/i18n';
-export { computeThreadUtilization, withDerivedUtilizations } from './core/utilization';
+export { computeThreadUtilization, coveredLength, withDerivedUtilizations } from './core/utilization';
+export { colorForThread, colorVarForLaneName, laneColorKey } from './core/laneColors';
 export {
   createViewState,
   zoomToFitWindow,

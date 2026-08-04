@@ -28,14 +28,20 @@ const wrapRef = ref<HTMLDivElement | null>(null);
 const sizerHeight = ref(120);
 const renderer = new CanvasSwimlaneRenderer();
 let attached = false;
+let attachedModel: SwimlaneModel | null = null;
 let dragging = false;
 let lastX = 0;
 let downX = 0;
+let lastW = 0;
+let lastH = 0;
 let resizeObserver: ResizeObserver | null = null;
 
 function sync(): void {
   if (!props.model) return;
-  renderer.setModel(props.model);
+  if (props.model !== attachedModel) {
+    renderer.setModel(props.model);
+    attachedModel = props.model;
+  }
   renderer.setView(props.view);
   renderer.setSelection(props.selectedEventId, props.hoveredEventId);
   renderer.setSearchQuery(props.searchQuery);
@@ -57,7 +63,11 @@ function resize(): void {
   const w = Math.max(1, wrap.clientWidth);
   const h = Math.max(contentH, wrap.clientHeight || 0);
   sizerHeight.value = h;
-  renderer.resize(w, h);
+  if (w !== lastW || h !== lastH) {
+    lastW = w;
+    lastH = h;
+    renderer.resize(w, h);
+  }
   sync();
 }
 
@@ -75,9 +85,24 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  () => [props.model, props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.lanes],
+  () => props.model,
+  () => {
+    attachedModel = null;
+    resize();
+  },
+);
+
+watch(
+  () => props.lanes.length,
   () => {
     resize();
+  },
+);
+
+watch(
+  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery],
+  () => {
+    sync();
   },
   { deep: true },
 );
@@ -192,7 +217,7 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
   width: 100%;
   height: 100%;
   min-height: 160px;
-  overflow: auto;
+  overflow: hidden;
   background: #1a1a1a;
 }
 

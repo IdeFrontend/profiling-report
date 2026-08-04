@@ -5,6 +5,7 @@ import type {
   SwimlaneViewWindow,
   SwimThread,
 } from '../core/types';
+import { colorForThread } from '../core/laneColors';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
@@ -12,17 +13,6 @@ export const LANE_PAD_Y = 3;
 export const LANE_GROUP_HEADER_HEIGHT = 28;
 /** Corner radius for event blocks (sketch / design: rounded, not sharp). */
 export const EVENT_RADIUS = 5;
-
-const COLOR: Record<string, string> = {
-  cube: '#007084',
-  vector: '#007464',
-  mte1: '#885C00',
-  mte2: '#985000',
-  mte3: '#A44830',
-  fixp: '#586C0C',
-  scalar: '#38702C',
-  default: '#3860A8',
-};
 
 interface FlatLane {
   thread: SwimThread;
@@ -36,18 +26,6 @@ interface LaidOutEvent {
   laneIndex: number;
   y: number;
   color: string;
-}
-
-function colorForThread(name: string): string {
-  const n = name.toUpperCase();
-  if (n.includes('PIPE_V') || n.includes('VEC')) return COLOR.vector;
-  if (n.includes('PIPE_S') || n.includes('SCALAR')) return COLOR.scalar;
-  if (n.includes('MTE1')) return COLOR.mte1;
-  if (n.includes('MTE2')) return COLOR.mte2;
-  if (n.includes('MTE3')) return COLOR.mte3;
-  if (n.includes('FIX')) return COLOR.fixp;
-  if (n.includes('CUBE')) return COLOR.cube;
-  return COLOR.default;
 }
 
 function roundRectPath(
@@ -148,18 +126,27 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   hitTest(x: number, y: number): string | null {
-    const candidates = this.events
-      .map((item) => {
-        const rect = this.eventScreenRect(item.id);
-        if (!rect) return null;
-        if (x < rect.x || x > rect.x + rect.w || y < rect.y || y > rect.y + rect.h) {
-          return null;
-        }
-        return { id: item.id, duration: item.event.duration };
-      })
-      .filter((c): c is { id: string; duration: number } => c != null);
+    const contentY = y + this.view.scrollY;
+    const lane = this.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
+    if (!lane) return null;
+    const laneIndex = this.lanes.indexOf(lane);
+    const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const candidates: { id: string; duration: number }[] = [];
+    for (const item of this.events) {
+      if (item.laneIndex !== laneIndex) continue;
+      const ev = item.event;
+      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+        continue;
+      }
+      const ex = ((ev.startTime - this.view.startTime) / span) * this.width;
+      const ew = Math.max(2, (ev.duration / span) * this.width);
+      const ey = item.y - this.view.scrollY + LANE_PAD_Y;
+      const eh = LANE_HEIGHT - LANE_PAD_Y * 2;
+      if (x >= ex && x <= ex + ew && y >= ey && y <= ey + eh) {
+        candidates.push({ id: item.id, duration: ev.duration });
+      }
+    }
     if (candidates.length === 0) return null;
-    // Prefer shorter events (nested markers)
     candidates.sort((a, b) => a.duration - b.duration);
     return candidates[0]!.id;
   }

@@ -27,8 +27,24 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       }),
     );
 
+    // Ascend fixture declares displayTimeUnit ns → values stay in ns (no ×1000)
+    expect(model.metadata?.displayTimeUnit).toBe('ns');
+    expect(events[0]!.startTime).toBeLessThan(1e9);
+
     // Also reachable via adaptRep
     const adapted = adaptRep(parsed);
     expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
+  });
+
+  it('PR-SWIM-002: default CTEF µs times convert to ns', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'M', name: 'thread_name', pid: 1, tid: 1, args: { name: 'T' } },
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 10, dur: 5 },
+      ],
+    });
+    expect(model.minTime).toBe(10_000);
+    expect(model.maxTime).toBe(15_000);
+    expect(model.processes[0]?.threads[0]?.events[0]?.duration).toBe(5_000);
   });
 });

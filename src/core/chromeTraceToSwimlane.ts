@@ -17,6 +17,16 @@ interface ChromeTraceDoc {
   traceEvents?: ChromeTraceEvent[];
 }
 
+/** CTEF default is µs; Ascend samples often set displayTimeUnit to ns. Canonical model is ns. */
+function unitToNsFactor(displayTimeUnit: string | undefined): number {
+  const u = (displayTimeUnit ?? 'us').toLowerCase();
+  if (u === 'ns') return 1;
+  if (u === 'ms') return 1_000_000;
+  if (u === 's' || u === 'sec') return 1_000_000_000;
+  // us / µs / default Chrome Trace
+  return 1000;
+}
+
 function key(pid: number | string | undefined, tid: number | string | undefined): string {
   return `${pid ?? 0}:${tid ?? 0}`;
 }
@@ -29,6 +39,7 @@ function finalizeModel(model: SwimlaneModel): SwimlaneModel {
 export function chromeTraceToSwimlane(trace: unknown): SwimlaneModel {
   const doc = (trace ?? {}) as ChromeTraceDoc;
   const events = doc.traceEvents ?? [];
+  const toNs = unitToNsFactor(doc.displayTimeUnit);
 
   const threadNames = new Map<string, string>();
   for (const e of events) {
@@ -64,8 +75,8 @@ export function chromeTraceToSwimlane(trace: unknown): SwimlaneModel {
       threads.set(tid, thread);
     }
 
-    const startTime = e.ts;
-    const duration = e.dur;
+    const startTime = e.ts * toNs;
+    const duration = e.dur * toNs;
     minTime = Math.min(minTime, startTime);
     maxTime = Math.max(maxTime, startTime + duration);
 
