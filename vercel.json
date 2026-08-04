@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "installCommand": "echo 'docs-only branch: skip npm ci'",
-  "buildCommand": "mkdir -p public && printf '%s\\n' '<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>profiling-report specs</title><style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;line-height:1.5}code{background:#f4f4f5;padding:.1em .35em;border-radius:4px}</style></head><body><h1>profiling-report specs</h1><p>This branch is documentation-only. Specs live under <code>docs/specs/</code> in the repository.</p><ul><li><a href=\"https://github.com/IdeFrontend/profiling-report/tree/specs/docs/specs/formats/INPUT_FORMATS.md\">Input formats</a></li><li><a href=\"https://github.com/IdeFrontend/profiling-report/tree/specs/docs/specs/visualization/VIEW_DATA_MAPPING.md\">View data mapping</a></li><li><a href=\"https://github.com/IdeFrontend/profiling-report/tree/specs/docs/specs/OPEN_QUESTIONS.md\">Open questions</a></li></ul></body></html>' > public/index.html",
-  "outputDirectory": "public"
+  "buildCommand": "true",
+  "outputDirectory": "public",
+  "installCommand": "true",
+  "framework": null
 }
