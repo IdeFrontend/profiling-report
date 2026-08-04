@@ -38,6 +38,9 @@ const props = defineProps<{
   theme?: 'light' | 'dark';
   locale?: string;
   timeUnit?: TimeDisplayUnit;
+  /** Future feature-gate: controls which sub-panels/tabs are rendered. Currently exposed
+   *  as a data attribute for CSS/test hooking; intended to drive conditional sections
+   *  (roofline, memory diagram, etc.) once those views land. */
   capabilities?: ReportCapability[];
 }>();
 

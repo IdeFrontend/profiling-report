@@ -19,12 +19,13 @@ defineProps<{
       {{ selected.name }}
     </div>
     <div class="pr-detail__times">
-      {{ t('start', locale) }} {{ formatTime(selected.startTime, unit) }}
-      ·
-      {{ t('dur', locale) }} {{ formatTime(selected.duration, unit) }}
+      <span>{{ t('start', locale) }}: {{ formatTime(selected.startTime, unit) }}</span>
+    </div>
+    <div class="pr-detail__times">
+      <span>{{ t('dur', locale) }}: {{ formatTime(selected.duration, unit) }}</span>
     </div>
     <div class="pr-detail__end">
-      {{ t('end', locale) }} {{ formatTime(selected.endTime, unit) }}
+      {{ t('end', locale) }}: {{ formatTime(selected.endTime, unit) }}
     </div>
   </footer>
 </template>

@@ -25,14 +25,15 @@ export function laneColorKey(name: string): LaneColorKey {
   return 'default';
 }
 
-/** Hex fill for canvas. */
+/** Hex fill for canvas rendering — single source of truth for all lane colors. */
 export function colorForThread(name: string): string {
   return LANE_COLOR_HEX[laneColorKey(name)];
 }
 
-/** CSS custom property for gutter util bars (tokens.css). */
+/** CSS custom property reference for gutter util bars, delegating to the same hex palette.
+ *  Returns `var(--pr-color-*)` for known lanes; falls back to the default hex directly. */
 export function colorVarForLaneName(name: string): string {
   const key = laneColorKey(name);
-  if (key === 'default') return LANE_COLOR_HEX.default;
+  if (key === 'default') return colorForThread(name);
   return `var(--pr-color-${key})`;
 }

@@ -16,4 +16,3 @@ blob-report/
 .eslintcache
 *.tsbuildinfo
 .vercel
-.env*

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
 
 /**
  * Feature e2e — playground loads data/out.rep into ProfilingReport.
@@ -21,8 +22,8 @@ test.describe('PR-E2E feature paths', () => {
     await expect(canvas).toBeVisible({ timeout: 15_000 });
     const box = await canvas.boundingBox();
     expect(box).toBeTruthy();
-    // First lane mid-row: LANE_GROUP_HEADER_HEIGHT(28) + LANE_HEIGHT/2(~11)
-    await page.mouse.move(box!.x + 8, box!.y + 28 + 11);
+    // First lane mid-row: LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT/2
+    await page.mouse.move(box!.x + 8, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
     await expect(page.getByTestId('event-tooltip')).toBeVisible();
   });
 
@@ -32,7 +33,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(canvas).toBeVisible({ timeout: 15_000 });
     const box = await canvas.boundingBox();
     expect(box).toBeTruthy();
-    await page.mouse.click(box!.x + 8, box!.y + 28 + 11);
+    await page.mouse.click(box!.x + 8, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
     await expect(page.getByTestId('detail-strip')).toBeVisible();
   });
 
@@ -64,7 +65,7 @@ test.describe('PR-E2E feature paths', () => {
     const canvas = page.getByTestId('swimlane-canvas');
     const box = await canvas.boundingBox();
     expect(box).toBeTruthy();
-    await page.mouse.move(box!.x + 40, box!.y + 28 + 11);
+    await page.mouse.move(box!.x + 40, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
     await expect(page.getByTestId('cursor-line')).toBeVisible();
     await expect(page.getByTestId('cursor-label')).toBeVisible();
     await expect(page.getByTestId('cursor-label')).toHaveText(/^\d{2}:\d{2}\.\d{3}$/);
