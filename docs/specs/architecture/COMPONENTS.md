@@ -156,11 +156,9 @@ Canvas 2D implementation of `SwimlaneRenderer`.
 
 **Why:** Adequate for sample-scale traces; ships MVP.
 
-### `WebGlSwimlaneRenderer` (P2)
+### `WebGlSwimlaneRenderer` (P2 → implemented on `feat/webgl-swimlane`)
 
-WebGL2 coverage-AA interval backend (Sudu-inspired).
-
-**Why:** Named now so the interface stays stable when density requires it.
+WebGL2 coverage-AA interval backend (Sudu-inspired). Used by default from `SwimlaneCanvas` with a Canvas2D overlay for labels/selection/cursor; falls back to `CanvasSwimlaneRenderer` when WebGL2 is unavailable.
 
 ---
 

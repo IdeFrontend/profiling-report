@@ -1,4 +1,5 @@
 <script setup lang="ts">
+<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { formatTime } from '../../domain/formatTime';
 import type {
@@ -10,6 +11,16 @@ import type {
 } from '../../domain/types';
 import { normalizeMeasureRange } from '../../domain/viewState';
 import { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../CanvasSwimlaneRenderer';
+=======
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow } from '../domain/types';
+import {
+  CanvasSwimlaneRenderer,
+  SwimlaneOverlayPainter,
+} from './CanvasSwimlaneRenderer';
+import { WebGlSwimlaneRenderer } from './WebGlSwimlaneRenderer';
+import { contentHeightFromModel } from './layout';
+>>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
 
 const props = defineProps<{
   model: SwimlaneModel | null;
@@ -33,11 +44,17 @@ const emit = defineEmits<{
   'update:measureRange': [range: MeasureRange | null];
 }>();
 
-const canvasRef = ref<HTMLCanvasElement | null>(null);
 const wrapRef = ref<HTMLDivElement | null>(null);
-/** Drives scroll height without letting canvas `style.height` feed flex layout. */
+const glCanvasRef = ref<HTMLCanvasElement | null>(null);
+const overlayCanvasRef = ref<HTMLCanvasElement | null>(null);
+const fallbackCanvasRef = ref<HTMLCanvasElement | null>(null);
 const sizerHeight = ref(120);
-const renderer = new CanvasSwimlaneRenderer();
+const useWebGl = ref(false);
+
+type Backend = CanvasSwimlaneRenderer | WebGlSwimlaneRenderer;
+
+let backend: Backend = new CanvasSwimlaneRenderer();
+const overlay = new SwimlaneOverlayPainter();
 let attached = false;
 let attachedModel: SwimlaneModel | null = null;
 let dragging = false;
@@ -49,56 +66,85 @@ let measureGestureActive = false;
 let lastW = 0;
 let lastH = 0;
 let resizeObserver: ResizeObserver | null = null;
+let raf = 0;
 /** Local scroll accumulator so rapid wheel events do not drop deltas waiting on props. */
 let localScrollY = 0;
 
-function contentHeight(): number {
-  if (!props.model) return 120;
-  let h = 0;
-  for (const p of props.model.processes) {
-    h += LANE_GROUP_HEADER_HEIGHT + p.threads.length * LANE_HEIGHT;
-  }
-  return Math.max(120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
+function modelContentHeight(): number {
+  return contentHeightFromModel(props.model);
 }
 
 function maxScrollY(): number {
   const viewH = wrapRef.value?.clientHeight ?? 0;
-  return Math.max(0, contentHeight() - viewH);
+  return Math.max(0, modelContentHeight() - viewH);
 }
 
 function clampScrollY(y: number): number {
   return Math.min(maxScrollY(), Math.max(0, y));
 }
 
-function sync(): void {
+function schedulePaint(): void {
+  if (raf) return;
+  raf = requestAnimationFrame(() => {
+    raf = 0;
+    backend.render();
+    if (useWebGl.value) overlay.render();
+  });
+}
+
+function sync(forceModel = false): void {
   if (!props.model) return;
-  if (props.model !== attachedModel) {
-    renderer.setModel(props.model);
+  if (forceModel || props.model !== attachedModel) {
+    backend.setModel(props.model);
     attachedModel = props.model;
   }
-  renderer.setView(props.view);
-  renderer.setSelection(props.selectedEventId, props.hoveredEventId);
-  renderer.setSearchQuery(props.searchQuery);
-  renderer.render();
+  backend.setView(props.view);
+  backend.setSelection(props.selectedEventId, props.hoveredEventId);
+  backend.setSearchQuery(props.searchQuery);
+  if (useWebGl.value) {
+    overlay.setLayout(backend.getLayout());
+    overlay.setView(props.view);
+    overlay.setSelection(props.selectedEventId, props.hoveredEventId);
+    overlay.setSearchQuery(props.searchQuery);
+  }
+  schedulePaint();
 }
 
 function resize(): void {
   const wrap = wrapRef.value;
-  const canvas = canvasRef.value;
-  if (!wrap || !canvas) return;
-  if (!attached) {
-    renderer.attach(canvas);
-    attached = true;
-  }
-  const contentH = contentHeight();
+  if (!wrap) return;
+
+  const contentH = modelContentHeight();
   const w = Math.max(1, wrap.clientWidth);
   const viewH = wrap.clientHeight || 0;
   const h = Math.max(contentH, viewH);
   sizerHeight.value = h;
+
+  if (!attached) {
+    if (glCanvasRef.value && overlayCanvasRef.value && WebGlSwimlaneRenderer.isSupported(glCanvasRef.value)) {
+      const glBackend = new WebGlSwimlaneRenderer();
+      if (glBackend.attach(glCanvasRef.value)) {
+        backend = glBackend;
+        overlay.attach(overlayCanvasRef.value);
+        useWebGl.value = true;
+        attached = true;
+      }
+    }
+    if (!attached && fallbackCanvasRef.value) {
+      backend = new CanvasSwimlaneRenderer();
+      backend.attach(fallbackCanvasRef.value);
+      useWebGl.value = false;
+      attached = true;
+    }
+  }
+
+  if (!attached) return;
+
   if (w !== lastW || h !== lastH) {
     lastW = w;
     lastH = h;
-    renderer.resize(w, h);
+    backend.resize(w, h);
+    if (useWebGl.value) overlay.resize(w, h);
   }
   sync();
   const maxY = maxScrollY();
@@ -118,7 +164,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
-  renderer.dispose();
+  if (raf) cancelAnimationFrame(raf);
+  backend.dispose();
+  overlay.dispose();
 });
 
 watch(
@@ -163,6 +211,7 @@ function timeAtX(x: number): number {
   return props.view.startTime + (x / w) * span;
 }
 
+<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
 function xAtTime(t: number): number {
   const span = Math.max(1, props.view.endTime - props.view.startTime);
   const w = wrapRef.value?.clientWidth || 1;
@@ -186,6 +235,12 @@ const measureLabel = computed(() => {
   return formatTime(dur, props.timeUnit ?? 'ms');
 });
 
+=======
+function activeCanvas(): HTMLCanvasElement | null {
+  return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
+}
+
+>>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
 function onPointerDown(e: PointerEvent): void {
   dragging = true;
   lastX = e.clientX;
@@ -204,16 +259,17 @@ function onPointerDown(e: PointerEvent): void {
 }
 
 function onPointerMove(e: PointerEvent): void {
-  const canvas = canvasRef.value;
-  if (!canvas) return;
-  const rect = canvas.getBoundingClientRect();
+  const target = activeCanvas();
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   const w = Math.max(1, rect.width);
   const time = timeAtX(x);
 
-  renderer.setCursorX(x);
-  renderer.render();
+  backend.setCursorX(x);
+  if (useWebGl.value) overlay.setCursorX(x);
+  schedulePaint();
   emit('cursor', { time, xRatio: x / w });
 
   if (dragging) {
@@ -227,20 +283,19 @@ function onPointerMove(e: PointerEvent): void {
     const span = Math.max(1, props.view.endTime - props.view.startTime);
     const dx = e.clientX - lastX;
     lastX = e.clientX;
-    const deltaTime = -(dx / w) * span;
-    emit('pan', deltaTime);
+    emit('pan', -(dx / w) * span);
     emit('hover', null, e.clientX, e.clientY);
     return;
   }
 
-  const id = renderer.hitTest(x, y);
-  const ev = id ? renderer.findEvent(id) : null;
-  emit('hover', ev, e.clientX, e.clientY);
+  const id = backend.hitTest(x, y);
+  emit('hover', id ? backend.findEvent(id) : null, e.clientX, e.clientY);
 }
 
 function onPointerUp(e: PointerEvent): void {
   const wasMeasuring = measureGestureActive;
   dragging = false;
+<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
   measureAnchorTime = null;
   measureGestureActive = false;
   const canvas = canvasRef.value;
@@ -251,9 +306,17 @@ function onPointerUp(e: PointerEvent): void {
   const time = timeAtX(x);
   emit('set-playhead', time);
   if (wasMeasuring) return;
+=======
+  const target = activeCanvas();
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  emit('set-playhead', timeAtX(x));
+>>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
   if (Math.abs(e.clientX - downX) > 4) return;
-  const id = renderer.hitTest(x, y);
-  emit('select', id ? renderer.findEvent(id) : null);
+  const id = backend.hitTest(x, y);
+  emit('select', id ? backend.findEvent(id) : null);
 }
 
 function onPointerLeave(): void {
@@ -266,29 +329,38 @@ function onPointerLeave(): void {
     return;
   }
   dragging = false;
+<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
   measureAnchorTime = null;
   renderer.setCursorX(null);
   renderer.render();
+=======
+  backend.setCursorX(null);
+  if (useWebGl.value) overlay.setCursorX(null);
+  schedulePaint();
+>>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
   emit('cursor', null);
   emit('hover', null, 0, 0);
 }
 
 function onWheel(e: WheelEvent): void {
   e.preventDefault();
-  const canvas = canvasRef.value;
-  if (!canvas) return;
-  const rect = canvas.getBoundingClientRect();
+  const target = activeCanvas();
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   if (e.ctrlKey || e.metaKey) {
-    const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
-    emit('zoom', factor, timeAtX(x));
+    emit('zoom', e.deltaY > 0 ? 1 / 1.15 : 1.15, timeAtX(x));
   } else {
     localScrollY = clampScrollY(localScrollY + e.deltaY);
     emit('scroll-y', localScrollY);
   }
 }
 
-defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), renderer });
+defineExpose({
+  eventScreenRect: (id: string) => backend.eventScreenRect(id),
+  renderer: () => backend,
+  useWebGl,
+});
 </script>
 
 <template>
@@ -296,7 +368,11 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
     ref="wrapRef"
     class="pr-swim-canvas-wrap"
     data-testid="swimlane"
+<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
     :class="{ 'pr-swim-canvas-wrap--measure': measureMode }"
+=======
+    :data-renderer="useWebGl ? 'webgl' : 'canvas'"
+>>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
   >
     <div
       class="pr-swim-canvas-sizer"
@@ -304,9 +380,25 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
       :style="{ height: `${sizerHeight}px` }"
     />
     <canvas
-      ref="canvasRef"
+      ref="glCanvasRef"
+      class="pr-swim-canvas pr-swim-canvas--gl"
+      data-testid="swimlane-webgl"
+    />
+    <canvas
+      ref="overlayCanvasRef"
+      class="pr-swim-canvas pr-swim-canvas--overlay"
+      :data-testid="useWebGl ? 'swimlane-canvas' : 'swimlane-overlay'"
+      @pointerdown="onPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointerleave="onPointerLeave"
+      @wheel="onWheel"
+    />
+    <canvas
+      v-show="!useWebGl"
+      ref="fallbackCanvasRef"
       class="pr-swim-canvas"
-      data-testid="swimlane-canvas"
+      :data-testid="useWebGl ? 'swimlane-fallback' : 'swimlane-canvas'"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
@@ -355,6 +447,7 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
   touch-action: none;
 }
 
+<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
 .pr-measure-band {
   position: absolute;
   top: 0;
@@ -378,5 +471,21 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+=======
+.pr-swim-canvas--gl {
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pr-swim-canvas--overlay {
+  z-index: 1;
+  background: transparent;
+}
+
+.pr-swim-canvas-wrap[data-renderer='canvas'] .pr-swim-canvas--gl,
+.pr-swim-canvas-wrap[data-renderer='canvas'] .pr-swim-canvas--overlay {
+  display: none;
+  pointer-events: none;
+>>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
 }
 </style>
