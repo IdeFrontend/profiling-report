@@ -25,6 +25,14 @@ function readMagic(bytes: Uint8Array, offset: number, len: number): string {
   return new TextDecoder().decode(bytes.subarray(offset, offset + len));
 }
 
+function readSafeU64(view: DataView, offset: number, label: string): number {
+  const value = view.getBigUint64(offset, true);
+  if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(`[profiling-report] parseRep: ${label} exceeds Number.MAX_SAFE_INTEGER`);
+  }
+  return Number(value);
+}
+
 /** Parse CANN `.rep` / `.ncrep` bytes (REP_FORMAT). */
 export function parseRep(source: ArrayBuffer | Uint8Array): ParsedRep {
   const { view, bytes } = toDataView(source);
@@ -42,8 +50,8 @@ export function parseRep(source: ArrayBuffer | Uint8Array): ParsedRep {
     version: view.getUint32(8, true),
     fileInfoCount: view.getUint32(12, true),
     fileLength: view.getUint32(16, true),
-    repLength: Number(view.getBigUint64(20, true)),
-    offset: Number(view.getBigUint64(28, true)),
+    repLength: readSafeU64(view, 20, 'repLength'),
+    offset: readSafeU64(view, 28, 'offset'),
   };
 
   const files: RepEmbeddedFile[] = [];
@@ -61,8 +69,8 @@ export function parseRep(source: ArrayBuffer | Uint8Array): ParsedRep {
     const name = readCString(bytes, pos + 8, 128);
     const type = view.getUint16(pos + 136, true);
     const origin = view.getUint16(pos + 138, true);
-    const length = Number(view.getBigUint64(pos + 144, true));
-    const offset = Number(view.getBigUint64(pos + 152, true));
+    const length = readSafeU64(view, pos + 144, `${name}.length`);
+    const offset = readSafeU64(view, pos + 152, `${name}.offset`);
 
     files.push({ name, type, origin, offset, length });
 

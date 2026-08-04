@@ -14,6 +14,7 @@ export {
   loadReportSource,
   adaptChromeTrace,
 } from './core/adapters';
+export { unitToNsFactor } from './core/chromeTraceToSwimlane';
 export { formatTime, formatAxisTime, formatCursorTime } from './core/formatTime';
 export { t, resolveLocale } from './core/i18n';
 export { computeThreadUtilization, coveredLength, withDerivedUtilizations } from './core/utilization';

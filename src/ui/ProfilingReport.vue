@@ -282,7 +282,7 @@ function onZoomPercent(pct: number) {
 }
 
 function onScrollY(scrollY: number) {
-  viewState.value = { ...viewState.value, scrollY };
+  viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
 }
 
 watch(
@@ -565,9 +565,9 @@ defineExpose({ selectEventById, viewState });
         {{ selected.name }}
       </div>
       <div class="pr-detail__times">
-        {{ t('start', locale) }} {{ formatTime(selected.startTime, 'ns') }}
+        {{ t('start', locale) }} {{ formatTime(selected.startTime, unit) }}
         ·
-        {{ t('dur', locale) }} {{ formatTime(selected.duration, 'ns') }}
+        {{ t('dur', locale) }} {{ formatTime(selected.duration, unit) }}
       </div>
       <div class="pr-detail__end">
         {{ t('end', locale) }} {{ formatTime(selected.endTime, unit) }}
@@ -726,7 +726,9 @@ defineExpose({ selectEventById, viewState });
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  height: 28px; /* keep in sync with LANE_GROUP_HEADER_HEIGHT */
+  flex: 0 0 28px; /* keep in sync with LANE_GROUP_HEADER_HEIGHT */
+  height: 28px;
+  min-height: 28px;
   padding: 0;
   margin: 0;
   font-weight: 600;
@@ -739,7 +741,9 @@ defineExpose({ selectEventById, viewState });
   grid-template-columns: minmax(0, 1fr) 34px 40px;
   gap: 4px;
   align-items: center;
+  flex: 0 0 22px; /* keep in sync with LANE_HEIGHT */
   height: 22px;
+  min-height: 22px;
 }
 
 .pr-gutter__name {

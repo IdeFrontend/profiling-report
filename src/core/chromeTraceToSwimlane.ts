@@ -18,13 +18,16 @@ interface ChromeTraceDoc {
 }
 
 /** CTEF default is µs; Ascend samples often set displayTimeUnit to ns. Canonical model is ns. */
-function unitToNsFactor(displayTimeUnit: string | undefined): number {
-  const u = (displayTimeUnit ?? 'us').toLowerCase();
+export function unitToNsFactor(displayTimeUnit: string | undefined): number {
+  const raw = (displayTimeUnit ?? 'us').trim().toLowerCase();
+  const u = raw.replace('µ', 'u').replace('μ', 'u');
   if (u === 'ns') return 1;
+  if (u === 'us' || u === 'usec' || u === 'microsecond' || u === 'microseconds') return 1000;
   if (u === 'ms') return 1_000_000;
-  if (u === 's' || u === 'sec') return 1_000_000_000;
-  // us / µs / default Chrome Trace
-  return 1000;
+  if (u === 's' || u === 'sec' || u === 'second' || u === 'seconds') return 1_000_000_000;
+  throw new Error(
+    `[profiling-report] chromeTraceToSwimlane: unsupported displayTimeUnit ${JSON.stringify(displayTimeUnit)}`,
+  );
 }
 
 function key(pid: number | string | undefined, tid: number | string | undefined): string {

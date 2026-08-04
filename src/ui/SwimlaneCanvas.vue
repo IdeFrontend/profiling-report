@@ -35,6 +35,21 @@ let downX = 0;
 let lastW = 0;
 let lastH = 0;
 let resizeObserver: ResizeObserver | null = null;
+/** Local scroll accumulator so rapid wheel events do not drop deltas waiting on props. */
+let localScrollY = 0;
+
+function contentHeight(): number {
+  return Math.max(120, LANE_GROUP_HEADER_HEIGHT + (props.lanes.length || 1) * LANE_HEIGHT);
+}
+
+function maxScrollY(): number {
+  const viewH = wrapRef.value?.clientHeight ?? 0;
+  return Math.max(0, contentHeight() - viewH);
+}
+
+function clampScrollY(y: number): number {
+  return Math.min(maxScrollY(), Math.max(0, y));
+}
 
 function sync(): void {
   if (!props.model) return;
@@ -56,12 +71,10 @@ function resize(): void {
     renderer.attach(canvas);
     attached = true;
   }
-  const contentH = Math.max(
-    120,
-    LANE_GROUP_HEADER_HEIGHT + (props.lanes.length || 1) * LANE_HEIGHT,
-  );
+  const contentH = contentHeight();
   const w = Math.max(1, wrap.clientWidth);
-  const h = Math.max(contentH, wrap.clientHeight || 0);
+  const viewH = wrap.clientHeight || 0;
+  const h = Math.max(contentH, viewH);
   sizerHeight.value = h;
   if (w !== lastW || h !== lastH) {
     lastW = w;
@@ -69,6 +82,11 @@ function resize(): void {
     renderer.resize(w, h);
   }
   sync();
+  const maxY = maxScrollY();
+  if (localScrollY > maxY) {
+    localScrollY = maxY;
+    emit('scroll-y', localScrollY);
+  }
 }
 
 onMounted(() => {
@@ -102,6 +120,7 @@ watch(
 watch(
   () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery],
   () => {
+    localScrollY = props.view.scrollY;
     sync();
   },
   { deep: true },
@@ -180,7 +199,8 @@ function onWheel(e: WheelEvent): void {
     const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
     emit('zoom', factor, timeAtX(x));
   } else {
-    emit('scroll-y', Math.max(0, props.view.scrollY + e.deltaY));
+    localScrollY = clampScrollY(localScrollY + e.deltaY);
+    emit('scroll-y', localScrollY);
   }
 }
 

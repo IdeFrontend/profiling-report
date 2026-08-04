@@ -47,4 +47,13 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(model.maxTime).toBe(15_000);
     expect(model.processes[0]?.threads[0]?.events[0]?.duration).toBe(5_000);
   });
+
+  it('PR-SWIM-003: rejects unknown displayTimeUnit', () => {
+    expect(() =>
+      chromeTraceToSwimlane({
+        displayTimeUnit: 'cycles',
+        traceEvents: [{ ph: 'X', name: 'op', pid: 1, tid: 1, ts: 1, dur: 1 }],
+      }),
+    ).toThrow(/displayTimeUnit/);
+  });
 });
