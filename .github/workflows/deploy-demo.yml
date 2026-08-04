@@ -1,14 +1,17 @@
+# Vercel Git on IDE Frontend already builds/previews this repo.
+# Keep a manual backup only — do not run on PR/push (stale tokens fail checks).
 name: Deploy demo
 
-# Backup redeploy path. Primary: Vercel Git on IDE Frontend (team) → master.
-# Secrets: VERCEL_TOKEN, VERCEL_ORG_ID (team_7EopUplhfu3eyVh8yU7zl1wV),
-# VERCEL_PROJECT_ID (prj_46jz1jauCqaPc5z19gohXAFb2aec).
 on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
 
 concurrency:
   group: deploy-demo-${{ github.ref }}
@@ -34,15 +37,22 @@ jobs:
         run: npm ci
 
       - name: Pull Vercel project settings
-        run: npx vercel pull --yes --environment=${{ github.event_name == 'push' && 'production' || 'preview' }} --token="$VERCEL_TOKEN"
+        run: |
+          env_name="${{ inputs.environment }}"
+          npx vercel pull --yes --environment="$env_name" --token="$VERCEL_TOKEN"
 
       - name: Build demo
-        run: npx vercel build ${{ github.event_name == 'push' && '--prod' || '' }} --token="$VERCEL_TOKEN"
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            npx vercel build --prod --token="$VERCEL_TOKEN"
+          else
+            npx vercel build --token="$VERCEL_TOKEN"
+          fi
 
       - name: Deploy
         id: deploy
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ inputs.environment }}" = "production" ]; then
             url=$(npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
           else
             url=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
