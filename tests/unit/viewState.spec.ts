@@ -5,8 +5,8 @@ import {
   panBy,
   zoomAt,
   zoomToFitWindow,
-} from '../../src/core/viewState';
-import type { SwimlaneModel } from '../../src/core/types';
+} from '../../src/domain/viewState';
+import type { SwimlaneModel } from '../../src/domain/types';
 
 const model: SwimlaneModel = {
   processes: [],

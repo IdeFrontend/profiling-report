@@ -1,5 +1,4 @@
-import type { SwimEvent, SwimlaneModel, SwimProcess, SwimThread } from './types';
-import { withDerivedUtilizations } from './utilization';
+import type { SwimEvent, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
 
 interface ChromeTraceEvent {
   ph?: string;
@@ -17,38 +16,70 @@ interface ChromeTraceDoc {
   traceEvents?: ChromeTraceEvent[];
 }
 
-/** CTEF default is µs; Ascend samples often set displayTimeUnit to ns. Canonical model is ns. */
-export function unitToNsFactor(displayTimeUnit: string | undefined): number {
-  const raw = (displayTimeUnit ?? 'us').trim().toLowerCase();
+/** Explicit source units for `ts`/`dur` (canonical model is always ns). */
+export type TraceSourceTimeUnit = 'ns' | 'us' | 'ms' | 's';
+
+/**
+ * Convert producer `ts`/`dur` into nanoseconds.
+ * CTEF: `ts`/`dur` are always microseconds; `displayTimeUnit` is display-only.
+ * Ascend `.rep` embeds pass `sourceTimeUnit: 'ns'`.
+ */
+export function unitToNsFactor(sourceTimeUnit: TraceSourceTimeUnit | string | undefined): number {
+  const raw = (sourceTimeUnit ?? 'us').trim().toLowerCase();
   const u = raw.replace('µ', 'u').replace('μ', 'u');
   if (u === 'ns') return 1;
   if (u === 'us' || u === 'usec' || u === 'microsecond' || u === 'microseconds') return 1000;
   if (u === 'ms') return 1_000_000;
   if (u === 's' || u === 'sec' || u === 'second' || u === 'seconds') return 1_000_000_000;
   throw new Error(
-    `[profiling-report] chromeTraceToSwimlane: unsupported displayTimeUnit ${JSON.stringify(displayTimeUnit)}`,
+    `[profiling-report] chromeTraceToSwimlane: unsupported sourceTimeUnit ${JSON.stringify(sourceTimeUnit)}`,
   );
+}
+
+export interface ChromeTraceToSwimlaneOptions {
+  /**
+   * Unit of `ts`/`dur` in the payload.
+   * Default `'us'` (Chrome Trace Event Format). Ascend `.rep` embeds use `'ns'`.
+   */
+  sourceTimeUnit?: TraceSourceTimeUnit;
 }
 
 function key(pid: number | string | undefined, tid: number | string | undefined): string {
   return `${pid ?? 0}:${tid ?? 0}`;
 }
 
-/** Fill utilization from event coverage when metadata omits it. */
-function finalizeModel(model: SwimlaneModel): SwimlaneModel {
-  return withDerivedUtilizations(model);
+function extractEvents(trace: unknown): { events: ChromeTraceEvent[]; displayTimeUnit?: string } {
+  if (Array.isArray(trace)) {
+    return { events: trace as ChromeTraceEvent[] };
+  }
+  const doc = (trace ?? {}) as ChromeTraceDoc;
+  return { events: doc.traceEvents ?? [], displayTimeUnit: doc.displayTimeUnit };
 }
 
-export function chromeTraceToSwimlane(trace: unknown): SwimlaneModel {
-  const doc = (trace ?? {}) as ChromeTraceDoc;
-  const events = doc.traceEvents ?? [];
-  const toNs = unitToNsFactor(doc.displayTimeUnit);
+export function chromeTraceToSwimlane(
+  trace: unknown,
+  options?: ChromeTraceToSwimlaneOptions,
+): SwimlaneModel {
+  const { events, displayTimeUnit } = extractEvents(trace);
+  /**
+   * CTEF: `ts`/`dur` are always microseconds; `displayTimeUnit` is display-only.
+   * Ascend producers (`.rep` embeds and exported JSON) store genuine ns when they
+   * set `displayTimeUnit: "ns"` — honor that producer convention when no override.
+   */
+  const sourceUnit: TraceSourceTimeUnit =
+    options?.sourceTimeUnit ??
+    (String(displayTimeUnit ?? '').trim().toLowerCase() === 'ns' ? 'ns' : 'us');
+  const toNs = unitToNsFactor(sourceUnit);
 
   const threadNames = new Map<string, string>();
+  const processNames = new Map<string, string>();
   for (const e of events) {
-    if (e.ph === 'M' && e.name === 'thread_name') {
+    if (e.ph !== 'M') continue;
+    if (e.name === 'thread_name') {
       const label = String(e.args?.name ?? `tid-${e.tid}`);
       threadNames.set(key(e.pid, e.tid), label);
+    } else if (e.name === 'process_name') {
+      processNames.set(String(e.pid ?? 0), String(e.args?.name ?? `Process ${e.pid}`));
     }
   }
 
@@ -96,24 +127,25 @@ export function chromeTraceToSwimlane(trace: unknown): SwimlaneModel {
     thread.events.push(ev);
   }
 
-  if (!Number.isFinite(minTime)) {
-    minTime = 0;
-    maxTime = 0;
+  if (!Number.isFinite(minTime) || eventSeq === 0) {
+    throw new Error(
+      '[profiling-report] chromeTraceToSwimlane: no complete X events (ts+dur) in trace',
+    );
   }
 
   const processes: SwimProcess[] = [...processMap.entries()].map(([pid, threads]) => ({
     id: `p-${pid}`,
-    name: `Process ${pid}`,
+    name: processNames.get(pid) ?? `Process ${pid}`,
     threads: [...threads.values()].map((t) => ({
       ...t,
       events: [...t.events].sort((a, b) => a.startTime - b.startTime),
     })),
   }));
 
-  return finalizeModel({
+  return {
     processes,
     minTime,
     maxTime,
-    metadata: { displayTimeUnit: doc.displayTimeUnit },
-  });
+    metadata: { displayTimeUnit },
+  };
 }

@@ -93,4 +93,4 @@ Performance results tree file click
 - [REP_FORMAT.md](REP_FORMAT.md) — container binary layout
 - [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.rep` embeds → UI panels
 - [OPEN_QUESTIONS.md](../../context/OPEN_QUESTIONS.md) — remaining blockers (esp. Q6)
-- [SWIMLANE_IMPLEMENTATIONS.md](../../research/SWIMLANE_IMPLEMENTATIONS.md) — renderer tech, not data semantics
+- [SWIMLANE_IMPLEMENTATIONS.md](../../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — renderer tech, not data semantics

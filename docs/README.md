@@ -24,7 +24,7 @@ English documentation and specifications for the reusable Vue profiling-report l
 18. **[specs/architecture/ARCHITECTURE.md](specs/architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
 19. **[specs/architecture/COMPONENTS.md](specs/architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
 20. **[specs/architecture/MSTT_INTEGRATION.md](specs/architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
-21. **[research/SWIMLANE_IMPLEMENTATIONS.md](research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
+21. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
 ## Process
 
@@ -59,10 +59,12 @@ PNG mockups live under [`specs/ui/`](specs/ui/). Written UI specs reference them
 
 ## Research archive
 
+See [archive/README.md](archive/README.md). Key entries:
+
 | Doc | Role |
 |-----|------|
-| [research/SWIMLANE_WEBVIEW_REUSE_REPORT.md](research/SWIMLANE_WEBVIEW_REUSE_REPORT.md) | Original PyPTO reuse study (Russian). Conclusions superseded in English by architecture + swimlane comparison docs — packaging is a **Vue library**, not an HTML webview bundle. |
-| [research/SWIMLANE_IMPLEMENTATIONS.md](research/SWIMLANE_IMPLEMENTATIONS.md) | Current English comparison and technical recommendation |
+| [archive/research/SWIMLANE_WEBVIEW_REUSE_REPORT.md](archive/research/SWIMLANE_WEBVIEW_REUSE_REPORT.md) | Original PyPTO reuse study (Russian). Superseded packaging conclusion: Vue library, not HTML webview. |
+| [archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md) | Canvas vs WebGL comparison |
 
 ## Related repositories (local)
 

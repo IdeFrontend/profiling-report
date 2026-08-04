@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeThreadUtilization, coveredLength } from '../../src/core/utilization';
-import type { SwimThread } from '../../src/core/types';
+import { computeThreadUtilization, coveredLength } from '../../src/domain/utilization';
+import type { SwimThread } from '../../src/domain/types';
 
 describe('PR-UTIL: thread utilization', () => {
   it('merges overlapping intervals instead of double-counting', () => {

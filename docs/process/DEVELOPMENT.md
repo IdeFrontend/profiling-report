@@ -53,21 +53,21 @@ Implement in this order unless a blocking dependency forces a temporary exceptio
 3. **View-models** — [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md) (PIPE bars, report summary)
 4. **Swimlane model** — trace → `SwimlaneModel` ([ARCHITECTURE](../specs/architecture/ARCHITECTURE.md))
 5. **UI shell** — panels + interactions ([UI_OVERVIEW](../specs/ui/UI_OVERVIEW.md), [UX_SPEC](../specs/ui/UX_SPEC.md), [INTERACTIONS](../specs/ui/INTERACTIONS.md), [COMPONENTS](../specs/architecture/COMPONENTS.md))
-6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../research/SWIMLANE_IMPLEMENTATIONS.md))
+6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md))
 7. **MSTT host** — separate PR in `mstt` per [MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)
 
 ## Target repo layout (when implementation starts)
 
 ```text
-src/              # Vue library (core / swimlane / ui)
+src/              # Vue library (adapters / domain / swimlane / ui)
 playground/       # Vite app mounting ProfilingReport (Playwright target)
 tests/
   unit/
   component/
   e2e/
-  fixtures/       # golden snapshots; paths to data/out.rep
+  fixtures/       # optional snapshots; golden binaries live under data/
 docs/             # goals, specs, process (this tree)
-data/             # sample .rep + pack/unpack scripts
+data/             # canonical sample .rep / .trace.json + pack/unpack scripts
 ```
 
 ## When to update specs

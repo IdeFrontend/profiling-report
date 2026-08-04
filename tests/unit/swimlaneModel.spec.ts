@@ -5,9 +5,8 @@ import { loadOutRepBytes } from '../helpers/fixtures';
 describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
   it('PR-SWIM-001: trace.json maps to processes/threads/events', () => {
     const parsed = parseRep(loadOutRepBytes());
-    const text = new TextDecoder().decode(parsed.payloads['trace.json']);
-    const trace = JSON.parse(text) as unknown;
-    const model = chromeTraceToSwimlane(trace);
+    const adapted = adaptRep(parsed);
+    const model = adapted.swimlaneModel;
 
     expect(model.minTime).toBeLessThan(model.maxTime);
     expect(model.processes.length).toBeGreaterThan(0);
@@ -27,13 +26,9 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       }),
     );
 
-    // Ascend fixture declares displayTimeUnit ns → values stay in ns (no ×1000)
+    // Ascend .rep embed: ns source → values stay in ns
     expect(model.metadata?.displayTimeUnit).toBe('ns');
     expect(events[0]!.startTime).toBeLessThan(1e9);
-
-    // Also reachable via adaptRep
-    const adapted = adaptRep(parsed);
-    expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
   });
 
   it('PR-SWIM-002: default CTEF µs times convert to ns', () => {
@@ -48,12 +43,28 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(model.processes[0]?.threads[0]?.events[0]?.duration).toBe(5_000);
   });
 
-  it('PR-SWIM-003: rejects unknown displayTimeUnit', () => {
-    expect(() =>
-      chromeTraceToSwimlane({
-        displayTimeUnit: 'cycles',
-        traceEvents: [{ ph: 'X', name: 'op', pid: 1, tid: 1, ts: 1, dur: 1 }],
-      }),
-    ).toThrow(/displayTimeUnit/);
+  it('PR-SWIM-003: displayTimeUnit ms is display-only (ts stays µs)', () => {
+    const model = chromeTraceToSwimlane({
+      displayTimeUnit: 'ms',
+      traceEvents: [{ ph: 'X', name: 'op', pid: 1, tid: 1, ts: 10, dur: 5 }],
+    });
+    // Must NOT treat ms as source unit (that would be 10 * 1e6 ns)
+    expect(model.minTime).toBe(10_000);
+    expect(model.maxTime).toBe(15_000);
+  });
+
+  it('PR-SWIM-004: CTEF array format + process_name metadata', () => {
+    const model = chromeTraceToSwimlane([
+      { ph: 'M', name: 'process_name', pid: 7, args: { name: 'Kernel' } },
+      { ph: 'M', name: 'thread_name', pid: 7, tid: 1, args: { name: 'PIPE_V' } },
+      { ph: 'X', name: 'op', pid: 7, tid: 1, ts: 1, dur: 2 },
+    ]);
+    expect(model.processes[0]?.name).toBe('Kernel');
+    expect(model.processes[0]?.threads[0]?.name).toBe('PIPE_V');
+    expect(model.minTime).toBe(1000);
+  });
+
+  it('PR-SWIM-005: rejects traces with no complete X events', () => {
+    expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete X events/);
   });
 });

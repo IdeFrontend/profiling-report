@@ -4,9 +4,10 @@ import type {
   PipeOccupancyItem,
   ReportViewModel,
   SummaryMetrics,
-} from './types';
+  SwimlaneModel,
+} from '../domain/types';
+import { laneColorKey } from '../domain/laneColors';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
-import { withDerivedUtilizations } from './utilization';
 
 function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
@@ -36,11 +37,13 @@ function parseNumber(raw: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function meanNonNa(rows: Record<string, string>[], column: string): number | undefined {
+function meanFamily(rows: Record<string, string>[], columns: string[]): number | undefined {
   const vals: number[] = [];
-  for (const row of rows) {
-    const n = parseNumber(row[column]);
-    if (n != null) vals.push(n);
+  for (const col of columns) {
+    for (const row of rows) {
+      const n = parseNumber(row[col]);
+      if (n != null) vals.push(n);
+    }
   }
   if (vals.length === 0) return undefined;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
@@ -60,7 +63,7 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
-/** Pipe family → preferred CSV columns (sketch order: Cube→Vector→MTE2→MTE1→FixP→MTE3→Scalar). */
+/** Pipe family → CSV columns (sketch order: Cube→Vector→MTE2→MTE1→FixP→MTE3→Scalar). */
 const PIPE_COLUMNS: {
   id: string;
   label: string;
@@ -81,11 +84,7 @@ function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
   const { rows } = parseCsv(decodeUtf8(payload));
   const items: PipeOccupancyItem[] = [];
   for (const pipe of PIPE_COLUMNS) {
-    let ratio: number | undefined;
-    for (const col of pipe.columns) {
-      ratio = meanNonNa(rows, col);
-      if (ratio != null) break;
-    }
+    const ratio = meanFamily(rows, pipe.columns);
     if (ratio == null) continue;
     items.push({
       id: pipe.id,
@@ -97,6 +96,31 @@ function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
   return items;
 }
 
+/**
+ * Attach PipeUtilization ratios onto matching lanes (METRICS_AND_TRACE).
+ * Does not invent busy-fraction heuristics when CSV has no match.
+ */
+function withPipeLaneUtilizations(
+  model: SwimlaneModel,
+  pipes: PipeOccupancyItem[],
+): SwimlaneModel {
+  if (pipes.length === 0) return model;
+  const byKey = new Map(pipes.map((p) => [p.colorKey, p.ratio]));
+  return {
+    ...model,
+    processes: model.processes.map((p) => ({
+      ...p,
+      threads: p.threads.map((t) => {
+        const key = laneColorKey(t.name);
+        if (key === 'default') return t;
+        const ratio = byKey.get(key);
+        if (ratio == null) return t;
+        return { ...t, utilization: ratio };
+      }),
+    })),
+  };
+}
+
 function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
   return {
     summary: summaryFromOpBasicInfo(parsed.payloads['OpBasicInfo.csv']),
@@ -105,20 +129,30 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
   };
 }
 
-function swimlaneFromParsed(parsed: ParsedRep) {
+function swimlaneFromParsed(parsed: ParsedRep, pipes: PipeOccupancyItem[]): SwimlaneModel {
   const bytes = parsed.payloads['trace.json'];
   if (!bytes) {
-    return withDerivedUtilizations({ processes: [], minTime: 0, maxTime: 0 });
+    throw new Error(
+      '[profiling-report] adaptRep: trace.json missing — timeline requires a swimlane source',
+    );
   }
-  const trace = JSON.parse(decodeUtf8(bytes)) as unknown;
-  return chromeTraceToSwimlane(trace);
+  let trace: unknown;
+  try {
+    trace = JSON.parse(decodeUtf8(bytes)) as unknown;
+  } catch (cause) {
+    throw new Error('[profiling-report] adaptRep: trace.json is not valid JSON', { cause });
+  }
+  // Ascend `.rep` embeds store ts/dur in nanoseconds (producer convention, not CTEF).
+  const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: 'ns' });
+  return withPipeLaneUtilizations(model, pipes);
 }
 
 /** Map parsed `.rep` embeds → swimlane + report view-models. */
 export function adaptRep(parsed: ParsedRep): AdaptedReport {
+  const reportModel = reportModelFromParsed(parsed);
   return {
-    swimlaneModel: swimlaneFromParsed(parsed),
-    reportModel: reportModelFromParsed(parsed),
+    swimlaneModel: swimlaneFromParsed(parsed, reportModel.pipeOccupancy),
+    reportModel,
     capabilities: [],
   };
 }

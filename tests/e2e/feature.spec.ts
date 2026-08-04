@@ -50,7 +50,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('pipe-occupancy')).toHaveCount(0);
     await expect(page.getByTestId('stats-summary')).toHaveCount(0);
-    await expect(page.getByTestId('lane-util').first()).toBeVisible();
+    await expect(page.getByTestId('lane-util')).toHaveCount(0);
   });
 
   test('PR-E2E-006: time overview and mouse cursor line (sketch parity)', async ({ page }) => {

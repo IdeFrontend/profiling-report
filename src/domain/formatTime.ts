@@ -1,42 +1,74 @@
 import type { TimeDisplayUnit } from './types';
 
-/** Format axis tick labels closer to sketch style (e.g. `0.0ms`, `4.5ms`). */
-export function formatAxisTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
+function decimalsForStep(step: number): number {
+  if (!(step > 0) || !Number.isFinite(step)) return 3;
+  if (step >= 1) return 1;
+  if (step >= 0.1) return 2;
+  if (step >= 0.01) return 3;
+  if (step >= 0.001) return 4;
+  return 5;
+}
+
+/**
+ * Format axis tick labels.
+ * When `tickStepNs` is provided, decimal places follow tick spacing so zoomed
+ * axes do not collapse to identical labels.
+ */
+export function formatAxisTime(
+  ns: number,
+  unit: TimeDisplayUnit = 'ms',
+  tickStepNs?: number,
+): string {
+  if (!Number.isFinite(ns)) return '—';
   switch (unit) {
-    case 'ns':
-      return `${Math.round(ns)}ns`;
+    case 'ns': {
+      const step = tickStepNs != null ? Math.abs(tickStepNs) : 1;
+      if (step >= 1) return `${Math.round(ns)}ns`;
+      return `${ns.toFixed(decimalsForStep(step))}ns`;
+    }
     case 'us': {
       const v = ns / 1e3;
-      return `${v >= 10 ? v.toFixed(1) : v.toFixed(2)}µs`;
+      const step = tickStepNs != null ? Math.abs(tickStepNs) / 1e3 : undefined;
+      const d = step != null ? decimalsForStep(step) : Math.abs(v) >= 10 ? 1 : 2;
+      return `${v.toFixed(d)}µs`;
     }
     case 'ms':
     default: {
       const v = ns / 1e6;
-      if (v >= 1) return `${v.toFixed(1)}ms`;
-      if (v >= 0.01) return `${v.toFixed(3)}ms`;
-      return `${v.toFixed(4)}ms`;
+      const step = tickStepNs != null ? Math.abs(tickStepNs) / 1e6 : undefined;
+      const d =
+        step != null
+          ? decimalsForStep(step)
+          : Math.abs(v) >= 1
+            ? 1
+            : Math.abs(v) >= 0.01
+              ? 3
+              : 4;
+      return `${v.toFixed(d)}ms`;
     }
   }
 }
 
 /**
- * Cursor / playhead label as in sketches (`00:04.456`).
- * Maps absolute ns → ms, then `00:WW.fff` (whole ms : fractional×1000).
+ * Cursor / playhead label as `MM:SS.mmm` from absolute nanoseconds → real seconds.
+ * Example: 4_456_000_000 ns (4.456 s) → `00:04.456`.
  */
 export function formatCursorTime(ns: number): string {
-  const ms = Math.max(0, ns / 1e6);
-  const whole = Math.floor(ms);
-  const frac = Math.min(999, Math.round((ms - whole) * 1000));
-  if (whole >= 60) {
-    const mins = Math.floor(whole / 60);
-    const secs = whole % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(frac).padStart(3, '0')}`;
-  }
-  return `00:${String(whole).padStart(2, '0')}.${String(frac).padStart(3, '0')}`;
+  if (!Number.isFinite(ns)) return '00:00.000';
+  const totalMs = Math.max(0, ns / 1e6);
+  const totalMillis = Math.round(totalMs);
+  let secs = Math.floor(totalMillis / 1000);
+  const frac = totalMillis % 1000;
+  const mins = Math.floor(secs / 60);
+  secs = secs % 60;
+  // Bound minutes display for very long traces (still readable)
+  const minStr = String(mins).padStart(2, '0');
+  return `${minStr}:${String(secs).padStart(2, '0')}.${String(frac).padStart(3, '0')}`;
 }
 
-/** Format tooltip / detail times (sketch hover uses ns). */
+/** Format tooltip / detail times. */
 export function formatTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
+  if (!Number.isFinite(ns)) return '—';
   switch (unit) {
     case 'ns':
       return `${Math.round(ns)} ns`;

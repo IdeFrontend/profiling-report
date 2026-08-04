@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { formatAxisTime } from '../core/formatTime';
-import type { TimeDisplayUnit } from '../core/types';
+import { formatAxisTime } from '../domain/formatTime';
+import type { TimeDisplayUnit } from '../domain/types';
 
 const props = defineProps<{
   minTime: number;
@@ -34,9 +34,10 @@ const widthPct = computed(() => Math.max(0.4, rightPct.value - leftPct.value));
 
 const ticks = computed(() => {
   const n = 9;
+  const step = fullSpan.value / n;
   return Array.from({ length: n + 1 }, (_, i) => {
-    const t = props.minTime + (fullSpan.value * i) / n;
-    return { t, label: formatAxisTime(t, props.timeUnit), pct: (i / n) * 100 };
+    const t = props.minTime + step * i;
+    return { t, label: formatAxisTime(t, props.timeUnit, step), pct: (i / n) * 100 };
   });
 });
 

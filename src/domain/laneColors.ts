@@ -8,7 +8,7 @@ export const LANE_COLOR_HEX = {
   mte3: '#A44830',
   fixp: '#586C0C',
   scalar: '#38702C',
-  default: '#3860A8',
+  default: '#606060',
 } as const;
 
 export type LaneColorKey = keyof typeof LANE_COLOR_HEX;

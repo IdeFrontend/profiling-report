@@ -132,8 +132,16 @@ export interface SwimlaneViewWindow {
 
 /** Imperative timeline backend — Canvas MVP; WebGL later (COMPONENTS). */
 export interface SwimlaneRenderer {
+  attach(canvas: HTMLCanvasElement): void;
+  resize(width: number, height: number): void;
   setModel(model: SwimlaneModel): void;
   setView(view: SwimlaneViewWindow): void;
+  setSelection(selectedId: string | null, hoveredId: string | null): void;
+  setSearchQuery(query: string): void;
+  setCursorX(x: number | null): void;
+  contentHeight(): number;
+  eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;
+  findEvent(id: string): SwimEvent | null;
   render(): void;
   hitTest(x: number, y: number): string | null;
   dispose(): void;

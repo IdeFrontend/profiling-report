@@ -4,8 +4,8 @@ import type {
   SwimlaneRenderer,
   SwimlaneViewWindow,
   SwimThread,
-} from '../core/types';
-import { colorForThread } from '../core/laneColors';
+} from '../domain/types';
+import { colorForThread } from '../domain/laneColors';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
@@ -18,6 +18,11 @@ interface FlatLane {
   thread: SwimThread;
   y: number;
   color: string;
+}
+
+interface GroupHeader {
+  name: string;
+  y: number;
 }
 
 interface LaidOutEvent {
@@ -57,6 +62,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private model: SwimlaneModel | null = null;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private lanes: FlatLane[] = [];
+  private headers: GroupHeader[] = [];
   private events: LaidOutEvent[] = [];
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
@@ -110,7 +116,17 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   contentHeight(): number {
-    return LANE_GROUP_HEADER_HEIGHT + this.lanes.length * LANE_HEIGHT;
+    if (this.headers.length === 0 && this.lanes.length === 0) {
+      return LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT;
+    }
+    let bottom = 0;
+    for (const h of this.headers) {
+      bottom = Math.max(bottom, h.y + LANE_GROUP_HEADER_HEIGHT);
+    }
+    for (const l of this.lanes) {
+      bottom = Math.max(bottom, l.y + LANE_HEIGHT);
+    }
+    return bottom;
   }
 
   /** Map event id → CSS-pixel rect in current view (for tests / overlays). */
@@ -162,19 +178,19 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     ctx.fillStyle = '#252525';
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // Spacer matching gutter process/group header ("Kernel")
-    const headerTop = -this.view.scrollY;
-    if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < this.height) {
-      ctx.fillStyle = '#2a2a2a';
-      ctx.fillRect(0, headerTop, this.width, LANE_GROUP_HEADER_HEIGHT);
-      ctx.strokeStyle = '#3a3a3a';
-      ctx.beginPath();
-      ctx.moveTo(0, headerTop + LANE_GROUP_HEADER_HEIGHT - 0.5);
-      ctx.lineTo(this.width, headerTop + LANE_GROUP_HEADER_HEIGHT - 0.5);
-      ctx.stroke();
+    for (const header of this.headers) {
+      const headerTop = header.y - this.view.scrollY;
+      if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < this.height) {
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(0, headerTop, this.width, LANE_GROUP_HEADER_HEIGHT);
+        ctx.strokeStyle = '#3a3a3a';
+        ctx.beginPath();
+        ctx.moveTo(0, headerTop + LANE_GROUP_HEADER_HEIGHT - 0.5);
+        ctx.lineTo(this.width, headerTop + LANE_GROUP_HEADER_HEIGHT - 0.5);
+        ctx.stroke();
+      }
     }
 
-    // Alternating lane stripes (sketch-like density)
     for (let i = 0; i < this.lanes.length; i++) {
       const y = this.lanes[i]!.y - this.view.scrollY;
       if (y + LANE_HEIGHT < 0 || y > this.height) continue;
@@ -230,7 +246,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.globalAlpha = 1;
     }
 
-    // Mouse-following timestamp cursor — solid line (sketch)
     if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {
       ctx.save();
       ctx.strokeStyle = '#3078F0';
@@ -248,20 +263,22 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.ctx = null;
     this.model = null;
     this.lanes = [];
+    this.headers = [];
     this.events = [];
   }
 
   private rebuildLayout(): void {
     this.lanes = [];
+    this.headers = [];
     this.events = [];
     if (!this.model) return;
-    // Offset by group header so lane 0 lines up with first gutter label, not "Kernel"
-    let y = LANE_GROUP_HEADER_HEIGHT;
+    let y = 0;
     for (const proc of this.model.processes) {
+      this.headers.push({ name: proc.name, y });
+      y += LANE_GROUP_HEADER_HEIGHT;
       for (const thread of proc.threads) {
         const color = colorForThread(thread.name);
         this.lanes.push({ thread, y, color });
-        // Shorter events later in list so hit-test sort still works; draw long first
         const sorted = [...thread.events].sort((a, b) => b.duration - a.duration);
         for (const ev of sorted) {
           this.events.push({ id: ev.id, event: ev, laneIndex: this.lanes.length - 1, y, color });

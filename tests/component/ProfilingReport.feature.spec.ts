@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { adaptRep, parseRep, ProfilingReport } from '../../src/index';
 import { loadOutRepBuffer, loadOutRepBytes } from '../helpers/fixtures';
-import type { ReportViewModel, SwimlaneModel } from '../../src/core/types';
+import type { ReportViewModel, SwimlaneModel } from '../../src/domain/types';
 
 describe('PR-UI: ProfilingReport feature contract', () => {
   it('PR-UI-001: mounts with fixture source and shows timeline chrome', async () => {
@@ -134,7 +134,8 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="swimlane"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="lane-util"]').exists()).toBe(true);
+    // Standalone CTEF has no PipeUtilization → no invented gutter util bars
+    expect(wrapper.find('[data-testid="lane-util"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(false);

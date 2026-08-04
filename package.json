@@ -31,7 +31,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:scaffold": "vitest run tests/unit/scaffold.spec.ts tests/component/ProfilingReport.spec.ts",
-    "test:feature": "vitest run tests/unit/parseRep.spec.ts tests/unit/viewModels.spec.ts tests/unit/swimlaneModel.spec.ts tests/unit/formatTime.spec.ts tests/unit/viewState.spec.ts tests/unit/canvasRenderer.spec.ts tests/unit/loadReportSource.spec.ts tests/unit/utilization.spec.ts tests/component/ProfilingReport.feature.spec.ts",
+    "test:feature": "vitest run --exclude tests/unit/scaffold.spec.ts --exclude tests/component/ProfilingReport.spec.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:scaffold": "playwright test tests/e2e/playground.spec.ts",

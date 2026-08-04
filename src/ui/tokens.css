@@ -15,5 +15,11 @@
   --pr-color-scalar: #38702c;
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
-  --pr-color-default: #3860a8;
+  --pr-color-default: #606060;
+}
+
+.pr-root[data-theme='light'] {
+  --pr-bg-panel: #f4f4f4;
+  --pr-bg-deep: #e8ecf0;
+  color-scheme: light;
 }

@@ -1,7 +1,7 @@
 import { adaptRep } from './adaptRep';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { parseRep } from './parseRep';
-import type { AdaptedReport } from './types';
+import type { AdaptedReport } from '../domain/types';
 
 const REP_MAGIC = 'cann-rep';
 

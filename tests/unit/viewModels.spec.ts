@@ -33,6 +33,12 @@ describe('PR-VM: report view-models (interim)', () => {
 
     // AIC cube/mte1/fixp all-NA in fixture → omit or no invented zeros as occupancy
     expect(byId.cube).toBeUndefined();
+
+    // Gutter util comes from PIPE ratios, not busy-fraction heuristics
+    const pipeLane = adapted.swimlaneModel.processes
+      .flatMap((p) => p.threads)
+      .find((t) => t.name.includes('PIPE_V'));
+    expect(pipeLane?.utilization).toBeCloseTo(byId.vector.ratio, 5);
   });
 
   it('PR-VM-003 (interim I-Q5+): overviewSeries empty — not invented from PipeUtilization', () => {

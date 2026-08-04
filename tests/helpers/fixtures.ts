@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const OUT_REP = resolve(__dirname, '../../data/out.rep');
-const OUT_TRACE = resolve(__dirname, '../fixtures/out.trace.json');
+const OUT_TRACE = resolve(__dirname, '../../data/out.trace.json');
 
 export const EXPECTED_OUT_REP_EMBEDS = [
   'ArithmeticUtilization.csv',

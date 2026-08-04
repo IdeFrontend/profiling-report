@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { TimeDisplayUnit } from '../core/types';
-import { t } from '../core/i18n';
+import type { TimeDisplayUnit } from '../domain/types';
+import { t } from '../i18n';
 
 defineProps<{
   searchQuery: string;
@@ -9,6 +9,7 @@ defineProps<{
   zoomPercent: number;
   timeUnit: TimeDisplayUnit;
   locale?: string;
+  title?: string;
 }>();
 
 const emit = defineEmits<{
@@ -32,7 +33,7 @@ const emit = defineEmits<{
       data-testid="report-tabs"
       aria-label="report views"
     >
-      <span class="pr-tabs__brand">{{ t('tabOp', locale) }}</span>
+      <span class="pr-tabs__brand">{{ title || t('tabOp', locale) }}</span>
       <button
         type="button"
         class="pr-tabs__tab pr-tabs__tab--active"

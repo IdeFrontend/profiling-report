@@ -37,4 +37,18 @@ describe('PR-FMT: .rep container parse', () => {
       expect(parsed.payloads[name]?.byteLength).toBeGreaterThan(0);
     }
   });
+
+  it('PR-FMT-003: rejects version / length / offset mismatches', () => {
+    const bytes = loadOutRepBytes();
+    const badVersion = new Uint8Array(bytes);
+    new DataView(badVersion.buffer, badVersion.byteOffset, badVersion.byteLength).setUint32(
+      8,
+      0x00020000,
+      true,
+    );
+    expect(() => parseRep(badVersion)).toThrow(/unsupported version/);
+
+    const truncated = bytes.subarray(0, bytes.byteLength - 10);
+    expect(() => parseRep(truncated)).toThrow(/repLength/);
+  });
 });

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../swimlane/CanvasSwimlaneRenderer';
-import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow } from '../core/types';
+import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow } from '../domain/types';
+import { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from './CanvasSwimlaneRenderer';
 
 const props = defineProps<{
   model: SwimlaneModel | null;
@@ -9,7 +9,6 @@ const props = defineProps<{
   selectedEventId: string | null;
   hoveredEventId: string | null;
   searchQuery: string;
-  lanes: { id: string; name: string }[];
 }>();
 
 const emit = defineEmits<{
@@ -39,7 +38,12 @@ let resizeObserver: ResizeObserver | null = null;
 let localScrollY = 0;
 
 function contentHeight(): number {
-  return Math.max(120, LANE_GROUP_HEADER_HEIGHT + (props.lanes.length || 1) * LANE_HEIGHT);
+  if (!props.model) return 120;
+  let h = 0;
+  for (const p of props.model.processes) {
+    h += LANE_GROUP_HEADER_HEIGHT + p.threads.length * LANE_HEIGHT;
+  }
+  return Math.max(120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
 
 function maxScrollY(): number {
@@ -106,13 +110,6 @@ watch(
   () => props.model,
   () => {
     attachedModel = null;
-    resize();
-  },
-);
-
-watch(
-  () => props.lanes.length,
-  () => {
     resize();
   },
 );

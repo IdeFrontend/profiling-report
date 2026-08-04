@@ -23,11 +23,12 @@ Start here: **[docs/README.md](docs/README.md)**
 | UX specification | [docs/specs/ui/UX_SPEC.md](docs/specs/ui/UX_SPEC.md) |
 | Architecture | [docs/specs/architecture/ARCHITECTURE.md](docs/specs/architecture/ARCHITECTURE.md) (shared UI + adapters) |
 | Components & models | [docs/specs/architecture/COMPONENTS.md](docs/specs/architecture/COMPONENTS.md) |
-| Swimlane tech options | [docs/research/SWIMLANE_IMPLEMENTATIONS.md](docs/research/SWIMLANE_IMPLEMENTATIONS.md) |
+| Swimlane tech options | [docs/archive/research/SWIMLANE_IMPLEMENTATIONS.md](docs/archive/research/SWIMLANE_IMPLEMENTATIONS.md) |
 
 ## Sample data
 
 - [`data/out.rep`](data/out.rep) — sample CANN report container
+- [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
 - [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers
 
 ```bash
@@ -41,7 +42,7 @@ Static playground demo is what Vercel deploys (`vercel.json` → `npm run build:
 Fixtures are synced from the repo into `playground/public/data/` via `npm run sync:demo-fixtures` (runs automatically before `dev` / `build:demo`):
 
 - `data/out.rep` → `/data/out.rep`
-- `tests/fixtures/out.trace.json` → `/data/out.trace.json`
+- `data/out.trace.json` → `/data/out.trace.json`
 
 ```bash
 npm run playground          # local SPA (syncs fixtures first)

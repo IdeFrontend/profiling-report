@@ -7,9 +7,10 @@ const destDir = join(root, 'playground/public/data')
 
 mkdirSync(destDir, { recursive: true })
 
+/** Canonical fixtures live under data/; playground copies are generated (gitignored). */
 const copies = [
   ['data/out.rep', 'out.rep'],
-  ['tests/fixtures/out.trace.json', 'out.trace.json'],
+  ['data/out.trace.json', 'out.trace.json'],
 ]
 
 for (const [from, name] of copies) {

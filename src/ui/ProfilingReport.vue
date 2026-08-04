@@ -1,17 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { loadReportSource } from '../core/adapters';
-import { formatAxisTime, formatCursorTime, formatTime } from '../core/formatTime';
-import { t } from '../core/i18n';
-import {
-  applyWindow,
-  createViewState,
-  panBy,
-  zoomAt,
-  zoomToFitWindow,
-} from '../core/viewState';
-import { withDerivedUtilizations } from '../core/utilization';
-import { colorVarForLaneName } from '../core/laneColors';
+import { loadReportSource } from '../adapters';
+import { formatAxisTime, formatCursorTime } from '../domain/formatTime';
+import { colorVarForLaneName } from '../domain/laneColors';
 import type {
   ReportCapability,
   ReportViewModel,
@@ -20,9 +11,22 @@ import type {
   SwimlaneModel,
   SwimlaneViewState,
   TimeDisplayUnit,
-} from '../core/types';
+} from '../domain/types';
+import {
+  applyWindow,
+  createViewState,
+  panBy,
+  zoomAt,
+  zoomToFitWindow,
+} from '../domain/viewState';
+import { t } from '../i18n';
+import SwimlaneCanvas from '../swimlane/SwimlaneCanvas.vue';
+import DetailStrip from './DetailStrip.vue';
+import EventTooltip from './EventTooltip.vue';
+import LaneGutter from './LaneGutter.vue';
+import ReportLayout from './ReportLayout.vue';
 import ReportToolbar from './ReportToolbar.vue';
-import SwimlaneCanvas from './SwimlaneCanvas.vue';
+import StatsAside from './StatsAside.vue';
 import TimeOverviewBar from './TimeOverviewBar.vue';
 import './tokens.css';
 
@@ -43,17 +47,6 @@ const emit = defineEmits<{
   error: [error: { message: string; cause?: unknown }];
 }>();
 
-const COLOR: Record<string, string> = {
-  cube: 'var(--pr-color-cube)',
-  vector: 'var(--pr-color-vector)',
-  mte1: 'var(--pr-color-mte1)',
-  mte2: 'var(--pr-color-mte2)',
-  mte3: 'var(--pr-color-mte3)',
-  fixp: 'var(--pr-color-fixp)',
-  scalar: 'var(--pr-color-scalar)',
-  default: 'var(--pr-color-default)',
-};
-
 const internalSwim = ref<SwimlaneModel | null>(null);
 const internalReport = ref<ReportViewModel | null>(null);
 const loadError = ref<string | null>(null);
@@ -63,12 +56,9 @@ const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
-const gutterRef = ref<HTMLElement | null>(null);
+const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
 
-const swim = computed(() => {
-  const raw = props.swimlaneModel ?? internalSwim.value;
-  return raw ? withDerivedUtilizations(raw) : null;
-});
+const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
 const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
 
@@ -80,21 +70,21 @@ const hasSummary = computed(() => {
 const showPipe = computed(() => (report.value?.pipeOccupancy?.length ?? 0) > 0);
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 const asideAvailable = computed(() => hasSummary.value || showPipe.value);
+const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
+const showTimeline = computed(() => loadError.value == null && swim.value != null);
 
-const lanes = computed(() => {
-  const out: { id: string; name: string; utilization: number; color: string }[] = [];
-  for (const p of swim.value?.processes ?? []) {
-    for (const t of p.threads) {
-      out.push({
-        id: t.id,
-        name: t.name,
-        utilization: t.utilization ?? 0,
-        color: colorVarForLaneName(t.name),
-      });
-    }
-  }
-  return out;
-});
+const laneGroups = computed(() =>
+  (swim.value?.processes ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    lanes: p.threads.map((thread) => ({
+      id: thread.id,
+      name: thread.name,
+      utilization: thread.utilization,
+      color: colorVarForLaneName(thread.name),
+    })),
+  })),
+);
 
 const bounds = computed(() => {
   const m = swim.value;
@@ -117,15 +107,16 @@ const zoomPercent = computed(() => {
 const axisTicks = computed(() => {
   const { startTime, endTime } = viewState.value;
   const ticks = 5;
+  const step = (endTime - startTime) / ticks;
   return Array.from({ length: ticks + 1 }, (_, i) => {
-    const tm = startTime + ((endTime - startTime) * i) / ticks;
-    return { t: tm, label: formatAxisTime(tm, unit.value) };
+    const tm = startTime + step * i;
+    return { t: tm, label: formatAxisTime(tm, unit.value, step) };
   });
 });
 
-function resetViewFromModel(model: SwimlaneModel | null, showAside: boolean): void {
+function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean): void {
   const next = createViewState(model);
-  next.asideVisible = showAside;
+  next.asideVisible = showAsidePanel;
   viewState.value = next;
   selected.value = null;
   hovered.value = null;
@@ -147,6 +138,11 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     loadError.value = null;
     emit('ready');
   } catch (cause) {
+    internalSwim.value = null;
+    internalReport.value = null;
+    selected.value = null;
+    hovered.value = null;
+    viewState.value = createViewState(null);
     loadError.value = cause instanceof Error ? cause.message : String(cause);
     emit('error', { message: loadError.value, cause });
   }
@@ -288,7 +284,7 @@ function onScrollY(scrollY: number) {
 watch(
   () => viewState.value.scrollY,
   (y) => {
-    const el = gutterRef.value;
+    const el = gutterRef.value?.root;
     if (el && Math.abs(el.scrollTop - y) > 0.5) {
       el.scrollTop = y;
     }
@@ -296,7 +292,7 @@ watch(
 );
 
 function onGutterScroll(): void {
-  const el = gutterRef.value;
+  const el = gutterRef.value?.root;
   if (!el) return;
   if (Math.abs(el.scrollTop - viewState.value.scrollY) > 0.5) {
     onScrollY(el.scrollTop);
@@ -313,11 +309,6 @@ function onAside(visible: boolean) {
 
 function onTimeUnit(u: TimeDisplayUnit) {
   localTimeUnit.value = u;
-}
-
-function formatDurationUs(us: number): string {
-  if (us >= 1000) return `${(us / 1000).toFixed(2)} ms`;
-  return `${us.toFixed(us >= 10 ? 2 : 5)} µs`;
 }
 
 /** Used by component tests to select an event without canvas pointer geometry. */
@@ -339,6 +330,7 @@ defineExpose({ selectEventById, viewState });
     :data-capabilities="(capabilities ?? []).join(',')"
   >
     <ReportToolbar
+      :title="title"
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
       :aside-available="asideAvailable"
@@ -362,12 +354,19 @@ defineExpose({ selectEventById, viewState });
       {{ loadError }}
     </p>
 
-    <div
-      class="pr-layout"
-      :class="{ 'pr-layout--no-aside': !(viewState.asideVisible && asideAvailable) }"
+    <p
+      v-else-if="!showTimeline"
+      class="pr-error"
+      data-testid="no-timeline"
     >
-      <section class="pr-main">
-        <!-- Total X-axis (full range) above detail axis — sketch / PyPTO layout -->
+      {{ t('noTimeline', locale) }}
+    </p>
+
+    <ReportLayout
+      v-else
+      :show-aside="showAside"
+    >
+      <template #main>
         <div class="pr-swim-row pr-swim-row--overview">
           <div
             class="pr-gutter pr-gutter--axis-spacer"
@@ -412,46 +411,17 @@ defineExpose({ selectEventById, viewState });
         </div>
 
         <div class="pr-swim-row pr-swim-row--body">
-          <div
+          <LaneGutter
             ref="gutterRef"
-            class="pr-gutter"
-            data-testid="lane-gutter"
+            :groups="laneGroups"
             @scroll="onGutterScroll"
-          >
-            <div class="pr-gutter__group">
-              {{ t('kernel', locale) }}
-            </div>
-            <div
-              v-for="lane in lanes"
-              :key="lane.id"
-              class="pr-gutter__lane"
-            >
-              <span
-                class="pr-gutter__name"
-                :title="lane.name"
-              >{{ lane.name }}</span>
-              <span class="pr-gutter__pct">{{ Math.round(lane.utilization * 100) }}%</span>
-              <span
-                class="pr-gutter__util"
-                data-testid="lane-util"
-              >
-                <span
-                  class="pr-gutter__util-bar"
-                  :style="{
-                    width: `${Math.min(100, lane.utilization * 100)}%`,
-                    background: lane.color,
-                  }"
-                />
-              </span>
-            </div>
-          </div>
+          />
           <SwimlaneCanvas
             :model="swim"
             :view="viewState"
             :selected-event-id="viewState.selectedEventId"
             :hovered-event-id="viewState.hoveredEventId"
             :search-query="viewState.searchQuery"
-            :lanes="lanes"
             @select="onSelect"
             @hover="onHover"
             @cursor="onCursor"
@@ -469,124 +439,30 @@ defineExpose({ selectEventById, viewState });
         >
           Overview charts
         </div>
-      </section>
+      </template>
 
-      <aside
-        v-if="viewState.asideVisible && asideAvailable"
-        class="pr-aside"
-        data-testid="stats-aside"
-      >
-        <header class="pr-aside__head">
-          <h3>{{ t('summary', locale) }}</h3>
-          <p
-            v-if="report?.summary.currentFreq != null"
-            class="pr-aside__meta"
-          >
-            {{ t('freq', locale) }}: {{ report.summary.currentFreq }}
-            <template v-if="report.summary.ratedFreq != null">
-              / {{ report.summary.ratedFreq }}
-            </template>
-            <template v-if="report?.summary.opType">
-              · {{ report.summary.opType }}
-            </template>
-          </p>
-        </header>
+      <template #aside>
+        <StatsAside
+          :report="report"
+          :locale="locale"
+        />
+      </template>
+    </ReportLayout>
 
-        <div
-          v-if="hasSummary"
-          class="pr-cards"
-          data-testid="stats-summary"
-        >
-          <div
-            v-if="report?.summary.taskDurationUs != null"
-            class="pr-card"
-          >
-            <div class="pr-card__label">
-              {{ t('duration', locale) }}
-            </div>
-            <div class="pr-card__value">
-              {{ formatDurationUs(report.summary.taskDurationUs) }}
-            </div>
-            <div
-              v-if="report?.summary.opName"
-              class="pr-card__sub"
-            >
-              {{ report.summary.opName }}
-            </div>
-          </div>
-          <div
-            v-if="report?.summary.opType"
-            class="pr-card"
-          >
-            <div class="pr-card__label">
-              {{ t('type', locale) }}
-            </div>
-            <div class="pr-card__value pr-card__value--sm">
-              {{ report.summary.opType }}
-            </div>
-          </div>
-        </div>
+    <DetailStrip
+      v-if="selected && showTimeline"
+      :selected="selected"
+      :unit="unit"
+      :locale="locale"
+    />
 
-        <div
-          v-if="showPipe"
-          class="pr-panel pr-panel--pipe"
-          data-testid="pipe-occupancy"
-        >
-          <h4>{{ t('pipeOccupancy', locale) }}</h4>
-          <ul class="pr-pipe-list">
-            <li
-              v-for="pipe in report?.pipeOccupancy ?? []"
-              :key="pipe.id"
-              class="pr-pipe-row"
-            >
-              <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-              <span class="pr-pipe-row__track">
-                <span
-                  class="pr-pipe-row__bar"
-                  :style="{
-                    width: `${Math.min(100, pipe.ratio * 100)}%`,
-                    background: COLOR[pipe.colorKey] ?? COLOR.default,
-                  }"
-                />
-              </span>
-              <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
-            </li>
-          </ul>
-        </div>
-      </aside>
-    </div>
-
-    <footer
-      v-if="selected"
-      class="pr-detail"
-      data-testid="detail-strip"
-    >
-      <div class="pr-detail__name">
-        {{ selected.name }}
-      </div>
-      <div class="pr-detail__times">
-        {{ t('start', locale) }} {{ formatTime(selected.startTime, unit) }}
-        ·
-        {{ t('dur', locale) }} {{ formatTime(selected.duration, unit) }}
-      </div>
-      <div class="pr-detail__end">
-        {{ t('end', locale) }} {{ formatTime(selected.endTime, unit) }}
-      </div>
-    </footer>
-
-    <div
-      v-if="hovered"
-      class="pr-tooltip"
-      data-testid="event-tooltip"
-      :style="tooltipStyle"
-    >
-      <div class="pr-tooltip__name">
-        {{ hovered.name }}
-      </div>
-      <div>{{ t('start', locale) }}: {{ formatTime(hovered.startTime, 'ns') }}</div>
-      <div>{{ t('dur', locale) }}: {{ formatTime(hovered.duration, 'ns') }}</div>
-      <div>{{ t('end', locale) }}: {{ formatTime(hovered.startTime + hovered.duration, 'ns') }}</div>
-    </div>
+    <EventTooltip
+      v-if="hovered && showTimeline"
+      :event="hovered"
+      :style-pos="tooltipStyle"
+      :unit="unit"
+      :locale="locale"
+    />
   </div>
 </template>
 
@@ -614,30 +490,6 @@ defineExpose({ selectEventById, viewState });
   flex: 0 0 auto;
 }
 
-.pr-layout {
-  display: grid;
-  grid-template-columns: 1fr minmax(260px, 300px);
-  gap: 0;
-  flex: 1 1 auto;
-  min-height: 0;
-  border-top: 1px solid #3a3a3a;
-}
-
-.pr-layout--no-aside {
-  grid-template-columns: 1fr;
-}
-
-.pr-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
-  min-height: 0;
-  background: var(--pr-bg-panel);
-  padding: 0;
-  border-right: 1px solid #3a3a3a;
-}
-
 .pr-time-axis {
   position: relative;
   display: flex;
@@ -653,6 +505,8 @@ defineExpose({ selectEventById, viewState });
 
 .pr-gutter--axis-spacer {
   border-bottom: 1px solid #3a3a3a;
+  background: #2a2a2a;
+  border-right: 1px solid #3a3a3a;
 }
 
 .pr-cursor {
@@ -691,7 +545,6 @@ defineExpose({ selectEventById, viewState });
   min-height: 0;
 }
 
-/* Higher specificity so head/overview keep flex-shrink; body takes remaining height. */
 .pr-swim-row.pr-swim-row--head,
 .pr-swim-row.pr-swim-row--overview {
   flex: 0 0 auto;
@@ -710,235 +563,7 @@ defineExpose({ selectEventById, viewState });
   min-height: 0;
 }
 
-.pr-gutter {
-  display: flex;
-  flex-direction: column;
-  font-size: 11px;
-  color: #c8c8c8;
-  overflow: auto;
-  min-height: 0;
-  background: #2a2a2a;
-  border-right: 1px solid #3a3a3a;
-  padding: 0 6px 0 8px;
-}
-
-.pr-gutter__group {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  flex: 0 0 28px; /* keep in sync with LANE_GROUP_HEADER_HEIGHT */
-  height: 28px;
-  min-height: 28px;
-  padding: 0;
-  margin: 0;
-  font-weight: 600;
-  color: #ddd;
-  border-bottom: 1px solid #3a3a3a;
-}
-
-.pr-gutter__lane {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px 40px;
-  gap: 4px;
-  align-items: center;
-  flex: 0 0 22px; /* keep in sync with LANE_HEIGHT */
-  height: 22px;
-  min-height: 22px;
-}
-
-.pr-gutter__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pr-gutter__pct {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.85;
-  font-size: 10px;
-}
-
-.pr-gutter__util {
-  display: block;
-  height: 6px;
-  background: #1a1a1a;
-  border-radius: 1px;
-  overflow: hidden;
-}
-
-.pr-gutter__util-bar {
-  display: block;
-  height: 100%;
-  border-radius: 1px;
-  min-width: 0;
-}
-
-.pr-aside {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 0;
-  overflow: auto;
-  background: var(--pr-bg-panel);
-  padding: 10px 12px;
-}
-
-.pr-aside__head h3 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.pr-aside__meta {
-  margin: 4px 0 0;
-  font-size: 11px;
-  color: #a8a8a8;
-}
-
-.pr-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.pr-card {
-  background: #262626;
-  border: 1px solid #3a3a3a;
-  border-radius: 2px;
-  padding: 8px 10px;
-}
-
-.pr-card__label {
-  font-size: 11px;
-  color: #9a9a9a;
-  margin-bottom: 4px;
-}
-
-.pr-card__value {
-  font-size: 18px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.pr-card__value--sm {
-  font-size: 14px;
-}
-
-.pr-card__sub {
-  margin-top: 4px;
-  font-size: 11px;
-  color: #8a8a8a;
-}
-
-.pr-panel--pipe {
-  background: transparent;
-  border-radius: 0;
-  padding: 4px 0 0;
-}
-
-.pr-panel--pipe h4 {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.pr-pipe-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.pr-pipe-row {
-  display: grid;
-  grid-template-columns: 52px 1fr 36px;
-  gap: 8px;
-  align-items: center;
-}
-
-.pr-pipe-row__label {
-  font-size: 11px;
-  color: #c0c0c0;
-}
-
-.pr-pipe-row__track {
-  display: block;
-  height: 10px;
-  background: #1f1f1f;
-  border-radius: 1px;
-  overflow: hidden;
-}
-
-.pr-pipe-row__bar {
-  display: block;
-  height: 100%;
-  border-radius: 1px;
-  min-width: 2px;
-}
-
-.pr-pipe-row__pct {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  color: #b8b8b8;
-}
-
-.pr-detail {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) auto auto;
-  gap: 16px;
-  align-items: center;
-  padding: 8px 12px;
-  background: #2a2a2a;
-  border-top: 1px solid #3a3a3a;
-  flex: 0 0 auto;
-}
-
-.pr-detail__name {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pr-detail__times,
-.pr-detail__end {
-  font-variant-numeric: tabular-nums;
-  color: #c0c0c0;
-}
-
-.pr-tooltip {
-  position: fixed;
-  z-index: 20;
-  pointer-events: none;
-  padding: 8px 10px;
-  background: #2a2a2a;
-  border: 1px solid #555;
-  border-radius: 2px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
-  font-size: 12px;
-  line-height: 1.45;
-  min-width: 180px;
-}
-
-.pr-tooltip__name {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
 @media (max-width: 900px) {
-  .pr-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .pr-main {
-    border-right: none;
-  }
-
   .pr-swim-row {
     grid-template-columns: 1fr;
   }
@@ -950,10 +575,5 @@ defineExpose({ selectEventById, viewState });
   .pr-gutter--axis-spacer {
     display: none;
   }
-
-  .pr-detail {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
-
