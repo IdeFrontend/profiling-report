@@ -85,10 +85,16 @@ defineExpose({ root });
   font-size: 11px;
   color: #c8c8c8;
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   min-height: 0;
   background: #2a2a2a;
   border-right: 1px solid #3a3a3a;
   padding: 0 6px 0 8px;
+}
+
+.pr-gutter::-webkit-scrollbar {
+  display: none;
 }
 
 .pr-gutter__group {
