@@ -66,5 +66,5 @@ Under [INTERIM_DECISIONS](INTERIM_DECISIONS.md) until Product/data spec complete
 - Feature phasing: [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md)
 - Components & models: [COMPONENTS.md](../specs/architecture/COMPONENTS.md)
 - Sample report: [`data/out.rep`](../../data/out.rep)
-- Prior PyPTO reuse research (archive): [SWIMLANE_WEBVIEW_REUSE_REPORT.md](../research/SWIMLANE_WEBVIEW_REUSE_REPORT.md)
-- Swimlane tech comparison: [SWIMLANE_IMPLEMENTATIONS.md](../research/SWIMLANE_IMPLEMENTATIONS.md)
+- Prior PyPTO reuse research (archive): [SWIMLANE_WEBVIEW_REUSE_REPORT.md](../archive/research/SWIMLANE_WEBVIEW_REUSE_REPORT.md)
+- Swimlane tech comparison: [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md)

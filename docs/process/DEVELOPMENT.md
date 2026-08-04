@@ -53,21 +53,21 @@ Implement in this order unless a blocking dependency forces a temporary exceptio
 3. **View-models** — [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md) (PIPE bars, report summary)
 4. **Swimlane model** — trace → `SwimlaneModel` ([ARCHITECTURE](../specs/architecture/ARCHITECTURE.md))
 5. **UI shell** — panels + interactions ([UI_OVERVIEW](../specs/ui/UI_OVERVIEW.md), [UX_SPEC](../specs/ui/UX_SPEC.md), [INTERACTIONS](../specs/ui/INTERACTIONS.md), [COMPONENTS](../specs/architecture/COMPONENTS.md))
-6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../research/SWIMLANE_IMPLEMENTATIONS.md))
+6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md))
 7. **MSTT host** — separate PR in `mstt` per [MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)
 
 ## Target repo layout (when implementation starts)
 
 ```text
-src/              # Vue library (core / swimlane / ui)
+src/              # Vue library (adapters / domain / swimlane / ui)
 playground/       # Vite app mounting ProfilingReport (Playwright target)
 tests/
   unit/
   component/
   e2e/
-  fixtures/       # golden snapshots; paths to data/out.rep
+  fixtures/       # optional snapshots; golden binaries live under data/
 docs/             # goals, specs, process (this tree)
-data/             # sample .rep + pack/unpack scripts
+data/             # canonical sample .rep / .trace.json + pack/unpack scripts
 ```
 
 ## When to update specs
@@ -88,11 +88,12 @@ Do not leave “temporary” undocumented behavior in main.
 
 ## Next engineering milestone
 
-MVP coding may start under [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md). First implementation step remains **test infrastructure**:
+**Milestone 1 (scaffold)** — green: Vite library, Vitest, Playwright, playground (`PR-SCAFFOLD-*`).
 
-1. Scaffold package + Vite + Vue 3 + TypeScript (repo-root `src/` per interim Q16)
-2. Vitest (+ Vue Test Utils) and Playwright
-3. Playground that loads `data/out.rep` (I-Q4)
-4. Placeholder failing tests (e.g. `parseRep` smoke, playground “loads report” e2e)
+**Milestone 2 (parse → view-models → swimlane → UI shell)** — green on `feat/scaffold-test-harness` (`PR-FMT-*` / `PR-VM-*` / `PR-SWIM-*` / `PR-UI-*` / `PR-E2E-*`).
 
-Feature implementation starts only when that scaffold is merged and CI runs the empty/failing suite successfully. Do not invent Product-final formulas for hidden summary tiles (I-Q6a).
+**Milestone 3 (renderer + navigation)** — Canvas `SwimlaneRenderer`, view-state zoom/pan, toolbar (search / zoom / fit / toggle aside), I-Q14 time formatting (`PR-TIME-*` / `PR-VIEW-*` / `PR-RENDER-*` / `PR-UI-004+` / `PR-E2E-004`).
+
+**Milestone 4 (trace JSON + MVP polish)** — standalone Chrome Trace open path (Q15), gutter util bars, time-unit control, i18n hooks, CSS tokens (`PR-JSON-*` / `PR-UI-006` / `PR-E2E-005`).
+
+**Next:** merge library to `master` when ready; then **MSTT host** in a separate `mstt` PR ([MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)).

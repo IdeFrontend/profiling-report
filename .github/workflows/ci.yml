@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [master, 'feat/**']
+  pull_request:
+    branches: [master]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Scaffold unit/component tests (must pass)
+        run: npm run test:scaffold
+
+      - name: Scaffold e2e (must pass)
+        run: npm run test:e2e:scaffold
+
+      - name: Feature unit/component tests
+        run: npm run test:feature
+
+      - name: Feature e2e
+        run: npm run test:e2e:feature
