@@ -1,6 +1,6 @@
 /**
  * Sudu-inspired coverage-AA swimlane shaders (reimplemented in TS; no sudu-editor dep).
- * VS snaps interval edges to pixel bounds; FS multiplies RGB by sub-pixel coverage.
+ * VS snaps interval edges to pixel bounds; FS uses a rounded-rect SDF for coverage.
  */
 
 export const SWIMLANE_VS = `#version 300 es
@@ -32,7 +32,7 @@ void main() {
   float screenX = glToPixelX(pos.x);
   float screenY = glToPixelY(pos.y);
 
-  // Extend left/right edge to pixel bounds
+  // Extend left/right edge to pixel bounds for AA fringe
   screenX = mix(floor(screenX), ceil(screenX), aTex.y);
   pos.x = pixelToGlX(screenX);
 
@@ -46,15 +46,35 @@ export const SWIMLANE_FS = `#version 300 es
 precision highp float;
 
 uniform vec4 uColor;
+uniform vec2 uYBounds; // top, bottom in CSS pixels
+uniform float uRadius;
+
 in vec2 vScreenPos;
 in vec2 vLrScreen;
 out vec4 outColor;
 
+// Rounded-box SDF (Inigo Quilez). Negative = inside.
+float sdRoundBox(vec2 p, vec2 halfSize, float r) {
+  vec2 q = abs(p) - halfSize + r;
+  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
 void main() {
-  float lPx = max(vLrScreen.x, vScreenPos.x - 0.5);
-  float rPx = min(vLrScreen.y, vScreenPos.x + 0.5);
-  float inside = rPx - lPx;
-  outColor = vec4(uColor.xyz * inside, 1.0);
+  float l = vLrScreen.x;
+  float r = vLrScreen.y;
+  float t = uYBounds.x;
+  float b = uYBounds.y;
+  float w = max(r - l, 0.0);
+  float h = max(b - t, 0.0);
+  float rad = min(uRadius, min(w, h) * 0.5);
+
+  vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
+  vec2 halfSize = vec2(w * 0.5, h * 0.5);
+  float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
+
+  // Approximate pixel coverage from signed distance
+  float coverage = clamp(0.5 - dist, 0.0, 1.0);
+  outColor = vec4(uColor.xyz * coverage, 1.0);
 }
 `;
 
