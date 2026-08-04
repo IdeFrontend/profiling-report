@@ -1,5 +1,4 @@
 <script setup lang="ts">
-<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { formatTime } from '../../domain/formatTime';
 import type {
@@ -10,17 +9,12 @@ import type {
   TimeDisplayUnit,
 } from '../../domain/types';
 import { normalizeMeasureRange } from '../../domain/viewState';
-import { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../CanvasSwimlaneRenderer';
-=======
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow } from '../domain/types';
 import {
   CanvasSwimlaneRenderer,
   SwimlaneOverlayPainter,
-} from './CanvasSwimlaneRenderer';
-import { WebGlSwimlaneRenderer } from './WebGlSwimlaneRenderer';
-import { contentHeightFromModel } from './layout';
->>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
+} from '../CanvasSwimlaneRenderer';
+import { WebGlSwimlaneRenderer } from '../WebGlSwimlaneRenderer';
+import { contentHeightFromModel } from '../layout';
 
 const props = defineProps<{
   model: SwimlaneModel | null;
@@ -31,6 +25,8 @@ const props = defineProps<{
   measureMode?: boolean;
   measureRange?: MeasureRange | null;
   timeUnit?: TimeDisplayUnit;
+  /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
+  preferRenderer?: 'auto' | 'webgl' | 'canvas';
 }>();
 
 const emit = defineEmits<{
@@ -121,7 +117,14 @@ function resize(): void {
   sizerHeight.value = h;
 
   if (!attached) {
-    if (glCanvasRef.value && overlayCanvasRef.value && WebGlSwimlaneRenderer.isSupported(glCanvasRef.value)) {
+    const prefer = props.preferRenderer ?? 'auto';
+    const tryWebGl = prefer !== 'canvas';
+    if (
+      tryWebGl &&
+      glCanvasRef.value &&
+      overlayCanvasRef.value &&
+      WebGlSwimlaneRenderer.isSupported(glCanvasRef.value)
+    ) {
       const glBackend = new WebGlSwimlaneRenderer();
       if (glBackend.attach(glCanvasRef.value)) {
         backend = glBackend;
@@ -130,6 +133,13 @@ function resize(): void {
         attached = true;
       }
     }
+    if (!attached && prefer !== 'webgl' && fallbackCanvasRef.value) {
+      backend = new CanvasSwimlaneRenderer();
+      backend.attach(fallbackCanvasRef.value);
+      useWebGl.value = false;
+      attached = true;
+    }
+    // prefer=webgl but attach failed → canvas fallback
     if (!attached && fallbackCanvasRef.value) {
       backend = new CanvasSwimlaneRenderer();
       backend.attach(fallbackCanvasRef.value);
@@ -211,7 +221,6 @@ function timeAtX(x: number): number {
   return props.view.startTime + (x / w) * span;
 }
 
-<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
 function xAtTime(t: number): number {
   const span = Math.max(1, props.view.endTime - props.view.startTime);
   const w = wrapRef.value?.clientWidth || 1;
@@ -235,19 +244,17 @@ const measureLabel = computed(() => {
   return formatTime(dur, props.timeUnit ?? 'ms');
 });
 
-=======
 function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
 
->>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
 function onPointerDown(e: PointerEvent): void {
   dragging = true;
   lastX = e.clientX;
   downX = e.clientX;
-  const canvas = canvasRef.value;
-  if (props.measureMode && canvas) {
-    const rect = canvas.getBoundingClientRect();
+  const target = activeCanvas();
+  if (props.measureMode && target) {
+    const rect = target.getBoundingClientRect();
     measureGestureActive = true;
     measureAnchorTime = timeAtX(e.clientX - rect.left);
     emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
@@ -295,25 +302,15 @@ function onPointerMove(e: PointerEvent): void {
 function onPointerUp(e: PointerEvent): void {
   const wasMeasuring = measureGestureActive;
   dragging = false;
-<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
   measureAnchorTime = null;
   measureGestureActive = false;
-  const canvas = canvasRef.value;
-  if (!canvas) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  const time = timeAtX(x);
-  emit('set-playhead', time);
-  if (wasMeasuring) return;
-=======
   const target = activeCanvas();
   if (!target) return;
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   emit('set-playhead', timeAtX(x));
->>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
+  if (wasMeasuring) return;
   if (Math.abs(e.clientX - downX) > 4) return;
   const id = backend.hitTest(x, y);
   emit('select', id ? backend.findEvent(id) : null);
@@ -322,22 +319,18 @@ function onPointerUp(e: PointerEvent): void {
 function onPointerLeave(): void {
   // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
   if (measureGestureActive) {
-    renderer.setCursorX(null);
-    renderer.render();
+    backend.setCursorX(null);
+    if (useWebGl.value) overlay.setCursorX(null);
+    schedulePaint();
     emit('cursor', null);
     emit('hover', null, 0, 0);
     return;
   }
   dragging = false;
-<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
   measureAnchorTime = null;
-  renderer.setCursorX(null);
-  renderer.render();
-=======
   backend.setCursorX(null);
   if (useWebGl.value) overlay.setCursorX(null);
   schedulePaint();
->>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
   emit('cursor', null);
   emit('hover', null, 0, 0);
 }
@@ -368,11 +361,8 @@ defineExpose({
     ref="wrapRef"
     class="pr-swim-canvas-wrap"
     data-testid="swimlane"
-<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
     :class="{ 'pr-swim-canvas-wrap--measure': measureMode }"
-=======
     :data-renderer="useWebGl ? 'webgl' : 'canvas'"
->>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
   >
     <div
       class="pr-swim-canvas-sizer"
@@ -447,7 +437,22 @@ defineExpose({
   touch-action: none;
 }
 
-<<<<<<< HEAD:src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
+.pr-swim-canvas--gl {
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pr-swim-canvas--overlay {
+  z-index: 1;
+  background: transparent;
+}
+
+.pr-swim-canvas-wrap[data-renderer='canvas'] .pr-swim-canvas--gl,
+.pr-swim-canvas-wrap[data-renderer='canvas'] .pr-swim-canvas--overlay {
+  display: none;
+  pointer-events: none;
+}
+
 .pr-measure-band {
   position: absolute;
   top: 0;
@@ -471,21 +476,5 @@ defineExpose({
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-=======
-.pr-swim-canvas--gl {
-  pointer-events: none;
-  z-index: 0;
-}
-
-.pr-swim-canvas--overlay {
-  z-index: 1;
-  background: transparent;
-}
-
-.pr-swim-canvas-wrap[data-renderer='canvas'] .pr-swim-canvas--gl,
-.pr-swim-canvas-wrap[data-renderer='canvas'] .pr-swim-canvas--overlay {
-  display: none;
-  pointer-events: none;
->>>>>>> f4fb3a6 (Add WebGL2 coverage-AA swimlane renderer (Sudu-style TS port).):src/swimlane/SwimlaneCanvas.vue
 }
 </style>

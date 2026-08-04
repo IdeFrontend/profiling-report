@@ -1,0 +1,42 @@
+import { describe, expect, it } from 'vitest';
+import {
+  generateStressSwimlane,
+  stressPresetFromQuery,
+  stressSwimlaneStats,
+} from '../../src/domain/generateStressSwimlane';
+
+describe('PR-STRESS: generateStressSwimlane', () => {
+  it('PR-STRESS-001: medium preset reaches Sudu-class event counts', () => {
+    const model = generateStressSwimlane({}, 'medium');
+    const stats = stressSwimlaneStats(model);
+    expect(stats.processCount).toBe(4);
+    expect(stats.threadCount).toBe(32);
+    expect(stats.eventCount).toBe(320_000);
+    expect(model.minTime).toBe(0);
+    expect(model.maxTime).toBe(1_000_000_000);
+  });
+
+  it('PR-STRESS-002: small preset is deterministic for same seed', () => {
+    const a = generateStressSwimlane({ seed: 42 }, 'small');
+    const b = generateStressSwimlane({ seed: 42 }, 'small');
+    expect(a.processes[0]?.threads[0]?.events[0]).toEqual(
+      b.processes[0]?.threads[0]?.events[0],
+    );
+    expect(stressSwimlaneStats(a).eventCount).toBe(8_000);
+  });
+
+  it('PR-STRESS-003: custom options override preset sizes', () => {
+    const model = generateStressSwimlane(
+      { processCount: 1, threadsPerProcess: 2, eventsPerThread: 50, timeSpanNs: 10_000 },
+      'large',
+    );
+    expect(stressSwimlaneStats(model).eventCount).toBe(100);
+    expect(model.maxTime).toBe(10_000);
+  });
+
+  it('PR-STRESS-004: stressPresetFromQuery falls back to medium', () => {
+    expect(stressPresetFromQuery('large')).toBe('large');
+    expect(stressPresetFromQuery('nope')).toBe('medium');
+    expect(stressPresetFromQuery(null)).toBe('medium');
+  });
+});
