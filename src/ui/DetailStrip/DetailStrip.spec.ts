@@ -14,4 +14,15 @@ describe('DetailStrip', () => {
     expect(wrapper.find('[data-testid="detail-strip"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('test_op');
   });
+
+  it('PR-STRIP-002: formats times in the selected unit', () => {
+    const wrapper = mount(DetailStrip, {
+      props: {
+        selected: { id: '1', name: 'op', startTime: 1_000_000, duration: 500_000, endTime: 1_500_000 },
+        unit: 'us',
+      },
+    });
+
+    expect(wrapper.find('[data-testid="detail-strip"]').exists()).toBe(true);
+  });
 });

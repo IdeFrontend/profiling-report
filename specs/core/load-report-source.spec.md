@@ -6,7 +6,7 @@
   phase: MVP
   owner: -
   last-updated: 2026-08-04
-  source: src/core/adapters.ts (loadReportSource)
+  source: src/adapters/loadReportSource.ts (loadReportSource)
   test: tests/unit/loadReportSource.spec.ts
 -->
 

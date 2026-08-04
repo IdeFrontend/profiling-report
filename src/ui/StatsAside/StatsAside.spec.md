@@ -40,7 +40,7 @@ None. Pure presentational.
 
 ## Edge Cases
 
-- report is null — renders empty state.
+- report is null or undefined — renders empty state.
 - Empty pipe occupancy — no bars rendered.
 
 ## Dependencies

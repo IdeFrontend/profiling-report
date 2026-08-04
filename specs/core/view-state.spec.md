@@ -6,7 +6,7 @@
   phase: MVP
   owner: -
   last-updated: 2026-08-04
-  source: src/core/viewState.ts
+  source: src/domain/viewState.ts
   test: tests/unit/viewState.spec.ts
 -->
 
@@ -17,41 +17,41 @@ Manage the swimlane viewport state — zoom, pan, window boundaries, and zoom-to
 ## Inputs / Outputs
 
 ```ts
-createViewState(windowMs: number, totalUs: number): SwimlaneViewState
-zoomAt(state: SwimlaneViewState, factor: number, anchorUs: number): SwimlaneViewState
-panBy(state: SwimlaneViewState, deltaUs: number): SwimlaneViewState
-zoomToFitWindow(state: SwimlaneViewState): SwimlaneViewState
-applyWindow(state: SwimlaneViewState, startUs: number, endUs: number): SwimlaneViewState
+createViewState(model: SwimlaneModel | null | undefined): SwimlaneViewState
+zoomAt(view: SwimlaneViewWindow, factor: number, anchorTime: number, bounds?: Bounds): SwimlaneViewWindow
+panBy(view: SwimlaneViewWindow, deltaTime: number, bounds?: Bounds): SwimlaneViewWindow
+zoomToFitWindow(model: SwimlaneModel | null | undefined): SwimlaneViewWindow
+applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewState
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| windowMs | number | Initial visible window width in ms |
-| totalUs | number | Total timeline span in us |
+| model | SwimlaneModel or null/undefined | Timeline model used to compute initial window |
 | factor | number | Zoom multiplier (>1 zoom in, <1 zoom out) |
-| anchorUs | number | Zoom anchor point in us |
-
-**Returns**: New SwimlaneViewState with updated viewport.
+| anchorTime | number | Zoom anchor point in time units |
+| deltaTime | number | Pan offset in time units |
 
 ## Behavior
 
-- Zoom is anchored at a specific time point.
-- Pan shifts the viewport by delta in us.
-- zoomToFitWindow sets viewport to cover the full timeline.
-- applyWindow sets explicit start/end boundaries.
-- Viewport is clamped to total timeline bounds.
+- createViewState initializes view state from a SwimlaneModel, defaulting to zoom-to-fit.
+- Zoom is anchored at a specific time point; clamped to optional bounds.
+- Pan shifts the viewport by delta; clamped to optional bounds.
+- zoomToFitWindow returns window covering the full timeline span.
+- applyWindow sets explicit start/end boundaries on an existing state.
+- Viewport minimum span is 1 time unit.
 
 ## Acceptance Criteria
 
-1. **PR-VIEW-001**: createViewState initializes with correct window and total bounds.
+1. **PR-VIEW-001**: createViewState with a valid model initializes window covering the full timeline.
 1. **PR-VIEW-002**: zoomToFitWindow expands viewport to cover the full timeline.
-1. **PR-VIEW-003**: Combined zoom + pan operations produce correct viewport.
+1. **PR-VIEW-003**: Combined zoom + pan operations with bounds clamping produce correct viewport.
 
 ## Edge Cases
 
-- Zoom factor less than or equal to 0 — clamped to minimum.
-- Pan beyond timeline bounds — clamped.
-- applyWindow with start > end — swap or reject.
+- null/undefined model — zoomToFitWindow returns {startTime:0, endTime:1, scrollY:0}.
+- Zoom factor less than or equal to 0 — span is clamped to MIN_WINDOW=1.
+- Pan beyond bounds — clamped to bounds edges.
+- applyWindow with zero span — preserved (caller responsibility).
 
 ## Dependencies
 

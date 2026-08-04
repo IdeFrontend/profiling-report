@@ -6,7 +6,7 @@
   phase: MVP
   owner: -
   last-updated: 2026-08-04
-  source: src/core/types.ts (SwimlaneModel et al.)
+  source: src/domain/types.ts (SwimlaneModel et al.)
   test: tests/unit/swimlaneModel.spec.ts
 -->
 
@@ -42,10 +42,14 @@ SwimProcess contains SwimThread[], each containing SwimEvent[].
 ## Acceptance Criteria
 
 1. **PR-SWIM-001**: chromeTraceToSwimlane produces correct process/thread/event structure from a Chrome Trace.
+1. **PR-SWIM-002**: SwimThread.events are sorted by startTime in ascending order.
+1. **PR-SWIM-003**: Empty trace with no complete X events throws an error.
+1. **PR-SWIM-004**: Trace with overlapping events preserves all events in original order within each thread.
+1. **PR-SWIM-005**: Processes and threads with no events are excluded from the model.
 
 ## Edge Cases
 
-- Empty trace array — returns model with empty processes and zero time range.
+- Empty trace array — throws `no complete X events` error.
 - Single event — process/thread created with one event.
 - Overlapping events in same thread — preserved as-is; deduplication is renderer concern.
 

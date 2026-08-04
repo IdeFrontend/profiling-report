@@ -10,7 +10,6 @@ describe('LaneGutter', () => {
           {
             id: 'p1',
             name: 'Process 1',
-            threads: [],
             lanes: [{ id: 'l1', name: 'Thread A', color: '#f00' }],
           },
         ],
@@ -28,7 +27,6 @@ describe('LaneGutter', () => {
           {
             id: 'p1',
             name: 'P1',
-            threads: [],
             lanes: [{ id: 'l1', name: 'T1', color: '#f00', utilization: 0.75 }],
           },
         ],

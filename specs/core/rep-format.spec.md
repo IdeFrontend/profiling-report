@@ -6,7 +6,7 @@
   phase: MVP
   owner: -
   last-updated: 2026-08-04
-  source: src/core/parseRep.ts
+  source: src/adapters/parseRep.ts
   test: tests/unit/parseRep.spec.ts
 -->
 
@@ -39,6 +39,7 @@ parseRep(bytes: Uint8Array): { head: CannRepHead; files: FileEntry[] }
 
 1. **PR-FMT-001**: Parses a valid `.rep` file and returns the expected number of files and their names.
 1. **PR-FMT-002**: Parses the golden fixture `data/out.rep` and returns all 9 expected embedded files with non-empty payloads.
+1. **PR-FMT-003**: Reads file info count and validates that payload offsets are within file bounds.
 
 ## Edge Cases
 

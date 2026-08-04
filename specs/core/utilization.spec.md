@@ -6,7 +6,7 @@
   phase: MVP
   owner: -
   last-updated: 2026-08-04
-  source: src/core/utilization.ts
+  source: src/domain/utilization.ts
   test: tests/unit/utilization.spec.ts
 -->
 

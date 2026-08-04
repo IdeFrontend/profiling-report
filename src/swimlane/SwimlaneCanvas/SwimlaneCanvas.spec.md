@@ -30,7 +30,13 @@ Vue wrapper around CanvasSwimlaneRenderer — manages canvas lifecycle, resize, 
 
 | Event | Payload | Description |
 |-------|---------|-------------|
-| select | SwimEvent or null | Event clicked |
+| select | SwimEvent or null | Event clicked or deselected |
+| hover | [event: SwimEvent or null, clientX: number, clientY: number] | Event hovered with cursor position |
+| cursor | { time: number; xRatio: number } or null | Cursor time and position |
+| pan | deltaTime: number | Pan gesture delta in time units |
+| zoom | [factor: number, anchorTime: number] | Zoom gesture factor and anchor |
+| scroll-y | scrollY: number | Vertical scroll offset |
+| set-playhead | time: number | Playhead time position |
 
 ## Behavior
 

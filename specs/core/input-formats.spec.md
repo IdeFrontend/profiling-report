@@ -35,9 +35,6 @@ The `.rep` container embeds files with metadata:
 
 ## Acceptance Criteria
 
-1. **PR-FMT-001**: Parser identifies correct type and origin for each embedded file.
-1. **PR-FMT-002**: Golden fixture contains all 9 expected embedded files: OpBasicInfo.csv, PipeUtilization.csv, ArithmeticUtilization.csv, Memory.csv, MemoryL0.csv, MemoryUB.csv, L2Cache.csv, ResourceConflictRatio.csv, trace.json.
-
 ## Edge Cases
 
 - Empty payload (length=0) — handled gracefully.

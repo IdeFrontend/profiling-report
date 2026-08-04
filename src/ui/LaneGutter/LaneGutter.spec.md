@@ -20,7 +20,7 @@ Vertical lane gutter showing thread/process names and utilization percentages al
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| groups | GutterGroup[] | yes | — | Lane groups with id, name, threads, and lanes |
+| groups | GutterGroup[] | yes | — | Lane groups with id, name, and lanes |
 
 ### Emits
 

@@ -15,15 +15,15 @@ This directory contains behavioral specifications for all modules in the profili
 
 | Spec | Test prefix | Phase | Source | Test file |
 |------|------------|-------|--------|-----------|
-| [rep-format](./core/rep-format.spec.md) | `PR-FMT-*` | MVP | `src/core/parseRep.ts` | `tests/unit/parseRep.spec.ts` |
+| [rep-format](./core/rep-format.spec.md) | `PR-FMT-*` | MVP | `src/adapters/parseRep.ts` | `tests/unit/parseRep.spec.ts` |
 | [input-formats](./core/input-formats.spec.md) | `PR-FMT-*` | MVP | `docs/specs/formats/INPUT_FORMATS.md` | `tests/unit/parseRep.spec.ts` |
-| [view-models](./core/view-models.spec.md) | `PR-VM-*` | MVP | `src/core/adapters.ts` | `tests/unit/viewModels.spec.ts` |
-| [swimlane-model](./core/swimlane-model.spec.md) | `PR-SWIM-*` | MVP | `src/core/types.ts` | `tests/unit/swimlaneModel.spec.ts` |
-| [format-time](./core/format-time.spec.md) | `PR-TIME-*` | MVP | `src/core/formatTime.ts` | `tests/unit/formatTime.spec.ts` |
-| [view-state](./core/view-state.spec.md) | `PR-VIEW-*` | MVP | `src/core/viewState.ts` | `tests/unit/viewState.spec.ts` |
+| [view-models](./core/view-models.spec.md) | `PR-VM-*` | MVP | `src/adapters/adaptRep.ts` | `tests/unit/viewModels.spec.ts` |
+| [swimlane-model](./core/swimlane-model.spec.md) | `PR-SWIM-*` | MVP | `src/domain/types.ts` | `tests/unit/swimlaneModel.spec.ts` |
+| [format-time](./core/format-time.spec.md) | `PR-TIME-*` | MVP | `src/domain/formatTime.ts` | `tests/unit/formatTime.spec.ts` |
+| [view-state](./core/view-state.spec.md) | `PR-VIEW-*` | MVP | `src/domain/viewState.ts` | `tests/unit/viewState.spec.ts` |
 | [swimlane-renderer](./core/swimlane-renderer.spec.md) | `PR-RENDER-*` | MVP | `src/swimlane/CanvasSwimlaneRenderer.ts` | `tests/unit/canvasRenderer.spec.ts` |
-| [load-report-source](./core/load-report-source.spec.md) | `PR-JSON-*` | MVP | `src/core/adapters.ts` | `tests/unit/loadReportSource.spec.ts` |
-| [utilization](./core/utilization.spec.md) | `PR-UTIL-*` | MVP | `src/core/utilization.ts` | `tests/unit/utilization.spec.ts` |
+| [load-report-source](./core/load-report-source.spec.md) | `PR-JSON-*` | MVP | `src/adapters/loadReportSource.ts` | `tests/unit/loadReportSource.spec.ts` |
+| [utilization](./core/utilization.spec.md) | `PR-UTIL-*` | MVP | `src/domain/utilization.ts` | `tests/unit/utilization.spec.ts` |
 
 ### UI components (Vue SFCs)
 

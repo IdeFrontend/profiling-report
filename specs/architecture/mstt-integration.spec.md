@@ -21,21 +21,28 @@ Define the contract between the profiling-report library and its primary host, M
 |------|------|----------|---------|-------------|
 | source | ArrayBuffer or Uint8Array | no | undefined | Report data |
 | title | string | no | undefined | Panel title |
-| theme | string | no | `'dark'` | Theme variant |
-| locale | string | no | `'zh-CN'` | Locale code |
-| capabilities | ReportCapability | no | {} | Feature flags |
+| theme | 'light' or 'dark' | no | undefined | Theme variant |
+| locale | string | no | undefined | Locale code |
+| timeUnit | TimeDisplayUnit | no | 'ms' | Time display unit |
+| capabilities | ReportCapability[] | no | undefined | Feature flag array |
+| swimlaneModel | SwimlaneModel | no | undefined | Pre-parsed swimlane data |
+| reportModel | ReportViewModel | no | undefined | Pre-parsed report data |
+
+Where `ReportCapability` is one of: `'roofline'`, `'dependencies'`, `'memoryDiagram'`, `'hardwareDetails'`, `'sourceTab'`, `'cacheTab'`, `'aicpu'`.
 
 ### Emits
 
 | Event | Payload | Description |
 |-------|---------|-------------|
-| update:viewState | SwimlaneViewState | View state changes |
+| ready | — | Report loaded and rendered |
+| select | SelectedEvent or null | Event selected or deselected |
+| error | { message: string; cause?: unknown } | Load or parse error |
 
 ## Behavior
 
 - Host passes report bytes as props (ArrayBuffer or Uint8Array).
 - Component handles all parsing, adaptation, and rendering internally.
-- Capability flags control feature visibility (roofline, memoryDiagram, dependencies, hardwareDetails, sourceTab, cacheTab, aicpu).
+- capabilities is an array of strings (`ReportCapability[]`) controlling feature visibility.
 - Library does not depend on PyPTO, Sudu, or MsInsight at runtime.
 
 ## Acceptance Criteria

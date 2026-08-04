@@ -25,15 +25,27 @@ The library exports:
 | `chromeTraceToSwimlane` | function | Convert CTEF to swimlane |
 | `loadReportSource` | function | Auto-detect and load report |
 | `adaptChromeTrace` | function | Adapt CTEF JSON |
-| `formatTime` / `formatAxisTime` / `formatCursorTime` | function | Time formatting |
-| `t` / `resolveLocale` | function | i18n |
-| `computeThreadUtilization` / `coveredLength` / `withDerivedUtilizations` | function | Utilization math |
-| `colorForThread` / `colorVarForLaneName` / `laneColorKey` | function | Lane colors |
-| `createViewState` / `zoomToFitWindow` / `zoomAt` / `panBy` / `applyWindow` | function | View state |
-| `CanvasSwimlaneRenderer` / `LANE_GROUP_HEADER_HEIGHT` / `LANE_HEIGHT` | class/const | Renderer |
+| `formatTime` | function | Time formatting (multi-purpose) |
+| `formatAxisTime` | function | Axis tick formatting |
+| `formatCursorTime` | function | Cursor/label formatting |
+| `t` | function | i18n translation |
+| `resolveLocale` | function | Locale resolution |
+| `computeThreadUtilization` | function | Utilization math |
+| `coveredLength` | function | Covered duration |
+| `withDerivedUtilizations` | function | Attach utilization to threads |
+| `colorForThread` | function | Lane colors |
+| `colorVarForLaneName` | function | CSS variable for lane |
+| `laneColorKey` | function | Color key extraction |
+| `createViewState` | function | View state factory |
+| `zoomToFitWindow` | function | Zoom-to-fit |
+| `zoomAt` | function | Anchor zoom |
+| `panBy` | function | Pan viewport |
+| `applyWindow` | function | Apply window to state |
+| `CanvasSwimlaneRenderer` | class | Canvas renderer |
+| `LANE_GROUP_HEADER_HEIGHT` | const | Layout constant |
+| `LANE_HEIGHT` | const | Layout constant |
 | `LIBRARY_NAME` | const | `'profiling-report'` |
-
-All types re-exported via `export type * from './domain/types'`.
+| (all types from domain/types) | type | Re-exported via `export type *` |
 
 ## Behavior
 

@@ -6,7 +6,7 @@
   phase: MVP
   owner: -
   last-updated: 2026-08-04
-  source: src/core/adapters.ts
+  source: src/adapters/adaptRep.ts
   test: tests/unit/viewModels.spec.ts
 -->
 
@@ -17,15 +17,14 @@ Adapt parsed report data into canonical view models (ReportViewModel, SwimlaneMo
 ## Inputs / Outputs
 
 ```ts
-adaptRep(parsed: ParsedRep): { viewModel: ReportViewModel; swimlaneModel: SwimlaneModel }
-adaptChromeTrace(trace: ChromeTraceEvent[]): SwimlaneModel
+adaptRep(parsed: ParsedRep): AdaptedReport
 ```
+
+Where `AdaptedReport` is `{ swimlaneModel, reportModel, capabilities }`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | parsed | ParsedRep | Output of `parseRep()` |
-
-**Returns**: Canonical view models with summary, pipe occupancy, and swimlane data.
 
 ## Behavior
 
@@ -45,7 +44,7 @@ adaptChromeTrace(trace: ChromeTraceEvent[]): SwimlaneModel
 
 - Missing OpBasicInfo.csv — summary fields default to empty/0.
 - All NA pipe ratios — occupancy items have zero values.
-- Chrome Trace with no events — returns SwimlaneModel with empty processes.
+- Chrome Trace with no events — throws (handled upstream by chromeTraceToSwimlane).
 
 ## Dependencies
 

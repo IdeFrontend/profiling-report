@@ -14,7 +14,6 @@ export default tseslint.config(
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
-      '**/*.spec.md',
     ],
   },
   eslint.configs.recommended,

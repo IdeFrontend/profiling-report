@@ -42,7 +42,7 @@ English documentation and specifications for the reusable Vue profiling-report l
 | [process/TESTING.md](process/TESTING.md) | Unit / component / e2e stack and fixture rules |
 | [process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md) | Pre-coding checklist per slice |
 
-Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README.md).
+Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README.md) (deprecated in favor of co-located component specs and [`specs/README.md`](../specs/README.md)).
 
 ## Specs (quick links)
 

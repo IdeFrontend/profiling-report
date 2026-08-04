@@ -59,7 +59,7 @@ Redeploys on every push to `master` (and PR previews) via Vercel Git on the **ID
 
 ## Status
 
-Library timeline MVP (engineering milestones 1–4) is green on `master` (`npm run ci`). Delivery roadmap to full UI: **[docs/process/roadmap/](docs/process/roadmap/)** — next is [Milestone 1](docs/process/roadmap/milestone-1.md) (demo-data aside modes, target **2026-08-11**). Interim product defaults: [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md). Tests: [tests/README.md](tests/README.md).
+Library timeline MVP (engineering milestones 1–4) is green on `master` (`npm run ci`). Delivery roadmap to full UI: **[docs/process/roadmap/](docs/process/roadmap/)** — next is [Milestone 1](docs/process/roadmap/milestone-1.md) (demo-data aside modes, target **2026-08-11**). Interim product defaults: [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md). See [specs/README.md](specs/README.md) for the spec index and `npm run check:specs` for traceability validation.
 
 ```bash
 npm install
