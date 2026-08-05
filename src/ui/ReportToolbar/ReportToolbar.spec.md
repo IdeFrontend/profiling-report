@@ -47,6 +47,10 @@ Top toolbar with search, zoom controls, time unit selector, and aside panel togg
 - Time unit selector (ms/us/ns).
 - Aside panel toggle button.
 
+## Design sketches
+
+- [Entry overview](/docs/specs/ui/source/entry-overview.png) — toolbar region with search, zoom controls, and tabs
+
 ## Acceptance Criteria
 
 1. **PR-TOOLBAR-001**: Emits update:searchQuery when search text changes.

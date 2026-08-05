@@ -46,6 +46,10 @@ Vue wrapper around CanvasSwimlaneRenderer — manages canvas lifecycle, resize, 
 - Performs hit testing on click and hover.
 - Cleans up renderer on unmount.
 
+## Design sketches
+
+- [Kernel block timeline](/docs/specs/ui/source/kernel-block-timeline.png) — swimlane lanes with colored event blocks, time axis, and playhead
+
 ## Acceptance Criteria
 
 1. **PR-CANVAS-001**: Creates canvas element on mount.

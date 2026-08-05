@@ -44,6 +44,11 @@ Root component that orchestrates the full profiling report viewer — parses sou
 - Manages view state, hover, selection, cursor, and tooltip.
 - Composes ReportLayout > ReportToolbar + TimeOverviewBar + LaneGutter + SwimlaneCanvas + StatsAside + EventTooltip + DetailStrip.
 
+## Design sketches
+
+- [Entry overview with sidebar](/docs/specs/ui/source/entry-overview.png) — full layout with toolbar, gutter, swimlane, and aside
+- [Report stats](/docs/specs/ui/source/report-stats.png) — summary statistics and PIPE occupancy in right panel
+
 ## Acceptance Criteria
 
 1. **PR-ROOT-001**: Mounts with title prop and shows profiling-report shell.

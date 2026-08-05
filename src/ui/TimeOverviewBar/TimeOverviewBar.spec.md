@@ -38,6 +38,10 @@ Time overview bar showing the full timeline span with a draggable/resizable wind
 - Shows draggable window indicator (move, resize left/right edges).
 - Emits update:window on drag end.
 
+## Design sketches
+
+- [Statistical analysis (overview charts)](/docs/specs/ui/source/statistical-analysis.png) — time-aligned overview series and time axis
+
 ## Acceptance Criteria
 
 1. **PR-OVERVIEW-001**: Renders timeline bar with visible window indicator.

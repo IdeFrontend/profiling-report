@@ -39,6 +39,10 @@ None.
 - Conditionally renders aside slot when showAside is true.
 - Applies CSS class `pr-layout--no-aside` when aside is hidden.
 
+## Design sketches
+
+- [Entry overview](/docs/specs/ui/source/entry-overview.png) — two-column layout with main swimlane area and right analytics panel
+
 ## Acceptance Criteria
 
 1. **PR-LAYOUT-001**: Renders main slot content.

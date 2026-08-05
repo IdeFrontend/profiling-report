@@ -33,6 +33,10 @@ None. Pure presentational.
 - Renders selected event name and start/duration/end times.
 - Formatted times respect the selected unit.
 
+## Design sketches
+
+- [Event details](/docs/specs/ui/source/event-details.png) — selected event detail strip at bottom of viewer
+
 ## Acceptance Criteria
 
 1. **PR-STRIP-001**: Renders event name when provided with selected event.

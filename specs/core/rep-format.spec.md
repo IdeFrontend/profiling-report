@@ -35,6 +35,10 @@ parseRep(bytes: Uint8Array): { head: CannRepHead; files: FileEntry[] }
 - Parses each `CannRepFileInfo` entry (name, type, origin, length, offset).
 - Extracts raw payload bytes for each file using absolute offsets.
 
+## Design sketches
+
+- [NPU-REP binary layout](/docs/specs/ui/source/npu-rep-layout.png) — on-disk container structure with head, file info table, and payloads
+
 ## Acceptance Criteria
 
 1. **PR-FMT-001**: Parses a valid `.rep` file and returns the expected number of files and their names.

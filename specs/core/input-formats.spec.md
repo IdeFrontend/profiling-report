@@ -33,6 +33,10 @@ The `.rep` container embeds files with metadata:
 - Time units in CSVs are microseconds; bandwidth in GB/s.
 - Embedded file → UI panel mapping is defined in [METRICS_AND_TRACE.md](../../docs/specs/formats/METRICS_AND_TRACE.md).
 
+## Design sketches
+
+- [NPU-REP binary layout](/docs/specs/ui/source/npu-rep-layout.png) — container structure: head, file info entries, and embedded file payloads
+
 ## Acceptance Criteria
 
 ## Edge Cases

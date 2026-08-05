@@ -39,6 +39,10 @@ None.
 - Positioned via inline styles from parent.
 - Respects locale for time formatting.
 
+## Design sketches
+
+- [Event details](/docs/specs/ui/source/event-details.png) — hover tooltip showing event name, start, duration, end
+
 ## Acceptance Criteria
 
 1. **PR-TOOLTIP-001**: Renders event name when passed a valid SwimEvent.

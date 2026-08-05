@@ -35,6 +35,10 @@ Vertical lane gutter showing thread/process names and utilization percentages al
 - Emits scroll event for swimlane scroll synchronization.
 - Exposes root element via defineExpose for scroll sync.
 
+## Design sketches
+
+- [Entry overview](/docs/specs/ui/source/entry-overview.png) — left gutter with process/thread hierarchy and utilization percentages
+
 ## Acceptance Criteria
 
 1. **PR-GUTTER-001**: Renders lane names for each provided group and thread.
