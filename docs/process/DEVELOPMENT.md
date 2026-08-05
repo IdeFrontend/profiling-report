@@ -86,14 +86,18 @@ Do not leave “temporary” undocumented behavior in main.
 - Not allowed as dependencies: pypto_toolkit runtime, sudu-editor / TeaVM, MindStudio Insight.
 - Attribution: note non-trivial copied logic in the PR description; respect licenses (see research docs).
 
-## Next engineering milestone
+## Library engineering milestones (done)
 
 **Milestone 1 (scaffold)** — green: Vite library, Vitest, Playwright, playground (`PR-SCAFFOLD-*`).
 
-**Milestone 2 (parse → view-models → swimlane → UI shell)** — green on `feat/scaffold-test-harness` (`PR-FMT-*` / `PR-VM-*` / `PR-SWIM-*` / `PR-UI-*` / `PR-E2E-*`).
+**Milestone 2 (parse → view-models → swimlane → UI shell)** — green on `master` (`PR-FMT-*` / `PR-VM-*` / `PR-SWIM-*` / `PR-UI-*` / `PR-E2E-*`).
 
 **Milestone 3 (renderer + navigation)** — Canvas `SwimlaneRenderer`, view-state zoom/pan, toolbar (search / zoom / fit / toggle aside), I-Q14 time formatting (`PR-TIME-*` / `PR-VIEW-*` / `PR-RENDER-*` / `PR-UI-004+` / `PR-E2E-004`).
 
 **Milestone 4 (trace JSON + MVP polish)** — standalone Chrome Trace open path (Q15), gutter util bars, time-unit control, i18n hooks, CSS tokens (`PR-JSON-*` / `PR-UI-006` / `PR-E2E-005`).
 
-**Next:** merge library to `master` when ready; then **MSTT host** in a separate `mstt` PR ([MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)).
+## Next delivery milestone
+
+Library timeline MVP is on `master`. Delivery roadmap (swimlane vs other views, tasks, blockers): **[roadmap/](roadmap/)**.
+
+**Next:** [Delivery Milestone 1](roadmap/milestone-1.md) — max support of repo demo data (aside field lists from `out.rep`), target **2026-08-11**. Then [M2](roadmap/milestone-2.md) (MSTT + selection/deps + details + memory graph + roofline, **2026-08-25**) and [M3](roadmap/milestone-3.md) (remaining full UI, **2026-09-15**).
