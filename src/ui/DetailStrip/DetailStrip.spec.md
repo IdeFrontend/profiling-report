@@ -9,6 +9,14 @@
 
 Fixed footer strip showing the currently selected event's name and formatted times. Persists until the user clicks empty space.
 
+## Inputs
+
+**selected** is a `SelectedEvent` (id, name, startTime, duration, endTime) representing the currently selected event. **unit** selects the time display unit. Optional **locale** localizes labels. When selection is cleared (null or hidden by parent), the strip shows nothing.
+
+## Outputs
+
+Purely presentational — no emitted events.
+
 ## Behavior
 
 Displays the selected event's name, start time, duration, and end time in the current display unit. The selection lifecycle is managed by the parent ProfilingReport: click on an event → selection is set → the strip appears; click on empty canvas → selection cleared → the strip hides.

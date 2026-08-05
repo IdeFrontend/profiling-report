@@ -9,6 +9,14 @@
 
 Full timeline preview bar with a draggable/resizable window indicator representing the visible viewport. Allows rapid navigation to any region of a long trace without zooming and panning through the main canvas.
 
+## Inputs
+
+The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units. **timeUnit** controls label formatting.
+
+## Outputs
+
+A single event: **update:window** carries `{ startTime, endTime }` when the user finishes dragging or resizing the window indicator. The parent ProfilingReport applies this via `applyWindow`, updating the viewport for all children.
+
 ## Behavior
 
 **Proportional mapping.** Window position and size are computed as percentages of the total span: `left = (startTime - minTime) / span`, `width = (endTime - startTime) / span`. When the window covers the full timeline, the indicator fills the entire bar.

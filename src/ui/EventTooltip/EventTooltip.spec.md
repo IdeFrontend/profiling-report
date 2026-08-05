@@ -9,6 +9,14 @@
 
 Floating tooltip shown on hover over a swimlane event. Displays the event name and formatted time range.
 
+## Inputs
+
+**event** is the SwimEvent being hovered. **stylePos** carries CSS `{ left, top }` values computed by the parent from the cursor's clientX/clientY. **unit** selects the time display unit. Optional **locale** localizes labels.
+
+## Outputs
+
+Purely presentational — no emitted events. The parent controls visibility by conditionally mounting this component.
+
 ## Behavior
 
 Displays the event's name, start time, duration, and end time. Times are formatted in the currently selected display unit (ms/µs/ns). Positioned absolutely using inline styles computed by the parent from the cursor's clientX/clientY — the tooltip itself does not manage positioning.

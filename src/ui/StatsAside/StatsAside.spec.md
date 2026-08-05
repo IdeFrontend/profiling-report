@@ -9,6 +9,14 @@
 
 Right-side analytics panel showing report summary statistics and PIPE occupancy bars.
 
+## Inputs
+
+**report** carries the full `ReportViewModel` with `summary` (op name, type, duration, block dim, frequencies) and `pipeOccupancy` (per-family utilization ratios). Optional **locale** localizes labels. The parent hides the entire panel via `ReportLayout` when no data is available (standalone CTEF).
+
+## Outputs
+
+Purely presentational — no emitted events.
+
 ## Behavior
 
 **Summary section.** Displays operator metadata from `report.summary`: op name, op type, task duration (formatted in the current time unit), block dimension, and current/rated frequencies. These come from `OpBasicInfo.csv`. In MVP, only thin fields are populated per I-Q6a — compute TFLOPS, bandwidth, and core utilization fields exist in the type but are intentionally unset.

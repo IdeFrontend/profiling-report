@@ -9,6 +9,14 @@
 
 Main layout shell: two-column flexbox with main content area and optional right aside panel.
 
+## Inputs
+
+**showAside** controls whether the right column is rendered. Content for both columns is passed via named slots: **main** (gutter, time axis, swimlane) and **aside** (stats, pipe occupancy).
+
+## Outputs
+
+Purely structural — no emitted events.
+
 ## Behavior
 
 The main column always renders. The aside column has a fixed width when visible and collapses when `showAside` is false (the column element is removed from DOM, not just hidden — any reactive state in the aside slot is destroyed and recreated on remount, preventing stale data).

@@ -9,6 +9,14 @@
 
 Top toolbar with search, zoom controls, time unit selector, and aside panel toggle.
 
+## Inputs
+
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider and percentage display, **timeUnit** sets the dropdown selection (ms/µs/ns), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels. Optional **title** shows in the toolbar header.
+
+## Outputs
+
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:asideVisible** toggles the panel. The parent translates all of these into viewport state changes.
+
 ## Behavior
 
 **Zoom controls.** Toolbar buttons signal intent — the parent ProfilingReport computes the actual zoom around the viewport center. The percentage slider shows the ratio of viewport span to total timeline span. Zoom-to-fit resets to full timeline.
