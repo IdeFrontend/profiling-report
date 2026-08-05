@@ -50,3 +50,5 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 ## Dependencies
 
 [swimlane-renderer](../../../specs/core/swimlane-renderer.spec.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md).
+
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).

@@ -53,6 +53,8 @@ Purely presentational — no emitted events.
 
 [COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md).
 
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (OpBasicInfo.csv and PipeUtilization.csv schemas), [INPUT_FORMATS.md](../../../docs/specs/formats/INPUT_FORMATS.md) (container contract).
+
 ## Open
 
 Q6 — Product-final summary formulas (currently thin per I-Q6a).

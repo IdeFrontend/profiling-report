@@ -49,3 +49,5 @@ Left-side vertical gutter showing process/thread hierarchy, lane names, and util
 ## Dependencies
 
 [utilization](../../../specs/core/utilization.spec.md).
+
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (PipeUtilization.csv feeds lane utilization via pipe color matching).

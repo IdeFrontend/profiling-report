@@ -35,3 +35,5 @@ The detail strip is the persistent counterpart to the event tooltip: tooltip is 
 ## Dependencies
 
 [format-time](../../../specs/core/format-time.spec.md).
+
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (trace.json event schema — SelectedEvent fields).

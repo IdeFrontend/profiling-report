@@ -171,6 +171,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 All child component specs. [mstt-integration](../../../specs/architecture/mstt-integration.spec.md).
 
+**Input formats:** [REP_FORMAT.md](../../../docs/specs/formats/REP_FORMAT.md) (`.rep` binary container), [INPUT_FORMATS.md](../../../docs/specs/formats/INPUT_FORMATS.md) (embedded file contract), [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (CSV schemas and file-to-UI mapping).
+
 ## Open
 
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
