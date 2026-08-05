@@ -7,7 +7,7 @@
   test: tests/unit/utilization.spec.ts
 -->
 
-Compute thread utilization — coverage ratio and derived utilization for time intervals.
+Compute thread utilization metrics — coverage ratio of event time to visible window, and derived utilization values for gutter display.
 
 ```ts
 computeThreadUtilization(events: SwimEvent[], windowStart: number, windowEnd: number): number
@@ -15,14 +15,13 @@ coveredLength(events: SwimEvent[]): number
 withDerivedUtilizations(threads: SwimThread[]): SwimThread[]
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| events | SwimEvent[] | Thread events |
-| windowStart | number | Viewport start |
-| windowEnd | number | Viewport end |
-| threads | SwimThread[] | Threads to annotate |
+## Behavior
 
-**Behavior:** computeThreadUtilization returns ratio of covered time to visible window, merging overlapping intervals. coveredLength computes total duration. withDerivedUtilizations attaches utilization to each thread.
+**Covered length.** `coveredLength(events)` computes the total duration covered by a set of events, merging overlapping intervals to avoid double-counting. Events are first sorted by start time, then iterated — if an event's start falls within the current merged interval, the interval is extended; otherwise, the current interval's duration is added to the total and a new interval begins.
+
+**Window utilization.** `computeThreadUtilization(events, windowStart, windowEnd)` computes the ratio of covered event time within the visible window to the window span. Events are clipped to the window boundaries first (start = max(event.start, windowStart), end = min(event.end, windowEnd)), then overlapping intervals are merged and the total is divided by (windowEnd - windowStart).
+
+**Thread annotation.** `withDerivedUtilizations(threads)` attaches a `utilization` number to each thread by calling `computeThreadUtilization` on the thread's events with the full timeline bounds. The result is written to `thread.utilization` and used by LaneGutter for percentage display.
 
 ## Acceptance Criteria
 
@@ -31,6 +30,9 @@ withDerivedUtilizations(threads: SwimThread[]): SwimThread[]
 
 ## Edge Cases
 
-- No events in window → 0. Events entirely outside → 0. Single event covering entire window → 1.0.
+- No events in window → 0.
+- Events entirely outside window → 0.
+- Single event covering entire window → 1.0.
+- Dense overlapping events → correctly merged (not summed).
 
 **Dependencies:** [swimlane-model](./swimlane-model.spec.md).

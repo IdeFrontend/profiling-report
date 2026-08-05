@@ -6,9 +6,9 @@
   test: tests/unit/parseRep.spec.ts
 -->
 
-Report container contract and embedded file conventions. Source: `docs/specs/formats/INPUT_FORMATS.md`, `docs/specs/formats/METRICS_AND_TRACE.md`.
+Report container contract and embedded file conventions. Defines what the parser delivers to the adaptation layer. Source: `docs/specs/formats/INPUT_FORMATS.md`, `docs/specs/formats/METRICS_AND_TRACE.md`.
 
-**Container metadata per embedded file:**
+## Container metadata per embedded file
 
 | Field | Description |
 |-------|-------------|
@@ -18,16 +18,29 @@ Report container contract and embedded file conventions. Source: `docs/specs/for
 | length | Payload byte length |
 | offset | Absolute byte offset in container |
 
-**Behavior:** CSV metrics keyed by `block_id`/`sub_block_id`, `NA` for missing. `aic_*`/`aiv_*` prefix distinguishes Cube/Vector counters. Times in microseconds, bandwidth in GB/s. File→UI mapping in `docs/specs/formats/METRICS_AND_TRACE.md`.
+## CSV conventions
+
+- Keyed by `block_id` and `sub_block_id`
+- `aic_*` prefix = AI Cube / AIC counters, `aiv_*` prefix = AI Vector / AIV counters
+- Missing values = `NA` token (not empty string)
+- Time values in microseconds, bandwidth in GB/s, ratios are unitless 0–1 unless labeled `%`
+
+## File → UI panel mapping
+
+| Embedded file | MVP panel | P2 panel |
+|---|---|---|
+| `OpBasicInfo.csv` | Report summary (name, type, duration) | Hardware/op header |
+| `PipeUtilization.csv` | PIPE occupancy bars, lane utilization | Pipe field list |
+| `ArithmeticUtilization.csv` | — | Roofline inputs |
+| `Memory*.csv` | — | Memory topology diagram |
+| `L2Cache.csv` | — | Cache tab |
+| `ResourceConflictRatio.csv` | — | Stall/conflict details |
+| `trace.json` | Swimlane lanes and events | Dependency overlays |
+
+## Design sketches
 
 - [NPU-REP binary layout](/docs/specs/ui/source/npu-rep-layout.png)
 
-## Edge Cases
-
-- Empty payload (length=0) — handled gracefully.
-- Unknown file type — treated as `raw`.
-- Duplicate file names — last entry wins.
-
-**Dependencies:** I-Q6b (MVP pipe aggregation: mean of non-NA ratios per pipe family). Shared `PR-FMT-*` prefix with [rep-format](./rep-format.spec.md).
+**Dependencies:** I-Q6b (pipe aggregation: mean of non-NA ratios). Shared `PR-FMT-*` prefix with [rep-format](./rep-format.spec.md).
 
 **Open:** Q5 — Overview series returns empty array per I-Q5+.
