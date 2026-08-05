@@ -32,8 +32,13 @@ Purely presentational — no emitted events.
 
 ## Edge Cases
 
-- All NA pipe ratios for a family → bar shows 0 length.
-- Empty pipeOccupancy → no bars rendered; summary still visible.
+| State | Behavior |
+|---|---|
+| report is null or undefined | Empty panel, no error |
+| Empty pipeOccupancy | No bars; summary still visible if present |
+| All NA ratios for a family | Bar shows 0 length |
+| Empty summary (standalone CTEF) | Panel hidden by parent (ReportLayout showAside=false) |
+| Missing compute/BW fields (I-Q6a) | Fields are absent, no placeholder shown |
 
 ## Design sketches
 

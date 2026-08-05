@@ -11,7 +11,7 @@ Full timeline preview bar with a draggable/resizable window indicator representi
 
 ## Inputs
 
-The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units. **timeUnit** controls label formatting.
+The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). **timeUnit** controls label formatting.
 
 ## Outputs
 
@@ -32,9 +32,12 @@ A single event: **update:window** carries `{ startTime, endTime }` when the user
 
 ## Edge Cases
 
-- minTime equals maxTime → no bar rendered (single point, nothing to navigate).
-- Window covers full timeline → indicator fills entire bar, handles at edges.
-- Very short window (<1% of span) → handles merge visually but are independently draggable.
+| State | Behavior |
+|---|---|
+| minTime equals maxTime | No bar rendered (single point) |
+| Window covers full timeline | Indicator fills entire bar, handles at edges |
+| Very short window (<1% of span) | Handles merge visually but are independently draggable |
+| startTime < minTime or endTime > maxTime | Window clamped to bounds |
 
 ## Design sketches
 

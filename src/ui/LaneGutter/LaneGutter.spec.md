@@ -34,8 +34,13 @@ Left-side vertical gutter showing process/thread hierarchy, lane names, and util
 
 ## Edge Cases
 
-- Empty groups → empty gutter.
-- Long names → CSS truncation.
+| State | Behavior |
+|---|---|
+| Empty groups array | Empty gutter |
+| Groups with zero lanes | Group header rendered, no lane rows |
+| Standalone CTEF (no pipe data) | All lanes show no utilization % |
+| Very long thread names | CSS text-overflow truncation |
+| Scroll position mismatch | Bidirectional sync corrects |
 
 ## Design sketches
 

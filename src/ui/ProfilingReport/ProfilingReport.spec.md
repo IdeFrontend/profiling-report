@@ -17,17 +17,135 @@ The component works in two modes. In **auto-loading mode**, provide **source** �
 
 Three lifecycle events: **ready** fires once the report is loaded and the timeline is rendered. **select** fires with a `SelectedEvent` (id, name, startTime, duration, endTime) when the user clicks an event on the swimlane, or `null` when they click empty space. **error** fires with `{ message, cause? }` on load or parse failure. The component does not expose internal view state — viewport, hover, and cursor are managed internally.
 
+## Interaction flows
+
+### Zoom
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Toolbar as ReportToolbar
+    participant Canvas as SwimlaneCanvas
+    participant Root as ProfilingReport
+    participant State as viewState
+
+    User->>Canvas: Ctrl+wheel
+    Canvas->>Root: emit('zoom', [factor, anchorTime])
+    Root->>State: zoomAt(view, factor, anchorTime, bounds)
+    State-->>Root: new SwimlaneViewWindow
+    Root->>Canvas: update view prop
+    Root->>TimeOverviewBar: update startTime/endTime
+    Root->>Toolbar: update zoomPercent
+
+    User->>Toolbar: click + / - / zoom-to-fit
+    Toolbar->>Root: emit('zoom-in' / 'zoom-out' / 'zoom-to-fit')
+    Root->>State: zoomAt / zoomToFitWindow
+    State-->>Root: new SwimlaneViewWindow
+    Root->>Canvas: update view prop
+    Root->>TimeOverviewBar: update startTime/endTime
+    Root->>Toolbar: update zoomPercent
+```
+
+Ctrl+wheel zooms around cursor position. Toolbar buttons zoom around viewport center. All zoom operations are clamped to timeline bounds.
+
+### Drag-pan
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Canvas as SwimlaneCanvas
+    participant Root as ProfilingReport
+    participant State as viewState
+
+    User->>Canvas: pointerdown
+    User->>Canvas: pointermove (>=4px)
+    Canvas->>Root: emit('pan', deltaTime)
+    Root->>State: panBy(view, deltaTime, bounds)
+    State-->>Root: new SwimlaneViewWindow
+    Root->>Canvas: update view prop
+    Root->>TimeOverviewBar: update startTime/endTime
+```
+
+The 4px threshold prevents accidental pans on click. Pan is clamped to timeline bounds.
+
+### Hover, selection, tooltip
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Canvas as SwimlaneCanvas
+    participant Root as ProfilingReport
+    participant Tooltip as EventTooltip
+    participant Detail as DetailStrip
+
+    User->>Canvas: pointermove
+    Canvas->>Root: emit('hover', [event, clientX, clientY])
+    Canvas->>Root: emit('cursor', { time, xRatio })
+    Root->>Tooltip: update (event, stylePos)
+    Root->>Detail: (selected unchanged)
+
+    User->>Canvas: click (<4px movement)
+    Canvas->>Root: emit('select', SwimEvent)
+    Root->>Detail: update selected event
+    Root->>Root: clear hover, hide tooltip
+```
+
+Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear.
+
+### Search
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Toolbar as ReportToolbar
+    participant Root as ProfilingReport
+    participant Canvas as SwimlaneCanvas
+    participant Renderer as CanvasSwimlaneRenderer
+
+    User->>Toolbar: type search query
+    Toolbar->>Root: emit('update:searchQuery', query)
+    Root->>Root: viewState.searchQuery = query
+    Root->>Canvas: update searchQuery prop
+    Canvas->>Renderer: filter event names (substring, case-insensitive)
+    Renderer->>Renderer: render only matching events
+```
+
+The renderer applies event name filtering as a substring, case-insensitive match during draw. Events that don't match are skipped. Lanes with no matching events remain visible (empty lanes are not collapsed).
+
+### Data loading
+
+```mermaid
+sequenceDiagram
+    participant Host
+    participant Root as ProfilingReport
+    participant Loader as loadReportSource
+    participant Adapter as adaptRep
+
+    Host->>Root: set source prop
+    Root->>Loader: loadReportSource(source)
+    alt .rep binary (magic 'cann-rep')
+        Loader->>Loader: parseRep(bytes)
+        Loader->>Adapter: adaptRep(parsed)
+        Adapter-->>Loader: { swimlaneModel, reportModel }
+        Loader-->>Root: AdaptedReport with summary + pipeOccupancy
+        Root->>Root: asideAvailable = true
+    else standalone CTEF JSON
+        Loader->>Loader: chromeTraceToSwimlane(trace)
+        Loader-->>Root: AdaptedReport with empty reportModel
+        Root->>Root: asideAvailable = false
+    end
+    Root->>Root: emit('ready')
+```
+
+Two loading paths produce different results: `.rep` enables full UI (swimlane + aside with summary and pipe occupancy), standalone CTEF enables swimlane only (aside auto-hides per Q15).
+
 ## Behavior
 
 **Data loading.** When `source` is provided (without pre-parsed models), the component calls `loadReportSource`, which detects `.rep` (magic bytes) vs standalone CTEF JSON. A `.rep` binary produces a full report with swimlane, summary, and pipe occupancy. Standalone CTEF produces swimlane only — the report model's `summary` is empty and `pipeOccupancy` is `[]`.
 
-**Right panel visibility.** The aside panel auto-hides when there is no report data to display — specifically for standalone CTEF (Q15) since no CSV embeds exist. It shows when a `.rep` source provides summary statistics and pipe occupancy.
-
 **State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
 
-**Zoom and pan flow.** Ctrl+wheel zooms around the cursor position. Toolbar +/- zooms around the viewport center. Drag-to-pan on the canvas has a 4px threshold to prevent accidental selections. All operations are clamped to timeline bounds with protection against `maxTime === minTime` (adds +1 to prevent zero division).
-
-**Hover, selection, tooltip lifecycle.** Pointer move on the canvas performs hit test, emits hover (with clientX/clientY for tooltip positioning) and cursor (time + xRatio for the playhead). Click sets selection. Click on empty area clears selection. The tooltip is positioned from client coordinates; the detail strip shows the persistent selection.
+**Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
 ## Acceptance Criteria
 
@@ -36,10 +154,13 @@ Three lifecycle events: **ready** fires once the report is loaded and the timeli
 
 ## Edge Cases
 
-- Empty source → empty shell with no error.
-- Corrupt/invalid `.rep` → emits error event, shows error in shell.
-- `.rep` with missing `trace.json` → swimlane stays null, error displayed.
-- Standalone CTEF → swimlane renders, aside auto-hides, no error.
+| State | Behavior |
+|---|---|
+| Empty source | Empty shell, no error |
+| Corrupt/invalid `.rep` | Emits error with message, shows error in shell |
+| `.rep` missing `trace.json` | Swimlane stays null, error displayed |
+| Standalone CTEF | Swimlane renders, aside auto-hides, no error |
+| `maxTime === minTime` | Bounds clamp adds +1 to prevent division by zero |
 
 ## Design sketches
 

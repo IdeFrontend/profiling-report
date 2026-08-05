@@ -2,133 +2,87 @@
 
 ## Purpose
 
-A spec describes **what a module does and why** — not how it's implemented. It must be **useful on its own** to someone who hasn't read the source code: an integrator, a reviewer, or a new contributor adding a feature that touches this module.
+A spec describes **what a module does and why** — not how it's implemented. It must be **useful on its own** to someone who hasn't read the source code: an integrator, a reviewer, or a new contributor.
 
-## What belongs in each section
+## Component spec sections (in order)
 
 | Section | Content | Skip if |
 |---------|---------|---------|
-| **Purpose** | One sentence — what this module is. | Never. |
-| **Behavior** | What it does, why that matters, how it interacts with other parts of the system. Non-obvious constraints, data flow, state ownership, edge cases. This is the most important section. | Never. |
-| **Edge Cases** | Known boundary conditions, error paths, limits. Only include cases that aren't obvious from the types or behavior description. | All edge cases are obvious or covered in Behavior. |
-| **Dependencies** | Other specs or interim decisions this module relies on. | No external dependencies. |
-| **Open** | Unresolved questions. Reference OPEN_QUESTIONS.md entries. | All questions resolved. |
-| **Design sketches** | Links to mockups in `docs/specs/ui/source/`. | No relevant sketches. |
+| **One-liner** | What this component is and its role. | Never. |
+| **Inputs** | English prose — what the component receives. Describe props in context: why they exist, what values do, how they relate. No tables. | Never. |
+| **Outputs** | English prose — what the component emits. Describe events: triggers, payload shape, what the parent does with them. Mention defineExpose if used. | Never. |
+| **Interaction flows** | Mermaid sequence diagrams for cross-component interactions. Root component only. One diagram per interaction type. | Not the root component. |
+| **Behavior** | What the component does: data flow, interactions, non-obvious constraints. Use subheadings by concern. | Never. |
+| **Acceptance Criteria** | Compact list of test IDs with brief statements. Kept for traceability (checker needs AC↔test ID mapping). | Never — all component specs participate in traceability. |
+| **Edge Cases** | Table of states and behaviors. Covers null inputs, empty data, boundary conditions, error states. | All cases obvious from Behavior. |
+| **Dependencies** | Other specs, interim decisions, contracts. | None. |
+| **Open** | Unresolved questions. | None. |
+| **Design sketches** | Links to mockups. | No sketches. |
 
-## What does NOT belong in a spec
+## Core module spec sections (in order)
 
-### Props/emits/slots tables
+| Section | Content | Skip if |
+|---------|---------|---------|
+| **One-liner** + **signature** | What this module computes, with TS function signature. | Never. |
+| **Unit contract** | Explicit constraints on the data this module operates on (e.g., "all time values are in nanoseconds"). Prevents the most common class of bugs. | No non-obvious contract. |
+| **Behavior** | Algorithm details, non-obvious transformations, ordering rules, error conditions. | Never. |
+| **Acceptance Criteria** | Test IDs with brief statements for traceability. | No corresponding unit tests. |
+| **Edge Cases** | Inline bullet list of boundary conditions. | Covered by Behavior. |
+| **Dependencies / Open / Sketches** | As for component specs. | As above. |
 
-These duplicate the `.vue` file's `defineProps`/`defineEmits`. The spec should explain **why** a prop exists and **how** it affects behavior — not list every field the component accepts.
+## Architecture spec sections (in order)
 
-Good: "The `source` prop accepts either a `.rep` binary (which produces a full report with swimlane, summary, and pipe occupancy) or standalone CTEF JSON (which produces swimlane only — the aside panel auto-hides)."
+| Section | Content | Skip if |
+|---------|---------|---------|
+| **One-liner** | What contract this defines. | Never. |
+| **Behavior** | Integration patterns, lifecycle, loading paths, independence rules, emit semantics. | Never. |
+| **Edge Cases** | Multi-instance behavior, precedence rules, error paths. | None. |
+| **Dependencies / Open** | As above. | As above. |
 
-Bad: a 9-row props table listing every field the component accepts with Type and Required columns.
+## What does NOT belong
 
-### Acceptance Criteria
+- **Props/emits tables.** Duplicate of `.vue` defineProps/defineEmits. Use prose instead — describe *why*.
+- **Implementation details.** CSS classes, ResizeObserver, v-if, watchers. Describe observable behavior.
+- **"Pure presentational" / "No emits".** Empty boilerplate. If there's nothing to say, omit the section.
+- **Test descriptions.** Acceptance criteria are compact (ID + 3-4 words). Full descriptions live in test files.
 
-These belong in the test file. Every test case already carries a spec ID (`it('PR-TOOLBAR-001: ...', ...)`). The spec should not duplicate the test descriptions as a numbered list. The traceability checker maps ACs to test IDs — if a spec has no AC section, it doesn't need to participate in traceability (the `.vue` component specs don't need test IDs; core/architecture specs do if they have corresponding unit tests).
+## Prose conventions
 
-Exception: core modules that have corresponding unit tests should keep ACs with IDs for traceability. Component specs should not.
+- **Bold key names** on first mention: **source**, **swimlaneModel**, **select**.
+- **Backtick types** inline: `SelectedEvent`, `{ startTime, endTime }`.
+- **Parenthetical values**: "timeUnit" (ms/µs/ns).
+- **Reference style**: "per I-Q6a", "per Q15" — link to interim decisions.
 
-### "Pure presentational" / "No emits" / "No slots"
+## Edge case table format
 
-These are empty boilerplate. If there's nothing to say, don't say it.
+Use a two-column table when a component has multiple states:
 
-### Implementation details
+| State | Behavior |
+|---|---|
+| model is null | Empty canvas, no error |
+| Empty pipeOccupancy | No bars; summary still visible |
 
-The spec should not describe CSS classes, ResizeObserver, v-if, watchers, or other implementation mechanics. Describe the **observable behavior**, not the Vue internals.
+## Diagrams
 
-### Test IDs
-
-Don't mention test IDs in the spec body. The metadata header carries the prefix; individual IDs live in test files. Specs describe behavior, tests prove it.
-
-## Component spec format
-
-```
-# ComponentName
-
-<!--
-  spec-id-prefix: PR-XXXX-*
-  phase: MVP | P2+
-  source: src/ui/ComponentName/ComponentName.vue
-  test: src/ui/ComponentName/ComponentName.spec.ts   (optional)
--->
-
-[One sentence — what this component is and what role it plays in the system.]
-
-## Behavior
-
-[Substantive description of what this component does, organized by concern.
-Use subheadings if there are multiple distinct behaviors.
-Focus on what's non-obvious — data flow, interactions with other components,
-state that passes through this component, constraints, lifecycle.]
-
-## Edge Cases
-
-[Only include cases that aren't apparent from the types or Behavior section.
-If every edge case is obvious, omit this section entirely.]
-
-## Dependencies
-
-[Other specs, interim decisions, or components this relies on.
-If none, omit.]
-
-## Open
-
-[Unresolved questions referencing OPEN_QUESTIONS.md.
-If none, omit.]
-
-## Design sketches
-
-- [sketch name](/docs/specs/ui/source/sketch.png) — description of what's shown
-```
-
-## Core module spec format
+Use mermaid `sequenceDiagram` for root component interaction flows. Participants use readable aliases:
 
 ```
-# Module Name
-
-<!--
-  spec-id-prefix: PR-XXXX-*
-  phase: MVP
-  source: src/path/to/source.ts
-  test: tests/unit/test-name.spec.ts
--->
-
-[One sentence — what this module computes or transforms.]
-
-```ts
-functionName(params): ReturnType
+participant Canvas as SwimlaneCanvas
+participant Root as ProfilingReport
 ```
 
-[Parameter descriptions inline or in a brief table.]
+Keep arrows focused: `->>` for calls/emits, `-->>` for returns. Use `alt`/`else` for branching paths (data loading). One diagram per interaction type (zoom, pan, hover-select, search, data loading).
 
-## Behavior
+## Unit contracts
 
-[What the function does, how it transforms data,
-important algorithm details, non-obvious constraints.]
+For core modules, explicitly state non-obvious constraints as a `## Unit contract` section. These prevent bugs where different layers assume different units or conventions.
 
-## Acceptance Criteria
+Example: "All time values are in nanoseconds. Conversion to display units happens only at the formatting layer."
 
-1. **PR-XXXX-001**: [Testable statement that maps to a test ID.]
-1. **PR-XXXX-002**: [Testable statement that maps to a test ID.]
+## Acceptance criteria
 
-## Edge Cases
+Every component spec and every core spec with corresponding tests keeps a compact AC list. The traceability checker (`check:specs`) maps AC IDs to test IDs bidirectionally. Without ACs, tests are orphaned.
 
-[Non-obvious boundary conditions and error paths.]
+Format: `1. **PR-XXXX-001** — brief statement (3-6 words).`
 
-## Dependencies
-
-## Open
-```
-
-## Architecture spec format
-
-Architecture specs describe cross-cutting contracts that don't belong to a single module. They document what integrators and hosts need to know:
-
-- Public API surface (what's exported, what's stable)
-- Integration contracts (props, emits, lifecycle)
-- Packaging constraints (peer dependencies, build output)
-
-No acceptance criteria needed — these are verified by integration tests and typecheck.
+No full sentences unless necessary for disambiguation. The test file carries the full description.

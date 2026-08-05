@@ -34,9 +34,14 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Edge Cases
 
-- model is null → canvas renders empty.
-- `maxTime === minTime` → bounds clamp adds +1 to prevent division by zero.
-- Sub-pixel container size → canvas minimum is 1×1.
+| State | Behavior |
+|---|---|
+| model is null | Empty canvas, no error |
+| model has 0 processes | Empty canvas |
+| view.endTime <= view.startTime | Renderer handles gracefully |
+| `maxTime === minTime` | Bounds clamp adds +1 |
+| Sub-pixel container size | Canvas minimum is 1×1 |
+| hitTest on empty space | Returns null |
 
 ## Design sketches
 

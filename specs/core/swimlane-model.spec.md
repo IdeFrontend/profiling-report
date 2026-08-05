@@ -16,11 +16,15 @@ interface SwimThread   { id: string; name: string; events: SwimEvent[]; utilizat
 interface SwimEvent    { id: string; name: string; startTime: number; duration: number; args?: {} }
 ```
 
+## Unit contract
+
+**All time values — `minTime`, `maxTime`, `startTime`, `duration`, `SwimlaneViewWindow`, and `SwimlaneViewState` time fields — are in nanoseconds.** Conversion to display units (ms/µs/ns) happens only at the formatting layer (`formatTime`, `formatAxisTime`, `formatCursorTime`). If a new time-carrying field is introduced, it must use nanoseconds unless explicitly documented otherwise. This contract prevents the most common class of time-related bugs: mixing units across layers.
+
+`chromeTraceToSwimlane` handles input conversion: source timestamps in microseconds (`sourceTimeUnit: 'us'`, the CTEF default) are converted to nanoseconds by multiplying by 1000. When the `.rep`-embedded trace provides nanosecond timestamps (`sourceTimeUnit: 'ns'`), no conversion is applied.
+
 ## Behavior
 
 **Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0.
-
-**Time scaling.** Source timestamps in microseconds are converted to nanoseconds for internal representation when `sourceTimeUnit` is `'us'`. When the `.rep`-embedded trace provides nanosecond timestamps (`sourceTimeUnit: 'ns'`), no conversion is applied.
 
 **Ordering.** Processes and threads ordered by first event start time. Within each thread, events sorted by `startTime` ascending. Processes/threads with no events are excluded.
 
