@@ -3,7 +3,7 @@ import { computeThreadUtilization, coveredLength } from '../../src/domain/utiliz
 import type { SwimThread } from '../../src/domain/types';
 
 describe('PR-UTIL: thread utilization', () => {
-  it('merges overlapping intervals instead of double-counting', () => {
+  it('PR-UTIL-001: merges overlapping intervals instead of double-counting', () => {
     expect(
       coveredLength([
         { start: 0, end: 100 },
@@ -22,7 +22,7 @@ describe('PR-UTIL: thread utilization', () => {
     expect(computeThreadUtilization(thread, 0, 100)).toBe(1);
   });
 
-  it('clamps to the visible window', () => {
+  it('PR-UTIL-002: clamps to the visible window', () => {
     const thread: SwimThread = {
       id: 't',
       name: 'lane',

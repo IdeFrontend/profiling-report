@@ -1,58 +1,37 @@
 # LaneGutter
 
 <!--
-  metadata
   spec-id-prefix: PR-GUTTER-*
   phase: MVP
-  owner: -
-  last-updated: 2026-08-04
   source: src/ui/LaneGutter/LaneGutter.vue
   test: src/ui/LaneGutter/LaneGutter.spec.ts
 -->
 
-## Purpose
+Vertical lane gutter: process/thread names and utilization % alongside swimlane.
 
-Vertical lane gutter showing thread/process names and utilization percentages alongside the swimlane canvas.
-
-## Inputs / Outputs
-
-### Props
+## Props
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| groups | GutterGroup[] | yes | — | Lane groups with id, name, and lanes |
+| groups | GutterGroup[] | yes | — | { id, name, lanes: { id, name, color, utilization? }[] } |
 
-### Emits
+## Emits
 
 | Event | Payload | Description |
 |-------|---------|-------------|
-| scroll | [] | Gutter scrolled (parent syncs swimlane scroll) |
+| scroll | — | Parent syncs swimlane scroll |
 
-## Behavior
+**Behavior:** Renders process group headers and thread lanes with utilization %. Exposes root element via defineExpose for scroll sync.
 
-- Renders process group headers and thread lanes.
-- Shows utilization percentage per thread when available.
-- Emits scroll event for swimlane scroll synchronization.
-- Exposes root element via defineExpose for scroll sync.
-
-## Design sketches
-
-- [Entry overview](/docs/specs/ui/source/entry-overview.png) — left gutter with process/thread hierarchy and utilization percentages
+- [Entry overview](/docs/specs/ui/source/entry-overview.png) — left gutter
 
 ## Acceptance Criteria
 
-1. **PR-GUTTER-001**: Renders lane names for each provided group and thread.
-1. **PR-GUTTER-002**: Shows utilization percentage when provided.
+1. **PR-GUTTER-001**: Renders lane names for each group.
+1. **PR-GUTTER-002**: Shows utilization % when provided.
 
 ## Edge Cases
 
-- Empty groups array — renders empty gutter.
-- Very long thread names — truncated (CSS handles).
+- Empty groups → empty gutter. Long names → CSS truncation.
 
-## Dependencies
-
-- [specs/core/utilization.spec.md] — utilization computation.
-
-## Open Questions
-
-- None.
+**Dependencies:** [utilization](/specs/core/utilization.spec.md).

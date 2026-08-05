@@ -1,62 +1,33 @@
 # ReportLayout
 
 <!--
-  metadata
   spec-id-prefix: PR-LAYOUT-*
   phase: MVP
-  owner: -
-  last-updated: 2026-08-04
   source: src/ui/ReportLayout/ReportLayout.vue
   test: src/ui/ReportLayout/ReportLayout.spec.ts
 -->
 
-## Purpose
+Main layout shell: main content area + optional aside panel.
 
-Main layout shell dividing the viewer into main content area and optional aside panel.
-
-## Inputs / Outputs
-
-### Props
+## Props
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| showAside | boolean | yes | — | Whether aside panel is visible |
+| showAside | boolean | yes | — | Show aside panel |
 
-### Emits
+## Slots
 
-None.
+| Slot | Description |
+|------|-------------|
+| main | Main content area |
+| aside | Aside panel content |
 
-### Slots
+**Behavior:** Renders main slot always. Renders aside slot when showAside is true. Adds CSS class `pr-layout--no-aside` when hidden.
 
-| Slot | Props | Description |
-|------|-------|-------------|
-| main | — | Main content area |
-| aside | — | Aside panel content |
-
-## Behavior
-
-- Renders main slot always.
-- Conditionally renders aside slot when showAside is true.
-- Applies CSS class `pr-layout--no-aside` when aside is hidden.
-
-## Design sketches
-
-- [Entry overview](/docs/specs/ui/source/entry-overview.png) — two-column layout with main swimlane area and right analytics panel
+- [Entry overview](/docs/specs/ui/source/entry-overview.png) — two-column layout
 
 ## Acceptance Criteria
 
 1. **PR-LAYOUT-001**: Renders main slot content.
 1. **PR-LAYOUT-002**: Shows aside slot when showAside is true.
 1. **PR-LAYOUT-003**: Hides aside slot when showAside is false.
-
-## Edge Cases
-
-- Both slots empty — renders empty layout shell.
-
-## Dependencies
-
-- None.
-
-## Open Questions
-
-- None.

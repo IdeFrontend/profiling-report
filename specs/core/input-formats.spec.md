@@ -1,22 +1,14 @@
 # Input Formats
 
 <!--
-  metadata
-  spec-id-prefix: PR-FMT-* (shared with rep-format)
+  spec-id-prefix: PR-FMT-* (shared)
   phase: MVP
-  owner: -
-  last-updated: 2026-08-04
-  source: docs/specs/formats/INPUT_FORMATS.md, docs/specs/formats/METRICS_AND_TRACE.md
   test: tests/unit/parseRep.spec.ts
 -->
 
-## Purpose
+Report container contract and embedded file conventions. Source: `docs/specs/formats/INPUT_FORMATS.md`, `docs/specs/formats/METRICS_AND_TRACE.md`.
 
-Define the report container contract, embedded file conventions, and file-to-UI mapping.
-
-## Inputs / Outputs
-
-The `.rep` container embeds files with metadata:
+**Container metadata per embedded file:**
 
 | Field | Description |
 |-------|-------------|
@@ -26,30 +18,16 @@ The `.rep` container embeds files with metadata:
 | length | Payload byte length |
 | offset | Absolute byte offset in container |
 
-## Behavior
+**Behavior:** CSV metrics keyed by `block_id`/`sub_block_id`, `NA` for missing. `aic_*`/`aiv_*` prefix distinguishes Cube/Vector counters. Times in microseconds, bandwidth in GB/s. File→UI mapping in `docs/specs/formats/METRICS_AND_TRACE.md`.
 
-- CSV metrics are keyed by `block_id` and `sub_block_id`, with `NA` for missing values.
-- Dual-prefix fields (`aic_*` / `aiv_*`) distinguish AI Cube and AI Vector counters.
-- Time units in CSVs are microseconds; bandwidth in GB/s.
-- Embedded file → UI panel mapping is defined in [METRICS_AND_TRACE.md](../../docs/specs/formats/METRICS_AND_TRACE.md).
-
-## Design sketches
-
-- [NPU-REP binary layout](/docs/specs/ui/source/npu-rep-layout.png) — container structure: head, file info entries, and embedded file payloads
-
-## Acceptance Criteria
+- [NPU-REP binary layout](/docs/specs/ui/source/npu-rep-layout.png)
 
 ## Edge Cases
 
 - Empty payload (length=0) — handled gracefully.
 - Unknown file type — treated as `raw`.
-- File with same name appearing twice — last entry wins.
+- Duplicate file names — last entry wins.
 
-## Dependencies
+**Dependencies:** I-Q6b (MVP pipe aggregation: mean of non-NA ratios per pipe family). Shared `PR-FMT-*` prefix with [rep-format](./rep-format.spec.md).
 
-- [specs/core/rep-format.spec.md] — binary container layout.
-- [docs/context/INTERIM_DECISIONS.md I-Q6b] — MVP pipe aggregation uses mean of non-NA ratios.
-
-## Open Questions
-
-- [Q5] — Overview series; currently returns empty array per I-Q5+.
+**Open:** Q5 — Overview series returns empty array per I-Q5+.

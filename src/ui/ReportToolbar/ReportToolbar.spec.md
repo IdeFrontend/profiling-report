@@ -1,34 +1,27 @@
 # ReportToolbar
 
 <!--
-  metadata
   spec-id-prefix: PR-TOOLBAR-*
   phase: MVP
-  owner: -
-  last-updated: 2026-08-04
   source: src/ui/ReportToolbar/ReportToolbar.vue
   test: src/ui/ReportToolbar/ReportToolbar.spec.ts
 -->
 
-## Purpose
+Top toolbar: search, zoom controls, time unit selector, aside toggle.
 
-Top toolbar with search, zoom controls, time unit selector, and aside panel toggle.
-
-## Inputs / Outputs
-
-### Props
+## Props
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | searchQuery | string | yes | — | Current search text |
-| asideVisible | boolean | yes | — | Whether aside panel is open |
-| asideAvailable | boolean | yes | — | Whether aside panel is available |
-| zoomPercent | number | yes | — | Current zoom percentage |
+| asideVisible | boolean | yes | — | Aside panel open |
+| asideAvailable | boolean | yes | — | Aside panel available |
+| zoomPercent | number | yes | — | Current zoom % |
 | timeUnit | TimeDisplayUnit | yes | — | Time display unit |
 | locale | string | no | undefined | Locale code |
 | title | string | no | undefined | Report title |
 
-### Emits
+## Emits
 
 | Event | Payload | Description |
 |-------|---------|-------------|
@@ -40,35 +33,17 @@ Top toolbar with search, zoom controls, time unit selector, and aside panel togg
 | zoom-out | — | Zoom out clicked |
 | update:zoomPercent | number | Zoom slider moved |
 
-## Behavior
-
-- Search input with v-model binding.
-- Zoom +/- buttons and slider with percentage display.
-- Time unit selector (ms/us/ns).
-- Aside panel toggle button.
-
-## Design sketches
-
-- [Entry overview](/docs/specs/ui/source/entry-overview.png) — toolbar region with search, zoom controls, and tabs
+- [Entry overview](/docs/specs/ui/source/entry-overview.png)
 
 ## Acceptance Criteria
 
 1. **PR-TOOLBAR-001**: Emits update:searchQuery when search text changes.
-1. **PR-TOOLBAR-002**: Emits zoom-in when + button is clicked.
-1. **PR-TOOLBAR-003**: Emits zoom-out when - button is clicked.
-1. **PR-TOOLBAR-004**: Emits zoom-to-fit when zoom-to-fit button is clicked.
-1. **PR-TOOLBAR-005**: Emits update:timeUnit when unit is changed.
-1. **PR-TOOLBAR-006**: Emits update:asideVisible when aside toggle is clicked.
+1. **PR-TOOLBAR-002**: Emits zoom-in on + button click.
+1. **PR-TOOLBAR-003**: Emits zoom-out on - button click.
+1. **PR-TOOLBAR-004**: Emits zoom-to-fit on button click.
+1. **PR-TOOLBAR-005**: Emits update:timeUnit when unit changed.
+1. **PR-TOOLBAR-006**: Emits update:asideVisible on aside toggle click.
 
 ## Edge Cases
 
-- Search query is empty string initially.
-- asideAvailable=false hides toggle.
-
-## Dependencies
-
-- None.
-
-## Open Questions
-
-- None.
+- asideAvailable=false hides toggle. Search query initially empty.

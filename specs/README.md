@@ -24,6 +24,8 @@ This directory contains behavioral specifications for all modules in the profili
 | [swimlane-renderer](./core/swimlane-renderer.spec.md) | `PR-RENDER-*` | MVP | `src/swimlane/CanvasSwimlaneRenderer.ts` | `tests/unit/canvasRenderer.spec.ts` |
 | [load-report-source](./core/load-report-source.spec.md) | `PR-JSON-*` | MVP | `src/adapters/loadReportSource.ts` | `tests/unit/loadReportSource.spec.ts` |
 | [utilization](./core/utilization.spec.md) | `PR-UTIL-*` | MVP | `src/domain/utilization.ts` | `tests/unit/utilization.spec.ts` |
+| [integration](./core/integration.spec.md) | `PR-UI-*`, `PR-E2E-*` | MVP | — | `tests/component/ProfilingReport.feature.spec.ts`, `tests/e2e/feature.spec.ts` |
+| [scaffold](./core/scaffold.spec.md) | `PR-SCAFFOLD-*` | MVP | — | `tests/unit/scaffold.spec.ts`, `tests/e2e/playground.spec.ts` |
 
 ### UI components (Vue SFCs)
 
@@ -47,13 +49,6 @@ Specs are co-located with their components.
 |------|-------|--------|
 | [public-api](./architecture/public-api.spec.md) | MVP | `src/index.ts`, `docs/specs/architecture/ARCHITECTURE.md` |
 | [mstt-integration](./architecture/mstt-integration.spec.md) | MVP | `docs/specs/architecture/MSTT_INTEGRATION.md` |
-
-### Integration tests
-
-| Spec | Prefix | Phase | Test file |
-|------|--------|-------|-----------|
-| ProfilingReport feature | `PR-UI-*` | MVP | `tests/component/ProfilingReport.feature.spec.ts` |
-| Playground E2E | `PR-E2E-*` | MVP | `tests/e2e/feature.spec.ts` |
 
 ## Spec template
 
