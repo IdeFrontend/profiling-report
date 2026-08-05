@@ -6,27 +6,35 @@
   source: tests/component/ProfilingReport.feature.spec.ts, tests/e2e/feature.spec.ts
 -->
 
-Outside-in tests verifying the full component tree renders and behaves correctly. Counterpart to per-component unit tests — these test composition, not individual units.
+Outside-in tests verifying the full component tree and playground render correctly. These test composition — per-component units are tested in their own folders.
+
+## Behavior
+
+**Integration (Vitest + Vue Test Utils).** Mounts ProfilingReport with `data/out.rep` source and exercises the full component tree through prop updates and DOM queries. Verifies that loading produces visible chrome, interactions propagate state, the aside renders when data is available and hides for standalone CTEF, zoom-to-fit expands to full timeline, search filters events, and the overview brush updates the viewport.
+
+**E2E (Playwright against playground).** Loads the playground with `data/out.rep` and verifies real browser rendering: timeline visible, hover shows tooltip, click selects event and shows detail strip, zoom-to-fit via toolbar, standalone JSON opens without aside, overview brush updates window and cursor.
 
 ## Acceptance Criteria
 
-### Integration (PR-UI) — Vitest + Vue Test Utils
+### Integration (PR-UI)
 
-1. **PR-UI-001**: Mounts ProfilingReport with `data/out.rep` source, shows timeline chrome.
-1. **PR-UI-002**: Zoom, pan, and select interactions propagate state through component tree correctly.
-1. **PR-UI-003**: Aside renders summary stats and pipe occupancy when CSV data available in `.rep`.
-1. **PR-UI-004**: Zoom-to-fit expands viewport to full timeline span.
+1. **PR-UI-001**: Mounts ProfilingReport with fixture source, shows timeline chrome.
+1. **PR-UI-002**: Zoom, pan, select interactions propagate through component tree.
+1. **PR-UI-003**: Aside renders summary stats and pipe occupancy when CSV data available.
+1. **PR-UI-004**: Zoom-to-fit expands viewport to full timeline.
 1. **PR-UI-005**: Search input filters events in swimlane.
-1. **PR-UI-006**: Standalone CTEF (no CSV pack) renders timeline without aside panel.
-1. **PR-UI-007**: Time overview brush emits window update events that change the viewport.
+1. **PR-UI-006**: Standalone CTEF renders timeline without aside panel.
+1. **PR-UI-007**: Time overview brush emits window update events.
 
-### E2E (PR-E2E) — Playwright against playground
+### E2E (PR-E2E)
 
-1. **PR-E2E-001**: Playground loads `data/out.rep` and renders timeline visible on screen.
-1. **PR-E2E-002**: Hover over swimlane event shows tooltip with event name and times.
-1. **PR-E2E-003**: Click event selects it, detail strip shows event name and times.
-1. **PR-E2E-004**: Zoom-to-fit via toolbar button renders full timeline span.
-1. **PR-E2E-005**: Standalone JSON trace opens without CSV aside panel.
-1. **PR-E2E-006**: Overview brush updates visible time window and cursor line.
+1. **PR-E2E-001**: Playground loads `data/out.rep` and renders timeline.
+1. **PR-E2E-002**: Hover over swimlane event shows tooltip.
+1. **PR-E2E-003**: Click event selects it, detail strip shows name and times.
+1. **PR-E2E-004**: Zoom-to-fit via toolbar renders full timeline span.
+1. **PR-E2E-005**: Standalone JSON opens without CSV aside.
+1. **PR-E2E-006**: Overview brush updates time window and cursor line.
 
-**Dependencies:** [UX_SPEC.md](/docs/specs/ui/UX_SPEC.md) (S1–S3), [INTERACTIONS.md](/docs/specs/ui/INTERACTIONS.md).
+## Dependencies
+
+[UX_SPEC.md](/docs/specs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](/docs/specs/ui/INTERACTIONS.md).

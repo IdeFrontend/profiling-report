@@ -3,44 +3,27 @@
 <!--
   spec-id-prefix: PR-FMT-* (shared)
   phase: MVP
-  test: tests/unit/parseRep.spec.ts
+  source: docs/specs/formats/INPUT_FORMATS.md, docs/specs/formats/METRICS_AND_TRACE.md
 -->
 
-Report container contract and embedded file conventions. Defines what the parser delivers to the adaptation layer. Source: `docs/specs/formats/INPUT_FORMATS.md`, `docs/specs/formats/METRICS_AND_TRACE.md`.
+Report container contract and embedded file conventions shared with [rep-format](./rep-format.spec.md).
 
-## Container metadata per embedded file
+## Behavior
 
-| Field | Description |
-|-------|-------------|
-| name | Basename (e.g. `trace.json`, `OpBasicInfo.csv`) |
-| type | `raw`(0) / `csv`(1) / `json`(2) / `txt`(3) / `ini`(4) |
-| origin | `default`(0) / `profile`(1) / `sanitizer`(2) |
-| length | Payload byte length |
-| offset | Absolute byte offset in container |
+**Container metadata per embedded file.** Each file in the `.rep` container carries: name (basename), type (raw/csv/json/txt/ini), origin (default/profile/sanitizer), payload length, and absolute byte offset.
 
-## CSV conventions
+**CSV conventions.** Keyed by `block_id`/`sub_block_id`. `aic_*` prefix = Cube counters, `aiv_*` = Vector counters. `NA` token for missing values. Times in microseconds, bandwidth in GB/s, ratios unitless 0–1.
 
-- Keyed by `block_id` and `sub_block_id`
-- `aic_*` prefix = AI Cube / AIC counters, `aiv_*` prefix = AI Vector / AIV counters
-- Missing values = `NA` token (not empty string)
-- Time values in microseconds, bandwidth in GB/s, ratios are unitless 0–1 unless labeled `%`
+**File → UI panel mapping.** `OpBasicInfo.csv` feeds the report summary. `PipeUtilization.csv` feeds PIPE occupancy bars and lane utilization. `trace.json` drives the swimlane. `ArithmeticUtilization.csv`, `Memory*.csv`, `L2Cache.csv`, and `ResourceConflictRatio.csv` are Phase 2 panels (roofline, memory topology, cache, stalls).
 
-## File → UI panel mapping
+## Dependencies
 
-| Embedded file | MVP panel | P2 panel |
-|---|---|---|
-| `OpBasicInfo.csv` | Report summary (name, type, duration) | Hardware/op header |
-| `PipeUtilization.csv` | PIPE occupancy bars, lane utilization | Pipe field list |
-| `ArithmeticUtilization.csv` | — | Roofline inputs |
-| `Memory*.csv` | — | Memory topology diagram |
-| `L2Cache.csv` | — | Cache tab |
-| `ResourceConflictRatio.csv` | — | Stall/conflict details |
-| `trace.json` | Swimlane lanes and events | Dependency overlays |
+I-Q6b (pipe aggregation: mean of non-NA ratios per family). Shared `PR-FMT-*` with [rep-format](./rep-format.spec.md).
+
+## Open
+
+Q5 — Overview series returns empty array per I-Q5+.
 
 ## Design sketches
 
 - [NPU-REP binary layout](/docs/specs/ui/source/npu-rep-layout.png)
-
-**Dependencies:** I-Q6b (pipe aggregation: mean of non-NA ratios). Shared `PR-FMT-*` prefix with [rep-format](./rep-format.spec.md).
-
-**Open:** Q5 — Overview series returns empty array per I-Q5+.

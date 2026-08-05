@@ -7,31 +7,23 @@
   test: src/ui/DetailStrip/DetailStrip.spec.ts
 -->
 
-Fixed footer strip showing the currently selected event's name and formatted times.
-
-## Props
-
-| Prop | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| selected | SelectedEvent | yes | — | The selected event (id, name, startTime, duration, endTime) |
-| unit | TimeDisplayUnit | yes | — | Time unit for formatting |
-| locale | string | no | undefined | Locale for labels |
+Fixed footer strip showing the currently selected event's name and formatted times. Persists until the user clicks empty space.
 
 ## Behavior
 
-**Content.** Displays the selected event's `name`, start time, duration, and end time. Times are formatted via `formatTime(ns, unit)`. The strip is always rendered when a selection is active — empty selection means the strip has no content to display and appears blank or hidden.
+Displays the selected event's name, start time, duration, and end time in the current display unit. The selection lifecycle is managed by the parent ProfilingReport: click on an event → selection is set → the strip appears; click on empty canvas → selection cleared → the strip hides.
 
-**Selection lifecycle.** When a user clicks an event on the swimlane canvas, the parent ProfilingReport sets `selected` to the event's `SelectedEvent` representation. The strip updates reactively. Clicking empty canvas space sets `selected` to null — the strip clears.
-
-**Relationship with tooltip.** The tooltip shows on hover (transient, follows cursor). The detail strip shows on click/selection (persistent, fixed position). Both format times identically via the same `formatTime` function.
+The detail strip is the persistent counterpart to the event tooltip: tooltip is transient (follows cursor on hover), detail strip is fixed (shows selected event until explicitly cleared).
 
 ## Acceptance Criteria
 
-1. **PR-STRIP-001**: Renders event name when provided with a SelectedEvent.
-1. **PR-STRIP-002**: Formats times correctly in the selected unit.
+1. **PR-STRIP-001** — Renders event name.
+2. **PR-STRIP-002** — Formats start time, duration, and end time.
 
 ## Design sketches
 
 - [Event details](/docs/specs/ui/source/event-details.png)
 
-**Dependencies:** [format-time](/specs/core/format-time.spec.md).
+## Dependencies
+
+[format-time](/specs/core/format-time.spec.md).

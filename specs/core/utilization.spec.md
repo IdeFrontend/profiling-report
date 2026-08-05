@@ -7,7 +7,7 @@
   test: tests/unit/utilization.spec.ts
 -->
 
-Compute thread utilization metrics — coverage ratio of event time to visible window, and derived utilization values for gutter display.
+Compute thread utilization — coverage ratio of event time to visible window, and derived utilization values for gutter display.
 
 ```ts
 computeThreadUtilization(events: SwimEvent[], windowStart: number, windowEnd: number): number
@@ -17,11 +17,11 @@ withDerivedUtilizations(threads: SwimThread[]): SwimThread[]
 
 ## Behavior
 
-**Covered length.** `coveredLength(events)` computes the total duration covered by a set of events, merging overlapping intervals to avoid double-counting. Events are first sorted by start time, then iterated — if an event's start falls within the current merged interval, the interval is extended; otherwise, the current interval's duration is added to the total and a new interval begins.
+**Interval merging.** `coveredLength` sorts events by start time, then iterates — if an event overlaps the current merged interval, the interval is extended; otherwise, the current interval's duration is added to the total and a new interval begins. This prevents double-counting overlapping events.
 
-**Window utilization.** `computeThreadUtilization(events, windowStart, windowEnd)` computes the ratio of covered event time within the visible window to the window span. Events are clipped to the window boundaries first (start = max(event.start, windowStart), end = min(event.end, windowEnd)), then overlapping intervals are merged and the total is divided by (windowEnd - windowStart).
+**Window utilization.** `computeThreadUtilization` clips events to the window boundaries first, then merges overlapping intervals and divides the total by the window span. Returns the fraction of the visible window covered by events.
 
-**Thread annotation.** `withDerivedUtilizations(threads)` attaches a `utilization` number to each thread by calling `computeThreadUtilization` on the thread's events with the full timeline bounds. The result is written to `thread.utilization` and used by LaneGutter for percentage display.
+**Thread annotation.** `withDerivedUtilizations` attaches a `utilization` number to each thread. Used by LaneGutter for percentage display.
 
 ## Acceptance Criteria
 
@@ -30,9 +30,8 @@ withDerivedUtilizations(threads: SwimThread[]): SwimThread[]
 
 ## Edge Cases
 
-- No events in window → 0.
-- Events entirely outside window → 0.
-- Single event covering entire window → 1.0.
-- Dense overlapping events → correctly merged (not summed).
+No events in window → 0. Events entirely outside → 0. Single event covering entire window → 1.0.
 
-**Dependencies:** [swimlane-model](./swimlane-model.spec.md).
+## Dependencies
+
+[swimlane-model](./swimlane-model.spec.md).

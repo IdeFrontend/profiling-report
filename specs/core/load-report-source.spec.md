@@ -15,11 +15,9 @@ loadReportSource(source: ArrayBuffer | Uint8Array): ReportSource
 
 ## Behavior
 
-**Detection.** Checks the first 8 bytes of the input for the `'cann-rep'` magic string. If present, treats the input as a `.rep` container, parses it via `parseRep`, and adapts via `adaptRep` — producing a full `AdaptedReport` with swimlane model, report model, and capabilities.
+Checks the first 8 bytes for the `'cann-rep'` magic string. If present: parses as `.rep` container and adapts via `adaptRep` → full `AdaptedReport` with swimlane, report model, and capabilities. If absent: assumes standalone JSON, parses as CTEF, converts via `chromeTraceToSwimlane` → produces an `AdaptedReport` with an empty `ReportViewModel` (empty summary, empty pipeOccupancy, empty overviewSeries). This triggers the aside panel auto-hide in ProfilingReport per Q15.
 
-**Standalone JSON path.** If the magic is absent, assumes the input is standalone JSON (Chrome Trace). Parses it as CTEF, converts via `chromeTraceToSwimlane`, and produces an `AdaptedReport` with an empty `ReportViewModel` (empty summary, empty pipeOccupancy, empty overviewSeries). This triggers the aside panel auto-hide in ProfilingReport per Q15 — standalone JSON traces have no CSV embeds and therefore no summary or pipe occupancy to display.
-
-**Error handling.** Throws on empty input. Throws with a descriptive message on corrupted binary or unparseable JSON. Valid JSON that is not CTEF (no complete X events) will fail in `chromeTraceToSwimlane` and propagate the error.
+Throws on empty input. Throws with descriptive message on corrupted binary or unparseable JSON. Valid JSON that is not CTEF (no complete X events) fails in `chromeTraceToSwimlane` and propagates the error.
 
 ## Acceptance Criteria
 
@@ -28,8 +26,8 @@ loadReportSource(source: ArrayBuffer | Uint8Array): ReportSource
 
 ## Edge Cases
 
-- Corrupted file → throws clear error.
-- Empty buffer → throws.
-- Valid JSON that is not CTEF → fails in chromeTraceToSwimlane.
+- Corrupted file → throws. Empty buffer → throws. Non-CTEF JSON → fails downstream.
 
-**Dependencies:** Q15 — standalone CTEF opens without CSV pack; aside hides.
+## Dependencies
+
+Q15 — standalone CTEF opens without CSV pack; aside hides.

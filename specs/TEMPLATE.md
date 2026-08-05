@@ -1,40 +1,45 @@
-# [Module/Component Name]
+# [Component Name] / [Module Name]
 
 <!--
-  metadata
   spec-id-prefix: PR-XXXX-*
   phase: MVP | P2+
-  source: [link to source file(s)]
-  test: [link to test file(s)]
+  source: src/path/to/source  (optional — omit if source is docs or tests)
+  test: tests/path/to/test    (optional — omit for architecture specs)
 -->
 
-## Purpose
+[One sentence — what this module is and its role in the system.]
 
-[1-2 sentences.]
+## Behavior
 
-## Inputs / Outputs
+[Substantive description of what this module does.
+Organize by concern with subheadings if needed.
+Focus on non-obvious behaviors: data flow, interactions, constraints, algorithms.
+Do NOT list props/emits tables, CSS classes, or implementation mechanics.]
 
-### For components
+## Edge Cases
 
-| Prop | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| ... | ... | yes/no | ... | ... |
-
-| Event | Payload | Description |
-|-------|---------|-------------|
-| ... | ... | ... |
-
-### For core modules
-
-```ts
-function example(input: InputType): OutputType
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| input | InputType | ... |
+[Only include cases that aren't apparent from types or Behavior.
+Omit this section if nothing non-obvious.]
 
 ## Acceptance Criteria
 
-1. **[PREFIX]-001**: [description]
-1. **[PREFIX]-002**: [description]
+> Component specs: omit this section. Test IDs live in test files.
+> Core/architecture specs: include if there are corresponding unit tests with IDs.
+
+1. **PR-XXXX-001**: [Testable statement that maps to a test ID.]
+1. **PR-XXXX-002**: [Testable statement that maps to a test ID.]
+
+## Dependencies
+
+[Other specs, interim decisions, or external contracts this relies on.
+Omit if none.]
+
+## Open
+
+[Unresolved questions referencing OPEN_QUESTIONS.md or relevant docs.
+Omit if none.]
+
+## Design sketches
+
+[Links to mockups in docs/specs/ui/source/.
+Omit if no relevant sketches.]
