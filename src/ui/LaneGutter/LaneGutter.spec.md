@@ -8,7 +8,7 @@ Left-side vertical gutter showing process/thread hierarchy, lane names, and util
 
 ## Inputs
 
-**groups** is an array of `{ id, name, lanes }` where each lane has `{ id, name, color, utilization? }`. The parent ProfilingReport builds this from the SwimlaneModel, assigning colors via `colorForThread` and attaching utilization via `withDerivedUtilizations`.
+**groups** is an array of `{ id, name, lanes }` where each lane has `{ id, name, color, utilization? }`. The parent ProfilingReport builds this from the SwimlaneModel, assigning colors via `colorForThread` and reading utilization from `thread.utilization` (populated by `adaptRep` via pipe color matching). Threads from standalone CTEF or without matching pipes show no utilization percentage.
 
 ## Outputs
 

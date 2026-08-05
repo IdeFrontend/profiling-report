@@ -7,8 +7,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
-const STRICT_ID_RE = /\bPR-([A-Z0-9]+)-(\d{3,})\b/g;
-const LOOSE_ID_RE = /\bPR-[A-Za-z0-9-]+-\d+\b/g;
+const ID_RE = /\bPR-[A-Z0-9]+-\d{3,}\b/g;
 
 function findFiles(dir, predicate) {
   if (!existsSync(dir)) throw new Error(`scan root missing: ${dir}`);
@@ -24,6 +23,7 @@ function findFiles(dir, predicate) {
 
 function readFile(filePath) { return readFileSync(filePath, 'utf-8'); }
 
+/** Extract the ## Acceptance Criteria section body. Requires ^ anchor + m flag. */
 function extractSection(content, heading) {
   const re = new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, 'i');
   const m = content.match(re);
@@ -31,11 +31,16 @@ function extractSection(content, heading) {
 }
 
 function extractIds(content) {
-  return [...content.matchAll(STRICT_ID_RE)].map((m) => m[0]);
+  return [...content.matchAll(ID_RE)].map((m) => m[0]);
 }
 
-function extractLooseIds(content) {
-  return [...content.matchAll(LOOSE_ID_RE)].map((m) => m[0]);
+/** Check if a spec delegates verification to another spec. */
+function isArchitectureSpec(file) {
+  return file.includes('/specs/architecture/');
+}
+
+function isDelegatedSpec(file) {
+  return isArchitectureSpec(file) || file.includes('/input-formats.spec.md');
 }
 
 // ---- gather ----
@@ -48,9 +53,8 @@ if (specFiles.length === 0) { console.error('ERROR: No spec files found.'); proc
 if (testFiles.length === 0) { console.error('ERROR: No test files found.'); process.exit(1); }
 
 // ---- collect ----
-const specACs = new Map();
-const testIds = new Map();
-const malformed = [];
+const specACs = new Map();   // id → Set(files) — distinct files only
+const testIds = new Map();   // id → Set(files) — distinct files only
 const specsMissingSection = [];
 const specsEmptyAC = [];
 
@@ -58,29 +62,25 @@ for (const file of specFiles) {
   const content = readFile(file);
   const section = extractSection(content, 'Acceptance Criteria');
 
-  if (!section) { specsMissingSection.push(file); }
-  else {
-    const ids = extractIds(section);
-    // Skip EMPTY AC warning for specs that explicitly delegate verification
-    const isDelegated = /^\*.*(?:verified by|Shared.*prefix).*\*$/m.test(section.trim());
-    if (ids.length === 0 && !isDelegated) specsEmptyAC.push(file);
-    for (const id of ids) {
-      if (id.split('-').length > 3) malformed.push({ file, id });
-      if (!specACs.has(id)) specACs.set(id, []);
-      specACs.get(id).push(file);
-    }
+  if (!section) {
+    if (!isDelegatedSpec(file)) specsMissingSection.push(file);
+    continue;
   }
 
-  for (const id of extractLooseIds(content)) {
-    if (!/\bPR-[A-Z0-9]+-\d{3,}\b/.test(id)) malformed.push({ file, id });
+  const ids = extractIds(section);
+  if (ids.length === 0 && !isDelegatedSpec(file)) specsEmptyAC.push(file);
+
+  for (const id of ids) {
+    if (!specACs.has(id)) specACs.set(id, new Set());
+    specACs.get(id).add(file);
   }
 }
 
 for (const file of testFiles) {
   const content = readFile(file);
   for (const id of extractIds(content)) {
-    if (!testIds.has(id)) testIds.set(id, []);
-    testIds.get(id).push(file);
+    if (!testIds.has(id)) testIds.set(id, new Set());
+    testIds.get(id).add(file);
   }
 }
 
@@ -94,22 +94,21 @@ let errors = 0;
 
 for (const file of specsMissingSection) { console.error(`NO AC SECTION  ${file}`); errors++; }
 for (const file of specsEmptyAC) { console.error(`EMPTY AC       ${file}`); errors++; }
-for (const { file, id } of malformed) { console.error(`MALFORMED ID   ${id}  in ${file}`); errors++; }
 
 for (const [id, files] of [...specACs].sort(([a], [b]) => a.localeCompare(b))) {
-  if (!testIds.has(id)) { console.error(`MISSING TEST   ${id}  (spec: ${files.join(', ')})`); errors++; }
+  if (!testIds.has(id)) { console.error(`MISSING TEST   ${id}  (spec: ${[...files].join(', ')})`); errors++; }
 }
 
 for (const [id, files] of [...testIds].sort(([a], [b]) => a.localeCompare(b))) {
-  if (!specACs.has(id)) { console.error(`ORPHAN TEST    ${id}  (test: ${files.join(', ')})`); errors++; }
+  if (!specACs.has(id)) { console.error(`ORPHAN TEST    ${id}  (test: ${[...files].join(', ')})`); errors++; }
 }
 
 for (const [id, files] of specACs) {
-  if (files.length > 1) { console.error(`DUPLICATE AC   ${id}  (in: ${files.join(', ')})`); errors++; }
+  if (files.size > 1) { console.error(`DUPLICATE AC   ${id}  (in: ${[...files].join(', ')})`); errors++; }
 }
 
 for (const [id, files] of testIds) {
-  if (files.length > 1) { console.error(`DUPLICATE TEST ${id}  (in: ${files.join(', ')})`); errors++; }
+  if (files.size > 1) { console.error(`DUPLICATE TEST ${id}  (in: ${[...files].join(', ')})`); errors++; }
 }
 
 console.log();

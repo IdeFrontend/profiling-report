@@ -16,7 +16,7 @@ Purely presentational — no emitted events.
 
 ## Behavior
 
-**Summary section.** Displays operator metadata from `report.summary`: op name, op type, task duration (formatted in the current time unit), block dimension, and current/rated frequencies. These come from `OpBasicInfo.csv`. In MVP, only thin fields are populated per I-Q6a — compute TFLOPS, bandwidth, and core utilization fields exist in the type but are intentionally unset.
+**Summary section.** Displays operator metadata from `report.summary`: op name, op type, and task duration (formatted via a local `formatDurationUs` function from microseconds). Current and rated frequencies when available. In MVP, only thin fields are populated per I-Q6a — compute TFLOPS, bandwidth, and core utilization fields exist in the type but are intentionally unset. Block dimension is present in the type but not rendered in the current UI.
 
 **PIPE occupancy bars.** Renders a horizontal bar chart showing utilization for each pipe family: Cube, Vector, MTE1, MTE2, MTE3, FixP, and Scalar. Values are per-family means of non-NA ratios across all blocks, computed in `adaptRep` per I-Q6b. Bar colors match COLOR_TOKENS — the same colors used in the lane gutter and swimlane event fills. Colors are consistent across all surfaces so a user can visually correlate a pipe bar to the corresponding lane.
 

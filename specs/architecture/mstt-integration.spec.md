@@ -15,7 +15,7 @@ Integration contract between profiling-report library and primary host (MSTT). L
 ## Edge Cases
 
 - Empty source → empty shell without error.
-- Both `source` and pre-parsed models provided → `source` takes precedence.
+- Pre-parsed models provided alongside `source` → pre-parsed models take precedence (skip loading from source).
 - Multi-instance on one page → fully independent state.
 
 ## Dependencies

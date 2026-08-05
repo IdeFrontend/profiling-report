@@ -2,7 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vite/client", "vitest/globals"]
+    "types": ["vite/client"]
   },
   "include": [
     "src/**/*.ts",

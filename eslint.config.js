@@ -11,6 +11,7 @@ export default tseslint.config(
       'playground/dist/**',
       'node_modules/**',
       '.vercel/**',
+      '.remember/**',
       'coverage/**',
       'playwright-report/**',
       'test-results/**',

@@ -8,7 +8,7 @@ Fixed footer strip showing the currently selected event's name and formatted tim
 
 ## Inputs
 
-**selected** is a `SelectedEvent` (id, name, startTime, duration, endTime) representing the currently selected event. **unit** selects the time display unit. Optional **locale** localizes labels. When selection is cleared (null or hidden by parent), the strip shows nothing.
+**selected** is a `SelectedEvent` (id, name, startTime, duration, endTime) representing the currently selected event. **unit** selects the time display unit. Optional **locale** localizes labels. The parent conditions the component on `v-if="selected && showTimeline"` — when no event is selected, the strip is unmounted.
 
 ## Outputs
 

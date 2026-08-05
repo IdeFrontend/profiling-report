@@ -26,8 +26,8 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 ## Acceptance Criteria
 
-1. **PR-TOOLBAR-001** — Emits `search` on query change.
-2. **PR-TOOLBAR-002** — Emits `zoom-in` on button click.
+1. **PR-TOOLBAR-001** — Emits update:searchQuery on text input.
+2. **PR-TOOLBAR-002** — Emits zoom-in on button click.
 3. **PR-TOOLBAR-003** — Emits `zoom-out` on button click.
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
 5. **PR-TOOLBAR-005** — Emits `update:timeUnit` on dropdown change.
