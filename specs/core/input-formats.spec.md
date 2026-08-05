@@ -14,6 +14,10 @@ Report container contract and embedded file conventions shared with [rep-format]
 
 **File → UI panel mapping.** `OpBasicInfo.csv` feeds the report summary. `PipeUtilization.csv` feeds PIPE occupancy bars and lane utilization. `trace.json` drives the swimlane. `ArithmeticUtilization.csv`, `Memory*.csv`, `L2Cache.csv`, and `ResourceConflictRatio.csv` are Phase 2 panels (roofline, memory topology, cache, stalls).
 
+## Acceptance Criteria
+
+*Shared PR-FMT-* prefix — see [rep-format](./rep-format.spec.md).*
+
 ## Dependencies
 
 I-Q6b (pipe aggregation: mean of non-NA ratios per family). Shared `PR-FMT-*` with [rep-format](./rep-format.spec.md).

@@ -28,9 +28,9 @@ applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewS
 
 ## Acceptance Criteria
 
-1. **PR-VIEW-001**: createViewState with valid model initializes window covering full timeline.
-1. **PR-VIEW-002**: zoomToFitWindow expands viewport to full timeline span.
-1. **PR-VIEW-003**: Combined zoom+pan with bounds clamping produces correct viewport.
+1. **PR-VIEW-001**: zoomToFitWindow returns window covering model min/max times.
+1. **PR-VIEW-002**: zoomAt shrinks window around an anchor time point.
+1. **PR-VIEW-003**: panBy shifts window within timeline bounds.
 
 ## Edge Cases
 

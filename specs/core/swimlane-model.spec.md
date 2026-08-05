@@ -30,10 +30,10 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 ## Acceptance Criteria
 
 1. **PR-SWIM-001**: Correct process/thread/event structure from a Chrome Trace.
-1. **PR-SWIM-002**: Events sorted by startTime ascending within each thread.
-1. **PR-SWIM-003**: Empty trace with no X events throws.
-1. **PR-SWIM-004**: Overlapping events preserved in original order.
-1. **PR-SWIM-005**: Processes/threads with no events excluded.
+1. **PR-SWIM-002**: Default CTEF µs timestamps convert to ns for internal representation.
+1. **PR-SWIM-003**: displayTimeUnit metadata preserved (display-only, timestamps unchanged).
+1. **PR-SWIM-004**: CTEF array format and process_name metadata handled correctly.
+1. **PR-SWIM-005**: Rejects traces with no complete X events (throws).
 
 ## Edge Cases
 

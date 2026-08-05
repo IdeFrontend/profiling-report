@@ -27,8 +27,8 @@ formatCursorTime(ns: number): string
 ## Acceptance Criteria
 
 1. **PR-TIME-001**: 1_234_000 ns → `'1.234 ms'` / `'1234.000 µs'` / `'1234000 ns'`.
-1. **PR-TIME-002**: formatAxisTime adapts decimal places to tickStepNs.
-1. **PR-TIME-003**: formatCursorTime renders `MM:SS.mmm` (4_456_000_000 ns → `00:04.456`).
+1. **PR-TIME-002**: formatCursorTime renders `MM:SS.mmm` (4_456_000_000 ns → `00:04.456`).
+1. **PR-TIME-003**: formatAxisTime adapts decimal places to tickStepNs.
 
 ## Edge Cases
 

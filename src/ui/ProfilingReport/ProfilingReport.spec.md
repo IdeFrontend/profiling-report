@@ -55,7 +55,7 @@ sequenceDiagram
     participant State as viewState
 
     User->>Canvas: pointerdown
-    User->>Canvas: pointermove (>=4px)
+    User->>Canvas: pointermove (while dragging)
     Canvas->>Root: emit('pan', deltaTime)
     Root->>State: panBy(view, deltaTime, bounds)
     State-->>Root: new SwimlaneViewWindow
@@ -63,7 +63,7 @@ sequenceDiagram
     Root->>TimeOverviewBar: update startTime/endTime
 ```
 
-The 4px threshold prevents accidental pans on click. Pan is clamped to timeline bounds.
+Drag-to-pan emits delta time continuously on every pointermove. Pan is clamped to timeline bounds. A 4px threshold on pointer-up suppresses the click-to-select when movement exceeded 4px.
 
 ### Hover, selection, tooltip
 
@@ -87,7 +87,7 @@ sequenceDiagram
     Root->>Root: clear hover, hide tooltip
 ```
 
-Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear.
+Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear. A 4px threshold on pointer-up gates selection: movement >4px between pointerdown and pointerup suppresses the click-to-select. Pan emits continuously on every move while dragging.
 
 ### Search
 
@@ -104,10 +104,10 @@ sequenceDiagram
     Root->>Root: viewState.searchQuery = query
     Root->>Canvas: update searchQuery prop
     Canvas->>Renderer: filter event names (substring, case-insensitive)
-    Renderer->>Renderer: render only matching events
+    Renderer->>Renderer: dim non-matching events (25% alpha)
 ```
 
-The renderer applies event name filtering as a substring, case-insensitive match during draw. Events that don't match are skipped. Lanes with no matching events remain visible (empty lanes are not collapsed).
+The renderer applies event name filtering as a substring, case-insensitive match during draw. Events that match render at full opacity; non-matching events are dimmed to 25% alpha but remain visible and interactive (hover/select still work on dimmed events). Lanes with no matching events remain visible (empty lanes are not collapsed).
 
 ### Data loading
 

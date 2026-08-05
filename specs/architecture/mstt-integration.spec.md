@@ -22,6 +22,10 @@ Integration contract between profiling-report library and primary host (MSTT). L
 
 [public-api](./public-api.spec.md).
 
+## Acceptance Criteria
+
+*Architecture contracts — verified by integration tests.*
+
 ## Open
 
 Q16–Q19 — packaging and integration specifics (see PACKAGING_SUGGESTIONS.md).

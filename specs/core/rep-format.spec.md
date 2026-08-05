@@ -28,7 +28,7 @@ Parsing validates the magic at offset 0 and throws if it doesn't match. It reads
 
 ## Edge Cases
 
-- Unknown/truncated magic → throw. Zero fileInfoCount → empty files array. Payload offset beyond file length → throw. Empty payload (length=0) → handled gracefully. Duplicate file names → last entry wins.
+- Unknown/truncated magic → throw. Zero fileInfoCount → empty files array. Payload offset beyond file length → throw. Empty payload (length=0) → handled gracefully. Duplicate file names → throw error.
 
 ## Dependencies
 

@@ -30,6 +30,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Check spec coverage
+        run: npm run check:specs
+
       - name: Scaffold unit/component tests (must pass)
         run: npm run test:scaffold
 

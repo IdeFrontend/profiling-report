@@ -20,7 +20,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 **Scroll model.** The container uses `overflow: hidden` with a synthetic scroll mechanism: a sizer div sets the total content height, and `localScrollY` tracks the actual scroll offset. Only the visible viewport is drawn on canvas — this enables smooth scrolling with large swimlane datasets.
 
-**Pointer translation.** `pointermove` with >=4px movement switches to drag-pan (emits `pan` in time units). Movement <4px triggers a click — `hitTest` is called and the result emitted as `select`. Every `pointermove` performs hitTest and emits `hover` (with clientX/clientY for tooltip positioning) and `cursor` (time + xRatio for playhead).
+**Pointer translation.** `pointerdown` records the starting position. `pointermove` performs hitTest and emits `hover` (with clientX/clientY for tooltip positioning) and `cursor` (time + xRatio for playhead). While dragging, every move emits `pan` in time units. On `pointerup`, if total movement <=4px, `hitTest` is called and the result emitted as `select`. The 4px threshold gates selection, not pan.
 
 **Reactivity.** A deep watcher on the viewport prop calls `renderer.setView()` and `renderer.render()` on every change. Model changes call `renderer.setModel()`. Selection/hover changes trigger render only (layout unchanged).
 

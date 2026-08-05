@@ -12,13 +12,13 @@ The component receives the full timeline bounds (**minTime**, **maxTime**) and t
 
 ## Outputs
 
-A single event: **update:window** carries `{ startTime, endTime }` when the user finishes dragging or resizing the window indicator. The parent ProfilingReport applies this via `applyWindow`, updating the viewport for all children.
+A single event: **update:window** carries `{ startTime, endTime }` continuously on pointer move while dragging (live scrubbing), and on a bare track click. The parent ProfilingReport applies each update via `applyWindow`.
 
 ## Behavior
 
 **Proportional mapping.** Window position and size are computed as percentages of the total span: `left = (startTime - minTime) / span`, `width = (endTime - startTime) / span`. When the window covers the full timeline, the indicator fills the entire bar.
 
-**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles have an expanded hit target area for usability. Pointer events initiate a drag mode; pointer move adjusts window boundaries proportionally; on pointer up, the component emits `update:window` with the new time range.
+**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles have an expanded hit target area. Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
 
 **Parent integration.** The parent ProfilingReport receives the `update:window` event and applies the new window to `SwimlaneViewState` via `applyWindow`. All children re-render with the updated viewport.
 
@@ -31,10 +31,10 @@ A single event: **update:window** carries `{ startTime, endTime }` when the user
 
 | State | Behavior |
 |---|---|
-| minTime equals maxTime | No bar rendered (single point) |
+| minTime equals maxTime | Bar renders; `fullSpan` clamps to 1; all ticks collapse to minTime |
 | Window covers full timeline | Indicator fills entire bar, handles at edges |
 | Very short window (<1% of span) | Handles merge visually but are independently draggable |
-| startTime < minTime or endTime > maxTime | Window clamped to bounds |
+| startTime < minTime or endTime > maxTime | Indicator may escape track bounds on render (clamped only on emit) |
 
 ## Design sketches
 

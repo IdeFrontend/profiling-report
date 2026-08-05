@@ -7,18 +7,18 @@
 Compute thread utilization — coverage ratio of event time to visible window, and derived utilization values for gutter display.
 
 ```ts
-computeThreadUtilization(events: SwimEvent[], windowStart: number, windowEnd: number): number
-coveredLength(events: SwimEvent[]): number
-withDerivedUtilizations(threads: SwimThread[]): SwimThread[]
+computeThreadUtilization(thread: SwimThread, minTime: number, maxTime: number): number
+coveredLength(intervals: Array<{ start: number; end: number }>): number
+withDerivedUtilizations(model: SwimlaneModel): SwimlaneModel
 ```
 
 ## Behavior
 
 **Interval merging.** `coveredLength` sorts events by start time, then iterates — if an event overlaps the current merged interval, the interval is extended; otherwise, the current interval's duration is added to the total and a new interval begins. This prevents double-counting overlapping events.
 
-**Window utilization.** `computeThreadUtilization` clips events to the window boundaries first, then merges overlapping intervals and divides the total by the window span. Returns the fraction of the visible window covered by events.
+**Window utilization.** `computeThreadUtilization` takes a `SwimThread` and clips each event to the window, then merges overlapping intervals and divides by span. Returns the fraction (0–1) of the visible window covered by events.
 
-**Thread annotation.** `withDerivedUtilizations` attaches a `utilization` number to each thread. Used by LaneGutter for percentage display.
+**Thread annotation.** `withDerivedUtilizations` takes a `SwimlaneModel`, iterates processes and threads, and fills any missing `utilization` field using the model's time range.
 
 ## Acceptance Criteria
 

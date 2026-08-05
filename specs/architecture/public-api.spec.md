@@ -14,5 +14,9 @@ Library public API surface consumed as `@huawei/profiling-report`. Vue is peer d
 
 [ARCHITECTURE.md](../../docs/specs/architecture/ARCHITECTURE.md), [MSTT_INTEGRATION.md](../../docs/specs/architecture/MSTT_INTEGRATION.md).
 
+## Acceptance Criteria
+
+*Architecture contracts — verified by integration tests and typecheck.*
+
 ## Changelog
 - **2026-08-05** — Initial spec. Core behaviors established.
