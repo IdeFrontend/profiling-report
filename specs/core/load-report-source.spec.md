@@ -31,3 +31,6 @@ Throws on empty input. Throws with descriptive message on corrupted binary or un
 ## Dependencies
 
 Q15 — standalone CTEF opens without CSV pack; aside hides.
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

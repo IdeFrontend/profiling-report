@@ -39,3 +39,6 @@ The tooltip is transient (follows cursor, appears/disappears on hover). The deta
 [format-time](../../../specs/core/format-time.spec.md).
 
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

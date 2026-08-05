@@ -49,3 +49,6 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 ## Open
 
 Q8 — Lane hierarchy; use producer thread_name as-is.
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

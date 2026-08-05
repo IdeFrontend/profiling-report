@@ -38,3 +38,6 @@ Outside-in tests verifying the full component tree and playground render correct
 ## Dependencies
 
 [UX_SPEC.md](../../docs/specs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/specs/ui/INTERACTIONS.md).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

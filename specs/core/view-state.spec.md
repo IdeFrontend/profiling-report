@@ -48,3 +48,6 @@ applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewS
 ## Open
 
 Multi-touch pinch zoom (P2).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

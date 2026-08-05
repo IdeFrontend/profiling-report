@@ -42,3 +42,6 @@ I-Q6a, I-Q6b, I-Q5+. [rep-format](./rep-format.spec.md), [swimlane-model](./swim
 ## Open
 
 Q6 — Product-final summary formulas (currently thin per I-Q6a/b).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

@@ -31,3 +31,6 @@ Integration contract between profiling-report library and primary host (MSTT). L
 ## Open
 
 Q16–Q19 — packaging and integration specifics (see PACKAGING_SUGGESTIONS.md).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

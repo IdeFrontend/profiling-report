@@ -50,3 +50,6 @@ class CanvasSwimlaneRenderer {
 ## Open
 
 Phase 2 WebGL hybrid renderer for better coverage AA at scale.
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

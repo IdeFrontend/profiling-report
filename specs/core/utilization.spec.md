@@ -35,3 +35,6 @@ No events in window → 0. Events entirely outside → 0. Single event covering 
 ## Dependencies
 
 [swimlane-model](./swimlane-model.spec.md).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

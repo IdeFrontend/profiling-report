@@ -44,3 +44,6 @@ I-Q14 — ms/µs/ns only, no clock-cycle mode in MVP.
 ## Open
 
 Future cycles unit if product requires.
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

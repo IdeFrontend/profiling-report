@@ -58,3 +58,6 @@ Purely presentational — no emitted events.
 ## Open
 
 Q6 — Product-final summary formulas (currently thin per I-Q6a).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

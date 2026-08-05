@@ -51,3 +51,6 @@ Left-side vertical gutter showing process/thread hierarchy, lane names, and util
 [utilization](../../../specs/core/utilization.spec.md).
 
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (PipeUtilization.csv feeds lane utilization via pipe color matching).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

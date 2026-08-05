@@ -44,3 +44,6 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 ## Design sketches
 
 - [Entry overview](../../../docs/specs/ui/source/entry-overview.png)
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.

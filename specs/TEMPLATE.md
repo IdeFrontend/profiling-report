@@ -68,3 +68,6 @@ For architecture: integration patterns, lifecycle, independence rules.]
 ## Design sketches
 
 - [sketch name](/docs/specs/ui/source/sketch.png) — description
+
+## Changelog
+- **YYYY-MM-DD** — Initial spec.

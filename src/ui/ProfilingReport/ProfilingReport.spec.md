@@ -176,3 +176,6 @@ All child component specs. [mstt-integration](../../../specs/architecture/mstt-i
 ## Open
 
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
+
+## Changelog
+- **2026-08-05** — Initial spec. Core behaviors established.
