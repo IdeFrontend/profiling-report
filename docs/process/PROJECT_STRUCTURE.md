@@ -150,10 +150,9 @@ src/ui/ReportToolbar/
 
 ### What goes in the spec (`*.spec.md`)
 
-- Props table (type, required, default)
-- Emits table (event name, payload)
-- Slots table (if any)
-- Behavior description (structured, testable)
+- **Inputs** (English prose — what the component receives, why each prop matters)
+- **Outputs** (English prose — what the component emits, payloads, parer interaction)
+- **Behavior** (non-obvious constraints, data flow, interactions with other components)
 - Acceptance criteria with test IDs
 - Edge cases
 - Dependencies on other specs

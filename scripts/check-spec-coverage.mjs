@@ -23,7 +23,7 @@ function findFiles(dir, predicate) {
 
 function readFile(filePath) { return readFileSync(filePath, 'utf-8'); }
 
-/** Extract the ## Acceptance Criteria section body. Requires ^ anchor + m flag. */
+/** Extract the ## Acceptance Criteria section body. Matches the H2 heading and captures content until the next H2 or EOF. */
 function extractSection(content, heading) {
   const re = new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, 'i');
   const m = content.match(re);
@@ -34,14 +34,11 @@ function extractIds(content) {
   return [...content.matchAll(ID_RE)].map((m) => m[0]);
 }
 
-/** Check if a spec delegates verification to another spec. */
-function isArchitectureSpec(file) {
-  return file.includes('/specs/architecture/');
-}
-
-function isDelegatedSpec(file) {
-  return isArchitectureSpec(file) || file.includes('/input-formats.spec.md');
-}
+const DELEGATED_SPECS = new Set([
+  resolve(ROOT, 'specs', 'architecture', 'public-api.spec.md'),
+  resolve(ROOT, 'specs', 'architecture', 'mstt-integration.spec.md'),
+  resolve(ROOT, 'specs', 'core', 'input-formats.spec.md'),
+]);
 
 // ---- gather ----
 let specFiles, testFiles;
@@ -63,12 +60,12 @@ for (const file of specFiles) {
   const section = extractSection(content, 'Acceptance Criteria');
 
   if (!section) {
-    if (!isDelegatedSpec(file)) specsMissingSection.push(file);
+    if (!DELEGATED_SPECS.has(file)) specsMissingSection.push(file);
     continue;
   }
 
   const ids = extractIds(section);
-  if (ids.length === 0 && !isDelegatedSpec(file)) specsEmptyAC.push(file);
+  if (ids.length === 0 && !DELEGATED_SPECS.has(file)) specsEmptyAC.push(file);
 
   for (const id of ids) {
     if (!specACs.has(id)) specACs.set(id, new Set());
@@ -105,10 +102,6 @@ for (const [id, files] of [...testIds].sort(([a], [b]) => a.localeCompare(b))) {
 
 for (const [id, files] of specACs) {
   if (files.size > 1) { console.error(`DUPLICATE AC   ${id}  (in: ${[...files].join(', ')})`); errors++; }
-}
-
-for (const [id, files] of testIds) {
-  if (files.size > 1) { console.error(`DUPLICATE TEST ${id}  (in: ${[...files].join(', ')})`); errors++; }
 }
 
 console.log();

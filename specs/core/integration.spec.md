@@ -17,7 +17,7 @@ Outside-in tests verifying the full component tree and playground render correct
 ### Integration (PR-UI)
 
 1. **PR-UI-001**: Mounts ProfilingReport with fixture source, shows timeline chrome.
-1. **PR-UI-002**: Zoom, pan, select interactions propagate through component tree.
+1. **PR-UI-002**: Select emits detail payload with event name, startTime, and duration.
 1. **PR-UI-003**: Aside renders summary stats and pipe occupancy when CSV data available.
 1. **PR-UI-004**: Zoom-to-fit expands viewport to full timeline.
 1. **PR-UI-005**: Search input filters events in swimlane.

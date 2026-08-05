@@ -3,8 +3,7 @@ import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 
 describe('ProfilingReport scaffold', () => {
-  // PR-SCAFFOLD-003: verified by this test's coverage of the root mount check
-  it('PR-ROOT-001: mounts report root with timeline chrome', () => {
+  it('PR-ROOT-001, PR-SCAFFOLD-003: mounts report root with timeline chrome', () => {
     const wrapper = mount(ProfilingReport, {
       props: { title: 'scaffold' },
     });

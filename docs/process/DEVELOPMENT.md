@@ -27,7 +27,7 @@ docs (goals)
 | Stage | Artifacts | Owner check |
 |-------|-----------|-------------|
 | Docs | [`PROJECT_GOALS.md`](../context/PROJECT_GOALS.md) | Goals and non-goals still accurate |
-| Specs | [`docs/specs/`](../specs/) | Feature listed in [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md); format/UI details exist |
+| Specs | [`docs/specs/`](../specs/) and co-located [`*.spec.md`](../../specs/) files per [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | Feature listed in [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md); format/UI details exist |
 | Ready | [DEFINITION_OF_READY.md](DEFINITION_OF_READY.md) | Checklist complete before coding |
 | Tests | See [TESTING.md](TESTING.md) | Failing tests map to matrix / spec IDs |
 | Code | `src/`, `playground/` | Minimal change to pass tests |
@@ -56,19 +56,22 @@ Implement in this order unless a blocking dependency forces a temporary exceptio
 6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md))
 7. **MSTT host** — separate PR in `mstt` per [MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)
 
-## Target repo layout (when implementation starts)
+## Target repo layout
 
 ```text
-src/              # Vue library (adapters / domain / swimlane / ui)
+specs/            # root-level behavioral specs (core + architecture)
+src/              # Vue library (adapters / domain / swimlane / ui with co-located *.spec.md)
 playground/       # Vite app mounting ProfilingReport (Playwright target)
 tests/
   unit/
   component/
   e2e/
   fixtures/       # optional snapshots; golden binaries live under data/
-docs/             # goals, specs, process (this tree)
+docs/             # goals, process (this tree)
 data/             # canonical sample .rep / .trace.json + pack/unpack scripts
 ```
+
+Full canonical layout: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
 
 ## When to update specs
 

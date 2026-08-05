@@ -12,7 +12,7 @@ Vue wrapper around `CanvasSwimlaneRenderer`. Translates mouse/touch events into 
 
 ## Outputs
 
-Seven interaction events: **select** fires with a `SwimEvent` (or null) on click. **hover** fires on pointer move with the hovered event plus `clientX`/`clientY` for tooltip positioning. **cursor** fires with `{ time, xRatio }` for playhead placement. **pan** fires with a time-unit delta during drag. **zoom** fires with `[factor, anchorTime]` on Ctrl+wheel. **scroll-y** fires with the vertical scroll offset. **set-playhead** fires with a time value on click-to-seek in empty space. The parent ProfilingReport translates all of these into viewport state changes.
+Seven interaction events: **select** fires with a `SwimEvent` (or null) on click (post-4px-gate). **hover** fires on pointermove with the hovered event plus `clientX`/`clientY` for tooltip positioning. **cursor** fires with `{ time, xRatio }` for playhead placement. **pan** fires with a time-unit delta during drag. **zoom** fires with `[factor, anchorTime]` on Ctrl+wheel. **scroll-y** fires with the vertical scroll offset. **set-playhead** fires with a time value on every pointerdown (before the 4px drag gate, before hit test). The parent ProfilingReport translates all of these into viewport state changes.
 
 ## Behavior
 

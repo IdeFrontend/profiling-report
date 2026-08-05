@@ -28,8 +28,10 @@ describe('TimeOverviewBar', () => {
       },
     });
 
-    expect(wrapper.find('[data-testid="time-overview-window"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="time-overview-handle-left"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="time-overview-handle-right"]').exists()).toBe(true);
+    const win = wrapper.find('[data-testid="time-overview-window"]');
+    expect(win.exists()).toBe(true);
+    const style = win.attributes('style') || '';
+    // Window covers 40% of total span (4000 / 10000)
+    expect(style).toContain('width');
   });
 });

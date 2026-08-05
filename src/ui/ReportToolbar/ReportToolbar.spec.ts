@@ -11,9 +11,11 @@ describe('ReportToolbar', () => {
     timeUnit: 'ms',
   } as const;
 
-  it('PR-TOOLBAR-001: renders toolbar', () => {
+  it('PR-TOOLBAR-001: emits update:searchQuery on text input', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
-    expect(wrapper.find('[data-testid="report-toolbar"]').exists()).toBe(true);
+    const input = wrapper.find('[data-testid="search-input"]');
+    await input.setValue('test query');
+    expect(wrapper.emitted('update:searchQuery')).toEqual([['test query']]);
   });
 
   it('PR-TOOLBAR-002: emits zoom-in on button click', async () => {

@@ -7,7 +7,7 @@
 Parse the binary `.rep` / `.ncrep` container into structured file entries with raw payloads ready for adaptation.
 
 ```ts
-parseRep(bytes: Uint8Array): { head: CannRepHead; files: FileEntry[] }
+parseRep(bytes: Uint8Array): { header: ParseHeader; files: FileEntry[]; payloads: Record<string, Uint8Array> }
 ```
 
 ## Behavior
