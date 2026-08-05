@@ -37,4 +37,4 @@ Outside-in tests verifying the full component tree and playground render correct
 
 ## Dependencies
 
-[UX_SPEC.md](/docs/specs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](/docs/specs/ui/INTERACTIONS.md).
+[UX_SPEC.md](../../docs/specs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/specs/ui/INTERACTIONS.md).

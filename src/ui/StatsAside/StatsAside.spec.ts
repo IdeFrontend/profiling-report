@@ -31,6 +31,7 @@ describe('StatsAside', () => {
       },
     });
 
-    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Vector');
+    expect(wrapper.text()).toContain('75');
   });
 });

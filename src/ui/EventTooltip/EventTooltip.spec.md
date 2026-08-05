@@ -32,8 +32,8 @@ The tooltip is transient (follows cursor, appears/disappears on hover). The deta
 
 ## Design sketches
 
-- [Event details](/docs/specs/ui/source/event-details.png)
+- [Event details](../../../docs/specs/ui/source/event-details.png)
 
 ## Dependencies
 
-[format-time](/specs/core/format-time.spec.md).
+[format-time](../../../specs/core/format-time.spec.md).

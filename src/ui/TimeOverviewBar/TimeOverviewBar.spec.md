@@ -41,4 +41,4 @@ A single event: **update:window** carries `{ startTime, endTime }` when the user
 
 ## Design sketches
 
-- [Statistical analysis (overview charts)](/docs/specs/ui/source/statistical-analysis.png)
+- [Statistical analysis (overview charts)](../../../docs/specs/ui/source/statistical-analysis.png)

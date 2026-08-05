@@ -30,8 +30,8 @@ The detail strip is the persistent counterpart to the event tooltip: tooltip is 
 
 ## Design sketches
 
-- [Event details](/docs/specs/ui/source/event-details.png)
+- [Event details](../../../docs/specs/ui/source/event-details.png)
 
 ## Dependencies
 
-[format-time](/specs/core/format-time.spec.md).
+[format-time](../../../specs/core/format-time.spec.md).

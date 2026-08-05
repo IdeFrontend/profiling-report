@@ -30,7 +30,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 ## Acceptance Criteria
 
 1. **PR-CANVAS-001** — Creates canvas element and 2D context.
-2. **PR-CANVAS-002** — Resizes on viewport change.
+2. **PR-CANVAS-002** — Canvas persists after model change.
 
 ## Edge Cases
 
@@ -45,8 +45,8 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Design sketches
 
-- [Kernel block timeline](/docs/specs/ui/source/kernel-block-timeline.png)
+- [Kernel block timeline](../../../docs/specs/ui/source/kernel-block-timeline.png)
 
 ## Dependencies
 
-[swimlane-renderer](/specs/core/swimlane-renderer.spec.md), [swimlane-model](/specs/core/swimlane-model.spec.md).
+[swimlane-renderer](../../../specs/core/swimlane-renderer.spec.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md).

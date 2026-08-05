@@ -43,4 +43,4 @@ Q1 — Producer status; format may evolve.
 
 ## Design sketches
 
-- [NPU-REP binary layout](/docs/specs/ui/source/npu-rep-layout.png)
+- [NPU-REP binary layout](../../docs/specs/ui/source/npu-rep-layout.png)

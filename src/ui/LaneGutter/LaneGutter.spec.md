@@ -44,8 +44,8 @@ Left-side vertical gutter showing process/thread hierarchy, lane names, and util
 
 ## Design sketches
 
-- [Entry overview](/docs/specs/ui/source/entry-overview.png)
+- [Entry overview](../../../docs/specs/ui/source/entry-overview.png)
 
 ## Dependencies
 
-[utilization](/specs/core/utilization.spec.md).
+[utilization](../../../specs/core/utilization.spec.md).

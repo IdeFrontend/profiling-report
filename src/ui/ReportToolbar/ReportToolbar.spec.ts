@@ -38,12 +38,12 @@ describe('ReportToolbar', () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     const select = wrapper.find('[data-testid="time-unit"]');
     await select.setValue('us');
-    expect(wrapper.emitted('update:timeUnit')).toBeTruthy();
+    expect(wrapper.emitted('update:timeUnit')).toEqual([['us']]);
   });
 
   it('PR-TOOLBAR-006: emits update:asideVisible when aside toggle is clicked', async () => {
     const wrapper = mount(ReportToolbar, { props: { ...defaultProps, asideAvailable: true } });
     await wrapper.find('[data-testid="toggle-aside"]').trigger('click');
-    expect(wrapper.emitted('update:asideVisible')).toBeTruthy();
+    expect(wrapper.emitted('update:asideVisible')).toEqual([[true]]);
   });
 });

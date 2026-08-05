@@ -42,16 +42,16 @@ Purely presentational — no emitted events.
 
 ## Design sketches
 
-- [Report stats](/docs/specs/ui/source/report-stats.png) — summary cards
-- [PIPE occupancy](/docs/specs/ui/source/pipe-occupancy.png) — utilization bars
-- [PIPE details](/docs/specs/ui/source/pipe-details.png) — field list (P2)
-- [Roofline](/docs/specs/ui/source/roofline.png) — chart (P2)
-- [Memory load heatmap](/docs/specs/ui/source/memory-load-heatmap.png) (P2)
-- [Memory topology](/docs/specs/ui/source/memory-topology-annotated.png) (P2)
+- [Report stats](../../../docs/specs/ui/source/report-stats.png) — summary cards
+- [PIPE occupancy](../../../docs/specs/ui/source/pipe-occupancy.png) — utilization bars
+- [PIPE details](../../../docs/specs/ui/source/pipe-details.png) — field list (P2)
+- [Roofline](../../../docs/specs/ui/source/roofline.png) — chart (P2)
+- [Memory load heatmap](../../../docs/specs/ui/source/memory-load-heatmap.png) (P2)
+- [Memory topology](../../../docs/specs/ui/source/memory-topology-annotated.png) (P2)
 
 ## Dependencies
 
-[COLOR_TOKENS.md](/docs/specs/ui/COLOR_TOKENS.md), [view-models](/specs/core/view-models.spec.md).
+[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md).
 
 ## Open
 

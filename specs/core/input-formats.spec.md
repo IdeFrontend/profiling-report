@@ -26,4 +26,4 @@ Q5 — Overview series returns empty array per I-Q5+.
 
 ## Design sketches
 
-- [NPU-REP binary layout](/docs/specs/ui/source/npu-rep-layout.png)
+- [NPU-REP binary layout](../../docs/specs/ui/source/npu-rep-layout.png)

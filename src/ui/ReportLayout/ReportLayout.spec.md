@@ -35,4 +35,4 @@ The parent ProfilingReport controls `showAside` based on whether there is data t
 
 ## Design sketches
 
-- [Entry overview](/docs/specs/ui/source/entry-overview.png) — two-column layout
+- [Entry overview](../../../docs/specs/ui/source/entry-overview.png) — two-column layout

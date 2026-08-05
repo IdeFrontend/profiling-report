@@ -164,12 +164,12 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 ## Design sketches
 
-- [Entry overview with sidebar](/docs/specs/ui/source/entry-overview.png)
-- [Report stats](/docs/specs/ui/source/report-stats.png)
+- [Entry overview with sidebar](../../../docs/specs/ui/source/entry-overview.png)
+- [Report stats](../../../docs/specs/ui/source/report-stats.png)
 
 ## Dependencies
 
-All child component specs. [mstt-integration](/specs/architecture/mstt-integration.spec.md).
+All child component specs. [mstt-integration](../../../specs/architecture/mstt-integration.spec.md).
 
 ## Open
 
