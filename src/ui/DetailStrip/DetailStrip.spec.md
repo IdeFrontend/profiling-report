@@ -1,11 +1,8 @@
 # DetailStrip
 
-<!--
-  spec-id-prefix: PR-STRIP-*
-  phase: MVP
-  source: src/ui/DetailStrip/DetailStrip.vue
-  test: src/ui/DetailStrip/DetailStrip.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-STRIP-*     |
 
 Fixed footer strip showing the currently selected event's name and formatted times. Persists until the user clicks empty space.
 

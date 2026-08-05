@@ -1,10 +1,8 @@
 # Input Formats
 
-<!--
-  spec-id-prefix: PR-FMT-* (shared)
-  phase: MVP
-  source: docs/specs/formats/INPUT_FORMATS.md, docs/specs/formats/METRICS_AND_TRACE.md
--->
+| spec-id-prefix |
+|----------------|
+| PR-FMT-*       |
 
 Report container contract and embedded file conventions shared with [rep-format](./rep-format.spec.md).
 

@@ -1,11 +1,8 @@
 # LaneGutter
 
-<!--
-  spec-id-prefix: PR-GUTTER-*
-  phase: MVP
-  source: src/ui/LaneGutter/LaneGutter.vue
-  test: src/ui/LaneGutter/LaneGutter.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-GUTTER-*    |
 
 Left-side vertical gutter showing process/thread hierarchy, lane names, and utilization percentages. Scroll-synced with the swimlane canvas so lane labels align with event rows.
 

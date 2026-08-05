@@ -1,11 +1,8 @@
 # Swimlane Model
 
-<!--
-  spec-id-prefix: PR-SWIM-*
-  phase: MVP
-  source: src/domain/types.ts, src/adapters/chromeTraceToSwimlane.ts
-  test: tests/unit/swimlaneModel.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-SWIM-*      |
 
 Canonical types and Chrome Trace conversion logic for timeline data driving the swimlane renderer.
 

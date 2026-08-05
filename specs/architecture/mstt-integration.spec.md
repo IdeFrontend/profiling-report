@@ -1,11 +1,5 @@
 # MSTT Integration
 
-<!--
-  spec-id-prefix: none (architectural contract)
-  phase: MVP
-  source: docs/specs/architecture/MSTT_INTEGRATION.md
--->
-
 Integration contract between profiling-report library and primary host (MSTT). Library has no runtime deps on PyPTO, Sudu, or MsInsight.
 
 ## Behavior

@@ -1,11 +1,8 @@
 # Format Time
 
-<!--
-  spec-id-prefix: PR-TIME-*
-  phase: MVP
-  source: src/domain/formatTime.ts
-  test: tests/unit/formatTime.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-TIME-*      |
 
 Format internal nanosecond time values to human-readable strings for axis ticks, cursor labels, tooltips, and the detail strip.
 

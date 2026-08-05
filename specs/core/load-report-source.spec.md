@@ -1,11 +1,8 @@
 # Load Report Source
 
-<!--
-  spec-id-prefix: PR-JSON-*
-  phase: MVP
-  source: src/adapters/loadReportSource.ts
-  test: tests/unit/loadReportSource.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-JSON-*      |
 
 Detect and load profiling reports from `.rep` binary or standalone Chrome Trace Event Format (CTEF) JSON.
 

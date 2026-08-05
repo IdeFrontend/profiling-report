@@ -8,6 +8,7 @@ A spec describes **what a module does and why** — not how it's implemented. It
 
 | Section | Content | Skip if |
 |---------|---------|---------|
+| **Title + prefix table** | `# Title` followed by a single-row markdown table with `spec-id-prefix`. Architecture specs with no prefix omit the table. | Never — every spec has a title; prefix table if test IDs exist. |
 | **One-liner** | What this component is and its role. | Never. |
 | **Inputs** | English prose — what the component receives. Describe props in context: why they exist, what values do, how they relate. No tables. | Never. |
 | **Outputs** | English prose — what the component emits. Describe events: triggers, payload shape, what the parent does with them. Mention defineExpose if used. | Never. |
@@ -40,6 +41,29 @@ A spec describes **what a module does and why** — not how it's implemented. It
 | **Dependencies / Open** | As above. | As above. |
 
 ## What does NOT belong
+
+- **Props/emits tables.** Duplicate of `.vue` defineProps/defineEmits. Use prose instead.
+- **Implementation details.** CSS classes, ResizeObserver, v-if, watchers. Describe observable behavior.
+- **Phase/milestone metadata.** The roadmap (`docs/process/roadmap/`) is the single source of truth for scheduling. Spec frontmatter carries only `spec-id-prefix` — the identifier consumed by the traceability checker.
+- **Source/test file paths.** Co-location makes these redundant. `specs/core/foo.spec.md` maps to `tests/unit/foo.spec.ts` by convention.
+
+## Frontmatter format
+
+Every spec starts with a title and an optional single-row markdown table:
+
+```markdown
+# ComponentName
+
+| spec-id-prefix |
+|----------------|
+| PR-XXXX-*      |
+
+One-line description...
+```
+
+Specs without test IDs (architecture contracts) have no table — just the title and one-liner.
+
+## What does NOT belong (continued)
 
 - **Props/emits tables.** Duplicate of `.vue` defineProps/defineEmits. Use prose instead — describe *why*.
 - **Implementation details.** CSS classes, ResizeObserver, v-if, watchers. Describe observable behavior.

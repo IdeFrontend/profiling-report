@@ -1,11 +1,8 @@
 # TimeOverviewBar
 
-<!--
-  spec-id-prefix: PR-OVERVIEW-*
-  phase: MVP
-  source: src/ui/TimeOverviewBar/TimeOverviewBar.vue
-  test: src/ui/TimeOverviewBar/TimeOverviewBar.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-OVERVIEW-*  |
 
 Full timeline preview bar with a draggable/resizable window indicator representing the visible viewport. Allows rapid navigation to any region of a long trace without zooming and panning through the main canvas.
 

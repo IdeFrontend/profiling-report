@@ -1,11 +1,5 @@
 # Public API
 
-<!--
-  spec-id-prefix: none (architectural contract)
-  phase: MVP
-  source: src/index.ts
--->
-
 Library public API surface consumed as `@huawei/profiling-report`. Vue is peer dependency (^3.5.0). Library builds as ESM and UMD with generated type declarations.
 
 ## Behavior

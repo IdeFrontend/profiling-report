@@ -1,11 +1,8 @@
 # Utilization
 
-<!--
-  spec-id-prefix: PR-UTIL-*
-  phase: MVP
-  source: src/domain/utilization.ts
-  test: tests/unit/utilization.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-UTIL-*      |
 
 Compute thread utilization — coverage ratio of event time to visible window, and derived utilization values for gutter display.
 

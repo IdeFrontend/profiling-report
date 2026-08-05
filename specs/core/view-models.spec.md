@@ -1,11 +1,8 @@
 # View Models
 
-<!--
-  spec-id-prefix: PR-VM-*
-  phase: MVP
-  source: src/adapters/adaptRep.ts
-  test: tests/unit/viewModels.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-VM-*        |
 
 Adapt parsed `.rep` container data into canonical `ReportViewModel` and `SwimlaneModel` consumable by the UI layer.
 

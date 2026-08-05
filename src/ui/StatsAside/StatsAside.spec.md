@@ -1,11 +1,8 @@
 # StatsAside
 
-<!--
-  spec-id-prefix: PR-STATS-*
-  phase: MVP
-  source: src/ui/StatsAside/StatsAside.vue
-  test: src/ui/StatsAside/StatsAside.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-STATS-*     |
 
 Right-side analytics panel showing report summary statistics and PIPE occupancy bars.
 

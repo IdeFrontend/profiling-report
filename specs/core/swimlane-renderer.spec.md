@@ -1,11 +1,8 @@
 # Swimlane Renderer
 
-<!--
-  spec-id-prefix: PR-RENDER-*
-  phase: MVP
-  source: src/swimlane/CanvasSwimlaneRenderer.ts
-  test: tests/unit/canvasRenderer.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-RENDER-*    |
 
 Imperative Canvas 2D renderer drawing swimlane lanes, event blocks, group headers, and a time axis.
 

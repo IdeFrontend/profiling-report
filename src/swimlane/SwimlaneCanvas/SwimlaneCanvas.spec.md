@@ -1,11 +1,8 @@
 # SwimlaneCanvas
 
-<!--
-  spec-id-prefix: PR-CANVAS-*
-  phase: MVP
-  source: src/swimlane/SwimlaneCanvas/SwimlaneCanvas.vue
-  test: src/swimlane/SwimlaneCanvas/SwimlaneCanvas.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-CANVAS-*    |
 
 Vue wrapper around `CanvasSwimlaneRenderer`. Translates mouse/touch events into selection, hover, pan, and zoom signals.
 

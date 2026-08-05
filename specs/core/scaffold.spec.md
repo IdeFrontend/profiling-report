@@ -1,10 +1,8 @@
 # Scaffold Tests
 
-<!--
-  spec-id-prefix: PR-SCAFFOLD-*
-  phase: MVP
-  source: tests/unit/scaffold.spec.ts, tests/e2e/playground.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-SCAFFOLD-*  |
 
 Infrastructure smoke tests: project builds, test runner works, library imports resolve, playground serves.
 

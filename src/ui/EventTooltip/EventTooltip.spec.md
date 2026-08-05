@@ -1,11 +1,8 @@
 # EventTooltip
 
-<!--
-  spec-id-prefix: PR-TOOLTIP-*
-  phase: MVP
-  source: src/ui/EventTooltip/EventTooltip.vue
-  test: src/ui/EventTooltip/EventTooltip.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-TOOLTIP-*   |
 
 Floating tooltip shown on hover over a swimlane event. Displays the event name and formatted time range.
 

@@ -1,11 +1,8 @@
 # ReportLayout
 
-<!--
-  spec-id-prefix: PR-LAYOUT-*
-  phase: MVP
-  source: src/ui/ReportLayout/ReportLayout.vue
-  test: src/ui/ReportLayout/ReportLayout.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-LAYOUT-*    |
 
 Main layout shell: two-column flexbox with main content area and optional right aside panel.
 

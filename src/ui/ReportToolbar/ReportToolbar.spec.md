@@ -1,11 +1,8 @@
 # ReportToolbar
 
-<!--
-  spec-id-prefix: PR-TOOLBAR-*
-  phase: MVP
-  source: src/ui/ReportToolbar/ReportToolbar.vue
-  test: src/ui/ReportToolbar/ReportToolbar.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-TOOLBAR-*   |
 
 Top toolbar with search, zoom controls, time unit selector, and aside panel toggle.
 

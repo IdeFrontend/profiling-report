@@ -1,10 +1,8 @@
 # Integration & E2E Tests
 
-<!--
-  spec-id-prefix: PR-UI-*, PR-E2E-*
-  phase: MVP
-  source: tests/component/ProfilingReport.feature.spec.ts, tests/e2e/feature.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-UI-*, PR-E2E-* |
 
 Outside-in tests verifying the full component tree and playground render correctly. These test composition — per-component units are tested in their own folders.
 

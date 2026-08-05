@@ -1,11 +1,8 @@
 # [Component Name] / [Module Name]
 
-<!--
-  spec-id-prefix: PR-XXXX-*
-  phase: MVP | P2+
-  source: src/path/to/source  (optional)
-  test: tests/path/to/test    (optional)
--->
+| spec-id-prefix |
+|----------------|
+| PR-XXXX-*      |
 
 [One sentence — what this module is and its role in the system.]
 

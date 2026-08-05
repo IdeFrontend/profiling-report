@@ -1,11 +1,8 @@
 # REP Format
 
-<!--
-  spec-id-prefix: PR-FMT-*
-  phase: MVP
-  source: src/adapters/parseRep.ts
-  test: tests/unit/parseRep.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-FMT-*       |
 
 Parse the binary `.rep` / `.ncrep` container into structured file entries with raw payloads ready for adaptation.
 

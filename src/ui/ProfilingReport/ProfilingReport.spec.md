@@ -1,11 +1,8 @@
 # ProfilingReport
 
-<!--
-  spec-id-prefix: PR-ROOT-*
-  phase: MVP
-  source: src/ui/ProfilingReport/ProfilingReport.vue
-  test: src/ui/ProfilingReport/ProfilingReport.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-ROOT-*      |
 
 Root component and single owner of all interaction state. Orchestrates data loading, viewport management, and event coordination across child components.
 

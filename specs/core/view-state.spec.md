@@ -1,11 +1,8 @@
 # View State
 
-<!--
-  spec-id-prefix: PR-VIEW-*
-  phase: MVP
-  source: src/domain/viewState.ts
-  test: tests/unit/viewState.spec.ts
--->
+| spec-id-prefix |
+|----------------|
+| PR-VIEW-*      |
 
 Pure functions managing swimlane viewport — zoom, pan, window boundaries, zoom-to-fit. All return new objects; none mutate inputs.
 
