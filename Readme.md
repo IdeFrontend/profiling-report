@@ -17,6 +17,7 @@ Start here: **[docs/README.md](docs/README.md)**
 | Interim MVP defaults | [docs/context/INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md) (engineering, not Product-final) |
 | View data requirements | [docs/specs/formats/VIEW_DATA_REQUIREMENTS.md](docs/specs/formats/VIEW_DATA_REQUIREMENTS.md) |
 | Development process | [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) (docs → specs → tests → code) |
+| Delivery roadmap | [docs/process/roadmap/](docs/process/roadmap/) (M1–M3 to full UI) |
 | Testing | [docs/process/TESTING.md](docs/process/TESTING.md) |
 | Data formats | [docs/specs/formats/FORMATS_COMPARISON.md](docs/specs/formats/FORMATS_COMPARISON.md) (semantic: Insight / `.rep` / PyPTO) |
 | UI & MVP scope | [docs/specs/ui/FEATURE_MATRIX.md](docs/specs/ui/FEATURE_MATRIX.md) |
@@ -58,11 +59,10 @@ Redeploys on every push to `master` (and PR previews) via Vercel Git on the **ID
 
 ## Status
 
-Documentation and specs are in place with [interim MVP defaults](docs/context/INTERIM_DECISIONS.md). **Milestone 1 scaffold** is green (`npm run ci`). **Milestone 2** adds failing feature specs (`npm run test:feature` / `test:e2e:feature`) — implement slices to make them green. See [tests/README.md](tests/README.md).
+Library timeline MVP (engineering milestones 1–4) is green on `master` (`npm run ci`). Delivery roadmap to full UI: **[docs/process/roadmap/](docs/process/roadmap/)** — next is [Milestone 1](docs/process/roadmap/milestone-1.md) (demo-data aside modes, target **2026-08-11**). Interim product defaults: [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md). Tests: [tests/README.md](tests/README.md).
 
 ```bash
 npm install
-npm run ci              # lint, typecheck, scaffold tests
-npm run test:feature    # expected red until parse/UI slices
+npm run ci              # lint, typecheck, unit / component / e2e
 npm run playground
 ```
