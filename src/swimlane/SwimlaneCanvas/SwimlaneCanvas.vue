@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow } from '../domain/types';
-import { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from './CanvasSwimlaneRenderer';
+import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow } from '../../domain/types';
+import { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../CanvasSwimlaneRenderer';
 
 const props = defineProps<{
   model: SwimlaneModel | null;

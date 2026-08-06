@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { loadReportSource } from '../adapters';
-import { formatAxisTime, formatCursorTime } from '../domain/formatTime';
-import { colorVarForLaneName } from '../domain/laneColors';
+import { loadReportSource } from '../../adapters';
+import { formatAxisTime, formatCursorTime } from '../../domain/formatTime';
+import { colorVarForLaneName } from '../../domain/laneColors';
 import type {
   ReportCapability,
   ReportViewModel,
@@ -11,24 +11,24 @@ import type {
   SwimlaneModel,
   SwimlaneViewState,
   TimeDisplayUnit,
-} from '../domain/types';
+} from '../../domain/types';
 import {
   applyWindow,
   createViewState,
   panBy,
   zoomAt,
   zoomToFitWindow,
-} from '../domain/viewState';
-import { t } from '../i18n';
-import SwimlaneCanvas from '../swimlane/SwimlaneCanvas.vue';
-import DetailStrip from './DetailStrip.vue';
-import EventTooltip from './EventTooltip.vue';
-import LaneGutter from './LaneGutter.vue';
-import ReportLayout from './ReportLayout.vue';
-import ReportToolbar from './ReportToolbar.vue';
-import StatsAside from './StatsAside.vue';
-import TimeOverviewBar from './TimeOverviewBar.vue';
-import './tokens.css';
+} from '../../domain/viewState';
+import { t } from '../../i18n';
+import SwimlaneCanvas from '../../swimlane/SwimlaneCanvas/SwimlaneCanvas.vue';
+import DetailStrip from '../DetailStrip/DetailStrip.vue';
+import EventTooltip from '../EventTooltip/EventTooltip.vue';
+import LaneGutter from '../LaneGutter/LaneGutter.vue';
+import ReportLayout from '../ReportLayout/ReportLayout.vue';
+import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
+import StatsAside from '../StatsAside/StatsAside.vue';
+import TimeOverviewBar from '../TimeOverviewBar/TimeOverviewBar.vue';
+import '../tokens.css';
 
 const props = defineProps<{
   title?: string;

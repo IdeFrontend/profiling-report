@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { formatTime } from '../domain/formatTime';
-import { t } from '../i18n';
-import type { SelectedEvent, TimeDisplayUnit } from '../domain/types';
+import { formatTime } from '../../domain/formatTime';
+import { t } from '../../i18n';
+import type { SelectedEvent, TimeDisplayUnit } from '../../domain/types';
 
 defineProps<{
   selected: SelectedEvent;

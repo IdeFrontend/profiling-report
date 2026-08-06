@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { formatAxisTime } from '../domain/formatTime';
-import type { TimeDisplayUnit } from '../domain/types';
+import { formatAxisTime } from '../../domain/formatTime';
+import type { TimeDisplayUnit } from '../../domain/types';
 
 const props = defineProps<{
   minTime: number;

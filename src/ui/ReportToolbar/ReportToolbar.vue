@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { TimeDisplayUnit } from '../domain/types';
-import { t } from '../i18n';
+import type { TimeDisplayUnit } from '../../domain/types';
+import { t } from '../../i18n';
 
 defineProps<{
   searchQuery: string;

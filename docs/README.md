@@ -11,6 +11,7 @@ English documentation and specifications for the reusable Vue profiling-report l
 5. **[context/INTERIM_DECISIONS.md](context/INTERIM_DECISIONS.md)** — engineering defaults that unblock MVP coding (not Product-final)
 6. **[process/DEVELOPMENT.md](process/DEVELOPMENT.md)** — top-down workflow: docs → specs → tests → code
 7. **[process/roadmap/](process/roadmap/)** — delivery milestones to full UI (dates, tasks, blockers)
+7. **[process/PROJECT_STRUCTURE.md](process/PROJECT_STRUCTURE.md)** — canonical project layout: spec locations, per-component folders, test ID conventions, traceability
 8. **[process/TESTING.md](process/TESTING.md)** — Vitest / Playwright pyramid, fixtures, matrix → test ids
 9. **[process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md)** — checklist before implementing a slice
 10. **[specs/formats/FORMATS_COMPARISON.md](specs/formats/FORMATS_COMPARISON.md)** — semantic data comparison: Insight operator vs `.rep` vs PyPTO
@@ -42,7 +43,7 @@ English documentation and specifications for the reusable Vue profiling-report l
 | [process/TESTING.md](process/TESTING.md) | Unit / component / e2e stack and fixture rules |
 | [process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md) | Pre-coding checklist per slice |
 
-Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README.md).
+Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README.md) (deprecated in favor of co-located component specs and [`specs/README.md`](../specs/README.md)).
 
 ## Specs (quick links)
 

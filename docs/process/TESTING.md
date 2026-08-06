@@ -85,7 +85,7 @@ PR-E2E-003   click selects event               (UX S3)
 
 Put the id in the test title, e.g. `it('PR-E2E-002: hover shows tooltip', …)`.
 
-Maintain a short checklist in the PR or in `tests/README.md` (when scaffolded) listing matrix feature → test id(s), and optionally UX scenario ids (S1–S9). Phase 2 (P2) features may land without e2e until that phase starts, but must not be marked M without tests.
+Maintain a short checklist in the PR listing matrix feature → test id(s), and optionally UX scenario ids (S1–S9). Traceability from spec to test is now machine-checked via `npm run check:specs` — see [specs/README.md](../../specs/README.md) for the spec index. Phase 2 (P2) features may land without e2e until that phase starts, but must not be marked M without tests.
 
 ## CI gate
 
