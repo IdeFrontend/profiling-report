@@ -1,4 +1,6 @@
-# Test catalog
+# Test catalog (deprecated)
+
+> **Deprecated as of 2026-08-04.** The canonical source of truth for spec-to-test traceability is now in the co-located spec files and validated by `node scripts/check-spec-coverage.mjs`. See [specs/README.md](../specs/README.md) for the current spec index.
 
 Maps product specs and interim decisions to stable **test ids**. See [docs/process/TESTING.md](../docs/process/TESTING.md) and [INTERIM_DECISIONS.md](../docs/context/INTERIM_DECISIONS.md).
 

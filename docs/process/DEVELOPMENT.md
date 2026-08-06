@@ -4,7 +4,7 @@ How we build profiling-report: **docs → specs → tests → code**.
 
 ## Principles
 
-1. **Specs before code.** Product behavior lives under [`docs/specs/`](../specs/). Code implements the specs; it does not invent undocumented behavior.
+1. **Specs before code.** Product behavior lives in spec files — root-level [`specs/`](../../specs/) for core and architecture, co-located `.spec.md` files per Vue component. See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for the canonical layout. Code implements the specs; it does not invent undocumented behavior.
 2. **Tests before (or with) implementation.** For each work slice, write failing automated tests that encode the relevant specs, then implement until green, then refactor.
 3. **Outside-in slices.** Prefer vertical slices (parse → model → UI for one capability) over building an entire layer with nothing wired.
 4. **Library first, host second.** Prove the Vue library in this repo (unit + component + playground e2e). Wire MSTT after the library CI is green.
@@ -27,7 +27,7 @@ docs (goals)
 | Stage | Artifacts | Owner check |
 |-------|-----------|-------------|
 | Docs | [`PROJECT_GOALS.md`](../context/PROJECT_GOALS.md) | Goals and non-goals still accurate |
-| Specs | [`docs/specs/`](../specs/) | Feature listed in [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md); format/UI details exist |
+| Specs | [`docs/specs/`](../specs/) and co-located [`*.spec.md`](../../specs/) files per [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | Feature listed in [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md); format/UI details exist |
 | Ready | [DEFINITION_OF_READY.md](DEFINITION_OF_READY.md) | Checklist complete before coding |
 | Tests | See [TESTING.md](TESTING.md) | Failing tests map to matrix / spec IDs |
 | Code | `src/`, `playground/` | Minimal change to pass tests |
@@ -56,19 +56,22 @@ Implement in this order unless a blocking dependency forces a temporary exceptio
 6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md))
 7. **MSTT host** — separate PR in `mstt` per [MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)
 
-## Target repo layout (when implementation starts)
+## Target repo layout
 
 ```text
-src/              # Vue library (adapters / domain / swimlane / ui)
+specs/            # root-level behavioral specs (core + architecture)
+src/              # Vue library (adapters / domain / swimlane / ui with co-located *.spec.md)
 playground/       # Vite app mounting ProfilingReport (Playwright target)
 tests/
   unit/
   component/
   e2e/
   fixtures/       # optional snapshots; golden binaries live under data/
-docs/             # goals, specs, process (this tree)
+docs/             # goals, process (this tree)
 data/             # canonical sample .rep / .trace.json + pack/unpack scripts
 ```
+
+Full canonical layout: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
 
 ## When to update specs
 
