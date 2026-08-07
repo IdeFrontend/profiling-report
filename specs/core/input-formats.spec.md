@@ -12,7 +12,7 @@ Report container contract and embedded file conventions shared with [rep-format]
 
 **CSV conventions.** Keyed by `block_id`/`sub_block_id`. `aic_*` prefix = Cube counters, `aiv_*` = Vector counters. `NA` token for missing values. Times in microseconds, bandwidth in GB/s, ratios unitless 0–1.
 
-**File → UI panel mapping.** `OpBasicInfo.csv` feeds the report summary. `PipeUtilization.csv` feeds PIPE occupancy bars and lane utilization. `trace.json` drives the swimlane. `ArithmeticUtilization.csv`, `Memory*.csv`, `L2Cache.csv`, and `ResourceConflictRatio.csv` are Phase 2 panels (roofline, memory topology, cache, stalls).
+**File → UI panel mapping.** `OpBasicInfo.csv` feeds the report summary and MIX gate for the PIPE Cube|Vector toggle. `PipeUtilization.csv` feeds PIPE occupancy bars and lane utilization. `trace.json` drives the swimlane. `ArithmeticUtilization.csv`, `Memory*.csv`, `L2Cache.csv`, and `ResourceConflictRatio.csv` feed planned M1/M2 panels (design specs; not wired in this branch’s UI).
 
 ## Acceptance Criteria
 

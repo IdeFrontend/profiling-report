@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
 import { formatAxisTime, formatCursorTime } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
+import {
+  applyWindow,
+  clearMeasure,
+  createViewState,
+  panBy,
+  setMeasureMode,
+  setMeasureRange,
+  zoomAt,
+  zoomToFitWindow,
+} from '../../domain/viewState';
 import type {
+  MeasureRange,
   ReportCapability,
   ReportViewModel,
   SelectedEvent,
@@ -12,13 +23,6 @@ import type {
   SwimlaneViewState,
   TimeDisplayUnit,
 } from '../../domain/types';
-import {
-  applyWindow,
-  createViewState,
-  panBy,
-  zoomAt,
-  zoomToFitWindow,
-} from '../../domain/viewState';
 import { t } from '../../i18n';
 import SwimlaneCanvas from '../../swimlane/SwimlaneCanvas/SwimlaneCanvas.vue';
 import DetailStrip from '../DetailStrip/DetailStrip.vue';
@@ -170,12 +174,23 @@ watch(
 );
 
 onMounted(() => {
+  window.addEventListener('keydown', onMeasureKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(props.swimlaneModel ?? null, asideHasContent(props.reportModel));
     emit('ready');
   }
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onMeasureKeydown);
+});
+
+function onMeasureKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
+    viewState.value = clearMeasure(viewState.value);
+  }
+}
 
 watch(
   () => props.timeUnit,
@@ -310,6 +325,14 @@ function onAside(visible: boolean) {
   viewState.value = { ...viewState.value, asideVisible: visible };
 }
 
+function onMeasureMode(enabled: boolean) {
+  viewState.value = setMeasureMode(viewState.value, enabled);
+}
+
+function onMeasureRange(range: MeasureRange | null) {
+  viewState.value = setMeasureRange(viewState.value, range);
+}
+
 function onTimeUnit(u: TimeDisplayUnit) {
   localTimeUnit.value = u;
 }
@@ -340,10 +363,12 @@ defineExpose({ selectEventById, viewState });
       :zoom-percent="zoomPercent"
       :time-unit="unit"
       :locale="locale"
+      :measure-mode="viewState.measureMode"
       @update:search-query="onSearch"
       @update:aside-visible="onAside"
       @update:time-unit="onTimeUnit"
       @update:zoom-percent="onZoomPercent"
+      @update:measure-mode="onMeasureMode"
       @zoom-to-fit="onZoomToFit"
       @zoom-in="onZoomIn"
       @zoom-out="onZoomOut"
@@ -425,6 +450,9 @@ defineExpose({ selectEventById, viewState });
             :selected-event-id="viewState.selectedEventId"
             :hovered-event-id="viewState.hoveredEventId"
             :search-query="viewState.searchQuery"
+            :measure-mode="viewState.measureMode"
+            :measure-range="viewState.measureRange"
+            :time-unit="unit"
             @select="onSelect"
             @hover="onHover"
             @cursor="onCursor"
@@ -432,6 +460,7 @@ defineExpose({ selectEventById, viewState });
             @pan="onPan"
             @zoom="onZoom"
             @scroll-y="onScrollY"
+            @update:measure-range="onMeasureRange"
           />
         </div>
 

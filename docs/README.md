@@ -60,6 +60,8 @@ Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README
 
 PNG mockups live under [`specs/ui/`](specs/ui/). Written UI specs reference them by filename.
 
+**Product changelog (annotated UI deltas):** [`source/changes/changes.png`](source/changes/changes.png) — timeline 度量模式, Cube/Vector MIX toggle, compute/memory detail tabs, memory topology edge values. Absorbed into design specs per delivery [roadmap](process/roadmap/).
+
 ## Research archive
 
 See [archive/README.md](archive/README.md). Key entries:

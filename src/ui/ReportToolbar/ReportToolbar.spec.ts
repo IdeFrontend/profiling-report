@@ -48,4 +48,10 @@ describe('ReportToolbar', () => {
     await wrapper.find('[data-testid="toggle-aside"]').trigger('click');
     expect(wrapper.emitted('update:asideVisible')).toEqual([[true]]);
   });
+
+  it('PR-TOOLBAR-007: emits update:measureMode when measure toggle is clicked', async () => {
+    const wrapper = mount(ReportToolbar, { props: { ...defaultProps, measureMode: false } });
+    await wrapper.find('[data-testid="toggle-measure"]').trigger('click');
+    expect(wrapper.emitted('update:measureMode')).toEqual([[true]]);
+  });
 });

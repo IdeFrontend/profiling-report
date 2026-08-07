@@ -51,13 +51,15 @@ If the panel HTML is thin and the library runs entirely in the webview:
 
 Prefer feeding the library via Vue props inside the webview when possible; use postMessage only for host capabilities (save dialog, open external, theme push).
 
+**查看全部 (I-Q6d):** when the library emits `view-full-csv` with `{ fileName, text }`, the host should open the CSV in a **new editor tab** (or equivalent). Playground may use a blob URL in a new browser tab.
+
 ## Capabilities
 
 Host may pass capability flags so the library hides Phase 2 UI until ready. **Canonical union** is defined in [COMPONENTS.md](COMPONENTS.md) (`ReportCapability`), including at least:
 
-`roofline` | `memoryDiagram` | `dependencies` | `hardwareDetails` | `sourceTab` | `cacheTab` | `aicpu`
+`roofline` | `memoryDiagram` | `dependencies` | `hardwareDetails` | `sourceTab` | `cacheTab` | `aicpu` | `measureMode`
 
-MVP host can pass `[]` or omit; library shows MVP surfaces (summary, PIPE bars, timeline) without requiring capability flags for those.
+MVP/M1 host can pass `[]` or omit; library shows summary, PIPE, M1 detail tabs, and timeline without requiring capability flags for those. `memoryDiagram` / `roofline` / measure chrome may be gated.
 
 ## Non-goals for MSTT in v1
 

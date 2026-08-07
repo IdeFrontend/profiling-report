@@ -10,12 +10,14 @@ defineProps<{
   timeUnit: TimeDisplayUnit;
   locale?: string;
   title?: string;
+  measureMode?: boolean;
 }>();
 
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:asideVisible': [value: boolean];
   'update:timeUnit': [value: TimeDisplayUnit];
+  'update:measureMode': [value: boolean];
   'zoom-to-fit': [];
   'zoom-in': [];
   'zoom-out': [];
@@ -131,6 +133,17 @@ const emit = defineEmits<{
           <option value="ns">ns</option>
         </select>
       </label>
+      <button
+        type="button"
+        class="pr-toolbar__icon-btn"
+        data-testid="toggle-measure"
+        :aria-pressed="Boolean(measureMode)"
+        :class="{ 'pr-toolbar__icon-btn--on': measureMode }"
+        :title="t('measure', locale)"
+        @click="emit('update:measureMode', !measureMode)"
+      >
+        ⟷
+      </button>
       <button
         v-if="asideAvailable"
         type="button"

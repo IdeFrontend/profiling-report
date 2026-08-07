@@ -23,6 +23,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Zoom slider / zoom to fit | M | |
 | Keyboard shortcut help | P2 | |
 | Toggle stats / report panel | M | |
+| Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; local overlay until [Q22](../../context/OPEN_QUESTIONS.md). [changes.png](../../source/changes/changes.png) #1 |
 | Timeline markers | P2 | `with_sidebar.png` annotations |
 | Show/hide dependency links | P2 | |
 | Layer / display control (clock cycles, units) | P2 | `sidebar_details.png` “显示控制” |
@@ -51,20 +52,22 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Single select → detail | M | |
 | Multi-select | P2 | |
 | Context menu | P2 | |
-| Measure / cross-lane rulers | P2 | PyPTO parity optional |
+| Timeline time-range measure (度量模式) | M2 | Replaces prior “Measure / cross-lane rulers” row. See Toolbar + [INTERACTIONS](INTERACTIONS.md). Aside sync → [Q22](../../context/OPEN_QUESTIONS.md) |
 
 ## Right panel
+
+Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../../process/roadmap/milestone-1.md) demo-data aside; **M2** = [roadmap M2](../../process/roadmap/milestone-2.md).
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
 | Report summary (time, compute, BW, util) | M | **Interim:** name / type / duration (+ raw freq if present); **hide** compute / BW / avg-util until Q6 — [I-Q6a](../../context/INTERIM_DECISIONS.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | PIPE occupancy bars | M | From PipeUtilization.csv; mean non-`NA` ([I-Q6b](../../context/INTERIM_DECISIONS.md)); **hide** if missing |
-| Roofline bottleneck chart | P2 | `general.png` |
+| Cube \| Vector PIPE toggle (MIX only) | M1 | [changes.png](../../source/changes/changes.png) #2; non-MIX shows relevant side only |
+| Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists |
+| Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [I-Q6c](../../context/INTERIM_DECISIONS.md); 查看全部 [I-Q6d](../../context/INTERIM_DECISIONS.md) (#4) |
+| Roofline bottleneck chart | M2 | `general.png` / [milestone-2](../../process/roadmap/milestone-2.md) |
 | Hardware info details | — | **Out of MVP** ([Q7](../../context/OPEN_QUESTIONS.md)); later when specs arrive |
-| Memory topology diagram | P2 | Static SVG + **data-driven labels** ([Q12](../../context/OPEN_QUESTIONS.md)) |
-| Pipe raw field list (searchable) | P2 | `pipe_utilization.png`, `pipe_details.png` — MVP keeps bars only ([UX S5](UX_SPEC.md)) |
-| Memory raw field list | P2 | `memory_details.png` |
-| L2 / cache analytics | P2 | Cache tab + L2Cache.csv |
+| Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([Q12](../../context/OPEN_QUESTIONS.md), changelog #5) |
 
 ## Selection details
 

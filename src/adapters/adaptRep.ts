@@ -63,20 +63,25 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
-/** Pipe family → CSV columns (sketch order: Cube→Vector→MTE2→MTE1→FixP→MTE3→Scalar). */
+/** Pipe family → side-specific CSV columns (VIEW_DATA_MAPPING Cube/Vector tables). */
 const PIPE_COLUMNS: {
   id: string;
   label: string;
   colorKey: string;
+  side: 'cube' | 'vector';
   columns: string[];
 }[] = [
-  { id: 'cube', label: 'Cube', colorKey: 'cube', columns: ['aic_cube_ratio'] },
-  { id: 'vector', label: 'Vector', colorKey: 'vector', columns: ['aiv_vec_ratio'] },
-  { id: 'mte2', label: 'MTE2', colorKey: 'mte2', columns: ['aiv_mte2_ratio', 'aic_mte2_ratio'] },
-  { id: 'mte1', label: 'MTE1', colorKey: 'mte1', columns: ['aic_mte1_ratio'] },
-  { id: 'fixp', label: 'FixP', colorKey: 'fixp', columns: ['aic_fixpipe_ratio'] },
-  { id: 'mte3', label: 'MTE3', colorKey: 'mte3', columns: ['aiv_mte3_ratio', 'aic_mte3_ratio'] },
-  { id: 'scalar', label: 'Scalar', colorKey: 'scalar', columns: ['aiv_scalar_ratio', 'aic_scalar_ratio'] },
+  // Cube side (aic_*)
+  { id: 'cube', label: 'Cube', colorKey: 'cube', side: 'cube', columns: ['aic_cube_ratio'] },
+  { id: 'mte2', label: 'MTE2', colorKey: 'mte2', side: 'cube', columns: ['aic_mte2_ratio'] },
+  { id: 'mte1', label: 'MTE1', colorKey: 'mte1', side: 'cube', columns: ['aic_mte1_ratio'] },
+  { id: 'fixp', label: 'FixP', colorKey: 'fixp', side: 'cube', columns: ['aic_fixpipe_ratio'] },
+  { id: 'scalar', label: 'Scalar', colorKey: 'scalar', side: 'cube', columns: ['aic_scalar_ratio'] },
+  // Vector side (aiv_*)
+  { id: 'vector', label: 'Vector', colorKey: 'vector', side: 'vector', columns: ['aiv_vec_ratio'] },
+  { id: 'mte2', label: 'MTE2', colorKey: 'mte2', side: 'vector', columns: ['aiv_mte2_ratio'] },
+  { id: 'mte3', label: 'MTE3', colorKey: 'mte3', side: 'vector', columns: ['aiv_mte3_ratio'] },
+  { id: 'scalar', label: 'Scalar', colorKey: 'scalar', side: 'vector', columns: ['aiv_scalar_ratio'] },
 ];
 
 function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
@@ -91,6 +96,7 @@ function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
       label: pipe.label,
       ratio,
       colorKey: pipe.colorKey,
+      side: pipe.side,
     });
   }
   return items;
@@ -98,14 +104,23 @@ function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
 
 /**
  * Attach PipeUtilization ratios onto matching lanes (METRICS_AND_TRACE).
- * Does not invent busy-fraction heuristics when CSV has no match.
+ * When both Cube and Vector sides contribute the same colorKey, use their mean.
  */
 function withPipeLaneUtilizations(
   model: SwimlaneModel,
   pipes: PipeOccupancyItem[],
 ): SwimlaneModel {
   if (pipes.length === 0) return model;
-  const byKey = new Map(pipes.map((p) => [p.colorKey, p.ratio]));
+  const collected = new Map<string, number[]>();
+  for (const p of pipes) {
+    const list = collected.get(p.colorKey) ?? [];
+    list.push(p.ratio);
+    collected.set(p.colorKey, list);
+  }
+  const byKey = new Map<string, number>();
+  for (const [key, vals] of collected) {
+    byKey.set(key, vals.reduce((a, b) => a + b, 0) / vals.length);
+  }
   return {
     ...model,
     processes: model.processes.map((p) => ({

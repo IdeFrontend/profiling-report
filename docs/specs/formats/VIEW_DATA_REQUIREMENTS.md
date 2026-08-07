@@ -115,22 +115,26 @@ If no showable OpBasicInfo fields → **hide** the summary card group (PIPE may 
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
 | Aggregation | **Interim ([I-Q6b](../../context/INTERIM_DECISIONS.md)):** mean of non-`NA` ratios per pipe family |
+| Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([changes.png](../../source/changes/changes.png) #2) |
 | Colors | Normative sketch tokens — [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
 
 Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 
 ---
 
-### 9. PIPE field list (`PipeDetailsPanel`) — P2
+### 9. Compute-load detail tabs (`CsvFieldListPanel` / Pipe details) — M1
 
 | Input | Requirement |
 |-------|-------------|
-| Raw `PipeUtilization.csv` rows/columns | **Required to show** |
+| Tabs | `PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio` CSVs |
+| Selected `block_id` | **Required** — [I-Q6c](../../context/INTERIM_DECISIONS.md) |
 | Search query | UI-only |
+
+Hide tab when CSV missing. Show `NA` values.
 
 ---
 
-### 10. Roofline (`RooflinePanel`) — P2
+### 10. Roofline (`RooflinePanel`) — M2
 
 | Input | Requirement |
 |-------|-------------|
@@ -142,20 +146,40 @@ Hide until formulas and data exist.
 
 ---
 
-### 11. Memory topology (`MemoryTopologyPanel`) — P2
+### 11. Memory topology (`MemoryTopologyPanel`) — M2
 
 | Input | Requirement |
 |-------|-------------|
 | Static SVG topology asset | **Required** for diagram chrome |
-| Edge **labels** (BW, %, KB, …) | **Data-driven** from `Memory.csv` / `MemoryL0.csv` / `MemoryUB.csv` (Q12 Resolved) |
-| Edge **thicknesses** | **Not** data-driven for now — keep static SVG geometry |
-| Field list mode | Optional detail list from same CSVs |
-
-Missing memory CSVs → hide panel (or show SVG without labels only if Product prefers — default **hide** when no label data).
+| Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../visualization/VIEW_DATA_MAPPING.md) §11.2.6 engineering table + selected block (Q12 + changelog #5) |
+| Edge **thicknesses** | **Not** data-driven — keep static SVG geometry |
+| Memory* / L2Cache CSVs | **Required to show**; hide diagram if no label data |
+| Field list mode | Optional — same CSVs as memory detail tabs |
 
 ---
 
-### 12. Hardware details (`HardwareDetailsPanel`) — out of MVP (Q7)
+### 12. Memory detail tabs — M1
+
+| Input | Requirement |
+|-------|-------------|
+| Tabs | Memory L1 (`Memory.csv`), L2Cache, Memory L0, Memory UB |
+| Block switcher | [I-Q6c](../../context/INTERIM_DECISIONS.md) |
+| 查看全部 | Emit full CSV open ([I-Q6d](../../context/INTERIM_DECISIONS.md)) |
+
+Hide tab when CSV missing.
+
+---
+
+### 13. Timeline time-range measure — M2
+
+| Input | Requirement |
+|-------|-------------|
+| `measureMode` / `measureRange` | Toolbar + canvas overlay |
+| Aside sync | **Blocked on [Q22](../../context/OPEN_QUESTIONS.md)** — local overlay only until answered |
+
+---
+
+### 14. Hardware details (`HardwareDetailsPanel`) — out of MVP (Q7)
 
 | Input | Requirement |
 |-------|-------------|
@@ -163,7 +187,7 @@ Missing memory CSVs → hide panel (or show SVG without labels only if Product p
 
 ---
 
-### 13. Secondary tabs (OP / Source / Details / Cache) — P2
+### 15. Secondary tabs (OP / Source / Details / Cache) — P2
 
 Data contracts still open (Q10). Do not block Timeline MVP.
 
@@ -173,14 +197,15 @@ Data contracts still open (Q10). Do not block Timeline MVP.
 
 | Source | Surfaces it can feed |
 |--------|----------------------|
-| Chrome Trace (`trace.json` or `.json`) | Shell, axis, gutter, swimlane, tooltip/detail |
-| `OpBasicInfo.csv` | Partial summary (identity, duration, freqs) |
-| `PipeUtilization.csv` | PIPE bars; gutter util if mapped; P2 field list |
-| `ArithmeticUtilization.csv` | Deferred summary compute; P2 roofline |
-| `Memory*.csv` | Deferred BW tiles; P2 memory labels |
-| `L2Cache.csv` | P2 Cache tab |
+| Chrome Trace (`trace.json` or `.json`) | Shell, axis, gutter, swimlane, tooltip/detail, measure overlay |
+| `OpBasicInfo.csv` | Partial summary (identity, duration, freqs); MIX toggle gate |
+| `PipeUtilization.csv` | PIPE bars; Cube/Vector sets; compute detail tab; gutter util if mapped |
+| `ArithmeticUtilization.csv` | Compute detail tab; M2 roofline |
+| `Memory*.csv` | Memory detail tabs; M2 topology edge labels |
+| `L2Cache.csv` | Memory detail L2Cache tab; topology hit-rate label |
+| `ResourceConflictRatio.csv` | Compute detail tab |
 | `OverviewSeries` (TBD producer) | Overview charts |
-| Host metadata | Theme, locale, time-unit prefs; future hardware |
+| Host metadata | Theme, locale, time-unit prefs; 查看全部 CSV tab; future hardware |
 
 ---
 

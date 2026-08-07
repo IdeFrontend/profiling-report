@@ -1,4 +1,9 @@
-import type { SwimlaneModel, SwimlaneViewState, SwimlaneViewWindow } from './types';
+import type {
+  MeasureRange,
+  SwimlaneModel,
+  SwimlaneViewState,
+  SwimlaneViewWindow,
+} from './types';
 
 const MIN_WINDOW = 1;
 
@@ -13,7 +18,29 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     searchQuery: '',
     asideVisible: true,
     playheadTime: null,
+    measureMode: false,
+    measureRange: null,
   };
+}
+
+export function normalizeMeasureRange(a: number, b: number): MeasureRange {
+  return a <= b ? { startTime: a, endTime: b } : { startTime: b, endTime: a };
+}
+
+export function setMeasureMode(state: SwimlaneViewState, enabled: boolean): SwimlaneViewState {
+  if (!enabled) {
+    return { ...state, measureMode: false, measureRange: null };
+  }
+  return { ...state, measureMode: true };
+}
+
+export function setMeasureRange(state: SwimlaneViewState, range: MeasureRange | null): SwimlaneViewState {
+  if (!range) return { ...state, measureRange: null };
+  return { ...state, measureRange: normalizeMeasureRange(range.startTime, range.endTime) };
+}
+
+export function clearMeasure(state: SwimlaneViewState): SwimlaneViewState {
+  return { ...state, measureMode: false, measureRange: null };
 }
 
 export function zoomToFitWindow(model: SwimlaneModel | null | undefined): SwimlaneViewWindow {

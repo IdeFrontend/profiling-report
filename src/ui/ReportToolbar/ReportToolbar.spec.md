@@ -12,17 +12,17 @@ All inputs reflect current state owned by the parent: **searchQuery** drives the
 
 ## Outputs
 
-The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value (a log2-scaled integer where 0=fit, higher=zoom-in). **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:asideVisible** toggles the panel. The parent translates all of these into viewport state changes.
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:asideVisible** toggles the panel.
 
 ## Behavior
 
-**Zoom controls.** Toolbar buttons signal intent — the parent ProfilingReport computes the actual zoom around the viewport center. The percentage slider shows the ratio of viewport span to total timeline span. Zoom-to-fit resets to full timeline.
+**Zoom controls.** Toolbar buttons signal intent — the parent computes zoom around the viewport center.
 
-**Aside toggle.** The toggle button is visible only when `asideAvailable` is true — hidden for standalone CTEF (Q15) since there are no CSV embeds and no data to display in the aside panel.
+**Aside toggle.** Visible only when `asideAvailable` is true.
 
-**Time unit switching.** Changing the time unit reformats all displayed times across the entire UI: axis ticks, tooltip, detail strip, playhead. The dropdown emits `update:timeUnit`; the parent propagates the new unit to all children via props.
+**Time unit switching.** Reformats displayed times across the UI.
 
-**Search.** The search input uses v-model binding. The parent ProfilingReport passes the query to SwimlaneCanvas, which applies event name filtering in the renderer.
+**Measure (M2).** Caliper button toggles measure mode; active state reflected in UI.
 
 ## Acceptance Criteria
 
@@ -32,6 +32,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
 5. **PR-TOOLBAR-005** — Emits `update:timeUnit` on dropdown change.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
+7. **PR-TOOLBAR-007** — Emits `update:measureMode` when measure button clicked.
 
 ## Edge Cases
 
@@ -41,6 +42,8 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 ## Design sketches
 
 - [Entry overview](../../../docs/specs/ui/source/entry-overview.png)
+- [changes.png](../../../docs/source/changes/changes.png) #1
 
 ## Changelog
-- **2026-08-05** — Initial spec. Core behaviors established.
+- **2026-08-07** — Measure mode toggle (M2) on existing toolbar.
+- **2026-08-05** — Initial spec.
