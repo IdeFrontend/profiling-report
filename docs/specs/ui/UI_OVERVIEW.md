@@ -62,8 +62,8 @@ Reference: `swimlane.png`, `sidebar_details.png` (expanded Core2.Cube).
 
 ### 4. Swimlane surface
 
-- Color-coded duration rectangles on each lane
-- Labels on blocks when width allows (`DC_PRELOAD_XN_IMM`, Aten ops, …)
+- Color-coded duration rectangles on each lane, vertically centered between gutter-aligned row dividers
+- Labels on blocks when width allows (`DC_PRELOAD_XN_IMM`, Aten ops, …): vertically centered in the block; horizontally centered in the on-screen (clipped) event rect
 - Uniform lane background for all event-sequence rows (no zebra striping); horizontal dividers continue from the left gutter across each lane
 - Optional faint background bands (`ProfilerStep#N`) — Phase 2 / when data exists
 - Dependency curves between blocks — Phase 2 (`swimlane_selection.png`)

@@ -3,9 +3,9 @@ import {
   EVENT_RADIUS,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
-  LANE_PAD_Y,
   MAX_QUADS_PER_MESH,
   contentHeightFromLayout,
+  eventBlockMetrics,
   eventScreenRect,
   findEvent,
   findLaidOutEvent,
@@ -319,8 +319,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const meshes = this.laneMeshes[i];
       if (!lane || !meshes) continue;
 
-      const top = lane.y - this.view.scrollY + LANE_PAD_Y;
-      const bandH = LANE_HEIGHT - LANE_PAD_Y * 2;
+      const { y: top, h: bandH } = eventBlockMetrics(lane.y, this.view.scrollY);
       if (top + bandH < 0 || top > cssH) continue;
 
       const sy = bandH / cssH;

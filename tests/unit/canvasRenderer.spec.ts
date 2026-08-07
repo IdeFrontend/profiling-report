@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  eventLabelAnchor,
   hitTestLayout,
   rebuildLayout,
   LANE_GROUP_HEADER_HEIGHT,
@@ -89,6 +90,15 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     const view = { startTime: 0, endTime: 1000, scrollY: 0 };
     const id = hitTestLayout(layout, view, 400, 1, LANE_GROUP_HEADER_HEIGHT + 11);
     expect(id).toBe('e-short');
+  });
+
+  it('PR-RENDER-007: eventLabelAnchor centers in full and clipped visible rects', () => {
+    const full = eventLabelAnchor(100, 200, 400);
+    expect(full).toEqual({ cx: 200, maxWidth: 192 });
+    const clippedLeft = eventLabelAnchor(-50, 100, 400);
+    expect(clippedLeft).toEqual({ cx: 25, maxWidth: 42 });
+    const tooNarrow = eventLabelAnchor(-30, 50, 400);
+    expect(tooNarrow).toBeNull();
   });
 });
 

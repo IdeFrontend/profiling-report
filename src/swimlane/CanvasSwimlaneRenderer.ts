@@ -3,8 +3,9 @@ import {
   EVENT_RADIUS,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
-  LANE_PAD_Y,
   contentHeightFromLayout,
+  eventBlockMetrics,
+  eventLabelAnchor,
   eventScreenRect,
   findEvent,
   findLaidOutEvent,
@@ -12,6 +13,26 @@ import {
   rebuildLayout,
   type SwimlaneLayout,
 } from './layout';
+
+function drawEventLabel(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  viewW: number,
+): void {
+  const anchor = eventLabelAnchor(x, w, viewW);
+  if (!anchor) return;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
+  ctx.textAlign = 'start';
+  ctx.textBaseline = 'alphabetic';
+}
 
 function roundRectPath(
   ctx: CanvasRenderingContext2D,
@@ -106,8 +127,7 @@ export class SwimlaneOverlayPainter {
       }
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const y = item.y - this.view.scrollY + LANE_PAD_Y;
-      const h = LANE_HEIGHT - LANE_PAD_Y * 2;
+      const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
 
       const matches = !q || ev.name.toLowerCase().includes(q);
@@ -124,11 +144,7 @@ export class SwimlaneOverlayPainter {
         ctx.stroke();
       }
 
-      if (w > 40 && matches) {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(ev.name, x + 4, y + h - 6, Math.max(8, w - 8));
-      }
+      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width);
     }
 
     if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {
@@ -268,8 +284,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const y = item.y - this.view.scrollY + LANE_PAD_Y;
-      const h = LANE_HEIGHT - LANE_PAD_Y * 2;
+      const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
 
       const matches = !q || ev.name.toLowerCase().includes(q);
@@ -292,11 +307,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         ctx.stroke();
       }
 
-      if (w > 40 && matches) {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(ev.name, x + 4, y + h - 6, Math.max(8, w - 8));
-      }
+      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width);
       ctx.globalAlpha = 1;
     }
 
@@ -325,4 +336,6 @@ export {
   LANE_HEIGHT,
   LANE_PAD_Y,
   EVENT_RADIUS,
+  eventBlockMetrics,
+  eventLabelAnchor,
 } from './layout';

@@ -82,6 +82,30 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   return { lanes, headers, events };
 }
 
+/** Event block height and Y, vertically centered in the lane between row dividers. */
+export function eventBlockMetrics(laneY: number, scrollY: number): { y: number; h: number } {
+  const h = LANE_HEIGHT - LANE_PAD_Y * 2;
+  // -0.5: optical nudge so bars sit centered against the 1px gutter-aligned divider.
+  return { y: laneY - scrollY + (LANE_HEIGHT - h) / 2 - 0.5, h };
+}
+
+/**
+ * Horizontal label anchor: center in the on-screen intersection of the event rect.
+ * Fully visible → center of the event; clipped → center of the visible portion.
+ * Returns null when the visible width is too narrow for a label.
+ */
+export function eventLabelAnchor(
+  x: number,
+  w: number,
+  viewW: number,
+): { cx: number; maxWidth: number } | null {
+  const left = Math.max(0, x);
+  const right = Math.min(viewW, x + w);
+  const visibleW = right - left;
+  if (visibleW <= 40) return null;
+  return { cx: (left + right) / 2, maxWidth: Math.max(8, visibleW - 8) };
+}
+
 export function eventScreenRect(
   item: LaidOutEvent,
   view: SwimlaneViewWindow,
@@ -90,8 +114,7 @@ export function eventScreenRect(
   const span = Math.max(1, view.endTime - view.startTime);
   const x = ((item.event.startTime - view.startTime) / span) * width;
   const w = Math.max(2, (item.event.duration / span) * width);
-  const y = item.y - view.scrollY + LANE_PAD_Y;
-  const h = LANE_HEIGHT - LANE_PAD_Y * 2;
+  const { y, h } = eventBlockMetrics(item.y, view.scrollY);
   return { x, y, w, h };
 }
 
@@ -115,8 +138,7 @@ export function hitTestLayout(
     if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
     const ex = ((ev.startTime - view.startTime) / span) * width;
     const ew = Math.max(2, (ev.duration / span) * width);
-    const ey = item.y - view.scrollY + LANE_PAD_Y;
-    const eh = LANE_HEIGHT - LANE_PAD_Y * 2;
+    const { y: ey, h: eh } = eventBlockMetrics(item.y, view.scrollY);
     if (x >= ex && x <= ex + ew && y >= ey && y <= ey + eh) {
       candidates.push({ id: item.id, duration: ev.duration });
     }
