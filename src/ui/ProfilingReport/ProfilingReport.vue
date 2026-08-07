@@ -52,6 +52,7 @@ const emit = defineEmits<{
   ready: [];
   select: [event: SelectedEvent | null];
   error: [error: { message: string; cause?: unknown }];
+  'view-full-csv': [payload: { fileName: string; text: string }];
 }>();
 
 const internalSwim = ref<SwimlaneModel | null>(null);
@@ -75,8 +76,12 @@ const hasSummary = computed(() => {
 });
 
 const showPipe = computed(() => (report.value?.pipeOccupancy?.length ?? 0) > 0);
+const showCompute = computed(() => (report.value?.computeTables?.length ?? 0) > 0);
+const showMemory = computed(() => (report.value?.memoryTables?.length ?? 0) > 0);
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
-const asideAvailable = computed(() => hasSummary.value || showPipe.value);
+const asideAvailable = computed(
+  () => hasSummary.value || showPipe.value || showCompute.value || showMemory.value,
+);
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
 
@@ -477,6 +482,7 @@ defineExpose({ selectEventById, viewState });
         <StatsAside
           :report="report"
           :locale="locale"
+          @view-full-csv="emit('view-full-csv', $event)"
         />
       </template>
     </ReportLayout>

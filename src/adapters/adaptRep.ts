@@ -1,5 +1,6 @@
 import type {
   AdaptedReport,
+  CsvTableModel,
   ParsedRep,
   PipeOccupancyItem,
   ReportViewModel,
@@ -8,6 +9,19 @@ import type {
 } from '../domain/types';
 import { laneColorKey } from '../domain/laneColors';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
+
+const COMPUTE_CSV_FILES = [
+  'PipeUtilization.csv',
+  'ArithmeticUtilization.csv',
+  'ResourceConflictRatio.csv',
+] as const;
+
+const MEMORY_CSV_FILES = [
+  'Memory.csv',
+  'L2Cache.csv',
+  'MemoryL0.csv',
+  'MemoryUB.csv',
+] as const;
 
 function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
@@ -29,6 +43,47 @@ function parseCsv(text: string): { headers: string[]; rows: Record<string, strin
     return row;
   });
   return { headers, rows };
+}
+
+function blockIdsFromRows(rows: Record<string, string>[]): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const row of rows) {
+    const id = row['block_id'];
+    if (id == null || id === '' || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+function csvTableFromPayload(fileName: string, payload?: Uint8Array): CsvTableModel | null {
+  if (!payload || payload.byteLength === 0) return null;
+  const text = decodeUtf8(payload);
+  const { headers, rows } = parseCsv(text);
+  if (headers.length === 0) return null;
+  return {
+    fileName,
+    headers,
+    rows,
+    blockIds: blockIdsFromRows(rows),
+  };
+}
+
+function collectCsvTables(
+  parsed: ParsedRep,
+  fileNames: readonly string[],
+): { tables: CsvTableModel[]; texts: Record<string, string> } {
+  const tables: CsvTableModel[] = [];
+  const texts: Record<string, string> = {};
+  for (const name of fileNames) {
+    const payload = parsed.payloads[name];
+    const table = csvTableFromPayload(name, payload);
+    if (!table) continue;
+    tables.push(table);
+    texts[name] = decodeUtf8(payload!);
+  }
+  return { tables, texts };
 }
 
 function parseNumber(raw: string | undefined): number | undefined {
@@ -137,10 +192,27 @@ function withPipeLaneUtilizations(
 }
 
 function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
+  const compute = collectCsvTables(parsed, COMPUTE_CSV_FILES);
+  const memory = collectCsvTables(parsed, MEMORY_CSV_FILES);
   return {
     summary: summaryFromOpBasicInfo(parsed.payloads['OpBasicInfo.csv']),
     pipeOccupancy: pipeOccupancyFromCsv(parsed.payloads['PipeUtilization.csv']),
     overviewSeries: [],
+    computeTables: compute.tables,
+    memoryTables: memory.tables,
+    csvTexts: { ...compute.texts, ...memory.texts },
+  };
+}
+
+/** Empty analytics model for Chrome Trace–only loads (Q15). */
+export function emptyReportViewModel(): ReportViewModel {
+  return {
+    summary: {},
+    pipeOccupancy: [],
+    overviewSeries: [],
+    computeTables: [],
+    memoryTables: [],
+    csvTexts: {},
   };
 }
 

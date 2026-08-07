@@ -2,13 +2,19 @@
 import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
 import type { PipeOccupancyItem, ReportViewModel } from '../../domain/types';
+import CsvFieldListPanel from '../CsvFieldListPanel/CsvFieldListPanel.vue';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
   locale?: string;
 }>();
 
+const emit = defineEmits<{
+  'view-full-csv': [payload: { fileName: string; text: string }];
+}>();
+
 type PipeSide = 'cube' | 'vector';
+type AsideMode = 'summary' | 'pipe' | 'compute' | 'memory';
 
 const COLOR: Record<string, string> = {
   cube: 'var(--pr-color-cube)',
@@ -27,12 +33,33 @@ const hasSummary = computed(() => {
 });
 
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
+const showCompute = computed(() => (props.report?.computeTables?.length ?? 0) > 0);
+const showMemory = computed(() => (props.report?.memoryTables?.length ?? 0) > 0);
+
+const availableModes = computed(() => {
+  const modes: AsideMode[] = [];
+  if (hasSummary.value) modes.push('summary');
+  if (showPipe.value) modes.push('pipe');
+  if (showCompute.value) modes.push('compute');
+  if (showMemory.value) modes.push('memory');
+  return modes;
+});
+
+const mode = ref<AsideMode>('summary');
+
+watch(
+  availableModes,
+  (modes) => {
+    if (!modes.includes(mode.value)) {
+      mode.value = modes[0] ?? 'summary';
+    }
+  },
+  { immediate: true },
+);
 
 const opType = computed(() => (props.report?.summary.opType ?? '').trim());
-
 const isMix = computed(() => opType.value.toUpperCase() === 'MIX');
 
-/** Known cube/vector side, or null when blank/unrecognized (show all pipes). */
 function resolveKnownSide(raw: string): PipeSide | null {
   const v = raw.toLowerCase();
   if (!v || v.includes('mix')) return null;
@@ -42,7 +69,6 @@ function resolveKnownSide(raw: string): PipeSide | null {
 }
 
 const knownSide = computed(() => resolveKnownSide(opType.value));
-
 const pipeSide = ref<PipeSide>('cube');
 
 watch(
@@ -61,7 +87,6 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
 const visiblePipes = computed(() => {
   const all = props.report?.pipeOccupancy ?? [];
   if (isMix.value) return all.filter((p) => matchesSide(p, pipeSide.value));
-  // Blank or unrecognized opType: show all sides (do not default-filter to vector).
   if (knownSide.value == null) return all;
   return all.filter((p) => matchesSide(p, knownSide.value!));
 });
@@ -69,6 +94,13 @@ const visiblePipes = computed(() => {
 function formatDurationUs(us: number): string {
   if (us >= 1000) return `${(us / 1000).toFixed(2)} ms`;
   return `${us.toFixed(us >= 10 ? 2 : 5)} µs`;
+}
+
+function modeLabel(m: AsideMode): string {
+  if (m === 'summary') return t('modeSummary', props.locale);
+  if (m === 'pipe') return t('modePipe', props.locale);
+  if (m === 'compute') return t('modeCompute', props.locale);
+  return t('modeMemory', props.locale);
 }
 </script>
 
@@ -93,8 +125,29 @@ function formatDurationUs(us: number): string {
       </p>
     </header>
 
+    <nav
+      v-if="availableModes.length > 1"
+      class="pr-aside__modes"
+      data-testid="aside-modes"
+      role="tablist"
+    >
+      <button
+        v-for="m in availableModes"
+        :key="m"
+        type="button"
+        role="tab"
+        class="pr-aside__mode"
+        :class="{ 'pr-aside__mode--active': mode === m }"
+        :data-testid="`aside-mode-${m}`"
+        :aria-selected="mode === m"
+        @click="mode = m"
+      >
+        {{ modeLabel(m) }}
+      </button>
+    </nav>
+
     <div
-      v-if="hasSummary"
+      v-if="mode === 'summary' && hasSummary"
       class="pr-cards"
       data-testid="stats-summary"
     >
@@ -129,7 +182,7 @@ function formatDurationUs(us: number): string {
     </div>
 
     <div
-      v-if="showPipe"
+      v-if="mode === 'pipe' && showPipe"
       class="pr-panel pr-panel--pipe"
       data-testid="pipe-occupancy"
     >
@@ -180,6 +233,30 @@ function formatDurationUs(us: number): string {
         </li>
       </ul>
     </div>
+
+    <div
+      v-if="mode === 'compute' && showCompute"
+      data-testid="stats-compute"
+    >
+      <CsvFieldListPanel
+        :tables="report?.computeTables ?? []"
+        :csv-texts="report?.csvTexts ?? {}"
+        :locale="locale"
+        @view-full-csv="emit('view-full-csv', $event)"
+      />
+    </div>
+
+    <div
+      v-if="mode === 'memory' && showMemory"
+      data-testid="stats-memory"
+    >
+      <CsvFieldListPanel
+        :tables="report?.memoryTables ?? []"
+        :csv-texts="report?.csvTexts ?? {}"
+        :locale="locale"
+        @view-full-csv="emit('view-full-csv', $event)"
+      />
+    </div>
   </aside>
 </template>
 
@@ -204,6 +281,29 @@ function formatDurationUs(us: number): string {
   margin: 4px 0 0;
   font-size: 11px;
   color: #a8a8a8;
+}
+
+.pr-aside__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pr-aside__mode {
+  appearance: none;
+  border: 1px solid #3a3a3a;
+  background: #1f1f1f;
+  color: #b8b8b8;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.pr-aside__mode--active {
+  background: #2f4f4f;
+  color: #f0f0f0;
+  border-color: #4a6a6a;
 }
 
 .pr-cards {

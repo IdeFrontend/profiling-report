@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
+import { emptyReportViewModel } from '../../adapters/adaptRep';
 
 describe('ProfilingReport scaffold', () => {
   it('PR-ROOT-001, PR-SCAFFOLD-003: mounts report root with timeline chrome', () => {
@@ -17,7 +18,7 @@ describe('ProfilingReport scaffold', () => {
       props: {
         title: 'external',
         swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
-        reportModel: { summary: {}, pipeOccupancy: [], overviewSeries: [] },
+        reportModel: emptyReportViewModel(),
       },
     });
     expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);

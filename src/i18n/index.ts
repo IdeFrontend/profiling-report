@@ -29,6 +29,12 @@ const messages = {
     ratedFreq: '额定频率',
     pipeSide: 'PIPE 侧',
     measure: '度量',
+    block: 'block',
+    viewAll: '查看全部',
+    modeSummary: '摘要',
+    modePipe: 'PIPE',
+    modeCompute: '计算负载',
+    modeMemory: '内存负载',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -58,6 +64,12 @@ const messages = {
     ratedFreq: 'Rated freq',
     pipeSide: 'PIPE side',
     measure: 'Measure',
+    block: 'block',
+    viewAll: 'View all',
+    modeSummary: 'Summary',
+    modePipe: 'PIPE',
+    modeCompute: 'Compute load',
+    modeMemory: 'Memory load',
   },
 } as const;
 

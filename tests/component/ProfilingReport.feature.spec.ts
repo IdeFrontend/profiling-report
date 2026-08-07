@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import { adaptRep, parseRep, ProfilingReport } from '../../src/index';
+import { adaptRep, emptyReportViewModel, parseRep, ProfilingReport } from '../../src/index';
 import { loadOutRepBuffer, loadOutRepBytes } from '../helpers/fixtures';
-import type { ReportViewModel, SwimlaneModel } from '../../src/domain/types';
+import type { SwimlaneModel } from '../../src/domain/types';
 
 describe('PR-UI: ProfilingReport feature contract', () => {
   it('PR-UI-001: mounts with fixture source and shows timeline chrome', async () => {
@@ -48,11 +48,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
   });
 
   it('PR-UI-003: hides optional panels when data missing (Q3 / interim)', async () => {
-    const emptyReport: ReportViewModel = {
-      summary: {},
-      pipeOccupancy: [],
-      overviewSeries: [],
-    };
+    const emptyReport = emptyReportViewModel();
     const emptySwim: SwimlaneModel = {
       processes: [],
       minTime: 0,
@@ -71,14 +67,17 @@ describe('PR-UI: ProfilingReport feature contract', () => {
       props: {
         swimlaneModel: emptySwim,
         reportModel: {
+          ...emptyReportViewModel(),
           summary: { opName: 'add_custom', opType: 'vector', taskDurationUs: 1.8 },
           pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.07, colorKey: 'vector' }],
-          overviewSeries: [],
         },
       },
     });
     await flushPromises();
+    expect(full.find('[data-testid="aside-modes"]').exists()).toBe(true);
+    await full.get('[data-testid="aside-mode-pipe"]').trigger('click');
     expect(full.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
+    await full.get('[data-testid="aside-mode-summary"]').trigger('click');
     expect(full.find('[data-testid="stats-summary"]').exists()).toBe(true);
     expect(full.find('[data-testid="overview-charts"]').exists()).toBe(false);
     expect(full.find('[data-testid="stats-compute"]').exists()).toBe(false);

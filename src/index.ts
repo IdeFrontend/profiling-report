@@ -14,6 +14,7 @@ export {
   adaptChromeTrace,
   adaptRep,
   chromeTraceToSwimlane,
+  emptyReportViewModel,
   loadReportSource,
   parseRep,
 } from './adapters';

@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import StatsAside from './StatsAside.vue';
+import { emptyReportViewModel } from '../../adapters/adaptRep';
+import type { ReportViewModel } from '../../domain/types';
+
+function report(partial: Partial<ReportViewModel>): ReportViewModel {
+  return { ...emptyReportViewModel(), ...partial };
+}
 
 describe('StatsAside', () => {
   it('PR-STATS-001: renders summary stats when a valid ReportViewModel is provided', () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: {
+        report: report({
           summary: { opName: 'relu', opType: 'vector', taskDurationUs: 1234 },
-          pipeOccupancy: [],
-          overviewSeries: [],
-        },
+        }),
       },
     });
 
@@ -21,13 +25,11 @@ describe('StatsAside', () => {
   it('PR-STATS-002: renders PIPE occupancy bars', () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: {
-          summary: {},
+        report: report({
           pipeOccupancy: [
             { id: 'vector', label: 'Vector', ratio: 0.75, colorKey: 'vector', side: 'vector' },
           ],
-          overviewSeries: [],
-        },
+        }),
       },
     });
 
@@ -45,14 +47,14 @@ describe('StatsAside', () => {
 
     const mix = mount(StatsAside, {
       props: {
-        report: {
+        report: report({
           summary: { opType: 'MIX' },
           pipeOccupancy: pipes,
-          overviewSeries: [],
-        },
+        }),
       },
     });
 
+    await mix.get('[data-testid="aside-mode-pipe"]').trigger('click');
     expect(mix.find('[data-testid="pipe-side-toggle"]').exists()).toBe(true);
     let rows = mix.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Cube');
@@ -69,13 +71,13 @@ describe('StatsAside', () => {
 
     const vectorOnly = mount(StatsAside, {
       props: {
-        report: {
+        report: report({
           summary: { opType: 'vector' },
           pipeOccupancy: pipes,
-          overviewSeries: [],
-        },
+        }),
       },
     });
+    await vectorOnly.get('[data-testid="aside-mode-pipe"]').trigger('click');
     expect(vectorOnly.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
     const vectorRows = vectorOnly.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(vectorRows).toContain('Vector');
@@ -83,7 +85,7 @@ describe('StatsAside', () => {
     expect(vectorRows).not.toContain('Cube');
   });
 
-  it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', () => {
+  it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', async () => {
     const pipes = [
       { id: 'cube', label: 'Cube', ratio: 0.8, colorKey: 'cube', side: 'cube' as const },
       { id: 'vector', label: 'Vector', ratio: 0.3, colorKey: 'vector', side: 'vector' as const },
@@ -92,18 +94,72 @@ describe('StatsAside', () => {
     for (const opType of ['', 'unknown', 'custom-op']) {
       const wrapper = mount(StatsAside, {
         props: {
-          report: {
+          report: report({
             summary: opType ? { opType } : {},
             pipeOccupancy: pipes,
-            overviewSeries: [],
-          },
+          }),
         },
       });
 
+      if (wrapper.find('[data-testid="aside-mode-pipe"]').exists()) {
+        await wrapper.get('[data-testid="aside-mode-pipe"]').trigger('click');
+      }
       expect(wrapper.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
       const rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
       expect(rows, `opType=${opType || '(blank)'}`).toContain('Cube');
       expect(rows, `opType=${opType || '(blank)'}`).toContain('Vector');
     }
+  });
+
+  it('PR-STATS-005: compute/memory modes show CSV tabs and emit view-full-csv', async () => {
+    const computeTables = [
+      {
+        fileName: 'PipeUtilization.csv',
+        headers: ['block_id', 'aiv_vec_ratio'],
+        rows: [{ block_id: '0', aiv_vec_ratio: '0.1' }],
+        blockIds: ['0'],
+      },
+    ];
+    const memoryTables = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+        blockIds: ['0'],
+      },
+    ];
+    const csvTexts = {
+      'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.1\n',
+      'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n',
+    };
+
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { opName: 'x', opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.1, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables,
+          memoryTables,
+          csvTexts,
+        }),
+      },
+    });
+
+    expect(wrapper.find('[data-testid="aside-modes"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="aside-mode-compute"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('aiv_vec_ratio');
+
+    await wrapper.get('[data-testid="csv-view-all"]').trigger('click');
+    expect(wrapper.emitted('view-full-csv')?.[0]?.[0]).toEqual({
+      fileName: 'PipeUtilization.csv',
+      text: csvTexts['PipeUtilization.csv'],
+    });
+
+    await wrapper.get('[data-testid="aside-mode-memory"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Memory L1');
   });
 });
