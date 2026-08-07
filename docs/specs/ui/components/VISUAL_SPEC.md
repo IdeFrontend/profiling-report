@@ -30,9 +30,9 @@ Normative crops: [`README.md`](./README.md) / PNGs in this folder. Source: `with
 
 | Token | Value |
 |-------|--------|
-| Head | Vertical white pill **4×14 px**, `border-radius: 2px`, centered on stem |
+| Head | Vertical white pill **4×10 px**, `border-radius: 2px`, centered on stem |
 | Stem | `1px` solid `#ffffff`, from bottom of head to track bottom |
-| Direction | Head is **taller than wide** (~3–4×7–10 in sketch px; 4×14 CSS) |
+| Direction | Head is taller than wide (4×10 CSS) |
 | Hit target | ≥12px wide invisible hit area centered on stem |
 | Window fill | Selected: `rgba(255,255,255,0.06)`; outside dimmed via track |
 
@@ -42,13 +42,14 @@ Both the overview track and the viewport time axis use the same ruler tokens:
 
 | Token | Value |
 |-------|--------|
-| Track height | **22px** |
-| Label font | **10px**, `#c8c8c8`, tabular-nums |
+| Track height | **20px** |
+| Label box | **18px** tall, aligned to the **top** of the 20px track |
+| Label font | **12px** / weight **400**, `#c8c8c8`, tabular-nums |
 | Origin | Labels are **relative to `minTime`** (trace start = **0**). Absolute CTEF `ts` must not appear on the axis. |
 | Leftmost total-scale label | `0ms` / `0µs` / `0ns` (compact zero — not `0.00xxx…`) |
-| Major bar | **1px** full track height, `#a8a8a8` (muted `#666` outside overview window) |
+| Major bar | **1px** full track height (20px), `#a8a8a8` (muted `#666` outside overview window) |
 | Label placement | Immediately **to the right** of its major bar (`left: pct` + ~2–3px gap; **not** centered) |
-| Minor ticks | **9** between each adjacent major pair (10 subdivisions); **~7px** tall from bottom; `#666` (muted `#4a4a4a`) |
+| Minor ticks | **9** between each adjacent major pair (10 subdivisions); **5px** tall from bottom; `#666` (muted `#4a4a4a`) |
 | Major placement | **Nice ns steps** (`1\|2\|5×10ⁿ`) targeting ~**100px** spacing; majors at `origin + k·interval` (positions move with zoom/pan — not fixed percentages) |
 | Containment | Tick text must stay inside the timeline column — **never** paint over the right aside. Track/axis `overflow: hidden` |
 

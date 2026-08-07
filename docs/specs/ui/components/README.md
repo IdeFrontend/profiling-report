@@ -27,11 +27,11 @@ Cropped from [`with_sidebar.png`](../with_sidebar.png) (primary) for implementat
 - **Guide:** faint vertical dotted threshold through the bar column (~75–80%).
 
 ### Overview range handles
-- **Shape:** vertical white **pill head** (~**4×14 px**, `border-radius: 2px`) centered on a **1 px** white stem — not a wide horizontal flag.
+- **Shape:** vertical white **pill head** (~**4×10 px**, `border-radius: 2px`) centered on a **1 px** white stem — not a wide horizontal flag.
 - **Hit target:** ≥12px wide invisible area centered on the stem.
 - **Window:** selected span slightly lighter; outside span dimmed; labels outside window muted.
 - **Axis origin:** leftmost total-scale label is **`0`** (relative to `minTime`); see `overview-handle-left.png`.
-- **Ruler chrome (both axes):** height **22px**, font **10px**; major **1px** bars with labels to the **right**; **9** minor ticks between majors; nice `1|2|5×10ⁿ` ns steps (~100px); clip overflow vs aside.
+- **Ruler chrome (both axes):** height **20px**; labels in **18px** top-aligned box, **12px / 400**; major **1px** bars with labels to the **right**; **9** minor ticks (**5px** tall) between majors; nice `1|2|5×10ⁿ` ns steps (~100px); clip overflow vs aside.
 ### Lane expanders
 - **Open-angle** stroke carets on **expandable** nodes only (groups today). Leaf lanes: **no** chevron.
 - Group expanded = down; collapsed = right. Label `12px/600/#e8e8e8`; lane label `11px/400/#b0b0b0`; lane pad-left `24px` under group title.

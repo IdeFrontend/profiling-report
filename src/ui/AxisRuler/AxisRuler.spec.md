@@ -12,7 +12,7 @@ Shared dual time-axis chrome used by `TimeOverviewBar` and the viewport `.pr-tim
 
 ## Behavior
 
-Renders major **1px** bars with labels immediately to the **right**, plus short minor ticks along the bottom. Parent supplies a **22px** track and tick data from `buildAxisRulerTicks` (nice zoom-aware ns grid). This component fills `inset: 0` and clips overflow. See `docs/specs/ui/components/VISUAL_SPEC.md`.
+Renders major **1px** bars with labels immediately to the **right**, plus short minor ticks along the bottom. Parent supplies a **20px** track and tick data from `buildAxisRulerTicks` (nice zoom-aware ns grid). Labels sit in an **18px** top-aligned box (**12px / 400**). Minors are **5px**. This component fills `inset: 0` and clips overflow. See `docs/specs/ui/components/VISUAL_SPEC.md`.
 
 ## Acceptance Criteria
 

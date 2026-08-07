@@ -206,7 +206,7 @@ function onPointerUp() {
 
 .pr-overview__track {
   position: relative;
-  height: 22px;
+  height: 20px;
   border-bottom: 1px solid #4a4a4a;
   cursor: default;
   /* Clip edge labels so they never paint into the right aside. */
@@ -241,7 +241,7 @@ function onPointerUp() {
 
 /*
  * Range handle: vertical white pill head + 1px stem.
- * Track is 22px; 4×14 pill still fits (VISUAL_SPEC).
+ * Track is 20px; 4×10 pill (VISUAL_SPEC).
  */
 .pr-overview__handle {
   position: absolute;
@@ -259,7 +259,7 @@ function onPointerUp() {
 
 .pr-overview__handle-stem {
   position: absolute;
-  top: 15px;
+  top: 11px;
   bottom: 0;
   left: 50%;
   width: 1px;
@@ -273,7 +273,7 @@ function onPointerUp() {
   top: 1px;
   left: 50%;
   width: 4px;
-  height: 14px;
+  height: 10px;
   transform: translateX(-50%);
   background: #ffffff;
   border-radius: 2px;

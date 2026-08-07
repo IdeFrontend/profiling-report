@@ -592,7 +592,7 @@ defineExpose({ selectEventById, viewState });
 
 .pr-time-axis {
   position: relative;
-  height: 22px;
+  height: 20px;
   color: #c8c8c8;
   border-bottom: 1px solid #3a3a3a;
   flex: 0 0 auto;

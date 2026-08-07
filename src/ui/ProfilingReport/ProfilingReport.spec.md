@@ -144,7 +144,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
-**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip (22px / 10px, major bars with labels to the right, 9 minors between majors). See `docs/specs/ui/components/VISUAL_SPEC.md`.
+**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip (20px track; 18px / 12px/400 labels; 5px minors; major bars with labels to the right). See `docs/specs/ui/components/VISUAL_SPEC.md`.
 
 ## Acceptance Criteria
 

@@ -20,9 +20,9 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 **Relative tick labels.** Overview axis labels format `t − minTime` so the leftmost tick is compact **0** in the active unit (`0ms` / `0µs` / `0ns`). Absolute source timestamps must not appear.
 
-**Shared ruler chrome.** Overview and viewport axes share `AxisRuler`: track height **22px**, label font **10px**, major **1px** bars with labels immediately to the **right**, and **9** minor ticks between each major pair. Majors use a zoom-aware nice ns grid (`1|2|5×10ⁿ`, ~100px spacing) snapped to `origin + k·interval` so tick **positions** reflow with zoom/pan. Majors/minors outside the selected window are muted. The track clips overflow so labels never paint into the right aside panel.
+**Shared ruler chrome.** Overview and viewport axes share `AxisRuler`: track height **20px**; labels in an **18px** top-aligned box at **12px / 400**; major **1px** bars with labels immediately to the **right**; **9** minor ticks (**5px** tall) between each major pair. Majors use a zoom-aware nice ns grid (`1|2|5×10ⁿ`, ~100px spacing) snapped to `origin + k·interval` so tick **positions** reflow with zoom/pan. Majors/minors outside the selected window are muted. The track clips overflow so labels never paint into the right aside panel.
 
-**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are a **vertical 4×14 white pill** on a **1px stem** (see `docs/specs/ui/components/VISUAL_SPEC.md`). Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
+**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are a **vertical 4×10 white pill** on a **1px stem** (see `docs/specs/ui/components/VISUAL_SPEC.md`). Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
 
 **Parent integration.** The parent ProfilingReport receives the `update:window` event and applies the new window to `SwimlaneViewState` via `applyWindow`. All children re-render with the updated viewport.
 
@@ -47,6 +47,8 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 - [Statistical analysis (overview charts)](../../../docs/specs/ui/source/statistical-analysis.png)
 
 ## Changelog
+- **2026-08-07** — Handle head **4×10**.
+- **2026-08-07** — Axis chrome: 20px track, 5px minors, 18px / 12px/400 labels.
 - **2026-08-07** — Zoom-aware nice major grid (`calculateGridInterval`); positions reflow with zoom.
 - **2026-08-07** — Shared AxisRuler chrome (22px/10px, major bars + label-right, 9 minors).
 - **2026-08-07** — Relative axis origin (left = 0); edge-aligned ticks; clip overflow vs aside.

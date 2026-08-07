@@ -50,7 +50,7 @@ defineProps<{
   position: absolute;
   bottom: 0;
   width: 1px;
-  height: 7px;
+  height: 5px;
   transform: translateX(-50%);
   background: #666;
 }
@@ -83,10 +83,15 @@ defineProps<{
 }
 
 .pr-axis-ruler__label {
+  box-sizing: border-box;
   flex: 0 0 auto;
-  padding-top: 2px;
-  font-size: 10px;
-  line-height: 1.2;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
   color: #c8c8c8;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
