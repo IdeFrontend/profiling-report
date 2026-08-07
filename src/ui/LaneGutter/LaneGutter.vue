@@ -66,8 +66,9 @@ defineExpose({ root });
       >
         <span
           class="pr-gutter__chevron"
+          :class="isCollapsed(group.id) ? 'pr-gutter__chevron--right' : 'pr-gutter__chevron--down'"
           aria-hidden="true"
-        >{{ isCollapsed(group.id) ? '▸' : '▾' }}</span>
+        />
         <span class="pr-gutter__group-name">{{ group.name }}</span>
       </button>
       <template v-if="!isCollapsed(group.id)">
@@ -110,14 +111,14 @@ defineExpose({ root });
   display: flex;
   flex-direction: column;
   font-size: 11px;
-  color: #c8c8c8;
+  color: #b0b0b0;
   overflow: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
   min-height: 0;
-  background: #2a2a2a;
+  background: #262626;
   border-right: 1px solid #3a3a3a;
-  padding: 0 6px 0 4px;
+  padding: 0 8px 0 0;
 }
 
 .pr-gutter::-webkit-scrollbar {
@@ -128,34 +129,63 @@ defineExpose({ root });
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex: 0 0 28px; /* keep in sync with LANE_GROUP_HEADER_HEIGHT */
   height: 28px;
   min-height: 28px;
   width: 100%;
   margin: 0;
-  padding: 0 2px;
+  padding: 0 8px 0 8px;
   border: 0;
   border-bottom: 1px solid #3a3a3a;
   background: transparent;
   font: inherit;
+  font-size: 12px;
   font-weight: 600;
-  color: #ddd;
+  color: #e8e8e8;
   text-align: left;
   cursor: pointer;
 }
 
 .pr-gutter__group:hover {
-  background: #333;
+  background: #2f2f2f;
 }
 
+/*
+ * Open-angle chevrons (stroke), not filled ▾/▸ glyphs.
+ * Size ~8×5 down / 5×8 right — matches sketch pixel chevrons.
+ */
 .pr-gutter__chevron {
-  flex: 0 0 12px;
-  width: 12px;
-  font-size: 10px;
-  line-height: 1;
+  box-sizing: border-box;
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  position: relative;
   color: #a8a8a8;
-  text-align: center;
+}
+
+.pr-gutter__chevron::before {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 1.2px 1.2px 0;
+  width: 5px;
+  height: 5px;
+}
+
+.pr-gutter__chevron--down::before {
+  top: 1px;
+  left: 2px;
+  transform: rotate(45deg);
+}
+
+.pr-gutter__chevron--right::before {
+  top: 2px;
+  left: 1px;
+  transform: rotate(-45deg);
 }
 
 .pr-gutter__group-name {
@@ -166,20 +196,25 @@ defineExpose({ root });
 
 .pr-gutter__lane {
   display: grid;
-  /* VISUAL_SPEC: util column ~110px */
+  /* label aligns under group title (pad 8 + chev 10 + gap 6 = 24) */
   grid-template-columns: minmax(0, 1fr) 110px;
   gap: 6px;
   align-items: center;
   flex: 0 0 22px; /* keep in sync with LANE_HEIGHT */
   height: 22px;
   min-height: 22px;
-  padding-left: 14px; /* indent under chevron */
+  padding: 0 8px 0 24px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #333;
 }
 
 .pr-gutter__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11px;
+  font-weight: 400;
+  color: #b0b0b0;
 }
 
 /* Pill util bar — % inside, right-aligned (docs/specs/ui/components/VISUAL_SPEC.md) */
@@ -189,7 +224,7 @@ defineExpose({ root });
   box-sizing: border-box;
   height: 16px;
   width: 110px;
-  background: #2a2a2a;
+  background: #1f1f1f;
   border-radius: 8px;
   overflow: hidden;
 }

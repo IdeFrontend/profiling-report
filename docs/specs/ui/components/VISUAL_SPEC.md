@@ -19,7 +19,7 @@ Normative crops: [`README.md`](./README.md) / PNGs in this folder. Source: `with
 | Warning fill | `#733234` when util &lt; 0.5 (optional; sketches use red for hot/low cores) |
 | % text | **Inside** track, **right-aligned**, `padding-right: 6px` |
 | % font | 10px, weight 600, tabular-nums, color `#e8e8e8` |
-| Layout | `grid-template-columns: minmax(0,1fr) 110px` |
+| Layout | `grid-template-columns: minmax(0,1fr) 110px` (name + util); pad-left aligns label under group title |
 | Hatch | P2 — diagonal hatch on remainder; MVP may omit |
 
 **Do not** place `%` to the left of the bar.
@@ -54,3 +54,22 @@ Normative crops: [`README.md`](./README.md) / PNGs in this folder. Source: `with
 | Behavior | Must update on pointer move; short traces use µs/ns unit so digits change |
 
 **Example:** axis `4.456ms` → label `00:04.456` when unit is `ms`.
+
+---
+
+## 4. Lane expanders (`LaneGutter` chevrons)
+
+**Crops:** `lane-expanders.png`, `lane-expander-detail.png`
+
+| Token | Value |
+|-------|--------|
+| Icon style | **Open-angle** stroke chevron (CSS borders), not filled `▾`/`▸` |
+| Group expanded | Down-pointing caret (`v`), color `#a8a8a8` |
+| Lane chevron | **Only if** the lane has expandable children (P2). MVP leaf threads: **no** chevron |
+| Alignment | Lane **label** left edge aligns under the group **title** (pad-left `24px` = group pad `8` + chev `10` + gap `6`) |
+| Gap chevron→label | `6px` (group row) |
+| Group row | height `28px`; pad-left `8px`; label **12px / 600 / `#e8e8e8`** |
+| Lane row | height `22px`; pad-left `24px`; label **11px / 400 / `#b0b0b0`** |
+| Separators | `1px solid #333` under each lane; `#3a3a3a` under group header |
+| Gutter bg | `#262626`; right border `#3a3a3a` |
+| Interaction | Group header click → `toggle-group`; no chevron control on leaf lanes |

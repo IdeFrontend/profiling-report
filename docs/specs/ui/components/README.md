@@ -5,6 +5,8 @@ Cropped from [`with_sidebar.png`](../with_sidebar.png) (primary) for implementat
 | File | Component | Source region (approx.) |
 |------|-----------|-------------------------|
 | [`lane-gutter-util.png`](lane-gutter-util.png) | Lane expanders + util bars | Kernel gutter block |
+| [`lane-expanders.png`](lane-expanders.png) | Group + lane chevrons / labels | Kernel hierarchy |
+| [`lane-expander-detail.png`](lane-expander-detail.png) | Zoomed open-angle chevrons | Kernel + Core0 rows |
 | [`lane-util-bars.png`](lane-util-bars.png) | Util bar column only | Same, bars tight crop |
 | [`overview-range-handles.png`](overview-range-handles.png) | Visible-range brush + axis | Dual time axis strip |
 | [`overview-handle-left.png`](overview-handle-left.png) | Left range handle (detail) | `0ms` edge |
@@ -25,6 +27,10 @@ Cropped from [`with_sidebar.png`](../with_sidebar.png) (primary) for implementat
 - **Shape:** vertical white **pill head** (~**4×14 px**, `border-radius: 2px`) centered on a **1 px** white stem — not a wide horizontal flag.
 - **Hit target:** ≥12px wide invisible area centered on the stem.
 - **Window:** selected span slightly lighter; outside span dimmed; labels outside window muted.
+
+### Lane expanders
+- **Open-angle** stroke carets on **expandable** nodes only (groups today). Leaf lanes: **no** chevron.
+- Group expanded = down; collapsed = right. Label `12px/600/#e8e8e8`; lane label `11px/400/#b0b0b0`; lane pad-left `24px` under group title.
 
 ### Cursor timestamp
 - **Fill:** `#317AF7` (≈ playhead blue).
