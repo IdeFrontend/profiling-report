@@ -24,8 +24,7 @@ Normative chrome tokens: [`docs/specs/ui/components/VISUAL_SPEC.md`](../../../do
 
 ### Hierarchy + expanders
 
-Each group corresponds to a process; lanes correspond to threads.
-
+Each group corresponds to a process; lanes correspond to threads. Group headers and event-sequence lanes draw a `#3a3a3a` bottom border so horizontal dividers continue into the swimlane surface.
 | Element | Visual (normative) |
 |---------|-------------------|
 | Group chevron | **Open-angle** stroke caret — **not** filled unicode `▾`/`▸`. Expanded = **down**; collapsed = **right**. Color `#a8a8a8`. Layout box `10×10`, stroke ~1.2px. |
@@ -76,6 +75,7 @@ Each lane optionally shows a utilization bar (`110×16px`, `border-radius: 2px`)
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (PipeUtilization.csv feeds lane utilization via pipe color matching).
 
 ## Changelog
+- **2026-08-07** — Row bottom borders align with swimlane horizontal dividers (`#3a3a3a`).
 - **2026-08-07** — Util bar: radius 2px, diagonal hatch unfilled, % color `#b0b0b0`.
 - **2026-08-07** — Leaf lanes: no expander chevron (only groups / nodes with children).
 - **2026-08-07** — Spec: open-angle expanders, lane chevrons, typography/margins, `collapsedIds` / `toggle-group`; util pill tokens; link visual crops.

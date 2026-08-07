@@ -248,7 +248,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const y = this.layout.lanes[i]!.y - this.view.scrollY;
       if (y + LANE_HEIGHT < 0 || y > this.height) continue;
-      ctx.fillStyle = i % 2 === 0 ? '#2a2a2a' : '#262626';
+      ctx.fillStyle = '#2a2a2a';
       ctx.fillRect(0, y, this.width, LANE_HEIGHT);
       ctx.strokeStyle = '#3a3a3a';
       ctx.beginPath();

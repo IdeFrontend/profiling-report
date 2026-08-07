@@ -168,7 +168,7 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
 
 /**
  * WebGL2 coverage-AA interval backend (Sudu-inspired; no sudu-editor dependency).
- * Draws background, lane stripes, and rounded interval fills. Labels/selection use overlay.
+ * Draws uniform lane backgrounds, row dividers, and rounded interval fills. Labels/selection use overlay.
  */
 export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
@@ -277,14 +277,21 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.clearColor(0x25 / 255, 0x25 / 255, 0x25 / 255, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // Background stripes (no blend)
+    // Uniform lane chrome + 1px dividers aligned with LaneGutter borders (no blend)
     gl.disable(gl.BLEND);
     gl.useProgram(solid.program);
+    const laneBg = 0x2a / 255;
+    const divider = 0x3a / 255;
 
     for (const header of this.layout.headers) {
       const headerTop = header.y - this.view.scrollY;
       if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < cssH) {
-        this.drawSolidRect(solid, unit, 0, headerTop, cssW, LANE_GROUP_HEADER_HEIGHT, [0x2a / 255, 0x2a / 255, 0x2a / 255]);
+        this.drawSolidRect(solid, unit, 0, headerTop, cssW, LANE_GROUP_HEADER_HEIGHT, [laneBg, laneBg, laneBg]);
+        this.drawSolidRect(solid, unit, 0, headerTop + LANE_GROUP_HEADER_HEIGHT - 1, cssW, 1, [
+          divider,
+          divider,
+          divider,
+        ]);
       }
     }
 
@@ -292,8 +299,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const lane = this.layout.lanes[i]!;
       const y = lane.y - this.view.scrollY;
       if (y + LANE_HEIGHT < 0 || y > cssH) continue;
-      const c = i % 2 === 0 ? 0x2a / 255 : 0x26 / 255;
-      this.drawSolidRect(solid, unit, 0, y, cssW, LANE_HEIGHT, [c, c, c]);
+      this.drawSolidRect(solid, unit, 0, y, cssW, LANE_HEIGHT, [laneBg, laneBg, laneBg]);
+      this.drawSolidRect(solid, unit, 0, y + LANE_HEIGHT - 1, cssW, 1, [divider, divider, divider]);
     }
 
     // Coverage-AA intervals (Sudu blendAddSrcA ≈ SRC_ALPHA, ONE)

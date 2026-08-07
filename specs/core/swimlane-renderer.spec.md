@@ -26,6 +26,8 @@ class CanvasSwimlaneRenderer {
 
 **Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px with 3px padding. Event rendering uses rounded rectangles (corner radius 5px, falls back to `ctx.roundRect()` where available). Only events visible in the current viewport are drawn.
 
+**Lane chrome.** Every event-sequence lane shares the same background fill (`#2a2a2a`); alternating zebra stripes are not used. Horizontal dividers (`#3a3a3a`) are drawn at the bottom of each group header and each lane, aligned with the LaneGutter borders so separators read as continuous lines from the gutter across the timeline. WebGL draws the same uniform fill and 1px divider rects; Canvas uses strokes at the same edges.
+
 **Hit testing.** `hitTest` computes Y relative to scroll offset, finds the matching lane by Y bounds, converts X to a time value, and finds the event whose interval contains that time. Returns the event's id string, or null if no match.
 
 ## Acceptance Criteria
@@ -46,7 +48,8 @@ class CanvasSwimlaneRenderer {
 
 ## Open
 
-Phase 2 WebGL hybrid renderer for better coverage AA at scale.
+WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-07** — Uniform lane backgrounds; horizontal dividers aligned with gutter borders (Canvas + WebGL).
 - **2026-08-05** — Initial spec. Core behaviors established.
