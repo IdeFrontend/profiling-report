@@ -16,18 +16,16 @@ Left-side vertical gutter showing process/thread hierarchy, lane names, and util
 
 ## Behavior
 
-**Hierarchy display.** Each group corresponds to a process. Within each group, lanes correspond to threads. Process names appear as section headers with a colored strip. Thread names and utilization percentages appear below. The gutter uses the same lane height (22px) as the swimlane canvas — rows stay aligned during scroll.
+**Hierarchy display.** Each group corresponds to a process. Within each group, lanes correspond to threads. Process names appear as section headers with a **chevron expander** (INTERACTIONS: click lane header expand/collapse). Collapsed groups hide child lanes; parent syncs the swimlane canvas model. Thread names and utilization appear below when expanded. The gutter uses the same lane height (22px) as the swimlane canvas — rows stay aligned during scroll.
 
-**Scroll sync.** When the user scrolls the gutter, it emits `scroll`. The parent ProfilingReport reads the gutter's `scrollTop` and propagates it as `scrollY` to the swimlane canvas. Conversely, when the canvas synthesizes scroll, the gutter's scroll position is set imperatively. This bidirectional sync ensures labels always align with their lanes regardless of which element the user scrolls.
-
-**Utilization.** Each lane optionally shows a utilization percentage computed by `withDerivedUtilizations`. Only threads with matching pipe lanes in the `.rep` data get values — threads from standalone CTEF or without matching pipes show no percentage.
-
-**Colors.** Lane color strips match the `colorKey` from `laneColors` — the same colors used for PIPE bars and swimlane event fills. Consistent color assignment across surfaces allows visual correlation.
+**Utilization.** Each lane optionally shows a utilization **pill bar** (~110×16px) with the percentage **inside, right-aligned** (see `docs/specs/ui/components/VISUAL_SPEC.md`). Fill width encodes load; low util (&lt;50%) uses warning red `#733234`, otherwise lane color.
 
 ## Acceptance Criteria
 
 1. **PR-GUTTER-001** — Renders lane names.
-2. **PR-GUTTER-002** — Shows utilization.
+2. **PR-GUTTER-002** — Shows utilization percent inside the util bar.
+3. **PR-GUTTER-003** — Group expander emits `toggle-group`.
+4. **PR-GUTTER-004** — Collapsed group hides child lanes.
 
 ## Edge Cases
 
@@ -50,4 +48,6 @@ Left-side vertical gutter showing process/thread hierarchy, lane names, and util
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (PipeUtilization.csv feeds lane utilization via pipe color matching).
 
 ## Changelog
+- **2026-08-07** — Pill util bars 110×16, % right-inside; warning red &lt;50%.
+- **2026-08-07** — Group expanders; util % inside larger bar control.
 - **2026-08-05** — Initial spec. Core behaviors established.

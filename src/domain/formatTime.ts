@@ -50,20 +50,52 @@ export function formatAxisTime(
 }
 
 /**
- * Cursor / playhead label as `MM:SS.mmm` from absolute nanoseconds → real seconds.
- * Example: 4_456_000_000 ns (4.456 s) → `00:04.456`.
+ * Convert ns → scalar in the given display unit.
  */
-export function formatCursorTime(ns: number): string {
+function nsToUnitValue(ns: number, unit: TimeDisplayUnit): number {
+  switch (unit) {
+    case 'ns':
+      return ns;
+    case 'us':
+      return ns / 1e3;
+    case 'ms':
+    default:
+      return ns / 1e6;
+  }
+}
+
+/**
+ * Cursor / playhead label as `MM:SS.mmm`.
+ *
+ * The scalar in `unit` is formatted like a clock (matches sketch: 4.456ms →
+ * `00:04.456` when unit is `ms`). Short traces should pass `us`/`ns` (or use
+ * {@link resolveCursorTimeUnit}) so the label updates while moving.
+ */
+export function formatCursorTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
   if (!Number.isFinite(ns)) return '00:00.000';
-  const totalMs = Math.max(0, ns / 1e6);
-  const totalMillis = Math.round(totalMs);
-  let secs = Math.floor(totalMillis / 1000);
-  const frac = totalMillis % 1000;
+  const value = Math.max(0, nsToUnitValue(ns, unit));
+  const totalThousandths = Math.round(value * 1000);
+  let secs = Math.floor(totalThousandths / 1000);
+  const frac = ((totalThousandths % 1000) + 1000) % 1000;
   const mins = Math.floor(secs / 60);
   secs = secs % 60;
-  // Bound minutes display for very long traces (still readable)
-  const minStr = String(mins).padStart(2, '0');
+  const minStr = String(Math.min(mins, 99)).padStart(2, '0');
   return `${minStr}:${String(secs).padStart(2, '0')}.${String(frac).padStart(3, '0')}`;
+}
+
+/**
+ * Prefer a unit fine enough that cursor `MM:SS.mmm` digits change across the
+ * visible span (kernel fixtures are often &lt; 1ms).
+ */
+export function resolveCursorTimeUnit(
+  spanNs: number,
+  preferred: TimeDisplayUnit,
+): TimeDisplayUnit {
+  if (!(spanNs > 0) || !Number.isFinite(spanNs)) return preferred;
+  if (preferred === 'ns') return 'ns';
+  if (spanNs < 1e3) return 'ns';
+  if (spanNs < 1e6 && preferred === 'ms') return 'us';
+  return preferred;
 }
 
 /** Format tooltip / detail times. */

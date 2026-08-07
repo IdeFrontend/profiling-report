@@ -37,7 +37,13 @@ const ticks = computed(() => {
   const step = fullSpan.value / n;
   return Array.from({ length: n + 1 }, (_, i) => {
     const t = props.minTime + step * i;
-    return { t, label: formatAxisTime(t, props.timeUnit, step), pct: (i / n) * 100 };
+    const outside = t < props.startTime - 1e-9 || t > props.endTime + 1e-9;
+    return {
+      t,
+      label: formatAxisTime(t, props.timeUnit, step),
+      pct: (i / n) * 100,
+      outside,
+    };
   });
 });
 
@@ -123,14 +129,24 @@ function onPointerUp() {
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
     >
+      <!-- Dim outside selected window -->
+      <div
+        class="pr-overview__dim pr-overview__dim--left"
+        :style="{ width: `${leftPct}%` }"
+      />
+      <div
+        class="pr-overview__dim pr-overview__dim--right"
+        :style="{ left: `${rightPct}%`, width: `${Math.max(0, 100 - rightPct)}%` }"
+      />
+
       <span
         v-for="tick in ticks"
         :key="tick.t"
         class="pr-overview__tick"
+        :class="{ 'pr-overview__tick--muted': tick.outside }"
         :style="{ left: `${tick.pct}%` }"
       >{{ tick.label }}</span>
 
-      <!-- Invisible hit target between handles for pan (no blue brush fill) -->
       <div
         class="pr-overview__span"
         data-testid="time-overview-window"
@@ -138,22 +154,29 @@ function onPointerUp() {
         @pointerdown="onPointerDown($event, 'move')"
       />
 
+      <!-- Flag handles: 1px stem + outward top tab (VISUAL_SPEC) -->
       <button
         type="button"
-        class="pr-overview__handle"
+        class="pr-overview__handle pr-overview__handle--left"
         data-testid="time-overview-handle-left"
         aria-label="Visible range start"
-        :style="{ left: `calc(${leftPct}% - 3px)` }"
+        :style="{ left: `${leftPct}%` }"
         @pointerdown="onPointerDown($event, 'left')"
-      />
+      >
+        <span class="pr-overview__handle-tab" aria-hidden="true" />
+        <span class="pr-overview__handle-stem" aria-hidden="true" />
+      </button>
       <button
         type="button"
-        class="pr-overview__handle"
+        class="pr-overview__handle pr-overview__handle--right"
         data-testid="time-overview-handle-right"
         aria-label="Visible range end"
-        :style="{ left: `calc(${rightPct}% - 3px)` }"
+        :style="{ left: `${rightPct}%` }"
         @pointerdown="onPointerDown($event, 'right')"
-      />
+      >
+        <span class="pr-overview__handle-tab" aria-hidden="true" />
+        <span class="pr-overview__handle-stem" aria-hidden="true" />
+      </button>
     </div>
   </div>
 </template>
@@ -171,6 +194,20 @@ function onPointerUp() {
   height: 28px;
   border-bottom: 1px solid #4a4a4a;
   cursor: default;
+  overflow: visible;
+}
+
+.pr-overview__dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pr-overview__dim--left {
+  left: 0;
 }
 
 .pr-overview__tick {
@@ -182,13 +219,18 @@ function onPointerUp() {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
+  z-index: 1;
+}
+
+.pr-overview__tick--muted {
+  color: #666;
 }
 
 .pr-overview__span {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.06);
   cursor: grab;
   z-index: 1;
 }
@@ -197,18 +239,52 @@ function onPointerUp() {
   cursor: grabbing;
 }
 
+/*
+ * Flag handle: thin white stem + outward top tab.
+ * Hit area is wider than the stem for usability.
+ */
 .pr-overview__handle {
   position: absolute;
-  top: 10px;
+  top: 0;
   bottom: 0;
-  width: 6px;
+  width: 12px;
   margin: 0;
   padding: 0;
-  border: none;
-  border-radius: 1px;
-  background: #e8e8e8;
+  border: 0;
+  background: transparent;
   cursor: ew-resize;
-  z-index: 2;
-  box-shadow: 0 0 0 1px #111;
+  z-index: 3;
+  transform: translateX(-50%);
+}
+
+.pr-overview__handle-stem {
+  position: absolute;
+  top: 6px;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.pr-overview__handle-tab {
+  position: absolute;
+  top: 1px;
+  width: 10px;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.pr-overview__handle--left .pr-overview__handle-tab {
+  right: 50%;
+  margin-right: -0.5px;
+}
+
+.pr-overview__handle--right .pr-overview__handle-tab {
+  left: 50%;
+  margin-left: -0.5px;
 }
 </style>

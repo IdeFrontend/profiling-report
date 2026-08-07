@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
-import { formatAxisTime, formatCursorTime } from '../../domain/formatTime';
+import {
+  formatAxisTime,
+  formatCursorTime,
+  resolveCursorTimeUnit,
+} from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   applyWindow,
@@ -65,6 +69,8 @@ const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
+/** Process / group ids with child lanes collapsed in gutter + canvas. */
+const collapsedGroupIds = ref<string[]>([]);
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
@@ -98,6 +104,20 @@ const laneGroups = computed(() =>
   })),
 );
 
+/** Swim model with collapsed groups' threads removed so canvas row heights match gutter. */
+const displaySwim = computed((): SwimlaneModel | null => {
+  const m = swim.value;
+  if (!m) return null;
+  if (collapsedGroupIds.value.length === 0) return m;
+  const collapsed = new Set(collapsedGroupIds.value);
+  return {
+    ...m,
+    processes: m.processes.map((p) =>
+      collapsed.has(p.id) ? { ...p, threads: [] } : p,
+    ),
+  };
+});
+
 const bounds = computed(() => {
   const m = swim.value;
   if (!m) return { minTime: 0, maxTime: 1 };
@@ -106,6 +126,11 @@ const bounds = computed(() => {
     maxTime: m.maxTime > m.minTime ? m.maxTime : m.minTime + 1,
   };
 });
+
+/** Cursor MM:SS.mmm unit — finer than toolbar ms when the trace span is sub-ms. */
+const cursorTimeUnit = computed(() =>
+  resolveCursorTimeUnit(bounds.value.maxTime - bounds.value.minTime, unit.value),
+);
 
 /** 0 = fit (full span); 100 = max zoom (~1/100 of full span). */
 const zoomPercent = computed(() => {
@@ -132,6 +157,19 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   viewState.value = next;
   selected.value = null;
   hovered.value = null;
+  collapsedGroupIds.value = [];
+}
+
+function onToggleGroup(groupId: string): void {
+  const set = new Set(collapsedGroupIds.value);
+  if (set.has(groupId)) set.delete(groupId);
+  else set.add(groupId);
+  collapsedGroupIds.value = [...set];
+  // Keep scroll within new content height
+  const el = gutterRef.value?.root;
+  if (el) {
+    viewState.value = { ...viewState.value, scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) };
+  }
 }
 
 function asideHasContent(rm: ReportViewModel | null | undefined): boolean {
@@ -438,7 +476,7 @@ defineExpose({ selectEventById, viewState });
               <span
                 class="pr-cursor__label"
                 data-testid="cursor-label"
-              >{{ formatCursorTime(cursor.time) }}</span>
+              >{{ formatCursorTime(cursor.time, cursorTimeUnit) }}</span>
             </div>
           </div>
         </div>
@@ -447,10 +485,12 @@ defineExpose({ selectEventById, viewState });
           <LaneGutter
             ref="gutterRef"
             :groups="laneGroups"
+            :collapsed-ids="collapsedGroupIds"
             @scroll="onGutterScroll"
+            @toggle-group="onToggleGroup"
           />
           <SwimlaneCanvas
-            :model="swim"
+            :model="displaySwim"
             :view="viewState"
             :selected-event-id="viewState.selectedEventId"
             :hovered-event-id="viewState.hoveredEventId"
@@ -552,7 +592,7 @@ defineExpose({ selectEventById, viewState });
   top: 0;
   bottom: 0;
   width: 1px;
-  background: #3078f0;
+  background: #317af7;
   pointer-events: none;
   z-index: 5;
   transform: translateX(-0.5px);
@@ -564,7 +604,10 @@ defineExpose({ selectEventById, viewState });
   left: 50%;
   transform: translateX(-50%);
   padding: 1px 8px;
-  background: #3078f0;
+  min-width: 72px;
+  box-sizing: border-box;
+  text-align: center;
+  background: #317af7;
   color: #ffffff;
   font-size: 11px;
   font-weight: 600;
@@ -577,7 +620,7 @@ defineExpose({ selectEventById, viewState });
 
 .pr-swim-row {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 280px 1fr;
   gap: 0;
   align-items: stretch;
   min-height: 0;

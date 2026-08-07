@@ -20,14 +20,14 @@ formatCursorTime(ns: number): string
 
 **Axis tick formatting.** `formatAxisTime` adapts decimal places based on `tickStepNs` to prevent zoomed axes from collapsing to identical labels. Step ≥1 → 1 decimal, ≥0.1 → 2, ≥0.01 → 3, ≥0.001 → 4, otherwise 5.
 
-**Cursor formatting.** `formatCursorTime` renders absolute time from 0 as `MM:SS.mmm` (e.g., 4.456s → `00:04.456`). Negative values clamped to 0. No hour component — format is designed for kernel-scale durations.
+**Cursor formatting.** `formatCursorTime(ns, unit)` renders the value in `unit` as `MM:SS.mmm` (sketch: 4.456ms → `00:04.456`). Negative values clamped to 0. No hour component. `resolveCursorTimeUnit(spanNs, preferred)` picks `us`/`ns` when the trace span is sub-ms so short kernel fixtures still update the label while moving.
 
 **Unit switching.** When the user changes the time unit, all formatted times update simultaneously — axis ticks, tooltip, detail strip, cursor label. The change is purely formatting; internal precision is preserved.
 
 ## Acceptance Criteria
 
 1. **PR-TIME-001**: 1_234_000 ns → `'1.234 ms'` / `'1234.000 µs'` / `'1234000 ns'`.
-1. **PR-TIME-002**: formatCursorTime renders `MM:SS.mmm` (4_456_000_000 ns → `00:04.456`).
+1. **PR-TIME-002**: formatCursorTime renders `MM:SS.mmm` in unit (4_456_000 ns + ms → `00:04.456`).
 1. **PR-TIME-003**: formatAxisTime adapts decimal places to tickStepNs.
 
 ## Edge Cases
@@ -43,4 +43,5 @@ I-Q14 — ms/µs/ns only, no clock-cycle mode in MVP.
 Future cycles unit if product requires.
 
 ## Changelog
+- **2026-08-07** — Cursor format uses display unit (sketch ms→clock); resolveCursorTimeUnit for short spans.
 - **2026-08-05** — Initial spec. Core behaviors established.
