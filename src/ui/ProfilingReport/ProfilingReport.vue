@@ -33,6 +33,13 @@ import AxisRuler from '../AxisRuler/AxisRuler.vue';
 import DetailStrip from '../DetailStrip/DetailStrip.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import LaneGutter from '../LaneGutter/LaneGutter.vue';
+import {
+  ASIDE_WIDTH_DEFAULT,
+  GUTTER_WIDTH_DEFAULT,
+  GUTTER_WIDTH_MAX,
+  GUTTER_WIDTH_MIN,
+  startHorizontalResize,
+} from '../panelResize';
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
@@ -72,6 +79,9 @@ const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
 const timeAxisRef = ref<HTMLElement | null>(null);
 const timeAxisWidth = ref(0);
+/** Session-only panel widths (not persisted). */
+const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
+const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 
@@ -310,6 +320,33 @@ function onOverviewWindow(window: { startTime: number; endTime: number }) {
   });
 }
 
+let gutterResizeSession: ReturnType<typeof startHorizontalResize> | null = null;
+
+function onGutterResizePointerDown(e: PointerEvent) {
+  if (e.button !== 0) return;
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  gutterResizeSession = startHorizontalResize({
+    startClientX: e.clientX,
+    startWidth: gutterWidth.value,
+    min: GUTTER_WIDTH_MIN,
+    max: GUTTER_WIDTH_MAX,
+    direction: 1,
+    onChange: (w) => {
+      gutterWidth.value = w;
+    },
+  });
+  e.preventDefault();
+}
+
+function onGutterResizePointerMove(e: PointerEvent) {
+  gutterResizeSession?.move(e.clientX);
+}
+
+function onGutterResizePointerUp() {
+  gutterResizeSession?.end();
+  gutterResizeSession = null;
+}
+
 function onPan(deltaTime: number) {
   viewState.value = applyWindow(
     viewState.value,
@@ -458,85 +495,102 @@ defineExpose({ selectEventById, viewState });
     <ReportLayout
       v-else
       :show-aside="showAside"
+      :aside-width="asideWidth"
+      @update:aside-width="asideWidth = $event"
     >
       <template #main>
-        <div class="pr-swim-row pr-swim-row--overview">
-          <div
-            class="pr-gutter pr-gutter--axis-spacer"
-            aria-hidden="true"
+        <div
+          class="pr-main-swim"
+          :style="{ '--pr-gutter-width': `${gutterWidth}px` }"
+        >
+          <button
+            type="button"
+            class="pr-gutter-resize"
+            data-testid="gutter-resize-handle"
+            aria-label="Resize lane gutter"
+            @pointerdown="onGutterResizePointerDown"
+            @pointermove="onGutterResizePointerMove"
+            @pointerup="onGutterResizePointerUp"
+            @pointercancel="onGutterResizePointerUp"
           />
-          <TimeOverviewBar
-            :min-time="bounds.minTime"
-            :max-time="bounds.maxTime"
-            :start-time="viewState.startTime"
-            :end-time="viewState.endTime"
-            :time-unit="unit"
-            @update:window="onOverviewWindow"
-          />
-        </div>
+          <div class="pr-swim-row pr-swim-row--overview">
+            <div
+              class="pr-gutter pr-gutter--axis-spacer"
+              aria-hidden="true"
+            />
+            <TimeOverviewBar
+              :min-time="bounds.minTime"
+              :max-time="bounds.maxTime"
+              :start-time="viewState.startTime"
+              :end-time="viewState.endTime"
+              :time-unit="unit"
+              @update:window="onOverviewWindow"
+            />
+          </div>
 
-        <div class="pr-swim-row pr-swim-row--head">
-          <div
-            class="pr-gutter pr-gutter--axis-spacer"
-            aria-hidden="true"
-          />
-          <div
-            ref="timeAxisRef"
-            class="pr-time-axis"
-            data-testid="time-axis"
-          >
-            <AxisRuler
-              :majors="viewportRuler.majors"
-              :minors="viewportRuler.minors"
+          <div class="pr-swim-row pr-swim-row--head">
+            <div
+              class="pr-gutter pr-gutter--axis-spacer"
+              aria-hidden="true"
             />
             <div
-              v-if="cursor"
-              class="pr-cursor"
-              data-testid="cursor-line"
-              :style="{ left: `${cursor.xRatio * 100}%` }"
+              ref="timeAxisRef"
+              class="pr-time-axis"
+              data-testid="time-axis"
             >
-              <span
-                class="pr-cursor__label"
-                data-testid="cursor-label"
-              >{{ formatCursorTime(cursor.time - bounds.minTime, cursorTimeUnit) }}</span>
+              <AxisRuler
+                :majors="viewportRuler.majors"
+                :minors="viewportRuler.minors"
+              />
+              <div
+                v-if="cursor"
+                class="pr-cursor"
+                data-testid="cursor-line"
+                :style="{ left: `${cursor.xRatio * 100}%` }"
+              >
+                <span
+                  class="pr-cursor__label"
+                  data-testid="cursor-label"
+                >{{ formatCursorTime(cursor.time - bounds.minTime, cursorTimeUnit) }}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="pr-swim-row pr-swim-row--body">
-          <LaneGutter
-            ref="gutterRef"
-            :groups="laneGroups"
-            :collapsed-ids="collapsedGroupIds"
-            @scroll="onGutterScroll"
-            @toggle-group="onToggleGroup"
-          />
-          <SwimlaneCanvas
-            :model="displaySwim"
-            :view="viewState"
-            :selected-event-id="viewState.selectedEventId"
-            :hovered-event-id="viewState.hoveredEventId"
-            :search-query="viewState.searchQuery"
-            :measure-mode="viewState.measureMode"
-            :measure-range="viewState.measureRange"
-            :time-unit="unit"
-            @select="onSelect"
-            @hover="onHover"
-            @cursor="onCursor"
-            @set-playhead="onSetPlayhead"
-            @pan="onPan"
-            @zoom="onZoom"
-            @scroll-y="onScrollY"
-            @update:measure-range="onMeasureRange"
-          />
-        </div>
+          <div class="pr-swim-row pr-swim-row--body">
+            <LaneGutter
+              ref="gutterRef"
+              :groups="laneGroups"
+              :collapsed-ids="collapsedGroupIds"
+              @scroll="onGutterScroll"
+              @toggle-group="onToggleGroup"
+            />
+            <SwimlaneCanvas
+              :model="displaySwim"
+              :view="viewState"
+              :selected-event-id="viewState.selectedEventId"
+              :hovered-event-id="viewState.hoveredEventId"
+              :search-query="viewState.searchQuery"
+              :measure-mode="viewState.measureMode"
+              :measure-range="viewState.measureRange"
+              :time-unit="unit"
+              @select="onSelect"
+              @hover="onHover"
+              @cursor="onCursor"
+              @set-playhead="onSetPlayhead"
+              @pan="onPan"
+              @zoom="onZoom"
+              @scroll-y="onScrollY"
+              @update:measure-range="onMeasureRange"
+            />
+          </div>
 
-        <div
-          v-if="showOverview"
-          data-testid="overview-charts"
-          class="pr-overview"
-        >
-          Overview charts
+          <div
+            v-if="showOverview"
+            data-testid="overview-charts"
+            class="pr-overview"
+          >
+            Overview charts
+          </div>
         </div>
       </template>
 
@@ -640,9 +694,38 @@ defineExpose({ selectEventById, viewState });
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
+.pr-main-swim {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.pr-gutter-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pr-gutter-width, 280px);
+  width: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  z-index: 6;
+  transform: translateX(-50%);
+}
+
+.pr-gutter-resize:hover,
+.pr-gutter-resize:active {
+  background: rgba(49, 122, 247, 0.35);
+}
+
 .pr-swim-row {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: var(--pr-gutter-width, 280px) 1fr;
   gap: 0;
   align-items: stretch;
   min-height: 0;
@@ -676,6 +759,10 @@ defineExpose({ selectEventById, viewState });
   }
 
   .pr-gutter--axis-spacer {
+    display: none;
+  }
+
+  .pr-gutter-resize {
     display: none;
   }
 }

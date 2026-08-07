@@ -132,3 +132,15 @@ P2 sketch icons (chart, flag, layers, help, gear) are **not** MVP — do not stu
 
 ### Time unit
 Match control height `28px`; bg `#2a2a2a`; `border-radius: 4px`; font `12px`.
+
+---
+
+## 6. Resizable panels
+
+| Token | Value |
+|-------|--------|
+| Gutter default / clamp | **280** / **180–480** px (`--pr-gutter-width`) |
+| Aside default / clamp | **360** / **280–560** px |
+| Handle hit target | **5px** wide, `ew-resize`; hover tint `rgba(49,122,247,0.35)` |
+| Persistence | Session-only (not localStorage) |
+| Narrow layout | Handles hidden at `max-width: 900px` |

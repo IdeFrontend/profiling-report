@@ -273,6 +273,8 @@ function modeLabel(m: AsideMode): string {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
   overflow: auto;
   background: var(--pr-bg-panel);

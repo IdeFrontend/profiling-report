@@ -47,5 +47,8 @@ Cropped from [`with_sidebar.png`](../with_sidebar.png) (primary) for implementat
 - Action buttons **28×28**, radius `4px`; active uses `#317AF7`.
 - P2 icons in sketch cluster are out of scope.
 
+### Resizable panels
+- Lane gutter and right aside: drag seams (`ew-resize`, 5px hit). Defaults 280 / 360; clamps 180–480 / 280–560. Session-only.
+
 ## Next
 Implementation tracks [`VISUAL_SPEC.md`](VISUAL_SPEC.md).
