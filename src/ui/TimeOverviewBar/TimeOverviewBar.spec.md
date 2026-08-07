@@ -18,7 +18,7 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 **Proportional mapping.** Window position and size are computed as percentages of the total span: `left = (startTime - minTime) / span`, `width = (endTime - startTime) / span`. When the window covers the full timeline, the indicator fills the entire bar.
 
-**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are **flag grips**: 1px white stem + small outward top tab (see `docs/specs/ui/components/VISUAL_SPEC.md`). Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
+**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are a **vertical 4×14 white pill** on a **1px stem** (see `docs/specs/ui/components/VISUAL_SPEC.md`). Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
 
 **Parent integration.** The parent ProfilingReport receives the `update:window` event and applies the new window to `SwimlaneViewState` via `applyWindow`. All children re-render with the updated viewport.
 
@@ -41,5 +41,6 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 - [Statistical analysis (overview charts)](../../../docs/specs/ui/source/statistical-analysis.png)
 
 ## Changelog
+- **2026-08-07** — Handle head 4×12 vertical pill (was horizontal flag).
 - **2026-08-07** — Flag handles (1px stem + outward top tab) per visual crops.
 - **2026-08-05** — Initial spec. Core behaviors established.

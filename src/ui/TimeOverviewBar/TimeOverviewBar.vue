@@ -240,7 +240,8 @@ function onPointerUp() {
 }
 
 /*
- * Flag handle: thin white stem + outward top tab.
+ * Range handle: vertical white pill head + 1px stem.
+ * Mockup: head ~4×12 (taller than wide); our prior 10×6 flag was wrong.
  * Hit area is wider than the stem for usability.
  */
 .pr-overview__handle {
@@ -259,7 +260,7 @@ function onPointerUp() {
 
 .pr-overview__handle-stem {
   position: absolute;
-  top: 6px;
+  top: 15px;
   bottom: 0;
   left: 50%;
   width: 1px;
@@ -271,20 +272,13 @@ function onPointerUp() {
 .pr-overview__handle-tab {
   position: absolute;
   top: 1px;
-  width: 10px;
-  height: 6px;
-  background: #ffffff;
-  border-radius: 1px;
-  pointer-events: none;
-}
-
-.pr-overview__handle--left .pr-overview__handle-tab {
-  right: 50%;
-  margin-right: -0.5px;
-}
-
-.pr-overview__handle--right .pr-overview__handle-tab {
   left: 50%;
-  margin-left: -0.5px;
+  /* Mockup: ~3–4×7–10 vertical pill on dual axis; use 4×14 for CSS-px clarity */
+  width: 4px;
+  height: 14px;
+  transform: translateX(-50%);
+  background: #ffffff;
+  border-radius: 2px;
+  pointer-events: none;
 }
 </style>

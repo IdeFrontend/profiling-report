@@ -32,13 +32,11 @@ Normative crops: [`README.md`](./README.md) / PNGs in this folder. Source: `with
 
 | Token | Value |
 |-------|--------|
-| Handle | **Not** thick capsule grips |
-| Stem | `1px` solid `#ffffff`, full track height under tab |
-| Top tab | `~10×6px` white rounded rect (`border-radius: 1px`) |
-| Tab direction | **Outward**: left handle tab extends left; right extends right |
-| Hit target | ≥10px wide invisible hit area centered on stem |
+| Head | Vertical white pill **4×14 px**, `border-radius: 2px`, centered on stem |
+| Stem | `1px` solid `#ffffff`, from bottom of head to track bottom |
+| Direction | Head is **taller than wide** (~3–4×7–10 in sketch px; 4×14 CSS) |
+| Hit target | ≥12px wide invisible hit area centered on stem |
 | Window fill | Selected: `rgba(255,255,255,0.06)`; outside dimmed via track |
-| Window top | subtle light edge optional |
 
 ---
 

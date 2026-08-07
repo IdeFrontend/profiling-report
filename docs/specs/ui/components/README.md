@@ -22,8 +22,8 @@ Cropped from [`with_sidebar.png`](../with_sidebar.png) (primary) for implementat
 - **Guide:** faint vertical dotted threshold through the bar column (~75–80%).
 
 ### Overview range handles
-- **Not** thick capsule grips with grip dots.
-- **Shape:** **1 px white vertical line** + small **white rectangular top tab** (flag); tabs face **outward** (left handle tab to the left, right to the right).
+- **Shape:** vertical white **pill head** (~**4×14 px**, `border-radius: 2px`) centered on a **1 px** white stem — not a wide horizontal flag.
+- **Hit target:** ≥12px wide invisible area centered on the stem.
 - **Window:** selected span slightly lighter; outside span dimmed; labels outside window muted.
 
 ### Cursor timestamp
