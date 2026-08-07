@@ -47,16 +47,13 @@ watch(defaultSide, (side) => {
 });
 
 function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
-  const s = item.side ?? 'both';
-  return s === 'both' || s === side;
+  return (item.side ?? side) === side;
 }
 
 const visiblePipes = computed(() => {
   const all = props.report?.pipeOccupancy ?? [];
-  if (isMix.value) {
-    return all.filter((p) => matchesSide(p, pipeSide.value));
-  }
-  return all.filter((p) => matchesSide(p, defaultSide.value));
+  const side = isMix.value ? pipeSide.value : defaultSide.value;
+  return all.filter((p) => matchesSide(p, side));
 });
 
 function formatDurationUs(us: number): string {
@@ -156,7 +153,7 @@ function formatDurationUs(us: number): string {
       <ul class="pr-pipe-list">
         <li
           v-for="pipe in visiblePipes"
-          :key="pipe.id"
+          :key="`${pipe.id}-${pipe.side ?? 'x'}`"
           class="pr-pipe-row"
         >
           <span class="pr-pipe-row__label">{{ pipe.label }}</span>

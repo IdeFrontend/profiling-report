@@ -14,7 +14,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (microseconds as stored in CSV). In MVP (I-Q6a), only these thin fields are populated — compute TFLOPS, bandwidth, and core utilization exist in the type but are left undefined.
 
-**Pipe occupancy.** Reads `PipeUtilization.csv`, computes per-pipe-family means of non-NA ratios across all rows (I-Q6b). Each item may include `side: 'cube' | 'vector' | 'both'` for the M1 Cube|Vector toggle on the existing PIPE panel. Families and columns: Cube (`aic_cube_*`), Vector (`aiv_vec_*`), MTE2 (`aiv_mte2_*`/`aic_mte2_*`), MTE1 (`aiv_mte1_*`/`aic_mte1_*`), FixP (`aic_fixpipe_*`), MTE3 (`aiv_mte3_*`/`aic_mte3_*`), Scalar (`aiv_scalar_*`). Ratios merge into matching swimlane threads by `laneColorKey`.
+**Pipe occupancy.** Reads `PipeUtilization.csv`, computes per-pipe-family means of non-NA ratios across all rows (I-Q6b). Each item is **side-specific**: Cube uses `aic_*` columns, Vector uses `aiv_*` (VIEW_DATA_MAPPING tables). Shared family names (MTE2, Scalar) appear as separate cube/vector items — never a blended AIC+AIV mean. Ratios merge into matching swimlane threads by `laneColorKey` (mean when both sides contribute the same key).
 
 **Swimlane model.** Extracts `trace.json` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'ns'`.
 
@@ -27,7 +27,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration; compute/BW/util unset per I-Q6a.
 2. **PR-VM-002** — PipeOccupancy aggregates mean of non-NA ratios per pipe family per I-Q6b.
 3. **PR-VM-003** — Overview series returns empty array per I-Q5+.
-4. **PR-VM-005** — Pipe items include `side` for Cube|Vector filtering on the existing PIPE panel.
+4. **PR-VM-005** — Pipe items are side-specific (`aic_*` vs `aiv_*`); no blended AIC/AIV family ratio.
 
 ## Edge Cases
 

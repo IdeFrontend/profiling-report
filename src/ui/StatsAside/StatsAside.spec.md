@@ -20,7 +20,7 @@ Purely presentational — no emitted events.
 
 **PIPE occupancy bars.** Renders utilization bars. Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS.
 
-**Cube | Vector toggle (M1 update to existing PIPE panel).** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector` / `both`). Non-MIX: no toggle; show pipes whose `side` matches the op (vector-like → vector|both; cube/aic-like → cube|both; unknown → all).
+**Cube | Vector toggle (M1 update to existing PIPE panel).** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX: no toggle; show pipes for the op’s side only.
 
 **Planned (not in this branch’s code):** aside mode switcher, compute/memory CSV tabs, block switcher, 查看全部, topology — design specs only.
 

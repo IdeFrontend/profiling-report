@@ -49,9 +49,9 @@ export interface PipeOccupancyItem {
   colorKey: string;
   /**
    * M1 Cube|Vector toggle grouping ([changes.png] #2).
-   * `both` = show under either side (merged AIC/AIV family means).
+   * Cube uses `aic_*` columns; Vector uses `aiv_*` — never blend across sides.
    */
-  side?: 'cube' | 'vector' | 'both';
+  side?: 'cube' | 'vector';
 }
 
 export interface OverviewSeries {
