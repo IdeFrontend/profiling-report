@@ -144,6 +144,12 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
+**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip (20px track; 18px / 12px/400 labels; 5px minors; major bars with labels to the right). See `docs/specs/ui/components/VISUAL_SPEC.md`.
+
+**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge.
+
+**Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — summary, pipe occupancy, compute tables, or memory tables (same gate as the toolbar toggle).
+
 ## Acceptance Criteria
 
 1. **PR-ROOT-001** — Mounts with title, shows shell, handles empty source.
@@ -175,4 +181,7 @@ All child component specs. [mstt-integration](../../../specs/architecture/mstt-i
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-07** — `reportHasAsideContent` includes compute/memory CSV; PR-UI-008.
+- **2026-08-07** — Resizable lane gutter and aside (session-only widths).
+- **2026-08-07** — Viewport time axis shares AxisRuler chrome with overview.
 - **2026-08-05** — Initial spec. Core behaviors established.

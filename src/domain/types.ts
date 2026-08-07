@@ -60,10 +60,25 @@ export interface OverviewSeries {
   points: { t: number; v: number }[];
 }
 
+/** M1 searchable CSV detail tab ([changes.png] #3–#4, COMPONENTS CsvTableModel). */
+export interface CsvTableModel {
+  fileName: string;
+  headers: string[];
+  rows: Record<string, string>[];
+  /** Distinct block_id values in fixture order (I-Q6c). */
+  blockIds: string[];
+}
+
 export interface ReportViewModel {
   summary: SummaryMetrics;
   pipeOccupancy: PipeOccupancyItem[];
   overviewSeries: OverviewSeries[];
+  /** Compute-load tabs: PipeUtilization | ArithmeticUtilization | ResourceConflictRatio. */
+  computeTables: CsvTableModel[];
+  /** Memory tabs: Memory.csv | L2Cache | MemoryL0 | MemoryUB. */
+  memoryTables: CsvTableModel[];
+  /** Raw CSV text by basename for 查看全部 (I-Q6d). */
+  csvTexts: Record<string, string>;
 }
 
 export type ReportCapability =

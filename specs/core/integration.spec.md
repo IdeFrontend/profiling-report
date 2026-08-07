@@ -23,6 +23,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-UI-005**: Search input filters events in swimlane.
 1. **PR-UI-006**: Standalone CTEF renders timeline without aside panel.
 1. **PR-UI-007**: Time overview brush emits window update events.
+1. **PR-UI-008**: CSV-only report (compute/memory tables, no summary/pipe) auto-opens aside and shows toggle.
 
 ### E2E (PR-E2E)
 

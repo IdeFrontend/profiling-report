@@ -186,7 +186,7 @@ CSS grid: gutter | main | aside (+ detail strip region).
 
 ### `LaneGutter` (M)
 
-Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline.
+Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Visual tokens: [`components/VISUAL_SPEC.md`](../ui/components/VISUAL_SPEC.md). Behavior: [`LaneGutter.spec.md`](../../../src/ui/LaneGutter/LaneGutter.spec.md).
 
 **Why:** DOM text for a11y/i18n; avoids baking labels into WebGL. Hierarchy comes from `SwimProcess` / `SwimThread`.
 

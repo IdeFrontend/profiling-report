@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { formatAxisTime } from '../../domain/formatTime';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { buildAxisRulerTicks } from '../../domain/axisRuler';
 import type { TimeDisplayUnit } from '../../domain/types';
+import AxisRuler from '../AxisRuler/AxisRuler.vue';
 
 const props = defineProps<{
   minTime: number;
@@ -16,6 +17,9 @@ const emit = defineEmits<{
 }>();
 
 const rootRef = ref<HTMLElement | null>(null);
+const trackWidth = ref(0);
+let resizeObserver: ResizeObserver | null = null;
+
 type DragMode = 'move' | 'left' | 'right' | null;
 let dragMode: DragMode = null;
 let dragOriginX = 0;
@@ -32,13 +36,33 @@ const rightPct = computed(
 );
 const widthPct = computed(() => Math.max(0.4, rightPct.value - leftPct.value));
 
-const ticks = computed(() => {
-  const n = 9;
-  const step = fullSpan.value / n;
-  return Array.from({ length: n + 1 }, (_, i) => {
-    const t = props.minTime + step * i;
-    return { t, label: formatAxisTime(t, props.timeUnit, step), pct: (i / n) * 100 };
-  });
+const ruler = computed(() =>
+  buildAxisRulerTicks({
+    rangeStart: props.minTime,
+    rangeEnd: props.maxTime,
+    origin: props.minTime,
+    timeUnit: props.timeUnit,
+    widthPx: trackWidth.value,
+    muteOutside: { start: props.startTime, end: props.endTime },
+  }),
+);
+
+onMounted(() => {
+  const el = rootRef.value;
+  if (!el) return;
+  const sync = () => {
+    trackWidth.value = el.clientWidth || 0;
+  };
+  sync();
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(sync);
+    resizeObserver.observe(el);
+  }
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
 });
 
 function clientToTime(clientX: number): number {
@@ -123,14 +147,21 @@ function onPointerUp() {
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
     >
-      <span
-        v-for="tick in ticks"
-        :key="tick.t"
-        class="pr-overview__tick"
-        :style="{ left: `${tick.pct}%` }"
-      >{{ tick.label }}</span>
+      <!-- Dim outside selected window -->
+      <div
+        class="pr-overview__dim pr-overview__dim--left"
+        :style="{ width: `${leftPct}%` }"
+      />
+      <div
+        class="pr-overview__dim pr-overview__dim--right"
+        :style="{ left: `${rightPct}%`, width: `${Math.max(0, 100 - rightPct)}%` }"
+      />
 
-      <!-- Invisible hit target between handles for pan (no blue brush fill) -->
+      <AxisRuler
+        :majors="ruler.majors"
+        :minors="ruler.minors"
+      />
+
       <div
         class="pr-overview__span"
         data-testid="time-overview-window"
@@ -138,22 +169,29 @@ function onPointerUp() {
         @pointerdown="onPointerDown($event, 'move')"
       />
 
+      <!-- Flag handles: 1px stem + outward top tab (VISUAL_SPEC) -->
       <button
         type="button"
-        class="pr-overview__handle"
+        class="pr-overview__handle pr-overview__handle--left"
         data-testid="time-overview-handle-left"
         aria-label="Visible range start"
-        :style="{ left: `calc(${leftPct}% - 3px)` }"
+        :style="{ left: `${leftPct}%` }"
         @pointerdown="onPointerDown($event, 'left')"
-      />
+      >
+        <span class="pr-overview__handle-tab" aria-hidden="true" />
+        <span class="pr-overview__handle-stem" aria-hidden="true" />
+      </button>
       <button
         type="button"
-        class="pr-overview__handle"
+        class="pr-overview__handle pr-overview__handle--right"
         data-testid="time-overview-handle-right"
         aria-label="Visible range end"
-        :style="{ left: `calc(${rightPct}% - 3px)` }"
+        :style="{ left: `${rightPct}%` }"
         @pointerdown="onPointerDown($event, 'right')"
-      />
+      >
+        <span class="pr-overview__handle-tab" aria-hidden="true" />
+        <span class="pr-overview__handle-stem" aria-hidden="true" />
+      </button>
     </div>
   </div>
 </template>
@@ -161,54 +199,84 @@ function onPointerUp() {
 <style scoped>
 .pr-overview {
   flex: 0 0 auto;
-  padding: 2px 0 0;
+  padding: 0;
   background: transparent;
   user-select: none;
 }
 
 .pr-overview__track {
   position: relative;
-  height: 28px;
+  height: 20px;
   border-bottom: 1px solid #4a4a4a;
   cursor: default;
+  /* Clip edge labels so they never paint into the right aside. */
+  overflow: hidden;
 }
 
-.pr-overview__tick {
+.pr-overview__dim {
   position: absolute;
-  top: 2px;
-  transform: translateX(-50%);
-  font-size: 10px;
-  color: #c8c8c8;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
   pointer-events: none;
+  z-index: 0;
+}
+
+.pr-overview__dim--left {
+  left: 0;
 }
 
 .pr-overview__span {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.06);
   cursor: grab;
-  z-index: 1;
+  z-index: 2;
 }
 
 .pr-overview__span:active {
   cursor: grabbing;
 }
 
+/*
+ * Range handle: vertical white pill head + 1px stem.
+ * Track is 20px; 4×10 pill (VISUAL_SPEC).
+ */
 .pr-overview__handle {
   position: absolute;
-  top: 10px;
+  top: 0;
   bottom: 0;
-  width: 6px;
+  width: 12px;
   margin: 0;
   padding: 0;
-  border: none;
-  border-radius: 1px;
-  background: #e8e8e8;
+  border: 0;
+  background: transparent;
   cursor: ew-resize;
-  z-index: 2;
-  box-shadow: 0 0 0 1px #111;
+  z-index: 3;
+  transform: translateX(-50%);
+}
+
+.pr-overview__handle-stem {
+  position: absolute;
+  top: 11px;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.pr-overview__handle-tab {
+  position: absolute;
+  top: 1px;
+  left: 50%;
+  width: 4px;
+  height: 10px;
+  transform: translateX(-50%);
+  background: #ffffff;
+  border-radius: 2px;
+  pointer-events: none;
 }
 </style>

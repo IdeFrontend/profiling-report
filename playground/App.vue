@@ -70,6 +70,14 @@ async function onFileChosen(e: Event): Promise<void> {
   }
 }
 
+/** I-Q6d: open full CSV text in a new browser tab. */
+function onViewFullCsv(payload: { fileName: string; text: string }): void {
+  const blob = new Blob([payload.text], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 onMounted(async () => {
   try {
     await loadFixture(queryFixture.value);
@@ -128,6 +136,7 @@ onMounted(async () => {
         :title="title"
         :source="source"
         locale="zh-CN"
+        @view-full-csv="onViewFullCsv"
       />
       <div
         v-else-if="!error"
