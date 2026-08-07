@@ -47,6 +47,11 @@ export interface PipeOccupancyItem {
   label: string;
   ratio: number;
   colorKey: string;
+  /**
+   * M1 Cube|Vector toggle grouping ([changes.png] #2).
+   * `both` = show under either side (merged AIC/AIV family means).
+   */
+  side?: 'cube' | 'vector' | 'both';
 }
 
 export interface OverviewSeries {
@@ -112,6 +117,12 @@ export interface SelectedEvent {
 /** Interim I-Q14: ms / µs / ns only (no clock-cycle mode). */
 export type TimeDisplayUnit = 'ms' | 'us' | 'ns';
 
+/** M2 timeline measure range — times in the same ns units as SwimlaneViewState. */
+export interface MeasureRange {
+  startTime: number;
+  endTime: number;
+}
+
 /** Interaction state — not part of the immutable report model (COMPONENTS). */
 export interface SwimlaneViewState {
   startTime: number;
@@ -122,6 +133,9 @@ export interface SwimlaneViewState {
   searchQuery: string;
   asideVisible: boolean;
   playheadTime: number | null;
+  /** M2 度量模式 — local overlay until Q22 */
+  measureMode: boolean;
+  measureRange: MeasureRange | null;
 }
 
 export interface SwimlaneViewWindow {

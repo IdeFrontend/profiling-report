@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow } from '../../domain/types';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { formatTime } from '../../domain/formatTime';
+import type {
+  MeasureRange,
+  SwimEvent,
+  SwimlaneModel,
+  SwimlaneViewWindow,
+  TimeDisplayUnit,
+} from '../../domain/types';
+import { normalizeMeasureRange } from '../../domain/viewState';
 import { CanvasSwimlaneRenderer, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../CanvasSwimlaneRenderer';
 
 const props = defineProps<{
@@ -9,6 +17,9 @@ const props = defineProps<{
   selectedEventId: string | null;
   hoveredEventId: string | null;
   searchQuery: string;
+  measureMode?: boolean;
+  measureRange?: MeasureRange | null;
+  timeUnit?: TimeDisplayUnit;
 }>();
 
 const emit = defineEmits<{
@@ -19,6 +30,7 @@ const emit = defineEmits<{
   zoom: [factor: number, anchorTime: number];
   'scroll-y': [scrollY: number];
   'set-playhead': [time: number];
+  'update:measureRange': [range: MeasureRange | null];
 }>();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -31,6 +43,7 @@ let attachedModel: SwimlaneModel | null = null;
 let dragging = false;
 let lastX = 0;
 let downX = 0;
+let measureAnchorTime: number | null = null;
 let lastW = 0;
 let lastH = 0;
 let resizeObserver: ResizeObserver | null = null;
@@ -129,10 +142,41 @@ function timeAtX(x: number): number {
   return props.view.startTime + (x / w) * span;
 }
 
+function xAtTime(t: number): number {
+  const span = Math.max(1, props.view.endTime - props.view.startTime);
+  const w = wrapRef.value?.clientWidth || 1;
+  return ((t - props.view.startTime) / span) * w;
+}
+
+const measureOverlayStyle = computed(() => {
+  const range = props.measureRange;
+  if (!range) return null;
+  const left = xAtTime(range.startTime);
+  const right = xAtTime(range.endTime);
+  const x = Math.min(left, right);
+  const width = Math.max(1, Math.abs(right - left));
+  return { left: `${x}px`, width: `${width}px` };
+});
+
+const measureLabel = computed(() => {
+  const range = props.measureRange;
+  if (!range) return '';
+  const dur = Math.abs(range.endTime - range.startTime);
+  return formatTime(dur, props.timeUnit ?? 'ms');
+});
+
 function onPointerDown(e: PointerEvent): void {
   dragging = true;
   lastX = e.clientX;
   downX = e.clientX;
+  const canvas = canvasRef.value;
+  if (props.measureMode && canvas) {
+    const rect = canvas.getBoundingClientRect();
+    measureAnchorTime = timeAtX(e.clientX - rect.left);
+    emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
+  } else {
+    measureAnchorTime = null;
+  }
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
 }
 
@@ -150,6 +194,11 @@ function onPointerMove(e: PointerEvent): void {
   emit('cursor', { time, xRatio: x / w });
 
   if (dragging) {
+    if (props.measureMode && measureAnchorTime != null) {
+      emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, time));
+      emit('hover', null, e.clientX, e.clientY);
+      return;
+    }
     const span = Math.max(1, props.view.endTime - props.view.startTime);
     const dx = e.clientX - lastX;
     lastX = e.clientX;
@@ -165,7 +214,9 @@ function onPointerMove(e: PointerEvent): void {
 }
 
 function onPointerUp(e: PointerEvent): void {
+  const wasMeasuring = props.measureMode && measureAnchorTime != null;
   dragging = false;
+  measureAnchorTime = null;
   const canvas = canvasRef.value;
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
@@ -173,6 +224,7 @@ function onPointerUp(e: PointerEvent): void {
   const y = e.clientY - rect.top;
   const time = timeAtX(x);
   emit('set-playhead', time);
+  if (wasMeasuring) return;
   if (Math.abs(e.clientX - downX) > 4) return;
   const id = renderer.hitTest(x, y);
   emit('select', id ? renderer.findEvent(id) : null);
@@ -180,6 +232,7 @@ function onPointerUp(e: PointerEvent): void {
 
 function onPointerLeave(): void {
   dragging = false;
+  measureAnchorTime = null;
   renderer.setCursorX(null);
   renderer.render();
   emit('cursor', null);
@@ -209,6 +262,7 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
     ref="wrapRef"
     class="pr-swim-canvas-wrap"
     data-testid="swimlane"
+    :class="{ 'pr-swim-canvas-wrap--measure': measureMode }"
   >
     <div
       class="pr-swim-canvas-sizer"
@@ -225,6 +279,17 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
       @pointerleave="onPointerLeave"
       @wheel="onWheel"
     />
+    <div
+      v-if="measureOverlayStyle"
+      class="pr-measure-band"
+      data-testid="measure-band"
+      :style="measureOverlayStyle"
+    >
+      <span
+        class="pr-measure-band__label"
+        data-testid="measure-label"
+      >{{ measureLabel }}</span>
+    </div>
   </div>
 </template>
 
@@ -236,6 +301,10 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
   min-height: 160px;
   overflow: hidden;
   background: #1a1a1a;
+}
+
+.pr-swim-canvas-wrap--measure .pr-swim-canvas {
+  cursor: col-resize;
 }
 
 .pr-swim-canvas-sizer {
@@ -250,5 +319,30 @@ defineExpose({ eventScreenRect: (id: string) => renderer.eventScreenRect(id), re
   display: block;
   cursor: crosshair;
   touch-action: none;
+}
+
+.pr-measure-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(48, 120, 240, 0.22);
+  border-left: 1px solid rgba(48, 120, 240, 0.85);
+  border-right: 1px solid rgba(48, 120, 240, 0.85);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pr-measure-band__label {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: rgba(20, 20, 20, 0.85);
+  color: #e8e8e8;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 </style>

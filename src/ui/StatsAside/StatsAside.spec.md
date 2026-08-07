@@ -2,13 +2,13 @@
 
 | spec-id-prefix |
 |----------------|
-| PR-STATS-*     |
+| PR-STATS-*   |
 
-Right-side analytics panel showing report summary statistics and PIPE occupancy bars.
+Right-side analytics panel showing report summary statistics and PIPE occupancy bars (existing views only this branch).
 
 ## Inputs
 
-**report** carries the full `ReportViewModel` with `summary` (op name, type, duration, block dim, frequencies) and `pipeOccupancy` (per-family utilization ratios). Optional **locale** localizes labels. The parent hides the entire panel via `ReportLayout` when no data is available (standalone CTEF).
+**report** carries the full `ReportViewModel` with `summary` and `pipeOccupancy`. Optional **locale**.
 
 ## Outputs
 
@@ -16,16 +16,19 @@ Purely presentational — no emitted events.
 
 ## Behavior
 
-**Summary section.** Displays operator metadata from `report.summary`: op name, op type, and task duration (formatted via a local `formatDurationUs` function from microseconds). Current and rated frequencies when available. In MVP, only thin fields are populated per I-Q6a — compute TFLOPS, bandwidth, and core utilization fields exist in the type but are intentionally unset. Block dimension is present in the type but not rendered in the current UI.
+**Summary section.** Displays operator metadata from `report.summary` (I-Q6a thin fields).
 
-**PIPE occupancy bars.** Renders a horizontal bar chart showing utilization for each pipe family: Cube, Vector, MTE1, MTE2, MTE3, FixP, and Scalar. Values are per-family means of non-NA ratios across all blocks, computed in `adaptRep` per I-Q6b. Bar colors match COLOR_TOKENS — the same colors used in the lane gutter and swimlane event fills. Colors are consistent across all surfaces so a user can visually correlate a pipe bar to the corresponding lane.
+**PIPE occupancy bars.** Renders utilization bars. Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS.
 
-**Panel modes (P2).** The aside panel can switch between multiple views: summary+pipe occupancy (MVP), pipe field details, roofline chart, memory topology, and memory heatmap. All P2 modes are gated behind `ReportCapability` flags.
+**Cube | Vector toggle (M1 update to existing PIPE panel).** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector` / `both`). Non-MIX: no toggle; show pipes whose `side` matches the op (vector-like → vector|both; cube/aic-like → cube|both; unknown → all).
+
+**Planned (not in this branch’s code):** aside mode switcher, compute/memory CSV tabs, block switcher, 查看全部, topology — design specs only.
 
 ## Acceptance Criteria
 
 1. **PR-STATS-001** — Renders summary stats.
 2. **PR-STATS-002** — Renders PIPE bars with correct colors.
+3. **PR-STATS-003** — Cube|Vector toggle appears only for MIX; filters bars by side.
 
 ## Edge Cases
 
@@ -33,28 +36,22 @@ Purely presentational — no emitted events.
 |---|---|
 | report is null or undefined | Empty panel, no error |
 | Empty pipeOccupancy | No bars; summary still visible if present |
-| All NA ratios for a family | Bar shows 0 length |
-| Empty summary (standalone CTEF) | Panel hidden by parent (ReportLayout showAside=false) |
-| Missing compute/BW fields (I-Q6a) | Fields are absent, no placeholder shown |
+| Non-MIX opType | No Cube|Vector toggle |
+| Missing compute/BW fields (I-Q6a) | Fields absent |
 
 ## Design sketches
 
-- [Report stats](../../../docs/specs/ui/source/report-stats.png) — summary cards
-- [PIPE occupancy](../../../docs/specs/ui/source/pipe-occupancy.png) — utilization bars
-- [PIPE details](../../../docs/specs/ui/source/pipe-details.png) — field list (P2)
-- [Roofline](../../../docs/specs/ui/source/roofline.png) — chart (P2)
-- [Memory load heatmap](../../../docs/specs/ui/source/memory-load-heatmap.png) (P2)
-- [Memory topology](../../../docs/specs/ui/source/memory-topology-annotated.png) (P2)
+- [changes.png](../../../docs/source/changes/changes.png) #2
+- [PIPE occupancy](../../../docs/specs/ui/source/pipe-occupancy.png)
 
 ## Dependencies
 
-[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md).
-
-**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (OpBasicInfo.csv and PipeUtilization.csv schemas), [INPUT_FORMATS.md](../../../docs/specs/formats/INPUT_FORMATS.md) (container contract).
+[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), I-Q6a/b.
 
 ## Open
 
-Q6 — Product-final summary formulas (currently thin per I-Q6a).
+Q22 — measureRange aside sync. Further M1/M2 aside surfaces.
 
 ## Changelog
-- **2026-08-05** — Initial spec. Core behaviors established.
+- **2026-08-07** — Cube|Vector toggle on existing PIPE panel only.
+- **2026-08-05** — Initial spec.

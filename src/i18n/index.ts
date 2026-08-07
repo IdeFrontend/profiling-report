@@ -27,6 +27,8 @@ const messages = {
     tabCache: '缓存',
     kernel: 'Kernel',
     ratedFreq: '额定频率',
+    pipeSide: 'PIPE 侧',
+    measure: '度量',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -54,6 +56,8 @@ const messages = {
     tabCache: 'Cache',
     kernel: 'Kernel',
     ratedFreq: 'Rated freq',
+    pipeSide: 'PIPE side',
+    measure: 'Measure',
   },
 } as const;
 

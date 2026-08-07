@@ -19,18 +19,18 @@ Normative catalog of models, adapters, renderer APIs, and Vue components for the
 
 ```text
 ProfilingReport
-├─ ReportToolbar
+├─ ReportToolbar (+ measure toggle M2)
 ├─ ReportLayout (main | aside)
 │  ├─ TimeOverviewBar
 │  ├─ LaneGutter
-│  ├─ SwimlaneCanvas  →  SwimlaneRenderer   (src/swimlane/)
-│  ├─ StatsAside
-│  │  ├─ StatsSummaryPanel (inline MVP)
-│  │  ├─ PipeOccupancyPanel (inline MVP)
-│  │  ├─ PipeDetailsPanel (P2)
-│  │  ├─ RooflinePanel (P2)
+│  ├─ SwimlaneCanvas  →  SwimlaneRenderer + measure overlay (M2)
+│  ├─ StatsAside (mode switcher M1)
+│  │  ├─ StatsSummaryPanel
+│  │  ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1)
+│  │  ├─ CsvFieldListPanel (compute + memory detail tabs M1)
+│  │  ├─ RooflinePanel (M2)
 │  │  ├─ HardwareDetailsPanel (deferred)
-│  │  └─ MemoryTopologyPanel (P2)
+│  │  └─ MemoryTopologyPanel (M2)
 │  └─ DetailStrip
 └─ EventTooltip (overlay)
 ```
@@ -75,9 +75,15 @@ Op name/type, task duration, optional raw frequency fields. Compute / bandwidth 
 
 ### `PipeOccupancyItem` (M)
 
-`{ id, label, ratio, colorKey }` for PIPE bars (Cube, Vector, MTE*, …). `colorKey` maps to [COLOR_TOKENS](../ui/COLOR_TOKENS.md).
+`{ id, label, ratio, colorKey, side?: 'cube' | 'vector' }` for PIPE bars. `colorKey` maps to [COLOR_TOKENS](../ui/COLOR_TOKENS.md).
 
-**Why:** Stable panel props; color keys align gutter/timeline/legend without hard-coding hex in three places.
+**Why:** Stable panel props; color keys align gutter/timeline/legend without hard-coding hex in three places. M1 Cube|Vector toggle filters by `side`.
+
+### `CsvTableModel` (M1)
+
+`{ fileName, headers: string[], rows: Record<string, string>[], blockIds: string[] }` for searchable detail tabs. Adapter also exposes raw CSV text for 查看全部.
+
+**Why:** One panel component serves PipeUtilization / ArithmeticUtilization / ResourceConflictRatio / Memory* / L2Cache.
 
 ### `OverviewSeries` (M)
 
@@ -85,11 +91,11 @@ Op name/type, task duration, optional raw frequency fields. Compute / bandwidth 
 
 **Why:** Isolates [Q5](../../context/OPEN_QUESTIONS.md) (time-series source). `OverviewCharts` hides when the array is empty instead of blocking MVP.
 
-### `SwimlaneViewState` (M)
+### `SwimlaneViewState` (M / M2)
 
-Visible `[startTime, endTime]`, `scrollY`, `selectedEventId`, `hoveredEventId`, `searchQuery`, aside visibility.
+Visible `[startTime, endTime]`, `scrollY`, `selectedEventId`, `hoveredEventId`, `searchQuery`, aside visibility. **M2:** `measureMode: boolean`, `measureRange: { startUs: number, endUs: number } | null`.
 
-**Why:** Interaction state is not part of the immutable report model; unit-testable; host may persist zoom/selection.
+**Why:** Interaction state is not part of the immutable report model; unit-testable; host may persist zoom/selection. Measure range is local until [Q22](../../context/OPEN_QUESTIONS.md).
 
 ### `SelectedEvent` (M)
 
@@ -166,11 +172,11 @@ Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
-### `ReportToolbar` (M)
+### `ReportToolbar` (M / M2)
 
-Search, zoom slider, zoom-to-fit, toggle stats aside.
+Search, zoom slider, zoom-to-fit, toggle stats aside. **M2:** measure-mode (度量模式) caliper toggle.
 
-**Why:** Chrome must not sit inside the canvas hit-test path; matches FEATURE_MATRIX toolbar MVP.
+**Why:** Chrome must not sit inside the canvas hit-test path; matches FEATURE_MATRIX toolbar.
 
 ### `ReportLayout` (M)
 
@@ -196,9 +202,9 @@ Renders `OverviewSeries` (Cube/Vector); **hidden** when empty.
 
 **Why:** MVP feature in sketches; hiding when empty avoids blocking on unresolved series math (Q5).
 
-### `SwimlaneCanvas` (M)
+### `SwimlaneCanvas` (M / M2)
 
-Mounts `SwimlaneRenderer`, maps pointer events to `hitTest`, updates hover/selection in view state.
+Mounts `SwimlaneRenderer`, maps pointer events to `hitTest`, updates hover/selection in view state. **M2:** when `measureMode`, drag sets `measureRange`; draws shaded band + Δt; pan-drag suppressed.
 
 **Why:** Thin Vue wrapper over imperative rendering — keeps LOD/WebGL out of the Vue reactivity graph.
 
@@ -220,29 +226,29 @@ Cards from `SummaryMetrics`.
 
 **Why:** Report-specific; omit when `reportModel` is absent.
 
-### `PipeOccupancyPanel` (M)
+### `PipeOccupancyPanel` (M / M1)
 
-Horizontal bars from `PipeOccupancyItem[]`.
+Horizontal bars from `PipeOccupancyItem[]`. **M1:** Cube | Vector segmented control when `OpType == MIX` ([changes.png](../../source/changes/changes.png) #2).
 
 **Why:** Highest-value `.rep` analytics panel in sketches; data from `PipeUtilization.csv` via adapter.
 
-### `PipeDetailsPanel` (P2)
+### `CsvFieldListPanel` (M1)
 
-Searchable list of raw `PipeUtilization` fields (per sketch `pipe_details.png` / `pipe_utilization.png`).
+Searchable field list with CSV tabs, optional block switcher, **查看全部** emit (`view-full-csv`). Used for compute-load details (#3) and memory details (#4).
 
-**Why:** Separates MVP bars ([UX S5](../ui/UX_SPEC.md)) from Phase 2 field-list drill-down; capability may gate later if needed.
+**Why:** One reusable panel for all M1 CSV drill-downs; hide empty tabs.
 
-### `RooflinePanel` (P2)
+### `RooflinePanel` (M2)
 
 Log-log roofline chart.
 
 **Why:** Named for FEATURE_MATRIX / sketches; needs formula clarity (Q11).
 
-### `MemoryTopologyPanel` (P2)
+### `MemoryTopologyPanel` (M2)
 
-Static SVG memory path diagram with **data-driven edge labels** from `Memory*.csv` ([Q12](../../context/OPEN_QUESTIONS.md)); optional field list.
+Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([Q12](../../context/OPEN_QUESTIONS.md), changelog #5); optional field list.
 
-**Why:** Named stub; geometry stays in asset, labels from adapter.
+**Why:** Named stub; geometry stays in asset, labels from adapter mapping table.
 
 ### `HardwareDetailsPanel` (out of MVP)
 

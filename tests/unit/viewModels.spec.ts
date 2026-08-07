@@ -45,4 +45,13 @@ describe('PR-VM: report view-models (interim)', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     expect(adapted.reportModel.overviewSeries).toEqual([]);
   });
+
+  it('PR-VM-005: pipe occupancy items include side for Cube|Vector filtering', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    for (const pipe of adapted.reportModel.pipeOccupancy) {
+      expect(['cube', 'vector', 'both']).toContain(pipe.side);
+    }
+    expect(adapted.reportModel.pipeOccupancy.find((p) => p.id === 'vector')?.side).toBe('vector');
+    expect(adapted.reportModel.pipeOccupancy.find((p) => p.id === 'mte2')?.side).toBe('both');
+  });
 });

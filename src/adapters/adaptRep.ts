@@ -68,15 +68,16 @@ const PIPE_COLUMNS: {
   id: string;
   label: string;
   colorKey: string;
+  side: 'cube' | 'vector' | 'both';
   columns: string[];
 }[] = [
-  { id: 'cube', label: 'Cube', colorKey: 'cube', columns: ['aic_cube_ratio'] },
-  { id: 'vector', label: 'Vector', colorKey: 'vector', columns: ['aiv_vec_ratio'] },
-  { id: 'mte2', label: 'MTE2', colorKey: 'mte2', columns: ['aiv_mte2_ratio', 'aic_mte2_ratio'] },
-  { id: 'mte1', label: 'MTE1', colorKey: 'mte1', columns: ['aic_mte1_ratio'] },
-  { id: 'fixp', label: 'FixP', colorKey: 'fixp', columns: ['aic_fixpipe_ratio'] },
-  { id: 'mte3', label: 'MTE3', colorKey: 'mte3', columns: ['aiv_mte3_ratio', 'aic_mte3_ratio'] },
-  { id: 'scalar', label: 'Scalar', colorKey: 'scalar', columns: ['aiv_scalar_ratio', 'aic_scalar_ratio'] },
+  { id: 'cube', label: 'Cube', colorKey: 'cube', side: 'cube', columns: ['aic_cube_ratio'] },
+  { id: 'vector', label: 'Vector', colorKey: 'vector', side: 'vector', columns: ['aiv_vec_ratio'] },
+  { id: 'mte2', label: 'MTE2', colorKey: 'mte2', side: 'both', columns: ['aiv_mte2_ratio', 'aic_mte2_ratio'] },
+  { id: 'mte1', label: 'MTE1', colorKey: 'mte1', side: 'cube', columns: ['aic_mte1_ratio'] },
+  { id: 'fixp', label: 'FixP', colorKey: 'fixp', side: 'cube', columns: ['aic_fixpipe_ratio'] },
+  { id: 'mte3', label: 'MTE3', colorKey: 'mte3', side: 'vector', columns: ['aiv_mte3_ratio', 'aic_mte3_ratio'] },
+  { id: 'scalar', label: 'Scalar', colorKey: 'scalar', side: 'both', columns: ['aiv_scalar_ratio', 'aic_scalar_ratio'] },
 ];
 
 function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
@@ -91,6 +92,7 @@ function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
       label: pipe.label,
       ratio,
       colorKey: pipe.colorKey,
+      side: pipe.side,
     });
   }
   return items;

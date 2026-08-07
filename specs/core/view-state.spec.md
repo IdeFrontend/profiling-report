@@ -18,7 +18,9 @@ applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewS
 
 **Immutability.** All functions return new objects. The parent ProfilingReport uses `{ ...viewState.value, ...patch }` to trigger Vue reactivity — mutating in place would prevent the deep watcher in SwimlaneCanvas from detecting changes.
 
-**Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty search, aside visible, no playhead.
+**Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
+
+**Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only until Q22.
 
 **Zoom.** `zoomAt` zooms around an anchor time point. Factor >1 zooms in, <1 zooms out. Span is clamped to a minimum of 1. With bounds, the zoomed window never exceeds the bounds edges — if the zoomed span exceeds the full bounds, returns the full bounds.
 
@@ -31,6 +33,8 @@ applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewS
 1. **PR-VIEW-001**: zoomToFitWindow returns window covering model min/max times.
 1. **PR-VIEW-002**: zoomAt shrinks window around an anchor time point.
 1. **PR-VIEW-003**: panBy shifts window within timeline bounds.
+1. **PR-VIEW-004**: createViewState initializes measureMode=false and measureRange=null.
+1. **PR-VIEW-005**: setMeasureRange normalizes endpoints; clearMeasure nulls range and mode.
 
 ## Edge Cases
 
@@ -44,7 +48,8 @@ applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewS
 
 ## Open
 
-Multi-touch pinch zoom (P2).
+Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-08-07** — Note M2 measure as planned; no AC until coded.
 - **2026-08-05** — Initial spec. Core behaviors established.

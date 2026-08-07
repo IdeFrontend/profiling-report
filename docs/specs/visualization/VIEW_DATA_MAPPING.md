@@ -129,9 +129,9 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 
 ![Pipe occupancy](../ui/source/pipe-occupancy.png)
 
-**Rule (product table):** for `OpType == MIX`, split **Cube / Vector** and show **ICache** rates.
+**Rule (product table + changelog):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). See [`docs/source/changes/changes.png`](../../source/changes/changes.png) #2.
 
-**Mockup vs tables:** `pipe-occupancy.png` shows a **single** combined bar list (Cube, Vector, MTE2, MTE1, FixP, MTE3, Scalar). The field tables below are **two separate** Cube / Vector sets. Until product confirms layout, prefer the tables for field binding and treat the mockup as a visual style reference only.
+**Layout (confirmed):** use the **Cube / Vector field tables** below with a MIX toggle — not a single combined bar list. `pipe-occupancy.png` remains a visual style reference for bar chrome. Non-MIX ops show only the relevant Cube or Vector set; omit or placeholder `NA` values.
 
 ### Cube occupancy
 
@@ -159,18 +159,27 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 - Horizontal 0–100% tracks; solid fill = ratio; hatched remainder.
 - Optional absolute metric (time/cycles) drawn inside the filled segment (mockup).
 - 详情 link opens §11.2.5.1.
-- Non-MIX ops may show only the relevant Cube or Vector set; `NA` values omit or show placeholder.
+- Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([I-Q6b](../../context/INTERIM_DECISIONS.md)); detail tabs are block-scoped ([I-Q6c](../../context/INTERIM_DECISIONS.md)).
 
 ---
 
-## 11.2.5.1 PipeUtilization details（PIPE 占用率详情）
+## 11.2.5.1 Compute-load details（计算负载分析详情）
 
 ![Pipe details](../ui/source/pipe-details.png)
 
-Docx detail table is **empty**. Render a searchable key–value list of all `PipeUtilization.csv` columns for the selected block / OP:
+Changelog [#3](../../source/changes/changes.png): detail surface uses **tabs**:
+
+| Tab | Source CSV |
+| --- | --- |
+| `PipeUtilization` | `PipeUtilization.csv` |
+| `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
+| `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
+
+Render a searchable key–value (or table) list of all columns for the **selected block** ([I-Q6c](../../context/INTERIM_DECISIONS.md)):
 
 - AIC group: cycles, `*_time(us)`, `*_ratio`, active BW, ICache miss, scalar stall/wait breakdowns.
 - AIV group: same pattern; display `NA` when absent.
+- Hide a tab when its CSV is missing from the report.
 
 ---
 
@@ -182,52 +191,54 @@ Docx detail table is **empty**. Render a searchable key–value list of all `Pip
 
 **Note (docx):** dual-Die / Remote memory — open whether right-click details exist.
 
-### Edge → field → source
+**Changelog #5:** topology redraw must show **real CSV values** on buffer connection lines (not placeholders).
 
-| Display edge | Field (docx) | Source (docx) | Sample cross-check |
+### Edge → field → source (engineering mapping for M2)
+
+Use this table for `MemoryTopologyPanel` labels. Product may refine ([Q12](../../context/OPEN_QUESTIONS.md)); until then treat sample column names as canonical.
+
+| Display edge | Field | Source | Notes |
 | --- | --- | --- | --- |
-| GM ← L2 | `ai*_main_mem_read_bw` | `Memory.csv` | `aic_` / `aiv_main_mem_read_bw(GB/s)` |
-| GM → L2 | `ai*_main_mem_write_bw` | `Memory.csv` | `aic_` / `aiv_main_mem_write_bw(GB/s)` |
-| L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | present |
-| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | present |
-| L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | present |
-| L1 → L0B | `aic_l0b_read_bw(GB/s)` | `MemoryL0.csv` | present |
-| L0A → Cube | `aic_l0a_write_bw(GB/s)` | `MemoryL0.csv` | present |
-| L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | present |
-| L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` (待确定) | present |
-| Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | present |
-| L0C → L1 | `L0C_to_L1_datas` | 待确定 | `L0C_to_L1_datas(KB)` on `Memory.csv` |
-| L0C → L2 | `L0C_to_GM_datas` | 待确定 | `L0C_to_GM_datas(KB)` on `Memory.csv` |
-| L0C → UB | — | 待确定 | absent |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | `MemoryUB.csv` | name/file mismatch; sample `aiv_ub_to_gm_bw` on `Memory.csv`. **Also:** display direction vs `read`/`write` naming may be inverted — confirm with PO. |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | `MemoryUB.csv` | sample `aiv_gm_to_ub_bw` on `Memory.csv`; same direction/name caveat |
-| Vec → UB | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | present |
-| UB → Vec | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | present |
-| L2Cache Hit Rate | (unspecified column) | `L2Cache.csv` | use `*_hit_rate(%)` columns |
+| GM ← L2 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | Prefer non-`NA` AIC then AIV |
+| GM → L2 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | |
+| L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | No `MemoryL1.csv` in sample |
+| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | |
+| L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | |
+| L1 → L0B | `aic_l0b_read_bw(GB/s)` | `MemoryL0.csv` | |
+| L0A → Cube | `aic_l0a_write_bw(GB/s)` | `MemoryL0.csv` | |
+| L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | |
+| L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` | |
+| Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
+| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | |
+| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | |
+| UB → L2 | `aiv_ub_to_gm_bw(GB/s)` or `aiv_ub_read_bw_gm(GB/s)` | `Memory.csv` / `MemoryUB.csv` | Prefer first present non-`NA` |
+| L2 → UB | `aiv_gm_to_ub_bw(GB/s)` or `aiv_ub_write_bw_gm(GB/s)` | `Memory.csv` / `MemoryUB.csv` | |
+| Vec → UB | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
+| UB → Vec | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | |
+| L2Cache Hit Rate | first `*_hit_rate(%)` | `L2Cache.csv` | AIC/AIV column choice TBD |
 
-Annotated mockup also mentions `MemoryL1.csv` on L2→L1; that file is **not** in the sample archive (L1 BW already on `Memory.csv`).
+Omit edge label when value is missing/`NA`. Edge thickness stays static.
 
 ### Visualization logic
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
-- Overlay **GB/s** on edges; emphasize non-zero paths (e.g. blue vs grey).
-- Overlay **Peak (%)** utilization on units with a heatmap legend (0–100). **Gap:** no product field mapping for per-unit Peak % (pipe ratios? conflict ratios? something else?).
-- L2↔GM link uses L2Cache hit-rate metrics in addition to BW — which hit-rate column (read / write / total; AIC vs AIV) is unspecified.
-- Annotated topology mentions `MemoryL1.csv` for L2→L1 while the edge table uses `Memory.csv` `aic_l1_*_bw` — pick one canonical source.
+- Overlay **GB/s** (or KB) on edges from the mapping table; emphasize non-zero paths.
+- Overlay **Peak (%)** utilization on units only when a field mapping exists (still open for many units).
+- Labels are **block-scoped** via the same block switcher as memory details ([I-Q6c](../../context/INTERIM_DECISIONS.md)).
 
 ---
 
 ## 11.2.6.1 Memory load details
 
-Docx placeholders for **Memory** and **L2Cache** detail tables are empty. Recommended content:
+Changelog [#4](../../source/changes/changes.png):
 
-### Memory details
+| Control | Behavior |
+| --- | --- |
+| Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent |
+| Block switcher | Filter rows to selected `block_id` ([I-Q6c](../../context/INTERIM_DECISIONS.md)); default = first block |
+| 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([I-Q6d](../../context/INTERIM_DECISIONS.md)) |
 
-All numeric columns from `Memory.csv`, `MemoryL0.csv`, and `MemoryUB.csv` for the selected block (searchable key–value or grouped tables).
-
-### L2Cache details
-
-All hit/miss and hit-rate columns from `L2Cache.csv` for AIC and AIV.
+Searchable key–value / table of columns for the active tab + block. Show `NA` when present.
 
 ---
 

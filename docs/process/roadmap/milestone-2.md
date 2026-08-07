@@ -2,7 +2,7 @@
 
 **Target date:** **2026-08-25**
 
-**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart**. (4) **Roofline** panel from fixture arithmetic data (interim formulas if Q11 still open). Spec host: [MSTT_INTEGRATION.md](../../specs/architecture/MSTT_INTEGRATION.md).
+**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([changes.png](../../source/changes/changes.png) #5). (4) **Roofline** panel from fixture arithmetic data (interim formulas if Q11 still open). (5) Timeline **time-range measure / 度量模式** (changelog #1; local overlay until [Q22](../../context/OPEN_QUESTIONS.md)). Spec host: [MSTT_INTEGRATION.md](../../specs/architecture/MSTT_INTEGRATION.md).
 
 **Data note:** `out.rep` has no deps — ship interim Q9 encoding + synthetic playground fixture for CI; swap adapter when Product finalizes Q9.
 
@@ -17,16 +17,17 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | Selection emphasis | **Extend** | Click select; dim non-selected when links shown; clear on empty; hover stays tooltip-only |
 | Prev/next dependency lines | **New** | Bezier/curves: predecessors → selected → successors; track zoom/pan/scroll; toolbar show/hide; no-op if no deps |
 | DependencyLinksLayer | **New** | Overlay (or renderer layer) |
+| Time-range measure (度量模式) | **New** | Toolbar caliper; drag `[t0,t1]` on timeline; shaded band + Δt label; clear on toggle-off / Esc. **Does not** change viewport. Aside sync **blocked on Q22** — local overlay only until Product answers |
 | Multiselect / context menu / ProfilerStep / W/S/A/D / WebGL | **Out** | → [M3](milestone-3.md) |
 
 ## Other views
 
 | Item | Status | Features |
 |------|--------|----------|
-| M1 aside modes in MSTT | **Ship** | Summary / PIPE / Pipe details / Memory fields / Cache / Metrics when CSVs present; hidden for trace-only JSON |
+| M1 aside modes in MSTT | **Ship** | Summary / PIPE / compute details / Memory tabs when CSVs present; hidden for trace-only JSON; host opens **查看全部** CSV in editor tab (I-Q6d) |
 | Host chrome | **New (host)** | i18n, load errors; capability flags; workspace dep (I-Q16) |
 | Details panel | **New** | Replaces compact strip: name + timing; incoming/current/outgoing mini-graph with depth filters; raw args when present; hide when no selection |
-| Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs (Q12). Hide if no memory CSVs. Edge thickness static. Optional: hover/click syncs field-list rows |
+| Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs (Q12 + changelog #5). Hide if no memory CSVs. Edge thickness static. Optional: hover/click syncs field-list rows |
 | Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `general.png` / `with_sidebar.png` / `roofline.png`. Hide if no usable points. Capability flag `roofline` |
 | Overview / Q6 tiles / secondary tabs | **Out** | → [M3](milestone-3.md) |
 
@@ -35,10 +36,11 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 1. **Deps (library):** Document interim Q9 encoding (e.g. `SwimEvent.dependencies: string[]` successor ids, or Chrome Trace `args` convention); add synthetic fixture with known edges; adapter fills model.
 2. **Deps UI:** `DependencyLinksLayer` — layout anchors from renderer hit boxes; draw curves on selection; toolbar toggle; update on view-state changes; tests.
 3. **Details panel:** Replace/extend `DetailStrip` → selection details (timing + in/current/out mini-graph + depth filters); wire to `selectedEventId`.
-4. **Memory graph:** Author/adapt static SVG topology asset; map Memory* CSV columns → edge label slots (document mapping table); `MemoryTopologyPanel` in Memory aside with M1 field lists; tests on `out.rep`.
+4. **Memory graph:** Author/adapt static SVG topology asset; map Memory* CSV columns → edge label slots (document mapping table in VIEW_DATA_MAPPING); `MemoryTopologyPanel` in Memory aside with M1 field lists; tests on `out.rep`.
 5. **Roofline:** Spec interim point/ceiling mapping from `ArithmeticUtilization` (and peaks if present) while Q11 open; implement `RooflinePanel` (hover points, hide if empty); wire aside/capability; tests on `out.rep`.
-6. **MSTT host (separate repo):** workspace dep; scan `.rep`/`.ncrep`; open dispatch; panel mount `<ProfilingReport>`; theme/locale; smoke real OP + fixture.
-7. Specs + CI for deps fixture, details panel, memory labels, roofline; host checklist in integration doc.
+6. **Time-range measure:** Toolbar toggle + `measureMode` / `measureRange` in view-state; canvas overlay (band + Δt); pan suppressed while measuring; no aside recompute until Q22; tests.
+7. **MSTT host (separate repo):** workspace dep; scan `.rep`/`.ncrep`; open dispatch; panel mount `<ProfilingReport>`; theme/locale; open 查看全部 CSV; smoke real OP + fixture.
+8. Specs + CI for deps fixture, details panel, memory labels, roofline, measure overlay; host checklist in integration doc.
 
 ## Potential blockers
 
@@ -51,12 +53,13 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | No official SVG topology asset in repo | Must draw from sketches | Create SVG from `memory_chart.png`; treat as product-owned asset |
 | **Q11 roofline** formulas + peak ceilings still open | Cannot claim Product-final axes | Ship **interim** point derivation from `ArithmeticUtilization` columns; document I-*; hide panel if undecidable; swap when Q11 closes |
 | Roofline peak bandwidth / compute ceilings not in fixture | Roof lines missing | Interim constants or omit roofs until Product supplies peaks |
+| **Q22** measure → which views update | Risk of wrong aside coupling | Ship **local overlay only** until Product answers |
 | **MSTT repo access / review lag** | Host PR slips past 2026-08-25 | Start dep wiring early; parallel library work; slip host only if needed |
 | Workspace/Vite resolve of library SFCs | Integration burns days | Follow `StTestResultsPanel` pattern ([MSTT_INTEGRATION](../../specs/architecture/MSTT_INTEGRATION.md)) |
 | Package name / I-Q16 not confirmed with MSTT | Wrong consume path | Default workspace path protocol; rename later |
 | Real OP `.rep` differs from `out.rep` | Host smoke fails | Library follow-up; hide missing panels |
 | Q18 Legal if copying PyPTO dep-link code verbatim | Blocks paste | Reimplement curves; no pypto runtime dep |
-| Selection + MSTT + memory graph + roofline in one milestone | Schedule risk | Parallelize: library selection/memory/roofline vs host PR |
+| Selection + MSTT + memory graph + roofline + measure in one milestone | Schedule risk | Parallelize: library selection/memory/roofline/measure vs host PR |
 
 ## Exit criteria
 
@@ -65,4 +68,5 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 - Toggle hides links; clear selection clears panel; `out.rep` without deps still safe
 - `out.rep`: Memory aside shows **graph chart** with labels from fixture Memory* CSVs
 - `out.rep`: Roofline panel shows when interim points can be derived; otherwise hidden with documented reason
-- Specs + tests for interim Q9, memory topology labels, interim roofline, and host smoke
+- Measure mode: toolbar → drag range → shaded band + Δt; clear works; no aside sync until Q22
+- Specs + tests for interim Q9, memory topology labels, interim roofline, measure overlay, and host smoke
