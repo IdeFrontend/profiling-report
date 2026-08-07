@@ -608,12 +608,16 @@ defineExpose({ selectEventById, viewState });
 .pr-cursor {
   position: absolute;
   top: 0;
-  bottom: 0;
+  /* Extend through axis border-bottom so the stem meets the canvas line (no 1px gap). */
+  bottom: -1px;
   width: 1px;
   background: #317af7;
   pointer-events: none;
   z-index: 5;
-  transform: translateX(-0.5px);
+  /*
+   * left = xRatio% places the left edge at cursor x.
+   * Canvas stroke uses x+0.5 so it covers [x, x+1] — same column. Do not translateX(-0.5).
+   */
 }
 
 .pr-cursor__label {

@@ -64,7 +64,7 @@ Both the overview track and the viewport time axis use the same ruler tokens:
 | Text | `#ffffff`, 11px, weight 600, tabular-nums |
 | Format | `MM:SS.mmm` from time **relative to `minTime`** in **active display unit** (see `formatCursorTime`) |
 | Size | ~72×19px content; `padding: 1px 8px`; `border-radius: 4px` |
-| Stem | 1px line same blue, centered under bubble (cursor line) |
+| Stem | 1px line same blue (`#317AF7`), continuous from axis through swimlane — **no** 1px gap at the axis/canvas border; axis + canvas segments share the same x (no horizontal jog) |
 | Behavior | Must update on pointer move; short traces use µs/ns unit so digits change |
 
 **Example:** axis `4.456ms` (relative) → label `00:04.456` when unit is `ms`.
