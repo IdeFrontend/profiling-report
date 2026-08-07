@@ -32,19 +32,27 @@ const opType = computed(() => (props.report?.summary.opType ?? '').trim());
 
 const isMix = computed(() => opType.value.toUpperCase() === 'MIX');
 
-const defaultSide = computed<PipeSide>(() => {
-  const raw = opType.value.toLowerCase();
-  if (raw.includes('mix')) return 'cube';
-  if (raw.includes('vector') || raw.includes('aiv') || raw.includes('vec')) return 'vector';
-  if (raw.includes('cube') || raw.includes('aic')) return 'cube';
-  return 'vector';
-});
+/** Known cube/vector side, or null when blank/unrecognized (show all pipes). */
+function resolveKnownSide(raw: string): PipeSide | null {
+  const v = raw.toLowerCase();
+  if (!v || v.includes('mix')) return null;
+  if (v.includes('vector') || v.includes('aiv') || v.includes('vec')) return 'vector';
+  if (v.includes('cube') || v.includes('aic')) return 'cube';
+  return null;
+}
 
-const pipeSide = ref<PipeSide>(defaultSide.value);
+const knownSide = computed(() => resolveKnownSide(opType.value));
 
-watch(defaultSide, (side) => {
-  pipeSide.value = side;
-});
+const pipeSide = ref<PipeSide>('cube');
+
+watch(
+  () => [isMix.value, knownSide.value] as const,
+  ([mix, side]) => {
+    if (mix) pipeSide.value = 'cube';
+    else if (side) pipeSide.value = side;
+  },
+  { immediate: true },
+);
 
 function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
   return (item.side ?? side) === side;
@@ -53,9 +61,9 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
 const visiblePipes = computed(() => {
   const all = props.report?.pipeOccupancy ?? [];
   if (isMix.value) return all.filter((p) => matchesSide(p, pipeSide.value));
-  // Unknown opType: show all sides so cube-only occupancy is not filtered out.
-  if (!opType.value) return all;
-  return all.filter((p) => matchesSide(p, defaultSide.value));
+  // Blank or unrecognized opType: show all sides (do not default-filter to vector).
+  if (knownSide.value == null) return all;
+  return all.filter((p) => matchesSide(p, knownSide.value!));
 });
 
 function formatDurationUs(us: number): string {

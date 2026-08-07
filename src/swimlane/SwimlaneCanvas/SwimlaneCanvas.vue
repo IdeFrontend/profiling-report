@@ -44,6 +44,8 @@ let dragging = false;
 let lastX = 0;
 let downX = 0;
 let measureAnchorTime: number | null = null;
+/** True from measure pointerdown until pointerup — survives external Esc/toolbar cancel. */
+let measureGestureActive = false;
 let lastW = 0;
 let lastH = 0;
 let resizeObserver: ResizeObserver | null = null;
@@ -136,6 +138,25 @@ watch(
   { deep: true },
 );
 
+function abortMeasureDrag(): void {
+  measureAnchorTime = null;
+  dragging = false;
+}
+
+watch(
+  () => props.measureMode,
+  (mode) => {
+    if (!mode) abortMeasureDrag();
+  },
+);
+
+watch(
+  () => props.measureRange,
+  (range) => {
+    if (range == null) abortMeasureDrag();
+  },
+);
+
 function timeAtX(x: number): number {
   const span = Math.max(1, props.view.endTime - props.view.startTime);
   const w = wrapRef.value?.clientWidth || 1;
@@ -172,9 +193,11 @@ function onPointerDown(e: PointerEvent): void {
   const canvas = canvasRef.value;
   if (props.measureMode && canvas) {
     const rect = canvas.getBoundingClientRect();
+    measureGestureActive = true;
     measureAnchorTime = timeAtX(e.clientX - rect.left);
     emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
   } else {
+    measureGestureActive = false;
     measureAnchorTime = null;
   }
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -194,8 +217,10 @@ function onPointerMove(e: PointerEvent): void {
   emit('cursor', { time, xRatio: x / w });
 
   if (dragging) {
-    if (props.measureMode && measureAnchorTime != null) {
-      emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, time));
+    if (measureGestureActive) {
+      if (props.measureMode && measureAnchorTime != null) {
+        emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, time));
+      }
       emit('hover', null, e.clientX, e.clientY);
       return;
     }
@@ -214,9 +239,10 @@ function onPointerMove(e: PointerEvent): void {
 }
 
 function onPointerUp(e: PointerEvent): void {
-  const wasMeasuring = props.measureMode && measureAnchorTime != null;
+  const wasMeasuring = measureGestureActive;
   dragging = false;
   measureAnchorTime = null;
+  measureGestureActive = false;
   const canvas = canvasRef.value;
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
@@ -231,8 +257,8 @@ function onPointerUp(e: PointerEvent): void {
 }
 
 function onPointerLeave(): void {
-  // Keep measure drag alive under pointer capture; clear anchor only on pointerup.
-  if (props.measureMode && measureAnchorTime != null) {
+  // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
+  if (measureGestureActive) {
     renderer.setCursorX(null);
     renderer.render();
     emit('cursor', null);

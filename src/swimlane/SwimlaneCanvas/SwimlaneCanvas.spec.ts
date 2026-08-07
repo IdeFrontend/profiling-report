@@ -99,4 +99,34 @@ describe('SwimlaneCanvas', () => {
     expect(last.endTime).toBeGreaterThan(last.startTime);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-006: clearing measureMode mid-drag does not pan or select', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: { processes: [], minTime: 0, maxTime: 1000 },
+        measureMode: true,
+        measureRange: null,
+        timeUnit: 'ms',
+      },
+      attachTo: document.body,
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 }),
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 200, configurable: true });
+
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 10, pointerId: 1 });
+    await canvas.trigger('pointermove', { clientX: 80, clientY: 10, pointerId: 1 });
+    await wrapper.setProps({ measureMode: false, measureRange: null });
+    await canvas.trigger('pointermove', { clientX: 140, clientY: 10, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: 22, clientY: 10, pointerId: 1 });
+
+    expect(wrapper.emitted('pan')).toBeFalsy();
+    expect(wrapper.emitted('select')).toBeFalsy();
+    wrapper.unmount();
+  });
 });
