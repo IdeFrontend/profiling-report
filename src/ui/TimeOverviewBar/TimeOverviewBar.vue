@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { formatAxisTime } from '../../domain/formatTime';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { buildAxisRulerTicks } from '../../domain/axisRuler';
 import type { TimeDisplayUnit } from '../../domain/types';
+import AxisRuler from '../AxisRuler/AxisRuler.vue';
 
 const props = defineProps<{
   minTime: number;
@@ -16,6 +17,9 @@ const emit = defineEmits<{
 }>();
 
 const rootRef = ref<HTMLElement | null>(null);
+const trackWidth = ref(0);
+let resizeObserver: ResizeObserver | null = null;
+
 type DragMode = 'move' | 'left' | 'right' | null;
 let dragMode: DragMode = null;
 let dragOriginX = 0;
@@ -32,19 +36,33 @@ const rightPct = computed(
 );
 const widthPct = computed(() => Math.max(0.4, rightPct.value - leftPct.value));
 
-const ticks = computed(() => {
-  const n = 9;
-  const step = fullSpan.value / n;
-  return Array.from({ length: n + 1 }, (_, i) => {
-    const t = props.minTime + step * i;
-    const outside = t < props.startTime - 1e-9 || t > props.endTime + 1e-9;
-    return {
-      t,
-      label: formatAxisTime(t, props.timeUnit, step),
-      pct: (i / n) * 100,
-      outside,
-    };
-  });
+const ruler = computed(() =>
+  buildAxisRulerTicks({
+    rangeStart: props.minTime,
+    rangeEnd: props.maxTime,
+    origin: props.minTime,
+    timeUnit: props.timeUnit,
+    widthPx: trackWidth.value,
+    muteOutside: { start: props.startTime, end: props.endTime },
+  }),
+);
+
+onMounted(() => {
+  const el = rootRef.value;
+  if (!el) return;
+  const sync = () => {
+    trackWidth.value = el.clientWidth || 0;
+  };
+  sync();
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(sync);
+    resizeObserver.observe(el);
+  }
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
 });
 
 function clientToTime(clientX: number): number {
@@ -139,13 +157,10 @@ function onPointerUp() {
         :style="{ left: `${rightPct}%`, width: `${Math.max(0, 100 - rightPct)}%` }"
       />
 
-      <span
-        v-for="tick in ticks"
-        :key="tick.t"
-        class="pr-overview__tick"
-        :class="{ 'pr-overview__tick--muted': tick.outside }"
-        :style="{ left: `${tick.pct}%` }"
-      >{{ tick.label }}</span>
+      <AxisRuler
+        :majors="ruler.majors"
+        :minors="ruler.minors"
+      />
 
       <div
         class="pr-overview__span"
@@ -184,17 +199,18 @@ function onPointerUp() {
 <style scoped>
 .pr-overview {
   flex: 0 0 auto;
-  padding: 2px 0 0;
+  padding: 0;
   background: transparent;
   user-select: none;
 }
 
 .pr-overview__track {
   position: relative;
-  height: 28px;
+  height: 22px;
   border-bottom: 1px solid #4a4a4a;
   cursor: default;
-  overflow: visible;
+  /* Clip edge labels so they never paint into the right aside. */
+  overflow: hidden;
 }
 
 .pr-overview__dim {
@@ -210,29 +226,13 @@ function onPointerUp() {
   left: 0;
 }
 
-.pr-overview__tick {
-  position: absolute;
-  top: 2px;
-  transform: translateX(-50%);
-  font-size: 10px;
-  color: #c8c8c8;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.pr-overview__tick--muted {
-  color: #666;
-}
-
 .pr-overview__span {
   position: absolute;
   top: 0;
   bottom: 0;
   background: rgba(255, 255, 255, 0.06);
   cursor: grab;
-  z-index: 1;
+  z-index: 2;
 }
 
 .pr-overview__span:active {
@@ -241,8 +241,7 @@ function onPointerUp() {
 
 /*
  * Range handle: vertical white pill head + 1px stem.
- * Mockup: head ~4×12 (taller than wide); our prior 10×6 flag was wrong.
- * Hit area is wider than the stem for usability.
+ * Track is 22px; 4×14 pill still fits (VISUAL_SPEC).
  */
 .pr-overview__handle {
   position: absolute;
@@ -273,7 +272,6 @@ function onPointerUp() {
   position: absolute;
   top: 1px;
   left: 50%;
-  /* Mockup: ~3–4×7–10 vertical pill on dual axis; use 4×14 for CSS-px clarity */
   width: 4px;
   height: 14px;
   transform: translateX(-50%);

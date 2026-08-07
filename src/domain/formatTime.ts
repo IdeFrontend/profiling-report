@@ -20,6 +20,18 @@ export function formatAxisTime(
   tickStepNs?: number,
 ): string {
   if (!Number.isFinite(ns)) return '—';
+  // Trace origin / left edge: compact zero (sketches show `0` / `0ms`, not `0.00000ms`).
+  if (Math.abs(ns) < 1e-9) {
+    switch (unit) {
+      case 'ns':
+        return '0ns';
+      case 'us':
+        return '0µs';
+      case 'ms':
+      default:
+        return '0ms';
+    }
+  }
   switch (unit) {
     case 'ns': {
       const step = tickStepNs != null ? Math.abs(tickStepNs) : 1;

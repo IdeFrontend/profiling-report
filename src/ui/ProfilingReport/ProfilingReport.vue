@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
+import { buildAxisRulerTicks } from '../../domain/axisRuler';
 import {
-  formatAxisTime,
   formatCursorTime,
   resolveCursorTimeUnit,
 } from '../../domain/formatTime';
@@ -29,6 +29,7 @@ import type {
 } from '../../domain/types';
 import { t } from '../../i18n';
 import SwimlaneCanvas from '../../swimlane/SwimlaneCanvas/SwimlaneCanvas.vue';
+import AxisRuler from '../AxisRuler/AxisRuler.vue';
 import DetailStrip from '../DetailStrip/DetailStrip.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import LaneGutter from '../LaneGutter/LaneGutter.vue';
@@ -69,6 +70,8 @@ const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
+const timeAxisRef = ref<HTMLElement | null>(null);
+const timeAxisWidth = ref(0);
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 
@@ -141,13 +144,14 @@ const zoomPercent = computed(() => {
   return Math.min(100, Math.round((Math.log2(ratio) / Math.log2(100)) * 100));
 });
 
-const axisTicks = computed(() => {
+const viewportRuler = computed(() => {
   const { startTime, endTime } = viewState.value;
-  const ticks = 5;
-  const step = (endTime - startTime) / ticks;
-  return Array.from({ length: ticks + 1 }, (_, i) => {
-    const tm = startTime + step * i;
-    return { t: tm, label: formatAxisTime(tm, unit.value, step) };
+  return buildAxisRulerTicks({
+    rangeStart: startTime,
+    rangeEnd: endTime,
+    origin: bounds.value.minTime,
+    timeUnit: unit.value,
+    widthPx: timeAxisWidth.value,
   });
 });
 
@@ -228,6 +232,24 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onMeasureKeydown);
 });
+
+watch(
+  timeAxisRef,
+  (el, _prev, onCleanup) => {
+    if (!el || typeof ResizeObserver === 'undefined') {
+      if (el) timeAxisWidth.value = el.clientWidth || 0;
+      return;
+    }
+    const sync = () => {
+      timeAxisWidth.value = el.clientWidth || 0;
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    onCleanup(() => ro.disconnect());
+  },
+  { flush: 'post' },
+);
 
 function onMeasureKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
@@ -459,14 +481,14 @@ defineExpose({ selectEventById, viewState });
             aria-hidden="true"
           />
           <div
+            ref="timeAxisRef"
             class="pr-time-axis"
             data-testid="time-axis"
           >
-            <span
-              v-for="tick in axisTicks"
-              :key="tick.t"
-              class="pr-time-axis__tick"
-            >{{ tick.label }}</span>
+            <AxisRuler
+              :majors="viewportRuler.majors"
+              :minors="viewportRuler.minors"
+            />
             <div
               v-if="cursor"
               class="pr-cursor"
@@ -476,7 +498,7 @@ defineExpose({ selectEventById, viewState });
               <span
                 class="pr-cursor__label"
                 data-testid="cursor-label"
-              >{{ formatCursorTime(cursor.time, cursorTimeUnit) }}</span>
+              >{{ formatCursorTime(cursor.time - bounds.minTime, cursorTimeUnit) }}</span>
             </div>
           </div>
         </div>
@@ -570,15 +592,11 @@ defineExpose({ selectEventById, viewState });
 
 .pr-time-axis {
   position: relative;
-  display: flex;
-  justify-content: space-between;
+  height: 22px;
   color: #c8c8c8;
-  font-variant-numeric: tabular-nums;
-  font-size: 11px;
   border-bottom: 1px solid #3a3a3a;
-  padding: 10px 8px 6px;
-  min-height: 28px;
   flex: 0 0 auto;
+  overflow: hidden;
 }
 
 .pr-gutter--axis-spacer {

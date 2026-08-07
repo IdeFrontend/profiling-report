@@ -144,6 +144,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
+**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip (22px / 10px, major bars with labels to the right, 9 minors between majors). See `docs/specs/ui/components/VISUAL_SPEC.md`.
+
 ## Acceptance Criteria
 
 1. **PR-ROOT-001** — Mounts with title, shows shell, handles empty source.
@@ -175,4 +177,5 @@ All child component specs. [mstt-integration](../../../specs/architecture/mstt-i
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-07** — Viewport time axis shares AxisRuler chrome with overview.
 - **2026-08-05** — Initial spec. Core behaviors established.

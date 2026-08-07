@@ -42,6 +42,7 @@ defineProps<{
   background: var(--pr-bg-panel);
   padding: 0;
   border-right: 1px solid #3a3a3a;
+  overflow: hidden;
 }
 
 @media (max-width: 900px) {

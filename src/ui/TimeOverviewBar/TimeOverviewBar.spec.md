@@ -18,6 +18,10 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 **Proportional mapping.** Window position and size are computed as percentages of the total span: `left = (startTime - minTime) / span`, `width = (endTime - startTime) / span`. When the window covers the full timeline, the indicator fills the entire bar.
 
+**Relative tick labels.** Overview axis labels format `t − minTime` so the leftmost tick is compact **0** in the active unit (`0ms` / `0µs` / `0ns`). Absolute source timestamps must not appear.
+
+**Shared ruler chrome.** Overview and viewport axes share `AxisRuler`: track height **22px**, label font **10px**, major **1px** bars with labels immediately to the **right**, and **9** minor ticks between each major pair. Majors use a zoom-aware nice ns grid (`1|2|5×10ⁿ`, ~100px spacing) snapped to `origin + k·interval` so tick **positions** reflow with zoom/pan. Majors/minors outside the selected window are muted. The track clips overflow so labels never paint into the right aside panel.
+
 **Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are a **vertical 4×14 white pill** on a **1px stem** (see `docs/specs/ui/components/VISUAL_SPEC.md`). Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
 
 **Parent integration.** The parent ProfilingReport receives the `update:window` event and applies the new window to `SwimlaneViewState` via `applyWindow`. All children re-render with the updated viewport.
@@ -26,6 +30,8 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 1. **PR-OVERVIEW-001** — Renders timeline bar.
 2. **PR-OVERVIEW-002** — Indicator covers correct proportion of the timeline.
+3. **PR-OVERVIEW-003** — Leftmost tick label is relative zero (`0ms` / `0µs` / `0ns`).
+4. **PR-OVERVIEW-004** — Ruler renders majors on a nice grid with minors between; track clips overflow.
 
 ## Edge Cases
 
@@ -41,6 +47,9 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 - [Statistical analysis (overview charts)](../../../docs/specs/ui/source/statistical-analysis.png)
 
 ## Changelog
+- **2026-08-07** — Zoom-aware nice major grid (`calculateGridInterval`); positions reflow with zoom.
+- **2026-08-07** — Shared AxisRuler chrome (22px/10px, major bars + label-right, 9 minors).
+- **2026-08-07** — Relative axis origin (left = 0); edge-aligned ticks; clip overflow vs aside.
 - **2026-08-07** — Handle head 4×12 vertical pill (was horizontal flag).
 - **2026-08-07** — Flag handles (1px stem + outward top tab) per visual crops.
 - **2026-08-05** — Initial spec. Core behaviors established.

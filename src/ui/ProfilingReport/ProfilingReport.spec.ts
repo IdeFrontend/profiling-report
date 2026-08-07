@@ -22,5 +22,8 @@ describe('ProfilingReport scaffold', () => {
       },
     });
     expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="time-axis"] [data-testid="axis-ruler"]').exists()).toBe(
+      true,
+    );
   });
 });

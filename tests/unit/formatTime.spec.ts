@@ -36,4 +36,10 @@ describe('PR-TIME: display units (interim I-Q14)', () => {
     const step = 20; // ns
     expect(formatAxisTime(986, 'ms', step)).not.toBe(formatAxisTime(1006, 'ms', step));
   });
+
+  it('PR-TIME-004: axis origin formats as compact zero', () => {
+    expect(formatAxisTime(0, 'ms', 474)).toBe('0ms');
+    expect(formatAxisTime(0, 'us', 474)).toBe('0µs');
+    expect(formatAxisTime(0, 'ns', 474)).toBe('0ns');
+  });
 });
