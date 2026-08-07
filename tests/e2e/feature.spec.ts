@@ -12,6 +12,8 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('profiling-report')).toBeVisible();
     await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
+    // Pipe occupancy lives behind the aside mode tab when summary is also present.
+    await page.getByTestId('aside-mode-pipe').click();
     await expect(page.getByTestId('pipe-occupancy')).toBeVisible();
     await expect(page.getByTestId('overview-charts')).toHaveCount(0);
   });
