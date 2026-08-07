@@ -35,4 +35,15 @@ describe('ReportLayout', () => {
 
     expect(wrapper.find('[data-testid="aside-content"]').exists()).toBe(false);
   });
+
+  it('PR-LAYOUT-004: exposes aside resize handle when aside is visible', () => {
+    const wrapper = mount(ReportLayout, {
+      props: { showAside: true, asideWidth: 360 },
+      slots: {
+        main: '<div>main</div>',
+        aside: '<div data-testid="aside-content">aside</div>',
+      },
+    });
+    expect(wrapper.find('[data-testid="aside-resize-handle"]').exists()).toBe(true);
+  });
 });

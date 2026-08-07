@@ -54,4 +54,13 @@ describe('ReportToolbar', () => {
     await wrapper.find('[data-testid="toggle-measure"]').trigger('click');
     expect(wrapper.emitted('update:measureMode')).toEqual([[true]]);
   });
+
+  it('PR-TOOLBAR-008: search magnifier SVG and zoom compound pill chrome', () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    expect(wrapper.find('[data-testid="search-magnifier"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-toolbar__zoom-pill').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="zoom-out"] svg').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="zoom-in"] svg').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="zoom-to-fit"] svg').exists()).toBe(true);
+  });
 });

@@ -55,4 +55,48 @@ describe('PR-VM: report view-models (interim)', () => {
       adapted.reportModel.pipeOccupancy.filter((p) => p.id === 'mte2').every((p) => p.side === 'vector'),
     ).toBe(true);
   });
+
+  it('PR-VM-006: computeTables for PipeUtilization / ArithmeticUtilization / ResourceConflictRatio', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const byName = Object.fromEntries(
+      adapted.reportModel.computeTables.map((t) => [t.fileName, t]),
+    );
+
+    expect(Object.keys(byName).sort()).toEqual([
+      'ArithmeticUtilization.csv',
+      'PipeUtilization.csv',
+      'ResourceConflictRatio.csv',
+    ]);
+
+    for (const name of Object.keys(byName)) {
+      const table = byName[name]!;
+      expect(table.headers.length).toBeGreaterThan(2);
+      expect(table.headers).toContain('block_id');
+      expect(table.rows.length).toBe(8);
+      expect(table.blockIds).toEqual(['0', '1', '2', '3', '4', '5', '6', '7']);
+    }
+  });
+
+  it('PR-VM-007: memoryTables + csvTexts for 查看全部', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const byName = Object.fromEntries(
+      adapted.reportModel.memoryTables.map((t) => [t.fileName, t]),
+    );
+
+    expect(Object.keys(byName)).toEqual([
+      'MemoryL0.csv',
+      'L2Cache.csv',
+      'Memory.csv',
+      'MemoryUB.csv',
+    ]);
+
+    for (const table of adapted.reportModel.memoryTables) {
+      expect(table.blockIds).toEqual(['0', '1', '2', '3', '4', '5', '6', '7']);
+      const text = adapted.reportModel.csvTexts[table.fileName];
+      expect(text).toBeTruthy();
+      expect(text!.startsWith(table.headers[0]!)).toBe(true);
+    }
+
+    expect(adapted.reportModel.csvTexts['PipeUtilization.csv']).toMatch(/^block_id,/);
+  });
 });

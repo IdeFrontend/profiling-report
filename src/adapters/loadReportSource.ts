@@ -1,4 +1,4 @@
-import { adaptRep } from './adaptRep';
+import { adaptRep, emptyReportViewModel } from './adaptRep';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { parseRep } from './parseRep';
 import type { AdaptedReport } from '../domain/types';
@@ -18,11 +18,7 @@ function looksLikeRep(bytes: Uint8Array): boolean {
 export function adaptChromeTrace(trace: unknown): AdaptedReport {
   return {
     swimlaneModel: chromeTraceToSwimlane(trace),
-    reportModel: {
-      summary: {},
-      pipeOccupancy: [],
-      overviewSeries: [],
-    },
+    reportModel: emptyReportViewModel(),
     capabilities: [],
   };
 }
