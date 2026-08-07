@@ -73,3 +73,47 @@ Normative crops: [`README.md`](./README.md) / PNGs in this folder. Source: `with
 | Separators | `1px solid #333` under each lane; `#3a3a3a` under group header |
 | Gutter bg | `#262626`; right border `#3a3a3a` |
 | Interaction | Group header click → `toggle-group`; no chevron control on leaf lanes |
+
+---
+
+## 5. Report toolbar (`ReportToolbar`)
+
+**Crops:** `toolbar-search.png`, `toolbar-zoom.png`, `toolbar-actions.png`  
+Source band ~y=98–132 in `with_sidebar.png`. Control height **~28–29 px**.
+
+### Search
+| Token | Value |
+|-------|--------|
+| Height | `28px` |
+| Width | `190px` |
+| Shape | Pill: `border-radius: 14px` |
+| Background | `#2a2a2a` |
+| Border | none (or `1px solid #3a3a3a` if needed) |
+| Icon | Stroke **magnifying glass** SVG `14×14`, color `#9a9a9a`, left inset |
+| Input padding | `0 12px 0 32px` |
+| Placeholder | `#808080`; text `#e0e0e0`; font `12px` |
+
+### Zoom pill
+| Token | Value |
+|-------|--------|
+| Container | Single pill, height `28px`, `border-radius: 14px`, bg `#363636` |
+| Zoom out / in | **Magnifying-glass** SVGs with − / + inside (not bare ± text); `16×16`, color `#c8c8c8` |
+| Buttons | Transparent, no separate square border; padding `4px 6px` |
+| Slider | Width ~`100px`; track height `2px`; filled (left) `#e8e8e8`; unfilled `#2a2a2a`; thumb `10px` circle `#c8c8c8` |
+| Gap | `4px` between icon / slider / icon inside pill |
+
+### Action icon buttons (fit / measure / aside)
+| Token | Value |
+|-------|--------|
+| Size | Square `28×28` |
+| Radius | `4px` |
+| Border | `1px solid transparent` (hover: `#4a4a4a`) |
+| Background | transparent / `#2a2a2a` on hover |
+| Icon | Stroke or fill SVG `14×16`, color `#c8c8c8` |
+| Active (`--on`) | bg `#1e3a5f`; icon/border `#317AF7` |
+| Gap between buttons | `4px` |
+
+P2 sketch icons (chart, flag, layers, help, gear) are **not** MVP — do not stub.
+
+### Time unit
+Match control height `28px`; bg `#2a2a2a`; `border-radius: 4px`; font `12px`.

@@ -72,10 +72,30 @@ const emit = defineEmits<{
     <div class="pr-toolbar">
       <label class="pr-toolbar__search">
         <span class="pr-toolbar__sr">{{ t('searchLabel', locale) }}</span>
-        <span
+        <svg
           class="pr-toolbar__search-icon"
+          data-testid="search-magnifier"
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
           aria-hidden="true"
-        >⌕</span>
+        >
+          <circle
+            cx="6.5"
+            cy="6.5"
+            r="4.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+          />
+          <path
+            d="M10 10l3.5 3.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          />
+        </svg>
         <input
           data-testid="search-input"
           type="search"
@@ -84,15 +104,47 @@ const emit = defineEmits<{
           @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
         >
       </label>
-      <div class="pr-toolbar__zoom">
+
+      <div
+        class="pr-toolbar__zoom pr-toolbar__zoom-pill"
+        data-testid="zoom-pill"
+      >
         <button
           type="button"
           data-testid="zoom-out"
-          class="pr-toolbar__icon-btn"
+          class="pr-toolbar__zoom-btn"
           :title="t('zoomOut', locale)"
           @click="emit('zoom-out')"
         >
-          −
+          <svg
+            viewBox="0 0 16 16"
+            width="16"
+            height="16"
+            aria-hidden="true"
+          >
+            <circle
+              cx="6.5"
+              cy="6.5"
+              r="4.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+            />
+            <path
+              d="M10 10l3.2 3.2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+            />
+            <path
+              d="M4.5 6.5h4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+            />
+          </svg>
         </button>
         <input
           data-testid="zoom-slider"
@@ -101,26 +153,81 @@ const emit = defineEmits<{
           min="0"
           max="100"
           :value="zoomPercent"
+          :style="{ '--pr-zoom-fill': `${zoomPercent}%` }"
           @input="emit('update:zoomPercent', Number(($event.target as HTMLInputElement).value))"
         >
         <button
           type="button"
           data-testid="zoom-in"
-          class="pr-toolbar__icon-btn"
+          class="pr-toolbar__zoom-btn"
           :title="t('zoomIn', locale)"
           @click="emit('zoom-in')"
         >
-          +
-        </button>
-        <button
-          type="button"
-          data-testid="zoom-to-fit"
-          class="pr-toolbar__text-btn"
-          @click="emit('zoom-to-fit')"
-        >
-          {{ t('zoomFit', locale) }}
+          <svg
+            viewBox="0 0 16 16"
+            width="16"
+            height="16"
+            aria-hidden="true"
+          >
+            <circle
+              cx="6.5"
+              cy="6.5"
+              r="4.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+            />
+            <path
+              d="M10 10l3.2 3.2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+            />
+            <path
+              d="M4.5 6.5h4M6.5 4.5v4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+            />
+          </svg>
         </button>
       </div>
+
+      <button
+        type="button"
+        data-testid="zoom-to-fit"
+        class="pr-toolbar__icon-btn"
+        :title="t('zoomFit', locale)"
+        @click="emit('zoom-to-fit')"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <rect
+            x="5"
+            y="5"
+            width="6"
+            height="6"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+          />
+        </svg>
+      </button>
+
       <label class="pr-toolbar__unit">
         <span class="pr-toolbar__sr">{{ t('timeUnit', locale) }}</span>
         <select
@@ -133,6 +240,7 @@ const emit = defineEmits<{
           <option value="ns">ns</option>
         </select>
       </label>
+
       <button
         type="button"
         class="pr-toolbar__icon-btn"
@@ -155,6 +263,7 @@ const emit = defineEmits<{
           />
         </svg>
       </button>
+
       <button
         v-if="asideAvailable"
         type="button"
@@ -165,7 +274,29 @@ const emit = defineEmits<{
         :title="t('stats', locale)"
         @click="emit('update:asideVisible', !asideVisible)"
       >
-        ▤
+        <svg
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
+          aria-hidden="true"
+        >
+          <rect
+            x="2"
+            y="2"
+            width="12"
+            height="12"
+            rx="1"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+          />
+          <path
+            d="M10 2v12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+          />
+        </svg>
       </button>
     </div>
   </div>
@@ -173,12 +304,13 @@ const emit = defineEmits<{
 
 <style scoped>
 .pr-chrome {
+  --pr-toolbar-h: 28px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px 12px;
-  padding: 0 8px;
+  padding: 4px 8px;
   min-height: 36px;
   background: var(--pr-bg-panel, #303030);
   border-bottom: 1px solid #3a3a3a;
@@ -228,75 +360,178 @@ const emit = defineEmits<{
   align-items: center;
 }
 
+/* Search pill — VISUAL_SPEC §5 */
 .pr-toolbar__search {
   position: relative;
   display: flex;
   align-items: center;
+  height: var(--pr-toolbar-h);
 }
 
 .pr-toolbar__search-icon {
   position: absolute;
-  left: 8px;
-  opacity: 0.55;
+  left: 10px;
+  color: #9a9a9a;
   pointer-events: none;
-  font-size: 12px;
+  display: block;
 }
 
 .pr-toolbar__search input {
-  width: 160px;
-  padding: 4px 8px 4px 26px;
-  border: 1px solid #4a4a4a;
-  border-radius: 2px;
-  background: #252525;
-  color: inherit;
+  box-sizing: border-box;
+  width: 190px;
+  height: var(--pr-toolbar-h);
+  padding: 0 12px 0 32px;
+  border: 0;
+  border-radius: 14px;
+  background: #2a2a2a;
+  color: #e0e0e0;
   font-size: 12px;
 }
 
-.pr-toolbar__unit select {
-  padding: 3px 6px;
-  border: 1px solid #4a4a4a;
-  border-radius: 2px;
-  background: #252525;
-  color: inherit;
-  font-size: 12px;
+.pr-toolbar__search input::placeholder {
+  color: #808080;
 }
 
-.pr-toolbar__zoom {
+.pr-toolbar__search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* Zoom compound pill */
+.pr-toolbar__zoom-pill {
   display: flex;
   align-items: center;
   gap: 4px;
+  box-sizing: border-box;
+  height: var(--pr-toolbar-h);
+  padding: 0 4px;
+  border-radius: 14px;
+  background: #363636;
 }
 
-.pr-toolbar__slider {
-  width: 88px;
-  accent-color: var(--pr-playhead, #3078f0);
-}
-
-.pr-toolbar__icon-btn,
-.pr-toolbar__text-btn {
+.pr-toolbar__zoom-btn {
   margin: 0;
-  padding: 2px 8px;
-  min-width: 28px;
-  min-height: 24px;
-  border: 1px solid #4a4a4a;
-  border-radius: 2px;
-  background: #2a2a2a;
-  color: #d0d0d0;
-  font-size: 12px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #c8c8c8;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  line-height: 0;
+}
+
+.pr-toolbar__zoom-btn:hover {
+  color: #fff;
+}
+
+.pr-toolbar__slider {
+  width: 100px;
+  height: 16px;
+  margin: 0 2px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pr-toolbar__slider::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(
+    to right,
+    #e8e8e8 0%,
+    #e8e8e8 var(--pr-zoom-fill, 50%),
+    #2a2a2a var(--pr-zoom-fill, 50%),
+    #2a2a2a 100%
+  );
+}
+
+.pr-toolbar__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #c8c8c8;
+  border: 0;
+  box-shadow: none;
+}
+
+.pr-toolbar__slider::-moz-range-track {
+  height: 2px;
+  border-radius: 1px;
+  background: #2a2a2a;
+}
+
+.pr-toolbar__slider::-moz-range-progress {
+  height: 2px;
+  border-radius: 1px;
+  background: #e8e8e8;
+}
+
+.pr-toolbar__slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c8c8c8;
+  border: 0;
+}
+
+/* Square action icon buttons */
+.pr-toolbar__icon-btn {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #c8c8c8;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.pr-toolbar__icon-btn:hover {
+  background: #2a2a2a;
+  border-color: #4a4a4a;
+  color: #fff;
+}
+
+.pr-toolbar__icon-btn--on {
+  border-color: #317af7;
+  color: #317af7;
+  background: #1e3a5f;
 }
 
 .pr-toolbar__caliper {
   display: block;
 }
 
-.pr-toolbar__icon-btn--on {
-  border-color: var(--pr-playhead, #3078f0);
-  color: #fff;
-  background: #2a3850;
+.pr-toolbar__unit {
+  display: flex;
+  align-items: center;
+  height: var(--pr-toolbar-h);
+}
+
+.pr-toolbar__unit select {
+  box-sizing: border-box;
+  height: var(--pr-toolbar-h);
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .pr-toolbar__sr {

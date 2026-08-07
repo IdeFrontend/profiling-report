@@ -13,6 +13,9 @@ Cropped from [`with_sidebar.png`](../with_sidebar.png) (primary) for implementat
 | [`overview-handle-right.png`](overview-handle-right.png) | Right range handle (detail) | ~`12.3ms` edge |
 | [`cursor-timestamp.png`](cursor-timestamp.png) | Mouse cursor time bubble | Playhead label |
 | [`cursor-timestamp-context.png`](cursor-timestamp-context.png) | Bubble + stem + axis | Wider context |
+| [`toolbar-search.png`](toolbar-search.png) | Search pill + magnifier | Timeline chrome |
+| [`toolbar-zoom.png`](toolbar-zoom.png) | Zoom pill (mag− / slider / mag+) | Timeline chrome |
+| [`toolbar-actions.png`](toolbar-actions.png) | Square icon button cluster | Size/spacing reference |
 
 ## Normative notes (measured)
 
@@ -37,6 +40,11 @@ Cropped from [`with_sidebar.png`](../with_sidebar.png) (primary) for implementat
 - **Text:** white, format `MM:SS.mmm` (e.g. `00:04.456`), centered in bubble.
 - **Bubble:** ~**72×19 px** rounded rect; **1 px** blue stem centered under bubble.
 - Must track mouse time continuously (not stuck at `00:00.000`).
+
+### Report toolbar
+- Control height **28px**. Search pill `#2a2a2a` + magnifier SVG. Zoom **one** pill `#363636` with mag− / slider / mag+.
+- Action buttons **28×28**, radius `4px`; active uses `#317AF7`.
+- P2 icons in sketch cluster are out of scope.
 
 ## Next
 Implementation tracks [`VISUAL_SPEC.md`](VISUAL_SPEC.md).
