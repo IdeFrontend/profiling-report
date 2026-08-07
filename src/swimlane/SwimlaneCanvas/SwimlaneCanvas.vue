@@ -231,6 +231,14 @@ function onPointerUp(e: PointerEvent): void {
 }
 
 function onPointerLeave(): void {
+  // Keep measure drag alive under pointer capture; clear anchor only on pointerup.
+  if (props.measureMode && measureAnchorTime != null) {
+    renderer.setCursorX(null);
+    renderer.render();
+    emit('cursor', null);
+    emit('hover', null, 0, 0);
+    return;
+  }
   dragging = false;
   measureAnchorTime = null;
   renderer.setCursorX(null);

@@ -20,7 +20,7 @@ Purely presentational — no emitted events.
 
 **PIPE occupancy bars.** Renders utilization bars. Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS.
 
-**Cube | Vector toggle (M1 update to existing PIPE panel).** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX: no toggle; show pipes for the op’s side only.
+**Cube | Vector toggle (M1 update to existing PIPE panel).** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side: no toggle; show pipes for that side only. When `opType` is empty/unknown: no toggle; show all PIPE bars (do not default-filter to vector).
 
 **Planned (not in this branch’s code):** aside mode switcher, compute/memory CSV tabs, block switcher, 查看全部, topology — design specs only.
 
@@ -29,6 +29,7 @@ Purely presentational — no emitted events.
 1. **PR-STATS-001** — Renders summary stats.
 2. **PR-STATS-002** — Renders PIPE bars with correct colors.
 3. **PR-STATS-003** — Cube|Vector toggle appears only for MIX; filters bars by side.
+4. **PR-STATS-004** — Empty/unknown `opType` shows all PIPE sides (no vector-only filter).
 
 ## Edge Cases
 
@@ -37,6 +38,7 @@ Purely presentational — no emitted events.
 | report is null or undefined | Empty panel, no error |
 | Empty pipeOccupancy | No bars; summary still visible if present |
 | Non-MIX opType | No Cube|Vector toggle |
+| Empty/unknown opType | Show all PIPE bars |
 | Missing compute/BW fields (I-Q6a) | Fields absent |
 
 ## Design sketches
@@ -53,5 +55,6 @@ Purely presentational — no emitted events.
 Q22 — measureRange aside sync. Further M1/M2 aside surfaces.
 
 ## Changelog
+- **2026-08-07** — Empty opType shows all PIPE sides; PR-STATS-004.
 - **2026-08-07** — Cube|Vector toggle on existing PIPE panel only.
 - **2026-08-05** — Initial spec.

@@ -52,8 +52,10 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
 
 const visiblePipes = computed(() => {
   const all = props.report?.pipeOccupancy ?? [];
-  const side = isMix.value ? pipeSide.value : defaultSide.value;
-  return all.filter((p) => matchesSide(p, side));
+  if (isMix.value) return all.filter((p) => matchesSide(p, pipeSide.value));
+  // Unknown opType: show all sides so cube-only occupancy is not filtered out.
+  if (!opType.value) return all;
+  return all.filter((p) => matchesSide(p, defaultSide.value));
 });
 
 function formatDurationUs(us: number): string {

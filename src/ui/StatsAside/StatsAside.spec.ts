@@ -82,4 +82,24 @@ describe('StatsAside', () => {
     expect(vectorRows).toContain('MTE2');
     expect(vectorRows).not.toContain('Cube');
   });
+
+  it('PR-STATS-004: empty opType shows all PIPE sides', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: {
+          summary: {},
+          pipeOccupancy: [
+            { id: 'cube', label: 'Cube', ratio: 0.8, colorKey: 'cube', side: 'cube' },
+            { id: 'vector', label: 'Vector', ratio: 0.3, colorKey: 'vector', side: 'vector' },
+          ],
+          overviewSeries: [],
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
+    const rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('Cube');
+    expect(rows).toContain('Vector');
+  });
 });
