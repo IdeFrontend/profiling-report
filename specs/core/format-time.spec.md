@@ -29,10 +29,11 @@ formatCursorTime(ns: number): string
 1. **PR-TIME-001**: 1_234_000 ns → `'1.234 ms'` / `'1234.000 µs'` / `'1234000 ns'`.
 1. **PR-TIME-002**: formatCursorTime renders `MM:SS.mmm` in unit (4_456_000 ns + ms → `00:04.456`).
 1. **PR-TIME-003**: formatAxisTime adapts decimal places to tickStepNs.
+1. **PR-TIME-004**: formatAxisTime(0) is compact zero (`0ms` / `0µs` / `0ns`).
 
 ## Edge Cases
 
-Zero → `'0.000 ms'`. NaN/Infinity → `'—'`. Negative cursor → clamped to 0.
+Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTime(0)` still `'0.000 ms'`. NaN/Infinity → `'—'`. Negative cursor → clamped to 0.
 
 ## Dependencies
 
@@ -43,5 +44,6 @@ I-Q14 — ms/µs/ns only, no clock-cycle mode in MVP.
 Future cycles unit if product requires.
 
 ## Changelog
+- **2026-08-07** — PR-TIME-004 compact axis zero; cursor unit resolution for short spans.
 - **2026-08-07** — Cursor format uses display unit (sketch ms→clock); resolveCursorTimeUnit for short spans.
 - **2026-08-05** — Initial spec. Core behaviors established.

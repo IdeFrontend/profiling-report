@@ -98,9 +98,7 @@ const showPipe = computed(() => (report.value?.pipeOccupancy?.length ?? 0) > 0);
 const showCompute = computed(() => (report.value?.computeTables?.length ?? 0) > 0);
 const showMemory = computed(() => (report.value?.memoryTables?.length ?? 0) > 0);
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
-const asideAvailable = computed(
-  () => hasSummary.value || showPipe.value || showCompute.value || showMemory.value,
-);
+const asideAvailable = computed(() => reportHasAsideContent(report.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
 
@@ -186,11 +184,16 @@ function onToggleGroup(groupId: string): void {
   }
 }
 
-function asideHasContent(rm: ReportViewModel | null | undefined): boolean {
+function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
   if (!rm) return false;
   const s = rm.summary;
   const hasSum = Boolean(s && (s.opName || s.opType || s.taskDurationUs != null));
-  return hasSum || (rm.pipeOccupancy?.length ?? 0) > 0;
+  return (
+    hasSum ||
+    (rm.pipeOccupancy?.length ?? 0) > 0 ||
+    (rm.computeTables?.length ?? 0) > 0 ||
+    (rm.memoryTables?.length ?? 0) > 0
+  );
 }
 
 function loadFromSource(source: ArrayBuffer | Uint8Array) {
@@ -198,7 +201,7 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     const adapted = loadReportSource(source);
     internalSwim.value = adapted.swimlaneModel;
     internalReport.value = adapted.reportModel;
-    resetViewFromModel(adapted.swimlaneModel, asideHasContent(adapted.reportModel));
+    resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
     loadError.value = null;
     emit('ready');
   } catch (cause) {
@@ -225,7 +228,7 @@ watch(
   () => props.swimlaneModel,
   (m) => {
     if (m && !props.source) {
-      resetViewFromModel(m, asideHasContent(props.reportModel ?? report.value));
+      resetViewFromModel(m, reportHasAsideContent(props.reportModel ?? report.value));
     }
   },
 );
@@ -234,7 +237,7 @@ onMounted(() => {
   window.addEventListener('keydown', onMeasureKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
-    resetViewFromModel(props.swimlaneModel ?? null, asideHasContent(props.reportModel));
+    resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
     emit('ready');
   }
 });
