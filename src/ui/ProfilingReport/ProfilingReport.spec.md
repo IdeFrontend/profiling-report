@@ -181,6 +181,7 @@ All child component specs. [mstt-integration](../../../specs/architecture/mstt-i
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-07** — `reportHasAsideContent` includes compute/memory CSV; PR-UI-008.
 - **2026-08-07** — Resizable lane gutter and aside (session-only widths).
 - **2026-08-07** — Viewport time axis shares AxisRuler chrome with overview.
 - **2026-08-05** — Initial spec. Core behaviors established.

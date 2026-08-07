@@ -89,15 +89,8 @@ const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
 const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
 
-const hasSummary = computed(() => {
-  const s = report.value?.summary;
-  return Boolean(s && (s.opName || s.opType || s.taskDurationUs != null));
-});
-
-const showPipe = computed(() => (report.value?.pipeOccupancy?.length ?? 0) > 0);
-const showCompute = computed(() => (report.value?.computeTables?.length ?? 0) > 0);
-const showMemory = computed(() => (report.value?.memoryTables?.length ?? 0) > 0);
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
+/** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
 const asideAvailable = computed(() => reportHasAsideContent(report.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
@@ -184,16 +177,19 @@ function onToggleGroup(groupId: string): void {
   }
 }
 
+/**
+ * Aside has content when any of: summary fields, pipe occupancy,
+ * compute CSV tables, or memory CSV tables are present.
+ * Must stay in sync with StatsAside section visibility.
+ */
 function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
   if (!rm) return false;
   const s = rm.summary;
-  const hasSum = Boolean(s && (s.opName || s.opType || s.taskDurationUs != null));
-  return (
-    hasSum ||
-    (rm.pipeOccupancy?.length ?? 0) > 0 ||
-    (rm.computeTables?.length ?? 0) > 0 ||
-    (rm.memoryTables?.length ?? 0) > 0
-  );
+  const hasSummary = Boolean(s && (s.opName || s.opType || s.taskDurationUs != null));
+  const hasPipe = rm.pipeOccupancy.length > 0;
+  const hasComputeTables = rm.computeTables.length > 0;
+  const hasMemoryTables = rm.memoryTables.length > 0;
+  return hasSummary || hasPipe || hasComputeTables || hasMemoryTables;
 }
 
 function loadFromSource(source: ArrayBuffer | Uint8Array) {

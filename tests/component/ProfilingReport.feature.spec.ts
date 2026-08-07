@@ -141,6 +141,46 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(true);
   });
 
+  it('PR-UI-008: CSV-only report (compute/memory, no summary/pipe) auto-opens aside', async () => {
+    const emptySwim: SwimlaneModel = {
+      processes: [],
+      minTime: 0,
+      maxTime: 1,
+    };
+    const csvOnly = {
+      ...emptyReportViewModel(),
+      computeTables: [
+        {
+          fileName: 'PipeUtilization.csv',
+          headers: ['Block', 'Util'],
+          rows: [{ Block: '0', Util: '0.5' }],
+          blockIds: ['0'],
+        },
+      ],
+      memoryTables: [
+        {
+          fileName: 'Memory.csv',
+          headers: ['Block', 'Size'],
+          rows: [{ Block: '0', Size: '1' }],
+          blockIds: ['0'],
+        },
+      ],
+    };
+
+    const wrapper = mount(ProfilingReport, {
+      props: { swimlaneModel: emptySwim, reportModel: csvOnly },
+    });
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { viewState: { asideVisible: boolean } };
+    expect(vm.viewState.asideVisible).toBe(true);
+    expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="aside-mode-compute"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="aside-mode-memory"]').exists()).toBe(true);
+  });
+
   it('PR-UI-007: time overview brush adjusts visible window', async () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(ProfilingReport, {
