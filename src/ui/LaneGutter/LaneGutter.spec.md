@@ -41,7 +41,7 @@ Clicking the **group** header toggles expand/collapse (`aria-expanded`). Collaps
 
 ### Utilization
 
-Each lane optionally shows a utilization **pill bar** (`110×16px`, `border-radius: 8px`) with the percentage **inside, right-aligned**. Fill width encodes load; util &lt; 0.5 uses warning red `#733234`, otherwise lane `color`. Layout columns: `minmax(0,1fr)` (name) + `110px` (util).
+Each lane optionally shows a utilization bar (`110×16px`, `border-radius: 2px`) with the percentage **inside, right-aligned** in lane-title gray (`#b0b0b0`). Fill width encodes load; util &lt; 0.5 uses warning red `#733234`, otherwise lane `color`. Unfilled track uses a **gray diagonal hatch** (not solid black). Layout columns: `minmax(0,1fr)` (name) + `110px` (util).
 
 ## Acceptance Criteria
 
@@ -76,6 +76,7 @@ Each lane optionally shows a utilization **pill bar** (`110×16px`, `border-radi
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (PipeUtilization.csv feeds lane utilization via pipe color matching).
 
 ## Changelog
+- **2026-08-07** — Util bar: radius 2px, diagonal hatch unfilled, % color `#b0b0b0`.
 - **2026-08-07** — Leaf lanes: no expander chevron (only groups / nodes with children).
 - **2026-08-07** — Spec: open-angle expanders, lane chevrons, typography/margins, `collapsedIds` / `toggle-group`; util pill tokens; link visual crops.
 - **2026-08-05** — Initial spec. Core behaviors established.

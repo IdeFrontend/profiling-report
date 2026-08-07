@@ -20,10 +20,10 @@ Cropped from [`with_sidebar.png`](../with_sidebar.png) (primary) for implementat
 ## Normative notes (measured)
 
 ### Lane util bars
-- **Shape:** pill / capsule (`border-radius ≈ height/2`).
+- **Shape:** rounded rect `border-radius: 2px` (not full capsule).
 - **Size:** height **~16–17 px**; track width **~100–120 px** in sketch column.
-- **% text:** **inside** the track, **right-aligned**, light gray/white.
-- **Fill:** solid gray (nominal) or muted red warning (`#733234` family); optional diagonal hatch on remainder.
+- **% text:** **inside** the track, **right-aligned**, color **`#b0b0b0`** (match lane title).
+- **Fill:** solid gray (nominal) or muted red warning (`#733234` family); **diagonal hatch** on unfilled remainder.
 - **Guide:** faint vertical dotted threshold through the bar column (~75–80%).
 
 ### Overview range handles

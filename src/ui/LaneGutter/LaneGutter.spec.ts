@@ -32,6 +32,7 @@ describe('LaneGutter', () => {
     expect(util.exists()).toBe(true);
     expect(util.text()).toContain('75%');
     expect(util.find('.pr-gutter__util-pct').exists()).toBe(true);
+    expect(util.find('.pr-gutter__util-fill').exists()).toBe(true);
   });
 
   it('PR-GUTTER-003: open-angle group chevron only; leaf lanes have no chevron', async () => {

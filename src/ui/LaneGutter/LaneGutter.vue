@@ -217,15 +217,22 @@ defineExpose({ root });
   color: #b0b0b0;
 }
 
-/* Pill util bar — % inside, right-aligned (docs/specs/ui/components/VISUAL_SPEC.md) */
+/* Util bar — % inside, right-aligned (docs/specs/ui/components/VISUAL_SPEC.md) */
 .pr-gutter__util {
   position: relative;
   display: block;
   box-sizing: border-box;
   height: 16px;
   width: 110px;
-  background: #1f1f1f;
-  border-radius: 8px;
+  /* Unfilled: gray diagonal hatch (not solid black). */
+  background: repeating-linear-gradient(
+    -45deg,
+    #3a3a3a 0,
+    #3a3a3a 1px,
+    #2a2a2a 1px,
+    #2a2a2a 4px
+  );
+  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -239,7 +246,7 @@ defineExpose({ root });
   top: 0;
   bottom: 0;
   min-width: 0;
-  border-radius: 8px 0 0 8px;
+  border-radius: 0;
 }
 
 .pr-gutter__util-pct {
@@ -252,8 +259,7 @@ defineExpose({ root });
   font-size: 10px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: #e8e8e8;
-  text-shadow: 0 0 2px #000;
+  color: #b0b0b0; /* match lane title */
   line-height: 1;
   pointer-events: none;
   z-index: 1;

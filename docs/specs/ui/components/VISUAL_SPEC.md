@@ -12,15 +12,13 @@ Normative crops: [`README.md`](./README.md) / PNGs in this folder. Source: `with
 |-------|--------|
 | Track width | `110px` (fixed column) |
 | Track height | `16px` |
-| Shape | Pill: `border-radius: 8px` (half height) |
-| Track fill | `#2a2a2a` |
-| Track border | none (or `1px solid #3a3a3a` if needed for contrast) |
+| Shape | Rounded rect: `border-radius: 2px` (not a full capsule / `height/2`) |
+| Track / unfilled | Gray **diagonal hatch** (not solid black) — e.g. repeating `-45deg` stripes `#3a3a3a` on `#2a2a2a` |
 | Value fill | Lane `color` (pipe category), left-aligned width = util% |
 | Warning fill | `#733234` when util &lt; 0.5 (optional; sketches use red for hot/low cores) |
 | % text | **Inside** track, **right-aligned**, `padding-right: 6px` |
-| % font | 10px, weight 600, tabular-nums, color `#e8e8e8` |
+| % font | 10px, weight 600, tabular-nums, color **`#b0b0b0`** (same as lane title — not bright white) |
 | Layout | `grid-template-columns: minmax(0,1fr) 110px` (name + util); pad-left aligns label under group title |
-| Hatch | P2 — diagonal hatch on remainder; MVP may omit |
 
 **Do not** place `%` to the left of the bar.
 
