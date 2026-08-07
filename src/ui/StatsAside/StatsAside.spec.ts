@@ -160,6 +160,6 @@ describe('StatsAside', () => {
 
     await wrapper.get('[data-testid="aside-mode-memory"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('Memory L1');
+    expect(wrapper.text()).toContain('MemoryL1');
   });
 });

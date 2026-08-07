@@ -59,15 +59,16 @@ const showBlocks = computed(
   () => props.showBlockSwitcher && blockIds.value.length > 0,
 );
 
+/** Product tab labels from changes.png #3–#4. */
 function tabLabel(fileName: string): string {
   const map: Record<string, string> = {
     'PipeUtilization.csv': 'PipeUtilization',
     'ArithmeticUtilization.csv': 'ArithmeticUtilization',
     'ResourceConflictRatio.csv': 'ResourceConflictRatio',
-    'Memory.csv': 'Memory L1',
+    'MemoryL0.csv': 'MemoryL0',
     'L2Cache.csv': 'L2Cache',
-    'MemoryL0.csv': 'Memory L0',
-    'MemoryUB.csv': 'Memory UB',
+    'Memory.csv': 'MemoryL1',
+    'MemoryUB.csv': 'MemoryUB',
   };
   return map[fileName] ?? fileName.replace(/\.csv$/i, '');
 }
@@ -125,6 +126,10 @@ function onViewAll() {
     <div class="pr-csv__toolbar">
       <label class="pr-csv__search">
         <span class="pr-csv__sr">{{ t('searchLabel', locale) }}</span>
+        <span
+          class="pr-csv__search-icon"
+          aria-hidden="true"
+        >⌕</span>
         <input
           v-model="search"
           data-testid="csv-search"
@@ -132,33 +137,35 @@ function onViewAll() {
           :placeholder="t('searchPlaceholder', locale)"
         >
       </label>
-      <label
-        v-if="showBlocks"
-        class="pr-csv__block"
-      >
-        <span>{{ t('block', locale) }}</span>
-        <select
-          v-model="selectedBlock"
-          data-testid="csv-block"
+      <div class="pr-csv__actions">
+        <label
+          v-if="showBlocks"
+          class="pr-csv__block"
         >
-          <option
-            v-for="id in blockIds"
-            :key="id"
-            :value="id"
+          <span>{{ t('block', locale) }}</span>
+          <select
+            v-model="selectedBlock"
+            data-testid="csv-block"
           >
-            {{ id }}
-          </option>
-        </select>
-      </label>
-      <button
-        type="button"
-        class="pr-csv__view-all"
-        data-testid="csv-view-all"
-        :disabled="!csvTexts[activeFile]"
-        @click="onViewAll"
-      >
-        {{ t('viewAll', locale) }}
-      </button>
+            <option
+              v-for="id in blockIds"
+              :key="id"
+              :value="id"
+            >
+              {{ id }}
+            </option>
+          </select>
+        </label>
+        <button
+          type="button"
+          class="pr-csv__view-all"
+          data-testid="csv-view-all"
+          :disabled="!csvTexts[activeFile]"
+          @click="onViewAll"
+        >
+          {{ t('viewAll', locale) }}
+        </button>
+      </div>
     </div>
 
     <ul
@@ -181,43 +188,67 @@ function onViewAll() {
 .pr-csv {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   min-height: 0;
+  flex: 1 1 auto;
 }
 
 .pr-csv__tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-wrap: nowrap;
+  gap: 0;
+  border-bottom: 1px solid #3a3a3a;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pr-csv__tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .pr-csv__tab {
   appearance: none;
-  border: 1px solid #3a3a3a;
-  background: #1f1f1f;
-  color: #b8b8b8;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #9a9a9a;
   font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 2px;
+  padding: 6px 10px;
+  margin-bottom: -1px;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.pr-csv__tab:hover {
+  color: #d0d0d0;
 }
 
 .pr-csv__tab--active {
-  background: #2f4f4f;
-  color: #f0f0f0;
-  border-color: #4a6a6a;
+  color: #e8e8e8;
+  border-bottom-color: var(--pr-playhead, #3078f0);
 }
 
 .pr-csv__toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
+  padding: 8px 0;
 }
 
 .pr-csv__search {
-  flex: 1 1 120px;
-  min-width: 0;
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.pr-csv__search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+  font-size: 12px;
+  pointer-events: none;
 }
 
 .pr-csv__search input {
@@ -227,8 +258,16 @@ function onViewAll() {
   border: 1px solid #3a3a3a;
   color: #e0e0e0;
   font-size: 11px;
-  padding: 4px 8px;
+  padding: 5px 8px 5px 26px;
   border-radius: 2px;
+}
+
+.pr-csv__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .pr-csv__block {
@@ -246,21 +285,25 @@ function onViewAll() {
   font-size: 11px;
   padding: 3px 6px;
   border-radius: 2px;
+  min-width: 64px;
 }
 
 .pr-csv__view-all {
   appearance: none;
-  border: 1px solid #3a3a3a;
-  background: #262626;
-  color: #d0d0d0;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--pr-playhead, #3078f0);
+  font-size: 12px;
+  padding: 0;
   cursor: pointer;
 }
 
+.pr-csv__view-all:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
 .pr-csv__view-all:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
 }
 
@@ -270,30 +313,33 @@ function onViewAll() {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 360px;
+  gap: 0;
+  max-height: min(520px, 60vh);
   overflow: auto;
+  border-top: 1px solid #333;
 }
 
 .pr-csv__field {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 10px;
   font-size: 11px;
-  padding: 3px 0;
-  border-bottom: 1px solid #333;
+  padding: 5px 2px;
+  border-bottom: 1px solid #2e2e2e;
+  line-height: 1.35;
 }
 
 .pr-csv__field-name {
-  color: #9a9a9a;
+  color: #8e8e8e;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .pr-csv__field-value {
-  color: #e0e0e0;
+  color: #e6e6e6;
   font-variant-numeric: tabular-nums;
+  text-align: right;
   word-break: break-all;
 }
 

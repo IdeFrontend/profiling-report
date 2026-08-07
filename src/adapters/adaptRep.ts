@@ -17,9 +17,9 @@ const COMPUTE_CSV_FILES = [
 ] as const;
 
 const MEMORY_CSV_FILES = [
-  'Memory.csv',
-  'L2Cache.csv',
   'MemoryL0.csv',
+  'L2Cache.csv',
+  'Memory.csv',
   'MemoryUB.csv',
 ] as const;
 

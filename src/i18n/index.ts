@@ -35,6 +35,8 @@ const messages = {
     modePipe: 'PIPE',
     modeCompute: '计算负载',
     modeMemory: '内存负载',
+    computeAnalysis: '计算负载分析',
+    memoryAnalysis: '内存负载分析',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -70,6 +72,8 @@ const messages = {
     modePipe: 'PIPE',
     modeCompute: 'Compute load',
     modeMemory: 'Memory load',
+    computeAnalysis: 'Compute load analysis',
+    memoryAnalysis: 'Memory load analysis',
   },
 } as const;
 

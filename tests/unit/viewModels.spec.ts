@@ -83,10 +83,10 @@ describe('PR-VM: report view-models (interim)', () => {
       adapted.reportModel.memoryTables.map((t) => [t.fileName, t]),
     );
 
-    expect(Object.keys(byName).sort()).toEqual([
+    expect(Object.keys(byName)).toEqual([
+      'MemoryL0.csv',
       'L2Cache.csv',
       'Memory.csv',
-      'MemoryL0.csv',
       'MemoryUB.csv',
     ]);
 

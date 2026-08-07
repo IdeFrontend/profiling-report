@@ -237,7 +237,11 @@ function modeLabel(m: AsideMode): string {
     <div
       v-if="mode === 'compute' && showCompute"
       data-testid="stats-compute"
+      class="pr-aside__detail"
     >
+      <h4 class="pr-aside__detail-title">
+        {{ t('computeAnalysis', locale) }}
+      </h4>
       <CsvFieldListPanel
         :tables="report?.computeTables ?? []"
         :csv-texts="report?.csvTexts ?? {}"
@@ -249,7 +253,11 @@ function modeLabel(m: AsideMode): string {
     <div
       v-if="mode === 'memory' && showMemory"
       data-testid="stats-memory"
+      class="pr-aside__detail"
     >
+      <h4 class="pr-aside__detail-title">
+        {{ t('memoryAnalysis', locale) }}
+      </h4>
       <CsvFieldListPanel
         :tables="report?.memoryTables ?? []"
         :csv-texts="report?.csvTexts ?? {}"
@@ -285,25 +293,55 @@ function modeLabel(m: AsideMode): string {
 
 .pr-aside__modes {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-wrap: nowrap;
+  gap: 0;
+  border-bottom: 1px solid #3a3a3a;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pr-aside__modes::-webkit-scrollbar {
+  display: none;
 }
 
 .pr-aside__mode {
   appearance: none;
-  border: 1px solid #3a3a3a;
-  background: #1f1f1f;
-  color: #b8b8b8;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #9a9a9a;
+  font-size: 12px;
+  padding: 6px 10px;
+  margin-bottom: -1px;
+  border-radius: 0;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.pr-aside__mode:hover {
+  color: #d0d0d0;
 }
 
 .pr-aside__mode--active {
-  background: #2f4f4f;
+  background: transparent;
   color: #f0f0f0;
-  border-color: #4a6a6a;
+  border-bottom-color: var(--pr-playhead, #3078f0);
+  border-color: transparent;
+  border-bottom-color: var(--pr-playhead, #3078f0);
+}
+
+.pr-aside__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+
+.pr-aside__detail-title {
+  margin: 4px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e0e0;
 }
 
 .pr-cards {

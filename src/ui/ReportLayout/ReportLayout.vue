@@ -22,7 +22,7 @@ defineProps<{
 <style scoped>
 .pr-layout {
   display: grid;
-  grid-template-columns: 1fr minmax(260px, 300px);
+  grid-template-columns: 1fr minmax(300px, 360px);
   gap: 0;
   flex: 1 1 auto;
   min-height: 0;
