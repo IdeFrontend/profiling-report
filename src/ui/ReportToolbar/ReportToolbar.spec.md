@@ -35,8 +35,8 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 | Control | Chrome |
 |---------|--------|
 | Shared height | `28px` baseline |
-| Search | Pill `#2a2a2a`, radius `14px`, width `190px`, mag SVG `14×14` |
-| Zoom | Pill `#363636`, radius `14px`; mag± SVGs; slider fill `#e8e8e8` / thumb `#c8c8c8` |
+| Search | Rounded rect `#2a2a2a`, radius `4px`, width `190px`, mag SVG `14×14` |
+| Zoom | Rounded rect `#363636`, radius `4px`; mag± SVGs; slider fill `#e8e8e8` / thumb `#c8c8c8` |
 | Icon actions | `28×28`, radius `4px`; active border/icon `#317AF7` |
 | P2 sketch icons | Out of MVP — do not stub |
 
@@ -65,6 +65,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 - [changes.png](../../../docs/source/changes/changes.png) #1 (caliper)
 
 ## Changelog
+- **2026-08-07** — Search/zoom corner radius `4px` (sketch), not capsule `14px`.
 - **2026-08-07** — Visual tokens for search/zoom pills and square icon actions; PR-TOOLBAR-008.
 - **2026-08-07** — Measure mode toggle (M2) on existing toolbar.
 - **2026-08-05** — Initial spec.

@@ -382,7 +382,7 @@ const emit = defineEmits<{
   height: var(--pr-toolbar-h);
   padding: 0 12px 0 32px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 4px;
   background: #2a2a2a;
   color: #e0e0e0;
   font-size: 12px;
@@ -404,7 +404,7 @@ const emit = defineEmits<{
   box-sizing: border-box;
   height: var(--pr-toolbar-h);
   padding: 0 4px;
-  border-radius: 14px;
+  border-radius: 4px;
   background: #363636;
 }
 

@@ -101,7 +101,7 @@ Source band ~y=98–132 in `with_sidebar.png`. Control height **~28–29 px**.
 |-------|--------|
 | Height | `28px` |
 | Width | `190px` |
-| Shape | Pill: `border-radius: 14px` |
+| Shape | Rounded rect: `border-radius: 4px` (not capsule) |
 | Background | `#2a2a2a` |
 | Border | none (or `1px solid #3a3a3a` if needed) |
 | Icon | Stroke **magnifying glass** SVG `14×14`, color `#9a9a9a`, left inset |
@@ -111,7 +111,7 @@ Source band ~y=98–132 in `with_sidebar.png`. Control height **~28–29 px**.
 ### Zoom pill
 | Token | Value |
 |-------|--------|
-| Container | Single pill, height `28px`, `border-radius: 14px`, bg `#363636` |
+| Container | Single control, height `28px`, `border-radius: 4px`, bg `#363636` |
 | Zoom out / in | **Magnifying-glass** SVGs with − / + inside (not bare ± text); `16×16`, color `#c8c8c8` |
 | Buttons | Transparent, no separate square border; padding `4px 6px` |
 | Slider | Width ~`100px`; track height `2px`; filled (left) `#e8e8e8`; unfilled `#2a2a2a`; thumb `10px` circle `#c8c8c8` |
