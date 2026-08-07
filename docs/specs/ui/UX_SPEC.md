@@ -89,18 +89,18 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Success** | User can point to hottest / coldest lanes |
 | **Sketches** | Util bars in `general.png`, `with_sidebar.png`, `swimlane.png` |
 
-### S5 — Drill into PIPE metrics (M for bars; searchable field list P2)
+### S5 — Drill into PIPE / compute / memory metrics (M1)
 
 | | |
 |--|--|
-| **Goal** | Inspect pipe occupancy at a glance (MVP); later drill into raw searchable counters |
-| **Trigger** | After S1; user needs more than bar chart (aside switches to pipe details) |
-| **Steps** | **MVP:** read PIPE occupancy bars in aside. **P2:** open pipe details mode; search/filter fields (e.g. `aic_mte3`); read values / NA |
-| **Success** | MVP: user ranks pipes by occupancy. P2: user finds a specific counter for the current report (and selection scope when defined) |
-| **Sketches** | Bars: `general.png`, `with_sidebar.png`. Field list: `pipe_utilization.png`, `pipe_details.png` |
-| **Components** | `PipeOccupancyPanel` (M); `PipeDetailsPanel` (P2) — see [COMPONENTS](../architecture/COMPONENTS.md) |
+| **Goal** | Rank pipes and inspect raw CSV counters for a selected block |
+| **Trigger** | After S1; user needs more than bar chart |
+| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); open memory tabs + block switcher; optionally 查看全部 |
+| **Success** | User ranks pipes and inspects raw fields without invented formulas |
+| **Sketches** | Bars: `general.png`, `with_sidebar.png`. Details: `pipe_*.png`, `memory_details.png`, [changes.png](../../source/changes/changes.png) #2–#4 |
+| **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
 
-### S6 — Analyze memory paths (P2)
+### S6 — Analyze memory paths (M2)
 
 | | |
 |--|--|
@@ -211,7 +211,7 @@ Shared state aligns with `SwimlaneViewState` + selection/hover ([COMPONENTS.md](
 
 ```mermaid
 flowchart TB
-  ViewState["timeWindow scrollY selection hover search"]
+  ViewState["timeWindow scrollY selection hover search measureMode measureRange"]
   ViewState --> TimeAxis
   ViewState --> OverviewCharts
   ViewState --> SwimlaneCanvas
@@ -220,6 +220,7 @@ flowchart TB
   Selection --> DepsLayer
   Hover["hoveredEvent"] --> EventTooltip
   Search["searchQuery"] --> SwimlaneHighlight
+  Measure["measureRange"] -->|"local overlay until Q22"| SwimlaneCanvas
 ```
 
 ### Sync rules
@@ -229,10 +230,11 @@ flowchart TB
 3. **Hover** — Sets `hoveredEventId` only. Does **not** change selection, detail strip, or aside content.
 4. **Selection** — Click event sets `selectedEventId`, fills `DetailStrip`, may dim non-selected events. Empty click clears selection and detail. P2: drives dependency graph and link emphasis.
 5. **Search** — Highlights or filters matching event names. Does not clear selection on MVP. P2: Enter jumps to next match (may move time window).
-6. **Aside mode** — Switching stats ↔ hardware ↔ pipe list ↔ memory **preserves** timeline view state and selection.
+6. **Aside mode** — Switching summary ↔ PIPE ↔ compute details ↔ memory **preserves** timeline view state and selection.
 7. **Lane expand/collapse** — Changes visible row set only; does not reset `timeWindow`.
 8. **Playhead** — Visual marker; MVP may track click position or view center. Does not by itself change selection.
 9. **Tab switch (P2)** — Leaving Timeline keeps serialized view state for restore when returning.
+10. **Time-range measure (M2)** — `measureMode` / `measureRange` drive the swimlane overlay only. **Does not** change `timeWindow`. Aside / other-view recompute is **[Q22](../../context/OPEN_QUESTIONS.md)** — until answered, no sync.
 
 ---
 

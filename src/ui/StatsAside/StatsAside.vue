@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
-import type { ReportViewModel } from '../../domain/types';
+import type { PipeOccupancyItem, ReportViewModel } from '../../domain/types';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
   locale?: string;
 }>();
+
+type PipeSide = 'cube' | 'vector';
 
 const COLOR: Record<string, string> = {
   cube: 'var(--pr-color-cube)',
@@ -25,6 +27,44 @@ const hasSummary = computed(() => {
 });
 
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
+
+const opType = computed(() => (props.report?.summary.opType ?? '').trim());
+
+const isMix = computed(() => opType.value.toUpperCase() === 'MIX');
+
+/** Known cube/vector side, or null when blank/unrecognized (show all pipes). */
+function resolveKnownSide(raw: string): PipeSide | null {
+  const v = raw.toLowerCase();
+  if (!v || v.includes('mix')) return null;
+  if (v.includes('vector') || v.includes('aiv') || v.includes('vec')) return 'vector';
+  if (v.includes('cube') || v.includes('aic')) return 'cube';
+  return null;
+}
+
+const knownSide = computed(() => resolveKnownSide(opType.value));
+
+const pipeSide = ref<PipeSide>('cube');
+
+watch(
+  () => [isMix.value, knownSide.value] as const,
+  ([mix, side]) => {
+    if (mix) pipeSide.value = 'cube';
+    else if (side) pipeSide.value = side;
+  },
+  { immediate: true },
+);
+
+function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
+  return (item.side ?? side) === side;
+}
+
+const visiblePipes = computed(() => {
+  const all = props.report?.pipeOccupancy ?? [];
+  if (isMix.value) return all.filter((p) => matchesSide(p, pipeSide.value));
+  // Blank or unrecognized opType: show all sides (do not default-filter to vector).
+  if (knownSide.value == null) return all;
+  return all.filter((p) => matchesSide(p, knownSide.value!));
+});
 
 function formatDurationUs(us: number): string {
   if (us >= 1000) return `${(us / 1000).toFixed(2)} ms`;
@@ -94,10 +134,36 @@ function formatDurationUs(us: number): string {
       data-testid="pipe-occupancy"
     >
       <h4>{{ t('pipeOccupancy', locale) }}</h4>
+      <div
+        v-if="isMix"
+        class="pr-pipe-toggle"
+        data-testid="pipe-side-toggle"
+        role="group"
+        :aria-label="t('pipeSide', locale)"
+      >
+        <button
+          type="button"
+          class="pr-pipe-toggle__btn"
+          :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
+          data-testid="pipe-side-cube"
+          @click="pipeSide = 'cube'"
+        >
+          Cube
+        </button>
+        <button
+          type="button"
+          class="pr-pipe-toggle__btn"
+          :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
+          data-testid="pipe-side-vector"
+          @click="pipeSide = 'vector'"
+        >
+          Vector
+        </button>
+      </div>
       <ul class="pr-pipe-list">
         <li
-          v-for="pipe in report?.pipeOccupancy ?? []"
-          :key="pipe.id"
+          v-for="pipe in visiblePipes"
+          :key="`${pipe.id}-${pipe.side ?? 'x'}`"
           class="pr-pipe-row"
         >
           <span class="pr-pipe-row__label">{{ pipe.label }}</span>
@@ -186,6 +252,29 @@ function formatDurationUs(us: number): string {
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.pr-pipe-toggle {
+  display: inline-flex;
+  margin: 0 0 10px;
+  border: 1px solid #3a3a3a;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.pr-pipe-toggle__btn {
+  appearance: none;
+  border: 0;
+  background: #1f1f1f;
+  color: #b8b8b8;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.pr-pipe-toggle__btn--active {
+  background: #2f4f4f;
+  color: #f0f0f0;
 }
 
 .pr-pipe-list {

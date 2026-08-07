@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyWindow,
+  clearMeasure,
   createViewState,
   panBy,
+  setMeasureRange,
   zoomAt,
   zoomToFitWindow,
 } from '../../src/domain/viewState';
@@ -42,5 +44,21 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(clamped.startTime).toBe(1000);
     const state = applyWindow(createViewState(model), next);
     expect(state.startTime).toBe(1500);
+  });
+
+  it('PR-VIEW-004: createViewState initializes measure fields off', () => {
+    const state = createViewState(model);
+    expect(state.measureMode).toBe(false);
+    expect(state.measureRange).toBeNull();
+  });
+
+  it('PR-VIEW-005: setMeasureRange normalizes; clearMeasure resets', () => {
+    let state = createViewState(model);
+    state = { ...state, measureMode: true };
+    state = setMeasureRange(state, { startTime: 4000, endTime: 2000 });
+    expect(state.measureRange).toEqual({ startTime: 2000, endTime: 4000 });
+    state = clearMeasure(state);
+    expect(state.measureMode).toBe(false);
+    expect(state.measureRange).toBeNull();
   });
 });

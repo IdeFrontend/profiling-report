@@ -75,8 +75,9 @@ Modes observed in sketches:
 
 | Mode | Sketch | Content | Phase |
 |------|--------|---------|------:|
-| Report statistics | `general.png`, `with_sidebar.png` | Total time, compute, I/O BW, avg core util; PIPE bars | M |
-| Roofline (within stats aside or sibling) | `general.png`, `with_sidebar.png` | Log-log bottleneck chart | P2 |
+| Report statistics | `general.png`, `with_sidebar.png`, [changes.png](../../source/changes/changes.png) | Total time; PIPE bars + Cube\|Vector (MIX); compute/memory detail tabs; block + 查看全部 | M / M1 |
+| Roofline (within stats aside or sibling) | `general.png`, `with_sidebar.png` | Log-log bottleneck chart | M2 |
+| Memory topology | `memory_chart.png`, changelog #5 | Static SVG + data-driven edge labels | M2 |
 | Hardware details | `sidebar_details.png` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([Q7](../../context/OPEN_QUESTIONS.md)) |
 | Pipe field list | `pipe_utilization.png`, `pipe_details.png` | Searchable PipeUtilization columns | P2 |
 | Memory analysis | `memory_chart.png`, `memory_details.png` | **Static SVG** + **data-driven edge labels** ([Q12](../../context/OPEN_QUESTIONS.md)) | P2 |

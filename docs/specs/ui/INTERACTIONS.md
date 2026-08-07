@@ -79,12 +79,30 @@ Sketch: `swimlane_selection.png` annotations
 
 **MVP:** basic substring filter or highlight.
 
+## Time-range measure (度量模式)
+
+Sketch / changelog: [`docs/source/changes/changes.png`](../../source/changes/changes.png) #1. Delivery: **M2**.
+
+- Toolbar **caliper** toggles `measureMode`. While active, pan-drag on the swimlane is disabled (zoom/wheel still allowed unless Product says otherwise).
+- Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized).
+- Overlay: translucent shaded band spanning the interval + floating **Δt** label using the current display `timeUnit` (e.g. `3.0ms`).
+- Does **not** change `timeWindow` (unlike overview brush). Does **not** multi-select events.
+- Clear: toggle off, Esc, or clear control — clears `measureRange` and exits measure mode.
+- **M2 minimum:** create range + clear + band + Δt label. Edge resize handles are optional polish.
+- **Aside / other-view sync:** **Open [Q22](../../context/OPEN_QUESTIONS.md)** — until answered, measure is a **local overlay only** (no PIPE/memory/summary recompute).
+
 ## Right panel coordination
 
-- Selecting a lane or block may filter pipe/memory detail lists (Phase 2).
-- PIPE bars remain global aggregates for MVP unless selection defines a subset.
+- Aside modes (M1): Summary | PIPE | compute details | Memory — see [FEATURE_MATRIX](FEATURE_MATRIX.md) and changelog #2–#4.
+- PIPE bars remain global mean aggregates ([I-Q6b](../../context/INTERIM_DECISIONS.md)) unless Product later ties them to selection or measure (Q22).
+- Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../../context/INTERIM_DECISIONS.md)).
+- Cube \| Vector toggle on PIPE for MIX ops only.
+- Compute details: tabs PipeUtilization | ArithmeticUtilization | ResourceConflictRatio.
+- Memory details: tabs Memory L1 | L2Cache | Memory L0 | Memory UB; **查看全部** opens full CSV ([I-Q6d](../../context/INTERIM_DECISIONS.md)).
+- Selecting a lane or event may filter lists later (still open); do not invent until Product confirms.
 
 ## Accessibility and robustness
 
 - Tooltips must not block pan/zoom hit-testing incorrectly (dismiss on pan start).
 - Large traces: hit-testing must use spatial index or GPU pick buffer when WebGL renderer is adopted (see [SWIMLANE_IMPLEMENTATIONS.md](../../archive/research/SWIMLANE_IMPLEMENTATIONS.md)).
+- Measure overlay must not steal hits when `measureMode` is false.

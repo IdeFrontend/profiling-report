@@ -20,19 +20,18 @@ describe('PR-VM: report view-models (interim)', () => {
 
   it('PR-VM-002 (interim I-Q6b): PipeUtilization → PIPE bars mean of non-NA', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
-    const byId = Object.fromEntries(
-      adapted.reportModel.pipeOccupancy.map((p) => [p.id, p]),
-    );
+    const vectorPipes = adapted.reportModel.pipeOccupancy.filter((p) => p.side === 'vector');
+    const byId = Object.fromEntries(vectorPipes.map((p) => [p.id, p]));
 
-    expect(byId.vector).toMatchObject({ label: expect.any(String), colorKey: 'vector' });
+    expect(byId.vector).toMatchObject({ label: expect.any(String), colorKey: 'vector', side: 'vector' });
     expect(byId.vector.ratio).toBeCloseTo(0.067157625, 5);
 
     expect(byId.mte2.ratio).toBeCloseTo(0.3812395, 5);
     expect(byId.mte3.ratio).toBeCloseTo(0.1621495, 5);
     expect(byId.scalar.ratio).toBeCloseTo(0.33244325, 5);
 
-    // AIC cube/mte1/fixp all-NA in fixture → omit or no invented zeros as occupancy
-    expect(byId.cube).toBeUndefined();
+    // AIC cube/mte1/fixp all-NA in fixture → no cube-side occupancy
+    expect(adapted.reportModel.pipeOccupancy.filter((p) => p.side === 'cube')).toEqual([]);
 
     // Gutter util comes from PIPE ratios, not busy-fraction heuristics
     const pipeLane = adapted.swimlaneModel.processes
@@ -44,5 +43,16 @@ describe('PR-VM: report view-models (interim)', () => {
   it('PR-VM-003 (interim I-Q5+): overviewSeries empty — not invented from PipeUtilization', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     expect(adapted.reportModel.overviewSeries).toEqual([]);
+  });
+
+  it('PR-VM-005: pipe occupancy items are side-specific (no AIC/AIV blend)', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    for (const pipe of adapted.reportModel.pipeOccupancy) {
+      expect(['cube', 'vector']).toContain(pipe.side);
+    }
+    expect(adapted.reportModel.pipeOccupancy.find((p) => p.id === 'vector')?.side).toBe('vector');
+    expect(
+      adapted.reportModel.pipeOccupancy.filter((p) => p.id === 'mte2').every((p) => p.side === 'vector'),
+    ).toBe(true);
   });
 });

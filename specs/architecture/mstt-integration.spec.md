@@ -12,6 +12,8 @@ Integration contract between profiling-report library and primary host (MSTT). L
 
 **Emits.** `ready` fires after source is parsed and models are loaded. `select` fires with `SelectedEvent` or null when the user selects/deselects an event. `error` fires with `{ message, cause? }` on load/parse failure.
 
+**Planned host hooks (design specs; not coded this branch):** `view-full-csv` for 查看全部; measure-mode capability.
+
 ## Edge Cases
 
 - Empty source → empty shell without error.
