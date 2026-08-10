@@ -1,0 +1,11 @@
+component: EventTooltip
+source_primary: v930/task-hover
+crops:
+  tooltip.png:
+    source: v930/task-hover
+    region: "Hover event tooltip — Name / Start / Duration / End"
+    box: { x: 2060, y: 2868, w: 1060, h: 460 }
+  tooltip-context.png:
+    source: v930/task-hover
+    region: "Hovered MOV_OUT event bar + floating tooltip"
+    box: { x: 1850, y: 2650, w: 1400, h: 720 }

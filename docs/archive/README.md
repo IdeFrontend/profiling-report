@@ -1,6 +1,6 @@
 # Documentation archive
 
-Historical and superseded research. Prefer current specs under [`../specs/`](../specs/) and [`../context/`](../context/).
+Historical and superseded research. Prefer formal contracts under [`../../specs/`](../../specs/) and system docs under [`../`](../) (e.g. [`../context/`](../context/)).
 
 | Doc | Role |
 |-----|------|

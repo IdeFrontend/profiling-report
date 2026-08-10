@@ -1,0 +1,11 @@
+component: PipeOccupancyPanel
+source_primary: v930/compute-load
+crops:
+  mode-tabs.png:
+    source: v930/compute-load
+    region: "MIX Cube|Vector mode tabs under 计算负载分析"
+    box: { x: 200, y: 2910, w: 1950, h: 220 }
+  pipe-bars.png:
+    source: v930/compute-load
+    region: "PIPE occupancy bars (Cube…Scalar); excludes purple design callout"
+    box: { x: 200, y: 180, w: 1805, h: 1050 }

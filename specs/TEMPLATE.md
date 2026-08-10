@@ -62,9 +62,18 @@ For architecture: integration patterns, lifecycle, independence rules.]
 
 [Unresolved questions. Omit if none.]
 
+## Visual
+
+*Component specs only.* Normative measures owned by this component (sizes, colors, typography).
+Shared axis chrome: [`AxisRuler.spec.md`](../src/ui/TimelineView/TimeAxis/AxisRuler/AxisRuler.spec.md). Panel resize clamps: [`ReportLayout.spec.md`](../src/ui/ReportLayout/ReportLayout.spec.md).
+Omit when the component has no distinct chrome.
+
 ## Design sketches
 
-- [sketch name](/docs/specs/ui/source/sketch.png) — description
+- `[crop name](./visual/crop.png)` — from `{batch}/{scene}` (see `visual/provenance.yaml`)
+- `<source frame>` — e.g. `/docs/ui/source/v930/entry.jpeg` for full layout context
+
+Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
 - **YYYY-MM-DD** — Initial spec.

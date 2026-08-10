@@ -27,7 +27,7 @@ docs (goals)
 | Stage | Artifacts | Owner check |
 |-------|-----------|-------------|
 | Docs | [`PROJECT_GOALS.md`](../context/PROJECT_GOALS.md) | Goals and non-goals still accurate |
-| Specs | [`docs/specs/`](../specs/) and co-located [`*.spec.md`](../../specs/) files per [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | Feature listed in [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md); format/UI details exist |
+| Specs | Root [`specs/`](../../specs/) + co-located [`*.spec.md`](../../specs/) per [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | Feature listed in [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md); format/UI details exist in [`docs/`](../) |
 | Ready | [DEFINITION_OF_READY.md](DEFINITION_OF_READY.md) | Checklist complete before coding |
 | Tests | See [TESTING.md](TESTING.md) | Failing tests map to matrix / spec IDs |
 | Code | `src/`, `playground/` | Minimal change to pass tests |
@@ -39,7 +39,7 @@ A slice is done when all of the following hold:
 
 - [ ] Specs updated if behavior changed (never “fix only in code”)
 - [ ] Automated tests for the slice are green (unit and/or component and/or e2e as required by [TESTING.md](TESTING.md))
-- [ ] Every touched **MVP** row in [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md) has at least one test id referenced in the PR description
+- [ ] Every touched **MVP** row in [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md) has at least one test id referenced in the PR description
 - [ ] No new public API without types exported from the library entry
 - [ ] Playground still loads `data/out.rep` when the slice touches UI or parse
 - [ ] CI (`lint` → `vitest` → `playwright`) green on the PR
@@ -49,12 +49,12 @@ A slice is done when all of the following hold:
 Implement in this order unless a blocking dependency forces a temporary exception (document the exception in the PR):
 
 1. **Tooling scaffold** (next milestone after these process docs) — Vite library package, Vitest, Playwright, playground app, empty failing smoke tests. **No feature code until this is green.**
-2. **Core parse** — [REP_FORMAT](../specs/formats/REP_FORMAT.md) + golden [`data/out.rep`](../../data/out.rep)
-3. **View-models** — [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md) (PIPE bars, report summary)
-4. **Swimlane model** — trace → `SwimlaneModel` ([ARCHITECTURE](../specs/architecture/ARCHITECTURE.md))
-5. **UI shell** — panels + interactions ([UI_OVERVIEW](../specs/ui/UI_OVERVIEW.md), [UX_SPEC](../specs/ui/UX_SPEC.md), [INTERACTIONS](../specs/ui/INTERACTIONS.md), [COMPONENTS](../specs/architecture/COMPONENTS.md))
+2. **Core parse** — [REP_FORMAT](../formats/REP_FORMAT.md) + golden [`data/out.rep`](../../data/out.rep)
+3. **View-models** — [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md) (PIPE bars, report summary)
+4. **Swimlane model** — trace → `SwimlaneModel` ([ARCHITECTURE](../architecture/ARCHITECTURE.md))
+5. **UI shell** — panels + interactions ([UI_OVERVIEW](../ui/UI_OVERVIEW.md), [UX_SPEC](../ui/UX_SPEC.md), [INTERACTIONS](../ui/INTERACTIONS.md), [COMPONENTS](../architecture/COMPONENTS.md))
 6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md))
-7. **MSTT host** — separate PR in `mstt` per [MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)
+7. **MSTT host** — separate PR in `mstt` per [MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)
 
 ## Target repo layout
 

@@ -23,7 +23,7 @@ Index: [README.md](README.md)
 
 Aside mode switcher: **Summary** | **PIPE** | **Pipe details** | **Memory** | **Cache** | **Metrics** (omit modes with no data).
 
-Design deltas from [`docs/source/changes/changes.png`](../../source/changes/changes.png) **#2–#4**.
+Design frames: [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg) (Cube|Vector), [`v930/compute-load-detail`](../../ui/source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](../../ui/source/v930/memory-load-detail.jpeg) (tabs + block + 查看全部).
 
 | View | Status | Features |
 |------|--------|----------|
@@ -40,7 +40,7 @@ Design deltas from [`docs/source/changes/changes.png`](../../source/changes/chan
 
 ## Implementation tasks
 
-1. Spec: extend [VIEW_DATA_REQUIREMENTS](../../specs/formats/VIEW_DATA_REQUIREMENTS.md) / [FEATURE_MATRIX](../../specs/ui/FEATURE_MATRIX.md) / [COMPONENTS](../../specs/architecture/COMPONENTS.md) for aside modes + CSV tabs + Cube/Vector toggle + block/查看全部; assign `PR-*` test ids.
+1. Spec: extend [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) / [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md) / [COMPONENTS](../../architecture/COMPONENTS.md) for aside modes + CSV tabs + Cube/Vector toggle + block/查看全部; assign `PR-*` test ids.
 2. Adapter: parse remaining `out.rep` CSVs into typed tables (`ArithmeticUtilization`, `L2Cache`, `Memory*`, `ResourceConflictRatio`); extend `OpBasicInfo` → summary fields; keep hide-if-empty.
 3. Domain: `ReportViewModel` holds table models, block ids, MIX pipe sets, which aside modes/tabs are available.
 4. UI: aside mode switcher; Cube/Vector control; compute detail tabs; memory tabs + block picker + 查看全部 emit; reusable searchable field-list.
@@ -54,7 +54,7 @@ Design deltas from [`docs/source/changes/changes.png`](../../source/changes/chan
 |---------|--------|------------|
 | No column semantics / units for many CSV fields (producer spec WIP) | Labels may be raw header names only | Ship raw headers + values; polish labels when format spec arrives |
 | Which rows to show (per `block_id` vs aggregate) | Wrong UX for multi-block fixture | **I-Q6c**: mean bars + block-scoped details with picker |
-| Sketches for pipe/memory **lists** exist; Metrics/Cache aside chrome less specified | Layout guesswork | Mirror changelog tabs + `pipe_details.png` list pattern |
+| Sketches for pipe/memory **lists** exist; Metrics/Cache aside chrome less specified | Layout guesswork | Mirror changelog tabs + `source/v930/compute-load-detail.jpeg` list pattern |
 | Q6 still interim — cannot show TFLOPS/BW tiles | Summary incomplete vs sketches | Explicitly out of M1; do not invent formulas |
 | Q5 — no `OverviewSeries` in fixture | Overview charts stay empty | Keep hidden (already decided) |
 | Dense/wide CSVs may hurt aside UX | Scroll/search only | Search + virtualize if needed; no chart derivation in M1 |

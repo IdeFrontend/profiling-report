@@ -1,0 +1,8 @@
+component: DependencyLinksLayer
+source_primary: v930/task-click-detail
+crops:
+  dependency-links.png:
+    source: v930/task-click-detail
+    region: "Selected task with predecessor/successor bezier overlays on swimlane (purple callout is design annotation, not product chrome)"
+    box: { x: 1500, y: 2280, w: 3700, h: 720 }
+note: "Dump also shows bottom 详情 dock + 置灰 non-selected tasks; DetailRelevant 3-icon filter callout is annotation-only"

@@ -40,7 +40,7 @@ Q1 — Producer status; format may evolve.
 
 ## Design sketches
 
-- [NPU-REP binary layout](../../docs/specs/ui/source/npu-rep-layout.png)
+- [NPU-REP binary layout](../../docs/ui/source/v930/entry.jpeg)
 
 ## Changelog
 - **2026-08-05** — Initial spec. Core behaviors established.

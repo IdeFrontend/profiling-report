@@ -1,0 +1,11 @@
+component: CursorTimestamp
+source_primary: v930/search-highlight
+crops:
+  cursor-timestamp.png:
+    source: v930/search-highlight
+    region: "Blue cursor timestamp bubble 00:04.456 + stem (absent on entry frame)"
+    box: { x: 2740, y: 632, w: 290, h: 120 }
+  cursor-timestamp-context.png:
+    source: v930/search-highlight
+    region: "Axis labels + cursor bubble + playhead context"
+    box: { x: 2500, y: 540, w: 900, h: 220 }

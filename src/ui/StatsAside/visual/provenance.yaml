@@ -1,0 +1,7 @@
+component: StatsAside
+source_primary: v930/report-stats-scrolled
+crops:
+  aside-scrolled.png:
+    source: v930/report-stats-scrolled
+    region: "Scrolled aside shell: header + full 计算负载分析 PIPE bars"
+    box: { x: 5776, y: 355, w: 1850, h: 1250 }

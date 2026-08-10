@@ -1,0 +1,27 @@
+component: SwimlaneCanvas
+source_primary: v930/entry
+crops:
+  event-blocks.png:
+    source: v930/entry
+    region: "Swimlane timeline event blocks (timeline column only)"
+    box: { x: 2300, y: 900, w: 3900, h: 1400 }
+  search-highlight.png:
+    source: v930/search-highlight
+    region: "Swimlane under active search/cursor (overview charts + step lanes)"
+    box: { x: 2200, y: 800, w: 3300, h: 1200 }
+  measure-overlay.png:
+    source: v930/task-measure-mode
+    region: "Measure-mode Δt overlay (4.8ms badge + range span on overview/axis)"
+    box: { x: 3000, y: 520, w: 2300, h: 260 }
+  multi-height.png:
+    source: v930/task-multi-height
+    region: "Swimlane with increased row height when multiple tasks overlap"
+    box: { x: 2300, y: 900, w: 3900, h: 1600 }
+  marquee.png:
+    source: v930/task-marquee
+    region: "Marquee selection over timeline events (full rect including left edge)"
+    box: { x: 1380, y: 2260, w: 2950, h: 960 }
+  selection-dim.png:
+    source: v930/task-click-detail
+    region: "Single-click selection: selected event emphasized, other tasks 置灰; dep beziers may show (see DependencyLinksLayer)"
+    box: { x: 1200, y: 2100, w: 3800, h: 820 }

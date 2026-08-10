@@ -1,0 +1,7 @@
+component: StatsSummaryPanel
+source_primary: v930/report-stats-open
+crops:
+  summary-cards.png:
+    source: v930/report-stats-open
+    region: "Aside panel: header + metadata + all summary metric cards (excl. swimlane left of x≈5780)"
+    box: { x: 5776, y: 355, w: 1850, h: 1140 }

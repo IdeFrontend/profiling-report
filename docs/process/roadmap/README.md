@@ -1,6 +1,6 @@
 # Delivery roadmap
 
-From the current **timeline MVP library** on `master` to **full UI** per [FEATURE_MATRIX.md](../../specs/ui/FEATURE_MATRIX.md).
+From the current **timeline MVP library** on `master` to **full UI** per [FEATURE_MATRIX.md](../../ui/FEATURE_MATRIX.md).
 
 Per milestone, features are split into **Swimlane** vs **Other views**, plus **implementation tasks** and **potential blockers**. Details live in one file per milestone.
 
@@ -21,16 +21,16 @@ flowchart LR
 
 ## Current state (done)
 
-**Swimlane:** parse → canvas lanes, gutter util, zoom/pan, overview brush, hover tooltip, single-select → compact `DetailStrip`, search, time units.
+**Swimlane:** parse → canvas lanes, gutter util, zoom/pan, overview brush, hover tooltip, single-select → compact `DetailPanel`, search, time units.
 
 **Other views:** thin `OpBasicInfo` summary + PIPE bars only.
 
 **Unused in [`data/out.rep`](../../../data/out.rep):** `ArithmeticUtilization`, `L2Cache`, `Memory*`, `ResourceConflictRatio` CSVs; richer OpBasicInfo columns. No dep encoding in fixture (Q9 open).
 
-**Product changelog:** [`docs/source/changes/changes.png`](../../source/changes/changes.png) — M1 absorbs #2–#4 (Cube/Vector MIX toggle, compute/memory detail tabs + block + 查看全部); M2 absorbs #1 (度量模式 time-range measure) + #5 (topology edge values). Cross-view measure sync is [Q22](../../context/OPEN_QUESTIONS.md).
+**Design frames:** M1 — Cube/Vector MIX toggle + compute/memory detail tabs (`v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail`); M2 — 度量模式 (`v930/task-measure-mode`) + topology edge values (`v930/memory-load-detail`). Index: [`DESIGN_INDEX.md`](../../ui/DESIGN_INDEX.md). Cross-view measure sync is [Q22](../../context/OPEN_QUESTIONS.md).
 
 ## Related
 
 - [DEVELOPMENT.md](../DEVELOPMENT.md) — engineering process and completed library milestones 1–4
-- [MSTT_INTEGRATION.md](../../specs/architecture/MSTT_INTEGRATION.md) — host wiring (delivery M2)
-- [FEATURE_MATRIX.md](../../specs/ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist
+- [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md) — host wiring (delivery M2)
+- [FEATURE_MATRIX.md](../../ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist

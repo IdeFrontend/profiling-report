@@ -1,0 +1,7 @@
+component: RooflinePanel
+source_primary: v930/report-stats-open
+crops:
+  roofline.png:
+    source: v930/report-stats-open
+    region: "Roofline瓶颈分析 — tabs + GM/L2 log-log chart including Ops/Byte axis"
+    box: { x: 5790, y: 1460, w: 1870, h: 1360 }

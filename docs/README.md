@@ -1,6 +1,6 @@
 # Profiling Report — Documentation Index
 
-English documentation and specifications for the reusable Vue profiling-report library.
+English documentation for the reusable Vue profiling-report library. Formal behavioral contracts live in root [`specs/`](../specs/); this tree holds descriptive system/UX/format docs and design assets.
 
 ## Reading order
 
@@ -14,19 +14,21 @@ English documentation and specifications for the reusable Vue profiling-report l
 7. **[process/PROJECT_STRUCTURE.md](process/PROJECT_STRUCTURE.md)** — canonical project layout: spec locations, per-component folders, test ID conventions, traceability
 8. **[process/TESTING.md](process/TESTING.md)** — Vitest / Playwright pyramid, fixtures, matrix → test ids
 9. **[process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md)** — checklist before implementing a slice
-10. **[specs/formats/FORMATS_COMPARISON.md](specs/formats/FORMATS_COMPARISON.md)** — semantic data comparison: Insight operator vs `.rep` vs PyPTO
-11. **[specs/formats/REP_FORMAT.md](specs/formats/REP_FORMAT.md)** — CANN `.rep` / `.ncrep` container layout
-12. **[specs/formats/METRICS_AND_TRACE.md](specs/formats/METRICS_AND_TRACE.md)** — embedded CSVs and `trace.json`
-13. **[specs/formats/VIEW_DATA_REQUIREMENTS.md](specs/formats/VIEW_DATA_REQUIREMENTS.md)** — required inputs per chart/view; hide-if-missing rules
-14. **[specs/ui/UI_OVERVIEW.md](specs/ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
-15. **[specs/ui/COLOR_TOKENS.md](specs/ui/COLOR_TOKENS.md)** — normative colors from sketches
-16. **[specs/ui/UX_SPEC.md](specs/ui/UX_SPEC.md)** — complete UX: scenarios, static vs interactive, sync model
-17. **[specs/ui/FEATURE_MATRIX.md](specs/ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
-18. **[specs/ui/INTERACTIONS.md](specs/ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
-19. **[specs/architecture/ARCHITECTURE.md](specs/architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
-20. **[specs/architecture/COMPONENTS.md](specs/architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
-21. **[specs/architecture/MSTT_INTEGRATION.md](specs/architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
-22. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
+10. **[formats/FORMATS_COMPARISON.md](formats/FORMATS_COMPARISON.md)** — semantic data comparison: Insight operator vs `.rep` vs PyPTO
+11. **[formats/REP_FORMAT.md](formats/REP_FORMAT.md)** — CANN `.rep` / `.ncrep` container layout
+12. **[formats/METRICS_AND_TRACE.md](formats/METRICS_AND_TRACE.md)** — embedded CSVs and `trace.json`
+13. **[formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md)** — required inputs per chart/view; hide-if-missing rules
+14. **[ui/DESIGN_INDEX.md](ui/DESIGN_INDEX.md)** — design image hierarchy (sources → screens → component crops)
+15. **[ui/UI_OVERVIEW.md](ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
+16. **[ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md)** — UI section ↔ field ↔ source mappings
+17. **[ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md)** — normative colors from sketches
+18. **[ui/UX_SPEC.md](ui/UX_SPEC.md)** — complete UX: scenarios, static vs interactive, sync model
+19. **[ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
+20. **[ui/INTERACTIONS.md](ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
+21. **[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
+22. **[architecture/COMPONENTS.md](architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
+23. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
+24. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
 ## Process
 
@@ -45,22 +47,23 @@ English documentation and specifications for the reusable Vue profiling-report l
 
 Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README.md) (deprecated in favor of co-located component specs and [`specs/README.md`](../specs/README.md)).
 
-## Specs (quick links)
+## System docs (quick links)
 
 | Doc | Role |
 |-----|------|
-| [specs/ui/UX_SPEC.md](specs/ui/UX_SPEC.md) | Scenarios S1–S9, static vs interactive, sync |
-| [specs/ui/FEATURE_MATRIX.md](specs/ui/FEATURE_MATRIX.md) | MVP vs Phase 2+ checklist |
-| [specs/ui/COLOR_TOKENS.md](specs/ui/COLOR_TOKENS.md) | Normative sketch color tokens |
-| [specs/formats/VIEW_DATA_REQUIREMENTS.md](specs/formats/VIEW_DATA_REQUIREMENTS.md) | Per-view required inputs |
-| [specs/architecture/COMPONENTS.md](specs/architecture/COMPONENTS.md) | Canonical models and Vue component catalog |
-| [specs/architecture/ARCHITECTURE.md](specs/architecture/ARCHITECTURE.md) | Packaging, adapters, data flow |
+| [ui/UX_SPEC.md](ui/UX_SPEC.md) | Scenarios S1–S9, static vs interactive, sync |
+| [ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md) | MVP vs Phase 2+ checklist |
+| [ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md) | UI section ↔ field ↔ source mappings |
+| [ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md) | Normative sketch color tokens |
+| [formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md) | Per-view required inputs |
+| [architecture/COMPONENTS.md](architecture/COMPONENTS.md) | Canonical models and Vue component catalog |
+| [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) | Packaging, adapters, data flow |
 
 ## Design sketches
 
-PNG mockups live under [`specs/ui/`](specs/ui/). Written UI specs reference them by filename.
+PNG mockups live under [`ui/source/v930/`](ui/source/v930/). Component crops live next to Vue code under `src/ui/{Component}/visual/`. Hierarchy: [`ui/DESIGN_INDEX.md`](ui/DESIGN_INDEX.md).
 
-**Product changelog (annotated UI deltas):** [`source/changes/changes.png`](source/changes/changes.png) — timeline 度量模式, Cube/Vector MIX toggle, compute/memory detail tabs, memory topology edge values. Absorbed into design specs per delivery [roadmap](process/roadmap/).
+Design frames covering former changelog deltas (度量模式, Cube/Vector MIX toggle, compute/memory detail tabs, topology): [`ui/source/v930/`](ui/source/v930/) — see [`ui/DESIGN_INDEX.md`](ui/DESIGN_INDEX.md) and delivery [roadmap](process/roadmap/).
 
 ## Research archive
 
