@@ -85,6 +85,7 @@ defineExpose({
       :measure-mode="measureMode"
       :measure-range="measureRange"
       :time-unit="timeUnit"
+      :prefer-renderer="preferRenderer ?? 'auto'"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
       @cursor="emit('cursor', $event)"

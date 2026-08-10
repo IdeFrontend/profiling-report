@@ -194,6 +194,7 @@ defineExpose({
       :measure-mode="view.measureMode"
       :measure-range="view.measureRange"
       :time-unit="unit"
+      :prefer-renderer="preferRenderer ?? 'auto'"
       @update:scroll-y="emit('update:scrollY', $event)"
       @toggle-group="emit('toggle-group', $event)"
       @select="emit('select', $event)"
