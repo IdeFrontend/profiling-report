@@ -3,9 +3,9 @@ source_primary: v930/detail-strip-raised
 crops:
   strip.png:
     source: v930/detail-strip-raised
-    region: "Detail strip panel (name, start, duration, end)"
-    box: { x: 0, y: 3900, w: 7680, h: 420 }
+    region: "Detail strip Start/Duration/end card"
+    box: { x: 280, y: 3180, w: 1000, h: 280 }
   strip-context.png:
     source: v930/detail-strip-raised
-    region: "Detail strip with upstream swimlane context"
-    box: { x: 0, y: 3500, w: 7680, h: 820 }
+    region: "Detail strip card with surrounding detail UI"
+    box: { x: 200, y: 2900, w: 5000, h: 650 }

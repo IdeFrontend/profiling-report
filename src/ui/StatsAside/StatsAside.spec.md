@@ -95,7 +95,7 @@ Crops: [`visual/mode-tabs.png`](./visual/mode-tabs.png), [`visual/summary-cards.
 
 - [mode-tabs](./visual/mode-tabs.png) — from `v930/report-stats-open`
 - [summary-cards](./visual/summary-cards.png) — from `v930/report-stats-open`
-- [pipe-bars](./visual/pipe-bars.png) — from `v930/compute-load`
+- [pipe-bars](./visual/pipe-bars.png) — from `v930/report-stats-scrolled`
 - [aside-scrolled](./visual/aside-scrolled.png) — from `v930/report-stats-scrolled`
 - [hardware-detail](./visual/hardware-detail.png) — from `v930/hardware-more-detail`
 - [changes.png](../../../docs/source/changes/changes.png) #2–#4

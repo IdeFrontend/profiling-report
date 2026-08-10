@@ -3,9 +3,9 @@ source_primary: v930/entry
 crops:
   event-blocks.png:
     source: v930/entry
-    region: "Swimlane timeline with event blocks, gutter, and axis ruler"
-    box: { x: 200, y: 160, w: 7480, h: 2500 }
+    region: "Swimlane timeline event blocks (timeline column only)"
+    box: { x: 2300, y: 900, w: 3900, h: 1400 }
   search-highlight.png:
     source: v930/search-highlight
-    region: "Search highlight on swimlane events"
-    box: { x: 600, y: 200, w: 6500, h: 1500 }
+    region: "Swimlane under active search/cursor (overview charts + step lanes)"
+    box: { x: 2200, y: 800, w: 3300, h: 1200 }

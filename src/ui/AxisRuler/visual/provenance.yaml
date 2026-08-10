@@ -3,5 +3,5 @@ source_primary: v930/entry
 crops:
   viewport-ticks.png:
     source: v930/entry
-    region: "Viewport axis ruler major and minor ticks"
-    box: { x: 0, y: 2080, w: 7680, h: 60 }
+    region: "Overview/viewport axis labels and ticks (near range handles)"
+    box: { x: 2300, y: 540, w: 3900, h: 100 }

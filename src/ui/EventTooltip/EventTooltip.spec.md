@@ -33,8 +33,8 @@ Crop: [`visual/tooltip.png`](./visual/tooltip.png) — [`visual/provenance.yaml`
 
 ## Design sketches
 
-- [tooltip](./visual/tooltip.png) — from `v930/search-highlight`
-- [Event details](../../../docs/ui/source/v930/detail-strip-raised.jpeg) — full frame (detail strip shows same event data)
+- [tooltip](./visual/tooltip.png) — stand-in from `v930/detail-strip-raised` (hover tooltip not in static dumps; same fields)
+- [Event details](../../../docs/ui/source/v930/detail-strip-raised.jpeg) — full frame
 
 ## Dependencies
 

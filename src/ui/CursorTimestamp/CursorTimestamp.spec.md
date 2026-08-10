@@ -49,8 +49,8 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 
 ## Design sketches
 
-- [cursor-timestamp](./visual/cursor-timestamp.png) — from `v930/entry`
-- [cursor-timestamp-context](./visual/cursor-timestamp-context.png) — from `v930/entry`
+- [cursor-timestamp](./visual/cursor-timestamp.png) — from `v930/search-highlight`
+- [cursor-timestamp-context](./visual/cursor-timestamp-context.png) — from `v930/search-highlight`
 
 ## Dependencies
 

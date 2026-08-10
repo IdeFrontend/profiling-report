@@ -32,7 +32,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 ## Visual
 
-Source band ~y=98–132 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg). Control height **~28–29 px**.
+Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg) (device px @ dump resolution). Control height **~28–29 px** CSS.
 
 ### Search (`visual/search.png`)
 

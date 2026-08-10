@@ -3,13 +3,13 @@ source_primary: v930/compute-load-detail
 crops:
   tabs-search.png:
     source: v930/compute-load-detail
-    region: "Tab bar + search input in detail panel"
-    box: { x: 5300, y: 100, w: 2380, h: 120 }
+    region: "CSV detail tabs + search input"
+    box: { x: 5480, y: 480, w: 2070, h: 320 }
   field-rows.png:
     source: v930/compute-load-detail
-    region: "CSV field rows in detail panel"
-    box: { x: 5300, y: 220, w: 2380, h: 800 }
+    region: "CSV field key/value rows"
+    box: { x: 5480, y: 780, w: 2070, h: 720 }
   block-switcher.png:
     source: v930/memory-load-detail
-    region: "Block/switcher selector in memory detail"
-    box: { x: 5300, y: 180, w: 2380, h: 800 }
+    region: "Memory detail with block switcher"
+    box: { x: 5480, y: 280, w: 2070, h: 900 }

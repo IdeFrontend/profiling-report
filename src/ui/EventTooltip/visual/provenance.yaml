@@ -1,7 +1,8 @@
 component: EventTooltip
-source_primary: v930/search-highlight
+source_primary: v930/detail-strip-raised
+note: "Hover tooltip is not visible in any static v930 dump; crop uses detail-strip time card (same name/start/duration/end fields) as stand-in."
 crops:
   tooltip.png:
-    source: v930/search-highlight
-    region: "Floating event tooltip (name, start, duration, end)"
-    box: { x: 2000, y: 300, w: 600, h: 200 }
+    source: v930/detail-strip-raised
+    region: "Stand-in: detail strip Start/Duration/end (hover tooltip absent in dumps)"
+    box: { x: 280, y: 3180, w: 1000, h: 280 }

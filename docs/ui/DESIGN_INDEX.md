@@ -30,7 +30,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`LaneGutter`](../../src/ui/LaneGutter/visual/) | expanders, util bars | `v930/entry` |
 | [`TimeOverviewBar`](../../src/ui/TimeOverviewBar/visual/) | range handles | `v930/entry` |
 | [`ReportToolbar`](../../src/ui/ReportToolbar/visual/) | search, zoom, actions | `v930/entry` |
-| [`CursorTimestamp`](../../src/ui/CursorTimestamp/visual/) | cursor timestamp | `v930/entry` |
+| [`CursorTimestamp`](../../src/ui/CursorTimestamp/visual/) | cursor timestamp | `v930/search-highlight` |
 | [`AxisRuler`](../../src/ui/AxisRuler/visual/) | viewport ticks | `v930/entry` |
 | [`StatsAside`](../../src/ui/StatsAside/visual/) | mode tabs, summary, PIPE, scroll, hardware | `v930/report-stats-*`, `v930/compute-*`, `v930/hardware-*` |
 | [`DetailStrip`](../../src/ui/DetailStrip/visual/) | detail strip + context | `v930/detail-strip-raised` |

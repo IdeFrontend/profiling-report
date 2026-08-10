@@ -28,7 +28,7 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 ## Visual
 
-Shared axis tokens: [`docs/ui/components/VISUAL_SPEC.md`](../../../docs/ui/components/VISUAL_SPEC.md). Crops: [`visual/range-handles.png`](./visual/range-handles.png), [`visual/handle-left.png`](./visual/handle-left.png), [`visual/handle-right.png`](./visual/handle-right.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Shared axis tokens: [`docs/ui/components/VISUAL_SPEC.md`](../../../docs/ui/components/VISUAL_SPEC.md). Crops: [`visual/range-handles.png`](./visual/range-handles.png), [`visual/handle.png`](./visual/handle.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ### Overview range handles
 
@@ -59,8 +59,7 @@ Shared axis tokens: [`docs/ui/components/VISUAL_SPEC.md`](../../../docs/ui/compo
 ## Design sketches
 
 - [range-handles](./visual/range-handles.png) — from `v930/entry`
-- [handle-left](./visual/handle-left.png) — from `v930/entry`
-- [handle-right](./visual/handle-right.png) — from `v930/entry`
+- [handle](./visual/handle.png) — from `v930/entry` (left/right share one glyph)
 - [Statistical analysis (overview charts)](../../../docs/ui/source/v930/entry.jpeg)
 
 ## Changelog
