@@ -39,6 +39,10 @@ interface MeshChunk {
 interface LaneMeshes {
   color: [number, number, number];
   chunks: MeshChunk[];
+  /** When search is active: full-opacity matches. */
+  matchChunks: MeshChunk[] | null;
+  /** When search is active: dimmed non-matches (Canvas uses alpha 0.25). */
+  dimChunks: MeshChunk[] | null;
 }
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
@@ -146,6 +150,16 @@ function createChunk(
   return { vao, vbo, ibo, indexCount: numSquares * 6 };
 }
 
+function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): MeshChunk[] {
+  const chunks: MeshChunk[] = [];
+  for (let off = 0; off < pairs.length / 2; off += MAX_QUADS_PER_MESH) {
+    const count = Math.min(MAX_QUADS_PER_MESH, pairs.length / 2 - off);
+    const slice = new Float32Array(pairs.slice(off * 2, (off + count) * 2));
+    chunks.push(createChunk(gl, slice, count));
+  }
+  return chunks;
+}
+
 function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
   // Full local rect y∈[-1,1], x∈[-1,1] for solid fills via uSizePos
   const vb = new Float32Array([
@@ -179,6 +193,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private laneMeshes: LaneMeshes[] = [];
   private layout: SwimlaneLayout = { lanes: [], headers: [], events: [] };
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
+  private searchQuery = '';
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -232,7 +247,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   setSelection(_selectedId: string | null, _hoveredId: string | null): void {}
 
-  setSearchQuery(_query: string): void {}
+  setSearchQuery(query: string): void {
+    const q = query.trim().toLowerCase();
+    if (q === this.searchQuery) return;
+    this.searchQuery = q;
+    this.rebuildSearchSplit();
+  }
 
   /** Cursor is drawn on the Canvas overlay; no-op here. */
   setCursorX(_x: number | null): void {}
@@ -327,12 +347,21 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const [r, g, b] = meshes.color;
 
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
-      gl.uniform4f(swim.uColor, r, g, b, 1);
       if (swim.uYBounds) gl.uniform2f(swim.uYBounds, top, top + bandH);
 
-      for (const chunk of meshes.chunks) {
-        gl.bindVertexArray(chunk.vao);
-        gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
+      const drawChunks = (chunks: MeshChunk[], dim: number): void => {
+        gl.uniform4f(swim.uColor, r * dim, g * dim, b * dim, 1);
+        for (const chunk of chunks) {
+          gl.bindVertexArray(chunk.vao);
+          gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
+        }
+      };
+
+      if (meshes.matchChunks && meshes.dimChunks) {
+        drawChunks(meshes.dimChunks, 0.25);
+        drawChunks(meshes.matchChunks, 1);
+      } else {
+        drawChunks(meshes.chunks, 1);
       }
     }
 
@@ -397,17 +426,59 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       for (const item of events) {
         pairs.push(item.event.startTime, item.event.startTime + item.event.duration);
       }
-      const chunks: MeshChunk[] = [];
-      for (let off = 0; off < pairs.length / 2; off += MAX_QUADS_PER_MESH) {
-        const count = Math.min(MAX_QUADS_PER_MESH, pairs.length / 2 - off);
-        const slice = new Float32Array(pairs.slice(off * 2, (off + count) * 2));
-        chunks.push(createChunk(gl, slice, count));
-      }
-      return { color: hexToRgb(lane.color), chunks };
+      return {
+        color: hexToRgb(lane.color),
+        chunks: createChunksFromPairs(gl, pairs),
+        matchChunks: null,
+        dimChunks: null,
+      };
     });
+    this.rebuildSearchSplit();
+  }
+
+  /** Split lane meshes into match / dim sets when a search query is active. */
+  private rebuildSearchSplit(): void {
+    const gl = this.gl;
+    this.disposeSearchSplit();
+    if (!gl || !this.searchQuery) return;
+
+    const q = this.searchQuery;
+    const byLane = new Map<number, LaidOutEvent[]>();
+    for (const ev of this.layout.events) {
+      const list = byLane.get(ev.laneIndex) ?? [];
+      list.push(ev);
+      byLane.set(ev.laneIndex, list);
+    }
+
+    for (let idx = 0; idx < this.laneMeshes.length; idx++) {
+      const meshes = this.laneMeshes[idx]!;
+      const events = byLane.get(idx) ?? [];
+      const matchPairs: number[] = [];
+      const dimPairs: number[] = [];
+      for (const item of events) {
+        const pairs = item.event.name.toLowerCase().includes(q) ? matchPairs : dimPairs;
+        pairs.push(item.event.startTime, item.event.startTime + item.event.duration);
+      }
+      meshes.matchChunks = createChunksFromPairs(gl, matchPairs);
+      meshes.dimChunks = createChunksFromPairs(gl, dimPairs);
+    }
+  }
+
+  private disposeSearchSplit(): void {
+    for (const lane of this.laneMeshes) {
+      if (lane.matchChunks) {
+        for (const c of lane.matchChunks) this.deleteChunk(c);
+        lane.matchChunks = null;
+      }
+      if (lane.dimChunks) {
+        for (const c of lane.dimChunks) this.deleteChunk(c);
+        lane.dimChunks = null;
+      }
+    }
   }
 
   private disposeMeshes(): void {
+    this.disposeSearchSplit();
     for (const lane of this.laneMeshes) {
       for (const c of lane.chunks) this.deleteChunk(c);
     }

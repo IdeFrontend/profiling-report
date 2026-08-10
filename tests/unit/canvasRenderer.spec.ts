@@ -120,4 +120,22 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     expect(renderer.hitTest(short!.x + 1, short!.y + short!.h / 2)).toBe('e-short');
     renderer.dispose();
   });
+
+  it('PR-RENDER-008: WebGL setSearchQuery then render does not throw', () => {
+    const canvas = document.createElement('canvas');
+    if (!WebGlSwimlaneRenderer.isSupported(canvas)) {
+      expect(WebGlSwimlaneRenderer.isSupported(canvas)).toBe(false);
+      return;
+    }
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setSearchQuery('PIPE');
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setSearchQuery('');
+    expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
 });
