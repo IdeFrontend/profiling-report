@@ -50,7 +50,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Hover tooltip (name, start, dur, end) | M | `source/v930/search-highlight.jpeg` |
+| Hover tooltip (name, start, dur, end) | M | `source/v930/task-hover.jpeg` |
 | Single select → detail | M | |
 | Multi-select | P2 | |
 | Context menu | P2 | |

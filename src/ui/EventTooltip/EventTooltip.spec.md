@@ -29,12 +29,13 @@ The tooltip is transient (follows cursor, appears/disappears on hover). The deta
 
 ## Visual
 
-Crop: [`visual/tooltip.png`](./visual/tooltip.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/tooltip.png`](./visual/tooltip.png), [`visual/tooltip-context.png`](./visual/tooltip-context.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Design sketches
 
-- [tooltip](./visual/tooltip.png) — stand-in from `v930/detail-strip-raised` (raised event card; hover tooltip not in static dumps)
-- [Event details](../../../docs/ui/source/v930/detail-strip-raised.jpeg) — full frame
+- [tooltip](./visual/tooltip.png) — from `v930/task-hover`
+- [tooltip-context](./visual/tooltip-context.png) — hovered event + tooltip from `v930/task-hover`
+- [Task hover](../../../docs/ui/source/v930/task-hover.jpeg) — full frame
 
 ## Dependencies
 
@@ -43,4 +44,5 @@ Crop: [`visual/tooltip.png`](./visual/tooltip.png) — [`visual/provenance.yaml`
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
 
 ## Changelog
+- **2026-08-10** — Recut from `v930/task-hover` (real hover tooltip dump).
 - **2026-08-05** — Initial spec. Core behaviors established.

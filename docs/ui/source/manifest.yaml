@@ -29,7 +29,7 @@ batches:
         path: v930/detail-strip-raised.jpeg
         original_name: "930版本-性能调优_点击上浮底部栏.jpeg"
         scenes: [detail-strip]
-        components: [DetailStrip, EventTooltip]
+        components: [DetailStrip]
       - id: memory-load-detail
         path: v930/memory-load-detail.jpeg
         original_name: "930版本-性能调优_点击内存负载分析的详情后.jpeg"
@@ -50,3 +50,30 @@ batches:
         original_name: "930版本-性能调优_点击报告统计右边的更多后-硬件信息详情.jpeg"
         scenes: [hardware]
         components: [StatsAside]
+      - id: task-hover
+        path: v930/task-hover.jpeg
+        original_name: "930版本-性能调优_Task 悬浮时.jpeg"
+        scenes: [task-hover, tooltip]
+        components: [EventTooltip, SwimlaneCanvas]
+      - id: task-context-menu
+        path: v930/task-context-menu.jpeg
+        original_name: "930版本-性能调优_Task 右键时.jpeg"
+        scenes: [task-context-menu]
+        components: []
+        note: "P2 context menu dump; no MVP component pack yet"
+      - id: task-marquee
+        path: v930/task-marquee.jpeg
+        original_name: "930版本-性能调优_Task 框选时.jpeg"
+        scenes: [task-marquee, multiselect]
+        components: [SwimlaneCanvas]
+        note: "Marquee / multi-select dump"
+      - id: task-measure-mode
+        path: v930/task-measure-mode.jpeg
+        original_name: "930版本-性能调优_Task 时间度量模式.jpeg"
+        scenes: [measure]
+        components: [SwimlaneCanvas, ReportToolbar, TimeOverviewBar]
+      - id: task-multi-height
+        path: v930/task-multi-height.jpeg
+        original_name: "930版本-性能调优_Task 存在多个时，高度加高.jpeg"
+        scenes: [task-multi-height]
+        components: [SwimlaneCanvas]

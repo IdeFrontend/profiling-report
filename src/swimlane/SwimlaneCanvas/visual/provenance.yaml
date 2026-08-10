@@ -9,3 +9,12 @@ crops:
     source: v930/search-highlight
     region: "Swimlane under active search/cursor (overview charts + step lanes)"
     box: { x: 2200, y: 800, w: 3300, h: 1200 }
+  measure-overlay.png:
+    source: v930/task-measure-mode
+    region: "Measure-mode Δt overlay (4.8ms badge + range span on overview/axis)"
+    box: { x: 3000, y: 520, w: 2300, h: 260 }
+  multi-height.png:
+    source: v930/task-multi-height
+    region: "Swimlane with increased row height when multiple tasks overlap"
+    box: { x: 2300, y: 900, w: 3900, h: 1600 }
+

@@ -48,14 +48,16 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Visual
 
-Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-highlight.png`](./visual/search-highlight.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-highlight.png`](./visual/search-highlight.png), [`visual/measure-overlay.png`](./visual/measure-overlay.png), [`visual/multi-height.png`](./visual/multi-height.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Design sketches
 
 - [event-blocks](./visual/event-blocks.png) — from `v930/entry`
 - [search-highlight](./visual/search-highlight.png) — from `v930/search-highlight`
+- [measure-overlay](./visual/measure-overlay.png) — from `v930/task-measure-mode`
+- [multi-height](./visual/multi-height.png) — from `v930/task-multi-height`
 - [Kernel block timeline](../../../docs/ui/source/v930/entry.jpeg) — full frame
-- [changes.png](../../../docs/source/changes/changes.png) #1 (measure — planned)
+- [Task measure mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — full frame
 
 ## Dependencies
 

@@ -1,8 +1,11 @@
 component: EventTooltip
-source_primary: v930/detail-strip-raised
-note: "No floating hover tooltip appears in any static v930 dump (including search-highlight). Stand-in is the raised 「详情」 event card (name + Start/Duration/end), cropped tighter than DetailStrip strip.png."
+source_primary: v930/task-hover
 crops:
   tooltip.png:
-    source: v930/detail-strip-raised
-    region: "Stand-in: raised event card name/tag/times (hover tooltip absent in dumps)"
-    box: { x: 260, y: 2920, w: 1120, h: 520 }
+    source: v930/task-hover
+    region: "Hover event tooltip — Name / Start / Duration / End"
+    box: { x: 2060, y: 2868, w: 1060, h: 460 }
+  tooltip-context.png:
+    source: v930/task-hover
+    region: "Hovered MOV_OUT event bar + floating tooltip"
+    box: { x: 1850, y: 2650, w: 1400, h: 720 }

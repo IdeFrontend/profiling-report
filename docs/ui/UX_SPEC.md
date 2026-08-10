@@ -256,7 +256,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S3 (M)
 
-1. Pointer enters event → tooltip with name/start/dur/end (`source/v930/search-highlight.jpeg`).
+1. Pointer enters event → tooltip with name/start/dur/end (`source/v930/task-hover.jpeg`).
 2. Click → selection styling + `DetailStrip` (`source/v930/entry.jpeg`).
 3. Click background → clear selection and strip.
 
@@ -308,7 +308,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |--------------------|---------------------------|------------|----------|
 | S1 overview | Report summary, PIPE bars, Timeline tab | `ProfilingReport`, `StatsSummaryPanel`, `PipeOccupancyPanel` | `v930/entry`, `v930/report-stats-open` |
 | S2 navigate | Zoom/pan, time axis | `ReportToolbar`, `TimeAxis`, `SwimlaneCanvas` | `swimlane`, `general` |
-| S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailStrip` | `v930/search-highlight`, `v930/entry` |
+| S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailStrip` | `v930/task-hover`, `v930/detail-strip-raised` |
 | S4 util compare | Lane gutter util bars, PIPE | `LaneGutter`, `PipeOccupancyPanel` | overview sketches |
 | S5 pipe drill | PIPE bars; pipe field list P2 | `PipeOccupancyPanel`, pipe details P2 | `pipe_*` |
 | S6 memory | Memory topology P2 | `MemoryTopologyPanel` | `memory_*` |
