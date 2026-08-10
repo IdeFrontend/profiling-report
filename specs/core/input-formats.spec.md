@@ -28,7 +28,7 @@ Q5 — Overview series returns empty array per I-Q5+.
 
 ## Design sketches
 
-- [NPU-REP binary layout](../../docs/specs/ui/source/v930/entry.jpeg)
+- [NPU-REP binary layout](../../docs/ui/source/v930/entry.jpeg)
 
 ## Changelog
 - **2026-08-05** — Initial spec. Core behaviors established.

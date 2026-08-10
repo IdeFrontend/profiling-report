@@ -320,7 +320,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {
       ctx.save();
-      // Match axis `.pr-cursor` (#317AF7); +0.5 aligns stroke with CSS left-edge at x.
+      // Match CursorTimestamp `.pr-cursor` (#317AF7); +0.5 aligns stroke with CSS left-edge at x.
       ctx.strokeStyle = '#317AF7';
       ctx.lineWidth = 1;
       ctx.beginPath();

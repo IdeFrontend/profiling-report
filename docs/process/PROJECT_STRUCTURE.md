@@ -122,21 +122,29 @@ profiling-report/
   playground/                                 demo SPA for local dev and Vercel deployment
     App.vue, main.ts, index.html, vite.config.ts
 
-  docs/                                       process and context documents
+  docs/                                       descriptive system docs + design assets
     context/                                    goals, domain, market, decisions
     process/                                    development, testing, definition of ready
-    research/                                   swimlane implementation analysis
-    specs/                                      design/UX docs (being migrated to root specs/)
-      ui/
-        source/                                 full-frame dumps (v930/ + manifest.yaml)
-        DESIGN_INDEX.md                         source → visual packs
-        components/VISUAL_SPEC.md               shared chrome only
+    archive/                                    historical research
+    ui/                                         UX narrative + design sources (v930/)
+      source/                                   full-frame dumps + manifest.yaml
+      DESIGN_INDEX.md                           source → visual packs
+      components/VISUAL_SPEC.md                 shared chrome only
+    formats/                                    format explainers (non-AC narrative)
+    architecture/                               packaging / component catalog prose
+    visualization/                              view ↔ data mapping
+
+  specs/                                      formal behavioral contracts (AC IDs)
+    core/                                       mirrors domain/adapters
+    architecture/                               public-api, mstt-integration
 
   scripts/
     sync-demo-fixtures.mjs                    copy data files into playground
     check-spec-coverage.mjs                   validate spec ↔ test traceability
     check-design-assets.mjs                   validate source/crops/provenance consistency
 ```
+
+**Docs vs specs:** [`docs/`](.) holds descriptive system/UX/format docs and design assets. Root [`specs/`](../../specs/) (plus co-located `src/**/*.spec.md`) holds formal behavioral contracts checked by `npm run check:specs`.
 
 ## Per-component folder convention
 
@@ -164,15 +172,15 @@ src/ui/ReportToolbar/
 - **Inputs** (English prose — what the component receives, why each prop matters)
 - **Outputs** (English prose — what the component emits, payloads, parent interaction)
 - **Behavior** (non-obvious constraints, data flow, interactions with other components)
-- **Visual** (component-local measures; shared axis/panel chrome stays in [`docs/specs/ui/components/VISUAL_SPEC.md`](../specs/ui/components/VISUAL_SPEC.md))
+- **Visual** (component-local measures; shared axis/panel chrome stays in [`docs/ui/components/VISUAL_SPEC.md`](../ui/components/VISUAL_SPEC.md))
 - Acceptance criteria with test IDs
 - Edge cases
-- **Design sketches** — relative links to `./visual/*.png` and/or `docs/specs/ui/screens|source/...`
+- **Design sketches** — relative links to `./visual/*.png` and/or `docs/ui/source/...`
 - Dependencies on other specs
 
 Follow the standard template: [`specs/TEMPLATE.md`](../../specs/TEMPLATE.md).
 
-Design asset hierarchy: [`docs/specs/ui/DESIGN_INDEX.md`](../specs/ui/DESIGN_INDEX.md).
+Design asset hierarchy: [`docs/ui/DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md).
 
 ### What goes in the test (`*.spec.ts`)
 
@@ -236,7 +244,9 @@ Each component gets its own prefix to avoid collisions and make ownership clear:
 | EventTooltip | `PR-TOOLTIP-*` |
 | DetailStrip | `PR-STRIP-*` |
 | SwimlaneCanvas | `PR-CANVAS-*` |
-
+| AxisRuler | `PR-AXIS-*` |
+| CsvFieldListPanel | `PR-CSV-*` |
+| CursorTimestamp | `PR-CURSOR-*` |
 ### Core module prefixes
 
 | Module | Prefix |

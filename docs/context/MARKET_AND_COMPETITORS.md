@@ -77,7 +77,7 @@ These partition Ascend OP tooling; they are **ecosystem neighbors**, not externa
 | **PyPTO Toolkit** | Swimlane UX/algorithm reference; optional later consumer via adapter |
 | **CANN / msprof-class producers** | Write profiling artifacts (producer of `.rep` still tracked in [OPEN_QUESTIONS](OPEN_QUESTIONS.md) Q1) |
 
-Semantics across Insight / `.rep` / PyPTO: [FORMATS_COMPARISON.md](../specs/formats/FORMATS_COMPARISON.md). User workflow: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
+Semantics across Insight / `.rep` / PyPTO: [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md). User workflow: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
 
 ---
 
@@ -101,7 +101,7 @@ No other vendor today ships an Ascend **`.rep`** consumer that replaces MSTT + t
 
 | Implication | Consequence for design / scope |
 |-------------|--------------------------------|
-| Nsight Compute sets expectations for **kernel reports** | MVP prioritizes overview + PIPE + swimlane; Phase 2+ adds memory, roofline, richer details ([FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md), [UX_SPEC](../specs/ui/UX_SPEC.md)) |
+| Nsight Compute sets expectations for **kernel reports** | MVP prioritizes overview + PIPE + swimlane; Phase 2+ adds memory, roofline, richer details ([FEATURE_MATRIX](../ui/FEATURE_MATRIX.md), [UX_SPEC](../ui/UX_SPEC.md)) |
 | Nsight Systems / PyPTO set expectations for **timeline navigation** | Zoom/pan/select/hover are MVP; system-wide multi-device profiling is out of scope |
 | Differentiation is **Ascend-native** | Cube / Vector / MTE pipes, Block Dim, AIC/AIV counters, portable `.rep` without Insight `profiler_server` |
 | Packaging | Vue library in MSTT webviews — not a standalone Nsight-style desktop suite |
@@ -113,7 +113,7 @@ No other vendor today ships an Ascend **`.rep`** consumer that replaces MSTT + t
 
 - [PROJECT_GOALS.md](PROJECT_GOALS.md) — goals and non-goals
 - [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md) — OP developers, pain points, glossary
-- [FORMATS_COMPARISON.md](../specs/formats/FORMATS_COMPARISON.md) — Insight vs `.rep` vs PyPTO semantics
-- [UX_SPEC.md](../specs/ui/UX_SPEC.md) — scenarios S1–S9
-- [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md) — MVP vs Phase 2+
-- [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md) — shared UI + adapters
+- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.rep` vs PyPTO semantics
+- [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios S1–S9
+- [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs Phase 2+
+- [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) — shared UI + adapters

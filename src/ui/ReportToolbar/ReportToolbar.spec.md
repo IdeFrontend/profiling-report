@@ -32,7 +32,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 ## Visual
 
-Source band ~y=98–132 in [`source/v930/entry.jpeg`](../../../docs/specs/ui/source/v930/entry.jpeg). Control height **~28–29 px**.
+Source band ~y=98–132 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg). Control height **~28–29 px**.
 
 ### Search (`visual/search.png`)
 
@@ -92,7 +92,7 @@ P2 sketch icons (chart, flag, layers, help, gear) are **not** MVP — do not stu
 - [search](./visual/search.png) — from `v930/entry`
 - [zoom](./visual/zoom.png) — from `v930/entry`
 - [actions](./visual/actions.png) — from `v930/entry`
-- [v930 entry](../../../docs/specs/ui/source/v930/entry.jpeg) — full layout context
+- [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
 - [changes.png](../../../docs/source/changes/changes.png) #1 (caliper)
 
 ## Changelog

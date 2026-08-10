@@ -62,9 +62,9 @@ Not required for first MVP merge:
 
 ## Related specs to keep in sync
 
-- [VIEW_DATA_REQUIREMENTS.md](../specs/formats/VIEW_DATA_REQUIREMENTS.md)
-- [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md)
-- [METRICS_AND_TRACE.md](../specs/formats/METRICS_AND_TRACE.md)
-- [REP_FORMAT.md](../specs/formats/REP_FORMAT.md)
+- [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md)
+- [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
+- [METRICS_AND_TRACE.md](../formats/METRICS_AND_TRACE.md)
+- [REP_FORMAT.md](../formats/REP_FORMAT.md)
 - [TESTING.md](../process/TESTING.md)
 - [DEVELOPMENT.md](../process/DEVELOPMENT.md)

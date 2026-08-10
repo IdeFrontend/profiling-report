@@ -16,7 +16,7 @@ This directory contains behavioral specifications for all modules in the profili
 | Spec | Test prefix | Phase | Source | Test file |
 |------|------------|-------|--------|-----------|
 | [rep-format](./core/rep-format.spec.md) | `PR-FMT-*` | MVP | `src/adapters/parseRep.ts` | `tests/unit/parseRep.spec.ts` |
-| [input-formats](./core/input-formats.spec.md) | `PR-FMT-*` | MVP | `docs/specs/formats/INPUT_FORMATS.md` | `tests/unit/parseRep.spec.ts` |
+| [input-formats](./core/input-formats.spec.md) | `PR-FMT-*` | MVP | `docs/formats/INPUT_FORMATS.md` | `tests/unit/parseRep.spec.ts` |
 | [view-models](./core/view-models.spec.md) | `PR-VM-*` | MVP | `src/adapters/adaptRep.ts` | `tests/unit/viewModels.spec.ts` |
 | [swimlane-model](./core/swimlane-model.spec.md) | `PR-SWIM-*` | MVP | `src/domain/types.ts` | `tests/unit/swimlaneModel.spec.ts` |
 | [format-time](./core/format-time.spec.md) | `PR-TIME-*` | MVP | `src/domain/formatTime.ts` | `tests/unit/formatTime.spec.ts` |
@@ -48,8 +48,8 @@ Specs are co-located with their components.
 
 | Spec | Phase | Source |
 |------|-------|--------|
-| [public-api](./architecture/public-api.spec.md) | MVP | `src/index.ts`, `docs/specs/architecture/ARCHITECTURE.md` |
-| [mstt-integration](./architecture/mstt-integration.spec.md) | MVP | `docs/specs/architecture/MSTT_INTEGRATION.md` |
+| [public-api](./architecture/public-api.spec.md) | MVP | `src/index.ts`, `docs/architecture/ARCHITECTURE.md` |
+| [mstt-integration](./architecture/mstt-integration.spec.md) | MVP | `docs/architecture/MSTT_INTEGRATION.md` |
 
 ## Spec template
 

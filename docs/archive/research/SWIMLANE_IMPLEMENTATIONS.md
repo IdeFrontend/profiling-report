@@ -33,7 +33,7 @@ Comparison of candidate approaches for the profiling-report timeline renderer, a
 
 **Reuse stance for this project:** Allowed to copy-paste render helpers, color config, time formatting, and data-shape ideas. Do **not** require modifying pypto. Do **not** aim for full feature parity in MVP.
 
-Prior study (Russian archive): [SWIMLANE_WEBVIEW_REUSE_REPORT.md](SWIMLANE_WEBVIEW_REUSE_REPORT.md). That report recommended a **webview HTML bundle**; this project instead packages a **Vue library** — see supersession note in that file and [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md).
+Prior study (Russian archive): [SWIMLANE_WEBVIEW_REUSE_REPORT.md](SWIMLANE_WEBVIEW_REUSE_REPORT.md). That report recommended a **webview HTML bundle**; this project instead packages a **Vue library** — see supersession note in that file and [ARCHITECTURE.md](../../architecture/ARCHITECTURE.md).
 
 ---
 
@@ -106,8 +106,9 @@ Risk: re-approaching PyPTO scale without LOD or GPU will regress FPS; plan WebGL
 
 | Horizon | Choice |
 |---------|--------|
-| **MVP** | Vue library UI + **Canvas 2D** (or minimal WebGL) swimlane sufficient for `data/out.rep`-class traces; implement hover/select/zoom/pan per [INTERACTIONS.md](../specs/ui/INTERACTIONS.md). Optionally borrow PyPTO time-axis and color helpers via copy-paste. |
+| **MVP** | Vue library UI + **Canvas 2D** (or minimal WebGL) swimlane sufficient for `data/out.rep`-class traces; implement hover/select/zoom/pan per [INTERACTIONS.md](../../ui/INTERACTIONS.md). Optionally borrow PyPTO time-axis and color helpers via copy-paste. |
 | **Target / Phase 2 performance** | **Hybrid (implemented):** TypeScript WebGL2 coverage-AA intervals (`WebGlSwimlaneRenderer`) + Canvas2D overlay for labels/selection/cursor; Canvas-only fallback when WebGL2 is unavailable. |
+
 | **Avoid** | TeaVM/sudu as a runtime dependency; wholesale import of `swimGraphComplete.vue`; sealed HTML bundle as the primary distribution form for MSTT. |
 
 ### Status (feat/webgl-swimlane)
@@ -147,5 +148,5 @@ Implementations: `CanvasSwimlaneRenderer`, later `WebGlSwimlaneRenderer`, same V
 
 - PyPTO UX docs: `pypto-tools/vscode_plugins/docs/swimlane_graph/`
 - Sudu shader: `SwimlaneShader.java` (`vsCode` / `psCode`, `createSwimlaneMesh`)
-- Project architecture: [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md)
-- Feature phasing: [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md)
+- Project architecture: [ARCHITECTURE.md](../../architecture/ARCHITECTURE.md)
+- Feature phasing: [FEATURE_MATRIX.md](../../ui/FEATURE_MATRIX.md)

@@ -25,15 +25,21 @@ The detail strip is the persistent counterpart to the event tooltip: tooltip is 
 1. **PR-STRIP-001** — Renders event name.
 2. **PR-STRIP-002** — Formats start time, duration, and end time.
 
+## Visual
+
+Normative crops: [`visual/strip.png`](./visual/strip.png), [`visual/strip-context.png`](./visual/strip-context.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
 ## Design sketches
 
-- [Event details](../../../docs/specs/ui/source/v930/detail-strip-raised.jpeg)
+- [strip](./visual/strip.png) — from `v930/detail-strip-raised`
+- [strip-context](./visual/strip-context.png) — from `v930/detail-strip-raised`
+- [Event details](../../../docs/ui/source/v930/detail-strip-raised.jpeg) — full frame
 
 ## Dependencies
 
 [format-time](../../../specs/core/format-time.spec.md).
 
-**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (trace.json event schema — SelectedEvent fields).
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (trace.json event schema — SelectedEvent fields).
 
 ## Changelog
 - **2026-08-05** — Initial spec. Core behaviors established.

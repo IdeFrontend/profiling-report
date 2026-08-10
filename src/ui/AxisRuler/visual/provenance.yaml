@@ -1,0 +1,7 @@
+component: AxisRuler
+source_primary: v930/entry
+crops:
+  viewport-ticks.png:
+    source: v930/entry
+    region: "Viewport axis ruler — major bars with labels + minor ticks"
+    box: { x: 0, y: 180, w: 7680, h: 30 }

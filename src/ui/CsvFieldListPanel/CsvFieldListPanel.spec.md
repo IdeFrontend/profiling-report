@@ -32,10 +32,17 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 3. **PR-CSV-003** — Search narrows field labels.
 4. **PR-CSV-004** — 查看全部 emits `view-full-csv` with fileName + text.
 
+## Visual
+
+Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows.png`](./visual/field-rows.png), [`visual/block-switcher.png`](./visual/block-switcher.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
 ## Design sketches
 
+- [tabs-search](./visual/tabs-search.png) — from `v930/compute-load-detail`
+- [field-rows](./visual/field-rows.png) — from `v930/compute-load-detail`
+- [block-switcher](./visual/block-switcher.png) — from `v930/memory-load-detail`
 - [changes.png](../../../docs/source/changes/changes.png) #3–#4
-- [pipe_details.png](../../../docs/specs/ui/source/v930/compute-load-detail.jpeg)
+- [compute-load-detail](../../../docs/ui/source/v930/compute-load-detail.jpeg) — full frame
 
 ## Changelog
 - **2026-08-07** — Initial M1 panel.

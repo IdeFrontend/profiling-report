@@ -1,4 +1,4 @@
-/** Canonical models — see docs/specs/architecture/COMPONENTS.md */
+/** Canonical models — see docs/architecture/COMPONENTS.md */
 
 export interface SwimEvent {
   id: string;

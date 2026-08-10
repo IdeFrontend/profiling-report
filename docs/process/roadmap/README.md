@@ -1,6 +1,6 @@
 # Delivery roadmap
 
-From the current **timeline MVP library** on `master` to **full UI** per [FEATURE_MATRIX.md](../../specs/ui/FEATURE_MATRIX.md).
+From the current **timeline MVP library** on `master` to **full UI** per [FEATURE_MATRIX.md](../../ui/FEATURE_MATRIX.md).
 
 Per milestone, features are split into **Swimlane** vs **Other views**, plus **implementation tasks** and **potential blockers**. Details live in one file per milestone.
 
@@ -32,5 +32,5 @@ flowchart LR
 ## Related
 
 - [DEVELOPMENT.md](../DEVELOPMENT.md) — engineering process and completed library milestones 1–4
-- [MSTT_INTEGRATION.md](../../specs/architecture/MSTT_INTEGRATION.md) — host wiring (delivery M2)
-- [FEATURE_MATRIX.md](../../specs/ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist
+- [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md) — host wiring (delivery M2)
+- [FEATURE_MATRIX.md](../../ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist

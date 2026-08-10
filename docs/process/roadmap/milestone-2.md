@@ -2,7 +2,7 @@
 
 **Target date:** **2026-08-25**
 
-**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([changes.png](../../source/changes/changes.png) #5). (4) **Roofline** panel from fixture arithmetic data (interim formulas if Q11 still open). (5) Timeline **time-range measure / 度量模式** (changelog #1; local overlay until [Q22](../../context/OPEN_QUESTIONS.md)). Spec host: [MSTT_INTEGRATION.md](../../specs/architecture/MSTT_INTEGRATION.md).
+**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([changes.png](../../source/changes/changes.png) #5). (4) **Roofline** panel from fixture arithmetic data (interim formulas if Q11 still open). (5) Timeline **time-range measure / 度量模式** (changelog #1; local overlay until [Q22](../../context/OPEN_QUESTIONS.md)). Spec host: [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md).
 
 **Data note:** `out.rep` has no deps — ship interim Q9 encoding + synthetic playground fixture for CI; swap adapter when Product finalizes Q9.
 
@@ -55,7 +55,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | Roofline peak bandwidth / compute ceilings not in fixture | Roof lines missing | Interim constants or omit roofs until Product supplies peaks |
 | **Q22** measure → which views update | Risk of wrong aside coupling | Ship **local overlay only** until Product answers |
 | **MSTT repo access / review lag** | Host PR slips past 2026-08-25 | Start dep wiring early; parallel library work; slip host only if needed |
-| Workspace/Vite resolve of library SFCs | Integration burns days | Follow `StTestResultsPanel` pattern ([MSTT_INTEGRATION](../../specs/architecture/MSTT_INTEGRATION.md)) |
+| Workspace/Vite resolve of library SFCs | Integration burns days | Follow `StTestResultsPanel` pattern ([MSTT_INTEGRATION](../../architecture/MSTT_INTEGRATION.md)) |
 | Package name / I-Q16 not confirmed with MSTT | Wrong consume path | Default workspace path protocol; rename later |
 | Real OP `.rep` differs from `out.rep` | Host smoke fails | Library follow-up; hide missing panels |
 | Q18 Legal if copying PyPTO dep-link code verbatim | Blocks paste | Reimplement curves; no pypto runtime dep |

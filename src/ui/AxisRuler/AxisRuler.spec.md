@@ -16,7 +16,7 @@ Renders major **1px** bars with labels immediately to the **right**, plus short 
 
 ## Visual
 
-Normative shared tokens: [`docs/specs/ui/components/VISUAL_SPEC.md`](../../../docs/specs/ui/components/VISUAL_SPEC.md) (Axis ruler).
+Shared tokens: [`docs/ui/components/VISUAL_SPEC.md`](../../../docs/ui/components/VISUAL_SPEC.md) (Axis ruler). Crop: [`visual/viewport-ticks.png`](./visual/viewport-ticks.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Acceptance Criteria
 

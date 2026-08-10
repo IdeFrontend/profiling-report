@@ -40,7 +40,7 @@ Design deltas from [`docs/source/changes/changes.png`](../../source/changes/chan
 
 ## Implementation tasks
 
-1. Spec: extend [VIEW_DATA_REQUIREMENTS](../../specs/formats/VIEW_DATA_REQUIREMENTS.md) / [FEATURE_MATRIX](../../specs/ui/FEATURE_MATRIX.md) / [COMPONENTS](../../specs/architecture/COMPONENTS.md) for aside modes + CSV tabs + Cube/Vector toggle + block/查看全部; assign `PR-*` test ids.
+1. Spec: extend [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) / [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md) / [COMPONENTS](../../architecture/COMPONENTS.md) for aside modes + CSV tabs + Cube/Vector toggle + block/查看全部; assign `PR-*` test ids.
 2. Adapter: parse remaining `out.rep` CSVs into typed tables (`ArithmeticUtilization`, `L2Cache`, `Memory*`, `ResourceConflictRatio`); extend `OpBasicInfo` → summary fields; keep hide-if-empty.
 3. Domain: `ReportViewModel` holds table models, block ids, MIX pipe sets, which aside modes/tabs are available.
 4. UI: aside mode switcher; Cube/Vector control; compute detail tabs; memory tabs + block picker + 查看全部 emit; reusable searchable field-list.

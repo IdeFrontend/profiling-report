@@ -5,7 +5,7 @@
  * - source/manifest.yaml files exist on disk
  * - each component visual/ crop is listed in provenance.yaml
  * - each provenance source id resolves via source/manifest.yaml
- * - markdown links to design images under src/ui and docs/specs/ui resolve
+ * - markdown links to design images under src/ui and docs/ui resolve
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -14,10 +14,11 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
-const MANIFEST = resolve(ROOT, 'docs/specs/ui/source/manifest.yaml');
-const SOURCE_DIR = resolve(ROOT, 'docs/specs/ui/source');
+const MANIFEST = resolve(ROOT, 'docs/ui/source/manifest.yaml');
+const SOURCE_DIR = resolve(ROOT, 'docs/ui/source');
 const UI_DIR = resolve(ROOT, 'src/ui');
-const DOCS_UI = resolve(ROOT, 'docs/specs/ui');
+const SWIM_DIR = resolve(ROOT, 'src/swimlane');
+const DOCS_UI = resolve(ROOT, 'docs/ui');
 
 const IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i;
 const MD_LINK_RE = /!\[[^\]]*\]\(([^)]+)\)|\[[^\]]*\]\(([^)]+\.(?:png|jpe?g|webp|gif)(?:#[^)]*)?)\)/gi;
@@ -181,11 +182,12 @@ function checkVisualPacks(maps) {
   const visualDirs = findFiles(UI_DIR, () => false); // placeholder
   void visualDirs;
 
-  for (const compDir of listDirs(UI_DIR)) {
-    const visual = join(compDir, 'visual');
-    if (!existsSync(visual) || !statSync(visual).isDirectory()) continue;
+  function scanVisualDirs(rootDir, labelPrefix) {
+    for (const compDir of listDirs(rootDir)) {
+      const visual = join(compDir, 'visual');
+      if (!existsSync(visual) || !statSync(visual).isDirectory()) continue;
 
-    const component = relative(UI_DIR, compDir);
+      const component = (labelPrefix ? labelPrefix + '/' : '') + relative(rootDir, compDir);
     const provPath = join(visual, 'provenance.yaml');
     if (!existsSync(provPath)) {
       fail(`${component}/visual/: missing provenance.yaml`);
@@ -220,6 +222,11 @@ function checkVisualPacks(maps) {
       if (!abs) fail(`${component}/visual/: unknown source_primary "${prov.source_primary}"`);
     }
   }
+
+  }
+
+  scanVisualDirs(UI_DIR, '');
+  scanVisualDirs(SWIM_DIR, 'swimlane');
 
   // Warn: manifest components without visual/
   for (const name of maps.componentsHinted) {

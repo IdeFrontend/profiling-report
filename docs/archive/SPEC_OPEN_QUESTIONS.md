@@ -1,6 +1,6 @@
 # Spec open questions (product owner)
 
-Prioritized questions to close gaps and contradictions between [INPUT_FORMATS.md](../specs/formats/INPUT_FORMATS.md), [VIEW_DATA_MAPPING.md](../specs/visualization/VIEW_DATA_MAPPING.md), product §11.2 mockups, and the local sample [`data/out.rep`](../../data/out.rep).
+Prioritized questions to close gaps and contradictions between [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md), [VIEW_DATA_MAPPING.md](../visualization/VIEW_DATA_MAPPING.md), product §11.2 mockups, and the local sample [`data/out.rep`](../../data/out.rep).
 
 **How to answer:** for each item, give the canonical field name(s), file, formula (if derived), and MVP vs later priority.
 
@@ -126,4 +126,4 @@ Which of §11.2.2–11.2.8 are **MVP-required** vs later (especially Roofline, d
 | Pipe mockup vs Cube/Vector tables | Documented conflict; tables preferred for binding pending Q6 |
 | Stats header source ambiguity | Called out pending Q4 |
 | Memory Peak % / L2 hit-rate / MemoryL1 | Called out pending Q7–Q9 |
-| Dead links to removed source docx | Removed; mockups under `docs/specs/ui/source/` |
+| Dead links to removed source docx | Removed; mockups under `docs/ui/source/` |

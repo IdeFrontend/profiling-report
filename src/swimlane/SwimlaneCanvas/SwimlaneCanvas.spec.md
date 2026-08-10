@@ -46,16 +46,22 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 | Sub-pixel container size | Canvas minimum is 1×1 |
 | hitTest on empty space | Returns null |
 
+## Visual
+
+Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-highlight.png`](./visual/search-highlight.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
 ## Design sketches
 
-- [Kernel block timeline](../../../docs/specs/ui/source/v930/entry.jpeg)
+- [event-blocks](./visual/event-blocks.png) — from `v930/entry`
+- [search-highlight](./visual/search-highlight.png) — from `v930/search-highlight`
+- [Kernel block timeline](../../../docs/ui/source/v930/entry.jpeg) — full frame
 - [changes.png](../../../docs/source/changes/changes.png) #1 (measure — planned)
 
 ## Dependencies
 
 [swimlane-renderer](../../../specs/core/swimlane-renderer.spec.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md).
 
-**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
 - **2026-08-10** — Flush paint after canvas resize (no blink on panel drag); draw surface = viewport height.

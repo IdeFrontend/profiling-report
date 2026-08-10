@@ -100,13 +100,13 @@ Each lane optionally shows a utilization bar with the percentage **inside, right
 - [expander-detail](./visual/expander-detail.png) — from `v930/entry`
 - [gutter-util](./visual/gutter-util.png) — from `v930/entry`
 - [util-bars](./visual/util-bars.png) — from `v930/entry`
-- [v930 entry](../../../docs/specs/ui/source/v930/entry.jpeg) — full layout context
+- [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
 
 ## Dependencies
 
 [utilization](../../../specs/core/utilization.spec.md).
 
-**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (PipeUtilization.csv feeds lane utilization via pipe color matching).
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (PipeUtilization.csv feeds lane utilization via pipe color matching).
 
 ## Changelog
 - **2026-08-07** — Row bottom borders align with swimlane horizontal dividers (`#3a3a3a`).

@@ -1,0 +1,7 @@
+component: EventTooltip
+source_primary: v930/search-highlight
+crops:
+  tooltip.png:
+    source: v930/search-highlight
+    region: "Floating event tooltip (name, start, duration, end)"
+    box: { x: 2000, y: 300, w: 600, h: 200 }

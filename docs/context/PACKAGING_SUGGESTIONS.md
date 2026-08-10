@@ -16,7 +16,7 @@
 | Choice | Suggestion |
 |--------|------------|
 | Component kit | **Ant Design Vue for chrome** that must match MSTT (buttons, inputs, tabs) + **custom CSS** for swimlane/PIPE/canvas (sketches are not Ant Design) |
-| Colors | Normative sketch tokens in [COLOR_TOKENS.md](../specs/ui/COLOR_TOKENS.md) — do not replace pipe hues with Ant theme primaries |
+| Colors | Normative sketch tokens in [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) — do not replace pipe hues with Ant theme primaries |
 | Default locale | **zh-CN** strings as default (sketches are Chinese); English message catalog from day one via i18n keys |
 | Theme | Dark default; accept VS Code / MSTT CSS variable injection for shell |
 

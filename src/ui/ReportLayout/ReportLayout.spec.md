@@ -33,7 +33,7 @@ The parent ProfilingReport owns `asideWidth` (session-only) and also resizes the
 
 ## Design sketches
 
-- [Entry overview](../../../docs/specs/ui/source/v930/entry.jpeg) — two-column layout
+- [Entry overview](../../../docs/ui/source/v930/entry.jpeg) — two-column layout
 
 ## Changelog
 - **2026-08-07** — Resizable aside width (drag handle + `asideWidth` prop).

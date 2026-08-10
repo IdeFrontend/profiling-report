@@ -1,0 +1,11 @@
+component: CursorTimestamp
+source_primary: v930/entry
+crops:
+  cursor-timestamp.png:
+    source: v930/entry
+    region: "Playhead time bubble on viewport axis"
+    box: { x: 2700, y: 160, w: 300, h: 80 }
+  cursor-timestamp-context.png:
+    source: v930/entry
+    region: "Bubble on viewport axis with nearby ticks (wider context)"
+    box: { x: 2500, y: 140, w: 700, h: 120 }

@@ -87,12 +87,19 @@ When `report.roofline.points` is non-empty, mount `RooflinePanel` below the acti
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
 | No roofline / empty points | Roofline section omitted |
 
+## Visual
+
+Crops: [`visual/mode-tabs.png`](./visual/mode-tabs.png), [`visual/summary-cards.png`](./visual/summary-cards.png), [`visual/pipe-bars.png`](./visual/pipe-bars.png), [`visual/aside-scrolled.png`](./visual/aside-scrolled.png), [`visual/hardware-detail.png`](./visual/hardware-detail.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
 ## Design sketches
 
-- [report-stats.png](../../../docs/specs/ui/source/report-stats.png) — header / meta / 更多
-- [general.png](../../../docs/specs/ui/general.png) — aside chrome in layout
+- [mode-tabs](./visual/mode-tabs.png) — from `v930/report-stats-open`
+- [summary-cards](./visual/summary-cards.png) — from `v930/report-stats-open`
+- [pipe-bars](./visual/pipe-bars.png) — from `v930/compute-load`
+- [aside-scrolled](./visual/aside-scrolled.png) — from `v930/report-stats-scrolled`
+- [hardware-detail](./visual/hardware-detail.png) — from `v930/hardware-more-detail`
 - [changes.png](../../../docs/source/changes/changes.png) #2–#4
-- [PIPE occupancy](../../../docs/specs/ui/source/v930/compute-load.jpeg)
+- [PIPE occupancy](../../../docs/ui/source/v930/compute-load.jpeg) — full frame
 
 ## Dependencies
 

@@ -3,10 +3,13 @@ source_primary: v930/entry
 crops:
   range-handles.png:
     source: v930/entry
-    region: "Visible-range brush + dual time axis strip"
+    region: "Visible-range brush + overview axis (overview strip only)"
+    box: { x: 0, y: 120, w: 7680, h: 130 }
   handle-left.png:
     source: v930/entry
-    region: "Left range handle detail (0ms edge)"
+    region: "Left range handle detail at 0ms with axis context"
+    box: { x: 0, y: 100, w: 800, h: 160 }
   handle-right.png:
     source: v930/entry
-    region: "Right range handle detail (~12.3ms edge)"
+    region: "Right range handle detail with axis context"
+    box: { x: 6200, y: 100, w: 800, h: 160 }

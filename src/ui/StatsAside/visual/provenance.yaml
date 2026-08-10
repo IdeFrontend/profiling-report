@@ -1,0 +1,23 @@
+component: StatsAside
+source_primary: v930/report-stats-open
+crops:
+  mode-tabs.png:
+    source: v930/report-stats-open
+    region: "Aside mode tabs (summary, PIPE, detail)"
+    box: { x: 5300, y: 100, w: 2380, h: 120 }
+  summary-cards.png:
+    source: v930/report-stats-open
+    region: "Summary cards and PIPE bars in aside"
+    box: { x: 5300, y: 220, w: 2380, h: 600 }
+  pipe-bars.png:
+    source: v930/compute-load
+    region: "PIPE occupancy bars in aside"
+    box: { x: 600, y: 200, w: 3000, h: 800 }
+  aside-scrolled.png:
+    source: v930/report-stats-scrolled
+    region: "Scrolled aside showing lower content"
+    box: { x: 5300, y: 500, w: 2380, h: 800 }
+  hardware-detail.png:
+    source: v930/hardware-more-detail
+    region: "Hardware information detail in aside"
+    box: { x: 5300, y: 200, w: 2380, h: 800 }
