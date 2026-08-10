@@ -69,7 +69,11 @@ Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v
 | Active (`--on`) | bg `#1e3a5f`; icon/border `#317AF7` |
 | Gap between buttons | `4px` |
 
-P2 sketch icons (chart, flag, layers, help, gear) are **not** MVP — do not stub. Time unit matches height `28px`; bg `#2a2a2a`; `border-radius: 4px`; font `12px`.
+Sketch shows **seven** action icons (measure, fit, chart, flag, deps, layers, help). MVP implements measure + fit; remaining icons stay visual-reference until their capabilities land. Time unit matches height `28px`; bg `#2a2a2a`; `border-radius: 4px`; font `12px`.
+
+### Full strip (`visual/toolbar.png`)
+
+Composite of search + zoom + actions at chrome height for layout spacing.
 
 ## Acceptance Criteria
 
@@ -89,9 +93,10 @@ P2 sketch icons (chart, flag, layers, help, gear) are **not** MVP — do not stu
 
 ## Design sketches
 
+- [toolbar](./visual/toolbar.png) — full strip from `v930/entry`
 - [search](./visual/search.png) — from `v930/entry`
 - [zoom](./visual/zoom.png) — from `v930/entry`
-- [actions](./visual/actions.png) — from `v930/entry`
+- [actions](./visual/actions.png) — all seven icons from `v930/entry`
 - [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 

@@ -149,6 +149,7 @@ src/ui/ReportToolbar/
   ReportToolbar.spec.ts      unit test (proof, using @vue/test-utils)
   visual/                    optional — component crops + provenance
     provenance.yaml            crop → source id + region
+    toolbar.png
     search.png
     zoom.png
     actions.png

@@ -1,6 +1,10 @@
 component: ReportToolbar
 source_primary: v930/entry
 crops:
+  toolbar.png:
+    source: v930/entry
+    region: "Full toolbar strip — search + zoom + all action icons"
+    box: { x: 5050, y: 365, w: 2470, h: 120 }
   search.png:
     source: v930/entry
     region: "Search pill (magnifier + Search + empty field); full chrome height"
@@ -11,5 +15,5 @@ crops:
     box: { x: 5818, y: 365, w: 748, h: 120 }
   actions.png:
     source: v930/entry
-    region: "MVP action icon cluster (measure/caliper + fit); excludes trailing P2 chart/flag/layers/help"
-    box: { x: 6585, y: 365, w: 270, h: 120 }
+    region: "All seven action icon buttons (measure/fit/chart/flag/deps/layers/help)"
+    box: { x: 6585, y: 365, w: 935, h: 120 }

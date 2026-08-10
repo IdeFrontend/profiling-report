@@ -34,7 +34,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 
 | Component | Visual pack | Primary source |
 |-----------|-------------|----------------|
-| [`ReportToolbar`](../../src/ui/ReportToolbar/visual/) | search, zoom, actions | `v930/entry` |
+| [`ReportToolbar`](../../src/ui/ReportToolbar/visual/) | toolbar, search, zoom, actions | `v930/entry` |
 | [`TimeOverviewBar`](../../src/ui/TimelineView/TimeOverviewBar/visual/) | range handles | `v930/entry` |
 | [`AxisRuler`](../../src/ui/TimelineView/TimeAxis/AxisRuler/visual/) | viewport ticks | `v930/entry` |
 | [`CursorTimestamp`](../../src/ui/TimelineView/TimeAxis/CursorTimestamp/visual/) | cursor timestamp | `v930/search-highlight` |
@@ -55,5 +55,5 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`DetailRelevant`](../../src/ui/DetailPanel/DetailRelevant/visual/) | Relevant graph | `v930/detail-strip-raised` |
 | [`EventTooltip`](../../src/ui/EventTooltip/visual/) | hover tooltip | `v930/task-hover` |
 | [`ContextMenu`](../../src/ui/ContextMenu/visual/) | task context menu | `v930/task-context-menu` |
-| [`MultiSelectSummary`](../../src/ui/MultiSelectSummary/visual/) | multi-select highlight | `v930/task-marquee` |
+| [`MultiSelectSummary`](../../src/ui/MultiSelectSummary/visual/) | multi-select aggregate table | `v930/task-marquee` |
 | ProfilingReport / ReportLayout / TimelineView / SwimlaneView / TimeAxis | (shells — no visual pack) | — |

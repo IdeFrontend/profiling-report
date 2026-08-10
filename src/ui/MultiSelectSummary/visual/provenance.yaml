@@ -3,5 +3,5 @@ source_primary: v930/task-marquee
 crops:
   multi-select.png:
     source: v930/task-marquee
-    region: "Multi-select / marquee selection highlight on swimlane event"
-    box: { x: 2000, y: 2500, w: 2500, h: 800 }
+    region: "Multi-select aggregate table (Wall Duration / Self time / Average Wall Duration)"
+    box: { x: 1280, y: 3160, w: 4470, h: 1060 }
