@@ -8,8 +8,12 @@
     data-testid="detail-parameter"
     aria-label="Parameter"
   >
-    <h3 class="pr-detail-parameter__title">Parameter</h3>
-    <p class="pr-detail-parameter__placeholder">—</p>
+    <h3 class="pr-detail-parameter__title">
+      Parameter
+    </h3>
+    <p class="pr-detail-parameter__placeholder">
+      —
+    </p>
   </section>
 </template>
 

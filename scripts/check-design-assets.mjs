@@ -8,7 +8,7 @@
  * - markdown links to design images under src/ui and docs/ui resolve
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,13 +32,6 @@ function fail(msg) {
 
 function warn(msg) {
   warnings.push(msg);
-}
-
-function listDirs(dir) {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => join(dir, e.name));
 }
 
 function listFiles(dir, predicate) {

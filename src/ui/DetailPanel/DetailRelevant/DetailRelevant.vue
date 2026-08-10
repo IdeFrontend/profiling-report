@@ -8,8 +8,12 @@
     data-testid="detail-relevant"
     aria-label="Relevant"
   >
-    <h3 class="pr-detail-relevant__title">Relevant</h3>
-    <p class="pr-detail-relevant__placeholder">—</p>
+    <h3 class="pr-detail-relevant__title">
+      Relevant
+    </h3>
+    <p class="pr-detail-relevant__placeholder">
+      —
+    </p>
   </section>
 </template>
 
