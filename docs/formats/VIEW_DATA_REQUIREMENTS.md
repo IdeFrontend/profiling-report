@@ -116,13 +116,9 @@ If no `taskDurationUs` → **hide** the summary card group (PIPE may still show)
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
 | Aggregation | **Interim ([I-Q6b](../context/INTERIM_DECISIONS.md)):** mean of non-`NA` ratios per pipe family |
-<<<<<<< HEAD
 | Absolute in-bar | **Optional ([I-Q6f](../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)`; omit when NA |
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
-| Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg) #2) |
-=======
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
->>>>>>> 75c7f5d (Retire shared VISUAL_SPEC and legacy changes.png.)
 | Colors | Normative sketch tokens — [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
 | 详情 | Navigate to compute `CsvFieldListPanel` + emit `open-pipe-details` |
 

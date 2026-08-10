@@ -29,7 +29,7 @@ batches:
         path: v930/detail-strip-raised.jpeg
         original_name: "930版本-性能调优_点击上浮底部栏.jpeg"
         scenes: [detail-strip]
-        components: [DetailStrip]
+        components: [DetailPanel, DetailSummary, DetailParameter, DetailRelevant]
       - id: memory-load-detail
         path: v930/memory-load-detail.jpeg
         original_name: "930版本-性能调优_点击内存负载分析的详情后.jpeg"

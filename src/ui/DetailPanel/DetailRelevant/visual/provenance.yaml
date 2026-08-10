@@ -1,0 +1,7 @@
+component: DetailRelevant
+source_primary: v930/detail-strip-raised
+crops:
+  relevant-graph.png:
+    source: v930/detail-strip-raised
+    region: "Relevent graph — Incoming / Current / Out + connection level"
+    box: { x: 3380, y: 2840, w: 1920, h: 640 }

@@ -1,0 +1,7 @@
+component: DetailPanel
+source_primary: v930/detail-strip-raised
+crops:
+  panel-chrome.png:
+    source: v930/detail-strip-raised
+    region: "Full raised 「详情」 dock — identity, Parameter, Relevant + top edge (no swimlane)"
+    box: { x: 200, y: 2780, w: 5200, h: 760 }

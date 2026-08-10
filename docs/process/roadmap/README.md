@@ -21,7 +21,7 @@ flowchart LR
 
 ## Current state (done)
 
-**Swimlane:** parse → canvas lanes, gutter util, zoom/pan, overview brush, hover tooltip, single-select → compact `DetailStrip`, search, time units.
+**Swimlane:** parse → canvas lanes, gutter util, zoom/pan, overview brush, hover tooltip, single-select → compact `DetailPanel`, search, time units.
 
 **Other views:** thin `OpBasicInfo` summary + PIPE bars only.
 

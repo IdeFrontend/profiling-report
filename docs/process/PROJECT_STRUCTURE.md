@@ -55,53 +55,37 @@ profiling-report/
 
     swimlane/
       CanvasSwimlaneRenderer.ts               imperative canvas renderer
-      SwimlaneCanvas/
-        SwimlaneCanvas.vue                      Vue wrapper for the renderer
-        SwimlaneCanvas.spec.md                  behavioral spec
-        SwimlaneCanvas.spec.ts                  unit test
 
     ui/
       tokens.css                                shared design tokens (not component-specific)
+      panelResize.ts
 
-      ProfilingReport/                          per-component folder
-        ProfilingReport.vue                       root orchestration component
-        ProfilingReport.spec.md                   behavioral spec (props, emits, behavior)
-        ProfilingReport.spec.ts                   unit test
-
+      ProfilingReport/                          root orchestrator
       ReportToolbar/
-        ReportToolbar.vue
-        ReportToolbar.spec.md
-        ReportToolbar.spec.ts
+      ReportLayout/
 
-      TimeOverviewBar/
-        TimeOverviewBar.vue
-        TimeOverviewBar.spec.md
-        TimeOverviewBar.spec.ts
+      TimelineView/                             left column stack (overview / axis / swim body)
+        TimelineView.vue
+        TimeOverviewBar/
+        TimeAxis/
+          AxisRuler/
+          CursorTimestamp/
+        SwimlaneView/
+          SwimlaneView.vue
+          LaneGutter/
+          SwimlaneCanvas/                       Vue wrapper; renderer stays in src/swimlane/
 
       StatsAside/
         StatsAside.vue
-        StatsAside.spec.md
-        StatsAside.spec.ts
+        CsvFieldListPanel/
 
-      ReportLayout/
-        ReportLayout.vue
-        ReportLayout.spec.md
-        ReportLayout.spec.ts
-
-      LaneGutter/
-        LaneGutter.vue
-        LaneGutter.spec.md
-        LaneGutter.spec.ts
+      DetailPanel/
+        DetailPanel.vue
+        DetailSummary/
+        DetailParameter/                        P2 stub
+        DetailRelevant/                         P2 stub
 
       EventTooltip/
-        EventTooltip.vue
-        EventTooltip.spec.md
-        EventTooltip.spec.ts
-
-      DetailStrip/
-        DetailStrip.vue
-        DetailStrip.spec.md
-        DetailStrip.spec.ts
 
   tests/
     unit/                                     unit tests for pure-TS domain modules
@@ -171,7 +155,7 @@ src/ui/ReportToolbar/
 - **Inputs** (English prose — what the component receives, why each prop matters)
 - **Outputs** (English prose — what the component emits, payloads, parent interaction)
 - **Behavior** (non-obvious constraints, data flow, interactions with other components)
-- **Visual** (component-local measures; axis chrome in [`AxisRuler.spec.md`](../../src/ui/AxisRuler/AxisRuler.spec.md), panel clamps in [`ReportLayout.spec.md`](../../src/ui/ReportLayout/ReportLayout.spec.md))
+- **Visual** (component-local measures; axis chrome in [`AxisRuler.spec.md`](../../src/ui/TimelineView/TimeAxis/AxisRuler/AxisRuler.spec.md), panel clamps in [`ReportLayout.spec.md`](../../src/ui/ReportLayout/ReportLayout.spec.md))
 - Acceptance criteria with test IDs
 - Edge cases
 - **Design sketches** — relative links to `./visual/*.png` and/or `docs/ui/source/...`
@@ -236,12 +220,17 @@ Each component gets its own prefix to avoid collisions and make ownership clear:
 |---|---|
 | ProfilingReport | `PR-ROOT-*` |
 | ReportToolbar | `PR-TOOLBAR-*` |
+| TimelineView | `PR-TIMELINE-*` |
 | TimeOverviewBar | `PR-OVERVIEW-*` |
 | StatsAside | `PR-STATS-*` |
 | ReportLayout | `PR-LAYOUT-*` |
+| SwimlaneView | `PR-SWIMVIEW-*` |
 | LaneGutter | `PR-GUTTER-*` |
 | EventTooltip | `PR-TOOLTIP-*` |
-| DetailStrip | `PR-STRIP-*` |
+| DetailPanel | `PR-DPANEL-*` |
+| DetailSummary | `PR-DSUM-*` |
+| DetailParameter | `PR-DPARAM-*` |
+| DetailRelevant | `PR-DREL-*` |
 | SwimlaneCanvas | `PR-CANVAS-*` |
 | AxisRuler | `PR-AXIS-*` |
 | CsvFieldListPanel | `PR-CSV-*` |

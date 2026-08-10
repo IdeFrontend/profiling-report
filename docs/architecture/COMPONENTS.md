@@ -21,17 +21,25 @@ Normative catalog of models, adapters, renderer APIs, and Vue components for the
 ProfilingReport
 ├─ ReportToolbar (+ measure toggle M2)
 ├─ ReportLayout (main | aside)
-│  ├─ TimeOverviewBar
-│  ├─ LaneGutter
-│  ├─ SwimlaneCanvas  →  SwimlaneRenderer + measure overlay (M2)
-│  ├─ StatsAside (mode switcher M1)
-│  │  ├─ StatsSummaryPanel
-│  │  ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1)
-│  │  ├─ CsvFieldListPanel (compute + memory detail tabs M1)
-│  │  ├─ RooflinePanel (M2)
-│  │  ├─ HardwareDetailsPanel (deferred)
-│  │  └─ MemoryTopologyPanel (M2)
-│  └─ DetailStrip
+│  ├─ TimelineView
+│  │  ├─ TimeOverviewBar
+│  │  ├─ TimeAxis
+│  │  │  ├─ AxisRuler
+│  │  │  └─ CursorTimestamp
+│  │  └─ SwimlaneView
+│  │     ├─ LaneGutter
+│  │     └─ SwimlaneCanvas  →  SwimlaneRenderer + measure overlay (M2)
+│  └─ StatsAside (mode switcher M1)
+│     ├─ StatsSummaryPanel (inline MVP)
+│     ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1; inline MVP)
+│     ├─ CsvFieldListPanel (compute + memory detail tabs M1)
+│     ├─ RooflinePanel (M2)
+│     ├─ HardwareDetailsPanel (deferred)
+│     └─ MemoryTopologyPanel (M2)
+├─ DetailPanel
+│  ├─ DetailSummary (MVP identity + timing)
+│  ├─ DetailParameter (P2)
+│  └─ DetailRelevant (P2)
 └─ EventTooltip (overlay)
 ```
 
@@ -156,9 +164,11 @@ Canvas 2D implementation of `SwimlaneRenderer`. Uniform `#2a2a2a` event-sequence
 
 **Why:** Adequate for sample-scale traces; ships MVP.
 
-### `WebGlSwimlaneRenderer` (P2 → implemented on `feat/webgl-swimlane`)
+### `WebGlSwimlaneRenderer` (P2 → implemented)
 
 WebGL2 coverage-AA interval backend (Sudu-inspired). Same uniform lane fill and 1px dividers as Canvas. Used by default from `SwimlaneCanvas` with a Canvas2D overlay for labels/selection/cursor; falls back to `CanvasSwimlaneRenderer` when WebGL2 is unavailable.
+
+**Why:** Named interface stays stable; WebGL path ships for dense traces.
 
 ---
 
@@ -184,11 +194,7 @@ CSS grid: gutter | main | aside (+ detail strip region).
 
 ### `LaneGutter` (M)
 
-<<<<<<< HEAD
-Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Row `#3a3a3a` bottom borders align with swimlane horizontal dividers. Visual tokens: [`components/VISUAL_SPEC.md`](../ui/components/VISUAL_SPEC.md). Behavior: [`LaneGutter.spec.md`](../../src/ui/LaneGutter/LaneGutter.spec.md).
-=======
-Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Spec: [`LaneGutter.spec.md`](../../src/ui/LaneGutter/LaneGutter.spec.md).
->>>>>>> c541ace (Retire shared VISUAL_SPEC and legacy changes.png.)
+Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Row `#3a3a3a` bottom borders align with swimlane horizontal dividers. Spec: [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md).
 
 **Why:** DOM text for a11y/i18n; avoids baking labels into WebGL. Hierarchy comes from `SwimProcess` / `SwimThread`.
 
@@ -216,11 +222,11 @@ Hover overlay: name, start, duration, end.
 
 **Why:** Required by [INTERACTIONS](../ui/INTERACTIONS.md); portal/overlay so it is not clipped by canvas.
 
-### `DetailStrip` (M)
+### `DetailPanel` (M)
 
-Selection summary (name + timing). Compact strip for MVP (full bottom dock / deps graph → P2).
+Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter and Relevant columns are P2 stubs with design crops.
 
-**Why:** Delivers select→detail without waiting on dependency data (Q9).
+**Why:** Delivers select→detail without waiting on dependency data (Q9). Full dock chrome matches `v930/detail-strip-raised`.
 
 ### `StatsAside` (M / M1)
 

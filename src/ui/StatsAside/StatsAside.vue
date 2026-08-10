@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
 import type { PipeOccupancyItem, ReportCapability, ReportViewModel } from '../../domain/types';
-import CsvFieldListPanel from '../CsvFieldListPanel/CsvFieldListPanel.vue';
+import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import HardwareDetailsPanel from '../HardwareDetailsPanel/HardwareDetailsPanel.vue';
 import RooflinePanel from '../RooflinePanel/RooflinePanel.vue';
 

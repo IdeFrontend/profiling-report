@@ -169,7 +169,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | Swimlane | `SwimlaneCanvas` |
 | Aside stats / PIPE | `StatsSummaryPanel`, `PipeOccupancyPanel` |
 | Aside hardware / memory / pipe list | P2 panels |
-| Detail | `DetailStrip` (MVP); richer bottom dock P2 |
+| Detail | `DetailPanel` (MVP); richer bottom dock P2 |
 | Tooltip | `EventTooltip` |
 
 ---
@@ -216,7 +216,7 @@ flowchart TB
   ViewState --> OverviewCharts
   ViewState --> SwimlaneCanvas
   ViewState --> LaneGutter
-  Selection["selectedEvent"] --> DetailStrip
+  Selection["selectedEvent"] --> DetailPanel
   Selection --> DepsLayer
   Hover["hoveredEvent"] --> EventTooltip
   Search["searchQuery"] --> SwimlaneHighlight
@@ -228,7 +228,7 @@ flowchart TB
 1. **Time window** — Zoom/pan updates `timeWindow`. `TimeAxis`, `OverviewCharts`, and `SwimlaneCanvas` always share the same window.
 2. **Vertical scroll** — Wheel over swimlane/gutter updates `scrollY`; gutter labels and lanes stay row-aligned.
 3. **Hover** — Sets `hoveredEventId` only. Does **not** change selection, detail strip, or aside content.
-4. **Selection** — Click event sets `selectedEventId`, fills `DetailStrip`, may dim non-selected events. Empty click clears selection and detail. P2: drives dependency graph and link emphasis.
+4. **Selection** — Click event sets `selectedEventId`, fills `DetailPanel`, may dim non-selected events. Empty click clears selection and detail. P2: drives dependency graph and link emphasis.
 5. **Search** — Highlights or filters matching event names. Does not clear selection on MVP. P2: Enter jumps to next match (may move time window).
 6. **Aside mode** — Switching summary ↔ PIPE ↔ compute details ↔ memory **preserves** timeline view state and selection.
 7. **Lane expand/collapse** — Changes visible row set only; does not reset `timeWindow`.
@@ -257,7 +257,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S3 (M)
 
 1. Pointer enters event → tooltip with name/start/dur/end (`source/v930/task-hover.jpeg`).
-2. Click → selection styling + `DetailStrip` (`source/v930/entry.jpeg`).
+2. Click → selection styling + `DetailPanel` (`source/v930/entry.jpeg`).
 3. Click background → clear selection and strip.
 
 ### Flow S4 (M)
@@ -308,7 +308,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |--------------------|---------------------------|------------|----------|
 | S1 overview | Report summary, PIPE bars, Timeline tab | `ProfilingReport`, `StatsSummaryPanel`, `PipeOccupancyPanel` | `v930/entry`, `v930/report-stats-open` |
 | S2 navigate | Zoom/pan, time axis | `ReportToolbar`, `TimeAxis`, `SwimlaneCanvas` | `swimlane`, `general` |
-| S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailStrip` | `v930/task-hover`, `v930/detail-strip-raised` |
+| S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailPanel` | `v930/task-hover`, `v930/detail-strip-raised` |
 | S4 util compare | Lane gutter util bars, PIPE | `LaneGutter`, `PipeOccupancyPanel` | overview sketches |
 | S5 pipe drill | PIPE bars; pipe field list P2 | `PipeOccupancyPanel`, pipe details P2 | `pipe_*` |
 | S6 memory | Memory topology P2 | `MemoryTopologyPanel` | `memory_*` |

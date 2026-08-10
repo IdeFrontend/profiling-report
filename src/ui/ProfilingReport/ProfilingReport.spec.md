@@ -73,7 +73,7 @@ sequenceDiagram
     participant Canvas as SwimlaneCanvas
     participant Root as ProfilingReport
     participant Tooltip as EventTooltip
-    participant Detail as DetailStrip
+    participant Detail as DetailPanel
 
     User->>Canvas: pointermove
     Canvas->>Root: emit('hover', [event, clientX, clientY])

@@ -178,20 +178,45 @@ function resolveSourceId(id, maps) {
   return null;
 }
 
+/** Find every `visual/` directory that has provenance.yaml under rootDir. */
+function findVisualPackDirs(rootDir) {
+  const packs = [];
+  function walk(dir) {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const full = join(dir, entry.name);
+      if (entry.name === 'visual') {
+        const prov = join(full, 'provenance.yaml');
+        if (existsSync(prov)) packs.push(full);
+        continue;
+      }
+      walk(full);
+    }
+  }
+  walk(rootDir);
+  return packs;
+}
+
+/** Basename → absolute path of component folder that owns visual/. */
+function indexVisualPacksByBasename(...roots) {
+  const map = new Map();
+  for (const root of roots) {
+    for (const visual of findVisualPackDirs(root)) {
+      const compDir = dirname(visual);
+      const base = relative(ROOT, compDir).split(/[/\\]/).pop();
+      if (base) map.set(base, compDir);
+    }
+  }
+  return map;
+}
+
 function checkVisualPacks(maps) {
-  const visualDirs = findFiles(UI_DIR, () => false); // placeholder
-  void visualDirs;
-
-  function scanVisualDirs(rootDir, labelPrefix) {
-    for (const compDir of listDirs(rootDir)) {
-      const visual = join(compDir, 'visual');
-      if (!existsSync(visual) || !statSync(visual).isDirectory()) continue;
-
-      const component = (labelPrefix ? labelPrefix + '/' : '') + relative(rootDir, compDir);
+  function checkOnePack(visual, componentLabel) {
     const provPath = join(visual, 'provenance.yaml');
     if (!existsSync(provPath)) {
-      fail(`${component}/visual/: missing provenance.yaml`);
-      continue;
+      fail(`${componentLabel}/visual/: missing provenance.yaml`);
+      return;
     }
 
     const prov = parseSimpleYaml(readFileSync(provPath, 'utf-8'));
@@ -201,38 +226,38 @@ function checkVisualPacks(maps) {
     const images = listFiles(visual, (n) => IMAGE_EXT.test(n));
     for (const img of images) {
       const name = relative(visual, img);
-      if (!listed.has(name)) fail(`${component}/visual/: crop ${name} not in provenance.yaml`);
+      if (!listed.has(name)) fail(`${componentLabel}/visual/: crop ${name} not in provenance.yaml`);
     }
 
     for (const [name, meta] of Object.entries(cropEntries)) {
       const imgPath = join(visual, name);
-      if (!existsSync(imgPath)) fail(`${component}/visual/: provenance lists missing crop ${name}`);
+      if (!existsSync(imgPath)) fail(`${componentLabel}/visual/: provenance lists missing crop ${name}`);
       const srcId = meta?.source ?? prov.source_primary;
       if (!srcId) {
-        fail(`${component}/visual/: ${name} has no source`);
+        fail(`${componentLabel}/visual/: ${name} has no source`);
         continue;
       }
       const abs = resolveSourceId(srcId, maps);
-      if (!abs) fail(`${component}/visual/: unknown source id "${srcId}" for ${name}`);
-      else if (!existsSync(abs)) fail(`${component}/visual/: source file missing for ${srcId}`);
+      if (!abs) fail(`${componentLabel}/visual/: unknown source id "${srcId}" for ${name}`);
+      else if (!existsSync(abs)) fail(`${componentLabel}/visual/: source file missing for ${srcId}`);
     }
 
     if (prov.source_primary) {
       const abs = resolveSourceId(prov.source_primary, maps);
-      if (!abs) fail(`${component}/visual/: unknown source_primary "${prov.source_primary}"`);
+      if (!abs) fail(`${componentLabel}/visual/: unknown source_primary "${prov.source_primary}"`);
     }
   }
 
+  for (const visual of findVisualPackDirs(UI_DIR)) {
+    checkOnePack(visual, relative(UI_DIR, dirname(visual)));
+  }
+  for (const visual of findVisualPackDirs(SWIM_DIR)) {
+    checkOnePack(visual, 'swimlane/' + relative(SWIM_DIR, dirname(visual)));
   }
 
-  scanVisualDirs(UI_DIR, '');
-  scanVisualDirs(SWIM_DIR, 'swimlane');
-
-  // Warn: manifest components without visual/
+  const byBase = indexVisualPacksByBasename(UI_DIR, SWIM_DIR);
   for (const name of maps.componentsHinted) {
-    const visual = join(UI_DIR, name, 'visual');
-    const swimVisual = join(ROOT, 'src/swimlane', name, 'visual');
-    if (!existsSync(visual) && !existsSync(swimVisual)) {
+    if (!byBase.has(name)) {
       warn(`manifest lists ${name} but no visual/ pack yet`);
     }
   }

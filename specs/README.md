@@ -36,13 +36,19 @@ Specs are co-located with their components.
 |-----------|--------|-------|----------|
 | ProfilingReport | `PR-ROOT-*` | MVP | `src/ui/ProfilingReport/ProfilingReport.spec.md` |
 | ReportToolbar | `PR-TOOLBAR-*` | MVP | `src/ui/ReportToolbar/ReportToolbar.spec.md` |
-| TimeOverviewBar | `PR-OVERVIEW-*` | MVP | `src/ui/TimeOverviewBar/TimeOverviewBar.spec.md` |
+| TimelineView | `PR-TIMELINE-*` | MVP | `src/ui/TimelineView/TimelineView.spec.md` |
+| TimeOverviewBar | `PR-OVERVIEW-*` | MVP | `src/ui/TimelineView/TimeOverviewBar/TimeOverviewBar.spec.md` |
 | StatsAside | `PR-STATS-*` | MVP | `src/ui/StatsAside/StatsAside.spec.md` |
 | ReportLayout | `PR-LAYOUT-*` | MVP | `src/ui/ReportLayout/ReportLayout.spec.md` |
-| LaneGutter | `PR-GUTTER-*` | MVP | `src/ui/LaneGutter/LaneGutter.spec.md` |
+| SwimlaneView | `PR-SWIMVIEW-*` | MVP | `src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md` |
+| LaneGutter | `PR-GUTTER-*` | MVP | `src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md` |
 | EventTooltip | `PR-TOOLTIP-*` | MVP | `src/ui/EventTooltip/EventTooltip.spec.md` |
-| DetailStrip | `PR-STRIP-*` | MVP | `src/ui/DetailStrip/DetailStrip.spec.md` |
-| SwimlaneCanvas | `PR-CANVAS-*` | MVP | `src/swimlane/SwimlaneCanvas/SwimlaneCanvas.spec.md` |
+| DetailPanel | `PR-DPANEL-*` | MVP | `src/ui/DetailPanel/DetailPanel.spec.md` |
+| DetailSummary | `PR-DSUM-*` | MVP | `src/ui/DetailPanel/DetailSummary/DetailSummary.spec.md` |
+| DetailParameter | `PR-DPARAM-*` | P2 stub | `src/ui/DetailPanel/DetailParameter/DetailParameter.spec.md` |
+| DetailRelevant | `PR-DREL-*` | P2 stub | `src/ui/DetailPanel/DetailRelevant/DetailRelevant.spec.md` |
+| CsvFieldListPanel | `PR-CSV-*` | M1 | `src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md` |
+| SwimlaneCanvas | `PR-CANVAS-*` | MVP | `src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md` |
 
 ### Architecture
 
