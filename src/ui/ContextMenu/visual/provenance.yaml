@@ -3,5 +3,5 @@ source_primary: v930/task-context-menu
 crops:
   context-menu.png:
     source: v930/task-context-menu
-    region: "Full task right-click menu (整屏显示 … Offset) over selected event"
-    box: { x: 1940, y: 2680, w: 860, h: 920 }
+    region: "Full task right-click menu through Pin row (Ctrl+P) over selected event"
+    box: { x: 1940, y: 2680, w: 860, h: 1100 }

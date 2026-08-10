@@ -1,7 +1,11 @@
 component: MultiSelectSummary
 source_primary: v930/task-marquee
 crops:
-  multi-select.png:
+  selection.png:
     source: v930/task-marquee
-    region: "Multi-select aggregate table (Wall Duration / Self time / Average Wall Duration)"
+    region: "Marquee selection over timeline events (drag multi-select)"
+    box: { x: 1850, y: 2250, w: 2500, h: 950 }
+  info-panel.png:
+    source: v930/task-marquee
+    region: "Info panel below selection — Wall Duration / Self time / Average Wall Duration"
     box: { x: 1280, y: 3160, w: 4470, h: 1060 }

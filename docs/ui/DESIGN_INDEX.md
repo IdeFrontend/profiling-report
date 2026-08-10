@@ -55,5 +55,5 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`DetailRelevant`](../../src/ui/DetailPanel/DetailRelevant/visual/) | Relevant graph | `v930/detail-strip-raised` |
 | [`EventTooltip`](../../src/ui/EventTooltip/visual/) | hover tooltip | `v930/task-hover` |
 | [`ContextMenu`](../../src/ui/ContextMenu/visual/) | task context menu | `v930/task-context-menu` |
-| [`MultiSelectSummary`](../../src/ui/MultiSelectSummary/visual/) | multi-select aggregate table | `v930/task-marquee` |
+| [`MultiSelectSummary`](../../src/ui/MultiSelectSummary/visual/) | selection, info panel | `v930/task-marquee` |
 | ProfilingReport / ReportLayout / TimelineView / SwimlaneView / TimeAxis | (shells — no visual pack) | — |
