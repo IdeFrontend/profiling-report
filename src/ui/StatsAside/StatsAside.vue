@@ -1,20 +1,28 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
-import type { PipeOccupancyItem, ReportViewModel } from '../../domain/types';
+import type { PipeOccupancyItem, ReportCapability, ReportViewModel } from '../../domain/types';
 import CsvFieldListPanel from '../CsvFieldListPanel/CsvFieldListPanel.vue';
+import HardwareDetailsPanel from '../HardwareDetailsPanel/HardwareDetailsPanel.vue';
+import RooflinePanel from '../RooflinePanel/RooflinePanel.vue';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
   locale?: string;
+  capabilities?: ReportCapability[];
 }>();
 
 const emit = defineEmits<{
+  close: [];
+  'open-hardware-details': [];
   'view-full-csv': [payload: { fileName: string; text: string }];
+  'open-pipe-details': [];
 }>();
 
 type PipeSide = 'cube' | 'vector';
 type AsideMode = 'summary' | 'pipe' | 'compute' | 'memory';
+/** Overlay for I-Q7a hardware; CSV drill-downs use mode tabs. */
+type AsideSurface = 'modes' | 'hardware';
 
 const COLOR: Record<string, string> = {
   cube: 'var(--pr-color-cube)',
@@ -27,10 +35,7 @@ const COLOR: Record<string, string> = {
   default: 'var(--pr-color-default)',
 };
 
-const hasSummary = computed(() => {
-  const s = props.report?.summary;
-  return Boolean(s && (s.opName || s.opType || s.taskDurationUs != null));
-});
+const hasSummary = computed(() => props.report?.summary.taskDurationUs != null);
 
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
 const showCompute = computed(() => (props.report?.computeTables?.length ?? 0) > 0);
@@ -46,6 +51,7 @@ const availableModes = computed(() => {
 });
 
 const mode = ref<AsideMode>('summary');
+const asideSurface = ref<AsideSurface>('modes');
 
 watch(
   availableModes,
@@ -55,6 +61,34 @@ watch(
     }
   },
   { immediate: true },
+);
+
+const showRoofline = computed(() => (props.report?.roofline?.points?.length ?? 0) > 0);
+const hasHardwareDetails = computed(
+  () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
+);
+
+const summary = computed(() => props.report?.summary);
+
+const durationSecondary = computed(() => {
+  const s = summary.value;
+  if (!s) return null;
+  if (s.blockDim != null && s.blockDim !== '') {
+    return t('iterationsPerCore', props.locale).replace('{n}', String(s.blockDim));
+  }
+  if (s.opName) return s.opName;
+  return null;
+});
+
+const hasMeta = computed(() => {
+  const s = summary.value;
+  return Boolean(
+    s && (s.coreCount != null || s.currentFreq != null || s.npuArchLabel),
+  );
+});
+
+const showMore = computed(
+  () => hasMeta.value || (props.capabilities ?? []).includes('hardwareDetails'),
 );
 
 const opType = computed(() => (props.report?.summary.opType ?? '').trim());
@@ -102,6 +136,34 @@ function modeLabel(m: AsideMode): string {
   if (m === 'compute') return t('modeCompute', props.locale);
   return t('modeMemory', props.locale);
 }
+
+function formatPipeAbsolute(v: number): string {
+  if (Math.abs(v) >= 100) return v.toFixed(2);
+  if (Math.abs(v) >= 1) return v.toFixed(2);
+  return v.toFixed(5);
+}
+
+const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
+
+const headerTitle = computed(() =>
+  asideSurface.value === 'hardware'
+    ? t('hardwareDetails', props.locale)
+    : t('summary', props.locale),
+);
+
+function openHardware() {
+  if (hasHardwareDetails.value) asideSurface.value = 'hardware';
+  emit('open-hardware-details');
+}
+
+function openPipeDetails() {
+  if (showCompute.value) mode.value = 'compute';
+  emit('open-pipe-details');
+}
+
+function backToModes() {
+  asideSurface.value = 'modes';
+}
 </script>
 
 <template>
@@ -110,161 +172,258 @@ function modeLabel(m: AsideMode): string {
     data-testid="stats-aside"
   >
     <header class="pr-aside__head">
-      <h3>{{ t('summary', locale) }}</h3>
+      <div class="pr-aside__title-row">
+        <button
+          v-if="asideSurface !== 'modes'"
+          type="button"
+          class="pr-aside__back"
+          data-testid="stats-aside-back"
+          :aria-label="t('back', locale)"
+          :title="t('back', locale)"
+          @click="backToModes"
+        >
+          ←
+        </button>
+        <span
+          v-else
+          class="pr-aside__icon"
+          aria-hidden="true"
+        >▦</span>
+        <h3>{{ headerTitle }}</h3>
+        <button
+          type="button"
+          class="pr-aside__close"
+          data-testid="stats-aside-close"
+          :aria-label="t('closePanel', locale)"
+          :title="t('closePanel', locale)"
+          @click="emit('close')"
+        >
+          ×
+        </button>
+      </div>
       <p
-        v-if="report?.summary.currentFreq != null"
+        v-if="asideSurface === 'modes' && (hasMeta || showMore)"
         class="pr-aside__meta"
+        :data-testid="hasMeta ? 'stats-aside-meta' : undefined"
       >
-        {{ t('freq', locale) }}: {{ report.summary.currentFreq }}
-        <template v-if="report.summary.ratedFreq != null">
-          / {{ report.summary.ratedFreq }}
-        </template>
-        <template v-if="report?.summary.opType">
-          · {{ report.summary.opType }}
-        </template>
+        <span
+          v-if="summary?.coreCount != null"
+          class="pr-aside__meta-seg"
+        >{{ t('coreCount', locale) }}: {{ summary.coreCount }}{{ t('coreUnit', locale) }}</span>
+        <span
+          v-if="summary?.currentFreq != null"
+          class="pr-aside__meta-seg"
+        >{{ t('aicFreq', locale) }}: {{ summary.currentFreq }}</span>
+        <span
+          v-if="summary?.npuArchLabel"
+          class="pr-aside__meta-seg"
+        >{{ t('npuArch', locale) }}: {{ summary.npuArchLabel }}</span>
+        <button
+          v-if="showMore"
+          type="button"
+          class="pr-aside__more"
+          data-testid="stats-aside-more"
+          @click="openHardware"
+        >
+          {{ t('more', locale) }}
+        </button>
       </p>
     </header>
 
-    <nav
-      v-if="availableModes.length > 1"
-      class="pr-aside__modes"
-      data-testid="aside-modes"
-      role="tablist"
-    >
-      <button
-        v-for="m in availableModes"
-        :key="m"
-        type="button"
-        role="tab"
-        class="pr-aside__mode"
-        :class="{ 'pr-aside__mode--active': mode === m }"
-        :data-testid="`aside-mode-${m}`"
-        :aria-selected="mode === m"
-        @click="mode = m"
-      >
-        {{ modeLabel(m) }}
-      </button>
-    </nav>
-
     <div
-      v-if="mode === 'summary' && hasSummary"
-      class="pr-cards"
-      data-testid="stats-summary"
+      v-if="asideSurface === 'hardware' && report?.hardwareDetails"
+      class="pr-aside__detail"
+      data-testid="stats-hardware-details"
     >
-      <div
-        v-if="report?.summary.taskDurationUs != null"
-        class="pr-card"
+      <HardwareDetailsPanel
+        :model="report.hardwareDetails"
+        :locale="locale"
+      />
+    </div>
+
+    <template v-else>
+      <nav
+        v-if="availableModes.length > 1"
+        class="pr-aside__modes"
+        data-testid="aside-modes"
+        role="tablist"
       >
-        <div class="pr-card__label">
-          {{ t('duration', locale) }}
+        <button
+          v-for="m in availableModes"
+          :key="m"
+          type="button"
+          role="tab"
+          class="pr-aside__mode"
+          :class="{ 'pr-aside__mode--active': mode === m }"
+          :data-testid="`aside-mode-${m}`"
+          :aria-selected="mode === m"
+          @click="mode = m"
+        >
+          {{ modeLabel(m) }}
+        </button>
+      </nav>
+
+      <div
+        v-if="mode === 'summary' && hasSummary"
+        class="pr-cards"
+        data-testid="stats-summary"
+      >
+        <div
+          class="pr-card"
+          data-testid="stats-duration-card"
+        >
+          <div class="pr-card__label">
+            {{ t('duration', locale) }}
+          </div>
+          <div class="pr-card__value">
+            {{ formatDurationUs(report!.summary.taskDurationUs!) }}
+          </div>
+          <div
+            class="pr-card__bar-track"
+            data-testid="stats-duration-bar"
+          >
+            <span class="pr-card__bar-fill pr-card__bar-fill--duration" />
+          </div>
+          <div
+            v-if="durationSecondary"
+            class="pr-card__sub"
+            data-testid="stats-duration-secondary"
+          >
+            {{ durationSecondary }}
+          </div>
         </div>
-        <div class="pr-card__value">
-          {{ formatDurationUs(report.summary.taskDurationUs) }}
+      </div>
+
+      <div
+        v-if="mode === 'pipe' && showPipe"
+        class="pr-panel pr-panel--pipe"
+        data-testid="pipe-occupancy"
+      >
+        <div class="pr-pipe-head">
+          <h4>{{ t('pipeOccupancy', locale) }}</h4>
+          <button
+            type="button"
+            class="pr-pipe-details"
+            data-testid="pipe-details"
+            @click="openPipeDetails"
+          >
+            {{ t('details', locale) }}
+          </button>
         </div>
         <div
-          v-if="report?.summary.opName"
-          class="pr-card__sub"
+          v-if="isMix"
+          class="pr-pipe-toggle"
+          data-testid="pipe-side-toggle"
+          role="group"
+          :aria-label="t('pipeSide', locale)"
         >
-          {{ report.summary.opName }}
+          <button
+            type="button"
+            class="pr-pipe-toggle__btn"
+            :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
+            data-testid="pipe-side-cube"
+            @click="pipeSide = 'cube'"
+          >
+            Cube
+          </button>
+          <button
+            type="button"
+            class="pr-pipe-toggle__btn"
+            :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
+            data-testid="pipe-side-vector"
+            @click="pipeSide = 'vector'"
+          >
+            Vector
+          </button>
         </div>
-      </div>
-      <div
-        v-if="report?.summary.opType"
-        class="pr-card"
-      >
-        <div class="pr-card__label">
-          {{ t('type', locale) }}
-        </div>
-        <div class="pr-card__value pr-card__value--sm">
-          {{ report.summary.opType }}
-        </div>
-      </div>
-    </div>
-
-    <div
-      v-if="mode === 'pipe' && showPipe"
-      class="pr-panel pr-panel--pipe"
-      data-testid="pipe-occupancy"
-    >
-      <h4>{{ t('pipeOccupancy', locale) }}</h4>
-      <div
-        v-if="isMix"
-        class="pr-pipe-toggle"
-        data-testid="pipe-side-toggle"
-        role="group"
-        :aria-label="t('pipeSide', locale)"
-      >
-        <button
-          type="button"
-          class="pr-pipe-toggle__btn"
-          :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
-          data-testid="pipe-side-cube"
-          @click="pipeSide = 'cube'"
+        <div
+          class="pr-pipe-scale"
+          data-testid="pipe-scale"
         >
-          Cube
-        </button>
-        <button
-          type="button"
-          class="pr-pipe-toggle__btn"
-          :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
-          data-testid="pipe-side-vector"
-          @click="pipeSide = 'vector'"
-        >
-          Vector
-        </button>
-      </div>
-      <ul class="pr-pipe-list">
-        <li
-          v-for="pipe in visiblePipes"
-          :key="`${pipe.id}-${pipe.side ?? 'x'}`"
-          class="pr-pipe-row"
-        >
-          <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-          <span class="pr-pipe-row__track">
+          <span class="pr-pipe-scale__spacer" />
+          <div class="pr-pipe-scale__axis">
             <span
-              class="pr-pipe-row__bar"
-              :style="{
-                width: `${Math.min(100, pipe.ratio * 100)}%`,
-                background: COLOR[pipe.colorKey] ?? COLOR.default,
-              }"
-            />
-          </span>
-          <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
-        </li>
-      </ul>
-    </div>
+              v-for="tick in PIPE_SCALE"
+              :key="tick"
+              class="pr-pipe-scale__tick"
+            >{{ tick }}%</span>
+          </div>
+          <span class="pr-pipe-scale__pct-spacer" />
+        </div>
+        <ul class="pr-pipe-list">
+          <li
+            v-for="pipe in visiblePipes"
+            :key="`${pipe.id}-${pipe.side ?? 'x'}`"
+            class="pr-pipe-row"
+          >
+            <span class="pr-pipe-row__label">{{ pipe.label }}</span>
+            <span class="pr-pipe-row__track">
+              <span
+                class="pr-pipe-row__hatch"
+                aria-hidden="true"
+              />
+              <span
+                class="pr-pipe-row__bar"
+                :style="{
+                  width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%`,
+                  background: COLOR[pipe.colorKey] ?? COLOR.default,
+                }"
+              >
+                <span
+                  v-if="pipe.absoluteValue != null"
+                  class="pr-pipe-row__abs"
+                  data-testid="pipe-absolute"
+                >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+              </span>
+            </span>
+            <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+          </li>
+        </ul>
+      </div>
 
-    <div
-      v-if="mode === 'compute' && showCompute"
-      data-testid="stats-compute"
-      class="pr-aside__detail"
-    >
-      <h4 class="pr-aside__detail-title">
-        {{ t('computeAnalysis', locale) }}
-      </h4>
-      <CsvFieldListPanel
-        :tables="report?.computeTables ?? []"
-        :csv-texts="report?.csvTexts ?? {}"
-        :locale="locale"
-        @view-full-csv="emit('view-full-csv', $event)"
-      />
-    </div>
+      <div
+        v-if="mode === 'compute' && showCompute"
+        data-testid="stats-compute"
+        class="pr-aside__detail"
+      >
+        <h4 class="pr-aside__detail-title">
+          {{ t('computeAnalysis', locale) }}
+        </h4>
+        <CsvFieldListPanel
+          :tables="report?.computeTables ?? []"
+          :csv-texts="report?.csvTexts ?? {}"
+          :locale="locale"
+          @view-full-csv="emit('view-full-csv', $event)"
+        />
+      </div>
 
-    <div
-      v-if="mode === 'memory' && showMemory"
-      data-testid="stats-memory"
-      class="pr-aside__detail"
-    >
-      <h4 class="pr-aside__detail-title">
-        {{ t('memoryAnalysis', locale) }}
-      </h4>
-      <CsvFieldListPanel
-        :tables="report?.memoryTables ?? []"
-        :csv-texts="report?.csvTexts ?? {}"
-        :locale="locale"
-        @view-full-csv="emit('view-full-csv', $event)"
-      />
-    </div>
+      <div
+        v-if="mode === 'memory' && showMemory"
+        data-testid="stats-memory"
+        class="pr-aside__detail"
+      >
+        <h4 class="pr-aside__detail-title">
+          {{ t('memoryAnalysis', locale) }}
+        </h4>
+        <CsvFieldListPanel
+          :tables="report?.memoryTables ?? []"
+          :csv-texts="report?.csvTexts ?? {}"
+          :locale="locale"
+          @view-full-csv="emit('view-full-csv', $event)"
+        />
+      </div>
+
+      <div
+        v-if="showRoofline && report?.roofline"
+        class="pr-panel pr-panel--roofline"
+        data-testid="stats-roofline"
+      >
+        <RooflinePanel
+          :model="report.roofline"
+          :locale="locale"
+        />
+      </div>
+    </template>
   </aside>
 </template>
 
@@ -285,12 +444,73 @@ function modeLabel(m: AsideMode): string {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
+  flex: 1;
+}
+
+.pr-aside__title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-aside__icon {
+  font-size: 12px;
+  color: #8ab4c8;
+  line-height: 1;
+}
+
+.pr-aside__back {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #a8a8a8;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px 0 0;
+  cursor: pointer;
+}
+
+.pr-aside__back:hover {
+  color: #e8e8e8;
+}
+
+.pr-aside__close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #a8a8a8;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.pr-aside__close:hover {
+  color: #f0f0f0;
 }
 
 .pr-aside__meta {
   margin: 4px 0 0;
   font-size: 11px;
   color: #a8a8a8;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.pr-aside__more {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #6cb6ff;
+  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pr-aside__more:hover {
+  text-decoration: underline;
 }
 
 .pr-aside__modes {
@@ -348,7 +568,7 @@ function modeLabel(m: AsideMode): string {
 
 .pr-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -372,12 +592,28 @@ function modeLabel(m: AsideMode): string {
   line-height: 1.2;
 }
 
-.pr-card__value--sm {
-  font-size: 14px;
+.pr-card__bar-track {
+  margin-top: 8px;
+  height: 6px;
+  background: #1a1a1a;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.pr-card__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 1px;
+  min-width: 2px;
+}
+
+.pr-card__bar-fill--duration {
+  width: 12%;
+  background: var(--pr-color-duration-bar);
 }
 
 .pr-card__sub {
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 11px;
   color: #8a8a8a;
 }
@@ -388,10 +624,32 @@ function modeLabel(m: AsideMode): string {
   padding: 4px 0 0;
 }
 
+.pr-pipe-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .pr-panel--pipe h4 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 12px;
   font-weight: 600;
+}
+
+.pr-pipe-details {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #6cb6ff;
+  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pr-pipe-details:hover {
+  text-decoration: underline;
 }
 
 .pr-pipe-toggle {
@@ -417,6 +675,20 @@ function modeLabel(m: AsideMode): string {
   color: #f0f0f0;
 }
 
+.pr-pipe-scale {
+  display: grid;
+  grid-template-columns: 72px 1fr 36px;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 10px;
+  color: #8a8a8a;
+}
+
+.pr-pipe-scale__axis {
+  display: flex;
+  justify-content: space-between;
+}
+
 .pr-pipe-list {
   list-style: none;
   margin: 0;
@@ -428,7 +700,7 @@ function modeLabel(m: AsideMode): string {
 
 .pr-pipe-row {
   display: grid;
-  grid-template-columns: 52px 1fr 36px;
+  grid-template-columns: 72px 1fr 36px;
   gap: 8px;
   align-items: center;
 }
@@ -439,18 +711,46 @@ function modeLabel(m: AsideMode): string {
 }
 
 .pr-pipe-row__track {
+  position: relative;
   display: block;
-  height: 10px;
+  height: 14px;
   background: #1f1f1f;
   border-radius: 1px;
   overflow: hidden;
 }
 
+.pr-pipe-row__hatch {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    #2a2a2a,
+    #2a2a2a 2px,
+    #1f1f1f 2px,
+    #1f1f1f 4px
+  );
+  opacity: 0.9;
+}
+
 .pr-pipe-row__bar {
-  display: block;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
   height: 100%;
   border-radius: 1px;
   min-width: 2px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pr-pipe-row__abs {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: #f0f0f0;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .pr-pipe-row__pct {

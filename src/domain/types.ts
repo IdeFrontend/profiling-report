@@ -35,7 +35,17 @@ export interface SummaryMetrics {
   /** Task duration in microseconds as in OpBasicInfo, or converted — adapter documents unit. */
   taskDurationUs?: number;
   currentFreq?: number;
+  /**
+   * Rated frequency from OpBasicInfo. Populated by the adapter when present;
+   * intentionally **not** shown on StatsAside shell meta (sketch: aic频率 = currentFreq only).
+   */
   ratedFreq?: number;
+  /** Aside meta shell: core count (核数). Leave unset until HardwareInfo / Product mapping. */
+  coreCount?: number;
+  /** Aside meta shell: NPU ARCH peak label (e.g. `212 teraOPs`). */
+  npuArchLabel?: string;
+  /** OpBasicInfo `Block Dim` pass-through (I-Q6e secondary). */
+  blockDim?: string | number;
   /** Interim I-Q6a: leave unset until Product formulas exist */
   computeTflops?: number;
   ioBandwidth?: number;
@@ -52,6 +62,8 @@ export interface PipeOccupancyItem {
    * Cube uses `aic_*` columns; Vector uses `aiv_*` — never blend across sides.
    */
   side?: 'cube' | 'vector';
+  /** Mean non-NA `*_time(us)` for this family (I-Q6f); omit when all NA. */
+  absoluteValue?: number;
 }
 
 export interface OverviewSeries {
@@ -69,6 +81,47 @@ export interface CsvTableModel {
   blockIds: string[];
 }
 
+/** M2 interim roofline point (I-Q11*). */
+export interface RooflinePoint {
+  id: string;
+  label: string;
+  /** Arithmetic intensity (Ops/Byte). */
+  intensity: number;
+  /** Achieved performance (TOps/s). */
+  performance: number;
+  style: 'solid' | 'hollow';
+}
+
+export interface RooflineMixLabel {
+  id: string;
+  label: string;
+  percent: number;
+}
+
+/** M2 interim roofline model (I-Q11a–f). Omit when undecidable. */
+export interface RooflineViewModel {
+  points: RooflinePoint[];
+  mixLabels: RooflineMixLabel[];
+  peakComputeTops: number;
+  peakBandwidthGBs: number;
+}
+
+export interface HardwareField {
+  key: string;
+  value: string;
+}
+
+export interface HardwareSection {
+  id: string;
+  title: string;
+  fields: HardwareField[];
+}
+
+/** M1 interim hardware details (I-Q7a). */
+export interface HardwareDetailsModel {
+  sections: HardwareSection[];
+}
+
 export interface ReportViewModel {
   summary: SummaryMetrics;
   pipeOccupancy: PipeOccupancyItem[];
@@ -79,7 +132,16 @@ export interface ReportViewModel {
   memoryTables: CsvTableModel[];
   /** Raw CSV text by basename for 查看全部 (I-Q6d). */
   csvTexts: Record<string, string>;
+  /** Interim I-Q11*; omit when no GM point. */
+  roofline?: RooflineViewModel;
+  /** Interim I-Q7a; omit when empty. */
+  hardwareDetails?: HardwareDetailsModel;
 }
+
+export type ViewFullCsvPayload = {
+  fileName: string;
+  text: string;
+};
 
 export type ReportCapability =
   | 'roofline'

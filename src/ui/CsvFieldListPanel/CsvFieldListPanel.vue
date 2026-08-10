@@ -12,6 +12,7 @@ const props = withDefaults(
   }>(),
   {
     csvTexts: () => ({}),
+    locale: undefined,
     showBlockSwitcher: true,
   },
 );

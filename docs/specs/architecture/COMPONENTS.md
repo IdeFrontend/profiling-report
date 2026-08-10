@@ -166,7 +166,7 @@ WebGL2 coverage-AA interval backend (Sudu-inspired). Same uniform lane fill and 
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error`.
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
@@ -217,6 +217,14 @@ Selection summary (name + timing). Compact strip for MVP (full bottom dock / dep
 
 **Why:** Delivers select→detail without waiting on dependency data (Q9).
 
+### `StatsAside` (M / M1)
+
+Right analytics column. **Shell (M):** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → emit `open-hardware-details` (no panel until Q7). **PIPE (M):** scale, hatched bars, optional absolute times (I-Q6f), **详情** → emit `open-pipe-details` (detail panel M1 separate). Mode switcher remains an **M1 separate slice**.
+
+Inline today: summary cards + PIPE occupancy (+ Cube|Vector for MIX) + **RooflinePanel** (M2 interim I-Q11*) when `report.roofline.points` non-empty. Drill-down surfaces: `CsvFieldListPanel` (pipe/memory), `HardwareDetailsPanel` (I-Q7a). Planned: `MemoryTopologyPanel`.
+
+**Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
+
 ### `StatsSummaryPanel` (M)
 
 Cards from `SummaryMetrics`.
@@ -237,9 +245,9 @@ Searchable field list with CSV tabs, optional block switcher, **查看全部** e
 
 ### `RooflinePanel` (M2)
 
-Log-log roofline chart.
+Log-log roofline chart from `RooflineViewModel` (I-Q11a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until I-Q11f superseded. Mounted in `StatsAside` below PIPE; hide when no points.
 
-**Why:** Named for FEATURE_MATRIX / sketches; needs formula clarity (Q11).
+**Why:** FEATURE_MATRIX / sketches; interim math unblocks M2 while Q11 open.
 
 ### `MemoryTopologyPanel` (M2)
 
@@ -247,11 +255,11 @@ Static SVG memory path diagram with **data-driven edge labels** from Memory* CSV
 
 **Why:** Named stub; geometry stays in asset, labels from adapter mapping table.
 
-### `HardwareDetailsPanel` (out of MVP)
+### `HardwareDetailsPanel` (M1 interim I-Q7a)
 
-Host/NPU/HBM inventory.
+Sectioned key–value list from `HardwareDetailsModel`. Prefer HardwareInfo.jsonl; else OpBasicInfo. Never invent peaks/cores/HBM.
 
-**Why:** Product deferred until further specs ([Q7](../../context/OPEN_QUESTIONS.md)).
+**Why:** 更多 drill-down while Product Q7 inventory remains open.
 
 ### `DependencyLinksLayer` (P2)
 
