@@ -3,9 +3,9 @@ source_primary: v930/entry
 crops:
   cursor-timestamp.png:
     source: v930/entry
-    region: "Playhead time bubble on viewport axis"
-    box: { x: 2700, y: 160, w: 300, h: 80 }
+    region: "Viewport time axis ruler near playhead position (structural context; cursor bubble not shown in entry frame)"
+    box: { x: 3800, y: 2070, w: 400, h: 80 }
   cursor-timestamp-context.png:
     source: v930/entry
-    region: "Bubble on viewport axis with nearby ticks (wider context)"
-    box: { x: 2500, y: 140, w: 700, h: 120 }
+    region: "Viewport time axis with ruler marks and surrounding timeline (structural context; cursor bubble not shown in entry frame)"
+    box: { x: 3500, y: 2060, w: 1000, h: 120 }

@@ -3,13 +3,13 @@ source_primary: v930/entry
 crops:
   search.png:
     source: v930/entry
-    region: "Toolbar search pill + magnifier"
-    box: { x: 1620, y: 40, w: 590, h: 90 }
+    region: "Search pill with magnifying glass"
+    box: { x: 1600, y: 30, w: 800, h: 100 }
   zoom.png:
     source: v930/entry
-    region: "Zoom pill (mag− / slider / mag+)"
-    box: { x: 2150, y: 40, w: 850, h: 90 }
+    region: "Zoom controls (mag− / slider / mag+)"
+    box: { x: 2400, y: 30, w: 2000, h: 100 }
   actions.png:
     source: v930/entry
-    region: "Square icon button cluster (size/spacing)"
-    box: { x: 3000, y: 40, w: 700, h: 90 }
+    region: "Action buttons cluster"
+    box: { x: 4400, y: 30, w: 2800, h: 100 }
