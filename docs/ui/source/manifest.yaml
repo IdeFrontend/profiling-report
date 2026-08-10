@@ -19,7 +19,7 @@ batches:
         path: v930/report-stats-scrolled.jpeg
         original_name: "930版本-性能调优_报告统计-滚动到底部.jpeg"
         scenes: [report-stats, aside-scroll]
-        components: [StatsAside]
+        components: [StatsAside, MemoryTopologyPanel]
       - id: search-highlight
         path: v930/search-highlight.jpeg
         original_name: "930版本-性能调优_搜索高亮显示.jpeg"
@@ -34,7 +34,7 @@ batches:
         path: v930/memory-load-detail.jpeg
         original_name: "930版本-性能调优_点击内存负载分析的详情后.jpeg"
         scenes: [memory-load, detail]
-        components: [StatsAside, CsvFieldListPanel, MemoryTopologyPanel]
+        components: [StatsAside, CsvFieldListPanel]
       - id: compute-load
         path: v930/compute-load.jpeg
         original_name: "930版本-性能调优_计算负载分析.jpeg"

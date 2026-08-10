@@ -62,7 +62,7 @@ src/ui/
     PipeOccupancyPanel/            ✓  v930/compute-load
     CsvFieldListPanel/             ✓  v930/compute-load-detail, memory-load-detail
     RooflinePanel/                 ✓  v930/report-stats-open
-    MemoryTopologyPanel/           ✓  v930/memory-load-detail
+    MemoryTopologyPanel/           ✓  v930/report-stats-scrolled
     HardwareDetailsPanel/          ✓  v930/hardware-more-detail
   DetailPanel/                     ✓  v930/detail-strip-raised
     DetailSummary/                 ✓

@@ -202,13 +202,13 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 
 ## 11.2.6 Memory load analysis（内存负载分析）
 
-![Memory topology annotated](./source/v930/memory-load-detail.jpeg)
+![Memory topology annotated](./source/v930/report-stats-scrolled.jpeg)
 
-![Memory load heatmap](./source/v930/memory-load-detail.jpeg)
+![Memory load heatmap](./source/v930/report-stats-scrolled.jpeg)
 
 **Note (docx):** dual-Die / Remote memory — open whether right-click details exist.
 
-**Topology edges:** redraw must show **real CSV values** on buffer connection lines (not placeholders). Sketch: [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg).
+**Topology edges:** redraw must show **real CSV values** on buffer connection lines (not placeholders). Sketch: [`v930/report-stats-scrolled`](./source/v930/report-stats-scrolled.jpeg) (topology SVG); CSV 详情 is [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg).
 
 ### Edge → field → source (engineering mapping for M2)
 
@@ -360,8 +360,8 @@ Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../context/OPEN
 | [`roofline.png`](./source/v930/report-stats-open.jpeg) | Roofline |
 | [`pipe-occupancy.png`](./source/v930/compute-load.jpeg) | Pipe occupancy bars |
 | [`pipe-details.png`](./source/v930/compute-load-detail.jpeg) | Pipe details list |
-| [`memory-topology-annotated.png`](./source/v930/memory-load-detail.jpeg) | Memory topology + CSV annotations |
-| [`memory-load-heatmap.png`](./source/v930/memory-load-detail.jpeg) | Memory load with BW / peak % |
+| [`memory-topology-annotated.png`](./source/v930/report-stats-scrolled.jpeg) | Memory topology SVG (nodes/edges) |
+| [`memory-load-heatmap.png`](./source/v930/report-stats-scrolled.jpeg) | Memory load with BW / peak % |
 | [`statistical-analysis.png`](./source/v930/entry.jpeg) | Cube/Vector statistical tracks |
 | [`kernel-block-timeline.png`](./source/v930/entry.jpeg) | Block timeline |
 | [`event-details.png`](./source/v930/detail-strip-raised.jpeg) | Event / Relevant details |

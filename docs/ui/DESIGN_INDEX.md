@@ -22,7 +22,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930/detail-strip-raised` | [`detail-strip-raised.jpeg`](./source/v930/detail-strip-raised.jpeg) | Detail panel columns |
 | `v930/compute-load` | [`compute-load.jpeg`](./source/v930/compute-load.jpeg) | PIPE occupancy |
 | `v930/compute-load-detail` | [`compute-load-detail.jpeg`](./source/v930/compute-load-detail.jpeg) | Compute CSV fields |
-| `v930/memory-load-detail` | [`memory-load-detail.jpeg`](./source/v930/memory-load-detail.jpeg) | Memory CSV / topology stand-in |
+| `v930/memory-load-detail` | [`memory-load-detail.jpeg`](./source/v930/memory-load-detail.jpeg) | Memory CSV field-list (详情) |
 | `v930/hardware-more-detail` | [`hardware-more-detail.jpeg`](./source/v930/hardware-more-detail.jpeg) | Hardware details |
 | `v930/task-hover` | [`task-hover.jpeg`](./source/v930/task-hover.jpeg) | Event tooltip |
 | `v930/task-context-menu` | [`task-context-menu.jpeg`](./source/v930/task-context-menu.jpeg) | Context menu |
@@ -47,7 +47,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`PipeOccupancyPanel`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/) | PIPE bars, Cube\|Vector tabs | `v930/compute-load` |
 | [`CsvFieldListPanel`](../../src/ui/StatsAside/CsvFieldListPanel/visual/) | tabs, fields, block switcher | `v930/compute-load-detail`, `memory-load-detail` |
 | [`RooflinePanel`](../../src/ui/StatsAside/RooflinePanel/visual/) | roofline chart | `v930/report-stats-open` |
-| [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory load panel | `v930/memory-load-detail` |
+| [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory topology SVG (nodes/edges) | `v930/report-stats-scrolled` |
 | [`HardwareDetailsPanel`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/) | Host/Device info | `v930/hardware-more-detail` |
 | [`DetailPanel`](../../src/ui/DetailPanel/visual/) | dock chrome | `v930/detail-strip-raised` |
 | [`DetailSummary`](../../src/ui/DetailPanel/DetailSummary/visual/) | identity card | `v930/detail-strip-raised` |

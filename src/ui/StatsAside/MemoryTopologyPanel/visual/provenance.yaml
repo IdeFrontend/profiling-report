@@ -1,8 +1,8 @@
 component: MemoryTopologyPanel
-source_primary: v930/memory-load-detail
+source_primary: v930/report-stats-scrolled
 crops:
   memory-topology.png:
-    source: v930/memory-load-detail
-    region: "Memory load analysis panel (topology diagram not isolated in dump; CSV detail chrome as stand-in)"
-    box: { x: 5480, y: 280, w: 2070, h: 1600 }
-note: "Replace with annotated topology diagram crop when a clearer dump lands"
+    source: v930/report-stats-scrolled
+    region: "内存负载分析 panel: title + static SVG topology (nodes/edges + GB/s); not Memory.csv 详情"
+    box: { x: 5680, y: 1860, w: 2000, h: 2000 }
+note: "v930/memory-load-detail is the CSV field-list after 详情 — see CsvFieldListPanel"
