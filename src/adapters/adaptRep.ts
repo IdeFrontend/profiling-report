@@ -115,6 +115,12 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
     taskDurationUs: parseNumber(row['Task Duration(us)']),
     currentFreq: parseNumber(row['Current Freq']),
     ratedFreq: parseNumber(row['Rated Freq']),
+    blockDim: (() => {
+      const raw = row['Block Dim']?.trim();
+      if (!raw || raw === 'NA') return undefined;
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : raw;
+    })(),
   };
 }
 

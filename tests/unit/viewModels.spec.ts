@@ -12,6 +12,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.taskDurationUs).toBeCloseTo(1.800036, 5);
     expect(summary.currentFreq).toBe(1650);
     expect(summary.ratedFreq).toBe(1650);
+    expect(summary.blockDim).toBe(8);
 
     expect(summary.computeTflops).toBeUndefined();
     expect(summary.ioBandwidth).toBeUndefined();

@@ -30,10 +30,7 @@ const COLOR: Record<string, string> = {
   default: 'var(--pr-color-default)',
 };
 
-const hasSummary = computed(() => {
-  const s = props.report?.summary;
-  return Boolean(s && (s.opName || s.opType || s.taskDurationUs != null));
-});
+const hasSummary = computed(() => props.report?.summary.taskDurationUs != null);
 
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
 const showCompute = computed(() => (props.report?.computeTables?.length ?? 0) > 0);
@@ -61,6 +58,16 @@ watch(
 );
 
 const summary = computed(() => props.report?.summary);
+
+const durationSecondary = computed(() => {
+  const s = summary.value;
+  if (!s) return null;
+  if (s.blockDim != null && s.blockDim !== '') {
+    return t('iterationsPerCore', props.locale).replace('{n}', String(s.blockDim));
+  }
+  if (s.opName) return s.opName;
+  return null;
+});
 
 const hasMeta = computed(() => {
   const s = summary.value;
@@ -199,31 +206,27 @@ function modeLabel(m: AsideMode): string {
       data-testid="stats-summary"
     >
       <div
-        v-if="report?.summary.taskDurationUs != null"
         class="pr-card"
+        data-testid="stats-duration-card"
       >
         <div class="pr-card__label">
           {{ t('duration', locale) }}
         </div>
         <div class="pr-card__value">
-          {{ formatDurationUs(report.summary.taskDurationUs) }}
+          {{ formatDurationUs(report!.summary.taskDurationUs!) }}
         </div>
         <div
-          v-if="report?.summary.opName"
-          class="pr-card__sub"
+          class="pr-card__bar-track"
+          data-testid="stats-duration-bar"
         >
-          {{ report.summary.opName }}
+          <span class="pr-card__bar-fill pr-card__bar-fill--duration" />
         </div>
-      </div>
-      <div
-        v-if="report?.summary.opType"
-        class="pr-card"
-      >
-        <div class="pr-card__label">
-          {{ t('type', locale) }}
-        </div>
-        <div class="pr-card__value pr-card__value--sm">
-          {{ report.summary.opType }}
+        <div
+          v-if="durationSecondary"
+          class="pr-card__sub"
+          data-testid="stats-duration-secondary"
+        >
+          {{ durationSecondary }}
         </div>
       </div>
     </div>
@@ -441,7 +444,7 @@ function modeLabel(m: AsideMode): string {
 
 .pr-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -465,12 +468,28 @@ function modeLabel(m: AsideMode): string {
   line-height: 1.2;
 }
 
-.pr-card__value--sm {
-  font-size: 14px;
+.pr-card__bar-track {
+  margin-top: 8px;
+  height: 6px;
+  background: #1a1a1a;
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.pr-card__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 1px;
+  min-width: 2px;
+}
+
+.pr-card__bar-fill--duration {
+  width: 12%;
+  background: var(--pr-color-duration-bar);
 }
 
 .pr-card__sub {
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 11px;
   color: #8a8a8a;
 }

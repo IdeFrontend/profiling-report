@@ -45,4 +45,20 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="toggle-aside"]').attributes('aria-pressed')).toBe('false');
   });
+
+  it('aside unavailable when only op name/type without duration or PIPE (I-Q6a)', () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'no-duration',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: {
+          summary: { opName: 'relu', opType: 'vector' },
+          pipeOccupancy: [],
+          overviewSeries: [],
+        },
+      },
+    });
+    expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
+  });
 });

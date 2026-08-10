@@ -231,4 +231,81 @@ describe('StatsAside', () => {
     await viaMeta.get('[data-testid="stats-aside-more"]').trigger('click');
     expect(viaMeta.emitted('open-hardware-details')).toBeTruthy();
   });
+
+  it('PR-STATS-009: duration card has sketch chrome', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: {
+          summary: { taskDurationUs: 4600 },
+          pipeOccupancy: [],
+          overviewSeries: [],
+        },
+      },
+    });
+    const card = wrapper.get('[data-testid="stats-duration-card"]');
+    expect(card.text()).toMatch(/整体耗时|Total time/);
+    expect(card.text()).toMatch(/4\.60 ms/);
+    expect(card.find('[data-testid="stats-duration-bar"]').exists()).toBe(true);
+  });
+
+  it('PR-STATS-010: no type card; secondary from blockDim or opName', () => {
+    const withType = mount(StatsAside, {
+      props: {
+        report: {
+          summary: { opType: 'vector', taskDurationUs: 1000, opName: 'relu' },
+          pipeOccupancy: [],
+          overviewSeries: [],
+        },
+      },
+    });
+    expect(withType.find('[data-testid="stats-type-card"]').exists()).toBe(false);
+    expect(withType.get('[data-testid="stats-duration-card"]').text()).toContain('relu');
+    expect(withType.text()).not.toMatch(/类型|Type/);
+
+    const withDim = mount(StatsAside, {
+      props: {
+        report: {
+          summary: { taskDurationUs: 1000, blockDim: 8, opName: 'relu' },
+          pipeOccupancy: [],
+          overviewSeries: [],
+        },
+      },
+    });
+    const secondary = withDim.get('[data-testid="stats-duration-secondary"]').text();
+    expect(secondary).toMatch(/8/);
+    expect(secondary).toMatch(/次迭代|iterations/);
+    expect(secondary).not.toContain('relu');
+
+    const bare = mount(StatsAside, {
+      props: {
+        report: {
+          summary: { taskDurationUs: 1000 },
+          pipeOccupancy: [],
+          overviewSeries: [],
+        },
+      },
+    });
+    expect(bare.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-011: compute/BW/util cards absent under I-Q6a', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: {
+          summary: {
+            taskDurationUs: 1000,
+            computeTflops: 172,
+            ioBandwidth: 0.08,
+            avgCoreUtil: 0.69,
+          },
+          pipeOccupancy: [],
+          overviewSeries: [],
+        },
+      },
+    });
+    expect(wrapper.find('[data-testid="stats-compute-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-core-util-card"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toMatch(/算力情况|Computing power|输入带宽|Input bandwidth|平均核利用率|Average core/);
+  });
 });

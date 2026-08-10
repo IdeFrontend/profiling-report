@@ -71,10 +71,10 @@ Mockups extracted from the source docx live under [`docs/specs/ui/source/`](../u
 | Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
 | Meta row | Segments **核数** / **aic频率** / **NPU ARCH** only when `SummaryMetrics.coreCount` / `currentFreq` / `npuArchLabel` are set. Hide entire meta row if all empty. Do **not** invent values. Adapter may leave cores/ARCH unset until `HardwareInfo` mapping exists; `Current Freq` from OpBasicInfo feeds aic频率. **`Rated Freq` / `ratedFreq` is intentionally not shown** on this shell (sketch aic频率 only). |
 | 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Emit `open-hardware-details` only — full **硬件信息详情** panel (§11.2.3.1) remains **out of MVP (Q7)**. |
-| 整体耗时 card | Large duration + progress bar; secondary text like iterations/core |
-| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak |
-| 输入/输出带宽 card | Dual bars with measured / peak TB/s |
-| 平均核利用率 card | Percentage bar + enabled cores fraction |
+| 整体耗时 card | Large duration + **decorative** short cyan progress bar (I-Q6e, not a util %). Secondary: `blockDim` → iterations/core text; else `opName`; else omit. No standalone op-type card. |
+| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — **hidden until Q6** |
+| 输入/输出带宽 card | Dual bars with measured / peak TB/s — **hidden until Q6** |
+| 平均核利用率 card | Percentage bar + enabled cores fraction — **hidden until Q6** |
 
 Do **not** invent formulas for cards 5–8 until product defines fields; wire only once sources are known.
 

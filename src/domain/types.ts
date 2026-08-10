@@ -44,6 +44,8 @@ export interface SummaryMetrics {
   coreCount?: number;
   /** Aside meta shell: NPU ARCH peak label (e.g. `212 teraOPs`). */
   npuArchLabel?: string;
+  /** OpBasicInfo `Block Dim` pass-through (I-Q6e secondary). */
+  blockDim?: string | number;
   /** Interim I-Q6a: leave unset until Product formulas exist */
   computeTflops?: number;
   ioBandwidth?: number;
