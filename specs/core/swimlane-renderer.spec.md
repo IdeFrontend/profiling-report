@@ -39,6 +39,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-003**: Handles multiple processes/threads with correct lane ordering.
 1. **PR-RENDER-004**: Empty model renders empty canvas without errors.
 1. **PR-RENDER-005**: dispose cleans up internal state.
+1. **PR-RENDER-006**: WebGlSwimlaneRenderer attach/render/hitTest succeeds when WebGL2 is available (skipped when unsupported).
 1. **PR-RENDER-007**: Event label anchor centers in the full event when fully visible, and in the visible clip when partially off-screen.
 
 ## Edge Cases
