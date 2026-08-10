@@ -19,9 +19,13 @@ Renders each section title and key–value fields. Empty sections array → empt
 1. **PR-HW-001** — Renders section fields.
 2. **PR-HW-002** — Empty sections → no panel chrome.
 
+## Visual
+
+Normative crop: [`visual/hardware-detail.png`](./visual/hardware-detail.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
 ## Dependencies
 
-I-Q7a, [view-models](../../../specs/core/view-models.spec.md).
+I-Q7a, [view-models](../../../../specs/core/view-models.spec.md).
 
 ## Changelog
 

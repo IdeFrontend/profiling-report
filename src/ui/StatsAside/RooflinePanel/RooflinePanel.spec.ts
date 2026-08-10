@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import RooflinePanel from './RooflinePanel.vue';
-import type { RooflineViewModel } from '../../domain/types';
+import type { RooflineViewModel } from '../../../domain/types';
 
 const sample: RooflineViewModel = {
   points: [

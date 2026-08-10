@@ -48,6 +48,8 @@ Specs are co-located with their components.
 | DetailParameter | `PR-DPARAM-*` | P2 stub | `src/ui/DetailPanel/DetailParameter/DetailParameter.spec.md` |
 | DetailRelevant | `PR-DREL-*` | P2 stub | `src/ui/DetailPanel/DetailRelevant/DetailRelevant.spec.md` |
 | CsvFieldListPanel | `PR-CSV-*` | M1 | `src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md` |
+| RooflinePanel | `PR-ROOF-*` | M2 | `src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md` |
+| HardwareDetailsPanel | `PR-HW-*` | M1 | `src/ui/StatsAside/HardwareDetailsPanel/HardwareDetailsPanel.spec.md` |
 | SwimlaneCanvas | `PR-CANVAS-*` | MVP | `src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md` |
 
 ### Architecture

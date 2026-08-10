@@ -23,9 +23,13 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (I-Q11f).
 3. **PR-ROOF-003** — Empty points → no chart SVG.
 4. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance.
 
+## Visual
+
+Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
 ## Dependencies
 
-[view-models](../../../specs/core/view-models.spec.md), I-Q11a–f, [VIEW_DATA_MAPPING §11.2.4](../../../docs/specs/visualization/VIEW_DATA_MAPPING.md).
+[view-models](../../../../specs/core/view-models.spec.md), I-Q11a–f, [VIEW_DATA_MAPPING §11.2.4](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
 

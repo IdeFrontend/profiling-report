@@ -86,9 +86,9 @@ profiling-report/
         StatsSummaryPanel/                      stub + visual (impl still inline)
         PipeOccupancyPanel/                     stub + visual (impl still inline)
         CsvFieldListPanel/
-        RooflinePanel/                          stub + visual
+        RooflinePanel/                          M2 impl + visual
         MemoryTopologyPanel/                    stub + visual
-        HardwareDetailsPanel/                   stub + visual
+        HardwareDetailsPanel/                   M1 interim impl + visual
 
       DetailPanel/
         DetailPanel.vue

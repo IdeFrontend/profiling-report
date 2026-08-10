@@ -32,7 +32,7 @@ ProfilingReport
 │     ├─ CsvFieldListPanel (compute + memory detail tabs M1)
 │     ├─ RooflinePanel (M2)
 │     ├─ MemoryTopologyPanel (M2)
-│     └─ HardwareDetailsPanel (deferred)
+│     └─ HardwareDetailsPanel (M1 interim I-Q7a)
 ├─ DetailPanel → DetailSummary, DetailParameter (P2), DetailRelevant (P2)
 ├─ EventTooltip (overlay)
 ├─ ContextMenu (P2 overlay)
