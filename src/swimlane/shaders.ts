@@ -74,9 +74,10 @@ void main() {
 
   // Approximate pixel coverage from signed distance
   float coverage = clamp(0.5 - dist, 0.0, 1.0);
-  // Premultiplied RGB + coverage alpha for source-over (Canvas-like). Additive
-  // blending made nested/overlapping same-color intervals look like a bright block-in-block.
-  outColor = vec4(uColor.xyz * coverage, coverage);
+  // Premultiplied RGB + alpha: uColor.xyz is already RGB*emphasis, uColor.w is
+  // Canvas-equivalent globalAlpha (search/selection dim). Coverage AA on top.
+  float a = uColor.w * coverage;
+  outColor = vec4(uColor.xyz * coverage, a);
 }
 `;
 

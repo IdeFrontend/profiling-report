@@ -5,6 +5,7 @@ import {
   LANE_HEIGHT,
   contentHeightFromLayout,
   eventBlockMetrics,
+  eventEmphasisDim,
   eventLabelAnchor,
   eventScreenRect,
   findEvent,
@@ -22,16 +23,18 @@ function drawEventLabel(
   w: number,
   h: number,
   viewW: number,
+  alpha = 1,
 ): void {
   const anchor = eventLabelAnchor(x, w, viewW);
   if (!anchor) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
   ctx.fillStyle = '#ffffff';
   ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
-  ctx.textAlign = 'start';
-  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
 }
 
 function roundRectPath(
@@ -119,6 +122,8 @@ export class SwimlaneOverlayPainter {
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
+    const hasSearch = q.length > 0;
+    const hasSelection = this.selectedId != null;
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -130,7 +135,8 @@ export class SwimlaneOverlayPainter {
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
 
-      const matches = !q || ev.name.toLowerCase().includes(q);
+      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      const dim = eventEmphasisDim(matches, item.id === this.selectedId, hasSearch, hasSelection);
 
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
@@ -144,7 +150,8 @@ export class SwimlaneOverlayPainter {
         ctx.stroke();
       }
 
-      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width);
+      // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
+      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
     }
 
     if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {
@@ -275,6 +282,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
+    const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
 
     for (const item of this.layout.events) {
@@ -287,9 +295,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
 
-      const matches = !q || ev.name.toLowerCase().includes(q);
-      const dim =
-        (q && !matches ? 0.25 : 1) * (hasSelection && item.id !== this.selectedId ? 0.45 : 1);
+      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      const dim = eventEmphasisDim(matches, item.id === this.selectedId, hasSearch, hasSelection);
       ctx.globalAlpha = dim;
       ctx.fillStyle = item.color;
       roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
@@ -307,7 +314,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         ctx.stroke();
       }
 
-      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width);
+      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
       ctx.globalAlpha = 1;
     }
 

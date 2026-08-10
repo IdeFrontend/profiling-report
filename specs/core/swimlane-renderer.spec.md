@@ -28,7 +28,7 @@ class CanvasSwimlaneRenderer {
 
 **Event labels.** When the on-screen (clipped) event width is wide enough (>40px), the title is drawn centered: vertically at the event block mid-line (`textBaseline: middle`), horizontally at the center of the visible intersection of the event rect with the canvas (fully on-screen → center of the event; clipped left/right → center of the remaining visible strip). Canvas fallback and the WebGL overlay share this layout.
 
-**Search dimming.** A non-empty search query dims non-matching event fills to 25% opacity (Canvas `globalAlpha`; WebGL scales `uColor` RGB on a match/dim mesh split). Matching labels still draw on the overlay; non-matches omit labels. Clearing the query restores full-opacity meshes.
+**Search / selection emphasis.** Non-matching search hits dim to 25% opacity; when an event is selected, non-selected events multiply by 0.45 (combined when both apply). Canvas uses `globalAlpha`; WebGL rebuilds per-dim mesh layers and passes premul `uColor` RGB×dim with alpha=dim. Labels use the same dim (overlay + Canvas fallback); search non-matches omit labels. Clearing search and selection restores full opacity.
 
 **Lane chrome.** Every event-sequence lane shares the same background fill (`#2a2a2a`); alternating zebra stripes are not used. Horizontal dividers (`#3a3a3a`) are drawn at the bottom of each group header and each lane, aligned with the LaneGutter borders so separators read as continuous lines from the gutter across the timeline. WebGL draws the same uniform fill and 1px divider rects; Canvas uses strokes at the same edges.
 
@@ -49,6 +49,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-007**: Event label anchor centers in the full event when fully visible, and in the visible clip when partially off-screen.
 1. **PR-RENDER-008**: WebGL setSearchQuery rebuilds match/dim meshes and render does not throw.
 1. **PR-RENDER-009**: `encodeIntervalPair` keeps end > start after float32 rounding for large-magnitude times.
+1. **PR-RENDER-010**: `eventEmphasisDim` matches Canvas factors (search 0.25 × selection 0.45); WebGL setSelection rebuilds emphasis layers and render does not throw.
 
 ## Edge Cases
 
@@ -63,6 +64,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-10** — WebGL selection + search emphasis parity with Canvas (fills + labels); premul alpha dim.
 - **2026-08-10** — WebGL source-over blend + float32-safe interval encoding (no bright nested overdraw).
 - **2026-08-10** — WebGL search dimming (match Canvas 0.25); overlay cursor `#317AF7`.
 - **2026-08-07** — Event blocks vertically centered in lane rows; labels centered in the visible event rect (Canvas + WebGL overlay).

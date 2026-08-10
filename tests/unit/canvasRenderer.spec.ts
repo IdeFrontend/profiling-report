@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   encodeIntervalPair,
+  eventEmphasisDim,
   eventLabelAnchor,
   hitTestLayout,
   rebuildLayout,
@@ -136,6 +137,31 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.setSearchQuery('PIPE');
     expect(() => renderer.render()).not.toThrow();
     renderer.setSearchQuery('');
+    expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
+
+  it('PR-RENDER-010: eventEmphasisDim + WebGL setSelection rebuild', () => {
+    expect(eventEmphasisDim(false, false, true, false)).toBe(0.25);
+    expect(eventEmphasisDim(true, false, false, true)).toBe(0.45);
+    expect(eventEmphasisDim(false, false, true, true)).toBeCloseTo(0.25 * 0.45);
+    expect(eventEmphasisDim(true, true, true, true)).toBe(1);
+
+    const canvas = document.createElement('canvas');
+    if (!WebGlSwimlaneRenderer.isSupported(canvas)) {
+      expect(WebGlSwimlaneRenderer.isSupported(canvas)).toBe(false);
+      return;
+    }
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setSelection('e-long', null);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setSearchQuery('PIPE');
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setSelection(null, null);
     expect(() => renderer.render()).not.toThrow();
     renderer.dispose();
   });

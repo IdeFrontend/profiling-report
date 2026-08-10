@@ -7,6 +7,7 @@ import {
   contentHeightFromLayout,
   encodeIntervalPair,
   eventBlockMetrics,
+  eventEmphasisDim,
   eventScreenRect,
   findEvent,
   findLaidOutEvent,
@@ -37,13 +38,16 @@ interface MeshChunk {
   indexCount: number;
 }
 
+interface EmphasisLayer {
+  dim: number;
+  chunks: MeshChunk[];
+}
+
 interface LaneMeshes {
   color: [number, number, number];
   chunks: MeshChunk[];
-  /** When search is active: full-opacity matches. */
-  matchChunks: MeshChunk[] | null;
-  /** When search is active: dimmed non-matches (Canvas uses alpha 0.25). */
-  dimChunks: MeshChunk[] | null;
+  /** When search and/or selection is active: per-dim mesh layers (Canvas alpha parity). */
+  emphasisLayers: EmphasisLayer[] | null;
 }
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
@@ -197,6 +201,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   /** Subtracted from event times before float32 upload (model.minTime). */
   private timeBase = 0;
   private searchQuery = '';
+  private selectedId: string | null = null;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -249,13 +254,17 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.view = { ...view };
   }
 
-  setSelection(_selectedId: string | null, _hoveredId: string | null): void {}
+  setSelection(selectedId: string | null, _hoveredId: string | null): void {
+    if (selectedId === this.selectedId) return;
+    this.selectedId = selectedId;
+    this.rebuildEmphasisSplit();
+  }
 
   setSearchQuery(query: string): void {
     const q = query.trim().toLowerCase();
     if (q === this.searchQuery) return;
     this.searchQuery = q;
-    this.rebuildSearchSplit();
+    this.rebuildEmphasisSplit();
   }
 
   /** Cursor is drawn on the Canvas overlay; no-op here. */
@@ -356,16 +365,18 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       if (swim.uYBounds) gl.uniform2f(swim.uYBounds, top, top + bandH);
 
       const drawChunks = (chunks: MeshChunk[], dim: number): void => {
-        gl.uniform4f(swim.uColor, r * dim, g * dim, b * dim, 1);
+        // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
+        gl.uniform4f(swim.uColor, r * dim, g * dim, b * dim, dim);
         for (const chunk of chunks) {
           gl.bindVertexArray(chunk.vao);
           gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
         }
       };
 
-      if (meshes.matchChunks && meshes.dimChunks) {
-        drawChunks(meshes.dimChunks, 0.25);
-        drawChunks(meshes.matchChunks, 1);
+      if (meshes.emphasisLayers) {
+        for (const layer of meshes.emphasisLayers) {
+          drawChunks(layer.chunks, layer.dim);
+        }
       } else {
         drawChunks(meshes.chunks, 1);
       }
@@ -436,20 +447,22 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       return {
         color: hexToRgb(lane.color),
         chunks: createChunksFromPairs(gl, pairs),
-        matchChunks: null,
-        dimChunks: null,
+        emphasisLayers: null,
       };
     });
-    this.rebuildSearchSplit();
+    this.rebuildEmphasisSplit();
   }
 
-  /** Split lane meshes into match / dim sets when a search query is active. */
-  private rebuildSearchSplit(): void {
+  /** Split lane meshes by Canvas-equivalent emphasis dim (search × selection). */
+  private rebuildEmphasisSplit(): void {
     const gl = this.gl;
-    this.disposeSearchSplit();
-    if (!gl || !this.searchQuery) return;
-
+    this.disposeEmphasisSplit();
     const q = this.searchQuery;
+    const sel = this.selectedId;
+    if (!gl || (!q && !sel)) return;
+
+    const hasSearch = q.length > 0;
+    const hasSelection = sel != null;
     const byLane = new Map<number, LaidOutEvent[]>();
     for (const ev of this.layout.events) {
       const list = byLane.get(ev.laneIndex) ?? [];
@@ -460,33 +473,38 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     for (let idx = 0; idx < this.laneMeshes.length; idx++) {
       const meshes = this.laneMeshes[idx]!;
       const events = byLane.get(idx) ?? [];
-      const matchPairs: number[] = [];
-      const dimPairs: number[] = [];
+      const byDim = new Map<number, number[]>();
       for (const item of events) {
-        const dest = item.event.name.toLowerCase().includes(q) ? matchPairs : dimPairs;
+        const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
+        const dim = eventEmphasisDim(matches, item.id === sel, hasSearch, hasSelection);
+        let pairs = byDim.get(dim);
+        if (!pairs) {
+          pairs = [];
+          byDim.set(dim, pairs);
+        }
         const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-        dest.push(a, b);
+        pairs.push(a, b);
       }
-      meshes.matchChunks = createChunksFromPairs(gl, matchPairs);
-      meshes.dimChunks = createChunksFromPairs(gl, dimPairs);
+      // Dimmer layers first so full-bright selection/matches paint on top.
+      meshes.emphasisLayers = [...byDim.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([dim, pairs]) => ({ dim, chunks: createChunksFromPairs(gl, pairs) }));
     }
   }
 
-  private disposeSearchSplit(): void {
+  private disposeEmphasisSplit(): void {
     for (const lane of this.laneMeshes) {
-      if (lane.matchChunks) {
-        for (const c of lane.matchChunks) this.deleteChunk(c);
-        lane.matchChunks = null;
-      }
-      if (lane.dimChunks) {
-        for (const c of lane.dimChunks) this.deleteChunk(c);
-        lane.dimChunks = null;
+      if (lane.emphasisLayers) {
+        for (const layer of lane.emphasisLayers) {
+          for (const c of layer.chunks) this.deleteChunk(c);
+        }
+        lane.emphasisLayers = null;
       }
     }
   }
 
   private disposeMeshes(): void {
-    this.disposeSearchSplit();
+    this.disposeEmphasisSplit();
     for (const lane of this.laneMeshes) {
       for (const c of lane.chunks) this.deleteChunk(c);
     }

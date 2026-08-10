@@ -172,6 +172,16 @@ export function encodeIntervalPair(
   return [f0, f1];
 }
 
+/** Canvas/WebGL fill+label opacity: search miss → 0.25, non-selected when selection → ×0.45. */
+export function eventEmphasisDim(
+  matchesSearch: boolean,
+  isSelected: boolean,
+  hasSearch: boolean,
+  hasSelection: boolean,
+): number {
+  return (hasSearch && !matchesSearch ? 0.25 : 1) * (hasSelection && !isSelected ? 0.45 : 1);
+}
+
 /** Parse `#RRGGBB` → RGB in 0..1. */
 export function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
