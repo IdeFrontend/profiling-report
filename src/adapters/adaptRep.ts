@@ -1,6 +1,8 @@
 import type {
   AdaptedReport,
   CsvTableModel,
+  HardwareDetailsModel,
+  HardwareSection,
   ParsedRep,
   PipeOccupancyItem,
   ReportCapability,
@@ -397,6 +399,7 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
     parsed.payloads['ArithmeticUtilization.csv'],
     parsed.payloads['Memory.csv'],
   );
+  const hardwareDetails = hardwareDetailsFromParsed(parsed);
   return {
     summary: summaryFromOpBasicInfo(parsed.payloads['OpBasicInfo.csv']),
     pipeOccupancy: pipeOccupancyFromCsv(parsed.payloads['PipeUtilization.csv']),
@@ -405,6 +408,7 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
     memoryTables: memory.tables,
     csvTexts: { ...compute.texts, ...memory.texts },
     ...(roofline ? { roofline } : {}),
+    ...(hardwareDetails ? { hardwareDetails } : {}),
   };
 }
 
@@ -420,6 +424,54 @@ export function emptyReportViewModel(): ReportViewModel {
   };
 }
 
+/** I-Q7a: HardwareInfo.jsonl sections, else OpBasicInfo flat fields. */
+function hardwareDetailsFromParsed(parsed: ParsedRep): HardwareDetailsModel | undefined {
+  const jsonl = parsed.payloads['HardwareInfo.jsonl'];
+  if (jsonl) {
+    const sections = hardwareSectionsFromJsonl(decodeUtf8(jsonl));
+    if (sections.length > 0) return { sections };
+  }
+  const op = parsed.payloads['OpBasicInfo.csv'];
+  if (!op) return undefined;
+  const { headers, rows } = parseCsv(decodeUtf8(op));
+  const row = rows[0];
+  if (!row) return undefined;
+  const fields = headers
+    .map((h) => ({ key: h, value: (row[h] ?? '').trim() }))
+    .filter((f) => f.value !== '');
+  if (fields.length === 0) return undefined;
+  return {
+    sections: [{ id: 'opBasicInfo', title: 'OpBasicInfo', fields }],
+  };
+}
+
+function hardwareSectionsFromJsonl(text: string): HardwareSection[] {
+  const sections: HardwareSection[] = [];
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(lines[i]) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const category = String(obj.category ?? `section-${i}`);
+    const fields = Object.entries(obj)
+      .filter(([k]) => k !== 'category')
+      .map(([key, value]) => ({
+        key,
+        value: value == null ? '' : Array.isArray(value) ? value.join(', ') : String(value),
+      }))
+      .filter((f) => f.value !== '');
+    if (fields.length === 0) continue;
+    sections.push({
+      id: category.toLowerCase().replace(/\s+/g, '-'),
+      title: category,
+      fields,
+    });
+  }
+  return sections;
+}
 function swimlaneFromParsed(parsed: ParsedRep, pipes: PipeOccupancyItem[]): SwimlaneModel {
   const bytes = parsed.payloads['trace.json'];
   if (!bytes) {
@@ -441,8 +493,9 @@ function swimlaneFromParsed(parsed: ParsedRep, pipes: PipeOccupancyItem[]): Swim
 /** Map parsed `.rep` embeds → swimlane + report view-models. */
 export function adaptRep(parsed: ParsedRep): AdaptedReport {
   const reportModel = reportModelFromParsed(parsed);
-  const capabilities: ReportCapability[] =
-    (reportModel.roofline?.points.length ?? 0) > 0 ? ['roofline'] : [];
+  const capabilities: ReportCapability[] = [];
+  if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
+  if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   return {
     swimlaneModel: swimlaneFromParsed(parsed, reportModel.pipeOccupancy),
     reportModel,

@@ -26,6 +26,7 @@ import type {
   SwimlaneModel,
   SwimlaneViewState,
   TimeDisplayUnit,
+  ViewFullCsvPayload,
 } from '../../domain/types';
 import { t } from '../../i18n';
 import SwimlaneCanvas from '../../swimlane/SwimlaneCanvas/SwimlaneCanvas.vue';
@@ -67,6 +68,7 @@ const emit = defineEmits<{
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-hardware-details': [];
   'open-pipe-details': [];
+  'view-full-csv': [payload: ViewFullCsvPayload];
 }>();
 
 const internalSwim = ref<SwimlaneModel | null>(null);
@@ -605,6 +607,7 @@ defineExpose({ selectEventById, viewState });
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
           @open-pipe-details="emit('open-pipe-details')"
+          @view-full-csv="emit('view-full-csv', $event)"
         />
       </template>
     </ReportLayout>

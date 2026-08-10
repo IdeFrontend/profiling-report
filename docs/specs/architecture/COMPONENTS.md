@@ -224,7 +224,7 @@ Selection summary (name + timing). Compact strip for MVP (full bottom dock / dep
 
 Right analytics column. **Shell (M):** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → emit `open-hardware-details` (no panel until Q7). **PIPE (M):** scale, hatched bars, optional absolute times (I-Q6f), **详情** → emit `open-pipe-details` (detail panel M1 separate). Mode switcher remains an **M1 separate slice**.
 
-Inline today: summary cards + PIPE occupancy (+ Cube|Vector for MIX) + **RooflinePanel** (M2 interim I-Q11*) when `report.roofline.points` non-empty. Planned children: `CsvFieldListPanel`, `MemoryTopologyPanel`, `HardwareDetailsPanel`.
+Inline today: summary cards + PIPE occupancy (+ Cube|Vector for MIX) + **RooflinePanel** (M2 interim I-Q11*) when `report.roofline.points` non-empty. Drill-down surfaces: `CsvFieldListPanel` (pipe/memory), `HardwareDetailsPanel` (I-Q7a). Planned: `MemoryTopologyPanel`.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
@@ -258,11 +258,11 @@ Static SVG memory path diagram with **data-driven edge labels** from Memory* CSV
 
 **Why:** Named stub; geometry stays in asset, labels from adapter mapping table.
 
-### `HardwareDetailsPanel` (out of MVP)
+### `HardwareDetailsPanel` (M1 interim I-Q7a)
 
-Host/NPU/HBM inventory.
+Sectioned key–value list from `HardwareDetailsModel`. Prefer HardwareInfo.jsonl; else OpBasicInfo. Never invent peaks/cores/HBM.
 
-**Why:** Product deferred until further specs ([Q7](../../context/OPEN_QUESTIONS.md)).
+**Why:** 更多 drill-down while Product Q7 inventory remains open.
 
 ### `DependencyLinksLayer` (P2)
 

@@ -28,6 +28,8 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Roofline (M2 interim I-Q11*).** When `ArithmeticUtilization.csv` and `Memory.csv` yield a GM point: set `reportModel.roofline` and include `'roofline'` in `capabilities`. Omit `roofline` (and the capability) when undecidable. L2 omitted (I-Q11c). Tabs omitted (I-Q11f).
 
+**Hardware details (M1 interim I-Q7a).** Prefer `HardwareInfo.jsonl` category sections; else OpBasicInfo non-empty columns. Omit when neither yields fields. Include `'hardwareDetails'` in capabilities when model present.
+
 ## Acceptance Criteria
 
 1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration; optional blockDim pass-through; compute/BW/util unset per I-Q6a.
@@ -38,6 +40,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 6. **PR-VM-007** — `memoryTables` includes Memory.csv, L2Cache.csv, MemoryL0.csv, MemoryUB.csv with blockIds; `csvTexts` has raw text for each present table fileName.
 7. **PR-VM-008** — ICache Miss included when rate mean present.
 8. **PR-VM-009** — Roofline GM point + mix labels from ArithmeticUtilization + Memory (I-Q11a/b/e); capability `roofline` when points exist; omit when CSVs insufficient.
+9. **PR-VM-010** — `hardwareDetails` from HardwareInfo.jsonl or OpBasicInfo fallback (I-Q7a); omit when empty; capability `hardwareDetails` when present.
 
 ## Edge Cases
 
@@ -46,16 +49,18 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 - Missing optional CSV embed → that table omitted (no empty stub).
 - Chrome Trace with no X events → throws (chromeTraceToSwimlane behavior).
 - Missing ArithmeticUtilization or Memory → no `roofline` field.
+- Missing HardwareInfo and empty OpBasicInfo → no `hardwareDetails` field.
 
 ## Dependencies
 
-I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q5+, I-Q11a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
+I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q5+, I-Q7a, I-Q11a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
 
 ## Open
 
 Q6 — Product-final summary formulas. Q11 — Product-final roofline. Q22 — measureRange aside sync. M2 topology edge labels.
 
 ## Changelog
+- **2026-08-10** — hardwareDetails I-Q7a (PR-VM-010).
 - **2026-08-10** — RooflineViewModel interim I-Q11a–f (PR-VM-009).
 - **2026-08-07** — Optional `absoluteValue` (I-Q6f) and ICache Miss (PR-VM-008) on pipe occupancy.
 - **2026-08-07** — Optional `coreCount` / `npuArchLabel` on SummaryMetrics for aside meta shell; adapter may leave unset.

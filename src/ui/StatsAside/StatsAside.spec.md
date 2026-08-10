@@ -8,14 +8,14 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), mode swit
 
 ## Inputs
 
-**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, and optional `roofline`. Optional **locale**. Optional **capabilities** (e.g. `hardwareDetails`) gates shell controls that need feature flags.
+**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** (e.g. `hardwareDetails`) gates shell controls that need feature flags.
 
 ## Outputs
 
 - **close** — aside close control; parent clears `asideVisible`.
 - **open-hardware-details** — **更多** / More (emit intent).
 - **view-full-csv** — re-emitted from `CsvFieldListPanel` (I-Q6d).
-- **open-pipe-details** — **详情** / Details on the PIPE section (emit intent; detail panel is a separate slice).
+- **open-pipe-details** — **详情** / Details on the PIPE section; switches to compute mode when compute tables exist, and always emits.
 
 ## Behavior
 
@@ -37,7 +37,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / input B
 
 **PIPE.** Matches [`pipe-occupancy.png`](../../../docs/specs/ui/source/pipe-occupancy.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS.
 
-Section header shows localized **pipeOccupancy** title and a **详情** / Details control that emits **open-pipe-details** (no detail panel in this slice). A 0%–100% scale sits above the rows. Each row: label, track with solid fill for ratio and hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f mean `*_time(us)`), and a right-aligned percent.
+Section header shows localized **pipeOccupancy** title and a **详情** / Details control that switches to compute mode when tables exist and emits **open-pipe-details**. A 0%–100% scale sits above the rows. Each row: label, track with solid fill for ratio and hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f mean `*_time(us)`), and a right-aligned percent.
 
 **Cube | Vector toggle.** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side (cube/aic or vector/aiv/vec): no toggle; show pipes for that side only. When `opType` is blank or unrecognized: no toggle; show all PIPE bars (do not default-filter to vector).
 
@@ -46,6 +46,10 @@ Section header shows localized **pipeOccupancy** title and a **详情** / Detail
 ### Roofline (M2 interim)
 
 When `report.roofline.points` is non-empty, mount `RooflinePanel` below the active mode panel (I-Q11a–f). Hide when absent. No tabs until I-Q11f superseded.
+
+### Hardware details (M1 interim I-Q7a)
+
+**更多** opens an overlay with `HardwareDetailsPanel` when `hardwareDetails` is present (and emits `open-hardware-details`). Header **←** returns to mode panels. CSV Pipe/Memory drill-downs use the mode switcher (not a separate surface).
 
 ## Acceptance Criteria
 
@@ -64,6 +68,9 @@ When `report.roofline.points` is non-empty, mount `RooflinePanel` below the acti
 13. **PR-STATS-013** — Absolute time in bar when present.
 14. **PR-STATS-014** — Details emit open-pipe-details.
 15. **PR-STATS-015** — Roofline section when `roofline.points` present; hidden when absent.
+16. **PR-STATS-016** — 详情 switches to compute mode when compute tables exist and emits open-pipe-details.
+17. **PR-STATS-017** — Memory mode shows memory CSV panel when tables present.
+18. **PR-STATS-018** — 更多 navigates to hardware overlay when hardwareDetails present; back returns.
 
 ## Edge Cases
 
@@ -89,9 +96,10 @@ When `report.roofline.points` is non-empty, mount `RooflinePanel` below the acti
 
 ## Dependencies
 
-[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/specs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f, I-Q11a–f.
+[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/specs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f, I-Q7a, I-Q11a–f.
 
 ## Changelog
+- **2026-08-10** — Hardware overlay via 更多 (PR-STATS-018, I-Q7a); PIPE 详情 → compute mode (PR-STATS-016).
 - **2026-08-10** — Roofline section when points present (PR-STATS-015, I-Q11*).
 - **2026-08-07** — PIPE sketch chrome: scale, hatch, absolute time, Details (PR-STATS-012–014, I-Q6f).
 - **2026-08-07** — Duration card chrome I-Q6e (PR-STATS-009–011).
@@ -103,4 +111,4 @@ When `report.roofline.points` is non-empty, mount `RooflinePanel` below the acti
 
 ## Open
 
-Q22 — measureRange aside sync. Q7 — HardwareDetailsPanel.
+Q22 — measureRange aside sync.

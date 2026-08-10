@@ -94,12 +94,12 @@ Sketch / changelog: [`docs/source/changes/changes.png`](../../source/changes/cha
 ## Right panel coordination
 
 - Aside **close (X)** clears `asideVisible` (equivalent to toolbar stats toggle off). See [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md).
-- **更多** / More emits library intent `open-hardware-details`; full hardware UI remains **out of MVP ([Q7](../../context/OPEN_QUESTIONS.md))** until a later slice.
-- Aside modes (M1): Summary | PIPE | compute details | Memory — see [FEATURE_MATRIX](FEATURE_MATRIX.md) and changelog #2–#4.
+- **更多** / More opens interim `HardwareDetailsPanel` (I-Q7a) when data exists and emits `open-hardware-details`.
+- Aside modes (M1): overview drill-downs for Pipe details / Memory / Hardware — see [FEATURE_MATRIX](FEATURE_MATRIX.md) and changelog #2–#4.
 - PIPE bars remain global mean aggregates ([I-Q6b](../../context/INTERIM_DECISIONS.md)) unless Product later ties them to selection or measure (Q22).
 - Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../../context/INTERIM_DECISIONS.md)).
 - Cube \| Vector toggle on PIPE for MIX ops only.
-- PIPE section **详情** emits `open-pipe-details` (detail panel M1 separate).
+- PIPE section **详情** navigates to compute CSV details + emits `open-pipe-details`.
 - Roofline (M2 interim I-Q11*): shown below PIPE when `report.roofline.points` non-empty; tabs omitted.
 - Compute details: tabs PipeUtilization | ArithmeticUtilization | ResourceConflictRatio.
 - Memory details: tabs Memory L1 | L2Cache | Memory L0 | Memory UB; **查看全部** opens full CSV ([I-Q6d](../../context/INTERIM_DECISIONS.md)).

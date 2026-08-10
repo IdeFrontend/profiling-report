@@ -158,4 +158,15 @@ describe('PR-VM: report view-models (interim)', () => {
       { id: 'fp16', label: 'Cube_FP16', percent: 100 },
     ]);
   });
+
+  it('PR-VM-010 (interim I-Q7a): hardwareDetails falls back to OpBasicInfo', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    expect(adapted.reportModel.hardwareDetails).toBeDefined();
+    expect(adapted.capabilities).toContain('hardwareDetails');
+    const section = adapted.reportModel.hardwareDetails!.sections[0];
+    expect(section.title).toBe('OpBasicInfo');
+    const byKey = Object.fromEntries(section.fields.map((f) => [f.key, f.value]));
+    expect(byKey['Op Name']).toBe('add_custom');
+    expect(byKey['Current Freq']).toBe('1650');
+  });
 });

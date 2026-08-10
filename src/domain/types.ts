@@ -106,6 +106,22 @@ export interface RooflineViewModel {
   peakBandwidthGBs: number;
 }
 
+export interface HardwareField {
+  key: string;
+  value: string;
+}
+
+export interface HardwareSection {
+  id: string;
+  title: string;
+  fields: HardwareField[];
+}
+
+/** M1 interim hardware details (I-Q7a). */
+export interface HardwareDetailsModel {
+  sections: HardwareSection[];
+}
+
 export interface ReportViewModel {
   summary: SummaryMetrics;
   pipeOccupancy: PipeOccupancyItem[];
@@ -118,7 +134,14 @@ export interface ReportViewModel {
   csvTexts: Record<string, string>;
   /** Interim I-Q11*; omit when no GM point. */
   roofline?: RooflineViewModel;
+  /** Interim I-Q7a; omit when empty. */
+  hardwareDetails?: HardwareDetailsModel;
 }
+
+export type ViewFullCsvPayload = {
+  fileName: string;
+  text: string;
+};
 
 export type ReportCapability =
   | 'roofline'

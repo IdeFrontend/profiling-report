@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
 import type { PipeOccupancyItem, ReportCapability, ReportViewModel } from '../../domain/types';
 import CsvFieldListPanel from '../CsvFieldListPanel/CsvFieldListPanel.vue';
+import HardwareDetailsPanel from '../HardwareDetailsPanel/HardwareDetailsPanel.vue';
 import RooflinePanel from '../RooflinePanel/RooflinePanel.vue';
 
 const props = defineProps<{
@@ -20,6 +21,8 @@ const emit = defineEmits<{
 
 type PipeSide = 'cube' | 'vector';
 type AsideMode = 'summary' | 'pipe' | 'compute' | 'memory';
+/** Overlay for I-Q7a hardware; CSV drill-downs use mode tabs. */
+type AsideSurface = 'modes' | 'hardware';
 
 const COLOR: Record<string, string> = {
   cube: 'var(--pr-color-cube)',
@@ -48,6 +51,7 @@ const availableModes = computed(() => {
 });
 
 const mode = ref<AsideMode>('summary');
+const asideSurface = ref<AsideSurface>('modes');
 
 watch(
   availableModes,
@@ -60,6 +64,9 @@ watch(
 );
 
 const showRoofline = computed(() => (props.report?.roofline?.points?.length ?? 0) > 0);
+const hasHardwareDetails = computed(
+  () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
+);
 
 const summary = computed(() => props.report?.summary);
 
@@ -137,6 +144,26 @@ function formatPipeAbsolute(v: number): string {
 }
 
 const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
+
+const headerTitle = computed(() =>
+  asideSurface.value === 'hardware'
+    ? t('hardwareDetails', props.locale)
+    : t('summary', props.locale),
+);
+
+function openHardware() {
+  if (hasHardwareDetails.value) asideSurface.value = 'hardware';
+  emit('open-hardware-details');
+}
+
+function openPipeDetails() {
+  if (showCompute.value) mode.value = 'compute';
+  emit('open-pipe-details');
+}
+
+function backToModes() {
+  asideSurface.value = 'modes';
+}
 </script>
 
 <template>
@@ -146,11 +173,23 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
   >
     <header class="pr-aside__head">
       <div class="pr-aside__title-row">
+        <button
+          v-if="asideSurface !== 'modes'"
+          type="button"
+          class="pr-aside__back"
+          data-testid="stats-aside-back"
+          :aria-label="t('back', locale)"
+          :title="t('back', locale)"
+          @click="backToModes"
+        >
+          ←
+        </button>
         <span
+          v-else
           class="pr-aside__icon"
           aria-hidden="true"
         >▦</span>
-        <h3>{{ t('summary', locale) }}</h3>
+        <h3>{{ headerTitle }}</h3>
         <button
           type="button"
           class="pr-aside__close"
@@ -163,7 +202,7 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
         </button>
       </div>
       <p
-        v-if="hasMeta || showMore"
+        v-if="asideSurface === 'modes' && (hasMeta || showMore)"
         class="pr-aside__meta"
         :data-testid="hasMeta ? 'stats-aside-meta' : undefined"
       >
@@ -184,13 +223,25 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
           type="button"
           class="pr-aside__more"
           data-testid="stats-aside-more"
-          @click="emit('open-hardware-details')"
+          @click="openHardware"
         >
           {{ t('more', locale) }}
         </button>
       </p>
     </header>
 
+    <div
+      v-if="asideSurface === 'hardware' && report?.hardwareDetails"
+      class="pr-aside__detail"
+      data-testid="stats-hardware-details"
+    >
+      <HardwareDetailsPanel
+        :model="report.hardwareDetails"
+        :locale="locale"
+      />
+    </div>
+
+    <template v-else>
     <nav
       v-if="availableModes.length > 1"
       class="pr-aside__modes"
@@ -254,7 +305,7 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
           type="button"
           class="pr-pipe-details"
           data-testid="pipe-details"
-          @click="emit('open-pipe-details')"
+          @click="openPipeDetails"
         >
           {{ t('details', locale) }}
         </button>
@@ -372,6 +423,7 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
         :locale="locale"
       />
     </div>
+    </template>
   </aside>
 </template>
 
@@ -405,6 +457,21 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
   font-size: 12px;
   color: #8ab4c8;
   line-height: 1;
+}
+
+.pr-aside__back {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #a8a8a8;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px 0 0;
+  cursor: pointer;
+}
+
+.pr-aside__back:hover {
+  color: #e8e8e8;
 }
 
 .pr-aside__close {

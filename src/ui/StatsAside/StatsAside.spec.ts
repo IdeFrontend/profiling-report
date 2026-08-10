@@ -377,6 +377,9 @@ describe('StatsAside', () => {
     });
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.emitted('open-pipe-details')).toBeTruthy();
+    // No csvTables → stay on overview (no blank drill-down)
+    expect(wrapper.find('[data-testid="stats-pipe-details"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
   });
 
   it('PR-STATS-015: Roofline section when points present; hidden when absent', () => {
@@ -410,5 +413,80 @@ describe('StatsAside', () => {
       },
     });
     expect(without.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-016: 详情 switches to compute mode when tables exist', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: base({
+          summary: { opType: 'vector' },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: {
+            'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.5\n',
+          },
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="aside-mode-pipe"]').trigger('click');
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.emitted('open-pipe-details')).toBeTruthy();
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-017: Memory mode shows memory CSV panel', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: base({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'x'],
+              rows: [{ block_id: '0', x: '1' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: { 'Memory.csv': 'block_id,x\n0,1\n' },
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="aside-mode-memory"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
+  });
+
+  it('PR-STATS-018: 更多 navigates to hardware when hardwareDetails present', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: base({
+          summary: { currentFreq: 1650 },
+          hardwareDetails: {
+            sections: [
+              {
+                id: 'op',
+                title: 'OpBasicInfo',
+                fields: [{ key: 'Op Name', value: 'add_custom' }],
+              },
+            ],
+          },
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="stats-aside-more"]').trigger('click');
+    expect(wrapper.emitted('open-hardware-details')).toBeTruthy();
+    expect(wrapper.find('[data-testid="stats-hardware-details"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('add_custom');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-hardware-details"]').exists()).toBe(false);
   });
 });

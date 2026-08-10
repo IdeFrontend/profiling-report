@@ -46,6 +46,12 @@ const messages = {
     iterationsPerCore: '{n} 次迭代 / 核',
     details: '详情',
     roofline: 'Roofline 瓶颈分析',
+    block: 'Block',
+    viewFullCsv: '查看全部',
+    memoryDetails: '内存负载',
+    hardwareDetails: '硬件信息',
+    pipeDetails: 'PIPE 占用率',
+    back: '返回',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -92,6 +98,12 @@ const messages = {
     iterationsPerCore: '{n} iterations / core',
     details: 'Details',
     roofline: 'Roofline bottleneck analysis',
+    block: 'Block',
+    viewFullCsv: 'View full CSV',
+    memoryDetails: 'Memory load',
+    hardwareDetails: 'Hardware info',
+    pipeDetails: 'PIPE occupancy',
+    back: 'Back',
   },
 } as const;
 

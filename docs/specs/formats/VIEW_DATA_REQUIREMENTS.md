@@ -103,7 +103,8 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Hide** until Q6 / data spec |
 | I/O bandwidth tiles | `Memory.csv` / OpBasicInfo TBD | **Hide** until Q6 / data spec |
 | Avg core util % | PipeUtilization / OpBasicInfo TBD | **Hide** until Q6 / data spec |
-| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** raw on aside **meta row** only: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. Show each segment only when set; **never invent** peaks/cores. Full hardware aside **out of MVP (Q7)** — **更多** emits intent only |
+| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** raw on aside **meta row** only: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. Show each segment only when set; **never invent** peaks/cores |
+| Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Interim ([I-Q7a](../../context/INTERIM_DECISIONS.md)):** `HardwareDetailsPanel` from jsonl sections or OpBasicInfo fallback; 更多 opens it |
 
 If no `taskDurationUs` → **hide** the summary card group (PIPE may still show). Meta row is independent of summary cards (may show freq alone).
 
@@ -119,7 +120,7 @@ If no `taskDurationUs` → **hide** the summary card group (PIPE may still show)
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([changes.png](../../source/changes/changes.png) #2) |
 | Colors | Normative sketch tokens — [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
-| 详情 | Emit `open-pipe-details` (detail panel M1 separate) |
+| 详情 | Navigate to compute `CsvFieldListPanel` + emit `open-pipe-details` |
 
 Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 
@@ -184,11 +185,15 @@ Hide tab when CSV missing.
 
 ---
 
-### 14. Hardware details (`HardwareDetailsPanel`) — out of MVP (Q7)
+### 14. Hardware details (`HardwareDetailsPanel`) — M1 interim I-Q7a
 
 | Input | Requirement |
 |-------|-------------|
-| Host CPU, NPU chip, HBM, core counts | **Out of MVP** until further product/spec docs |
+| `HardwareInfo.jsonl` sections | Preferred when present |
+| OpBasicInfo non-empty columns | Fallback when jsonl absent |
+| Invented cores / HBM / peaks | **Never** |
+
+Omit panel when neither source yields fields. 更多 navigates in-aside + still emits `open-hardware-details`.
 
 ---
 
