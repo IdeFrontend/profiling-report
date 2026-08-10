@@ -93,9 +93,9 @@ Crops: [`visual/mode-tabs.png`](./visual/mode-tabs.png), [`visual/summary-cards.
 
 ## Design sketches
 
-- [mode-tabs](./visual/mode-tabs.png) — from `v930/report-stats-open`
+- [mode-tabs](./visual/mode-tabs.png) — Cube|Vector tabs from `v930/compute-load`
 - [summary-cards](./visual/summary-cards.png) — from `v930/report-stats-open`
-- [pipe-bars](./visual/pipe-bars.png) — from `v930/report-stats-scrolled`
+- [pipe-bars](./visual/pipe-bars.png) — from `v930/compute-load`
 - [aside-scrolled](./visual/aside-scrolled.png) — from `v930/report-stats-scrolled`
 - [hardware-detail](./visual/hardware-detail.png) — from `v930/hardware-more-detail`
 - [changes.png](../../../docs/source/changes/changes.png) #2–#4

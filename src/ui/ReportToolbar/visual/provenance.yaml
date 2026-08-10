@@ -3,13 +3,13 @@ source_primary: v930/entry
 crops:
   search.png:
     source: v930/entry
-    region: "Search pill on report toolbar (not IDE title-bar search)"
-    box: { x: 5095, y: 400, w: 770, h: 72 }
+    region: "Search pill (magnifier + Search + empty field); full chrome height"
+    box: { x: 5050, y: 365, w: 745, h: 120 }
   zoom.png:
     source: v930/entry
-    region: "Zoom pill (mag− / slider / mag+)"
-    box: { x: 5875, y: 400, w: 660, h: 72 }
+    region: "Zoom pill (mag− / slider / mag+); full chrome height"
+    box: { x: 5818, y: 365, w: 748, h: 120 }
   actions.png:
     source: v930/entry
-    region: "MVP action icon cluster (measure/caliper side); excludes trailing P2 chart/flag/layers/help"
-    box: { x: 6560, y: 400, w: 300, h: 72 }
+    region: "MVP action icon cluster (measure/caliper + fit); excludes trailing P2 chart/flag/layers/help"
+    box: { x: 6585, y: 365, w: 270, h: 120 }

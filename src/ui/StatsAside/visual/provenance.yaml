@@ -2,22 +2,22 @@ component: StatsAside
 source_primary: v930/report-stats-open
 crops:
   mode-tabs.png:
-    source: v930/report-stats-open
-    region: "Aside panel header chrome (报告统计); sketch has no Summary|PIPE text tabs"
-    box: { x: 5480, y: 300, w: 2100, h: 120 }
+    source: v930/compute-load
+    region: "MIX Cube|Vector mode tabs under 计算负载分析 (sketch has no Summary|PIPE text tabs)"
+    box: { x: 200, y: 2910, w: 1950, h: 220 }
   summary-cards.png:
     source: v930/report-stats-open
-    region: "Aside header + summary metric cards"
-    box: { x: 5480, y: 300, w: 2100, h: 720 }
+    region: "Aside panel: header + metadata + all summary metric cards (excl. swimlane left of x≈5780)"
+    box: { x: 5776, y: 355, w: 1850, h: 1140 }
   pipe-bars.png:
-    source: v930/report-stats-scrolled
-    region: "PIPE occupancy bars (Cube/Vector/MTE)"
-    box: { x: 5480, y: 520, w: 2100, h: 550 }
+    source: v930/compute-load
+    region: "PIPE occupancy bars (Cube…Scalar); excludes purple design callout"
+    box: { x: 200, y: 180, w: 1805, h: 1050 }
   aside-scrolled.png:
     source: v930/report-stats-scrolled
-    region: "Scrolled aside showing 计算负载分析 bars"
-    box: { x: 5480, y: 450, w: 2100, h: 700 }
+    region: "Scrolled aside: header + full 计算负载分析 PIPE bars"
+    box: { x: 5776, y: 355, w: 1850, h: 1250 }
   hardware-detail.png:
     source: v930/hardware-more-detail
-    region: "Hardware information detail panel"
-    box: { x: 5480, y: 300, w: 2100, h: 900 }
+    region: "Hardware information detail (Host Info + Device Info)"
+    box: { x: 5776, y: 355, w: 1850, h: 1850 }
