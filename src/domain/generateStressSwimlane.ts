@@ -86,8 +86,11 @@ function buildThreadEvents(
   const events: SwimEvent[] = [];
   if (count <= 0 || timeSpanNs <= 0) return events;
 
-  const busyBudget = Math.max(count, timeSpanNs * Math.min(1, Math.max(0, occupancy)));
-  const avgBusy = busyBudget / count;
+  // busyBudget is nanoseconds (occupancy × span). Never mix in event count —
+  // Math.max(count, span*occ) treated count as ns and wiped gaps when count was large.
+  const occ = Math.min(1, Math.max(0, occupancy));
+  const busyBudget = timeSpanNs * occ;
+  const avgBusy = Math.max(1, busyBudget / count);
   const gapBudget = Math.max(0, timeSpanNs - busyBudget);
   const avgGap = gapBudget / count;
 

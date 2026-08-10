@@ -39,4 +39,31 @@ describe('PR-STRESS: generateStressSwimlane', () => {
     expect(stressPresetFromQuery('nope')).toBe('medium');
     expect(stressPresetFromQuery(null)).toBe('medium');
   });
+
+  it('PR-STRESS-005: occupancy leaves gaps when event count exceeds busy budget ns', () => {
+    // count (200) > timeSpanNs * occupancy (50) — old formula treated count as ns,
+    // zeroed gapBudget, and packed 1ns events with no idle.
+    const model = generateStressSwimlane(
+      {
+        processCount: 1,
+        threadsPerProcess: 1,
+        eventsPerThread: 200,
+        timeSpanNs: 100,
+        occupancy: 0.5,
+        seed: 1,
+      },
+      'small',
+    );
+    const events = model.processes[0]!.threads[0]!.events;
+    expect(events.length).toBe(200);
+    // Initial gap from avgGap > 0 → first event does not start at t=0.
+    expect(events[0]!.startTime).toBeGreaterThan(0);
+    let gaps = 0;
+    for (let i = 1; i < 30; i++) {
+      const prev = events[i - 1]!;
+      const cur = events[i]!;
+      if (cur.startTime > prev.startTime + prev.duration) gaps += 1;
+    }
+    expect(gaps).toBeGreaterThan(0);
+  });
 });
