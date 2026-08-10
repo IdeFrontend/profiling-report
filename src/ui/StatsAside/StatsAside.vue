@@ -242,187 +242,187 @@ function backToModes() {
     </div>
 
     <template v-else>
-    <nav
-      v-if="availableModes.length > 1"
-      class="pr-aside__modes"
-      data-testid="aside-modes"
-      role="tablist"
-    >
-      <button
-        v-for="m in availableModes"
-        :key="m"
-        type="button"
-        role="tab"
-        class="pr-aside__mode"
-        :class="{ 'pr-aside__mode--active': mode === m }"
-        :data-testid="`aside-mode-${m}`"
-        :aria-selected="mode === m"
-        @click="mode = m"
+      <nav
+        v-if="availableModes.length > 1"
+        class="pr-aside__modes"
+        data-testid="aside-modes"
+        role="tablist"
       >
-        {{ modeLabel(m) }}
-      </button>
-    </nav>
+        <button
+          v-for="m in availableModes"
+          :key="m"
+          type="button"
+          role="tab"
+          class="pr-aside__mode"
+          :class="{ 'pr-aside__mode--active': mode === m }"
+          :data-testid="`aside-mode-${m}`"
+          :aria-selected="mode === m"
+          @click="mode = m"
+        >
+          {{ modeLabel(m) }}
+        </button>
+      </nav>
 
-    <div
-      v-if="mode === 'summary' && hasSummary"
-      class="pr-cards"
-      data-testid="stats-summary"
-    >
       <div
-        class="pr-card"
-        data-testid="stats-duration-card"
+        v-if="mode === 'summary' && hasSummary"
+        class="pr-cards"
+        data-testid="stats-summary"
       >
-        <div class="pr-card__label">
-          {{ t('duration', locale) }}
+        <div
+          class="pr-card"
+          data-testid="stats-duration-card"
+        >
+          <div class="pr-card__label">
+            {{ t('duration', locale) }}
+          </div>
+          <div class="pr-card__value">
+            {{ formatDurationUs(report!.summary.taskDurationUs!) }}
+          </div>
+          <div
+            class="pr-card__bar-track"
+            data-testid="stats-duration-bar"
+          >
+            <span class="pr-card__bar-fill pr-card__bar-fill--duration" />
+          </div>
+          <div
+            v-if="durationSecondary"
+            class="pr-card__sub"
+            data-testid="stats-duration-secondary"
+          >
+            {{ durationSecondary }}
+          </div>
         </div>
-        <div class="pr-card__value">
-          {{ formatDurationUs(report!.summary.taskDurationUs!) }}
+      </div>
+
+      <div
+        v-if="mode === 'pipe' && showPipe"
+        class="pr-panel pr-panel--pipe"
+        data-testid="pipe-occupancy"
+      >
+        <div class="pr-pipe-head">
+          <h4>{{ t('pipeOccupancy', locale) }}</h4>
+          <button
+            type="button"
+            class="pr-pipe-details"
+            data-testid="pipe-details"
+            @click="openPipeDetails"
+          >
+            {{ t('details', locale) }}
+          </button>
         </div>
         <div
-          class="pr-card__bar-track"
-          data-testid="stats-duration-bar"
+          v-if="isMix"
+          class="pr-pipe-toggle"
+          data-testid="pipe-side-toggle"
+          role="group"
+          :aria-label="t('pipeSide', locale)"
         >
-          <span class="pr-card__bar-fill pr-card__bar-fill--duration" />
+          <button
+            type="button"
+            class="pr-pipe-toggle__btn"
+            :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
+            data-testid="pipe-side-cube"
+            @click="pipeSide = 'cube'"
+          >
+            Cube
+          </button>
+          <button
+            type="button"
+            class="pr-pipe-toggle__btn"
+            :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
+            data-testid="pipe-side-vector"
+            @click="pipeSide = 'vector'"
+          >
+            Vector
+          </button>
         </div>
         <div
-          v-if="durationSecondary"
-          class="pr-card__sub"
-          data-testid="stats-duration-secondary"
+          class="pr-pipe-scale"
+          data-testid="pipe-scale"
         >
-          {{ durationSecondary }}
-        </div>
-      </div>
-    </div>
-
-    <div
-      v-if="mode === 'pipe' && showPipe"
-      class="pr-panel pr-panel--pipe"
-      data-testid="pipe-occupancy"
-    >
-      <div class="pr-pipe-head">
-        <h4>{{ t('pipeOccupancy', locale) }}</h4>
-        <button
-          type="button"
-          class="pr-pipe-details"
-          data-testid="pipe-details"
-          @click="openPipeDetails"
-        >
-          {{ t('details', locale) }}
-        </button>
-      </div>
-      <div
-        v-if="isMix"
-        class="pr-pipe-toggle"
-        data-testid="pipe-side-toggle"
-        role="group"
-        :aria-label="t('pipeSide', locale)"
-      >
-        <button
-          type="button"
-          class="pr-pipe-toggle__btn"
-          :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
-          data-testid="pipe-side-cube"
-          @click="pipeSide = 'cube'"
-        >
-          Cube
-        </button>
-        <button
-          type="button"
-          class="pr-pipe-toggle__btn"
-          :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
-          data-testid="pipe-side-vector"
-          @click="pipeSide = 'vector'"
-        >
-          Vector
-        </button>
-      </div>
-      <div
-        class="pr-pipe-scale"
-        data-testid="pipe-scale"
-      >
-        <span class="pr-pipe-scale__spacer" />
-        <div class="pr-pipe-scale__axis">
-          <span
-            v-for="tick in PIPE_SCALE"
-            :key="tick"
-            class="pr-pipe-scale__tick"
-          >{{ tick }}%</span>
-        </div>
-        <span class="pr-pipe-scale__pct-spacer" />
-      </div>
-      <ul class="pr-pipe-list">
-        <li
-          v-for="pipe in visiblePipes"
-          :key="`${pipe.id}-${pipe.side ?? 'x'}`"
-          class="pr-pipe-row"
-        >
-          <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-          <span class="pr-pipe-row__track">
+          <span class="pr-pipe-scale__spacer" />
+          <div class="pr-pipe-scale__axis">
             <span
-              class="pr-pipe-row__hatch"
-              aria-hidden="true"
-            />
-            <span
-              class="pr-pipe-row__bar"
-              :style="{
-                width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%`,
-                background: COLOR[pipe.colorKey] ?? COLOR.default,
-              }"
-            >
+              v-for="tick in PIPE_SCALE"
+              :key="tick"
+              class="pr-pipe-scale__tick"
+            >{{ tick }}%</span>
+          </div>
+          <span class="pr-pipe-scale__pct-spacer" />
+        </div>
+        <ul class="pr-pipe-list">
+          <li
+            v-for="pipe in visiblePipes"
+            :key="`${pipe.id}-${pipe.side ?? 'x'}`"
+            class="pr-pipe-row"
+          >
+            <span class="pr-pipe-row__label">{{ pipe.label }}</span>
+            <span class="pr-pipe-row__track">
               <span
-                v-if="pipe.absoluteValue != null"
-                class="pr-pipe-row__abs"
-                data-testid="pipe-absolute"
-              >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+                class="pr-pipe-row__hatch"
+                aria-hidden="true"
+              />
+              <span
+                class="pr-pipe-row__bar"
+                :style="{
+                  width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%`,
+                  background: COLOR[pipe.colorKey] ?? COLOR.default,
+                }"
+              >
+                <span
+                  v-if="pipe.absoluteValue != null"
+                  class="pr-pipe-row__abs"
+                  data-testid="pipe-absolute"
+                >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+              </span>
             </span>
-          </span>
-          <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
-        </li>
-      </ul>
-    </div>
+            <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+          </li>
+        </ul>
+      </div>
 
-    <div
-      v-if="mode === 'compute' && showCompute"
-      data-testid="stats-compute"
-      class="pr-aside__detail"
-    >
-      <h4 class="pr-aside__detail-title">
-        {{ t('computeAnalysis', locale) }}
-      </h4>
-      <CsvFieldListPanel
-        :tables="report?.computeTables ?? []"
-        :csv-texts="report?.csvTexts ?? {}"
-        :locale="locale"
-        @view-full-csv="emit('view-full-csv', $event)"
-      />
-    </div>
+      <div
+        v-if="mode === 'compute' && showCompute"
+        data-testid="stats-compute"
+        class="pr-aside__detail"
+      >
+        <h4 class="pr-aside__detail-title">
+          {{ t('computeAnalysis', locale) }}
+        </h4>
+        <CsvFieldListPanel
+          :tables="report?.computeTables ?? []"
+          :csv-texts="report?.csvTexts ?? {}"
+          :locale="locale"
+          @view-full-csv="emit('view-full-csv', $event)"
+        />
+      </div>
 
-    <div
-      v-if="mode === 'memory' && showMemory"
-      data-testid="stats-memory"
-      class="pr-aside__detail"
-    >
-      <h4 class="pr-aside__detail-title">
-        {{ t('memoryAnalysis', locale) }}
-      </h4>
-      <CsvFieldListPanel
-        :tables="report?.memoryTables ?? []"
-        :csv-texts="report?.csvTexts ?? {}"
-        :locale="locale"
-        @view-full-csv="emit('view-full-csv', $event)"
-      />
-    </div>
+      <div
+        v-if="mode === 'memory' && showMemory"
+        data-testid="stats-memory"
+        class="pr-aside__detail"
+      >
+        <h4 class="pr-aside__detail-title">
+          {{ t('memoryAnalysis', locale) }}
+        </h4>
+        <CsvFieldListPanel
+          :tables="report?.memoryTables ?? []"
+          :csv-texts="report?.csvTexts ?? {}"
+          :locale="locale"
+          @view-full-csv="emit('view-full-csv', $event)"
+        />
+      </div>
 
-    <div
-      v-if="showRoofline && report?.roofline"
-      class="pr-panel pr-panel--roofline"
-      data-testid="stats-roofline"
-    >
-      <RooflinePanel
-        :model="report.roofline"
-        :locale="locale"
-      />
-    </div>
+      <div
+        v-if="showRoofline && report?.roofline"
+        class="pr-panel pr-panel--roofline"
+        data-testid="stats-roofline"
+      >
+        <RooflinePanel
+          :model="report.roofline"
+          :locale="locale"
+        />
+      </div>
     </template>
   </aside>
 </template>

@@ -65,10 +65,9 @@ const emit = defineEmits<{
   ready: [];
   select: [event: SelectedEvent | null];
   error: [error: { message: string; cause?: unknown }];
-  'view-full-csv': [payload: { fileName: string; text: string }];
+  'view-full-csv': [payload: ViewFullCsvPayload];
   'open-hardware-details': [];
   'open-pipe-details': [];
-  'view-full-csv': [payload: ViewFullCsvPayload];
 }>();
 
 const internalSwim = ref<SwimlaneModel | null>(null);
@@ -182,19 +181,26 @@ function onToggleGroup(groupId: string): void {
 }
 
 /**
- * Aside has content when any of: summary fields, pipe occupancy,
- * compute/memory CSV tables, or roofline points are present.
- * Must stay in sync with StatsAside section visibility.
+ * Aside has content when any of: duration card, pipe occupancy,
+ * compute/memory CSV tables, roofline points, or hardware details are present.
+ * Name/type alone do not open the aside (I-Q6a). Must stay in sync with StatsAside.
  */
 function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
   if (!rm) return false;
-  const s = rm.summary;
-  const hasSummary = Boolean(s && (s.opName || s.opType || s.taskDurationUs != null));
+  const hasDuration = rm.summary.taskDurationUs != null;
   const hasPipe = rm.pipeOccupancy.length > 0;
   const hasComputeTables = rm.computeTables.length > 0;
   const hasMemoryTables = rm.memoryTables.length > 0;
   const hasRoofline = (rm.roofline?.points?.length ?? 0) > 0;
-  return hasSummary || hasPipe || hasComputeTables || hasMemoryTables || hasRoofline;
+  const hasHardware = (rm.hardwareDetails?.sections.length ?? 0) > 0;
+  return (
+    hasDuration ||
+    hasPipe ||
+    hasComputeTables ||
+    hasMemoryTables ||
+    hasRoofline ||
+    hasHardware
+  );
 }
 
 function loadFromSource(source: ArrayBuffer | Uint8Array) {
@@ -607,7 +613,6 @@ defineExpose({ selectEventById, viewState });
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
           @open-pipe-details="emit('open-pipe-details')"
-          @view-full-csv="emit('view-full-csv', $event)"
         />
       </template>
     </ReportLayout>

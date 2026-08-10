@@ -34,9 +34,8 @@ describe('ProfilingReport scaffold', () => {
         title: 'aside-close',
         swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
         reportModel: {
+          ...emptyReportViewModel(),
           summary: { opName: 'relu', opType: 'vector', taskDurationUs: 100 },
-          pipeOccupancy: [],
-          overviewSeries: [],
         },
       },
     });
@@ -52,9 +51,8 @@ describe('ProfilingReport scaffold', () => {
         title: 'no-duration',
         swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
         reportModel: {
+          ...emptyReportViewModel(),
           summary: { opName: 'relu', opType: 'vector' },
-          pipeOccupancy: [],
-          overviewSeries: [],
         },
       },
     });

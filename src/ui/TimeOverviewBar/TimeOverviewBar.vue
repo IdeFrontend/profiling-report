@@ -178,8 +178,14 @@ function onPointerUp() {
         :style="{ left: `${leftPct}%` }"
         @pointerdown="onPointerDown($event, 'left')"
       >
-        <span class="pr-overview__handle-tab" aria-hidden="true" />
-        <span class="pr-overview__handle-stem" aria-hidden="true" />
+        <span
+          class="pr-overview__handle-tab"
+          aria-hidden="true"
+        />
+        <span
+          class="pr-overview__handle-stem"
+          aria-hidden="true"
+        />
       </button>
       <button
         type="button"
@@ -189,8 +195,14 @@ function onPointerUp() {
         :style="{ left: `${rightPct}%` }"
         @pointerdown="onPointerDown($event, 'right')"
       >
-        <span class="pr-overview__handle-tab" aria-hidden="true" />
-        <span class="pr-overview__handle-stem" aria-hidden="true" />
+        <span
+          class="pr-overview__handle-tab"
+          aria-hidden="true"
+        />
+        <span
+          class="pr-overview__handle-stem"
+          aria-hidden="true"
+        />
       </button>
     </div>
   </div>

@@ -4,7 +4,7 @@ import StatsAside from './StatsAside.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import type { ReportViewModel } from '../../domain/types';
 
-function report(partial: Partial<ReportViewModel>): ReportViewModel {
+function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
   return { ...emptyReportViewModel(), ...partial };
 }
 
@@ -48,7 +48,7 @@ describe('StatsAside', () => {
     const mix = mount(StatsAside, {
       props: {
         report: report({
-          summary: { opType: 'MIX' },
+          summary: { opType: 'MIX', taskDurationUs: 1 },
           pipeOccupancy: pipes,
         }),
       },
@@ -72,7 +72,7 @@ describe('StatsAside', () => {
     const vectorOnly = mount(StatsAside, {
       props: {
         report: report({
-          summary: { opType: 'vector' },
+          summary: { opType: 'vector', taskDurationUs: 1 },
           pipeOccupancy: pipes,
         }),
       },
@@ -235,11 +235,7 @@ describe('StatsAside', () => {
   it('PR-STATS-009: duration card has sketch chrome', () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: {
-          summary: { taskDurationUs: 4600 },
-          pipeOccupancy: [],
-          overviewSeries: [],
-        },
+        report: report({ summary: { taskDurationUs: 4600 } }),
       },
     });
     const card = wrapper.get('[data-testid="stats-duration-card"]');
@@ -251,11 +247,9 @@ describe('StatsAside', () => {
   it('PR-STATS-010: no type card; secondary from blockDim or opName', () => {
     const withType = mount(StatsAside, {
       props: {
-        report: {
+        report: report({
           summary: { opType: 'vector', taskDurationUs: 1000, opName: 'relu' },
-          pipeOccupancy: [],
-          overviewSeries: [],
-        },
+        }),
       },
     });
     expect(withType.find('[data-testid="stats-type-card"]').exists()).toBe(false);
@@ -264,11 +258,9 @@ describe('StatsAside', () => {
 
     const withDim = mount(StatsAside, {
       props: {
-        report: {
+        report: report({
           summary: { taskDurationUs: 1000, blockDim: 8, opName: 'relu' },
-          pipeOccupancy: [],
-          overviewSeries: [],
-        },
+        }),
       },
     });
     const secondary = withDim.get('[data-testid="stats-duration-secondary"]').text();
@@ -278,11 +270,7 @@ describe('StatsAside', () => {
 
     const bare = mount(StatsAside, {
       props: {
-        report: {
-          summary: { taskDurationUs: 1000 },
-          pipeOccupancy: [],
-          overviewSeries: [],
-        },
+        report: report({ summary: { taskDurationUs: 1000 } }),
       },
     });
     expect(bare.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
@@ -291,16 +279,14 @@ describe('StatsAside', () => {
   it('PR-STATS-011: compute/BW/util cards absent under I-Q6a', () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: {
+        report: report({
           summary: {
             taskDurationUs: 1000,
             computeTflops: 172,
             ioBandwidth: 0.08,
             avgCoreUtil: 0.69,
           },
-          pipeOccupancy: [],
-          overviewSeries: [],
-        },
+        }),
       },
     });
     expect(wrapper.find('[data-testid="stats-compute-card"]').exists()).toBe(false);
@@ -312,13 +298,11 @@ describe('StatsAside', () => {
   it('PR-STATS-012: PIPE scale and hatched bars', () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: {
-          summary: {},
+        report: report({
           pipeOccupancy: [
             { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
           ],
-          overviewSeries: [],
-        },
+        }),
       },
     });
     const scale = wrapper.get('[data-testid="pipe-scale"]').text();
@@ -331,8 +315,7 @@ describe('StatsAside', () => {
   it('PR-STATS-013: absolute time in bar when present', () => {
     const withAbs = mount(StatsAside, {
       props: {
-        report: {
-          summary: {},
+        report: report({
           pipeOccupancy: [
             {
               id: 'vector',
@@ -343,21 +326,18 @@ describe('StatsAside', () => {
               absoluteValue: 0.065455,
             },
           ],
-          overviewSeries: [],
-        },
+        }),
       },
     });
     expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toMatch(/0\.065/);
 
     const without = mount(StatsAside, {
       props: {
-        report: {
-          summary: {},
+        report: report({
           pipeOccupancy: [
             { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
           ],
-          overviewSeries: [],
-        },
+        }),
       },
     });
     expect(without.find('[data-testid="pipe-absolute"]').exists()).toBe(false);
@@ -366,13 +346,11 @@ describe('StatsAside', () => {
   it('PR-STATS-014: Details emit open-pipe-details', async () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: {
-          summary: {},
+        report: report({
           pipeOccupancy: [
             { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
           ],
-          overviewSeries: [],
-        },
+        }),
       },
     });
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
@@ -385,8 +363,7 @@ describe('StatsAside', () => {
   it('PR-STATS-015: Roofline section when points present; hidden when absent', () => {
     const withRoof = mount(StatsAside, {
       props: {
-        report: {
-          ...base(),
+        report: report({
           roofline: {
             points: [
               {
@@ -401,7 +378,7 @@ describe('StatsAside', () => {
             peakComputeTops: 1,
             peakBandwidthGBs: 16,
           },
-        },
+        }),
       },
     });
     expect(withRoof.find('[data-testid="stats-roofline"]').exists()).toBe(true);
@@ -409,7 +386,7 @@ describe('StatsAside', () => {
 
     const without = mount(StatsAside, {
       props: {
-        report: base({ summary: { taskDurationUs: 1 } }),
+        report: report({ summary: { taskDurationUs: 1 } }),
       },
     });
     expect(without.find('[data-testid="stats-roofline"]').exists()).toBe(false);
@@ -418,7 +395,7 @@ describe('StatsAside', () => {
   it('PR-STATS-016: 详情 switches to compute mode when tables exist', async () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: base({
+        report: report({
           summary: { opType: 'vector' },
           pipeOccupancy: [
             { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
@@ -447,7 +424,7 @@ describe('StatsAside', () => {
   it('PR-STATS-017: Memory mode shows memory CSV panel', async () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: base({
+        report: report({
           summary: { taskDurationUs: 1 },
           memoryTables: [
             {
@@ -468,7 +445,7 @@ describe('StatsAside', () => {
   it('PR-STATS-018: 更多 navigates to hardware when hardwareDetails present', async () => {
     const wrapper = mount(StatsAside, {
       props: {
-        report: base({
+        report: report({
           summary: { currentFreq: 1650 },
           hardwareDetails: {
             sections: [
