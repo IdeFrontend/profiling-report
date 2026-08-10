@@ -97,7 +97,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | After S1; user needs more than bar chart |
 | **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
-| **Sketches** | Bars: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`. Details: `pipe_*.png`, `source/v930/memory-load-detail.jpeg`, [changes.png](../source/changes/changes.png) #2–#4 |
+| **Sketches** | Bars: [`v930/compute-load`](./source/v930/compute-load.jpeg). Details: [`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg) |
 | **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
 
 ### S6 — Analyze memory paths (M2)

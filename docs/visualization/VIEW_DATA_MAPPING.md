@@ -145,7 +145,7 @@ Hide `RooflinePanel` when no GM point can be derived.
 
 ![Pipe occupancy](../ui/source/v930/compute-load.jpeg)
 
-**Rule (product table + changelog):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). See [`docs/source/changes/changes.png`](../source/changes/changes.png) #2.
+**Rule (product table):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). Sketch: [`v930/compute-load`](../ui/source/v930/compute-load.jpeg).
 
 **Layout (confirmed):** use the **Cube / Vector field tables** below with a MIX toggle — not a single combined bar list. `pipe-occupancy.png` remains a visual style reference for bar chrome. Non-MIX ops show only the relevant Cube or Vector set; omit or placeholder `NA` values.
 
@@ -184,7 +184,7 @@ Hide `RooflinePanel` when no GM point can be derived.
 
 ![Pipe details](../ui/source/v930/compute-load-detail.jpeg)
 
-Changelog [#3](../source/changes/changes.png): detail surface uses **tabs**:
+Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg)):
 
 | Tab | Source CSV |
 | --- | --- |
@@ -208,7 +208,7 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 
 **Note (docx):** dual-Die / Remote memory — open whether right-click details exist.
 
-**Changelog #5:** topology redraw must show **real CSV values** on buffer connection lines (not placeholders).
+**Topology edges:** redraw must show **real CSV values** on buffer connection lines (not placeholders). Sketch: [`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg).
 
 ### Edge → field → source (engineering mapping for M2)
 
@@ -247,7 +247,7 @@ Omit edge label when value is missing/`NA`. Edge thickness stays static.
 
 ## 11.2.6.1 Memory load details
 
-Changelog [#4](../source/changes/changes.png):
+Memory detail controls ([`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg)):
 
 | Control | Behavior |
 | --- | --- |

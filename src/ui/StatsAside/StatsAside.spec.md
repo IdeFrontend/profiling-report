@@ -98,7 +98,8 @@ Crops: [`visual/mode-tabs.png`](./visual/mode-tabs.png), [`visual/summary-cards.
 - [pipe-bars](./visual/pipe-bars.png) — from `v930/compute-load`
 - [aside-scrolled](./visual/aside-scrolled.png) — from `v930/report-stats-scrolled`
 - [hardware-detail](./visual/hardware-detail.png) — from `v930/hardware-more-detail`
-- [changes.png](../../../docs/source/changes/changes.png) #2–#4
+- [compute-load-detail](../../../docs/ui/source/v930/compute-load-detail.jpeg) — compute CSV tabs
+- [memory-load-detail](../../../docs/ui/source/v930/memory-load-detail.jpeg) — memory tabs + block
 - [PIPE occupancy](../../../docs/ui/source/v930/compute-load.jpeg) — full frame
 
 ## Dependencies

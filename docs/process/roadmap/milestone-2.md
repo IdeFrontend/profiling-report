@@ -2,7 +2,7 @@
 
 **Target date:** **2026-08-25**
 
-**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([changes.png](../../source/changes/changes.png) #5). (4) **Roofline** panel from fixture arithmetic data (interim formulas if Q11 still open). (5) Timeline **time-range measure / 度量模式** (changelog #1; local overlay until [Q22](../../context/OPEN_QUESTIONS.md)). Spec host: [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md).
+**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([`v930/memory-load-detail`](../../ui/source/v930/memory-load-detail.jpeg)). (4) **Roofline** panel from fixture arithmetic data (interim formulas if Q11 still open). (5) Timeline **time-range measure / 度量模式** ([`v930/task-measure-mode`](../../ui/source/v930/task-measure-mode.jpeg); local overlay until [Q22](../../context/OPEN_QUESTIONS.md)). Spec host: [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md).
 
 **Data note:** `out.rep` has no deps — ship interim Q9 encoding + synthetic playground fixture for CI; swap adapter when Product finalizes Q9.
 

@@ -81,7 +81,7 @@ Sketch: `source/v930/entry.jpeg` annotations
 
 ## Time-range measure (度量模式)
 
-Sketch / changelog: [`docs/source/changes/changes.png`](../source/changes/changes.png) #1. Delivery: **M2**.
+Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delivery: **M2**.
 
 - Toolbar **caliper** toggles `measureMode`. While active, pan-drag on the swimlane is disabled (zoom/wheel still allowed unless Product says otherwise).
 - Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized).

@@ -61,7 +61,7 @@ Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README
 
 PNG mockups live under [`ui/source/v930/`](ui/source/v930/). Component crops live next to Vue code under `src/ui/{Component}/visual/`. Hierarchy: [`ui/DESIGN_INDEX.md`](ui/DESIGN_INDEX.md).
 
-**Product changelog (annotated UI deltas):** [`source/changes/changes.png`](source/changes/changes.png) — timeline 度量模式, Cube/Vector MIX toggle, compute/memory detail tabs, memory topology edge values. Absorbed into design specs per delivery [roadmap](process/roadmap/).
+Design frames covering former changelog deltas (度量模式, Cube/Vector MIX toggle, compute/memory detail tabs, topology): [`ui/source/v930/`](ui/source/v930/) — see [`ui/DESIGN_INDEX.md`](ui/DESIGN_INDEX.md) and delivery [roadmap](process/roadmap/).
 
 ## Research archive
 

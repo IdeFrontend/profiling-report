@@ -20,6 +20,18 @@ The main column always renders. The aside column width is user-resizable via a t
 
 The parent ProfilingReport owns `asideWidth` (session-only) and also resizes the left lane gutter via `--pr-gutter-width` (180–480, default 280).
 
+## Visual
+
+Resizable panel chrome (gutter width owned by ProfilingReport; aside width by this shell):
+
+| Token | Value |
+|-------|--------|
+| Gutter default / clamp | **280** / **180–480** px (`--pr-gutter-width`) |
+| Aside default / clamp | **360** / **280–560** px |
+| Handle hit target | **5px** wide, `ew-resize`; hover tint `rgba(49,122,247,0.35)` |
+| Persistence | Session-only (not localStorage) |
+| Narrow layout | Handles hidden at `max-width: 900px` |
+
 ## Acceptance Criteria
 
 1. **PR-LAYOUT-001** — Renders main slot.
@@ -36,5 +48,6 @@ The parent ProfilingReport owns `asideWidth` (session-only) and also resizes the
 - [Entry overview](../../../docs/ui/source/v930/entry.jpeg) — two-column layout
 
 ## Changelog
+- **2026-08-10** — Absorbed resizable-panel tokens from retired `docs/ui/components/VISUAL_SPEC.md`.
 - **2026-08-07** — Resizable aside width (drag handle + `asideWidth` prop).
 - **2026-08-05** — Initial spec. Core behaviors established.

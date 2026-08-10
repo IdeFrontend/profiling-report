@@ -146,17 +146,17 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
-**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip. Shared tokens: [`docs/ui/components/VISUAL_SPEC.md`](../../../docs/ui/components/VISUAL_SPEC.md).
+**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip. Tokens: [`AxisRuler.spec.md`](../AxisRuler/AxisRuler.spec.md).
 
 **Cursor timestamp.** Playhead time bubble on the viewport — rendered by [`CursorTimestamp`](../CursorTimestamp/CursorTimestamp.spec.md).
 
-**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge. Clamps documented in shared [`VISUAL_SPEC.md`](../../../docs/ui/components/VISUAL_SPEC.md).
+**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge. Clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — summary, pipe occupancy, compute tables, or memory tables (same gate as the toolbar toggle).
 
 ## Visual
 
-(Orchestration only — component chrome lives in child specs. Resizable panel clamps: [`docs/ui/components/VISUAL_SPEC.md`](../../../docs/ui/components/VISUAL_SPEC.md).)
+(Orchestration only — component chrome lives in child specs. Panel clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).)
 
 ## Acceptance Criteria
 

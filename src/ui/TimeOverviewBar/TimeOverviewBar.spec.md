@@ -28,7 +28,7 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 ## Visual
 
-Shared axis tokens: [`docs/ui/components/VISUAL_SPEC.md`](../../../docs/ui/components/VISUAL_SPEC.md). Crops: [`visual/range-handles.png`](./visual/range-handles.png), [`visual/handle.png`](./visual/handle.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Axis chrome: [`AxisRuler.spec.md`](../AxisRuler/AxisRuler.spec.md). Crops: [`visual/range-handles.png`](./visual/range-handles.png), [`visual/handle.png`](./visual/handle.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ### Overview range handles
 

@@ -39,7 +39,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q3** | Required embeds / missing data | **Resolved** | Minimal open; **hide** missing panels. → [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
 | **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
-| **Q6** | Report summary formulas | **Interim** | Thin OpBasicInfo tiles only; hide compute/BW/avg util; PIPE = mean non-`NA` — [I-Q6a](INTERIM_DECISIONS.md) / [I-Q6b](INTERIM_DECISIONS.md). **PIPE layout:** product changelog confirms **Cube \| Vector toggle for MIX** ops ([changes.png](../source/changes/changes.png) #2); non-MIX shows the relevant side only. Block-scoped details vs mean bars — [I-Q6c](INTERIM_DECISIONS.md). |
+| **Q6** | Report summary formulas | **Interim** | Thin OpBasicInfo tiles only; hide compute/BW/avg util; PIPE = mean non-`NA` — [I-Q6a](INTERIM_DECISIONS.md) / [I-Q6b](INTERIM_DECISIONS.md). **PIPE layout:** **Cube \| Vector toggle for MIX** ops ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)); non-MIX shows the relevant side only. Block-scoped details vs mean bars — [I-Q6c](INTERIM_DECISIONS.md). |
 | **Q7** | Hardware details sidebar | **Resolved (MVP)** | **Out of MVP** until further product/spec docs. |
 | **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer fixed naming (A); may revisit. No viewer heuristics. |
 
@@ -56,7 +56,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q13** | Color / category legend | **Resolved** | [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
 | **Q14** | Time units UX | **Resolved (partial)** + **Interim (MVP units)** | Configurable; MVP = ms/µs/ns only, default ms; no cycles — [I-Q14](INTERIM_DECISIONS.md). |
 | **Q15** | MSTT `.json` policy | **Resolved** | Chrome Trace `.json` → profiling-report. |
-| **Q22** | Time-range measure → which views? | **Open** | When timeline **度量模式** sets `measureRange [t0,t1]` ([changes.png](../source/changes/changes.png) #1), which views must update? Candidates: PIPE / Cube·Vector bars; compute-load detail tabs; memory detail tabs + topology; report summary; detail strip; overview charts (if present). Distinct from overview brush (`timeWindow`) and event selection. Until answered: measure UI is **local overlay only** (band + Δt; no aside recompute). Specs when answered: UX_SPEC sync, INTERACTIONS, FEATURE_MATRIX, COMPONENTS, view-state / StatsAside. |
+| **Q22** | Time-range measure → which views? | **Open** | When timeline **度量模式** sets `measureRange [t0,t1]` ([`v930/task-measure-mode`](../ui/source/v930/task-measure-mode.jpeg)), which views must update? Candidates: PIPE / Cube·Vector bars; compute-load detail tabs; memory detail tabs + topology; report summary; detail strip; overview charts (if present). Distinct from overview brush (`timeWindow`) and event selection. Until answered: measure UI is **local overlay only** (band + Δt; no aside recompute). Specs when answered: UX_SPEC sync, INTERACTIONS, FEATURE_MATRIX, COMPONENTS, view-state / StatsAside. |
 
 ---
 

@@ -58,7 +58,7 @@ export interface PipeOccupancyItem {
   ratio: number;
   colorKey: string;
   /**
-   * M1 Cube|Vector toggle grouping ([changes.png] #2).
+   * M1 Cube|Vector toggle grouping (`v930/compute-load`).
    * Cube uses `aic_*` columns; Vector uses `aiv_*` — never blend across sides.
    */
   side?: 'cube' | 'vector';
@@ -72,7 +72,7 @@ export interface OverviewSeries {
   points: { t: number; v: number }[];
 }
 
-/** M1 searchable CSV detail tab ([changes.png] #3–#4, COMPONENTS CsvTableModel). */
+/** M1 searchable CSV detail tab (`v930/compute-load-detail` / `v930/memory-load-detail`, COMPONENTS CsvTableModel). */
 export interface CsvTableModel {
   fileName: string;
   headers: string[];

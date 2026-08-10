@@ -184,7 +184,11 @@ CSS grid: gutter | main | aside (+ detail strip region).
 
 ### `LaneGutter` (M)
 
+<<<<<<< HEAD
 Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Row `#3a3a3a` bottom borders align with swimlane horizontal dividers. Visual tokens: [`components/VISUAL_SPEC.md`](../ui/components/VISUAL_SPEC.md). Behavior: [`LaneGutter.spec.md`](../../src/ui/LaneGutter/LaneGutter.spec.md).
+=======
+Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Spec: [`LaneGutter.spec.md`](../../src/ui/LaneGutter/LaneGutter.spec.md).
+>>>>>>> c541ace (Retire shared VISUAL_SPEC and legacy changes.png.)
 
 **Why:** DOM text for a11y/i18n; avoids baking labels into WebGL. Hierarchy comes from `SwimProcess` / `SwimThread`.
 
@@ -234,7 +238,7 @@ Cards from `SummaryMetrics`.
 
 ### `PipeOccupancyPanel` (M / M1)
 
-Horizontal bars from `PipeOccupancyItem[]`. **M1:** Cube | Vector segmented control when `OpType == MIX` ([changes.png](../source/changes/changes.png) #2).
+Horizontal bars from `PipeOccupancyItem[]`. **M1:** Cube | Vector segmented control when `OpType == MIX` ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)).
 
 **Why:** Highest-value `.rep` analytics panel in sketches; data from `PipeUtilization.csv` via adapter.
 

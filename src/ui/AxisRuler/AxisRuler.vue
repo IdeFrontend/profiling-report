@@ -67,7 +67,7 @@ defineProps<{
   flex-direction: row;
   align-items: flex-start;
   gap: 3px;
-  /* Bar sits on pct; label extends to the right (VISUAL_SPEC). */
+  /* Bar sits on pct; label extends to the right (AxisRuler.spec). */
   transform: translateX(0);
 }
 

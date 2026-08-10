@@ -4,7 +4,7 @@
 |----------------|
 | PR-CSV-*       |
 
-Reusable searchable CSV field list with tabs, optional block switcher, and 查看全部 (I-Q6c / I-Q6d, [changes.png] #3–#4).
+Reusable searchable CSV field list with tabs, optional block switcher, and 查看全部 (I-Q6c / I-Q6d; sketches `v930/compute-load-detail`, `v930/memory-load-detail`).
 
 ## Inputs
 
@@ -41,8 +41,8 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 - [tabs-search](./visual/tabs-search.png) — from `v930/compute-load-detail`
 - [field-rows](./visual/field-rows.png) — from `v930/compute-load-detail`
 - [block-switcher](./visual/block-switcher.png) — from `v930/memory-load-detail`
-- [changes.png](../../../docs/source/changes/changes.png) #3–#4
 - [compute-load-detail](../../../docs/ui/source/v930/compute-load-detail.jpeg) — full frame
+- [memory-load-detail](../../../docs/ui/source/v930/memory-load-detail.jpeg) — full frame
 
 ## Changelog
 - **2026-08-07** — Initial M1 panel.

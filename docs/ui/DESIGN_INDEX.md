@@ -1,6 +1,6 @@
 # Design asset index
 
-Cross-layer map: **sources (v930) → component visual packs**. Pixel measures live in component `{Name}.spec.md` (Visual section) or shared [`components/VISUAL_SPEC.md`](./components/VISUAL_SPEC.md).
+Cross-layer map: **sources (v930) → component visual packs**. Pixel measures live in each component `{Name}.spec.md` **Visual** section.
 
 ## Layers
 
@@ -44,7 +44,3 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`EventTooltip`](../../src/ui/EventTooltip/visual/) | floating hover tooltip | `v930/task-hover` |
 | ProfilingReport | (orchestration — no visual pack) | — |
 | ReportLayout | (shell/resize — no visual pack) | — |
-
-## Shared chrome
-
-Axis ruler tokens and resizable-panel clamps: [`components/VISUAL_SPEC.md`](./components/VISUAL_SPEC.md).

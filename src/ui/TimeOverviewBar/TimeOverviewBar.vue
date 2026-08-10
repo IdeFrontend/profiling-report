@@ -169,7 +169,7 @@ function onPointerUp() {
         @pointerdown="onPointerDown($event, 'move')"
       />
 
-      <!-- Flag handles: 1px stem + outward top tab (VISUAL_SPEC) -->
+      <!-- Flag handles: 1px stem + outward top tab (TimeOverviewBar.spec) -->
       <button
         type="button"
         class="pr-overview__handle pr-overview__handle--left"
@@ -253,7 +253,7 @@ function onPointerUp() {
 
 /*
  * Range handle: vertical white pill head + 1px stem.
- * Track is 20px; 4×10 pill (VISUAL_SPEC).
+ * Track is 20px; 4×10 pill (TimeOverviewBar.spec).
  */
 .pr-overview__handle {
   position: absolute;

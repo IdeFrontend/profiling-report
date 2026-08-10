@@ -60,7 +60,7 @@ const showBlocks = computed(
   () => props.showBlockSwitcher && blockIds.value.length > 0,
 );
 
-/** Product tab labels from changes.png #3–#4. */
+/** Product tab labels from `v930/compute-load-detail` / `v930/memory-load-detail`. */
 function tabLabel(fileName: string): string {
   const map: Record<string, string> = {
     'PipeUtilization.csv': 'PipeUtilization',

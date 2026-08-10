@@ -360,7 +360,7 @@ const emit = defineEmits<{
   align-items: center;
 }
 
-/* Search pill — VISUAL_SPEC §5 */
+/* Search pill — ReportToolbar.spec Visual */
 .pr-toolbar__search {
   position: relative;
   display: flex;

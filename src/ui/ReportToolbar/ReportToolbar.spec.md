@@ -93,7 +93,7 @@ P2 sketch icons (chart, flag, layers, help, gear) are **not** MVP — do not stu
 - [zoom](./visual/zoom.png) — from `v930/entry`
 - [actions](./visual/actions.png) — from `v930/entry`
 - [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
-- [changes.png](../../../docs/source/changes/changes.png) #1 (caliper)
+- [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
 - **2026-08-07** — Search/zoom corner radius `4px` (sketch), not capsule `14px`.

@@ -23,7 +23,7 @@ Index: [README.md](README.md)
 
 Aside mode switcher: **Summary** | **PIPE** | **Pipe details** | **Memory** | **Cache** | **Metrics** (omit modes with no data).
 
-Design deltas from [`docs/source/changes/changes.png`](../../source/changes/changes.png) **#2–#4**.
+Design frames: [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg) (Cube|Vector), [`v930/compute-load-detail`](../../ui/source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](../../ui/source/v930/memory-load-detail.jpeg) (tabs + block + 查看全部).
 
 | View | Status | Features |
 |------|--------|----------|

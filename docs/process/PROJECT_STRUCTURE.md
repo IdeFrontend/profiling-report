@@ -129,7 +129,6 @@ profiling-report/
     ui/                                         UX narrative + design sources (v930/)
       source/                                   full-frame dumps + manifest.yaml
       DESIGN_INDEX.md                           source → visual packs
-      components/VISUAL_SPEC.md                 shared chrome only
     formats/                                    format explainers (non-AC narrative)
     architecture/                               packaging / component catalog prose
     visualization/                              view ↔ data mapping
@@ -172,7 +171,7 @@ src/ui/ReportToolbar/
 - **Inputs** (English prose — what the component receives, why each prop matters)
 - **Outputs** (English prose — what the component emits, payloads, parent interaction)
 - **Behavior** (non-obvious constraints, data flow, interactions with other components)
-- **Visual** (component-local measures; shared axis/panel chrome stays in [`docs/ui/components/VISUAL_SPEC.md`](../ui/components/VISUAL_SPEC.md))
+- **Visual** (component-local measures; axis chrome in [`AxisRuler.spec.md`](../../src/ui/AxisRuler/AxisRuler.spec.md), panel clamps in [`ReportLayout.spec.md`](../../src/ui/ReportLayout/ReportLayout.spec.md))
 - Acceptance criteria with test IDs
 - Edge cases
 - **Design sketches** — relative links to `./visual/*.png` and/or `docs/ui/source/...`

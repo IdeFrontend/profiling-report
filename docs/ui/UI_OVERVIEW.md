@@ -76,7 +76,7 @@ Modes observed in sketches:
 
 | Mode | Sketch | Content | Phase |
 |------|--------|---------|------:|
-| Report statistics | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, [changes.png](../source/changes/changes.png) | Total time; PIPE bars + Cube\|Vector (MIX); compute/memory detail tabs; block + 查看全部 | M / M1 |
+| Report statistics | `v930/report-stats-open`, `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` | Total time; PIPE bars + Cube\|Vector (MIX); compute/memory detail tabs; block + 查看全部 | M / M1 |
 | Roofline (within stats aside or sibling) | `source/v930/entry.jpeg`, `source/v930/entry.jpeg` | Log-log bottleneck chart | M2 |
 | Memory topology | `source/v930/memory-load-detail.jpeg`, changelog #5 | Static SVG + data-driven edge labels | M2 |
 | Hardware details | `source/v930/hardware-more-detail.jpeg` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([Q7](../context/OPEN_QUESTIONS.md)) |

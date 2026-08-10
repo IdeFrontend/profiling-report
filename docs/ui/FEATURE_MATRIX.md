@@ -23,7 +23,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Zoom slider / zoom to fit | M | |
 | Keyboard shortcut help | P2 | |
 | Toggle stats / report panel | M | |
-| Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; local overlay until [Q22](../context/OPEN_QUESTIONS.md). [changes.png](../source/changes/changes.png) #1 |
+| Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; local overlay until [Q22](../context/OPEN_QUESTIONS.md). Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
 | Layer / display control (clock cycles, units) | P2 | `source/v930/hardware-more-detail.jpeg` “显示控制” |

@@ -65,7 +65,7 @@ For architecture: integration patterns, lifecycle, independence rules.]
 ## Visual
 
 *Component specs only.* Normative measures owned by this component (sizes, colors, typography).
-Shared axis / panel chrome: [`docs/ui/components/VISUAL_SPEC.md`](../docs/ui/components/VISUAL_SPEC.md).
+Shared axis chrome: [`AxisRuler.spec.md`](../src/ui/AxisRuler/AxisRuler.spec.md). Panel resize clamps: [`ReportLayout.spec.md`](../src/ui/ReportLayout/ReportLayout.spec.md).
 Omit when the component has no distinct chrome.
 
 ## Design sketches
