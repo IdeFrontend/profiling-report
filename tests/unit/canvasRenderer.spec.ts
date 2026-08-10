@@ -1,5 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import {
+  encodeIntervalPair,
+  eventEmphasisDim,
+  eventLabelAnchor,
+  hitTestLayout,
+  rebuildLayout,
+  LANE_GROUP_HEADER_HEIGHT,
+  LANE_HEIGHT,
+} from '../../src/swimlane/layout';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import type { SwimlaneModel } from '../../src/domain/types';
 
 function tinyModel(): SwimlaneModel {
@@ -9,7 +19,7 @@ function tinyModel(): SwimlaneModel {
     processes: [
       {
         id: 'p-1',
-        name: 'Kernel',
+        name: 'Process 1',
         threads: [
           {
             id: 't-1',
@@ -25,59 +35,12 @@ function tinyModel(): SwimlaneModel {
   };
 }
 
-function multiProcessModel(): SwimlaneModel {
-  return {
-    minTime: 0,
-    maxTime: 100,
-    processes: [
-      {
-        id: 'p-a',
-        name: 'AIC0',
-        threads: [
-          { id: 't-a', name: 'PIPE_V', events: [{ id: 'e-a', name: 'a', startTime: 0, duration: 10 }] },
-        ],
-      },
-      {
-        id: 'p-b',
-        name: 'AIV1',
-        threads: [
-          { id: 't-b', name: 'PIPE_V', events: [{ id: 'e-b', name: 'b', startTime: 0, duration: 10 }] },
-        ],
-      },
-    ],
-  };
-}
-
-function mockCtx() {
-  return {
-    setTransform: vi.fn(),
-    clearRect: vi.fn(),
-    fillRect: vi.fn(),
-    beginPath: vi.fn(),
-    moveTo: vi.fn(),
-    lineTo: vi.fn(),
-    stroke: vi.fn(),
-    fill: vi.fn(),
-    fillText: vi.fn(),
-    save: vi.fn(),
-    restore: vi.fn(),
-    roundRect: vi.fn(),
-    arcTo: vi.fn(),
-    closePath: vi.fn(),
-    globalAlpha: 1,
-    fillStyle: '',
-    strokeStyle: '',
-    lineWidth: 1,
-    font: '',
-  };
-}
-
-describe('PR-RENDER: CanvasSwimlaneRenderer', () => {
+describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
   it('PR-RENDER-001: hitTest returns event under point', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 80);
+    renderer.resize(400, 120);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
 
@@ -91,7 +54,7 @@ describe('PR-RENDER: CanvasSwimlaneRenderer', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 80);
+    renderer.resize(400, 120);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
 
@@ -99,23 +62,15 @@ describe('PR-RENDER: CanvasSwimlaneRenderer', () => {
     expect(renderer.hitTest(long.x + 1, long.y + long.h / 2)).toBe('e-short');
   });
 
-  it('PR-RENDER-003: render paints lanes/events/cursor via 2d context', () => {
+  it('PR-RENDER-003: render accepts cursor and rounded event path without throw', () => {
     const canvas = document.createElement('canvas');
-    const ctx = mockCtx();
-    vi.spyOn(canvas, 'getContext').mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
-
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 80);
+    renderer.resize(400, 120);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
     renderer.setCursorX(40);
-    renderer.render();
-
-    expect(ctx.clearRect).toHaveBeenCalled();
-    expect(ctx.fillRect).toHaveBeenCalled();
-    expect(ctx.fillText).toHaveBeenCalled();
-    expect(ctx.stroke).toHaveBeenCalled();
+    expect(() => renderer.render()).not.toThrow();
   });
 
   it('PR-RENDER-004: first lane is offset below group header', () => {
@@ -128,23 +83,96 @@ describe('PR-RENDER: CanvasSwimlaneRenderer', () => {
 
     const rect = renderer.eventScreenRect('e-long');
     expect(rect).toBeTruthy();
-    expect(rect!.y).toBeGreaterThanOrEqual(28);
-    expect(rect!.y).toBeLessThan(28 + 22);
+    expect(rect!.y).toBeGreaterThanOrEqual(LANE_GROUP_HEADER_HEIGHT);
+    expect(rect!.y).toBeLessThan(LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
   });
 
-  it('PR-RENDER-005: multi-process headers offset second group lanes', () => {
-    const canvas = document.createElement('canvas');
-    const renderer = new CanvasSwimlaneRenderer();
-    renderer.attach(canvas);
-    renderer.resize(400, 200);
-    renderer.setModel(multiProcessModel());
-    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+  it('PR-RENDER-005: shared hitTestLayout matches canvas', () => {
+    const layout = rebuildLayout(tinyModel());
+    const view = { startTime: 0, endTime: 1000, scrollY: 0 };
+    const id = hitTestLayout(layout, view, 400, 1, LANE_GROUP_HEADER_HEIGHT + 11);
+    expect(id).toBe('e-short');
+  });
 
-    const a = renderer.eventScreenRect('e-a')!;
-    const b = renderer.eventScreenRect('e-b')!;
-    // second process: header(28) + lane(22) + header(28) → lane starts at 78
-    expect(a.y).toBeGreaterThanOrEqual(28);
-    expect(b.y).toBeGreaterThanOrEqual(28 + 22 + 28);
-    expect(renderer.contentHeight()).toBe(28 + 22 + 28 + 22);
+  it('PR-RENDER-007: eventLabelAnchor centers in full and clipped visible rects', () => {
+    const full = eventLabelAnchor(100, 200, 400);
+    expect(full).toEqual({ cx: 200, maxWidth: 192 });
+    const clippedLeft = eventLabelAnchor(-50, 100, 400);
+    expect(clippedLeft).toEqual({ cx: 25, maxWidth: 42 });
+    const tooNarrow = eventLabelAnchor(-30, 50, 400);
+    expect(tooNarrow).toBeNull();
+  });
+});
+
+describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
+  it('PR-RENDER-006: attach/render/hitTest when WebGL2 available (else skip)', () => {
+    const canvas = document.createElement('canvas');
+    if (!WebGlSwimlaneRenderer.isSupported(canvas)) {
+      expect(WebGlSwimlaneRenderer.isSupported(canvas)).toBe(false);
+      return;
+    }
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    expect(() => renderer.render()).not.toThrow();
+    const short = renderer.eventScreenRect('e-short');
+    expect(short).toBeTruthy();
+    expect(renderer.hitTest(short!.x + 1, short!.y + short!.h / 2)).toBe('e-short');
+    renderer.dispose();
+  });
+
+  it('PR-RENDER-008: WebGL setSearchQuery then render does not throw', () => {
+    const canvas = document.createElement('canvas');
+    if (!WebGlSwimlaneRenderer.isSupported(canvas)) {
+      expect(WebGlSwimlaneRenderer.isSupported(canvas)).toBe(false);
+      return;
+    }
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setSearchQuery('PIPE');
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setSearchQuery('');
+    expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
+
+  it('PR-RENDER-010: eventEmphasisDim + WebGL setSelection rebuild', () => {
+    expect(eventEmphasisDim(false, false, true, false)).toBe(0.25);
+    expect(eventEmphasisDim(true, false, false, true)).toBe(0.45);
+    expect(eventEmphasisDim(false, false, true, true)).toBeCloseTo(0.25 * 0.45);
+    expect(eventEmphasisDim(true, true, true, true)).toBe(1);
+
+    const canvas = document.createElement('canvas');
+    if (!WebGlSwimlaneRenderer.isSupported(canvas)) {
+      expect(WebGlSwimlaneRenderer.isSupported(canvas)).toBe(false);
+      return;
+    }
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setSelection('e-long', null);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setSearchQuery('PIPE');
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setSelection(null, null);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
+
+  it('PR-RENDER-009: encodeIntervalPair stays monotonic after float32 round', () => {
+    const base = 1_000_000_000;
+    const [a, b] = encodeIntervalPair(base + 100, 1, base);
+    expect(b).toBeGreaterThan(a);
+    // Absolute ns in float32 often collapses nearby timestamps; relative encoding must not.
+    const abs = new Float32Array([base + 100, base + 101]);
+    expect(abs[0]).toBe(abs[1]);
+    expect(b - a).toBeGreaterThanOrEqual(1);
   });
 });

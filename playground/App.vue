@@ -1,30 +1,66 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue';
 import { ProfilingReport } from '../src/index';
+import {
+  generateStressSwimlane,
+  stressPresetFromQuery,
+  stressSwimlaneStats,
+  type StressSwimlanePreset,
+} from '../src/domain/generateStressSwimlane';
+import type { SwimlaneModel } from '../src/domain/types';
+
+type FixtureKind = 'rep' | 'trace' | 'stress';
+type PreferRenderer = 'auto' | 'webgl' | 'canvas';
 
 const status = ref('loading');
 const source = shallowRef<ArrayBuffer | undefined>(undefined);
+const stressModel = shallowRef<SwimlaneModel | null>(null);
 const error = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const openedName = ref<string | null>(null);
 const loadToken = ref(0);
 
-const queryFixture = computed((): 'rep' | 'trace' => {
-  if (typeof window === 'undefined') return 'rep';
-  return new URLSearchParams(window.location.search).get('fixture') === 'trace'
-    ? 'trace'
-    : 'rep';
+function readQuery(): URLSearchParams {
+  if (typeof window === 'undefined') return new URLSearchParams();
+  return new URLSearchParams(window.location.search);
+}
+
+const queryFixture = computed((): FixtureKind => {
+  const f = readQuery().get('fixture');
+  if (f === 'trace' || f === 'stress') return f;
+  return 'rep';
+});
+
+const stressPreset = computed((): StressSwimlanePreset =>
+  stressPresetFromQuery(readQuery().get('scale')),
+);
+
+const preferRenderer = computed((): PreferRenderer => {
+  const r = readQuery().get('renderer');
+  if (r === 'webgl' || r === 'canvas' || r === 'auto') return r;
+  return 'auto';
 });
 
 const title = computed(() => {
   if (openedName.value) return openedName.value;
+  if (queryFixture.value === 'stress') {
+    const stats = stressModel.value ? stressSwimlaneStats(stressModel.value) : null;
+    const n = stats ? `${stats.eventCount.toLocaleString()} events` : '…';
+    return `stress (${stressPreset.value}, ${n})`;
+  }
   return queryFixture.value === 'trace' ? 'out.trace.json' : 'out.rep';
+});
+
+const statusLine = computed(() => {
+  const renderer = preferRenderer.value === 'auto' ? 'auto' : preferRenderer.value;
+  return `${status.value} · ${title.value} · renderer=${renderer}`;
 });
 
 async function loadUrl(url: string): Promise<void> {
   status.value = 'loading';
   error.value = null;
   source.value = undefined;
+  stressModel.value = null;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status}`);
@@ -34,8 +70,31 @@ async function loadUrl(url: string): Promise<void> {
   status.value = 'ready';
 }
 
-async function loadFixture(kind: 'rep' | 'trace'): Promise<void> {
+function loadStress(preset: StressSwimlanePreset): void {
+  status.value = 'loading';
+  error.value = null;
+  source.value = undefined;
   openedName.value = null;
+  // Defer so the loading chrome can paint before a large sync generate.
+  requestAnimationFrame(() => {
+    try {
+      const model = generateStressSwimlane({}, preset);
+      stressModel.value = model;
+      loadToken.value += 1;
+      status.value = 'ready';
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : String(err);
+      status.value = 'error';
+    }
+  });
+}
+
+async function loadFixture(kind: FixtureKind): Promise<void> {
+  openedName.value = null;
+  if (kind === 'stress') {
+    loadStress(stressPreset.value);
+    return;
+  }
   const url = kind === 'trace' ? '/data/out.trace.json' : '/data/out.rep';
   await loadUrl(url);
 }
@@ -54,6 +113,7 @@ async function onFileChosen(e: Event): Promise<void> {
   status.value = 'loading';
   error.value = null;
   source.value = undefined;
+  stressModel.value = null;
   try {
     source.value = await file.arrayBuffer();
     openedName.value = file.name;
@@ -62,6 +122,7 @@ async function onFileChosen(e: Event): Promise<void> {
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.delete('fixture');
+      url.searchParams.delete('scale');
       window.history.replaceState({}, '', url.pathname + url.search);
     }
   } catch (err) {
@@ -76,6 +137,15 @@ function onViewFullCsv(payload: { fileName: string; text: string }): void {
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank', 'noopener,noreferrer');
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+function stressHref(scale: StressSwimlanePreset, renderer?: PreferRenderer): string {
+  const q = new URLSearchParams();
+  q.set('fixture', 'stress');
+  q.set('scale', scale);
+  if (renderer && renderer !== 'auto') q.set('renderer', renderer);
+  else if (preferRenderer.value !== 'auto') q.set('renderer', preferRenderer.value);
+  return `/?${q.toString()}`;
 }
 
 onMounted(async () => {
@@ -102,6 +172,32 @@ onMounted(async () => {
           data-testid="fixture-trace"
         >out.trace.json</a>
         <a
+          :href="stressHref('medium')"
+          data-testid="fixture-stress"
+        >stress</a>
+        <span class="playground__sep">·</span>
+        <a
+          :href="stressHref('small')"
+          data-testid="stress-small"
+        >small</a>
+        <a
+          :href="stressHref('medium')"
+          data-testid="stress-medium"
+        >medium</a>
+        <a
+          :href="stressHref('large')"
+          data-testid="stress-large"
+        >large</a>
+        <span class="playground__sep">·</span>
+        <a
+          :href="stressHref(stressPreset, 'webgl')"
+          data-testid="renderer-webgl"
+        >webgl</a>
+        <a
+          :href="stressHref(stressPreset, 'canvas')"
+          data-testid="renderer-canvas"
+        >canvas</a>
+        <a
           href="#"
           data-testid="open-file"
           @click="onOpenFileClick"
@@ -119,7 +215,7 @@ onMounted(async () => {
         class="playground__note"
         data-testid="playground-ready"
       >
-        {{ status }} · {{ title }}
+        {{ statusLine }}
       </p>
       <p
         v-if="error"
@@ -132,9 +228,19 @@ onMounted(async () => {
     <div class="playground__report">
       <ProfilingReport
         v-if="source"
-        :key="loadToken"
+        :key="`src-${loadToken}-${preferRenderer}`"
         :title="title"
         :source="source"
+        :prefer-renderer="preferRenderer"
+        locale="zh-CN"
+        @view-full-csv="onViewFullCsv"
+      />
+      <ProfilingReport
+        v-else-if="stressModel"
+        :key="`stress-${loadToken}-${preferRenderer}`"
+        :title="title"
+        :swimlane-model="stressModel"
+        :prefer-renderer="preferRenderer"
         locale="zh-CN"
         @view-full-csv="onViewFullCsv"
       />
@@ -191,10 +297,15 @@ body,
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .playground__left a {
   color: #8ab4ff;
+}
+
+.playground__sep {
+  opacity: 0.4;
 }
 
 .playground__file {
@@ -212,6 +323,7 @@ body,
 .playground__note {
   margin: 0;
   opacity: 0.7;
+  white-space: nowrap;
 }
 
 .playground__error {

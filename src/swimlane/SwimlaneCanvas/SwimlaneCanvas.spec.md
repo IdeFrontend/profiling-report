@@ -16,9 +16,9 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Behavior
 
-**Canvas lifecycle.** The renderer is created eagerly, the canvas element is attached on mount (initializing the 2D context), and disposed on unmount. A `ResizeObserver` triggers `renderer.resize()` when the container size changes, accounting for `devicePixelRatio`.
+**Canvas lifecycle.** The renderer is created eagerly, the canvas element is attached on mount (initializing the 2D context), and disposed on unmount. A `ResizeObserver` triggers `renderer.resize()` when the container size changes, accounting for `devicePixelRatio`. After a buffer resize (which clears pixels), paint runs in the same turn — not deferred to the next animation frame — so gutter/aside drag does not flash a blank swimlane.
 
-**Scroll model.** The container uses `overflow: hidden` with a synthetic scroll mechanism: a sizer div sets the total content height, and `localScrollY` tracks the actual scroll offset. Only the visible viewport is drawn on canvas — this enables smooth scrolling with large swimlane datasets.
+**Scroll model.** The container uses `overflow: hidden` with a synthetic scroll mechanism: a sizer div sets the total content height, and `localScrollY` tracks the actual scroll offset. The drawing surface is sized to the **visible viewport** only; lanes are scrolled via `scrollY` in the renderer.
 
 **Pointer translation.** `pointerdown` records the starting position. `pointermove` performs hitTest and emits `hover` (with clientX/clientY for tooltip positioning) and `cursor` (time + xRatio for playhead). While dragging **and not in measureMode**, every move emits `pan` in time units. On `pointerup`, if total movement <=4px and not measuring, `hitTest` is called and the result emitted as `select`.
 
@@ -58,6 +58,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-08-10** — Flush paint after canvas resize (no blink on panel drag); draw surface = viewport height.
 - **2026-08-07** — External measure cancel clears local drag; PR-CANVAS-006.
 - **2026-08-07** — Measure drag survives pointerleave; PR-CANVAS-005.
 - **2026-08-07** — Note M2 measure as planned; no AC until coded.

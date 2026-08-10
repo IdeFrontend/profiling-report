@@ -195,6 +195,7 @@ defineExpose({ root });
 }
 
 .pr-gutter__lane {
+  box-sizing: border-box;
   display: grid;
   /* label aligns under group title (pad 8 + chev 10 + gap 6 = 24) */
   grid-template-columns: minmax(0, 1fr) 110px;
@@ -204,8 +205,7 @@ defineExpose({ root });
   height: 22px;
   min-height: 22px;
   padding: 0 8px 0 24px;
-  box-sizing: border-box;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #3a3a3a; /* continues across swimlane row dividers */
 }
 
 .pr-gutter__name {

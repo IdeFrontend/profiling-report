@@ -152,15 +152,13 @@ interface SwimlaneRenderer {
 
 ### `CanvasSwimlaneRenderer` (M)
 
-Canvas 2D implementation of `SwimlaneRenderer`.
+Canvas 2D implementation of `SwimlaneRenderer`. Uniform `#2a2a2a` event-sequence backgrounds (no zebra) with `#3a3a3a` row dividers aligned to the gutter.
 
 **Why:** Adequate for sample-scale traces; ships MVP.
 
-### `WebGlSwimlaneRenderer` (P2)
+### `WebGlSwimlaneRenderer` (P2 → implemented on `feat/webgl-swimlane`)
 
-WebGL2 coverage-AA interval backend (Sudu-inspired).
-
-**Why:** Named now so the interface stays stable when density requires it.
+WebGL2 coverage-AA interval backend (Sudu-inspired). Same uniform lane fill and 1px dividers as Canvas. Used by default from `SwimlaneCanvas` with a Canvas2D overlay for labels/selection/cursor; falls back to `CanvasSwimlaneRenderer` when WebGL2 is unavailable.
 
 ---
 
@@ -186,8 +184,7 @@ CSS grid: gutter | main | aside (+ detail strip region).
 
 ### `LaneGutter` (M)
 
-Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Visual tokens: [`components/VISUAL_SPEC.md`](../ui/components/VISUAL_SPEC.md). Behavior: [`LaneGutter.spec.md`](../../../src/ui/LaneGutter/LaneGutter.spec.md).
-
+Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Row `#3a3a3a` bottom borders align with swimlane horizontal dividers. Visual tokens: [`components/VISUAL_SPEC.md`](../ui/components/VISUAL_SPEC.md). Behavior: [`LaneGutter.spec.md`](../../../src/ui/LaneGutter/LaneGutter.spec.md).
 **Why:** DOM text for a11y/i18n; avoids baking labels into WebGL. Hierarchy comes from `SwimProcess` / `SwimThread`.
 
 ### `TimeAxis` (M)

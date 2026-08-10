@@ -22,6 +22,7 @@ This directory contains behavioral specifications for all modules in the profili
 | [format-time](./core/format-time.spec.md) | `PR-TIME-*` | MVP | `src/domain/formatTime.ts` | `tests/unit/formatTime.spec.ts` |
 | [view-state](./core/view-state.spec.md) | `PR-VIEW-*` | MVP | `src/domain/viewState.ts` | `tests/unit/viewState.spec.ts` |
 | [swimlane-renderer](./core/swimlane-renderer.spec.md) | `PR-RENDER-*` | MVP | `src/swimlane/CanvasSwimlaneRenderer.ts` | `tests/unit/canvasRenderer.spec.ts` |
+| [stress-swimlane](./core/stress-swimlane.spec.md) | `PR-STRESS-*` | Dev | `src/domain/generateStressSwimlane.ts` | `tests/unit/generateStressSwimlane.spec.ts` |
 | [load-report-source](./core/load-report-source.spec.md) | `PR-JSON-*` | MVP | `src/adapters/loadReportSource.ts` | `tests/unit/loadReportSource.spec.ts` |
 | [utilization](./core/utilization.spec.md) | `PR-UTIL-*` | MVP | `src/domain/utilization.ts` | `tests/unit/utilization.spec.ts` |
 | [integration](./core/integration.spec.md) | `PR-UI-*`, `PR-E2E-*` | MVP | — | `tests/component/ProfilingReport.feature.spec.ts`, `tests/e2e/feature.spec.ts` |
