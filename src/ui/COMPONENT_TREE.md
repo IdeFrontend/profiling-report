@@ -55,8 +55,8 @@ src/ui/
     OverviewCharts/                ✓  v930/entry
     SwimlaneView/                  (no pack)
       LaneGutter/                  ✓  v930/entry
-      SwimlaneCanvas/              ✓  v930/entry (+ search/measure/multi-height/marquee)
-      DependencyLinksLayer/        ✓  v930/entry (context; dedicated links TBD)
+      SwimlaneCanvas/              ✓  v930/entry (+ search/measure/multi-height/marquee/selection-dim)
+      DependencyLinksLayer/        ✓  v930/task-click-detail
   StatsAside/                      ✓  shell: v930/report-stats-scrolled
     StatsSummaryPanel/             ✓  v930/report-stats-open
     PipeOccupancyPanel/            ✓  v930/compute-load

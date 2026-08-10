@@ -21,3 +21,7 @@ crops:
     source: v930/task-marquee
     region: "Marquee selection over timeline events (full rect including left edge)"
     box: { x: 1380, y: 2260, w: 2950, h: 960 }
+  selection-dim.png:
+    source: v930/task-click-detail
+    region: "Single-click selection: selected event emphasized, other tasks 置灰; dep beziers may show (see DependencyLinksLayer)"
+    box: { x: 1200, y: 2100, w: 3800, h: 820 }

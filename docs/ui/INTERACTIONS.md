@@ -29,11 +29,11 @@ Sketch: `source/v930/task-hover.jpeg`
 
 ## Single selection
 
-Sketches: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`
+Sketches: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (click → 详情 + 置灰), [`v930/detail-strip-raised`](./source/v930/detail-strip-raised.jpeg)
 
 - Click event → selected state (distinct from hover).
 - Populate detail region with at least name and start → duration (and end).
-- Optional: dim non-selected events slightly.
+- Optional: dim non-selected events slightly (shown in `task-click-detail`).
 - Click empty space → clear selection.
 
 **MVP:** required. Full bottom dock with source paths and dependency graph → Phase 2.
@@ -57,11 +57,12 @@ Sketch: `source/v930/entry.jpeg`
 
 ## Dependencies
 
-Sketch: `source/v930/entry.jpeg` annotations
+Sketch: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (swimlane beziers + Relevant toolbar callout)
 
-- Optional curved links between predecessor/successor events.
+- Optional curved links between predecessor/successor events on the swimlane (`DependencyLinksLayer`).
 - Toolbar toggle to show/hide links.
-- Detail panel: incoming / current / outgoing graph with depth filters (forward only / both / backward only).
+- Detail panel Relevant column: incoming / current / outgoing graph with depth filters. The three toolbar icons (left → right) mean: **forward-only**, **forward+backward**, **backward-only** (design callout on `task-click-detail`).
+- **Task Connection Level** numeric filter (sketch shows `-1`).
 
 **Phase 2+** — requires dependency data in trace args or side tables. Sample `out.rep` has no deps.
 

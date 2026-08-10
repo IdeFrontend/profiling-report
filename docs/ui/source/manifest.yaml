@@ -9,7 +9,7 @@ batches:
         path: v930/entry.jpeg
         original_name: "930版本-性能调优_入口.jpeg"
         scenes: [entry, toolbar, overview, gutter, swimlane]
-        components: [ReportToolbar, TimeOverviewBar, LaneGutter, AxisRuler, CursorTimestamp, SwimlaneCanvas, OverviewCharts, DependencyLinksLayer]
+        components: [ReportToolbar, TimeOverviewBar, LaneGutter, AxisRuler, CursorTimestamp, SwimlaneCanvas, OverviewCharts]
       - id: report-stats-open
         path: v930/report-stats-open.jpeg
         original_name: "930版本-性能调优_打开报告统计.jpeg"
@@ -75,3 +75,8 @@ batches:
         original_name: "930版本-性能调优_Task 存在多个时，高度加高.jpeg"
         scenes: [task-multi-height]
         components: [SwimlaneCanvas]
+      - id: task-click-detail
+        path: v930/task-click-detail.jpeg
+        original_name: "930版本-性能调优_Task 点击后-出现底部栏、其他task置灰.jpeg"
+        scenes: [task-select, detail, deps, dim]
+        components: [SwimlaneCanvas, DependencyLinksLayer, DetailPanel]

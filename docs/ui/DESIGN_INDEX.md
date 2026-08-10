@@ -29,6 +29,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930/task-marquee` | [`task-marquee.jpeg`](./source/v930/task-marquee.jpeg) | Marquee / multi-select |
 | `v930/task-measure-mode` | [`task-measure-mode.jpeg`](./source/v930/task-measure-mode.jpeg) | Measure mode |
 | `v930/task-multi-height` | [`task-multi-height.jpeg`](./source/v930/task-multi-height.jpeg) | Multi-task taller lanes |
+| `v930/task-click-detail` | [`task-click-detail.jpeg`](./source/v930/task-click-detail.jpeg) | Task click → 详情 dock; other tasks 置灰; dep beziers |
 
 ## Component visual packs
 
@@ -40,8 +41,8 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`CursorTimestamp`](../../src/ui/TimelineView/TimeAxis/CursorTimestamp/visual/) | cursor timestamp | `v930/search-highlight` |
 | [`OverviewCharts`](../../src/ui/TimelineView/OverviewCharts/visual/) | 统计分析 tracks | `v930/entry` |
 | [`LaneGutter`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/visual/) | expanders, util bars | `v930/entry` |
-| [`SwimlaneCanvas`](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/) | events, search, measure, multi-height, marquee | `v930/entry`, `task-*` |
-| [`DependencyLinksLayer`](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/visual/) | swimlane context (links TBD) | `v930/entry` |
+| [`SwimlaneCanvas`](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/) | events, search, measure, multi-height, marquee, selection-dim | `v930/entry`, `task-*` |
+| [`DependencyLinksLayer`](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/visual/) | selection dep beziers | `v930/task-click-detail` |
 | [`StatsAside`](../../src/ui/StatsAside/visual/) | aside shell scrolled | `v930/report-stats-scrolled` |
 | [`StatsSummaryPanel`](../../src/ui/StatsAside/StatsSummaryPanel/visual/) | summary cards | `v930/report-stats-open` |
 | [`PipeOccupancyPanel`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/) | PIPE bars, Cube\|Vector tabs | `v930/compute-load` |
