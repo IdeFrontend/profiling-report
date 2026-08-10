@@ -115,7 +115,7 @@ Risk: re-approaching PyPTO scale without LOD or GPU will regress FPS; plan WebGL
 
 - `src/swimlane/WebGlSwimlaneRenderer.ts` — Sudu-style mesh + coverage fragment shader (reimplemented; no sudu-editor import).
 - `src/swimlane/shaders.ts` — VS/FS sources.
-- `src/ui/SwimlaneCanvas.vue` — prefers WebGL + overlay; falls back to `CanvasSwimlaneRenderer`.
+- `src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.vue` — prefers WebGL + overlay (`preferRenderer` from `ProfilingReport`); falls back to `CanvasSwimlaneRenderer`.
 - Shared layout/hit-test: `src/swimlane/layout.ts`.
 
 ### Decision criteria (when to invest in WebGL)

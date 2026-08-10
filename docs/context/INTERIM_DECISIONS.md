@@ -55,7 +55,7 @@ Not required for first MVP merge:
 - Sketch-faithful multi-core golden
 - Full report stats tiles (compute / BW / avg util)
 - Overview charts with real series
-- Hardware aside, roofline, memory SVG, deps, secondary tabs
+- Product-final hardware inventory beyond I-Q7a; roofline tabs / L2 series beyond I-Q11*; memory SVG; deps; secondary tabs
 - Clock-cycle display mode
 
 ---

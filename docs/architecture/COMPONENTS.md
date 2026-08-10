@@ -228,7 +228,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell (M):** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → emit `open-hardware-details` (no panel until Q7). **PIPE (M):** scale, hatched bars, optional absolute times (I-Q6f), **详情** → emit `open-pipe-details` (detail panel M1 separate). Mode switcher remains an **M1 separate slice**.
+Right analytics column. **Shell (M):** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → open interim `HardwareDetailsPanel` when data exists (I-Q7a) and emit `open-hardware-details`. **PIPE (M):** scale, hatched bars, optional absolute times (I-Q6f), **详情** → emit `open-pipe-details` (detail panel M1 separate). Mode switcher remains an **M1 separate slice**.
 
 Inline today: summary cards + PIPE occupancy (+ Cube|Vector for MIX) + **RooflinePanel** (M2 interim I-Q11*) when `report.roofline.points` non-empty. Drill-down surfaces: `CsvFieldListPanel` (pipe/memory), `HardwareDetailsPanel` (I-Q7a). Planned: `MemoryTopologyPanel`.
 
