@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
-import type { PipeOccupancyItem, ReportViewModel } from '../../domain/types';
+import type { PipeOccupancyItem, ReportCapability, ReportViewModel } from '../../domain/types';
 import CsvFieldListPanel from '../CsvFieldListPanel/CsvFieldListPanel.vue';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
   locale?: string;
+  capabilities?: ReportCapability[];
 }>();
 
 const emit = defineEmits<{
+  close: [];
+  'open-hardware-details': [];
   'view-full-csv': [payload: { fileName: string; text: string }];
 }>();
 
@@ -55,6 +58,19 @@ watch(
     }
   },
   { immediate: true },
+);
+
+const summary = computed(() => props.report?.summary);
+
+const hasMeta = computed(() => {
+  const s = summary.value;
+  return Boolean(
+    s && (s.coreCount != null || s.currentFreq != null || s.npuArchLabel),
+  );
+});
+
+const showMore = computed(
+  () => hasMeta.value || (props.capabilities ?? []).includes('hardwareDetails'),
 );
 
 const opType = computed(() => (props.report?.summary.opType ?? '').trim());
@@ -110,18 +126,49 @@ function modeLabel(m: AsideMode): string {
     data-testid="stats-aside"
   >
     <header class="pr-aside__head">
-      <h3>{{ t('summary', locale) }}</h3>
+      <div class="pr-aside__title-row">
+        <span
+          class="pr-aside__icon"
+          aria-hidden="true"
+        >▦</span>
+        <h3>{{ t('summary', locale) }}</h3>
+        <button
+          type="button"
+          class="pr-aside__close"
+          data-testid="stats-aside-close"
+          :aria-label="t('closePanel', locale)"
+          :title="t('closePanel', locale)"
+          @click="emit('close')"
+        >
+          ×
+        </button>
+      </div>
       <p
-        v-if="report?.summary.currentFreq != null"
+        v-if="hasMeta || showMore"
         class="pr-aside__meta"
+        :data-testid="hasMeta ? 'stats-aside-meta' : undefined"
       >
-        {{ t('freq', locale) }}: {{ report.summary.currentFreq }}
-        <template v-if="report.summary.ratedFreq != null">
-          / {{ report.summary.ratedFreq }}
-        </template>
-        <template v-if="report?.summary.opType">
-          · {{ report.summary.opType }}
-        </template>
+        <span
+          v-if="summary?.coreCount != null"
+          class="pr-aside__meta-seg"
+        >{{ t('coreCount', locale) }}: {{ summary.coreCount }}{{ t('coreUnit', locale) }}</span>
+        <span
+          v-if="summary?.currentFreq != null"
+          class="pr-aside__meta-seg"
+        >{{ t('aicFreq', locale) }}: {{ summary.currentFreq }}</span>
+        <span
+          v-if="summary?.npuArchLabel"
+          class="pr-aside__meta-seg"
+        >{{ t('npuArch', locale) }}: {{ summary.npuArchLabel }}</span>
+        <button
+          v-if="showMore"
+          type="button"
+          class="pr-aside__more"
+          data-testid="stats-aside-more"
+          @click="emit('open-hardware-details')"
+        >
+          {{ t('more', locale) }}
+        </button>
       </p>
     </header>
 
@@ -285,12 +332,58 @@ function modeLabel(m: AsideMode): string {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
+  flex: 1;
+}
+
+.pr-aside__title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-aside__icon {
+  font-size: 12px;
+  color: #8ab4c8;
+  line-height: 1;
+}
+
+.pr-aside__close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #a8a8a8;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.pr-aside__close:hover {
+  color: #f0f0f0;
 }
 
 .pr-aside__meta {
   margin: 4px 0 0;
   font-size: 11px;
   color: #a8a8a8;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.pr-aside__more {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #6cb6ff;
+  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pr-aside__more:hover {
+  text-decoration: underline;
 }
 
 .pr-aside__modes {

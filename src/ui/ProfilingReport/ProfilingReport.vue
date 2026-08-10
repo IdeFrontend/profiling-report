@@ -65,6 +65,7 @@ const emit = defineEmits<{
   select: [event: SelectedEvent | null];
   error: [error: { message: string; cause?: unknown }];
   'view-full-csv': [payload: { fileName: string; text: string }];
+  'open-hardware-details': [];
 }>();
 
 const internalSwim = ref<SwimlaneModel | null>(null);
@@ -597,7 +598,10 @@ defineExpose({ selectEventById, viewState });
         <StatsAside
           :report="report"
           :locale="locale"
+          :capabilities="capabilities"
+          @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
+          @open-hardware-details="emit('open-hardware-details')"
         />
       </template>
     </ReportLayout>

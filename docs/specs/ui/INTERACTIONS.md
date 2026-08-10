@@ -93,6 +93,8 @@ Sketch / changelog: [`docs/source/changes/changes.png`](../../source/changes/cha
 
 ## Right panel coordination
 
+- Aside **close (X)** clears `asideVisible` (equivalent to toolbar stats toggle off). See [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md).
+- **更多** / More emits library intent `open-hardware-details`; full hardware UI remains **out of MVP ([Q7](../../context/OPEN_QUESTIONS.md))** until a later slice.
 - Aside modes (M1): Summary | PIPE | compute details | Memory — see [FEATURE_MATRIX](FEATURE_MATRIX.md) and changelog #2–#4.
 - PIPE bars remain global mean aggregates ([I-Q6b](../../context/INTERIM_DECISIONS.md)) unless Product later ties them to selection or measure (Q22).
 - Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../../context/INTERIM_DECISIONS.md)).

@@ -162,4 +162,73 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('MemoryL1');
   });
+
+  it('PR-STATS-006: header title and close emit', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({}),
+      },
+    });
+    expect(wrapper.text()).toMatch(/报告统计|Report statistics/);
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="stats-aside-close"]').trigger('click');
+    expect(wrapper.emitted('close')).toBeTruthy();
+  });
+
+  it('PR-STATS-007: meta segments only when fields present', () => {
+    const empty = mount(StatsAside, {
+      props: {
+        report: report({ summary: { opName: 'x' } }),
+      },
+    });
+    expect(empty.find('[data-testid="stats-aside-meta"]').exists()).toBe(false);
+    expect(empty.find('[data-testid="stats-aside-more"]').exists()).toBe(false);
+
+    const withFreq = mount(StatsAside, {
+      props: {
+        report: report({ summary: { currentFreq: 1280 } }),
+      },
+    });
+    const meta = withFreq.get('[data-testid="stats-aside-meta"]');
+    expect(meta.text()).toMatch(/1280/);
+    expect(meta.text()).not.toMatch(/核数|cores/i);
+    expect(meta.text()).not.toMatch(/NPU ARCH/i);
+    expect(withFreq.find('[data-testid="stats-aside-more"]').exists()).toBe(true);
+
+    const full = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            coreCount: 8,
+            currentFreq: 1280,
+            npuArchLabel: '212 teraOPs',
+          },
+        }),
+      },
+    });
+    const fullMeta = full.get('[data-testid="stats-aside-meta"]').text();
+    expect(fullMeta).toMatch(/8/);
+    expect(fullMeta).toMatch(/1280/);
+    expect(fullMeta).toMatch(/212 teraOPs/);
+  });
+
+  it('PR-STATS-008: 更多 visible with capability or meta; emits open-hardware-details', async () => {
+    const viaCap = mount(StatsAside, {
+      props: {
+        report: report({}),
+        capabilities: ['hardwareDetails'],
+      },
+    });
+    expect(viaCap.find('[data-testid="stats-aside-more"]').exists()).toBe(true);
+    await viaCap.get('[data-testid="stats-aside-more"]').trigger('click');
+    expect(viaCap.emitted('open-hardware-details')).toBeTruthy();
+
+    const viaMeta = mount(StatsAside, {
+      props: {
+        report: report({ summary: { currentFreq: 100 } }),
+      },
+    });
+    await viaMeta.get('[data-testid="stats-aside-more"]').trigger('click');
+    expect(viaMeta.emitted('open-hardware-details')).toBeTruthy();
+  });
 });

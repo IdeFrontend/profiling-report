@@ -27,4 +27,22 @@ describe('ProfilingReport scaffold', () => {
     );
     expect(wrapper.find('[data-testid="gutter-resize-handle"]').exists()).toBe(true);
   });
+
+  it('PR-STATS-006: aside close hides the stats panel', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'aside-close',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: {
+          summary: { opName: 'relu', opType: 'vector', taskDurationUs: 100 },
+          pipeOccupancy: [],
+          overviewSeries: [],
+        },
+      },
+    });
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="stats-aside-close"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="toggle-aside"]').attributes('aria-pressed')).toBe('false');
+  });
 });

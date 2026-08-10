@@ -14,6 +14,8 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (microseconds as stored in CSV). In MVP (I-Q6a), only these thin fields are populated — compute TFLOPS, bandwidth, and core utilization exist in the type but are left undefined.
 
+**Aside meta (shell).** Optional header fields on `SummaryMetrics`: `coreCount?: number`, `npuArchLabel?: string`, plus existing `currentFreq` (displayed as aic频率). Adapter may leave `coreCount` / `npuArchLabel` unset until `HardwareInfo` / Product mapping exists — UI hides missing segments.
+
 **Pipe occupancy.** Reads `PipeUtilization.csv`, computes per-pipe-family means of non-NA ratios across all rows (I-Q6b). Each item is **side-specific**: Cube uses `aic_*` columns, Vector uses `aiv_*` (VIEW_DATA_MAPPING tables). Shared family names (MTE2, Scalar) appear as separate cube/vector items — never a blended AIC+AIV mean. Ratios merge into matching swimlane threads by `laneColorKey` (mean when both sides contribute the same key).
 
 **CSV detail tables (M1).** Builds `CsvTableModel` entries for compute tabs (`PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio`) and memory tabs (`Memory.csv`, `L2Cache`, `MemoryL0`, `MemoryUB`). Each table includes headers, rows, and distinct `blockIds` in fixture order (I-Q6c). Missing embeds are omitted. Raw CSV text is stored in `csvTexts[fileName]` for 查看全部 (I-Q6d).
@@ -49,6 +51,7 @@ I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q5+. [rep-format](./rep-format.spec.md), [swimlane
 Q6 — Product-final summary formulas. Q22 — measureRange aside sync. M2 topology edge labels.
 
 ## Changelog
+- **2026-08-07** — Optional `coreCount` / `npuArchLabel` on SummaryMetrics for aside meta shell; adapter may leave unset.
 - **2026-08-07** — M1 CsvTableModel compute/memory tables + csvTexts (PR-VM-006/007).
 - **2026-08-07** — Pipe `side` for existing PIPE Cube|Vector toggle.
 - **2026-08-05** — Initial spec. Core behaviors established.

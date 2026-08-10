@@ -168,7 +168,7 @@ WebGL2 coverage-AA interval backend (Sudu-inspired).
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error`.
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `open-hardware-details` (forwarded from StatsAside shell).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
@@ -219,6 +219,14 @@ Hover overlay: name, start, duration, end.
 Selection summary (name + timing). Compact strip for MVP (full bottom dock / deps graph → P2).
 
 **Why:** Delivers select→detail without waiting on dependency data (Q9).
+
+### `StatsAside` (M / M1)
+
+Right analytics column. **Shell (M):** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → emit `open-hardware-details` (no panel until Q7). Mode switcher remains an **M1 separate slice** — not part of shell polish.
+
+Inline today: summary cards + PIPE occupancy (+ Cube|Vector for MIX). Planned children: `CsvFieldListPanel`, `RooflinePanel`, `MemoryTopologyPanel`, `HardwareDetailsPanel`.
+
+**Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
 ### `StatsSummaryPanel` (M)
 

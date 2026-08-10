@@ -68,8 +68,9 @@ Mockups extracted from the source docx live under [`docs/specs/ui/source/`](../u
 
 | Element | Behavior |
 | --- | --- |
-| Header | Core count (核数) and AIC frequency; NPU ARCH peak (e.g. teraOPs). **Source conflict:** mockup values look like hardware caps (`HardwareInfo.jsonl` / AI Core info), while `OpBasicInfo.csv` also has `Current Freq` / `Rated Freq` — which feeds the header is unspecified. |
-| 更多 | Drill-down to **硬件信息详情** (§11.2.3.1) |
+| Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
+| Meta row | Segments **核数** / **aic频率** / **NPU ARCH** only when `SummaryMetrics.coreCount` / `currentFreq` / `npuArchLabel` are set. Hide entire meta row if all empty. Do **not** invent values. Adapter may leave cores/ARCH unset until `HardwareInfo` mapping exists; `Current Freq` from OpBasicInfo feeds aic频率. **`Rated Freq` / `ratedFreq` is intentionally not shown** on this shell (sketch aic频率 only). |
+| 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Emit `open-hardware-details` only — full **硬件信息详情** panel (§11.2.3.1) remains **out of MVP (Q7)**. |
 | 整体耗时 card | Large duration + progress bar; secondary text like iterations/core |
 | 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak |
 | 输入/输出带宽 card | Dual bars with measured / peak TB/s |

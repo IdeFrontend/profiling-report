@@ -99,13 +99,13 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Metric (sketch) | Likely embeds | Requirement |
 |-----------------|---------------|-------------|
 | Op name / type / task duration | `OpBasicInfo.csv` | **Interim MVP ([I-Q6a](../../context/INTERIM_DECISIONS.md)):** show when columns present |
-| Current / rated frequency (raw) | `OpBasicInfo.csv` | **Optional** — show as labeled raw values if present; no derived tiles |
+| Current / rated frequency (raw) | `OpBasicInfo.csv` | **Optional** — adapter may populate both. Aside **shell meta** shows `currentFreq` as aic频率 only; **`ratedFreq` intentionally omitted** from shell (sketch). |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Hide** until Q6 / data spec |
 | I/O bandwidth tiles | `Memory.csv` / OpBasicInfo TBD | **Hide** until Q6 / data spec |
 | Avg core util % | PipeUtilization / OpBasicInfo TBD | **Hide** until Q6 / data spec |
-| Hardware one-liner (cores, freq) | OpBasicInfo / host | **Optional** raw; full hardware aside **out of MVP (Q7)** |
+| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** raw on aside **meta row** only: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. Show each segment only when set; **never invent** peaks/cores. Full hardware aside **out of MVP (Q7)** — **更多** emits intent only |
 
-If no showable OpBasicInfo fields → **hide** the summary card group (PIPE may still show).
+If no showable OpBasicInfo fields → **hide** the summary card group (PIPE may still show). Meta row is independent of summary cards (may show freq alone).
 
 ---
 

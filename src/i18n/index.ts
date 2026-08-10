@@ -37,6 +37,12 @@ const messages = {
     modeMemory: '内存负载',
     computeAnalysis: '计算负载分析',
     memoryAnalysis: '内存负载分析',
+    more: '更多',
+    coreCount: '核数',
+    aicFreq: 'aic频率',
+    npuArch: 'NPU ARCH',
+    closePanel: '关闭',
+    coreUnit: '核',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -74,6 +80,12 @@ const messages = {
     modeMemory: 'Memory load',
     computeAnalysis: 'Compute load analysis',
     memoryAnalysis: 'Memory load analysis',
+    more: 'More',
+    coreCount: 'Cores',
+    aicFreq: 'AIC freq',
+    npuArch: 'NPU ARCH',
+    closePanel: 'Close',
+    coreUnit: ' cores',
   },
 } as const;
 

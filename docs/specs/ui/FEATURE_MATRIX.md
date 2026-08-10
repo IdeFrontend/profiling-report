@@ -61,6 +61,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../../process/roadmap/mile
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
 | Report summary (time, compute, BW, util) | M | **Interim:** name / type / duration (+ raw freq if present); **hide** compute / BW / avg-util until Q6 — [I-Q6a](../../context/INTERIM_DECISIONS.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
+| Aside shell (title, close, meta, 更多) | M | Close hides aside; meta hide-if-missing; 更多 emit only — [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md), [INTERACTIONS](INTERACTIONS.md) |
 | PIPE occupancy bars | M | From PipeUtilization.csv; mean non-`NA` ([I-Q6b](../../context/INTERIM_DECISIONS.md)); **hide** if missing |
 | Cube \| Vector PIPE toggle (MIX only) | M1 | [changes.png](../../source/changes/changes.png) #2; non-MIX shows relevant side only |
 | Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists |

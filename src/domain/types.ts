@@ -35,7 +35,15 @@ export interface SummaryMetrics {
   /** Task duration in microseconds as in OpBasicInfo, or converted — adapter documents unit. */
   taskDurationUs?: number;
   currentFreq?: number;
+  /**
+   * Rated frequency from OpBasicInfo. Populated by the adapter when present;
+   * intentionally **not** shown on StatsAside shell meta (sketch: aic频率 = currentFreq only).
+   */
   ratedFreq?: number;
+  /** Aside meta shell: core count (核数). Leave unset until HardwareInfo / Product mapping. */
+  coreCount?: number;
+  /** Aside meta shell: NPU ARCH peak label (e.g. `212 teraOPs`). */
+  npuArchLabel?: string;
   /** Interim I-Q6a: leave unset until Product formulas exist */
   computeTflops?: number;
   ioBandwidth?: number;
