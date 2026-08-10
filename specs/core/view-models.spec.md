@@ -26,6 +26,8 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (Q15).
 
+**Roofline (M2 interim I-Q11*).** When `ArithmeticUtilization.csv` and `Memory.csv` yield a GM point: set `reportModel.roofline` and include `'roofline'` in `capabilities`. Omit `roofline` (and the capability) when undecidable. L2 omitted (I-Q11c). Tabs omitted (I-Q11f).
+
 ## Acceptance Criteria
 
 1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration; optional blockDim pass-through; compute/BW/util unset per I-Q6a.
@@ -35,6 +37,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 5. **PR-VM-006** — `computeTables` includes PipeUtilization, ArithmeticUtilization, ResourceConflictRatio with non-empty headers/rows and blockIds `0`…`7` on `out.rep`.
 6. **PR-VM-007** — `memoryTables` includes Memory.csv, L2Cache.csv, MemoryL0.csv, MemoryUB.csv with blockIds; `csvTexts` has raw text for each present table fileName.
 7. **PR-VM-008** — ICache Miss included when rate mean present.
+8. **PR-VM-009** — Roofline GM point + mix labels from ArithmeticUtilization + Memory (I-Q11a/b/e); capability `roofline` when points exist; omit when CSVs insufficient.
 
 ## Edge Cases
 
@@ -42,16 +45,18 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 - All NA ratios for a family → occupancy item omitted.
 - Missing optional CSV embed → that table omitted (no empty stub).
 - Chrome Trace with no X events → throws (chromeTraceToSwimlane behavior).
+- Missing ArithmeticUtilization or Memory → no `roofline` field.
 
 ## Dependencies
 
-I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q5+. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
+I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q5+, I-Q11a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
 
 ## Open
 
-Q6 — Product-final summary formulas. Q22 — measureRange aside sync. M2 topology edge labels.
+Q6 — Product-final summary formulas. Q11 — Product-final roofline. Q22 — measureRange aside sync. M2 topology edge labels.
 
 ## Changelog
+- **2026-08-10** — RooflineViewModel interim I-Q11a–f (PR-VM-009).
 - **2026-08-07** — Optional `absoluteValue` (I-Q6f) and ICache Miss (PR-VM-008) on pipe occupancy.
 - **2026-08-07** — Optional `coreCount` / `npuArchLabel` on SummaryMetrics for aside meta shell; adapter may leave unset.
 - **2026-08-07** — M1 CsvTableModel compute/memory tables + csvTexts (PR-VM-006/007).

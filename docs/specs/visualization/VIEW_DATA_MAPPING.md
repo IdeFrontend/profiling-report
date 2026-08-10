@@ -124,6 +124,21 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 1. Tab labels are memory-oriented (内存单元 / 通路 / 搬运) while mapped fields are **pipe utilization ratios** (`aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio`). Possible mislabel or incomplete mapping.
 2. Those ratios alone **cannot** supply Ops/Byte or TOps/s for the chart axes, nor peak bandwidth / peak compute for the roof. Product must define the real formulas and hardware-limit sources.
 
+### Interim M2 implementation (I-Q11a–f)
+
+Do **not** use the docx tab→pipe-ratio table. While Q11 is open:
+
+| Axis / element | Interim source |
+| --- | --- |
+| Y achieved | I-Q11a: `fops / timeUs / 1e6` from `ArithmeticUtilization.csv` |
+| X GM | I-Q11b: fops / GM R+W bytes from `Memory.csv` |
+| L2 point | I-Q11c: omit |
+| Roof | I-Q11d: peakCompute=1 TOps/s; peakBW from main-mem BW columns |
+| Op-mix labels | I-Q11e: normalize Vector/Cube mix ratios |
+| Tabs | I-Q11f: hidden |
+
+Hide `RooflinePanel` when no GM point can be derived.
+
 ---
 
 ## 11.2.5 Pipe occupancy / compute load（PIPE 占用率）

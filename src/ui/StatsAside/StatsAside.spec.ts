@@ -378,4 +378,37 @@ describe('StatsAside', () => {
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.emitted('open-pipe-details')).toBeTruthy();
   });
+
+  it('PR-STATS-015: Roofline section when points present; hidden when absent', () => {
+    const withRoof = mount(StatsAside, {
+      props: {
+        report: {
+          ...base(),
+          roofline: {
+            points: [
+              {
+                id: 'gm',
+                label: 'GM Read + Write',
+                intensity: 0.09,
+                performance: 0.002,
+                style: 'solid',
+              },
+            ],
+            mixLabels: [],
+            peakComputeTops: 1,
+            peakBandwidthGBs: 16,
+          },
+        },
+      },
+    });
+    expect(withRoof.find('[data-testid="stats-roofline"]').exists()).toBe(true);
+    expect(withRoof.find('[data-testid="roofline-panel"]').exists()).toBe(true);
+
+    const without = mount(StatsAside, {
+      props: {
+        report: base({ summary: { taskDurationUs: 1 } }),
+      },
+    });
+    expect(without.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+  });
 });

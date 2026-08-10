@@ -45,6 +45,7 @@ const messages = {
     coreUnit: '核',
     iterationsPerCore: '{n} 次迭代 / 核',
     details: '详情',
+    roofline: 'Roofline 瓶颈分析',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -90,6 +91,7 @@ const messages = {
     coreUnit: ' cores',
     iterationsPerCore: '{n} iterations / core',
     details: 'Details',
+    roofline: 'Roofline bottleneck analysis',
   },
 } as const;
 

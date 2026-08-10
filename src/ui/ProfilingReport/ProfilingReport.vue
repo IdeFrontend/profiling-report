@@ -181,7 +181,7 @@ function onToggleGroup(groupId: string): void {
 
 /**
  * Aside has content when any of: summary fields, pipe occupancy,
- * compute CSV tables, or memory CSV tables are present.
+ * compute/memory CSV tables, or roofline points are present.
  * Must stay in sync with StatsAside section visibility.
  */
 function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
@@ -191,7 +191,8 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
   const hasPipe = rm.pipeOccupancy.length > 0;
   const hasComputeTables = rm.computeTables.length > 0;
   const hasMemoryTables = rm.memoryTables.length > 0;
-  return hasSummary || hasPipe || hasComputeTables || hasMemoryTables;
+  const hasRoofline = (rm.roofline?.points?.length ?? 0) > 0;
+  return hasSummary || hasPipe || hasComputeTables || hasMemoryTables || hasRoofline;
 }
 
 function loadFromSource(source: ArrayBuffer | Uint8Array) {

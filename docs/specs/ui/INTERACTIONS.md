@@ -100,6 +100,7 @@ Sketch / changelog: [`docs/source/changes/changes.png`](../../source/changes/cha
 - Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../../context/INTERIM_DECISIONS.md)).
 - Cube \| Vector toggle on PIPE for MIX ops only.
 - PIPE section **详情** emits `open-pipe-details` (detail panel M1 separate).
+- Roofline (M2 interim I-Q11*): shown below PIPE when `report.roofline.points` non-empty; tabs omitted.
 - Compute details: tabs PipeUtilization | ArithmeticUtilization | ResourceConflictRatio.
 - Memory details: tabs Memory L1 | L2Cache | Memory L0 | Memory UB; **查看全部** opens full CSV ([I-Q6d](../../context/INTERIM_DECISIONS.md)).
 - Selecting a lane or event may filter lists later (still open); do not invent until Product confirms.

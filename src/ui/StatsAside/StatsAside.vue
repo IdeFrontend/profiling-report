@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
 import type { PipeOccupancyItem, ReportCapability, ReportViewModel } from '../../domain/types';
 import CsvFieldListPanel from '../CsvFieldListPanel/CsvFieldListPanel.vue';
+import RooflinePanel from '../RooflinePanel/RooflinePanel.vue';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
@@ -57,6 +58,8 @@ watch(
   },
   { immediate: true },
 );
+
+const showRoofline = computed(() => (props.report?.roofline?.points?.length ?? 0) > 0);
 
 const summary = computed(() => props.report?.summary);
 
@@ -356,6 +359,17 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
         :csv-texts="report?.csvTexts ?? {}"
         :locale="locale"
         @view-full-csv="emit('view-full-csv', $event)"
+      />
+    </div>
+
+    <div
+      v-if="showRoofline && report?.roofline"
+      class="pr-panel pr-panel--roofline"
+      data-testid="stats-roofline"
+    >
+      <RooflinePanel
+        :model="report.roofline"
+        :locale="locale"
       />
     </div>
   </aside>

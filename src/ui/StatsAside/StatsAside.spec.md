@@ -4,11 +4,11 @@
 |----------------|
 | PR-STATS-*   |
 
-Right-side analytics panel: shell chrome (title, close, meta, 更多), mode switcher (Summary | PIPE | compute | memory), PIPE bars with Cube|Vector (MIX), and CSV detail tabs (#2–#4).
+Right-side analytics panel: shell chrome (title, close, meta, 更多), mode switcher (Summary | PIPE | compute | memory), PIPE bars with Cube|Vector (MIX), CSV detail tabs (#2–#4), and optional Roofline (M2 interim).
 
 ## Inputs
 
-**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`. Optional **locale**. Optional **capabilities** (e.g. `hardwareDetails`) gates shell controls that need feature flags.
+**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, and optional `roofline`. Optional **locale**. Optional **capabilities** (e.g. `hardwareDetails`) gates shell controls that need feature flags.
 
 ## Outputs
 
@@ -43,6 +43,10 @@ Section header shows localized **pipeOccupancy** title and a **详情** / Detail
 
 **Compute / Memory.** Hosts `CsvFieldListPanel` with tabs, block switcher, search, 查看全部.
 
+### Roofline (M2 interim)
+
+When `report.roofline.points` is non-empty, mount `RooflinePanel` below the active mode panel (I-Q11a–f). Hide when absent. No tabs until I-Q11f superseded.
+
 ## Acceptance Criteria
 
 1. **PR-STATS-001** — Renders summary stats.
@@ -59,6 +63,7 @@ Section header shows localized **pipeOccupancy** title and a **详情** / Detail
 12. **PR-STATS-012** — PIPE scale and hatched bars.
 13. **PR-STATS-013** — Absolute time in bar when present.
 14. **PR-STATS-014** — Details emit open-pipe-details.
+15. **PR-STATS-015** — Roofline section when `roofline.points` present; hidden when absent.
 
 ## Edge Cases
 
@@ -73,6 +78,7 @@ Section header shows localized **pipeOccupancy** title and a **详情** / Detail
 | No meta fields and no `hardwareDetails` | Meta row and 更多 hidden |
 | Meta fields present, no capability | Meta + 更多 shown; emit only |
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
+| No roofline / empty points | Roofline section omitted |
 
 ## Design sketches
 
@@ -83,9 +89,10 @@ Section header shows localized **pipeOccupancy** title and a **详情** / Detail
 
 ## Dependencies
 
-[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/specs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f.
+[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/specs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f, I-Q11a–f.
 
 ## Changelog
+- **2026-08-10** — Roofline section when points present (PR-STATS-015, I-Q11*).
 - **2026-08-07** — PIPE sketch chrome: scale, hatch, absolute time, Details (PR-STATS-012–014, I-Q6f).
 - **2026-08-07** — Duration card chrome I-Q6e (PR-STATS-009–011).
 - **2026-08-07** — Shell close/meta/更多 (PR-STATS-006–008).

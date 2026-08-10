@@ -112,4 +112,50 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(icache?.ratio).toBe(0);
     expect(icache?.absoluteValue).toBeUndefined();
   });
+
+  it('PR-VM-009 (interim I-Q11*): GM roofline + mix labels; capability when points exist', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const roof = adapted.reportModel.roofline;
+    expect(roof).toBeDefined();
+    expect(adapted.capabilities).toContain('roofline');
+
+    const gm = roof!.points.find((p) => p.id === 'gm');
+    expect(gm).toBeDefined();
+    expect(gm!.style).toBe('solid');
+    expect(gm!.performance).toBeCloseTo(2240 / 0.97962125 / 1e6, 5);
+    expect(gm!.intensity).toBeCloseTo(0.09067357512953368, 5);
+    expect(roof!.peakComputeTops).toBe(1);
+    expect(roof!.peakBandwidthGBs).toBeGreaterThan(0);
+
+    const byId = Object.fromEntries(roof!.mixLabels.map((m) => [m.id, m]));
+    expect(byId.fp32).toBeDefined();
+    expect(byId.misc).toBeDefined();
+    expect(byId.fp32.percent + byId.misc.percent).toBeCloseTo(100, 3);
+    expect(roof!.points.some((p) => p.id === 'l2')).toBe(false);
+  });
+
+  it('PR-VM-009: omit roofline when ArithmeticUtilization missing', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    delete parsed.payloads['ArithmeticUtilization.csv'];
+    const adapted = adaptRep(parsed);
+    expect(adapted.reportModel.roofline).toBeUndefined();
+    expect(adapted.capabilities ?? []).not.toContain('roofline');
+  });
+
+  it('PR-VM-009: zero Vector fops falls back to Cube (I-Q11a)', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    parsed.payloads['ArithmeticUtilization.csv'] = new TextEncoder().encode(
+      [
+        'block_id,sub_block_id,aic_time(us),aic_cube_fops,aic_cube_fp16_ratio,aiv_time(us),aiv_vec_fops',
+        '0,cube0,2.0,4000,1.0,1.0,0',
+      ].join('\n'),
+    );
+    const adapted = adaptRep(parsed);
+    const gm = adapted.reportModel.roofline?.points.find((p) => p.id === 'gm');
+    expect(gm).toBeDefined();
+    expect(gm!.performance).toBeCloseTo(4000 / 2 / 1e6, 5);
+    expect(adapted.reportModel.roofline?.mixLabels).toEqual([
+      { id: 'fp16', label: 'Cube_FP16', percent: 100 },
+    ]);
+  });
 });

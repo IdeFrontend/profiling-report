@@ -141,11 +141,13 @@ Hide tab when CSV missing. Show `NA` values.
 
 | Input | Requirement |
 |-------|-------------|
-| Points (intensity, achieved perf, labels e.g. `Vec_FP32`) | **Required to show** — formulas still open (Q11) |
-| Peak bandwidth / compute ceilings | **Required** for roof lines |
-| `ArithmeticUtilization.csv` (+ Memory?) | Expected source once Q11 resolved |
+| Points (intensity, achieved perf) | **Required to show** — interim I-Q11a/b GM point from ArithmeticUtilization + Memory |
+| Op-mix labels (e.g. `Vec_FP32`) | Optional — I-Q11e when mix ratios present |
+| Peak bandwidth / compute ceilings | Interim I-Q11d (constants + Memory BW); Product-final when Q11 closes |
+| `ArithmeticUtilization.csv` + `Memory.csv` | Interim sources (I-Q11*) |
+| L2 series / tab filters | **Omit** (I-Q11c/f) until Q11 |
 
-Hide until formulas and data exist.
+Hide when no usable GM point. M3 swaps formulas when Product closes Q11.
 
 ---
 

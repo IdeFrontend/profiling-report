@@ -81,6 +81,31 @@ export interface CsvTableModel {
   blockIds: string[];
 }
 
+/** M2 interim roofline point (I-Q11*). */
+export interface RooflinePoint {
+  id: string;
+  label: string;
+  /** Arithmetic intensity (Ops/Byte). */
+  intensity: number;
+  /** Achieved performance (TOps/s). */
+  performance: number;
+  style: 'solid' | 'hollow';
+}
+
+export interface RooflineMixLabel {
+  id: string;
+  label: string;
+  percent: number;
+}
+
+/** M2 interim roofline model (I-Q11a–f). Omit when undecidable. */
+export interface RooflineViewModel {
+  points: RooflinePoint[];
+  mixLabels: RooflineMixLabel[];
+  peakComputeTops: number;
+  peakBandwidthGBs: number;
+}
+
 export interface ReportViewModel {
   summary: SummaryMetrics;
   pipeOccupancy: PipeOccupancyItem[];
@@ -91,6 +116,8 @@ export interface ReportViewModel {
   memoryTables: CsvTableModel[];
   /** Raw CSV text by basename for 查看全部 (I-Q6d). */
   csvTexts: Record<string, string>;
+  /** Interim I-Q11*; omit when no GM point. */
+  roofline?: RooflineViewModel;
 }
 
 export type ReportCapability =
