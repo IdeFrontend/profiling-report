@@ -3,5 +3,5 @@ source_primary: v930/detail-strip-raised
 crops:
   parameter-list.png:
     source: v930/detail-strip-raised
-    region: "Parameter / Code path list column"
-    box: { x: 1480, y: 2840, w: 1680, h: 640 }
+    region: "Parameter / Code path list column (title through scrollbar)"
+    box: { x: 1380, y: 2830, w: 2380, h: 720 }

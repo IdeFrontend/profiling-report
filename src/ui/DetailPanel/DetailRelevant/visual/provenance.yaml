@@ -3,5 +3,5 @@ source_primary: v930/detail-strip-raised
 crops:
   relevant-graph.png:
     source: v930/detail-strip-raised
-    region: "Relevent graph — Incoming / Current / Out + connection level"
-    box: { x: 3380, y: 2840, w: 1920, h: 640 }
+    region: "Relevent column — toolbar + Incoming/Current/Out graph"
+    box: { x: 3760, y: 2830, w: 1640, h: 720 }
