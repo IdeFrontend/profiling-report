@@ -98,14 +98,15 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 | Metric (sketch) | Likely embeds | Requirement |
 |-----------------|---------------|-------------|
-| Op name / type / task duration | `OpBasicInfo.csv` | **Interim MVP ([I-Q6a](../../context/INTERIM_DECISIONS.md)):** show when columns present |
-| Current / rated frequency (raw) | `OpBasicInfo.csv` | **Optional** — show as labeled raw values if present; no derived tiles |
+| Op name / type / task duration | `OpBasicInfo.csv` | **Interim MVP ([I-Q6a](../../context/INTERIM_DECISIONS.md)):** duration card when `taskDurationUs` present (sketch chrome per I-Q6e). Op type is not a separate card. `opName` / `blockDim` may feed duration secondary only |
+| Current / rated frequency (raw) | `OpBasicInfo.csv` | **Optional** — adapter may populate both. Aside **shell meta** shows `currentFreq` as aic频率 only; **`ratedFreq` intentionally omitted** from shell (sketch). |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Hide** until Q6 / data spec |
 | I/O bandwidth tiles | `Memory.csv` / OpBasicInfo TBD | **Hide** until Q6 / data spec |
 | Avg core util % | PipeUtilization / OpBasicInfo TBD | **Hide** until Q6 / data spec |
-| Hardware one-liner (cores, freq) | OpBasicInfo / host | **Optional** raw; full hardware aside **out of MVP (Q7)** |
+| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** raw on aside **meta row** only: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. Show each segment only when set; **never invent** peaks/cores |
+| Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Interim ([I-Q7a](../../context/INTERIM_DECISIONS.md)):** `HardwareDetailsPanel` from jsonl sections or OpBasicInfo fallback; 更多 opens it |
 
-If no showable OpBasicInfo fields → **hide** the summary card group (PIPE may still show).
+If no `taskDurationUs` → **hide** the summary card group (PIPE may still show). Meta row is independent of summary cards (may show freq alone).
 
 ---
 
@@ -115,8 +116,11 @@ If no showable OpBasicInfo fields → **hide** the summary card group (PIPE may 
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
 | Aggregation | **Interim ([I-Q6b](../../context/INTERIM_DECISIONS.md)):** mean of non-`NA` ratios per pipe family |
+| Absolute in-bar | **Optional ([I-Q6f](../../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)`; omit when NA |
+| Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([changes.png](../../source/changes/changes.png) #2) |
 | Colors | Normative sketch tokens — [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
+| 详情 | Navigate to compute `CsvFieldListPanel` + emit `open-pipe-details` |
 
 Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 
@@ -138,11 +142,13 @@ Hide tab when CSV missing. Show `NA` values.
 
 | Input | Requirement |
 |-------|-------------|
-| Points (intensity, achieved perf, labels e.g. `Vec_FP32`) | **Required to show** — formulas still open (Q11) |
-| Peak bandwidth / compute ceilings | **Required** for roof lines |
-| `ArithmeticUtilization.csv` (+ Memory?) | Expected source once Q11 resolved |
+| Points (intensity, achieved perf) | **Required to show** — interim I-Q11a/b GM point from ArithmeticUtilization + Memory |
+| Op-mix labels (e.g. `Vec_FP32`) | Optional — I-Q11e when mix ratios present |
+| Peak bandwidth / compute ceilings | Interim I-Q11d (constants + Memory BW); Product-final when Q11 closes |
+| `ArithmeticUtilization.csv` + `Memory.csv` | Interim sources (I-Q11*) |
+| L2 series / tab filters | **Omit** (I-Q11c/f) until Q11 |
 
-Hide until formulas and data exist.
+Hide when no usable GM point. M3 swaps formulas when Product closes Q11.
 
 ---
 
@@ -179,11 +185,15 @@ Hide tab when CSV missing.
 
 ---
 
-### 14. Hardware details (`HardwareDetailsPanel`) — out of MVP (Q7)
+### 14. Hardware details (`HardwareDetailsPanel`) — M1 interim I-Q7a
 
 | Input | Requirement |
 |-------|-------------|
-| Host CPU, NPU chip, HBM, core counts | **Out of MVP** until further product/spec docs |
+| `HardwareInfo.jsonl` sections | Preferred when present |
+| OpBasicInfo non-empty columns | Fallback when jsonl absent |
+| Invented cores / HBM / peaks | **Never** |
+
+Omit panel when neither source yields fields. 更多 navigates in-aside + still emits `open-hardware-details`.
 
 ---
 

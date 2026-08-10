@@ -68,12 +68,13 @@ Mockups extracted from the source docx live under [`docs/specs/ui/source/`](../u
 
 | Element | Behavior |
 | --- | --- |
-| Header | Core count (核数) and AIC frequency; NPU ARCH peak (e.g. teraOPs). **Source conflict:** mockup values look like hardware caps (`HardwareInfo.jsonl` / AI Core info), while `OpBasicInfo.csv` also has `Current Freq` / `Rated Freq` — which feeds the header is unspecified. |
-| 更多 | Drill-down to **硬件信息详情** (§11.2.3.1) |
-| 整体耗时 card | Large duration + progress bar; secondary text like iterations/core |
-| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak |
-| 输入/输出带宽 card | Dual bars with measured / peak TB/s |
-| 平均核利用率 card | Percentage bar + enabled cores fraction |
+| Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
+| Meta row | Segments **核数** / **aic频率** / **NPU ARCH** only when `SummaryMetrics.coreCount` / `currentFreq` / `npuArchLabel` are set. Hide entire meta row if all empty. Do **not** invent values. Adapter may leave cores/ARCH unset until `HardwareInfo` mapping exists; `Current Freq` from OpBasicInfo feeds aic频率. **`Rated Freq` / `ratedFreq` is intentionally not shown** on this shell (sketch aic频率 only). |
+| 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Emit `open-hardware-details` only — full **硬件信息详情** panel (§11.2.3.1) remains **out of MVP (Q7)**. |
+| 整体耗时 card | Large duration + **decorative** short cyan progress bar (I-Q6e, not a util %). Secondary: `blockDim` → iterations/core text; else `opName`; else omit. No standalone op-type card. |
+| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — **hidden until Q6** |
+| 输入/输出带宽 card | Dual bars with measured / peak TB/s — **hidden until Q6** |
+| 平均核利用率 card | Percentage bar + enabled cores fraction — **hidden until Q6** |
 
 Do **not** invent formulas for cards 5–8 until product defines fields; wire only once sources are known.
 
@@ -123,6 +124,21 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 1. Tab labels are memory-oriented (内存单元 / 通路 / 搬运) while mapped fields are **pipe utilization ratios** (`aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio`). Possible mislabel or incomplete mapping.
 2. Those ratios alone **cannot** supply Ops/Byte or TOps/s for the chart axes, nor peak bandwidth / peak compute for the roof. Product must define the real formulas and hardware-limit sources.
 
+### Interim M2 implementation (I-Q11a–f)
+
+Do **not** use the docx tab→pipe-ratio table. While Q11 is open:
+
+| Axis / element | Interim source |
+| --- | --- |
+| Y achieved | I-Q11a: `fops / timeUs / 1e6` from `ArithmeticUtilization.csv` |
+| X GM | I-Q11b: fops / GM R+W bytes from `Memory.csv` |
+| L2 point | I-Q11c: omit |
+| Roof | I-Q11d: peakCompute=1 TOps/s; peakBW from main-mem BW columns |
+| Op-mix labels | I-Q11e: normalize Vector/Cube mix ratios |
+| Tabs | I-Q11f: hidden |
+
+Hide `RooflinePanel` when no GM point can be derived.
+
 ---
 
 ## 11.2.5 Pipe occupancy / compute load（PIPE 占用率）
@@ -156,10 +172,11 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 
 ### Visualization logic
 
-- Horizontal 0–100% tracks; solid fill = ratio; hatched remainder.
-- Optional absolute metric (time/cycles) drawn inside the filled segment (mockup).
-- 详情 link opens §11.2.5.1.
+- Horizontal 0–100% tracks with a percent scale above the rows; solid fill = ratio; hatched remainder to 100%.
+- In-bar absolute ([I-Q6f](../../context/INTERIM_DECISIONS.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
+- **详情** emits `open-pipe-details` until the compute-load detail panel (§11.2.5.1 / M1) is implemented.
 - Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([I-Q6b](../../context/INTERIM_DECISIONS.md)); detail tabs are block-scoped ([I-Q6c](../../context/INTERIM_DECISIONS.md)).
+- Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).
 
 ---
 

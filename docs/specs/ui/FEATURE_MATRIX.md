@@ -62,12 +62,13 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../../process/roadmap/mile
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
 | Report summary (time, compute, BW, util) | M | **Interim:** name / type / duration (+ raw freq if present); **hide** compute / BW / avg-util until Q6 — [I-Q6a](../../context/INTERIM_DECISIONS.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
+| Aside shell (title, close, meta, 更多) | M | Close hides aside; meta hide-if-missing; 更多 emit only — [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md), [INTERACTIONS](INTERACTIONS.md) |
 | PIPE occupancy bars | M | From PipeUtilization.csv; mean non-`NA` ([I-Q6b](../../context/INTERIM_DECISIONS.md)); **hide** if missing |
 | Cube \| Vector PIPE toggle (MIX only) | M1 | [changes.png](../../source/changes/changes.png) #2; non-MIX shows relevant side only |
 | Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists |
 | Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [I-Q6c](../../context/INTERIM_DECISIONS.md); 查看全部 [I-Q6d](../../context/INTERIM_DECISIONS.md) (#4) |
 | Roofline bottleneck chart | M2 | `general.png` / [milestone-2](../../process/roadmap/milestone-2.md) |
-| Hardware info details | — | **Out of MVP** ([Q7](../../context/OPEN_QUESTIONS.md)); later when specs arrive |
+| Hardware info details | M1 interim | [I-Q7a](../../context/INTERIM_DECISIONS.md): HardwareInfo.jsonl or OpBasicInfo fallback; no invented peaks |
 | Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([Q12](../../context/OPEN_QUESTIONS.md), changelog #5) |
 
 ## Selection details
@@ -91,7 +92,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../../process/roadmap/mile
 
 ## Explicitly out of MVP (still may be later)
 
-- Hardware details aside ([Q7](../../context/OPEN_QUESTIONS.md)) until product specs arrive
+- Product-final hardware inventory beyond I-Q7a interim OpBasicInfo / HardwareInfo.jsonl
 - PyPTO AICPU E2E mode, Mix/wrap, three-column compute-graph jumps
 - MindStudio system/cluster/serving modes
 - Replacing Insight for `.bin`

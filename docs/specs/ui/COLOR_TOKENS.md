@@ -11,6 +11,7 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-bg-panel` | `#303030` | Dominant panel / gutter fill |
 | `--pr-bg-deep` | `#202830` | Deeper IDE chrome |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
+| `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card decorative bar (report-stats cyan) |
 
 ## PIPE occupancy + category keys
 
@@ -50,6 +51,7 @@ Sampled primarily from PIPE bars in `general.png` (bottom-right), ordered as in 
   --pr-color-scalar: #38702c;
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
+  --pr-color-duration-bar: #5ec8d8;
   --pr-color-playhead: #3078f0;
   --pr-bg-panel: #303030;
 }
