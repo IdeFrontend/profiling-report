@@ -5,6 +5,7 @@ import {
   LANE_HEIGHT,
   MAX_QUADS_PER_MESH,
   contentHeightFromLayout,
+  encodeIntervalPair,
   eventBlockMetrics,
   eventScreenRect,
   findEvent,
@@ -193,6 +194,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private laneMeshes: LaneMeshes[] = [];
   private layout: SwimlaneLayout = { lanes: [], headers: [], events: [] };
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
+  /** Subtracted from event times before float32 upload (model.minTime). */
+  private timeBase = 0;
   private searchQuery = '';
   private width = 0;
   private height = 0;
@@ -238,6 +241,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   setModel(model: SwimlaneModel): void {
     this.layout = rebuildLayout(model);
+    this.timeBase = model?.minTime ?? 0;
     this.rebuildMeshes();
   }
 
@@ -323,16 +327,18 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       this.drawSolidRect(solid, unit, 0, y + LANE_HEIGHT - 1, cssW, 1, [divider, divider, divider]);
     }
 
-    // Coverage-AA intervals (Sudu blendAddSrcA ≈ SRC_ALPHA, ONE)
+    // Coverage-AA intervals — source-over (matches Canvas). Not additive: additive
+    // overdraw of nested/overlapping same-color events looked like a bright block-in-block.
     gl.enable(gl.BLEND);
-    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, resX, resY);
     if (swim.uRadius) gl.uniform1f(swim.uRadius, EVENT_RADIUS);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
+    // aPos times are relative to timeBase (see encodeIntervalPair).
     const sx = 2 / span;
-    const px = -1 - (this.view.startTime * 2) / span;
+    const px = -1 + (2 * (this.timeBase - this.view.startTime)) / span;
 
     for (let i = 0; i < this.laneMeshes.length; i++) {
       const lane = this.layout.lanes[i];
@@ -424,7 +430,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const events = byLane.get(idx) ?? [];
       const pairs: number[] = [];
       for (const item of events) {
-        pairs.push(item.event.startTime, item.event.startTime + item.event.duration);
+        const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+        pairs.push(a, b);
       }
       return {
         color: hexToRgb(lane.color),
@@ -456,8 +463,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const matchPairs: number[] = [];
       const dimPairs: number[] = [];
       for (const item of events) {
-        const pairs = item.event.name.toLowerCase().includes(q) ? matchPairs : dimPairs;
-        pairs.push(item.event.startTime, item.event.startTime + item.event.duration);
+        const dest = item.event.name.toLowerCase().includes(q) ? matchPairs : dimPairs;
+        const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+        dest.push(a, b);
       }
       meshes.matchChunks = createChunksFromPairs(gl, matchPairs);
       meshes.dimChunks = createChunksFromPairs(gl, dimPairs);

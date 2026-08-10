@@ -156,6 +156,22 @@ export function findEvent(layout: SwimlaneLayout, id: string): SwimEvent | null 
   return findLaidOutEvent(layout, id)?.event ?? null;
 }
 
+/** Encode [start,end] relative to base for float32 VBOs; keep end > start after fround. */
+export function encodeIntervalPair(
+  start: number,
+  duration: number,
+  base: number,
+): [number, number] {
+  const f0 = Math.fround(start - base);
+  let f1 = Math.fround(start + duration - base);
+  if (!(f1 > f0)) {
+    // Float32 collapsed a short/large-magnitude interval — nudge end by ≥1ns (rel).
+    f1 = Math.fround(f0 + Math.max(1, Math.fround(duration) || 1));
+    if (!(f1 > f0)) f1 = f0 + 1;
+  }
+  return [f0, f1];
+}
+
 /** Parse `#RRGGBB` → RGB in 0..1. */
 export function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');

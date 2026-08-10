@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  encodeIntervalPair,
   eventLabelAnchor,
   hitTestLayout,
   rebuildLayout,
@@ -137,5 +138,15 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.setSearchQuery('');
     expect(() => renderer.render()).not.toThrow();
     renderer.dispose();
+  });
+
+  it('PR-RENDER-009: encodeIntervalPair stays monotonic after float32 round', () => {
+    const base = 1_000_000_000;
+    const [a, b] = encodeIntervalPair(base + 100, 1, base);
+    expect(b).toBeGreaterThan(a);
+    // Absolute ns in float32 often collapses nearby timestamps; relative encoding must not.
+    const abs = new Float32Array([base + 100, base + 101]);
+    expect(abs[0]).toBe(abs[1]);
+    expect(b - a).toBeGreaterThanOrEqual(1);
   });
 });

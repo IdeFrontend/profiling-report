@@ -34,6 +34,8 @@ class CanvasSwimlaneRenderer {
 
 **Cursor.** Vertical cursor stroke uses `#317AF7` to match axis `.pr-cursor` (Canvas fallback and WebGL overlay).
 
+**WebGL intervals.** Coverage-AA rounded fills use **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend, which lit up overlaps as a bright “block inside block”. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
+
 **Hit testing.** `hitTest` computes Y relative to scroll offset, finds the matching lane by Y bounds, converts X to a time value, and finds the event whose interval contains that time. Returns the event's id string, or null if no match.
 
 ## Acceptance Criteria
@@ -46,6 +48,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-006**: WebGlSwimlaneRenderer attach/render/hitTest succeeds when WebGL2 is available (skipped when unsupported).
 1. **PR-RENDER-007**: Event label anchor centers in the full event when fully visible, and in the visible clip when partially off-screen.
 1. **PR-RENDER-008**: WebGL setSearchQuery rebuilds match/dim meshes and render does not throw.
+1. **PR-RENDER-009**: `encodeIntervalPair` keeps end > start after float32 rounding for large-magnitude times.
 
 ## Edge Cases
 
@@ -60,6 +63,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-10** — WebGL source-over blend + float32-safe interval encoding (no bright nested overdraw).
 - **2026-08-10** — WebGL search dimming (match Canvas 0.25); overlay cursor `#317AF7`.
 - **2026-08-07** — Event blocks vertically centered in lane rows; labels centered in the visible event rect (Canvas + WebGL overlay).
 - **2026-08-07** — Uniform lane backgrounds; horizontal dividers aligned with gutter borders (Canvas + WebGL).
