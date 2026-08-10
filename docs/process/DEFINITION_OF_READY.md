@@ -6,10 +6,10 @@ A slice is **Ready** only when every applicable item below is checked.
 
 ## 1. Spec coverage
 
-- [ ] Goal alignment: the slice supports an MVP (or explicitly Phase 2) item in [PROJECT_GOALS](../context/PROJECT_GOALS.md) / [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md)
-- [ ] Format behavior (if any) is documented in [REP_FORMAT](../specs/formats/REP_FORMAT.md) and/or [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md)
-- [ ] UI/interaction behavior (if any) is documented in [UI_OVERVIEW](../specs/ui/UI_OVERVIEW.md), [UX_SPEC](../specs/ui/UX_SPEC.md), and/or [INTERACTIONS](../specs/ui/INTERACTIONS.md)
-- [ ] Public API / component names are consistent with [ARCHITECTURE](../specs/architecture/ARCHITECTURE.md) and [COMPONENTS](../specs/architecture/COMPONENTS.md)
+- [ ] Goal alignment: the slice supports an MVP (or explicitly Phase 2) item in [PROJECT_GOALS](../context/PROJECT_GOALS.md) / [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md)
+- [ ] Format behavior (if any) is documented in [REP_FORMAT](../formats/REP_FORMAT.md) and/or [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md)
+- [ ] UI/interaction behavior (if any) is documented in [UI_OVERVIEW](../ui/UI_OVERVIEW.md), [UX_SPEC](../ui/UX_SPEC.md), and/or [INTERACTIONS](../ui/INTERACTIONS.md)
+- [ ] Public API / component names are consistent with [ARCHITECTURE](../architecture/ARCHITECTURE.md) and [COMPONENTS](../architecture/COMPONENTS.md)
 - [ ] If the slice changes a spec, the spec PR section is drafted **before** coding
 
 ## 2. Acceptance tests sketched

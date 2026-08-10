@@ -27,15 +27,22 @@ The tooltip is transient (follows cursor, appears/disappears on hover). The deta
 1. **PR-TOOLTIP-001** — Renders event name.
 2. **PR-TOOLTIP-002** — Formats start time, duration, and end time.
 
+## Visual
+
+Crops: [`visual/tooltip.png`](./visual/tooltip.png), [`visual/tooltip-context.png`](./visual/tooltip-context.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
 ## Design sketches
 
-- [Event details](../../../docs/specs/ui/source/event-details.png)
+- [tooltip](./visual/tooltip.png) — from `v930/task-hover`
+- [tooltip-context](./visual/tooltip-context.png) — hovered event + tooltip from `v930/task-hover`
+- [Task hover](../../../docs/ui/source/v930/task-hover.jpeg) — full frame
 
 ## Dependencies
 
 [format-time](../../../specs/core/format-time.spec.md).
 
-**Input formats:** [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
 
 ## Changelog
+- **2026-08-10** — Recut from `v930/task-hover` (real hover tooltip dump).
 - **2026-08-05** — Initial spec. Core behaviors established.

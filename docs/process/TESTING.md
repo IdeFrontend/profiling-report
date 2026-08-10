@@ -39,7 +39,7 @@ Prefer unit tests for anything that does not need DOM or Canvas. Prefer componen
 **In scope (this repo)**
 
 - Playground mounts the library with `data/out.rep` (or fixture bytes)
-- Timeline visible; zoom/pan smoke; hover tooltip; single select → detail strip (maps to [UX_SPEC](../specs/ui/UX_SPEC.md) scenarios S1–S3)
+- Timeline visible; zoom/pan smoke; hover tooltip; single select → detail strip (maps to [UX_SPEC](../ui/UX_SPEC.md) scenarios S1–S3)
 - Smoke that PIPE / summary panels render without crash (S1 / S4 bars; not S5 field list)
 
 **Out of scope (v1 CI)**
@@ -62,11 +62,11 @@ Rules:
 
 1. Do not regenerate goldens casually — review binary/JSON diffs in PR.
 2. Prefer asserting structured model fields over brittle full-file string equality where possible.
-3. Pack/unpack scripts under `data/` remain the reference for container layout; unit tests should match [REP_FORMAT](../specs/formats/REP_FORMAT.md).
+3. Pack/unpack scripts under `data/` remain the reference for container layout; unit tests should match [REP_FORMAT](../formats/REP_FORMAT.md).
 
 ## Mapping FEATURE_MATRIX → tests
 
-Every **MVP (M)** row in [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md) must eventually have ≥1 automated test. Where behavior is **Interim**, assert the interim rule and cite [INTERIM_DECISIONS](../context/INTERIM_DECISIONS.md) in the test title or comment (e.g. thin summary, hidden overview).
+Every **MVP (M)** row in [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) must eventually have ≥1 automated test. Where behavior is **Interim**, assert the interim rule and cite [INTERIM_DECISIONS](../context/INTERIM_DECISIONS.md) in the test title or comment (e.g. thin summary, hidden overview).
 
 Suggested id scheme:
 
@@ -115,6 +115,6 @@ npm run playground # vite playground for manual checks
 
 ## Related specs
 
-- Formats: [REP_FORMAT](../specs/formats/REP_FORMAT.md), [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md)
-- UI: [INTERACTIONS](../specs/ui/INTERACTIONS.md), [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md)
-- Architecture: [ARCHITECTURE](../specs/architecture/ARCHITECTURE.md)
+- Formats: [REP_FORMAT](../formats/REP_FORMAT.md), [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md)
+- UI: [INTERACTIONS](../ui/INTERACTIONS.md), [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md)
+- Architecture: [ARCHITECTURE](../architecture/ARCHITECTURE.md)

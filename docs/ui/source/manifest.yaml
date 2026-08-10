@@ -1,0 +1,82 @@
+# Layer A — full-frame design dumps (append-only batches)
+# Stable id: {batchId}/{scene}  e.g. v930/entry
+
+batches:
+  v930:
+    label: "930 性能调优"
+    files:
+      - id: entry
+        path: v930/entry.jpeg
+        original_name: "930版本-性能调优_入口.jpeg"
+        scenes: [entry, toolbar, overview, gutter, swimlane]
+        components: [ReportToolbar, TimeOverviewBar, LaneGutter, AxisRuler, CursorTimestamp, SwimlaneCanvas, OverviewCharts]
+      - id: report-stats-open
+        path: v930/report-stats-open.jpeg
+        original_name: "930版本-性能调优_打开报告统计.jpeg"
+        scenes: [report-stats, aside]
+        components: [StatsAside, StatsSummaryPanel, RooflinePanel, CsvFieldListPanel]
+      - id: report-stats-scrolled
+        path: v930/report-stats-scrolled.jpeg
+        original_name: "930版本-性能调优_报告统计-滚动到底部.jpeg"
+        scenes: [report-stats, aside-scroll]
+        components: [StatsAside, MemoryTopologyPanel]
+      - id: search-highlight
+        path: v930/search-highlight.jpeg
+        original_name: "930版本-性能调优_搜索高亮显示.jpeg"
+        scenes: [search, highlight]
+        components: [ReportToolbar, SwimlaneCanvas, CursorTimestamp]
+      - id: detail-strip-raised
+        path: v930/detail-strip-raised.jpeg
+        original_name: "930版本-性能调优_点击上浮底部栏.jpeg"
+        scenes: [detail-strip]
+        components: [DetailPanel, DetailSummary, DetailParameter, DetailRelevant]
+      - id: memory-load-detail
+        path: v930/memory-load-detail.jpeg
+        original_name: "930版本-性能调优_点击内存负载分析的详情后.jpeg"
+        scenes: [memory-load, detail]
+        components: [StatsAside, CsvFieldListPanel]
+      - id: compute-load
+        path: v930/compute-load.jpeg
+        original_name: "930版本-性能调优_计算负载分析.jpeg"
+        scenes: [compute-load]
+        components: [StatsAside, PipeOccupancyPanel]
+      - id: compute-load-detail
+        path: v930/compute-load-detail.jpeg
+        original_name: "930版本-性能调优_点击计算负载分析的详情后.jpeg"
+        scenes: [compute-load, detail]
+        components: [StatsAside, CsvFieldListPanel]
+      - id: hardware-more-detail
+        path: v930/hardware-more-detail.jpeg
+        original_name: "930版本-性能调优_点击报告统计右边的更多后-硬件信息详情.jpeg"
+        scenes: [hardware]
+        components: [StatsAside, HardwareDetailsPanel]
+      - id: task-hover
+        path: v930/task-hover.jpeg
+        original_name: "930版本-性能调优_Task 悬浮时.jpeg"
+        scenes: [task-hover, tooltip]
+        components: [EventTooltip, SwimlaneCanvas]
+      - id: task-context-menu
+        path: v930/task-context-menu.jpeg
+        original_name: "930版本-性能调优_Task 右键时.jpeg"
+        scenes: [task-context-menu]
+        components: [ContextMenu]
+      - id: task-marquee
+        path: v930/task-marquee.jpeg
+        original_name: "930版本-性能调优_Task 框选时.jpeg"
+        scenes: [task-marquee, multiselect]
+        components: [SwimlaneCanvas, MultiSelectSummary]
+      - id: task-measure-mode
+        path: v930/task-measure-mode.jpeg
+        original_name: "930版本-性能调优_Task 时间度量模式.jpeg"
+        scenes: [measure]
+        components: [SwimlaneCanvas, ReportToolbar, TimeOverviewBar]
+      - id: task-multi-height
+        path: v930/task-multi-height.jpeg
+        original_name: "930版本-性能调优_Task 存在多个时，高度加高.jpeg"
+        scenes: [task-multi-height]
+        components: [SwimlaneCanvas]
+      - id: task-click-detail
+        path: v930/task-click-detail.jpeg
+        original_name: "930版本-性能调优_Task 点击后-出现底部栏、其他task置灰.jpeg"
+        scenes: [task-select, detail, deps, dim]
+        components: [SwimlaneCanvas, DependencyLinksLayer, DetailPanel]

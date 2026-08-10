@@ -16,7 +16,7 @@ This directory contains behavioral specifications for all modules in the profili
 | Spec | Test prefix | Phase | Source | Test file |
 |------|------------|-------|--------|-----------|
 | [rep-format](./core/rep-format.spec.md) | `PR-FMT-*` | MVP | `src/adapters/parseRep.ts` | `tests/unit/parseRep.spec.ts` |
-| [input-formats](./core/input-formats.spec.md) | `PR-FMT-*` | MVP | `docs/specs/formats/INPUT_FORMATS.md` | `tests/unit/parseRep.spec.ts` |
+| [input-formats](./core/input-formats.spec.md) | `PR-FMT-*` | MVP | `docs/formats/INPUT_FORMATS.md` | `tests/unit/parseRep.spec.ts` |
 | [view-models](./core/view-models.spec.md) | `PR-VM-*` | MVP | `src/adapters/adaptRep.ts` | `tests/unit/viewModels.spec.ts` |
 | [swimlane-model](./core/swimlane-model.spec.md) | `PR-SWIM-*` | MVP | `src/domain/types.ts` | `tests/unit/swimlaneModel.spec.ts` |
 | [format-time](./core/format-time.spec.md) | `PR-TIME-*` | MVP | `src/domain/formatTime.ts` | `tests/unit/formatTime.spec.ts` |
@@ -36,20 +36,28 @@ Specs are co-located with their components.
 |-----------|--------|-------|----------|
 | ProfilingReport | `PR-ROOT-*` | MVP | `src/ui/ProfilingReport/ProfilingReport.spec.md` |
 | ReportToolbar | `PR-TOOLBAR-*` | MVP | `src/ui/ReportToolbar/ReportToolbar.spec.md` |
-| TimeOverviewBar | `PR-OVERVIEW-*` | MVP | `src/ui/TimeOverviewBar/TimeOverviewBar.spec.md` |
+| TimelineView | `PR-TIMELINE-*` | MVP | `src/ui/TimelineView/TimelineView.spec.md` |
+| TimeOverviewBar | `PR-OVERVIEW-*` | MVP | `src/ui/TimelineView/TimeOverviewBar/TimeOverviewBar.spec.md` |
 | StatsAside | `PR-STATS-*` | MVP | `src/ui/StatsAside/StatsAside.spec.md` |
 | ReportLayout | `PR-LAYOUT-*` | MVP | `src/ui/ReportLayout/ReportLayout.spec.md` |
-| LaneGutter | `PR-GUTTER-*` | MVP | `src/ui/LaneGutter/LaneGutter.spec.md` |
+| SwimlaneView | `PR-SWIMVIEW-*` | MVP | `src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md` |
+| LaneGutter | `PR-GUTTER-*` | MVP | `src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md` |
 | EventTooltip | `PR-TOOLTIP-*` | MVP | `src/ui/EventTooltip/EventTooltip.spec.md` |
-| DetailStrip | `PR-STRIP-*` | MVP | `src/ui/DetailStrip/DetailStrip.spec.md` |
-| SwimlaneCanvas | `PR-CANVAS-*` | MVP | `src/swimlane/SwimlaneCanvas/SwimlaneCanvas.spec.md` |
+| DetailPanel | `PR-DPANEL-*` | MVP | `src/ui/DetailPanel/DetailPanel.spec.md` |
+| DetailSummary | `PR-DSUM-*` | MVP | `src/ui/DetailPanel/DetailSummary/DetailSummary.spec.md` |
+| DetailParameter | `PR-DPARAM-*` | P2 stub | `src/ui/DetailPanel/DetailParameter/DetailParameter.spec.md` |
+| DetailRelevant | `PR-DREL-*` | P2 stub | `src/ui/DetailPanel/DetailRelevant/DetailRelevant.spec.md` |
+| CsvFieldListPanel | `PR-CSV-*` | M1 | `src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md` |
+| RooflinePanel | `PR-ROOF-*` | M2 | `src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md` |
+| HardwareDetailsPanel | `PR-HW-*` | M1 | `src/ui/StatsAside/HardwareDetailsPanel/HardwareDetailsPanel.spec.md` |
+| SwimlaneCanvas | `PR-CANVAS-*` | MVP | `src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md` |
 
 ### Architecture
 
 | Spec | Phase | Source |
 |------|-------|--------|
-| [public-api](./architecture/public-api.spec.md) | MVP | `src/index.ts`, `docs/specs/architecture/ARCHITECTURE.md` |
-| [mstt-integration](./architecture/mstt-integration.spec.md) | MVP | `docs/specs/architecture/MSTT_INTEGRATION.md` |
+| [public-api](./architecture/public-api.spec.md) | MVP | `src/index.ts`, `docs/architecture/ARCHITECTURE.md` |
+| [mstt-integration](./architecture/mstt-integration.spec.md) | MVP | `docs/architecture/MSTT_INTEGRATION.md` |
 
 ## Spec template
 

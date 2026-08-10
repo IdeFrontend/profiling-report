@@ -2,7 +2,7 @@
 
 **Target date:** **2026-08-25**
 
-**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([changes.png](../../source/changes/changes.png) #5). (4) **Roofline** panel from fixture arithmetic data (interim formulas if Q11 still open). (5) Timeline **time-range measure / 度量模式** (changelog #1; local overlay until [Q22](../../context/OPEN_QUESTIONS.md)). Spec host: [MSTT_INTEGRATION.md](../../specs/architecture/MSTT_INTEGRATION.md).
+**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([`v930/memory-load-detail`](../../ui/source/v930/memory-load-detail.jpeg)). (4) **Roofline** panel from fixture arithmetic data (interim formulas if Q11 still open). (5) Timeline **time-range measure / 度量模式** ([`v930/task-measure-mode`](../../ui/source/v930/task-measure-mode.jpeg); local overlay until [Q22](../../context/OPEN_QUESTIONS.md)). Spec host: [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md).
 
 **Data note:** `out.rep` has no deps — ship interim Q9 encoding + synthetic playground fixture for CI; swap adapter when Product finalizes Q9.
 
@@ -28,14 +28,14 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | Host chrome | **New (host)** | i18n, load errors; capability flags; workspace dep (I-Q16) |
 | Details panel | **New** | Replaces compact strip: name + timing; incoming/current/outgoing mini-graph with depth filters; raw args when present; hide when no selection |
 | Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs (Q12 + changelog #5). Hide if no memory CSVs. Edge thickness static. Optional: hover/click syncs field-list rows |
-| Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `general.png` / `with_sidebar.png` / `roofline.png`. Hide if no usable points. Capability flag `roofline` |
+| Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `source/v930/entry.jpeg` / `source/v930/entry.jpeg` / `source/v930/report-stats-open.jpeg`. Hide if no usable points. Capability flag `roofline` |
 | Overview / Q6 tiles / secondary tabs | **Out** | → [M3](milestone-3.md) |
 
 ## Implementation tasks
 
 1. **Deps (library):** Document interim Q9 encoding (e.g. `SwimEvent.dependencies: string[]` successor ids, or Chrome Trace `args` convention); add synthetic fixture with known edges; adapter fills model.
 2. **Deps UI:** `DependencyLinksLayer` — layout anchors from renderer hit boxes; draw curves on selection; toolbar toggle; update on view-state changes; tests.
-3. **Details panel:** Replace/extend `DetailStrip` → selection details (timing + in/current/out mini-graph + depth filters); wire to `selectedEventId`.
+3. **Details panel:** Replace/extend `DetailPanel` → selection details (timing + in/current/out mini-graph + depth filters); wire to `selectedEventId`.
 4. **Memory graph:** Author/adapt static SVG topology asset; map Memory* CSV columns → edge label slots (document mapping table in VIEW_DATA_MAPPING); `MemoryTopologyPanel` in Memory aside with M1 field lists; tests on `out.rep`.
 5. **Roofline:** Spec interim point/ceiling mapping from `ArithmeticUtilization` (and peaks if present) while Q11 open; implement `RooflinePanel` (hover points, hide if empty); wire aside/capability; tests on `out.rep`.
 6. **Time-range measure:** Toolbar toggle + `measureMode` / `measureRange` in view-state; canvas overlay (band + Δt); pan suppressed while measuring; no aside recompute until Q22; tests.
@@ -50,12 +50,12 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | No algorithm for “prev/next” if only unordered id lists | Wrong graph direction | Interim: directed successor list; predecessors = reverse index |
 | Depth-filter semantics underspecified | Details mini-graph ambiguity | Match sketch defaults (both / forward / backward); document interim |
 | **Memory edge ↔ CSV column mapping** not fully specified (Q12 says labels data-driven, not which field → which edge) | Wrong/missing labels on graph | Engineering mapping table from sketch + CSV headers; Product confirm later |
-| No official SVG topology asset in repo | Must draw from sketches | Create SVG from `memory_chart.png`; treat as product-owned asset |
+| No official SVG topology asset in repo | Must draw from sketches | Create SVG from `source/v930/memory-load-detail.jpeg`; treat as product-owned asset |
 | **Q11 roofline** formulas + peak ceilings still open | Cannot claim Product-final axes | Ship **interim** point derivation from `ArithmeticUtilization` columns; document I-*; hide panel if undecidable; swap when Q11 closes |
 | Roofline peak bandwidth / compute ceilings not in fixture | Roof lines missing | Interim constants or omit roofs until Product supplies peaks |
 | **Q22** measure → which views update | Risk of wrong aside coupling | Ship **local overlay only** until Product answers |
 | **MSTT repo access / review lag** | Host PR slips past 2026-08-25 | Start dep wiring early; parallel library work; slip host only if needed |
-| Workspace/Vite resolve of library SFCs | Integration burns days | Follow `StTestResultsPanel` pattern ([MSTT_INTEGRATION](../../specs/architecture/MSTT_INTEGRATION.md)) |
+| Workspace/Vite resolve of library SFCs | Integration burns days | Follow `StTestResultsPanel` pattern ([MSTT_INTEGRATION](../../architecture/MSTT_INTEGRATION.md)) |
 | Package name / I-Q16 not confirmed with MSTT | Wrong consume path | Default workspace path protocol; rename later |
 | Real OP `.rep` differs from `out.rep` | Host smoke fails | Library follow-up; hide missing panels |
 | Q18 Legal if copying PyPTO dep-link code verbatim | Blocks paste | Reimplement curves; no pypto runtime dep |

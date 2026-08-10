@@ -35,7 +35,7 @@ I-Q6a thin tiles only. Card group renders when `taskDurationUs` is present (name
 
 Do **not** render a standalone op-type card. Do **not** render compute / input BW / output BW / avg core util cards until Product Q6.
 
-**PIPE.** Matches [`pipe-occupancy.png`](../../../docs/specs/ui/source/pipe-occupancy.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS.
+**PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS.
 
 Section header shows localized **pipeOccupancy** title and a **详情** / Details control that switches to compute mode when tables exist and emits **open-pipe-details**. A 0%–100% scale sits above the rows. Each row: label, track with solid fill for ratio and hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f mean `*_time(us)`), and a right-aligned percent.
 
@@ -87,16 +87,24 @@ When `report.roofline.points` is non-empty, mount `RooflinePanel` below the acti
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
 | No roofline / empty points | Roofline section omitted |
 
+## Visual
+
+Crops (shell): [`visual/aside-scrolled.png`](./visual/aside-scrolled.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Child packs: [`PipeOccupancyPanel`](./PipeOccupancyPanel/visual/), [`StatsSummaryPanel`](./StatsSummaryPanel/visual/), [`HardwareDetailsPanel`](./HardwareDetailsPanel/visual/).
+
 ## Design sketches
 
-- [report-stats.png](../../../docs/specs/ui/source/report-stats.png) — header / meta / 更多
-- [general.png](../../../docs/specs/ui/general.png) — aside chrome in layout
-- [changes.png](../../../docs/source/changes/changes.png) #2–#4
-- [PIPE occupancy](../../../docs/specs/ui/source/pipe-occupancy.png)
+- [aside-scrolled](./visual/aside-scrolled.png) — from `v930/report-stats-scrolled`
+- [mode-tabs](./PipeOccupancyPanel/visual/mode-tabs.png) — Cube|Vector tabs from `v930/compute-load`
+- [summary-cards](./StatsSummaryPanel/visual/summary-cards.png) — from `v930/report-stats-open`
+- [pipe-bars](./PipeOccupancyPanel/visual/pipe-bars.png) — from `v930/compute-load`
+- [hardware-detail](./HardwareDetailsPanel/visual/hardware-detail.png) — from `v930/hardware-more-detail`
+- [compute-load-detail](../../../docs/ui/source/v930/compute-load-detail.jpeg) — compute CSV tabs
+- [memory-load-detail](../../../docs/ui/source/v930/memory-load-detail.jpeg) — memory tabs + block
+- [PIPE occupancy](../../../docs/ui/source/v930/compute-load.jpeg) — full frame
 
 ## Dependencies
 
-[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/specs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f, I-Q7a, I-Q11a–f.
+[COLOR_TOKENS.md](../../../docs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f, I-Q7a, I-Q11a–f.
 
 ## Changelog
 - **2026-08-10** — Hardware overlay via 更多 (PR-STATS-018, I-Q7a); PIPE 详情 → compute mode (PR-STATS-016).

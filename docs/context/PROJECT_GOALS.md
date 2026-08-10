@@ -8,12 +8,12 @@ Operators and toolkit teams want a **unified profiling UX** for OP development: 
 
 Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
 
-**“Unified UX” means shared swimlane/report components and format adapters** — not one uber-viewer that replaces Insight, swallows all PyPTO schedule features, and handles every on-disk format as a single product mode. See [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md).
+**“Unified UX” means shared swimlane/report components and format adapters** — not one uber-viewer that replaces Insight, swallows all PyPTO schedule features, and handles every on-disk format as a single product mode. See [ARCHITECTURE.md](../architecture/ARCHITECTURE.md).
 
 ## Goals
 
 1. Provide a **reusable Vue 3 library** (shared UI + `.rep` adapter first) that renders Ascend / CANN operator profiling reports (`.rep` / `.ncrep`).
-2. Align visual and interaction patterns with **PyPTO swimlane** (timeline, lanes, zoom/pan, selection, detail panels) while matching the product sketches in [`docs/specs/ui/`](../specs/ui/).
+2. Align visual and interaction patterns with **PyPTO swimlane** (timeline, lanes, zoom/pan, selection, detail panels) while matching the product sketches in [`docs/ui/`](../ui/).
 3. Integrate first into **MSTT** as a first-party webview panel, sibling to Insight — not injected into Insight iframes.
 4. Keep **msinsight** as the viewer for legacy **`.bin`** (and existing Insight JSON/DB workflows) until those formats are retired separately.
 5. Allow **copy-paste** of useful pieces from PyPTO; **do not** require changes to the pypto plugin for v1.
@@ -50,8 +50,8 @@ Under [INTERIM_DECISIONS](INTERIM_DECISIONS.md) until Product/data spec complete
 
 | Phase | Intent |
 |-------|--------|
-| **MVP** | Narrow viewer: timeline shell + swimlane + core stats/PIPE + basic interactions (see [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md)) |
-| **Phase 2+** | Remaining sketch features remain **in product scope**: roofline, memory topology, hardware sidebar, dependency graph, multiselect, source/details/cache tabs, etc. |
+| **MVP** | Narrow viewer: timeline shell + swimlane + core stats/PIPE + basic interactions (see [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)) |
+| **Phase 2+** | Remaining sketch features remain **in product scope**: product-final hardware inventory, memory topology SVG, dependency graph, multiselect, source/details/cache tabs, roofline tabs/L2 beyond I-Q11*, etc. |
 
 ## Design references
 
@@ -59,12 +59,12 @@ Under [INTERIM_DECISIONS](INTERIM_DECISIONS.md) until Product/data spec complete
 - Market / competitors (NVIDIA Nsight analogues): [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md)
 - Packaging proposals (Q16–Q19): [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md)
 - **Interim MVP defaults:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) (not Product-final)
-- UI sketches: [`docs/specs/ui/*.png`](../specs/ui/)
-- Color tokens: [COLOR_TOKENS.md](../specs/ui/COLOR_TOKENS.md)
-- View data requirements: [VIEW_DATA_REQUIREMENTS.md](../specs/formats/VIEW_DATA_REQUIREMENTS.md)
-- UX specification: [UX_SPEC.md](../specs/ui/UX_SPEC.md)
-- Feature phasing: [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md)
-- Components & models: [COMPONENTS.md](../specs/architecture/COMPONENTS.md)
+- UI sketches: [`docs/ui/source/v930/`](../ui/source/v930/) — index [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md)
+- Color tokens: [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md)
+- View data requirements: [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md)
+- UX specification: [UX_SPEC.md](../ui/UX_SPEC.md)
+- Feature phasing: [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
+- Components & models: [COMPONENTS.md](../architecture/COMPONENTS.md)
 - Sample report: [`data/out.rep`](../../data/out.rep)
 - Prior PyPTO reuse research (archive): [SWIMLANE_WEBVIEW_REUSE_REPORT.md](../archive/research/SWIMLANE_WEBVIEW_REUSE_REPORT.md)
 - Swimlane tech comparison: [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md)

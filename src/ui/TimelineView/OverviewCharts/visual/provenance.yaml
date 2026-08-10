@@ -1,0 +1,7 @@
+component: OverviewCharts
+source_primary: v930/entry
+crops:
+  overview-charts.png:
+    source: v930/entry
+    region: "统计分析 Cube/Vector/通信 overview chart tracks with gutter labels"
+    box: { x: 1280, y: 720, w: 4700, h: 420 }

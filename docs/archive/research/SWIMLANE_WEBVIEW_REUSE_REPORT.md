@@ -3,8 +3,8 @@
 > **Supersession notice (English, 2026-07-31)**  
 > This document is an **archival** research note (Russian). For profiling-report decisions, prefer:
 >
-> - [PROJECT_GOALS.md](../context/PROJECT_GOALS.md)
-> - [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md) — packaging is a **Vue 3 library**, not a sealed HTML webview bundle
+> - [PROJECT_GOALS.md](../../context/PROJECT_GOALS.md)
+> - [ARCHITECTURE.md](../../architecture/ARCHITECTURE.md) — packaging is a **Vue 3 library**, not a sealed HTML webview bundle
 > - [SWIMLANE_IMPLEMENTATIONS.md](SWIMLANE_IMPLEMENTATIONS.md) — PyPTO Canvas vs Sudu WebGL vs hybrid
 >
 > **Still useful from this report:** PyPTO swimGraph structure, coupling risks, TraceModel DTO sketch, streaming chunk idea, capability flags, extraction risks (singletons, license check).  

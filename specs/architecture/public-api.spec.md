@@ -12,7 +12,7 @@ Library public API surface consumed as `@huawei/profiling-report`. Vue is peer d
 
 ## Dependencies
 
-[ARCHITECTURE.md](../../docs/specs/architecture/ARCHITECTURE.md), [MSTT_INTEGRATION.md](../../docs/specs/architecture/MSTT_INTEGRATION.md).
+[ARCHITECTURE.md](../../docs/architecture/ARCHITECTURE.md), [MSTT_INTEGRATION.md](../../docs/architecture/MSTT_INTEGRATION.md).
 
 ## Acceptance Criteria
 

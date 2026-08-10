@@ -36,7 +36,7 @@ test.describe('PR-E2E feature paths', () => {
     const box = await canvas.boundingBox();
     expect(box).toBeTruthy();
     await page.mouse.click(box!.x + 8, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
-    await expect(page.getByTestId('detail-strip')).toBeVisible();
+    await expect(page.getByTestId('detail-panel')).toBeVisible();
   });
 
   test('PR-E2E-004: zoom-to-fit toolbar (UX S2)', async ({ page }) => {

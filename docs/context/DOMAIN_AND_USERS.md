@@ -1,6 +1,6 @@
 # Domain Context — Users, Pain Points, and Glossary
 
-How Ascend / CANN **operator (OP) development** relates to this library’s design, UX scenarios, and vocabulary. Read after [PROJECT_GOALS.md](PROJECT_GOALS.md); pair with [UX_SPEC.md](../specs/ui/UX_SPEC.md) for interaction detail and [FORMATS_COMPARISON.md](../specs/formats/FORMATS_COMPARISON.md) for data semantics.
+How Ascend / CANN **operator (OP) development** relates to this library’s design, UX scenarios, and vocabulary. Read after [PROJECT_GOALS.md](PROJECT_GOALS.md); pair with [UX_SPEC.md](../ui/UX_SPEC.md) for interaction detail and [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) for data semantics.
 
 ---
 
@@ -49,7 +49,7 @@ flowchart LR
 
 1. Author or edit the OP (C++ / Ascend C / tiling, etc.).
 2. Run a profiled case; MSTT shows results under the performance tree.
-3. Open **`.rep` / `.ncrep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../specs/architecture/MSTT_INTEGRATION.md)).
+3. Open **`.rep` / `.ncrep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)).
 4. Answer “how long?”, “which pipes?”, “what’s busy when?” → change code → repeat.
 5. For instruction-level Source / Cache / flag sync, open **`.bin`** in Insight (sibling path, not this library).
 
@@ -94,9 +94,9 @@ Pain: need Insight-like OP metrics + PyPTO-like timeline
 | **Color consistency** | Same Cube / Vector / MTE language across bars, lanes, and charts |
 | **Keep Insight for `.bin`** | Instruction / Source / Cache depth is a different product question |
 | **MVP before Source tabs** | Portable `.rep` may not carry Insight-grade source mapping yet |
-| **Vue library, not sealed HTML** | MSTT already owns webview panels; library must compose ([ARCHITECTURE](../specs/architecture/ARCHITECTURE.md)) |
+| **Vue library, not sealed HTML** | MSTT already owns webview panels; library must compose ([ARCHITECTURE](../architecture/ARCHITECTURE.md)) |
 
-Sketches under [`docs/specs/ui/`](../specs/ui/) encode this composition: dense dark timeline + right-rail analytics.
+Sketches under [`docs/ui/`](../ui/) encode this composition: dense dark timeline + right-rail analytics.
 
 ---
 
@@ -104,11 +104,11 @@ Sketches under [`docs/specs/ui/`](../specs/ui/) encode this composition: dense d
 
 | User story | Scenario | Phase | Specs |
 |------------|----------|------:|-------|
-| As an OP dev, I open a report and immediately see total time and which pipes are hot | **S1** Open report and get overview | M | [UX_SPEC](../specs/ui/UX_SPEC.md), [FEATURE_MATRIX](../specs/ui/FEATURE_MATRIX.md) |
-| As an OP dev, I zoom into a busy region and spot idle gaps | **S2** Find busy / idle regions | M | UX_SPEC, [INTERACTIONS](../specs/ui/INTERACTIONS.md) |
+| As an OP dev, I open a report and immediately see total time and which pipes are hot | **S1** Open report and get overview | M | [UX_SPEC](../ui/UX_SPEC.md), [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md) |
+| As an OP dev, I zoom into a busy region and spot idle gaps | **S2** Find busy / idle regions | M | UX_SPEC, [INTERACTIONS](../ui/INTERACTIONS.md) |
 | As an OP dev, I inspect one interval’s name and timing | **S3** Inspect one event | M | UX_SPEC, INTERACTIONS |
 | As an OP dev, I compare util across cores / pipes | **S4** Compare utilization | M | UX_SPEC, gutter + PIPE |
-| As an OP dev, I rank pipes (and later search raw counters) | **S5** Drill into PIPE metrics | M / P2 | UX_SPEC, [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md) |
+| As an OP dev, I rank pipes (and later search raw counters) | **S5** Drill into PIPE metrics | M / P2 | UX_SPEC, [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md) |
 | As an OP dev, I check whether memory paths limit the op | **S6** Analyze memory paths | P2 | UX_SPEC, FEATURE_MATRIX |
 | As an OP dev, I confirm NPU / HBM context for the run | **S7** Review hardware context | P2 | UX_SPEC, [Q7](OPEN_QUESTIONS.md) |
 | As an OP dev, I follow deps or aggregate a time slice | **S8** Dependencies / multi-select | P2 | UX_SPEC, [Q9](OPEN_QUESTIONS.md) |
@@ -118,7 +118,7 @@ Sketches under [`docs/specs/ui/`](../specs/ui/) encode this composition: dense d
 
 ## 7. Glossary
 
-Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../specs/formats/METRICS_AND_TRACE.md). Format roles: [FORMATS_COMPARISON](../specs/formats/FORMATS_COMPARISON.md).
+Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md). Format roles: [FORMATS_COMPARISON](../formats/FORMATS_COMPARISON.md).
 
 ### Products and hosts
 
@@ -173,7 +173,7 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../specs/forma
 |------|---------|
 | **Swimlane** | Multi-lane Gantt of timed intervals (processes → threads → events) |
 | **Chrome Trace** | `trace.json` event format (`ph`, `ts`, `dur`, …) embedded in `.rep` |
-| **`.rep` / `.ncrep`** | CANN report container: CSVs + trace ([REP_FORMAT](../specs/formats/REP_FORMAT.md)); product alias for OP reports |
+| **`.rep` / `.ncrep`** | CANN report container: CSVs + trace ([REP_FORMAT](../formats/REP_FORMAT.md)); product alias for OP reports |
 | **`.bin`** | Insight operator profiling dump — not parsed by this library |
 | **OverviewSeries** | Time-series points for Cube/Vector overview charts (not the same as PIPE bar ratios) |
 | **Capability** | Feature flag (`roofline`, `dependencies`, …) so UI hides surfaces the format/host cannot fill |
@@ -195,7 +195,7 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../specs/forma
 - [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) — MVP engineering defaults (not Product-final)
 - [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md) — NVIDIA Nsight analogues and competitor landscape
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — unresolved producer / fixture / formula questions
-- [UX_SPEC.md](../specs/ui/UX_SPEC.md) — scenarios S1–S9 and sync model
-- [FEATURE_MATRIX.md](../specs/ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist
-- [FORMATS_COMPARISON.md](../specs/formats/FORMATS_COMPARISON.md) — Insight vs `.rep` vs PyPTO semantics
-- [ARCHITECTURE.md](../specs/architecture/ARCHITECTURE.md) — shared UI + adapters
+- [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios S1–S9 and sync model
+- [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist
+- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.rep` vs PyPTO semantics
+- [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) — shared UI + adapters

@@ -73,7 +73,7 @@ sequenceDiagram
     participant Canvas as SwimlaneCanvas
     participant Root as ProfilingReport
     participant Tooltip as EventTooltip
-    participant Detail as DetailStrip
+    participant Detail as DetailPanel
 
     User->>Canvas: pointermove
     Canvas->>Root: emit('hover', [event, clientX, clientY])
@@ -146,11 +146,17 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
-**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip (20px track; 18px / 12px/400 labels; 5px minors; major bars with labels to the right). See `docs/specs/ui/components/VISUAL_SPEC.md`.
+**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip. Tokens: [`AxisRuler.spec.md`](../AxisRuler/AxisRuler.spec.md).
 
-**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge.
+**Cursor timestamp.** Playhead time bubble on the viewport — rendered by [`CursorTimestamp`](../CursorTimestamp/CursorTimestamp.spec.md).
+
+**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge. Clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — summary, pipe occupancy, compute tables, or memory tables (same gate as the toolbar toggle).
+
+## Visual
+
+(Orchestration only — component chrome lives in child specs. Panel clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).)
 
 ## Acceptance Criteria
 
@@ -169,14 +175,15 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 ## Design sketches
 
-- [Entry overview with sidebar](../../../docs/specs/ui/source/entry-overview.png)
-- [Report stats](../../../docs/specs/ui/source/report-stats.png)
+- [Entry overview with sidebar](../../../docs/ui/source/v930/entry.jpeg)
+- [Report stats](../../../docs/ui/source/v930/report-stats-open.jpeg)
+- [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
 
 ## Dependencies
 
-All child component specs. [mstt-integration](../../../specs/architecture/mstt-integration.spec.md).
+All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.spec.md). [mstt-integration](../../../specs/architecture/mstt-integration.spec.md).
 
-**Input formats:** [REP_FORMAT.md](../../../docs/specs/formats/REP_FORMAT.md) (`.rep` binary container), [INPUT_FORMATS.md](../../../docs/specs/formats/INPUT_FORMATS.md) (embedded file contract), [METRICS_AND_TRACE.md](../../../docs/specs/formats/METRICS_AND_TRACE.md) (CSV schemas and file-to-UI mapping).
+**Input formats:** [REP_FORMAT.md](../../../docs/formats/REP_FORMAT.md) (`.rep` binary container), [INPUT_FORMATS.md](../../../docs/formats/INPUT_FORMATS.md) (embedded file contract), [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (CSV schemas and file-to-UI mapping).
 
 ## Open
 

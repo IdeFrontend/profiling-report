@@ -15,15 +15,15 @@ Start here: **[docs/README.md](docs/README.md)**
 | Market & competitors | [docs/context/MARKET_AND_COMPETITORS.md](docs/context/MARKET_AND_COMPETITORS.md) (NVIDIA Nsight analogues) |
 | Open questions | [docs/context/OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) (blockers; resolution log) |
 | Interim MVP defaults | [docs/context/INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md) (engineering, not Product-final) |
-| View data requirements | [docs/specs/formats/VIEW_DATA_REQUIREMENTS.md](docs/specs/formats/VIEW_DATA_REQUIREMENTS.md) |
+| View data requirements | [docs/formats/VIEW_DATA_REQUIREMENTS.md](docs/formats/VIEW_DATA_REQUIREMENTS.md) |
 | Development process | [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) (docs → specs → tests → code) |
 | Delivery roadmap | [docs/process/roadmap/](docs/process/roadmap/) (M1–M3 to full UI) |
 | Testing | [docs/process/TESTING.md](docs/process/TESTING.md) |
-| Data formats | [docs/specs/formats/FORMATS_COMPARISON.md](docs/specs/formats/FORMATS_COMPARISON.md) (semantic: Insight / `.rep` / PyPTO) |
-| UI & MVP scope | [docs/specs/ui/FEATURE_MATRIX.md](docs/specs/ui/FEATURE_MATRIX.md) |
-| UX specification | [docs/specs/ui/UX_SPEC.md](docs/specs/ui/UX_SPEC.md) |
-| Architecture | [docs/specs/architecture/ARCHITECTURE.md](docs/specs/architecture/ARCHITECTURE.md) (shared UI + adapters) |
-| Components & models | [docs/specs/architecture/COMPONENTS.md](docs/specs/architecture/COMPONENTS.md) |
+| Data formats | [docs/formats/FORMATS_COMPARISON.md](docs/formats/FORMATS_COMPARISON.md) (semantic: Insight / `.rep` / PyPTO) |
+| UI & MVP scope | [docs/ui/FEATURE_MATRIX.md](docs/ui/FEATURE_MATRIX.md) |
+| UX specification | [docs/ui/UX_SPEC.md](docs/ui/UX_SPEC.md) |
+| Architecture | [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) (shared UI + adapters) |
+| Components & models | [docs/architecture/COMPONENTS.md](docs/architecture/COMPONENTS.md) |
 | Swimlane tech options | [docs/archive/research/SWIMLANE_IMPLEMENTATIONS.md](docs/archive/research/SWIMLANE_IMPLEMENTATIONS.md) |
 
 ## Sample data

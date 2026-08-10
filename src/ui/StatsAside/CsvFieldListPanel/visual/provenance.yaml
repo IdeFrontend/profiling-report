@@ -1,0 +1,15 @@
+component: CsvFieldListPanel
+source_primary: v930/compute-load-detail
+crops:
+  tabs-search.png:
+    source: v930/compute-load-detail
+    region: "CSV detail tabs + search input"
+    box: { x: 5480, y: 480, w: 2070, h: 320 }
+  field-rows.png:
+    source: v930/compute-load-detail
+    region: "CSV field key/value rows"
+    box: { x: 5480, y: 780, w: 2070, h: 720 }
+  block-switcher.png:
+    source: v930/memory-load-detail
+    region: "Memory detail with block switcher"
+    box: { x: 5480, y: 280, w: 2070, h: 900 }

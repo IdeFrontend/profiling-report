@@ -1,0 +1,7 @@
+component: DetailSummary
+source_primary: v930/detail-strip-raised
+crops:
+  identity-card.png:
+    source: v930/detail-strip-raised
+    region: "Left identity card — name, tag, Start/Duration/end"
+    box: { x: 240, y: 2860, w: 1160, h: 620 }

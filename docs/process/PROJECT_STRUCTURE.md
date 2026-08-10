@@ -55,53 +55,46 @@ profiling-report/
 
     swimlane/
       CanvasSwimlaneRenderer.ts               imperative canvas renderer
-      SwimlaneCanvas/
-        SwimlaneCanvas.vue                      Vue wrapper for the renderer
-        SwimlaneCanvas.spec.md                  behavioral spec
-        SwimlaneCanvas.spec.ts                  unit test
 
     ui/
-      tokens.css                                shared design tokens (not component-specific)
+      tokens.css
+      panelResize.ts
+      COMPONENT_TREE.md                         hierarchical UI map (mermaid + path tree)
 
-      ProfilingReport/                          per-component folder
-        ProfilingReport.vue                       root orchestration component
-        ProfilingReport.spec.md                   behavioral spec (props, emits, behavior)
-        ProfilingReport.spec.ts                   unit test
-
+      ProfilingReport/                          root orchestrator
       ReportToolbar/
-        ReportToolbar.vue
-        ReportToolbar.spec.md
-        ReportToolbar.spec.ts
+      ReportLayout/
+      EventTooltip/
+      ContextMenu/                              P2 stub + visual
+      MultiSelectSummary/                       P2 stub + visual
 
-      TimeOverviewBar/
-        TimeOverviewBar.vue
-        TimeOverviewBar.spec.md
-        TimeOverviewBar.spec.ts
+      TimelineView/                             left column stack
+        TimelineView.vue
+        TimeOverviewBar/
+        TimeAxis/
+          AxisRuler/
+          CursorTimestamp/
+        OverviewCharts/                         stub + visual
+        SwimlaneView/
+          SwimlaneView.vue
+          LaneGutter/
+          SwimlaneCanvas/
+          DependencyLinksLayer/                 stub + visual
 
       StatsAside/
         StatsAside.vue
-        StatsAside.spec.md
-        StatsAside.spec.ts
+        StatsSummaryPanel/                      stub + visual (impl still inline)
+        PipeOccupancyPanel/                     stub + visual (impl still inline)
+        CsvFieldListPanel/
+        RooflinePanel/                          M2 impl + visual
+        MemoryTopologyPanel/                    stub + visual
+        HardwareDetailsPanel/                   M1 interim impl + visual
 
-      ReportLayout/
-        ReportLayout.vue
-        ReportLayout.spec.md
-        ReportLayout.spec.ts
-
-      LaneGutter/
-        LaneGutter.vue
-        LaneGutter.spec.md
-        LaneGutter.spec.ts
-
-      EventTooltip/
-        EventTooltip.vue
-        EventTooltip.spec.md
-        EventTooltip.spec.ts
-
-      DetailStrip/
-        DetailStrip.vue
-        DetailStrip.spec.md
-        DetailStrip.spec.ts
+      DetailPanel/
+        DetailPanel.vue
+        DetailSummary/
+        DetailParameter/
+        DetailRelevant/
 
   tests/
     unit/                                     unit tests for pure-TS domain modules
@@ -122,42 +115,65 @@ profiling-report/
   playground/                                 demo SPA for local dev and Vercel deployment
     App.vue, main.ts, index.html, vite.config.ts
 
-  docs/                                       process and context documents
+  docs/                                       descriptive system docs + design assets
     context/                                    goals, domain, market, decisions
     process/                                    development, testing, definition of ready
-    research/                                   swimlane implementation analysis
-    specs/                                      original design specs (being migrated to specs/)
+    archive/                                    historical research
+    ui/                                         UX narrative + design sources (v930/)
+      source/                                   full-frame dumps + manifest.yaml
+      DESIGN_INDEX.md                           source → visual packs
+      VIEW_DATA_MAPPING.md                      view ↔ field ↔ source mappings
+    formats/                                    format explainers (non-AC narrative)
+    architecture/                               packaging / component catalog prose
+
+  specs/                                      formal behavioral contracts (AC IDs)
+    core/                                       mirrors domain/adapters
+    architecture/                               public-api, mstt-integration
 
   scripts/
     sync-demo-fixtures.mjs                    copy data files into playground
     check-spec-coverage.mjs                   validate spec ↔ test traceability
+    check-design-assets.mjs                   validate source/crops/provenance consistency
 ```
+
+**Docs vs specs:** [`docs/`](.) holds descriptive system/UX/format docs and design assets. Root [`specs/`](../../specs/) (plus co-located `src/**/*.spec.md`) holds formal behavioral contracts checked by `npm run check:specs`.
 
 ## Per-component folder convention
 
-Each Vue component lives in its own folder with exactly three files:
+Each Vue component lives in its own folder with the triad plus an optional design pack:
 
 ```
 src/ui/ReportToolbar/
   ReportToolbar.vue          component (template + script)
-  ReportToolbar.spec.md      behavioral spec (what the component does)
+  ReportToolbar.spec.md      behavioral + visual spec
   ReportToolbar.spec.ts      unit test (proof, using @vue/test-utils)
+  visual/                    optional — component crops + provenance
+    provenance.yaml            crop → source id + region
+    toolbar.png
+    search.png
+    zoom.png
+    actions.png
 ```
 
 ### When to create a component folder
 
-- A new `.vue` file → create a folder, name it after the component (PascalCase), place all three files inside.
+- A new `.vue` file → create a folder, name it after the component (PascalCase), place the triad inside.
+- When cropping from a design source for that component → add `visual/` with `provenance.yaml` and the crop PNGs.
 
 ### What goes in the spec (`*.spec.md`)
 
 - **Inputs** (English prose — what the component receives, why each prop matters)
-- **Outputs** (English prose — what the component emits, payloads, parer interaction)
+- **Outputs** (English prose — what the component emits, payloads, parent interaction)
 - **Behavior** (non-obvious constraints, data flow, interactions with other components)
+- **Visual** (component-local measures; axis chrome in [`AxisRuler.spec.md`](../../src/ui/TimelineView/TimeAxis/AxisRuler/AxisRuler.spec.md), panel clamps in [`ReportLayout.spec.md`](../../src/ui/ReportLayout/ReportLayout.spec.md))
 - Acceptance criteria with test IDs
 - Edge cases
+- **Design sketches** — relative links to `./visual/*.png` and/or `docs/ui/source/...`
 - Dependencies on other specs
 
 Follow the standard template: [`specs/TEMPLATE.md`](../../specs/TEMPLATE.md).
+
+Design asset hierarchy: [`docs/ui/DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md).
 
 ### What goes in the test (`*.spec.ts`)
 
@@ -214,14 +230,21 @@ Each component gets its own prefix to avoid collisions and make ownership clear:
 |---|---|
 | ProfilingReport | `PR-ROOT-*` |
 | ReportToolbar | `PR-TOOLBAR-*` |
+| TimelineView | `PR-TIMELINE-*` |
 | TimeOverviewBar | `PR-OVERVIEW-*` |
 | StatsAside | `PR-STATS-*` |
 | ReportLayout | `PR-LAYOUT-*` |
+| SwimlaneView | `PR-SWIMVIEW-*` |
 | LaneGutter | `PR-GUTTER-*` |
 | EventTooltip | `PR-TOOLTIP-*` |
-| DetailStrip | `PR-STRIP-*` |
+| DetailPanel | `PR-DPANEL-*` |
+| DetailSummary | `PR-DSUM-*` |
+| DetailParameter | `PR-DPARAM-*` |
+| DetailRelevant | `PR-DREL-*` |
 | SwimlaneCanvas | `PR-CANVAS-*` |
-
+| AxisRuler | `PR-AXIS-*` |
+| CsvFieldListPanel | `PR-CSV-*` |
+| CursorTimestamp | `PR-CURSOR-*` |
 ### Core module prefixes
 
 | Module | Prefix |

@@ -1,0 +1,11 @@
+component: MultiSelectSummary
+source_primary: v930/task-marquee
+crops:
+  selection.png:
+    source: v930/task-marquee
+    region: "Marquee selection over timeline events (full rect including left edge)"
+    box: { x: 1380, y: 2260, w: 2950, h: 960 }
+  info-panel.png:
+    source: v930/task-marquee
+    region: "Info panel — Name + Wall Duration / Self time / Average Wall Duration"
+    box: { x: 60, y: 3100, w: 5700, h: 1120 }

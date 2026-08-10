@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
-import { buildAxisRulerTicks } from '../../domain/axisRuler';
-import {
-  formatCursorTime,
-  resolveCursorTimeUnit,
-} from '../../domain/formatTime';
-import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   applyWindow,
   clearMeasure,
@@ -28,23 +22,18 @@ import type {
   TimeDisplayUnit,
   ViewFullCsvPayload,
 } from '../../domain/types';
+import { colorVarForLaneName } from '../../domain/laneColors';
 import { t } from '../../i18n';
-import SwimlaneCanvas from '../../swimlane/SwimlaneCanvas/SwimlaneCanvas.vue';
-import AxisRuler from '../AxisRuler/AxisRuler.vue';
-import DetailStrip from '../DetailStrip/DetailStrip.vue';
+import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
-import LaneGutter from '../LaneGutter/LaneGutter.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   GUTTER_WIDTH_DEFAULT,
-  GUTTER_WIDTH_MAX,
-  GUTTER_WIDTH_MIN,
-  startHorizontalResize,
 } from '../panelResize';
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
-import TimeOverviewBar from '../TimeOverviewBar/TimeOverviewBar.vue';
+import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 
 const props = defineProps<{
@@ -81,9 +70,7 @@ const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
-const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
-const timeAxisRef = ref<HTMLElement | null>(null);
-const timeAxisWidth = ref(0);
+const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 /** Session-only panel widths (not persisted). */
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
@@ -137,10 +124,6 @@ const bounds = computed(() => {
 });
 
 /** Cursor MM:SS.mmm unit — finer than toolbar ms when the trace span is sub-ms. */
-const cursorTimeUnit = computed(() =>
-  resolveCursorTimeUnit(bounds.value.maxTime - bounds.value.minTime, unit.value),
-);
-
 /** 0 = fit (full span); 100 = max zoom (~1/100 of full span). */
 const zoomPercent = computed(() => {
   const full = bounds.value.maxTime - bounds.value.minTime;
@@ -148,17 +131,6 @@ const zoomPercent = computed(() => {
   if (span >= full) return 0;
   const ratio = full / span;
   return Math.min(100, Math.round((Math.log2(ratio) / Math.log2(100)) * 100));
-});
-
-const viewportRuler = computed(() => {
-  const { startTime, endTime } = viewState.value;
-  return buildAxisRulerTicks({
-    rangeStart: startTime,
-    rangeEnd: endTime,
-    origin: bounds.value.minTime,
-    timeUnit: unit.value,
-    widthPx: timeAxisWidth.value,
-  });
 });
 
 function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean): void {
@@ -176,7 +148,7 @@ function onToggleGroup(groupId: string): void {
   else set.add(groupId);
   collapsedGroupIds.value = [...set];
   // Keep scroll within new content height
-  const el = gutterRef.value?.root;
+  const el = timelineRef.value?.gutterRoot;
   if (el) {
     viewState.value = { ...viewState.value, scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) };
   }
@@ -255,24 +227,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onMeasureKeydown);
 });
 
-watch(
-  timeAxisRef,
-  (el, _prev, onCleanup) => {
-    if (!el || typeof ResizeObserver === 'undefined') {
-      if (el) timeAxisWidth.value = el.clientWidth || 0;
-      return;
-    }
-    const sync = () => {
-      timeAxisWidth.value = el.clientWidth || 0;
-    };
-    sync();
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    onCleanup(() => ro.disconnect());
-  },
-  { flush: 'post' },
-);
-
 function onMeasureKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
@@ -332,31 +286,8 @@ function onOverviewWindow(window: { startTime: number; endTime: number }) {
   });
 }
 
-let gutterResizeSession: ReturnType<typeof startHorizontalResize> | null = null;
-
-function onGutterResizePointerDown(e: PointerEvent) {
-  if (e.button !== 0) return;
-  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  gutterResizeSession = startHorizontalResize({
-    startClientX: e.clientX,
-    startWidth: gutterWidth.value,
-    min: GUTTER_WIDTH_MIN,
-    max: GUTTER_WIDTH_MAX,
-    direction: 1,
-    onChange: (w) => {
-      gutterWidth.value = w;
-    },
-  });
-  e.preventDefault();
-}
-
-function onGutterResizePointerMove(e: PointerEvent) {
-  gutterResizeSession?.move(e.clientX);
-}
-
-function onGutterResizePointerUp() {
-  gutterResizeSession?.end();
-  gutterResizeSession = null;
+function onScrollY(scrollY: number) {
+  viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
 }
 
 function onPan(deltaTime: number) {
@@ -407,28 +338,6 @@ function onZoomPercent(pct: number) {
     endTime,
     scrollY: viewState.value.scrollY,
   });
-}
-
-function onScrollY(scrollY: number) {
-  viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
-}
-
-watch(
-  () => viewState.value.scrollY,
-  (y) => {
-    const el = gutterRef.value?.root;
-    if (el && Math.abs(el.scrollTop - y) > 0.5) {
-      el.scrollTop = y;
-    }
-  },
-);
-
-function onGutterScroll(): void {
-  const el = gutterRef.value?.root;
-  if (!el) return;
-  if (Math.abs(el.scrollTop - viewState.value.scrollY) > 0.5) {
-    onScrollY(el.scrollTop);
-  }
 }
 
 function onSearch(q: string) {
@@ -511,99 +420,30 @@ defineExpose({ selectEventById, viewState });
       @update:aside-width="asideWidth = $event"
     >
       <template #main>
-        <div
-          class="pr-main-swim"
-          :style="{ '--pr-gutter-width': `${gutterWidth}px` }"
-        >
-          <button
-            type="button"
-            class="pr-gutter-resize"
-            data-testid="gutter-resize-handle"
-            aria-label="Resize lane gutter"
-            @pointerdown="onGutterResizePointerDown"
-            @pointermove="onGutterResizePointerMove"
-            @pointerup="onGutterResizePointerUp"
-            @pointercancel="onGutterResizePointerUp"
-          />
-          <div class="pr-swim-row pr-swim-row--overview">
-            <div
-              class="pr-gutter pr-gutter--axis-spacer"
-              aria-hidden="true"
-            />
-            <TimeOverviewBar
-              :min-time="bounds.minTime"
-              :max-time="bounds.maxTime"
-              :start-time="viewState.startTime"
-              :end-time="viewState.endTime"
-              :time-unit="unit"
-              @update:window="onOverviewWindow"
-            />
-          </div>
-
-          <div class="pr-swim-row pr-swim-row--head">
-            <div
-              class="pr-gutter pr-gutter--axis-spacer"
-              aria-hidden="true"
-            />
-            <div
-              ref="timeAxisRef"
-              class="pr-time-axis"
-              data-testid="time-axis"
-            >
-              <AxisRuler
-                :majors="viewportRuler.majors"
-                :minors="viewportRuler.minors"
-              />
-              <div
-                v-if="cursor"
-                class="pr-cursor"
-                data-testid="cursor-line"
-                :style="{ left: `${cursor.xRatio * 100}%` }"
-              >
-                <span
-                  class="pr-cursor__label"
-                  data-testid="cursor-label"
-                >{{ formatCursorTime(cursor.time - bounds.minTime, cursorTimeUnit) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="pr-swim-row pr-swim-row--body">
-            <LaneGutter
-              ref="gutterRef"
-              :groups="laneGroups"
-              :collapsed-ids="collapsedGroupIds"
-              @scroll="onGutterScroll"
-              @toggle-group="onToggleGroup"
-            />
-            <SwimlaneCanvas
-              :model="displaySwim"
-              :view="viewState"
-              :selected-event-id="viewState.selectedEventId"
-              :hovered-event-id="viewState.hoveredEventId"
-              :search-query="viewState.searchQuery"
-              :measure-mode="viewState.measureMode"
-              :measure-range="viewState.measureRange"
-              :time-unit="unit"
-              :prefer-renderer="preferRenderer ?? 'auto'"
-              @select="onSelect"
-              @hover="onHover"
-              @cursor="onCursor"
-              @set-playhead="onSetPlayhead"
-              @pan="onPan"
-              @zoom="onZoom"
-              @scroll-y="onScrollY"
-              @update:measure-range="onMeasureRange"
-            />
-          </div>
-          <div
-            v-if="showOverview"
-            data-testid="overview-charts"
-            class="pr-overview"
-          >
-            Overview charts
-          </div>
-        </div>
+        <TimelineView
+          ref="timelineRef"
+          :bounds="bounds"
+          :view="viewState"
+          :unit="unit"
+          :groups="laneGroups"
+          :collapsed-ids="collapsedGroupIds"
+          :display-swim="displaySwim"
+          :cursor="cursor"
+          :show-overview-charts="showOverview"
+          :gutter-width="gutterWidth"
+          :prefer-renderer="preferRenderer ?? 'auto'"
+          @update:gutter-width="gutterWidth = $event"
+          @update:scroll-y="onScrollY"
+          @update:window="onOverviewWindow"
+          @toggle-group="onToggleGroup"
+          @select="onSelect"
+          @hover="onHover"
+          @cursor="onCursor"
+          @set-playhead="onSetPlayhead"
+          @pan="onPan"
+          @zoom="onZoom"
+          @update:measure-range="onMeasureRange"
+        />
       </template>
 
       <template #aside>
@@ -619,7 +459,7 @@ defineExpose({ selectEventById, viewState });
       </template>
     </ReportLayout>
 
-    <DetailStrip
+    <DetailPanel
       v-if="selected && showTimeline"
       :selected="selected"
       :unit="unit"
@@ -658,128 +498,5 @@ defineExpose({ selectEventById, viewState });
   padding: 6px 10px;
   color: #f88;
   flex: 0 0 auto;
-}
-
-.pr-time-axis {
-  position: relative;
-  height: 20px;
-  color: #c8c8c8;
-  border-bottom: 1px solid #3a3a3a;
-  flex: 0 0 auto;
-  overflow: hidden;
-}
-
-.pr-gutter--axis-spacer {
-  border-bottom: 1px solid #3a3a3a;
-  background: #2a2a2a;
-  border-right: 1px solid #3a3a3a;
-}
-
-.pr-cursor {
-  position: absolute;
-  top: 0;
-  /* Extend through axis border-bottom so the stem meets the canvas line (no 1px gap). */
-  bottom: -1px;
-  width: 1px;
-  background: #317af7;
-  pointer-events: none;
-  z-index: 5;
-  /*
-   * left = xRatio% places the left edge at cursor x.
-   * Canvas stroke uses x+0.5 so it covers [x, x+1] — same column. Do not translateX(-0.5).
-   */
-}
-
-.pr-cursor__label {
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 1px 8px;
-  min-width: 72px;
-  box-sizing: border-box;
-  text-align: center;
-  background: #317af7;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  border-radius: 4px;
-  line-height: 1.35;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-.pr-main-swim {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-}
-
-.pr-gutter-resize {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--pr-gutter-width, 280px);
-  width: 5px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: ew-resize;
-  z-index: 6;
-  transform: translateX(-50%);
-}
-
-.pr-gutter-resize:hover,
-.pr-gutter-resize:active {
-  background: rgba(49, 122, 247, 0.35);
-}
-
-.pr-swim-row {
-  display: grid;
-  grid-template-columns: var(--pr-gutter-width, 280px) 1fr;
-  gap: 0;
-  align-items: stretch;
-  min-height: 0;
-}
-
-.pr-swim-row.pr-swim-row--head,
-.pr-swim-row.pr-swim-row--overview {
-  flex: 0 0 auto;
-}
-
-.pr-swim-row.pr-swim-row--overview {
-  align-items: stretch;
-}
-
-.pr-swim-row.pr-swim-row--overview .pr-gutter--axis-spacer {
-  border-bottom: 1px solid #4a4a4a;
-}
-
-.pr-swim-row.pr-swim-row--body {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-@media (max-width: 900px) {
-  .pr-swim-row {
-    grid-template-columns: 1fr;
-  }
-
-  .pr-swim-row--head {
-    display: block;
-  }
-
-  .pr-gutter--axis-spacer {
-    display: none;
-  }
-
-  .pr-gutter-resize {
-    display: none;
-  }
 }
 </style>

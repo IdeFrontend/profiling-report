@@ -1,0 +1,7 @@
+component: AxisRuler
+source_primary: v930/entry
+crops:
+  viewport-ticks.png:
+    source: v930/entry
+    region: "Overview/viewport axis labels and ticks (near range handles)"
+    box: { x: 2300, y: 540, w: 3900, h: 100 }

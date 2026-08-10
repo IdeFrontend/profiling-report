@@ -1,0 +1,7 @@
+component: HardwareDetailsPanel
+source_primary: v930/hardware-more-detail
+crops:
+  hardware-detail.png:
+    source: v930/hardware-more-detail
+    region: "Hardware information detail (Host Info + Device Info)"
+    box: { x: 5776, y: 355, w: 1850, h: 1850 }
