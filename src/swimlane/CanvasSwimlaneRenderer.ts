@@ -1,36 +1,40 @@
-import type {
-  SwimEvent,
-  SwimlaneModel,
-  SwimlaneRenderer,
-  SwimlaneViewWindow,
-  SwimThread,
-} from '../domain/types';
-import { colorForThread } from '../domain/laneColors';
+import type { SwimEvent, SwimlaneModel, SwimlaneRenderer, SwimlaneViewWindow } from '../domain/types';
+import {
+  EVENT_RADIUS,
+  LANE_GROUP_HEADER_HEIGHT,
+  LANE_HEIGHT,
+  contentHeightFromLayout,
+  eventBlockMetrics,
+  eventEmphasisDim,
+  eventLabelAnchor,
+  eventScreenRect,
+  findEvent,
+  findLaidOutEvent,
+  hitTestLayout,
+  rebuildLayout,
+  type SwimlaneLayout,
+} from './layout';
 
-export const LANE_HEIGHT = 22;
-export const LANE_PAD_Y = 3;
-/** Matches `.pr-gutter__group` height so canvas lanes align with gutter labels. */
-export const LANE_GROUP_HEADER_HEIGHT = 28;
-/** Corner radius for event blocks (sketch / design: rounded, not sharp). */
-export const EVENT_RADIUS = 5;
-
-interface FlatLane {
-  thread: SwimThread;
-  y: number;
-  color: string;
-}
-
-interface GroupHeader {
-  name: string;
-  y: number;
-}
-
-interface LaidOutEvent {
-  id: string;
-  event: SwimEvent;
-  laneIndex: number;
-  y: number;
-  color: string;
+function drawEventLabel(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  viewW: number,
+  alpha = 1,
+): void {
+  const anchor = eventLabelAnchor(x, w, viewW);
+  if (!anchor) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
+  ctx.restore();
 }
 
 function roundRectPath(
@@ -55,15 +59,124 @@ function roundRectPath(
   ctx.closePath();
 }
 
-/** Canvas 2D SwimlaneRenderer (COMPONENTS). Layout + hit-test are independent of pixels. */
+/**
+ * Canvas2D overlay: labels, selection/hover strokes, cursor.
+ * Used on top of WebGL interval fills (hybrid path).
+ */
+export class SwimlaneOverlayPainter {
+  private canvas: HTMLCanvasElement | null = null;
+  private ctx: CanvasRenderingContext2D | null = null;
+  private layout: SwimlaneLayout = { lanes: [], headers: [], events: [] };
+  private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
+  private selectedId: string | null = null;
+  private hoveredId: string | null = null;
+  private searchQuery = '';
+  private cursorX: number | null = null;
+  private width = 0;
+  private height = 0;
+
+  attach(canvas: HTMLCanvasElement): void {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.resize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
+  }
+
+  resize(width: number, height: number): void {
+    this.width = Math.max(1, Math.floor(width));
+    this.height = Math.max(1, Math.floor(height));
+    if (this.canvas && this.ctx) {
+      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      this.canvas.width = Math.floor(this.width * dpr);
+      this.canvas.height = Math.floor(this.height * dpr);
+      this.canvas.style.width = `${this.width}px`;
+      this.canvas.style.height = `${this.height}px`;
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+  }
+
+  setLayout(layout: SwimlaneLayout): void {
+    this.layout = layout;
+  }
+
+  setView(view: SwimlaneViewWindow): void {
+    this.view = { ...view };
+  }
+
+  setSelection(selectedId: string | null, hoveredId: string | null): void {
+    this.selectedId = selectedId;
+    this.hoveredId = hoveredId;
+  }
+
+  setSearchQuery(query: string): void {
+    this.searchQuery = query.trim().toLowerCase();
+  }
+
+  setCursorX(x: number | null): void {
+    this.cursorX = x;
+  }
+
+  render(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.canvas) return;
+    ctx.clearRect(0, 0, this.width, this.height);
+
+    const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const q = this.searchQuery;
+    const hasSearch = q.length > 0;
+    const hasSelection = this.selectedId != null;
+
+    for (const item of this.layout.events) {
+      const ev = item.event;
+      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+        continue;
+      }
+      const x = ((ev.startTime - this.view.startTime) / span) * this.width;
+      const w = Math.max(2, (ev.duration / span) * this.width);
+      const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
+      if (y + h < 0 || y > this.height) continue;
+
+      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      const dim = eventEmphasisDim(matches, item.id === this.selectedId, hasSearch, hasSelection);
+
+      if (item.id === this.selectedId) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, EVENT_RADIUS);
+        ctx.stroke();
+      } else if (item.id === this.hoveredId) {
+        ctx.strokeStyle = '#c8e0ff';
+        ctx.lineWidth = 1.5;
+        roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, EVENT_RADIUS);
+        ctx.stroke();
+      }
+
+      // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
+      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
+    }
+
+    if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {
+      ctx.strokeStyle = '#317AF7';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(this.cursorX + 0.5, 0);
+      ctx.lineTo(this.cursorX + 0.5, this.height);
+      ctx.stroke();
+    }
+  }
+
+  dispose(): void {
+    this.canvas = null;
+    this.ctx = null;
+    this.layout = { lanes: [], headers: [], events: [] };
+  }
+}
+
+/** Canvas 2D SwimlaneRenderer (COMPONENTS). Fallback when WebGL2 is unavailable. */
 export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
-  private model: SwimlaneModel | null = null;
+  private layout: SwimlaneLayout = { lanes: [], headers: [], events: [] };
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
-  private lanes: FlatLane[] = [];
-  private headers: GroupHeader[] = [];
-  private events: LaidOutEvent[] = [];
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private searchQuery = '';
@@ -93,8 +206,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setModel(model: SwimlaneModel): void {
-    this.model = model;
-    this.rebuildLayout();
+    this.layout = rebuildLayout(model);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -110,65 +222,30 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.searchQuery = query.trim().toLowerCase();
   }
 
-  /** CSS-pixel x of mouse cursor within the canvas, or null when absent. */
   setCursorX(x: number | null): void {
     this.cursorX = x;
   }
 
   contentHeight(): number {
-    if (this.headers.length === 0 && this.lanes.length === 0) {
-      return LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT;
-    }
-    let bottom = 0;
-    for (const h of this.headers) {
-      bottom = Math.max(bottom, h.y + LANE_GROUP_HEADER_HEIGHT);
-    }
-    for (const l of this.lanes) {
-      bottom = Math.max(bottom, l.y + LANE_HEIGHT);
-    }
-    return bottom;
+    return contentHeightFromLayout(this.layout);
   }
 
-  /** Map event id → CSS-pixel rect in current view (for tests / overlays). */
+  getLayout(): SwimlaneLayout {
+    return this.layout;
+  }
+
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
-    const item = this.events.find((e) => e.id === eventId);
+    const item = findLaidOutEvent(this.layout, eventId);
     if (!item) return null;
-    const span = Math.max(1, this.view.endTime - this.view.startTime);
-    const x = ((item.event.startTime - this.view.startTime) / span) * this.width;
-    const w = Math.max(2, (item.event.duration / span) * this.width);
-    const y = item.y - this.view.scrollY + LANE_PAD_Y;
-    const h = LANE_HEIGHT - LANE_PAD_Y * 2;
-    return { x, y, w, h };
+    return eventScreenRect(item, this.view, this.width);
   }
 
   hitTest(x: number, y: number): string | null {
-    const contentY = y + this.view.scrollY;
-    const lane = this.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
-    if (!lane) return null;
-    const laneIndex = this.lanes.indexOf(lane);
-    const span = Math.max(1, this.view.endTime - this.view.startTime);
-    const candidates: { id: string; duration: number }[] = [];
-    for (const item of this.events) {
-      if (item.laneIndex !== laneIndex) continue;
-      const ev = item.event;
-      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
-        continue;
-      }
-      const ex = ((ev.startTime - this.view.startTime) / span) * this.width;
-      const ew = Math.max(2, (ev.duration / span) * this.width);
-      const ey = item.y - this.view.scrollY + LANE_PAD_Y;
-      const eh = LANE_HEIGHT - LANE_PAD_Y * 2;
-      if (x >= ex && x <= ex + ew && y >= ey && y <= ey + eh) {
-        candidates.push({ id: item.id, duration: ev.duration });
-      }
-    }
-    if (candidates.length === 0) return null;
-    candidates.sort((a, b) => a.duration - b.duration);
-    return candidates[0]!.id;
+    return hitTestLayout(this.layout, this.view, this.width, x, y);
   }
 
   findEvent(id: string): SwimEvent | null {
-    return this.events.find((e) => e.id === id)?.event ?? null;
+    return findEvent(this.layout, id);
   }
 
   render(): void {
@@ -178,7 +255,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     ctx.fillStyle = '#252525';
     ctx.fillRect(0, 0, this.width, this.height);
 
-    for (const header of this.headers) {
+    for (const header of this.layout.headers) {
       const headerTop = header.y - this.view.scrollY;
       if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < this.height) {
         ctx.fillStyle = '#2a2a2a';
@@ -191,10 +268,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    for (let i = 0; i < this.lanes.length; i++) {
-      const y = this.lanes[i]!.y - this.view.scrollY;
+    for (let i = 0; i < this.layout.lanes.length; i++) {
+      const y = this.layout.lanes[i]!.y - this.view.scrollY;
       if (y + LANE_HEIGHT < 0 || y > this.height) continue;
-      ctx.fillStyle = i % 2 === 0 ? '#2a2a2a' : '#262626';
+      ctx.fillStyle = '#2a2a2a';
       ctx.fillRect(0, y, this.width, LANE_HEIGHT);
       ctx.strokeStyle = '#3a3a3a';
       ctx.beginPath();
@@ -205,22 +282,21 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
+    const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
 
-    for (const item of this.events) {
+    for (const item of this.layout.events) {
       const ev = item.event;
       if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
         continue;
       }
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const y = item.y - this.view.scrollY + LANE_PAD_Y;
-      const h = LANE_HEIGHT - LANE_PAD_Y * 2;
+      const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
 
-      const matches = !q || ev.name.toLowerCase().includes(q);
-      const dim =
-        (q && !matches ? 0.25 : 1) * (hasSelection && item.id !== this.selectedId ? 0.45 : 1);
+      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      const dim = eventEmphasisDim(matches, item.id === this.selectedId, hasSearch, hasSelection);
       ctx.globalAlpha = dim;
       ctx.fillStyle = item.color;
       roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
@@ -238,11 +314,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         ctx.stroke();
       }
 
-      if (w > 40 && matches) {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(ev.name, x + 4, y + h - 6, Math.max(8, w - 8));
-      }
+      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
       ctx.globalAlpha = 1;
     }
 
@@ -262,30 +334,15 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   dispose(): void {
     this.canvas = null;
     this.ctx = null;
-    this.model = null;
-    this.lanes = [];
-    this.headers = [];
-    this.events = [];
-  }
-
-  private rebuildLayout(): void {
-    this.lanes = [];
-    this.headers = [];
-    this.events = [];
-    if (!this.model) return;
-    let y = 0;
-    for (const proc of this.model.processes) {
-      this.headers.push({ name: proc.name, y });
-      y += LANE_GROUP_HEADER_HEIGHT;
-      for (const thread of proc.threads) {
-        const color = colorForThread(thread.name);
-        this.lanes.push({ thread, y, color });
-        const sorted = [...thread.events].sort((a, b) => b.duration - a.duration);
-        for (const ev of sorted) {
-          this.events.push({ id: ev.id, event: ev, laneIndex: this.lanes.length - 1, y, color });
-        }
-        y += LANE_HEIGHT;
-      }
-    }
+    this.layout = { lanes: [], headers: [], events: [] };
   }
 }
+
+export {
+  LANE_GROUP_HEADER_HEIGHT,
+  LANE_HEIGHT,
+  LANE_PAD_Y,
+  EVENT_RADIUS,
+  eventBlockMetrics,
+  eventLabelAnchor,
+} from './layout';

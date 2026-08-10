@@ -24,7 +24,17 @@ class CanvasSwimlaneRenderer {
 
 **HiDPI rendering.** `resize` multiplies canvas backing store by `window.devicePixelRatio` to ensure crisp rendering on Retina displays. Logical dimensions stored separately for layout calculations.
 
-**Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px with 3px padding. Event rendering uses rounded rectangles (corner radius 5px, falls back to `ctx.roundRect()` where available). Only events visible in the current viewport are drawn.
+**Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y` and are vertically centered in the lane between gutter-aligned row dividers (`(LANE_HEIGHT - h) / 2` inset, then −0.5px optical nudge). Rounded rectangles use corner radius 5px (`ctx.roundRect()` where available). Only events overlapping the current time viewport are drawn.
+
+**Event labels.** When the on-screen (clipped) event width is wide enough (>40px), the title is drawn centered: vertically at the event block mid-line (`textBaseline: middle`), horizontally at the center of the visible intersection of the event rect with the canvas (fully on-screen → center of the event; clipped left/right → center of the remaining visible strip). Canvas fallback and the WebGL overlay share this layout.
+
+**Search / selection emphasis.** Non-matching search hits dim to 25% opacity; when an event is selected, non-selected events multiply by 0.45 (combined when both apply). Canvas uses `globalAlpha`; WebGL rebuilds per-dim mesh layers and passes premul `uColor` RGB×dim with alpha=dim. Labels use the same dim (overlay + Canvas fallback); search non-matches omit labels. Clearing search and selection restores full opacity.
+
+**Lane chrome.** Every event-sequence lane shares the same background fill (`#2a2a2a`); alternating zebra stripes are not used. Horizontal dividers (`#3a3a3a`) are drawn at the bottom of each group header and each lane, aligned with the LaneGutter borders so separators read as continuous lines from the gutter across the timeline. WebGL draws the same uniform fill and 1px divider rects; Canvas uses strokes at the same edges.
+
+**Cursor.** Vertical cursor stroke uses `#317AF7` to match axis `.pr-cursor` (Canvas fallback and WebGL overlay).
+
+**WebGL intervals.** Coverage-AA rounded fills use **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend, which lit up overlaps as a bright “block inside block”. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
 
 **Hit testing.** `hitTest` computes Y relative to scroll offset, finds the matching lane by Y bounds, converts X to a time value, and finds the event whose interval contains that time. Returns the event's id string, or null if no match.
 
@@ -35,6 +45,11 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-003**: Handles multiple processes/threads with correct lane ordering.
 1. **PR-RENDER-004**: Empty model renders empty canvas without errors.
 1. **PR-RENDER-005**: dispose cleans up internal state.
+1. **PR-RENDER-006**: WebGlSwimlaneRenderer attach/render/hitTest succeeds when WebGL2 is available (skipped when unsupported).
+1. **PR-RENDER-007**: Event label anchor centers in the full event when fully visible, and in the visible clip when partially off-screen.
+1. **PR-RENDER-008**: WebGL setSearchQuery rebuilds match/dim meshes and render does not throw.
+1. **PR-RENDER-009**: `encodeIntervalPair` keeps end > start after float32 rounding for large-magnitude times.
+1. **PR-RENDER-010**: `eventEmphasisDim` matches Canvas factors (search 0.25 × selection 0.45); WebGL setSelection rebuilds emphasis layers and render does not throw.
 
 ## Edge Cases
 
@@ -46,7 +61,12 @@ class CanvasSwimlaneRenderer {
 
 ## Open
 
-Phase 2 WebGL hybrid renderer for better coverage AA at scale.
+WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-10** — WebGL selection + search emphasis parity with Canvas (fills + labels); premul alpha dim.
+- **2026-08-10** — WebGL source-over blend + float32-safe interval encoding (no bright nested overdraw).
+- **2026-08-10** — WebGL search dimming (match Canvas 0.25); overlay cursor `#317AF7`.
+- **2026-08-07** — Event blocks vertically centered in lane rows; labels centered in the visible event rect (Canvas + WebGL overlay).
+- **2026-08-07** — Uniform lane backgrounds; horizontal dividers aligned with gutter borders (Canvas + WebGL).
 - **2026-08-05** — Initial spec. Core behaviors established.

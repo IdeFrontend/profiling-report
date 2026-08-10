@@ -107,8 +107,15 @@ Risk: re-approaching PyPTO scale without LOD or GPU will regress FPS; plan WebGL
 | Horizon | Choice |
 |---------|--------|
 | **MVP** | Vue library UI + **Canvas 2D** (or minimal WebGL) swimlane sufficient for `data/out.rep`-class traces; implement hover/select/zoom/pan per [INTERACTIONS.md](../specs/ui/INTERACTIONS.md). Optionally borrow PyPTO time-axis and color helpers via copy-paste. |
-| **Target / Phase 2 performance** | **Hybrid:** port Sudu **pixel-coverage** interval rendering to TypeScript WebGL2; keep Vue chrome; add overlays for text and interaction. |
+| **Target / Phase 2 performance** | **Hybrid (implemented):** TypeScript WebGL2 coverage-AA intervals (`WebGlSwimlaneRenderer`) + Canvas2D overlay for labels/selection/cursor; Canvas-only fallback when WebGL2 is unavailable. |
 | **Avoid** | TeaVM/sudu as a runtime dependency; wholesale import of `swimGraphComplete.vue`; sealed HTML bundle as the primary distribution form for MSTT. |
+
+### Status (feat/webgl-swimlane)
+
+- `src/swimlane/WebGlSwimlaneRenderer.ts` — Sudu-style mesh + coverage fragment shader (reimplemented; no sudu-editor import).
+- `src/swimlane/shaders.ts` — VS/FS sources.
+- `src/ui/SwimlaneCanvas.vue` — prefers WebGL + overlay; falls back to `CanvasSwimlaneRenderer`.
+- Shared layout/hit-test: `src/swimlane/layout.ts`.
 
 ### Decision criteria (when to invest in WebGL)
 
