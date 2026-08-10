@@ -3,9 +3,9 @@ source_primary: v930/detail-strip-raised
 crops:
   strip.png:
     source: v930/detail-strip-raised
-    region: "Detail strip Start/Duration/end card"
-    box: { x: 280, y: 3180, w: 1000, h: 280 }
+    region: "Raised 「详情」 left event card — name, tag, Start/Duration/end"
+    box: { x: 240, y: 2860, w: 1160, h: 620 }
   strip-context.png:
     source: v930/detail-strip-raised
-    region: "Detail strip card with surrounding detail UI"
-    box: { x: 200, y: 2900, w: 5000, h: 650 }
+    region: "Swimlane above + full raised 「详情」 dock (identity, Parameter, Relevant)"
+    box: { x: 200, y: 2200, w: 5200, h: 1320 }

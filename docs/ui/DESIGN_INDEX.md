@@ -16,8 +16,8 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930/entry` | [`entry.jpeg`](./source/v930/entry.jpeg) | Toolbar, overview, gutter, swimlane, cursor, axis ruler |
 | `v930/report-stats-open` | [`report-stats-open.jpeg`](./source/v930/report-stats-open.jpeg) | Stats aside |
 | `v930/report-stats-scrolled` | [`report-stats-scrolled.jpeg`](./source/v930/report-stats-scrolled.jpeg) | Aside scroll |
-| `v930/search-highlight` | [`search-highlight.jpeg`](./source/v930/search-highlight.jpeg) | Search highlight, event tooltip |
-| `v930/detail-strip-raised` | [`detail-strip-raised.jpeg`](./source/v930/detail-strip-raised.jpeg) | Detail strip |
+| `v930/search-highlight` | [`search-highlight.jpeg`](./source/v930/search-highlight.jpeg) | Search highlight, cursor timestamp |
+| `v930/detail-strip-raised` | [`detail-strip-raised.jpeg`](./source/v930/detail-strip-raised.jpeg) | Detail strip; EventTooltip stand-in |
 | `v930/compute-load` | [`compute-load.jpeg`](./source/v930/compute-load.jpeg) | PIPE occupancy bars |
 | `v930/compute-load-detail` | [`compute-load-detail.jpeg`](./source/v930/compute-load-detail.jpeg) | Compute detail, CSV fields |
 | `v930/memory-load-detail` | [`memory-load-detail.jpeg`](./source/v930/memory-load-detail.jpeg) | Memory detail, block switcher |
@@ -36,7 +36,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`DetailStrip`](../../src/ui/DetailStrip/visual/) | detail strip + context | `v930/detail-strip-raised` |
 | [`CsvFieldListPanel`](../../src/ui/CsvFieldListPanel/visual/) | tabs, fields, block switcher | `v930/compute-load-detail`, `v930/memory-load-detail` |
 | [`SwimlaneCanvas`](../../src/swimlane/SwimlaneCanvas/visual/) | event blocks, search highlight | `v930/entry`, `v930/search-highlight` |
-| [`EventTooltip`](../../src/ui/EventTooltip/visual/) | floating tooltip | `v930/search-highlight` |
+| [`EventTooltip`](../../src/ui/EventTooltip/visual/) | floating tooltip (stand-in; absent in dumps) | `v930/detail-strip-raised` |
 | ProfilingReport | (orchestration — no visual pack) | — |
 | ReportLayout | (shell/resize — no visual pack) | — |
 

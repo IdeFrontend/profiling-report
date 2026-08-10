@@ -31,8 +31,8 @@ Normative crops: [`visual/strip.png`](./visual/strip.png), [`visual/strip-contex
 
 ## Design sketches
 
-- [strip](./visual/strip.png) — from `v930/detail-strip-raised`
-- [strip-context](./visual/strip-context.png) — from `v930/detail-strip-raised`
+- [strip](./visual/strip.png) — raised 「详情」 left event card (name + Start/Duration/end) from `v930/detail-strip-raised`
+- [strip-context](./visual/strip-context.png) — swimlane + full raised 「详情」 dock from `v930/detail-strip-raised`
 - [Event details](../../../docs/ui/source/v930/detail-strip-raised.jpeg) — full frame
 
 ## Dependencies
