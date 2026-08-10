@@ -1,6 +1,6 @@
 # Visualization View ↔ Data Mapping
 
-Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from product spec §11.2 可视化界面数据关联. Source mockups live under [`docs/ui/source/`](../ui/source/) (``v930/`). Hierarchy: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md).
+Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from product spec §11.2 可视化界面数据关联. Source mockups live under [`docs/ui/source/`](./source/) (``v930/`). Hierarchy: [`DESIGN_INDEX.md`](./DESIGN_INDEX.md).
 
 Input schemas: [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md).
 
@@ -26,13 +26,13 @@ flowchart LR
   Swim --> EvDet["Event details + Relevant"]
 ```
 
-Mockups extracted from the source docx live under [`docs/ui/source/v930/`](../ui/source/v930/).
+Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./source/v930/).
 
 ---
 
 ## 11.2.2 Entry information
 
-![Entry overview](../ui/source/v930/entry.jpeg)
+![Entry overview](./source/v930/entry.jpeg)
 
 | # | UI | Behavior / data |
 | --- | --- | --- |
@@ -49,7 +49,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](../ui
 
 ## 11.2.3 Report statistics（报告统计）
 
-![Report statistics](../ui/source/v930/report-stats-open.jpeg)
+![Report statistics](./source/v930/report-stats-open.jpeg)
 
 ### Field mapping
 
@@ -82,7 +82,7 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 
 ## 11.2.3.1 Hardware details（硬件信息详情）
 
-![Hardware details](../ui/source/v930/hardware-more-detail.jpeg)
+![Hardware details](./source/v930/hardware-more-detail.jpeg)
 
 **Source:** `HardwareInfo.jsonl` (one object per line, `category` discriminator).
 
@@ -102,7 +102,7 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 
 ## 11.2.4 Roofline bottleneck analysis（Roofline 瓶颈分析）
 
-![Roofline](../ui/source/v930/report-stats-open.jpeg)
+![Roofline](./source/v930/report-stats-open.jpeg)
 
 ### Tabs → fields (as in docx)
 
@@ -143,9 +143,9 @@ Hide `RooflinePanel` when no GM point can be derived.
 
 ## 11.2.5 Pipe occupancy / compute load（PIPE 占用率）
 
-![Pipe occupancy](../ui/source/v930/compute-load.jpeg)
+![Pipe occupancy](./source/v930/compute-load.jpeg)
 
-**Rule (product table):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). Sketch: [`v930/compute-load`](../ui/source/v930/compute-load.jpeg).
+**Rule (product table):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). Sketch: [`v930/compute-load`](./source/v930/compute-load.jpeg).
 
 **Layout (confirmed):** use the **Cube / Vector field tables** below with a MIX toggle — not a single combined bar list. `pipe-occupancy.png` remains a visual style reference for bar chrome. Non-MIX ops show only the relevant Cube or Vector set; omit or placeholder `NA` values.
 
@@ -182,9 +182,9 @@ Hide `RooflinePanel` when no GM point can be derived.
 
 ## 11.2.5.1 Compute-load details（计算负载分析详情）
 
-![Pipe details](../ui/source/v930/compute-load-detail.jpeg)
+![Pipe details](./source/v930/compute-load-detail.jpeg)
 
-Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg)):
+Detail surface uses **tabs** ([`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg)):
 
 | Tab | Source CSV |
 | --- | --- |
@@ -202,13 +202,13 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 
 ## 11.2.6 Memory load analysis（内存负载分析）
 
-![Memory topology annotated](../ui/source/v930/memory-load-detail.jpeg)
+![Memory topology annotated](./source/v930/memory-load-detail.jpeg)
 
-![Memory load heatmap](../ui/source/v930/memory-load-detail.jpeg)
+![Memory load heatmap](./source/v930/memory-load-detail.jpeg)
 
 **Note (docx):** dual-Die / Remote memory — open whether right-click details exist.
 
-**Topology edges:** redraw must show **real CSV values** on buffer connection lines (not placeholders). Sketch: [`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg).
+**Topology edges:** redraw must show **real CSV values** on buffer connection lines (not placeholders). Sketch: [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg).
 
 ### Edge → field → source (engineering mapping for M2)
 
@@ -247,7 +247,7 @@ Omit edge label when value is missing/`NA`. Edge thickness stays static.
 
 ## 11.2.6.1 Memory load details
 
-Memory detail controls ([`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg)):
+Memory detail controls ([`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg)):
 
 | Control | Behavior |
 | --- | --- |
@@ -261,7 +261,7 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 
 ## 11.2.7 Statistical analysis（统计分析）
 
-![Statistical analysis](../ui/source/v930/entry.jpeg)
+![Statistical analysis](./source/v930/entry.jpeg)
 
 Docx placeholder samples:
 
@@ -282,7 +282,7 @@ Treat as illustrative only (invalid JSON / stub series).
 
 ## 11.2.8 Kernel block-level timeline
 
-![Kernel block timeline](../ui/source/v930/entry.jpeg)
+![Kernel block timeline](./source/v930/entry.jpeg)
 
 Docx field table is **empty**. Behavior from mockups + sample `trace.json`:
 
@@ -309,7 +309,7 @@ Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mocku
 
 ## 11.2.8.1 Pipeline / event details（流水中详情 / 详情）
 
-![Event details](../ui/source/v930/detail-strip-raised.jpeg)
+![Event details](./source/v930/detail-strip-raised.jpeg)
 
 Docx table empty. Mockup layout:
 
@@ -353,15 +353,15 @@ Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../context/OPEN
 
 | File | Section |
 | --- | --- |
-| [`entry-overview.png`](../ui/source/v930/entry.jpeg) | Entry + overall timeline chrome |
-| [`npu-rep-layout.png`](../ui/source/v930/entry.jpeg) | Container binary layout |
-| [`report-stats.png`](../ui/source/v930/report-stats-open.jpeg) | Report statistics |
-| [`hardware-details.png`](../ui/source/v930/hardware-more-detail.jpeg) | Hardware details |
-| [`roofline.png`](../ui/source/v930/report-stats-open.jpeg) | Roofline |
-| [`pipe-occupancy.png`](../ui/source/v930/compute-load.jpeg) | Pipe occupancy bars |
-| [`pipe-details.png`](../ui/source/v930/compute-load-detail.jpeg) | Pipe details list |
-| [`memory-topology-annotated.png`](../ui/source/v930/memory-load-detail.jpeg) | Memory topology + CSV annotations |
-| [`memory-load-heatmap.png`](../ui/source/v930/memory-load-detail.jpeg) | Memory load with BW / peak % |
-| [`statistical-analysis.png`](../ui/source/v930/entry.jpeg) | Cube/Vector statistical tracks |
-| [`kernel-block-timeline.png`](../ui/source/v930/entry.jpeg) | Block timeline |
-| [`event-details.png`](../ui/source/v930/detail-strip-raised.jpeg) | Event / Relevant details |
+| [`entry-overview.png`](./source/v930/entry.jpeg) | Entry + overall timeline chrome |
+| [`npu-rep-layout.png`](./source/v930/entry.jpeg) | Container binary layout |
+| [`report-stats.png`](./source/v930/report-stats-open.jpeg) | Report statistics |
+| [`hardware-details.png`](./source/v930/hardware-more-detail.jpeg) | Hardware details |
+| [`roofline.png`](./source/v930/report-stats-open.jpeg) | Roofline |
+| [`pipe-occupancy.png`](./source/v930/compute-load.jpeg) | Pipe occupancy bars |
+| [`pipe-details.png`](./source/v930/compute-load-detail.jpeg) | Pipe details list |
+| [`memory-topology-annotated.png`](./source/v930/memory-load-detail.jpeg) | Memory topology + CSV annotations |
+| [`memory-load-heatmap.png`](./source/v930/memory-load-detail.jpeg) | Memory load with BW / peak % |
+| [`statistical-analysis.png`](./source/v930/entry.jpeg) | Cube/Vector statistical tracks |
+| [`kernel-block-timeline.png`](./source/v930/entry.jpeg) | Block timeline |
+| [`event-details.png`](./source/v930/detail-strip-raised.jpeg) | Event / Relevant details |

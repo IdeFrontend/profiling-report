@@ -157,7 +157,7 @@ Hide when no usable GM point. M3 swaps formulas when Product closes Q11.
 | Input | Requirement |
 |-------|-------------|
 | Static SVG topology asset | **Required** for diagram chrome |
-| Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../visualization/VIEW_DATA_MAPPING.md) §11.2.6 engineering table + selected block (Q12 + changelog #5) |
+| Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) §11.2.6 engineering table + selected block (Q12 + changelog #5) |
 | Edge **thicknesses** | **Not** data-driven — keep static SVG geometry |
 | Memory* / L2Cache CSVs | **Required to show**; hide diagram if no label data |
 | Field list mode | Optional — same CSVs as memory detail tabs |

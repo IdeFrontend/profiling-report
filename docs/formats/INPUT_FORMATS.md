@@ -2,7 +2,7 @@
 
 Clean specification of profiling-report **input container** and **embedded metric files**, derived from product spec §11.2 (可视化界面数据关联) and cross-checked against the local sample [`data/out.rep`](../../data/out.rep) / packer [`data/pack_rep.py`](../../data/pack_rep.py). Mockups: [`docs/ui/source/`](../ui/source/).
 
-Related visualization mappings: [VIEW_DATA_MAPPING.md](../visualization/VIEW_DATA_MAPPING.md).
+Related visualization mappings: [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md).
 
 ---
 

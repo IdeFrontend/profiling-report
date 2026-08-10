@@ -20,14 +20,15 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 13. **[formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md)** — required inputs per chart/view; hide-if-missing rules
 14. **[ui/DESIGN_INDEX.md](ui/DESIGN_INDEX.md)** — design image hierarchy (sources → screens → component crops)
 15. **[ui/UI_OVERVIEW.md](ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
-16. **[ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md)** — normative colors from sketches
-17. **[ui/UX_SPEC.md](ui/UX_SPEC.md)** — complete UX: scenarios, static vs interactive, sync model
-18. **[ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
-19. **[ui/INTERACTIONS.md](ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
-20. **[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
-21. **[architecture/COMPONENTS.md](architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
-22. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
-23. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
+16. **[ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md)** — UI section ↔ field ↔ source mappings
+17. **[ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md)** — normative colors from sketches
+18. **[ui/UX_SPEC.md](ui/UX_SPEC.md)** — complete UX: scenarios, static vs interactive, sync model
+19. **[ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
+20. **[ui/INTERACTIONS.md](ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
+21. **[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
+22. **[architecture/COMPONENTS.md](architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
+23. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
+24. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
 ## Process
 
@@ -52,6 +53,7 @@ Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README
 |-----|------|
 | [ui/UX_SPEC.md](ui/UX_SPEC.md) | Scenarios S1–S9, static vs interactive, sync |
 | [ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md) | MVP vs Phase 2+ checklist |
+| [ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md) | UI section ↔ field ↔ source mappings |
 | [ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md) | Normative sketch color tokens |
 | [formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md) | Per-view required inputs |
 | [architecture/COMPONENTS.md](architecture/COMPONENTS.md) | Canonical models and Vue component catalog |

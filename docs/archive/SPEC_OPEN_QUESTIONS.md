@@ -1,6 +1,6 @@
 # Spec open questions (product owner)
 
-Prioritized questions to close gaps and contradictions between [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md), [VIEW_DATA_MAPPING.md](../visualization/VIEW_DATA_MAPPING.md), product §11.2 mockups, and the local sample [`data/out.rep`](../../data/out.rep).
+Prioritized questions to close gaps and contradictions between [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md), [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md), product §11.2 mockups, and the local sample [`data/out.rep`](../../data/out.rep).
 
 **How to answer:** for each item, give the canonical field name(s), file, formula (if derived), and MVP vs later priority.
 
