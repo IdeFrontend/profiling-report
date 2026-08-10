@@ -130,19 +130,97 @@ const PIPE_COLUMNS: {
   label: string;
   colorKey: string;
   side: 'cube' | 'vector';
-  columns: string[];
+  ratioColumns: string[];
+  timeColumns?: string[];
 }[] = [
   // Cube side (aic_*)
-  { id: 'cube', label: 'Cube', colorKey: 'cube', side: 'cube', columns: ['aic_cube_ratio'] },
-  { id: 'mte2', label: 'MTE2', colorKey: 'mte2', side: 'cube', columns: ['aic_mte2_ratio'] },
-  { id: 'mte1', label: 'MTE1', colorKey: 'mte1', side: 'cube', columns: ['aic_mte1_ratio'] },
-  { id: 'fixp', label: 'FixP', colorKey: 'fixp', side: 'cube', columns: ['aic_fixpipe_ratio'] },
-  { id: 'scalar', label: 'Scalar', colorKey: 'scalar', side: 'cube', columns: ['aic_scalar_ratio'] },
+  {
+    id: 'cube',
+    label: 'Cube',
+    colorKey: 'cube',
+    side: 'cube',
+    ratioColumns: ['aic_cube_ratio'],
+    timeColumns: ['aic_cube_time(us)'],
+  },
+  {
+    id: 'mte2',
+    label: 'MTE2',
+    colorKey: 'mte2',
+    side: 'cube',
+    ratioColumns: ['aic_mte2_ratio'],
+    timeColumns: ['aic_mte2_time(us)'],
+  },
+  {
+    id: 'mte1',
+    label: 'MTE1',
+    colorKey: 'mte1',
+    side: 'cube',
+    ratioColumns: ['aic_mte1_ratio'],
+    timeColumns: ['aic_mte1_time(us)'],
+  },
+  {
+    id: 'fixp',
+    label: 'FixP',
+    colorKey: 'fixp',
+    side: 'cube',
+    ratioColumns: ['aic_fixpipe_ratio'],
+    timeColumns: ['aic_fixpipe_time(us)'],
+  },
+  {
+    id: 'scalar',
+    label: 'Scalar',
+    colorKey: 'scalar',
+    side: 'cube',
+    ratioColumns: ['aic_scalar_ratio'],
+    timeColumns: ['aic_scalar_time(us)'],
+  },
+  {
+    id: 'icache',
+    label: 'ICache Miss',
+    colorKey: 'default',
+    side: 'cube',
+    ratioColumns: ['aic_icache_miss_rate'],
+  },
   // Vector side (aiv_*)
-  { id: 'vector', label: 'Vector', colorKey: 'vector', side: 'vector', columns: ['aiv_vec_ratio'] },
-  { id: 'mte2', label: 'MTE2', colorKey: 'mte2', side: 'vector', columns: ['aiv_mte2_ratio'] },
-  { id: 'mte3', label: 'MTE3', colorKey: 'mte3', side: 'vector', columns: ['aiv_mte3_ratio'] },
-  { id: 'scalar', label: 'Scalar', colorKey: 'scalar', side: 'vector', columns: ['aiv_scalar_ratio'] },
+  {
+    id: 'vector',
+    label: 'Vector',
+    colorKey: 'vector',
+    side: 'vector',
+    ratioColumns: ['aiv_vec_ratio'],
+    timeColumns: ['aiv_vec_time(us)'],
+  },
+  {
+    id: 'mte2',
+    label: 'MTE2',
+    colorKey: 'mte2',
+    side: 'vector',
+    ratioColumns: ['aiv_mte2_ratio'],
+    timeColumns: ['aiv_mte2_time(us)'],
+  },
+  {
+    id: 'mte3',
+    label: 'MTE3',
+    colorKey: 'mte3',
+    side: 'vector',
+    ratioColumns: ['aiv_mte3_ratio'],
+    timeColumns: ['aiv_mte3_time(us)'],
+  },
+  {
+    id: 'scalar',
+    label: 'Scalar',
+    colorKey: 'scalar',
+    side: 'vector',
+    ratioColumns: ['aiv_scalar_ratio'],
+    timeColumns: ['aiv_scalar_time(us)'],
+  },
+  {
+    id: 'icache',
+    label: 'ICache Miss',
+    colorKey: 'default',
+    side: 'vector',
+    ratioColumns: ['aiv_icache_miss_rate'],
+  },
 ];
 
 function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
@@ -150,14 +228,18 @@ function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
   const { rows } = parseCsv(decodeUtf8(payload));
   const items: PipeOccupancyItem[] = [];
   for (const pipe of PIPE_COLUMNS) {
-    const ratio = meanFamily(rows, pipe.columns);
+    const ratio = meanFamily(rows, pipe.ratioColumns);
     if (ratio == null) continue;
+    const absoluteValue = pipe.timeColumns
+      ? meanFamily(rows, pipe.timeColumns)
+      : undefined;
     items.push({
       id: pipe.id,
       label: pipe.label,
       ratio,
       colorKey: pipe.colorKey,
       side: pipe.side,
+      ...(absoluteValue != null ? { absoluteValue } : {}),
     });
   }
   return items;
@@ -174,6 +256,7 @@ function withPipeLaneUtilizations(
   if (pipes.length === 0) return model;
   const collected = new Map<string, number[]>();
   for (const p of pipes) {
+    if (p.id === 'icache' || p.colorKey === 'default') continue;
     const list = collected.get(p.colorKey) ?? [];
     list.push(p.ratio);
     collected.set(p.colorKey, list);

@@ -66,6 +66,7 @@ const emit = defineEmits<{
   error: [error: { message: string; cause?: unknown }];
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-hardware-details': [];
+  'open-pipe-details': [];
 }>();
 
 const internalSwim = ref<SwimlaneModel | null>(null);
@@ -602,6 +603,7 @@ defineExpose({ selectEventById, viewState });
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
+          @open-pipe-details="emit('open-pipe-details')"
         />
       </template>
     </ReportLayout>

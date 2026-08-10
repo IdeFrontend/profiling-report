@@ -62,6 +62,8 @@ export interface PipeOccupancyItem {
    * Cube uses `aic_*` columns; Vector uses `aiv_*` — never blend across sides.
    */
   side?: 'cube' | 'vector';
+  /** Mean non-NA `*_time(us)` for this family (I-Q6f); omit when all NA. */
+  absoluteValue?: number;
 }
 
 export interface OverviewSeries {

@@ -26,6 +26,8 @@ describe('PR-VM: report view-models (interim)', () => {
 
     expect(byId.vector).toMatchObject({ label: expect.any(String), colorKey: 'vector', side: 'vector' });
     expect(byId.vector.ratio).toBeCloseTo(0.067157625, 5);
+    expect(byId.vector.absoluteValue).toBeCloseTo(0.065455, 5);
+    expect(byId.mte2.absoluteValue).toBeCloseTo(0.371969625, 5);
 
     expect(byId.mte2.ratio).toBeCloseTo(0.3812395, 5);
     expect(byId.mte3.ratio).toBeCloseTo(0.1621495, 5);
@@ -99,5 +101,15 @@ describe('PR-VM: report view-models (interim)', () => {
     }
 
     expect(adapted.reportModel.csvTexts['PipeUtilization.csv']).toMatch(/^block_id,/);
+  });
+
+  it('PR-VM-008: ICache Miss included when rate mean present', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const icache = adapted.reportModel.pipeOccupancy.find(
+      (p) => p.id === 'icache' && p.side === 'vector',
+    );
+    expect(icache).toBeDefined();
+    expect(icache?.ratio).toBe(0);
+    expect(icache?.absoluteValue).toBeUndefined();
   });
 });

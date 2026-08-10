@@ -15,6 +15,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), mode swit
 - **close** — aside close control; parent clears `asideVisible`.
 - **open-hardware-details** — **更多** / More (emit intent).
 - **view-full-csv** — re-emitted from `CsvFieldListPanel` (I-Q6d).
+- **open-pipe-details** — **详情** / Details on the PIPE section (emit intent; detail panel is a separate slice).
 
 ## Behavior
 
@@ -34,7 +35,11 @@ I-Q6a thin tiles only. Card group renders when `taskDurationUs` is present (name
 
 Do **not** render a standalone op-type card. Do **not** render compute / input BW / output BW / avg core util cards until Product Q6.
 
-**PIPE.** Bars + Cube|Vector toggle for MIX; blank/unrecognized opType shows all sides.
+**PIPE.** Matches [`pipe-occupancy.png`](../../../docs/specs/ui/source/pipe-occupancy.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS.
+
+Section header shows localized **pipeOccupancy** title and a **详情** / Details control that emits **open-pipe-details** (no detail panel in this slice). A 0%–100% scale sits above the rows. Each row: label, track with solid fill for ratio and hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f mean `*_time(us)`), and a right-aligned percent.
+
+**Cube | Vector toggle.** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side (cube/aic or vector/aiv/vec): no toggle; show pipes for that side only. When `opType` is blank or unrecognized: no toggle; show all PIPE bars (do not default-filter to vector).
 
 **Compute / Memory.** Hosts `CsvFieldListPanel` with tabs, block switcher, search, 查看全部.
 
@@ -51,6 +56,9 @@ Do **not** render a standalone op-type card. Do **not** render compute / input B
 9. **PR-STATS-009** — Duration card sketch chrome.
 10. **PR-STATS-010** — No type card; secondary hide-if-missing.
 11. **PR-STATS-011** — Compute/BW/util cards absent.
+12. **PR-STATS-012** — PIPE scale and hatched bars.
+13. **PR-STATS-013** — Absolute time in bar when present.
+14. **PR-STATS-014** — Details emit open-pipe-details.
 
 ## Edge Cases
 
@@ -64,6 +72,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / input B
 | Duration without blockDim or opName | Duration card; no secondary line |
 | No meta fields and no `hardwareDetails` | Meta row and 更多 hidden |
 | Meta fields present, no capability | Meta + 更多 shown; emit only |
+| Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
 
 ## Design sketches
 
@@ -74,9 +83,10 @@ Do **not** render a standalone op-type card. Do **not** render compute / input B
 
 ## Dependencies
 
-[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/specs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e.
+[COLOR_TOKENS.md](../../../docs/specs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/specs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f.
 
 ## Changelog
+- **2026-08-07** — PIPE sketch chrome: scale, hatch, absolute time, Details (PR-STATS-012–014, I-Q6f).
 - **2026-08-07** — Duration card chrome I-Q6e (PR-STATS-009–011).
 - **2026-08-07** — Shell close/meta/更多 (PR-STATS-006–008).
 - **2026-08-07** — Mode switcher + compute/memory CSV panels (PR-STATS-005).

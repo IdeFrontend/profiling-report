@@ -115,8 +115,11 @@ If no `taskDurationUs` → **hide** the summary card group (PIPE may still show)
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
 | Aggregation | **Interim ([I-Q6b](../../context/INTERIM_DECISIONS.md)):** mean of non-`NA` ratios per pipe family |
+| Absolute in-bar | **Optional ([I-Q6f](../../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)`; omit when NA |
+| Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([changes.png](../../source/changes/changes.png) #2) |
 | Colors | Normative sketch tokens — [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
+| 详情 | Emit `open-pipe-details` (detail panel M1 separate) |
 
 Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 

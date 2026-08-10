@@ -157,10 +157,11 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 
 ### Visualization logic
 
-- Horizontal 0–100% tracks; solid fill = ratio; hatched remainder.
-- Optional absolute metric (time/cycles) drawn inside the filled segment (mockup).
-- 详情 link opens §11.2.5.1.
+- Horizontal 0–100% tracks with a percent scale above the rows; solid fill = ratio; hatched remainder to 100%.
+- In-bar absolute ([I-Q6f](../../context/INTERIM_DECISIONS.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
+- **详情** emits `open-pipe-details` until the compute-load detail panel (§11.2.5.1 / M1) is implemented.
 - Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([I-Q6b](../../context/INTERIM_DECISIONS.md)); detail tabs are block-scoped ([I-Q6c](../../context/INTERIM_DECISIONS.md)).
+- Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).
 
 ---
 

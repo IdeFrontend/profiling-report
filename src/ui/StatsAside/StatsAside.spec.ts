@@ -308,4 +308,74 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-core-util-card"]').exists()).toBe(false);
     expect(wrapper.text()).not.toMatch(/算力情况|Computing power|输入带宽|Input bandwidth|平均核利用率|Average core/);
   });
+
+  it('PR-STATS-012: PIPE scale and hatched bars', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: {
+          summary: {},
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          overviewSeries: [],
+        },
+      },
+    });
+    const scale = wrapper.get('[data-testid="pipe-scale"]').text();
+    expect(scale).toContain('0%');
+    expect(scale).toContain('100%');
+    expect(wrapper.find('.pr-pipe-row__hatch').exists()).toBe(true);
+    expect(wrapper.find('.pr-pipe-row__bar').exists()).toBe(true);
+  });
+
+  it('PR-STATS-013: absolute time in bar when present', () => {
+    const withAbs = mount(StatsAside, {
+      props: {
+        report: {
+          summary: {},
+          pipeOccupancy: [
+            {
+              id: 'vector',
+              label: 'Vector',
+              ratio: 0.5,
+              colorKey: 'vector',
+              side: 'vector',
+              absoluteValue: 0.065455,
+            },
+          ],
+          overviewSeries: [],
+        },
+      },
+    });
+    expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toMatch(/0\.065/);
+
+    const without = mount(StatsAside, {
+      props: {
+        report: {
+          summary: {},
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          overviewSeries: [],
+        },
+      },
+    });
+    expect(without.find('[data-testid="pipe-absolute"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-014: Details emit open-pipe-details', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: {
+          summary: {},
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          overviewSeries: [],
+        },
+      },
+    });
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.emitted('open-pipe-details')).toBeTruthy();
+  });
 });

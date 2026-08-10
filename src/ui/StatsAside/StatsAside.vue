@@ -14,6 +14,7 @@ const emit = defineEmits<{
   close: [];
   'open-hardware-details': [];
   'view-full-csv': [payload: { fileName: string; text: string }];
+  'open-pipe-details': [];
 }>();
 
 type PipeSide = 'cube' | 'vector';
@@ -125,6 +126,14 @@ function modeLabel(m: AsideMode): string {
   if (m === 'compute') return t('modeCompute', props.locale);
   return t('modeMemory', props.locale);
 }
+
+function formatPipeAbsolute(v: number): string {
+  if (Math.abs(v) >= 100) return v.toFixed(2);
+  if (Math.abs(v) >= 1) return v.toFixed(2);
+  return v.toFixed(5);
+}
+
+const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
 </script>
 
 <template>
@@ -236,7 +245,17 @@ function modeLabel(m: AsideMode): string {
       class="pr-panel pr-panel--pipe"
       data-testid="pipe-occupancy"
     >
-      <h4>{{ t('pipeOccupancy', locale) }}</h4>
+      <div class="pr-pipe-head">
+        <h4>{{ t('pipeOccupancy', locale) }}</h4>
+        <button
+          type="button"
+          class="pr-pipe-details"
+          data-testid="pipe-details"
+          @click="emit('open-pipe-details')"
+        >
+          {{ t('details', locale) }}
+        </button>
+      </div>
       <div
         v-if="isMix"
         class="pr-pipe-toggle"
@@ -263,6 +282,20 @@ function modeLabel(m: AsideMode): string {
           Vector
         </button>
       </div>
+      <div
+        class="pr-pipe-scale"
+        data-testid="pipe-scale"
+      >
+        <span class="pr-pipe-scale__spacer" />
+        <div class="pr-pipe-scale__axis">
+          <span
+            v-for="tick in PIPE_SCALE"
+            :key="tick"
+            class="pr-pipe-scale__tick"
+          >{{ tick }}%</span>
+        </div>
+        <span class="pr-pipe-scale__pct-spacer" />
+      </div>
       <ul class="pr-pipe-list">
         <li
           v-for="pipe in visiblePipes"
@@ -272,12 +305,22 @@ function modeLabel(m: AsideMode): string {
           <span class="pr-pipe-row__label">{{ pipe.label }}</span>
           <span class="pr-pipe-row__track">
             <span
+              class="pr-pipe-row__hatch"
+              aria-hidden="true"
+            />
+            <span
               class="pr-pipe-row__bar"
               :style="{
-                width: `${Math.min(100, pipe.ratio * 100)}%`,
+                width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%`,
                 background: COLOR[pipe.colorKey] ?? COLOR.default,
               }"
-            />
+            >
+              <span
+                v-if="pipe.absoluteValue != null"
+                class="pr-pipe-row__abs"
+                data-testid="pipe-absolute"
+              >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+            </span>
           </span>
           <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
         </li>
@@ -500,10 +543,32 @@ function modeLabel(m: AsideMode): string {
   padding: 4px 0 0;
 }
 
+.pr-pipe-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .pr-panel--pipe h4 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 12px;
   font-weight: 600;
+}
+
+.pr-pipe-details {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #6cb6ff;
+  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pr-pipe-details:hover {
+  text-decoration: underline;
 }
 
 .pr-pipe-toggle {
@@ -529,6 +594,20 @@ function modeLabel(m: AsideMode): string {
   color: #f0f0f0;
 }
 
+.pr-pipe-scale {
+  display: grid;
+  grid-template-columns: 72px 1fr 36px;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 10px;
+  color: #8a8a8a;
+}
+
+.pr-pipe-scale__axis {
+  display: flex;
+  justify-content: space-between;
+}
+
 .pr-pipe-list {
   list-style: none;
   margin: 0;
@@ -540,7 +619,7 @@ function modeLabel(m: AsideMode): string {
 
 .pr-pipe-row {
   display: grid;
-  grid-template-columns: 52px 1fr 36px;
+  grid-template-columns: 72px 1fr 36px;
   gap: 8px;
   align-items: center;
 }
@@ -551,18 +630,46 @@ function modeLabel(m: AsideMode): string {
 }
 
 .pr-pipe-row__track {
+  position: relative;
   display: block;
-  height: 10px;
+  height: 14px;
   background: #1f1f1f;
   border-radius: 1px;
   overflow: hidden;
 }
 
+.pr-pipe-row__hatch {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    #2a2a2a,
+    #2a2a2a 2px,
+    #1f1f1f 2px,
+    #1f1f1f 4px
+  );
+  opacity: 0.9;
+}
+
 .pr-pipe-row__bar {
-  display: block;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
   height: 100%;
   border-radius: 1px;
   min-width: 2px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pr-pipe-row__abs {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: #f0f0f0;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .pr-pipe-row__pct {

@@ -168,7 +168,7 @@ WebGL2 coverage-AA interval backend (Sudu-inspired).
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `open-hardware-details` (forwarded from StatsAside shell).
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
@@ -222,7 +222,7 @@ Selection summary (name + timing). Compact strip for MVP (full bottom dock / dep
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell (M):** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → emit `open-hardware-details` (no panel until Q7). Mode switcher remains an **M1 separate slice** — not part of shell polish.
+Right analytics column. **Shell (M):** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → emit `open-hardware-details` (no panel until Q7). **PIPE (M):** scale, hatched bars, optional absolute times (I-Q6f), **详情** → emit `open-pipe-details` (detail panel M1 separate). Mode switcher remains an **M1 separate slice**.
 
 Inline today: summary cards + PIPE occupancy (+ Cube|Vector for MIX). Planned children: `CsvFieldListPanel`, `RooflinePanel`, `MemoryTopologyPanel`, `HardwareDetailsPanel`.
 

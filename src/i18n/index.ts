@@ -44,6 +44,7 @@ const messages = {
     closePanel: '关闭',
     coreUnit: '核',
     iterationsPerCore: '{n} 次迭代 / 核',
+    details: '详情',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -88,6 +89,7 @@ const messages = {
     closePanel: 'Close',
     coreUnit: ' cores',
     iterationsPerCore: '{n} iterations / core',
+    details: 'Details',
   },
 } as const;
 
