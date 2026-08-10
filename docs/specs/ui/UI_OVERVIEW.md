@@ -14,7 +14,7 @@ Sketches place the viewer inside a VS Code–like IDE with:
 
 **MVP:** implement the **Timeline** experience as the primary (and only required) view. Other secondary tabs remain in scope for Phase 2+ (see [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
 
-Primary overview sketches: `general.png`, `with_sidebar.png`, `swimlane.png`.
+Primary overview sketches: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg`.
 
 ## Layout regions (Timeline)
 
@@ -58,7 +58,7 @@ Under a **Kernel** (or process) group:
 
 **Lane names:** producer supplies fixed naming for now ([Q8](../../context/OPEN_QUESTIONS.md)); viewer does not invent hierarchy. Product **target** is sketch-like multi-core instruction lanes ([Q4](../../context/OPEN_QUESTIONS.md)); until a matching golden exists, render whatever lanes the trace provides (e.g. sample AIV pipe lanes).
 
-Reference: `swimlane.png`, `sidebar_details.png` (expanded Core2.Cube).
+Reference: `source/v930/entry.jpeg`, `source/v930/hardware-more-detail.jpeg` (expanded Core2.Cube).
 
 ### 4. Swimlane surface
 
@@ -66,7 +66,7 @@ Reference: `swimlane.png`, `sidebar_details.png` (expanded Core2.Cube).
 - Labels on blocks when width allows (`DC_PRELOAD_XN_IMM`, Aten ops, …): vertically centered in the block; horizontally centered in the on-screen (clipped) event rect
 - Uniform lane background for all event-sequence rows (no zebra striping); horizontal dividers continue from the left gutter across each lane
 - Optional faint background bands (`ProfilerStep#N`) — Phase 2 / when data exists
-- Dependency curves between blocks — Phase 2 (`swimlane_selection.png`)
+- Dependency curves between blocks — Phase 2 (`source/v930/entry.jpeg`)
 
 Visual language should feel close to PyPTO swimlane (dark gutter, dense bars, idle gaps as empty space).
 
@@ -76,18 +76,18 @@ Modes observed in sketches:
 
 | Mode | Sketch | Content | Phase |
 |------|--------|---------|------:|
-| Report statistics | `general.png`, `with_sidebar.png`, [changes.png](../../source/changes/changes.png) | Total time; PIPE bars + Cube\|Vector (MIX); compute/memory detail tabs; block + 查看全部 | M / M1 |
-| Roofline (within stats aside or sibling) | `general.png`, `with_sidebar.png` | Log-log bottleneck chart | M2 |
-| Memory topology | `memory_chart.png`, changelog #5 | Static SVG + data-driven edge labels | M2 |
-| Hardware details | `sidebar_details.png` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([Q7](../../context/OPEN_QUESTIONS.md)) |
-| Pipe field list | `pipe_utilization.png`, `pipe_details.png` | Searchable PipeUtilization columns | P2 |
-| Memory analysis | `memory_chart.png`, `memory_details.png` | **Static SVG** + **data-driven edge labels** ([Q12](../../context/OPEN_QUESTIONS.md)) | P2 |
+| Report statistics | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, [changes.png](../../source/changes/changes.png) | Total time; PIPE bars + Cube\|Vector (MIX); compute/memory detail tabs; block + 查看全部 | M / M1 |
+| Roofline (within stats aside or sibling) | `source/v930/entry.jpeg`, `source/v930/entry.jpeg` | Log-log bottleneck chart | M2 |
+| Memory topology | `source/v930/memory-load-detail.jpeg`, changelog #5 | Static SVG + data-driven edge labels | M2 |
+| Hardware details | `source/v930/hardware-more-detail.jpeg` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([Q7](../../context/OPEN_QUESTIONS.md)) |
+| Pipe field list | `source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg` | Searchable PipeUtilization columns | P2 |
+| Memory analysis | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` | **Static SVG** + **data-driven edge labels** ([Q12](../../context/OPEN_QUESTIONS.md)) | P2 |
 
 **MVP:** Summary tiles that have clear data + PIPE bars when CSV present; **hide** anything without inputs ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)). Overview charts hidden until series exist. Colors: [COLOR_TOKENS.md](COLOR_TOKENS.md).
 
 ### 6. Bottom / selection details
 
-On event select (`swimlane_selection.png`, `swimlane_selection2.png`):
+On event select (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`):
 
 - Op / instruction name, start → duration
 - Related paths / PC (when present)
@@ -109,4 +109,4 @@ On event select (`swimlane_selection.png`, `swimlane_selection2.png`):
 | Theme CSS variables injection | Toolbar inside report |
 | Opening `.rep` / `.ncrep` / Chrome Trace `.json` | All layout regions above |
 
-Explorer annotation in `swimlane.png` (anomaly detection / performance tuning folders) is **host tree UX**, not part of the Vue report component.
+Explorer annotation in `source/v930/entry.jpeg` (anomaly detection / performance tuning folders) is **host tree UX**, not part of the Vue report component.

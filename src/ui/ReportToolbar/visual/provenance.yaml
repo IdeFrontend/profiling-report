@@ -1,0 +1,12 @@
+component: ReportToolbar
+source_primary: v930/entry
+crops:
+  search.png:
+    source: v930/entry
+    region: "Toolbar search pill + magnifier"
+  zoom.png:
+    source: v930/entry
+    region: "Zoom pill (mag− / slider / mag+)"
+  actions.png:
+    source: v930/entry
+    region: "Square icon button cluster (size/spacing)"

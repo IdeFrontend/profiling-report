@@ -126,38 +126,53 @@ profiling-report/
     context/                                    goals, domain, market, decisions
     process/                                    development, testing, definition of ready
     research/                                   swimlane implementation analysis
-    specs/                                      original design specs (being migrated to specs/)
+    specs/                                      design/UX docs (being migrated to root specs/)
+      ui/
+        source/                                 full-frame dumps (v930/ + manifest.yaml)
+        DESIGN_INDEX.md                         source → visual packs
+        components/VISUAL_SPEC.md               shared chrome only
 
   scripts/
     sync-demo-fixtures.mjs                    copy data files into playground
     check-spec-coverage.mjs                   validate spec ↔ test traceability
+    check-design-assets.mjs                   validate source/crops/provenance consistency
 ```
 
 ## Per-component folder convention
 
-Each Vue component lives in its own folder with exactly three files:
+Each Vue component lives in its own folder with the triad plus an optional design pack:
 
 ```
 src/ui/ReportToolbar/
   ReportToolbar.vue          component (template + script)
-  ReportToolbar.spec.md      behavioral spec (what the component does)
+  ReportToolbar.spec.md      behavioral + visual spec
   ReportToolbar.spec.ts      unit test (proof, using @vue/test-utils)
+  visual/                    optional — component crops + provenance
+    provenance.yaml            crop → source id + region
+    search.png
+    zoom.png
+    actions.png
 ```
 
 ### When to create a component folder
 
-- A new `.vue` file → create a folder, name it after the component (PascalCase), place all three files inside.
+- A new `.vue` file → create a folder, name it after the component (PascalCase), place the triad inside.
+- When cropping from a design source for that component → add `visual/` with `provenance.yaml` and the crop PNGs.
 
 ### What goes in the spec (`*.spec.md`)
 
 - **Inputs** (English prose — what the component receives, why each prop matters)
-- **Outputs** (English prose — what the component emits, payloads, parer interaction)
+- **Outputs** (English prose — what the component emits, payloads, parent interaction)
 - **Behavior** (non-obvious constraints, data flow, interactions with other components)
+- **Visual** (component-local measures; shared axis/panel chrome stays in [`docs/specs/ui/components/VISUAL_SPEC.md`](../specs/ui/components/VISUAL_SPEC.md))
 - Acceptance criteria with test IDs
 - Edge cases
+- **Design sketches** — relative links to `./visual/*.png` and/or `docs/specs/ui/screens|source/...`
 - Dependencies on other specs
 
 Follow the standard template: [`specs/TEMPLATE.md`](../../specs/TEMPLATE.md).
+
+Design asset hierarchy: [`docs/specs/ui/DESIGN_INDEX.md`](../specs/ui/DESIGN_INDEX.md).
 
 ### What goes in the test (`*.spec.ts`)
 

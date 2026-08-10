@@ -19,7 +19,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 
 ## Hover
 
-Sketch: `swimlane_hover.png`
+Sketch: `source/v930/search-highlight.jpeg`
 
 - Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Display time **unit is configurable** ([Q14](../../context/OPEN_QUESTIONS.md)); default formatting uses ms-style labels unless host sets µs/ns/cycles.
 - Highlight the hovered rectangle (outline or brightness).
@@ -29,7 +29,7 @@ Sketch: `swimlane_hover.png`
 
 ## Single selection
 
-Sketches: `swimlane_selection.png`, `swimlane_selection2.png`
+Sketches: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`
 
 - Click event → selected state (distinct from hover).
 - Populate detail region with at least name and start → duration (and end).
@@ -40,7 +40,7 @@ Sketches: `swimlane_selection.png`, `swimlane_selection2.png`
 
 ## Multi-select
 
-Sketch: `swimlane_multiselect.png`
+Sketch: `source/v930/entry.jpeg`
 
 - Additive selection (Shift/Ctrl click or rubber-band) of multiple events or a time range.
 - Summary table: aggregate count, total duration, per-op breakdown.
@@ -49,7 +49,7 @@ Sketch: `swimlane_multiselect.png`
 
 ## Context menu
 
-Sketch: `swimlane_context_menu.png`
+Sketch: `source/v930/entry.jpeg`
 
 - Right-click lane or event → menu (e.g. **Pin row**, copy name, reveal in details).
 
@@ -57,7 +57,7 @@ Sketch: `swimlane_context_menu.png`
 
 ## Dependencies
 
-Sketch: `swimlane_selection.png` annotations
+Sketch: `source/v930/entry.jpeg` annotations
 
 - Optional curved links between predecessor/successor events.
 - Toolbar toggle to show/hide links.

@@ -35,7 +35,7 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 ## Design sketches
 
 - [changes.png](../../../docs/source/changes/changes.png) #3–#4
-- [pipe_details.png](../../../docs/specs/ui/pipe_details.png)
+- [pipe_details.png](../../../docs/specs/ui/source/v930/compute-load-detail.jpeg)
 
 ## Changelog
 - **2026-08-07** — Initial M1 panel.

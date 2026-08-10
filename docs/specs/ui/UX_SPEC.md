@@ -34,7 +34,7 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 
 ### Out of scope (host or other products)
 
-- MSTT performance explorer tree and “add visualization” flows (context only — `swimlane.png`)
+- MSTT performance explorer tree and “add visualization” flows (context only — `source/v930/entry.jpeg`)
 - MindStudio Insight `.bin` operator Source/Cache graphs
 - System-level Insight (training/cluster) timelines
 
@@ -57,7 +57,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | User opens `report.ncrep` / `.rep` from MSTT results |
 | **Steps** | 1) Host opens panel 2) Library loads models 3) Timeline tab active 4) Aside shows summary + PIPE 5) Swimlane + overview charts fill main pane |
 | **Success** | User can answer “how long?” and “which pipes dominate?” without clicking events |
-| **Sketches** | `general.png`, `with_sidebar.png`, `swimlane.png` |
+| **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
 
 ### S2 — Find busy / idle regions on the timeline (M)
 
@@ -67,7 +67,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | After S1; user zooms/pans |
 | **Steps** | Zoom around interest; pan; optionally expand gutter groups; scan colored blocks and idle gaps |
 | **Success** | User identifies a time window and lanes worth inspecting |
-| **Sketches** | `swimlane.png`, `general.png` |
+| **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
 
 ### S3 — Inspect one event (M)
 
@@ -77,7 +77,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | Pointer over / click on a swimlane block |
 | **Steps** | Hover → tooltip; click → selection + detail strip; click empty → clear |
 | **Success** | User has name, start, duration, end without leaving Timeline |
-| **Sketches** | `swimlane_hover.png`, `swimlane_selection.png`, `swimlane_selection2.png` |
+| **Sketches** | `source/v930/search-highlight.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
 
 ### S4 — Compare utilization across cores / lanes (M)
 
@@ -87,7 +87,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | Viewing gutter util bars and PIPE aside |
 | **Steps** | Read % bars in gutter; compare PIPE ranking in aside; expand a core to see child pipes |
 | **Success** | User can point to hottest / coldest lanes |
-| **Sketches** | Util bars in `general.png`, `with_sidebar.png`, `swimlane.png` |
+| **Sketches** | Util bars in `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
 
 ### S5 — Drill into PIPE / compute / memory metrics (M1)
 
@@ -97,7 +97,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | After S1; user needs more than bar chart |
 | **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
-| **Sketches** | Bars: `general.png`, `with_sidebar.png`. Details: `pipe_*.png`, `memory_details.png`, [changes.png](../../source/changes/changes.png) #2–#4 |
+| **Sketches** | Bars: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`. Details: `pipe_*.png`, `source/v930/memory-load-detail.jpeg`, [changes.png](../../source/changes/changes.png) #2–#4 |
 | **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
 
 ### S6 — Analyze memory paths (M2)
@@ -108,7 +108,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | Switch aside to memory analysis |
 | **Steps** | View topology; open field details; correlate with timeline window |
 | **Success** | User identifies memory-bound paths |
-| **Sketches** | `memory_chart.png`, `memory_details.png` |
+| **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` |
 
 ### S7 — Review hardware context (P2)
 
@@ -118,7 +118,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | “更多” on summary or hardware aside mode |
 | **Steps** | Open hardware details; read chip / core / memory inventory |
 | **Success** | User knows which NPU configuration produced the report |
-| **Sketches** | `sidebar_details.png`, `with_sidebar.png` annotations |
+| **Sketches** | `source/v930/hardware-more-detail.jpeg`, `source/v930/entry.jpeg` annotations |
 | **Depends** | **Out of MVP** until further specs ([Q7](../../context/OPEN_QUESTIONS.md)) |
 
 ### S8 — Follow dependencies / multi-select (P2)
@@ -129,7 +129,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | Select event with deps enabled; or rubber-band / multi-select |
 | **Steps** | Toggle dep links; select event → dependency mini-graph; multi-select → summary table; context menu pin |
 | **Success** | User sees predecessors/successors or slice aggregates |
-| **Sketches** | `swimlane_selection.png`, `swimlane_multiselect.png`, `swimlane_context_menu.png` |
+| **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
 
 ### S9 — Switch analysis mode via secondary tabs (P2)
 
@@ -139,7 +139,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | Click secondary tab |
 | **Steps** | Preserve report identity; load tab-specific surface; Timeline state retained when returning |
 | **Success** | User can leave Timeline and return without re-opening the file |
-| **Sketches** | Tab chrome in `general.png`, `with_sidebar.png`, etc. |
+| **Sketches** | Tab chrome in `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, etc. |
 
 ---
 
@@ -148,7 +148,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 ### Host chrome (not library)
 
 - Editor tab title: `report.ncrep` (sometimes beside `trace.json`)
-- Explorer: performance tuning / anomaly folders (`swimlane.png`) — **host**
+- Explorer: performance tuning / anomaly folders (`source/v930/entry.jpeg`) — **host**
 
 ### Library chrome
 
@@ -256,8 +256,8 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S3 (M)
 
-1. Pointer enters event → tooltip with name/start/dur/end (`swimlane_hover.png`).
-2. Click → selection styling + `DetailStrip` (`swimlane_selection.png`).
+1. Pointer enters event → tooltip with name/start/dur/end (`source/v930/search-highlight.jpeg`).
+2. Click → selection styling + `DetailStrip` (`source/v930/entry.jpeg`).
 3. Click background → clear selection and strip.
 
 ### Flow S4 (M)
@@ -268,13 +268,13 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S5 (M/P2)
 
 1. MVP: read PIPE bars in aside.
-2. P2: open pipe details list; type filter (e.g. `aic_mte3`); inspect values (`pipe_utilization.png`).
+2. P2: open pipe details list; type filter (e.g. `aic_mte3`); inspect values (`source/v930/compute-load.jpeg`).
 
 ### Flow S6–S9 (P2)
 
 - **S6:** Aside → memory topology (static SVG + data-driven labels, [Q12](../../context/OPEN_QUESTIONS.md)) → optional details list.
 - **S7:** Deferred — hardware aside **out of MVP** ([Q7](../../context/OPEN_QUESTIONS.md)).
-- **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`swimlane_multiselect.png`, `swimlane_context_menu.png`).
+- **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
 - **S9:** Click 源码 / 详情 / 缓存 / OP算子 → different main surface; return to 时间线 restores view state.
 
 ---
@@ -306,17 +306,17 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 | Scenario / surface | FEATURE_MATRIX (examples) | Components | Sketches |
 |--------------------|---------------------------|------------|----------|
-| S1 overview | Report summary, PIPE bars, Timeline tab | `ProfilingReport`, `StatsSummaryPanel`, `PipeOccupancyPanel` | `general`, `with_sidebar`, `swimlane` |
+| S1 overview | Report summary, PIPE bars, Timeline tab | `ProfilingReport`, `StatsSummaryPanel`, `PipeOccupancyPanel` | `v930/entry`, `v930/report-stats-open` |
 | S2 navigate | Zoom/pan, time axis | `ReportToolbar`, `TimeAxis`, `SwimlaneCanvas` | `swimlane`, `general` |
-| S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailStrip` | `swimlane_hover`, `swimlane_selection*` |
+| S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailStrip` | `v930/search-highlight`, `v930/entry` |
 | S4 util compare | Lane gutter util bars, PIPE | `LaneGutter`, `PipeOccupancyPanel` | overview sketches |
 | S5 pipe drill | PIPE bars; pipe field list P2 | `PipeOccupancyPanel`, pipe details P2 | `pipe_*` |
 | S6 memory | Memory topology P2 | `MemoryTopologyPanel` | `memory_*` |
 | S7 hardware | Hardware details P2 | `HardwareDetailsPanel` | `sidebar_details` |
 | S8 deps / multi | Deps, multiselect, context menu P2 | `DependencyLinksLayer`, etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |
 | S9 tabs | Secondary tabs P2 | Host or future tab strip | tab chrome in overviews |
-| Overview charts | Cube/Vector charts | `OverviewCharts` | `general`, `with_sidebar` |
-| Roofline | Roofline P2 | `RooflinePanel` | `general`, `with_sidebar` |
+| Overview charts | Cube/Vector charts | `OverviewCharts` | `v930/entry`, `v930/report-stats-open` |
+| Roofline | Roofline P2 | `RooflinePanel` | `v930/entry`, `v930/report-stats-open` |
 
 ---
 

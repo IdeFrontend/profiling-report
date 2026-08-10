@@ -217,7 +217,7 @@ defineExpose({ root });
   color: #b0b0b0;
 }
 
-/* Util bar — % inside, right-aligned (docs/specs/ui/components/VISUAL_SPEC.md) */
+/* Util bar — % inside, right-aligned (LaneGutter.spec.md Visual) */
 .pr-gutter__util {
   position: relative;
   display: block;

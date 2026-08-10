@@ -18,7 +18,7 @@ Related visualization mappings: [VIEW_DATA_MAPPING.md](../visualization/VIEW_DAT
 
 Mockup (binary layout):
 
-![npu-rep layout](../ui/source/npu-rep-layout.png)
+![npu-rep layout](../ui/source/v930/entry.jpeg)
 
 ### 1.2 On-disk layout
 

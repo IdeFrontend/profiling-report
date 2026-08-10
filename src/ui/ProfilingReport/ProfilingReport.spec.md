@@ -146,11 +146,30 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
-**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip (20px track; 18px / 12px/400 labels; 5px minors; major bars with labels to the right). See `docs/specs/ui/components/VISUAL_SPEC.md`.
+**Viewport time axis.** Shares `AxisRuler` chrome with the overview strip. Shared tokens: [`docs/specs/ui/components/VISUAL_SPEC.md`](../../../docs/specs/ui/components/VISUAL_SPEC.md).
 
-**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge.
+**Cursor timestamp.** Playhead time bubble on the viewport — see **Visual** and [`visual/`](./visual/).
+
+**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge. Clamps documented in shared [`VISUAL_SPEC.md`](../../../docs/specs/ui/components/VISUAL_SPEC.md).
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — summary, pipe occupancy, compute tables, or memory tables (same gate as the toolbar toggle).
+
+## Visual
+
+### Cursor timestamp (`.pr-cursor__label`)
+
+Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/cursor-timestamp-context.png`](./visual/cursor-timestamp-context.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
+| Token | Value |
+|-------|--------|
+| Bubble fill | `#317AF7` (align `--pr-playhead` / `#3078F0` ±) |
+| Text | `#ffffff`, 11px, weight 600, tabular-nums |
+| Format | `MM:SS.mmm` from time **relative to `minTime`** in **active display unit** (see `formatCursorTime`) |
+| Size | ~72×19px content; `padding: 1px 8px`; `border-radius: 4px` |
+| Stem | 1px line same blue (`#317AF7`), continuous from axis through swimlane — **no** 1px gap at the axis/canvas border; axis + canvas segments share the same x (no horizontal jog) |
+| Behavior | Must update on pointer move; short traces use µs/ns unit so digits change |
+
+**Example:** axis `4.456ms` (relative) → label `00:04.456` when unit is `ms`.
 
 ## Acceptance Criteria
 
@@ -169,8 +188,12 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 ## Design sketches
 
-- [Entry overview with sidebar](../../../docs/specs/ui/source/entry-overview.png)
-- [Report stats](../../../docs/specs/ui/source/report-stats.png)
+- [cursor-timestamp](./visual/cursor-timestamp.png) — from `v930/entry`
+- [cursor-timestamp-context](./visual/cursor-timestamp-context.png) — from `v930/entry`
+- [Entry overview with sidebar](../../../docs/specs/ui/source/v930/entry.jpeg)
+- [Report stats](../../../docs/specs/ui/source/v930/report-stats-open.jpeg)
+- [v930 entry](../../../docs/specs/ui/source/v930/entry.jpeg) — full layout context
+- [v930 entry](../../../docs/specs/ui/source/v930/entry.jpeg) — current product dump
 
 ## Dependencies
 

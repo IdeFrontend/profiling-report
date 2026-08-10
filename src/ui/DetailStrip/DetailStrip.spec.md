@@ -27,7 +27,7 @@ The detail strip is the persistent counterpart to the event tooltip: tooltip is 
 
 ## Design sketches
 
-- [Event details](../../../docs/specs/ui/source/event-details.png)
+- [Event details](../../../docs/specs/ui/source/v930/detail-strip-raised.jpeg)
 
 ## Dependencies
 

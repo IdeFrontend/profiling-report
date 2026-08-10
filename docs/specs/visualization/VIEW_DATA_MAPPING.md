@@ -1,6 +1,6 @@
 # Visualization View ↔ Data Mapping
 
-Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from product spec §11.2 可视化界面数据关联. Source mockups live under [`docs/specs/ui/source/`](../ui/source/).
+Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from product spec §11.2 可视化界面数据关联. Source mockups live under [`docs/specs/ui/source/`](../ui/source/) (``v930/`). Hierarchy: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md).
 
 Input schemas: [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md).
 
@@ -26,13 +26,13 @@ flowchart LR
   Swim --> EvDet["Event details + Relevant"]
 ```
 
-Mockups extracted from the source docx live under [`docs/specs/ui/source/`](../ui/source/).
+Mockups extracted from the source docx live under [`docs/specs/ui/source/v930/`](../ui/source/v930/).
 
 ---
 
 ## 11.2.2 Entry information
 
-![Entry overview](../ui/source/entry-overview.png)
+![Entry overview](../ui/source/v930/entry.jpeg)
 
 | # | UI | Behavior / data |
 | --- | --- | --- |
@@ -49,7 +49,7 @@ Mockups extracted from the source docx live under [`docs/specs/ui/source/`](../u
 
 ## 11.2.3 Report statistics（报告统计）
 
-![Report statistics](../ui/source/report-stats.png)
+![Report statistics](../ui/source/v930/report-stats-open.jpeg)
 
 ### Field mapping
 
@@ -82,7 +82,7 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 
 ## 11.2.3.1 Hardware details（硬件信息详情）
 
-![Hardware details](../ui/source/hardware-details.png)
+![Hardware details](../ui/source/v930/hardware-more-detail.jpeg)
 
 **Source:** `HardwareInfo.jsonl` (one object per line, `category` discriminator).
 
@@ -102,7 +102,7 @@ Do **not** invent formulas for cards 5–8 until product defines fields; wire on
 
 ## 11.2.4 Roofline bottleneck analysis（Roofline 瓶颈分析）
 
-![Roofline](../ui/source/roofline.png)
+![Roofline](../ui/source/v930/report-stats-open.jpeg)
 
 ### Tabs → fields (as in docx)
 
@@ -143,7 +143,7 @@ Hide `RooflinePanel` when no GM point can be derived.
 
 ## 11.2.5 Pipe occupancy / compute load（PIPE 占用率）
 
-![Pipe occupancy](../ui/source/pipe-occupancy.png)
+![Pipe occupancy](../ui/source/v930/compute-load.jpeg)
 
 **Rule (product table + changelog):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). See [`docs/source/changes/changes.png`](../../source/changes/changes.png) #2.
 
@@ -182,7 +182,7 @@ Hide `RooflinePanel` when no GM point can be derived.
 
 ## 11.2.5.1 Compute-load details（计算负载分析详情）
 
-![Pipe details](../ui/source/pipe-details.png)
+![Pipe details](../ui/source/v930/compute-load-detail.jpeg)
 
 Changelog [#3](../../source/changes/changes.png): detail surface uses **tabs**:
 
@@ -202,9 +202,9 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 
 ## 11.2.6 Memory load analysis（内存负载分析）
 
-![Memory topology annotated](../ui/source/memory-topology-annotated.png)
+![Memory topology annotated](../ui/source/v930/memory-load-detail.jpeg)
 
-![Memory load heatmap](../ui/source/memory-load-heatmap.png)
+![Memory load heatmap](../ui/source/v930/memory-load-detail.jpeg)
 
 **Note (docx):** dual-Die / Remote memory — open whether right-click details exist.
 
@@ -261,7 +261,7 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 
 ## 11.2.7 Statistical analysis（统计分析）
 
-![Statistical analysis](../ui/source/statistical-analysis.png)
+![Statistical analysis](../ui/source/v930/entry.jpeg)
 
 Docx placeholder samples:
 
@@ -282,7 +282,7 @@ Treat as illustrative only (invalid JSON / stub series).
 
 ## 11.2.8 Kernel block-level timeline
 
-![Kernel block timeline](../ui/source/kernel-block-timeline.png)
+![Kernel block timeline](../ui/source/v930/entry.jpeg)
 
 Docx field table is **empty**. Behavior from mockups + sample `trace.json`:
 
@@ -309,7 +309,7 @@ Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mocku
 
 ## 11.2.8.1 Pipeline / event details（流水中详情 / 详情）
 
-![Event details](../ui/source/event-details.png)
+![Event details](../ui/source/v930/detail-strip-raised.jpeg)
 
 Docx table empty. Mockup layout:
 
@@ -353,15 +353,15 @@ Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../OPEN_QUESTIO
 
 | File | Section |
 | --- | --- |
-| [`entry-overview.png`](../ui/source/entry-overview.png) | Entry + overall timeline chrome |
-| [`npu-rep-layout.png`](../ui/source/npu-rep-layout.png) | Container binary layout |
-| [`report-stats.png`](../ui/source/report-stats.png) | Report statistics |
-| [`hardware-details.png`](../ui/source/hardware-details.png) | Hardware details |
-| [`roofline.png`](../ui/source/roofline.png) | Roofline |
-| [`pipe-occupancy.png`](../ui/source/pipe-occupancy.png) | Pipe occupancy bars |
-| [`pipe-details.png`](../ui/source/pipe-details.png) | Pipe details list |
-| [`memory-topology-annotated.png`](../ui/source/memory-topology-annotated.png) | Memory topology + CSV annotations |
-| [`memory-load-heatmap.png`](../ui/source/memory-load-heatmap.png) | Memory load with BW / peak % |
-| [`statistical-analysis.png`](../ui/source/statistical-analysis.png) | Cube/Vector statistical tracks |
-| [`kernel-block-timeline.png`](../ui/source/kernel-block-timeline.png) | Block timeline |
-| [`event-details.png`](../ui/source/event-details.png) | Event / Relevant details |
+| [`entry-overview.png`](../ui/source/v930/entry.jpeg) | Entry + overall timeline chrome |
+| [`npu-rep-layout.png`](../ui/source/v930/entry.jpeg) | Container binary layout |
+| [`report-stats.png`](../ui/source/v930/report-stats-open.jpeg) | Report statistics |
+| [`hardware-details.png`](../ui/source/v930/hardware-more-detail.jpeg) | Hardware details |
+| [`roofline.png`](../ui/source/v930/report-stats-open.jpeg) | Roofline |
+| [`pipe-occupancy.png`](../ui/source/v930/compute-load.jpeg) | Pipe occupancy bars |
+| [`pipe-details.png`](../ui/source/v930/compute-load-detail.jpeg) | Pipe details list |
+| [`memory-topology-annotated.png`](../ui/source/v930/memory-load-detail.jpeg) | Memory topology + CSV annotations |
+| [`memory-load-heatmap.png`](../ui/source/v930/memory-load-detail.jpeg) | Memory load with BW / peak % |
+| [`statistical-analysis.png`](../ui/source/v930/entry.jpeg) | Cube/Vector statistical tracks |
+| [`kernel-block-timeline.png`](../ui/source/v930/entry.jpeg) | Block timeline |
+| [`event-details.png`](../ui/source/v930/detail-strip-raised.jpeg) | Event / Relevant details |

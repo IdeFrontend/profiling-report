@@ -27,7 +27,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | Embedded file | Feeds (MVP) | Feeds (Phase 2+) |
 |---------------|-------------|------------------|
 | `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
-| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter | Searchable pipe field list (`pipe_utilization.png`, `pipe_details.png`) |
+| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
 | `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
 | `Memory.csv` | Optional summary bandwidth tiles | Memory topology diagram + field drill-down |
 | `MemoryL0.csv` | — | L0 path details on memory diagram |
@@ -101,7 +101,7 @@ Used for summary “computing power” tiles and later **roofline** category poi
 | `MemoryUB.csv` | UB vector/scalar R/W BW |
 | `L2Cache.csv` | Write/read hits, miss-allocate, hit rates (%) |
 
-Phase 2 memory diagram (`memory_chart.png`, `memory_details.png`): **static SVG** topology with **data-driven edge labels** from these fields ([Q12](../../context/OPEN_QUESTIONS.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
+Phase 2 memory diagram (`source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg`): **static SVG** topology with **data-driven edge labels** from these fields ([Q12](../../context/OPEN_QUESTIONS.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
 
 ---
 

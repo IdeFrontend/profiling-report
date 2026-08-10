@@ -6,7 +6,7 @@
 
 Left-side vertical gutter showing process/thread hierarchy, lane names, and utilization percentages. Scroll-synced with the swimlane canvas so lane labels align with event rows.
 
-Normative chrome tokens: [`docs/specs/ui/components/VISUAL_SPEC.md`](../../../docs/specs/ui/components/VISUAL_SPEC.md) (§1 util bars, §4 expanders). Crops: [`lane-expanders.png`](../../../docs/specs/ui/components/lane-expanders.png), [`lane-expander-detail.png`](../../../docs/specs/ui/components/lane-expander-detail.png), [`lane-gutter-util.png`](../../../docs/specs/ui/components/lane-gutter-util.png), [`lane-util-bars.png`](../../../docs/specs/ui/components/lane-util-bars.png).
+Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detail.png`](./visual/expander-detail.png), [`visual/gutter-util.png`](./visual/gutter-util.png), [`visual/util-bars.png`](./visual/util-bars.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
@@ -40,7 +40,40 @@ Clicking the **group** header toggles expand/collapse (`aria-expanded`). Collaps
 
 ### Utilization
 
-Each lane optionally shows a utilization bar (`110×16px`, `border-radius: 2px`) with the percentage **inside, right-aligned** in lane-title gray (`#b0b0b0`). Fill width encodes load; util &lt; 0.5 uses warning red `#733234`, otherwise lane `color`. Unfilled track uses a **gray diagonal hatch** (not solid black). Layout columns: `minmax(0,1fr)` (name) + `110px` (util).
+Each lane optionally shows a utilization bar with the percentage **inside, right-aligned**. See **Visual** below.
+
+## Visual
+
+### Util bars (`visual/gutter-util.png`, `visual/util-bars.png`)
+
+| Token | Value |
+|-------|--------|
+| Track width | `110px` (fixed column) |
+| Track height | `16px` |
+| Shape | Rounded rect: `border-radius: 2px` (not a full capsule / `height/2`) |
+| Track / unfilled | Gray **diagonal hatch** (not solid black) — e.g. repeating `-45deg` stripes `#3a3a3a` on `#2a2a2a` |
+| Value fill | Lane `color` (pipe category), left-aligned width = util% |
+| Warning fill | `#733234` when util &lt; 0.5 (optional; sketches use red for hot/low cores) |
+| % text | **Inside** track, **right-aligned**, `padding-right: 6px` |
+| % font | 10px, weight 600, tabular-nums, color **`#b0b0b0`** (same as lane title — not bright white) |
+| Layout | `grid-template-columns: minmax(0,1fr) 110px` (name + util); pad-left aligns label under group title |
+
+**Do not** place `%` to the left of the bar.
+
+### Expanders (`visual/expanders.png`, `visual/expander-detail.png`)
+
+| Token | Value |
+|-------|--------|
+| Icon style | **Open-angle** stroke chevron (CSS borders), not filled `▾`/`▸` |
+| Group expanded | Down-pointing caret (`v`), color `#a8a8a8` |
+| Lane chevron | **Only if** the lane has expandable children (P2). MVP leaf threads: **no** chevron |
+| Alignment | Lane **label** left edge aligns under the group **title** (pad-left `24px` = group pad `8` + chev `10` + gap `6`) |
+| Gap chevron→label | `6px` (group row) |
+| Group row | height `28px`; pad-left `8px`; label **12px / 600 / `#e8e8e8`** |
+| Lane row | height `22px`; pad-left `24px`; label **11px / 400 / `#b0b0b0`** |
+| Separators | `1px solid #333` under each lane; `#3a3a3a` under group header |
+| Gutter bg | `#262626`; right border `#3a3a3a` |
+| Interaction | Group header click → `toggle-group`; no chevron control on leaf lanes |
 
 ## Acceptance Criteria
 
@@ -63,10 +96,11 @@ Each lane optionally shows a utilization bar (`110×16px`, `border-radius: 2px`)
 
 ## Design sketches
 
-- [lane-expanders.png](../../../docs/specs/ui/components/lane-expanders.png)
-- [lane-expander-detail.png](../../../docs/specs/ui/components/lane-expander-detail.png)
-- [lane-gutter-util.png](../../../docs/specs/ui/components/lane-gutter-util.png)
-- [with_sidebar.png](../../../docs/specs/ui/with_sidebar.png)
+- [expanders](./visual/expanders.png) — from `v930/entry`
+- [expander-detail](./visual/expander-detail.png) — from `v930/entry`
+- [gutter-util](./visual/gutter-util.png) — from `v930/entry`
+- [util-bars](./visual/util-bars.png) — from `v930/entry`
+- [v930 entry](../../../docs/specs/ui/source/v930/entry.jpeg) — full layout context
 
 ## Dependencies
 

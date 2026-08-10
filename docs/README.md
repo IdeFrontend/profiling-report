@@ -18,15 +18,16 @@ English documentation and specifications for the reusable Vue profiling-report l
 11. **[specs/formats/REP_FORMAT.md](specs/formats/REP_FORMAT.md)** — CANN `.rep` / `.ncrep` container layout
 12. **[specs/formats/METRICS_AND_TRACE.md](specs/formats/METRICS_AND_TRACE.md)** — embedded CSVs and `trace.json`
 13. **[specs/formats/VIEW_DATA_REQUIREMENTS.md](specs/formats/VIEW_DATA_REQUIREMENTS.md)** — required inputs per chart/view; hide-if-missing rules
-14. **[specs/ui/UI_OVERVIEW.md](specs/ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
-15. **[specs/ui/COLOR_TOKENS.md](specs/ui/COLOR_TOKENS.md)** — normative colors from sketches
-16. **[specs/ui/UX_SPEC.md](specs/ui/UX_SPEC.md)** — complete UX: scenarios, static vs interactive, sync model
-17. **[specs/ui/FEATURE_MATRIX.md](specs/ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
-18. **[specs/ui/INTERACTIONS.md](specs/ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
-19. **[specs/architecture/ARCHITECTURE.md](specs/architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
-20. **[specs/architecture/COMPONENTS.md](specs/architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
-21. **[specs/architecture/MSTT_INTEGRATION.md](specs/architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
-22. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
+14. **[specs/ui/DESIGN_INDEX.md](specs/ui/DESIGN_INDEX.md)** — design image hierarchy (sources → screens → component crops)
+15. **[specs/ui/UI_OVERVIEW.md](specs/ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
+16. **[specs/ui/COLOR_TOKENS.md](specs/ui/COLOR_TOKENS.md)** — normative colors from sketches
+17. **[specs/ui/UX_SPEC.md](specs/ui/UX_SPEC.md)** — complete UX: scenarios, static vs interactive, sync model
+18. **[specs/ui/FEATURE_MATRIX.md](specs/ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
+19. **[specs/ui/INTERACTIONS.md](specs/ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
+20. **[specs/architecture/ARCHITECTURE.md](specs/architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
+21. **[specs/architecture/COMPONENTS.md](specs/architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
+22. **[specs/architecture/MSTT_INTEGRATION.md](specs/architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
+23. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
 ## Process
 
@@ -58,7 +59,7 @@ Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README
 
 ## Design sketches
 
-PNG mockups live under [`specs/ui/`](specs/ui/). Written UI specs reference them by filename.
+PNG mockups live under [`specs/ui/source/v930/`](specs/ui/source/v930/). Component crops live next to Vue code under `src/ui/{Component}/visual/`. Hierarchy: [`specs/ui/DESIGN_INDEX.md`](specs/ui/DESIGN_INDEX.md).
 
 **Product changelog (annotated UI deltas):** [`source/changes/changes.png`](source/changes/changes.png) — timeline 度量模式, Cube/Vector MIX toggle, compute/memory detail tabs, memory topology edge values. Absorbed into design specs per delivery [roadmap](process/roadmap/).
 

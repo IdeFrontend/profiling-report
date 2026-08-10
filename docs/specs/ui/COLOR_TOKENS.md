@@ -1,6 +1,6 @@
 # Color Tokens (Normative from Sketches)
 
-Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([Q13 Resolved](../../context/OPEN_QUESTIONS.md)). Extracted from [`docs/specs/ui/*.png`](./) (`general.png`, `with_sidebar.png`, `swimlane.png`). Roundings are ±4–8 in RGB from sampled pixels.
+Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([Q13 Resolved](../../context/OPEN_QUESTIONS.md)). Extracted from [`source/v930/`](./source/v930/) (`entry.jpeg` and related frames). Roundings are ±4–8 in RGB from sampled pixels.
 
 Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MSTT theme may tint chrome; **category hues below stay fixed** unless Product revises this file.
 
@@ -15,7 +15,7 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 
 ## PIPE occupancy + category keys
 
-Sampled primarily from PIPE bars in `general.png` (bottom-right), ordered as in sketches: Cube → Vector → MTE2 → MTE1 → FixP → MTE3 → Scalar.
+Sampled primarily from PIPE bars in `source/v930/entry.jpeg` (bottom-right), ordered as in sketches: Cube → Vector → MTE2 → MTE1 → FixP → MTE3 → Scalar.
 
 | `colorKey` | Hex | Role |
 |------------|-----|------|

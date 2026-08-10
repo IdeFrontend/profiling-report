@@ -37,7 +37,8 @@
     "test:e2e:scaffold": "playwright test tests/e2e/playground.spec.ts",
     "test:e2e:feature": "playwright test tests/e2e/feature.spec.ts",
     "check:specs": "node scripts/check-spec-coverage.mjs",
-    "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
+    "check:design": "node scripts/check-design-assets.mjs",
+    "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run check:design && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
     "ci:tdd": "npm run ci && npm run test:e2e:feature"
   },
   "peerDependencies": {

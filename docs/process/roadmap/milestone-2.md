@@ -28,7 +28,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | Host chrome | **New (host)** | i18n, load errors; capability flags; workspace dep (I-Q16) |
 | Details panel | **New** | Replaces compact strip: name + timing; incoming/current/outgoing mini-graph with depth filters; raw args when present; hide when no selection |
 | Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs (Q12 + changelog #5). Hide if no memory CSVs. Edge thickness static. Optional: hover/click syncs field-list rows |
-| Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `general.png` / `with_sidebar.png` / `roofline.png`. Hide if no usable points. Capability flag `roofline` |
+| Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `source/v930/entry.jpeg` / `source/v930/entry.jpeg` / `source/v930/report-stats-open.jpeg`. Hide if no usable points. Capability flag `roofline` |
 | Overview / Q6 tiles / secondary tabs | **Out** | → [M3](milestone-3.md) |
 
 ## Implementation tasks
@@ -50,7 +50,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | No algorithm for “prev/next” if only unordered id lists | Wrong graph direction | Interim: directed successor list; predecessors = reverse index |
 | Depth-filter semantics underspecified | Details mini-graph ambiguity | Match sketch defaults (both / forward / backward); document interim |
 | **Memory edge ↔ CSV column mapping** not fully specified (Q12 says labels data-driven, not which field → which edge) | Wrong/missing labels on graph | Engineering mapping table from sketch + CSV headers; Product confirm later |
-| No official SVG topology asset in repo | Must draw from sketches | Create SVG from `memory_chart.png`; treat as product-owned asset |
+| No official SVG topology asset in repo | Must draw from sketches | Create SVG from `source/v930/memory-load-detail.jpeg`; treat as product-owned asset |
 | **Q11 roofline** formulas + peak ceilings still open | Cannot claim Product-final axes | Ship **interim** point derivation from `ArithmeticUtilization` columns; document I-*; hide panel if undecidable; swap when Q11 closes |
 | Roofline peak bandwidth / compute ceilings not in fixture | Roof lines missing | Interim constants or omit roofs until Product supplies peaks |
 | **Q22** measure → which views update | Risk of wrong aside coupling | Ship **local overlay only** until Product answers |

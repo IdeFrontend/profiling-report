@@ -12,7 +12,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([Q15](../../context/OPEN_QUESTIONS.md)) |
 | Timeline secondary tab | M | Primary view |
 | OP算子 / 源码 / 详情 / 缓存 tabs | P2 | msinsight-like parity |
-| Host explorer / performance tree | H | `swimlane.png` left rail |
+| Host explorer / performance tree | H | `source/v930/entry.jpeg` left rail |
 | Keep Insight for `.bin` | H | See formats comparison |
 
 ## Toolbar
@@ -24,9 +24,9 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Keyboard shortcut help | P2 | |
 | Toggle stats / report panel | M | |
 | Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; local overlay until [Q22](../../context/OPEN_QUESTIONS.md). [changes.png](../../source/changes/changes.png) #1 |
-| Timeline markers | P2 | `with_sidebar.png` annotations |
+| Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
-| Layer / display control (clock cycles, units) | P2 | `sidebar_details.png` “显示控制” |
+| Layer / display control (clock cycles, units) | P2 | `source/v930/hardware-more-detail.jpeg` “显示控制” |
 | Settings | P2 | |
 
 ## Swimlane
@@ -41,15 +41,15 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Event labels when wide enough | M | Vertically centered in block; horizontally centered in visible (clipped) event rect |
 | Zoom / pan (wheel, drag, slider) | M | See [INTERACTIONS](INTERACTIONS.md); W/S/A/D → P2 ([PACKAGING_SUGGESTIONS](../../context/PACKAGING_SUGGESTIONS.md)) |
 | ProfilerStep background bands | P2 | Needs data |
-| Dependency bezier links | P2 | `swimlane_selection.png` |
-| Pin lane / context menu | P2 | `swimlane_context_menu.png` |
-| Multi-select time slice summary | P2 | `swimlane_multiselect.png` |
+| Dependency bezier links | P2 | `source/v930/entry.jpeg` |
+| Pin lane / context menu | P2 | `source/v930/entry.jpeg` |
+| Multi-select time slice summary | P2 | `source/v930/entry.jpeg` |
 
 ## Interactions (see also INTERACTIONS.md)
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Hover tooltip (name, start, dur, end) | M | `swimlane_hover.png` |
+| Hover tooltip (name, start, dur, end) | M | `source/v930/search-highlight.jpeg` |
 | Single select → detail | M | |
 | Multi-select | P2 | |
 | Context menu | P2 | |
@@ -67,7 +67,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../../process/roadmap/mile
 | Cube \| Vector PIPE toggle (MIX only) | M1 | [changes.png](../../source/changes/changes.png) #2; non-MIX shows relevant side only |
 | Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists |
 | Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [I-Q6c](../../context/INTERIM_DECISIONS.md); 查看全部 [I-Q6d](../../context/INTERIM_DECISIONS.md) (#4) |
-| Roofline bottleneck chart | M2 | `general.png` / [milestone-2](../../process/roadmap/milestone-2.md) |
+| Roofline bottleneck chart | M2 | `source/v930/report-stats-open.jpeg` / [milestone-2](../../process/roadmap/milestone-2.md) |
 | Hardware info details | M1 interim | [I-Q7a](../../context/INTERIM_DECISIONS.md): HardwareInfo.jsonl or OpBasicInfo fallback; no invented peaks |
 | Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([Q12](../../context/OPEN_QUESTIONS.md), changelog #5) |
 
@@ -77,7 +77,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../../process/roadmap/mile
 |---------|------:|------------------|
 | Name + start/duration/end | M | |
 | Source paths / PC address | P2 | |
-| Dependency mini-graph + depth filters | P2 | `swimlane_selection.png` |
+| Dependency mini-graph + depth filters | P2 | `source/v930/entry.jpeg` |
 
 ## Non-functional
 

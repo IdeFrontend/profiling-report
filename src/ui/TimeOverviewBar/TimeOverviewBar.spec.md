@@ -22,9 +22,23 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 **Shared ruler chrome.** Overview and viewport axes share `AxisRuler`: track height **20px**; labels in an **18px** top-aligned box at **12px / 400**; major **1px** bars with labels immediately to the **right**; **9** minor ticks (**5px** tall) between each major pair. Majors use a zoom-aware nice ns grid (`1|2|5×10ⁿ`, ~100px spacing) snapped to `origin + k·interval` so tick **positions** reflow with zoom/pan. Majors/minors outside the selected window are muted. The track clips overflow so labels never paint into the right aside panel.
 
-**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are a **vertical 4×10 white pill** on a **1px stem** (see `docs/specs/ui/components/VISUAL_SPEC.md`). Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
+**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are a **vertical 4×10 white pill** on a **1px stem** (see **Visual**). Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
 
 **Parent integration.** The parent ProfilingReport receives the `update:window` event and applies the new window to `SwimlaneViewState` via `applyWindow`. All children re-render with the updated viewport.
+
+## Visual
+
+Shared axis tokens: [`docs/specs/ui/components/VISUAL_SPEC.md`](../../../docs/specs/ui/components/VISUAL_SPEC.md). Crops: [`visual/range-handles.png`](./visual/range-handles.png), [`visual/handle-left.png`](./visual/handle-left.png), [`visual/handle-right.png`](./visual/handle-right.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
+### Overview range handles
+
+| Token | Value |
+|-------|--------|
+| Head | Vertical white pill **4×10 px**, `border-radius: 2px`, centered on stem |
+| Stem | `1px` solid `#ffffff`, from bottom of head to track bottom |
+| Direction | Head is taller than wide (4×10 CSS) |
+| Hit target | ≥12px wide invisible hit area centered on stem |
+| Window fill | Selected: `rgba(255,255,255,0.06)`; outside dimmed via track |
 
 ## Acceptance Criteria
 
@@ -44,7 +58,10 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 ## Design sketches
 
-- [Statistical analysis (overview charts)](../../../docs/specs/ui/source/statistical-analysis.png)
+- [range-handles](./visual/range-handles.png) — from `v930/entry`
+- [handle-left](./visual/handle-left.png) — from `v930/entry`
+- [handle-right](./visual/handle-right.png) — from `v930/entry`
+- [Statistical analysis (overview charts)](../../../docs/specs/ui/source/v930/entry.jpeg)
 
 ## Changelog
 - **2026-08-07** — Handle head **4×10**.

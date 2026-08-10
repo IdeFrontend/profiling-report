@@ -62,9 +62,18 @@ For architecture: integration patterns, lifecycle, independence rules.]
 
 [Unresolved questions. Omit if none.]
 
+## Visual
+
+*Component specs only.* Normative measures owned by this component (sizes, colors, typography).
+Shared axis / panel chrome: [`docs/specs/ui/components/VISUAL_SPEC.md`](../docs/specs/ui/components/VISUAL_SPEC.md).
+Omit when the component has no distinct chrome.
+
 ## Design sketches
 
-- [sketch name](/docs/specs/ui/source/sketch.png) — description
+- `[crop name](./visual/crop.png)` — from `{batch}/{scene}` (see `visual/provenance.yaml`)
+- `<source frame>` — e.g. `/docs/specs/ui/source/v930/entry.jpeg` for full layout context
+
+Design hierarchy: [`docs/specs/ui/DESIGN_INDEX.md`](../docs/specs/ui/DESIGN_INDEX.md).
 
 ## Changelog
 - **YYYY-MM-DD** — Initial spec.

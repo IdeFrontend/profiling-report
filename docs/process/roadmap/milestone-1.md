@@ -54,7 +54,7 @@ Design deltas from [`docs/source/changes/changes.png`](../../source/changes/chan
 |---------|--------|------------|
 | No column semantics / units for many CSV fields (producer spec WIP) | Labels may be raw header names only | Ship raw headers + values; polish labels when format spec arrives |
 | Which rows to show (per `block_id` vs aggregate) | Wrong UX for multi-block fixture | **I-Q6c**: mean bars + block-scoped details with picker |
-| Sketches for pipe/memory **lists** exist; Metrics/Cache aside chrome less specified | Layout guesswork | Mirror changelog tabs + `pipe_details.png` list pattern |
+| Sketches for pipe/memory **lists** exist; Metrics/Cache aside chrome less specified | Layout guesswork | Mirror changelog tabs + `source/v930/compute-load-detail.jpeg` list pattern |
 | Q6 still interim — cannot show TFLOPS/BW tiles | Summary incomplete vs sketches | Explicitly out of M1; do not invent formulas |
 | Q5 — no `OverviewSeries` in fixture | Overview charts stay empty | Keep hidden (already decided) |
 | Dense/wide CSVs may hurt aside UX | Scroll/search only | Search + virtualize if needed; no chart derivation in M1 |

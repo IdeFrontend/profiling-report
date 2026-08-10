@@ -1,0 +1,12 @@
+component: TimeOverviewBar
+source_primary: v930/entry
+crops:
+  range-handles.png:
+    source: v930/entry
+    region: "Visible-range brush + dual time axis strip"
+  handle-left.png:
+    source: v930/entry
+    region: "Left range handle detail (0ms edge)"
+  handle-right.png:
+    source: v930/entry
+    region: "Right range handle detail (~12.3ms edge)"

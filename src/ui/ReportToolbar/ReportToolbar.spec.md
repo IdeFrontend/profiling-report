@@ -6,7 +6,7 @@
 
 Top toolbar with search, zoom controls, time unit selector, measure toggle, and aside panel toggle.
 
-Normative chrome: [`docs/specs/ui/components/VISUAL_SPEC.md`](../../../docs/specs/ui/components/VISUAL_SPEC.md) §5. Crops: [`toolbar-search.png`](../../../docs/specs/ui/components/toolbar-search.png), [`toolbar-zoom.png`](../../../docs/specs/ui/components/toolbar-zoom.png), [`toolbar-actions.png`](../../../docs/specs/ui/components/toolbar-actions.png).
+Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
@@ -30,15 +30,46 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
-## Visual (normative summary)
+## Visual
 
-| Control | Chrome |
-|---------|--------|
-| Shared height | `28px` baseline |
-| Search | Rounded rect `#2a2a2a`, radius `4px`, width `190px`, mag SVG `14×14` |
-| Zoom | Rounded rect `#363636`, radius `4px`; mag± SVGs; slider fill `#e8e8e8` / thumb `#c8c8c8` |
-| Icon actions | `28×28`, radius `4px`; active border/icon `#317AF7` |
-| P2 sketch icons | Out of MVP — do not stub |
+Source band ~y=98–132 in [`source/v930/entry.jpeg`](../../../docs/specs/ui/source/v930/entry.jpeg). Control height **~28–29 px**.
+
+### Search (`visual/search.png`)
+
+| Token | Value |
+|-------|--------|
+| Height | `28px` |
+| Width | `190px` |
+| Shape | Rounded rect: `border-radius: 4px` (not capsule) |
+| Background | `#2a2a2a` |
+| Border | none (or `1px solid #3a3a3a` if needed) |
+| Icon | Stroke magnifying glass SVG `14×14`, color `#9a9a9a`, left inset |
+| Input padding | `0 12px 0 32px` |
+| Placeholder | `#808080`; text `#e0e0e0`; font `12px` |
+
+### Zoom pill (`visual/zoom.png`)
+
+| Token | Value |
+|-------|--------|
+| Container | Single control, height `28px`, `border-radius: 4px`, bg `#363636` |
+| Zoom out / in | Magnifying-glass SVGs with − / + inside (not bare ± text); `16×16`, color `#c8c8c8` |
+| Buttons | Transparent, no separate square border; padding `4px 6px` |
+| Slider | Width ~`100px`; track height `2px`; filled (left) `#e8e8e8`; unfilled `#2a2a2a`; thumb `10px` circle `#c8c8c8` |
+| Gap | `4px` between icon / slider / icon inside pill |
+
+### Action icon buttons (`visual/actions.png`)
+
+| Token | Value |
+|-------|--------|
+| Size | Square `28×28` |
+| Radius | `4px` |
+| Border | `1px solid transparent` (hover: `#4a4a4a`) |
+| Background | transparent / `#2a2a2a` on hover |
+| Icon | Stroke or fill SVG `14×16`, color `#c8c8c8` |
+| Active (`--on`) | bg `#1e3a5f`; icon/border `#317AF7` |
+| Gap between buttons | `4px` |
+
+P2 sketch icons (chart, flag, layers, help, gear) are **not** MVP — do not stub. Time unit matches height `28px`; bg `#2a2a2a`; `border-radius: 4px`; font `12px`.
 
 ## Acceptance Criteria
 
@@ -58,10 +89,10 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 ## Design sketches
 
-- [toolbar-search.png](../../../docs/specs/ui/components/toolbar-search.png)
-- [toolbar-zoom.png](../../../docs/specs/ui/components/toolbar-zoom.png)
-- [toolbar-actions.png](../../../docs/specs/ui/components/toolbar-actions.png)
-- [with_sidebar.png](../../../docs/specs/ui/with_sidebar.png)
+- [search](./visual/search.png) — from `v930/entry`
+- [zoom](./visual/zoom.png) — from `v930/entry`
+- [actions](./visual/actions.png) — from `v930/entry`
+- [v930 entry](../../../docs/specs/ui/source/v930/entry.jpeg) — full layout context
 - [changes.png](../../../docs/source/changes/changes.png) #1 (caliper)
 
 ## Changelog

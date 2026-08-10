@@ -92,7 +92,7 @@ When `report.roofline.points` is non-empty, mount `RooflinePanel` below the acti
 - [report-stats.png](../../../docs/specs/ui/source/report-stats.png) — header / meta / 更多
 - [general.png](../../../docs/specs/ui/general.png) — aside chrome in layout
 - [changes.png](../../../docs/source/changes/changes.png) #2–#4
-- [PIPE occupancy](../../../docs/specs/ui/source/pipe-occupancy.png)
+- [PIPE occupancy](../../../docs/specs/ui/source/v930/compute-load.jpeg)
 
 ## Dependencies
 

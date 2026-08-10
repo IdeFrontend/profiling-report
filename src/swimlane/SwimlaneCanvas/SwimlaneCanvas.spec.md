@@ -48,7 +48,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Design sketches
 
-- [Kernel block timeline](../../../docs/specs/ui/source/kernel-block-timeline.png)
+- [Kernel block timeline](../../../docs/specs/ui/source/v930/entry.jpeg)
 - [changes.png](../../../docs/source/changes/changes.png) #1 (measure — planned)
 
 ## Dependencies

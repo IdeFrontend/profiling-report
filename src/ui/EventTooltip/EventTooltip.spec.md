@@ -29,7 +29,7 @@ The tooltip is transient (follows cursor, appears/disappears on hover). The deta
 
 ## Design sketches
 
-- [Event details](../../../docs/specs/ui/source/event-details.png)
+- [Event details](../../../docs/specs/ui/source/v930/detail-strip-raised.jpeg)
 
 ## Dependencies
 

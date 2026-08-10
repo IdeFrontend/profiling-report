@@ -1,0 +1,15 @@
+component: LaneGutter
+source_primary: v930/entry
+crops:
+  expanders.png:
+    source: v930/entry
+    region: "Kernel hierarchy — group + lane chevrons / labels"
+  expander-detail.png:
+    source: v930/entry
+    region: "Zoomed open-angle chevrons (Kernel + Core0 rows)"
+  gutter-util.png:
+    source: v930/entry
+    region: "Kernel gutter block — expanders + util bars"
+  util-bars.png:
+    source: v930/entry
+    region: "Util bar column only (tight crop)"

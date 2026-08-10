@@ -1,0 +1,9 @@
+component: ProfilingReport
+source_primary: v930/entry
+crops:
+  cursor-timestamp.png:
+    source: v930/entry
+    region: "Mouse cursor time bubble"
+  cursor-timestamp-context.png:
+    source: v930/entry
+    region: "Bubble + stem + axis (wider context)"
