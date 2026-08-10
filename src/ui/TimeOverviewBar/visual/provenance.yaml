@@ -3,13 +3,21 @@ source_primary: v930/entry
 crops:
   range-handles.png:
     source: v930/entry
-    region: "Full overview strip with rulers and handles"
-    box: { x: 0, y: 125, w: 7680, h: 50 }
+    region: "Overview brush track spanning left (0ms) and right (~14.9ms) handles"
+    box: { x: 2276, y: 520, w: 3672, h: 128 }
+    handle_left: { stem_x: [2354, 2357], pill_y: [544, 575], stem_y: [576, 623] }
+    handle_right: { stem_x: [5866, 5869], pill_y: [544, 575], stem_y: [576, 623] }
   handle-left.png:
     source: v930/entry
-    region: "Left overview handle with axis context"
-    box: { x: 0, y: 120, w: 800, h: 100 }
+    region: "Crop-to-fit left handle only (transparent; pill+stem)"
+    box: { x: 2348, y: 544, w: 16, h: 80 }
+    pill: { x0: 2348, y0: 544, x1: 2363, y1: 575 }
+    stem: { x0: 2354, y0: 576, x1: 2357, y1: 623 }
+    alpha: true
   handle-right.png:
     source: v930/entry
-    region: "Right overview handle with axis context"
-    box: { x: 6800, y: 120, w: 880, h: 100 }
+    region: "Crop-to-fit right handle only (transparent; pill+stem)"
+    box: { x: 5860, y: 544, w: 16, h: 80 }
+    pill: { x0: 5860, y0: 544, x1: 5875, y1: 575 }
+    stem: { x0: 5866, y0: 576, x1: 5869, y1: 623 }
+    alpha: true
