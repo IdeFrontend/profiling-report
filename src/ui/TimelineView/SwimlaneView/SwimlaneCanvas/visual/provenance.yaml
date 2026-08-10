@@ -19,5 +19,5 @@ crops:
     box: { x: 2300, y: 900, w: 3900, h: 1600 }
   marquee.png:
     source: v930/task-marquee
-    region: "Marquee selection over timeline events (drag multi-select)"
-    box: { x: 1850, y: 2250, w: 2500, h: 950 }
+    region: "Marquee selection over timeline events (full rect including left edge)"
+    box: { x: 1380, y: 2260, w: 2950, h: 960 }
