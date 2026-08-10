@@ -1,0 +1,8 @@
+component: MemoryTopologyPanel
+source_primary: v930/memory-load-detail
+crops:
+  memory-topology.png:
+    source: v930/memory-load-detail
+    region: "Memory load analysis panel (topology diagram not isolated in dump; CSV detail chrome as stand-in)"
+    box: { x: 5480, y: 280, w: 2070, h: 1600 }
+note: "Replace with annotated topology diagram crop when a clearer dump lands"

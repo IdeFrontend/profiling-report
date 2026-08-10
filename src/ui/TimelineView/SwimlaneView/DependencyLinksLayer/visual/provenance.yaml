@@ -1,0 +1,8 @@
+component: DependencyLinksLayer
+source_primary: v930/entry
+crops:
+  dependency-links-context.png:
+    source: v930/entry
+    region: "Swimlane context for future dep bezier overlays (links not isolated in current dump)"
+    box: { x: 2320, y: 1600, w: 3600, h: 900 }
+note: "Replace/add dedicated dep-link crop when a clearer dump lands"

@@ -1,0 +1,7 @@
+component: MultiSelectSummary
+source_primary: v930/task-marquee
+crops:
+  multi-select.png:
+    source: v930/task-marquee
+    region: "Multi-select / marquee selection highlight on swimlane event"
+    box: { x: 2000, y: 2500, w: 2500, h: 800 }

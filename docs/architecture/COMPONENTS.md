@@ -23,25 +23,23 @@ ProfilingReport
 ├─ ReportLayout (main | aside)
 │  ├─ TimelineView
 │  │  ├─ TimeOverviewBar
-│  │  ├─ TimeAxis
-│  │  │  ├─ AxisRuler
-│  │  │  └─ CursorTimestamp
-│  │  └─ SwimlaneView
-│  │     ├─ LaneGutter
-│  │     └─ SwimlaneCanvas  →  SwimlaneRenderer + measure overlay (M2)
-│  └─ StatsAside (mode switcher M1)
-│     ├─ StatsSummaryPanel (inline MVP)
-│     ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1; inline MVP)
+│  │  ├─ TimeAxis → AxisRuler, CursorTimestamp
+│  │  ├─ OverviewCharts
+│  │  └─ SwimlaneView → LaneGutter, SwimlaneCanvas, DependencyLinksLayer (P2)
+│  └─ StatsAside
+│     ├─ StatsSummaryPanel
+│     ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1)
 │     ├─ CsvFieldListPanel (compute + memory detail tabs M1)
 │     ├─ RooflinePanel (M2)
-│     ├─ HardwareDetailsPanel (deferred)
-│     └─ MemoryTopologyPanel (M2)
-├─ DetailPanel
-│  ├─ DetailSummary (MVP identity + timing)
-│  ├─ DetailParameter (P2)
-│  └─ DetailRelevant (P2)
-└─ EventTooltip (overlay)
+│     ├─ MemoryTopologyPanel (M2)
+│     └─ HardwareDetailsPanel (deferred)
+├─ DetailPanel → DetailSummary, DetailParameter (P2), DetailRelevant (P2)
+├─ EventTooltip (overlay)
+├─ ContextMenu (P2 overlay)
+└─ MultiSelectSummary (P2 overlay)
 ```
+
+Full tree with visual-pack marks: [`src/ui/COMPONENT_TREE.md`](../../src/ui/COMPONENT_TREE.md).
 
 ## Design principles
 

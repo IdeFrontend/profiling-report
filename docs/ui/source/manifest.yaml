@@ -9,12 +9,12 @@ batches:
         path: v930/entry.jpeg
         original_name: "930版本-性能调优_入口.jpeg"
         scenes: [entry, toolbar, overview, gutter, swimlane]
-        components: [ReportToolbar, TimeOverviewBar, LaneGutter, AxisRuler, CursorTimestamp, SwimlaneCanvas]
+        components: [ReportToolbar, TimeOverviewBar, LaneGutter, AxisRuler, CursorTimestamp, SwimlaneCanvas, OverviewCharts, DependencyLinksLayer]
       - id: report-stats-open
         path: v930/report-stats-open.jpeg
         original_name: "930版本-性能调优_打开报告统计.jpeg"
         scenes: [report-stats, aside]
-        components: [StatsAside, CsvFieldListPanel]
+        components: [StatsAside, StatsSummaryPanel, RooflinePanel, CsvFieldListPanel]
       - id: report-stats-scrolled
         path: v930/report-stats-scrolled.jpeg
         original_name: "930版本-性能调优_报告统计-滚动到底部.jpeg"
@@ -24,7 +24,7 @@ batches:
         path: v930/search-highlight.jpeg
         original_name: "930版本-性能调优_搜索高亮显示.jpeg"
         scenes: [search, highlight]
-        components: [ReportToolbar, SwimlaneCanvas]
+        components: [ReportToolbar, SwimlaneCanvas, CursorTimestamp]
       - id: detail-strip-raised
         path: v930/detail-strip-raised.jpeg
         original_name: "930版本-性能调优_点击上浮底部栏.jpeg"
@@ -34,12 +34,12 @@ batches:
         path: v930/memory-load-detail.jpeg
         original_name: "930版本-性能调优_点击内存负载分析的详情后.jpeg"
         scenes: [memory-load, detail]
-        components: [StatsAside, CsvFieldListPanel]
+        components: [StatsAside, CsvFieldListPanel, MemoryTopologyPanel]
       - id: compute-load
         path: v930/compute-load.jpeg
         original_name: "930版本-性能调优_计算负载分析.jpeg"
         scenes: [compute-load]
-        components: [StatsAside]
+        components: [StatsAside, PipeOccupancyPanel]
       - id: compute-load-detail
         path: v930/compute-load-detail.jpeg
         original_name: "930版本-性能调优_点击计算负载分析的详情后.jpeg"
@@ -49,7 +49,7 @@ batches:
         path: v930/hardware-more-detail.jpeg
         original_name: "930版本-性能调优_点击报告统计右边的更多后-硬件信息详情.jpeg"
         scenes: [hardware]
-        components: [StatsAside]
+        components: [StatsAside, HardwareDetailsPanel]
       - id: task-hover
         path: v930/task-hover.jpeg
         original_name: "930版本-性能调优_Task 悬浮时.jpeg"
@@ -59,14 +59,12 @@ batches:
         path: v930/task-context-menu.jpeg
         original_name: "930版本-性能调优_Task 右键时.jpeg"
         scenes: [task-context-menu]
-        components: []
-        note: "P2 context menu dump; no MVP component pack yet"
+        components: [ContextMenu]
       - id: task-marquee
         path: v930/task-marquee.jpeg
         original_name: "930版本-性能调优_Task 框选时.jpeg"
         scenes: [task-marquee, multiselect]
-        components: [SwimlaneCanvas]
-        note: "Marquee / multi-select dump"
+        components: [SwimlaneCanvas, MultiSelectSummary]
       - id: task-measure-mode
         path: v930/task-measure-mode.jpeg
         original_name: "930版本-性能调优_Task 时间度量模式.jpeg"

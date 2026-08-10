@@ -1,0 +1,7 @@
+component: ContextMenu
+source_primary: v930/task-context-menu
+crops:
+  context-menu.png:
+    source: v930/task-context-menu
+    region: "Task right-click menu (整屏显示 / 撤销缩放 / 重置缩放) over event"
+    box: { x: 1780, y: 2680, w: 920, h: 520 }

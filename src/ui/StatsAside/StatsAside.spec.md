@@ -89,15 +89,15 @@ When `report.roofline.points` is non-empty, mount `RooflinePanel` below the acti
 
 ## Visual
 
-Crops: [`visual/mode-tabs.png`](./visual/mode-tabs.png), [`visual/summary-cards.png`](./visual/summary-cards.png), [`visual/pipe-bars.png`](./visual/pipe-bars.png), [`visual/aside-scrolled.png`](./visual/aside-scrolled.png), [`visual/hardware-detail.png`](./visual/hardware-detail.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops (shell): [`visual/aside-scrolled.png`](./visual/aside-scrolled.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Child packs: [`PipeOccupancyPanel`](./PipeOccupancyPanel/visual/), [`StatsSummaryPanel`](./StatsSummaryPanel/visual/), [`HardwareDetailsPanel`](./HardwareDetailsPanel/visual/).
 
 ## Design sketches
 
-- [mode-tabs](./visual/mode-tabs.png) — Cube|Vector tabs from `v930/compute-load`
-- [summary-cards](./visual/summary-cards.png) — from `v930/report-stats-open`
-- [pipe-bars](./visual/pipe-bars.png) — from `v930/compute-load`
 - [aside-scrolled](./visual/aside-scrolled.png) — from `v930/report-stats-scrolled`
-- [hardware-detail](./visual/hardware-detail.png) — from `v930/hardware-more-detail`
+- [mode-tabs](./PipeOccupancyPanel/visual/mode-tabs.png) — Cube|Vector tabs from `v930/compute-load`
+- [summary-cards](./StatsSummaryPanel/visual/summary-cards.png) — from `v930/report-stats-open`
+- [pipe-bars](./PipeOccupancyPanel/visual/pipe-bars.png) — from `v930/compute-load`
+- [hardware-detail](./HardwareDetailsPanel/visual/hardware-detail.png) — from `v930/hardware-more-detail`
 - [compute-load-detail](../../../docs/ui/source/v930/compute-load-detail.jpeg) — compute CSV tabs
 - [memory-load-detail](../../../docs/ui/source/v930/memory-load-detail.jpeg) — memory tabs + block
 - [PIPE occupancy](../../../docs/ui/source/v930/compute-load.jpeg) — full frame

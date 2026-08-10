@@ -17,4 +17,7 @@ crops:
     source: v930/task-multi-height
     region: "Swimlane with increased row height when multiple tasks overlap"
     box: { x: 2300, y: 900, w: 3900, h: 1600 }
-
+  marquee.png:
+    source: v930/task-marquee
+    region: "Marquee / multi-select highlight on swimlane event"
+    box: { x: 2000, y: 2500, w: 2500, h: 800 }

@@ -57,35 +57,44 @@ profiling-report/
       CanvasSwimlaneRenderer.ts               imperative canvas renderer
 
     ui/
-      tokens.css                                shared design tokens (not component-specific)
+      tokens.css
       panelResize.ts
+      COMPONENT_TREE.md                         hierarchical UI map (mermaid + path tree)
 
       ProfilingReport/                          root orchestrator
       ReportToolbar/
       ReportLayout/
+      EventTooltip/
+      ContextMenu/                              P2 stub + visual
+      MultiSelectSummary/                       P2 stub + visual
 
-      TimelineView/                             left column stack (overview / axis / swim body)
+      TimelineView/                             left column stack
         TimelineView.vue
         TimeOverviewBar/
         TimeAxis/
           AxisRuler/
           CursorTimestamp/
+        OverviewCharts/                         stub + visual
         SwimlaneView/
           SwimlaneView.vue
           LaneGutter/
-          SwimlaneCanvas/                       Vue wrapper; renderer stays in src/swimlane/
+          SwimlaneCanvas/
+          DependencyLinksLayer/                 stub + visual
 
       StatsAside/
         StatsAside.vue
+        StatsSummaryPanel/                      stub + visual (impl still inline)
+        PipeOccupancyPanel/                     stub + visual (impl still inline)
         CsvFieldListPanel/
+        RooflinePanel/                          stub + visual
+        MemoryTopologyPanel/                    stub + visual
+        HardwareDetailsPanel/                   stub + visual
 
       DetailPanel/
         DetailPanel.vue
         DetailSummary/
-        DetailParameter/                        P2 stub
-        DetailRelevant/                         P2 stub
-
-      EventTooltip/
+        DetailParameter/
+        DetailRelevant/
 
   tests/
     unit/                                     unit tests for pure-TS domain modules
