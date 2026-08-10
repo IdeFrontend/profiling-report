@@ -85,7 +85,17 @@ function schedulePaint(): void {
   });
 }
 
-function sync(forceModel = false): void {
+/** Paint in the same turn (after buffer resize) so the canvas never shows a cleared frame. */
+function flushPaint(): void {
+  if (raf) {
+    cancelAnimationFrame(raf);
+    raf = 0;
+  }
+  backend.render();
+  if (useWebGl.value) overlay.render();
+}
+
+function applyViewState(forceModel = false): void {
   if (!props.model) return;
   if (forceModel || props.model !== attachedModel) {
     backend.setModel(props.model);
@@ -100,6 +110,10 @@ function sync(forceModel = false): void {
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setSearchQuery(props.searchQuery);
   }
+}
+
+function sync(forceModel = false): void {
+  applyViewState(forceModel);
   schedulePaint();
 }
 
@@ -110,8 +124,9 @@ function resize(): void {
   const contentH = modelContentHeight();
   const w = Math.max(1, wrap.clientWidth);
   const viewH = wrap.clientHeight || 0;
-  const h = Math.max(contentH, viewH);
-  sizerHeight.value = h;
+  // Sizer tracks full content for layout; drawing surface is the visible viewport only.
+  sizerHeight.value = Math.max(contentH, viewH);
+  const h = Math.max(1, viewH || lastH || contentH);
 
   if (!attached) {
     const prefer = props.preferRenderer ?? 'auto';
@@ -147,13 +162,17 @@ function resize(): void {
 
   if (!attached) return;
 
-  if (w !== lastW || h !== lastH) {
+  const sizeChanged = w !== lastW || h !== lastH;
+  if (sizeChanged) {
     lastW = w;
     lastH = h;
     backend.resize(w, h);
     if (useWebGl.value) overlay.resize(w, h);
   }
-  sync();
+  applyViewState();
+  // Buffer resize clears pixels; paint before the browser paints this frame (no blink).
+  if (sizeChanged) flushPaint();
+  else schedulePaint();
   const maxY = maxScrollY();
   if (localScrollY > maxY) {
     localScrollY = maxY;
