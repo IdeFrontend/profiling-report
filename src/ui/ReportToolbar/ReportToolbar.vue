@@ -542,10 +542,10 @@ function closeDisplayControl() {
   height: 28px;
   min-width: 28px;
   min-height: 28px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: #c8c8c8;
+  border: 0;
+  border-radius: 6px;
+  background: #363636;
+  color: #b3b3b3;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -553,16 +553,13 @@ function closeDisplayControl() {
   line-height: 0;
 }
 
-.pr-toolbar__icon-btn:hover {
-  background: #2a2a2a;
-  border-color: #4a4a4a;
-  color: #fff;
-}
-
-.pr-toolbar__icon-btn--on {
-  border-color: #317af7;
-  color: #317af7;
-  background: #1e3a5f;
+.pr-toolbar__icon-btn:hover,
+.pr-toolbar__icon-btn:active,
+.pr-toolbar__icon-btn--on,
+.pr-toolbar__icon-btn[aria-pressed='true'],
+.pr-toolbar__icon-btn[aria-expanded='true'] {
+  background: #1e2a3e;
+  color: #2d70e3;
 }
 
 .pr-toolbar__caliper {

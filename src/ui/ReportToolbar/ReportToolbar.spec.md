@@ -68,14 +68,16 @@ Lives in the **main** column only (above the timeline), not spanning the StatsAs
 
 ### Action icon buttons (`visual/actions.png`)
 
+Resting fill from `v930/entry` actions strip; hover/pressed from `v930/hardware-more-detail` (layers under cursor + active chart).
+
 | Token | Value |
 |-------|--------|
 | Size | Square `28×28` |
-| Radius | `4px` |
-| Border | `1px solid transparent` (hover: `#4a4a4a`) |
-| Background | transparent / `#2a2a2a` on hover |
-| Icon | Stroke or fill SVG `14×16`, color `#c8c8c8` |
-| Active (`--on`) | bg `#1e3a5f`; icon/border `#317AF7` |
+| Radius | `6px` |
+| Border | none (no stroke ring) |
+| Background (rest) | `#363636` (not transparent) |
+| Icon (rest) | `#b3b3b3` |
+| Hover / `:active` / `--on` / `aria-pressed` / `aria-expanded` | bg `#1e2a3e`; icon `#2d70e3` |
 | Gap between buttons | `4px` |
 
 Sketch shows **seven** action icons (measure, fit, chart, flag, deps, layers, help). MVP implements fit + **layers → 显示控制**; measure is temporarily hidden; remaining icons stay visual-reference until their capabilities land.
@@ -135,6 +137,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-11** — Action icon rest `#363636` / `#b3b3b3`; hover & pressed `#1e2a3e` / `#2d70e3`; radius `6px` (sketch-sampled).
 - **2026-08-11** — Display-control popover tokens from sketch: panel `#363636` / radius `12px` / border `#5e5e5e`; select `#404040` / radius `6px`.
 - **2026-08-11** — Time unit via layers → 显示控制 popover (not inline select); PR-TOOLBAR-005/010.
 - **2026-08-11** — Strip `#1f1f1f`; zoom track filled `#ffffff` / unfilled `#1a1a1a`; toolbar main-column only.

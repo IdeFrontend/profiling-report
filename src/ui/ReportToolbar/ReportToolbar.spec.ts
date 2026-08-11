@@ -90,6 +90,15 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?border-radius:\s*6px/);
   });
 
+  it('PR-TOOLBAR-009c: action icon rest/hover/pressed match sketch', async () => {
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*background:\s*#363636/);
+    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*color:\s*#b3b3b3/);
+    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*border-radius:\s*6px/);
+    expect(src).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?background:\s*#1e2a3e/);
+    expect(src).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?color:\s*#2d70e3/);
+  });
+
   it('PR-TOOLBAR-010: display control closes via X or layers toggle', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     const btn = wrapper.find('[data-testid="toggle-display-control"]');
