@@ -99,8 +99,8 @@ Do not leave “temporary” undocumented behavior in main.
 
 **Milestone 4 (trace JSON + MVP polish)** — standalone Chrome Trace open path (Q15), gutter util bars, time-unit control, i18n hooks, CSS tokens (`PR-JSON-*` / `PR-UI-006` / `PR-E2E-005`).
 
-## Next delivery milestone
+## Delivery milestones
 
-Library timeline MVP is on `master`. Delivery roadmap (swimlane vs other views, tasks, blockers): **[roadmap/](roadmap/)**.
+**Delivery Milestone 1 (demo-data aside modes) — completed 2026-08-11.** All `out.rep` CSV embeds parsed and surfaced: Summary, PIPE with Cube|Vector toggle (changes.png #2), compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio, #3), memory tabs (L0 / L2Cache / L1 / UB) with block switcher and 查看全部 (#4). Full progress report: [M1_PROGRESS.md](roadmap/M1_PROGRESS.md).
 
-**Next:** [Delivery Milestone 1](roadmap/milestone-1.md) — max support of repo demo data (aside field lists from `out.rep`), target **2026-08-11**. Then [M2](roadmap/milestone-2.md) (MSTT + selection/deps + details + memory graph + roofline, **2026-08-25**) and [M3](roadmap/milestone-3.md) (remaining full UI, **2026-09-15**).
+**Next:** [Delivery Milestone 2](roadmap/milestone-2.md) — MSTT host + selection/deps + details + memory graph + roofline + timeline time-range measure, target **2026-08-25**. Then [M3](roadmap/milestone-3.md) (remaining full UI, **2026-09-15**).

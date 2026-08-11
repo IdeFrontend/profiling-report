@@ -1,5 +1,7 @@
 # Milestone 1 — Max support of repo demo data
 
+**Status:** **Completed 2026-08-11**. Progress report: [M1_PROGRESS.md](M1_PROGRESS.md).
+
 **Target date:** **2026-08-11**
 
 **Goal:** Playground on [`data/out.rep`](../../../data/out.rep) surfaces every usable embed. Timeline shell only (no secondary tabs). No MSTT.
