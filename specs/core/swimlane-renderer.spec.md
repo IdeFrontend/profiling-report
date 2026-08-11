@@ -50,6 +50,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-008**: WebGL setSearchQuery rebuilds match/dim meshes and render does not throw.
 1. **PR-RENDER-009**: `encodeIntervalPair` keeps end > start after float32 rounding for large-magnitude times.
 1. **PR-RENDER-010**: `eventEmphasisDim` matches Canvas factors (search 0.25 × selection 0.45); WebGL setSelection rebuilds emphasis layers and render does not throw.
+1. **PR-RENDER-011**: Canvas and WebGL lane backgrounds use uniform fill `#1f1f1f` (no zebra striping).
 
 ## Edge Cases
 
