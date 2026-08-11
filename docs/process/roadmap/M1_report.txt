@@ -1,0 +1,46 @@
+
+Completed tasks:
+
+1. Scaffold project: 
+    - Vite library build pipeline
+    - Vitest (unit tests)
+    - Playwright (E2E tests)
+    - Playground dev server (https://profiling-report.vercel.app/)
+    - CI pipeline (Vercel)
+    - ESLint
+    - Project docs
+    - Test report file
+    - UI shell
+    
+2. Spec-driven agentic development pipeline: 
+    - Add docs for top-down development workflow: UI mockups -> specs -> tests -> code
+    - Add source UI design files
+    - Add per-component image crops of source mockups
+
+3. Swimlane chart:
+    - Implement two swimlane components: HTML Canvas and WebGL
+    - Benachmarks: WebGL is ~5x faster
+    - Selected WebGL renderer
+    - Event label positioning
+    - Round corners for events
+
+4. Data layer:
+    - Parser for input files
+    - Domain types
+    - View models
+
+5. Timeline chart: 
+    - WebGL swimlane component
+    - Lane gutter: expandable lanes, bars
+    - Time axis: total axis with range selector, current range axis
+    - Mouse-following timestamp bar with tooltip
+    - Event tooltip
+    - Toolbar: zoom slider, search box, reset zoom
+    - Highlight filtered events by search query
+    - Pan/zoom navigation
+
+6. Started sidebar implementation:
+    - Summary cards (need formulas)
+    - PIPE occupancy
+    - Roofline
+    - Memory load detail
