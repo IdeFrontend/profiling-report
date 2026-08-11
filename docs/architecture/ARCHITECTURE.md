@@ -143,15 +143,17 @@ interface SwimlaneModel {
 
 interface SwimProcess {
   id: string;
-  name: string;
+  name: string; // Card0, … or flat CTEF process name
+  utilization?: number;
   threads: SwimThread[];
 }
 
 interface SwimThread {
   id: string;
   name: string;
-  utilization?: number; // 0..1 for gutter bar
-  events: SwimEvent[];
+  utilization?: number; // 0..1 for gutter bar (folders + leaves)
+  events: SwimEvent[]; // leaves; folders use []
+  children?: SwimThread[]; // nested folders (计算, Core0.Cube, …)
 }
 
 interface SwimEvent {

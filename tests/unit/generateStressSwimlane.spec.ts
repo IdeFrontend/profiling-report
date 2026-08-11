@@ -1,36 +1,48 @@
 import { describe, expect, it } from 'vitest';
 import {
   generateStressSwimlane,
+  stressDefaultCollapsedIds,
   stressPresetFromQuery,
   stressSwimlaneStats,
 } from '../../src/domain/generateStressSwimlane';
+import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
+
+function firstPipeLeaf(model: ReturnType<typeof generateStressSwimlane>) {
+  const compute = model.processes[0]?.threads.find((t) => t.name === '计算');
+  expect(compute && isFolderNode(compute)).toBe(true);
+  const cube = compute!.children!.find((c) => c.name === 'Core0.Cube');
+  expect(cube && isFolderNode(cube)).toBe(true);
+  const pipe = cube!.children![0];
+  expect(pipe).toBeTruthy();
+  expect(isFolderNode(pipe!)).toBe(false);
+  return pipe!;
+}
 
 describe('PR-STRESS: generateStressSwimlane', () => {
   it('PR-STRESS-001: medium preset reaches Sudu-class event counts', () => {
     const model = generateStressSwimlane({}, 'medium');
     const stats = stressSwimlaneStats(model);
-    expect(stats.processCount).toBe(4);
-    expect(stats.threadCount).toBe(32);
-    expect(stats.eventCount).toBe(320_000);
+    expect(stats.processCount).toBe(2);
+    expect(stats.threadCount).toBe(58); // 54 pipes + 4 spacer leaves (通信/储存HBM × 2)
+    expect(stats.eventCount).toBe(324_000);
     expect(model.minTime).toBe(0);
     expect(model.maxTime).toBe(1_000_000_000);
+    expect(model.processes[0]?.name).toBe('Card0');
   });
 
   it('PR-STRESS-002: small preset is deterministic for same seed', () => {
     const a = generateStressSwimlane({ seed: 42 }, 'small');
     const b = generateStressSwimlane({ seed: 42 }, 'small');
-    expect(a.processes[0]?.threads[0]?.events[0]).toEqual(
-      b.processes[0]?.threads[0]?.events[0],
-    );
-    expect(stressSwimlaneStats(a).eventCount).toBe(8_000);
+    expect(firstPipeLeaf(a).events[0]).toEqual(firstPipeLeaf(b).events[0]);
+    expect(stressSwimlaneStats(a).eventCount).toBe(8_502);
   });
 
   it('PR-STRESS-003: custom options override preset sizes', () => {
     const model = generateStressSwimlane(
-      { processCount: 1, threadsPerProcess: 2, eventsPerThread: 50, timeSpanNs: 10_000 },
-      'large',
+      { eventsPerThread: 50, timeSpanNs: 10_000 },
+      'medium',
     );
-    expect(stressSwimlaneStats(model).eventCount).toBe(100);
+    expect(stressSwimlaneStats(model).eventCount).toBe(54 * 50);
     expect(model.maxTime).toBe(10_000);
   });
 
@@ -41,12 +53,8 @@ describe('PR-STRESS: generateStressSwimlane', () => {
   });
 
   it('PR-STRESS-005: occupancy leaves gaps when event count exceeds busy budget ns', () => {
-    // count (200) > timeSpanNs * occupancy (50) — old formula treated count as ns,
-    // zeroed gapBudget, and packed 1ns events with no idle.
     const model = generateStressSwimlane(
       {
-        processCount: 1,
-        threadsPerProcess: 1,
         eventsPerThread: 200,
         timeSpanNs: 100,
         occupancy: 0.5,
@@ -54,9 +62,8 @@ describe('PR-STRESS: generateStressSwimlane', () => {
       },
       'small',
     );
-    const events = model.processes[0]!.threads[0]!.events;
+    const events = firstPipeLeaf(model).events;
     expect(events.length).toBe(200);
-    // Initial gap from avgGap > 0 → first event does not start at t=0.
     expect(events[0]!.startTime).toBeGreaterThan(0);
     let gaps = 0;
     for (let i = 1; i < 30; i++) {
@@ -65,5 +72,45 @@ describe('PR-STRESS: generateStressSwimlane', () => {
       if (cur.startTime > prev.startTime + prev.duration) gaps += 1;
     }
     expect(gaps).toBeGreaterThan(0);
+  });
+
+  it('PR-STRESS-006: Card → 通信/计算/储存HBM → Core → pipes tree', () => {
+    const model = generateStressSwimlane({}, 'small');
+    const card = model.processes[0]!;
+    expect(card.name).toBe('Card0');
+    const names = card.threads.map((t) => t.name);
+    expect(names).toEqual(['通信', '计算', '储存HBM']);
+    expect(card.threads[0]!.events).toEqual([]);
+    expect(card.threads[2]!.events).toEqual([]);
+    expect(isFolderNode(card.threads[1]!)).toBe(true);
+    const cores = card.threads[1]!.children!.map((c) => c.name);
+    expect(cores).toContain('Core0.Cube');
+    expect(cores).toContain('Core0.Vec0');
+    const pipes = card.threads[1]!.children!.find((c) => c.name === 'Core0.Cube')!.children!;
+    expect(pipes.map((p) => p.name)).toEqual([
+      'ALL',
+      'SCALAR',
+      'FLOWCTRL',
+      'MTE1',
+      'CUBE',
+      'FIXP',
+      'MTE2',
+      'MTE3',
+      'CACHEMISS',
+    ]);
+    expect(collectLeafEventsFromModel(model).length).toBe(8_502);
+  });
+
+  it('PR-STRESS-007: stressDefaultCollapsedIds keeps Card + 计算 + Core0.Cube expanded', () => {
+    const model = generateStressSwimlane({}, 'medium');
+    const collapsed = new Set(stressDefaultCollapsedIds(model));
+    expect(collapsed.has('card0')).toBe(false);
+    expect(collapsed.has('card0/compute')).toBe(false);
+    expect(collapsed.has('card0/Core0.Cube')).toBe(false);
+    expect(collapsed.has('card0/Core0.Vec0')).toBe(true);
+    expect(collapsed.has('card0/Core0.Vec1')).toBe(true);
+    expect(collapsed.has('card1/Core0.Cube')).toBe(false);
+    expect(collapsed.has('card1/Core0.Vec0')).toBe(true);
+    expect(Array.isArray(model.metadata?.defaultCollapsedIds)).toBe(true);
   });
 });

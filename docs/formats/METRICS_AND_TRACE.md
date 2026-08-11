@@ -77,7 +77,7 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 **Overview Cube/Vector charts:** Product decision ([Q5](../context/OPEN_QUESTIONS.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
 
-**Lane hierarchy:** Use producer `thread_name` / process names as-is ([Q8](../context/OPEN_QUESTIONS.md)); do not invent `CoreN.*` hierarchy in the viewer.
+**Lane hierarchy:** Use producer `thread_name` / process names as-is ([Q8](../context/OPEN_QUESTIONS.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 
 ---
 
@@ -140,8 +140,8 @@ Busy events such as `PIPE_V_busy` / `PIPE_S_busy` are the natural rectangles for
 Recommended library mapping:
 
 ```text
-pid / process     → process group (e.g. Kernel / AIV0)
-tid / thread_name → lane (PIPE_V, PIPE_S, …)
+pid / process     → Card / process group (flat CTEF: e.g. Process 2 / AIV0)
+tid / thread_name → leaf lane (PIPE_V, PIPE_S, …) — no nesting from CTEF alone
 ph=X event        → Event { name, startTime=ts, duration=dur, args }
 ```
 
@@ -149,19 +149,19 @@ Time unit: prefer nanoseconds internally; convert UI axis to ms as in sketches (
 
 ### Gap vs UI sketches
 
-Design sketches show a **multi-core instruction Gantt** (`Core0.Cube`, `Core0.Vec0`, …) with named ops (`MOV_OUT_TO_L1_MULTI_ND2NZ`, `DC_PRELOAD_XN_IMM`, `ProfilerStep#N`, Aten ops) and dependency links.
+Design sketches show a **Card → 通信/计算/储存HBM → CoreN.Cube/Vec → pipe** Gantt with named ops (`MOV_OUT_TO_L1_MULTI_ND2NZ`, `DC_PRELOAD_XN_IMM`, `ProfilerStep#N`, Aten ops) and dependency links. Only Card is a group header; nested folders are lane-style rows.
 
-The sample trace is a **single-channel AIV pipe-state busy timeline**, not a full instruction-level multi-core schedule.
+The sample `out.rep` trace is a **single-channel AIV pipe-state busy timeline**, not that Card tree. Playground stress presets synthesize the Card hierarchy via `SwimThread.children`.
 
 | Expectation | Sample reality | Spec stance |
 |-------------|----------------|-------------|
-| Multi-core Kernel tree | One AIV0 pipe set | **Product target** is sketch-like multi-core ([Q4](../context/OPEN_QUESTIONS.md)); until golden arrives, render available lanes with **producer names** ([Q8](../context/OPEN_QUESTIONS.md)) |
+| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([Q4](../context/OPEN_QUESTIONS.md)); stress emits it; flat CTEF uses **producer names** as-is ([Q8](../context/OPEN_QUESTIONS.md)) |
 | Instruction names on bars | Marker / busy names | Show event `name`; richer labels when future traces include them |
 | ProfilerStep bands | Not in sample | Phase 2 / when args or counter tracks exist |
 | Dependencies | Not in sample | Phase 2; parse when predecessor/successor args appear |
 | Overview Cube/Vector series | Not in sample | **Hide** charts ([Q5](../context/OPEN_QUESTIONS.md)) |
 
-Writers of `.rep` files should eventually emit traces that match the product hierarchy (per-core Cube/Vector/MTE lanes). Until then, the viewer must remain useful on pipe-state traces like the fixture.
+Writers of `.rep` files should eventually emit nested models matching the Card hierarchy. Until then, the viewer remains useful on pipe-state traces like the fixture.
 
 ---
 

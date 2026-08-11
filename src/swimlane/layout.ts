@@ -1,5 +1,6 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
+import { walkVisibleRows } from '../domain/swimTree';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
@@ -15,9 +16,13 @@ export interface FlatLane {
   thread: SwimThread;
   y: number;
   color: string;
+  /** Nested folder row: reserves height, no events painted. */
+  folder?: boolean;
+  depth: number;
 }
 
 export interface GroupHeader {
+  id: string;
   name: string;
   y: number;
 }
@@ -52,9 +57,10 @@ export function contentHeightFromLayout(layout: SwimlaneLayout): number {
 
 export function contentHeightFromModel(model: SwimlaneModel | null): number {
   if (!model) return 120;
+  const rows = walkVisibleRows(model);
   let h = 0;
-  for (const p of model.processes) {
-    h += LANE_GROUP_HEADER_HEIGHT + p.threads.length * LANE_HEIGHT;
+  for (const row of rows) {
+    h += row.kind === 'header' ? LANE_GROUP_HEADER_HEIGHT : LANE_HEIGHT;
   }
   return Math.max(120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
@@ -66,18 +72,25 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   if (!model) return { lanes, headers, events };
 
   let y = 0;
-  for (const proc of model.processes) {
-    headers.push({ name: proc.name, y });
-    y += LANE_GROUP_HEADER_HEIGHT;
-    for (const thread of proc.threads) {
-      const color = colorForThread(thread.name);
-      lanes.push({ thread, y, color });
-      const sorted = [...thread.events].sort((a, b) => b.duration - a.duration);
-      for (const ev of sorted) {
-        events.push({ id: ev.id, event: ev, laneIndex: lanes.length - 1, y, color });
-      }
-      y += LANE_HEIGHT;
+  for (const row of walkVisibleRows(model)) {
+    if (row.kind === 'header') {
+      headers.push({ id: row.process.id, name: row.process.name, y });
+      y += LANE_GROUP_HEADER_HEIGHT;
+      continue;
     }
+    const thread = row.thread;
+    const color = colorForThread(thread.name);
+    if (row.kind === 'folder') {
+      lanes.push({ thread, y, color, folder: true, depth: row.depth });
+      y += LANE_HEIGHT;
+      continue;
+    }
+    lanes.push({ thread, y, color, depth: row.depth });
+    const sorted = [...thread.events].sort((a, b) => b.duration - a.duration);
+    for (const ev of sorted) {
+      events.push({ id: ev.id, event: ev, laneIndex: lanes.length - 1, y, color });
+    }
+    y += LANE_HEIGHT;
   }
   return { lanes, headers, events };
 }
@@ -128,7 +141,7 @@ export function hitTestLayout(
 ): string | null {
   const contentY = y + view.scrollY;
   const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
-  if (!lane) return null;
+  if (!lane || lane.folder) return null;
   const laneIndex = layout.lanes.indexOf(lane);
   const span = Math.max(1, view.endTime - view.startTime);
   const candidates: { id: string; duration: number }[] = [];
