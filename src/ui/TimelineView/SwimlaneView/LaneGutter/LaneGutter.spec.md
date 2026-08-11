@@ -59,7 +59,7 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 | Shape | Rounded rect: `border-radius: 2px` (not a full capsule / `height/2`) |
 | Track / unfilled | Gray **diagonal hatch** — repeating `-45deg` stripes `#3a3a3a` on `#2a2a2a` |
 | Value fill | **Two colors only:** util &lt; 0.5 → `#733234` (red); util ≥ 0.5 → `#5c5c5c` (gray). Do **not** use pipe/category `lane.color` |
-| % text | **Inside** track, **right-aligned**, `padding-right: 6px` |
+| % text | **Thick bars only**, inside track, right-aligned, `padding-right: 6px`. **Thin bars omit %** |
 | % font | 10px, weight 600, tabular-nums, color **`#b0b0b0`** (same as lane title — not bright white) |
 | Layout | `grid-template-columns: minmax(0,1fr) 110px` (name + util) |
 
@@ -83,7 +83,7 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 3. **PR-GUTTER-003** — Card expander uses open-angle carets; nested folders show chevrons; leaf lanes have **no** chevron; click emits `toggle-group` with node id.
 4. **PR-GUTTER-004** — When a Card id is in `collapsedIds`, child lanes are hidden; `aria-expanded="false"`. When a nested folder id is collapsed, its descendants are hidden but the folder row remains.
 5. **PR-GUTTER-005** — Nested indent increases with depth; only Card uses group-header chrome.
-6. **PR-GUTTER-006** — Util fills are red (`#733234`) when util &lt; 0.5 and gray (`#5c5c5c`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves.
+6. **PR-GUTTER-006** — Util fills are red (`#733234`) when util &lt; 0.5 and gray (`#5c5c5c`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the % label.
 
 ## Edge Cases
 
