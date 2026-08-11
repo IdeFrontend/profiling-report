@@ -41,7 +41,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
 | **Q6** | Report summary formulas | **Interim** | Thin OpBasicInfo tiles only; hide compute/BW/avg util; PIPE = mean non-`NA` — [I-Q6a](INTERIM_DECISIONS.md) / [I-Q6b](INTERIM_DECISIONS.md). **PIPE layout:** **Cube \| Vector toggle for MIX** ops ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)); non-MIX shows the relevant side only. Block-scoped details vs mean bars — [I-Q6c](INTERIM_DECISIONS.md). |
 | **Q7** | Hardware details sidebar | **Resolved (MVP)** | **Out of MVP** until further product/spec docs. |
-| **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer fixed naming (A); may revisit. No viewer heuristics. |
+| **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children` (sketch Card tree). |
 
 ---
 

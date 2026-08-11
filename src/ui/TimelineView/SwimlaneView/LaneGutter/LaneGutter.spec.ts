@@ -23,7 +23,7 @@ describe('LaneGutter', () => {
     expect(wrapper.text()).toContain('Thread A');
   });
 
-  it('PR-GUTTER-002: shows utilization percent inside the util bar', () => {
+  it('PR-GUTTER-002: shows utilization percent; ≥50% fill is gray not lane.color', () => {
     const wrapper = mount(LaneGutter, {
       props: { groups },
     });
@@ -31,8 +31,19 @@ describe('LaneGutter', () => {
     const util = wrapper.find('[data-testid="lane-util"]');
     expect(util.exists()).toBe(true);
     expect(util.text()).toContain('75%');
+    expect(util.classes()).toContain('pr-gutter__util--thick');
     expect(util.find('.pr-gutter__util-pct').exists()).toBe(true);
-    expect(util.find('.pr-gutter__util-fill').exists()).toBe(true);
+    const fill = util.find('.pr-gutter__util-fill');
+    expect(fill.exists()).toBe(true);
+    expect(fill.attributes('style')).toContain('background: #5c5c5c');
+  });
+
+  it('PR-GUTTER-002b: util <50% fill is red', () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups },
+    });
+    const fills = wrapper.findAll('.pr-gutter__util-fill');
+    expect(fills[1]!.attributes('style')).toContain('background: #733234');
   });
 
   it('PR-GUTTER-003: open-angle group chevron only; leaf lanes have no chevron', async () => {
@@ -60,6 +71,99 @@ describe('LaneGutter', () => {
     expect(wrapper.find('.pr-gutter__chevron--down').exists()).toBe(false);
     expect(wrapper.get('[data-testid="gutter-group-p1"]').attributes('aria-expanded')).toBe(
       'false',
+    );
+  });
+
+  it('PR-GUTTER-005: nested folder chevron + collapse keeps folder row', async () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          { id: 'comm', name: '通信', color: '#888', utilization: 1 },
+          {
+            id: 'compute',
+            name: '计算',
+            color: '#007084',
+            utilization: 0.9,
+            children: [
+              {
+                id: 'cube',
+                name: 'Core0.Cube',
+                color: '#007084',
+                utilization: 0.8,
+                children: [
+                  { id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested, collapsedIds: [] },
+    });
+    expect(wrapper.text()).toContain('计算');
+    expect(wrapper.text()).toContain('Core0.Cube');
+    expect(wrapper.text()).toContain('MTE1');
+    expect(wrapper.find('[data-testid="gutter-folder-compute"] .pr-gutter__chevron').exists()).toBe(
+      true,
+    );
+
+    await wrapper.get('[data-testid="gutter-folder-cube"]').trigger('click');
+    expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['cube']);
+
+    const collapsed = mount(LaneGutter, {
+      props: { groups: nested, collapsedIds: ['cube'] },
+    });
+    expect(collapsed.text()).toContain('Core0.Cube');
+    expect(collapsed.text()).not.toContain('MTE1');
+  });
+
+  it('PR-GUTTER-006: thick folder/depth-0 bars; thin pipe leaf under Core', () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          { id: 'comm', name: '通信', color: '#f00', utilization: 1 },
+          {
+            id: 'compute',
+            name: '计算',
+            color: '#0f0',
+            utilization: 0.9,
+            children: [
+              {
+                id: 'cube',
+                name: 'Core0.Cube',
+                color: '#00f',
+                utilization: 0.8,
+                children: [
+                  { id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.37 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested, collapsedIds: [] },
+    });
+    expect(wrapper.get('[data-testid="gutter-lane-comm"] [data-testid="lane-util"]').classes()).toContain(
+      'pr-gutter__util--thick',
+    );
+    expect(
+      wrapper.get('[data-testid="gutter-folder-compute"] [data-testid="lane-util"]').classes(),
+    ).toContain('pr-gutter__util--thick');
+    expect(
+      wrapper.get('[data-testid="gutter-folder-cube"] [data-testid="lane-util"]').classes(),
+    ).toContain('pr-gutter__util--thick');
+    const leafUtil = wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-util"]');
+    expect(leafUtil.classes()).toContain('pr-gutter__util--thin');
+    expect(leafUtil.find('.pr-gutter__util-fill').attributes('style')).toContain(
+      'background: #733234',
     );
   });
 });

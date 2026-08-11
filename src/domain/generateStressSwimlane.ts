@@ -1,25 +1,26 @@
 import type { SwimEvent, SwimlaneModel, SwimProcess, SwimThread } from './types';
+import { collectLeafEventsFromModel, countLeafThreads, isFolderNode } from './swimTree';
 
-/** Pipe-like lane names so stress colors match real OP traces. */
+/** Sketch pipe children under each Core. */
 export const STRESS_PIPE_NAMES = [
-  'PIPE_V/status',
-  'PIPE_S/status',
-  'MTE1/status',
-  'MTE2/status',
-  'MTE3/status',
-  'CUBE/status',
-  'FIXP/status',
-  'SCALAR/status',
+  'ALL',
+  'SCALAR',
+  'FLOWCTRL',
+  'MTE1',
+  'CUBE',
+  'FIXP',
+  'MTE2',
+  'MTE3',
+  'CACHEMISS',
 ] as const;
+
+/** Thinner Vec0 pipe set for small preset. */
+const SMALL_VEC_PIPES = ['ALL', 'SCALAR', 'MTE2', 'MTE3'] as const;
 
 export type StressSwimlanePreset = 'small' | 'medium' | 'large';
 
 export interface StressSwimlaneOptions {
-  /** Number of process groups (cores). Default 4. */
-  processCount?: number;
-  /** Threads (lanes) per process. Default 8 (pipe set). */
-  threadsPerProcess?: number;
-  /** Events generated per thread. Default depends on preset / 10_000. */
+  /** Override events per pipe leaf. */
   eventsPerThread?: number;
   /** Timeline length in ns. Default 1e9 (1 s). */
   timeSpanNs?: number;
@@ -37,16 +38,47 @@ export interface StressSwimlaneStats {
   seed: number;
 }
 
-const PRESETS: Record<StressSwimlanePreset, Required<Pick<
-  StressSwimlaneOptions,
-  'processCount' | 'threadsPerProcess' | 'eventsPerThread'
->>> = {
-  /** ~8k events — sanity check / CI-friendly. */
-  small: { processCount: 2, threadsPerProcess: 4, eventsPerThread: 1_000 },
-  /** Sudu-class: tens of lanes × ~10k (default stress). */
-  medium: { processCount: 4, threadsPerProcess: 8, eventsPerThread: 10_000 },
-  /** Heavy: ~720k intervals. */
-  large: { processCount: 6, threadsPerProcess: 8, eventsPerThread: 15_000 },
+type ShapeSpec = {
+  cards: number;
+  /** Per card: list of core names and which pipe set they use. */
+  cores: { name: string; pipes: readonly string[] }[];
+  eventsPerPipe: number;
+};
+
+const PRESETS: Record<StressSwimlanePreset, ShapeSpec> = {
+  /** 1 Card × (9 Cube + 4 Vec0) × 500 = 6_500 — bump Cube events to hit ~8.5k */
+  small: {
+    cards: 1,
+    cores: [
+      { name: 'Core0.Cube', pipes: STRESS_PIPE_NAMES },
+      { name: 'Core0.Vec0', pipes: SMALL_VEC_PIPES },
+    ],
+    /** 13 leaves × 654 = 8_502 (CI-friendly ~8.5k). */
+    eventsPerPipe: 654,
+  },
+  /** 2 × 3 × 9 × 6000 = 324_000 */
+  medium: {
+    cards: 2,
+    cores: [
+      { name: 'Core0.Cube', pipes: STRESS_PIPE_NAMES },
+      { name: 'Core0.Vec0', pipes: STRESS_PIPE_NAMES },
+      { name: 'Core0.Vec1', pipes: STRESS_PIPE_NAMES },
+    ],
+    eventsPerPipe: 6_000,
+  },
+  /** 2 × 6 × 9 × 6667 = 720_036 */
+  large: {
+    cards: 2,
+    cores: [
+      { name: 'Core0.Cube', pipes: STRESS_PIPE_NAMES },
+      { name: 'Core0.Vec0', pipes: STRESS_PIPE_NAMES },
+      { name: 'Core1.Cube', pipes: STRESS_PIPE_NAMES },
+      { name: 'Core1.Vec0', pipes: STRESS_PIPE_NAMES },
+      { name: 'Core2.Cube', pipes: STRESS_PIPE_NAMES },
+      { name: 'Core2.Vec0', pipes: STRESS_PIPE_NAMES },
+    ],
+    eventsPerPipe: 6_667,
+  },
 };
 
 /** Mulberry32 — fast deterministic PRNG. */
@@ -61,21 +93,6 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function resolveOptions(
-  options: StressSwimlaneOptions = {},
-  preset: StressSwimlanePreset = 'medium',
-): Required<StressSwimlaneOptions> {
-  const base = PRESETS[preset];
-  return {
-    processCount: options.processCount ?? base.processCount,
-    threadsPerProcess: options.threadsPerProcess ?? base.threadsPerProcess,
-    eventsPerThread: options.eventsPerThread ?? base.eventsPerThread,
-    timeSpanNs: options.timeSpanNs ?? 1_000_000_000,
-    seed: options.seed ?? 1,
-    occupancy: options.occupancy ?? 0.65,
-  };
-}
-
 function buildThreadEvents(
   threadId: string,
   count: number,
@@ -86,8 +103,6 @@ function buildThreadEvents(
   const events: SwimEvent[] = [];
   if (count <= 0 || timeSpanNs <= 0) return events;
 
-  // busyBudget is nanoseconds (occupancy × span). Never mix in event count —
-  // Math.max(count, span*occ) treated count as ns and wiped gaps when count was large.
   const occ = Math.min(1, Math.max(0, occupancy));
   const busyBudget = timeSpanNs * occ;
   const avgBusy = Math.max(1, busyBudget / count);
@@ -98,11 +113,9 @@ function buildThreadEvents(
   for (let i = 0; i < count; i++) {
     const gap = avgGap * (0.2 + 1.6 * rand());
     t += gap;
-    // Mix short markers and longer busy bars (log-ish via squared rand).
     const scale = rand() * rand();
     let duration = Math.max(1, Math.floor(avgBusy * (0.15 + 1.7 * scale)));
     if (t >= timeSpanNs) {
-      // Wrap remaining events into overlapping short markers near the end.
       t = Math.floor(rand() * Math.max(1, timeSpanNs - 2));
       duration = Math.max(1, Math.floor(1 + rand() * Math.min(avgBusy, timeSpanNs - t)));
     } else if (t + duration > timeSpanNs) {
@@ -121,78 +134,158 @@ function buildThreadEvents(
   return events;
 }
 
+function utilFromEvents(events: SwimEvent[], timeSpanNs: number): number {
+  if (timeSpanNs <= 0) return 0;
+  const busy = events.reduce((s, e) => s + e.duration, 0);
+  return Math.min(1, busy / timeSpanNs);
+}
+
+function synthUtil(rand: () => number, bias = 0.55): number {
+  return Math.min(1, Math.max(0.05, bias + (rand() - 0.5) * 0.7));
+}
+
+function makePipeLeaves(
+  cardId: string,
+  coreName: string,
+  pipes: readonly string[],
+  eventsPerPipe: number,
+  timeSpanNs: number,
+  occupancy: number,
+  rand: () => number,
+): SwimThread[] {
+  return pipes.map((pipe) => {
+    const id = `${cardId}/${coreName}/${pipe}`;
+    const events = buildThreadEvents(id, eventsPerPipe, timeSpanNs, occupancy, rand);
+    return {
+      id,
+      name: pipe,
+      utilization: utilFromEvents(events, timeSpanNs),
+      events,
+    };
+  });
+}
+
+function buildCard(
+  cardIndex: number,
+  shape: ShapeSpec,
+  eventsPerPipe: number,
+  timeSpanNs: number,
+  occupancy: number,
+  rand: () => number,
+): SwimProcess {
+  const cardId = `card${cardIndex}`;
+  const cores: SwimThread[] = shape.cores.map((core) => ({
+    id: `${cardId}/${core.name}`,
+    name: core.name,
+    utilization: synthUtil(rand, 0.75),
+    events: [],
+    children: makePipeLeaves(
+      cardId,
+      core.name,
+      core.pipes,
+      eventsPerPipe,
+      timeSpanNs,
+      occupancy,
+      rand,
+    ),
+  }));
+
+  const compute: SwimThread = {
+    id: `${cardId}/compute`,
+    name: '计算',
+    utilization: synthUtil(rand, 0.9),
+    events: [],
+    children: cores,
+  };
+
+  return {
+    id: cardId,
+    name: `Card${cardIndex}`,
+    threads: [
+      {
+        id: `${cardId}/comm`,
+        name: '通信',
+        utilization: synthUtil(rand, 0.95),
+        events: [],
+      },
+      compute,
+      {
+        id: `${cardId}/hbm`,
+        name: '储存HBM',
+        utilization: synthUtil(rand, 0.45),
+        events: [],
+      },
+    ],
+  };
+}
+
 /**
- * Synthetic dense swimlane model for renderer stress / Canvas vs WebGL A/B.
- * Scale is Sudu-demo-like by default (medium ≈ 4×8×10k intervals).
+ * Ids to collapse so first paint matches sketches:
+ * Card open, 计算 open, Core0.Cube open; other Cores collapsed.
+ */
+export function stressDefaultCollapsedIds(model: SwimlaneModel): string[] {
+  const collapsed: string[] = [];
+  for (const card of model.processes) {
+    const compute = card.threads.find((t) => t.name === '计算' && isFolderNode(t));
+    if (!compute?.children) continue;
+    for (const core of compute.children) {
+      if (core.name !== 'Core0.Cube' && isFolderNode(core)) {
+        collapsed.push(core.id);
+      }
+    }
+  }
+  return collapsed;
+}
+
+/**
+ * Synthetic Card → category → Core → pipe swimlane for playground stress / A/B.
  */
 export function generateStressSwimlane(
   options: StressSwimlaneOptions = {},
   preset: StressSwimlanePreset = 'medium',
 ): SwimlaneModel {
-  const opts = resolveOptions(options, preset);
-  const rand = mulberry32(opts.seed);
-  const processes: SwimProcess[] = [];
+  const shape = PRESETS[preset];
+  const timeSpanNs = options.timeSpanNs ?? 1_000_000_000;
+  const seed = options.seed ?? 1;
+  const occupancy = options.occupancy ?? 0.65;
+  const eventsPerPipe = options.eventsPerThread ?? shape.eventsPerPipe;
+  const rand = mulberry32(seed);
 
-  for (let p = 0; p < opts.processCount; p++) {
-    const threads: SwimThread[] = [];
-    for (let th = 0; th < opts.threadsPerProcess; th++) {
-      const pipe = STRESS_PIPE_NAMES[th % STRESS_PIPE_NAMES.length]!;
-      const threadId = `p${p}-t${th}`;
-      const events = buildThreadEvents(
-        threadId,
-        opts.eventsPerThread,
-        opts.timeSpanNs,
-        opts.occupancy,
-        rand,
-      );
-      const busy = events.reduce((s, e) => s + e.duration, 0);
-      threads.push({
-        id: threadId,
-        name: `AIV${p}/${pipe}`,
-        utilization: Math.min(1, busy / opts.timeSpanNs),
-        events,
-      });
-    }
-    processes.push({
-      id: `p${p}`,
-      name: `Kernel / AIV${p}`,
-      threads,
-    });
+  const processes: SwimProcess[] = [];
+  for (let c = 0; c < shape.cards; c++) {
+    processes.push(buildCard(c, shape, eventsPerPipe, timeSpanNs, occupancy, rand));
   }
 
-  return {
+  const model: SwimlaneModel = {
     processes,
     minTime: 0,
-    maxTime: opts.timeSpanNs,
+    maxTime: timeSpanNs,
     metadata: {
       synthetic: true,
       stress: true,
       preset,
-      seed: opts.seed,
-      processCount: opts.processCount,
-      threadsPerProcess: opts.threadsPerProcess,
-      eventsPerThread: opts.eventsPerThread,
+      seed,
+      cardCount: shape.cards,
     },
   };
+  model.metadata!.defaultCollapsedIds = stressDefaultCollapsedIds(model);
+  return model;
 }
 
 export function stressSwimlaneStats(model: SwimlaneModel): StressSwimlaneStats {
+  const events = collectLeafEventsFromModel(model);
   let threadCount = 0;
-  let eventCount = 0;
-  for (const p of model.processes) {
-    threadCount += p.threads.length;
-    for (const t of p.threads) eventCount += t.events.length;
-  }
+  for (const p of model.processes) threadCount += countLeafThreads(p.threads);
   return {
     processCount: model.processes.length,
     threadCount,
-    eventCount,
+    eventCount: events.length,
     timeSpanNs: model.maxTime - model.minTime,
-    seed: typeof model.metadata?.seed === 'number' ? model.metadata.seed : 0,
+    seed: Number(model.metadata?.seed ?? 0),
   };
 }
 
 export function stressPresetFromQuery(value: string | null): StressSwimlanePreset {
-  if (value === 'small' || value === 'large' || value === 'medium') return value;
+  if (value === 'small' || value === 'medium' || value === 'large') return value;
   return 'medium';
 }

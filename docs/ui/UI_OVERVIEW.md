@@ -50,13 +50,21 @@ Toolbar sits **only** above the timeline (main column). StatsAside starts at the
 
 ### 3. Left lane hierarchy
 
-Under a **Kernel** (or process) group:
+Sketch target tree (**Card → category → Core → pipes**):
 
-- Core entries: `CoreN.Cube`, `CoreN.Vec0`, `CoreN.Vec1`, …
-- Expandable pipe children: `SCALAR`, `FLOWCTRL`, `MTE1`, `CUBE`, `FIXP`, `MTE2`, `MTE3`, `CACHEMISS`
-- Per-row utilization % + mini bar (color encodes load; low util may use grey/red accents in mocks)
+```text
+Card0 | Card1                 ← only group header (28px)
+├── 通信                      ← leaf spacer (util; no events)
+├── 计算                      ← folder lane-row (chevron + util)
+│   ├── Core0.Cube / Vec*     ← folder lane-row
+│   │   └── ALL, SCALAR, FLOWCTRL, MTE1, CUBE, FIXP, MTE2, MTE3, CACHEMISS
+│   └── …
+└── 储存HBM                   ← leaf spacer (util; no events)
+```
 
-**Lane names:** producer supplies fixed naming for now ([Q8](../context/OPEN_QUESTIONS.md)); viewer does not invent hierarchy. Product **target** is sketch-like multi-core instruction lanes ([Q4](../context/OPEN_QUESTIONS.md)); until a matching golden exists, render whatever lanes the trace provides (e.g. sample AIV pipe lanes).
+**Row chrome:** only **Card** uses process group-header chrome. Nested folders (`计算`, `CoreN.*`) are **lane-style rows** (22px + chevron + util). Pipe leaves paint events.
+
+**Lane names:** producer / synthetic model supplies explicit nodes ([Q8](../context/OPEN_QUESTIONS.md)); viewer does not invent Card/Core hierarchy from flat `AIV0/PIPE_*` traces. Product **target** is this sketch tree ([Q4](../context/OPEN_QUESTIONS.md)); sample `out.rep` stays thin AIV pipes until a golden arrives. Playground stress presets emit the Card tree.
 
 Reference: `source/v930/entry.jpeg`, `source/v930/hardware-more-detail.jpeg` (expanded Core2.Cube).
 
