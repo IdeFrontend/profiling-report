@@ -1,5 +1,6 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer, SwimlaneViewWindow } from '../domain/types';
 import {
+  BAND_FILL,
   EVENT_RADIUS,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
@@ -12,6 +13,7 @@ import {
   findLaidOutEvent,
   hitTestLayout,
   rebuildLayout,
+  showsProfilerStepBands,
   type SwimlaneLayout,
 } from './layout';
 
@@ -24,12 +26,13 @@ function drawEventLabel(
   h: number,
   viewW: number,
   alpha = 1,
+  color = '#ffffff',
 ): void {
   const anchor = eventLabelAnchor(x, w, viewW);
   if (!anchor) return;
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = color;
   ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -59,6 +62,37 @@ function roundRectPath(
   ctx.closePath();
 }
 
+const EMPTY_LAYOUT: SwimlaneLayout = { lanes: [], headers: [], events: [], bands: [] };
+
+/** Paint ProfilerStep-style bands on folder / spacer group lanes. No-op when bands empty. */
+export function paintGroupBands(
+  ctx: CanvasRenderingContext2D,
+  layout: SwimlaneLayout,
+  view: SwimlaneViewWindow,
+  width: number,
+  height: number,
+): void {
+  const bands = layout.bands;
+  if (!bands.length) return;
+  const span = Math.max(1, view.endTime - view.startTime);
+  for (const lane of layout.lanes) {
+    if (!showsProfilerStepBands(lane)) continue;
+    for (const band of bands) {
+      if (band.startTime + band.duration < view.startTime || band.startTime > view.endTime) {
+        continue;
+      }
+      const x = ((band.startTime - view.startTime) / span) * width;
+      const w = Math.max(2, (band.duration / span) * width);
+      const { y, h } = eventBlockMetrics(lane.y, view.scrollY);
+      if (y + h < 0 || y > height) continue;
+      ctx.fillStyle = BAND_FILL;
+      roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
+      ctx.fill();
+      drawEventLabel(ctx, band.name, x, y, w, h, width, 1, '#555555');
+    }
+  }
+}
+
 /**
  * Canvas2D overlay: labels, selection/hover strokes, cursor.
  * Used on top of WebGL interval fills (hybrid path).
@@ -66,7 +100,7 @@ function roundRectPath(
 export class SwimlaneOverlayPainter {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
-  private layout: SwimlaneLayout = { lanes: [], headers: [], events: [] };
+  private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
@@ -120,6 +154,9 @@ export class SwimlaneOverlayPainter {
     if (!ctx || !this.canvas) return;
     ctx.clearRect(0, 0, this.width, this.height);
 
+    // WebGL draws lane chrome + event fills; overlay adds band fills/labels + event strokes/labels.
+    paintGroupBands(ctx, this.layout, this.view, this.width, this.height);
+
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
@@ -167,7 +204,7 @@ export class SwimlaneOverlayPainter {
   dispose(): void {
     this.canvas = null;
     this.ctx = null;
-    this.layout = { lanes: [], headers: [], events: [] };
+    this.layout = EMPTY_LAYOUT;
   }
 }
 
@@ -175,7 +212,7 @@ export class SwimlaneOverlayPainter {
 export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
-  private layout: SwimlaneLayout = { lanes: [], headers: [], events: [] };
+  private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
@@ -280,6 +317,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.stroke();
     }
 
+    paintGroupBands(ctx, this.layout, this.view, this.width, this.height);
+
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
@@ -334,7 +373,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   dispose(): void {
     this.canvas = null;
     this.ctx = null;
-    this.layout = { lanes: [], headers: [], events: [] };
+    this.layout = EMPTY_LAYOUT;
   }
 }
 
