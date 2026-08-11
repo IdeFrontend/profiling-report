@@ -4,7 +4,7 @@
 |----------------|
 | PR-TOOLBAR-*   |
 
-Top toolbar with search, zoom controls, time unit selector, measure toggle, and aside panel toggle.
+Top toolbar with search, zoom controls, time unit selector, and aside panel toggle. Measure (caliper) toggle is temporarily hidden from chrome.
 
 Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
@@ -26,7 +26,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Time unit switching.** Reformats displayed times across the UI. Control height matches other chrome (`28px`).
 
-**Measure (M2).** Caliper button toggles measure mode; active state reflected in UI (`--on` / playhead blue).
+**Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
@@ -69,7 +69,7 @@ Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v
 | Active (`--on`) | bg `#1e3a5f`; icon/border `#317AF7` |
 | Gap between buttons | `4px` |
 
-Sketch shows **seven** action icons (measure, fit, chart, flag, deps, layers, help). MVP implements measure + fit; remaining icons stay visual-reference until their capabilities land. Time unit matches height `28px`; bg `#2a2a2a`; `border-radius: 4px`; font `12px`.
+Sketch shows **seven** action icons (measure, fit, chart, flag, deps, layers, help). MVP implements fit; measure is temporarily hidden; remaining icons stay visual-reference until their capabilities land. Time unit matches height `28px`; bg `#2a2a2a`; `border-radius: 4px`; font `12px`.
 
 ### Full strip (`visual/toolbar.png`)
 
@@ -83,7 +83,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
 5. **PR-TOOLBAR-005** — Emits `update:timeUnit` on dropdown change.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
-7. **PR-TOOLBAR-007** — Emits `update:measureMode` when measure button clicked.
+7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) is not rendered (temporarily hidden).
 8. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
 
 ## Edge Cases
@@ -101,6 +101,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-11** — Measure caliper toggle temporarily hidden from toolbar chrome.
 - **2026-08-07** — Search/zoom corner radius `4px` (sketch), not capsule `14px`.
 - **2026-08-07** — Visual tokens for search/zoom pills and square icon actions; PR-TOOLBAR-008.
 - **2026-08-07** — Measure mode toggle (M2) on existing toolbar.

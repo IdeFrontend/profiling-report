@@ -241,28 +241,7 @@ const emit = defineEmits<{
         </select>
       </label>
 
-      <button
-        type="button"
-        class="pr-toolbar__icon-btn"
-        data-testid="toggle-measure"
-        :aria-pressed="Boolean(measureMode)"
-        :class="{ 'pr-toolbar__icon-btn--on': measureMode }"
-        :title="t('measure', locale)"
-        @click="emit('update:measureMode', !measureMode)"
-      >
-        <svg
-          class="pr-toolbar__caliper"
-          viewBox="0 0 16 16"
-          width="14"
-          height="14"
-          aria-hidden="true"
-        >
-          <path
-            fill="currentColor"
-            d="M2 2h2v12H2V2zm4 0h1.5v4H8V2h1.5v4H11V2H12.5v5.5H8.5V14H7V7.5H2.5V6H7V2zm7 7h1.5v5H13V9z"
-          />
-        </svg>
-      </button>
+      <!-- Measure toggle temporarily hidden; prop/emit kept for easy restore. -->
 
       <button
         v-if="asideAvailable"
