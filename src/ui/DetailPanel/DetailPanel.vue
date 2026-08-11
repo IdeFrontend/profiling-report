@@ -34,7 +34,7 @@ defineProps<{
   align-items: stretch;
   flex: 0 0 auto;
   min-height: 0;
-  background: #2a2a2a;
+  background: var(--pr-bg-panel, #262626);
   border-top: 1px solid #3a3a3a;
 }
 

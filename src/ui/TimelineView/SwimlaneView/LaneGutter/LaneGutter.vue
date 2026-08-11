@@ -116,7 +116,7 @@ defineExpose({ root });
   scrollbar-width: none;
   -ms-overflow-style: none;
   min-height: 0;
-  background: #262626;
+  background: #1f1f1f;
   border-right: 1px solid #3a3a3a;
   padding: 0;
 }
@@ -138,7 +138,7 @@ defineExpose({ root });
   padding: 0 8px 0 8px;
   border: 0;
   border-bottom: 1px solid #3a3a3a;
-  background: transparent;
+  background: #262626;
   font: inherit;
   font-size: 12px;
   font-weight: 600;

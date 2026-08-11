@@ -291,7 +291,7 @@ const emit = defineEmits<{
   gap: 8px 12px;
   padding: 4px 8px;
   min-height: 36px;
-  background: var(--pr-bg-panel, #303030);
+  background: var(--pr-bg-deep, #1f1f1f);
   border-bottom: 1px solid #3a3a3a;
   flex: 0 0 auto;
 }
@@ -420,10 +420,10 @@ const emit = defineEmits<{
   border-radius: 1px;
   background: linear-gradient(
     to right,
-    #e8e8e8 0%,
-    #e8e8e8 var(--pr-zoom-fill, 50%),
-    #2a2a2a var(--pr-zoom-fill, 50%),
-    #2a2a2a 100%
+    #ffffff 0%,
+    #ffffff var(--pr-zoom-fill, 50%),
+    #1a1a1a var(--pr-zoom-fill, 50%),
+    #1a1a1a 100%
   );
 }
 
@@ -442,13 +442,13 @@ const emit = defineEmits<{
 .pr-toolbar__slider::-moz-range-track {
   height: 2px;
   border-radius: 1px;
-  background: #2a2a2a;
+  background: #1a1a1a;
 }
 
 .pr-toolbar__slider::-moz-range-progress {
   height: 2px;
   border-radius: 1px;
-  background: #e8e8e8;
+  background: #ffffff;
 }
 
 .pr-toolbar__slider::-moz-range-thumb {

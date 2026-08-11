@@ -59,4 +59,28 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
   });
+
+  it('toolbar lives in main column only (not full-width above aside)', () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'toolbar-column',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: {
+          ...emptyReportViewModel(),
+          summary: { opName: 'relu', opType: 'vector', taskDurationUs: 100 },
+        },
+      },
+    });
+    const main = wrapper.find('.pr-main');
+    expect(main.exists()).toBe(true);
+    expect(main.find('[data-testid="report-toolbar"]').exists()).toBe(true);
+    expect(main.find('[data-testid="time-axis"]').exists()).toBe(true);
+    // Toolbar must not be a direct child of root sitting above the layout.
+    const rootChildren = wrapper.find('[data-testid="profiling-report"]').element.children;
+    const directToolbar = [...rootChildren].some(
+      (el) => (el as HTMLElement).dataset?.testid === 'report-toolbar',
+    );
+    expect(directToolbar).toBe(false);
+    expect(wrapper.find('.pr-layout__aside [data-testid="stats-aside"]').exists()).toBe(true);
+  });
 });

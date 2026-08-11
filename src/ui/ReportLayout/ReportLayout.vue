@@ -89,7 +89,6 @@ function onAsideResizePointerUp() {
   gap: 0;
   flex: 1 1 auto;
   min-height: 0;
-  border-top: 1px solid #3a3a3a;
 }
 
 .pr-layout--no-aside {
@@ -102,7 +101,7 @@ function onAsideResizePointerUp() {
   gap: 0;
   min-width: 0;
   min-height: 0;
-  background: var(--pr-bg-panel);
+  background: var(--pr-bg-deep);
   padding: 0;
   border-right: 1px solid #3a3a3a;
   overflow: hidden;

@@ -252,13 +252,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const ctx = this.ctx;
     if (!ctx || !this.canvas) return;
     ctx.clearRect(0, 0, this.width, this.height);
-    ctx.fillStyle = '#252525';
+    ctx.fillStyle = '#1f1f1f';
     ctx.fillRect(0, 0, this.width, this.height);
 
     for (const header of this.layout.headers) {
       const headerTop = header.y - this.view.scrollY;
       if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < this.height) {
-        ctx.fillStyle = '#2a2a2a';
+        ctx.fillStyle = '#1f1f1f';
         ctx.fillRect(0, headerTop, this.width, LANE_GROUP_HEADER_HEIGHT);
         ctx.strokeStyle = '#3a3a3a';
         ctx.beginPath();
@@ -271,7 +271,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const y = this.layout.lanes[i]!.y - this.view.scrollY;
       if (y + LANE_HEIGHT < 0 || y > this.height) continue;
-      ctx.fillStyle = '#2a2a2a';
+      ctx.fillStyle = '#1f1f1f';
       ctx.fillRect(0, y, this.width, LANE_HEIGHT);
       ctx.strokeStyle = '#3a3a3a';
       ctx.beginPath();

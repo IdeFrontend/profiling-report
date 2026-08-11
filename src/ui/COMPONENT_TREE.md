@@ -9,14 +9,15 @@ Folder layout under `src/ui/` mirrors on-screen regions. Leaf folders with `visu
 ```mermaid
 flowchart TB
   root[ProfilingReport]
-  root --> toolbar[ReportToolbar]
   root --> layout[ReportLayout]
   root --> detail[DetailPanel]
   root --> tip[EventTooltip]
   root --> menu[ContextMenu]
   root --> multi[MultiSelectSummary]
-  layout --> timeline[TimelineView]
+  layout --> mainCol[main column]
   layout --> aside[StatsAside]
+  mainCol --> toolbar[ReportToolbar]
+  mainCol --> timeline[TimelineView]
   timeline --> overviewBar[TimeOverviewBar]
   timeline --> timeAxis[TimeAxis]
   timeAxis --> ruler[AxisRuler]
@@ -73,5 +74,6 @@ src/ui/
 ## Notes
 
 - Host IDE chrome (OP/kernel selector, OP算子/源码/详情/缓存 tabs) is out of this library tree.
+- `ReportToolbar` lives in the ReportLayout **main** column (above TimelineView), not as a full-width sibling above the aside.
 - `CanvasSwimlaneRenderer` stays under `src/swimlane/` (imperative backend).
 - Design index: [`docs/ui/DESIGN_INDEX.md`](../../docs/ui/DESIGN_INDEX.md).

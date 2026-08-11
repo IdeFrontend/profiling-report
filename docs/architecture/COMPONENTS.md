@@ -158,7 +158,7 @@ interface SwimlaneRenderer {
 
 ### `CanvasSwimlaneRenderer` (M)
 
-Canvas 2D implementation of `SwimlaneRenderer`. Uniform `#2a2a2a` event-sequence backgrounds (no zebra) with `#3a3a3a` row dividers aligned to the gutter.
+Canvas 2D implementation of `SwimlaneRenderer`. Uniform `#1f1f1f` event-sequence backgrounds (no zebra) with `#3a3a3a` row dividers aligned to the gutter.
 
 **Why:** Adequate for sample-scale traces; ships MVP.
 

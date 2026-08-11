@@ -432,7 +432,7 @@ defineExpose({
   height: 100%;
   min-height: 160px;
   overflow: hidden;
-  background: #1a1a1a;
+  background: #1f1f1f;
 }
 
 .pr-swim-canvas-wrap--measure .pr-swim-canvas {

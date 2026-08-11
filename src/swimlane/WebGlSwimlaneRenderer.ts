@@ -313,7 +313,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     // Uniform lane chrome + 1px dividers aligned with LaneGutter borders (no blend)
     gl.disable(gl.BLEND);
     gl.useProgram(solid.program);
-    const laneBg = 0x2a / 255;
+    const laneBg = 0x1f / 255;
     const divider = 0x3a / 255;
 
     for (const header of this.layout.headers) {

@@ -176,3 +176,15 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     expect(b - a).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('PR-RENDER: lane chrome color', () => {
+  it('PR-RENDER-011: Canvas + WebGL lane fills use #1f1f1f', async () => {
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc).toMatch(/fillStyle\s*=\s*'#1f1f1f'/);
+    expect(canvasSrc.match(/fillStyle\s*=\s*'#1f1f1f'/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(webglSrc).toMatch(/laneBg\s*=\s*0x1f\s*\/\s*255/);
+  });
+});

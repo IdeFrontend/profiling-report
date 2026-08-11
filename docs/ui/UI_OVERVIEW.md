@@ -19,18 +19,18 @@ Primary overview sketches: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `
 ## Layout regions (Timeline)
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Secondary tabs │ Toolbar (search, zoom, toggles)                        │
-├────────────┬─────────────────────────────────────────────┬───────────────┤
-│            │  Time axis + playhead                       │               │
-│  Lane      │  Cube / Vector overview charts              │  Right        │
-│  hierarchy │─────────────────────────────────────────────│  analytics    │
-│  + util %  │  Swimlane event blocks                      │  panel        │
-│            │                                             │               │
-├────────────┴─────────────────────────────────────────────┴───────────────┤
-│  Bottom details (on selection) — Phase 2 layout; MVP may use side strip  │
-└──────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────┬──────────────────┐
+│  Toolbar (search, zoom, …)    │  Right analytics │
+├──────────┬────────────────────┤  panel (full     │
+│  Lane    │  Time axis         │  height)         │
+│  gutter  │  Overview charts   │                  │
+│  + util  │  Swimlane events   │                  │
+├──────────┴────────────────────┴──────────────────┤
+│  Bottom details (on selection) — Phase 2         │
+└──────────────────────────────────────────────────┘
 ```
+
+Toolbar sits **only** above the timeline (main column). StatsAside starts at the top of the right column, flush with the toolbar.
 
 ### 1. Toolbar
 
