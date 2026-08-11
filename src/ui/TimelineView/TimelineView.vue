@@ -209,7 +209,7 @@ defineExpose({
     <div
       v-if="showOverviewCharts"
       data-testid="overview-charts"
-      class="pr-overview"
+      class="pr-overview-charts"
     >
       Overview charts
     </div>
@@ -282,7 +282,7 @@ defineExpose({
   border-bottom: 1px solid #4a4a4a;
 }
 
-.pr-overview {
+.pr-overview-charts {
   flex: 0 0 auto;
   padding: 8px 12px;
   color: #888;
