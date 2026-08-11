@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import type { TimeDisplayUnit } from '../../domain/types';
 import { t } from '../../i18n';
 
@@ -23,6 +24,16 @@ const emit = defineEmits<{
   'zoom-out': [];
   'update:zoomPercent': [value: number];
 }>();
+
+const displayControlOpen = ref(false);
+
+function toggleDisplayControl() {
+  displayControlOpen.value = !displayControlOpen.value;
+}
+
+function closeDisplayControl() {
+  displayControlOpen.value = false;
+}
 </script>
 
 <template>
@@ -228,20 +239,82 @@ const emit = defineEmits<{
         </svg>
       </button>
 
-      <label class="pr-toolbar__unit">
-        <span class="pr-toolbar__sr">{{ t('timeUnit', locale) }}</span>
-        <select
-          data-testid="time-unit"
-          :value="timeUnit"
-          @change="emit('update:timeUnit', ($event.target as HTMLSelectElement).value as TimeDisplayUnit)"
-        >
-          <option value="ms">ms</option>
-          <option value="us">µs</option>
-          <option value="ns">ns</option>
-        </select>
-      </label>
-
       <!-- Measure toggle temporarily hidden; prop/emit kept for easy restore. -->
+
+      <div class="pr-toolbar__display-wrap">
+        <button
+          type="button"
+          class="pr-toolbar__icon-btn"
+          data-testid="toggle-display-control"
+          :aria-expanded="displayControlOpen"
+          :aria-pressed="displayControlOpen"
+          :class="{ 'pr-toolbar__icon-btn--on': displayControlOpen }"
+          :title="t('displayControl', locale)"
+          @click="toggleDisplayControl"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            aria-hidden="true"
+          >
+            <path
+              d="M2 5.5L8 2.5l6 3-6 3-6-3z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M2 8l6 3 6-3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M2 10.5l6 3 6-3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+
+        <div
+          v-if="displayControlOpen"
+          class="pr-toolbar__display-control"
+          data-testid="display-control"
+          role="dialog"
+          :aria-label="t('displayControl', locale)"
+        >
+          <div class="pr-toolbar__display-head">
+            <span class="pr-toolbar__display-title">{{ t('displayControl', locale) }}</span>
+            <button
+              type="button"
+              class="pr-toolbar__display-close"
+              data-testid="display-control-close"
+              :title="t('closePanel', locale)"
+              @click="closeDisplayControl"
+            >
+              ×
+            </button>
+          </div>
+          <label class="pr-toolbar__display-field">
+            <span class="pr-toolbar__display-label">{{ t('taskDisplayUnit', locale) }}</span>
+            <select
+              data-testid="time-unit"
+              :value="timeUnit"
+              @change="emit('update:timeUnit', ($event.target as HTMLSelectElement).value as TimeDisplayUnit)"
+            >
+              <option value="ms">ms</option>
+              <option value="us">µs</option>
+              <option value="ns">ns</option>
+            </select>
+          </label>
+        </div>
+      </div>
 
       <button
         v-if="asideAvailable"
@@ -333,6 +406,7 @@ const emit = defineEmits<{
 }
 
 .pr-toolbar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -495,22 +569,86 @@ const emit = defineEmits<{
   display: block;
 }
 
-.pr-toolbar__unit {
-  display: flex;
-  align-items: center;
-  height: var(--pr-toolbar-h);
+.pr-toolbar__display-wrap {
+  position: relative;
+  display: inline-flex;
 }
 
-.pr-toolbar__unit select {
+.pr-toolbar__display-control {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
   box-sizing: border-box;
-  height: var(--pr-toolbar-h);
-  padding: 0 8px;
+  min-width: 240px;
+  padding: 20px 22px 22px;
+  background: #363636;
+  border: 1px solid #5e5e5e;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.pr-toolbar__display-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.pr-toolbar__display-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.pr-toolbar__display-close {
+  appearance: none;
+  margin: 0;
+  padding: 0 2px;
   border: 0;
-  border-radius: 4px;
-  background: #2a2a2a;
-  color: #e0e0e0;
+  background: transparent;
+  color: #e6e6e6;
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pr-toolbar__display-close:hover {
+  color: #ffffff;
+}
+
+.pr-toolbar__display-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pr-toolbar__display-label {
+  font-size: 12px;
+  color: #b2b2b2;
+  line-height: 1.2;
+}
+
+.pr-toolbar__display-field select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 0 28px 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background-color: #404040;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='%23c8c8c8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  color: #ffffff;
   font-size: 12px;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .pr-toolbar__sr {

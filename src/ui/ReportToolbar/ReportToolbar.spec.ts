@@ -36,11 +36,18 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('zoom-to-fit')).toBeTruthy();
   });
 
-  it('PR-TOOLBAR-005: emits update:timeUnit when unit is changed', async () => {
+  it('PR-TOOLBAR-005: layers opens display control; unit select emits update:timeUnit', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
+    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
+
+    await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
     const select = wrapper.find('[data-testid="time-unit"]');
+    expect(select.exists()).toBe(true);
     await select.setValue('us');
     expect(wrapper.emitted('update:timeUnit')).toEqual([['us']]);
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
   });
 
   it('PR-TOOLBAR-006: emits update:asideVisible when aside toggle is clicked', async () => {
@@ -72,5 +79,29 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/#1a1a1a\s+var\(--pr-zoom-fill/); // unfilled webkit
     expect(src).toMatch(/::-moz-range-track[\s\S]*?background:\s*#1a1a1a/);
     expect(src).toMatch(/::-moz-range-progress[\s\S]*?background:\s*#ffffff/);
+  });
+
+  it('PR-TOOLBAR-009b: display-control popover uses sketch surface tokens', async () => {
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-toolbar__display-control[\s\S]*?background:\s*#363636/);
+    expect(src).toMatch(/\.pr-toolbar__display-control[\s\S]*?border-radius:\s*12px/);
+    expect(src).toMatch(/\.pr-toolbar__display-control[\s\S]*?border:\s*1px solid #5e5e5e/);
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?background-color:\s*#404040/);
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?border-radius:\s*6px/);
+  });
+
+  it('PR-TOOLBAR-010: display control closes via X or layers toggle', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const btn = wrapper.find('[data-testid="toggle-display-control"]');
+    await btn.trigger('click');
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
+
+    await wrapper.find('[data-testid="display-control-close"]').trigger('click');
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
+
+    await btn.trigger('click');
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
+    await btn.trigger('click');
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
   });
 });
