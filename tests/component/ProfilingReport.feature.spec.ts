@@ -138,6 +138,9 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="toggle-display-control"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="toggle-display-control"]').trigger('click');
     expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(true);
   });
 

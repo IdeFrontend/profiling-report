@@ -4,13 +4,13 @@
 |----------------|
 | PR-TOOLBAR-*   |
 
-Top toolbar with search, zoom controls, time unit selector, and aside panel toggle. Measure (caliper) toggle is temporarily hidden from chrome.
+Top toolbar with search, zoom controls, display-control popover (task display unit), and aside panel toggle. Measure (caliper) toggle is temporarily hidden from chrome.
 
 Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeUnit** sets the dropdown selection (ms/µs/ns), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
 
 ## Outputs
 
@@ -24,7 +24,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Aside toggle.** Visible only when `asideAvailable` is true. Square icon button with panel SVG.
 
-**Time unit switching.** Reformats displayed times across the UI. Control height matches other chrome (`28px`).
+**Display control (time unit).** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with section **任务显示单位** and a dropdown (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)). Toggle the button or click **X** to close; leave open after unit change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode.
 
 **Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
 
@@ -78,7 +78,27 @@ Lives in the **main** column only (above the timeline), not spanning the StatsAs
 | Active (`--on`) | bg `#1e3a5f`; icon/border `#317AF7` |
 | Gap between buttons | `4px` |
 
-Sketch shows **seven** action icons (measure, fit, chart, flag, deps, layers, help). MVP implements fit; measure is temporarily hidden; remaining icons stay visual-reference until their capabilities land. Time unit matches height `28px`; bg `#2a2a2a`; `border-radius: 4px`; font `12px`.
+Sketch shows **seven** action icons (measure, fit, chart, flag, deps, layers, help). MVP implements fit + **layers → 显示控制**; measure is temporarily hidden; remaining icons stay visual-reference until their capabilities land.
+
+### Display control popover
+
+Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardware-more-detail.jpeg), [`visual/display-control.png`](./visual/display-control.png).
+
+| Token | Value |
+|-------|--------|
+| Trigger | Layers (stacked diamonds) SVG; `aria-expanded`; `--on` when open |
+| Panel bg | `#363636` |
+| Panel border | `1px solid #5e5e5e` |
+| Panel radius | `12px` |
+| Panel padding | `20px 22px 22px` |
+| Shadow | soft `0 6px 20px rgba(0,0,0,0.55)` |
+| Title | `13px` / `600` / `#ffffff` |
+| Close | thin `#e6e6e6` × |
+| Section label | `12px` / `#b2b2b2` |
+| Select bg | `#404040` |
+| Select radius | `6px` |
+| Select height | `32px`; text `#ffffff`; custom chevron (no native arrow) |
+| Options (MVP) | ms / µs / ns ([I-Q14](../../../docs/context/INTERIM_DECISIONS.md); sketch may show 时钟周期) |
 
 ### Full strip (`visual/toolbar.png`)
 
@@ -90,16 +110,18 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 2. **PR-TOOLBAR-002** — Emits zoom-in on button click.
 3. **PR-TOOLBAR-003** — Emits `zoom-out` on button click.
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
-5. **PR-TOOLBAR-005** — Emits `update:timeUnit` on dropdown change.
+5. **PR-TOOLBAR-005** — Layers button opens 显示控制; `time-unit` select inside emits `update:timeUnit` on change; select is not visible until popover open.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
 7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) is not rendered (temporarily hidden).
 8. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
 9. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
+10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
 
 ## Edge Cases
 
 - asideAvailable=false → toggle button hidden.
 - Search query initially empty, user types to filter.
+- Popover closed → `time-unit` not in DOM (or not visible).
 
 ## Design sketches
 
@@ -107,10 +129,14 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [search](./visual/search.png) — from `v930/entry`
 - [zoom](./visual/zoom.png) — from `v930/entry`
 - [actions](./visual/actions.png) — all seven icons from `v930/entry`
+- [display-control](./visual/display-control.png) — from `v930/hardware-more-detail`
 - [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
+- [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-11** — Display-control popover tokens from sketch: panel `#363636` / radius `12px` / border `#5e5e5e`; select `#404040` / radius `6px`.
+- **2026-08-11** — Time unit via layers → 显示控制 popover (not inline select); PR-TOOLBAR-005/010.
 - **2026-08-11** — Strip `#1f1f1f`; zoom track filled `#ffffff` / unfilled `#1a1a1a`; toolbar main-column only.
 - **2026-08-11** — Measure caliper toggle temporarily hidden from toolbar chrome.
 - **2026-08-07** — Search/zoom corner radius `4px` (sketch), not capsule `14px`.
