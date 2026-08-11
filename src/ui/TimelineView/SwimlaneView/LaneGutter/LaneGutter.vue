@@ -118,7 +118,7 @@ defineExpose({ root });
   min-height: 0;
   background: #262626;
   border-right: 1px solid #3a3a3a;
-  padding: 0 8px 0 0;
+  padding: 0;
 }
 
 .pr-gutter::-webkit-scrollbar {
