@@ -201,6 +201,7 @@ function onViewAll() {
   border-bottom: 1px solid #3a3a3a;
   overflow-x: auto;
   scrollbar-width: none;
+  flex-shrink: 0;
 }
 
 .pr-csv__tabs::-webkit-scrollbar {
@@ -231,15 +232,19 @@ function onViewAll() {
 
 .pr-csv__toolbar {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 8px 0;
+  flex-shrink: 0;
 }
 
 .pr-csv__search {
   position: relative;
   display: block;
-  width: 100%;
+  flex: 1 1 140px;
+  min-width: 0;
 }
 
 .pr-csv__search-icon {
@@ -315,6 +320,8 @@ function onViewAll() {
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: min(520px, 60vh);
   overflow: auto;
   border-top: 1px solid #333;

@@ -433,7 +433,9 @@ function backToModes() {
   flex-direction: column;
   gap: 10px;
   flex: 1 1 auto;
+  box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: auto;
   background: var(--pr-bg-panel);
@@ -677,7 +679,7 @@ function backToModes() {
 
 .pr-pipe-scale {
   display: grid;
-  grid-template-columns: 72px 1fr 36px;
+  grid-template-columns: 72px minmax(0, 1fr) minmax(40px, auto);
   gap: 8px;
   margin-bottom: 4px;
   font-size: 10px;
@@ -700,7 +702,7 @@ function backToModes() {
 
 .pr-pipe-row {
   display: grid;
-  grid-template-columns: 72px 1fr 36px;
+  grid-template-columns: 72px minmax(0, 1fr) minmax(40px, auto);
   gap: 8px;
   align-items: center;
 }
@@ -742,7 +744,6 @@ function backToModes() {
   min-width: 2px;
   padding: 0 4px;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 .pr-pipe-row__abs {
