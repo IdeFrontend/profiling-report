@@ -68,7 +68,10 @@ function fillColor(util: number): string {
           background: fillColor(lane.utilization),
         }"
       />
-      <span class="pr-gutter__util-pct">{{ pctLabel(lane.utilization) }}</span>
+      <span
+        v-if="utilSizeClass === 'pr-gutter__util--thick'"
+        class="pr-gutter__util-pct"
+      >{{ pctLabel(lane.utilization) }}</span>
     </span>
     <span
       v-else
@@ -110,7 +113,10 @@ function fillColor(util: number): string {
           background: fillColor(lane.utilization),
         }"
       />
-      <span class="pr-gutter__util-pct">{{ pctLabel(lane.utilization) }}</span>
+      <span
+        v-if="utilSizeClass === 'pr-gutter__util--thick'"
+        class="pr-gutter__util-pct"
+      >{{ pctLabel(lane.utilization) }}</span>
     </span>
     <span
       v-else

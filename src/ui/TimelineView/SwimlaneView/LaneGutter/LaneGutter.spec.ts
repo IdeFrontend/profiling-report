@@ -162,6 +162,7 @@ describe('LaneGutter', () => {
     ).toContain('pr-gutter__util--thick');
     const leafUtil = wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-util"]');
     expect(leafUtil.classes()).toContain('pr-gutter__util--thin');
+    expect(leafUtil.find('.pr-gutter__util-pct').exists()).toBe(false);
     expect(leafUtil.find('.pr-gutter__util-fill').attributes('style')).toContain(
       'background: #733234',
     );
