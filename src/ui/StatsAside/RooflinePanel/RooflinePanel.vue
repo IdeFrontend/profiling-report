@@ -276,7 +276,7 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__point--hollow {
-  fill: var(--pr-bg-panel, #303030);
+  fill: var(--pr-bg-panel, #262626);
   stroke-width: 2;
 }
 

@@ -34,7 +34,7 @@ Each group corresponds to a process; lanes correspond to threads. Group headers 
 | Group label | `12px` / weight `600` / `#e8e8e8`; row height `28px` (`LANE_GROUP_HEADER_HEIGHT`). |
 | Lane label | `11px` / weight `400` / `#b0b0b0`; row height `22px` (`LANE_HEIGHT`); truncated with ellipsis. |
 | Separators | `1px` rule under group header and under each lane (`#3a3a3a` / `#333`). |
-| Gutter surface | Background `#262626`; right border `1px solid #3a3a3a`. |
+| Gutter surface | Lane rows `#1f1f1f` (`--pr-bg-deep`); group headers `#262626` (`--pr-bg-panel`); right border `1px solid #3a3a3a`. |
 
 Clicking the **group** header toggles expand/collapse (`aria-expanded`). Collapse hides child lanes; parent must sync the canvas model so row heights stay aligned.
 
@@ -72,7 +72,7 @@ Each lane optionally shows a utilization bar with the percentage **inside, right
 | Group row | height `28px`; pad-left `8px`; label **12px / 600 / `#e8e8e8`** |
 | Lane row | height `22px`; pad-left `24px`; label **11px / 400 / `#b0b0b0`** |
 | Separators | `1px solid #333` under each lane; `#3a3a3a` under group header |
-| Gutter bg | `#262626`; right border `#3a3a3a` |
+| Gutter bg | Lane rows `#1f1f1f`; group headers `#262626`; right border `#3a3a3a` |
 | Interaction | Group header click → `toggle-group`; no chevron control on leaf lanes |
 
 ## Acceptance Criteria
@@ -109,6 +109,7 @@ Each lane optionally shows a utilization bar with the percentage **inside, right
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (PipeUtilization.csv feeds lane utilization via pipe color matching).
 
 ## Changelog
+- **2026-08-11** — Gutter lane bg `#1f1f1f`; group headers `#262626` (sketch-sampled surfaces).
 - **2026-08-07** — Row bottom borders align with swimlane horizontal dividers (`#3a3a3a`).
 - **2026-08-07** — Util bar: radius 2px, diagonal hatch unfilled, % color `#b0b0b0`.
 - **2026-08-07** — Leaf lanes: no expander chevron (only groups / nodes with children).

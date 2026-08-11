@@ -3,8 +3,8 @@
  */
 :root,
 .pr-root {
-  --pr-bg-panel: #303030;
-  --pr-bg-deep: #202830;
+  --pr-bg-panel: #262626;
+  --pr-bg-deep: #1f1f1f;
   --pr-playhead: #3078f0;
   --pr-color-cube: #007084;
   --pr-color-vector: #007464;

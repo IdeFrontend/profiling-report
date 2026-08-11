@@ -379,6 +379,7 @@ defineExpose({ selectEventById, viewState });
     :data-capabilities="(capabilities ?? []).join(',')"
   >
     <ReportToolbar
+      v-if="!showTimeline"
       :title="title"
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
@@ -420,6 +421,24 @@ defineExpose({ selectEventById, viewState });
       @update:aside-width="asideWidth = $event"
     >
       <template #main>
+        <ReportToolbar
+          :title="title"
+          :search-query="viewState.searchQuery"
+          :aside-visible="viewState.asideVisible"
+          :aside-available="asideAvailable"
+          :zoom-percent="zoomPercent"
+          :time-unit="unit"
+          :locale="locale"
+          :measure-mode="viewState.measureMode"
+          @update:search-query="onSearch"
+          @update:aside-visible="onAside"
+          @update:time-unit="onTimeUnit"
+          @update:zoom-percent="onZoomPercent"
+          @update:measure-mode="onMeasureMode"
+          @zoom-to-fit="onZoomToFit"
+          @zoom-in="onZoomIn"
+          @zoom-out="onZoomOut"
+        />
         <TimelineView
           ref="timelineRef"
           :bounds="bounds"

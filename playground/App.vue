@@ -268,7 +268,7 @@ body,
 #app {
   margin: 0;
   height: 100%;
-  background: #202830;
+  background: #1f1f1f;
   color: #ddd;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }

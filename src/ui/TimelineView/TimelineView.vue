@@ -274,7 +274,7 @@ defineExpose({
 
 .pr-gutter--axis-spacer {
   border-bottom: 1px solid #3a3a3a;
-  background: #2a2a2a;
+  background: #1f1f1f;
   border-right: 1px solid #3a3a3a;
 }
 

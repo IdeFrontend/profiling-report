@@ -34,6 +34,15 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg) (device px @ dump resolution). Control height **~28–29 px** CSS.
 
+Lives in the **main** column only (above the timeline), not spanning the StatsAside — see [ReportLayout](../ReportLayout/ReportLayout.spec.md).
+
+### Strip
+
+| Token | Value |
+|-------|--------|
+| Background | `#1f1f1f` (`--pr-bg-deep`) |
+| Border | `1px solid #3a3a3a` bottom |
+
 ### Search (`visual/search.png`)
 
 | Token | Value |
@@ -54,7 +63,7 @@ Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v
 | Container | Single control, height `28px`, `border-radius: 4px`, bg `#363636` |
 | Zoom out / in | Magnifying-glass SVGs with − / + inside (not bare ± text); `16×16`, color `#c8c8c8` |
 | Buttons | Transparent, no separate square border; padding `4px 6px` |
-| Slider | Width ~`100px`; track height `2px`; filled (left) `#e8e8e8`; unfilled `#2a2a2a`; thumb `10px` circle `#c8c8c8` |
+| Slider | Width ~`100px`; track height `2px`; filled (left) `#ffffff`; unfilled `#1a1a1a`; thumb `10px` circle `#c8c8c8` |
 | Gap | `4px` between icon / slider / icon inside pill |
 
 ### Action icon buttons (`visual/actions.png`)
@@ -85,6 +94,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
 7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) is not rendered (temporarily hidden).
 8. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
+9. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
 
 ## Edge Cases
 
@@ -101,6 +111,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-11** — Strip `#1f1f1f`; zoom track filled `#ffffff` / unfilled `#1a1a1a`; toolbar main-column only.
 - **2026-08-11** — Measure caliper toggle temporarily hidden from toolbar chrome.
 - **2026-08-07** — Search/zoom corner radius `4px` (sketch), not capsule `14px`.
 - **2026-08-07** — Visual tokens for search/zoom pills and square icon actions; PR-TOOLBAR-008.

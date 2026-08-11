@@ -62,4 +62,15 @@ describe('ReportToolbar', () => {
     expect(wrapper.find('[data-testid="zoom-in"] svg').exists()).toBe(true);
     expect(wrapper.find('[data-testid="zoom-to-fit"] svg').exists()).toBe(true);
   });
+
+  it('PR-TOOLBAR-009: strip/search/zoom surface colors match sketch tokens', async () => {
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-chrome[\s\S]*?background:\s*var\(--pr-bg-deep/);
+    expect(src).toMatch(/\.pr-toolbar__search input[\s\S]*?background:\s*#2a2a2a/);
+    expect(src).toMatch(/\.pr-toolbar__zoom-pill[\s\S]*?background:\s*#363636/);
+    expect(src).toMatch(/#ffffff\s+0%/); // filled track
+    expect(src).toMatch(/#1a1a1a\s+var\(--pr-zoom-fill/); // unfilled webkit
+    expect(src).toMatch(/::-moz-range-track[\s\S]*?background:\s*#1a1a1a/);
+    expect(src).toMatch(/::-moz-range-progress[\s\S]*?background:\s*#ffffff/);
+  });
 });

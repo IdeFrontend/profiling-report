@@ -8,10 +8,21 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 
 | Token | Hex | Notes |
 |-------|-----|-------|
-| `--pr-bg-panel` | `#303030` | Dominant panel / gutter fill |
-| `--pr-bg-deep` | `#202830` | Deeper IDE chrome |
+| `--pr-bg-deep` | `#1F1F1F` | Main report / timeline / gutter lanes / toolbar strip / canvas |
+| `--pr-bg-panel` | `#262626` | Elevated chrome: aside, cards, detail dock, gutter group headers |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
 | `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card decorative bar (report-stats cyan) |
+
+### Toolbar controls (hardcoded; not CSS vars)
+
+| Surface | Hex | Notes |
+|---------|-----|-------|
+| Search pill fill | `#2A2A2A` | [`ReportToolbar`](../../src/ui/ReportToolbar/ReportToolbar.spec.md) |
+| Zoom pill fill | `#363636` | Compound zoom control |
+| Zoom track filled | `#FFFFFF` | Left of thumb |
+| Zoom track unfilled | `#1A1A1A` | Right of thumb |
+
+Lane event-sequence fill matches `--pr-bg-deep` (`#1F1F1F`).
 
 ## PIPE occupancy + category keys
 
@@ -53,7 +64,8 @@ Sampled primarily from PIPE bars in `source/v930/entry.jpeg` (bottom-right), ord
   --pr-color-overview-cube: #3078f0;
   --pr-color-duration-bar: #5ec8d8;
   --pr-color-playhead: #3078f0;
-  --pr-bg-panel: #303030;
+  --pr-bg-deep: #1f1f1f;
+  --pr-bg-panel: #262626;
 }
 ```
 
