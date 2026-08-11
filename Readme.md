@@ -59,7 +59,15 @@ Redeploys on every push to `master` (and PR previews) via Vercel Git on the **ID
 
 ## Status
 
-Library timeline MVP (engineering milestones 1–4) is green on `master` (`npm run ci`). Delivery roadmap to full UI: **[docs/process/roadmap/](docs/process/roadmap/)** — next is [Milestone 1](docs/process/roadmap/milestone-1.md) (demo-data aside modes, target **2026-08-11**). Interim product defaults: [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md). See [specs/README.md](specs/README.md) for the spec index and `npm run check:specs` for traceability validation.
+Library timeline MVP (engineering milestones 1–4) is green on `master` (`npm run ci`).
+
+**[Delivery Milestone 1](docs/process/roadmap/milestone-1.md) (demo-data aside modes) — completed 2026-08-11.** All `out.rep` CSV embeds are parsed and surfaced in the aside panel: Summary (op name/type/duration/freq), PIPE occupancy with Cube|Vector toggle for MIX ops, compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio), and memory tabs (L0 / L2Cache / L1 / UB) with block switcher and CSV export. Swimlane functionality preserved. Specs, adapters, domain types, UI components, i18n, and tests are complete.
+
+**[Milestone 1 progress report](docs/process/roadmap/M1_PROGRESS.md)** — full inventory of completed tasks, tests, and design decisions.
+
+**Next:** [Milestone 2](docs/process/roadmap/milestone-2.md) — MSTT host + selection/deps + details + memory graph + roofline + timeline time-range measure, target **2026-08-25**.
+
+Interim product defaults: [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md). See [specs/README.md](specs/README.md) for the spec index and `npm run check:specs` for traceability validation.
 
 ```bash
 npm install
