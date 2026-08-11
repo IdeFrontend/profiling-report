@@ -113,4 +113,20 @@ describe('PR-STRESS: generateStressSwimlane', () => {
     expect(collapsed.has('card1/Core0.Vec0')).toBe(true);
     expect(Array.isArray(model.metadata?.defaultCollapsedIds)).toBe(true);
   });
+
+  it('PR-STRESS-008: stress emits ProfilerStep bands by preset', () => {
+    const small = generateStressSwimlane({}, 'small');
+    const medium = generateStressSwimlane({}, 'medium');
+    const large = generateStressSwimlane({}, 'large');
+    expect(small.bands?.map((b) => b.name)).toEqual([
+      'ProfilerStep#1',
+      'ProfilerStep#2',
+      'ProfilerStep#3',
+    ]);
+    expect(medium.bands).toHaveLength(5);
+    expect(large.bands).toHaveLength(8);
+    expect(medium.bands![0]!.startTime).toBe(0);
+    const last = medium.bands![medium.bands!.length - 1]!;
+    expect(last.startTime + last.duration).toBe(medium.maxTime);
+  });
 });

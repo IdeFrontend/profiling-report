@@ -11,6 +11,7 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
     expect(adapted.reportModel.overviewSeries).toEqual([]);
     expect(adapted.swimlaneModel.processes[0]?.threads[0]?.utilization).toBeUndefined();
+    expect(adapted.swimlaneModel.bands).toBeUndefined();
   });
 
   it('PR-JSON-002: loadReportSource still accepts .rep bytes', () => {

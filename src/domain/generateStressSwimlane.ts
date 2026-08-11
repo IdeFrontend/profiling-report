@@ -1,4 +1,4 @@
-import type { SwimEvent, SwimlaneModel, SwimProcess, SwimThread } from './types';
+import type { SwimEvent, SwimlaneBand, SwimlaneModel, SwimProcess, SwimThread } from './types';
 import { collectLeafEventsFromModel, countLeafThreads, isFolderNode } from './swimTree';
 
 /** Sketch pipe children under each Core. */
@@ -45,8 +45,8 @@ type ShapeSpec = {
   eventsPerPipe: number;
 };
 
-const PRESETS: Record<StressSwimlanePreset, ShapeSpec> = {
-  /** 1 Card × (9 Cube + 4 Vec0) × 500 = 6_500 — bump Cube events to hit ~8.5k */
+const PRESETS: Record<StressSwimlanePreset, ShapeSpec & { bandCount: number }> = {
+  /** 1 Card × (9 Cube + 4 Vec0) × 654 = 8_502 */
   small: {
     cards: 1,
     cores: [
@@ -55,6 +55,7 @@ const PRESETS: Record<StressSwimlanePreset, ShapeSpec> = {
     ],
     /** 13 leaves × 654 = 8_502 (CI-friendly ~8.5k). */
     eventsPerPipe: 654,
+    bandCount: 3,
   },
   /** 2 × 3 × 9 × 6000 = 324_000 */
   medium: {
@@ -65,6 +66,7 @@ const PRESETS: Record<StressSwimlanePreset, ShapeSpec> = {
       { name: 'Core0.Vec1', pipes: STRESS_PIPE_NAMES },
     ],
     eventsPerPipe: 6_000,
+    bandCount: 5,
   },
   /** 2 × 6 × 9 × 6667 = 720_036 */
   large: {
@@ -78,6 +80,7 @@ const PRESETS: Record<StressSwimlanePreset, ShapeSpec> = {
       { name: 'Core2.Vec0', pipes: STRESS_PIPE_NAMES },
     ],
     eventsPerPipe: 6_667,
+    bandCount: 8,
   },
 };
 
@@ -220,6 +223,26 @@ function buildCard(
 }
 
 /**
+ * Contiguous ProfilerStep slabs covering [0, timeSpanNs). Deterministic (no PRNG).
+ */
+function buildProfilerStepBands(count: number, timeSpanNs: number): SwimlaneBand[] {
+  if (count <= 0 || timeSpanNs <= 0) return [];
+  const bands: SwimlaneBand[] = [];
+  const step = Math.floor(timeSpanNs / count);
+  for (let i = 0; i < count; i++) {
+    const startTime = i * step;
+    const end = i === count - 1 ? timeSpanNs : (i + 1) * step;
+    bands.push({
+      id: `band-step-${i + 1}`,
+      name: `ProfilerStep#${i + 1}`,
+      startTime,
+      duration: Math.max(1, end - startTime),
+    });
+  }
+  return bands;
+}
+
+/**
  * Ids to collapse so first paint matches sketches:
  * Card open, 计算 open, Core0.Cube open; other Cores collapsed.
  */
@@ -260,6 +283,7 @@ export function generateStressSwimlane(
     processes,
     minTime: 0,
     maxTime: timeSpanNs,
+    bands: buildProfilerStepBands(shape.bandCount, timeSpanNs),
     metadata: {
       synthetic: true,
       stress: true,

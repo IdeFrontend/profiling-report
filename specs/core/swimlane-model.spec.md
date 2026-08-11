@@ -7,7 +7,13 @@
 Canonical types and Chrome Trace conversion logic for timeline data driving the swimlane renderer.
 
 ```ts
-interface SwimlaneModel { processes: SwimProcess[]; minTime: number; maxTime: number; }
+interface SwimlaneModel {
+  processes: SwimProcess[];
+  minTime: number;
+  maxTime: number;
+  bands?: SwimlaneBand[]; // optional ProfilerStep-style phase bands; omit when absent
+}
+interface SwimlaneBand { id: string; name: string; startTime: number; duration: number }
 interface SwimProcess  { id: string; name: string; utilization?: number; threads: SwimThread[]; }
 interface SwimThread   {
   id: string;
@@ -20,6 +26,8 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 ```
 
 **Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). Only `SwimProcess` (Card) uses group-header chrome.
+
+**Bands:** optional shared phase intervals painted on folder/spacer group rows when present. Chrome Trace / `.rep` adapters leave `bands` undefined (never invent). Stress fixtures may supply `ProfilerStep#N` bands.
 
 ## Unit contract
 
@@ -58,5 +66,6 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-08-11** — Optional `SwimlaneBand[]` on model; adapters omit; stress may supply.
 - **2026-08-11** — Optional `SwimThread.children`; folder vs leaf rules; CTEF stays flat.
 - **2026-08-05** — Initial spec. Core behaviors established.

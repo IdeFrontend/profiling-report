@@ -1,4 +1,4 @@
-import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
+import type { SwimEvent, SwimlaneBand, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
 import { walkVisibleRows } from '../domain/swimTree';
 
@@ -8,6 +8,8 @@ export const LANE_PAD_Y = 3;
 export const LANE_GROUP_HEADER_HEIGHT = 28;
 /** Corner radius for event blocks (Canvas fills/strokes + WebGL SDF fills). */
 export const EVENT_RADIUS = 5;
+/** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */
+export const BAND_FILL = '#2c2c2c';
 
 /** Max quads per mesh (ushort indices: 65536 / 4 vertices). */
 export const MAX_QUADS_PER_MESH = 0x1_00_00 / 4;
@@ -39,6 +41,13 @@ export interface SwimlaneLayout {
   lanes: FlatLane[];
   headers: GroupHeader[];
   events: LaidOutEvent[];
+  /** Shared phase bands; empty when model omits them. */
+  bands: SwimlaneBand[];
+}
+
+/** Folder rows and depth-0 spacer leaves (通信 / 储存HBM) show ProfilerStep bands. */
+export function showsProfilerStepBands(lane: FlatLane): boolean {
+  return lane.folder === true || (lane.depth === 0 && lane.thread.events.length === 0);
 }
 
 export function contentHeightFromLayout(layout: SwimlaneLayout): number {
@@ -69,7 +78,8 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   const lanes: FlatLane[] = [];
   const headers: GroupHeader[] = [];
   const events: LaidOutEvent[] = [];
-  if (!model) return { lanes, headers, events };
+  const bands = model?.bands ?? [];
+  if (!model) return { lanes, headers, events, bands };
 
   let y = 0;
   for (const row of walkVisibleRows(model)) {
@@ -92,7 +102,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     }
     y += LANE_HEIGHT;
   }
-  return { lanes, headers, events };
+  return { lanes, headers, events, bands };
 }
 
 /** Event block height and Y, vertically centered in the lane between row dividers. */

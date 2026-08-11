@@ -12,6 +12,7 @@ import {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   rebuildLayout,
+  showsProfilerStepBands,
 } from '../../src/swimlane/layout';
 
 function nestedModel(): SwimlaneModel {
@@ -113,5 +114,21 @@ describe('swimTree + nested layout', () => {
     const events = collectLeafEventsFromModel(nestedModel());
     expect(events.map((e) => e.id).sort()).toEqual(['e1', 'e2']);
     expect(countLeafThreads(nestedModel().processes[0]!.threads)).toBe(4);
+  });
+
+  it('rebuildLayout carries bands and showsProfilerStepBands for folders/spacers', () => {
+    const model = {
+      ...nestedModel(),
+      bands: [
+        { id: 'b1', name: 'ProfilerStep#1', startTime: 0, duration: 500 },
+      ],
+    };
+    const layout = rebuildLayout(model);
+    expect(layout.bands).toHaveLength(1);
+    expect(layout.lanes.filter((l) => l.folder).every((l) => showsProfilerStepBands(l))).toBe(true);
+    const spacer = layout.lanes.find((l) => l.thread.name === '通信');
+    expect(spacer && showsProfilerStepBands(spacer)).toBe(true);
+    const pipe = layout.lanes.find((l) => l.thread.id === 'mte1');
+    expect(pipe && showsProfilerStepBands(pipe)).toBe(false);
   });
 });
