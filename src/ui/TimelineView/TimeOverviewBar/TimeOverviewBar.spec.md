@@ -8,7 +8,7 @@ Full timeline preview bar with a draggable/resizable window indicator representi
 
 ## Inputs
 
-The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). **timeUnit** controls label formatting.
+The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). **timeUnit** controls label formatting. Optional **measureMode** and **measureRange** render a blue measure span overlay when measure mode is active.
 
 ## Outputs
 
@@ -26,9 +26,11 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 **Parent integration.** The parent ProfilingReport receives the `update:window` event and applies the new window to `SwimlaneViewState` via `applyWindow`. All children re-render with the updated viewport.
 
+**Measure span (M2).** When `measureMode` is true and `measureRange` is set, a blue span is overlaid on the overview track spanning `measureRange.startTime → endTime` (proportional to the full span, same mapping as the window). It layers above the outside-window dim overlays but below the window span and drag handles, and is non-interactive (`pointer-events: none`).
+
 ## Visual
 
-Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Crops: [`visual/range-handles.png`](./visual/range-handles.png), [`visual/handle.png`](./visual/handle.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Crops: [`visual/range-handles.png`](./visual/range-handles.png), [`visual/handle.png`](./visual/handle.png), [`visual/measure-span.png`](./visual/measure-span.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ### Overview range handles
 
@@ -39,6 +41,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 | Direction | Head is taller than wide (4×10 CSS) |
 | Hit target | ≥12px wide invisible hit area centered on stem |
 | Window fill | Selected: `rgba(255,255,255,0.06)`; outside dimmed via track |
+| Measure span | `rgba(48,120,240,0.3)` fill; `1px solid rgba(48,120,240,0.7)` side borders |
 
 ## Acceptance Criteria
 
@@ -46,6 +49,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 2. **PR-OVERVIEW-002** — Indicator covers correct proportion of the timeline.
 3. **PR-OVERVIEW-003** — Leftmost tick label is relative zero (`0ms` / `0µs` / `0ns`).
 4. **PR-OVERVIEW-004** — Ruler renders majors on a nice grid with minors between; track clips overflow.
+5. **PR-OVERVIEW-005** — Measure span renders only when `measureMode` is true and `measureRange` is set; positioned proportionally to the range.
 
 ## Edge Cases
 
@@ -60,9 +64,11 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 
 - [range-handles](./visual/range-handles.png) — from `v930/entry`
 - [handle](./visual/handle.png) — from `v930/entry` (left/right share one glyph)
+- [measure-span](./visual/measure-span.png) — from `v930/task-measure-mode`
 - [Statistical analysis (overview charts)](../../../../docs/ui/source/v930/entry.jpeg)
 
 ## Changelog
+- **2026-08-12** — Measure span overlay (M2); PR-OVERVIEW-005.
 - **2026-08-07** — Handle head **4×10**.
 - **2026-08-07** — Axis chrome: 20px track, 5px minors, 18px / 12px/400 labels.
 - **2026-08-07** — Zoom-aware nice major grid (`calculateGridInterval`); positions reflow with zoom.

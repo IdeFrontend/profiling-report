@@ -499,11 +499,12 @@ defineExpose({
   top: 6px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 1px 6px;
-  border-radius: 2px;
-  background: rgba(20, 20, 20, 0.85);
-  color: #e8e8e8;
+  padding: 1px 8px;
+  border-radius: 3px;
+  background: var(--pr-playhead, #3078f0);
+  color: #ffffff;
   font-size: 11px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

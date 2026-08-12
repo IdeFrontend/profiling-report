@@ -63,4 +63,24 @@ describe('TimeOverviewBar', () => {
     expect(wrapper.findAll('[data-testid="axis-ruler-major"]').length).toBeGreaterThan(0);
     expect(wrapper.findAll('[data-testid="axis-ruler-minor"]').length).toBeGreaterThan(0);
   });
+
+  it('PR-OVERVIEW-005: measure span renders only in measure mode with a range', async () => {
+    const base = {
+      minTime: 0,
+      maxTime: 10000,
+      startTime: 0,
+      endTime: 10000,
+      timeUnit: 'ms',
+    } as const;
+    const off = mount(TimeOverviewBar, { props: { ...base, measureMode: false, measureRange: { startTime: 2000, endTime: 5000 } } });
+    expect(off.find('[data-testid="time-overview-measure"]').exists()).toBe(false);
+
+    const noRange = mount(TimeOverviewBar, { props: { ...base, measureMode: true, measureRange: null } });
+    expect(noRange.find('[data-testid="time-overview-measure"]').exists()).toBe(false);
+
+    const on = mount(TimeOverviewBar, { props: { ...base, measureMode: true, measureRange: { startTime: 2000, endTime: 5000 } } });
+    const span = on.find('[data-testid="time-overview-measure"]');
+    expect(span.exists()).toBe(true);
+    expect(span.attributes('style')).toContain('width: 30%');
+  });
 });
