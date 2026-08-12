@@ -249,7 +249,51 @@ function closeDisplayControl() {
         </svg>
       </button>
 
-      <!-- Measure toggle temporarily hidden; prop/emit kept for easy restore. -->
+      <button
+        type="button"
+        class="pr-toolbar__icon-btn"
+        data-testid="toggle-measure"
+        :aria-pressed="measureMode"
+        :class="{ 'pr-toolbar__icon-btn--on': measureMode }"
+        :title="t('measure', locale)"
+        @click="emit('update:measureMode', !measureMode)"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 5h12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linecap="round"
+          />
+          <path
+            d="M4 5v6.5M12 5v6.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linecap="round"
+          />
+          <path
+            d="M4 11.5h8"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linecap="round"
+          />
+          <path
+            d="M8 5v3.2"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
 
       <div class="pr-toolbar__display-wrap">
         <button
@@ -589,10 +633,6 @@ function closeDisplayControl() {
 .pr-toolbar__icon-btn[aria-expanded='true'] {
   background: #1e2a3e;
   color: #2d70e3;
-}
-
-.pr-toolbar__caliper {
-  display: block;
 }
 
 .pr-toolbar__display-wrap {

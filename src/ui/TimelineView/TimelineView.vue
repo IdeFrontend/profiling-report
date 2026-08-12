@@ -166,6 +166,8 @@ defineExpose({
         :start-time="view.startTime"
         :end-time="view.endTime"
         :time-unit="unit"
+        :measure-mode="view.measureMode"
+        :measure-range="view.measureRange"
         @update:window="emit('update:window', $event)"
       />
     </div>
