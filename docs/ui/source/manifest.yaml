@@ -80,3 +80,8 @@ batches:
         original_name: "930版本-性能调优_Task 点击后-出现底部栏、其他task置灰.jpeg"
         scenes: [task-select, detail, deps, dim]
         components: [SwimlaneCanvas, DependencyLinksLayer, DetailPanel]
+      - id: change-log
+        path: v930/change-log.jpeg
+        original_name: "930版本-性能调优_变更记录.jpeg"
+        scenes: [change-log, measure, compute-load, csv-tabs, memory-topology]
+        components: [SwimlaneCanvas, PipeOccupancyPanel, CsvFieldListPanel, MemoryTopologyPanel]

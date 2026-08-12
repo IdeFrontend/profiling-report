@@ -30,6 +30,8 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Hardware details (M1 interim I-Q7a).** Prefer `HardwareInfo.jsonl` category sections; else OpBasicInfo non-empty columns. Omit when neither yields fields. Include `'hardwareDetails'` in capabilities when model present.
 
+**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` (`nodes` + `edges`) from `Memory.csv` / `MemoryL0.csv` / `MemoryUB.csv` / `L2Cache.csv` using the [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md) edge→field→source table. Each edge label is the non-`NA` mapped value (GB/s or KB); omit the label when all sources are `NA`. Omit `memoryTopology` (and include no `'memoryDiagram'` capability) when no edge yields a label.
+
 ## Acceptance Criteria
 
 1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration; optional blockDim pass-through; compute/BW/util unset per I-Q6a.
@@ -41,6 +43,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 7. **PR-VM-008** — ICache Miss included when rate mean present.
 8. **PR-VM-009** — Roofline GM point + mix labels from ArithmeticUtilization + Memory (I-Q11a/b/e); capability `roofline` when points exist; omit when CSVs insufficient.
 9. **PR-VM-010** — `hardwareDetails` from HardwareInfo.jsonl or OpBasicInfo fallback (I-Q7a); omit when empty; capability `hardwareDetails` when present.
+10. **PR-VM-011** — `memoryTopology` edges from non-NA Memory* CSV columns per §11.2.6; edge labels omitted when NA; capability `memoryDiagram` when present.
 
 ## Edge Cases
 
@@ -57,9 +60,10 @@ I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q5+, I-Q7a, I-Q11a–f. [rep-format](./rep-
 
 ## Open
 
-Q6 — Product-final summary formulas. Q11 — Product-final roofline. Q22 — measureRange aside sync. M2 topology edge labels.
+Q6 — Product-final summary formulas. Q11 — Product-final roofline. Q22 — measureRange aside sync.
 
 ## Changelog
+- **2026-08-12** — Memory topology model + PR-VM-011 (change-log #5).
 - **2026-08-10** — hardwareDetails I-Q7a (PR-VM-010).
 - **2026-08-10** — RooflineViewModel interim I-Q11a–f (PR-VM-009).
 - **2026-08-07** — Optional `absoluteValue` (I-Q6f) and ICache Miss (PR-VM-008) on pipe occupancy.

@@ -141,6 +141,28 @@ export interface HardwareDetailsModel {
   sections: HardwareSection[];
 }
 
+/** M2 memory-topology node (change-log #5, Q12). */
+export interface MemoryTopologyNode {
+  id: string;
+  /** Display label, e.g. GM, L2 Cache, Cube, UB, Vec. */
+  label: string;
+}
+
+/** M2 memory-topology buffer link (change-log #5). */
+export interface MemoryTopologyEdge {
+  id: string;
+  from: string;
+  to: string;
+  /** Data-driven GB/s (or KB) label; omit when the mapped CSV value is NA/missing. */
+  label?: string;
+}
+
+/** M2 memory topology: static node set + data-driven buffer-link labels. */
+export interface MemoryTopologyModel {
+  nodes: MemoryTopologyNode[];
+  edges: MemoryTopologyEdge[];
+}
+
 export interface ReportViewModel {
   summary: SummaryMetrics;
   pipeOccupancy: PipeOccupancyItem[];
@@ -155,6 +177,8 @@ export interface ReportViewModel {
   roofline?: RooflineViewModel;
   /** Interim I-Q7a; omit when empty. */
   hardwareDetails?: HardwareDetailsModel;
+  /** M2 memory topology (change-log #5); omit when no label data. */
+  memoryTopology?: MemoryTopologyModel;
 }
 
 export type ViewFullCsvPayload = {

@@ -13,6 +13,10 @@ crops:
     source: v930/task-measure-mode
     region: "Measure-mode Δt overlay (4.8ms badge + range span on overview/axis)"
     box: { x: 3000, y: 520, w: 2300, h: 260 }
+  measure-mode.png:
+    source: v930/change-log
+    region: "Measure-mode trigger in toolbar + Δt range overlay on overview/time axis (7.0–16.0ms)"
+    box: { x: 1964, y: 464, w: 1628, h: 255 }
   multi-height.png:
     source: v930/task-multi-height
     region: "Swimlane with increased row height when multiple tasks overlap"

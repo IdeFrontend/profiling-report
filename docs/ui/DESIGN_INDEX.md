@@ -30,6 +30,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930/task-measure-mode` | [`task-measure-mode.jpeg`](./source/v930/task-measure-mode.jpeg) | Measure mode |
 | `v930/task-multi-height` | [`task-multi-height.jpeg`](./source/v930/task-multi-height.jpeg) | Multi-task taller lanes |
 | `v930/task-click-detail` | [`task-click-detail.jpeg`](./source/v930/task-click-detail.jpeg) | Task click → 详情 dock; other tasks 置灰; dep beziers |
+| `v930/change-log` | [`change-log.jpeg`](./source/v930/change-log.jpeg) | Version change notes: measure mode, Cube\|Vector toggle, detail tabs, block switcher + 查看全部, buffer links |
 
 ## Component visual packs
 

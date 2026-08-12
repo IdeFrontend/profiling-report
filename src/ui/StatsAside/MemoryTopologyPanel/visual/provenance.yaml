@@ -5,4 +5,8 @@ crops:
     source: v930/report-stats-scrolled
     region: "内存负载分析 panel: title + static SVG topology (nodes/edges + GB/s); not Memory.csv 详情"
     box: { x: 5680, y: 1860, w: 2000, h: 2000 }
+  buffer-links.png:
+    source: v930/change-log
+    region: "内存负载分析 topology with real buffer-link GB/s data (GM / L2 Cache / XN_IMM)"
+    box: { x: 3376, y: 3188, w: 1044, h: 1095 }
 note: "v930/memory-load-detail is the CSV field-list after 详情 — see CsvFieldListPanel"
