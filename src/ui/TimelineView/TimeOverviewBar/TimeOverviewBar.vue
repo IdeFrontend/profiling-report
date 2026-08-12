@@ -44,6 +44,8 @@ const measureSpan = computed(() => {
   if (!range) return null;
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
+  // Zero-length range (a click) is invisible in the swimlane; match that here.
+  if (start === end) return null;
   const left = ((start - props.minTime) / fullSpan.value) * 100;
   const width = ((end - start) / fullSpan.value) * 100;
   return { left, width: Math.max(0.4, width) };
@@ -275,7 +277,8 @@ function onPointerUp() {
   border-left: 1px solid rgba(48, 120, 240, 0.7);
   border-right: 1px solid rgba(48, 120, 240, 0.7);
   pointer-events: none;
-  z-index: 1;
+  /* Above the dim overlays (DOM order) but below the ruler ticks/labels (z-index 1). */
+  z-index: 0;
 }
 
 .pr-overview__span:active {

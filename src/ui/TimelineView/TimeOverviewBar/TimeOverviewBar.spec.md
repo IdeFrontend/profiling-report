@@ -26,7 +26,7 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 **Parent integration.** The parent ProfilingReport receives the `update:window` event and applies the new window to `SwimlaneViewState` via `applyWindow`. All children re-render with the updated viewport.
 
-**Measure span (M2).** When `measureMode` is true and `measureRange` is set, a blue span is overlaid on the overview track spanning `measureRange.startTime → endTime` (proportional to the full span, same mapping as the window). It layers above the outside-window dim overlays but below the window span and drag handles, and is non-interactive (`pointer-events: none`).
+**Measure span (M2).** When `measureMode` is true and `measureRange` is set, a blue span is overlaid on the overview track spanning `measureRange.startTime → endTime` (proportional to the full span, same mapping as the window). It layers above the outside-window dim overlays but below the ruler ticks/labels, window span, and drag handles, and is non-interactive (`pointer-events: none`). A zero-length range (start === end) renders nothing, matching the swimlane band.
 
 ## Visual
 

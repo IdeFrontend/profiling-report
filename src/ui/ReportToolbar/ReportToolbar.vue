@@ -260,6 +260,7 @@ function onDependencyDepth(e: Event) {
         class="pr-toolbar__icon-btn"
         data-testid="toggle-measure"
         :aria-pressed="measureMode"
+        :aria-label="t('measure', locale)"
         :class="{ 'pr-toolbar__icon-btn--on': measureMode }"
         :title="t('measure', locale)"
         @click="emit('update:measureMode', !measureMode)"
