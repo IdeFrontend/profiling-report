@@ -36,7 +36,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 |---------|------:|------------------|
 | Time axis + playhead | M | Times in **ns**; display unit **configurable** ([Q14](../context/OPEN_QUESTIONS.md)); axis default **ms** |
 | Cube / Vector overview charts | M | **Hide** until `OverviewSeries` ([Q5](../context/OPEN_QUESTIONS.md)) |
-| Hierarchical lane gutter + util bars | M | Producer **fixed** lane names ([Q8](../context/OPEN_QUESTIONS.md)); util bars optional; row borders continue as swimlane dividers |
+| Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([Q8](../context/OPEN_QUESTIONS.md)); flat CTEF still valid |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |
 | Colored event rectangles | M | Normative colors [COLOR_TOKENS](COLOR_TOKENS.md) |
 | Event labels when wide enough | M | Vertically centered in block; horizontally centered in visible (clipped) event rect |

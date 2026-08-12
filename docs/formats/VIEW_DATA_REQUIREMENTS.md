@@ -65,11 +65,11 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 | Input | Requirement |
 |-------|-------------|
-| `SwimProcess` / `SwimThread` names | **Required** (from trace metadata / events) |
-| Hierarchy `CoreN.Cube` / pipe children | **Producer-defined names** for now (Q8 Resolved: fixed naming, no viewer heuristics) |
-| `SwimThread.utilization` (0..1) | **Optional** — omit mini-bars if absent |
+| `SwimProcess` / `SwimThread` names | **Required** (from trace metadata / events / synthetic model) |
+| Hierarchy Card → 通信/计算/储存HBM → `CoreN.*` → pipes | **Producer- or stress-defined nodes** (Q8: no viewer heuristics inventing Card/Core from flat AIV names). Nested `SwimThread.children` when present; flat CTEF remains valid |
+| `SwimThread.utilization` (0..1) | **Optional** — omit mini-bars if absent; folders and leaves may both carry util |
 
-**Target fidelity (Q4):** Product aims at sketch-like multi-core instruction lanes. **Interim fixture ([I-Q4](../context/INTERIM_DECISIONS.md)):** CI and playground use `data/out.rep`; render available lanes; do not fail MVP acceptance on sketch pixel-parity.
+**Target fidelity (Q4):** Product aims at sketch Card → Core → pipe Gantt. **Interim fixture ([I-Q4](../context/INTERIM_DECISIONS.md)):** CI uses `data/out.rep` (flat AIV); playground stress presets emit nested Card tree for sketch fidelity. Do not fail MVP acceptance on `out.rep` pixel-parity.
 
 ---
 

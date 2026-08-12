@@ -7,11 +7,27 @@
 Canonical types and Chrome Trace conversion logic for timeline data driving the swimlane renderer.
 
 ```ts
-interface SwimlaneModel { processes: SwimProcess[]; minTime: number; maxTime: number; }
-interface SwimProcess  { id: string; name: string; threads: SwimThread[]; }
-interface SwimThread   { id: string; name: string; events: SwimEvent[]; utilization?: number; }
+interface SwimlaneModel {
+  processes: SwimProcess[];
+  minTime: number;
+  maxTime: number;
+  bands?: SwimlaneBand[]; // optional ProfilerStep-style phase bands; omit when absent
+}
+interface SwimlaneBand { id: string; name: string; startTime: number; duration: number }
+interface SwimProcess  { id: string; name: string; utilization?: number; threads: SwimThread[]; }
+interface SwimThread   {
+  id: string;
+  name: string;
+  events: SwimEvent[];
+  utilization?: number;
+  children?: SwimThread[]; // folder when non-empty; leaf when absent/empty
+}
 interface SwimEvent    { id: string; name: string; startTime: number; duration: number; args?: {} }
 ```
+
+**Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). Only `SwimProcess` (Card) uses group-header chrome.
+
+**Bands:** optional shared phase intervals painted on folder/spacer group rows when present. Chrome Trace / `.rep` adapters leave `bands` undefined (never invent). Stress fixtures may supply `ProfilerStep#N` bands.
 
 ## Unit contract
 
@@ -21,11 +37,13 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 
 ## Behavior
 
-**Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0.
+**Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — Q8: do not invent Card/Core nesting from AIV pipe names.
 
 **Ordering.** Processes and threads ordered by first event start time. Within each thread, events sorted by `startTime` ascending. Processes/threads with no events are excluded.
 
 **Error on empty.** If the trace contains no complete X events, `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.
+
+**Nested helpers.** Layout / selection walk `children` recursively (`filterCollapsedTree`, `collectLeafEvents`, visible folder/leaf rows).
 
 ## Acceptance Criteria
 
@@ -45,7 +63,9 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 
 ## Open
 
-Q8 — Lane hierarchy; use producer thread_name as-is.
+Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-08-11** — Optional `SwimlaneBand[]` on model; adapters omit; stress may supply.
+- **2026-08-11** — Optional `SwimThread.children`; folder vs leaf rules; CTEF stays flat.
 - **2026-08-05** — Initial spec. Core behaviors established.
