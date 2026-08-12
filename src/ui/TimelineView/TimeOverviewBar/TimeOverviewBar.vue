@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { buildAxisRulerTicks } from '../../../domain/axisRuler';
-import type { MeasureRange, TimeDisplayUnit } from '../../../domain/types';
+import type { TimeDisplayUnit } from '../../../domain/types';
 import AxisRuler from '../TimeAxis/AxisRuler/AxisRuler.vue';
 
 const props = defineProps<{
@@ -10,8 +10,6 @@ const props = defineProps<{
   startTime: number;
   endTime: number;
   timeUnit: TimeDisplayUnit;
-  measureMode?: boolean;
-  measureRange?: MeasureRange | null;
 }>();
 
 const emit = defineEmits<{
@@ -37,19 +35,6 @@ const rightPct = computed(
   () => ((props.endTime - props.minTime) / fullSpan.value) * 100,
 );
 const widthPct = computed(() => Math.max(0.4, rightPct.value - leftPct.value));
-
-/** Blue measure range span (M2) over the overview track, independent of the view window. */
-const measureSpan = computed(() => {
-  const range = props.measureRange;
-  if (!range) return null;
-  const start = Math.min(range.startTime, range.endTime);
-  const end = Math.max(range.startTime, range.endTime);
-  // Zero-length range (a click) is invisible in the swimlane; match that here.
-  if (start === end) return null;
-  const left = ((start - props.minTime) / fullSpan.value) * 100;
-  const width = ((end - start) / fullSpan.value) * 100;
-  return { left, width: Math.max(0.4, width) };
-});
 
 const ruler = computed(() =>
   buildAxisRulerTicks({
@@ -178,13 +163,6 @@ function onPointerUp() {
       />
 
       <div
-        v-if="measureMode && measureSpan"
-        class="pr-overview__measure"
-        data-testid="time-overview-measure"
-        :style="{ left: `${measureSpan.left}%`, width: `${measureSpan.width}%` }"
-      />
-
-      <div
         class="pr-overview__span"
         data-testid="time-overview-window"
         :style="{ left: `${leftPct}%`, width: `${widthPct}%` }"
@@ -267,18 +245,6 @@ function onPointerUp() {
   background: rgba(255, 255, 255, 0.06);
   cursor: grab;
   z-index: 2;
-}
-
-.pr-overview__measure {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: rgba(48, 120, 240, 0.3);
-  border-left: 1px solid rgba(48, 120, 240, 0.7);
-  border-right: 1px solid rgba(48, 120, 240, 0.7);
-  pointer-events: none;
-  /* Above the dim overlays (DOM order) but below the ruler ticks/labels (z-index 1). */
-  z-index: 0;
 }
 
 .pr-overview__span:active {

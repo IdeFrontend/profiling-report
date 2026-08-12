@@ -256,14 +256,12 @@ function xAtTime(t: number): number {
   return ((t - props.view.startTime) / span) * w;
 }
 
-const measureOverlayStyle = computed(() => {
+const measureGeometry = computed(() => {
   const range = props.measureRange;
   if (!range) return null;
-  const left = xAtTime(range.startTime);
-  const right = xAtTime(range.endTime);
-  const x = Math.min(left, right);
-  const width = Math.max(1, Math.abs(right - left));
-  return { left: `${x}px`, width: `${width}px` };
+  const left = xAtTime(Math.min(range.startTime, range.endTime));
+  const right = xAtTime(Math.max(range.startTime, range.endTime));
+  return { left, right, width: Math.max(1, right - left) };
 });
 
 const measureLabel = computed(() => {
@@ -424,17 +422,71 @@ defineExpose({
       @pointerleave="onPointerLeave"
       @wheel="onWheel"
     />
-    <div
-      v-if="measureOverlayStyle"
-      class="pr-measure-band"
-      data-testid="measure-band"
-      :style="measureOverlayStyle"
-    >
-      <span
-        class="pr-measure-band__label"
-        data-testid="measure-label"
-      >{{ measureLabel }}</span>
-    </div>
+    <template v-if="measureMode && measureGeometry">
+      <div
+        class="pr-measure-fade pr-measure-fade--left"
+        data-testid="measure-fade-left"
+        :style="{ width: `${measureGeometry.left}px` }"
+      />
+      <div
+        class="pr-measure-fade pr-measure-fade--right"
+        data-testid="measure-fade-right"
+        :style="{ left: `${measureGeometry.right}px`, right: '0' }"
+      />
+      <div
+        class="pr-measure-border pr-measure-border--left"
+        data-testid="measure-border-left"
+        :style="{ left: `${measureGeometry.left}px` }"
+      />
+      <div
+        class="pr-measure-border pr-measure-border--right"
+        data-testid="measure-border-right"
+        :style="{ left: `${measureGeometry.right}px` }"
+      />
+      <div
+        class="pr-measure-arrow"
+        data-testid="measure-arrow"
+        :style="{ left: `${measureGeometry.left}px`, width: `${measureGeometry.width}px` }"
+      >
+        <div class="pr-measure-arrow__shaft" />
+        <svg
+          class="pr-measure-arrow__head pr-measure-arrow__head--left"
+          viewBox="0 0 8 10"
+          width="8"
+          height="10"
+          aria-hidden="true"
+        >
+          <path
+            d="M7 0.5 L1 5 L7 9.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <svg
+          class="pr-measure-arrow__head pr-measure-arrow__head--right"
+          viewBox="0 0 8 10"
+          width="8"
+          height="10"
+          aria-hidden="true"
+        >
+          <path
+            d="M1 0.5 L7 5 L1 9.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span
+          class="pr-measure-arrow__label"
+          data-testid="measure-label"
+        >{{ measureLabel }}</span>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -483,22 +535,72 @@ defineExpose({
   pointer-events: none;
 }
 
-.pr-measure-band {
+/* Measure mode (M2): fade outside the selection, gray borders, double-sided arrow. */
+.pr-measure-fade {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(48, 120, 240, 0.22);
-  border-left: 1px solid rgba(48, 120, 240, 0.85);
-  border-right: 1px solid rgba(48, 120, 240, 0.85);
+  background: rgba(0, 0, 0, 0.3);
   pointer-events: none;
   z-index: 3;
 }
 
-.pr-measure-band__label {
+.pr-measure-fade--left {
+  left: 0;
+}
+
+.pr-measure-fade--right {
+  right: 0;
+}
+
+.pr-measure-border {
   position: absolute;
-  top: 6px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #4c4c4c;
+  pointer-events: none;
+  z-index: 3;
+  transform: translateX(-0.5px);
+}
+
+.pr-measure-arrow {
+  position: absolute;
+  top: 2px;
+  height: 22px;
+  pointer-events: none;
+  z-index: 4;
+  color: var(--pr-playhead, #3078f0);
+}
+
+.pr-measure-arrow__shaft {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  height: 1px;
+  background: currentColor;
+}
+
+.pr-measure-arrow__head {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.pr-measure-arrow__head--left {
+  left: 0;
+}
+
+.pr-measure-arrow__head--right {
+  right: 0;
+}
+
+.pr-measure-arrow__label {
+  position: absolute;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   padding: 1px 8px;
   border-radius: 3px;
   background: var(--pr-playhead, #3078f0);
