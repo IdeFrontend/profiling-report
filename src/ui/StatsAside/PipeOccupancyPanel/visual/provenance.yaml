@@ -9,3 +9,7 @@ crops:
     source: v930/compute-load
     region: "PIPE occupancy bars (Cube…Scalar); excludes purple design callout"
     box: { x: 200, y: 180, w: 1805, h: 1050 }
+  cube-vector-toggle.png:
+    source: v930/change-log
+    region: "计算负载分析 PIPE chart with Cube|Vector toggle (MIX-only)"
+    box: { x: 2880, y: 912, w: 1676, h: 767 }

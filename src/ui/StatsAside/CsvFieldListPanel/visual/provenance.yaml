@@ -13,3 +13,11 @@ crops:
     source: v930/memory-load-detail
     region: "Memory detail with block switcher"
     box: { x: 5480, y: 280, w: 2070, h: 900 }
+  compute-detail-tabs.png:
+    source: v930/change-log
+    region: "计算负载分析 detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio) + search"
+    box: { x: 1916, y: 1769, w: 1676, h: 586 }
+  block-switcher-view-all.png:
+    source: v930/change-log
+    region: "内存负载分析 detail with block switcher (block1) + 查看全部"
+    box: { x: 3904, y: 2436, w: 1754, h: 619 }
