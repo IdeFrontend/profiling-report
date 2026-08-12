@@ -8,13 +8,13 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Owns gutter r
 
 ## Behavior
 
-**Measure mode (M2).** When `view.measureMode` is true the overview bar (total-axis + window selection) is hidden — the time axis sits directly under the toolbar, and the measure selection is drawn on the swimlane (see `SwimlaneCanvas.spec.md`).
+**Measure mode (M2).** The overview bar stays visible for window navigation (no measure span is drawn on it). The viewport time axis draws blue vertical bars at the measured range edges plus a double-sided Δt arrow. Swimlane fade/gray borders live in `SwimlaneCanvas`.
 
 ## Acceptance Criteria
 
 1. **PR-TIMELINE-001** — Renders overview, time axis, and swimlane body regions.
-2. **PR-TIMELINE-002** — Overview bar is not rendered when `view.measureMode` is true.
+2. **PR-TIMELINE-002** — When `view.measureMode` and `view.measureRange` are set, the time axis shows blue bars and a Δt arrow; the overview bar remains rendered.
 
 ## Changelog
-- **2026-08-12** — Hide overview bar in measure mode; PR-TIMELINE-002.
+- **2026-08-12** — Measure markers on time axis (blue bars + arrow); overview stays for navigation; PR-TIMELINE-002.
 - **2026-08-10** — Extracted from ProfilingReport main slot.
