@@ -55,7 +55,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-004: measure overlay shows fade, borders, arrow and label when measureRange set', () => {
+  it('PR-CANVAS-004: measure overlay shows fade and gray borders when measureRange set', () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
@@ -68,8 +68,6 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="measure-fade-right"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-border-right"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ms/);
   });
 
   it('PR-CANVAS-005: pointerleave during measure does not abort drag', async () => {

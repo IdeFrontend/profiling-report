@@ -264,13 +264,6 @@ const measureGeometry = computed(() => {
   return { left, right, width: Math.max(1, right - left) };
 });
 
-const measureLabel = computed(() => {
-  const range = props.measureRange;
-  if (!range) return '';
-  const dur = Math.abs(range.endTime - range.startTime);
-  return formatTime(dur, props.timeUnit ?? 'ms');
-});
-
 function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
@@ -443,49 +436,6 @@ defineExpose({
         data-testid="measure-border-right"
         :style="{ left: `${measureGeometry.right}px` }"
       />
-      <div
-        class="pr-measure-arrow"
-        data-testid="measure-arrow"
-        :style="{ left: `${measureGeometry.left}px`, width: `${measureGeometry.width}px` }"
-      >
-        <div class="pr-measure-arrow__shaft" />
-        <svg
-          class="pr-measure-arrow__head pr-measure-arrow__head--left"
-          viewBox="0 0 8 10"
-          width="8"
-          height="10"
-          aria-hidden="true"
-        >
-          <path
-            d="M7 0.5 L1 5 L7 9.5"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        <svg
-          class="pr-measure-arrow__head pr-measure-arrow__head--right"
-          viewBox="0 0 8 10"
-          width="8"
-          height="10"
-          aria-hidden="true"
-        >
-          <path
-            d="M1 0.5 L7 5 L1 9.5"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        <span
-          class="pr-measure-arrow__label"
-          data-testid="measure-label"
-        >{{ measureLabel }}</span>
-      </div>
     </template>
   </div>
 </template>
@@ -535,7 +485,8 @@ defineExpose({
   pointer-events: none;
 }
 
-/* Measure mode (M2): fade outside the selection, gray borders, double-sided arrow. */
+/* Measure mode (M2): fade outside the selection + gray swimlane borders.
+ * Blue bars + Δt arrow live on the time axis (TimelineView). */
 .pr-measure-fade {
   position: absolute;
   top: 0;
@@ -562,52 +513,5 @@ defineExpose({
   pointer-events: none;
   z-index: 3;
   transform: translateX(-0.5px);
-}
-
-.pr-measure-arrow {
-  position: absolute;
-  top: 2px;
-  height: 22px;
-  pointer-events: none;
-  z-index: 4;
-  color: var(--pr-playhead, #3078f0);
-}
-
-.pr-measure-arrow__shaft {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  top: 50%;
-  height: 1px;
-  background: currentColor;
-}
-
-.pr-measure-arrow__head {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.pr-measure-arrow__head--left {
-  left: 0;
-}
-
-.pr-measure-arrow__head--right {
-  right: 0;
-}
-
-.pr-measure-arrow__label {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 1px 8px;
-  border-radius: 3px;
-  background: var(--pr-playhead, #3078f0);
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 </style>

@@ -26,13 +26,14 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="gutter-resize-handle"]').exists()).toBe(true);
   });
 
-  it('PR-TIMELINE-002: overview bar hidden in measure mode', () => {
+  it('PR-TIMELINE-002: measure mode keeps overview and draws axis bars + arrow', () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
       processes: [],
     });
     view.measureMode = true;
+    view.measureRange = { startTime: 200, endTime: 500 };
     const wrapper = mount(TimelineView, {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
@@ -45,7 +46,10 @@ describe('TimelineView', () => {
       },
     });
 
-    expect(wrapper.find('[data-testid="time-overview"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="time-axis"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="time-overview"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ms/);
   });
 });
