@@ -169,4 +169,13 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(byKey['Op Name']).toBe('add_custom');
     expect(byKey['Current Freq']).toBe('1650');
   });
+
+  it('PR-VM-011 (Q12 + change-log #5): memoryTopology with data-driven edge labels', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const topo = adapted.reportModel.memoryTopology;
+    expect(topo).toBeDefined();
+    expect(adapted.capabilities).toContain('memoryDiagram');
+    expect(topo!.nodes.length).toBeGreaterThan(0);
+    expect(topo!.edges.filter((e) => e.label !== undefined).length).toBeGreaterThan(0);
+  });
 });

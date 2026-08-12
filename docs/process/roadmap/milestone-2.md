@@ -27,7 +27,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | M1 aside modes in MSTT | **Ship** | Summary / PIPE / compute details / Memory tabs when CSVs present; hidden for trace-only JSON; host opens **查看全部** CSV in editor tab (I-Q6d) |
 | Host chrome | **New (host)** | i18n, load errors; capability flags; workspace dep (I-Q16) |
 | Details panel | **New** | Replaces compact strip: name + timing; incoming/current/outgoing mini-graph with depth filters; raw args when present; hide when no selection |
-| Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs (Q12 + changelog #5). Hide if no memory CSVs. Edge thickness static. Optional: hover/click syncs field-list rows |
+| Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs (Q12 + change-log #5). Hide if no memory CSVs. Edge thickness static. Optional: hover/click syncs field-list rows. Spec: [`MemoryTopologyPanel.spec.md`](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md); redraw crop [`buffer-links.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png) |
 | Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `source/v930/entry.jpeg` / `source/v930/entry.jpeg` / `source/v930/report-stats-open.jpeg`. Hide if no usable points. Capability flag `roofline` |
 | Overview / Q6 tiles / secondary tabs | **Out** | → [M3](milestone-3.md) |
 

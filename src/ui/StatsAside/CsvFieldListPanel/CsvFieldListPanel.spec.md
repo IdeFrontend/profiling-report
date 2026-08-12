@@ -34,15 +34,18 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 
 ## Visual
 
-Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows.png`](./visual/field-rows.png), [`visual/block-switcher.png`](./visual/block-switcher.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows.png`](./visual/field-rows.png), [`visual/block-switcher.png`](./visual/block-switcher.png), [`visual/compute-detail-tabs.png`](./visual/compute-detail-tabs.png), [`visual/block-switcher-view-all.png`](./visual/block-switcher-view-all.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Design sketches
 
 - [tabs-search](./visual/tabs-search.png) — from `v930/compute-load-detail`
 - [field-rows](./visual/field-rows.png) — from `v930/compute-load-detail`
 - [block-switcher](./visual/block-switcher.png) — from `v930/memory-load-detail`
+- [compute-detail-tabs](./visual/compute-detail-tabs.png) — detail tabs from `v930/change-log` (#3)
+- [block-switcher-view-all](./visual/block-switcher-view-all.png) — block switcher + 查看全部 from `v930/change-log` (#4)
 - [compute-load-detail](../../../../docs/ui/source/v930/compute-load-detail.jpeg) — full frame
 - [memory-load-detail](../../../../docs/ui/source/v930/memory-load-detail.jpeg) — full frame
 
 ## Changelog
+- **2026-08-12** — change-log #3/#4 crops.
 - **2026-08-07** — Initial M1 panel.
