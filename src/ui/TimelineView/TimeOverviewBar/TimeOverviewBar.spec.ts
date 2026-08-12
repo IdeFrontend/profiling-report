@@ -81,6 +81,10 @@ describe('TimeOverviewBar', () => {
     const on = mount(TimeOverviewBar, { props: { ...base, measureMode: true, measureRange: { startTime: 2000, endTime: 5000 } } });
     const span = on.find('[data-testid="time-overview-measure"]');
     expect(span.exists()).toBe(true);
+    expect(span.attributes('style')).toContain('left: 20%');
     expect(span.attributes('style')).toContain('width: 30%');
+
+    const empty = mount(TimeOverviewBar, { props: { ...base, measureMode: true, measureRange: { startTime: 2000, endTime: 2000 } } });
+    expect(empty.find('[data-testid="time-overview-measure"]').exists()).toBe(false);
   });
 });
