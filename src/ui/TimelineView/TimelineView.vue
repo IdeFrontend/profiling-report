@@ -21,6 +21,7 @@ import {
   GUTTER_WIDTH_MIN,
   startHorizontalResize,
 } from '../panelResize';
+import { normalizeMeasureRange } from '../../domain/viewState';
 import TimeOverviewBar from './TimeOverviewBar/TimeOverviewBar.vue';
 import AxisRuler from './TimeAxis/AxisRuler/AxisRuler.vue';
 import CursorTimestamp from './TimeAxis/CursorTimestamp/CursorTimestamp.vue';
@@ -152,6 +153,45 @@ function onGutterResizePointerUp() {
   gutterResizeSession = null;
 }
 
+/** Measure drag on the viewport time axis (same interaction as swimlane measure). */
+let measureAnchorTime: number | null = null;
+let measureGestureActive = false;
+
+function timeAtAxisX(clientX: number): number {
+  const el = timeAxisRef.value;
+  if (!el) return props.view.startTime;
+  const rect = el.getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
+  const span = Math.max(1, props.view.endTime - props.view.startTime);
+  return props.view.startTime + ratio * span;
+}
+
+function onAxisPointerDown(e: PointerEvent) {
+  if (e.button !== 0 || !props.view.measureMode) return;
+  measureGestureActive = true;
+  measureAnchorTime = timeAtAxisX(e.clientX);
+  emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  e.preventDefault();
+}
+
+function onAxisPointerMove(e: PointerEvent) {
+  if (!measureGestureActive || measureAnchorTime == null) return;
+  emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, timeAtAxisX(e.clientX)));
+}
+
+function onAxisPointerUp() {
+  measureGestureActive = false;
+  measureAnchorTime = null;
+}
+
+watch(
+  () => props.view.measureMode,
+  (mode) => {
+    if (!mode) onAxisPointerUp();
+  },
+);
+
 defineExpose({
   get gutterRoot() {
     return swimlaneRef.value?.gutterRoot ?? null;
@@ -198,6 +238,11 @@ defineExpose({
         ref="timeAxisRef"
         class="pr-time-axis"
         data-testid="time-axis"
+        :class="{ 'pr-time-axis--measure': view.measureMode }"
+        @pointerdown="onAxisPointerDown"
+        @pointermove="onAxisPointerMove"
+        @pointerup="onAxisPointerUp"
+        @pointercancel="onAxisPointerUp"
       >
         <AxisRuler
           :majors="viewportRuler.majors"
@@ -227,26 +272,39 @@ defineExpose({
             <div class="pr-measure-arrow__shaft" />
             <svg
               class="pr-measure-arrow__head pr-measure-arrow__head--left"
-              viewBox="0 0 6 10"
-              width="6"
-              height="10"
+              data-testid="measure-arrow-head"
+              viewBox="0 0 5 8"
+              width="5"
+              height="8"
               aria-hidden="true"
+              style="left: 1px"
             >
+              <!-- Open stroke chevron; tip at x=0, SVG left:1px → 1px gap from bar -->
               <path
-                d="M6 0 L0 5 L6 10 Z"
-                fill="currentColor"
+                d="M4 1 L0 4 L4 7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1"
+                stroke-linecap="butt"
+                stroke-linejoin="miter"
               />
             </svg>
             <svg
               class="pr-measure-arrow__head pr-measure-arrow__head--right"
-              viewBox="0 0 6 10"
-              width="6"
-              height="10"
+              data-testid="measure-arrow-head"
+              viewBox="0 0 5 8"
+              width="5"
+              height="8"
               aria-hidden="true"
+              style="right: 1px"
             >
               <path
-                d="M0 0 L6 5 L0 10 Z"
-                fill="currentColor"
+                d="M1 1 L5 4 L1 7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1"
+                stroke-linecap="butt"
+                stroke-linejoin="miter"
               />
             </svg>
             <span
@@ -350,6 +408,11 @@ defineExpose({
   overflow: hidden;
 }
 
+.pr-time-axis--measure {
+  cursor: col-resize;
+  touch-action: none;
+}
+
 /* Measure range markers on the viewport time axis (v930/task-measure-mode). */
 .pr-measure-axis-bar {
   position: absolute;
@@ -372,9 +435,9 @@ defineExpose({
 
 .pr-measure-arrow__shaft {
   position: absolute;
-  /* Overlap the filled triangle bases so the shaft meets the chevron tip. */
-  left: 4px;
-  right: 4px;
+  /* Meet the open base of each stroke chevron (heads are 5px + 1px bar gap). */
+  left: 5px;
+  right: 5px;
   top: 50%;
   height: 1px;
   background: currentColor;
@@ -385,14 +448,7 @@ defineExpose({
   top: 50%;
   transform: translateY(-50%);
   display: block;
-}
-
-.pr-measure-arrow__head--left {
-  left: 0;
-}
-
-.pr-measure-arrow__head--right {
-  right: 0;
+  overflow: visible;
 }
 
 .pr-measure-arrow__label {

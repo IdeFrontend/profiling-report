@@ -33,7 +33,9 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-004**: Zoom-to-fit via toolbar renders full timeline span.
 1. **PR-E2E-005**: Standalone JSON opens without CSV aside.
 1. **PR-E2E-006**: Overview brush updates time window and cursor line.
+<<<<<<< HEAD
 1. **PR-E2E-007**: `?fixture=ffn_dense&renderer=webgl` attaches WebGL, paints selected dependency curves, and search does not rebuild the cached graph.
+1. **PR-E2E-008**: Active measure toggle screenshot matches `ReportToolbar/visual/measure-active.png` (open stroke Δt arrow).
 
 ## Dependencies
 
@@ -41,4 +43,5 @@ Outside-in tests verifying the full component tree and playground render correct
 
 ## Changelog
 - **2026-08-19** — PR-E2E-007: Chromium WebGL dependency curves (`ffn_dense`).
+- **2026-08-12** — PR-E2E-008 measure toggle icon vs design crop.
 - **2026-08-05** — Initial spec. Core behaviors established.
