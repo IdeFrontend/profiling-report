@@ -9,7 +9,7 @@ A spec describes **what a module does and why** — not how it's implemented. It
 - **Props/emits tables.** Duplicate of `.vue` defineProps/defineEmits. Use prose — describe *why*.
 - **Implementation details.** CSS classes, ResizeObserver, v-if, watchers. Describe observable behavior.
 - **Phase/milestone metadata.** Roadmap (`docs/process/roadmap/`) owns scheduling. Spec table carries only `spec-id-prefix` for the traceability checker.
-- **Source/test file paths.** Co-location implies them.
+- **Source/test file paths in core specs.** Do not invent them from the kebab filename. Use the Source and Test columns of the Core table in [`README.md`](./README.md) (e.g. `swimlane-model.spec.md` → `tests/unit/swimlaneModel.spec.ts`). Component specs under `src/ui/**` are co-located with their `.vue` and need no path lines.
 - **"Pure presentational" / "No emits".** Empty boilerplate — omit the section.
 - **Test descriptions.** AC lines stay compact (ID + 3–6 words). Full text lives in the test file.
 
@@ -20,12 +20,8 @@ A spec describes **what a module does and why** — not how it's implemented. It
 - **Parenthetical values**: "timeUnit" (ms/µs/ns).
 - **Reference style**: "per I-Q6a", "per Q15".
 
-## Unit contracts (core)
-
-State non-obvious constraints in a `## Unit contract` section (e.g. "All time values are in nanoseconds; display conversion only at the formatting layer.").
-
 ## Acceptance criteria
 
-Every component spec and every core spec with matching tests needs a compact AC list. `npm run check:specs` maps AC IDs ↔ test IDs; missing `## Acceptance Criteria` fails CI (`NO AC SECTION`).
+Every `*.spec.md` under `specs/` and `src/` needs a compact AC list — tests or no tests; the only exemption is `DELEGATED_SPECS` in `scripts/check-spec-coverage.mjs`. `npm run check:specs` maps AC IDs ↔ test IDs; a missing `## Acceptance Criteria` fails CI (`NO AC SECTION`), an empty one fails as `EMPTY AC`, and an AC id with no test fails as `MISSING TEST`.
 
 Format: `1. **PR-XXXX-001** — brief statement (3-6 words).`

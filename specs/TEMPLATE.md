@@ -28,6 +28,14 @@ actions propagate through the component tree. One diagram per interaction
 type: zoom, drag-pan, hover→select, search, data loading. Diagrams make
 the architecture testable without reading source code.
 
+## Unit contract
+
+*Core specs only.* Explicit constraints on the data this module operates on
+(e.g. "all time values are in nanoseconds; display conversion only at the
+formatting layer"). Place after the one-liner / signature and before
+Behavior when Inputs/Outputs/Interaction flows are omitted. Omit when no
+non-obvious contract.
+
 ## Behavior
 
 [Substantive description of what this module does.
@@ -38,9 +46,10 @@ For architecture: integration patterns, lifecycle, independence rules.]
 
 ## Acceptance Criteria
 
-> Component specs: include compact list of test IDs with brief statements
-> for traceability (checker needs AC↔test ID mapping).
-> Core/architecture specs: include if there are corresponding unit tests.
+> Every `*.spec.md` under `specs/` and `src/` needs a compact AC list —
+> tests or no tests. The only exemption is `DELEGATED_SPECS` in
+> `scripts/check-spec-coverage.mjs`. Missing section → `NO AC SECTION`;
+> empty → `EMPTY AC`; AC id with no test → `MISSING TEST`.
 
 1. **PR-XXXX-001** — [brief statement].
 1. **PR-XXXX-002** — [brief statement].
