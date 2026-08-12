@@ -155,7 +155,10 @@ defineExpose({
       @pointerup="onGutterResizePointerUp"
       @pointercancel="onGutterResizePointerUp"
     />
-    <div class="pr-swim-row pr-swim-row--overview">
+    <div
+      v-if="!view.measureMode"
+      class="pr-swim-row pr-swim-row--overview"
+    >
       <div
         class="pr-gutter pr-gutter--axis-spacer"
         aria-hidden="true"
@@ -166,8 +169,6 @@ defineExpose({
         :start-time="view.startTime"
         :end-time="view.endTime"
         :time-unit="unit"
-        :measure-mode="view.measureMode"
-        :measure-range="view.measureRange"
         @update:window="emit('update:window', $event)"
       />
     </div>

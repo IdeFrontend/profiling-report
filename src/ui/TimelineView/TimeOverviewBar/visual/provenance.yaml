@@ -14,7 +14,3 @@ crops:
     pill: { x0: 5860, y0: 544, x1: 5875, y1: 575 }
     stem: { x0: 5866, y0: 576, x1: 5869, y1: 623 }
     alpha: true
-  measure-span.png:
-    source: v930/task-measure-mode
-    region: "Blue measure range span on overview track (measure mode active)"
-    box: { x: 40, y: 590, w: 3820, h: 110 }
