@@ -19,7 +19,7 @@ crops:
     box: { x: 6585, y: 365, w: 1035, h: 120 }
   measure-active.png:
     source: v930/task-measure-mode
-    region: "Measure (caliper) action button in active/blue state (2nd action icon)"
+    region: "Measure action button in active/blue state — bars + open stroke Δt arrow (2nd action icon)"
     box: { x: 4820, y: 365, w: 112, h: 120 }
   display-control.png:
     source: v930/hardware-more-detail

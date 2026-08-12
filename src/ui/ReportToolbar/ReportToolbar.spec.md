@@ -4,7 +4,7 @@
 |----------------|
 | PR-TOOLBAR-*   |
 
-Top toolbar with search, zoom controls, display-control popover (task display unit), measure (caliper) toggle, and aside panel toggle.
+Top toolbar with search, zoom controls, display-control popover (task display unit), measure (bars + Δt arrow) toggle, and aside panel toggle.
 
 Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png), [`visual/measure-active.png`](./visual/measure-active.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
@@ -26,7 +26,9 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)). Toggle the button or click **X** to close; leave open after a unit change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode. Also carries **任务连接层级** (`data-testid="dependency-depth"`, `update:dependencyDepth`): how many hops the swimlane dependency graph walks, `-1` for the whole chain, normalized through `normalizeDependencyDepth` so a cleared field yields the shared default rather than `NaN`. It commits on `change`, not per keystroke — a half-typed number must not rebuild the graph. Dependency *direction* is not here: it filters what the selected event shows, so it lives in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
 
-**Measure (M2).** A caliper icon button between zoom-to-fit and display-control toggles measure mode. The button reflects the `measureMode` prop via `aria-pressed` and the `--on` class (shared with the other active action-icon states) and emits `update:measureMode` with the new boolean on click.
+**Measure (M2).** A measure icon button between zoom-to-fit and display-control toggles measure mode. The button reflects the `measureMode` prop via `aria-pressed` and the `--on` class (shared with the other active action-icon states) and emits `update:measureMode` with the new boolean on click.
+
+**Measure icon geometry (`visual/measure-active.png`).** Two vertical rounded bars with a horizontal double-headed Δt arrow between them. Arrowheads are **open stroke chevrons** (two diagonal lines only — `fill="none"`, never solid triangles). Leave a **~1px gap** between each chevron tip and the adjacent vertical bar (tips must not touch the bars). Stroke weight matches the bars.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
@@ -114,11 +116,14 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
 5. **PR-TOOLBAR-005** — Layers button opens 显示控制; `time-unit` select inside emits `update:timeUnit` on change; select is not visible until popover open.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
-7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) renders a caliper icon; emits `update:measureMode` on click.
-8. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
-9. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
-10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
-11. **PR-TOOLBAR-011** — 显示控制 carries the dependency depth field; emits normalized on change.
+7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) renders bars + open stroke Δt arrow (chevron heads, gap from bars); emits `update:measureMode` on click.
+8. **PR-TOOLBAR-007b** — Active measure toggle uses `aria-pressed="true"` and `--on`.
+9. **PR-TOOLBAR-007c** — Measure SVG arrowheads use `fill="none"` (stroke chevrons only; no filled triangle paths).
+10. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
+11. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
+12. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
+13. **PR-TOOLBAR-011** — `dependency-mode` select inside 显示控制 emits `update:dependencyMode` on change; popover stays open.
+14. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1, above 100 clamp to 100); popover stays open.
 
 ## Edge Cases
 
@@ -132,11 +137,11 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [search](./visual/search.png) — from `v930/entry`
 - [zoom](./visual/zoom.png) — from `v930/entry`
 - [actions](./visual/actions.png) — all seven icons from `v930/entry`
-- [measure-active](./visual/measure-active.png) — active caliper from `v930/task-measure-mode`
+- [measure-active](./visual/measure-active.png) — active measure icon (bars + open stroke Δt arrow) from `v930/task-measure-mode`
 - [display-control](./visual/display-control.png) — from `v930/hardware-more-detail`
 - [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
 - [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger
-- [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
+- [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
 - **2026-08-20** — Depth came back to 显示控制 as PR-TOOLBAR-011: it scopes the swimlane graph, not the selection, so it belongs with the other view-wide settings. Only direction stayed in the dock.
@@ -145,6 +150,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - **2026-08-17** — Depth tooltip notes 10 000-link-per-side cap.
 - **2026-08-17** — Dependency depth number field in 显示控制 (default 1, −1 no hop cap); PR-TOOLBAR-012.
 - **2026-08-14** — Dependency display dropdown in 显示控制 (all / predecessors / successors); PR-TOOLBAR-011.
+- **2026-08-12** — Measure icon = open stroke chevrons + gap from bars (not filled triangles); PR-TOOLBAR-007c.
 - **2026-08-12** — Measure caliper toggle restored between fit and display-control; PR-TOOLBAR-007.
 - **2026-08-11** — Action icon rest `#363636` / `#b3b3b3`; hover & pressed `#1e2a3e` / `#2d70e3`; radius `6px` (sketch-sampled).
 - **2026-08-11** — Display-control popover tokens from sketch: panel `#363636` / radius `12px` / border `#5e5e5e`; select `#404040` / radius `6px`.

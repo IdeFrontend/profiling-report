@@ -264,34 +264,48 @@ function closeDisplayControl() {
           width="14"
           height="14"
           aria-hidden="true"
+          data-testid="measure-icon"
         >
+          <!-- Vertical bars (selection edges) -->
           <path
-            d="M2 5h12"
+            d="M3 3v10"
             fill="none"
             stroke="currentColor"
-            stroke-width="1.3"
+            stroke-width="1.5"
             stroke-linecap="round"
           />
           <path
-            d="M4 5v6.5M12 5v6.5"
+            d="M13 3v10"
             fill="none"
             stroke="currentColor"
-            stroke-width="1.3"
+            stroke-width="1.5"
             stroke-linecap="round"
           />
+          <!-- Shaft + open stroke chevrons; ~1px gap from bars -->
           <path
-            d="M4 11.5h8"
+            d="M6 8h4"
             fill="none"
             stroke="currentColor"
-            stroke-width="1.3"
-            stroke-linecap="round"
+            stroke-width="1.5"
+            stroke-linecap="butt"
           />
           <path
-            d="M8 5v3.2"
+            data-testid="measure-icon-head"
+            d="M6.2 5.6 L4 8 L6.2 10.4"
             fill="none"
             stroke="currentColor"
-            stroke-width="1.3"
-            stroke-linecap="round"
+            stroke-width="1.5"
+            stroke-linecap="butt"
+            stroke-linejoin="miter"
+          />
+          <path
+            data-testid="measure-icon-head"
+            d="M9.8 5.6 L12 8 L9.8 10.4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="butt"
+            stroke-linejoin="miter"
           />
         </svg>
       </button>
