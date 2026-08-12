@@ -19,10 +19,15 @@ import type {
   SwimEvent,
   SwimlaneModel,
   SwimlaneViewState,
+  SwimThread,
   TimeDisplayUnit,
   ViewFullCsvPayload,
 } from '../../domain/types';
 import { colorVarForLaneName } from '../../domain/laneColors';
+import {
+  collectLeafEventsFromModel,
+  filterCollapsedTree,
+} from '../../domain/swimTree';
 import { t } from '../../i18n';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
@@ -33,6 +38,7 @@ import {
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
+import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 
@@ -87,31 +93,32 @@ const asideAvailable = computed(() => reportHasAsideContent(report.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
 
+function toGutterLane(thread: SwimThread): GutterLane {
+  const lane: GutterLane = {
+    id: thread.id,
+    name: thread.name,
+    utilization: thread.utilization,
+    color: colorVarForLaneName(thread.name),
+  };
+  if (thread.children !== undefined) {
+    lane.children = thread.children.map(toGutterLane);
+  }
+  return lane;
+}
+
 const laneGroups = computed(() =>
   (swim.value?.processes ?? []).map((p) => ({
     id: p.id,
     name: p.name,
-    lanes: p.threads.map((thread) => ({
-      id: thread.id,
-      name: thread.name,
-      utilization: thread.utilization,
-      color: colorVarForLaneName(thread.name),
-    })),
+    lanes: p.threads.map(toGutterLane),
   })),
 );
 
-/** Swim model with collapsed groups' threads removed so canvas row heights match gutter. */
+/** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
-  if (collapsedGroupIds.value.length === 0) return m;
-  const collapsed = new Set(collapsedGroupIds.value);
-  return {
-    ...m,
-    processes: m.processes.map((p) =>
-      collapsed.has(p.id) ? { ...p, threads: [] } : p,
-    ),
-  };
+  return filterCollapsedTree(m, collapsedGroupIds.value);
 });
 
 const bounds = computed(() => {
@@ -139,7 +146,10 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   viewState.value = next;
   selected.value = null;
   hovered.value = null;
-  collapsedGroupIds.value = [];
+  const fromMeta = model?.metadata?.defaultCollapsedIds;
+  collapsedGroupIds.value = Array.isArray(fromMeta)
+    ? fromMeta.filter((id): id is string => typeof id === 'string')
+    : [];
 }
 
 function onToggleGroup(groupId: string): void {
@@ -362,9 +372,9 @@ function onTimeUnit(u: TimeDisplayUnit) {
 
 /** Used by component tests to select an event without canvas pointer geometry. */
 function selectEventById(eventId: string) {
-  const ev = swim.value?.processes
-    .flatMap((p) => p.threads.flatMap((th) => th.events))
-    .find((e) => e.id === eventId);
+  const ev = swim.value
+    ? collectLeafEventsFromModel(swim.value).find((e) => e.id === eventId)
+    : undefined;
   onSelect(ev ?? null);
 }
 

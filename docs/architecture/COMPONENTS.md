@@ -61,11 +61,13 @@ Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), o
 
 ### `SwimProcess` / `SwimThread` / `SwimEvent` (M)
 
-- **Process** — group (e.g. Kernel / AIV0): `id`, `name`, `threads[]`
-- **Thread** — lane: `id`, `name`, optional `utilization` (0..1 for gutter bars), `events[]`
+- **Process** — Card / top group: `id`, `name`, optional `utilization`, `threads[]` (通信 / 计算 / 储存HBM / flat CTEF lanes)
+- **Thread** — lane or nested folder: `id`, `name`, optional `utilization`, `events[]`, optional `children[]`
+  - **Leaf** = no / empty `children` → paints events (may be `[]` spacer)
+  - **Folder** = non-empty `children` → lane-style gutter row (chevron + util); events ignored
 - **Event** — interval: `id`, `name`, `startTime`, `duration`, optional `dependencies`, `args`
 
-**Why:** Matches pypto-like hierarchy. Optional `args` and `dependencies` hold format-specific extras (seqNo, pipe flags, etc.) without polluting required fields. Missing utilization → gutter without bars.
+**Why:** Matches sketch Card → category → Core → pipe hierarchy. Only Card uses group-header chrome. Optional `args` / `dependencies` hold format extras. Missing utilization → gutter without bars. Flat CTEF stays valid (no `children`).
 
 ### `ReportViewModel` (M)
 

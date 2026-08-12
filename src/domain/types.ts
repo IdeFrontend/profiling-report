@@ -13,12 +13,18 @@ export interface SwimThread {
   id: string;
   name: string;
   utilization?: number;
+  /** Leaves hold intervals; folders use []. */
   events: SwimEvent[];
+  /** Non-empty ⇒ folder (lane-style gutter row); omit/empty ⇒ leaf. */
+  children?: SwimThread[];
 }
 
 export interface SwimProcess {
   id: string;
+  /** Card name (sketch) or flat CTEF process name. */
   name: string;
+  utilization?: number;
+  /** Top children under the card (通信 / 计算 / 储存HBM) or flat CTEF threads. */
   threads: SwimThread[];
 }
 
@@ -26,7 +32,20 @@ export interface SwimlaneModel {
   processes: SwimProcess[];
   minTime: number;
   maxTime: number;
+  /**
+   * Optional phase bands for group rows (e.g. ProfilerStep#N).
+   * Omit when absent — adapters must not invent these.
+   */
+  bands?: SwimlaneBand[];
   metadata?: Record<string, unknown>;
+}
+
+/** Shared timeline phase marker painted on folder / spacer group rows. */
+export interface SwimlaneBand {
+  id: string;
+  name: string;
+  startTime: number;
+  duration: number;
 }
 
 export interface SummaryMetrics {

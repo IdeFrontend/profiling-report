@@ -196,7 +196,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private solidProg: GlProgram | null = null;
   private unitQuad: MeshChunk | null = null;
   private laneMeshes: LaneMeshes[] = [];
-  private layout: SwimlaneLayout = { lanes: [], headers: [], events: [] };
+  private layout: SwimlaneLayout = { lanes: [], headers: [], events: [], bands: [] };
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   /** Subtracted from event times before float32 upload (model.minTime). */
   private timeBase = 0;
@@ -399,7 +399,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.solidProg = null;
     this.gl = null;
     this.canvas = null;
-    this.layout = { lanes: [], headers: [], events: [] };
+    this.layout = { lanes: [], headers: [], events: [], bands: [] };
   }
 
   private drawSolidRect(

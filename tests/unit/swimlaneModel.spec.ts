@@ -29,6 +29,8 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     // Ascend .rep embed: ns source → values stay in ns
     expect(model.metadata?.displayTimeUnit).toBe('ns');
     expect(events[0]!.startTime).toBeLessThan(1e9);
+    // Adapters never invent ProfilerStep bands
+    expect(model.bands).toBeUndefined();
   });
 
   it('PR-SWIM-002: default CTEF µs times convert to ns', () => {

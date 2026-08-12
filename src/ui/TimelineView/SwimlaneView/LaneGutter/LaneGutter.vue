@@ -1,22 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import LaneGutterNode from './LaneGutterNode.vue';
+import type { GutterGroup, GutterLane } from './gutterTypes';
 
-export type GutterLane = {
-  id: string;
-  name: string;
-  utilization?: number;
-  color: string;
-};
-
-export type GutterGroup = {
-  id: string;
-  name: string;
-  lanes: GutterLane[];
-};
+export type { GutterGroup, GutterLane };
 
 const props = defineProps<{
   groups: GutterGroup[];
-  /** Group ids whose child lanes are hidden. */
+  /** Card or nested folder ids whose descendants are hidden. */
   collapsedIds?: string[];
 }>();
 
@@ -31,16 +22,6 @@ const collapsed = computed(() => new Set(props.collapsedIds ?? []));
 
 function isCollapsed(id: string): boolean {
   return collapsed.value.has(id);
-}
-
-function pctLabel(util: number): string {
-  return `${Math.round(util * 100)}%`;
-}
-
-/** Sketch: muted red fill when util is low (&lt; 50%). */
-function fillColor(lane: GutterLane): string {
-  if (lane.utilization != null && lane.utilization < 0.5) return '#733234';
-  return lane.color;
 }
 
 defineExpose({ root });
@@ -72,35 +53,14 @@ defineExpose({ root });
         <span class="pr-gutter__group-name">{{ group.name }}</span>
       </button>
       <template v-if="!isCollapsed(group.id)">
-        <div
+        <LaneGutterNode
           v-for="lane in group.lanes"
           :key="lane.id"
-          class="pr-gutter__lane"
-        >
-          <span
-            class="pr-gutter__name"
-            :title="lane.name"
-          >{{ lane.name }}</span>
-          <span
-            v-if="lane.utilization != null"
-            class="pr-gutter__util"
-            data-testid="lane-util"
-          >
-            <span
-              class="pr-gutter__util-fill"
-              :style="{
-                width: `${Math.min(100, Math.max(0, lane.utilization * 100))}%`,
-                background: fillColor(lane),
-              }"
-            />
-            <span class="pr-gutter__util-pct">{{ pctLabel(lane.utilization) }}</span>
-          </span>
-          <span
-            v-else
-            class="pr-gutter__util pr-gutter__util--empty"
-            aria-hidden="true"
-          />
-        </div>
+          :lane="lane"
+          :depth="0"
+          :collapsed-ids="collapsedIds"
+          @toggle="(id) => emit('toggle-group', id)"
+        />
       </template>
     </template>
   </div>
@@ -130,7 +90,7 @@ defineExpose({ root });
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 0 0 28px; /* keep in sync with LANE_GROUP_HEADER_HEIGHT */
+  flex: 0 0 28px;
   height: 28px;
   min-height: 28px;
   width: 100%;
@@ -151,10 +111,6 @@ defineExpose({ root });
   background: #2f2f2f;
 }
 
-/*
- * Open-angle chevrons (stroke), not filled ▾/▸ glyphs.
- * Size ~8×5 down / 5×8 right — matches sketch pixel chevrons.
- */
 .pr-gutter__chevron {
   box-sizing: border-box;
   flex: 0 0 10px;
@@ -192,76 +148,5 @@ defineExpose({ root });
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.pr-gutter__lane {
-  box-sizing: border-box;
-  display: grid;
-  /* label aligns under group title (pad 8 + chev 10 + gap 6 = 24) */
-  grid-template-columns: minmax(0, 1fr) 110px;
-  gap: 6px;
-  align-items: center;
-  flex: 0 0 22px; /* keep in sync with LANE_HEIGHT */
-  height: 22px;
-  min-height: 22px;
-  padding: 0 8px 0 24px;
-  border-bottom: 1px solid #3a3a3a; /* continues across swimlane row dividers */
-}
-
-.pr-gutter__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 400;
-  color: #b0b0b0;
-}
-
-/* Util bar — % inside, right-aligned (LaneGutter.spec.md Visual) */
-.pr-gutter__util {
-  position: relative;
-  display: block;
-  box-sizing: border-box;
-  height: 16px;
-  width: 110px;
-  /* Unfilled: gray diagonal hatch (not solid black). */
-  background: repeating-linear-gradient(
-    -45deg,
-    #3a3a3a 0,
-    #3a3a3a 1px,
-    #2a2a2a 1px,
-    #2a2a2a 4px
-  );
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.pr-gutter__util--empty {
-  background: transparent;
-}
-
-.pr-gutter__util-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  min-width: 0;
-  border-radius: 0;
-}
-
-.pr-gutter__util-pct {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: #b0b0b0; /* match lane title */
-  line-height: 1;
-  pointer-events: none;
-  z-index: 1;
 }
 </style>

@@ -71,9 +71,10 @@ Sampled primarily from PIPE bars in `source/v930/entry.jpeg` (bottom-right), ord
 
 ## Rules
 
-1. Same `colorKey` must match across PIPE bars, gutter util tint, overview series, and event fill when category is known.
-2. Unknown category → neutral gray (`#606060`), not a random hue.
-3. Changing tokens requires updating this file and visual fixtures in the same PR.
+1. Same `colorKey` must match across PIPE aside bars, overview series, and swimlane **event** fills when category is known.
+2. **Gutter utilization bars** use threshold fills only: util &lt; 0.5 → `#733234`, util ≥ 0.5 → `#5c5c5c` — not `colorKey` / pipe category hues.
+3. Unknown swimlane category → neutral gray (`#606060`), not a random hue.
+4. Changing tokens requires updating this file and visual fixtures in the same PR.
 
 ## Related
 

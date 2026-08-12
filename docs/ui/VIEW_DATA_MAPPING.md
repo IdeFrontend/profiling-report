@@ -290,7 +290,7 @@ Docx field table is **empty**. Behavior from mockups + sample `trace.json`:
 
 | UI region | Content |
 | --- | --- |
-| Left tree | Hierarchical Kernel → `CoreN.Cube` / `CoreN.Vec*` → pipes (`SCALAR`, `MTE1/2/3`, `CUBE`, `FIXP`, `CACHEMISS`, …) with utilization % bars |
+| Left tree | Hierarchical **Card** → 通信 / 计算 / 储存HBM → `CoreN.Cube` / `CoreN.Vec*` → pipes (`ALL`, `SCALAR`, `FLOWCTRL`, `MTE1/2/3`, `CUBE`, `FIXP`, `CACHEMISS`, …) with utilization % bars. Only Card is a group header; nested folders are lane-style expandable rows |
 | Main pane | Gantt / swimlane blocks on a time or **时钟周期** axis |
 | Selection | Click block → bottom **详情** (§11.2.8.1) |
 | Dependencies | Curved connectors between related blocks |
