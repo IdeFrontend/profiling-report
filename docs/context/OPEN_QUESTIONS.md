@@ -68,7 +68,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q17** | Design system / i18n | **Interim** | same |
 | **Q18** | PyPTO copy-paste license | **Interim** | same — Legal before verbatim paste |
 | **Q19** | Gesture parity | **Interim** | Wheel/slider/drag MVP; W/S/A/D P2 |
-| **Q20** | Cursor skills / agent rules | Open | process docs, `.cursor` skills/rules |
+| **Q20** | Cursor skills / agent rules | **Resolved** | Shared: [`AGENTS.md`](../../AGENTS.md), nested `specs/AGENTS.md` + `src/ui/AGENTS.md`, skills in `.agents/skills/`. Cursor-only: `.cursor/rules/code-review-post-github.mdc`. Claude: [`CLAUDE.md`](../../CLAUDE.md) → `@AGENTS.md`. |
 | **Q21** | Acceptance owner | Open | PROJECT_GOALS, this file |
 
 ---
@@ -89,3 +89,4 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q15 | 2026-07-31 | `.json` → profiling-report | MSTT_INTEGRATION |
 | Q16–Q19 | 2026-07-31 | Engineering proposals filed | PACKAGING_SUGGESTIONS |
 | Interim set | 2026-07-31 | I-Q2, I-Q4, I-Q6a/b, I-Q5+, I-Q14, I-Q16–19 for MVP code | INTERIM_DECISIONS |
+| Q20 | 2026-08-12 | Shared agent rules in AGENTS.md (+ nested spec guides); Cursor-only review auto-post; skills in `.agents/skills/` | AGENTS.md, CLAUDE.md |
