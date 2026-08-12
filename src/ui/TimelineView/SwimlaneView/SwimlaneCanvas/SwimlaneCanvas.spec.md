@@ -48,14 +48,13 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Visual
 
-Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-highlight.png`](./visual/search-highlight.png), [`visual/measure-overlay.png`](./visual/measure-overlay.png), [`visual/measure-mode.png`](./visual/measure-mode.png), [`visual/multi-height.png`](./visual/multi-height.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-highlight.png`](./visual/search-highlight.png), [`visual/measure-overlay.png`](./visual/measure-overlay.png), [`visual/multi-height.png`](./visual/multi-height.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Design sketches
 
 - [event-blocks](./visual/event-blocks.png) — from `v930/entry`
 - [search-highlight](./visual/search-highlight.png) — from `v930/search-highlight`
 - [measure-overlay](./visual/measure-overlay.png) — from `v930/task-measure-mode`
-- [measure-mode](./visual/measure-mode.png) — measure trigger + Δt overlay from `v930/change-log` (#1)
 - [multi-height](./visual/multi-height.png) — from `v930/task-multi-height`
 - [Kernel block timeline](../../../../../docs/ui/source/v930/entry.jpeg) — full frame
 - [Task measure mode](../../../../../docs/ui/source/v930/task-measure-mode.jpeg) — full frame
@@ -67,7 +66,6 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
-- **2026-08-12** — measure-mode crop (change-log #1).
 - **2026-08-10** — Flush paint after canvas resize (no blink on panel drag); draw surface = viewport height.
 - **2026-08-07** — External measure cancel clears local drag; PR-CANVAS-006.
 - **2026-08-07** — Measure drag survives pointerleave; PR-CANVAS-005.

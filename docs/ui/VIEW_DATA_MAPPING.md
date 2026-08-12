@@ -236,16 +236,6 @@ Use this table for `MemoryTopologyPanel` labels. Product may refine ([Q12](../co
 
 Omit edge label when value is missing/`NA`. Edge thickness stays static.
 
-### Redraw notes (change-log #5)
-
-The v930 change-log redraw ([`buffer-links.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png), frame [`v930/change-log`](./source/v930/change-log.jpeg)) shows real buffer-link values plus node annotations not in the earlier `report-stats-scrolled` sketch:
-
-- AIC memory path gains `XN_IMM` and `Data Cache` nodes (between L2 and L1/L0).
-- AIV path annotates `SIMT` / `SIMD` sub-units with utilization percentages.
-- Buffer links carry GB/s labels (e.g. `1.56 GB/s`, `3.12 GB/s`, `0.78 GB/s`); `Data Cache` shows a `MISS` / hit-rate annotation.
-
-Column mapping for these newly visible annotations is still **TBD** ([Q12](../context/OPEN_QUESTIONS.md)); the table above stays authoritative for the edges it covers.
-
 ### Visualization logic
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).

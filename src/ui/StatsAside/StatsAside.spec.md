@@ -8,7 +8,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), mode swit
 
 ## Inputs
 
-**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `hardwareDetails`, and optional `memoryTopology`. Optional **locale**. Optional **capabilities** (e.g. `hardwareDetails`) gates shell controls that need feature flags.
+**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** (e.g. `hardwareDetails`) gates shell controls that need feature flags.
 
 ## Outputs
 
@@ -46,10 +46,6 @@ Section header shows localized **pipeOccupancy** title and a **详情** / Detail
 ### Roofline (M2 interim)
 
 When `report.roofline.points` is non-empty, mount `RooflinePanel` below the active mode panel (I-Q11a–f). Hide when absent. No tabs until I-Q11f superseded.
-
-### Memory topology (M2, change-log #5)
-
-When `report.memoryTopology` is present, the memory mode mounts `MemoryTopologyPanel` (static topology + data-driven Buffer-link labels) **above** the `CsvFieldListPanel` field list. Hide the diagram when `memoryTopology` is absent.
 
 ### Hardware details (M1 interim I-Q7a)
 
@@ -99,7 +95,6 @@ Crops (shell): [`visual/aside-scrolled.png`](./visual/aside-scrolled.png) — [`
 
 - [aside-scrolled](./visual/aside-scrolled.png) — from `v930/report-stats-scrolled`
 - [mode-tabs](./PipeOccupancyPanel/visual/mode-tabs.png) — Cube|Vector tabs from `v930/compute-load`
-- [cube-vector-toggle](./PipeOccupancyPanel/visual/cube-vector-toggle.png) — Cube|Vector toggle from `v930/change-log` (#2)
 - [summary-cards](./StatsSummaryPanel/visual/summary-cards.png) — from `v930/report-stats-open`
 - [pipe-bars](./PipeOccupancyPanel/visual/pipe-bars.png) — from `v930/compute-load`
 - [hardware-detail](./HardwareDetailsPanel/visual/hardware-detail.png) — from `v930/hardware-more-detail`
@@ -112,7 +107,6 @@ Crops (shell): [`visual/aside-scrolled.png`](./visual/aside-scrolled.png) — [`
 [COLOR_TOKENS.md](../../../docs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f, I-Q7a, I-Q11a–f.
 
 ## Changelog
-- **2026-08-12** — Memory topology mount (change-log #5) + cube-vector-toggle crop.
 - **2026-08-10** — Hardware overlay via 更多 (PR-STATS-018, I-Q7a); PIPE 详情 → compute mode (PR-STATS-016).
 - **2026-08-10** — Roofline section when points present (PR-STATS-015, I-Q11*).
 - **2026-08-07** — PIPE sketch chrome: scale, hatch, absolute time, Details (PR-STATS-012–014, I-Q6f).

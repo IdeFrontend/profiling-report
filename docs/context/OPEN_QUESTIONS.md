@@ -83,7 +83,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q5 | 2026-07-31 | Hide overview until OverviewSeries (C) | VIEW_DATA_REQUIREMENTS |
 | Q7 | 2026-07-31 | Hardware aside out of MVP | FEATURE_MATRIX |
 | Q8 | 2026-07-31 | Producer fixed naming for now (A) | METRICS_AND_TRACE |
-| Q12 | 2026-07-31 | Static SVG + data-driven labels; change-log #5 redraw adds real Buffer-link GB/s values | VIEW_DATA_REQUIREMENTS |
+| Q12 | 2026-07-31 | Static SVG + data-driven labels | VIEW_DATA_REQUIREMENTS |
 | Q13 | 2026-07-31 | Sketch colors normative | COLOR_TOKENS |
 | Q14 | 2026-07-31 | Time unit configurable | INTERACTIONS |
 | Q15 | 2026-07-31 | `.json` → profiling-report | MSTT_INTEGRATION |
