@@ -269,42 +269,47 @@ defineExpose({
             data-testid="measure-arrow"
             :style="{ left: `${measureAxis.left}%`, width: `${measureAxis.width}%` }"
           >
-            <div class="pr-measure-arrow__shaft" />
+            <!--
+              Absolute geometry (px):
+              - heads start 1px from bars (tip–bar gap)
+              - tip vertex inset in SVG so miter stays sharp without eating the gap
+              - shaft reaches ~where arm gap ≈ stroke, so it meets the arms
+            -->
             <svg
               class="pr-measure-arrow__head pr-measure-arrow__head--left"
               data-testid="measure-arrow-head"
-              viewBox="0 0 5 8"
-              width="5"
-              height="8"
+              viewBox="0 0 9 10"
+              width="9"
+              height="10"
               aria-hidden="true"
-              style="left: 1px"
             >
-              <!-- Open stroke chevron; tip at x=0, SVG left:1px → 1px gap from bar -->
               <path
-                d="M4 1 L0 4 L4 7"
+                d="M8 1.5 L2 5 L8 8.5"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1"
+                stroke-width="1.5"
                 stroke-linecap="butt"
                 stroke-linejoin="miter"
+                stroke-miterlimit="8"
               />
             </svg>
+            <div class="pr-measure-arrow__shaft" />
             <svg
               class="pr-measure-arrow__head pr-measure-arrow__head--right"
               data-testid="measure-arrow-head"
-              viewBox="0 0 5 8"
-              width="5"
-              height="8"
+              viewBox="0 0 9 10"
+              width="9"
+              height="10"
               aria-hidden="true"
-              style="right: 1px"
             >
               <path
-                d="M1 1 L5 4 L1 7"
+                d="M1 1.5 L7 5 L1 8.5"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="1"
+                stroke-width="1.5"
                 stroke-linecap="butt"
                 stroke-linejoin="miter"
+                stroke-miterlimit="8"
               />
             </svg>
             <span
@@ -427,20 +432,23 @@ defineExpose({
 
 .pr-measure-arrow {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
   pointer-events: none;
   z-index: 4;
-  color: var(--pr-playhead, #3078f0);
+  color: rgba(49, 122, 247, 1);
 }
 
 .pr-measure-arrow__shaft {
   position: absolute;
-  /* Meet the open base of each stroke chevron (heads are 5px + 1px bar gap). */
-  left: 5px;
-  right: 5px;
   top: 50%;
-  height: 1px;
+  /* Head at 1px, tip at SVG x=2 → arm gap≈1.5px near SVG x=3.3 → abs ~4.3px */
+  left: 4px;
+  right: 4px;
+  height: 1.5px;
   background: currentColor;
+  transform: translateY(-50%);
+  z-index: 0;
 }
 
 .pr-measure-arrow__head {
@@ -449,6 +457,15 @@ defineExpose({
   transform: translateY(-50%);
   display: block;
   overflow: visible;
+  z-index: 1;
+}
+
+.pr-measure-arrow__head--left {
+  left: 1px;
+}
+
+.pr-measure-arrow__head--right {
+  right: 1px;
 }
 
 .pr-measure-arrow__label {
@@ -464,6 +481,7 @@ defineExpose({
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  z-index: 2;
 }
 
 .pr-gutter--axis-spacer {
