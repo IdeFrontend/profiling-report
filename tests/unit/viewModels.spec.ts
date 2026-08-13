@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { adaptRep, parseRep } from '../../src/index';
+import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../src/adapters/memoryTopology';
 import { loadOutRepBytes } from '../helpers/fixtures';
+import type { CsvTableModel } from '../../src/domain/types';
 
 describe('PR-VM: report view-models (interim)', () => {
   it('PR-VM-001 (interim I-Q6a): OpBasicInfo → thin summary only', () => {
@@ -170,13 +172,33 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(byKey['Current Freq']).toBe('1650');
   });
 
-  // M2 deferred: adaptRep does not yet populate memoryTopology (change-log #5).
-  it.skip('PR-VM-011 (Q12 + change-log #5): memoryTopology with data-driven edge labels', () => {
+  it('PR-VM-011 (Q12 + change-log #5): memoryTopology with data-driven edge labels', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const topo = adapted.reportModel.memoryTopology;
     expect(topo).toBeDefined();
     expect(adapted.capabilities).toContain('memoryDiagram');
     expect(topo!.nodes.length).toBeGreaterThan(0);
     expect(topo!.edges.filter((e) => e.label !== undefined).length).toBeGreaterThan(0);
+  });
+
+  it('PR-VM-012: topology labels are block-scoped; snapshot uses first labelled block', () => {
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+        rows: [
+          { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+          { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '4.25' },
+        ],
+        blockIds: ['0', '1'],
+      },
+    ];
+    expect(buildMemoryTopology(tables, '0')).toBeUndefined();
+    const block1 = buildMemoryTopology(tables, '1');
+    expect(block1?.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
+    expect(buildMemoryTopology(tables, '9')).toBeUndefined();
+    const first = firstLabelledMemoryTopology(tables);
+    expect(first?.blockId).toBe('1');
+    expect(first?.model.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
   });
 });

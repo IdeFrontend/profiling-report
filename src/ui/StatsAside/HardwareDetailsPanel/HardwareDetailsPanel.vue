@@ -28,7 +28,10 @@ defineProps<{
           class="pr-hw__row"
         >
           <span class="pr-hw__key">{{ f.key }}</span>
-          <span class="pr-hw__val">{{ f.value }}</span>
+          <span
+            class="pr-hw__val"
+            :title="f.value"
+          >{{ f.value }}</span>
         </li>
       </ul>
     </section>
@@ -40,15 +43,9 @@ defineProps<{
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1 1 auto;
   overflow: auto;
   min-height: 0;
-}
-
-.pr-hw__title {
-  margin: 0 0 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #d0d8e0;
 }
 
 .pr-hw__list {
@@ -57,12 +54,19 @@ defineProps<{
   padding: 0;
 }
 
+.pr-hw__title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
 .pr-hw__row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
   font-size: 12px;
-  padding: 3px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #3a424a;
 }
 
@@ -72,6 +76,10 @@ defineProps<{
 
 .pr-hw__val {
   color: #e8eef4;
-  text-align: right;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 </style>

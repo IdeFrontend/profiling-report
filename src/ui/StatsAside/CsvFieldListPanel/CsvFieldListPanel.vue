@@ -9,20 +9,23 @@ const props = withDefaults(
     csvTexts?: Record<string, string>;
     locale?: string;
     showBlockSwitcher?: boolean;
+    selectedBlockId?: string;
   }>(),
   {
     csvTexts: () => ({}),
     locale: undefined,
     showBlockSwitcher: true,
+    selectedBlockId: undefined,
   },
 );
 
 const emit = defineEmits<{
   'view-full-csv': [payload: { fileName: string; text: string }];
+  'update:selectedBlockId': [id: string];
 }>();
 
 const activeFile = ref(props.tables[0]?.fileName ?? '');
-const selectedBlock = ref('');
+const internalBlock = ref('');
 const search = ref('');
 
 watch(
@@ -38,6 +41,17 @@ watch(
 const activeTable = computed(
   () => props.tables.find((t) => t.fileName === activeFile.value) ?? null,
 );
+
+const selectedBlock = computed({
+  get(): string {
+    if (props.selectedBlockId != null && props.selectedBlockId !== '') return props.selectedBlockId;
+    return internalBlock.value;
+  },
+  set(v: string) {
+    internalBlock.value = v;
+    emit('update:selectedBlockId', v);
+  },
+});
 
 watch(
   activeTable,
@@ -130,7 +144,28 @@ function onViewAll() {
         <span
           class="pr-csv__search-icon"
           aria-hidden="true"
-        >⌕</span>
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+          >
+            <circle
+              cx="5"
+              cy="5"
+              r="3.5"
+              stroke="currentColor"
+              stroke-width="1.2"
+            />
+            <path
+              d="M7.8 7.8 L10.5 10.5"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
         <input
           v-model="search"
           data-testid="csv-search"
@@ -226,8 +261,8 @@ function onViewAll() {
 }
 
 .pr-csv__tab--active {
-  color: #e8e8e8;
-  border-bottom-color: var(--pr-playhead, #3078f0);
+  color: #ffffff;
+  border-bottom-color: #ffffff;
 }
 
 .pr-csv__toolbar {
@@ -285,20 +320,21 @@ function onViewAll() {
 }
 
 .pr-csv__block select {
-  background: #1f1f1f;
+  appearance: none;
+  background: #2a2a2a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23c8c8c8' d='M0 0l5 6 5-6z'/></svg>") no-repeat right 8px center;
   border: 1px solid #3a3a3a;
   color: #e0e0e0;
   font-size: 11px;
-  padding: 3px 6px;
-  border-radius: 2px;
-  min-width: 64px;
+  padding: 4px 22px 4px 10px;
+  border-radius: 4px;
+  min-width: 72px;
 }
 
 .pr-csv__view-all {
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--pr-playhead, #3078f0);
+  color: #c8c8c8;
   font-size: 12px;
   padding: 0;
   cursor: pointer;
@@ -322,7 +358,6 @@ function onViewAll() {
   gap: 0;
   flex: 1 1 auto;
   min-height: 0;
-  max-height: min(520px, 60vh);
   overflow: auto;
   border-top: 1px solid #333;
 }

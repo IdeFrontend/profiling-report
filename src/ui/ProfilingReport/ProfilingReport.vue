@@ -177,13 +177,15 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
   const hasMemoryTables = rm.memoryTables.length > 0;
   const hasRoofline = (rm.roofline?.points?.length ?? 0) > 0;
   const hasHardware = (rm.hardwareDetails?.sections.length ?? 0) > 0;
+  const hasTopology = (rm.memoryTopology?.edges.some((e) => e.label) ?? false);
   return (
     hasDuration ||
     hasPipe ||
     hasComputeTables ||
     hasMemoryTables ||
     hasRoofline ||
-    hasHardware
+    hasHardware ||
+    hasTopology
   );
 }
 
