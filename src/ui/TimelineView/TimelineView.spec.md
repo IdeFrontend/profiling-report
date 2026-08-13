@@ -4,9 +4,11 @@
 |----------------|
 | PR-TIMELINE-*  |
 
-Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width CSS var is owned here; the resize handle lives on the SwimlaneView body (see `SwimlaneView.spec.md`).
+Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width CSS var is owned here; the resize handle lives on the SwimlaneView body (see `SwimlaneView.spec.md`). Overview/axis top chrome is **not** resizable.
 
 ## Behavior
+
+**Top chrome gutter.** Overview and viewport-axis gutter spacers form one continuous block: **no** horizontal border between those two spacer cells. (Timeline-column borders between overview track and viewport axis may remain.)
 
 **Measure mode (M2).** The overview bar stays visible for window navigation (no measure span is drawn on it). The viewport time axis draws blue vertical bars at the measured range edges plus a double-sided Δt arrow, and accepts the same drag-to-measure gesture as the swimlane. Swimlane fade/gray borders live in `SwimlaneCanvas`.
 
@@ -20,6 +22,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 4. **PR-TIMELINE-004** — Measure arrow: sharp miter stroke chevrons, **1px** tip–bar gap, shaft overlaps into heads, **4px** shaft–label gaps; 1.5px stroke; `rgba(49, 122, 247, 1)`.
 
 ## Changelog
+- **2026-08-13** — Continuous overview/axis gutter (no mid-spacer horizontal rule); top chrome not resizable.
 - **2026-08-13** — 4px gaps between Δt label and horizontal shaft segments.
 - **2026-08-13** — Tip gap back to 1px.
 - **2026-08-13** — Tip gap 3px; sharp miter tips; shaft overlaps to arm convergence.

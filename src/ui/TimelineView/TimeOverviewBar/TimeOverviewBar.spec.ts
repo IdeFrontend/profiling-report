@@ -63,4 +63,15 @@ describe('TimeOverviewBar', () => {
     expect(wrapper.findAll('[data-testid="axis-ruler-major"]').length).toBeGreaterThan(0);
     expect(wrapper.findAll('[data-testid="axis-ruler-minor"]').length).toBeGreaterThan(0);
   });
+
+  it('PR-OVERVIEW-005: handle tab 4×10 flush vertically; track allows horizontal uncrop', async () => {
+    const src = (await import('./TimeOverviewBar.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-overview__handle-tab\s*\{[^}]*top:\s*0[^}]*width:\s*4px[^}]*height:\s*10px/s,
+    );
+    expect(src).toMatch(/\.pr-overview__handle-stem\s*\{[^}]*top:\s*10px/s);
+    expect(src).not.toMatch(/\.pr-overview__handle-tab\s*\{[^}]*top:\s*-\d+px/s);
+    expect(src).toMatch(/\.pr-overview__track\s*\{[^}]*overflow:\s*visible/s);
+    expect(src).not.toMatch(/\.pr-overview__track\s*\{[^}]*overflow:\s*hidden/s);
+  });
 });

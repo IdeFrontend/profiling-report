@@ -214,6 +214,7 @@ function onPointerUp() {
   padding: 0;
   background: transparent;
   user-select: none;
+  overflow: visible;
 }
 
 .pr-overview__track {
@@ -221,8 +222,8 @@ function onPointerUp() {
   height: 20px;
   border-bottom: 1px solid #4a4a4a;
   cursor: default;
-  /* Clip edge labels so they never paint into the right aside. */
-  overflow: hidden;
+  /* Visible so edge handles are not cropped L/R; AxisRuler clips tick text vs aside. */
+  overflow: visible;
 }
 
 .pr-overview__dim {
@@ -253,7 +254,7 @@ function onPointerUp() {
 
 /*
  * Range handle: vertical white pill head + 1px stem.
- * Track is 20px; 4×10 pill (TimeOverviewBar.spec).
+ * Track is 20px; head is exactly 4×10 flush in the top strip (TimeOverviewBar.spec).
  */
 .pr-overview__handle {
   position: absolute;
@@ -271,7 +272,7 @@ function onPointerUp() {
 
 .pr-overview__handle-stem {
   position: absolute;
-  top: 11px;
+  top: 10px;
   bottom: 0;
   left: 50%;
   width: 1px;
@@ -282,7 +283,7 @@ function onPointerUp() {
 
 .pr-overview__handle-tab {
   position: absolute;
-  top: 1px;
+  top: 0;
   left: 50%;
   width: 4px;
   height: 10px;
