@@ -22,7 +22,12 @@ interface SwimThread   {
   utilization?: number;
   children?: SwimThread[]; // folder when non-empty; leaf when absent/empty
 }
-interface SwimEvent    { id: string; name: string; startTime: number; duration: number; args?: {} }
+interface EventRef     { tid: string; index: number } // SwimThread.id + post-sort index into thread.events
+interface EventDependencies { predecessors: EventRef[]; successors: EventRef[] }
+interface SwimEvent    {
+  id: string; name: string; startTime: number; duration: number; args?: {};
+  dependencies?: EventDependencies; // omit when both lists would be empty
+}
 ```
 
 **Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). Only `SwimProcess` (Card) uses group-header chrome.
@@ -39,6 +44,8 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 
 **Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — Q8: do not invent Card/Core nesting from AIV pipe names.
 
+**Async dependencies.** `ph: 's'` / `ph: 'f'` events are not intervals. They pair by trace `id` into start/finish endpoints (last endpoint of each kind wins; unpaired or `start.ts > finish.ts` dropped). After X events are sorted per thread, each pair finds the X event on the start thread whose `[startTime, startTime+duration]` contains `start.ts`, and the X event on the finish thread that contains `finish.ts`. Those two events are linked: parent `successors` ← child `{ tid: SwimThread.id, index }`, child `predecessors` ← parent. Duplicate refs are not stored. Events with no edges omit `dependencies`. s/f timestamps use the same ns conversion as X events.
+
 **Ordering.** Processes and threads ordered by first event start time. Within each thread, events sorted by `startTime` ascending. Processes/threads with no events are excluded.
 
 **Error on empty.** If the trace contains no complete X events, `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.
@@ -52,10 +59,14 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 1. **PR-SWIM-003**: displayTimeUnit metadata preserved (display-only, timestamps unchanged).
 1. **PR-SWIM-004**: CTEF array format and process_name metadata handled correctly.
 1. **PR-SWIM-005**: Rejects traces with no complete X events (throws).
+1. **PR-SWIM-006**: s/f pairs link EventRefs across threads.
+1. **PR-SWIM-007**: Unmatched, inverted, or miss timestamps yield no edge.
+1. **PR-SWIM-008**: Index is post-sort; duplicate edges unique; omit empty deps.
 
 ## Edge Cases
 
 - Only B/E events (no X) → throws. Single event → one process/thread/event, minTime = maxTime (handled upstream by bounds clamp).
+- s/f with no matching X interval, missing id/ts, or finish before start → ignored. Nested overlapping X: binary search returns the hit, not necessarily innermost.
 
 ## Dependencies
 
@@ -66,6 +77,7 @@ interface SwimEvent    { id: string; name: string; startTime: number; duration: 
 Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-08-13** — Optional `EventDependencies` via `{tid, index}` refs from Chrome Trace s/f pairs.
 - **2026-08-11** — Optional `SwimlaneBand[]` on model; adapters omit; stress may supply.
 - **2026-08-11** — Optional `SwimThread.children`; folder vs leaf rules; CTEF stays flat.
 - **2026-08-05** — Initial spec. Core behaviors established.

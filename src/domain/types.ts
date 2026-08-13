@@ -1,11 +1,23 @@
 /** Canonical models — see docs/architecture/COMPONENTS.md */
 
+/** Points at `thread.events[index]` where `thread.id === tid`. */
+export interface EventRef {
+  tid: string;
+  index: number;
+}
+
+export interface EventDependencies {
+  predecessors: EventRef[];
+  successors: EventRef[];
+}
+
 export interface SwimEvent {
   id: string;
   name: string;
   startTime: number;
   duration: number;
-  dependencies?: string[];
+  /** Omit when both lists would be empty. */
+  dependencies?: EventDependencies;
   args?: Record<string, unknown>;
 }
 

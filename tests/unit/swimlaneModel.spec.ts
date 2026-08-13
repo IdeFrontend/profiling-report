@@ -69,4 +69,63 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
   it('PR-SWIM-005: rejects traces with no complete X events', () => {
     expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete X events/);
   });
+
+  it('PR-SWIM-006: s/f pairs link EventRefs across threads', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'M', name: 'thread_name', pid: 1, tid: 10, args: { name: 'A' } },
+        { ph: 'M', name: 'thread_name', pid: 1, tid: 20, args: { name: 'B' } },
+        { ph: 'X', name: 'parent', pid: 1, tid: 10, ts: 0, dur: 100 },
+        { ph: 'X', name: 'child', pid: 1, tid: 20, ts: 50, dur: 10 },
+        { ph: 's', id: 'flow1', pid: 1, tid: 10, ts: 10 },
+        { ph: 'f', id: 'flow1', pid: 1, tid: 20, ts: 55 },
+      ],
+    });
+    const parent = threadByName(model, 'A').events[0]!;
+    const child = threadByName(model, 'B').events[0]!;
+    expect(parent.dependencies?.successors).toEqual([{ tid: 't-1-20', index: 0 }]);
+    expect(parent.dependencies?.predecessors).toEqual([]);
+    expect(child.dependencies?.predecessors).toEqual([{ tid: 't-1-10', index: 0 }]);
+    expect(child.dependencies?.successors).toEqual([]);
+  });
+
+  it('PR-SWIM-007: unmatched, inverted, or miss timestamps yield no edge', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 10, dur: 10 },
+        { ph: 's', id: 'only-s', pid: 1, tid: 1, ts: 12 },
+        { ph: 's', id: 'inverted', pid: 1, tid: 1, ts: 18 },
+        { ph: 'f', id: 'inverted', pid: 1, tid: 1, ts: 11 },
+        { ph: 's', id: 'gap', pid: 1, tid: 1, ts: 0 },
+        { ph: 'f', id: 'gap', pid: 1, tid: 1, ts: 5 },
+        { ph: 's', pid: 1, tid: 1, ts: 12 },
+        { ph: 'f', id: 'no-ts', pid: 1, tid: 1 },
+      ],
+    });
+    expect(model.processes[0]?.threads[0]?.events[0]?.dependencies).toBeUndefined();
+  });
+
+  it('PR-SWIM-008: index is post-sort; duplicate edges unique; omit empty deps', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'second', pid: 1, tid: 1, ts: 100, dur: 10 },
+        { ph: 'X', name: 'first', pid: 1, tid: 1, ts: 0, dur: 10 },
+        { ph: 's', id: 'a', pid: 1, tid: 1, ts: 2 },
+        { ph: 'f', id: 'a', pid: 1, tid: 1, ts: 105 },
+        { ph: 's', id: 'b', pid: 1, tid: 1, ts: 3 },
+        { ph: 'f', id: 'b', pid: 1, tid: 1, ts: 106 },
+      ],
+    });
+    const events = model.processes[0]!.threads[0]!.events;
+    expect(events.map((e) => e.name)).toEqual(['first', 'second']);
+    expect(events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-1', index: 1 }]);
+    expect(events[1]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+    expect(events[0]!.dependencies?.successors).toHaveLength(1);
+  });
 });
+
+function threadByName(model: ReturnType<typeof chromeTraceToSwimlane>, name: string) {
+  const thread = model.processes.flatMap((p) => p.threads).find((t) => t.name === name);
+  if (!thread) throw new Error(`thread ${name} not found`);
+  return thread;
+}

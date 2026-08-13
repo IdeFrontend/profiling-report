@@ -1,4 +1,11 @@
-import type { SwimEvent, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
+import type {
+  EventDependencies,
+  EventRef,
+  SwimEvent,
+  SwimlaneModel,
+  SwimProcess,
+  SwimThread,
+} from '../domain/types';
 
 interface ChromeTraceEvent {
   ph?: string;
@@ -8,7 +15,20 @@ interface ChromeTraceEvent {
   ts?: number;
   dur?: number;
   cat?: string;
+  id?: string | number;
   args?: Record<string, unknown>;
+}
+
+/** Async/flow endpoint after ns conversion. Paired by trace `id`. */
+interface AsyncEndpoint {
+  ts: number;
+  pid: string;
+  tid: string;
+}
+
+interface ConnectionPair {
+  start: AsyncEndpoint | null;
+  end: AsyncEndpoint | null;
 }
 
 interface ChromeTraceDoc {
@@ -84,11 +104,30 @@ export function chromeTraceToSwimlane(
   }
 
   const processMap = new Map<string, Map<string, SwimThread>>();
+  const connectionPairs = new Map<string, ConnectionPair>();
   let minTime = Number.POSITIVE_INFINITY;
   let maxTime = Number.NEGATIVE_INFINITY;
   let eventSeq = 0;
 
   for (const e of events) {
+    if (e.ph === 's' || e.ph === 'f') {
+      if (e.id == null || e.ts == null) continue;
+      const id = String(e.id);
+      let pair = connectionPairs.get(id);
+      if (!pair) {
+        pair = { start: null, end: null };
+        connectionPairs.set(id, pair);
+      }
+      const endpoint: AsyncEndpoint = {
+        ts: e.ts * toNs,
+        pid: String(e.pid ?? 0),
+        tid: String(e.tid ?? 0),
+      };
+      if (e.ph === 's') pair.start = endpoint;
+      else pair.end = endpoint;
+      continue;
+    }
+
     if (e.ph !== 'X' || e.ts == null || e.dur == null) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
@@ -133,13 +172,19 @@ export function chromeTraceToSwimlane(
     );
   }
 
+  for (const threads of processMap.values()) {
+    for (const thread of threads.values()) {
+      thread.events.sort((a, b) => a.startTime - b.startTime);
+    }
+  }
+  if (connectionPairs.size > 0) {
+    linkAsyncDependencies(processMap, connectionPairs);
+  }
+
   const processes: SwimProcess[] = [...processMap.entries()].map(([pid, threads]) => ({
     id: `p-${pid}`,
     name: processNames.get(pid) ?? `Process ${pid}`,
-    threads: [...threads.values()].map((t) => ({
-      ...t,
-      events: [...t.events].sort((a, b) => a.startTime - b.startTime),
-    })),
+    threads: [...threads.values()],
   }));
 
   return {
@@ -148,4 +193,60 @@ export function chromeTraceToSwimlane(
     maxTime,
     metadata: { displayTimeUnit },
   };
+}
+
+function linkAsyncDependencies(
+  processMap: Map<string, Map<string, SwimThread>>,
+  connectionPairs: Map<string, ConnectionPair>,
+): void {
+  for (const pair of connectionPairs.values()) {
+    const start = pair.start;
+    const end = pair.end;
+    if (!start || !end || start.ts > end.ts) continue;
+
+    const parentThread = processMap.get(start.pid)?.get(start.tid);
+    const childThread = processMap.get(end.pid)?.get(end.tid);
+    if (!parentThread || !childThread) continue;
+
+    const parentIndex = findEventIndex(parentThread.events, start.ts);
+    const childIndex = findEventIndex(childThread.events, end.ts);
+    if (parentIndex < 0 || childIndex < 0) continue;
+
+    const parent = parentThread.events[parentIndex]!;
+    const child = childThread.events[childIndex]!;
+    const childRef: EventRef = { tid: childThread.id, index: childIndex };
+    const parentRef: EventRef = { tid: parentThread.id, index: parentIndex };
+    pushUniqueRef(ensureDeps(parent).successors, childRef);
+    pushUniqueRef(ensureDeps(child).predecessors, parentRef);
+  }
+}
+
+/** Inclusive `[startTime, startTime+duration]` binary search. Events must be sorted by startTime. */
+function findEventIndex(events: SwimEvent[], timestamp: number): number {
+  let left = 0;
+  let right = events.length - 1;
+  while (left <= right) {
+    const mid = (left + right) >> 1;
+    const event = events[mid]!;
+    const endTime = event.startTime + event.duration;
+    if (timestamp >= event.startTime && timestamp <= endTime) return mid;
+    if (timestamp < event.startTime) right = mid - 1;
+    else left = mid + 1;
+  }
+  return -1;
+}
+
+function ensureDeps(event: SwimEvent): EventDependencies {
+  let deps = event.dependencies;
+  if (!deps) {
+    deps = { predecessors: [], successors: [] };
+    event.dependencies = deps;
+  }
+  return deps;
+}
+
+function pushUniqueRef(list: EventRef[], ref: EventRef): void {
+  if (!list.some((r) => r.tid === ref.tid && r.index === ref.index)) {
+    list.push(ref);
+  }
 }
