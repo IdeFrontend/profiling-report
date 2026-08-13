@@ -270,13 +270,11 @@ defineExpose({
             :style="{ left: `${measureAxis.left}%`, width: `${measureAxis.width}%` }"
           >
             <!--
-              Absolute geometry (px):
-              - heads start 1px from bars (tip–bar gap)
-              - tip vertex inset in SVG so miter stays sharp without eating the gap
-              - shaft reaches ~where arm gap ≈ stroke, so it meets the arms
+              Flex: tip pad 1px | head | shaft | 4px | label | 4px | shaft | head
+              Shaft negative margin pulls into chevron so the line meets the arms.
             -->
             <svg
-              class="pr-measure-arrow__head pr-measure-arrow__head--left"
+              class="pr-measure-arrow__head"
               data-testid="measure-arrow-head"
               viewBox="0 0 9 10"
               width="9"
@@ -293,9 +291,20 @@ defineExpose({
                 stroke-miterlimit="8"
               />
             </svg>
-            <div class="pr-measure-arrow__shaft" />
+            <div
+              class="pr-measure-arrow__shaft pr-measure-arrow__shaft--left"
+              data-testid="measure-arrow-shaft"
+            />
+            <span
+              class="pr-measure-arrow__label"
+              data-testid="measure-label"
+            >{{ measureAxis.label }}</span>
+            <div
+              class="pr-measure-arrow__shaft pr-measure-arrow__shaft--right"
+              data-testid="measure-arrow-shaft"
+            />
             <svg
-              class="pr-measure-arrow__head pr-measure-arrow__head--right"
+              class="pr-measure-arrow__head"
               data-testid="measure-arrow-head"
               viewBox="0 0 9 10"
               width="9"
@@ -312,10 +321,6 @@ defineExpose({
                 stroke-miterlimit="8"
               />
             </svg>
-            <span
-              class="pr-measure-arrow__label"
-              data-testid="measure-label"
-            >{{ measureAxis.label }}</span>
           </div>
         </template>
       </div>
@@ -434,53 +439,54 @@ defineExpose({
   position: absolute;
   top: 0;
   bottom: 0;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 1px;
   pointer-events: none;
   z-index: 4;
   color: rgba(49, 122, 247, 1);
 }
 
 .pr-measure-arrow__shaft {
-  position: absolute;
-  top: 50%;
-  /* Head at 1px, tip at SVG x=2 → arm gap≈1.5px near SVG x=3.3 → abs ~4.3px */
-  left: 4px;
-  right: 4px;
+  flex: 1 1 0;
+  min-width: 0;
   height: 1.5px;
   background: currentColor;
-  transform: translateY(-50%);
+  position: relative;
   z-index: 0;
 }
 
+.pr-measure-arrow__shaft--left {
+  /* Pull into left chevron toward tip; 4px clear before label. */
+  margin-left: -6px;
+  margin-right: 4px;
+}
+
+.pr-measure-arrow__shaft--right {
+  margin-left: 4px;
+  margin-right: -6px;
+}
+
 .pr-measure-arrow__head {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  flex: 0 0 auto;
   display: block;
   overflow: visible;
+  position: relative;
   z-index: 1;
 }
 
-.pr-measure-arrow__head--left {
-  left: 1px;
-}
-
-.pr-measure-arrow__head--right {
-  right: 1px;
-}
-
 .pr-measure-arrow__label {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  flex: 0 0 auto;
   padding: 1px 8px;
   border-radius: 3px;
-  background: var(--pr-playhead, #3078f0);
+  background: rgba(49, 122, 247, 1);
   color: #ffffff;
   font-size: 11px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  position: relative;
   z-index: 2;
 }
 

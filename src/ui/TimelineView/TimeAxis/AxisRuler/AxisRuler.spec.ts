@@ -54,4 +54,16 @@ describe('PR-AXIS: shared ruler', () => {
     );
     expect(wrapper.find('.pr-axis-ruler__label').text()).toBe('0ms');
   });
+
+  it('PR-AXIS-003: major/minor bars use rgb(52,52,52); muted use rgb(39,39,39)', async () => {
+    const src = (await import('./AxisRuler.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-axis-ruler__bar\s*\{[^}]*background:\s*rgb\(52,\s*52,\s*52\)/);
+    expect(src).toMatch(
+      /\.pr-axis-ruler__major--muted\s+\.pr-axis-ruler__bar\s*\{[^}]*background:\s*rgb\(39,\s*39,\s*39\)/,
+    );
+    expect(src).toMatch(/\.pr-axis-ruler__minor\s*\{[^}]*background:\s*rgb\(52,\s*52,\s*52\)/);
+    expect(src).toMatch(
+      /\.pr-axis-ruler__minor--muted\s*\{[^}]*background:\s*rgb\(39,\s*39,\s*39\)/,
+    );
+  });
 });

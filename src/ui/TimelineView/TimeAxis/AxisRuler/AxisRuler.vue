@@ -52,11 +52,11 @@ defineProps<{
   width: 1px;
   height: 5px;
   transform: translateX(-50%);
-  background: #666;
+  background: rgb(52, 52, 52);
 }
 
 .pr-axis-ruler__minor--muted {
-  background: #4a4a4a;
+  background: rgb(39, 39, 39);
 }
 
 .pr-axis-ruler__major {
@@ -75,11 +75,11 @@ defineProps<{
   flex: 0 0 auto;
   width: 1px;
   align-self: stretch;
-  background: #a8a8a8;
+  background: rgb(52, 52, 52);
 }
 
 .pr-axis-ruler__major--muted .pr-axis-ruler__bar {
-  background: #666;
+  background: rgb(39, 39, 39);
 }
 
 .pr-axis-ruler__label {

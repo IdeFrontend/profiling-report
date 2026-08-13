@@ -116,11 +116,13 @@ describe('TimelineView', () => {
       expect(path.attributes('stroke-linejoin')).toBe('miter');
     }
 
+    expect(wrapper.findAll('[data-testid="measure-arrow-shaft"]')).toHaveLength(2);
+
     return import('./TimelineView.vue?raw').then((mod) => {
       const src = mod.default as string;
-      expect(src).toMatch(/\.pr-measure-arrow__head--left\s*\{[^}]*left:\s*1px/);
-      expect(src).toMatch(/\.pr-measure-arrow__head--right\s*\{[^}]*right:\s*1px/);
-      expect(src).toMatch(/\.pr-measure-arrow__shaft\s*\{[^}]*left:\s*4px/);
+      expect(src).toMatch(/\.pr-measure-arrow\s*\{[^}]*padding:\s*0 1px/);
+      expect(src).toMatch(/\.pr-measure-arrow__shaft--left\s*\{[^}]*margin-right:\s*4px/);
+      expect(src).toMatch(/\.pr-measure-arrow__shaft--right\s*\{[^}]*margin-left:\s*4px/);
       expect(src).toMatch(/\.pr-measure-arrow__shaft\s*\{[^}]*height:\s*1\.5px/);
       expect(src).toMatch(/\.pr-measure-arrow\s*\{[^}]*color:\s*rgba\(49,\s*122,\s*247,\s*1\)/);
     });
