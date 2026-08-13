@@ -351,6 +351,7 @@ defineExpose({
 
 .pr-swim-row.pr-swim-row--overview {
   align-items: stretch;
+  overflow: visible;
 }
 
 .pr-time-axis {
@@ -441,7 +442,7 @@ defineExpose({
 }
 
 .pr-swim-row.pr-swim-row--overview .pr-gutter--axis-spacer {
-  border-bottom: 1px solid #4a4a4a;
+  border-bottom: none;
 }
 
 .pr-overview-charts {
