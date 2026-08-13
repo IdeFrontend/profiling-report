@@ -11,6 +11,7 @@ mkdirSync(destDir, { recursive: true })
 const copies = [
   ['data/out.rep', 'out.rep'],
   ['data/out.trace.json', 'out.trace.json'],
+  ['data/ffn_dense.trace.json', 'ffn_dense.trace.json'],
 ]
 
 for (const [from, name] of copies) {
