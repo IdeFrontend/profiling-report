@@ -15,12 +15,7 @@ import {
   type SwimlaneViewState,
   type TimeDisplayUnit,
 } from '../../domain/types';
-import {
-  GUTTER_WIDTH_DEFAULT,
-  GUTTER_WIDTH_MAX,
-  GUTTER_WIDTH_MIN,
-  startHorizontalResize,
-} from '../panelResize';
+import { GUTTER_WIDTH_DEFAULT } from '../panelResize';
 import { normalizeMeasureRange } from '../../domain/viewState';
 import TimeOverviewBar from './TimeOverviewBar/TimeOverviewBar.vue';
 import AxisRuler from './TimeAxis/AxisRuler/AxisRuler.vue';
@@ -75,6 +70,11 @@ watch(
   },
 );
 
+function onGutterWidth(w: number) {
+  localGutterWidth.value = w;
+  emit('update:gutterWidth', w);
+}
+
 const cursorTimeUnit = computed(() =>
   resolveCursorTimeUnit(props.bounds.maxTime - props.bounds.minTime, props.unit),
 );
@@ -124,34 +124,6 @@ watch(
   },
   { flush: 'post' },
 );
-
-let gutterResizeSession: ReturnType<typeof startHorizontalResize> | null = null;
-
-function onGutterResizePointerDown(e: PointerEvent) {
-  if (e.button !== 0) return;
-  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  gutterResizeSession = startHorizontalResize({
-    startClientX: e.clientX,
-    startWidth: localGutterWidth.value,
-    min: GUTTER_WIDTH_MIN,
-    max: GUTTER_WIDTH_MAX,
-    direction: 1,
-    onChange: (w) => {
-      localGutterWidth.value = w;
-      emit('update:gutterWidth', w);
-    },
-  });
-  e.preventDefault();
-}
-
-function onGutterResizePointerMove(e: PointerEvent) {
-  gutterResizeSession?.move(e.clientX);
-}
-
-function onGutterResizePointerUp() {
-  gutterResizeSession?.end();
-  gutterResizeSession = null;
-}
 
 /** Measure drag on the viewport time axis (same interaction as swimlane measure). */
 let measureAnchorTime: number | null = null;
@@ -204,16 +176,6 @@ defineExpose({
     class="pr-main-swim"
     :style="{ '--pr-gutter-width': `${localGutterWidth}px` }"
   >
-    <button
-      type="button"
-      class="pr-gutter-resize"
-      data-testid="gutter-resize-handle"
-      aria-label="Resize lane gutter"
-      @pointerdown="onGutterResizePointerDown"
-      @pointermove="onGutterResizePointerMove"
-      @pointerup="onGutterResizePointerUp"
-      @pointercancel="onGutterResizePointerUp"
-    />
     <div class="pr-swim-row pr-swim-row--overview">
       <div
         class="pr-gutter pr-gutter--axis-spacer"
@@ -341,7 +303,9 @@ defineExpose({
       :dependency-mode="dependencyMode"
       :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"
+      :gutter-width="localGutterWidth"
       @update:scroll-y="emit('update:scrollY', $event)"
+      @update:gutter-width="onGutterWidth"
       @toggle-group="emit('toggle-group', $event)"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
@@ -370,26 +334,6 @@ defineExpose({
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-}
-
-.pr-gutter-resize {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--pr-gutter-width, 280px);
-  width: 5px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: ew-resize;
-  z-index: 6;
-  transform: translateX(-50%);
-}
-
-.pr-gutter-resize:hover,
-.pr-gutter-resize:active {
-  background: rgba(49, 122, 247, 0.35);
 }
 
 .pr-swim-row {
@@ -516,10 +460,6 @@ defineExpose({
   }
 
   .pr-gutter--axis-spacer {
-    display: none;
-  }
-
-  .pr-gutter-resize {
     display: none;
   }
 }

@@ -46,32 +46,44 @@ describe('LaneGutter', () => {
     expect(fills[1]!.attributes('style')).toContain('background: #733234');
   });
 
-  it('PR-GUTTER-003: open-angle group chevron only; leaf lanes have no chevron', async () => {
+  it('PR-GUTTER-003: nested folders show chevrons; leaf lanes have no chevron; folder click toggles', async () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          {
+            id: 'compute',
+            name: '计算',
+            color: '#007084',
+            utilization: 0.9,
+            children: [{ id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 }],
+          },
+          { id: 'leaf', name: '通信', color: '#888', utilization: 1 },
+        ],
+      },
+    ];
     const wrapper = mount(LaneGutter, {
-      props: { groups, collapsedIds: [] },
+      props: { groups: nested, collapsedIds: [] },
     });
 
     expect(wrapper.text()).not.toMatch(/[▾▸▲▼▶◀]/);
-    expect(wrapper.find('.pr-gutter__chevron--down').exists()).toBe(true);
-    expect(wrapper.findAll('.pr-gutter__chevron--lane').length).toBe(0);
-    expect(wrapper.findAll('.pr-gutter__lane .pr-gutter__chevron').length).toBe(0);
+    expect(wrapper.find('[data-testid="gutter-folder-compute"] .pr-gutter__chevron').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-testid="gutter-lane-leaf"] .pr-gutter__chevron').exists()).toBe(false);
 
-    await wrapper.get('[data-testid="gutter-group-p1"]').trigger('click');
-    expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['p1']);
+    await wrapper.get('[data-testid="gutter-folder-compute"]').trigger('click');
+    expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['compute']);
   });
 
-  it('PR-GUTTER-004: collapsed group hides child lanes and shows right chevron', () => {
+  it('PR-GUTTER-004: collapsed Card hides child lanes; spacer remains', () => {
     const wrapper = mount(LaneGutter, {
       props: { groups, collapsedIds: ['p1'] },
     });
 
-    expect(wrapper.text()).toContain('Process 1');
+    expect(wrapper.find('[data-testid="gutter-group-p1"]').exists()).toBe(true);
     expect(wrapper.text()).not.toContain('Thread A');
-    expect(wrapper.find('.pr-gutter__chevron--right').exists()).toBe(true);
-    expect(wrapper.find('.pr-gutter__chevron--down').exists()).toBe(false);
-    expect(wrapper.get('[data-testid="gutter-group-p1"]').attributes('aria-expanded')).toBe(
-      'false',
-    );
   });
 
   it('PR-GUTTER-005: nested folder chevron + collapse keeps folder row', async () => {
@@ -92,9 +104,7 @@ describe('LaneGutter', () => {
                 name: 'Core0.Cube',
                 color: '#007084',
                 utilization: 0.8,
-                children: [
-                  { id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 },
-                ],
+                children: [{ id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 }],
               },
             ],
           },
@@ -139,9 +149,7 @@ describe('LaneGutter', () => {
                 name: 'Core0.Cube',
                 color: '#00f',
                 utilization: 0.8,
-                children: [
-                  { id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.37 },
-                ],
+                children: [{ id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.37 }],
               },
             ],
           },
@@ -190,5 +198,15 @@ describe('LaneGutter', () => {
     expect(wrapper.get('[data-testid="gutter-lane-b"] .pr-gutter__util--empty').find('.pr-gutter__util-mid').exists()).toBe(
       false,
     );
+  });
+
+  it('PR-GUTTER-008: Card row is a non-interactive spacer', () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups },
+    });
+    const spacer = wrapper.get('[data-testid="gutter-group-p1"]');
+    expect(spacer.element.tagName).toBe('DIV');
+    expect(spacer.attributes('aria-hidden')).toBe('true');
+    expect(spacer.find('button').exists()).toBe(false);
   });
 });
