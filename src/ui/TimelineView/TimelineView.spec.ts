@@ -87,7 +87,7 @@ describe('TimelineView', () => {
     expect(last.endTime).toBeGreaterThan(last.startTime);
   });
 
-  it('PR-TIMELINE-004: measure arrowheads are stroke chevrons inset 1px from bars', () => {
+  it('PR-TIMELINE-004: measure arrow sharp miter chevrons, 1px tip gap, shaft meets arms', () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -112,10 +112,17 @@ describe('TimelineView', () => {
     for (const head of heads) {
       const path = head.find('path');
       expect(path.attributes('fill')).toBe('none');
-      expect(path.attributes('stroke')).toBeTruthy();
+      expect(path.attributes('stroke-width')).toBe('1.5');
+      expect(path.attributes('stroke-linejoin')).toBe('miter');
     }
 
-    expect(heads[0].attributes('style')).toContain('left: 1px');
-    expect(heads[1].attributes('style')).toContain('right: 1px');
+    return import('./TimelineView.vue?raw').then((mod) => {
+      const src = mod.default as string;
+      expect(src).toMatch(/\.pr-measure-arrow__head--left\s*\{[^}]*left:\s*1px/);
+      expect(src).toMatch(/\.pr-measure-arrow__head--right\s*\{[^}]*right:\s*1px/);
+      expect(src).toMatch(/\.pr-measure-arrow__shaft\s*\{[^}]*left:\s*4px/);
+      expect(src).toMatch(/\.pr-measure-arrow__shaft\s*\{[^}]*height:\s*1\.5px/);
+      expect(src).toMatch(/\.pr-measure-arrow\s*\{[^}]*color:\s*rgba\(49,\s*122,\s*247,\s*1\)/);
+    });
   });
 });
