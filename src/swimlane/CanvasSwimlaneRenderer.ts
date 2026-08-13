@@ -1,4 +1,5 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer, SwimlaneViewWindow } from '../domain/types';
+import { dependencyNeighborIds } from './dependencyLinks';
 import {
   BAND_FILL,
   EVENT_RADIUS,
@@ -161,6 +162,7 @@ export class SwimlaneOverlayPainter {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
+    const bright = dependencyNeighborIds(this.layout, this.selectedId);
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -173,7 +175,7 @@ export class SwimlaneOverlayPainter {
       if (y + h < 0 || y > this.height) continue;
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const dim = eventEmphasisDim(matches, item.id === this.selectedId, hasSearch, hasSelection);
+      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
 
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
@@ -323,6 +325,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
+    const bright = dependencyNeighborIds(this.layout, this.selectedId);
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -335,7 +338,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       if (y + h < 0 || y > this.height) continue;
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const dim = eventEmphasisDim(matches, item.id === this.selectedId, hasSearch, hasSelection);
+      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
       ctx.globalAlpha = dim;
       ctx.fillStyle = item.color;
       roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);

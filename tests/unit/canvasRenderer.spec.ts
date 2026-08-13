@@ -9,8 +9,9 @@ import {
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import { dependencyNeighborIds } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
-import type { SwimlaneModel } from '../../src/domain/types';
+import type { SwimEvent, SwimlaneModel } from '../../src/domain/types';
 
 function tinyModel(): SwimlaneModel {
   return {
@@ -164,6 +165,44 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.setSelection(null, null);
     expect(() => renderer.render()).not.toThrow();
     renderer.dispose();
+  });
+
+  it('PR-RENDER-012: dep neighbors keep full fill and label brightness', () => {
+    const parent: SwimEvent = {
+      id: 'e-parent',
+      name: 'parent',
+      startTime: 0,
+      duration: 40,
+      dependencies: { predecessors: [], successors: [{ tid: 't-b', index: 0 }] },
+    };
+    const child: SwimEvent = {
+      id: 'e-child',
+      name: 'child',
+      startTime: 50,
+      duration: 10,
+      dependencies: { predecessors: [{ tid: 't-a', index: 0 }], successors: [] },
+    };
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-a', name: 'A', events: [parent] },
+            { id: 't-b', name: 'B', events: [child] },
+            { id: 't-c', name: 'C', events: [{ id: 'e-plain', name: 'plain', startTime: 0, duration: 10 }] },
+          ],
+        },
+      ],
+    });
+    const ids = dependencyNeighborIds(layout, 'e-parent');
+    expect(ids.has('e-parent')).toBe(true);
+    expect(ids.has('e-child')).toBe(true);
+    expect(ids.has('e-plain')).toBe(false);
+    expect(eventEmphasisDim(true, ids.has('e-child'), false, true)).toBe(1);
+    expect(eventEmphasisDim(true, ids.has('e-plain'), false, true)).toBe(0.45);
   });
 
   it('PR-RENDER-009: encodeIntervalPair stays monotonic after float32 round', () => {

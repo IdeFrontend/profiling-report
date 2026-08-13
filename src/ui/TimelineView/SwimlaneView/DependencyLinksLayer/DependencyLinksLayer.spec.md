@@ -16,7 +16,7 @@ None — `pointer-events: none`. Clicks pass through to the canvas.
 
 ## Behavior
 
-On selection, curves run from each predecessor's right-mid to the selected event's left-mid, and from the selected event's right-mid to each successor's left-mid. Color is `--pr-color-mov`. No selection, or an event with no `dependencies`, yields an empty overlay. Refs whose events are missing from layout (collapsed lanes) are skipped; off-screen endpoints still draw so the curve can leave the viewport.
+On selection, curves run from each predecessor's right-mid to the selected event's left-mid, and from the selected event's right-mid to each successor's left-mid. Color is `--pr-color-mov`. Linked events keep full fill and label brightness; other events stay dimmed. No selection, or an event with no `dependencies`, yields an empty overlay. Refs whose events are missing from layout (collapsed lanes) are skipped; off-screen endpoints still draw so the curve can leave the viewport.
 
 Paths recompute when the viewport, selection, or layout changes.
 

@@ -19,6 +19,26 @@ function laidOutFromRef(layout: SwimlaneLayout, ref: EventRef) {
   return ev ? findLaidOutEvent(layout, ev.id) : undefined;
 }
 
+/** Selected event plus laid-out predecessor/successor ids (for undimmed fill + labels). */
+export function dependencyNeighborIds(layout: SwimlaneLayout, selectedId: string | null): Set<string> {
+  const ids = new Set<string>();
+  if (!selectedId) return ids;
+  const selected = findLaidOutEvent(layout, selectedId);
+  if (!selected) return ids;
+  ids.add(selectedId);
+  const deps = selected.event.dependencies;
+  if (!deps) return ids;
+  for (const ref of deps.predecessors) {
+    const item = laidOutFromRef(layout, ref);
+    if (item) ids.add(item.id);
+  }
+  for (const ref of deps.successors) {
+    const item = laidOutFromRef(layout, ref);
+    if (item) ids.add(item.id);
+  }
+  return ids;
+}
+
 /**
  * Bezier paths from the selected event's left edge to predecessor right-mids,
  * and from its right edge to successor left-mids. Skips refs not in the layout

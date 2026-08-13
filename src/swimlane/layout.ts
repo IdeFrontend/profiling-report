@@ -195,7 +195,8 @@ export function encodeIntervalPair(
   return [f0, f1];
 }
 
-/** Canvas/WebGL fill+label opacity: search miss → 0.25, non-selected when selection → ×0.45. */
+/** Canvas/WebGL fill+label opacity: search miss → 0.25, non-emphasized when selection → ×0.45.
+ * Callers pass `isSelected=true` for the clicked event and its laid-out dep neighbors. */
 export function eventEmphasisDim(
   matchesSearch: boolean,
   isSelected: boolean,

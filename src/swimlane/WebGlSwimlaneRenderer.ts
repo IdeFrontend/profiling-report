@@ -18,6 +18,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
+import { dependencyNeighborIds } from './dependencyLinks';
 import { SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS } from './shaders';
 
 interface GlProgram {
@@ -463,6 +464,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     const hasSearch = q.length > 0;
     const hasSelection = sel != null;
+    const bright = dependencyNeighborIds(this.layout, sel);
     const byLane = new Map<number, LaidOutEvent[]>();
     for (const ev of this.layout.events) {
       const list = byLane.get(ev.laneIndex) ?? [];
@@ -476,7 +478,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const byDim = new Map<number, number[]>();
       for (const item of events) {
         const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
-        const dim = eventEmphasisDim(matches, item.id === sel, hasSearch, hasSelection);
+        const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
         let pairs = byDim.get(dim);
         if (!pairs) {
           pairs = [];
