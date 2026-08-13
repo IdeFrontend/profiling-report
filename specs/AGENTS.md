@@ -22,6 +22,6 @@ A spec describes **what a module does and why** — not how it's implemented. It
 
 ## Acceptance criteria
 
-Every `*.spec.md` under `specs/` and `src/` needs a compact AC list — tests or no tests; the only exemption is `DELEGATED_SPECS` in `scripts/check-spec-coverage.mjs`. `npm run check:specs` maps AC IDs ↔ test IDs; a missing `## Acceptance Criteria` fails CI (`NO AC SECTION`), an empty one fails as `EMPTY AC`, and an AC id with no test fails as `MISSING TEST`.
+Every `*.spec.md` under `specs/` and `src/` needs a compact AC list — tests or no tests; the only exemption is `DELEGATED_SPECS` in `scripts/check-spec-coverage.mjs`. `npm run check:specs` maps AC IDs ↔ test IDs; missing section → `NO AC SECTION`; empty → `EMPTY AC`; AC id with no test → `MISSING TEST`; test id with no AC → `ORPHAN TEST`; the same id in two specs → `DUPLICATE AC`.
 
 Format: `1. **PR-XXXX-001** — brief statement (3-6 words).`

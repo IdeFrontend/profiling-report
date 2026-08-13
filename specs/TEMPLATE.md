@@ -26,7 +26,9 @@ Omit for core/architecture specs.
 *Root component spec only.* Sequence diagrams (mermaid) showing how user
 actions propagate through the component tree. One diagram per interaction
 type: zoom, drag-pan, hover→select, search, data loading. Diagrams make
-the architecture testable without reading source code.
+the architecture testable without reading source code. Use `sequenceDiagram`
+with readable participant aliases (`participant Canvas as SwimlaneCanvas`),
+`->>` for calls/emits, `-->>` for returns, and `alt`/`else` for branching.
 
 ## Unit contract
 
@@ -49,7 +51,8 @@ For architecture: integration patterns, lifecycle, independence rules.]
 > Every `*.spec.md` under `specs/` and `src/` needs a compact AC list —
 > tests or no tests. The only exemption is `DELEGATED_SPECS` in
 > `scripts/check-spec-coverage.mjs`. Missing section → `NO AC SECTION`;
-> empty → `EMPTY AC`; AC id with no test → `MISSING TEST`.
+> empty → `EMPTY AC`; AC id with no test → `MISSING TEST`; test id with no
+> AC → `ORPHAN TEST`; the same id in two specs → `DUPLICATE AC`.
 
 1. **PR-XXXX-001** — [brief statement].
 1. **PR-XXXX-002** — [brief statement].

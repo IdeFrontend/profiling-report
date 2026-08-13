@@ -2,7 +2,7 @@
 
 Shared instructions for Cursor, Codex, Claude Code, and other coding agents.
 
-Spec style lives in nested files: `specs/AGENTS.md`, `src/ui/AGENTS.md`. Cursor/Codex load nested `AGENTS.md` when editing those trees; Claude Code loads them via `specs/CLAUDE.md` and `src/ui/CLAUDE.md` (`@./AGENTS.md`).
+Spec style: `specs/AGENTS.md` (Cursor/Codex load it when editing under `specs/`; Claude Code via `specs/CLAUDE.md` → `@./AGENTS.md`).
 
 ## Ponytail, lazy senior dev mode
 
