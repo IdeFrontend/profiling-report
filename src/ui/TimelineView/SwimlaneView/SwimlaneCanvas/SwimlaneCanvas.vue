@@ -9,9 +9,11 @@ import type {
   TimeDisplayUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
+import { dependencyLinkPaths } from '../../../../swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import { contentHeightFromModel } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
+import DependencyLinksLayer from '../DependencyLinksLayer/DependencyLinksLayer.vue';
 
 const props = defineProps<{
   model: SwimlaneModel | null;
@@ -43,6 +45,9 @@ const overlayCanvasRef = ref<HTMLCanvasElement | null>(null);
 const fallbackCanvasRef = ref<HTMLCanvasElement | null>(null);
 const sizerHeight = ref(120);
 const useWebGl = ref(false);
+const viewWidth = ref(0);
+const viewHeight = ref(0);
+const layoutGen = ref(0);
 
 type Backend = CanvasSwimlaneRenderer | WebGlSwimlaneRenderer;
 
@@ -110,6 +115,9 @@ function applyViewState(forceModel = false): void {
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setSearchQuery(props.searchQuery);
   }
+  viewWidth.value = lastW;
+  viewHeight.value = lastH;
+  layoutGen.value += 1;
 }
 
 function sync(forceModel = false): void {
@@ -230,6 +238,12 @@ watch(
     if (range == null) abortMeasureDrag();
   },
 );
+
+const depPaths = computed(() => {
+  void layoutGen.value;
+  if (!props.model || !props.selectedEventId || viewWidth.value < 1) return [];
+  return dependencyLinkPaths(backend.getLayout(), props.view, viewWidth.value, props.selectedEventId);
+});
 
 function timeAtX(x: number): number {
   const span = Math.max(1, props.view.endTime - props.view.startTime);
@@ -411,6 +425,11 @@ defineExpose({
       @pointerleave="onPointerLeave"
       @wheel="onWheel"
     />
+    <DependencyLinksLayer
+      :paths="depPaths"
+      :width="viewWidth"
+      :height="viewHeight"
+    />
     <div
       v-if="measureOverlayStyle"
       class="pr-measure-band"
@@ -451,6 +470,7 @@ defineExpose({
   display: block;
   cursor: crosshair;
   touch-action: none;
+  z-index: 0;
 }
 
 .pr-swim-canvas--gl {
@@ -459,7 +479,7 @@ defineExpose({
 }
 
 .pr-swim-canvas--overlay {
-  z-index: 1;
+  z-index: 2;
   background: transparent;
 }
 
@@ -477,7 +497,7 @@ defineExpose({
   border-left: 1px solid rgba(48, 120, 240, 0.85);
   border-right: 1px solid rgba(48, 120, 240, 0.85);
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
 }
 
 .pr-measure-band__label {
