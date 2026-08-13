@@ -165,6 +165,13 @@ function onCursor(payload: { time: number; xRatio: number } | null) {
   emit('cursor', payload);
 }
 
+/** Card strips steal canvas hit-testing; clear immediately (do not wait for canvas leave). */
+function clearCursor() {
+  if (cursorXRatio.value == null) return;
+  cursorXRatio.value = null;
+  emit('cursor', null);
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
@@ -230,6 +237,7 @@ defineExpose({
         :aria-expanded="strip.expanded"
         :aria-label="strip.name"
         :style="{ top: `${strip.top}px` }"
+        @pointerenter="clearCursor"
         @click="emit('toggle-group', strip.id)"
       >
         <span
