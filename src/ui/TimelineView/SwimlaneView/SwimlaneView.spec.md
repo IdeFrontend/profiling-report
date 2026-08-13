@@ -8,7 +8,7 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 
 ## Behavior
 
-**Card strips.** Each Card header is a full-width opaque strip (`rgb(42, 42, 42)`, hover `rgb(50, 50, 50)`) spanning gutter + swimlane, painted above the gutter resize handle so the seam does not cut through Card rows. Click toggles expand/collapse (`toggle-group`). Chevron + name sit in the left (gutter) column; the LaneGutter Card row is a non-interactive height spacer only.
+**Card strips.** Each Card header is a full-width opaque strip (`rgb(42, 42, 42)`, hover `rgb(50, 50, 50)`) spanning gutter + swimlane, painted above the gutter resize handle so the seam does not cut through Card rows. Click toggles expand/collapse (`toggle-group`). Chevron + name sit in the left (gutter) column; the LaneGutter Card row is a non-interactive height spacer only. Entering a strip clears the swim cursor immediately (strips steal canvas hit-testing; do not wait for canvas `pointerleave`).
 
 **Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. The mouse-following cursor bar is a DOM overlay **above** Card strips (`z-index: 9`, `pointer-events: none`). Gutter resize handle stays under strips (`z-index: 5`).
 
@@ -20,8 +20,10 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 2. **PR-SWIMVIEW-002** — Card strip buttons cover full width at header Y; click emits `toggle-group`.
 3. **PR-SWIMVIEW-003** — Body hosts `gutter-resize-handle` under Card strips.
 4. **PR-SWIMVIEW-004** — Stacking: measure borders below Card strips (`z-index: 8`); swim cursor above strips (`z-index: 9`).
+5. **PR-SWIMVIEW-005** — `pointerenter` on a Card strip clears the swim cursor and emits `cursor` `null` immediately.
 
 ## Changelog
+- **2026-08-13** — Clear swim cursor on Card strip enter; PR-SWIMVIEW-005.
 - **2026-08-13** — Cursor above Card strips; measure borders below; PR-SWIMVIEW-004.
 - **2026-08-13** — Full-width Card strips + body-local gutter resizer; PR-SWIMVIEW-002/003.
 - **2026-08-10** — Extracted scroll sync from ProfilingReport.
