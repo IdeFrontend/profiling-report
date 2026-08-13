@@ -9,7 +9,7 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | Token | Hex | Notes |
 |-------|-----|-------|
 | `--pr-bg-deep` | `#1F1F1F` | Main report / timeline / gutter lanes / toolbar strip / canvas |
-| `--pr-bg-panel` | `#262626` | Elevated chrome: aside, cards, detail dock, gutter group headers |
+| `--pr-bg-panel` | `#262626` | Elevated chrome: aside, detail dock (Card strips use `rgb(42, 42, 42)` / `#2a2a2a`, not this token) |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
 | `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card decorative bar (report-stats cyan) |
 | `--pr-color-overview-cube` | `#3078F0` | Overview Cube series fill |

@@ -160,7 +160,7 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
-  it('PR-RENDER-012: dep neighbors keep full fill and label brightness', () => {
+  it('PR-RENDER-013: dep neighbors keep full fill and label brightness', () => {
     const parent: SwimEvent = {
       id: 'e-parent',
       name: 'parent',
@@ -219,10 +219,21 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(canvasSrc.match(/fillStyle\s*=\s*'#1f1f1f'/g)?.length).toBeGreaterThanOrEqual(2);
     expect(webglSrc).toMatch(/laneBg\s*=\s*0x1f\s*\/\s*255/);
   });
+
+  it('PR-RENDER-012: Canvas + WebGL Card header bands use LANE_GROUP_HEADER_FILL', async () => {
+    const { LANE_GROUP_HEADER_FILL } = await import('../../src/swimlane/layout');
+    expect(LANE_GROUP_HEADER_FILL).toBe('#2a2a2a');
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc).toMatch(/fillStyle\s*=\s*LANE_GROUP_HEADER_FILL/);
+    expect(webglSrc).toMatch(/hexToRgb\(LANE_GROUP_HEADER_FILL\)/);
+  });
 });
 
 describe('PR-RENDER: SwimlaneRenderer surface', () => {
-  it('PR-RENDER-013: setDependencyMode and setDependencyDepth are optional', () => {
+  it('PR-RENDER-014: setDependencyMode and setDependencyDepth are optional', () => {
     const stub: SwimlaneRenderer = {
       attach() {},
       resize() {},

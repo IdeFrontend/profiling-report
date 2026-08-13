@@ -6,6 +6,8 @@ export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
 /** Matches `.pr-gutter__group` height so canvas lanes align with gutter labels. */
 export const LANE_GROUP_HEADER_HEIGHT = 28;
+/** Card / root group-header strip across gutter + swimlane (`rgb(42, 42, 42)`). */
+export const LANE_GROUP_HEADER_FILL = '#2a2a2a';
 /** Corner radius for event blocks (Canvas fills/strokes + WebGL SDF fills). */
 export const EVENT_RADIUS = 5;
 /** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */

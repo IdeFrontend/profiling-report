@@ -4,7 +4,7 @@
 |----------------|
 | PR-TIMELINE-*  |
 
-Left-column stack: overview bar, time axis, and SwimlaneView body. Owns gutter resize chrome.
+Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width CSS var is owned here; the resize handle lives on the SwimlaneView body (see `SwimlaneView.spec.md`).
 
 ## Behavior
 

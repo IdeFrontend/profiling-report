@@ -10,6 +10,7 @@ import {
 import {
   EMPTY_LAYOUT,
   EVENT_RADIUS,
+  LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   MAX_QUADS_PER_MESH,
@@ -403,12 +404,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.disable(gl.BLEND);
     gl.useProgram(solid.program);
     const laneBg = 0x1f / 255;
+    const headerBg = hexToRgb(LANE_GROUP_HEADER_FILL);
     const divider = 0x3a / 255;
 
     for (const header of this.layout.headers) {
       const headerTop = header.y - this.view.scrollY;
       if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < cssH) {
-        this.drawSolidRect(solid, unit, 0, headerTop, cssW, LANE_GROUP_HEADER_HEIGHT, [laneBg, laneBg, laneBg]);
+        this.drawSolidRect(solid, unit, 0, headerTop, cssW, LANE_GROUP_HEADER_HEIGHT, headerBg);
         this.drawSolidRect(solid, unit, 0, headerTop + LANE_GROUP_HEADER_HEIGHT - 1, cssW, 1, [
           divider,
           divider,
