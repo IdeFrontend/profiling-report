@@ -2,6 +2,7 @@ import type { SwimEvent, SwimlaneModel, SwimlaneRenderer, SwimlaneViewWindow } f
 import { dependencyNeighborIds, paintDependencyLinks } from './dependencyLinks';
 import {
   BAND_FILL,
+  EMPTY_LAYOUT,
   EVENT_RADIUS,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
@@ -63,9 +64,6 @@ function roundRectPath(
   ctx.closePath();
 }
 
-const EMPTY_LAYOUT: SwimlaneLayout = { lanes: [], headers: [], events: [], bands: [] };
-
-/** Paint ProfilerStep-style bands on folder / spacer group lanes. No-op when bands empty. */
 export function paintGroupBands(
   ctx: CanvasRenderingContext2D,
   layout: SwimlaneLayout,
@@ -105,6 +103,7 @@ export class SwimlaneOverlayPainter {
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
+  private neighborIds = new Set<string>();
   private searchQuery = '';
   private cursorX: number | null = null;
   private width = 0;
@@ -130,7 +129,9 @@ export class SwimlaneOverlayPainter {
   }
 
   setLayout(layout: SwimlaneLayout): void {
+    if (layout === this.layout) return;
     this.layout = layout;
+    this.neighborIds = dependencyNeighborIds(layout, this.selectedId);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -138,8 +139,10 @@ export class SwimlaneOverlayPainter {
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
-    this.selectedId = selectedId;
     this.hoveredId = hoveredId;
+    if (selectedId === this.selectedId) return;
+    this.selectedId = selectedId;
+    this.neighborIds = dependencyNeighborIds(this.layout, selectedId);
   }
 
   setSearchQuery(query: string): void {
@@ -162,7 +165,7 @@ export class SwimlaneOverlayPainter {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
-    const bright = dependencyNeighborIds(this.layout, this.selectedId);
+    const bright = this.neighborIds;
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -207,6 +210,7 @@ export class SwimlaneOverlayPainter {
     this.canvas = null;
     this.ctx = null;
     this.layout = EMPTY_LAYOUT;
+    this.neighborIds = new Set();
   }
 }
 
@@ -218,6 +222,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
+  private neighborIds = new Set<string>();
   private searchQuery = '';
   private cursorX: number | null = null;
   private width = 0;
@@ -246,6 +251,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   setModel(model: SwimlaneModel): void {
     this.layout = rebuildLayout(model);
+    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -253,8 +259,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
-    this.selectedId = selectedId;
     this.hoveredId = hoveredId;
+    if (selectedId === this.selectedId) return;
+    this.selectedId = selectedId;
+    this.neighborIds = dependencyNeighborIds(this.layout, selectedId);
   }
 
   setSearchQuery(query: string): void {
@@ -325,7 +333,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
-    const bright = dependencyNeighborIds(this.layout, this.selectedId);
+    const bright = this.neighborIds;
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -393,6 +401,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.canvas = null;
     this.ctx = null;
     this.layout = EMPTY_LAYOUT;
+    this.neighborIds = new Set();
   }
 }
 

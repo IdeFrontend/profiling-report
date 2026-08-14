@@ -8,7 +8,7 @@ Predecessor/successor Bezier curves for the selected swimlane event. WebGL2 draw
 
 ## Inputs
 
-**layout** plus **selectedEventId**. Endpoint times and content-space Y come from laid-out events (`dependencyLinks`); the WebGL pass applies pan/zoom/scroll as uniforms so the instance buffer is rebuilt only on selection/layout change.
+**layout** plus **selectedEventId**. Endpoint times and content-space Y come from laid-out events (`dependencyLinks`). `EventRef` `{tid, index}` resolves through `lanesByTid` + `eventsById` (thread.events order, not duration-sorted `layout.events`). Overlay and Canvas fallback cache neighbor ids and rebuild them only when layout identity or `selectedId` changes. The WebGL pass applies pan/zoom/scroll as uniforms so the instance buffer is rebuilt only on selection/layout change.
 
 ## Outputs
 
@@ -39,6 +39,7 @@ Crops: [`visual/dependency-links.png`](./visual/dependency-links.png) — [`visu
 [swimlane-model](../../../../../specs/core/swimlane-model.spec.md), [swimlane-renderer](../../../../../specs/core/swimlane-renderer.spec.md).
 
 ## Changelog
+- **2026-08-14** — Layout indexes + cached neighbor set so pan/hover does not rescan events.
 - **2026-08-14** — WebGL instanced polyline (Canvas 2D fallback); drop SVG overlay.
 - **2026-08-14** — Curve stroke interpolates predecessor → successor block fill.
 - **2026-08-13** — Selection Bezier overlay from `{tid, index}` EventRefs.

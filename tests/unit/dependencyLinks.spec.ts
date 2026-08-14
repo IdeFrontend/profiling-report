@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { SwimEvent, SwimlaneModel } from '../../src/domain/types';
 import { colorForThread } from '../../src/domain/laneColors';
-import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import * as depLinks from '../../src/swimlane/dependencyLinks';
 import {
   cubicControlPull,
   dependencyLinks,
@@ -51,6 +52,9 @@ function linkedModel(): SwimlaneModel {
 describe('PR-DEPS: dependency links', () => {
   it('PR-DEPS-001: selected event with deps yields predecessor and successor curves', () => {
     const layout = rebuildLayout(linkedModel());
+    expect(layout.eventsById.get('e-parent')).toBe(layout.events.find((e) => e.id === 'e-parent'));
+    expect(layout.lanesByTid.get('t-a')).toBe(layout.lanes[0]);
+    expect(layout.lanesByTid.get('t-b')).toBe(layout.lanes[1]);
     const view = { startTime: 0, endTime: 100, scrollY: 0 };
     const fromParent = dependencyLinks(layout, 'e-parent');
     const fromChild = dependencyLinks(layout, 'e-child');
@@ -134,5 +138,25 @@ describe('PR-DEPS: dependency links', () => {
     expect(link.fromColor).toBe(colorForThread('CUBE'));
     expect(link.toColor).toBe(colorForThread('SCALAR'));
     expect(link.fromColor).not.toBe(link.toColor);
+  });
+
+  it('PR-DEPS-001: overlay neighbor set rebuilds only on layout identity or selectedId change', () => {
+    const spy = vi.spyOn(depLinks, 'dependencyNeighborIds');
+    const layout = rebuildLayout(linkedModel());
+    const overlay = new SwimlaneOverlayPainter();
+    overlay.setLayout(layout);
+    overlay.setSelection('e-parent', null);
+    spy.mockClear();
+
+    overlay.setLayout(layout);
+    overlay.setSelection('e-parent', 'e-child');
+    expect(spy).not.toHaveBeenCalled();
+
+    overlay.setSelection('e-child', null);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    overlay.setLayout(rebuildLayout(linkedModel()));
+    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockRestore();
   });
 });

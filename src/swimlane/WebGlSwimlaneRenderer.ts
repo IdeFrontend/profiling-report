@@ -1,5 +1,6 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer, SwimlaneViewWindow } from '../domain/types';
 import {
+  EMPTY_LAYOUT,
   EVENT_RADIUS,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
@@ -236,7 +237,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private curveInstanceBuf: WebGLBuffer | null = null;
   private curveCount = 0;
   private laneMeshes: LaneMeshes[] = [];
-  private layout: SwimlaneLayout = { lanes: [], headers: [], events: [], bands: [] };
+  private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   /** Subtracted from event times before float32 upload (model.minTime). */
   private timeBase = 0;
@@ -454,7 +455,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.curveProg = null;
     this.gl = null;
     this.canvas = null;
-    this.layout = { lanes: [], headers: [], events: [], bands: [] };
+    this.layout = EMPTY_LAYOUT;
   }
 
   private drawSolidRect(

@@ -1,4 +1,4 @@
-import type { EventRef, SwimEvent, SwimlaneViewWindow } from '../domain/types';
+import type { EventRef, SwimlaneViewWindow } from '../domain/types';
 import { eventLinkContentY, findLaidOutEvent, type LaidOutEvent, type SwimlaneLayout } from './layout';
 
 export const DEP_STROKE_WIDTH = 3;
@@ -12,15 +12,9 @@ export interface DependencyLink {
   toColor: string;
 }
 
-function eventFromRef(layout: SwimlaneLayout, ref: EventRef): SwimEvent | undefined {
-  for (const lane of layout.lanes) {
-    if (lane.thread.id === ref.tid) return lane.thread.events[ref.index];
-  }
-}
-
-function laidOutFromRef(layout: SwimlaneLayout, ref: EventRef) {
-  const ev = eventFromRef(layout, ref);
-  return ev ? findLaidOutEvent(layout, ev.id) : undefined;
+function laidOutFromRef(layout: SwimlaneLayout, ref: EventRef): LaidOutEvent | undefined {
+  const ev = layout.lanesByTid.get(ref.tid)?.thread.events[ref.index];
+  return ev ? layout.eventsById.get(ev.id) : undefined;
 }
 
 /** Selected event plus laid-out predecessor/successor ids (for undimmed fill + labels). */
