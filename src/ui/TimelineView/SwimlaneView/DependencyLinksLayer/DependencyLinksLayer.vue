@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { DependencyLink } from '../../../../swimlane/dependencyLinks';
+
 defineProps<{
-  paths: string[];
+  links: DependencyLink[];
   width: number;
   height: number;
 }>();
@@ -14,11 +16,33 @@ defineProps<{
     preserveAspectRatio="none"
     aria-hidden="true"
   >
+    <defs>
+      <linearGradient
+        v-for="(link, i) in links"
+        :id="`pr-dep-grad-${i}`"
+        :key="i"
+        gradientUnits="userSpaceOnUse"
+        :x1="link.x0"
+        :y1="link.y0"
+        :x2="link.x1"
+        :y2="link.y1"
+      >
+        <stop
+          offset="0%"
+          :stop-color="link.fromColor"
+        />
+        <stop
+          offset="100%"
+          :stop-color="link.toColor"
+        />
+      </linearGradient>
+    </defs>
     <path
-      v-for="(d, i) in paths"
+      v-for="(link, i) in links"
       :key="i"
       class="pr-dep-links__curve"
-      :d="d"
+      :d="link.d"
+      :stroke="`url(#pr-dep-grad-${i})`"
     />
   </svg>
 </template>
@@ -36,7 +60,6 @@ defineProps<{
 
 .pr-dep-links__curve {
   fill: none;
-  stroke: var(--pr-color-mov, #b868f8);
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;

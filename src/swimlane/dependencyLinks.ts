@@ -39,38 +39,67 @@ export function dependencyNeighborIds(layout: SwimlaneLayout, selectedId: string
   return ids;
 }
 
+export interface DependencyLink {
+  d: string;
+  fromColor: string;
+  toColor: string;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+function linkBetween(
+  from: { x: number; y: number; color: string },
+  to: { x: number; y: number; color: string },
+): DependencyLink {
+  return {
+    d: cubicLinkPath(from.x, from.y, to.x, to.y),
+    fromColor: from.color,
+    toColor: to.color,
+    x0: from.x,
+    y0: from.y,
+    x1: to.x,
+    y1: to.y,
+  };
+}
+
 /**
  * Bezier paths from the selected event's left edge to predecessor right-mids,
  * and from its right edge to successor left-mids. Skips refs not in the layout
- * (collapsed / missing). Off-screen events still emit a path.
+ * (collapsed / missing). Off-screen events still emit a path. Stroke is a
+ * gradient from the predecessor block color to the successor block color.
  */
 export function dependencyLinkPaths(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
   width: number,
   selectedId: string | null,
-): string[] {
+): DependencyLink[] {
   if (!selectedId || width < 1) return [];
   const selected = findLaidOutEvent(layout, selectedId);
   const deps = selected?.event.dependencies;
   if (!selected || !deps) return [];
 
   const sel = eventScreenRect(selected, view, width);
-  const selLeft = { x: sel.x, y: sel.y + sel.h / 2 };
-  const selRight = { x: sel.x + sel.w, y: sel.y + sel.h / 2 };
-  const paths: string[] = [];
+  const selLeft = { x: sel.x, y: sel.y + sel.h / 2, color: selected.color };
+  const selRight = { x: sel.x + sel.w, y: sel.y + sel.h / 2, color: selected.color };
+  const paths: DependencyLink[] = [];
 
   for (const ref of deps.predecessors) {
     const item = laidOutFromRef(layout, ref);
     if (!item) continue;
     const r = eventScreenRect(item, view, width);
-    paths.push(cubicLinkPath(r.x + r.w, r.y + r.h / 2, selLeft.x, selLeft.y));
+    paths.push(linkBetween(
+      { x: r.x + r.w, y: r.y + r.h / 2, color: item.color },
+      selLeft,
+    ));
   }
   for (const ref of deps.successors) {
     const item = laidOutFromRef(layout, ref);
     if (!item) continue;
     const r = eventScreenRect(item, view, width);
-    paths.push(cubicLinkPath(selRight.x, selRight.y, r.x, r.y + r.h / 2));
+    paths.push(linkBetween(selRight, { x: r.x, y: r.y + r.h / 2, color: item.color }));
   }
   return paths;
 }

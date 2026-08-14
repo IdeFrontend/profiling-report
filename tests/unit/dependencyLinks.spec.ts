@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SwimEvent, SwimlaneModel } from '../../src/domain/types';
+import { colorForThread } from '../../src/domain/laneColors';
 import { cubicLinkPath, dependencyLinkPaths } from '../../src/swimlane/dependencyLinks';
 import { eventBlockMetrics, rebuildLayout } from '../../src/swimlane/layout';
 
@@ -32,8 +33,8 @@ function linkedModel(): SwimlaneModel {
         id: 'p-1',
         name: 'P',
         threads: [
-          { id: 't-a', name: 'A', events: [parent] },
-          { id: 't-b', name: 'B', events: [child] },
+          { id: 't-a', name: 'CUBE', events: [parent] },
+          { id: 't-b', name: 'SCALAR', events: [child] },
         ],
       },
     ],
@@ -62,8 +63,18 @@ describe('PR-DEPS: dependency link paths', () => {
       200,
       childMid.y + childMid.h / 2,
     );
-    expect(fromParent[0]).toBe(expected);
-    expect(fromChild[0]).toBe(expected);
+    expect(fromParent[0]!.d).toBe(expected);
+    expect(fromChild[0]!.d).toBe(expected);
+    expect(fromParent[0]).toMatchObject({
+      fromColor: colorForThread('CUBE'),
+      toColor: colorForThread('SCALAR'),
+      x0: 160,
+      x1: 200,
+    });
+    expect(fromChild[0]).toMatchObject({
+      fromColor: colorForThread('CUBE'),
+      toColor: colorForThread('SCALAR'),
+    });
   });
 
   it('PR-DEPS-002: no selection or empty deps yields no paths', () => {

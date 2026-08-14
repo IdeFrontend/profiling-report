@@ -426,7 +426,7 @@ defineExpose({
       @wheel="onWheel"
     />
     <DependencyLinksLayer
-      :paths="depPaths"
+      :links="depPaths"
       :width="viewWidth"
       :height="viewHeight"
     />
