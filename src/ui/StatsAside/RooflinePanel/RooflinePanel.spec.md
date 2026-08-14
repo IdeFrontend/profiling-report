@@ -25,7 +25,14 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (I-Q11f).
 
 ## Visual
 
-Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Tabs in the crop are **omitted** (I-Q11f).
+
+| Token | Value |
+|-------|--------|
+| Title | `13px` / `600` — Roofline 瓶颈分析 |
+| Roof / points | `#3a8cff` |
+| Mix annotation | `#c8d0d8` `8px` |
+| Grid | `#3a424a` |
 
 ## Dependencies
 
@@ -33,4 +40,5 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Changelog
 
+- **2026-08-13** — Crop token table; tabs remain omitted (I-Q11f).
 - **2026-08-10** — Initial M2 interim panel.

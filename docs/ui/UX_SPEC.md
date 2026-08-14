@@ -105,8 +105,8 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | | |
 |--|--|
 | **Goal** | Understand bandwidth / path load across L1/L2/UB/GM |
-| **Trigger** | Switch aside to memory analysis |
-| **Steps** | View topology; open field details; correlate with timeline window |
+| **Trigger** | After S1; topology is on the stacked 报告统计 scroll |
+| **Steps** | View topology under PIPE; 详情 opens memory CSV field list; correlate with timeline window |
 | **Success** | User identifies memory-bound paths |
 | **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` |
 

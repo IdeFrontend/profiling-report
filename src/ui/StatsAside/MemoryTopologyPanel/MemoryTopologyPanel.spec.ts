@@ -12,13 +12,21 @@ const model = {
   edges: [
     { id: 'gm-l2-read', from: 'gm', to: 'l2', label: '1.56 GB/s' },
     { id: 'l2-ub', from: 'l2', to: 'ub', label: '0.00 GB/s' },
+    { id: 'vec-ub', from: 'vec', to: 'ub', label: '0.10 GB/s' },
+    { id: 'ub-vec', from: 'ub', to: 'vec', label: '0.20 GB/s' },
     { id: 'gm-l2-write', from: 'gm', to: 'l2' },
+    { id: 'l1-l0a', from: 'l1', to: 'l0a', label: '1.00 GB/s' },
+    { id: 'l1-l0b', from: 'l1', to: 'l0b', label: '2.00 GB/s' },
+    { id: 'l0a-cube', from: 'l0a', to: 'cube', label: '3.00 GB/s' },
+    { id: 'l0b-cube', from: 'l0b', to: 'cube', label: '4.00 GB/s' },
+    { id: 'l0c-cube', from: 'l0c', to: 'cube', label: '5.00 GB/s' },
+    { id: 'cube-l0c', from: 'cube', to: 'l0c', label: '6.00 GB/s' },
+    { id: 'l0c-l1', from: 'l0c', to: 'l1', label: '7 KB' },
+    { id: 'l0c-l2', from: 'l0c', to: 'l2', label: '8 KB' },
   ],
 };
 
-// M2 deferred: MemoryTopologyPanel.vue is a stub; tests document intended
-// behavior (change-log #5) and stay skipped until the implementation lands.
-describe.skip('MemoryTopologyPanel', () => {
+describe('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-001: renders topology nodes', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
@@ -29,6 +37,20 @@ describe.skip('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-002: renders data-driven edge labels', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.text()).toContain('1.56 GB/s');
+    expect(wrapper.findAll('[data-testid="edge-vec-ub"]')).toHaveLength(2);
+    expect(wrapper.findAll('[data-testid="edge-ub-vec"]')).toHaveLength(2);
+    for (const id of [
+      'l1-l0a',
+      'l1-l0b',
+      'l0a-cube',
+      'l0b-cube',
+      'l0c-cube',
+      'cube-l0c',
+      'l0c-l1',
+      'l0c-l2',
+    ]) {
+      expect(wrapper.get(`[data-testid="edge-${id}"]`).text().length).toBeGreaterThan(0);
+    }
   });
 
   it('PR-MEMTOP-003: omits NA/missing edge labels', () => {
@@ -43,12 +65,56 @@ describe.skip('MemoryTopologyPanel', () => {
     expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
   });
 
-  it('PR-MEMTOP-005: edge labels re-derive on selectedBlockId change', async () => {
-    // Stub component does not declare props yet; cast so the future prop names typecheck.
-    const props = { model, selectedBlockId: '0' } as Record<string, unknown>;
-    const wrapper = mount(MemoryTopologyPanel, { props: props as never });
-    const next = { selectedBlockId: '1' } as Record<string, unknown>;
-    await wrapper.setProps(next as never);
-    expect(wrapper.text()).toContain('GB/s');
+  it('PR-MEMTOP-005: edge labels update when model changes', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    expect(wrapper.text()).toContain('1.56 GB/s');
+    await wrapper.setProps({
+      model: {
+        ...model,
+        edges: [{ id: 'gm-l2-read', from: 'gm', to: 'l2', label: '9.99 GB/s' }],
+      },
+    });
+    expect(wrapper.text()).toContain('9.99 GB/s');
+    expect(wrapper.text()).not.toContain('1.56 GB/s');
+  });
+
+  it('PR-MEMTOP-006: edge labels sit in pillar corridors, not on GM/L2', () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          edges: [
+            { id: 'gm-l2-read', from: 'gm', to: 'l2', label: '16.89 GB/s' },
+            { id: 'l2-ub', from: 'l2', to: 'ub', label: '16.76 GB/s' },
+            { id: 'l2-l1-read', from: 'l2', to: 'l1', label: '1.20 GB/s' },
+          ],
+        },
+      },
+    });
+    const gm = wrapper.get('.pr-topo__gm');
+    const l2 = wrapper.get('.pr-topo__l2');
+    const cluster = wrapper.get('.pr-topo__cluster');
+    const gmRight = Number(gm.attributes('x')) + Number(gm.attributes('width'));
+    const l2Left = Number(l2.attributes('x'));
+    const l2Right = l2Left + Number(l2.attributes('width'));
+    const clusterLeft = Number(cluster.attributes('x'));
+
+    const gmRead = wrapper.get('[data-testid="edge-gm-l2-read"]');
+    const gmX = Number(gmRead.attributes('x'));
+    expect(gmX).toBeGreaterThan(gmRight);
+    expect(gmX).toBeLessThan(l2Left);
+    expect(gmRead.attributes('transform') ?? '').toMatch(/rotate/);
+
+    const l2ub = wrapper.get('[data-testid="edge-l2-ub"]');
+    const ubX = Number(l2ub.attributes('x'));
+    expect(ubX).toBeGreaterThan(l2Right);
+    expect(ubX).toBeLessThan(clusterLeft);
+    expect(l2ub.attributes('transform') ?? '').toMatch(/rotate/);
+
+    const l2l1 = wrapper.get('[data-testid="edge-l2-l1-read"]');
+    const l1X = Number(l2l1.attributes('x'));
+    expect(l1X).toBeGreaterThan(l2Right);
+    expect(l1X).toBeLessThan(clusterLeft);
+    expect(l2l1.attributes('transform') ?? '').toMatch(/rotate/);
   });
 });
