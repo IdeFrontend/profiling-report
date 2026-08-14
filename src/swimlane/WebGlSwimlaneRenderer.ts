@@ -18,8 +18,8 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
-import { dependencyNeighborIds } from './dependencyLinks';
-import { SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS } from './shaders';
+import { dependencyLinks, dependencyNeighborIds, DEP_STROKE_WIDTH, glLinkTime } from './dependencyLinks';
+import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS } from './shaders';
 
 interface GlProgram {
   program: WebGLProgram;
@@ -43,6 +43,17 @@ interface EmphasisLayer {
   dim: number;
   chunks: MeshChunk[];
 }
+
+interface CurveProgram {
+  program: WebGLProgram;
+  uResolution: WebGLUniformLocation;
+  uView: WebGLUniformLocation;
+  uHalfWidth: WebGLUniformLocation;
+}
+
+const CURVE_SEGMENTS = 24;
+const CURVE_STRIP_VERTS = (CURVE_SEGMENTS + 1) * 2;
+const CURVE_INSTANCE_FLOATS = 10;
 
 interface LaneMeshes {
   color: [number, number, number];
@@ -94,6 +105,28 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uYBounds: gl.getUniformLocation(program, 'uYBounds'),
     uRadius: gl.getUniformLocation(program, 'uRadius'),
   };
+}
+
+function linkCurveProgram(gl: WebGL2RenderingContext): CurveProgram {
+  const vs = compileShader(gl, gl.VERTEX_SHADER, CURVE_VS);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, CURVE_FS);
+  const program = gl.createProgram();
+  if (!program) throw new Error('createProgram failed');
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  gl.deleteShader(vs);
+  gl.deleteShader(fs);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const log = gl.getProgramInfoLog(program) ?? 'link error';
+    gl.deleteProgram(program);
+    throw new Error(log);
+  }
+  const uResolution = gl.getUniformLocation(program, 'uResolution');
+  const uView = gl.getUniformLocation(program, 'uView');
+  const uHalfWidth = gl.getUniformLocation(program, 'uHalfWidth');
+  if (!uResolution || !uView || !uHalfWidth) throw new Error('missing curve uniforms');
+  return { program, uResolution, uView, uHalfWidth };
 }
 
 /** Sudu setVbSquare: encode opposite edge in aTex. */
@@ -188,14 +221,20 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
 
 /**
  * WebGL2 coverage-AA interval backend (Sudu-inspired; no sudu-editor dependency).
- * Draws uniform lane backgrounds, row dividers, and rounded interval fills. Labels/selection use overlay.
+ * Draws uniform lane backgrounds, row dividers, rounded interval fills, and instanced
+ * dependency polylines. Labels/selection use overlay.
  */
 export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private gl: WebGL2RenderingContext | null = null;
   private swimProg: GlProgram | null = null;
   private solidProg: GlProgram | null = null;
+  private curveProg: CurveProgram | null = null;
   private unitQuad: MeshChunk | null = null;
+  private curveVao: WebGLVertexArrayObject | null = null;
+  private curveStripBuf: WebGLBuffer | null = null;
+  private curveInstanceBuf: WebGLBuffer | null = null;
+  private curveCount = 0;
   private laneMeshes: LaneMeshes[] = [];
   private layout: SwimlaneLayout = { lanes: [], headers: [], events: [], bands: [] };
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
@@ -226,7 +265,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.gl = gl;
     this.swimProg = linkProgram(gl, SWIMLANE_VS, SWIMLANE_FS);
     this.solidProg = linkProgram(gl, SOLID_VS, SOLID_FS);
+    this.curveProg = linkCurveProgram(gl);
     this.unitQuad = createUnitQuad(gl);
+    this.initCurveBuffers(gl);
     this.resize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
     return true;
   }
@@ -249,6 +290,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = rebuildLayout(model);
     this.timeBase = model?.minTime ?? 0;
     this.rebuildMeshes();
+    this.rebuildCurveInstances();
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -259,6 +301,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
     this.rebuildEmphasisSplit();
+    this.rebuildCurveInstances();
   }
 
   setSearchQuery(query: string): void {
@@ -383,6 +426,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
+    this.drawDependencyCurves(gl);
+
     gl.bindVertexArray(null);
     gl.disable(gl.BLEND);
   }
@@ -392,12 +437,21 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const gl = this.gl;
     if (gl) {
       if (this.unitQuad) this.deleteChunk(this.unitQuad);
+      if (this.curveVao) gl.deleteVertexArray(this.curveVao);
+      if (this.curveStripBuf) gl.deleteBuffer(this.curveStripBuf);
+      if (this.curveInstanceBuf) gl.deleteBuffer(this.curveInstanceBuf);
       if (this.swimProg) gl.deleteProgram(this.swimProg.program);
       if (this.solidProg) gl.deleteProgram(this.solidProg.program);
+      if (this.curveProg) gl.deleteProgram(this.curveProg.program);
     }
     this.unitQuad = null;
+    this.curveVao = null;
+    this.curveStripBuf = null;
+    this.curveInstanceBuf = null;
+    this.curveCount = 0;
     this.swimProg = null;
     this.solidProg = null;
+    this.curveProg = null;
     this.gl = null;
     this.canvas = null;
     this.layout = { lanes: [], headers: [], events: [], bands: [] };
@@ -511,6 +565,90 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       for (const c of lane.chunks) this.deleteChunk(c);
     }
     this.laneMeshes = [];
+  }
+
+  private initCurveBuffers(gl: WebGL2RenderingContext): void {
+    const strip = new Float32Array(CURVE_STRIP_VERTS * 2);
+    let p = 0;
+    for (let i = 0; i <= CURVE_SEGMENTS; i++) {
+      const t = i / CURVE_SEGMENTS;
+      strip[p++] = t;
+      strip[p++] = -1;
+      strip[p++] = t;
+      strip[p++] = 1;
+    }
+    const vao = gl.createVertexArray();
+    const stripBuf = gl.createBuffer();
+    const instanceBuf = gl.createBuffer();
+    if (!vao || !stripBuf || !instanceBuf) throw new Error('curve buffer alloc failed');
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, stripBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, strip, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 8, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, 0, gl.DYNAMIC_DRAW);
+    const stride = CURVE_INSTANCE_FLOATS * 4;
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, stride, 0);
+    gl.vertexAttribDivisor(1, 1);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 2, gl.FLOAT, false, stride, 8);
+    gl.vertexAttribDivisor(2, 1);
+    gl.enableVertexAttribArray(3);
+    gl.vertexAttribPointer(3, 3, gl.FLOAT, false, stride, 16);
+    gl.vertexAttribDivisor(3, 1);
+    gl.enableVertexAttribArray(4);
+    gl.vertexAttribPointer(4, 3, gl.FLOAT, false, stride, 28);
+    gl.vertexAttribDivisor(4, 1);
+    gl.bindVertexArray(null);
+    this.curveVao = vao;
+    this.curveStripBuf = stripBuf;
+    this.curveInstanceBuf = instanceBuf;
+  }
+
+  private rebuildCurveInstances(): void {
+    const gl = this.gl;
+    const buf = this.curveInstanceBuf;
+    if (!gl || !buf) return;
+    const links = dependencyLinks(this.layout, this.selectedId);
+    this.curveCount = links.length;
+    const data = new Float32Array(links.length * CURVE_INSTANCE_FLOATS);
+    for (let i = 0; i < links.length; i++) {
+      const link = links[i]!;
+      const c0 = hexToRgb(link.fromColor);
+      const c1 = hexToRgb(link.toColor);
+      const o = i * CURVE_INSTANCE_FLOATS;
+      data[o] = glLinkTime(link.t0, this.timeBase);
+      data[o + 1] = link.y0;
+      data[o + 2] = glLinkTime(link.t1, this.timeBase);
+      data[o + 3] = link.y1;
+      data[o + 4] = c0[0];
+      data[o + 5] = c0[1];
+      data[o + 6] = c0[2];
+      data[o + 7] = c1[0];
+      data[o + 8] = c1[1];
+      data[o + 9] = c1[2];
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+  }
+
+  private drawDependencyCurves(gl: WebGL2RenderingContext): void {
+    const prog = this.curveProg;
+    const vao = this.curveVao;
+    if (!prog || !vao || this.curveCount === 0) return;
+    gl.useProgram(prog.program);
+    gl.uniform2f(prog.uResolution, this.width, this.height);
+    gl.uniform3f(
+      prog.uView,
+      this.view.startTime - this.timeBase,
+      this.view.endTime - this.timeBase,
+      this.view.scrollY,
+    );
+    gl.uniform1f(prog.uHalfWidth, DEP_STROKE_WIDTH / 2);
+    gl.bindVertexArray(vao);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, CURVE_STRIP_VERTS, this.curveCount);
   }
 
   private deleteChunk(chunk: MeshChunk): void {

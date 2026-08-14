@@ -112,6 +112,11 @@ export function eventBlockMetrics(laneY: number, scrollY: number): { y: number; 
   return { y: laneY - scrollY + (LANE_HEIGHT - h) / 2 - 0.5, h };
 }
 
+/** Content-space Y of an event block's vertical midpoint (pre-scroll). */
+export function eventLinkContentY(laneY: number): number {
+  return laneY + LANE_HEIGHT / 2 - 0.5;
+}
+
 /**
  * Horizontal label anchor: center in the on-screen intersection of the event rect.
  * Fully visible → center of the event; clipped → center of the visible portion.

@@ -26,7 +26,6 @@ flowchart TB
   timeline --> swim[SwimlaneView]
   swim --> gutter[LaneGutter]
   swim --> canvas[SwimlaneCanvas]
-  swim --> deps[DependencyLinksLayer]
   aside --> summary[StatsSummaryPanel]
   aside --> pipe[PipeOccupancyPanel]
   aside --> csv[CsvFieldListPanel]

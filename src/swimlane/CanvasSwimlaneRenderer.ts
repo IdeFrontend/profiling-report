@@ -1,5 +1,5 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer, SwimlaneViewWindow } from '../domain/types';
-import { dependencyNeighborIds } from './dependencyLinks';
+import { dependencyNeighborIds, paintDependencyLinks } from './dependencyLinks';
 import {
   BAND_FILL,
   EVENT_RADIUS,
@@ -343,6 +343,23 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.fillStyle = item.color;
       roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
       ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    paintDependencyLinks(ctx, this.layout, this.view, this.width, this.selectedId);
+
+    for (const item of this.layout.events) {
+      const ev = item.event;
+      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+        continue;
+      }
+      const x = ((ev.startTime - this.view.startTime) / span) * this.width;
+      const w = Math.max(2, (ev.duration / span) * this.width);
+      const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
+      if (y + h < 0 || y > this.height) continue;
+
+      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
 
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
@@ -357,7 +374,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
-      ctx.globalAlpha = 1;
     }
 
     if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {

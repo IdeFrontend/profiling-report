@@ -36,6 +36,8 @@ class CanvasSwimlaneRenderer {
 
 **WebGL intervals.** Coverage-AA rounded fills use **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend, which lit up overlaps as a bright “block inside block”. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
 
+**Dependency curves.** On selection, WebGL draws an instanced 3px cubic strip (one instance per link; pan/zoom via uniforms). Canvas fallback strokes the same cubic with a pred→succ linear gradient. See [DependencyLinksLayer](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/DependencyLinksLayer.spec.md).
+
 **Hit testing.** `hitTest` computes Y relative to scroll offset, finds the matching lane by Y bounds, converts X to a time value, and finds the event whose interval contains that time. Returns the event's id string, or null if no match.
 
 ## Acceptance Criteria
@@ -66,6 +68,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-14** — WebGL instanced dependency polylines; Canvas 2D fallback.
 - **2026-08-13** — Dep neighbors undimmed with selection (fill + labels).
 - **2026-08-11** — Lane fill `#1f1f1f` (sketch-sampled `--pr-bg-deep`).
 - **2026-08-10** — WebGL selection + search emphasis parity with Canvas (fills + labels); premul alpha dim.

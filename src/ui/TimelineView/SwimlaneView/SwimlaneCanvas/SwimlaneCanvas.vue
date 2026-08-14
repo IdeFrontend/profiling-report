@@ -9,11 +9,9 @@ import type {
   TimeDisplayUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
-import { dependencyLinkPaths } from '../../../../swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import { contentHeightFromModel } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
-import DependencyLinksLayer from '../DependencyLinksLayer/DependencyLinksLayer.vue';
 
 const props = defineProps<{
   model: SwimlaneModel | null;
@@ -47,7 +45,6 @@ const sizerHeight = ref(120);
 const useWebGl = ref(false);
 const viewWidth = ref(0);
 const viewHeight = ref(0);
-const layoutGen = ref(0);
 
 type Backend = CanvasSwimlaneRenderer | WebGlSwimlaneRenderer;
 
@@ -117,7 +114,6 @@ function applyViewState(forceModel = false): void {
   }
   viewWidth.value = lastW;
   viewHeight.value = lastH;
-  layoutGen.value += 1;
 }
 
 function sync(forceModel = false): void {
@@ -238,12 +234,6 @@ watch(
     if (range == null) abortMeasureDrag();
   },
 );
-
-const depPaths = computed(() => {
-  void layoutGen.value;
-  if (!props.model || !props.selectedEventId || viewWidth.value < 1) return [];
-  return dependencyLinkPaths(backend.getLayout(), props.view, viewWidth.value, props.selectedEventId);
-});
 
 function timeAtX(x: number): number {
   const span = Math.max(1, props.view.endTime - props.view.startTime);
@@ -424,11 +414,6 @@ defineExpose({
       @pointerup="onPointerUp"
       @pointerleave="onPointerLeave"
       @wheel="onWheel"
-    />
-    <DependencyLinksLayer
-      :links="depPaths"
-      :width="viewWidth"
-      :height="viewHeight"
     />
     <div
       v-if="measureOverlayStyle"

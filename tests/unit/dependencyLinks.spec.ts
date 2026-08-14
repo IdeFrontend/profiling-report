@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { SwimEvent, SwimlaneModel } from '../../src/domain/types';
 import { colorForThread } from '../../src/domain/laneColors';
-import { cubicLinkPath, dependencyLinkPaths } from '../../src/swimlane/dependencyLinks';
-import { eventBlockMetrics, rebuildLayout } from '../../src/swimlane/layout';
+import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import {
+  cubicControlPull,
+  dependencyLinks,
+  glLinkTime,
+  linkToScreen,
+} from '../../src/swimlane/dependencyLinks';
+import { eventBlockMetrics, eventLinkContentY, rebuildLayout } from '../../src/swimlane/layout';
+import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 
 function linkedModel(): SwimlaneModel {
   const parent: SwimEvent = {
@@ -41,40 +48,42 @@ function linkedModel(): SwimlaneModel {
   };
 }
 
-describe('PR-DEPS: dependency link paths', () => {
+describe('PR-DEPS: dependency links', () => {
   it('PR-DEPS-001: selected event with deps yields predecessor and successor curves', () => {
-    const model = linkedModel();
-    const layout = rebuildLayout(model);
+    const layout = rebuildLayout(linkedModel());
     const view = { startTime: 0, endTime: 100, scrollY: 0 };
-    const width = 400;
-
-    const fromParent = dependencyLinkPaths(layout, view, width, 'e-parent');
-    const fromChild = dependencyLinkPaths(layout, view, width, 'e-child');
+    const fromParent = dependencyLinks(layout, 'e-parent');
+    const fromChild = dependencyLinks(layout, 'e-child');
     expect(fromParent).toHaveLength(1);
     expect(fromChild).toHaveLength(1);
 
-    const parentLaneY = layout.lanes[0]!.y;
-    const childLaneY = layout.lanes[1]!.y;
-    const parentMid = eventBlockMetrics(parentLaneY, 0);
-    const childMid = eventBlockMetrics(childLaneY, 0);
-    const expected = cubicLinkPath(
-      160,
-      parentMid.y + parentMid.h / 2,
-      200,
-      childMid.y + childMid.h / 2,
-    );
-    expect(fromParent[0]!.d).toBe(expected);
-    expect(fromChild[0]!.d).toBe(expected);
+    const parentMid = eventBlockMetrics(layout.lanes[0]!.y, 0);
+    const childMid = eventBlockMetrics(layout.lanes[1]!.y, 0);
     expect(fromParent[0]).toMatchObject({
-      fromColor: colorForThread('CUBE'),
-      toColor: colorForThread('SCALAR'),
-      x0: 160,
-      x1: 200,
-    });
-    expect(fromChild[0]).toMatchObject({
+      t0: 40,
+      t1: 50,
+      y0: eventLinkContentY(layout.lanes[0]!.y),
+      y1: eventLinkContentY(layout.lanes[1]!.y),
       fromColor: colorForThread('CUBE'),
       toColor: colorForThread('SCALAR'),
     });
+    expect(fromParent[0]!.y0).toBe(parentMid.y + parentMid.h / 2);
+    expect(fromParent[0]!.y1).toBe(childMid.y + childMid.h / 2);
+    expect(fromChild[0]).toEqual(fromParent[0]);
+
+    const screen = linkToScreen(fromParent[0]!, view, 400);
+    expect(screen.x0).toBe(160);
+    expect(screen.x1).toBe(200);
+    expect(cubicControlPull(160, 200)).toBe(24);
+
+    const base = 1_000_000_000_000;
+    const t0 = glLinkTime(base + 40, base);
+    const t1 = glLinkTime(base + 50, base);
+    const v0 = glLinkTime(base, base);
+    const v1 = glLinkTime(base + 100, base);
+    expect(t1).toBeGreaterThan(t0);
+    expect(((t0 - v0) / (v1 - v0)) * 400).toBeCloseTo(160);
+    expect(((t1 - v0) / (v1 - v0)) * 400).toBeCloseTo(200);
   });
 
   it('PR-DEPS-002: no selection or empty deps yields no paths', () => {
@@ -86,12 +95,44 @@ describe('PR-DEPS: dependency link paths', () => {
       duration: 5,
     });
     const layout = rebuildLayout(model);
-    const view = { startTime: 0, endTime: 100, scrollY: 0 };
-    expect(dependencyLinkPaths(layout, view, 400, null)).toEqual([]);
-    expect(dependencyLinkPaths(layout, view, 400, 'e-plain')).toEqual([]);
-    expect(dependencyLinkPaths(layout, view, 0, 'e-parent')).toEqual([]);
+    expect(dependencyLinks(layout, null)).toEqual([]);
+    expect(dependencyLinks(layout, 'e-plain')).toEqual([]);
     const orphan = linkedModel();
     orphan.processes[0]!.threads[0]!.events[0]!.dependencies!.successors = [{ tid: 'missing', index: 0 }];
-    expect(dependencyLinkPaths(rebuildLayout(orphan), view, 400, 'e-parent')).toEqual([]);
+    expect(dependencyLinks(rebuildLayout(orphan), 'e-parent')).toEqual([]);
+  });
+
+  it('PR-DEPS-003: Canvas and WebGL paint selected dependency curves without throw', () => {
+    const model = linkedModel();
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120);
+    renderer.setModel(model);
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    renderer.setSelection('e-parent', null);
+    expect(() => renderer.render()).not.toThrow();
+
+    const glCanvas = document.createElement('canvas');
+    if (!WebGlSwimlaneRenderer.isSupported(glCanvas)) {
+      expect(WebGlSwimlaneRenderer.isSupported(glCanvas)).toBe(false);
+      return;
+    }
+    const gl = new WebGlSwimlaneRenderer();
+    expect(gl.attach(glCanvas)).toBe(true);
+    gl.resize(400, 120);
+    gl.setModel(model);
+    gl.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    gl.setSelection('e-parent', null);
+    expect(() => gl.render()).not.toThrow();
+    gl.dispose();
+  });
+
+  it('PR-DEPS-004: each curve gradient runs from predecessor fill to successor fill', () => {
+    const layout = rebuildLayout(linkedModel());
+    const link = dependencyLinks(layout, 'e-parent')[0]!;
+    expect(link.fromColor).toBe(colorForThread('CUBE'));
+    expect(link.toColor).toBe(colorForThread('SCALAR'));
+    expect(link.fromColor).not.toBe(link.toColor);
   });
 });

@@ -25,7 +25,7 @@ ProfilingReport
 │  │  ├─ TimeOverviewBar
 │  │  ├─ TimeAxis → AxisRuler, CursorTimestamp
 │  │  ├─ OverviewCharts
-│  │  └─ SwimlaneView → LaneGutter, SwimlaneCanvas, DependencyLinksLayer (P2)
+│  │  └─ SwimlaneView → LaneGutter, SwimlaneCanvas (dep curves in renderer)
 │  └─ StatsAside
 │     ├─ StatsSummaryPanel
 │     ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1)
@@ -274,7 +274,7 @@ Sectioned key–value list from `HardwareDetailsModel`. Prefer HardwareInfo.json
 
 ### `DependencyLinksLayer` (P2)
 
-Bezier/dep overlays above or beside intervals.
+Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRenderer` (instanced polyline) or `CanvasSwimlaneRenderer` (2D stroke); not a DOM overlay.
 
 **Why:** Separate from interval fill so Canvas/WebGL backends stay simple; needs dep encoding (Q9).
 
