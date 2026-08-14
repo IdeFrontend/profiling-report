@@ -74,10 +74,8 @@ describe('PR-UI: ProfilingReport feature contract', () => {
       },
     });
     await flushPromises();
-    expect(full.find('[data-testid="aside-modes"]').exists()).toBe(true);
-    await full.get('[data-testid="aside-mode-pipe"]').trigger('click');
+    expect(full.find('[data-testid="aside-modes"]').exists()).toBe(false);
     expect(full.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
-    await full.get('[data-testid="aside-mode-summary"]').trigger('click');
     expect(full.find('[data-testid="stats-summary"]').exists()).toBe(true);
     expect(full.find('[data-testid="overview-charts"]').exists()).toBe(false);
     expect(full.find('[data-testid="stats-compute"]').exists()).toBe(false);
@@ -180,8 +178,9 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="aside-mode-compute"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="aside-mode-memory"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="aside-modes"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
   });
 
   it('PR-UI-007: time overview brush adjusts visible window', async () => {

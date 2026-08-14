@@ -14,6 +14,7 @@ import type {
 } from '../domain/types';
 import { laneColorKey } from '../domain/laneColors';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
+import { firstLabelledMemoryTopology } from './memoryTopology';
 
 const COMPUTE_CSV_FILES = [
   'PipeUtilization.csv',
@@ -400,6 +401,8 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
     parsed.payloads['Memory.csv'],
   );
   const hardwareDetails = hardwareDetailsFromParsed(parsed);
+  const labelled = firstLabelledMemoryTopology(memory.tables);
+  const memoryTopology = labelled?.model;
   return {
     summary: summaryFromOpBasicInfo(parsed.payloads['OpBasicInfo.csv']),
     pipeOccupancy: pipeOccupancyFromCsv(parsed.payloads['PipeUtilization.csv']),
@@ -409,6 +412,7 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
     csvTexts: { ...compute.texts, ...memory.texts },
     ...(roofline ? { roofline } : {}),
     ...(hardwareDetails ? { hardwareDetails } : {}),
+    ...(memoryTopology ? { memoryTopology } : {}),
   };
 }
 
@@ -496,6 +500,7 @@ export function adaptRep(parsed: ParsedRep): AdaptedReport {
   const capabilities: ReportCapability[] = [];
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
+  if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
   return {
     swimlaneModel: swimlaneFromParsed(parsed, reportModel.pipeOccupancy),
     reportModel,

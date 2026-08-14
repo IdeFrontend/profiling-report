@@ -54,7 +54,7 @@ describe('StatsAside', () => {
       },
     });
 
-    await mix.get('[data-testid="aside-mode-pipe"]').trigger('click');
+    await mix.get('[data-testid="pipe-occupancy"]');
     expect(mix.find('[data-testid="pipe-side-toggle"]').exists()).toBe(true);
     let rows = mix.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Cube');
@@ -77,7 +77,6 @@ describe('StatsAside', () => {
         }),
       },
     });
-    await vectorOnly.get('[data-testid="aside-mode-pipe"]').trigger('click');
     expect(vectorOnly.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
     const vectorRows = vectorOnly.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(vectorRows).toContain('Vector');
@@ -101,9 +100,6 @@ describe('StatsAside', () => {
         },
       });
 
-      if (wrapper.find('[data-testid="aside-mode-pipe"]').exists()) {
-        await wrapper.get('[data-testid="aside-mode-pipe"]').trigger('click');
-      }
       expect(wrapper.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
       const rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
       expect(rows, `opType=${opType || '(blank)'}`).toContain('Cube');
@@ -147,8 +143,8 @@ describe('StatsAside', () => {
       },
     });
 
-    expect(wrapper.find('[data-testid="aside-modes"]').exists()).toBe(true);
-    await wrapper.get('[data-testid="aside-mode-compute"]').trigger('click');
+    expect(wrapper.find('[data-testid="aside-modes"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('aiv_vec_ratio');
 
@@ -158,7 +154,8 @@ describe('StatsAside', () => {
       text: csvTexts['PipeUtilization.csv'],
     });
 
-    await wrapper.get('[data-testid="aside-mode-memory"]').trigger('click');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('MemoryL1');
   });
@@ -414,14 +411,13 @@ describe('StatsAside', () => {
         }),
       },
     });
-    await wrapper.get('[data-testid="aside-mode-pipe"]').trigger('click');
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.emitted('open-pipe-details')).toBeTruthy();
     expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-017: Memory mode shows memory CSV panel', async () => {
+  it('PR-STATS-017: topology 详情 shows memory CSV overlay', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -429,16 +425,16 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'x'],
-              rows: [{ block_id: '0', x: '1' }],
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
-          csvTexts: { 'Memory.csv': 'block_id,x\n0,1\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });
-    await wrapper.get('[data-testid="aside-mode-memory"]').trigger('click');
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
   });
 
@@ -465,5 +461,201 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('add_custom');
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-hardware-details"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-019: topology section when labelled edges present; hidden when absent', () => {
+    const withTopo = mount(StatsAside, {
+      props: {
+        report: report({
+          memoryTopology: {
+            nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
+            edges: [{ id: 'gm-l2-read', from: 'l2', to: 'gm', label: '1.56 GB/s' }],
+          },
+        }),
+      },
+    });
+    expect(withTopo.find('[data-testid="stats-topology"]').exists()).toBe(true);
+    expect(withTopo.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
+
+    const without = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 } }) },
+    });
+    expect(without.find('[data-testid="stats-topology"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-020: no mode-tab switcher on stacked report', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.1, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id'],
+              rows: [{ block_id: '0' }],
+              blockIds: ['0'],
+            },
+          ],
+        }),
+      },
+    });
+    expect(wrapper.find('[data-testid="aside-modes"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(true);
+  });
+
+  it('PR-STATS-021: overlay returns to stack when report changes', async () => {
+    const withCompute = report({
+      summary: { taskDurationUs: 1 },
+      pipeOccupancy: [
+        { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+      ],
+      computeTables: [
+        {
+          fileName: 'PipeUtilization.csv',
+          headers: ['block_id', 'aiv_vec_ratio'],
+          rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
+          blockIds: ['0'],
+        },
+      ],
+    });
+    const wrapper = mount(StatsAside, { props: { report: withCompute } });
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
+
+    await wrapper.setProps({ report: report({ summary: { taskDurationUs: 2 } }) });
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-duration-card"]').exists()).toBe(true);
+
+    const stale = report({
+      summary: { taskDurationUs: 1 },
+      memoryTables: [
+        {
+          fileName: 'Memory.csv',
+          headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+          rows: [
+            { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+            { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '2.5' },
+          ],
+          blockIds: ['0', '1'],
+        },
+      ],
+    });
+    const swapped = mount(StatsAside, { props: { report: stale } });
+    expect(swapped.text()).toContain('2.50 GB/s');
+    await swapped.setProps({
+      report: report({
+        summary: { taskDurationUs: 1 },
+        memoryTables: [
+          {
+            fileName: 'Memory.csv',
+            headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+            rows: [
+              { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.56' },
+              { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+            ],
+            blockIds: ['0', '1'],
+          },
+        ],
+      }),
+    });
+    expect(swapped.text()).toContain('1.56 GB/s');
+    expect(swapped.text()).not.toContain('2.50 GB/s');
+  });
+
+  it('PR-STATS-022: topology does not keep another block’s labels', async () => {
+    const tables = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+        rows: [
+          { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.56' },
+          { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+        ],
+        blockIds: ['0', '1'],
+      },
+    ];
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: tables,
+          memoryTopology: {
+            nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
+            edges: [{ id: 'gm-l2-read', from: 'l2', to: 'gm', label: '1.56 GB/s' }],
+          },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_main_mem_read_bw(GB/s)\n0,1.56\n1,NA\n' },
+        }),
+      },
+    });
+    expect(wrapper.text()).toContain('1.56 GB/s');
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    await wrapper.get('[data-testid="csv-block"]').setValue('1');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-topology"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('1.56 GB/s');
+  });
+
+  it('PR-STATS-022: CSV tab fallback does not rewrite topology block', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+              rows: [
+                { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+                { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '1.56' },
+              ],
+              blockIds: ['0', '1'],
+            },
+            {
+              fileName: 'MemoryL0.csv',
+              headers: ['block_id', 'aic_l0a_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l0a_read_bw(GB/s)': 'NA' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: {
+            'Memory.csv': 'block_id,aiv_main_mem_read_bw(GB/s)\n0,NA\n1,1.56\n',
+            'MemoryL0.csv': 'block_id,aic_l0a_read_bw(GB/s)\n0,NA\n',
+          },
+        }),
+      },
+    });
+    expect(wrapper.text()).toContain('1.56 GB/s');
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    await wrapper.get('[data-testid="csv-tab-MemoryL0.csv"]').trigger('click');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.text()).toContain('1.56 GB/s');
+  });
+
+  it('PR-STATS-023: memory 详情 stays available when topology diagram is hidden', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': 'NA' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,NA\n' },
+        }),
+      },
+    });
+    expect(wrapper.find('[data-testid="stats-topology"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('MemoryL1');
   });
 });
