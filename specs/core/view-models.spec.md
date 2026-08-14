@@ -30,7 +30,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Hardware details (M1 interim I-Q7a).** Prefer `HardwareInfo.jsonl` category sections; else OpBasicInfo non-empty columns. Omit when neither yields fields. Include `'hardwareDetails'` in capabilities when model present.
 
-**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` (`nodes` + `edges`) from `Memory.csv` / `MemoryL0.csv` / `MemoryUB.csv` / `L2Cache.csv` using the [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md) edge→field→source table. Default snapshot uses the first `block_id`. `buildMemoryTopology(tables, blockId)` rebuilds labels for another block (I-Q6c). Each edge label is the non-`NA` mapped value (GB/s or KB); omit the label when all sources are `NA`. Omit `memoryTopology` (and include no `'memoryDiagram'` capability) when no edge yields a label.
+**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` (`nodes` + `edges`) from `Memory.csv` / `MemoryL0.csv` / `MemoryUB.csv` / `L2Cache.csv` using the [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md) edge→field→source table. Default snapshot uses the first block that yields a labelled edge. `buildMemoryTopology(tables, blockId)` rebuilds labels for another block (I-Q6c). Each edge label is the non-`NA` mapped value (GB/s or KB); omit the label when all sources are `NA`. Omit `memoryTopology` (and include no `'memoryDiagram'` capability) when no edge yields a label.
 
 ## Acceptance Criteria
 

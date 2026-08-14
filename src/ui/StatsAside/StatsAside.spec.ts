@@ -599,6 +599,42 @@ describe('StatsAside', () => {
     expect(wrapper.text()).not.toContain('1.56 GB/s');
   });
 
+  it('PR-STATS-022: CSV tab fallback does not rewrite topology block', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+              rows: [
+                { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+                { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '1.56' },
+              ],
+              blockIds: ['0', '1'],
+            },
+            {
+              fileName: 'MemoryL0.csv',
+              headers: ['block_id', 'aic_l0a_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l0a_read_bw(GB/s)': 'NA' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: {
+            'Memory.csv': 'block_id,aiv_main_mem_read_bw(GB/s)\n0,NA\n1,1.56\n',
+            'MemoryL0.csv': 'block_id,aic_l0a_read_bw(GB/s)\n0,NA\n',
+          },
+        }),
+      },
+    });
+    expect(wrapper.text()).toContain('1.56 GB/s');
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    await wrapper.get('[data-testid="csv-tab-MemoryL0.csv"]').trigger('click');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.text()).toContain('1.56 GB/s');
+  });
+
   it('PR-STATS-023: memory 详情 stays available when topology diagram is hidden', async () => {
     const wrapper = mount(StatsAside, {
       props: {

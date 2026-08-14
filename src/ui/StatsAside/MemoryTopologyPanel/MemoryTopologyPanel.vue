@@ -453,6 +453,70 @@ function rot(x: number, y: number): string {
         class="pr-topo__edge"
         data-testid="edge-l2-l1-write"
       >{{ label('l2-l1-write') }}</text>
+      <text
+        v-if="label('l1-l0a')"
+        :x="clx(70)"
+        :y="ry('aic', 138)"
+        text-anchor="middle"
+        class="pr-topo__edge"
+        data-testid="edge-l1-l0a"
+      >{{ label('l1-l0a') }}</text>
+      <text
+        v-if="label('l1-l0b')"
+        :x="clx(140)"
+        :y="ry('aic', 138)"
+        text-anchor="middle"
+        class="pr-topo__edge"
+        data-testid="edge-l1-l0b"
+      >{{ label('l1-l0b') }}</text>
+      <text
+        v-if="label('l0a-cube')"
+        :x="clx(210)"
+        :y="ry('aic', 138)"
+        text-anchor="middle"
+        class="pr-topo__edge"
+        data-testid="edge-l0a-cube"
+      >{{ label('l0a-cube') }}</text>
+      <text
+        v-if="label('l0b-cube')"
+        :x="clx(280)"
+        :y="ry('aic', 138)"
+        text-anchor="middle"
+        class="pr-topo__edge"
+        data-testid="edge-l0b-cube"
+      >{{ label('l0b-cube') }}</text>
+      <text
+        v-if="label('l0c-cube')"
+        :x="clx(70)"
+        :y="ry('aic', 152)"
+        text-anchor="middle"
+        class="pr-topo__edge"
+        data-testid="edge-l0c-cube"
+      >{{ label('l0c-cube') }}</text>
+      <text
+        v-if="label('cube-l0c')"
+        :x="clx(140)"
+        :y="ry('aic', 152)"
+        text-anchor="middle"
+        class="pr-topo__edge"
+        data-testid="edge-cube-l0c"
+      >{{ label('cube-l0c') }}</text>
+      <text
+        v-if="label('l0c-l1')"
+        :x="clx(210)"
+        :y="ry('aic', 152)"
+        text-anchor="middle"
+        class="pr-topo__edge"
+        data-testid="edge-l0c-l1"
+      >{{ label('l0c-l1') }}</text>
+      <text
+        v-if="label('l0c-l2')"
+        :x="clx(280)"
+        :y="ry('aic', 152)"
+        text-anchor="middle"
+        class="pr-topo__edge"
+        data-testid="edge-l0c-l2"
+      >{{ label('l0c-l2') }}</text>
 
       <!-- AIV1 -->
       <rect

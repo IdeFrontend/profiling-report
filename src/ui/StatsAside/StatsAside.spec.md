@@ -76,7 +76,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / input B
 19. **PR-STATS-019** — Topology section when `memoryTopology` has labelled edges; hidden when absent.
 20. **PR-STATS-020** — No mode-tab switcher on the stacked report.
 21. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first labelled block of the new report.
-22. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback.
+22. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
 23. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
 
 ## Edge Cases
@@ -157,6 +157,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 
 ## Changelog
 
+- **2026-08-14** — CSV tab switch does not rewrite topology block (PR-STATS-022).
 - **2026-08-13** — Memory 详情 without diagram (PR-STATS-023); re-pick labelled block on report swap (PR-STATS-021).
 - **2026-08-13** — Stacked 报告统计; 详情/更多 overlays; drop mode tabs; topology section (PR-STATS-019–022).
 - **2026-08-10** — Hardware overlay via 更多 (PR-STATS-018, I-Q7a); PIPE 详情 → compute mode (PR-STATS-016).

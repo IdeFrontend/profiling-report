@@ -15,6 +15,14 @@ const model = {
     { id: 'vec-ub', from: 'vec', to: 'ub', label: '0.10 GB/s' },
     { id: 'ub-vec', from: 'ub', to: 'vec', label: '0.20 GB/s' },
     { id: 'gm-l2-write', from: 'gm', to: 'l2' },
+    { id: 'l1-l0a', from: 'l1', to: 'l0a', label: '1.00 GB/s' },
+    { id: 'l1-l0b', from: 'l1', to: 'l0b', label: '2.00 GB/s' },
+    { id: 'l0a-cube', from: 'l0a', to: 'cube', label: '3.00 GB/s' },
+    { id: 'l0b-cube', from: 'l0b', to: 'cube', label: '4.00 GB/s' },
+    { id: 'l0c-cube', from: 'l0c', to: 'cube', label: '5.00 GB/s' },
+    { id: 'cube-l0c', from: 'cube', to: 'l0c', label: '6.00 GB/s' },
+    { id: 'l0c-l1', from: 'l0c', to: 'l1', label: '7 KB' },
+    { id: 'l0c-l2', from: 'l0c', to: 'l2', label: '8 KB' },
   ],
 };
 
@@ -31,6 +39,18 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.text()).toContain('1.56 GB/s');
     expect(wrapper.findAll('[data-testid="edge-vec-ub"]')).toHaveLength(2);
     expect(wrapper.findAll('[data-testid="edge-ub-vec"]')).toHaveLength(2);
+    for (const id of [
+      'l1-l0a',
+      'l1-l0b',
+      'l0a-cube',
+      'l0b-cube',
+      'l0c-cube',
+      'cube-l0c',
+      'l0c-l1',
+      'l0c-l2',
+    ]) {
+      expect(wrapper.get(`[data-testid="edge-${id}"]`).text().length).toBeGreaterThan(0);
+    }
   });
 
   it('PR-MEMTOP-003: omits NA/missing edge labels', () => {

@@ -44,29 +44,17 @@ const activeTable = computed(
 
 const selectedBlock = computed({
   get(): string {
-    if (props.selectedBlockId != null && props.selectedBlockId !== '') return props.selectedBlockId;
-    return internalBlock.value;
+    const ids = activeTable.value?.blockIds ?? [];
+    const bound = props.selectedBlockId;
+    if (bound != null && bound !== '' && ids.includes(bound)) return bound;
+    if (internalBlock.value !== '' && ids.includes(internalBlock.value)) return internalBlock.value;
+    return ids[0] ?? '';
   },
   set(v: string) {
     internalBlock.value = v;
     emit('update:selectedBlockId', v);
   },
 });
-
-watch(
-  activeTable,
-  (table) => {
-    const ids = table?.blockIds ?? [];
-    if (ids.length === 0) {
-      selectedBlock.value = '';
-      return;
-    }
-    if (!ids.includes(selectedBlock.value)) {
-      selectedBlock.value = ids[0]!;
-    }
-  },
-  { immediate: true },
-);
 
 const blockIds = computed(() => activeTable.value?.blockIds ?? []);
 

@@ -17,12 +17,12 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 ## Outputs
 
 - **view-full-csv** — `{ fileName: string; text: string }` when 查看全部 clicked for the active tab.
-- **update:selectedBlockId** — when the block picker changes.
+- **update:selectedBlockId** — when the block picker changes (not on tab switch).
 
 ## Behavior
 
 1. Tabs list present tables; selecting a tab switches the field list.
-2. Default block = first `blockId` of the active table (I-Q6c), or the bound **selectedBlockId**. Rows filtered to that `block_id` when a block is selected.
+2. Bound **selectedBlockId** when it is in the active table’s `blockIds`; otherwise an internal fallback to that table’s first `blockId` (I-Q6c). Only the block picker emits `update:selectedBlockId` — tab switches do not write through. Rows filtered to the displayed `block_id`.
 3. Search filters header names (case-insensitive substring).
 4. Field list shows header → value for the first matching row of the selected block (or all columns from that row). Show literal `NA`.
 5. 查看全部 emits full CSV text for the active `fileName`.
@@ -33,6 +33,7 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 2. **PR-CSV-002** — Block switcher filters rows by `block_id`.
 3. **PR-CSV-003** — Search narrows field labels.
 4. **PR-CSV-004** — 查看全部 emits `view-full-csv` with fileName + text.
+5. **PR-CSV-005** — Tab switch does not emit `update:selectedBlockId` when the active table lacks the bound id; field list falls back internally.
 
 ## Visual
 
@@ -57,6 +58,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 - [memory-load-detail](../../../../docs/ui/source/v930/memory-load-detail.jpeg) — full frame
 
 ## Changelog
+- **2026-08-14** — Tab switch keeps bound block; internal fallback only (PR-CSV-005).
 - **2026-08-13** — Field list fills overlay; drop max-height cap.
 - **2026-08-13** — Optional `selectedBlockId` v-model; crop token table.
 - **2026-08-07** — Initial M1 panel.
