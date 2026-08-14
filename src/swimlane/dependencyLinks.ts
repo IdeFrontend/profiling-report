@@ -1,4 +1,4 @@
-import type { EventRef, SwimlaneViewWindow } from '../domain/types';
+import type { DependencyMode, EventRef, SwimlaneViewWindow } from '../domain/types';
 import { eventLinkContentY, findLaidOutEvent, type LaidOutEvent, type SwimlaneLayout } from './layout';
 
 export const DEP_STROKE_WIDTH = 3;
@@ -18,7 +18,11 @@ function laidOutFromRef(layout: SwimlaneLayout, ref: EventRef): LaidOutEvent | u
 }
 
 /** Selected event plus laid-out predecessor/successor ids (for undimmed fill + labels). */
-export function dependencyNeighborIds(layout: SwimlaneLayout, selectedId: string | null): Set<string> {
+export function dependencyNeighborIds(
+  layout: SwimlaneLayout,
+  selectedId: string | null,
+  mode: DependencyMode = 'all',
+): Set<string> {
   const ids = new Set<string>();
   if (!selectedId) return ids;
   const selected = findLaidOutEvent(layout, selectedId);
@@ -26,13 +30,17 @@ export function dependencyNeighborIds(layout: SwimlaneLayout, selectedId: string
   ids.add(selectedId);
   const deps = selected.event.dependencies;
   if (!deps) return ids;
-  for (const ref of deps.predecessors) {
-    const item = laidOutFromRef(layout, ref);
-    if (item) ids.add(item.id);
+  if (mode !== 'successors') {
+    for (const ref of deps.predecessors) {
+      const item = laidOutFromRef(layout, ref);
+      if (item) ids.add(item.id);
+    }
   }
-  for (const ref of deps.successors) {
-    const item = laidOutFromRef(layout, ref);
-    if (item) ids.add(item.id);
+  if (mode !== 'predecessors') {
+    for (const ref of deps.successors) {
+      const item = laidOutFromRef(layout, ref);
+      if (item) ids.add(item.id);
+    }
   }
   return ids;
 }
@@ -51,24 +59,32 @@ function anchor(item: LaidOutEvent): { tLeft: number; tRight: number; y: number;
  * Times and content Y are view-independent so WebGL can pan/zoom with uniforms only.
  * Skips refs not in the layout (collapsed / missing).
  */
-export function dependencyLinks(layout: SwimlaneLayout, selectedId: string | null): DependencyLink[] {
+export function dependencyLinks(
+  layout: SwimlaneLayout,
+  selectedId: string | null,
+  mode: DependencyMode = 'all',
+): DependencyLink[] {
   if (!selectedId) return [];
   const selected = findLaidOutEvent(layout, selectedId);
   const deps = selected?.event.dependencies;
   if (!selected || !deps) return [];
   const sel = anchor(selected);
   const links: DependencyLink[] = [];
-  for (const ref of deps.predecessors) {
-    const item = laidOutFromRef(layout, ref);
-    if (!item) continue;
-    const a = anchor(item);
-    links.push({ t0: a.tRight, y0: a.y, t1: sel.tLeft, y1: sel.y, fromColor: a.color, toColor: sel.color });
+  if (mode !== 'successors') {
+    for (const ref of deps.predecessors) {
+      const item = laidOutFromRef(layout, ref);
+      if (!item) continue;
+      const a = anchor(item);
+      links.push({ t0: a.tRight, y0: a.y, t1: sel.tLeft, y1: sel.y, fromColor: a.color, toColor: sel.color });
+    }
   }
-  for (const ref of deps.successors) {
-    const item = laidOutFromRef(layout, ref);
-    if (!item) continue;
-    const a = anchor(item);
-    links.push({ t0: sel.tRight, y0: sel.y, t1: a.tLeft, y1: a.y, fromColor: sel.color, toColor: a.color });
+  if (mode !== 'predecessors') {
+    for (const ref of deps.successors) {
+      const item = laidOutFromRef(layout, ref);
+      if (!item) continue;
+      const a = anchor(item);
+      links.push({ t0: sel.tRight, y0: sel.y, t1: a.tLeft, y1: a.y, fromColor: sel.color, toColor: a.color });
+    }
   }
   return links;
 }
@@ -103,8 +119,9 @@ export function paintDependencyLinks(
   view: SwimlaneViewWindow,
   width: number,
   selectedId: string | null,
+  mode: DependencyMode = 'all',
 ): void {
-  const links = dependencyLinks(layout, selectedId);
+  const links = dependencyLinks(layout, selectedId, mode);
   if (links.length === 0) return;
   ctx.lineWidth = DEP_STROKE_WIDTH;
   ctx.lineCap = 'round';

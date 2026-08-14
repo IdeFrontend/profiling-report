@@ -249,6 +249,9 @@ export interface SelectedEvent {
 /** Interim I-Q14: ms / µs / ns only (no clock-cycle mode). */
 export type TimeDisplayUnit = 'ms' | 'us' | 'ns';
 
+/** Which selection dependency curves (and undimmed neighbors) to show. */
+export type DependencyMode = 'all' | 'predecessors' | 'successors';
+
 /** M2 timeline measure range — times in the same ns units as SwimlaneViewState. */
 export interface MeasureRange {
   startTime: number;
@@ -284,6 +287,7 @@ export interface SwimlaneRenderer {
   setView(view: SwimlaneViewWindow): void;
   setSelection(selectedId: string | null, hoveredId: string | null): void;
   setSearchQuery(query: string): void;
+  setDependencyMode(mode: DependencyMode): void;
   setCursorX(x: number | null): void;
   contentHeight(): number;
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;

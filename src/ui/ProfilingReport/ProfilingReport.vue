@@ -21,6 +21,7 @@ import type {
   SwimlaneViewState,
   SwimThread,
   TimeDisplayUnit,
+  DependencyMode,
   ViewFullCsvPayload,
 } from '../../domain/types';
 import { colorVarForLaneName } from '../../domain/laneColors';
@@ -50,6 +51,7 @@ const props = defineProps<{
   theme?: 'light' | 'dark';
   locale?: string;
   timeUnit?: TimeDisplayUnit;
+  dependencyMode?: DependencyMode;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
   /** Future feature-gate: controls which sub-panels/tabs are rendered. Currently exposed
@@ -75,6 +77,7 @@ const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
+const localDependencyMode = ref<DependencyMode>(props.dependencyMode ?? 'all');
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 /** Session-only panel widths (not persisted). */
@@ -86,6 +89,7 @@ const collapsedGroupIds = ref<string[]>([]);
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
 const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
+const depMode = computed<DependencyMode>(() => localDependencyMode.value);
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
@@ -250,6 +254,13 @@ watch(
   },
 );
 
+watch(
+  () => props.dependencyMode,
+  (m) => {
+    if (m) localDependencyMode.value = m;
+  },
+);
+
 function onSelect(ev: SwimEvent | null) {
   if (!ev) {
     selected.value = null;
@@ -370,6 +381,10 @@ function onTimeUnit(u: TimeDisplayUnit) {
   localTimeUnit.value = u;
 }
 
+function onDependencyMode(mode: DependencyMode) {
+  localDependencyMode.value = mode;
+}
+
 /** Used by component tests to select an event without canvas pointer geometry. */
 function selectEventById(eventId: string) {
   const ev = swim.value
@@ -396,11 +411,13 @@ defineExpose({ selectEventById, viewState });
       :aside-available="asideAvailable"
       :zoom-percent="zoomPercent"
       :time-unit="unit"
+      :dependency-mode="depMode"
       :locale="locale"
       :measure-mode="viewState.measureMode"
       @update:search-query="onSearch"
       @update:aside-visible="onAside"
       @update:time-unit="onTimeUnit"
+      @update:dependency-mode="onDependencyMode"
       @update:zoom-percent="onZoomPercent"
       @update:measure-mode="onMeasureMode"
       @zoom-to-fit="onZoomToFit"
@@ -438,11 +455,13 @@ defineExpose({ selectEventById, viewState });
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
           :time-unit="unit"
+          :dependency-mode="depMode"
           :locale="locale"
           :measure-mode="viewState.measureMode"
           @update:search-query="onSearch"
           @update:aside-visible="onAside"
           @update:time-unit="onTimeUnit"
+          @update:dependency-mode="onDependencyMode"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
           @zoom-to-fit="onZoomToFit"
@@ -454,6 +473,7 @@ defineExpose({ selectEventById, viewState });
           :bounds="bounds"
           :view="viewState"
           :unit="unit"
+          :dependency-mode="depMode"
           :groups="laneGroups"
           :collapsed-ids="collapsedGroupIds"
           :display-swim="displaySwim"

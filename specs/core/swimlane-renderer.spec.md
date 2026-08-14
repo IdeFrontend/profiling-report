@@ -28,7 +28,7 @@ class CanvasSwimlaneRenderer {
 
 **Event labels.** When the on-screen (clipped) event width is wide enough (>40px), the title is drawn centered: vertically at the event block mid-line (`textBaseline: middle`), horizontally at the center of the visible intersection of the event rect with the canvas (fully on-screen → center of the event; clipped left/right → center of the remaining visible strip). Canvas fallback and the WebGL overlay share this layout.
 
-**Search / selection emphasis.** Non-matching search hits dim to 25% opacity; when an event is selected, events that are not the selection and not its laid-out predecessors/successors multiply by 0.45 (combined when both apply). Dep neighbors keep full fill and label brightness; only the clicked event gets the white selection stroke. Canvas uses `globalAlpha`; WebGL rebuilds per-dim mesh layers and passes premul `uColor` RGB×dim with alpha=dim. Labels use the same dim (overlay + Canvas fallback); search non-matches omit labels. Clearing search and selection restores full opacity.
+**Search / selection emphasis.** Non-matching search hits dim to 25% opacity; when an event is selected, events that are not the selection and not its laid-out neighbors in the active `dependencyMode` multiply by 0.45 (combined when both apply). Dep neighbors in that mode keep full fill and label brightness; only the clicked event gets the white selection stroke. Canvas uses `globalAlpha`; WebGL rebuilds per-dim mesh layers and passes premul `uColor` RGB×dim with alpha=dim. Labels use the same dim (overlay + Canvas fallback); search non-matches omit labels. Clearing search and selection restores full opacity.
 
 **Lane chrome.** Every event-sequence lane shares the same background fill (`#1f1f1f`); alternating zebra stripes are not used. Horizontal dividers (`#3a3a3a`) are drawn at the bottom of each group header and each lane, aligned with the LaneGutter borders so separators read as continuous lines from the gutter across the timeline. WebGL draws the same uniform fill and 1px divider rects; Canvas uses strokes at the same edges.
 
@@ -68,6 +68,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-14** — `dependencyMode` filters which neighbors stay bright.
 - **2026-08-14** — WebGL instanced dependency polylines; Canvas 2D fallback.
 - **2026-08-13** — Dep neighbors undimmed with selection (fill + labels).
 - **2026-08-11** — Lane fill `#1f1f1f` (sketch-sampled `--pr-bg-deep`).

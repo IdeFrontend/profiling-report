@@ -6,6 +6,7 @@ import * as depLinks from '../../src/swimlane/dependencyLinks';
 import {
   cubicControlPull,
   dependencyLinks,
+  dependencyNeighborIds,
   glLinkTime,
   linkToScreen,
 } from '../../src/swimlane/dependencyLinks';
@@ -140,6 +141,65 @@ describe('PR-DEPS: dependency links', () => {
     expect(link.fromColor).not.toBe(link.toColor);
   });
 
+  it('PR-DEPS-005: dependencyMode filters predecessor vs successor curves and neighbors', () => {
+    const pred: SwimEvent = {
+      id: 'e-pred',
+      name: 'pred',
+      startTime: 0,
+      duration: 20,
+      dependencies: { predecessors: [], successors: [{ tid: 't-hub', index: 0 }] },
+    };
+    const hub: SwimEvent = {
+      id: 'e-hub',
+      name: 'hub',
+      startTime: 30,
+      duration: 20,
+      dependencies: {
+        predecessors: [{ tid: 't-pred', index: 0 }],
+        successors: [{ tid: 't-succ', index: 0 }],
+      },
+    };
+    const succ: SwimEvent = {
+      id: 'e-succ',
+      name: 'succ',
+      startTime: 60,
+      duration: 20,
+      dependencies: { predecessors: [{ tid: 't-hub', index: 0 }], successors: [] },
+    };
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-pred', name: 'CUBE', events: [pred] },
+            { id: 't-hub', name: 'SCALAR', events: [hub] },
+            { id: 't-succ', name: 'MTE', events: [succ] },
+          ],
+        },
+      ],
+    });
+
+    expect(dependencyLinks(layout, 'e-hub', 'all')).toHaveLength(2);
+    const predOnly = dependencyLinks(layout, 'e-hub', 'predecessors');
+    expect(predOnly).toHaveLength(1);
+    expect(predOnly[0]).toMatchObject({ t0: 20, t1: 30 });
+    const succOnly = dependencyLinks(layout, 'e-hub', 'successors');
+    expect(succOnly).toHaveLength(1);
+    expect(succOnly[0]).toMatchObject({ t0: 50, t1: 60 });
+
+    expect([...dependencyNeighborIds(layout, 'e-hub', 'predecessors')].sort()).toEqual([
+      'e-hub',
+      'e-pred',
+    ]);
+    expect([...dependencyNeighborIds(layout, 'e-hub', 'successors')].sort()).toEqual([
+      'e-hub',
+      'e-succ',
+    ]);
+  });
+
   it('PR-DEPS-001: overlay neighbor set rebuilds only on layout identity or selectedId change', () => {
     const spy = vi.spyOn(depLinks, 'dependencyNeighborIds');
     const layout = rebuildLayout(linkedModel());
@@ -157,6 +217,11 @@ describe('PR-DEPS: dependency links', () => {
 
     overlay.setLayout(rebuildLayout(linkedModel()));
     expect(spy).toHaveBeenCalledTimes(2);
+
+    overlay.setDependencyMode('predecessors');
+    expect(spy).toHaveBeenCalledTimes(3);
+    overlay.setDependencyMode('predecessors');
+    expect(spy).toHaveBeenCalledTimes(3);
     spy.mockRestore();
   });
 });

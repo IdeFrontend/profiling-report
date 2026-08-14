@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { formatTime } from '../../../../domain/formatTime';
 import type {
+  DependencyMode,
   MeasureRange,
   SwimEvent,
   SwimlaneModel,
@@ -22,6 +23,7 @@ const props = defineProps<{
   measureMode?: boolean;
   measureRange?: MeasureRange | null;
   timeUnit?: TimeDisplayUnit;
+  dependencyMode?: DependencyMode;
   /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
 }>();
@@ -104,11 +106,13 @@ function applyViewState(forceModel = false): void {
     attachedModel = props.model;
   }
   backend.setView(props.view);
+  backend.setDependencyMode(props.dependencyMode ?? 'all');
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   if (useWebGl.value) {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
+    overlay.setDependencyMode(props.dependencyMode ?? 'all');
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setSearchQuery(props.searchQuery);
   }
@@ -208,7 +212,7 @@ watch(
 );
 
 watch(
-  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery],
+  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode],
   () => {
     localScrollY = props.view.scrollY;
     sync();

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import type {
+  DependencyMode,
   MeasureRange,
   SwimEvent,
   SwimlaneModel,
@@ -21,6 +22,7 @@ const props = defineProps<{
   measureMode?: boolean;
   measureRange?: MeasureRange | null;
   timeUnit?: TimeDisplayUnit;
+  dependencyMode?: DependencyMode;
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
 }>();
 
@@ -85,6 +87,7 @@ defineExpose({
       :measure-mode="measureMode"
       :measure-range="measureRange"
       :time-unit="timeUnit"
+      :dependency-mode="dependencyMode ?? 'all'"
       :prefer-renderer="preferRenderer ?? 'auto'"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"

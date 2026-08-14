@@ -113,4 +113,16 @@ describe('ReportToolbar', () => {
     await btn.trigger('click');
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
   });
+
+  it('PR-TOOLBAR-011: dependency-mode select emits update:dependencyMode; popover stays open', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
+    const select = wrapper.find('[data-testid="dependency-mode"]');
+    expect(select.exists()).toBe(true);
+    await select.setValue('predecessors');
+    expect(wrapper.emitted('update:dependencyMode')).toEqual([['predecessors']]);
+    await select.setValue('successors');
+    expect(wrapper.emitted('update:dependencyMode')).toEqual([['predecessors'], ['successors']]);
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
+  });
 });

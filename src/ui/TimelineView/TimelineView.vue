@@ -6,6 +6,7 @@ import {
   resolveCursorTimeUnit,
 } from '../../domain/formatTime';
 import type {
+  DependencyMode,
   MeasureRange,
   SwimEvent,
   SwimlaneModel,
@@ -28,6 +29,7 @@ const props = defineProps<{
   bounds: { minTime: number; maxTime: number };
   view: SwimlaneViewState;
   unit: TimeDisplayUnit;
+  dependencyMode?: DependencyMode;
   groups: GutterGroup[];
   collapsedIds: string[];
   displaySwim: SwimlaneModel | null;
@@ -194,6 +196,7 @@ defineExpose({
       :measure-mode="view.measureMode"
       :measure-range="view.measureRange"
       :time-unit="unit"
+      :dependency-mode="dependencyMode ?? 'all'"
       :prefer-renderer="preferRenderer ?? 'auto'"
       @update:scroll-y="emit('update:scrollY', $event)"
       @toggle-group="emit('toggle-group', $event)"

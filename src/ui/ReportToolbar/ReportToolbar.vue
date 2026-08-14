@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { TimeDisplayUnit } from '../../domain/types';
+import type { TimeDisplayUnit, DependencyMode } from '../../domain/types';
 import { t } from '../../i18n';
 
 defineProps<{
@@ -9,6 +9,7 @@ defineProps<{
   asideAvailable: boolean;
   zoomPercent: number;
   timeUnit: TimeDisplayUnit;
+  dependencyMode?: DependencyMode;
   locale?: string;
   title?: string;
   measureMode?: boolean;
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:asideVisible': [value: boolean];
   'update:timeUnit': [value: TimeDisplayUnit];
+  'update:dependencyMode': [value: DependencyMode];
   'update:measureMode': [value: boolean];
   'zoom-to-fit': [];
   'zoom-in': [];
@@ -311,6 +313,18 @@ function closeDisplayControl() {
               <option value="ms">ms</option>
               <option value="us">µs</option>
               <option value="ns">ns</option>
+            </select>
+          </label>
+          <label class="pr-toolbar__display-field">
+            <span class="pr-toolbar__display-label">{{ t('dependencyDisplay', locale) }}</span>
+            <select
+              data-testid="dependency-mode"
+              :value="dependencyMode ?? 'all'"
+              @change="emit('update:dependencyMode', ($event.target as HTMLSelectElement).value as DependencyMode)"
+            >
+              <option value="all">{{ t('depModeAll', locale) }}</option>
+              <option value="predecessors">{{ t('depModePredecessors', locale) }}</option>
+              <option value="successors">{{ t('depModeSuccessors', locale) }}</option>
             </select>
           </label>
         </div>
@@ -621,6 +635,10 @@ function closeDisplayControl() {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.pr-toolbar__display-field + .pr-toolbar__display-field {
+  margin-top: 16px;
 }
 
 .pr-toolbar__display-label {

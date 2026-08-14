@@ -1,4 +1,10 @@
-import type { SwimEvent, SwimlaneModel, SwimlaneRenderer, SwimlaneViewWindow } from '../domain/types';
+import type {
+  DependencyMode,
+  SwimEvent,
+  SwimlaneModel,
+  SwimlaneRenderer,
+  SwimlaneViewWindow,
+} from '../domain/types';
 import {
   EMPTY_LAYOUT,
   EVENT_RADIUS,
@@ -243,6 +249,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private timeBase = 0;
   private searchQuery = '';
   private selectedId: string | null = null;
+  private depMode: DependencyMode = 'all';
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -310,6 +317,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     if (q === this.searchQuery) return;
     this.searchQuery = q;
     this.rebuildEmphasisSplit();
+  }
+
+  setDependencyMode(mode: DependencyMode): void {
+    if (mode === this.depMode) return;
+    this.depMode = mode;
+    this.rebuildEmphasisSplit();
+    this.rebuildCurveInstances();
   }
 
   /** Cursor is drawn on the Canvas overlay; no-op here. */
@@ -519,7 +533,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     const hasSearch = q.length > 0;
     const hasSelection = sel != null;
-    const bright = dependencyNeighborIds(this.layout, sel);
+    const bright = dependencyNeighborIds(this.layout, sel, this.depMode);
     const byLane = new Map<number, LaidOutEvent[]>();
     for (const ev of this.layout.events) {
       const list = byLane.get(ev.laneIndex) ?? [];
@@ -612,7 +626,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const gl = this.gl;
     const buf = this.curveInstanceBuf;
     if (!gl || !buf) return;
-    const links = dependencyLinks(this.layout, this.selectedId);
+    const links = dependencyLinks(this.layout, this.selectedId, this.depMode);
     this.curveCount = links.length;
     const data = new Float32Array(links.length * CURVE_INSTANCE_FLOATS);
     for (let i = 0; i < links.length; i++) {
