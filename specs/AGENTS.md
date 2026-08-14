@@ -1,6 +1,6 @@
 # Spec style
 
-Section order and frontmatter: follow [`TEMPLATE.md`](./TEMPLATE.md) (also linked from [`README.md`](./README.md)). Do not restate the section tables here.
+Section order and frontmatter: follow [`TEMPLATE.md`](./TEMPLATE.md) (also linked from [`README.md`](./README.md)). Do not restate the section tables here. Specs without test IDs (architecture specs) omit the spec-id-prefix table.
 
 A spec describes **what a module does and why** — not how it's implemented. It must be useful on its own without reading the source.
 

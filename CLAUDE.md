@@ -2,6 +2,6 @@
 
 Canonical shared rules live in `AGENTS.md` (imported below). Spec style: `specs/AGENTS.md`.
 
-If your Claude Code build already loads root `AGENTS.md` natively, skip re-applying this import to avoid double-loading the same file.
+On builds that natively load root `AGENTS.md` this import duplicates content; that is harmless.
 
 @AGENTS.md

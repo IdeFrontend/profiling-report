@@ -4,6 +4,8 @@
 |----------------|
 | PR-XXXX-*      |
 
+*Core and component specs. Architecture specs (no test IDs) omit this table.*
+
 [One sentence — what this module is and its role in the system.]
 
 ## Inputs
