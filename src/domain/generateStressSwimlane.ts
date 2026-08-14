@@ -1,4 +1,4 @@
-import type { SwimEvent, SwimlaneBand, SwimlaneModel, SwimProcess, SwimThread } from './types';
+import type { EventDependencies, EventRef, SwimEvent, SwimlaneBand, SwimlaneModel, SwimProcess, SwimThread } from './types';
 import { collectLeafEventsFromModel, countLeafThreads, isFolderNode } from './swimTree';
 
 /** Sketch pipe children under each Core. */
@@ -222,6 +222,104 @@ function buildCard(
   };
 }
 
+function endNs(event: SwimEvent): number {
+  return event.startTime + event.duration;
+}
+
+function ensureDeps(event: SwimEvent): EventDependencies {
+  let deps = event.dependencies;
+  if (!deps) {
+    deps = { predecessors: [], successors: [] };
+    event.dependencies = deps;
+  }
+  return deps;
+}
+
+function pushRef(list: EventRef[], ref: EventRef): void {
+  if (!list.some((r) => r.tid === ref.tid && r.index === ref.index)) list.push(ref);
+}
+
+function linkPair(
+  pred: SwimEvent,
+  predTid: string,
+  predIndex: number,
+  succ: SwimEvent,
+  succTid: string,
+  succIndex: number,
+): void {
+  if (pred === succ) return;
+  if (endNs(pred) > succ.startTime) return;
+  pushRef(ensureDeps(pred).successors, { tid: succTid, index: succIndex });
+  pushRef(ensureDeps(succ).predecessors, { tid: predTid, index: predIndex });
+}
+
+function orderByStart(events: SwimEvent[]): number[] {
+  return events
+    .map((_, index) => index)
+    .sort((i, j) => {
+      const a = events[i]!;
+      const b = events[j]!;
+      return a.startTime - b.startTime || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    });
+}
+
+function orderByEnd(events: SwimEvent[]): number[] {
+  return events
+    .map((_, index) => index)
+    .sort((i, j) => endNs(events[i]!) - endNs(events[j]!) || i - j);
+}
+
+/**
+ * Same-core pipe leaves only. Each event links to the nearest valid predecessor
+ * and successor on every pipe in the core (including its own thread).
+ */
+function wireCorePipeDependencies(core: SwimThread): void {
+  const pipes = (core.children ?? []).filter((t) => !isFolderNode(t) && t.events.length > 0);
+  if (pipes.length === 0) return;
+  const byStart = pipes.map((p) => orderByStart(p.events));
+  const byEnd = pipes.map((p) => orderByEnd(p.events));
+  for (let a = 0; a < pipes.length; a++) {
+    const eventsA = pipes[a]!.events;
+    const tidA = pipes[a]!.id;
+    const startA = byStart[a]!;
+    const endA = byEnd[a]!;
+    for (const event of eventsA) ensureDeps(event);
+    for (let b = 0; b < pipes.length; b++) {
+      const eventsB = pipes[b]!.events;
+      const tidB = pipes[b]!.id;
+      const startB = byStart[b]!;
+      const endB = byEnd[b]!;
+      let succPtr = 0;
+      for (let k = 0; k < endA.length; k++) {
+        const i = endA[k]!;
+        const event = eventsA[i]!;
+        const end = endNs(event);
+        while (succPtr < startB.length && eventsB[startB[succPtr]!]!.startTime < end) succPtr += 1;
+        if (succPtr >= startB.length) break;
+        const succAt = startB[succPtr]!;
+        linkPair(event, tidA, i, eventsB[succAt]!, tidB, succAt);
+      }
+      let endPtr = 0;
+      for (let k = 0; k < startA.length; k++) {
+        const i = startA[k]!;
+        const event = eventsA[i]!;
+        while (endPtr < endB.length && endNs(eventsB[endB[endPtr]!]!) <= event.startTime) endPtr += 1;
+        if (endPtr === 0) continue;
+        const predAt = endB[endPtr - 1]!;
+        linkPair(eventsB[predAt]!, tidB, predAt, event, tidA, i);
+      }
+    }
+  }
+}
+
+function wireCardCoreDependencies(card: SwimProcess): void {
+  const compute = card.threads.find((t) => t.name === '计算' && isFolderNode(t));
+  if (!compute?.children) return;
+  for (const core of compute.children) {
+    if (isFolderNode(core)) wireCorePipeDependencies(core);
+  }
+}
+
 /**
  * Contiguous ProfilerStep slabs covering [0, timeSpanNs). Deterministic (no PRNG).
  */
@@ -278,6 +376,7 @@ export function generateStressSwimlane(
   for (let c = 0; c < shape.cards; c++) {
     processes.push(buildCard(c, shape, eventsPerPipe, timeSpanNs, occupancy, rand));
   }
+  for (const card of processes) wireCardCoreDependencies(card);
 
   const model: SwimlaneModel = {
     processes,

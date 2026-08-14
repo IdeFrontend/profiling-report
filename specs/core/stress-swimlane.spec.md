@@ -45,6 +45,8 @@ Use exact integers in code so unit tests assert totals. Explicit `StressSwimlane
 
 **Determinism.** Same `seed` yields identical event layouts.
 
+**Same-core dependencies.** After packing, each Core’s pipe leaves are wired with `EventRef` predecessors/successors. Links stay inside that Core (own pipe included). If A lists B as successor, B lists A as predecessor, and vice versa. `predecessor.endTime <= successor.startTime`. Each event that can link does: on every pipe in the Core, the nearest valid successor (first start ≥ this end) and nearest valid predecessor (latest end ≤ this start) are included. Reverse edges from those nearest picks may add extra refs. Timeline-edge events may have an empty pred or succ list; the `dependencies` object is still present. 通信 / 储存HBM stay empty.
+
 **Query helper.** `stressPresetFromQuery` accepts `small`/`medium`/`large`; unknown or null falls back to `medium`.
 
 ## Acceptance Criteria
@@ -57,6 +59,8 @@ Use exact integers in code so unit tests assert totals. Explicit `StressSwimlane
 1. **PR-STRESS-006**: Tree shape is Card → 通信/计算/储存HBM → Core → pipes; 通信/储存HBM have empty events.
 1. **PR-STRESS-007**: `stressDefaultCollapsedIds` keeps Card + 计算 + Core0.Cube expanded.
 1. **PR-STRESS-008**: Stress models include `bands` (`ProfilerStep#N`); count matches preset (3/5/8).
+1. **PR-STRESS-009**: Pipe-event deps stay in the same Core, are bidirectional, and obey `pred.endTime <= succ.startTime`.
+1. **PR-STRESS-010**: Every pipe event has `dependencies`; each Core pipe contributes its nearest valid predecessor and successor.
 
 ## Edge Cases
 
@@ -67,6 +71,7 @@ Unknown query string → `medium`. Custom options with a named preset still hono
 [swimlane-model](./swimlane-model.spec.md).
 
 ## Changelog
+- **2026-08-14** — Small/medium/large pipe events get same-core nearest predecessor/successor links.
 - **2026-08-11** — Stress emits shared ProfilerStep bands (3/5/8 by preset).
 - **2026-08-11** — Card → Core → pipe hierarchy; locked Sudu-class medium counts; default expand helper.
 - **2026-08-10** — Fix busyBudget units (occupancy × span in ns; do not mix event count).
