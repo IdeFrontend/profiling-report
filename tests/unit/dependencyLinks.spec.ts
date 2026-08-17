@@ -231,6 +231,32 @@ describe('PR-DEPS: dependency links', () => {
     spy.mockRestore();
   });
 
+  it('PR-DEPS-008: Canvas fallback does not recompute dependency graph on pan', () => {
+    const graphSpy = vi.spyOn(depLinks, 'dependencyGraph');
+    const linksSpy = vi.spyOn(depLinks, 'dependencyLinks');
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120);
+    renderer.setModel(linkedModel());
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    renderer.setSelection('e-parent', null);
+    graphSpy.mockClear();
+    linksSpy.mockClear();
+
+    renderer.render();
+    renderer.setView({ startTime: 10, endTime: 110, scrollY: 0 });
+    renderer.render();
+    expect(graphSpy).not.toHaveBeenCalled();
+    expect(linksSpy).not.toHaveBeenCalled();
+
+    renderer.setSelection('e-child', null);
+    expect(graphSpy).toHaveBeenCalledTimes(1);
+    renderer.dispose();
+    graphSpy.mockRestore();
+    linksSpy.mockRestore();
+  });
+
   it('PR-DEPS-006: depth n draws n hops; -1 has no hop cap; 0 draws none', () => {
     function ev(
       id: string,

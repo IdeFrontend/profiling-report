@@ -54,7 +54,7 @@ function pushLink(
  * Each side stops after `MAX_DEPENDENCY_LINKS`. Cycles stop via visited ids.
  * Collapsed/missing refs are skipped.
  */
-function collectDependencyGraph(
+export function dependencyGraph(
   layout: SwimlaneLayout,
   selectedId: string | null,
   mode: DependencyMode = 'all',
@@ -121,7 +121,7 @@ export function dependencyNeighborIds(
   mode: DependencyMode = 'all',
   depth: number = DEFAULT_DEPENDENCY_DEPTH,
 ): Set<string> {
-  return collectDependencyGraph(layout, selectedId, mode, depth).ids;
+  return dependencyGraph(layout, selectedId, mode, depth).ids;
 }
 
 /**
@@ -135,7 +135,7 @@ export function dependencyLinks(
   mode: DependencyMode = 'all',
   depth: number = DEFAULT_DEPENDENCY_DEPTH,
 ): DependencyLink[] {
-  return collectDependencyGraph(layout, selectedId, mode, depth).links;
+  return dependencyGraph(layout, selectedId, mode, depth).links;
 }
 
 export function cubicControlPull(x0: number, x1: number): number {
@@ -171,14 +171,10 @@ export function linkIntersectsTimeView(link: DependencyLink, view: SwimlaneViewW
 /** Canvas 2D fallback: same cubic + pred→succ gradient as the WebGL instance pass. */
 export function paintDependencyLinks(
   ctx: CanvasRenderingContext2D,
-  layout: SwimlaneLayout,
+  links: readonly DependencyLink[],
   view: SwimlaneViewWindow,
   width: number,
-  selectedId: string | null,
-  mode: DependencyMode = 'all',
-  depth: number = DEFAULT_DEPENDENCY_DEPTH,
 ): void {
-  const links = dependencyLinks(layout, selectedId, mode, depth);
   if (links.length === 0) return;
   ctx.lineWidth = DEP_STROKE_WIDTH;
   ctx.lineCap = 'round';

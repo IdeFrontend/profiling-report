@@ -6,7 +6,7 @@ import type {
   SwimlaneViewWindow,
 } from '../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
-import { dependencyNeighborIds, paintDependencyLinks } from './dependencyLinks';
+import { dependencyGraph, dependencyNeighborIds, paintDependencyLinks, type DependencyLink } from './dependencyLinks';
 import {
   BAND_FILL,
   EMPTY_LAYOUT,
@@ -245,6 +245,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private neighborIds = new Set<string>();
+  private depLinks: DependencyLink[] = [];
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private searchQuery = '';
@@ -275,7 +276,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   setModel(model: SwimlaneModel): void {
     this.layout = rebuildLayout(model);
-    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, this.depMode, this.depDepth);
+    this.refreshDepCache();
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -286,7 +287,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.hoveredId = hoveredId;
     if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
-    this.neighborIds = dependencyNeighborIds(this.layout, selectedId, this.depMode, this.depDepth);
+    this.refreshDepCache();
   }
 
   setSearchQuery(query: string): void {
@@ -296,14 +297,14 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   setDependencyMode(mode: DependencyMode): void {
     if (mode === this.depMode) return;
     this.depMode = mode;
-    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, mode, this.depDepth);
+    this.refreshDepCache();
   }
 
   setDependencyDepth(depth: number): void {
     const d = normalizeDependencyDepth(depth);
     if (d === this.depDepth) return;
     this.depDepth = d;
-    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, this.depMode, d);
+    this.refreshDepCache();
   }
 
   setCursorX(x: number | null): void {
@@ -330,6 +331,12 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   findEvent(id: string): SwimEvent | null {
     return findEvent(this.layout, id);
+  }
+
+  private refreshDepCache(): void {
+    const graph = dependencyGraph(this.layout, this.selectedId, this.depMode, this.depDepth);
+    this.neighborIds = graph.ids;
+    this.depLinks = graph.links;
   }
 
   render(): void {
@@ -391,7 +398,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.globalAlpha = 1;
     }
 
-    paintDependencyLinks(ctx, this.layout, this.view, this.width, this.selectedId, this.depMode, this.depDepth);
+    paintDependencyLinks(ctx, this.depLinks, this.view, this.width);
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -439,6 +446,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.ctx = null;
     this.layout = EMPTY_LAYOUT;
     this.neighborIds = new Set();
+    this.depLinks = [];
   }
 }
 
