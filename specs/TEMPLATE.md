@@ -4,6 +4,8 @@
 |----------------|
 | PR-XXXX-*      |
 
+*Core and component specs. Architecture specs (no test IDs) omit this table.*
+
 [One sentence — what this module is and its role in the system.]
 
 ## Inputs
@@ -26,7 +28,17 @@ Omit for core/architecture specs.
 *Root component spec only.* Sequence diagrams (mermaid) showing how user
 actions propagate through the component tree. One diagram per interaction
 type: zoom, drag-pan, hover→select, search, data loading. Diagrams make
-the architecture testable without reading source code.
+the architecture testable without reading source code. Use `sequenceDiagram`
+with readable participant aliases (`participant Canvas as SwimlaneCanvas`),
+`->>` for calls/emits, `-->>` for returns, and `alt`/`else` for branching.
+
+## Unit contract
+
+*Core specs only.* Explicit constraints on the data this module operates on
+(e.g. "all time values are in nanoseconds; display conversion only at the
+formatting layer"). Place after the one-liner / signature and before
+Behavior when Inputs/Outputs/Interaction flows are omitted. Omit when no
+non-obvious contract.
 
 ## Behavior
 
@@ -38,9 +50,11 @@ For architecture: integration patterns, lifecycle, independence rules.]
 
 ## Acceptance Criteria
 
-> Component specs: include compact list of test IDs with brief statements
-> for traceability (checker needs AC↔test ID mapping).
-> Core/architecture specs: include if there are corresponding unit tests.
+> Every `*.spec.md` under `specs/` and `src/` needs a compact AC list —
+> tests or no tests. The only exemption is `DELEGATED_SPECS` in
+> `scripts/check-spec-coverage.mjs`. Missing section → `NO AC SECTION`;
+> empty → `EMPTY AC`; AC id with no test → `MISSING TEST`; test id with no
+> AC → `ORPHAN TEST`; the same id in two specs → `DUPLICATE AC`.
 
 1. **PR-XXXX-001** — [brief statement].
 1. **PR-XXXX-002** — [brief statement].
