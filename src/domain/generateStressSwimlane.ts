@@ -28,6 +28,11 @@ export interface StressSwimlaneOptions {
   seed?: number;
   /** Fraction of timeline covered by busy intervals (0–1). Default 0.65. */
   occupancy?: number;
+  /**
+   * Same-core nearest pred/succ wiring. Default on for `small`, off for
+   * `medium`/`large` (all-pairs refs blow up heap and generate time).
+   */
+  linkDependencies?: boolean;
 }
 
 export interface StressSwimlaneStats {
@@ -235,8 +240,20 @@ function ensureDeps(event: SwimEvent): EventDependencies {
   return deps;
 }
 
-function pushRef(list: EventRef[], ref: EventRef): void {
-  if (!list.some((r) => r.tid === ref.tid && r.index === ref.index)) list.push(ref);
+function pushRef(list: EventRef[], seen: Set<string>, ref: EventRef): void {
+  const key = `${ref.tid}:${ref.index}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+  list.push(ref);
+}
+
+function seenSet(map: Map<SwimEvent, Set<string>>, event: SwimEvent): Set<string> {
+  let keys = map.get(event);
+  if (!keys) {
+    keys = new Set();
+    map.set(event, keys);
+  }
+  return keys;
 }
 
 function linkPair(
@@ -246,11 +263,13 @@ function linkPair(
   succ: SwimEvent,
   succTid: string,
   succIndex: number,
+  seenSucc: Map<SwimEvent, Set<string>>,
+  seenPred: Map<SwimEvent, Set<string>>,
 ): void {
   if (pred === succ) return;
   if (endNs(pred) > succ.startTime) return;
-  pushRef(ensureDeps(pred).successors, { tid: succTid, index: succIndex });
-  pushRef(ensureDeps(succ).predecessors, { tid: predTid, index: predIndex });
+  pushRef(ensureDeps(pred).successors, seenSet(seenSucc, pred), { tid: succTid, index: succIndex });
+  pushRef(ensureDeps(succ).predecessors, seenSet(seenPred, succ), { tid: predTid, index: predIndex });
 }
 
 function orderByStart(events: SwimEvent[]): number[] {
@@ -278,6 +297,8 @@ function wireCorePipeDependencies(core: SwimThread): void {
   if (pipes.length === 0) return;
   const byStart = pipes.map((p) => orderByStart(p.events));
   const byEnd = pipes.map((p) => orderByEnd(p.events));
+  const seenSucc = new Map<SwimEvent, Set<string>>();
+  const seenPred = new Map<SwimEvent, Set<string>>();
   for (let a = 0; a < pipes.length; a++) {
     const eventsA = pipes[a]!.events;
     const tidA = pipes[a]!.id;
@@ -297,7 +318,7 @@ function wireCorePipeDependencies(core: SwimThread): void {
         while (succPtr < startB.length && eventsB[startB[succPtr]!]!.startTime < end) succPtr += 1;
         if (succPtr >= startB.length) break;
         const succAt = startB[succPtr]!;
-        linkPair(event, tidA, i, eventsB[succAt]!, tidB, succAt);
+        linkPair(event, tidA, i, eventsB[succAt]!, tidB, succAt, seenSucc, seenPred);
       }
       let endPtr = 0;
       for (let k = 0; k < startA.length; k++) {
@@ -306,7 +327,7 @@ function wireCorePipeDependencies(core: SwimThread): void {
         while (endPtr < endB.length && endNs(eventsB[endB[endPtr]!]!) <= event.startTime) endPtr += 1;
         if (endPtr === 0) continue;
         const predAt = endB[endPtr - 1]!;
-        linkPair(eventsB[predAt]!, tidB, predAt, event, tidA, i);
+        linkPair(eventsB[predAt]!, tidB, predAt, event, tidA, i, seenSucc, seenPred);
       }
     }
   }
@@ -371,12 +392,15 @@ export function generateStressSwimlane(
   const occupancy = options.occupancy ?? 0.65;
   const eventsPerPipe = options.eventsPerThread ?? shape.eventsPerPipe;
   const rand = mulberry32(seed);
+  const linkDependencies = options.linkDependencies ?? preset === 'small';
 
   const processes: SwimProcess[] = [];
   for (let c = 0; c < shape.cards; c++) {
     processes.push(buildCard(c, shape, eventsPerPipe, timeSpanNs, occupancy, rand));
   }
-  for (const card of processes) wireCardCoreDependencies(card);
+  if (linkDependencies) {
+    for (const card of processes) wireCardCoreDependencies(card);
+  }
 
   const model: SwimlaneModel = {
     processes,

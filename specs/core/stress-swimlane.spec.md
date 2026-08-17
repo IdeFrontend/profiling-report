@@ -45,7 +45,7 @@ Use exact integers in code so unit tests assert totals. Explicit `StressSwimlane
 
 **Determinism.** Same `seed` yields identical event layouts.
 
-**Same-core dependencies.** After packing, each Core’s pipe leaves are wired with `EventRef` predecessors/successors. Links stay inside that Core (own pipe included). If A lists B as successor, B lists A as predecessor, and vice versa. `predecessor.endTime <= successor.startTime`. Each event that can link does: on every pipe in the Core, the nearest valid successor (first start ≥ this end) and nearest valid predecessor (latest end ≤ this start) are included. Reverse edges from those nearest picks may add extra refs. Timeline-edge events may have an empty pred or succ list; the `dependencies` object is still present. 通信 / 储存HBM stay empty.
+**Same-core dependencies.** After packing, pipe leaves can be wired with `EventRef` predecessors/successors. `StressSwimlaneOptions.linkDependencies` defaults **on for `small`**, **off for `medium`/`large`** (all-pairs nearest-per-pipe refs are too large for Sudu-class presets). When wiring runs: links stay inside that Core (own pipe included). If A lists B as successor, B lists A as predecessor, and vice versa. `predecessor.endTime <= successor.startTime`. Each event that can link does: on every pipe in the Core, the nearest valid successor (first start ≥ this end) and nearest valid predecessor (latest end ≤ this start) are included. Reverse edges from those nearest picks may add extra refs. Timeline-edge events may have an empty pred or succ list; the `dependencies` object is still present. 通信 / 储存HBM stay empty. Dedupes with a `${tid}:${index}` set, not a linear `some()` scan.
 
 **Query helper.** `stressPresetFromQuery` accepts `small`/`medium`/`large`; unknown or null falls back to `medium`.
 
@@ -61,6 +61,7 @@ Use exact integers in code so unit tests assert totals. Explicit `StressSwimlane
 1. **PR-STRESS-008**: Stress models include `bands` (`ProfilerStep#N`); count matches preset (3/5/8).
 1. **PR-STRESS-009**: Pipe-event deps stay in the same Core, are bidirectional, and obey `pred.endTime <= succ.startTime`.
 1. **PR-STRESS-010**: Every pipe event has `dependencies`; each Core pipe contributes its nearest valid predecessor and successor.
+1. **PR-STRESS-011**: `linkDependencies` defaults on for `small` and off for `medium`/`large`; `true` enables wiring on any preset.
 
 ## Edge Cases
 
@@ -71,6 +72,7 @@ Unknown query string → `medium`. Custom options with a named preset still hono
 [swimlane-model](./swimlane-model.spec.md).
 
 ## Changelog
+- **2026-08-17** — Same-core wiring opt-in for medium/large (`linkDependencies`); Set dedupe; PR-STRESS-011.
 - **2026-08-14** — Small/medium/large pipe events get same-core nearest predecessor/successor links.
 - **2026-08-11** — Stress emits shared ProfilerStep bands (3/5/8 by preset).
 - **2026-08-11** — Card → Core → pipe hierarchy; locked Sudu-class medium counts; default expand helper.

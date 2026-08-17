@@ -166,7 +166,7 @@ describe('PR-STRESS: generateStressSwimlane', () => {
 
   it('PR-STRESS-009: same-core deps are bidirectional and time-ordered', () => {
     const model = generateStressSwimlane(
-      { eventsPerThread: 16, timeSpanNs: 2_000, occupancy: 0.6, seed: 7 },
+      { eventsPerThread: 16, timeSpanNs: 2_000, occupancy: 0.6, seed: 7, linkDependencies: true },
       'small',
     );
     const threads = indexThreads(model);
@@ -202,7 +202,7 @@ describe('PR-STRESS: generateStressSwimlane', () => {
 
   it('PR-STRESS-010: every pipe event has nearest pred/succ per core pipe', () => {
     const model = generateStressSwimlane(
-      { eventsPerThread: 16, timeSpanNs: 2_000, occupancy: 0.6, seed: 7 },
+      { eventsPerThread: 16, timeSpanNs: 2_000, occupancy: 0.6, seed: 7, linkDependencies: true },
       'small',
     );
     for (const card of model.processes) {
@@ -248,5 +248,20 @@ describe('PR-STRESS: generateStressSwimlane', () => {
         }
       }
     }
+  });
+
+  it('PR-STRESS-011: linkDependencies defaults on for small, off for medium/large', () => {
+    const small = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'small');
+    const medium = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'medium');
+    const large = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'large');
+    expect(firstPipeLeaf(small).events[0]!.dependencies).toBeTruthy();
+    expect(firstPipeLeaf(medium).events[0]!.dependencies).toBeUndefined();
+    expect(firstPipeLeaf(large).events[0]!.dependencies).toBeUndefined();
+
+    const wired = generateStressSwimlane(
+      { eventsPerThread: 4, timeSpanNs: 1_000, seed: 1, linkDependencies: true },
+      'medium',
+    );
+    expect(firstPipeLeaf(wired).events[0]!.dependencies).toBeTruthy();
   });
 });
