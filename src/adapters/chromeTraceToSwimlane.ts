@@ -221,19 +221,33 @@ function linkAsyncDependencies(
   }
 }
 
-/** Inclusive `[startTime, startTime+duration]` binary search. Events must be sorted by startTime. */
+/**
+ * Innermost event whose inclusive `[startTime, startTime+duration]` contains `timestamp`.
+ * Events must be sorted by startTime. Nested X intervals are a call stack: walk left from
+ * the first start > ts and keep the latest start (then shortest duration) that still contains.
+ */
 function findEventIndex(events: SwimEvent[], timestamp: number): number {
-  let left = 0;
-  let right = events.length - 1;
-  while (left <= right) {
-    const mid = (left + right) >> 1;
-    const event = events[mid]!;
-    const endTime = event.startTime + event.duration;
-    if (timestamp >= event.startTime && timestamp <= endTime) return mid;
-    if (timestamp < event.startTime) right = mid - 1;
-    else left = mid + 1;
+  let lo = 0;
+  let hi = events.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (events[mid]!.startTime <= timestamp) lo = mid + 1;
+    else hi = mid;
   }
-  return -1;
+  let best = -1;
+  let bestStart = Number.NEGATIVE_INFINITY;
+  let bestDur = Number.POSITIVE_INFINITY;
+  for (let i = lo - 1; i >= 0; i--) {
+    const event = events[i]!;
+    if (best >= 0 && event.startTime < bestStart) break;
+    if (timestamp > event.startTime + event.duration) continue;
+    if (best < 0 || event.duration < bestDur) {
+      best = i;
+      bestStart = event.startTime;
+      bestDur = event.duration;
+    }
+  }
+  return best;
 }
 
 function ensureDeps(event: SwimEvent): EventDependencies {

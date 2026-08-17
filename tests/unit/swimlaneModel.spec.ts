@@ -122,6 +122,24 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(events[1]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
     expect(events[0]!.dependencies?.successors).toHaveLength(1);
   });
+
+  it('PR-SWIM-009: nested X intervals bind the innermost containing event', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'outer', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'X', name: 'inner', pid: 1, tid: 1, ts: 10, dur: 10 },
+        { ph: 'X', name: 'target', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 's', id: 'f1', pid: 1, tid: 1, ts: 15 },
+        { ph: 'f', id: 'f1', pid: 1, tid: 2, ts: 205 },
+      ],
+    });
+    const t1 = model.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    const t2 = model.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+    expect(t1.events.map((e) => e.name)).toEqual(['outer', 'inner']);
+    expect(t1.events[0]!.dependencies).toBeUndefined();
+    expect(t1.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(t2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 1 }]);
+  });
 });
 
 function threadByName(model: ReturnType<typeof chromeTraceToSwimlane>, name: string) {
