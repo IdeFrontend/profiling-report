@@ -11,18 +11,20 @@ import {
   zoomAt,
   zoomToFitWindow,
 } from '../../domain/viewState';
-import type {
-  MeasureRange,
-  ReportCapability,
-  ReportViewModel,
-  SelectedEvent,
-  SwimEvent,
-  SwimlaneModel,
-  SwimlaneViewState,
-  SwimThread,
-  TimeDisplayUnit,
-  DependencyMode,
-  ViewFullCsvPayload,
+import {
+  DEFAULT_DEPENDENCY_DEPTH,
+  normalizeDependencyDepth,
+  type DependencyMode,
+  type MeasureRange,
+  type ReportCapability,
+  type ReportViewModel,
+  type SelectedEvent,
+  type SwimEvent,
+  type SwimlaneModel,
+  type SwimlaneViewState,
+  type SwimThread,
+  type TimeDisplayUnit,
+  type ViewFullCsvPayload,
 } from '../../domain/types';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import {
@@ -52,6 +54,7 @@ const props = defineProps<{
   locale?: string;
   timeUnit?: TimeDisplayUnit;
   dependencyMode?: DependencyMode;
+  dependencyDepth?: number;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
   /** Future feature-gate: controls which sub-panels/tabs are rendered. Currently exposed
@@ -78,6 +81,7 @@ const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode ?? 'all');
+const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth ?? DEFAULT_DEPENDENCY_DEPTH));
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 /** Session-only panel widths (not persisted). */
@@ -90,6 +94,7 @@ const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
 const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
 const depMode = computed<DependencyMode>(() => localDependencyMode.value);
+const depDepth = computed(() => localDependencyDepth.value);
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
@@ -261,6 +266,13 @@ watch(
   },
 );
 
+watch(
+  () => props.dependencyDepth,
+  (d) => {
+    if (d != null) localDependencyDepth.value = normalizeDependencyDepth(d);
+  },
+);
+
 function onSelect(ev: SwimEvent | null) {
   if (!ev) {
     selected.value = null;
@@ -385,6 +397,10 @@ function onDependencyMode(mode: DependencyMode) {
   localDependencyMode.value = mode;
 }
 
+function onDependencyDepth(depth: number) {
+  localDependencyDepth.value = normalizeDependencyDepth(depth);
+}
+
 /** Used by component tests to select an event without canvas pointer geometry. */
 function selectEventById(eventId: string) {
   const ev = swim.value
@@ -412,12 +428,14 @@ defineExpose({ selectEventById, viewState });
       :zoom-percent="zoomPercent"
       :time-unit="unit"
       :dependency-mode="depMode"
+      :dependency-depth="depDepth"
       :locale="locale"
       :measure-mode="viewState.measureMode"
       @update:search-query="onSearch"
       @update:aside-visible="onAside"
       @update:time-unit="onTimeUnit"
       @update:dependency-mode="onDependencyMode"
+      @update:dependency-depth="onDependencyDepth"
       @update:zoom-percent="onZoomPercent"
       @update:measure-mode="onMeasureMode"
       @zoom-to-fit="onZoomToFit"
@@ -456,12 +474,14 @@ defineExpose({ selectEventById, viewState });
           :zoom-percent="zoomPercent"
           :time-unit="unit"
           :dependency-mode="depMode"
+          :dependency-depth="depDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
           @update:search-query="onSearch"
           @update:aside-visible="onAside"
           @update:time-unit="onTimeUnit"
           @update:dependency-mode="onDependencyMode"
+          @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
           @zoom-to-fit="onZoomToFit"
@@ -474,6 +494,7 @@ defineExpose({ selectEventById, viewState });
           :view="viewState"
           :unit="unit"
           :dependency-mode="depMode"
+          :dependency-depth="depDepth"
           :groups="laneGroups"
           :collapsed-ids="collapsedGroupIds"
           :display-swim="displaySwim"

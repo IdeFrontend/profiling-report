@@ -5,6 +5,7 @@ import type {
   SwimlaneRenderer,
   SwimlaneViewWindow,
 } from '../domain/types';
+import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
 import { dependencyNeighborIds, paintDependencyLinks } from './dependencyLinks';
 import {
   BAND_FILL,
@@ -111,6 +112,7 @@ export class SwimlaneOverlayPainter {
   private hoveredId: string | null = null;
   private neighborIds = new Set<string>();
   private depMode: DependencyMode = 'all';
+  private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private searchQuery = '';
   private cursorX: number | null = null;
   private width = 0;
@@ -138,7 +140,7 @@ export class SwimlaneOverlayPainter {
   setLayout(layout: SwimlaneLayout): void {
     if (layout === this.layout) return;
     this.layout = layout;
-    this.neighborIds = dependencyNeighborIds(layout, this.selectedId, this.depMode);
+    this.neighborIds = dependencyNeighborIds(layout, this.selectedId, this.depMode, this.depDepth);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -149,7 +151,7 @@ export class SwimlaneOverlayPainter {
     this.hoveredId = hoveredId;
     if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
-    this.neighborIds = dependencyNeighborIds(this.layout, selectedId, this.depMode);
+    this.neighborIds = dependencyNeighborIds(this.layout, selectedId, this.depMode, this.depDepth);
   }
 
   setSearchQuery(query: string): void {
@@ -159,7 +161,14 @@ export class SwimlaneOverlayPainter {
   setDependencyMode(mode: DependencyMode): void {
     if (mode === this.depMode) return;
     this.depMode = mode;
-    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, mode);
+    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, mode, this.depDepth);
+  }
+
+  setDependencyDepth(depth: number): void {
+    const d = normalizeDependencyDepth(depth);
+    if (d === this.depDepth) return;
+    this.depDepth = d;
+    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, this.depMode, d);
   }
 
   setCursorX(x: number | null): void {
@@ -237,6 +246,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private hoveredId: string | null = null;
   private neighborIds = new Set<string>();
   private depMode: DependencyMode = 'all';
+  private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private searchQuery = '';
   private cursorX: number | null = null;
   private width = 0;
@@ -265,7 +275,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   setModel(model: SwimlaneModel): void {
     this.layout = rebuildLayout(model);
-    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, this.depMode);
+    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, this.depMode, this.depDepth);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -276,7 +286,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.hoveredId = hoveredId;
     if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
-    this.neighborIds = dependencyNeighborIds(this.layout, selectedId, this.depMode);
+    this.neighborIds = dependencyNeighborIds(this.layout, selectedId, this.depMode, this.depDepth);
   }
 
   setSearchQuery(query: string): void {
@@ -286,7 +296,14 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   setDependencyMode(mode: DependencyMode): void {
     if (mode === this.depMode) return;
     this.depMode = mode;
-    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, mode);
+    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, mode, this.depDepth);
+  }
+
+  setDependencyDepth(depth: number): void {
+    const d = normalizeDependencyDepth(depth);
+    if (d === this.depDepth) return;
+    this.depDepth = d;
+    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, this.depMode, d);
   }
 
   setCursorX(x: number | null): void {
@@ -374,7 +391,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.globalAlpha = 1;
     }
 
-    paintDependencyLinks(ctx, this.layout, this.view, this.width, this.selectedId, this.depMode);
+    paintDependencyLinks(ctx, this.layout, this.view, this.width, this.selectedId, this.depMode, this.depDepth);
 
     for (const item of this.layout.events) {
       const ev = item.event;

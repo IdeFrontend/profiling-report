@@ -8,7 +8,7 @@ Vue wrapper around `CanvasSwimlaneRenderer`. Translates mouse/touch events into 
 
 ## Inputs
 
-**model** carries the complete `SwimlaneModel` (processes, threads, events, time bounds) or `null` when no data is loaded. **view** carries the current `SwimlaneViewWindow` (`{ startTime, endTime, scrollY }`). **selectedEventId** and **hoveredEventId** drive highlight rendering. **searchQuery** drives event name filtering in the renderer. **dependencyMode** filters which predecessor/successor curves and undimmed neighbors are shown.
+**model** carries the complete `SwimlaneModel` (processes, threads, events, time bounds) or `null` when no data is loaded. **view** carries the current `SwimlaneViewWindow` (`{ startTime, endTime, scrollY }`). **selectedEventId** and **hoveredEventId** drive highlight rendering. **searchQuery** drives event name filtering in the renderer. **dependencyMode** and **dependencyDepth** filter which predecessor/successor curves and undimmed neighbors are shown.
 
 ## Outputs
 
@@ -24,7 +24,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 **Measure mode (M2).** When `measureMode` is true, drag sets `measureRange` (`update:measureRange`) instead of pan/select. Overlay draws a shaded band and Δt label using `timeUnit`. Pan is suppressed. Aside sync is out of scope until Q22. `pointerleave` must not clear the measure anchor while a measure drag is active (pointer capture may keep delivering move/up outside the element). External cancel (`measureMode` false / `measureRange` null via Esc or toolbar) clears local drag/anchor immediately; a `measureGestureActive` flag suppresses pan and select until `pointerup`.
 
-**Reactivity.** A deep watcher on the viewport prop calls `renderer.setView()` and `renderer.render()` on every change. Model changes call `renderer.setModel()`. Selection/hover/`dependencyMode` changes trigger render only (layout unchanged; no page reload).
+**Reactivity.** A deep watcher on the viewport prop calls `renderer.setView()` and `renderer.render()` on every change. Model changes call `renderer.setModel()`. Selection/hover/`dependencyMode`/`dependencyDepth` changes trigger render only (layout unchanged; no page reload).
 
 ## Acceptance Criteria
 

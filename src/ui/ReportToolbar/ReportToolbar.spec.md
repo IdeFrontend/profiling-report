@@ -10,11 +10,11 @@ Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **dependencyMode** sets the dependency-display dropdown (`all` / `predecessors` / `successors`), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **dependencyMode** sets the dependency-display dropdown (`all` / `predecessors` / `successors`), **dependencyDepth** sets hop count (default `1`, min `-1` = unlimited, no max), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
 
 ## Outputs
 
-The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:dependencyMode** carries the selected dependency filter. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode.
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:dependencyMode** carries the selected dependency filter. **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode.
 
 ## Behavior
 
@@ -24,7 +24,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Aside toggle.** Visible only when `asideAvailable` is true. Square icon button with panel SVG.
 
-**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)) and **依赖显示** (`data-testid="dependency-mode"`: all / predecessors / successors). Toggle the button or click **X** to close; leave open after unit or mode change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode. Changing dependency mode must not reload the page.
+**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)), **依赖显示** (`data-testid="dependency-mode"`: all / predecessors / successors), and **依赖深度** (`data-testid="dependency-depth"`: integer, default 1, min −1 = unlimited, no max). Toggle the button or click **X** to close; leave open after unit, mode, or depth change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode. Changing dependency mode or depth must not reload the page.
 
 **Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
 
@@ -119,6 +119,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 9. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
 10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
 11. **PR-TOOLBAR-011** — `dependency-mode` select inside 显示控制 emits `update:dependencyMode` on change; popover stays open.
+12. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1); popover stays open.
 
 ## Edge Cases
 
@@ -138,6 +139,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-17** — Dependency depth number field in 显示控制 (default 1, −1 unlimited); PR-TOOLBAR-012.
 - **2026-08-14** — Dependency display dropdown in 显示控制 (all / predecessors / successors); PR-TOOLBAR-011.
 - **2026-08-11** — Action icon rest `#363636` / `#b3b3b3`; hover & pressed `#1e2a3e` / `#2d70e3`; radius `6px` (sketch-sampled).
 - **2026-08-11** — Display-control popover tokens from sketch: panel `#363636` / radius `12px` / border `#5e5e5e`; select `#404040` / radius `6px`.

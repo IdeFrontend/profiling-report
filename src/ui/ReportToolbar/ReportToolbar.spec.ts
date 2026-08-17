@@ -125,4 +125,18 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:dependencyMode')).toEqual([['predecessors'], ['successors']]);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
   });
+
+  it('PR-TOOLBAR-012: dependency-depth input emits update:dependencyDepth; popover stays open', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
+    const input = wrapper.find('[data-testid="dependency-depth"]');
+    expect(input.exists()).toBe(true);
+    await input.setValue('2');
+    expect(wrapper.emitted('update:dependencyDepth')).toEqual([[2]]);
+    await input.setValue('-1');
+    expect(wrapper.emitted('update:dependencyDepth')).toEqual([[2], [-1]]);
+    await input.setValue('-5');
+    expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([-1]);
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
+  });
 });

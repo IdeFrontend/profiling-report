@@ -24,6 +24,7 @@ const props = defineProps<{
   measureRange?: MeasureRange | null;
   timeUnit?: TimeDisplayUnit;
   dependencyMode?: DependencyMode;
+  dependencyDepth?: number;
   /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
 }>();
@@ -107,12 +108,14 @@ function applyViewState(forceModel = false): void {
   }
   backend.setView(props.view);
   backend.setDependencyMode(props.dependencyMode ?? 'all');
+  backend.setDependencyDepth(props.dependencyDepth ?? 1);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   if (useWebGl.value) {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
     overlay.setDependencyMode(props.dependencyMode ?? 'all');
+    overlay.setDependencyDepth(props.dependencyDepth ?? 1);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setSearchQuery(props.searchQuery);
   }
@@ -212,7 +215,7 @@ watch(
 );
 
 watch(
-  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode],
+  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth],
   () => {
     localScrollY = props.view.scrollY;
     sync();

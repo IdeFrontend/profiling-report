@@ -23,6 +23,7 @@ const props = defineProps<{
   measureRange?: MeasureRange | null;
   timeUnit?: TimeDisplayUnit;
   dependencyMode?: DependencyMode;
+  dependencyDepth?: number;
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
 }>();
 
@@ -88,6 +89,7 @@ defineExpose({
       :measure-range="measureRange"
       :time-unit="timeUnit"
       :dependency-mode="dependencyMode ?? 'all'"
+      :dependency-depth="dependencyDepth ?? 1"
       :prefer-renderer="preferRenderer ?? 'auto'"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"

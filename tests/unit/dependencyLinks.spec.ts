@@ -222,6 +222,66 @@ describe('PR-DEPS: dependency links', () => {
     expect(spy).toHaveBeenCalledTimes(3);
     overlay.setDependencyMode('predecessors');
     expect(spy).toHaveBeenCalledTimes(3);
+    overlay.setDependencyDepth(2);
+    expect(spy).toHaveBeenCalledTimes(4);
+    overlay.setDependencyDepth(2);
+    expect(spy).toHaveBeenCalledTimes(4);
     spy.mockRestore();
+  });
+
+  it('PR-DEPS-006: depth n draws n hops; -1 is unlimited; 0 draws none', () => {
+    function ev(
+      id: string,
+      start: number,
+      predTid: string | null,
+      succTid: string | null,
+    ): SwimEvent {
+      return {
+        id,
+        name: id,
+        startTime: start,
+        duration: 10,
+        dependencies: {
+          predecessors: predTid ? [{ tid: predTid, index: 0 }] : [],
+          successors: succTid ? [{ tid: succTid, index: 0 }] : [],
+        },
+      };
+    }
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-z', name: 'CUBE', events: [ev('e-z', 0, null, 't-a')] },
+            { id: 't-a', name: 'SCALAR', events: [ev('e-a', 20, 't-z', 't-b')] },
+            { id: 't-b', name: 'MTE', events: [ev('e-b', 40, 't-a', 't-c')] },
+            { id: 't-c', name: 'FIX', events: [ev('e-c', 60, 't-b', null)] },
+          ],
+        },
+      ],
+    });
+
+    expect(dependencyLinks(layout, 'e-b', 'all', 1)).toHaveLength(2);
+    expect(dependencyLinks(layout, 'e-b', 'all', 2).map((l) => [l.t0, l.t1])).toEqual(
+      expect.arrayContaining([
+        [10, 20],
+        [30, 40],
+        [50, 60],
+      ]),
+    );
+    expect(dependencyLinks(layout, 'e-b', 'all', 2)).toHaveLength(3);
+    expect(dependencyLinks(layout, 'e-a', 'successors', 1)).toHaveLength(1);
+    expect(dependencyLinks(layout, 'e-a', 'successors', 2)).toHaveLength(2);
+    expect(dependencyLinks(layout, 'e-a', 'successors', -1)).toHaveLength(2);
+    expect(dependencyLinks(layout, 'e-b', 'all', 0)).toEqual([]);
+    expect([...dependencyNeighborIds(layout, 'e-b', 'all', 0)]).toEqual(['e-b']);
+    expect([...dependencyNeighborIds(layout, 'e-a', 'successors', 2)].sort()).toEqual([
+      'e-a',
+      'e-b',
+      'e-c',
+    ]);
   });
 });

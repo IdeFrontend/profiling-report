@@ -30,6 +30,7 @@ const props = defineProps<{
   view: SwimlaneViewState;
   unit: TimeDisplayUnit;
   dependencyMode?: DependencyMode;
+  dependencyDepth?: number;
   groups: GutterGroup[];
   collapsedIds: string[];
   displaySwim: SwimlaneModel | null;
@@ -197,6 +198,7 @@ defineExpose({
       :measure-range="view.measureRange"
       :time-unit="unit"
       :dependency-mode="dependencyMode ?? 'all'"
+      :dependency-depth="dependencyDepth ?? 1"
       :prefer-renderer="preferRenderer ?? 'auto'"
       @update:scroll-y="emit('update:scrollY', $event)"
       @toggle-group="emit('toggle-group', $event)"
