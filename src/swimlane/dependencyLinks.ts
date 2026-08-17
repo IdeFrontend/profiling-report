@@ -8,6 +8,8 @@ import {
 import { eventLinkContentY, findLaidOutEvent, type LaidOutEvent, type SwimlaneLayout } from './layout';
 
 export const DEP_STROKE_WIDTH = 3;
+/** BFS cap per direction so depth=-1 cannot freeze the main thread. */
+export const MAX_DEPENDENCY_LINKS = 10_000;
 
 export interface DependencyLink {
   t0: number;
@@ -37,18 +39,20 @@ function pushLink(
   seen: Set<string>,
   from: LaidOutEvent,
   to: LaidOutEvent,
-): void {
+): boolean {
   const key = `${from.id}>${to.id}`;
-  if (seen.has(key)) return;
+  if (seen.has(key)) return false;
   seen.add(key);
   const a = anchor(from);
   const b = anchor(to);
   links.push({ t0: a.tRight, y0: a.y, t1: b.tLeft, y1: b.y, fromColor: a.color, toColor: b.color });
+  return true;
 }
 
 /**
- * Walk predecessor and/or successor refs up to `depth` hops (`-1` = unlimited).
- * Cycles stop via visited ids. Collapsed/missing refs are skipped.
+ * Walk predecessor and/or successor refs up to `depth` hops (`-1` = no hop cap).
+ * Each side stops after `MAX_DEPENDENCY_LINKS`. Cycles stop via visited ids.
+ * Collapsed/missing refs are skipped.
  */
 function collectDependencyGraph(
   layout: SwimlaneLayout,
@@ -86,16 +90,21 @@ function walkDir(
   let frontier: LaidOutEvent[] = [start];
   const visited = new Set<string>([start.id]);
   const unlimited = hops < 0;
+  let added = 0;
   for (let hop = 0; (unlimited || hop < hops) && frontier.length > 0; hop++) {
     const next: LaidOutEvent[] = [];
     for (const node of frontier) {
       const refs = node.event.dependencies?.[dir] ?? [];
       for (const ref of refs) {
+        if (added >= MAX_DEPENDENCY_LINKS) return;
         const item = laidOutFromRef(layout, ref);
         if (!item) continue;
         ids.add(item.id);
-        if (dir === 'predecessors') pushLink(links, seenEdges, item, node);
-        else pushLink(links, seenEdges, node, item);
+        const grew =
+          dir === 'predecessors'
+            ? pushLink(links, seenEdges, item, node)
+            : pushLink(links, seenEdges, node, item);
+        if (grew) added += 1;
         if (visited.has(item.id)) continue;
         visited.add(item.id);
         next.push(item);
@@ -152,6 +161,13 @@ export function linkToScreen(
   };
 }
 
+/** True unless both endpoints sit entirely left or entirely right of the time window. */
+export function linkIntersectsTimeView(link: DependencyLink, view: SwimlaneViewWindow): boolean {
+  const lo = Math.min(link.t0, link.t1);
+  const hi = Math.max(link.t0, link.t1);
+  return hi >= view.startTime && lo <= view.endTime;
+}
+
 /** Canvas 2D fallback: same cubic + pred→succ gradient as the WebGL instance pass. */
 export function paintDependencyLinks(
   ctx: CanvasRenderingContext2D,
@@ -168,6 +184,7 @@ export function paintDependencyLinks(
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   for (const link of links) {
+    if (!linkIntersectsTimeView(link, view)) continue;
     const { x0, y0, x1, y1 } = linkToScreen(link, view, width);
     const pull = cubicControlPull(x0, x1);
     const g = ctx.createLinearGradient(x0, y0, x1, y1);

@@ -8,7 +8,9 @@ import {
   dependencyLinks,
   dependencyNeighborIds,
   glLinkTime,
+  linkIntersectsTimeView,
   linkToScreen,
+  MAX_DEPENDENCY_LINKS,
 } from '../../src/swimlane/dependencyLinks';
 import { eventBlockMetrics, eventLinkContentY, rebuildLayout } from '../../src/swimlane/layout';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
@@ -229,7 +231,7 @@ describe('PR-DEPS: dependency links', () => {
     spy.mockRestore();
   });
 
-  it('PR-DEPS-006: depth n draws n hops; -1 is unlimited; 0 draws none', () => {
+  it('PR-DEPS-006: depth n draws n hops; -1 has no hop cap; 0 draws none', () => {
     function ev(
       id: string,
       start: number,
@@ -283,5 +285,35 @@ describe('PR-DEPS: dependency links', () => {
       'e-b',
       'e-c',
     ]);
+  });
+
+  it('PR-DEPS-007: each side stops after MAX_DEPENDENCY_LINKS', () => {
+    const n = MAX_DEPENDENCY_LINKS + 2;
+    const events: SwimEvent[] = [];
+    for (let i = 0; i < n; i++) {
+      events.push({
+        id: `e-${i}`,
+        name: `e-${i}`,
+        startTime: i * 10,
+        duration: 5,
+        dependencies: {
+          predecessors: i > 0 ? [{ tid: 't', index: i - 1 }] : [],
+          successors: i < n - 1 ? [{ tid: 't', index: i + 1 }] : [],
+        },
+      });
+    }
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: n * 10,
+      processes: [{ id: 'p', name: 'P', threads: [{ id: 't', name: 'CUBE', events }] }],
+    });
+    const links = dependencyLinks(layout, 'e-0', 'successors', -1);
+    expect(links).toHaveLength(MAX_DEPENDENCY_LINKS);
+    expect(n - 1).toBeGreaterThan(MAX_DEPENDENCY_LINKS);
+
+    const inView = { t0: 10, t1: 20, y0: 0, y1: 0, fromColor: '#000', toColor: '#000' };
+    expect(linkIntersectsTimeView(inView, { startTime: 0, endTime: 100, scrollY: 0 })).toBe(true);
+    expect(linkIntersectsTimeView(inView, { startTime: 50, endTime: 100, scrollY: 0 })).toBe(false);
+    expect(linkIntersectsTimeView(inView, { startTime: 15, endTime: 18, scrollY: 0 })).toBe(true);
   });
 });
