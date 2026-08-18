@@ -193,6 +193,24 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(b1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-2-2', index: 0 }]);
     expect(b2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-2-1', index: 0 }]);
   });
+
+  it('PR-SWIM-012: flow in a gap under an enclosing slice binds the enclosing event', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'step', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'X', name: 'op1', pid: 1, tid: 1, ts: 10, dur: 10 },
+        { ph: 'X', name: 'op2', pid: 1, tid: 1, ts: 50, dur: 10 },
+        { ph: 'X', name: 'target', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 's', id: 'g', pid: 1, tid: 1, ts: 30 },
+        { ph: 'f', id: 'g', pid: 1, tid: 2, ts: 205 },
+      ],
+    });
+    const t1 = model.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    expect(t1.events.map((e) => e.name)).toEqual(['step', 'op1', 'op2']);
+    expect(t1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(t1.events[1]!.dependencies).toBeUndefined();
+    expect(t1.events[2]!.dependencies).toBeUndefined();
+  });
 });
 
 function threadByName(model: ReturnType<typeof chromeTraceToSwimlane>, name: string) {

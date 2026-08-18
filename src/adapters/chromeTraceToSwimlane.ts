@@ -174,13 +174,15 @@ export function chromeTraceToSwimlane(
     );
   }
 
+  const nestByThread = new Map<SwimThread, Int32Array>();
   for (const threads of processMap.values()) {
     for (const thread of threads.values()) {
       thread.events.sort((a, b) => a.startTime - b.startTime);
+      if (connectionPairs.length > 0) nestByThread.set(thread, nestParents(thread.events));
     }
   }
   if (connectionPairs.length > 0) {
-    linkAsyncDependencies(processMap, connectionPairs);
+    linkAsyncDependencies(processMap, connectionPairs, nestByThread);
   }
 
   const processes: SwimProcess[] = [...processMap.entries()].map(([pid, threads]) => ({
@@ -200,6 +202,7 @@ export function chromeTraceToSwimlane(
 function linkAsyncDependencies(
   processMap: Map<string, Map<string, SwimThread>>,
   connectionPairs: LinkedFlow[],
+  nestByThread: Map<SwimThread, Int32Array>,
 ): void {
   for (const pair of connectionPairs) {
     const start = pair.start;
@@ -209,8 +212,8 @@ function linkAsyncDependencies(
     const childThread = processMap.get(end.pid)?.get(end.tid);
     if (!parentThread || !childThread) continue;
 
-    const parentIndex = findEventIndex(parentThread.events, start.ts);
-    const childIndex = findEventIndex(childThread.events, end.ts);
+    const parentIndex = findEventIndex(parentThread.events, start.ts, nestByThread.get(parentThread)!);
+    const childIndex = findEventIndex(childThread.events, end.ts, nestByThread.get(childThread)!);
     if (parentIndex < 0 || childIndex < 0) continue;
 
     const parent = parentThread.events[parentIndex]!;
@@ -224,11 +227,31 @@ function linkAsyncDependencies(
 }
 
 /**
- * Innermost event whose inclusive `[startTime, startTime+duration]` contains `timestamp`.
- * Events must be sorted by startTime. Nested X intervals are a call stack: walk left from
- * the first start > ts and keep the latest start (then shortest duration) that still contains.
+ * Nearest enclosing event index per event (`-1` = none). Call-stack stack: pop
+ * intervals that ended before this start, then the remaining top is the parent.
  */
-function findEventIndex(events: SwimEvent[], timestamp: number): number {
+function nestParents(events: SwimEvent[]): Int32Array {
+  const parent = new Int32Array(events.length).fill(-1);
+  const stack: number[] = [];
+  for (let i = 0; i < events.length; i++) {
+    const start = events[i]!.startTime;
+    while (stack.length > 0) {
+      const top = events[stack[stack.length - 1]!]!;
+      if (top.startTime + top.duration < start) stack.pop();
+      else break;
+    }
+    if (stack.length > 0) parent[i] = stack[stack.length - 1]!;
+    stack.push(i);
+  }
+  return parent;
+}
+
+/**
+ * Innermost event whose inclusive `[startTime, startTime+duration]` contains `timestamp`.
+ * Events must be sorted by startTime. Walks the enclosing-parent chain from the last
+ * start ≤ ts so a gap does not scan the whole prefix.
+ */
+function findEventIndex(events: SwimEvent[], timestamp: number, parent: Int32Array): number {
   let lo = 0;
   let hi = events.length;
   while (lo < hi) {
@@ -236,20 +259,11 @@ function findEventIndex(events: SwimEvent[], timestamp: number): number {
     if (events[mid]!.startTime <= timestamp) lo = mid + 1;
     else hi = mid;
   }
-  let best = -1;
-  let bestStart = Number.NEGATIVE_INFINITY;
-  let bestDur = Number.POSITIVE_INFINITY;
-  for (let i = lo - 1; i >= 0; i--) {
+  for (let i = lo - 1; i >= 0; i = parent[i]!) {
     const event = events[i]!;
-    if (best >= 0 && event.startTime < bestStart) break;
-    if (timestamp > event.startTime + event.duration) continue;
-    if (best < 0 || event.duration < bestDur) {
-      best = i;
-      bestStart = event.startTime;
-      bestDur = event.duration;
-    }
+    if (timestamp <= event.startTime + event.duration) return i;
   }
-  return best;
+  return -1;
 }
 
 function ensureDeps(event: SwimEvent): EventDependencies {
