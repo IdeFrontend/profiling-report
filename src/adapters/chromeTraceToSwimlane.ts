@@ -225,6 +225,8 @@ function linkAsyncDependencies(
   connectionPairs: LinkedFlow[],
   nestByThread: Map<SwimThread, Int32Array>,
 ): void {
+  const seenSucc = new Map<SwimEvent, Set<string>>();
+  const seenPred = new Map<SwimEvent, Set<string>>();
   for (const pair of connectionPairs) {
     const start = pair.start;
     const end = pair.end;
@@ -242,8 +244,8 @@ function linkAsyncDependencies(
     if (parent === child) continue;
     const childRef: EventRef = { tid: childThread.id, index: childIndex };
     const parentRef: EventRef = { tid: parentThread.id, index: parentIndex };
-    pushUniqueRef(ensureDeps(parent).successors, childRef);
-    pushUniqueRef(ensureDeps(child).predecessors, parentRef);
+    pushRef(ensureDeps(parent).successors, seenSet(seenSucc, parent), childRef);
+    pushRef(ensureDeps(child).predecessors, seenSet(seenPred, child), parentRef);
   }
 }
 
@@ -296,8 +298,18 @@ function ensureDeps(event: SwimEvent): EventDependencies {
   return deps;
 }
 
-function pushUniqueRef(list: EventRef[], ref: EventRef): void {
-  if (!list.some((r) => r.tid === ref.tid && r.index === ref.index)) {
-    list.push(ref);
+function pushRef(list: EventRef[], seen: Set<string>, ref: EventRef): void {
+  const key = `${ref.tid}:${ref.index}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+  list.push(ref);
+}
+
+function seenSet(map: Map<SwimEvent, Set<string>>, event: SwimEvent): Set<string> {
+  let keys = map.get(event);
+  if (!keys) {
+    keys = new Set();
+    map.set(event, keys);
   }
+  return keys;
 }
