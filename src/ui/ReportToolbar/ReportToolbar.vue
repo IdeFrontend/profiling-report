@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import type { TimeDisplayUnit, DependencyMode } from '../../domain/types';
-import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
+import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
 
 defineProps<{
@@ -341,6 +341,7 @@ function onDependencyDepth(e: Event) {
               data-testid="dependency-depth"
               type="number"
               min="-1"
+              :max="MAX_DEPENDENCY_DEPTH"
               step="1"
               :value="dependencyDepth ?? DEFAULT_DEPENDENCY_DEPTH"
               :title="t('dependencyDepthHint', locale)"

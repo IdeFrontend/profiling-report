@@ -137,6 +137,8 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:dependencyDepth')).toEqual([[2], [-1]]);
     await input.setValue('-5');
     expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([-1]);
+    await input.setValue('999999');
+    expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([100]);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
   });
 });

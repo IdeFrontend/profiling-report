@@ -254,11 +254,15 @@ export type DependencyMode = 'all' | 'predecessors' | 'successors';
 
 /** Hop count from the selection. `1` = immediate neighbors; `-1` = no hop cap (link count still budgeted). */
 export const DEFAULT_DEPENDENCY_DEPTH = 1;
+/** Upper clamp — beyond this the BFS is indistinguishable from `-1` and just wastes time. */
+export const MAX_DEPENDENCY_DEPTH = 100;
 
 export function normalizeDependencyDepth(n: number): number {
   if (!Number.isFinite(n)) return DEFAULT_DEPENDENCY_DEPTH;
   const d = Math.trunc(n);
-  return d < -1 ? -1 : d;
+  if (d < -1) return -1;
+  if (d > MAX_DEPENDENCY_DEPTH) return MAX_DEPENDENCY_DEPTH;
+  return d;
 }
 
 /** M2 timeline measure range — times in the same ns units as SwimlaneViewState. */
