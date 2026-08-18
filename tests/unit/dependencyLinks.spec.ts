@@ -202,33 +202,49 @@ describe('PR-DEPS: dependency links', () => {
     ]);
   });
 
-  it('PR-DEPS-001: overlay neighbor set rebuilds only on layout identity or selectedId change', () => {
-    const spy = vi.spyOn(depLinks, 'dependencyNeighborIds');
-    const layout = rebuildLayout(linkedModel());
+  it('PR-DEPS-010: overlay uses renderer neighbor ids and does not walk the graph', () => {
+    const neighborSpy = vi.spyOn(depLinks, 'dependencyNeighborIds');
+    const graphSpy = vi.spyOn(depLinks, 'dependencyGraph');
     const overlay = new SwimlaneOverlayPainter();
-    overlay.setLayout(layout);
-    overlay.setSelection('e-parent', null);
-    spy.mockClear();
-
-    overlay.setLayout(layout);
-    overlay.setSelection('e-parent', 'e-child');
-    expect(spy).not.toHaveBeenCalled();
-
-    overlay.setSelection('e-child', null);
-    expect(spy).toHaveBeenCalledTimes(1);
-
     overlay.setLayout(rebuildLayout(linkedModel()));
-    expect(spy).toHaveBeenCalledTimes(2);
+    overlay.setSelection('e-parent', null);
+    overlay.setNeighborIds(new Set(['e-parent', 'e-child']));
+    overlay.setSearchQuery('p');
+    overlay.setLayout(rebuildLayout(linkedModel()));
+    overlay.setSelection('e-child', 'e-parent');
+    expect(neighborSpy).not.toHaveBeenCalled();
+    expect(graphSpy).not.toHaveBeenCalled();
+    neighborSpy.mockRestore();
+    graphSpy.mockRestore();
 
-    overlay.setDependencyMode('predecessors');
-    expect(spy).toHaveBeenCalledTimes(3);
-    overlay.setDependencyMode('predecessors');
-    expect(spy).toHaveBeenCalledTimes(3);
-    overlay.setDependencyDepth(2);
-    expect(spy).toHaveBeenCalledTimes(4);
-    overlay.setDependencyDepth(2);
-    expect(spy).toHaveBeenCalledTimes(4);
-    spy.mockRestore();
+    const glCanvas = document.createElement('canvas');
+    if (!WebGlSwimlaneRenderer.isSupported(glCanvas)) return;
+    const glGraph = vi.spyOn(depLinks, 'dependencyGraph');
+    const glNeighbor = vi.spyOn(depLinks, 'dependencyNeighborIds');
+    const gl = new WebGlSwimlaneRenderer();
+    expect(gl.attach(glCanvas)).toBe(true);
+    gl.resize(400, 120);
+    gl.setModel(linkedModel());
+    gl.setSelection('e-parent', null);
+    overlay.setLayout(gl.getLayout());
+    overlay.setSelection('e-parent', null);
+    overlay.setNeighborIds(gl.getNeighborIds());
+    glGraph.mockClear();
+    glNeighbor.mockClear();
+
+    overlay.setSelection('e-parent', 'e-child');
+    overlay.setSearchQuery('parent');
+    expect(glGraph).not.toHaveBeenCalled();
+    expect(glNeighbor).not.toHaveBeenCalled();
+
+    gl.setSelection('e-child', null);
+    overlay.setSelection('e-child', null);
+    overlay.setNeighborIds(gl.getNeighborIds());
+    expect(glGraph).toHaveBeenCalledTimes(1);
+    expect(glNeighbor).not.toHaveBeenCalled();
+    gl.dispose();
+    glGraph.mockRestore();
+    glNeighbor.mockRestore();
   });
 
   it('PR-DEPS-008: Canvas fallback does not recompute dependency graph on pan', () => {

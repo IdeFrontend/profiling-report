@@ -374,6 +374,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     return this.layout;
   }
 
+  getNeighborIds(): Set<string> {
+    return this.neighborIds;
+  }
+
   render(): void {
     const gl = this.gl;
     const swim = this.swimProg;

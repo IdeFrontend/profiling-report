@@ -6,7 +6,7 @@ import type {
   SwimlaneViewWindow,
 } from '../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
-import { dependencyGraph, dependencyNeighborIds, paintDependencyLinks, type DependencyLink } from './dependencyLinks';
+import { dependencyGraph, paintDependencyLinks, type DependencyLink } from './dependencyLinks';
 import {
   BAND_FILL,
   EMPTY_LAYOUT,
@@ -112,8 +112,6 @@ export class SwimlaneOverlayPainter {
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private neighborIds = new Set<string>();
-  private depMode: DependencyMode = 'all';
-  private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private searchQuery = '';
   private cursorX: number | null = null;
   private width = 0;
@@ -141,7 +139,6 @@ export class SwimlaneOverlayPainter {
   setLayout(layout: SwimlaneLayout): void {
     if (layout === this.layout) return;
     this.layout = layout;
-    this.neighborIds = dependencyNeighborIds(layout, this.selectedId, this.depMode, this.depDepth);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -150,26 +147,16 @@ export class SwimlaneOverlayPainter {
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
     this.hoveredId = hoveredId;
-    if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
-    this.neighborIds = dependencyNeighborIds(this.layout, selectedId, this.depMode, this.depDepth);
+  }
+
+  /** Renderer already walked the graph; overlay only dims from these ids. */
+  setNeighborIds(ids: Set<string>): void {
+    this.neighborIds = ids;
   }
 
   setSearchQuery(query: string): void {
     this.searchQuery = query.trim().toLowerCase();
-  }
-
-  setDependencyMode(mode: DependencyMode): void {
-    if (mode === this.depMode) return;
-    this.depMode = mode;
-    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, mode, this.depDepth);
-  }
-
-  setDependencyDepth(depth: number): void {
-    const d = normalizeDependencyDepth(depth);
-    if (d === this.depDepth) return;
-    this.depDepth = d;
-    this.neighborIds = dependencyNeighborIds(this.layout, this.selectedId, this.depMode, d);
   }
 
   setCursorX(x: number | null): void {
@@ -318,6 +305,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   getLayout(): SwimlaneLayout {
     return this.layout;
+  }
+
+  getNeighborIds(): Set<string> {
+    return this.neighborIds;
   }
 
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {

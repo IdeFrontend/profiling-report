@@ -112,9 +112,8 @@ function applyViewState(forceModel = false): void {
   if (useWebGl.value) {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
-    overlay.setDependencyMode(props.dependencyMode ?? 'all');
-    overlay.setDependencyDepth(props.dependencyDepth ?? 1);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
+    overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSearchQuery(props.searchQuery);
   }
 }
