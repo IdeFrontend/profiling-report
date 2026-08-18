@@ -104,8 +104,8 @@ export function chromeTraceToSwimlane(
   }
 
   const processMap = new Map<string, Map<string, SwimThread>>();
-  const openStarts = new Map<string, AsyncEndpoint[]>();
-  const connectionPairs: LinkedFlow[] = [];
+  const flowStarts = new Map<string, AsyncEndpoint[]>();
+  const flowFinishes = new Map<string, AsyncEndpoint[]>();
   let minTime = Number.POSITIVE_INFINITY;
   let maxTime = Number.NEGATIVE_INFINITY;
   let eventSeq = 0;
@@ -113,20 +113,16 @@ export function chromeTraceToSwimlane(
   for (const e of events) {
     if (e.ph === 's' || e.ph === 'f') {
       if (e.id == null || e.ts == null) continue;
-      const id = String(e.id);
       const endpoint: AsyncEndpoint = {
         ts: e.ts * toNs,
         pid: String(e.pid ?? 0),
         tid: String(e.tid ?? 0),
       };
-      if (e.ph === 's') {
-        const q = openStarts.get(id);
-        if (q) q.push(endpoint);
-        else openStarts.set(id, [endpoint]);
-      } else {
-        const start = openStarts.get(id)?.shift();
-        if (start && start.ts <= endpoint.ts) connectionPairs.push({ start, end: endpoint });
-      }
+      const bucket = e.ph === 's' ? flowStarts : flowFinishes;
+      const id = key(e.pid, e.id);
+      const q = bucket.get(id);
+      if (q) q.push(endpoint);
+      else bucket.set(id, [endpoint]);
       continue;
     }
 
@@ -174,6 +170,7 @@ export function chromeTraceToSwimlane(
     );
   }
 
+  const connectionPairs = pairAsyncFlows(flowStarts, flowFinishes);
   const nestByThread = new Map<SwimThread, Int32Array>();
   for (const threads of processMap.values()) {
     for (const thread of threads.values()) {
@@ -198,6 +195,29 @@ export function chromeTraceToSwimlane(
     maxTime,
     metadata: { displayTimeUnit },
   };
+}
+
+/** Pair each id's starts/finishes by timestamp so file order (f before s) still links. */
+function pairAsyncFlows(
+  starts: Map<string, AsyncEndpoint[]>,
+  finishes: Map<string, AsyncEndpoint[]>,
+): LinkedFlow[] {
+  const pairs: LinkedFlow[] = [];
+  for (const [id, sList] of starts) {
+    const fList = finishes.get(id);
+    if (!fList) continue;
+    sList.sort((a, b) => a.ts - b.ts);
+    fList.sort((a, b) => a.ts - b.ts);
+    let j = 0;
+    for (const start of sList) {
+      while (j < fList.length && fList[j]!.ts < start.ts) j++;
+      const end = fList[j];
+      if (!end) break;
+      pairs.push({ start, end });
+      j++;
+    }
+  }
+  return pairs;
 }
 
 function linkAsyncDependencies(

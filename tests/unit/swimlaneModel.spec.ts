@@ -173,24 +173,29 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
   });
 
   it('PR-SWIM-011: recycled flow ids keep every pair', () => {
-    const reused = chromeTraceToSwimlane({
-      traceEvents: [
-        { ph: 'X', name: 'A', pid: 1, tid: 1, ts: 0, dur: 10 },
-        { ph: 'X', name: 'B', pid: 1, tid: 2, ts: 20, dur: 10 },
-        { ph: 'X', name: 'C', pid: 1, tid: 1, ts: 40, dur: 10 },
-        { ph: 'X', name: 'D', pid: 1, tid: 2, ts: 60, dur: 10 },
-        { ph: 's', id: 7, pid: 1, tid: 1, ts: 5 },
-        { ph: 'f', id: 7, pid: 1, tid: 2, ts: 25 },
-        { ph: 's', id: 7, pid: 1, tid: 1, ts: 45 },
-        { ph: 'f', id: 7, pid: 1, tid: 2, ts: 65 },
-      ],
-    });
-    const t1 = reused.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
-    const t2 = reused.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
-    expect(t1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
-    expect(t2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
-    expect(t1.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 1 }]);
-    expect(t2.events[1]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 1 }]);
+    const xEvents = [
+      { ph: 'X' as const, name: 'A', pid: 1, tid: 1, ts: 0, dur: 10 },
+      { ph: 'X' as const, name: 'B', pid: 1, tid: 2, ts: 20, dur: 10 },
+      { ph: 'X' as const, name: 'C', pid: 1, tid: 1, ts: 40, dur: 10 },
+      { ph: 'X' as const, name: 'D', pid: 1, tid: 2, ts: 60, dur: 10 },
+    ];
+    const s1 = { ph: 's' as const, id: 7, pid: 1, tid: 1, ts: 5 };
+    const f1 = { ph: 'f' as const, id: 7, pid: 1, tid: 2, ts: 25 };
+    const s2 = { ph: 's' as const, id: 7, pid: 1, tid: 1, ts: 45 };
+    const f2 = { ph: 'f' as const, id: 7, pid: 1, tid: 2, ts: 65 };
+
+    function expectReused(flows: object[]) {
+      const reused = chromeTraceToSwimlane({ traceEvents: [...xEvents, ...flows] });
+      const t1 = reused.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+      const t2 = reused.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+      expect(t1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+      expect(t2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+      expect(t1.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 1 }]);
+      expect(t2.events[1]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 1 }]);
+    }
+    expectReused([s1, f1, s2, f2]);
+    expectReused([f1, f2, s1, s2]);
+    expectReused([f1, s1, f2, s2]);
 
     const twoPid = chromeTraceToSwimlane({
       traceEvents: [
