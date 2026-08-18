@@ -107,8 +107,8 @@ function applyViewState(forceModel = false): void {
     attachedModel = props.model;
   }
   backend.setView(props.view);
-  backend.setDependencyMode(props.dependencyMode ?? 'all');
-  backend.setDependencyDepth(props.dependencyDepth ?? 1);
+  backend.setDependencyMode?.(props.dependencyMode ?? 'all');
+  backend.setDependencyDepth?.(props.dependencyDepth ?? 1);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   if (useWebGl.value) {

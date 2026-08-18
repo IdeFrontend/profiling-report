@@ -300,8 +300,10 @@ export interface SwimlaneRenderer {
   setView(view: SwimlaneViewWindow): void;
   setSelection(selectedId: string | null, hoveredId: string | null): void;
   setSearchQuery(query: string): void;
-  setDependencyMode(mode: DependencyMode): void;
-  setDependencyDepth(depth: number): void;
+  /** Optional: hosts that omit this keep default `all`. */
+  setDependencyMode?(mode: DependencyMode): void;
+  /** Optional: hosts that omit this keep default hop depth. */
+  setDependencyDepth?(depth: number): void;
   setCursorX(x: number | null): void;
   contentHeight(): number;
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;

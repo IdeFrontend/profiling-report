@@ -11,7 +11,7 @@ import {
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyNeighborIds } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
-import type { SwimEvent, SwimlaneModel } from '../../src/domain/types';
+import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
 function tinyModel(): SwimlaneModel {
   return {
@@ -225,5 +225,27 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(canvasSrc).toMatch(/fillStyle\s*=\s*'#1f1f1f'/);
     expect(canvasSrc.match(/fillStyle\s*=\s*'#1f1f1f'/g)?.length).toBeGreaterThanOrEqual(2);
     expect(webglSrc).toMatch(/laneBg\s*=\s*0x1f\s*\/\s*255/);
+  });
+});
+
+describe('PR-RENDER: SwimlaneRenderer surface', () => {
+  it('PR-RENDER-013: setDependencyMode and setDependencyDepth are optional', () => {
+    const stub: SwimlaneRenderer = {
+      attach() {},
+      resize() {},
+      setModel() {},
+      setView() {},
+      setSelection() {},
+      setSearchQuery() {},
+      setCursorX() {},
+      contentHeight: () => 0,
+      eventScreenRect: () => null,
+      findEvent: () => null,
+      render() {},
+      hitTest: () => null,
+      dispose() {},
+    };
+    expect(stub.setDependencyMode).toBeUndefined();
+    expect(stub.setDependencyDepth).toBeUndefined();
   });
 });
