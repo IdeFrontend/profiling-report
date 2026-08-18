@@ -177,7 +177,8 @@ export function chromeTraceToSwimlane(
   const nestByThread = new Map<SwimThread, Int32Array>();
   for (const threads of processMap.values()) {
     for (const thread of threads.values()) {
-      thread.events.sort((a, b) => a.startTime - b.startTime);
+      // longest first: nestParents assumes enclosing-before-nested on ties
+      thread.events.sort((a, b) => a.startTime - b.startTime || b.duration - a.duration);
       if (connectionPairs.length > 0) nestByThread.set(thread, nestParents(thread.events));
     }
   }
@@ -248,8 +249,8 @@ function nestParents(events: SwimEvent[]): Int32Array {
 
 /**
  * Innermost event whose inclusive `[startTime, startTime+duration]` contains `timestamp`.
- * Events must be sorted by startTime. Walks the enclosing-parent chain from the last
- * start ≤ ts so a gap does not scan the whole prefix.
+ * Events must be sorted startTime asc, longest duration first on ties. Walks the
+ * enclosing-parent chain from the last start ≤ ts so a gap does not scan the whole prefix.
  */
 function findEventIndex(events: SwimEvent[], timestamp: number, parent: Int32Array): number {
   let lo = 0;

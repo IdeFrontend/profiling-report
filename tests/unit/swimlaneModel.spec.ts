@@ -139,6 +139,26 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(t1.events[0]!.dependencies).toBeUndefined();
     expect(t1.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
     expect(t2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 1 }]);
+
+    const child = { ph: 'X' as const, name: 'child', pid: 1, tid: 1, ts: 100, dur: 10 };
+    const parent = { ph: 'X' as const, name: 'parent', pid: 1, tid: 1, ts: 100, dur: 50 };
+    const rest = [
+      { ph: 'X' as const, name: 'target', pid: 1, tid: 2, ts: 500, dur: 10 },
+      { ph: 's' as const, id: 'f1', pid: 1, tid: 1, ts: 105 },
+      { ph: 'f' as const, id: 'f1', pid: 1, tid: 2, ts: 505 },
+    ];
+    for (const xs of [
+      [child, parent, ...rest],
+      [parent, child, ...rest],
+    ]) {
+      const tied = chromeTraceToSwimlane({ traceEvents: xs });
+      const src = tied.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+      const dst = tied.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+      expect(src.events.map((e) => e.name)).toEqual(['parent', 'child']);
+      expect(src.events[0]!.dependencies).toBeUndefined();
+      expect(src.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+      expect(dst.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 1 }]);
+    }
   });
 
   it('PR-SWIM-010: same-event s/f pair yields no self-loop edge', () => {
