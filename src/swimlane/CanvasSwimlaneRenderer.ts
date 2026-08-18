@@ -23,6 +23,7 @@ import {
   hitTestLayout,
   rebuildLayout,
   showsProfilerStepBands,
+  type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
 
@@ -378,6 +379,15 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
     const bright = this.neighborIds;
+    const visible: {
+      item: LaidOutEvent;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      matches: boolean;
+      dim: number;
+    }[] = [];
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -396,23 +406,12 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
       ctx.fill();
       ctx.globalAlpha = 1;
+      visible.push({ item, x, y, w, h, matches, dim });
     }
 
     paintDependencyLinks(ctx, this.depLinks, this.view, this.width);
 
-    for (const item of this.layout.events) {
-      const ev = item.event;
-      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
-        continue;
-      }
-      const x = ((ev.startTime - this.view.startTime) / span) * this.width;
-      const w = Math.max(2, (ev.duration / span) * this.width);
-      const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
-      if (y + h < 0 || y > this.height) continue;
-
-      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
-
+    for (const { item, x, y, w, h, matches, dim } of visible) {
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -425,7 +424,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         ctx.stroke();
       }
 
-      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
+      if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim);
     }
 
     if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {

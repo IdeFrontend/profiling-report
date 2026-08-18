@@ -69,6 +69,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-18** — Canvas fallback reuses the fill-pass visible list for strokes/labels (no second full-event cull).
 - **2026-08-18** — `setDependencyMode` / `setDependencyDepth` optional on `SwimlaneRenderer`; PR-RENDER-013.
 - **2026-08-17** — `dependencyDepth` hops (default 1, −1 no hop cap; 10 000 links per side).
 - **2026-08-14** — `dependencyMode` filters which neighbors stay bright.
