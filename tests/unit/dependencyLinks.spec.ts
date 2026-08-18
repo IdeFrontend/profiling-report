@@ -257,6 +257,30 @@ describe('PR-DEPS: dependency links', () => {
     linksSpy.mockRestore();
   });
 
+  it('PR-DEPS-009: WebGL does not recompute dependency graph on search', () => {
+    const glCanvas = document.createElement('canvas');
+    if (!WebGlSwimlaneRenderer.isSupported(glCanvas)) {
+      expect(WebGlSwimlaneRenderer.isSupported(glCanvas)).toBe(false);
+      return;
+    }
+    const graphSpy = vi.spyOn(depLinks, 'dependencyGraph');
+    const gl = new WebGlSwimlaneRenderer();
+    expect(gl.attach(glCanvas)).toBe(true);
+    gl.resize(400, 120);
+    gl.setModel(linkedModel());
+    gl.setSelection('e-parent', null);
+    graphSpy.mockClear();
+
+    gl.setSearchQuery('parent');
+    gl.setSearchQuery('p');
+    expect(graphSpy).not.toHaveBeenCalled();
+
+    gl.setSelection('e-child', null);
+    expect(graphSpy).toHaveBeenCalledTimes(1);
+    gl.dispose();
+    graphSpy.mockRestore();
+  });
+
   it('PR-DEPS-006: depth n draws n hops; -1 has no hop cap; 0 draws none', () => {
     function ev(
       id: string,

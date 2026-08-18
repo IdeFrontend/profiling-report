@@ -86,7 +86,16 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
 }
 
 export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
-  if (!model) return { ...EMPTY_LAYOUT, eventsById: new Map(), lanesByTid: new Map() };
+  if (!model) {
+    return {
+      lanes: [],
+      headers: [],
+      events: [],
+      bands: [],
+      eventsById: new Map(),
+      lanesByTid: new Map(),
+    };
+  }
   const lanes: FlatLane[] = [];
   const headers: GroupHeader[] = [];
   const events: LaidOutEvent[] = [];

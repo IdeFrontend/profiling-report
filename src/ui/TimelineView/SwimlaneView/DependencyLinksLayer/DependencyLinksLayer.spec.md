@@ -8,7 +8,7 @@ Predecessor/successor Bezier curves for the selected swimlane event. WebGL2 draw
 
 ## Inputs
 
-**layout**, **selectedEventId**, **dependencyMode** (`all` / `predecessors` / `successors`, default `all`), and **dependencyDepth** (hops from the selection; default `1`; `-1` = no hop cap; `0` = no neighbor curves; clamped to `MAX_DEPENDENCY_DEPTH` = 100). Each walk direction stops after `MAX_DEPENDENCY_LINKS` (10 000). Endpoint times and content-space Y come from laid-out events (`dependencyLinks`). `EventRef` `{tid, index}` resolves through `lanesByTid` + `eventsById` (thread.events order, not duration-sorted `layout.events`). Overlay caches neighbor ids; Canvas fallback caches neighbor ids and `DependencyLink[]`. Both rebuild only when layout identity, `selectedId`, `dependencyMode`, or `dependencyDepth` changes. The WebGL pass applies pan/zoom/scroll as uniforms so the instance buffer is rebuilt only on selection/layout/mode/depth change. Canvas skips links whose `[t0, t1]` span sits entirely outside the time window.
+**layout**, **selectedEventId**, **dependencyMode** (`all` / `predecessors` / `successors`, default `all`), and **dependencyDepth** (hops from the selection; default `1`; `-1` = no hop cap; `0` = no neighbor curves; clamped to `MAX_DEPENDENCY_DEPTH` = 100). Each walk direction stops after `MAX_DEPENDENCY_LINKS` (10 000). Endpoint times and content-space Y come from laid-out events (`dependencyLinks`). `EventRef` `{tid, index}` resolves through `lanesByTid` + `eventsById` (thread.events order, not duration-sorted `layout.events`). Overlay caches neighbor ids; Canvas fallback and WebGL cache neighbor ids and `DependencyLink[]` from one `dependencyGraph` per layout/`selectedId`/`dependencyMode`/`dependencyDepth` change (search does not rebuild the graph). The WebGL pass applies pan/zoom/scroll as uniforms so the instance buffer is rebuilt only on selection/layout/mode/depth change. Canvas skips links whose `[t0, t1]` span sits entirely outside the time window.
 
 ## Outputs
 
@@ -28,6 +28,7 @@ On selection, curves run from each predecessor's right-mid to the selected event
 1. **PR-DEPS-006** — `dependencyDepth` `n` draws `n` hops; `-1` has no hop cap; `0` draws no neighbor curves.
 1. **PR-DEPS-007** — Each walk direction stops after `MAX_DEPENDENCY_LINKS` new links.
 1. **PR-DEPS-008** — Canvas fallback does not recompute the dependency graph on pan or re-render.
+1. **PR-DEPS-009** — WebGL computes `dependencyGraph` once per selection/layout/mode/depth change; `setSearchQuery` does not recompute it.
 
 ## Visual
 
@@ -43,6 +44,7 @@ Crops: [`visual/dependency-links.png`](./visual/dependency-links.png) — [`visu
 [swimlane-model](../../../../../specs/core/swimlane-model.spec.md), [swimlane-renderer](../../../../../specs/core/swimlane-renderer.spec.md).
 
 ## Changelog
+- **2026-08-18** — WebGL caches one `dependencyGraph` per invalidation; search does not rebuild it; PR-DEPS-009.
 - **2026-08-17** — Canvas fallback caches `DependencyLink[]` with neighbor ids; PR-DEPS-008.
 - **2026-08-17** — Per-side `MAX_DEPENDENCY_LINKS` BFS budget; Canvas time-window cull; PR-DEPS-007.
 - **2026-08-17** — `dependencyDepth` hops (default 1, −1 no hop cap); PR-DEPS-006.

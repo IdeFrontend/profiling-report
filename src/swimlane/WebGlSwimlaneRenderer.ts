@@ -27,7 +27,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
-import { dependencyLinks, dependencyNeighborIds, DEP_STROKE_WIDTH, glLinkTime } from './dependencyLinks';
+import { dependencyGraph, DEP_STROKE_WIDTH, glLinkTime, type DependencyLink } from './dependencyLinks';
 import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS } from './shaders';
 
 interface GlProgram {
@@ -253,6 +253,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private selectedId: string | null = null;
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
+  private neighborIds = new Set<string>();
+  private depLinks: DependencyLink[] = [];
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -300,6 +302,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   setModel(model: SwimlaneModel): void {
     this.layout = rebuildLayout(model);
     this.timeBase = model?.minTime ?? 0;
+    this.refreshDepCache();
     this.rebuildMeshes();
     this.rebuildCurveInstances();
   }
@@ -311,6 +314,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   setSelection(selectedId: string | null, _hoveredId: string | null): void {
     if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
+    this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();
   }
@@ -325,6 +329,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   setDependencyMode(mode: DependencyMode): void {
     if (mode === this.depMode) return;
     this.depMode = mode;
+    this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();
   }
@@ -333,6 +338,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const d = normalizeDependencyDepth(depth);
     if (d === this.depDepth) return;
     this.depDepth = d;
+    this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();
   }
@@ -356,6 +362,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   findEvent(id: string): SwimEvent | null {
     return findEvent(this.layout, id);
+  }
+
+  private refreshDepCache(): void {
+    const graph = dependencyGraph(this.layout, this.selectedId, this.depMode, this.depDepth);
+    this.neighborIds = graph.ids;
+    this.depLinks = graph.links;
   }
 
   getLayout(): SwimlaneLayout {
@@ -481,6 +493,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.gl = null;
     this.canvas = null;
     this.layout = EMPTY_LAYOUT;
+    this.neighborIds = new Set();
+    this.depLinks = [];
   }
 
   private drawSolidRect(
@@ -544,7 +558,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     const hasSearch = q.length > 0;
     const hasSelection = sel != null;
-    const bright = dependencyNeighborIds(this.layout, sel, this.depMode, this.depDepth);
+    const bright = this.neighborIds;
     const byLane = new Map<number, LaidOutEvent[]>();
     for (const ev of this.layout.events) {
       const list = byLane.get(ev.laneIndex) ?? [];
@@ -637,7 +651,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const gl = this.gl;
     const buf = this.curveInstanceBuf;
     if (!gl || !buf) return;
-    const links = dependencyLinks(this.layout, this.selectedId, this.depMode, this.depDepth);
+    const links = this.depLinks;
     this.curveCount = links.length;
     const data = new Float32Array(links.length * CURVE_INSTANCE_FLOATS);
     for (let i = 0; i < links.length; i++) {
