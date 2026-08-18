@@ -151,6 +151,48 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     });
     expect(model.processes[0]?.threads[0]?.events[0]?.dependencies).toBeUndefined();
   });
+
+  it('PR-SWIM-011: recycled flow ids keep every pair', () => {
+    const reused = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'A', pid: 1, tid: 1, ts: 0, dur: 10 },
+        { ph: 'X', name: 'B', pid: 1, tid: 2, ts: 20, dur: 10 },
+        { ph: 'X', name: 'C', pid: 1, tid: 1, ts: 40, dur: 10 },
+        { ph: 'X', name: 'D', pid: 1, tid: 2, ts: 60, dur: 10 },
+        { ph: 's', id: 7, pid: 1, tid: 1, ts: 5 },
+        { ph: 'f', id: 7, pid: 1, tid: 2, ts: 25 },
+        { ph: 's', id: 7, pid: 1, tid: 1, ts: 45 },
+        { ph: 'f', id: 7, pid: 1, tid: 2, ts: 65 },
+      ],
+    });
+    const t1 = reused.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    const t2 = reused.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+    expect(t1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(t2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+    expect(t1.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 1 }]);
+    expect(t2.events[1]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 1 }]);
+
+    const twoPid = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'A1', pid: 1, tid: 1, ts: 0, dur: 10 },
+        { ph: 'X', name: 'A2', pid: 1, tid: 2, ts: 20, dur: 10 },
+        { ph: 'X', name: 'B1', pid: 2, tid: 1, ts: 40, dur: 10 },
+        { ph: 'X', name: 'B2', pid: 2, tid: 2, ts: 60, dur: 10 },
+        { ph: 's', id: 1, pid: 1, tid: 1, ts: 5 },
+        { ph: 'f', id: 1, pid: 1, tid: 2, ts: 25 },
+        { ph: 's', id: 1, pid: 2, tid: 1, ts: 45 },
+        { ph: 'f', id: 1, pid: 2, tid: 2, ts: 65 },
+      ],
+    });
+    const a1 = twoPid.processes.find((p) => p.id === 'p-1')!.threads.find((t) => t.id === 't-1-1')!;
+    const a2 = twoPid.processes.find((p) => p.id === 'p-1')!.threads.find((t) => t.id === 't-1-2')!;
+    const b1 = twoPid.processes.find((p) => p.id === 'p-2')!.threads.find((t) => t.id === 't-2-1')!;
+    const b2 = twoPid.processes.find((p) => p.id === 'p-2')!.threads.find((t) => t.id === 't-2-2')!;
+    expect(a1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(a2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+    expect(b1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-2-2', index: 0 }]);
+    expect(b2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-2-1', index: 0 }]);
+  });
 });
 
 function threadByName(model: ReturnType<typeof chromeTraceToSwimlane>, name: string) {

@@ -26,9 +26,9 @@ interface AsyncEndpoint {
   tid: string;
 }
 
-interface ConnectionPair {
-  start: AsyncEndpoint | null;
-  end: AsyncEndpoint | null;
+interface LinkedFlow {
+  start: AsyncEndpoint;
+  end: AsyncEndpoint;
 }
 
 interface ChromeTraceDoc {
@@ -104,7 +104,8 @@ export function chromeTraceToSwimlane(
   }
 
   const processMap = new Map<string, Map<string, SwimThread>>();
-  const connectionPairs = new Map<string, ConnectionPair>();
+  const openStarts = new Map<string, AsyncEndpoint[]>();
+  const connectionPairs: LinkedFlow[] = [];
   let minTime = Number.POSITIVE_INFINITY;
   let maxTime = Number.NEGATIVE_INFINITY;
   let eventSeq = 0;
@@ -113,18 +114,19 @@ export function chromeTraceToSwimlane(
     if (e.ph === 's' || e.ph === 'f') {
       if (e.id == null || e.ts == null) continue;
       const id = String(e.id);
-      let pair = connectionPairs.get(id);
-      if (!pair) {
-        pair = { start: null, end: null };
-        connectionPairs.set(id, pair);
-      }
       const endpoint: AsyncEndpoint = {
         ts: e.ts * toNs,
         pid: String(e.pid ?? 0),
         tid: String(e.tid ?? 0),
       };
-      if (e.ph === 's') pair.start = endpoint;
-      else pair.end = endpoint;
+      if (e.ph === 's') {
+        const q = openStarts.get(id);
+        if (q) q.push(endpoint);
+        else openStarts.set(id, [endpoint]);
+      } else {
+        const start = openStarts.get(id)?.shift();
+        if (start && start.ts <= endpoint.ts) connectionPairs.push({ start, end: endpoint });
+      }
       continue;
     }
 
@@ -177,7 +179,7 @@ export function chromeTraceToSwimlane(
       thread.events.sort((a, b) => a.startTime - b.startTime);
     }
   }
-  if (connectionPairs.size > 0) {
+  if (connectionPairs.length > 0) {
     linkAsyncDependencies(processMap, connectionPairs);
   }
 
@@ -197,12 +199,11 @@ export function chromeTraceToSwimlane(
 
 function linkAsyncDependencies(
   processMap: Map<string, Map<string, SwimThread>>,
-  connectionPairs: Map<string, ConnectionPair>,
+  connectionPairs: LinkedFlow[],
 ): void {
-  for (const pair of connectionPairs.values()) {
+  for (const pair of connectionPairs) {
     const start = pair.start;
     const end = pair.end;
-    if (!start || !end || start.ts > end.ts) continue;
 
     const parentThread = processMap.get(start.pid)?.get(start.tid);
     const childThread = processMap.get(end.pid)?.get(end.tid);
