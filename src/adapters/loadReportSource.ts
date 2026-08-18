@@ -1,6 +1,7 @@
 import { adaptRep, emptyReportViewModel } from './adaptRep';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { parseRep } from './parseRep';
+import { hasDependencies } from '../domain/dependencies';
 import type { AdaptedReport } from '../domain/types';
 
 const REP_MAGIC = 'cann-rep';
@@ -16,10 +17,11 @@ function looksLikeRep(bytes: Uint8Array): boolean {
 
 /** Chrome Trace object or CTEF JSON document → AdaptedReport (no CSV aside). */
 export function adaptChromeTrace(trace: unknown): AdaptedReport {
+  const swimlaneModel = chromeTraceToSwimlane(trace);
   return {
-    swimlaneModel: chromeTraceToSwimlane(trace),
+    swimlaneModel,
     reportModel: emptyReportViewModel(),
-    capabilities: [],
+    capabilities: hasDependencies(swimlaneModel) ? ['dependencies'] : [],
   };
 }
 

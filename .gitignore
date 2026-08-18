@@ -16,3 +16,6 @@ blob-report/
 .eslintcache
 *.tsbuildinfo
 .vercel
+.claude/
+.serena/
+graphify-out/
