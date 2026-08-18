@@ -214,6 +214,7 @@ function linkAsyncDependencies(
 
     const parent = parentThread.events[parentIndex]!;
     const child = childThread.events[childIndex]!;
+    if (parent === child) continue;
     const childRef: EventRef = { tid: childThread.id, index: childIndex };
     const parentRef: EventRef = { tid: parentThread.id, index: parentIndex };
     pushUniqueRef(ensureDeps(parent).successors, childRef);

@@ -140,6 +140,17 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(t1.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
     expect(t2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 1 }]);
   });
+
+  it('PR-SWIM-010: same-event s/f pair yields no self-loop edge', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'A', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 's', id: 'x', pid: 1, tid: 1, ts: 10 },
+        { ph: 'f', id: 'x', pid: 1, tid: 1, ts: 20 },
+      ],
+    });
+    expect(model.processes[0]?.threads[0]?.events[0]?.dependencies).toBeUndefined();
+  });
 });
 
 function threadByName(model: ReturnType<typeof chromeTraceToSwimlane>, name: string) {
