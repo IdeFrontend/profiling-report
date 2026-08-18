@@ -46,8 +46,6 @@ const overlayCanvasRef = ref<HTMLCanvasElement | null>(null);
 const fallbackCanvasRef = ref<HTMLCanvasElement | null>(null);
 const sizerHeight = ref(120);
 const useWebGl = ref(false);
-const viewWidth = ref(0);
-const viewHeight = ref(0);
 
 type Backend = CanvasSwimlaneRenderer | WebGlSwimlaneRenderer;
 
@@ -119,8 +117,6 @@ function applyViewState(forceModel = false): void {
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setSearchQuery(props.searchQuery);
   }
-  viewWidth.value = lastW;
-  viewHeight.value = lastH;
 }
 
 function sync(forceModel = false): void {
