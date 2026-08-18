@@ -183,6 +183,24 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
   });
 
+  it('PR-ROOT-003: auto-loaded source applies the adapter capabilities, the prop overrides', async () => {
+    // out.rep carries roofline, hardwareDetails and memoryDiagram; loadReportSource
+    // derives them, so a host passing only `source` must still get them.
+    const auto = mount(ProfilingReport, { props: { source: loadOutRepBuffer() } });
+    await flushPromises();
+    expect(
+      auto.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
+    ).toBe('roofline,hardwareDetails,memoryDiagram');
+
+    const overridden = mount(ProfilingReport, {
+      props: { source: loadOutRepBuffer(), capabilities: ['roofline'] },
+    });
+    await flushPromises();
+    expect(
+      overridden.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
+    ).toBe('roofline');
+  });
+
   it('PR-UI-007: time overview brush adjusts visible window', async () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(ProfilingReport, {

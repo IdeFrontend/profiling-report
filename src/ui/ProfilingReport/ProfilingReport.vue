@@ -58,9 +58,9 @@ const props = defineProps<{
   timeUnit?: TimeDisplayUnit;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
-  /** Future feature-gate: controls which sub-panels/tabs are rendered. Currently exposed
-   *  as a data attribute for CSS/test hooking; intended to drive conditional sections
-   *  (roofline, memory diagram, etc.) once those views land. */
+  /** Feature gate. Omit and the adapter's own capabilities (derived from the loaded
+   *  source) apply; pass an array to override them. Exposed as a data attribute for
+   *  CSS/test hooking and read by the aside. */
   capabilities?: ReportCapability[];
 }>();
 
@@ -75,6 +75,7 @@ const emit = defineEmits<{
 
 const internalSwim = ref<SwimlaneModel | null>(null);
 const internalReport = ref<ReportViewModel | null>(null);
+const internalCapabilities = ref<ReportCapability[] | null>(null);
 const loadError = ref<string | null>(null);
 const viewState = ref<SwimlaneViewState>(createViewState(null));
 const hovered = ref<SwimEvent | null>(null);
@@ -91,6 +92,10 @@ const collapsedGroupIds = ref<string[]>([]);
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
+/** Host prop wins; otherwise the ones the adapter derived from the loaded source. */
+const caps = computed<ReportCapability[]>(
+  () => props.capabilities ?? internalCapabilities.value ?? [],
+);
 const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
@@ -200,12 +205,14 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     const adapted = loadReportSource(source);
     internalSwim.value = adapted.swimlaneModel;
     internalReport.value = adapted.reportModel;
+    internalCapabilities.value = adapted.capabilities ?? null;
     resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
     loadError.value = null;
     emit('ready');
   } catch (cause) {
     internalSwim.value = null;
     internalReport.value = null;
+    internalCapabilities.value = null;
     selected.value = null;
     hovered.value = null;
     viewState.value = createViewState(null);
@@ -413,7 +420,7 @@ defineExpose({ selectEventById, viewState });
     class="pr-root"
     data-testid="profiling-report"
     :data-theme="theme ?? 'dark'"
-    :data-capabilities="(capabilities ?? []).join(',')"
+    :data-capabilities="caps.join(',')"
   >
     <ReportToolbar
       v-if="!showTimeline"
@@ -506,7 +513,7 @@ defineExpose({ selectEventById, viewState });
         <StatsAside
           :report="report"
           :locale="locale"
-          :capabilities="capabilities"
+          :capabilities="caps"
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
