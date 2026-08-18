@@ -23,6 +23,12 @@ import type {
   TimeDisplayUnit,
   ViewFullCsvPayload,
 } from '../../domain/types';
+import {
+  DEPENDENCY_LEVEL_UNLIMITED,
+  buildDependencyGraph,
+  hasDependencies,
+  neighborsOf,
+} from '../../domain/dependencies';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   collectLeafEventsFromModel,
@@ -372,6 +378,25 @@ function onTimeUnit(u: TimeDisplayUnit) {
   localTimeUnit.value = u;
 }
 
+/**
+ * Interim I-Q9: successor ids on the model, predecessors from the reverse index.
+ * The cheap scan runs first — building the graph costs ~300 ms on a 324k-event model
+ * and holds two Maps that size, and almost every report carries no edges at all.
+ */
+const dependencyGraph = computed(() =>
+  hasDependencies(swim.value) ? buildDependencyGraph(swim.value) : null,
+);
+/** Depth drives the graph walk below, so it stays here; the direction filter is DetailRelevant's own. */
+const dependencyLevel = ref<number>(DEPENDENCY_LEVEL_UNLIMITED);
+
+/** `undefined` (not an empty pair) so DetailPanel hides the column entirely. */
+const dependencyNeighbors = computed(() => {
+  const sel = selected.value;
+  const graph = dependencyGraph.value;
+  if (!sel || !graph) return undefined;
+  return neighborsOf(graph, sel.id, dependencyLevel.value);
+});
+
 /** Used by component tests to select an event without canvas pointer geometry. */
 function selectEventById(eventId: string) {
   const ev = swim.value
@@ -495,6 +520,10 @@ defineExpose({ selectEventById, viewState });
       :selected="selected"
       :unit="unit"
       :locale="locale"
+      :neighbors="dependencyNeighbors"
+      :level="dependencyLevel"
+      @close="onSelect(null)"
+      @update:level="dependencyLevel = $event"
     />
 
     <EventTooltip

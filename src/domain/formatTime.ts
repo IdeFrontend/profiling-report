@@ -110,16 +110,33 @@ export function resolveCursorTimeUnit(
   return preferred;
 }
 
-/** Format tooltip / detail times. */
-export function formatTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
-  if (!Number.isFinite(ns)) return '—';
+/**
+ * Value and unit apart, for surfaces that label the unit once instead of
+ * repeating it per value (sketch detail card: `7419` under `Start (ns)`).
+ */
+export function formatTimeParts(
+  ns: number,
+  unit: TimeDisplayUnit = 'ms',
+): { value: string; unit: string } {
+  // The unit label survives NaN/Infinity so the detail card keeps its column
+  // header while the number falls back to the em dash.
+  const label = unit === 'ns' ? 'ns' : unit === 'us' ? 'µs' : 'ms';
+  if (!Number.isFinite(ns)) return { value: '—', unit: label };
   switch (unit) {
     case 'ns':
-      return `${Math.round(ns)} ns`;
+      return { value: `${Math.round(ns)}`, unit: label };
     case 'us':
-      return `${(ns / 1e3).toFixed(3)} µs`;
+      return { value: (ns / 1e3).toFixed(3), unit: label };
     case 'ms':
     default:
-      return `${(ns / 1e6).toFixed(3)} ms`;
+      return { value: (ns / 1e6).toFixed(3), unit: label };
   }
+}
+
+/** Format tooltip / detail times. */
+export function formatTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
+  // Bare em dash, not '— ms': the tooltip has no unit column to fill.
+  if (!Number.isFinite(ns)) return '—';
+  const parts = formatTimeParts(ns, unit);
+  return `${parts.value} ${parts.unit}`;
 }

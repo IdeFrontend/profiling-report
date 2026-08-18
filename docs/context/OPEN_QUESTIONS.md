@@ -49,7 +49,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 
 | ID | Question | Status | Specs |
 |----|----------|--------|-------|
-| **Q9** | Dependencies encoding | Open | METRICS_AND_TRACE, INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS |
+| **Q9** | Dependencies encoding | **Open** + **Interim** | Interim successor-list encoding via Chrome Trace `args` — [I-Q9](INTERIM_DECISIONS.md), [dependencies spec](../../specs/core/dependencies.spec.md). METRICS_AND_TRACE, INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS |
 | **Q10** | Source / Details / Cache tabs | Open | FEATURE_MATRIX, UX_SPEC, MSTT_INTEGRATION, FORMATS_COMPARISON |
 | **Q11** | Roofline formulas | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, COMPONENTS |
 | **Q12** | Memory topology | **Resolved** | Static SVG + data-driven edge labels. |

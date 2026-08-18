@@ -16,12 +16,17 @@ Purely presentational — no emitted events.
 
 ## Behavior
 
-Displays name, start, duration, and end in the current display unit. Mounted by `DetailPanel` when a selection exists.
+Identity card: a circular op glyph, the event name, an optional type pill, and an inset panel with start / duration / end in the current display unit. Mounted by `DetailPanel` when a selection exists.
+
+The pill under the name carries the instruction or op type (the sketch shows `MOV_OUT_TO_L1_MULTI_ND2NZ` under `FIX_LOC_TO_DST`). Producers spell that field differently, so the first present of `op_type`, `kernel_type`, `kernel_name`, `type`, `cat` in `args` wins and the pill hides when none is there.
+
+Values come from `formatTimeParts`: the number stands alone and the unit rides in the caption below it (`Start (ns)`), as in the sketch, so the three columns stay aligned on the digits.
 
 ## Acceptance Criteria
 
 1. **PR-DSUM-001** — Renders event name.
-2. **PR-DSUM-002** — Formats start time, duration, and end time.
+2. **PR-DSUM-002** — Renders bare start / duration / end values with the unit in each caption.
+3. **PR-DSUM-003** — Shows the type pill from `args` when present and hides it otherwise.
 
 ## Visual
 
@@ -37,5 +42,7 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 [format-time](../../../../specs/core/format-time.spec.md).
 
 ## Changelog
+- **2026-08-13** — Sketch card proportions: larger node glyph, unit moved into the metric captions.
+- **2026-08-13** — Identity card layout (glyph, type pill, inset metric panel).
 - **2026-08-10** — Renamed from DetailStrip; visual pack is identity card only.
 - **2026-08-05** — Initial DetailStrip spec.

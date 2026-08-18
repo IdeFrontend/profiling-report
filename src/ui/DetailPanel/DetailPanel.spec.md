@@ -4,23 +4,31 @@
 |----------------|
 | PR-DPANEL-*    |
 
-Bottom selection dock shell: three-column layout hosting DetailSummary, DetailParameter, and DetailRelevant.
+Raised bottom 「详情」 dock: titled header with a close control over a three-column body — identity card, Parameter list, Relevent dependency graph.
 
 ## Inputs
 
-**selected**, **unit**, optional **locale** — forwarded to DetailSummary.
+**selected** (`SelectedEvent`), **unit**, optional **locale**. Optional **neighbors** (`DependencyNeighbors`) and **level** (default `-1`) drive the Relevent column.
 
 ## Outputs
 
-Purely presentational — no emitted events.
+**close** — the header `×`; the parent clears the selection, which unmounts the dock.
+**update:level** — forwarded from the Relevent toolbar.
 
 ## Behavior
 
-MVP mounts the identity/timing summary and P2 stubs for Parameter and Relevant columns.
+The header renders the 详情 tab label with an accent underline and the close button. The body forwards `selected` to DetailSummary and `selected.args` to DetailParameter. The Relevent column mounts **only** when `neighbors` is supplied: a report with no dependency data passes `undefined` and the dock falls back to two columns (VIEW_DATA_REQUIREMENTS hide-when-missing policy).
+
+Height is capped at `45vh` so the dock never swallows the timeline; each column scrolls internally.
+
+The dock keeps a fixed height and each column scrolls inside it, so switching selections never resizes the panel or shifts the timeline above it. For the same reason the identity card is pinned to the top of its column and its captions stay on one line.
 
 ## Acceptance Criteria
 
 1. **PR-DPANEL-001** — Renders the detail panel shell with summary when selected is provided.
+1. **PR-DPANEL-002** — The header close button emits `close`.
+1. **PR-DPANEL-003** — The Relevent column renders only when `neighbors` is provided.
+1. **PR-DPANEL-004** — Level changes from the Relevent toolbar are re-emitted to the parent.
 
 ## Visual
 
@@ -29,6 +37,14 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 ## Design sketches
 
 - [panel-chrome](./visual/panel-chrome.png) — full raised 「详情」 dock from `v930/detail-strip-raised`
+- [Task click detail](../../../docs/ui/source/v930/task-click-detail.jpeg) — click → dock appears, with the dependency toolbar annotations
+
+## Dependencies
+
+[dependencies](../../../specs/core/dependencies.spec.md) for the neighbour model.
 
 ## Changelog
+- **2026-08-14** — Dropped the `direction` prop and its re-emit: DetailRelevant owns the direction toggle now, and the dock only relays `level`.
+- **2026-08-13** — Fixed dock height and sketch column widths so the panel stops resizing per selection.
+- **2026-08-13** — Panel chrome (详情 tab + close), Relevent column gated on dependency data.
 - **2026-08-10** — Introduced as DetailStrip replacement shell.

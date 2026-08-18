@@ -8,7 +8,7 @@ Root component and single owner of all interaction state. Orchestrates data load
 
 ## Inputs
 
-The component works in two modes. In **auto-loading mode**, provide **source** — a binary buffer containing a `.rep` file or standalone CTEF JSON. The component detects, parses, and renders automatically. In **host-managed mode**, provide pre-parsed **swimlaneModel** and **reportModel** to skip the internal pipeline. **title** sets the panel header. **theme** and **locale** control presentation. **timeUnit** (ms/µs/ns) selects the display unit. **capabilities** gates Phase 2 features — an array of feature flag strings such as `'roofline'` or `'memoryDiagram'`.
+The component works in two modes. In **auto-loading mode**, provide **source** — a binary buffer containing a `.rep` file or standalone CTEF JSON. The component detects, parses, and renders automatically. In **host-managed mode**, provide pre-parsed **swimlaneModel** and **reportModel** to skip the internal pipeline. **title** sets the panel header. **theme** and **locale** control presentation. **timeUnit** (ms/µs/ns) selects the display unit. **capabilities** gates Phase 2 features — an array of feature flag strings such as `'roofline'`, `'memoryDiagram'`, or `'dependencies'`.
 
 ## Outputs
 
@@ -154,6 +154,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — summary, pipe occupancy, compute tables, or memory tables (same gate as the toolbar toggle).
 
+**Dependency state (interim I-Q9).** The root owns the dependency graph and the connection level the detail dock's Relevent column reads. `hasDependencies` gates the build: a model without edges keeps a `null` graph rather than two event-sized `Map`s, and the dock is handed no neighbours, so the column never mounts. Depth changes the walk, so `level` lives here and travels down as a prop; the direction filter never leaves [DetailRelevant](../DetailPanel/DetailRelevant/DetailRelevant.spec.md). Neighbour semantics — cap, ordering, cycles — belong to [dependencies](../../../specs/core/dependencies.spec.md).
+
 ## Visual
 
 (Orchestration only — component chrome lives in child specs. Panel clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).)
@@ -190,6 +192,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-18** — Owns the interim I-Q9 dependency graph and connection level for the detail dock's Relevent column; `capabilities` gained `'dependencies'`.
 - **2026-08-07** — `reportHasAsideContent` includes compute/memory CSV; PR-UI-008.
 - **2026-08-07** — Resizable lane gutter and aside (session-only widths).
 - **2026-08-07** — Viewport time axis shares AxisRuler chrome with overview.

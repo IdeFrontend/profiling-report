@@ -13,6 +13,7 @@ import type {
   SwimlaneModel,
 } from '../domain/types';
 import { laneColorKey } from '../domain/laneColors';
+import { hasDependencies } from '../domain/dependencies';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { firstLabelledMemoryTopology } from './memoryTopology';
 
@@ -497,12 +498,14 @@ function swimlaneFromParsed(parsed: ParsedRep, pipes: PipeOccupancyItem[]): Swim
 /** Map parsed `.rep` embeds → swimlane + report view-models. */
 export function adaptRep(parsed: ParsedRep): AdaptedReport {
   const reportModel = reportModelFromParsed(parsed);
+  const swimlaneModel = swimlaneFromParsed(parsed, reportModel.pipeOccupancy);
   const capabilities: ReportCapability[] = [];
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
+  if (hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   return {
-    swimlaneModel: swimlaneFromParsed(parsed, reportModel.pipeOccupancy),
+    swimlaneModel,
     reportModel,
     capabilities,
   };

@@ -8,8 +8,9 @@ import {
   type StressSwimlanePreset,
 } from '../src/domain/generateStressSwimlane';
 import type { SwimlaneModel } from '../src/domain/types';
+import { depsTraceFixture } from './depsFixture';
 
-type FixtureKind = 'rep' | 'trace' | 'stress';
+type FixtureKind = 'rep' | 'trace' | 'stress' | 'deps';
 type PreferRenderer = 'auto' | 'webgl' | 'canvas';
 
 const status = ref('loading');
@@ -27,7 +28,7 @@ function readQuery(): URLSearchParams {
 
 const queryFixture = computed((): FixtureKind => {
   const f = readQuery().get('fixture');
-  if (f === 'trace' || f === 'stress') return f;
+  if (f === 'trace' || f === 'stress' || f === 'deps') return f;
   return 'rep';
 });
 
@@ -48,6 +49,7 @@ const title = computed(() => {
     const n = stats ? `${stats.eventCount.toLocaleString()} events` : '…';
     return `stress (${stressPreset.value}, ${n})`;
   }
+  if (queryFixture.value === 'deps') return 'deps demo (I-Q9)';
   return queryFixture.value === 'trace' ? 'out.trace.json' : 'out.rep';
 });
 
@@ -89,10 +91,25 @@ function loadStress(preset: StressSwimlanePreset): void {
   });
 }
 
+/** I-Q9 demo: synthetic CTEF trace with known edges, through the real load path. */
+function loadDeps(): void {
+  status.value = 'loading';
+  error.value = null;
+  stressModel.value = null;
+  const bytes = new TextEncoder().encode(JSON.stringify(depsTraceFixture()));
+  source.value = bytes.buffer.slice(0) as ArrayBuffer;
+  loadToken.value += 1;
+  status.value = 'ready';
+}
+
 async function loadFixture(kind: FixtureKind): Promise<void> {
   openedName.value = null;
   if (kind === 'stress') {
     loadStress(stressPreset.value);
+    return;
+  }
+  if (kind === 'deps') {
+    loadDeps();
     return;
   }
   const url = kind === 'trace' ? '/data/out.trace.json' : '/data/out.rep';
@@ -171,6 +188,10 @@ onMounted(async () => {
           href="/?fixture=trace"
           data-testid="fixture-trace"
         >out.trace.json</a>
+        <a
+          href="/?fixture=deps"
+          data-testid="fixture-deps"
+        >deps</a>
         <a
           :href="stressHref('medium')"
           data-testid="fixture-stress"

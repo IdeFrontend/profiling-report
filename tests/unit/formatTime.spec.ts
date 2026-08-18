@@ -3,6 +3,7 @@ import {
   formatAxisTime,
   formatCursorTime,
   formatTime,
+  formatTimeParts,
   resolveCursorTimeUnit,
 } from '../../src/domain/formatTime';
 
@@ -12,6 +13,15 @@ describe('PR-TIME: display units (interim I-Q14)', () => {
     expect(formatTime(1_800_000, 'us')).toBe('1800.000 µs');
     expect(formatTime(1_800_000, 'ns')).toBe('1800000 ns');
     expect(formatTime(986, 'ms')).toBe('0.001 ms');
+  });
+
+  it('PR-TIME-005: formatTimeParts splits value and unit', () => {
+    expect(formatTimeParts(7_419, 'ns')).toEqual({ value: '7419', unit: 'ns' });
+    expect(formatTimeParts(1_800_000, 'ms')).toEqual({ value: '1.800', unit: 'ms' });
+    expect(formatTimeParts(Number.NaN, 'ms').value).toBe('—');
+
+    const parts = formatTimeParts(1_800_000, 'us');
+    expect(`${parts.value} ${parts.unit}`).toBe(formatTime(1_800_000, 'us'));
   });
 
   it('PR-TIME-002: cursor label is MM:SS.mmm in the given unit', () => {
