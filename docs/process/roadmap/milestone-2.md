@@ -15,8 +15,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | MSTT open path | **New (host)** | `.rep` / `.ncrep` / Chrome Trace `.json` → profiling-report; `.bin` → Insight; tree discovers `.rep`/`.ncrep` |
 | M1 swimlane runtime in host | **Ship** | Gutter, canvas, zoom/pan, search, tooltip; smoke on real OP + fixture |
 | Selection emphasis | **Extend** | Click select; dim non-selected when links shown; clear on empty; hover stays tooltip-only |
-| Prev/next dependency lines | **New** | Bezier/curves: predecessors → selected → successors; track zoom/pan/scroll; toolbar show/hide; no-op if no deps |
-| DependencyLinksLayer | **New** | Overlay (or renderer layer) |
+| Prev/next dependency lines | **New** | Bezier/curves in `WebGlSwimlaneRenderer` / `CanvasSwimlaneRenderer`; track zoom/pan/scroll; toolbar mode/depth; no-op if no deps |
 | Time-range measure (度量模式) | **New** | Toolbar caliper; drag `[t0,t1]` on timeline; shaded band + Δt label; clear on toggle-off / Esc. **Does not** change viewport. Aside sync **blocked on Q22** — local overlay only until Product answers |
 | Multiselect / context menu / ProfilerStep / W/S/A/D / WebGL | **Out** | → [M3](milestone-3.md) |
 
@@ -34,7 +33,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 ## Implementation tasks
 
 1. **Deps (library):** Document interim Q9 encoding (e.g. `SwimEvent.dependencies: string[]` successor ids, or Chrome Trace `args` convention); add synthetic fixture with known edges; adapter fills model.
-2. **Deps UI:** `DependencyLinksLayer` — layout anchors from renderer hit boxes; draw curves on selection; toolbar toggle; update on view-state changes; tests.
+2. **Deps UI:** draw curves in `WebGlSwimlaneRenderer` / `CanvasSwimlaneRenderer` on selection; toolbar mode/depth; spec + crops in `DependencyLinksLayer/`; tests.
 3. **Details panel:** Replace/extend `DetailPanel` → selection details (timing + in/current/out mini-graph + depth filters); wire to `selectedEventId`.
 4. **Memory graph:** Author/adapt static SVG topology asset; map Memory* CSV columns → edge label slots (document mapping table in VIEW_DATA_MAPPING); `MemoryTopologyPanel` in Memory aside with M1 field lists; tests on `out.rep`.
 5. **Roofline:** Spec interim point/ceiling mapping from `ArithmeticUtilization` (and peaks if present) while Q11 open; implement `RooflinePanel` (hover points, hide if empty); wire aside/capability; tests on `out.rep`.

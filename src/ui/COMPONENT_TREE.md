@@ -56,7 +56,7 @@ src/ui/
     SwimlaneView/                  (no pack)
       LaneGutter/                  ✓  v930/entry
       SwimlaneCanvas/              ✓  v930/entry (+ search/measure/multi-height/marquee/selection-dim)
-      DependencyLinksLayer/        ✓  v930/task-click-detail
+      DependencyLinksLayer/        ✓  spec + visual; curves in renderer  v930/task-click-detail
   StatsAside/                      ✓  shell: v930/report-stats-scrolled
     StatsSummaryPanel/             ✓  v930/report-stats-open
     PipeOccupancyPanel/            ✓  v930/compute-load
@@ -75,4 +75,5 @@ src/ui/
 - Host IDE chrome (OP/kernel selector, OP算子/源码/详情/缓存 tabs) is out of this library tree.
 - `ReportToolbar` lives in the ReportLayout **main** column (above TimelineView), not as a full-width sibling above the aside.
 - `CanvasSwimlaneRenderer` stays under `src/swimlane/` (imperative backend).
+- `DependencyLinksLayer/` is spec + visual pack only (no Vue file); curves are drawn by the swimlane renderer.
 - Design index: [`docs/ui/DESIGN_INDEX.md`](../../docs/ui/DESIGN_INDEX.md).

@@ -272,9 +272,9 @@ Sectioned key–value list from `HardwareDetailsModel`. Prefer HardwareInfo.json
 
 **Why:** 更多 drill-down while Product Q7 inventory remains open.
 
-### `DependencyLinksLayer` (P2)
+### Dependency curves (P2; spec `DependencyLinksLayer`)
 
-Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRenderer` (instanced polyline) or `CanvasSwimlaneRenderer` (2D stroke); not a DOM overlay.
+Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRenderer` (instanced polyline) or `CanvasSwimlaneRenderer` (2D stroke); not a Vue overlay. Spec + crops live in `src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/`.
 
 **Why:** Separate from interval fill so Canvas/WebGL backends stay simple; needs dep encoding (Q9).
 
