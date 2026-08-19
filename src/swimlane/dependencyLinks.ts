@@ -7,7 +7,7 @@ import {
 } from '../domain/types';
 import { eventLinkContentY, findLaidOutEvent, type LaidOutEvent, type SwimlaneLayout } from './layout';
 
-export const DEP_STROKE_WIDTH = 3;
+export const DEP_STROKE_WIDTH = 2;
 /** BFS cap per direction so depth=-1 cannot freeze the main thread. */
 export const MAX_DEPENDENCY_LINKS = 10_000;
 

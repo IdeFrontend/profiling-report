@@ -36,7 +36,7 @@ class CanvasSwimlaneRenderer {
 
 **WebGL intervals.** Coverage-AA rounded fills use **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend, which lit up overlaps as a bright “block inside block”. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
 
-**Dependency curves.** On selection, WebGL draws an instanced 3px cubic strip (one instance per link; pan/zoom via uniforms). Canvas fallback strokes the same cubic with a pred→succ linear gradient. See [DependencyLinksLayer](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/DependencyLinksLayer.spec.md). `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional; Canvas and WebGL implement them, and `SwimlaneCanvas` calls them with `?.`.
+**Dependency curves.** On selection, WebGL draws an instanced 2px cubic strip (one instance per link; pan/zoom via uniforms). Canvas fallback strokes the same cubic with a pred→succ linear gradient. See [DependencyLinksLayer](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/DependencyLinksLayer.spec.md). `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional; Canvas and WebGL implement them, and `SwimlaneCanvas` calls them with `?.`.
 
 **Hit testing.** `hitTest` computes Y relative to scroll offset, finds the matching lane by Y bounds, converts X to a time value, and finds the event whose interval contains that time. Returns the event's id string, or null if no match.
 
@@ -69,6 +69,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-19** — Dependency curve stroke 2px.
 - **2026-08-19** — WebGL attach/curve paint in Chromium is PR-E2E-007; jsdom unit tests `skipIf` when `webgl2` is missing.
 - **2026-08-18** — Canvas fallback reuses the fill-pass visible list for strokes/labels (no second full-event cull).
 - **2026-08-18** — `setDependencyMode` / `setDependencyDepth` optional on `SwimlaneRenderer`; PR-RENDER-013.

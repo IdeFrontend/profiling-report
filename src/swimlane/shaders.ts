@@ -101,7 +101,7 @@ void main() {
 }
 `;
 
-/** Instanced cubic stroke: VS evaluates the same S-curve as cubicControlPull, extrudes a 3px strip. */
+/** Instanced cubic stroke: VS evaluates the same S-curve as cubicControlPull, extrudes a 2px strip. */
 export const CURVE_VS = `#version 300 es
 precision highp float;
 
