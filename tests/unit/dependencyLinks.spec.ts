@@ -14,6 +14,8 @@ import {
 import { eventBlockMetrics, eventLinkContentY, rebuildLayout } from '../../src/swimlane/layout';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 
+const hasWebGl2 = WebGlSwimlaneRenderer.isSupported();
+
 function graphLinks(
   ...args: Parameters<typeof dependencyGraph>
 ): ReturnType<typeof dependencyGraph>['links'] {
@@ -118,7 +120,7 @@ describe('PR-DEPS: dependency links', () => {
     expect(graphLinks(rebuildLayout(orphan), 'e-parent')).toEqual([]);
   });
 
-  it('PR-DEPS-003: Canvas and WebGL paint selected dependency curves without throw', () => {
+  it('PR-DEPS-003: Canvas paints selected dependency curves without throw', () => {
     const model = linkedModel();
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
@@ -128,16 +130,16 @@ describe('PR-DEPS: dependency links', () => {
     renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
     renderer.setSelection('e-parent', null);
     expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
 
+  // jsdom: getContext('webgl2') is null. Chromium coverage is PR-E2E-007.
+  it.skipIf(!hasWebGl2)('PR-DEPS-003: WebGL paints selected dependency curves without throw', () => {
     const glCanvas = document.createElement('canvas');
-    if (!WebGlSwimlaneRenderer.isSupported(glCanvas)) {
-      expect(WebGlSwimlaneRenderer.isSupported(glCanvas)).toBe(false);
-      return;
-    }
     const gl = new WebGlSwimlaneRenderer();
     expect(gl.attach(glCanvas)).toBe(true);
     gl.resize(400, 120);
-    gl.setModel(model);
+    gl.setModel(linkedModel());
     gl.setView({ startTime: 0, endTime: 100, scrollY: 0 });
     gl.setSelection('e-parent', null);
     expect(() => gl.render()).not.toThrow();
@@ -222,9 +224,11 @@ describe('PR-DEPS: dependency links', () => {
     overlay.setSelection('e-child', 'e-parent');
     expect(graphSpy).not.toHaveBeenCalled();
     graphSpy.mockRestore();
+  });
 
+  it.skipIf(!hasWebGl2)('PR-DEPS-010: WebGL overlay reuses cached neighbor ids', () => {
+    const overlay = new SwimlaneOverlayPainter();
     const glCanvas = document.createElement('canvas');
-    if (!WebGlSwimlaneRenderer.isSupported(glCanvas)) return;
     const glGraph = vi.spyOn(depLinks, 'dependencyGraph');
     const gl = new WebGlSwimlaneRenderer();
     expect(gl.attach(glCanvas)).toBe(true);
@@ -270,15 +274,10 @@ describe('PR-DEPS: dependency links', () => {
     graphSpy.mockRestore();
   });
 
-  it('PR-DEPS-009: WebGL does not recompute dependency graph on search', () => {
-    const glCanvas = document.createElement('canvas');
-    if (!WebGlSwimlaneRenderer.isSupported(glCanvas)) {
-      expect(WebGlSwimlaneRenderer.isSupported(glCanvas)).toBe(false);
-      return;
-    }
+  it.skipIf(!hasWebGl2)('PR-DEPS-009: WebGL does not recompute dependency graph on search', () => {
     const graphSpy = vi.spyOn(depLinks, 'dependencyGraph');
     const gl = new WebGlSwimlaneRenderer();
-    expect(gl.attach(glCanvas)).toBe(true);
+    expect(gl.attach(document.createElement('canvas'))).toBe(true);
     gl.resize(400, 120);
     gl.setModel(linkedModel());
     gl.setSelection('e-parent', null);

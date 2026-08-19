@@ -244,6 +244,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private curveStripBuf: WebGLBuffer | null = null;
   private curveInstanceBuf: WebGLBuffer | null = null;
   private curveCount = 0;
+  /** Bumped in `refreshDepCache`; Playwright reads `data-dep-graph-gen` on the canvas. */
+  private depGraphGen = 0;
   private laneMeshes: LaneMeshes[] = [];
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
@@ -365,6 +367,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   private refreshDepCache(): void {
+    this.depGraphGen += 1;
     const graph = dependencyGraph(this.layout, this.selectedId, this.depMode, this.depDepth);
     this.neighborIds = graph.ids;
     this.depLinks = graph.links;
@@ -472,6 +475,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     gl.bindVertexArray(null);
     gl.disable(gl.BLEND);
+
+    // Playwright PR-E2E-007: jsdom never reaches render(), so unit tests cannot assert this.
+    const out = this.canvas;
+    if (out) {
+      out.dataset.depCurves = String(this.curveCount);
+      out.dataset.depGraphGen = String(this.depGraphGen);
+    }
   }
 
   dispose(): void {

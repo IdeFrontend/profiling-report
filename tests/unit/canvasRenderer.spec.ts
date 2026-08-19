@@ -105,13 +105,12 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
   });
 });
 
+const hasWebGl2 = WebGlSwimlaneRenderer.isSupported();
+
 describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
-  it('PR-RENDER-006: attach/render/hitTest when WebGL2 available (else skip)', () => {
+  // jsdom: getContext('webgl2') is null. Chromium coverage is PR-E2E-007.
+  it.skipIf(!hasWebGl2)('PR-RENDER-006: attach/render/hitTest when WebGL2 available', () => {
     const canvas = document.createElement('canvas');
-    if (!WebGlSwimlaneRenderer.isSupported(canvas)) {
-      expect(WebGlSwimlaneRenderer.isSupported(canvas)).toBe(false);
-      return;
-    }
     const renderer = new WebGlSwimlaneRenderer();
     expect(renderer.attach(canvas)).toBe(true);
     renderer.resize(400, 120);
@@ -124,12 +123,8 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
-  it('PR-RENDER-008: WebGL setSearchQuery then render does not throw', () => {
+  it.skipIf(!hasWebGl2)('PR-RENDER-008: WebGL setSearchQuery then render does not throw', () => {
     const canvas = document.createElement('canvas');
-    if (!WebGlSwimlaneRenderer.isSupported(canvas)) {
-      expect(WebGlSwimlaneRenderer.isSupported(canvas)).toBe(false);
-      return;
-    }
     const renderer = new WebGlSwimlaneRenderer();
     expect(renderer.attach(canvas)).toBe(true);
     renderer.resize(400, 120);
@@ -142,17 +137,15 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
-  it('PR-RENDER-010: eventEmphasisDim + WebGL setSelection rebuild', () => {
+  it('PR-RENDER-010: eventEmphasisDim matches Canvas factors', () => {
     expect(eventEmphasisDim(false, false, true, false)).toBe(0.25);
     expect(eventEmphasisDim(true, false, false, true)).toBe(0.45);
     expect(eventEmphasisDim(false, false, true, true)).toBeCloseTo(0.25 * 0.45);
     expect(eventEmphasisDim(true, true, true, true)).toBe(1);
+  });
 
+  it.skipIf(!hasWebGl2)('PR-RENDER-010: WebGL setSelection rebuilds emphasis', () => {
     const canvas = document.createElement('canvas');
-    if (!WebGlSwimlaneRenderer.isSupported(canvas)) {
-      expect(WebGlSwimlaneRenderer.isSupported(canvas)).toBe(false);
-      return;
-    }
     const renderer = new WebGlSwimlaneRenderer();
     expect(renderer.attach(canvas)).toBe(true);
     renderer.resize(400, 120);

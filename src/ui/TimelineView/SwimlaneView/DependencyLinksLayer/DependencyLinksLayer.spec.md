@@ -45,6 +45,7 @@ Crops: [`visual/dependency-links.png`](./visual/dependency-links.png) — [`visu
 [swimlane-model](../../../../../specs/core/swimlane-model.spec.md), [swimlane-renderer](../../../../../specs/core/swimlane-renderer.spec.md).
 
 ## Changelog
+- **2026-08-19** — Chromium e2e paints WebGL curves (`PR-E2E-007`); jsdom unit tests skip the GL half.
 - **2026-08-19** — Drop `dependencyLinks` / `dependencyNeighborIds` wrappers; callers use `dependencyGraph`.
 - **2026-08-18** — Overlay takes renderer neighbor ids; no second graph walk; PR-DEPS-010.
 - **2026-08-18** — WebGL caches one `dependencyGraph` per invalidation; search does not rebuild it; PR-DEPS-009.

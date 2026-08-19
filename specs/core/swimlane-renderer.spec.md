@@ -47,7 +47,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-003**: Handles multiple processes/threads with correct lane ordering.
 1. **PR-RENDER-004**: Empty model renders empty canvas without errors.
 1. **PR-RENDER-005**: dispose cleans up internal state.
-1. **PR-RENDER-006**: WebGlSwimlaneRenderer attach/render/hitTest succeeds when WebGL2 is available (skipped when unsupported).
+1. **PR-RENDER-006**: WebGlSwimlaneRenderer attach/render/hitTest succeeds when WebGL2 is available (`skipIf` when unsupported).
 1. **PR-RENDER-007**: Event label anchor centers in the full event when fully visible, and in the visible clip when partially off-screen.
 1. **PR-RENDER-008**: WebGL setSearchQuery rebuilds match/dim meshes and render does not throw.
 1. **PR-RENDER-009**: `encodeIntervalPair` keeps end > start after float32 rounding for large-magnitude times.
@@ -69,6 +69,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-19** — WebGL attach/curve paint in Chromium is PR-E2E-007; jsdom unit tests `skipIf` when `webgl2` is missing.
 - **2026-08-18** — Canvas fallback reuses the fill-pass visible list for strokes/labels (no second full-event cull).
 - **2026-08-18** — `setDependencyMode` / `setDependencyDepth` optional on `SwimlaneRenderer`; PR-RENDER-013.
 - **2026-08-17** — `dependencyDepth` hops (default 1, −1 no hop cap; 10 000 links per side).
