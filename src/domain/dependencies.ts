@@ -1,12 +1,12 @@
 /**
  * Interim Q9 dependency model — see docs/context/INTERIM_DECISIONS.md (I-Q9).
  *
- * `SwimEvent.dependencies` holds **successor** ids; predecessors come from the
- * reverse index built here. Producers that ship no dependency data yield an
- * empty graph, and every dependency surface hides itself
- * (VIEW_DATA_REQUIREMENTS hide-when-missing policy).
+ * `SwimEvent.dependencies` holds `{ predecessors, successors }` as `EventRef`s
+ * (thread id + index); this flattens them to an id graph for the detail dock.
+ * Producers that ship no dependency data yield an empty graph, and every
+ * dependency surface hides itself (VIEW_DATA_REQUIREMENTS hide-when-missing).
  */
-import type { SwimlaneModel, SwimThread } from './types';
+import type { EventRef, SwimlaneModel, SwimThread } from './types';
 
 /** Sketch toolbar (v930/task-click-detail): forward-only / both / backward-only. */
 export type DependencyDirection = 'forward' | 'both' | 'backward';
@@ -54,22 +54,28 @@ export function buildDependencyGraph(model: SwimlaneModel | null | undefined): D
   const nodes = new Map<string, DependencyNode>();
   const outgoing = new Map<string, string[]>();
   const incoming = new Map<string, string[]>();
+  const threadsById = new Map<string, SwimThread>();
 
   for (const process of model?.processes ?? []) {
     walkThreads(process.threads, (thread) => {
+      threadsById.set(thread.id, thread);
       for (const ev of thread.events) {
         nodes.set(ev.id, { id: ev.id, name: ev.name, startTime: ev.startTime });
       }
     });
   }
 
+  const resolve = (ref: EventRef): string | undefined =>
+    threadsById.get(ref.tid)?.events[ref.index]?.id;
+
   for (const process of model?.processes ?? []) {
     walkThreads(process.threads, (thread) => {
       for (const ev of thread.events) {
-        for (const target of ev.dependencies ?? []) {
+        for (const ref of ev.dependencies?.successors ?? []) {
+          const target = resolve(ref);
           // Ignore edges to events the model does not contain — a dangling id would
           // otherwise render as a chip with no timing.
-          if (target === ev.id || !nodes.has(target)) continue;
+          if (target === undefined || target === ev.id || !nodes.has(target)) continue;
           const succ = outgoing.get(ev.id);
           if (succ) {
             // ponytail: linear scan — successor lists are a handful of ids per event in
@@ -95,7 +101,11 @@ export function hasDependencies(model: SwimlaneModel | null | undefined): boolea
     let found = false;
     walkThreads(process.threads, (thread) => {
       if (found) return;
-      found = thread.events.some((ev) => (ev.dependencies?.length ?? 0) > 0);
+      found = thread.events.some(
+        (ev) =>
+          (ev.dependencies?.successors.length ?? 0) > 0 ||
+          (ev.dependencies?.predecessors.length ?? 0) > 0,
+      );
     });
     if (found) return true;
   }

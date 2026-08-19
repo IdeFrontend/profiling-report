@@ -183,7 +183,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
   });
 
-  it('PR-ROOT-003: auto-loaded source applies the adapter capabilities, the prop overrides', async () => {
+  it('PR-ROOT-004: auto-loaded source applies the adapter capabilities, the prop overrides', async () => {
     // out.rep carries roofline, hardwareDetails and memoryDiagram; loadReportSource
     // derives them, so a host passing only `source` must still get them.
     const auto = mount(ProfilingReport, { props: { source: loadOutRepBuffer() } });

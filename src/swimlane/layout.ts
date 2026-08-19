@@ -43,7 +43,18 @@ export interface SwimlaneLayout {
   events: LaidOutEvent[];
   /** Shared phase bands; empty when model omits them. */
   bands: SwimlaneBand[];
+  eventsById: Map<string, LaidOutEvent>;
+  lanesByTid: Map<string, FlatLane>;
 }
+
+export const EMPTY_LAYOUT: SwimlaneLayout = {
+  lanes: [],
+  headers: [],
+  events: [],
+  bands: [],
+  eventsById: new Map(),
+  lanesByTid: new Map(),
+};
 
 /** Folder rows and depth-0 spacer leaves (通信 / 储存HBM) show ProfilerStep bands. */
 export function showsProfilerStepBands(lane: FlatLane): boolean {
@@ -75,11 +86,22 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
 }
 
 export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
+  if (!model) {
+    return {
+      lanes: [],
+      headers: [],
+      events: [],
+      bands: [],
+      eventsById: new Map(),
+      lanesByTid: new Map(),
+    };
+  }
   const lanes: FlatLane[] = [];
   const headers: GroupHeader[] = [];
   const events: LaidOutEvent[] = [];
-  const bands = model?.bands ?? [];
-  if (!model) return { lanes, headers, events, bands };
+  const eventsById = new Map<string, LaidOutEvent>();
+  const lanesByTid = new Map<string, FlatLane>();
+  const bands = model.bands ?? [];
 
   let y = 0;
   for (const row of walkVisibleRows(model)) {
@@ -91,18 +113,24 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     const thread = row.thread;
     const color = colorForThread(thread.name);
     if (row.kind === 'folder') {
-      lanes.push({ thread, y, color, folder: true, depth: row.depth });
+      const lane: FlatLane = { thread, y, color, folder: true, depth: row.depth };
+      lanes.push(lane);
+      lanesByTid.set(thread.id, lane);
       y += LANE_HEIGHT;
       continue;
     }
-    lanes.push({ thread, y, color, depth: row.depth });
+    const lane: FlatLane = { thread, y, color, depth: row.depth };
+    lanes.push(lane);
+    lanesByTid.set(thread.id, lane);
     const sorted = [...thread.events].sort((a, b) => b.duration - a.duration);
     for (const ev of sorted) {
-      events.push({ id: ev.id, event: ev, laneIndex: lanes.length - 1, y, color });
+      const item: LaidOutEvent = { id: ev.id, event: ev, laneIndex: lanes.length - 1, y, color };
+      events.push(item);
+      eventsById.set(ev.id, item);
     }
     y += LANE_HEIGHT;
   }
-  return { lanes, headers, events, bands };
+  return { lanes, headers, events, bands, eventsById, lanesByTid };
 }
 
 /** Event block height and Y, vertically centered in the lane between row dividers. */
@@ -110,6 +138,11 @@ export function eventBlockMetrics(laneY: number, scrollY: number): { y: number; 
   const h = LANE_HEIGHT - LANE_PAD_Y * 2;
   // -0.5: optical nudge so bars sit centered against the 1px gutter-aligned divider.
   return { y: laneY - scrollY + (LANE_HEIGHT - h) / 2 - 0.5, h };
+}
+
+/** Content-space Y of an event block's vertical midpoint (pre-scroll). */
+export function eventLinkContentY(laneY: number): number {
+  return laneY + LANE_HEIGHT / 2 - 0.5;
 }
 
 /**
@@ -172,7 +205,7 @@ export function hitTestLayout(
 }
 
 export function findLaidOutEvent(layout: SwimlaneLayout, id: string): LaidOutEvent | undefined {
-  return layout.events.find((e) => e.id === id);
+  return layout.eventsById.get(id);
 }
 
 export function findEvent(layout: SwimlaneLayout, id: string): SwimEvent | null {
@@ -195,7 +228,8 @@ export function encodeIntervalPair(
   return [f0, f1];
 }
 
-/** Canvas/WebGL fill+label opacity: search miss → 0.25, non-selected when selection → ×0.45. */
+/** Canvas/WebGL fill+label opacity: search miss → 0.25, non-emphasized when selection → ×0.45.
+ * Callers pass `isSelected=true` for the clicked event and its laid-out dep neighbors. */
 export function eventEmphasisDim(
   matchesSearch: boolean,
   isSelected: boolean,

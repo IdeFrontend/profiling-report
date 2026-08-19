@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
-import type { PipeOccupancyItem, ReportCapability, ReportViewModel } from '../../domain/types';
+import type {
+  BandwidthSideRow,
+  PipeOccupancyItem,
+  ReportCapability,
+  ReportViewModel,
+} from '../../domain/types';
 import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
@@ -35,7 +40,19 @@ const COLOR: Record<string, string> = {
   default: 'var(--pr-color-default)',
 };
 
-const hasSummary = computed(() => props.report?.summary.taskDurationUs != null);
+const hasDuration = computed(() => props.report?.summary.taskDurationUs != null);
+const bandwidthCards = computed(() => props.report?.bandwidthCards ?? []);
+const hasSummary = computed(() => hasDuration.value || bandwidthCards.value.length > 0);
+const bandwidthView = computed(() =>
+  bandwidthCards.value.map((card) => ({
+    id: card.id,
+    sides: card.sides.map((row) => ({
+      side: row.side,
+      score: bandwidthScore(row),
+      sub: `${formatTBs(row.measuredGBs)} / ${formatTBs(row.peakGBs)} TB/s`,
+    })),
+  })),
+);
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
 const showCompute = computed(() => (props.report?.computeTables?.length ?? 0) > 0);
 const showMemory = computed(() => (props.report?.memoryTables?.length ?? 0) > 0);
@@ -154,6 +171,20 @@ function formatPipeAbsolute(v: number): string {
   if (Math.abs(v) >= 100) return v.toFixed(2);
   if (Math.abs(v) >= 1) return v.toFixed(2);
   return v.toFixed(5);
+}
+
+/** I-Q6g: GB/s → TB/s (decimal 1000). Magnitude rounding. */
+function formatTBs(gbs: number): string {
+  const tbs = gbs / 1000;
+  if (tbs >= 1) return tbs.toFixed(1);
+  if (tbs >= 0.01) return tbs.toFixed(2);
+  if (tbs >= 0.001) return tbs.toFixed(3);
+  return tbs.toFixed(4);
+}
+
+function bandwidthScore(row: BandwidthSideRow): number {
+  if (!(row.peakGBs > 0)) return 0;
+  return Math.min(100, Math.max(0, Math.round((row.measuredGBs / row.peakGBs) * 100)));
 }
 
 const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
@@ -309,6 +340,7 @@ function backToReport() {
         data-testid="stats-summary"
       >
         <div
+          v-if="hasDuration"
           class="pr-card"
           data-testid="stats-duration-card"
         >
@@ -334,6 +366,46 @@ function backToReport() {
             data-testid="stats-duration-secondary"
           >
             {{ durationSecondary }}
+          </div>
+        </div>
+        <div
+          v-for="card in bandwidthView"
+          :key="card.id"
+          class="pr-card pr-card--bw"
+          :data-testid="`stats-bandwidth-${card.id}`"
+        >
+          <div class="pr-card__label">
+            {{ t(card.id === 'input' ? 'inputBandwidth' : 'outputBandwidth', locale) }}
+          </div>
+          <div class="pr-bw-cols">
+            <div
+              v-for="row in card.sides"
+              :key="row.side"
+              class="pr-bw-col"
+              :data-testid="`stats-bandwidth-${card.id}-${row.side}`"
+            >
+              <div class="pr-bw-col__head">
+                <span
+                  class="pr-card__value"
+                  :data-testid="`stats-bandwidth-${card.id}-${row.side}-score`"
+                >{{ row.score }}</span>
+                <span class="pr-bw-col__side">{{ row.side }}</span>
+              </div>
+              <div class="pr-card__bar-track">
+                <span
+                  class="pr-card__bar-hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-card__bar-fill pr-card__bar-fill--bw"
+                  :style="{ width: `${row.score}%` }"
+                  :data-testid="`stats-bandwidth-${card.id}-${row.side}-bar`"
+                />
+              </div>
+              <div class="pr-card__sub">
+                {{ row.sub }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -686,6 +758,32 @@ function backToReport() {
 .pr-card__bar-fill--duration {
   width: 12%;
   background: var(--pr-color-duration-bar);
+}
+
+.pr-card__bar-fill--bw {
+  min-width: 0;
+  background: var(--pr-color-bandwidth-bar);
+}
+
+.pr-bw-cols {
+  display: flex;
+  gap: 8px;
+}
+
+.pr-bw-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pr-bw-col__head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.pr-bw-col__side {
+  font-size: 11px;
+  color: #9a9a9a;
 }
 
 .pr-card__sub {

@@ -70,4 +70,56 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('cursor-label')).toBeVisible();
     await expect(page.getByTestId('cursor-label')).toHaveText(/^\d{2}:\d{2}\.\d{3}$/);
   });
+
+  test('PR-E2E-007: Chromium WebGL paints ffn_dense dependency curves', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.goto('/?fixture=ffn_dense&renderer=webgl');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const swim = page.getByTestId('swimlane');
+    await expect(swim).toBeVisible({ timeout: 15_000 });
+    await expect(swim).toHaveAttribute('data-renderer', 'webgl');
+
+    const gl = page.getByTestId('swimlane-webgl');
+    await expect(gl).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    const box = await overlay.boundingBox();
+    expect(box).toBeTruthy();
+
+    const panel = page.getByTestId('detail-panel');
+    let painted = false;
+    for (let lane = 0; lane < 12 && !painted; lane++) {
+      const y = box!.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+      for (const xOff of [24, 80, 160, 280]) {
+        await page.mouse.click(box!.x + xOff, y);
+        const selected = await panel
+          .waitFor({ state: 'visible', timeout: 400 })
+          .then(() => true)
+          .catch(() => false);
+        if (!selected) continue;
+        const deadline = Date.now() + 500;
+        while (Date.now() < deadline) {
+          if (Number((await gl.getAttribute('data-dep-curves')) ?? 0) > 0) {
+            painted = true;
+            break;
+          }
+          await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
+        }
+        if (painted) break;
+      }
+    }
+    expect(painted).toBe(true);
+
+    const gen = await gl.getAttribute('data-dep-graph-gen');
+    expect(gen).toBeTruthy();
+    await page.getByTestId('search-input').fill('matmul');
+    await page.evaluate(
+      () =>
+        new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
+    );
+    await expect(gl).toHaveAttribute('data-dep-graph-gen', gen!);
+    await expect(swim).toHaveAttribute('data-renderer', 'webgl');
+    expect(pageErrors).toEqual([]);
+  });
 });

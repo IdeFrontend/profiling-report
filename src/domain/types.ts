@@ -1,11 +1,23 @@
 /** Canonical models — see docs/architecture/COMPONENTS.md */
 
+/** Points at `thread.events[index]` where `thread.id === tid`. */
+export interface EventRef {
+  tid: string;
+  index: number;
+}
+
+export interface EventDependencies {
+  predecessors: EventRef[];
+  successors: EventRef[];
+}
+
 export interface SwimEvent {
   id: string;
   name: string;
   startTime: number;
   duration: number;
-  dependencies?: string[];
+  /** Omit when both lists would be empty. */
+  dependencies?: EventDependencies;
   args?: Record<string, unknown>;
 }
 
@@ -69,6 +81,19 @@ export interface SummaryMetrics {
   computeTflops?: number;
   ioBandwidth?: number;
   avgCoreUtil?: number;
+}
+
+/** I-Q6g: one AIC/AIV row on an I/O bandwidth card. Values in GB/s; UI shows TB/s. */
+export interface BandwidthSideRow {
+  side: 'aic' | 'aiv';
+  measuredGBs: number;
+  peakGBs: number;
+}
+
+/** I-Q6g: 输入/输出带宽. Omit the card when both sides are NA. */
+export interface BandwidthCardModel {
+  id: 'input' | 'output';
+  sides: BandwidthSideRow[];
 }
 
 export interface PipeOccupancyItem {
@@ -173,6 +198,8 @@ export interface ReportViewModel {
   memoryTables: CsvTableModel[];
   /** Raw CSV text by basename for 查看全部 (I-Q6d). */
   csvTexts: Record<string, string>;
+  /** I-Q6g 输入/输出带宽 cards; omit when Memory.csv has no usable BW. */
+  bandwidthCards?: BandwidthCardModel[];
   /** Interim I-Q11*; omit when no GM point. */
   roofline?: RooflineViewModel;
   /** Interim I-Q7a; omit when empty. */
@@ -237,6 +264,22 @@ export interface SelectedEvent {
 /** Interim I-Q14: ms / µs / ns only (no clock-cycle mode). */
 export type TimeDisplayUnit = 'ms' | 'us' | 'ns';
 
+/** Which selection dependency curves (and undimmed neighbors) to show. */
+export type DependencyMode = 'all' | 'predecessors' | 'successors';
+
+/** Hop count from the selection. `1` = immediate neighbors; `-1` = no hop cap (link count still budgeted). */
+export const DEFAULT_DEPENDENCY_DEPTH = 1;
+/** Upper clamp — beyond this the BFS is indistinguishable from `-1` and just wastes time. */
+export const MAX_DEPENDENCY_DEPTH = 100;
+
+export function normalizeDependencyDepth(n: number): number {
+  if (!Number.isFinite(n)) return DEFAULT_DEPENDENCY_DEPTH;
+  const d = Math.trunc(n);
+  if (d < -1) return -1;
+  if (d > MAX_DEPENDENCY_DEPTH) return MAX_DEPENDENCY_DEPTH;
+  return d;
+}
+
 /** M2 timeline measure range — times in the same ns units as SwimlaneViewState. */
 export interface MeasureRange {
   startTime: number;
@@ -272,6 +315,10 @@ export interface SwimlaneRenderer {
   setView(view: SwimlaneViewWindow): void;
   setSelection(selectedId: string | null, hoveredId: string | null): void;
   setSearchQuery(query: string): void;
+  /** Optional: hosts that omit this keep default `all`. */
+  setDependencyMode?(mode: DependencyMode): void;
+  /** Optional: hosts that omit this keep default hop depth. */
+  setDependencyDepth?(depth: number): void;
   setCursorX(x: number | null): void;
   contentHeight(): number;
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;

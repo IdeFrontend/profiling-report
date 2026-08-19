@@ -11,17 +11,20 @@ import {
   zoomAt,
   zoomToFitWindow,
 } from '../../domain/viewState';
-import type {
-  MeasureRange,
-  ReportCapability,
-  ReportViewModel,
-  SelectedEvent,
-  SwimEvent,
-  SwimlaneModel,
-  SwimlaneViewState,
-  SwimThread,
-  TimeDisplayUnit,
-  ViewFullCsvPayload,
+import {
+  DEFAULT_DEPENDENCY_DEPTH,
+  normalizeDependencyDepth,
+  type DependencyMode,
+  type MeasureRange,
+  type ReportCapability,
+  type ReportViewModel,
+  type SelectedEvent,
+  type SwimEvent,
+  type SwimlaneModel,
+  type SwimlaneViewState,
+  type SwimThread,
+  type TimeDisplayUnit,
+  type ViewFullCsvPayload,
 } from '../../domain/types';
 import {
   DEPENDENCY_LEVEL_UNLIMITED,
@@ -48,7 +51,7 @@ import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterT
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   title?: string;
   source?: ArrayBuffer | Uint8Array;
   swimlaneModel?: SwimlaneModel;
@@ -56,13 +59,18 @@ const props = defineProps<{
   theme?: 'light' | 'dark';
   locale?: string;
   timeUnit?: TimeDisplayUnit;
+  dependencyMode?: DependencyMode;
+  dependencyDepth?: number;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
   /** Feature gate. Omit and the adapter's own capabilities (derived from the loaded
    *  source) apply; pass an array to override them. Exposed as a data attribute for
    *  CSS/test hooking and read by the aside. */
   capabilities?: ReportCapability[];
-}>();
+}>(), {
+  dependencyMode: 'all',
+  dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+});
 
 const emit = defineEmits<{
   ready: [];
@@ -82,6 +90,8 @@ const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
+const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
+const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 /** Session-only panel widths (not persisted). */
@@ -183,13 +193,14 @@ function onToggleGroup(groupId: string): void {
 }
 
 /**
- * Aside has content when any of: duration card, pipe occupancy,
- * compute/memory CSV tables, roofline points, or hardware details are present.
+ * Aside has content when any of: duration card, I/O bandwidth cards,
+ * pipe occupancy, compute/memory CSV tables, roofline points, or hardware details are present.
  * Name/type alone do not open the aside (I-Q6a). Must stay in sync with StatsAside.
  */
 function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
   if (!rm) return false;
   const hasDuration = rm.summary.taskDurationUs != null;
+  const hasBandwidth = (rm.bandwidthCards ?? []).length > 0;
   const hasPipe = rm.pipeOccupancy.length > 0;
   const hasComputeTables = rm.computeTables.length > 0;
   const hasMemoryTables = rm.memoryTables.length > 0;
@@ -198,6 +209,7 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
   const hasTopology = (rm.memoryTopology?.edges.some((e) => e.label) ?? false);
   return (
     hasDuration ||
+    hasBandwidth ||
     hasPipe ||
     hasComputeTables ||
     hasMemoryTables ||
@@ -276,6 +288,20 @@ watch(
   () => props.timeUnit,
   (u) => {
     if (u) localTimeUnit.value = u;
+  },
+);
+
+watch(
+  () => props.dependencyMode,
+  (m) => {
+    if (m) localDependencyMode.value = m;
+  },
+);
+
+watch(
+  () => props.dependencyDepth,
+  (d) => {
+    if (d != null) localDependencyDepth.value = normalizeDependencyDepth(d);
   },
 );
 
@@ -399,6 +425,14 @@ function onTimeUnit(u: TimeDisplayUnit) {
   localTimeUnit.value = u;
 }
 
+function onDependencyMode(mode: DependencyMode) {
+  localDependencyMode.value = mode;
+}
+
+function onDependencyDepth(depth: number) {
+  localDependencyDepth.value = normalizeDependencyDepth(depth);
+}
+
 /**
  * Interim I-Q9: successor ids on the model, predecessors from the reverse index.
  * The cheap scan runs first — building the graph costs ~300 ms on a 324k-event model
@@ -441,11 +475,15 @@ defineExpose({ selectEventById, viewState });
       :aside-available="asideAvailable"
       :zoom-percent="zoomPercent"
       :time-unit="unit"
+      :dependency-mode="localDependencyMode"
+      :dependency-depth="localDependencyDepth"
       :locale="locale"
       :measure-mode="viewState.measureMode"
       @update:search-query="onSearch"
       @update:aside-visible="onAside"
       @update:time-unit="onTimeUnit"
+      @update:dependency-mode="onDependencyMode"
+      @update:dependency-depth="onDependencyDepth"
       @update:zoom-percent="onZoomPercent"
       @update:measure-mode="onMeasureMode"
       @zoom-to-fit="onZoomToFit"
@@ -483,11 +521,15 @@ defineExpose({ selectEventById, viewState });
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
           :time-unit="unit"
+          :dependency-mode="localDependencyMode"
+          :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
           @update:search-query="onSearch"
           @update:aside-visible="onAside"
           @update:time-unit="onTimeUnit"
+          @update:dependency-mode="onDependencyMode"
+          @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
           @zoom-to-fit="onZoomToFit"
@@ -499,6 +541,8 @@ defineExpose({ selectEventById, viewState });
           :bounds="bounds"
           :view="viewState"
           :unit="unit"
+          :dependency-mode="localDependencyMode"
+          :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
           :collapsed-ids="collapsedGroupIds"
           :display-swim="displaySwim"

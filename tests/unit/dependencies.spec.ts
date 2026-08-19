@@ -6,10 +6,10 @@ import {
   neighborsOf,
 } from '../../src/domain/dependencies';
 import { chromeTraceToSwimlane } from '../../src/adapters/chromeTraceToSwimlane';
-import type { SwimEvent, SwimlaneModel } from '../../src/domain/types';
+import type { EventRef, SwimEvent, SwimlaneModel } from '../../src/domain/types';
 
 function model(events: SwimEvent[], children?: SwimEvent[]): SwimlaneModel {
-  return {
+  const built: SwimlaneModel = {
     processes: [
       {
         id: 'p-0',
@@ -29,10 +29,45 @@ function model(events: SwimEvent[], children?: SwimEvent[]): SwimlaneModel {
     minTime: 0,
     maxTime: 1000,
   };
+  return linkDeclared(built);
 }
 
+/** Declared successor ids per event — resolved to refs by `linkDeclared`. */
+const declared = new WeakMap<SwimEvent, string[]>();
+
 function ev(id: string, startTime: number, dependencies?: string[]): SwimEvent {
-  return { id, name: id.toUpperCase(), startTime, duration: 10, dependencies };
+  const event: SwimEvent = { id, name: id.toUpperCase(), startTime, duration: 10 };
+  if (dependencies) declared.set(event, dependencies);
+  return event;
+}
+
+/**
+ * The model stores `{ predecessors, successors }` as `EventRef`s, so the id lists the
+ * tests declare have to become positions. An id no event carries becomes an
+ * out-of-range ref — the dangling case the graph builder must drop.
+ */
+function linkDeclared(built: SwimlaneModel): SwimlaneModel {
+  const refById = new Map<string, { event: SwimEvent; ref: EventRef }>();
+  for (const process of built.processes) {
+    for (const thread of [...process.threads, ...(process.threads[0]?.children ?? [])]) {
+      thread.events.forEach((event, index) => {
+        refById.set(event.id, { event, ref: { tid: thread.id, index } });
+      });
+    }
+  }
+  for (const { event, ref: fromRef } of refById.values()) {
+    const targets = declared.get(event);
+    if (!targets) continue;
+    for (const targetId of targets) {
+      const to = refById.get(targetId);
+      const deps = (event.dependencies ??= { predecessors: [], successors: [] });
+      deps.successors.push(to?.ref ?? { tid: 't-0', index: 9_999 });
+      if (!to) continue;
+      const toDeps = (to.event.dependencies ??= { predecessors: [], successors: [] });
+      toDeps.predecessors.push(fromRef);
+    }
+  }
+  return built;
 }
 
 describe('dependencies', () => {
