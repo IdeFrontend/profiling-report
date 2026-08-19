@@ -331,5 +331,5 @@ See prioritized product-owner list: [OPEN_QUESTIONS.md](../context/OPEN_QUESTION
 | UB↔GM field names | Product `aiv_ub_*_bw_gm` on `MemoryUB.csv` vs sample `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` on `Memory.csv` |
 | L0C → UB edge | 待确定; no sample column |
 | Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
-| Report-stat derived cards | 算力 / 输入带宽 / 输出带宽 / 平均核利用率 have empty field mappings |
+| Report-stat derived cards | 算力 / 平均核利用率 still empty; 输入/输出带宽 → [I-Q6g](../context/INTERIM_DECISIONS.md) |
 | Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |
