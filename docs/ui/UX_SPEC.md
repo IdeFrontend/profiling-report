@@ -285,7 +285,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-----------|-----|
 | No `OverviewSeries` | Hide `OverviewCharts` ([Q5](../context/OPEN_QUESTIONS.md)) |
 | Optional CSV / panel inputs missing | Hide related surface ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)); Timeline still works if trace present |
-| Summary formula unknown (Q6) | **Interim [I-Q6a](../context/INTERIM_DECISIONS.md):** show name / type / duration only; hide compute / BW / avg-util |
+| Summary formula unknown (Q6) | **Interim [I-Q6a](../context/INTERIM_DECISIONS.md):** duration only for OpBasicInfo; **[I-Q6g](../context/INTERIM_DECISIONS.md)** I/O BW cards; hide compute / avg-util |
 | Trace missing / invalid | Error state on root; emit `error`; do not show broken swimlane |
 | All AIC fields `NA` (vector-only) | Show AIV-derived PIPE; do not invent Cube series |
 | Search no matches | Neutral empty hint in toolbar/results; swimlane unchanged except clear highlights |
@@ -326,7 +326,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-------|----------|---------------------------|
 | Trace richness | Q4, Q8 | Lane taxonomy may be thinner than sketches; hierarchy collapses to available threads |
 | Overview series | Q5 | Charts hidden if no series |
-| Summary formulas | Q6 / [I-Q6a](../context/INTERIM_DECISIONS.md) | Thin OpBasicInfo tiles only until data spec |
+| Summary formulas | Q6 / [I-Q6a](../context/INTERIM_DECISIONS.md) / [I-Q6g](../context/INTERIM_DECISIONS.md) | Duration + guessed I/O BW; compute / avg-util hidden |
 | Hardware aside | Q7 | S7 blocked |
 | Dependencies | Q9 | S8 dep flows blocked |
 | Gestures | Q19 | MVP uses wheel/slider only |

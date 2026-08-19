@@ -71,6 +71,19 @@ export interface SummaryMetrics {
   avgCoreUtil?: number;
 }
 
+/** I-Q6g: one AIC/AIV row on an I/O bandwidth card. Values in GB/s; UI shows TB/s. */
+export interface BandwidthSideRow {
+  side: 'aic' | 'aiv';
+  measuredGBs: number;
+  peakGBs: number;
+}
+
+/** I-Q6g: 输入/输出带宽. Omit the card when both sides are NA. */
+export interface BandwidthCardModel {
+  id: 'input' | 'output';
+  sides: BandwidthSideRow[];
+}
+
 export interface PipeOccupancyItem {
   id: string;
   label: string;
@@ -173,6 +186,8 @@ export interface ReportViewModel {
   memoryTables: CsvTableModel[];
   /** Raw CSV text by basename for 查看全部 (I-Q6d). */
   csvTexts: Record<string, string>;
+  /** I-Q6g 输入/输出带宽 cards; omit when Memory.csv has no usable BW. */
+  bandwidthCards?: BandwidthCardModel[];
   /** Interim I-Q11*; omit when no GM point. */
   roofline?: RooflineViewModel;
   /** Interim I-Q7a; omit when empty. */
