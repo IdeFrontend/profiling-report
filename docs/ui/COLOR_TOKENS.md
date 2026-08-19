@@ -12,7 +12,8 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-bg-panel` | `#262626` | Elevated chrome: aside, cards, detail dock, gutter group headers |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
 | `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card decorative bar (report-stats cyan) |
-| `--pr-color-overview-cube` | `#3078F0` | Also I-Q6g I/O bandwidth card bar fill |
+| `--pr-color-overview-cube` | `#3078F0` | Overview Cube series fill |
+| `--pr-color-bandwidth-bar` | `#3078F0` | I-Q6g I/O bandwidth card bar fill (same hex, separate so Cube series edits do not repaint cards) |
 
 ### Toolbar controls (hardcoded; not CSS vars)
 
@@ -63,6 +64,7 @@ Sampled primarily from PIPE bars in `source/v930/entry.jpeg` (bottom-right), ord
   --pr-color-scalar: #38702c;
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
+  --pr-color-bandwidth-bar: #3078f0;
   --pr-color-duration-bar: #5ec8d8;
   --pr-color-playhead: #3078f0;
   --pr-bg-deep: #1f1f1f;

@@ -186,8 +186,8 @@ export interface ReportViewModel {
   memoryTables: CsvTableModel[];
   /** Raw CSV text by basename for 查看全部 (I-Q6d). */
   csvTexts: Record<string, string>;
-  /** I-Q6g 输入/输出带宽 cards; empty when Memory.csv has no usable BW. */
-  bandwidthCards: BandwidthCardModel[];
+  /** I-Q6g 输入/输出带宽 cards; omit when Memory.csv has no usable BW. */
+  bandwidthCards?: BandwidthCardModel[];
   /** Interim I-Q11*; omit when no GM point. */
   roofline?: RooflineViewModel;
   /** Interim I-Q7a; omit when empty. */

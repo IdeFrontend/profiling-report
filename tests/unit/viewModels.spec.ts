@@ -21,17 +21,18 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.avgCoreUtil).toBeUndefined();
   });
 
-  it('PR-VM-013 (interim I-Q6g): Memory.csv → bandwidthCards mean non-NA; peak = max main-mem BW', () => {
+  it('PR-VM-013 (interim I-Q6g): Memory.csv → bandwidthCards mean non-NA; peak 1600 GB/s', () => {
     const fixture = adaptRep(parseRep(loadOutRepBytes())).reportModel.bandwidthCards;
-    expect(fixture.map((c) => c.id)).toEqual(['input', 'output']);
-    const fixtureIn = Object.fromEntries(fixture[0]!.sides.map((s) => [s.side, s]));
+    expect(fixture).toBeDefined();
+    expect(fixture!.map((c) => c.id)).toEqual(['input', 'output']);
+    const fixtureIn = Object.fromEntries(fixture![0]!.sides.map((s) => [s.side, s]));
     expect(fixtureIn.aic).toBeUndefined();
-    expect(fixtureIn.aiv?.measuredGBs).toBeGreaterThan(1);
-    expect(fixtureIn.aiv!.peakGBs).toBeGreaterThanOrEqual(fixtureIn.aiv!.measuredGBs);
-    expect(fixtureIn.aiv!.peakGBs).toBeLessThan(100);
-    const fixtureOut = Object.fromEntries(fixture[1]!.sides.map((s) => [s.side, s]));
+    expect(fixtureIn.aiv).toBeDefined();
+    expect(fixtureIn.aiv!.measuredGBs).toBeGreaterThan(1);
+    expect(fixtureIn.aiv!.peakGBs).toBe(1600);
+    const fixtureOut = Object.fromEntries(fixture![1]!.sides.map((s) => [s.side, s]));
     expect(fixtureOut.aic).toBeUndefined();
-    expect(fixtureOut.aiv!.peakGBs).toBe(fixtureIn.aiv!.peakGBs);
+    expect(fixtureOut.aiv!.peakGBs).toBe(1600);
 
     const parsed = parseRep(loadOutRepBytes());
     parsed.payloads['Memory.csv'] = new TextEncoder().encode(
@@ -42,16 +43,24 @@ describe('PR-VM: report view-models (interim)', () => {
       ].join('\n'),
     );
     const cards = adaptRep(parsed).reportModel.bandwidthCards;
-    expect(cards.map((c) => c.id)).toEqual(['input', 'output']);
-    const input = Object.fromEntries(cards[0]!.sides.map((s) => [s.side, s]));
-    expect(input.aic).toMatchObject({ measuredGBs: 80, peakGBs: 90 });
+    expect(cards?.map((c) => c.id)).toEqual(['input', 'output']);
+    const input = Object.fromEntries(cards![0]!.sides.map((s) => [s.side, s]));
+    expect(input.aic).toMatchObject({ measuredGBs: 80, peakGBs: 1600 });
     expect(input.aiv?.measuredGBs).toBe(90);
-    const output = Object.fromEntries(cards[1]!.sides.map((s) => [s.side, s]));
+    const output = Object.fromEntries(cards![1]!.sides.map((s) => [s.side, s]));
     expect(output.aic).toBeUndefined();
-    expect(output.aiv).toMatchObject({ measuredGBs: 80, peakGBs: 90 });
+    expect(output.aiv).toMatchObject({ measuredGBs: 80, peakGBs: 1600 });
+
+    parsed.payloads['Memory.csv'] = new TextEncoder().encode(
+      ['block_id,aiv_main_mem_read_bw', '0,50', '1,70'].join('\n'),
+    );
+    const aliased = adaptRep(parsed).reportModel.bandwidthCards;
+    expect(aliased).toEqual([
+      { id: 'input', sides: [{ side: 'aiv', measuredGBs: 60, peakGBs: 1600 }] },
+    ]);
 
     delete parsed.payloads['Memory.csv'];
-    expect(adaptRep(parsed).reportModel.bandwidthCards).toEqual([]);
+    expect(adaptRep(parsed).reportModel.bandwidthCards).toBeUndefined();
   });
 
   it('PR-VM-002 (interim I-Q6b): PipeUtilization → PIPE bars mean of non-NA', () => {

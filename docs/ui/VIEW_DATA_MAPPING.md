@@ -60,7 +60,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | Shown as ms in mockup (unit conversion in UI) |
 | 5 | 算力情况 | — | — | **Unspecified in docx** |
-| 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **I-Q6g:** measured = mean non-`NA`; peak = max of main-mem BW columns; display TB/s |
+| 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **I-Q6g:** measured = mean non-`NA`; peak = 1600 GB/s (sketch 1.6 TB/s); display TB/s |
 | 7 | 输出带宽 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | same as #6 |
 | 8 | 平均核利用率 | — | — | **Unspecified in docx** |
 
@@ -83,11 +83,11 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 | Slot | Interim |
 | --- | --- |
 | Measured | Mean of non-`NA` matching Memory.csv column(s) across `block_id` (same as I-Q6b) |
-| Peak | Max of non-`NA` `ai*_main_mem_{read\|write}_bw` in the same Memory.csv (shared across slots; I-Q11d pool). Fallback 1600 GB/s |
+| Peak | 1600 GB/s (1.6 TB/s) for every aic/aiv × in/out slot — sketch HW guess, **not** max of measured columns |
 | Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
 | Display | TB/s = GB/s ÷ 1000; ≥1 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 |
 | Layout | Same card chrome as 整体耗时. Inner aic \| aiv columns; `aic`/`aiv` to the right of the score (no `%`). Cards stack full-width |
-| Bar | Fill width = score % of track (`--pr-color-overview-cube`); same 6px hatched track as duration |
+| Bar | Fill width = score % of track (`--pr-color-bandwidth-bar`); same 6px hatched track as duration; 0% fill has no 2px sliver |
 | NA | Omit that aic/aiv column; omit the card if both sides NA |
 | `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused |
 

@@ -43,6 +43,16 @@ const COLOR: Record<string, string> = {
 const hasDuration = computed(() => props.report?.summary.taskDurationUs != null);
 const bandwidthCards = computed(() => props.report?.bandwidthCards ?? []);
 const hasSummary = computed(() => hasDuration.value || bandwidthCards.value.length > 0);
+const bandwidthView = computed(() =>
+  bandwidthCards.value.map((card) => ({
+    id: card.id,
+    sides: card.sides.map((row) => ({
+      side: row.side,
+      score: bandwidthScore(row),
+      sub: `${formatTBs(row.measuredGBs)} / ${formatTBs(row.peakGBs)} TB/s`,
+    })),
+  })),
+);
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
 const showCompute = computed(() => (props.report?.computeTables?.length ?? 0) > 0);
 const showMemory = computed(() => (props.report?.memoryTables?.length ?? 0) > 0);
@@ -359,7 +369,7 @@ function backToReport() {
           </div>
         </div>
         <div
-          v-for="card in bandwidthCards"
+          v-for="card in bandwidthView"
           :key="card.id"
           class="pr-card pr-card--bw"
           :data-testid="`stats-bandwidth-${card.id}`"
@@ -378,7 +388,7 @@ function backToReport() {
                 <span
                   class="pr-card__value"
                   :data-testid="`stats-bandwidth-${card.id}-${row.side}-score`"
-                >{{ bandwidthScore(row) }}</span>
+                >{{ row.score }}</span>
                 <span class="pr-bw-col__side">{{ row.side }}</span>
               </div>
               <div class="pr-card__bar-track">
@@ -388,12 +398,12 @@ function backToReport() {
                 />
                 <span
                   class="pr-card__bar-fill pr-card__bar-fill--bw"
-                  :style="{ width: `${bandwidthScore(row)}%` }"
+                  :style="{ width: `${row.score}%` }"
                   :data-testid="`stats-bandwidth-${card.id}-${row.side}-bar`"
                 />
               </div>
               <div class="pr-card__sub">
-                {{ formatTBs(row.measuredGBs) }} / {{ formatTBs(row.peakGBs) }} TB/s
+                {{ row.sub }}
               </div>
             </div>
           </div>
@@ -752,13 +762,17 @@ function backToReport() {
 
 .pr-card__bar-fill--bw {
   min-width: 0;
-  background: var(--pr-color-overview-cube);
+  background: var(--pr-color-bandwidth-bar);
 }
 
 .pr-bw-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  display: flex;
   gap: 8px;
+}
+
+.pr-bw-col {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .pr-bw-col__head {

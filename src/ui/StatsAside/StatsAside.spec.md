@@ -37,7 +37,7 @@ I-Q6a duration + I-Q6g bandwidth. Card group renders when `taskDurationUs` **or*
 
 Do **not** render a standalone op-type card. Do **not** render compute / avg core util cards until Product Q6.
 
-**I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-overview-cube`, same 6px hatched track), subtitle `measured / peak TB/s` (GB/s ÷ 1000, magnitude rounding). Peak is adapter-supplied (max of Memory.csv main-mem BW). Hide a side when all-NA; hide the card when both sides NA. Cards stack full-width under duration (aside is ~360px; sketch 3+2 outer grid would squeeze inner columns). Do not show cards from `summary.ioBandwidth` alone.
+**I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-bandwidth-bar`, same 6px hatched track; **`min-width: 0`** so a 0% score is an empty track, not a 2px sliver), subtitle `measured / peak TB/s` (GB/s ÷ 1000, magnitude rounding). Peak is the sketch 1600 GB/s HW guess. Hide a side when all-NA; hide the card when both sides NA. Cards stack full-width under duration (aside is ~360px; sketch 3+2 outer grid would squeeze inner columns). Do not show cards from `summary.ioBandwidth` alone.
 
 **PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS. Section title **计算负载分析**. **详情** opens the compute CSV overlay when tables exist and emits **open-pipe-details**. A 0%–100% scale with dotted vertical grid sits above the rows — 0% left-aligned to the track start, 100% right-aligned to the end, 20/40/60/80 centered on those marks. Each row: label (ellipsis if wider than the column), track with solid fill for ratio and hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f) that may paint over the hatch when the fill is narrower than the digits, and a right-aligned percent.
 
@@ -80,7 +80,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 21. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first labelled block of the new report.
 22. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
 23. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
-24. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, TB/s, bar = score%.
+24. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, TB/s, bar = score%; `out.rep` uses 1.6 TB/s peak (~1% score).
 
 ## Edge Cases
 
@@ -140,10 +140,10 @@ Same card chrome as duration. Cards stack in one column (aside width). Sketch 3+
 
 | Token | Value |
 |-------|--------|
-| Inner | `aic` \| `aiv` columns (`repeat(auto-fit, minmax(0, 1fr))`, gap `8px`) |
+| Inner | `aic` \| `aiv` columns (`display: flex; gap: 8px`; `.pr-bw-col { flex: 1 1 0 }`) |
 | Score | same Value token; no `%` |
 | Side label | `11px` / `#9a9a9a`, baseline-aligned to the right of the score |
-| Bar | same 6px hatched track; fill `--pr-color-overview-cube` = score % of track |
+| Bar | same 6px hatched track; fill `--pr-color-bandwidth-bar` = score % of track; 0% fill `min-width: 0` (no 2px sliver) |
 | Sub | same Sub token: `measured / peak TB/s` |
 
 ### PIPE (`pipe-bars.png`, `mode-tabs.png`)
@@ -175,7 +175,7 @@ Same card chrome as duration. Cards stack in one column (aside width). Sketch 3+
 
 ## Changelog
 
-- **2026-08-19** — BW cards match `summary-cards.png` inner aic\|aiv columns and duration chrome; cards stay 1-col (aside width).
+- **2026-08-19** — I-Q6g peak is sketch 1600 GB/s; `--pr-color-bandwidth-bar`; flex aic\|aiv columns; 0% bar `min-width: 0`.
 - **2026-08-19** — PR-STATS-024 asserts score via `data-testid`; peak is adapter max (I-Q6g).
 - **2026-08-19** — I/O bandwidth cards I-Q6g (PR-STATS-024); PR-STATS-011 still hides compute/util.
 - **2026-08-14** — CSV tab switch does not rewrite topology block (PR-STATS-022).

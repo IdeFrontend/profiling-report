@@ -101,7 +101,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Op name / type / task duration | `OpBasicInfo.csv` | **Interim MVP ([I-Q6a](../context/INTERIM_DECISIONS.md)):** duration card when `taskDurationUs` present (sketch chrome per I-Q6e). Op type is not a separate card. `opName` / `blockDim` may feed duration secondary only |
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | **Optional** — adapter may populate both. Aside **shell meta** shows `currentFreq` as aic频率 only; **`ratedFreq` intentionally omitted** from shell (sketch). |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Hide** until Q6 / data spec |
-| I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **I-Q6g:** show when a side has non-`NA`; hide card if both NA. Peak = max of those columns |
+| I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **I-Q6g:** show when a side has non-`NA`; hide card if both NA. Peak 1.6 TB/s sketch HW guess |
 | Avg core util % | PipeUtilization / OpBasicInfo TBD | **Hide** until Q6 / data spec |
 | Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** raw on aside **meta row** only: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. Show each segment only when set; **never invent** peaks/cores |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Interim ([I-Q7a](../context/INTERIM_DECISIONS.md)):** `HardwareDetailsPanel` from jsonl sections or OpBasicInfo fallback; 更多 opens it |

@@ -26,7 +26,7 @@ For each card, what is **field → file → formula** (including peaks for the p
 | Card | Needed | Interim |
 | --- | --- | --- |
 | 算力情况 | Score (e.g. 90), measured TFLOPS, peak TFLOPS | Still hidden (I-Q6a) |
-| 输入带宽 | Score, measured TB/s, peak TB/s | **I-Q6g:** Memory.csv mean; peak = max of main-mem BW columns; score = measured/peak |
+| 输入带宽 | Score, measured TB/s, peak TB/s | **I-Q6g:** Memory.csv mean + 1.6 TB/s peak; score = measured/peak. Sketch 81 ≠ ~1% on `out.rep` |
 | 输出带宽 | Score, measured TB/s, peak TB/s | same as 输入 |
 | 平均核利用率 | %, enabled cores / total cores | Still hidden (I-Q6a) |
 

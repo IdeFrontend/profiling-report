@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import StatsAside from './StatsAside.vue';
-import { emptyReportViewModel } from '../../adapters/adaptRep';
+import { adaptRep, emptyReportViewModel } from '../../adapters/adaptRep';
+import { parseRep } from '../../adapters/parseRep';
 import type { ReportViewModel } from '../../domain/types';
+import { loadOutRepBytes } from '../../../tests/helpers/fixtures';
 
 function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
   return { ...emptyReportViewModel(), ...partial };
@@ -337,6 +339,15 @@ describe('StatsAside', () => {
     expect(output.text()).toMatch(/输出带宽|Output bandwidth/);
     expect(output.find('[data-testid="stats-bandwidth-output-aic"]').exists()).toBe(false);
     expect(output.get('[data-testid="stats-bandwidth-output-aiv"]').text()).toMatch(/0\.002 \/ 1\.6 TB\/s/);
+  });
+
+  it('PR-STATS-024: out.rep cards use 1.6 TB/s peak (~1% score), not max of measured', () => {
+    const { reportModel } = adaptRep(parseRep(loadOutRepBytes()));
+    const wrapper = mount(StatsAside, { props: { report: reportModel } });
+    const aiv = wrapper.get('[data-testid="stats-bandwidth-input-aiv"]');
+    expect(aiv.get('[data-testid="stats-bandwidth-input-aiv-score"]').text()).toBe('1');
+    expect(aiv.text()).toMatch(/0\.02 \/ 1\.6 TB\/s/);
+    expect(wrapper.find('[data-testid="stats-bandwidth-input-aic"]').exists()).toBe(false);
   });
 
   it('PR-STATS-012: PIPE scale and hatched bars', () => {

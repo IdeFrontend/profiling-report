@@ -14,7 +14,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (microseconds as stored in CSV), optional `blockDim` from `Block Dim` (pass-through string/number, no formula). In MVP (I-Q6a), compute TFLOPS and core utilization stay unset. I/O bandwidth cards are **not** on summary — they are `bandwidthCards` (I-Q6g).
 
-**I/O bandwidth (I-Q6g).** From `Memory.csv`: mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_main_mem_{read|write}_bw(GB/s)` (also accepts headers without the `(GB/s)` suffix). Peak = **max** of those same columns, shared across all four aic/aiv × in/out slots (I-Q11d pool; fallback 1600 GB/s). Omit a side when all-NA; omit the card when both sides NA; omit `bandwidthCards` entries (empty array) when Memory.csv is missing.
+**I/O bandwidth (I-Q6g).** From `Memory.csv`: mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_main_mem_{read|write}_bw(GB/s)` (first matching header only; also accepts headers without the `(GB/s)` suffix). Peak = **1600 GB/s** (sketch 1.6 TB/s) for every side. Omit a side when all-NA; omit the card when both sides NA; omit `bandwidthCards` when Memory.csv is missing.
 
 **Aside meta (shell).** Optional header fields on `SummaryMetrics`: `coreCount?: number`, `npuArchLabel?: string`, plus existing `currentFreq` (displayed as aic频率). Adapter may leave `coreCount` / `npuArchLabel` unset until `HardwareInfo` / Product mapping exists — UI hides missing segments.
 
@@ -47,7 +47,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 9. **PR-VM-010** — `hardwareDetails` from HardwareInfo.jsonl or OpBasicInfo fallback (I-Q7a); omit when empty; capability `hardwareDetails` when present.
 10. **PR-VM-011** — `memoryTopology` edges from non-NA Memory* CSV columns per §11.2.6; edge labels omitted when NA; capability `memoryDiagram` when present.
 11. **PR-VM-012** — Topology labels come only from the requested `block_id`; first labelled block is used for the adapter snapshot.
-12. **PR-VM-013** — `bandwidthCards` from Memory.csv mean non-NA main-mem BW; peak = max of those columns; omit NA sides/cards (I-Q6g). Also covers unmodified `out.rep` (aiv-only; peak on the order of measured, not 1600).
+12. **PR-VM-013** — `bandwidthCards` from Memory.csv mean non-NA main-mem BW; peak 1600 GB/s; omit NA sides/cards (I-Q6g). Also covers unmodified `out.rep` (aiv-only; peak 1600).
 
 ## Edge Cases
 
@@ -55,7 +55,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 - All NA ratios for a family → occupancy item omitted.
 - Missing optional CSV embed → that table omitted (no empty stub).
 - Chrome Trace with no X events → throws (chromeTraceToSwimlane behavior).
-- Missing Memory.csv or all-NA main-mem BW → `bandwidthCards` empty.
+- Missing Memory.csv or all-NA main-mem BW → `bandwidthCards` omitted.
 - Missing HardwareInfo and empty OpBasicInfo → no `hardwareDetails` field.
 
 ## Dependencies
@@ -67,7 +67,7 @@ I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q6g, I-Q5+, I-Q7a, I-Q11a–f. [rep-format]
 Q6 — Product-final summary formulas (compute / avg util still open; bandwidth I-Q6g). Q11 — Product-final roofline. Q22 — measureRange aside sync.
 
 ## Changelog
-- **2026-08-19** — I-Q6g peak = max Memory.csv main-mem BW, not sketch 1600 (PR-VM-013).
+- **2026-08-19** — I-Q6g peak is sketch 1600 GB/s (not max of measured); `bandwidthCards` optional (PR-VM-013).
 - **2026-08-19** — I-Q6g `bandwidthCards` (PR-VM-013).
 - **2026-08-13** — PR-VM-011/012 memory topology helper; first labelled block snapshot.
 - **2026-08-10** — hardwareDetails I-Q7a (PR-VM-010).
