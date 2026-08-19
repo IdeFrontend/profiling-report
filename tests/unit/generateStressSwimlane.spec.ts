@@ -6,6 +6,7 @@ import {
   stressSwimlaneStats,
 } from '../../src/domain/generateStressSwimlane';
 import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
+import type { EventRef, SwimEvent, SwimlaneModel, SwimThread } from '../../src/domain/types';
 
 function firstPipeLeaf(model: ReturnType<typeof generateStressSwimlane>) {
   const compute = model.processes[0]?.threads.find((t) => t.name === '计算');
@@ -16,6 +17,39 @@ function firstPipeLeaf(model: ReturnType<typeof generateStressSwimlane>) {
   expect(pipe).toBeTruthy();
   expect(isFolderNode(pipe!)).toBe(false);
   return pipe!;
+}
+
+function indexThreads(model: SwimlaneModel): Map<string, SwimThread> {
+  const map = new Map<string, SwimThread>();
+  const walk = (thread: SwimThread) => {
+    map.set(thread.id, thread);
+    thread.children?.forEach(walk);
+  };
+  for (const process of model.processes) process.threads.forEach(walk);
+  return map;
+}
+
+function computeCores(card: SwimlaneModel['processes'][number]): SwimThread[] {
+  const compute = card.threads.find((t) => t.name === '计算');
+  return compute?.children?.filter(isFolderNode) ?? [];
+}
+
+function pipeLeaves(core: SwimThread): SwimThread[] {
+  return (core.children ?? []).filter((t) => !isFolderNode(t));
+}
+
+function endNs(event: SwimEvent): number {
+  return event.startTime + event.duration;
+}
+
+function resolve(threads: Map<string, SwimThread>, ref: EventRef): SwimEvent {
+  const event = threads.get(ref.tid)?.events[ref.index];
+  expect(event).toBeTruthy();
+  return event!;
+}
+
+function hasRef(list: EventRef[], tid: string, index: number): boolean {
+  return list.some((r) => r.tid === tid && r.index === index);
 }
 
 describe('PR-STRESS: generateStressSwimlane', () => {
@@ -115,9 +149,9 @@ describe('PR-STRESS: generateStressSwimlane', () => {
   });
 
   it('PR-STRESS-008: stress emits ProfilerStep bands by preset', () => {
-    const small = generateStressSwimlane({}, 'small');
-    const medium = generateStressSwimlane({}, 'medium');
-    const large = generateStressSwimlane({}, 'large');
+    const small = generateStressSwimlane({ eventsPerThread: 1 }, 'small');
+    const medium = generateStressSwimlane({ eventsPerThread: 1 }, 'medium');
+    const large = generateStressSwimlane({ eventsPerThread: 1 }, 'large');
     expect(small.bands?.map((b) => b.name)).toEqual([
       'ProfilerStep#1',
       'ProfilerStep#2',
@@ -128,5 +162,106 @@ describe('PR-STRESS: generateStressSwimlane', () => {
     expect(medium.bands![0]!.startTime).toBe(0);
     const last = medium.bands![medium.bands!.length - 1]!;
     expect(last.startTime + last.duration).toBe(medium.maxTime);
+  });
+
+  it('PR-STRESS-009: same-core deps are bidirectional and time-ordered', () => {
+    const model = generateStressSwimlane(
+      { eventsPerThread: 16, timeSpanNs: 2_000, occupancy: 0.6, seed: 7, linkDependencies: true },
+      'small',
+    );
+    const threads = indexThreads(model);
+
+    let linked = 0;
+    for (const card of model.processes) {
+      for (const core of computeCores(card)) {
+        const prefix = `${core.id}/`;
+        for (const pipe of pipeLeaves(core)) {
+          pipe.events.forEach((event, index) => {
+            const deps = event.dependencies;
+            expect(deps).toBeTruthy();
+            for (const ref of [...deps!.predecessors, ...deps!.successors]) {
+              expect(ref.tid.startsWith(prefix)).toBe(true);
+            }
+            for (const succRef of deps!.successors) {
+              const succ = resolve(threads, succRef);
+              expect(endNs(event)).toBeLessThanOrEqual(succ.startTime);
+              expect(hasRef(succ.dependencies?.predecessors ?? [], pipe.id, index)).toBe(true);
+              linked += 1;
+            }
+            for (const predRef of deps!.predecessors) {
+              const pred = resolve(threads, predRef);
+              expect(endNs(pred)).toBeLessThanOrEqual(event.startTime);
+              expect(hasRef(pred.dependencies?.successors ?? [], pipe.id, index)).toBe(true);
+            }
+          });
+        }
+      }
+    }
+    expect(linked).toBeGreaterThan(0);
+  });
+
+  it('PR-STRESS-010: every pipe event has nearest pred/succ per core pipe', () => {
+    const model = generateStressSwimlane(
+      { eventsPerThread: 16, timeSpanNs: 2_000, occupancy: 0.6, seed: 7, linkDependencies: true },
+      'small',
+    );
+    for (const card of model.processes) {
+      for (const core of computeCores(card)) {
+        const pipes = pipeLeaves(core);
+        for (const pipe of pipes) {
+          for (const event of pipe.events) {
+            expect(event.dependencies).toEqual(
+              expect.objectContaining({ predecessors: expect.any(Array), successors: expect.any(Array) }),
+            );
+            for (const other of pipes) {
+              let nearestSucc = -1;
+              let nearestSuccStart = Infinity;
+              let nearestPred = -1;
+              let nearestPredEnd = -Infinity;
+              other.events.forEach((candidate, index) => {
+                if (candidate === event) return;
+                if (candidate.startTime >= endNs(event)) {
+                  const betterStart = candidate.startTime < nearestSuccStart;
+                  const betterId =
+                    candidate.startTime === nearestSuccStart &&
+                    nearestSucc >= 0 &&
+                    candidate.id < other.events[nearestSucc]!.id;
+                  if (betterStart || betterId) {
+                    nearestSuccStart = candidate.startTime;
+                    nearestSucc = index;
+                  }
+                }
+                const candEnd = endNs(candidate);
+                if (candEnd <= event.startTime && (candEnd > nearestPredEnd || (candEnd === nearestPredEnd && index > nearestPred))) {
+                  nearestPredEnd = candEnd;
+                  nearestPred = index;
+                }
+              });
+              if (nearestSucc >= 0) {
+                expect(hasRef(event.dependencies!.successors, other.id, nearestSucc)).toBe(true);
+              }
+              if (nearestPred >= 0) {
+                expect(hasRef(event.dependencies!.predecessors, other.id, nearestPred)).toBe(true);
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('PR-STRESS-011: linkDependencies defaults on for small, off for medium/large', () => {
+    const small = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'small');
+    const medium = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'medium');
+    const large = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'large');
+    expect(firstPipeLeaf(small).events[0]!.dependencies).toBeTruthy();
+    expect(firstPipeLeaf(medium).events[0]!.dependencies).toBeUndefined();
+    expect(firstPipeLeaf(large).events[0]!.dependencies).toBeUndefined();
+
+    const wired = generateStressSwimlane(
+      { eventsPerThread: 4, timeSpanNs: 1_000, seed: 1, linkDependencies: true },
+      'medium',
+    );
+    expect(firstPipeLeaf(wired).events[0]!.dependencies).toBeTruthy();
   });
 });

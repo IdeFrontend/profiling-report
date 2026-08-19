@@ -30,6 +30,7 @@ Start here: **[docs/README.md](docs/README.md)**
 
 - [`data/out.rep`](data/out.rep) — sample CANN report container
 - [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
+- [`data/ffn_dense.trace.json`](data/ffn_dense.trace.json) — denser CTEF fixture (async s/f pairs); `ph: 'C'` counters stripped (regenerate when a counter lane lands)
 - [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers
 
 ```bash
@@ -44,6 +45,7 @@ Fixtures are synced from the repo into `playground/public/data/` via `npm run sy
 
 - `data/out.rep` → `/data/out.rep`
 - `data/out.trace.json` → `/data/out.trace.json`
+- `data/ffn_dense.trace.json` → `/data/ffn_dense.trace.json`
 
 ```bash
 npm run playground          # local SPA (syncs fixtures first)
@@ -51,7 +53,7 @@ npm run build:demo          # production static build
 npm run preview:demo        # preview playground/dist
 ```
 
-Fixture switcher: `?fixture=rep` (default) or `?fixture=trace`.
+Fixture switcher: `?fixture=rep` (default), `?fixture=trace`, or `?fixture=ffn_dense`.
 
 Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
 

@@ -1,23 +1,34 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { TimeDisplayUnit } from '../../domain/types';
+import type { TimeDisplayUnit, DependencyMode } from '../../domain/types';
+import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
 
-defineProps<{
-  searchQuery: string;
-  asideVisible: boolean;
-  asideAvailable: boolean;
-  zoomPercent: number;
-  timeUnit: TimeDisplayUnit;
-  locale?: string;
-  title?: string;
-  measureMode?: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    searchQuery: string;
+    asideVisible: boolean;
+    asideAvailable: boolean;
+    zoomPercent: number;
+    timeUnit: TimeDisplayUnit;
+    dependencyMode?: DependencyMode;
+    dependencyDepth?: number;
+    locale?: string;
+    title?: string;
+    measureMode?: boolean;
+  }>(),
+  {
+    dependencyMode: 'all',
+    dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+  },
+);
 
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:asideVisible': [value: boolean];
   'update:timeUnit': [value: TimeDisplayUnit];
+  'update:dependencyMode': [value: DependencyMode];
+  'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
   'zoom-to-fit': [];
   'zoom-in': [];
@@ -33,6 +44,11 @@ function toggleDisplayControl() {
 
 function closeDisplayControl() {
   displayControlOpen.value = false;
+}
+
+function onDependencyDepth(e: Event) {
+  const n = Number.parseInt((e.target as HTMLInputElement).value, 10);
+  emit('update:dependencyDepth', normalizeDependencyDepth(n));
 }
 </script>
 
@@ -312,6 +328,31 @@ function closeDisplayControl() {
               <option value="us">µs</option>
               <option value="ns">ns</option>
             </select>
+          </label>
+          <label class="pr-toolbar__display-field">
+            <span class="pr-toolbar__display-label">{{ t('dependencyDisplay', locale) }}</span>
+            <select
+              data-testid="dependency-mode"
+              :value="dependencyMode"
+              @change="emit('update:dependencyMode', ($event.target as HTMLSelectElement).value as DependencyMode)"
+            >
+              <option value="all">{{ t('depModeAll', locale) }}</option>
+              <option value="predecessors">{{ t('depModePredecessors', locale) }}</option>
+              <option value="successors">{{ t('depModeSuccessors', locale) }}</option>
+            </select>
+          </label>
+          <label class="pr-toolbar__display-field">
+            <span class="pr-toolbar__display-label">{{ t('dependencyDepth', locale) }}</span>
+            <input
+              data-testid="dependency-depth"
+              type="number"
+              min="-1"
+              :max="MAX_DEPENDENCY_DEPTH"
+              step="1"
+              :value="dependencyDepth"
+              :title="t('dependencyDepthHint', locale)"
+              @change="onDependencyDepth"
+            >
           </label>
         </div>
       </div>
@@ -623,13 +664,18 @@ function closeDisplayControl() {
   gap: 10px;
 }
 
+.pr-toolbar__display-field + .pr-toolbar__display-field {
+  margin-top: 16px;
+}
+
 .pr-toolbar__display-label {
   font-size: 12px;
   color: #b2b2b2;
   line-height: 1.2;
 }
 
-.pr-toolbar__display-field select {
+.pr-toolbar__display-field select,
+.pr-toolbar__display-field input[type='number'] {
   box-sizing: border-box;
   width: 100%;
   height: 32px;
@@ -646,6 +692,12 @@ function closeDisplayControl() {
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
+}
+
+.pr-toolbar__display-field input[type='number'] {
+  padding-right: 12px;
+  background-image: none;
+  cursor: text;
 }
 
 .pr-toolbar__sr {

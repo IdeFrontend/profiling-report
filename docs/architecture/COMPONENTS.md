@@ -25,7 +25,7 @@ ProfilingReport
 │  │  ├─ TimeOverviewBar
 │  │  ├─ TimeAxis → AxisRuler, CursorTimestamp
 │  │  ├─ OverviewCharts
-│  │  └─ SwimlaneView → LaneGutter, SwimlaneCanvas, DependencyLinksLayer (P2)
+│  │  └─ SwimlaneView → LaneGutter, SwimlaneCanvas (dep curves in renderer)
 │  └─ StatsAside
 │     ├─ StatsSummaryPanel
 │     ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1)
@@ -276,9 +276,9 @@ Sectioned key–value list from `HardwareDetailsModel`. Prefer HardwareInfo.json
 
 **Why:** 更多 drill-down while Product Q7 inventory remains open.
 
-### `DependencyLinksLayer` (P2)
+### Dependency curves (P2; spec `DependencyLinksLayer`)
 
-Bezier/dep overlays above or beside intervals.
+Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRenderer` (instanced polyline) or `CanvasSwimlaneRenderer` (2D stroke); not a Vue overlay. Spec + crops live in `src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/`.
 
 **Why:** Separate from interval fill so Canvas/WebGL backends stay simple; needs dep encoding (Q9).
 
