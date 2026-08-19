@@ -2,7 +2,7 @@
 
 | spec-id-prefix |
 |----------------|
-| PR-DEPS-*      |
+| PR-DEPGRAPH-*      |
 
 Build the task dependency graph behind the raised 「详情」 dock's `Relevent` column and the timeline dependency curves: successor lists from the adapter, predecessors from a reverse index, neighbour lookup with a depth limit.
 
@@ -28,14 +28,14 @@ neighborsOf(graph: DependencyGraph, eventId: string, level?: number): Dependency
 
 ## Acceptance Criteria
 
-1. **PR-DEPS-001**: `buildDependencyGraph` indexes successors from `SwimEvent.dependencies` and mirrors them into a predecessor index.
-1. **PR-DEPS-002**: Edges to ids absent from the model, self-edges, and duplicates leave no entry in `outgoing` or `incoming`.
-1. **PR-DEPS-004**: `level` limits hop depth; negative walks the whole chain and `0` returns nothing.
-1. **PR-DEPS-005**: A cyclic chain terminates and never returns the start event.
-1. **PR-DEPS-006**: `hasDependencies` is false for a model without dependency data and true once one event carries successors.
-1. **PR-DEPS-007**: `chromeTraceToSwimlane` adopts `args.event_id` as the event id and `args.dependencies` as successors.
-1. **PR-DEPS-008**: A repeated `args.event_id` keeps the first event and falls the rest back to sequence ids.
-1. **PR-DEPS-009**: Each side of a walk is capped at 200 neighbours, earliest first.
+1. **PR-DEPGRAPH-001**: `buildDependencyGraph` indexes successors from `SwimEvent.dependencies` and mirrors them into a predecessor index.
+1. **PR-DEPGRAPH-002**: Edges to ids absent from the model, self-edges, and duplicates leave no entry in `outgoing` or `incoming`.
+1. **PR-DEPGRAPH-004**: `level` limits hop depth; negative walks the whole chain and `0` returns nothing.
+1. **PR-DEPGRAPH-005**: A cyclic chain terminates and never returns the start event.
+1. **PR-DEPGRAPH-006**: `hasDependencies` is false for a model without dependency data and true once one event carries successors.
+1. **PR-DEPGRAPH-007**: `chromeTraceToSwimlane` adopts `args.event_id` as the event id and `args.dependencies` as successors.
+1. **PR-DEPGRAPH-008**: A repeated `args.event_id` keeps the first event and falls the rest back to sequence ids.
+1. **PR-DEPGRAPH-009**: Each side of a walk is capped at 200 neighbours, earliest first.
 
 ## Edge Cases
 
@@ -50,7 +50,7 @@ Interim [I-Q9](../../docs/context/INTERIM_DECISIONS.md) — successor-list encod
 Q9 — the producer's real dependency encoding. When it lands, only the adapter changes; the graph and UI contracts stay.
 
 ## Changelog
-- **2026-08-18** — PR-DEPS-009: 200-neighbour cap per side, so the default unlimited level cannot hand the panel a whole transitive closure. `hasDependencies` is now the only gate callers run — the report no longer additionally checks the built maps, which let a dangling-only model publish the capability while hiding the column.
-- **2026-08-18** — PR-DEPS-008: producer `event_id` collisions fall back to sequence ids. `adaptRep` runs the `hasDependencies` gate too, so the capability matches what the UI renders.
-- **2026-08-14** — Dropped the `direction` parameter from `neighborsOf` (and PR-DEPS-003 with it): DetailRelevant now owns the direction state and blanks the suppressed column, so the graph layer no longer needs to know. Removed `DependencyNode.duration` and `DependencyGraph.edgeCount`, both unread; PR-DEPS-002 now states the dangling/self/duplicate contract against `outgoing` / `incoming` directly. `adaptRep` no longer runs the `hasDependencies` gate. Remaining AC ids keep their numbers, gap included.
+- **2026-08-18** — PR-DEPGRAPH-009: 200-neighbour cap per side, so the default unlimited level cannot hand the panel a whole transitive closure. `hasDependencies` is now the only gate callers run — the report no longer additionally checks the built maps, which let a dangling-only model publish the capability while hiding the column.
+- **2026-08-18** — PR-DEPGRAPH-008: producer `event_id` collisions fall back to sequence ids. `adaptRep` runs the `hasDependencies` gate too, so the capability matches what the UI renders.
+- **2026-08-14** — Dropped the `direction` parameter from `neighborsOf` (and PR-DEPGRAPH-003 with it): DetailRelevant now owns the direction state and blanks the suppressed column, so the graph layer no longer needs to know. Removed `DependencyNode.duration` and `DependencyGraph.edgeCount`, both unread; PR-DEPGRAPH-002 now states the dangling/self/duplicate contract against `outgoing` / `incoming` directly. `adaptRep` no longer runs the `hasDependencies` gate. Remaining AC ids keep their numbers, gap included.
 - **2026-08-13** — Initial spec: interim successor encoding, reverse index, direction + depth filters.

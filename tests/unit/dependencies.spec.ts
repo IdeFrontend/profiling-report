@@ -71,7 +71,7 @@ function linkDeclared(built: SwimlaneModel): SwimlaneModel {
 }
 
 describe('dependencies', () => {
-  it('PR-DEPS-001: indexes successors and mirrors them into predecessors', () => {
+  it('PR-DEPGRAPH-001: indexes successors and mirrors them into predecessors', () => {
     const graph = buildDependencyGraph(model([ev('a', 0, ['b']), ev('b', 20)]));
 
     expect(graph.outgoing.get('a')).toEqual(['b']);
@@ -79,7 +79,7 @@ describe('dependencies', () => {
     expect(graph.nodes.get('b')).toMatchObject({ id: 'b', name: 'B', startTime: 20 });
   });
 
-  it('PR-DEPS-002: drops dangling, self and duplicate edges', () => {
+  it('PR-DEPGRAPH-002: drops dangling, self and duplicate edges', () => {
     const graph = buildDependencyGraph(
       model([ev('a', 0, ['missing', 'a', 'b', 'b']), ev('b', 20)]),
     );
@@ -89,7 +89,7 @@ describe('dependencies', () => {
     expect([...graph.incoming]).toEqual([['b', ['a']]]);
   });
 
-  it('PR-DEPS-004: level limits hop depth', () => {
+  it('PR-DEPGRAPH-004: level limits hop depth', () => {
     const graph = buildDependencyGraph(
       model([ev('a', 0, ['b']), ev('b', 20, ['c']), ev('c', 40, ['d']), ev('d', 60)]),
     );
@@ -100,7 +100,7 @@ describe('dependencies', () => {
     expect(neighborsOf(graph, 'a', -1).outgoing.map((n) => n.id)).toEqual(['b', 'c', 'd']);
   });
 
-  it('PR-DEPS-005: a cycle terminates without returning the start event', () => {
+  it('PR-DEPGRAPH-005: a cycle terminates without returning the start event', () => {
     const graph = buildDependencyGraph(
       model([ev('a', 0, ['b']), ev('b', 20, ['c']), ev('c', 40, ['a'])]),
     );
@@ -109,13 +109,13 @@ describe('dependencies', () => {
     expect(out).toEqual(['b', 'c']);
   });
 
-  it('PR-DEPS-006: hasDependencies gates the capability', () => {
+  it('PR-DEPGRAPH-006: hasDependencies gates the capability', () => {
     expect(hasDependencies(model([ev('a', 0), ev('b', 20)]))).toBe(false);
     expect(hasDependencies(model([ev('a', 0)], [ev('b', 20, ['a'])]))).toBe(true);
     expect(hasDependencies(null)).toBe(false);
   });
 
-  it('PR-DEPS-007: the Chrome Trace adapter reads args.event_id and args.dependencies', () => {
+  it('PR-DEPGRAPH-007: the Chrome Trace adapter reads args.event_id and args.dependencies', () => {
     const swim = chromeTraceToSwimlane({
       traceEvents: [
         {
@@ -138,7 +138,7 @@ describe('dependencies', () => {
     expect(neighborsOf(graph, 'task-2').incoming.map((n) => n.id)).toEqual(['task-1']);
   });
 
-  it('PR-DEPS-008: a repeated args.event_id keeps the first claimant and falls back', () => {
+  it('PR-DEPGRAPH-008: a repeated args.event_id keeps the first claimant and falls back', () => {
     const swim = chromeTraceToSwimlane({
       traceEvents: [
         { ph: 'X', name: 'A', pid: 1, tid: 1, ts: 0, dur: 10, args: { event_id: 'dup' } },
@@ -156,7 +156,7 @@ describe('dependencies', () => {
     expect(buildDependencyGraph(swim).nodes.get('dup')?.name).toBe('A');
   });
 
-  it('PR-DEPS-009: each side is capped at 200 neighbours, earliest first', () => {
+  it('PR-DEPGRAPH-009: each side is capped at 200 neighbours, earliest first', () => {
     // Chain of 300: an unlimited walk would return all 299 successors, one chip and one
     // connector curve each.
     const chain = Array.from({ length: 300 }, (_, i) =>
