@@ -34,11 +34,17 @@ describe('DetailPanel', () => {
   it('PR-DPANEL-003: Relevent column renders only with neighbors', () => {
     const without = mount(DetailPanel, { props: { selected, unit: 'ms' } });
     expect(without.find('[data-testid="detail-relevant"]').exists()).toBe(false);
+    expect(without.find('.pr-detail-panel__body').classes()).toContain(
+      'pr-detail-panel__body--no-relevant',
+    );
 
     const withDeps = mount(DetailPanel, {
       props: { selected, unit: 'ms', neighbors },
     });
     expect(withDeps.find('[data-testid="detail-relevant"]').exists()).toBe(true);
+    expect(withDeps.find('.pr-detail-panel__body').classes()).not.toContain(
+      'pr-detail-panel__body--no-relevant',
+    );
     expect(withDeps.text()).toContain('ProfilerStep#17');
   });
 

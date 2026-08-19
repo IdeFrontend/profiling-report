@@ -199,6 +199,16 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(
       overridden.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
     ).toBe('roofline');
+
+    // Same instance switched to host-managed models: the adapter's flags must not leak.
+    await auto.setProps({
+      source: undefined,
+      swimlaneModel: { processes: [], minTime: 0, maxTime: 1 },
+    } as unknown as Record<string, unknown>);
+    await flushPromises();
+    expect(
+      auto.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
+    ).toBe('');
   });
 
   it('PR-UI-007: time overview brush adjusts visible window', async () => {

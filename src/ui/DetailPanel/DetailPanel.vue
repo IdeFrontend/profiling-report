@@ -40,7 +40,10 @@ const emit = defineEmits<{
       </button>
     </header>
 
-    <div class="pr-detail-panel__body">
+    <div
+      class="pr-detail-panel__body"
+      :class="{ 'pr-detail-panel__body--no-relevant': !neighbors }"
+    >
       <DetailSummary
         :selected="selected"
         :unit="unit"
@@ -114,6 +117,11 @@ const emit = defineEmits<{
   padding: 8px 12px 12px;
   min-height: 0;
   overflow: auto;
+}
+
+/* No dependency data: drop the Relevent track so Parameter takes its width. */
+.pr-detail-panel__body--no-relevant {
+  grid-template-columns: minmax(200px, 0.8fr) minmax(240px, 1fr);
 }
 
 @media (max-width: 900px) {
