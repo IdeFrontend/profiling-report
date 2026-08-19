@@ -463,53 +463,51 @@ function backToReport() {
             Vector
           </button>
         </div>
-        <div
-          class="pr-pipe-scale"
-          data-testid="pipe-scale"
-        >
-          <span class="pr-pipe-scale__spacer" />
-          <div class="pr-pipe-scale__axis">
-            <span
-              v-for="tick in PIPE_SCALE"
-              :key="tick"
-              class="pr-pipe-scale__tick"
-            >{{ tick }}%</span>
-          </div>
-          <span class="pr-pipe-scale__pct-spacer" />
-        </div>
-        <ul class="pr-pipe-list">
-          <li
-            v-for="pipe in visiblePipes"
-            :key="`${pipe.id}-${pipe.side ?? 'x'}`"
-            class="pr-pipe-row"
+        <div class="pr-pipe-chart">
+          <div
+            class="pr-pipe-scale"
+            data-testid="pipe-scale"
           >
-            <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-            <span class="pr-pipe-row__track">
+            <span class="pr-pipe-scale__spacer" />
+            <div class="pr-pipe-scale__axis">
               <span
-                class="pr-pipe-row__grid"
-                aria-hidden="true"
-              />
-              <span
-                class="pr-pipe-row__hatch"
-                aria-hidden="true"
-              />
-              <span
-                class="pr-pipe-row__bar"
-                :style="{
-                  width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%`,
-                  background: COLOR[pipe.colorKey] ?? COLOR.default,
-                }"
-              >
+                v-for="tick in PIPE_SCALE"
+                :key="tick"
+                class="pr-pipe-scale__tick"
+              >{{ tick }}%</span>
+            </div>
+          </div>
+          <ul class="pr-pipe-list">
+            <li
+              v-for="pipe in visiblePipes"
+              :key="`${pipe.id}-${pipe.side ?? 'x'}`"
+              class="pr-pipe-row"
+              :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
+            >
+              <span class="pr-pipe-row__label">{{ pipe.label }}</span>
+              <span class="pr-pipe-row__track">
+                <span
+                  class="pr-pipe-row__hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-pipe-row__bar"
+                  :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
+                />
+                <span
+                  class="pr-pipe-row__grid"
+                  aria-hidden="true"
+                />
                 <span
                   v-if="pipe.absoluteValue != null"
                   class="pr-pipe-row__abs"
                   data-testid="pipe-absolute"
                 >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+                <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
               </span>
-            </span>
-            <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
-          </li>
-        </ul>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <div
@@ -667,15 +665,27 @@ function backToReport() {
   appearance: none;
   border: 0;
   background: transparent;
-  color: #9a9a9a;
-  font-size: 11px;
   padding: 0;
   cursor: pointer;
 }
 
-.pr-aside__more:hover,
-.pr-pipe-details:hover {
+.pr-aside__more {
+  color: #9a9a9a;
+  font-size: 11px;
+}
+
+.pr-pipe-details {
+  color: #e6e6e6;
+  font-size: 12px;
+}
+
+.pr-aside__more:hover {
   color: #d0d0d0;
+  text-decoration: underline;
+}
+
+.pr-pipe-details:hover {
+  color: #ffffff;
   text-decoration: underline;
 }
 
@@ -799,12 +809,20 @@ function backToReport() {
   padding: 10px;
 }
 
+.pr-panel--pipe {
+  padding: 12px 10px 10px;
+}
+
 .pr-pipe-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.pr-panel--pipe .pr-pipe-head {
+  margin-bottom: 12px;
 }
 
 .pr-panel--pipe h4,
@@ -815,10 +833,14 @@ function backToReport() {
   color: #ffffff;
 }
 
+.pr-panel--pipe h4 {
+  font-size: 14px;
+}
+
 .pr-pipe-toggle {
   display: inline-flex;
   margin: 0 0 10px;
-  background: #1a1a1a;
+  background: #111111;
   border-radius: 4px;
   padding: 2px;
 }
@@ -827,30 +849,41 @@ function backToReport() {
   appearance: none;
   border: 0;
   background: transparent;
-  color: #9a9a9a;
-  font-size: 11px;
-  padding: 4px 12px;
+  color: #b3b3b3;
+  font-size: 12px;
+  padding: 5px 14px;
   border-radius: 4px;
   cursor: pointer;
 }
 
 .pr-pipe-toggle__btn--active {
-  background: #3a3a3a;
+  background: #343434;
   color: #ffffff;
 }
 
-.pr-pipe-scale {
+.pr-pipe-chart {
+  background: #202020;
+  border-radius: 4px;
+  padding: 10px 8px 12px;
+}
+
+.pr-pipe-scale,
+.pr-pipe-row {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) minmax(40px, auto);
+  grid-template-columns: 72px minmax(0, 1fr);
   gap: 8px;
-  margin-bottom: 4px;
-  font-size: 10px;
-  color: #8a8a8a;
+  align-items: center;
+}
+
+.pr-pipe-scale {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #999999;
 }
 
 .pr-pipe-scale__axis {
   position: relative;
-  height: 12px;
+  height: 16px;
 }
 
 .pr-pipe-scale__tick {
@@ -892,19 +925,16 @@ function backToReport() {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 16px;
 }
 
 .pr-pipe-row {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) minmax(40px, auto);
-  gap: 8px;
-  align-items: center;
+  --pr-pipe: var(--pr-color-default);
 }
 
 .pr-pipe-row__label {
-  font-size: 11px;
-  color: #c0c0c0;
+  font-size: 12px;
+  color: #999999;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -915,64 +945,87 @@ function backToReport() {
   position: relative;
   display: block;
   height: 16px;
-  background: #161616;
   border-radius: 4px;
   overflow: visible;
-}
-
-.pr-pipe-row__grid {
-  position: absolute;
-  inset: 0;
-  border-radius: 4px;
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent calc(20% - 1px),
-    #3a3a3a calc(20% - 1px),
-    #3a3a3a 20%
-  );
-  opacity: 0.55;
-  pointer-events: none;
 }
 
 .pr-pipe-row__hatch {
   position: absolute;
   inset: 0;
   border-radius: 4px;
-  background: repeating-linear-gradient(
+  background-image: repeating-linear-gradient(
     -45deg,
-    #2a2a2a,
-    #2a2a2a 2px,
-    #1f1f1f 2px,
-    #1f1f1f 4px
+    color-mix(in srgb, var(--pr-pipe) 8%, #202020) 0 2px,
+    color-mix(in srgb, var(--pr-pipe) 8%, #303030) 2px 4px
   );
-  opacity: 0.9;
 }
 
 .pr-pipe-row__bar {
   position: relative;
   z-index: 1;
-  display: flex;
-  align-items: center;
+  display: block;
   height: 100%;
   border-radius: 4px;
-  min-width: 2px;
-  padding: 0 4px;
+  min-width: 0;
   box-sizing: border-box;
+  background: var(--pr-pipe);
+}
+
+.pr-pipe-row__grid {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 4px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.15),
+      rgba(255, 255, 255, 0.15)
+    ),
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.15),
+      rgba(255, 255, 255, 0.15)
+    ),
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.15),
+      rgba(255, 255, 255, 0.15)
+    ),
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.15),
+      rgba(255, 255, 255, 0.15)
+    );
+  background-size: 1px 100%;
+  background-position: 20% 0, 40% 0, 60% 0, 80% 0;
+  background-repeat: no-repeat;
 }
 
 .pr-pipe-row__abs {
-  font-size: 10px;
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  z-index: 3;
+  transform: translateY(-50%);
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: #f0f0f0;
+  color: #ffffff;
   white-space: nowrap;
   line-height: 1;
+  pointer-events: none;
 }
 
 .pr-pipe-row__pct {
-  text-align: right;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  z-index: 3;
+  transform: translateY(-50%);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  color: #b8b8b8;
+  font-size: 12px;
+  color: #ffffff;
+  pointer-events: none;
 }
 </style>

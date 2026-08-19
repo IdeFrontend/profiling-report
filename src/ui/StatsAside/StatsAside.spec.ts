@@ -363,8 +363,21 @@ describe('StatsAside', () => {
     const scale = wrapper.get('[data-testid="pipe-scale"]').text();
     expect(scale).toContain('0%');
     expect(scale).toContain('100%');
+    expect(wrapper.find('.pr-pipe-chart').exists()).toBe(true);
     expect(wrapper.find('.pr-pipe-row__hatch').exists()).toBe(true);
     expect(wrapper.find('.pr-pipe-row__bar').exists()).toBe(true);
+    expect(wrapper.get('.pr-pipe-row__track').find('.pr-pipe-row__pct').exists()).toBe(true);
+
+    const zero = mount(StatsAside, {
+      props: {
+        report: report({
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0, colorKey: 'vector', side: 'vector' },
+          ],
+        }),
+      },
+    });
+    expect(zero.get('.pr-pipe-row__bar').attributes('style')).toMatch(/width:\s*0%/);
   });
 
   it('PR-STATS-013: absolute time in bar when present', () => {

@@ -39,7 +39,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 
 **I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-bandwidth-bar`, same 6px hatched track; **`min-width: 0`** so a 0% score is an empty track, not a 2px sliver), subtitle `measured / peak TB/s` (GB/s ÷ 1000, magnitude rounding). Peak is the sketch 1600 GB/s HW guess. Hide a side when all-NA; hide the card when both sides NA. Cards stack full-width under duration (aside is ~360px; sketch 3+2 outer grid would squeeze inner columns). Do not show cards from `summary.ioBandwidth` alone.
 
-**PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS. Section title **计算负载分析**. **详情** opens the compute CSV overlay when tables exist and emits **open-pipe-details**. A 0%–100% scale with dotted vertical grid sits above the rows — 0% left-aligned to the track start, 100% right-aligned to the end, 20/40/60/80 centered on those marks. Each row: label (ellipsis if wider than the column), track with solid fill for ratio and hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f) that may paint over the hatch when the fill is narrower than the digits, and a right-aligned percent.
+**PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS. Section title **计算负载分析**. **详情** opens the compute CSV overlay when tables exist and emits **open-pipe-details**. A 0%–100% scale with 20/40/60/80 grid overlays sits above the rows — 0% left-aligned to the track start, 100% right-aligned to the end, 20/40/60/80 centered on those marks. Each row: label (ellipsis if wider than the column), track with solid fill for ratio and a `colorKey`-tinted hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f) that may paint over the hatch when the fill is narrower than the digits, and a right-aligned percent inside the track.
 
 **Cube | Vector toggle.** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side (cube/aic or vector/aiv/vec): no toggle; show pipes for that side only. When `opType` is blank or unrecognized: no toggle; show all PIPE bars (do not default-filter to vector).
 
@@ -68,7 +68,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 9. **PR-STATS-009** — Duration card sketch chrome.
 10. **PR-STATS-010** — No type card; secondary hide-if-missing.
 11. **PR-STATS-011** — Compute/util cards absent; BW not from `summary.ioBandwidth`.
-12. **PR-STATS-012** — PIPE scale and hatched bars.
+12. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent; 0% fill width is `0%`.
 13. **PR-STATS-013** — Absolute time in bar when present.
 14. **PR-STATS-014** — Details emit open-pipe-details.
 15. **PR-STATS-015** — Roofline section when `roofline.points` present; hidden when absent.
@@ -119,7 +119,8 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Chart icon | `14×14` stroke polyline, `#c8c8c8` |
 | Close / back | `16px` / `#e6e6e6` |
 | Meta | `11px` / `#a8a8a8` |
-| 更多 / 详情 | `11px` / `#9a9a9a` (not playhead blue) |
+| 更多 | `11px` / `#9a9a9a` (not playhead blue) |
+| PIPE / topology 详情 | `12px` / `#e6e6e6` |
 | Header | pinned (`flex-shrink: 0`); body / overlay `flex: 1; min-height: 0; overflow` |
 
 ### Duration card (`summary-cards.png` cell)
@@ -148,14 +149,23 @@ Same card chrome as duration. Cards stack in one column (aside width). Sketch 3+
 
 ### PIPE (`pipe-bars.png`, `mode-tabs.png`)
 
+Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpeg) at ~4× (bar 64px crop → 16px CSS).
+
 | Token | Value |
 |-------|--------|
-| Panel | inset `#1f1f1f`, radius `4px`, padding `10px` |
-| Title | `12px` / `600` / `#ffffff` — **计算负载分析** |
-| Cube\|Vector | pill bg `#1a1a1a`; active `#3a3a3a` / `#ffffff`; inactive `#9a9a9a`; radius `4px` |
-| Bar height | `16px`; radius `4px` |
-| Grid | dotted `#3a3a3a` at 0/20/…/100%; scale ticks on those marks |
-| Fills | COLOR_TOKENS `colorKey` |
+| Panel | `#1f1f1f`, radius `4px`, padding `12px 10px 10px` |
+| Title | `14px` / `600` / `#ffffff` — **计算负载分析** |
+| 详情 | `12px` / `#e6e6e6` |
+| Cube\|Vector | pill `#111111`; active `#343434` / `#ffffff`; inactive `#b3b3b3`; radius `4px`; label `12px` |
+| Chart well | `#202020`, radius `4px`, padding `10px 8px 12px` |
+| Scale | `12px` / `#999999` |
+| Label | `12px` / `#999999`; column `72px` (ellipsis; fits `ICache Miss`) |
+| Bar height | `16px`; radius `4px`; row gap `16px` |
+| Grid | `rgba(255,255,255,0.15)` 1px overlay at 20/40/60/80% (reads dotted on hatch) |
+| Hatch | `color-mix(8%, #202020 / #303030)` of `colorKey`; diagonal 2px/2px |
+| In-bar abs | `12px` / `#ffffff`; left of track (sibling of fill, so short fills are not padded wider than the ratio) |
+| Percent | `12px` / `#ffffff` inside track, right-aligned |
+| Fills | COLOR_TOKENS `colorKey`; width = ratio%; `min-width: 0` |
 | Short-bar abs | overflow onto hatch; do not clip |
 
 ## Design sketches
@@ -175,6 +185,9 @@ Same card chrome as duration. Cards stack in one column (aside width). Sketch 3+
 
 ## Changelog
 
+- **2026-08-19** — PIPE fill width is ratio-only (`min-width: 0`; abs is a track sibling). Label column stays `72px` for ICache Miss. Panel stays `#1f1f1f` (artboard `#141414` is page, not card).
+- **2026-08-19** — Resampled `compute-load.jpeg`: title `14px`, scale/in-bar `12px`, Scalar `#1A743E`.
+- **2026-08-19** — PIPE card tokens from `pipe-bars.png` / `mode-tabs.png`: tinted hatch, in-track %, `#202020` well, 16px row gap.
 - **2026-08-19** — I-Q6g peak is sketch 1600 GB/s; `--pr-color-bandwidth-bar`; flex aic\|aiv columns; 0% bar `min-width: 0`.
 - **2026-08-19** — PR-STATS-024 asserts score via `data-testid`; peak is adapter max (I-Q6g).
 - **2026-08-19** — I/O bandwidth cards I-Q6g (PR-STATS-024); PR-STATS-011 still hides compute/util.
