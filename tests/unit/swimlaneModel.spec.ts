@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { adaptRep, chromeTraceToSwimlane, parseRep } from '../../src/index';
+import { nestParents } from '../../src/adapters/chromeTraceToSwimlane';
 import { loadOutRepBytes } from '../helpers/fixtures';
 
 describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
@@ -235,6 +236,35 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(t1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
     expect(t1.events[1]!.dependencies).toBeUndefined();
     expect(t1.events[2]!.dependencies).toBeUndefined();
+  });
+
+  it('PR-SWIM-013: touching X intervals are siblings, not nested', () => {
+    expect([
+      ...nestParents([
+        { id: 'a', name: 'a', startTime: 0, duration: 10 },
+        { id: 'b', name: 'b', startTime: 10, duration: 10 },
+      ]),
+    ]).toEqual([-1, -1]);
+    expect([
+      ...nestParents([
+        { id: 'outer', name: 'outer', startTime: 0, duration: 50 },
+        { id: 'inner', name: 'inner', startTime: 10, duration: 10 },
+      ]),
+    ]).toEqual([-1, 0]);
+
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'a', pid: 1, tid: 1, ts: 0, dur: 10 },
+        { ph: 'X', name: 'b', pid: 1, tid: 1, ts: 10, dur: 10 },
+        { ph: 'X', name: 'target', pid: 1, tid: 2, ts: 50, dur: 10 },
+        { ph: 's', id: 'f', pid: 1, tid: 1, ts: 15 },
+        { ph: 'f', id: 'f', pid: 1, tid: 2, ts: 55 },
+      ],
+    });
+    const t1 = model.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    expect(t1.events.map((e) => e.name)).toEqual(['a', 'b']);
+    expect(t1.events[0]!.dependencies).toBeUndefined();
+    expect(t1.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
   });
 });
 

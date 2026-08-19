@@ -251,16 +251,16 @@ function linkAsyncDependencies(
 
 /**
  * Nearest enclosing event index per event (`-1` = none). Call-stack stack: pop
- * intervals that ended before this start, then the remaining top is the parent.
+ * intervals that ended at or before this start (touching slices are siblings).
  */
-function nestParents(events: SwimEvent[]): Int32Array {
+export function nestParents(events: SwimEvent[]): Int32Array {
   const parent = new Int32Array(events.length).fill(-1);
   const stack: number[] = [];
   for (let i = 0; i < events.length; i++) {
     const start = events[i]!.startTime;
     while (stack.length > 0) {
       const top = events[stack[stack.length - 1]!]!;
-      if (top.startTime + top.duration < start) stack.pop();
+      if (top.startTime + top.duration <= start) stack.pop();
       else break;
     }
     if (stack.length > 0) parent[i] = stack[stack.length - 1]!;

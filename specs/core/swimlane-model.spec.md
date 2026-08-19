@@ -66,11 +66,12 @@ interface SwimEvent    {
 1. **PR-SWIM-010**: Same-event s/f pairs yield no self-loop edge.
 1. **PR-SWIM-011**: Recycled flow ids and the same id in two processes each keep their pairs, including when finishes appear first in the file.
 1. **PR-SWIM-012**: A flow in a gap under an enclosing slice binds the enclosing event.
+1. **PR-SWIM-013**: Touching X intervals (`end === next.start`) are siblings, not nested.
 
 ## Edge Cases
 
 - Only B/E events (no X) → throws. Single event → one process/thread/event, minTime = maxTime (handled upstream by bounds clamp).
-- s/f with no matching X interval, missing id/ts, or finish before start → ignored. Nested overlapping X (call stack): innermost containing interval, not the enclosing parent — including equal-`startTime` parent/child (Chrome writes the shorter child first). Flow in idle time between nested slices binds the enclosing slice. Both endpoints in the same X event → no edge. Recycled `id` after a flow closes → one edge per s/f pair, not last-wins. Finish written before its start in the file still pairs when `s.ts <= f.ts`.
+- s/f with no matching X interval, missing id/ts, or finish before start → ignored. Nested overlapping X (call stack): innermost containing interval, not the enclosing parent — including equal-`startTime` parent/child (Chrome writes the shorter child first). Touching slices that only share an endpoint are siblings (not nested). Flow in idle time between nested slices binds the enclosing slice. Both endpoints in the same X event → no edge. Recycled `id` after a flow closes → one edge per s/f pair, not last-wins. Finish written before its start in the file still pairs when `s.ts <= f.ts`.
 
 ## Dependencies
 
@@ -81,6 +82,7 @@ interface SwimEvent    {
 Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-08-19** — Touching X intervals are siblings (`end <= next.start` pops the stack); PR-SWIM-013.
 - **2026-08-18** — Pair s/f by timestamp per process+id so a finish written before its start still links; PR-SWIM-011.
 - **2026-08-18** — Equal-`startTime` sort is longest-first so `nestParents` matches Chrome child-first X order.
 - **2026-08-18** — Enclosing-parent chain for s/f lookup (gaps do not scan the prefix); PR-SWIM-012.
