@@ -14,7 +14,7 @@ neighborsOf(graph: DependencyGraph, eventId: string, level?: number): Dependency
 
 ## Behavior
 
-**Encoding (interim I-Q9).** `SwimEvent.dependencies` holds **successor** ids. `buildDependencyGraph` walks every process, thread, and nested child lane, indexes all events by id, then reads the successor lists into `outgoing` and mirrors them into `incoming`. Producers ship the ids through the Chrome Trace `args` convention — `args.event_id` makes an event addressable and `args.dependencies` names its successors.
+**Encoding (interim I-Q9).** `SwimEvent.dependencies` holds `{ predecessors, successors }` as `EventRef`s (thread id + index). `buildDependencyGraph` walks every process, thread, and nested child lane, indexes all events by id, then resolves each successor ref back to an id into `outgoing` and mirrors it into `incoming`. Producers ship ids through the Chrome Trace `args` convention — `args.event_id` makes an event addressable and `args.dependencies` names its successors; the adapter resolves those ids to refs once every lane is sorted.
 
 **Dangling and duplicate edges.** An id that no event in the model carries is dropped: a chip with no timing is worse than an omission. Self-edges and repeated ids collapse to nothing. A surviving edge writes one entry into `outgoing[source]` and one into `incoming[target]`; a rejected one writes neither, so an event whose successors are all rejected holds no `outgoing` key at all.
 

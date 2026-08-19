@@ -5,12 +5,14 @@ import {
   formatCursorTime,
   resolveCursorTimeUnit,
 } from '../../domain/formatTime';
-import type {
-  MeasureRange,
-  SwimEvent,
-  SwimlaneModel,
-  SwimlaneViewState,
-  TimeDisplayUnit,
+import {
+  DEFAULT_DEPENDENCY_DEPTH,
+  type DependencyMode,
+  type MeasureRange,
+  type SwimEvent,
+  type SwimlaneModel,
+  type SwimlaneViewState,
+  type TimeDisplayUnit,
 } from '../../domain/types';
 import {
   GUTTER_WIDTH_DEFAULT,
@@ -24,18 +26,26 @@ import CursorTimestamp from './TimeAxis/CursorTimestamp/CursorTimestamp.vue';
 import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
 
-const props = defineProps<{
-  bounds: { minTime: number; maxTime: number };
-  view: SwimlaneViewState;
-  unit: TimeDisplayUnit;
-  groups: GutterGroup[];
-  collapsedIds: string[];
-  displaySwim: SwimlaneModel | null;
-  cursor: { time: number; xRatio: number } | null;
-  showOverviewCharts?: boolean;
-  gutterWidth?: number;
-  preferRenderer?: 'auto' | 'webgl' | 'canvas';
-}>();
+const props = withDefaults(
+  defineProps<{
+    bounds: { minTime: number; maxTime: number };
+    view: SwimlaneViewState;
+    unit: TimeDisplayUnit;
+    dependencyMode?: DependencyMode;
+    dependencyDepth?: number;
+    groups: GutterGroup[];
+    collapsedIds: string[];
+    displaySwim: SwimlaneModel | null;
+    cursor: { time: number; xRatio: number } | null;
+    showOverviewCharts?: boolean;
+    gutterWidth?: number;
+    preferRenderer?: 'auto' | 'webgl' | 'canvas';
+  }>(),
+  {
+    dependencyMode: 'all',
+    dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+  },
+);
 
 const emit = defineEmits<{
   'update:gutterWidth': [width: number];
@@ -194,6 +204,8 @@ defineExpose({
       :measure-mode="view.measureMode"
       :measure-range="view.measureRange"
       :time-unit="unit"
+      :dependency-mode="dependencyMode"
+      :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"
       @update:scroll-y="emit('update:scrollY', $event)"
       @toggle-group="emit('toggle-group', $event)"

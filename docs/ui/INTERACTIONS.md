@@ -59,8 +59,8 @@ Sketch: `source/v930/entry.jpeg`
 
 Sketch: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (swimlane beziers + Relevant toolbar callout)
 
-- Optional curved links between predecessor/successor events on the swimlane (`DependencyLinksLayer`).
-- Toolbar toggle to show/hide links.
+- Optional curved links between predecessor/successor events, drawn by `WebGlSwimlaneRenderer` / `CanvasSwimlaneRenderer` ([DependencyLinksLayer spec](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/DependencyLinksLayer.spec.md)).
+- Display control (mode + hop depth) filters which curves are drawn.
 - Detail panel Relevant column: incoming / current / outgoing graph with depth filters. The three toolbar icons (left → right) mean: **forward-only**, **forward+backward**, **backward-only** (design callout on `task-click-detail`).
 - **Task Connection Level** numeric filter (sketch shows `-1`).
 

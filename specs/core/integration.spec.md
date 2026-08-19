@@ -10,7 +10,7 @@ Outside-in tests verifying the full component tree and playground render correct
 
 **Integration (Vitest + Vue Test Utils).** Mounts ProfilingReport with `data/out.rep` source and exercises the full component tree through prop updates and DOM queries. Verifies that loading produces visible chrome, interactions propagate state, the aside renders when data is available and hides for standalone CTEF, zoom-to-fit expands to full timeline, search filters events, and the overview brush updates the viewport.
 
-**E2E (Playwright against playground).** Loads the playground with `data/out.rep` and verifies real browser rendering: timeline visible, hover shows tooltip, click selects event and shows detail strip, zoom-to-fit via toolbar, standalone JSON opens without aside, overview brush updates window and cursor.
+**E2E (Playwright against playground).** Loads the playground with `data/out.rep` and verifies real browser rendering: timeline visible, hover shows tooltip, click selects event and shows detail strip, zoom-to-fit via toolbar, standalone JSON opens without aside, overview brush updates window and cursor. `?fixture=ffn_dense&renderer=webgl` compiles the WebGL curve shaders and paints selected dependency curves (jsdom never acquires `webgl2`).
 
 ## Acceptance Criteria
 
@@ -33,10 +33,12 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-004**: Zoom-to-fit via toolbar renders full timeline span.
 1. **PR-E2E-005**: Standalone JSON opens without CSV aside.
 1. **PR-E2E-006**: Overview brush updates time window and cursor line.
+1. **PR-E2E-007**: `?fixture=ffn_dense&renderer=webgl` attaches WebGL, paints selected dependency curves, and search does not rebuild the cached graph.
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-08-19** — PR-E2E-007: Chromium WebGL dependency curves (`ffn_dense`).
 - **2026-08-05** — Initial spec. Core behaviors established.

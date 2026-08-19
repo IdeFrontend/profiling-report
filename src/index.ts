@@ -20,5 +20,10 @@ export {
 } from './adapters';
 
 export type * from './domain/types';
+export {
+  DEFAULT_DEPENDENCY_DEPTH,
+  MAX_DEPENDENCY_DEPTH,
+  normalizeDependencyDepth,
+} from './domain/types';
 
 export { default as ProfilingReport } from './ui/ProfilingReport/ProfilingReport.vue';

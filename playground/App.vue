@@ -10,7 +10,14 @@ import {
 import type { SwimlaneModel } from '../src/domain/types';
 import { depsTraceFixture } from './depsFixture';
 
-type FixtureKind = 'rep' | 'trace' | 'stress' | 'deps';
+const FILE_FIXTURES = {
+  rep: { name: 'out.rep', url: '/data/out.rep' },
+  trace: { name: 'out.trace.json', url: '/data/out.trace.json' },
+  ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
+} as const;
+
+type FileFixtureKind = keyof typeof FILE_FIXTURES;
+type FixtureKind = FileFixtureKind | 'stress' | 'deps';
 type PreferRenderer = 'auto' | 'webgl' | 'canvas';
 
 const status = ref('loading');
@@ -28,7 +35,8 @@ function readQuery(): URLSearchParams {
 
 const queryFixture = computed((): FixtureKind => {
   const f = readQuery().get('fixture');
-  if (f === 'trace' || f === 'stress' || f === 'deps') return f;
+  if (f === 'stress' || f === 'deps') return f;
+  if (f && f in FILE_FIXTURES) return f as FileFixtureKind;
   return 'rep';
 });
 
@@ -44,13 +52,14 @@ const preferRenderer = computed((): PreferRenderer => {
 
 const title = computed(() => {
   if (openedName.value) return openedName.value;
-  if (queryFixture.value === 'stress') {
+  const kind = queryFixture.value;
+  if (kind === 'stress') {
     const stats = stressModel.value ? stressSwimlaneStats(stressModel.value) : null;
     const n = stats ? `${stats.eventCount.toLocaleString()} events` : '…';
     return `stress (${stressPreset.value}, ${n})`;
   }
-  if (queryFixture.value === 'deps') return 'deps demo (I-Q9)';
-  return queryFixture.value === 'trace' ? 'out.trace.json' : 'out.rep';
+  if (kind === 'deps') return 'deps demo (I-Q9)';
+  return FILE_FIXTURES[kind].name;
 });
 
 const statusLine = computed(() => {
@@ -112,8 +121,7 @@ async function loadFixture(kind: FixtureKind): Promise<void> {
     loadDeps();
     return;
   }
-  const url = kind === 'trace' ? '/data/out.trace.json' : '/data/out.rep';
-  await loadUrl(url);
+  await loadUrl(FILE_FIXTURES[kind].url);
 }
 
 function onOpenFileClick(e: MouseEvent): void {
@@ -192,6 +200,10 @@ onMounted(async () => {
           href="/?fixture=deps"
           data-testid="fixture-deps"
         >deps</a>
+        <a
+          href="/?fixture=ffn_dense"
+          data-testid="fixture-ffn-dense"
+        >ffn_dense.trace.json</a>
         <a
           :href="stressHref('medium')"
           data-testid="fixture-stress"
