@@ -319,7 +319,6 @@ export interface SwimlaneRenderer {
   setDependencyMode?(mode: DependencyMode): void;
   /** Optional: hosts that omit this keep default hop depth. */
   setDependencyDepth?(depth: number): void;
-  setCursorX(x: number | null): void;
   contentHeight(): number;
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;
   findEvent(id: string): SwimEvent | null;

@@ -159,7 +159,6 @@ export class SwimlaneOverlayPainter {
     this.searchQuery = query.trim().toLowerCase();
   }
 
-  setCursorX(_x: number | null): void {}
 
   render(): void {
     const ctx = this.ctx;
@@ -272,7 +271,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.searchQuery = query.trim().toLowerCase();
   }
 
-<<<<<<< HEAD
   setDependencyMode(mode: DependencyMode): void {
     if (mode === this.depMode) return;
     this.depMode = mode;
@@ -286,12 +284,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
   }
 
-  setCursorX(x: number | null): void {
-    this.cursorX = x;
-  }
-=======
-  setCursorX(_x: number | null): void {}
->>>>>>> 9ec8b26 (Address PR review: drop dead cursorX plumbing, size Card strips to body)
 
   contentHeight(): number {
     return contentHeightFromLayout(this.layout);

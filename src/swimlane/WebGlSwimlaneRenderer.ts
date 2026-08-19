@@ -346,9 +346,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.rebuildCurveInstances();
   }
 
-  /** Cursor is drawn on the Canvas overlay; no-op here. */
-  setCursorX(_x: number | null): void {}
-
   contentHeight(): number {
     return contentHeightFromLayout(this.layout);
   }
