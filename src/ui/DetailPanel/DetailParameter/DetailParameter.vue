@@ -22,8 +22,12 @@ function toValues(value: unknown): string[] {
   return [String(value)];
 }
 
-/** I-Q9 transport keys: already rendered as the Relevent graph, not producer parameters. */
-const HIDDEN_KEYS = new Set(['event_id', 'dependencies']);
+/**
+ * Not producer parameters: `event_id` / `dependencies` are the I-Q9 transport, already
+ * rendered as the Relevent graph, and `cat` is the Chrome Trace category the adapter
+ * copies into `args` — DetailSummary already shows it in the type pill.
+ */
+const HIDDEN_KEYS = new Set(['event_id', 'dependencies', 'cat']);
 
 const rows = computed<ParameterRow[]>(() =>
   Object.entries(props.args ?? {})

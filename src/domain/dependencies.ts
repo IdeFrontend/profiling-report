@@ -134,6 +134,9 @@ function collect(
 
   // Sort first, then cut: a hop that fans out past the cap still yields the earliest
   // neighbours rather than whatever order the producer wrote its ids in.
+  // ponytail: sorts the whole BFS result to keep DEPENDENCY_MAX_NEIGHBORS. Fine for the
+  // handful of ids per event I-Q9 producers ship; swap in a size-capped max-heap if one
+  // ever ships wide fan-outs.
   return out
     .sort((a, b) => a.startTime - b.startTime || a.id.localeCompare(b.id))
     .slice(0, DEPENDENCY_MAX_NEIGHBORS);

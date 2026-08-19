@@ -46,14 +46,20 @@ describe('DetailParameter', () => {
     expect(values[0].attributes('title')).toContain('dav_c220000000');
   });
 
-  it('PR-DPARAM-004: drops the I-Q9 transport keys', () => {
+  it('PR-DPARAM-004: drops the I-Q9 transport keys and the adapter-injected cat', () => {
     const wrapper = mount(DetailParameter, {
       props: {
-        args: { event_id: 'mov-out', dependencies: ['step-17'], Pc_addr: '0xf00103da' },
+        args: {
+          event_id: 'mov-out',
+          dependencies: ['step-17'],
+          cat: 'ascend_hardware',
+          Pc_addr: '0xf00103da',
+        },
       },
     });
 
     expect(wrapper.findAll('.pr-detail-parameter__key').map((n) => n.text())).toEqual(['Pc_addr']);
     expect(wrapper.text()).not.toContain('step-17');
+    expect(wrapper.text()).not.toContain('ascend_hardware');
   });
 });
