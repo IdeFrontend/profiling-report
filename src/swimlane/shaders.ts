@@ -122,7 +122,8 @@ void main() {
   float span = max(uView.y - uView.x, 1.0);
   vec2 p0 = vec2((aEnd0.x - uView.x) / span * uResolution.x, aEnd0.y - uView.z);
   vec2 p1 = vec2((aEnd1.x - uView.x) / span * uResolution.x, aEnd1.y - uView.z);
-  float pull = max(24.0, abs(p1.x - p0.x) * 0.4);
+  float mag = max(24.0, abs(p1.x - p0.x) * 0.4);
+  float pull = p1.x >= p0.x ? mag : -mag;
   vec2 c0 = vec2(p0.x + pull, p0.y);
   vec2 c1 = vec2(p1.x - pull, p1.y);
   float t = aStrip.x;

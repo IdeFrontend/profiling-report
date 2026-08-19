@@ -44,7 +44,7 @@ interface SwimEvent    {
 
 **Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — Q8: do not invent Card/Core nesting from AIV pipe names.
 
-**Async dependencies.** `ph: 's'` / `ph: 'f'` events are not intervals. They pair by process and trace `id`: each id's starts and finishes are ordered by timestamp and zipped (`start.ts <= finish.ts`); leftover unpaired endpoints are dropped. File order does not matter — a finish that appears before its start still pairs. Recycled ids after a flow closes, and the same id used in two processes, each keep their own edge. Unpaired starts, extra finishes, or `start.ts > finish.ts` are dropped. After X events are sorted per thread, each pair finds the **innermost** X event on the start thread whose `[startTime, startTime+duration]` contains `start.ts` (enclosing-parent chain from the last start ≤ ts), and the innermost X event on the finish thread that contains `finish.ts`. Those two events are linked: parent `successors` ← child `{ tid: SwimThread.id, index }`, child `predecessors` ← parent. Same-event pairs (both endpoints resolve to one slice) are dropped — no self-loop. Duplicate refs are not stored. Events with no edges omit `dependencies`. s/f timestamps use the same ns conversion as X events.
+**Async dependencies.** `ph: 's'` / `ph: 'f'` events are not intervals. They pair by process and trace `id`: each id's starts and finishes are ordered by timestamp and zipped (`start.ts <= finish.ts`); leftover unpaired endpoints are dropped. File order does not matter — a finish that appears before its start still pairs. Recycled ids after a flow closes, and the same id used in two processes, each keep their own edge. Unpaired starts, extra finishes, or `start.ts > finish.ts` are dropped. After X events are sorted per thread, each pair finds the **innermost** X event on the start thread whose `[startTime, startTime+duration]` contains `start.ts` (enclosing-parent chain from the last start ≤ ts), and the innermost X event on the finish thread that contains `finish.ts`. Those two events are linked: parent `successors` ← child `{ tid: SwimThread.id, index }`, child `predecessors` ← parent. The two X intervals may overlap (`pred.end > succ.start`) — that is valid; dependency curves still run pred-right → succ-left. Same-event pairs (both endpoints resolve to one slice) are dropped — no self-loop. Duplicate refs are not stored. Events with no edges omit `dependencies`. s/f timestamps use the same ns conversion as X events.
 
 **Ordering.** Processes and threads ordered by first event start time. Within each thread, events sorted by `startTime` ascending, longest `duration` first on ties. Processes/threads with no events are excluded.
 
@@ -71,7 +71,7 @@ interface SwimEvent    {
 ## Edge Cases
 
 - Only B/E events (no X) → throws. Single event → one process/thread/event, minTime = maxTime (handled upstream by bounds clamp).
-- s/f with no matching X interval, missing id/ts, or finish before start → ignored. Nested overlapping X (call stack): innermost containing interval, not the enclosing parent — including equal-`startTime` parent/child (Chrome writes the shorter child first). Touching slices that only share an endpoint are siblings (not nested). Flow in idle time between nested slices binds the enclosing slice. Both endpoints in the same X event → no edge. Recycled `id` after a flow closes → one edge per s/f pair, not last-wins. Finish written before its start in the file still pairs when `s.ts <= f.ts`.
+- s/f with no matching X interval, missing id/ts, or finish before start → ignored. Nested overlapping X (call stack): innermost containing interval, not the enclosing parent — including equal-`startTime` parent/child (Chrome writes the shorter child first). Touching slices that only share an endpoint are siblings (not nested). Flow in idle time between nested slices binds the enclosing slice. Both endpoints in the same X event → no edge. Distinct overlapping X slices (long parent, shorter worker) stay linked; `pred.end` may exceed `succ.start`. Recycled `id` after a flow closes → one edge per s/f pair, not last-wins. Finish written before its start in the file still pairs when `s.ts <= f.ts`.
 
 ## Dependencies
 
@@ -82,6 +82,7 @@ interface SwimEvent    {
 Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-08-19** — s/f may overlap (`pred.end > succ.start`); curves still pred-right → succ-left.
 - **2026-08-19** — Touching X intervals are siblings (`end <= next.start` pops the stack); PR-SWIM-013.
 - **2026-08-18** — Pair s/f by timestamp per process+id so a finish written before its start still links; PR-SWIM-011.
 - **2026-08-18** — Equal-`startTime` sort is longest-first so `nestParents` matches Chrome child-first X order.

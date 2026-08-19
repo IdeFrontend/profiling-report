@@ -114,8 +114,10 @@ function walkDir(
   }
 }
 
+/** Signed cubic handle: toward the other endpoint. Negative when x1 < x0. */
 export function cubicControlPull(x0: number, x1: number): number {
-  return Math.max(24, Math.abs(x1 - x0) * 0.4);
+  const mag = Math.max(24, Math.abs(x1 - x0) * 0.4);
+  return x1 >= x0 ? mag : -mag;
 }
 
 /** Float32-safe time for the WebGL curve pass — same origin as `encodeIntervalPair`. */

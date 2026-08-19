@@ -12,6 +12,7 @@ import {
   MAX_DEPENDENCY_LINKS,
 } from '../../src/swimlane/dependencyLinks';
 import { eventBlockMetrics, eventLinkContentY, rebuildLayout } from '../../src/swimlane/layout';
+import { CURVE_VS } from '../../src/swimlane/shaders';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 
 const hasWebGl2 = WebGlSwimlaneRenderer.isSupported();
@@ -102,6 +103,52 @@ describe('PR-DEPS: dependency links', () => {
     expect(t1).toBeGreaterThan(t0);
     expect(((t0 - v0) / (v1 - v0)) * 400).toBeCloseTo(160);
     expect(((t1 - v0) / (v1 - v0)) * 400).toBeCloseTo(200);
+  });
+
+  it('PR-DEPS-011: overlapping async flow keeps pred-right → succ-left when t0 > t1', () => {
+    const parent: SwimEvent = {
+      id: 'e-parent',
+      name: 'parent',
+      startTime: 0,
+      duration: 1_000_000,
+      dependencies: { predecessors: [], successors: [{ tid: 't-b', index: 0 }] },
+    };
+    const worker: SwimEvent = {
+      id: 'e-worker',
+      name: 'worker',
+      startTime: 100_000,
+      duration: 50_000,
+      dependencies: { predecessors: [{ tid: 't-a', index: 0 }], successors: [] },
+    };
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 1_000_000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-a', name: 'CUBE', events: [parent] },
+            { id: 't-b', name: 'SCALAR', events: [worker] },
+          ],
+        },
+      ],
+    });
+    const link = graphLinks(layout, 'e-parent')[0]!;
+    expect(link).toMatchObject({
+      t0: 1_000_000,
+      t1: 100_000,
+      fromColor: colorForThread('CUBE'),
+      toColor: colorForThread('SCALAR'),
+    });
+    const view = { startTime: 0, endTime: 1_000_000, scrollY: 0 };
+    const { x0, x1 } = linkToScreen(link, view, 400);
+    expect(x0).toBeGreaterThan(x1);
+    const pull = cubicControlPull(x0, x1);
+    expect(pull).toBeLessThan(0);
+    expect(x0 + pull).toBeLessThan(x0);
+    expect(x1 - pull).toBeGreaterThan(x1);
+    expect(CURVE_VS).toMatch(/p1\.x >= p0\.x \? mag : -mag/);
   });
 
   it('PR-DEPS-002: no selection or empty deps yields no paths', () => {
