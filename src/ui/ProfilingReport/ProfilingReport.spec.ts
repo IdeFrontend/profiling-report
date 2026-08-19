@@ -28,6 +28,26 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="gutter-resize-handle"]').exists()).toBe(true);
   });
 
+  it('PR-ROOT-003: switching dependencyMode does not reload the page', async () => {
+    const href = window.location.href;
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'deps-mode',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
+    await wrapper.find('[data-testid="dependency-mode"]').setValue('predecessors');
+    expect(window.location.href).toBe(href);
+    expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="time-axis"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
+    expect((wrapper.find('[data-testid="dependency-mode"]').element as HTMLSelectElement).value).toBe(
+      'predecessors',
+    );
+  });
+
   it('PR-STATS-006: aside close hides the stats panel', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {

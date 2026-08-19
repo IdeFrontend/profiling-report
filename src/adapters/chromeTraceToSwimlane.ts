@@ -1,4 +1,11 @@
-import type { SwimEvent, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
+import type {
+  EventDependencies,
+  EventRef,
+  SwimEvent,
+  SwimlaneModel,
+  SwimProcess,
+  SwimThread,
+} from '../domain/types';
 
 interface ChromeTraceEvent {
   ph?: string;
@@ -8,7 +15,20 @@ interface ChromeTraceEvent {
   ts?: number;
   dur?: number;
   cat?: string;
+  id?: string | number;
   args?: Record<string, unknown>;
+}
+
+/** Async/flow endpoint after ns conversion. Paired by trace `id`. */
+interface AsyncEndpoint {
+  ts: number;
+  pid: string;
+  tid: string;
+}
+
+interface LinkedFlow {
+  start: AsyncEndpoint;
+  end: AsyncEndpoint;
 }
 
 interface ChromeTraceDoc {
@@ -84,11 +104,28 @@ export function chromeTraceToSwimlane(
   }
 
   const processMap = new Map<string, Map<string, SwimThread>>();
+  const flowStarts = new Map<string, AsyncEndpoint[]>();
+  const flowFinishes = new Map<string, AsyncEndpoint[]>();
   let minTime = Number.POSITIVE_INFINITY;
   let maxTime = Number.NEGATIVE_INFINITY;
   let eventSeq = 0;
 
   for (const e of events) {
+    if (e.ph === 's' || e.ph === 'f') {
+      if (e.id == null || e.ts == null) continue;
+      const endpoint: AsyncEndpoint = {
+        ts: e.ts * toNs,
+        pid: String(e.pid ?? 0),
+        tid: String(e.tid ?? 0),
+      };
+      const bucket = e.ph === 's' ? flowStarts : flowFinishes;
+      const id = key(e.pid, e.id);
+      const q = bucket.get(id);
+      if (q) q.push(endpoint);
+      else bucket.set(id, [endpoint]);
+      continue;
+    }
+
     if (e.ph !== 'X' || e.ts == null || e.dur == null) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
@@ -133,13 +170,23 @@ export function chromeTraceToSwimlane(
     );
   }
 
+  const connectionPairs = pairAsyncFlows(flowStarts, flowFinishes);
+  const nestByThread = new Map<SwimThread, Int32Array>();
+  for (const threads of processMap.values()) {
+    for (const thread of threads.values()) {
+      // longest first: nestParents assumes enclosing-before-nested on ties
+      thread.events.sort((a, b) => a.startTime - b.startTime || b.duration - a.duration);
+      if (connectionPairs.length > 0) nestByThread.set(thread, nestParents(thread.events));
+    }
+  }
+  if (connectionPairs.length > 0) {
+    linkAsyncDependencies(processMap, connectionPairs, nestByThread);
+  }
+
   const processes: SwimProcess[] = [...processMap.entries()].map(([pid, threads]) => ({
     id: `p-${pid}`,
     name: processNames.get(pid) ?? `Process ${pid}`,
-    threads: [...threads.values()].map((t) => ({
-      ...t,
-      events: [...t.events].sort((a, b) => a.startTime - b.startTime),
-    })),
+    threads: [...threads.values()],
   }));
 
   return {
@@ -148,4 +195,121 @@ export function chromeTraceToSwimlane(
     maxTime,
     metadata: { displayTimeUnit },
   };
+}
+
+/** Pair each id's starts/finishes by timestamp so file order (f before s) still links. */
+function pairAsyncFlows(
+  starts: Map<string, AsyncEndpoint[]>,
+  finishes: Map<string, AsyncEndpoint[]>,
+): LinkedFlow[] {
+  const pairs: LinkedFlow[] = [];
+  for (const [id, sList] of starts) {
+    const fList = finishes.get(id);
+    if (!fList) continue;
+    sList.sort((a, b) => a.ts - b.ts);
+    fList.sort((a, b) => a.ts - b.ts);
+    let j = 0;
+    for (const start of sList) {
+      while (j < fList.length && fList[j]!.ts < start.ts) j++;
+      const end = fList[j];
+      if (!end) break;
+      pairs.push({ start, end });
+      j++;
+    }
+  }
+  return pairs;
+}
+
+function linkAsyncDependencies(
+  processMap: Map<string, Map<string, SwimThread>>,
+  connectionPairs: LinkedFlow[],
+  nestByThread: Map<SwimThread, Int32Array>,
+): void {
+  const seenSucc = new Map<SwimEvent, Set<string>>();
+  const seenPred = new Map<SwimEvent, Set<string>>();
+  for (const pair of connectionPairs) {
+    const start = pair.start;
+    const end = pair.end;
+
+    const parentThread = processMap.get(start.pid)?.get(start.tid);
+    const childThread = processMap.get(end.pid)?.get(end.tid);
+    if (!parentThread || !childThread) continue;
+
+    const parentIndex = findEventIndex(parentThread.events, start.ts, nestByThread.get(parentThread)!);
+    const childIndex = findEventIndex(childThread.events, end.ts, nestByThread.get(childThread)!);
+    if (parentIndex < 0 || childIndex < 0) continue;
+
+    const parent = parentThread.events[parentIndex]!;
+    const child = childThread.events[childIndex]!;
+    if (parent === child) continue;
+    const childRef: EventRef = { tid: childThread.id, index: childIndex };
+    const parentRef: EventRef = { tid: parentThread.id, index: parentIndex };
+    pushRef(ensureDeps(parent).successors, seenSet(seenSucc, parent), childRef);
+    pushRef(ensureDeps(child).predecessors, seenSet(seenPred, child), parentRef);
+  }
+}
+
+/**
+ * Nearest enclosing event index per event (`-1` = none). Call-stack stack: pop
+ * intervals that ended at or before this start (touching slices are siblings).
+ */
+export function nestParents(events: SwimEvent[]): Int32Array {
+  const parent = new Int32Array(events.length).fill(-1);
+  const stack: number[] = [];
+  for (let i = 0; i < events.length; i++) {
+    const start = events[i]!.startTime;
+    while (stack.length > 0) {
+      const top = events[stack[stack.length - 1]!]!;
+      if (top.startTime + top.duration <= start) stack.pop();
+      else break;
+    }
+    if (stack.length > 0) parent[i] = stack[stack.length - 1]!;
+    stack.push(i);
+  }
+  return parent;
+}
+
+/**
+ * Innermost event whose inclusive `[startTime, startTime+duration]` contains `timestamp`.
+ * Events must be sorted startTime asc, longest duration first on ties. Walks the
+ * enclosing-parent chain from the last start ≤ ts so a gap does not scan the whole prefix.
+ */
+function findEventIndex(events: SwimEvent[], timestamp: number, parent: Int32Array): number {
+  let lo = 0;
+  let hi = events.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (events[mid]!.startTime <= timestamp) lo = mid + 1;
+    else hi = mid;
+  }
+  for (let i = lo - 1; i >= 0; i = parent[i]!) {
+    const event = events[i]!;
+    if (timestamp <= event.startTime + event.duration) return i;
+  }
+  return -1;
+}
+
+function ensureDeps(event: SwimEvent): EventDependencies {
+  let deps = event.dependencies;
+  if (!deps) {
+    deps = { predecessors: [], successors: [] };
+    event.dependencies = deps;
+  }
+  return deps;
+}
+
+function pushRef(list: EventRef[], seen: Set<string>, ref: EventRef): void {
+  const key = `${ref.tid}:${ref.index}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+  list.push(ref);
+}
+
+function seenSet(map: Map<SwimEvent, Set<string>>, event: SwimEvent): Set<string> {
+  let keys = map.get(event);
+  if (!keys) {
+    keys = new Set();
+    map.set(event, keys);
+  }
+  return keys;
 }

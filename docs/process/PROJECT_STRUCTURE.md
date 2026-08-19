@@ -79,7 +79,7 @@ profiling-report/
           SwimlaneView.vue
           LaneGutter/
           SwimlaneCanvas/
-          DependencyLinksLayer/                 stub + visual
+          DependencyLinksLayer/                 spec + visual (curves in renderer)
 
       StatsAside/
         StatsAside.vue

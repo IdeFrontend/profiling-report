@@ -8,7 +8,7 @@ Root component and single owner of all interaction state. Orchestrates data load
 
 ## Inputs
 
-The component works in two modes. In **auto-loading mode**, provide **source** — a binary buffer containing a `.rep` file or standalone CTEF JSON. The component detects, parses, and renders automatically. In **host-managed mode**, provide pre-parsed **swimlaneModel** and **reportModel** to skip the internal pipeline. **title** sets the panel header. **theme** and **locale** control presentation. **timeUnit** (ms/µs/ns) selects the display unit. **capabilities** gates Phase 2 features — an array of feature flag strings such as `'roofline'` or `'memoryDiagram'`.
+The component works in two modes. In **auto-loading mode**, provide **source** — a binary buffer containing a `.rep` file or standalone CTEF JSON. The component detects, parses, and renders automatically. In **host-managed mode**, provide pre-parsed **swimlaneModel** and **reportModel** to skip the internal pipeline. **title** sets the panel header. **theme** and **locale** control presentation. **timeUnit** (ms/µs/ns) selects the display unit. **dependencyMode** (`all` / `predecessors` / `successors`) and **dependencyDepth** (hops; default `1`, `-1` no hop cap, 10 000 links per side) filter selection curves and undimmed neighbors; the display-control controls update them in place (no page reload). **capabilities** gates Phase 2 features — an array of feature flag strings such as `'roofline'` or `'memoryDiagram'`.
 
 ## Outputs
 
@@ -162,6 +162,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 1. **PR-ROOT-001** — Mounts with title, shows shell, handles empty source.
 2. **PR-ROOT-002** — Accepts pre-parsed swimlaneModel and reportModel.
+3. **PR-ROOT-003** — Switching `dependencyMode` in 显示控制 does not reload the page.
 
 ## Edge Cases
 
@@ -192,6 +193,7 @@ Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 ## Changelog
 - **2026-08-19** — Missing `bandwidthCards` treated as empty in `reportHasAsideContent`.
 - **2026-08-19** — I/O bandwidth cards count as aside content (I-Q6g).
+- **2026-08-14** — Display-control `dependencyMode` filters curves in place (no reload); PR-ROOT-003.
 - **2026-08-07** — `reportHasAsideContent` includes compute/memory CSV; PR-UI-008.
 - **2026-08-07** — Resizable lane gutter and aside (session-only widths).
 - **2026-08-07** — Viewport time axis shares AxisRuler chrome with overview.

@@ -313,7 +313,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 | S5 pipe drill | PIPE bars; pipe field list P2 | `PipeOccupancyPanel`, pipe details P2 | `pipe_*` |
 | S6 memory | Memory topology P2 | `MemoryTopologyPanel` | `memory_*` |
 | S7 hardware | Hardware details P2 | `HardwareDetailsPanel` | `sidebar_details` |
-| S8 deps / multi | Deps, multiselect, context menu P2 | `DependencyLinksLayer`, etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |
+| S8 deps / multi | Deps, multiselect, context menu P2 | `SwimlaneCanvas` (dep curves in renderer), etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |
 | S9 tabs | Secondary tabs P2 | Host or future tab strip | tab chrome in overviews |
 | Overview charts | Cube/Vector charts | `OverviewCharts` | `v930/entry`, `v930/report-stats-open` |
 | Roofline | Roofline P2 | `RooflinePanel` | `v930/entry`, `v930/report-stats-open` |
