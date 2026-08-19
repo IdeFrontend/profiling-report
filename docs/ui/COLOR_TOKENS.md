@@ -12,6 +12,7 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-bg-panel` | `#262626` | Elevated chrome: aside, cards, detail dock, gutter group headers |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
 | `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card decorative bar (report-stats cyan) |
+| `--pr-color-overview-cube` | `#3078F0` | Also I-Q6g I/O bandwidth card bar fill |
 
 ### Toolbar controls (hardcoded; not CSS vars)
 

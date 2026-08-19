@@ -29,7 +29,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
 | `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
 | `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
-| `Memory.csv` | Optional summary bandwidth tiles | Memory topology diagram + field drill-down |
+| `Memory.csv` | Optional summary I/O bandwidth tiles (I-Q6g) | Memory topology diagram + field drill-down |
 | `MemoryL0.csv` | — | L0 path details on memory diagram |
 | `MemoryUB.csv` | — | UB path details |
 | `L2Cache.csv` | — | Cache tab / L2 hit-rate panels |

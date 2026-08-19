@@ -15,14 +15,14 @@ Producer **format/data specification is still forthcoming**. Product has answere
 - Implement per [INTERIM_DECISIONS](INTERIM_DECISIONS.md) + [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)
 - Timeline with minimal data; hide panels without inputs (Q3)
 - Hide overview charts (Q5 / I-Q5+)
-- Thin summary + PIPE mean aggregation (I-Q6a / I-Q6b)
+- Thin summary + PIPE mean aggregation (I-Q6a / I-Q6b); I/O BW cards (I-Q6g)
 - Fixture `data/out.rep` for CI (I-Q4); colors [COLOR_TOKENS](../ui/COLOR_TOKENS.md)
 - Open Chrome Trace `.json` in profiling-report (Q15)
 - Packaging scaffold per [PACKAGING_SUGGESTIONS](PACKAGING_SUGGESTIONS.md) (I-Q16–19)
 
 ## Still blocking Product-final (not coding) acceptance
 
-- Exact summary tile formulas (Q6) — interim hides undecidable tiles
+- Exact summary tile formulas (Q6) — I-Q6g guesses I/O BW; compute / avg util still hidden
 - Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
 - Overview chart producer — interim keeps charts hidden
 - Phase 2 contracts Q9–Q11, Q10
@@ -39,7 +39,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q3** | Required embeds / missing data | **Resolved** | Minimal open; **hide** missing panels. → [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
 | **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
-| **Q6** | Report summary formulas | **Interim** | Thin OpBasicInfo tiles only; hide compute/BW/avg util; PIPE = mean non-`NA` — [I-Q6a](INTERIM_DECISIONS.md) / [I-Q6b](INTERIM_DECISIONS.md). **PIPE layout:** **Cube \| Vector toggle for MIX** ops ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)); non-MIX shows the relevant side only. Block-scoped details vs mean bars — [I-Q6c](INTERIM_DECISIONS.md). |
+| **Q6** | Report summary formulas | **Interim** | Duration thin tiles [I-Q6a](INTERIM_DECISIONS.md). **I/O BW cards** [I-Q6g](INTERIM_DECISIONS.md) (Memory.csv mean; peak = max of the same main-mem BW columns). Still hide compute TFLOPS and avg core util. PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). **PIPE layout:** **Cube \| Vector toggle for MIX** ops ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)); non-MIX shows the relevant side only. Block-scoped details vs mean bars — [I-Q6c](INTERIM_DECISIONS.md). **Open:** Product peak (`HardwareInfo` / `Report.csv`?), whether score is measured/peak (sketch 81 disagrees), AIC+AIV aggregation vs split (sketch splits), `block_id` mean vs max vs selected block. |
 | **Q7** | Hardware details sidebar | **Resolved (MVP)** | **Out of MVP** until further product/spec docs. |
 | **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children` (sketch Card tree). |
 

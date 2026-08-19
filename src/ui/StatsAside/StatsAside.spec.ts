@@ -273,7 +273,7 @@ describe('StatsAside', () => {
     expect(bare.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-011: compute/BW/util cards absent under I-Q6a', () => {
+  it('PR-STATS-011: compute/util cards absent; BW not from summary.ioBandwidth', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -287,9 +287,56 @@ describe('StatsAside', () => {
       },
     });
     expect(wrapper.find('[data-testid="stats-compute-card"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-bandwidth-input"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-bandwidth-output"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-core-util-card"]').exists()).toBe(false);
     expect(wrapper.text()).not.toMatch(/算力情况|Computing power|输入带宽|Input bandwidth|平均核利用率|Average core/);
+  });
+
+  it('PR-STATS-024: I/O bandwidth cards with aic|aiv columns, duration chrome, TB/s, bar = score%', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          bandwidthCards: [
+            {
+              id: 'input',
+              sides: [
+                { side: 'aic', measuredGBs: 80, peakGBs: 1600 },
+                { side: 'aiv', measuredGBs: 90, peakGBs: 1600 },
+              ],
+            },
+            {
+              id: 'output',
+              sides: [{ side: 'aiv', measuredGBs: 1.56, peakGBs: 1600 }],
+            },
+          ],
+        }),
+      },
+    });
+    const input = wrapper.get('[data-testid="stats-bandwidth-input"]');
+    expect(input.classes()).toContain('pr-card');
+    expect(input.text()).toMatch(/输入带宽|Input bandwidth/);
+    expect(input.find('.pr-bw-cols').exists()).toBe(true);
+    expect(input.get('[data-testid="stats-bandwidth-input-aic"]').text()).toMatch(/aic/);
+    expect(input.get('[data-testid="stats-bandwidth-input-aic"]').text()).toMatch(/0\.08 \/ 1\.6 TB\/s/);
+    const aicScore = input.get('[data-testid="stats-bandwidth-input-aic-score"]');
+    expect(aicScore.classes()).toContain('pr-card__value');
+    expect(aicScore.text()).toBe('5');
+    expect(input.get('[data-testid="stats-bandwidth-input-aic-bar"]').attributes('style')).toMatch(
+      /width:\s*5%/,
+    );
+    expect(input.get('[data-testid="stats-bandwidth-input-aiv-score"]').text()).toBe('6');
+    expect(input.get('[data-testid="stats-bandwidth-input-aiv"]').text()).toMatch(/0\.09 \/ 1\.6 TB\/s/);
+    expect(input.get('[data-testid="stats-bandwidth-input-aiv-bar"]').attributes('style')).toMatch(
+      /width:\s*6%/,
+    );
+
+    const output = wrapper.get('[data-testid="stats-bandwidth-output"]');
+    expect(output.classes()).toContain('pr-card');
+    expect(output.text()).toMatch(/输出带宽|Output bandwidth/);
+    expect(output.find('[data-testid="stats-bandwidth-output-aic"]').exists()).toBe(false);
+    expect(output.get('[data-testid="stats-bandwidth-output-aiv"]').text()).toMatch(/0\.002 \/ 1\.6 TB\/s/);
   });
 
   it('PR-STATS-012: PIPE scale and hatched bars', () => {

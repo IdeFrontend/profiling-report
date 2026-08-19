@@ -63,7 +63,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Report summary (time, compute, BW, util) | M | **Interim:** name / type / duration (+ raw freq if present); **hide** compute / BW / avg-util until Q6 — [I-Q6a](../context/INTERIM_DECISIONS.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
+| Report summary (time, compute, BW, util) | M | **Interim:** duration [I-Q6a](../context/INTERIM_DECISIONS.md); **I/O BW cards** [I-Q6g](../context/INTERIM_DECISIONS.md); **hide** compute / avg-util until Q6 — [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | Aside shell (title, close, meta, 更多) | M | Close hides aside; meta hide-if-missing; 更多 opens hardware overlay (I-Q7a) — [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md), [INTERACTIONS](INTERACTIONS.md) |
 | PIPE occupancy bars | M | From PipeUtilization.csv; mean non-`NA` ([I-Q6b](../context/INTERIM_DECISIONS.md)); **hide** if missing |
 | Cube \| Vector PIPE toggle (MIX only) | M1 | [`v930/compute-load`](./source/v930/compute-load.jpeg); non-MIX shows relevant side only |

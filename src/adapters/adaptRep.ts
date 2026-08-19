@@ -1,5 +1,7 @@
 import type {
   AdaptedReport,
+  BandwidthCardModel,
+  BandwidthSideRow,
   CsvTableModel,
   HardwareDetailsModel,
   HardwareSection,
@@ -28,6 +30,22 @@ const MEMORY_CSV_FILES = [
   'Memory.csv',
   'MemoryUB.csv',
 ] as const;
+
+const BANDWIDTH_COLUMNS = {
+  input: {
+    aic: ['aic_main_mem_read_bw(GB/s)', 'aic_main_mem_read_bw'],
+    aiv: ['aiv_main_mem_read_bw(GB/s)', 'aiv_main_mem_read_bw'],
+  },
+  output: {
+    aic: ['aic_main_mem_write_bw(GB/s)', 'aic_main_mem_write_bw'],
+    aiv: ['aiv_main_mem_write_bw(GB/s)', 'aiv_main_mem_write_bw'],
+  },
+} as const;
+
+const ALL_MAIN_MEM_BW_COLUMNS = Object.values(BANDWIDTH_COLUMNS).flatMap((d) => [...d.aic, ...d.aiv]);
+
+/** I-Q6g: only if a side exists but maxFamily found nothing (should not happen). */
+const BANDWIDTH_PEAK_FALLBACK_GBS = 1600;
 
 /** I-Q11d fallback when Memory BW columns are all NA. */
 const ROOFLINE_PEAK_BW_FALLBACK_GBS = 100;
@@ -215,6 +233,35 @@ function rooflineFromCsv(
     peakComputeTops: ROOFLINE_PEAK_COMPUTE_TOPS,
     peakBandwidthGBs: peakBw,
   };
+}
+
+function bandwidthSide(
+  rows: Record<string, string>[],
+  side: BandwidthSideRow['side'],
+  columns: readonly string[],
+  peakGBs: number,
+): BandwidthSideRow | undefined {
+  const measuredGBs = meanFamily(rows, [...columns]);
+  if (measuredGBs == null) return undefined;
+  return { side, measuredGBs, peakGBs };
+}
+
+/** I-Q6g: mean non-NA Memory.csv main-mem BW; peak = max of those columns (I-Q11d pool). */
+function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
+  if (!payload) return [];
+  const { rows } = parseCsv(decodeUtf8(payload));
+  if (rows.length === 0) return [];
+  const peakGBs = maxFamily(rows, ALL_MAIN_MEM_BW_COLUMNS) ?? BANDWIDTH_PEAK_FALLBACK_GBS;
+  const cards: BandwidthCardModel[] = [];
+  for (const id of ['input', 'output'] as const) {
+    const sides: BandwidthSideRow[] = [];
+    const aic = bandwidthSide(rows, 'aic', BANDWIDTH_COLUMNS[id].aic, peakGBs);
+    const aiv = bandwidthSide(rows, 'aiv', BANDWIDTH_COLUMNS[id].aiv, peakGBs);
+    if (aic) sides.push(aic);
+    if (aiv) sides.push(aiv);
+    if (sides.length > 0) cards.push({ id, sides });
+  }
+  return cards;
 }
 
 function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
@@ -410,6 +457,7 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
     computeTables: compute.tables,
     memoryTables: memory.tables,
     csvTexts: { ...compute.texts, ...memory.texts },
+    bandwidthCards: bandwidthCardsFromMemory(parsed.payloads['Memory.csv']),
     ...(roofline ? { roofline } : {}),
     ...(hardwareDetails ? { hardwareDetails } : {}),
     ...(memoryTopology ? { memoryTopology } : {}),
@@ -425,6 +473,7 @@ export function emptyReportViewModel(): ReportViewModel {
     computeTables: [],
     memoryTables: [],
     csvTexts: {},
+    bandwidthCards: [],
   };
 }
 
