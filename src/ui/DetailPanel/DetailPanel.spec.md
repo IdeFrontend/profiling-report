@@ -17,7 +17,7 @@ Raised bottom 「详情」 dock: titled header with a close control over a three
 
 ## Behavior
 
-The header renders the 详情 tab label with an accent underline and the close button. The body forwards `selected` to DetailSummary and `selected.args` to DetailParameter. The Relevent column mounts **only** when `neighbors` is supplied: a report with no dependency data passes `undefined` and the dock falls back to two columns (VIEW_DATA_REQUIREMENTS hide-when-missing policy).
+The header renders the 详情 tab label with an accent underline and the close button. The body forwards `selected` to DetailSummary and `selected.args` to DetailParameter. The Relevent column mounts **only** when `neighbors` is supplied: a report with no dependency data passes `undefined` and the dock falls back to two columns — the body carries `pr-detail-panel__body--no-relevant`, which drops the third grid track so Parameter takes the freed width instead of leaving it empty (VIEW_DATA_REQUIREMENTS hide-when-missing policy).
 
 Height is capped at `45vh` so the dock never swallows the timeline; each column scrolls internally.
 
@@ -27,7 +27,7 @@ The dock keeps a fixed height and each column scrolls inside it, so switching se
 
 1. **PR-DPANEL-001** — Renders the detail panel shell with summary when selected is provided.
 1. **PR-DPANEL-002** — The header close button emits `close`.
-1. **PR-DPANEL-003** — The Relevent column renders only when `neighbors` is provided.
+1. **PR-DPANEL-003** — The Relevent column renders only when `neighbors` is provided, and the body drops to a two-track grid without it.
 1. **PR-DPANEL-004** — Level changes from the Relevent toolbar are re-emitted to the parent.
 
 ## Visual
@@ -44,6 +44,7 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 [dependencies](../../../specs/core/dependencies.spec.md) for the neighbour model.
 
 ## Changelog
+- **2026-08-19** — Two-column fallback: the body drops the Relevent grid track when `neighbors` is omitted, so Parameter takes the freed width.
 - **2026-08-14** — Dropped the `direction` prop and its re-emit: DetailRelevant owns the direction toggle now, and the dock only relays `level`.
 - **2026-08-13** — Fixed dock height and sketch column widths so the panel stops resizing per selection.
 - **2026-08-13** — Panel chrome (详情 tab + close), Relevent column gated on dependency data.

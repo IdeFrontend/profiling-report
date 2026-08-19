@@ -89,13 +89,19 @@ const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+/** Depth drives the graph walk below, so it stays here; the direction filter is DetailRelevant's own. */
+const dependencyLevel = ref<number>(DEPENDENCY_LEVEL_UNLIMITED);
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
+/** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
+const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
 /** Host prop wins; otherwise the ones the adapter derived from the loaded source. */
-const caps = computed<ReportCapability[]>(
-  () => props.capabilities ?? internalCapabilities.value ?? [],
-);
+const caps = computed<ReportCapability[]>(() => {
+  if (props.capabilities) return props.capabilities;
+  if (hostManaged.value) return [];
+  return internalCapabilities.value ?? [];
+});
 const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
@@ -157,6 +163,7 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   viewState.value = next;
   selected.value = null;
   hovered.value = null;
+  dependencyLevel.value = DEPENDENCY_LEVEL_UNLIMITED;
   const fromMeta = model?.metadata?.defaultCollapsedIds;
   collapsedGroupIds.value = Array.isArray(fromMeta)
     ? fromMeta.filter((id): id is string => typeof id === 'string')
@@ -225,7 +232,14 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
 watch(
   () => props.source,
   (src) => {
-    if (src) loadFromSource(src);
+    if (src) {
+      loadFromSource(src);
+      return;
+    }
+    // Source removed: drop what the adapter derived, or its flags outlive the report.
+    internalSwim.value = null;
+    internalReport.value = null;
+    internalCapabilities.value = null;
   },
   { immediate: true },
 );
@@ -393,9 +407,6 @@ function onTimeUnit(u: TimeDisplayUnit) {
 const dependencyGraph = computed(() =>
   hasDependencies(swim.value) ? buildDependencyGraph(swim.value) : null,
 );
-/** Depth drives the graph walk below, so it stays here; the direction filter is DetailRelevant's own. */
-const dependencyLevel = ref<number>(DEPENDENCY_LEVEL_UNLIMITED);
-
 /** `undefined` (not an empty pair) so DetailPanel hides the column entirely. */
 const dependencyNeighbors = computed(() => {
   const sel = selected.value;

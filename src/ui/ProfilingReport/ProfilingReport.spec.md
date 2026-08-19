@@ -8,7 +8,7 @@ Root component and single owner of all interaction state. Orchestrates data load
 
 ## Inputs
 
-The component works in two modes. In **auto-loading mode**, provide **source** — a binary buffer containing a `.rep` file or standalone CTEF JSON. The component detects, parses, and renders automatically. In **host-managed mode**, provide pre-parsed **swimlaneModel** and **reportModel** to skip the internal pipeline. **title** sets the panel header. **theme** and **locale** control presentation. **timeUnit** (ms/µs/ns) selects the display unit. **capabilities** gates Phase 2 features — an array of feature flag strings such as `'roofline'`, `'memoryDiagram'`, or `'dependencies'`. It is optional in auto-loading mode: the adapter derives capabilities from the source it just parsed and those apply on their own, so a host that passes only `source` still gets the panels its report can fill. A supplied array overrides them wholesale (host-managed mode has no adapter to ask).
+The component works in two modes. In **auto-loading mode**, provide **source** — a binary buffer containing a `.rep` file or standalone CTEF JSON. The component detects, parses, and renders automatically. In **host-managed mode**, provide pre-parsed **swimlaneModel** and **reportModel** to skip the internal pipeline. **title** sets the panel header. **theme** and **locale** control presentation. **timeUnit** (ms/µs/ns) selects the display unit. **capabilities** gates Phase 2 features — an array of feature flag strings such as `'roofline'`, `'memoryDiagram'`, or `'dependencies'`. It is optional in auto-loading mode: the adapter derives capabilities from the source it just parsed and those apply on their own, so a host that passes only `source` still gets the panels its report can fill. A supplied array overrides them wholesale (host-managed mode has no adapter to ask). Adapter-derived flags never outlive their report: they are dropped when `source` is cleared, and they are ignored entirely once the host drives `swimlaneModel` / `reportModel`, which publish an empty capability set unless the host passes its own array.
 
 ## Outputs
 
@@ -154,7 +154,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — summary, pipe occupancy, compute tables, or memory tables (same gate as the toolbar toggle).
 
-**Dependency state (interim I-Q9).** The root owns the dependency graph and the connection level the detail dock's Relevent column reads. `hasDependencies` gates the build: a model without edges keeps a `null` graph rather than two event-sized `Map`s, and the dock is handed no neighbours, so the column never mounts. Depth changes the walk, so `level` lives here and travels down as a prop; the direction filter never leaves [DetailRelevant](../DetailPanel/DetailRelevant/DetailRelevant.spec.md). Neighbour semantics — cap, ordering, cycles — belong to [dependencies](../../../specs/core/dependencies.spec.md).
+**Dependency state (interim I-Q9).** The root owns the dependency graph and the connection level the detail dock's Relevent column reads. `hasDependencies` gates the build: a model without edges keeps a `null` graph rather than two event-sized `Map`s, and the dock is handed no neighbours, so the column never mounts. Depth changes the walk, so `level` lives here and travels down as a prop; it resets to unlimited with the rest of the view on every model load, so a depth typed on one report does not carry into the next. The direction filter never leaves [DetailRelevant](../DetailPanel/DetailRelevant/DetailRelevant.spec.md). Neighbour semantics — cap, ordering, cycles — belong to [dependencies](../../../specs/core/dependencies.spec.md).
 
 ## Visual
 
@@ -164,7 +164,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 1. **PR-ROOT-001** — Mounts with title, shows shell, handles empty source.
 2. **PR-ROOT-002** — Accepts pre-parsed swimlaneModel and reportModel.
-3. **PR-ROOT-003** — Auto-loaded sources apply the adapter's capabilities; the prop overrides them.
+3. **PR-ROOT-003** — Auto-loaded sources apply the adapter's capabilities; the prop overrides them; host-managed models and a removed `source` publish none.
 
 ## Edge Cases
 
@@ -193,6 +193,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-19** — Adapter capabilities no longer leak: cleared when `source` is removed and ignored while the host drives `swimlaneModel` / `reportModel`; `dependencyLevel` resets with the view on model load.
 - **2026-08-18** — PR-ROOT-003: auto-loaded sources apply the capabilities the adapter derived; previously `loadReportSource` computed them and the component dropped them, so `.rep` reports rendered with none unless the host repeated the array.
 - **2026-08-18** — Owns the interim I-Q9 dependency graph and connection level for the detail dock's Relevent column; `capabilities` gained `'dependencies'`.
 - **2026-08-07** — `reportHasAsideContent` includes compute/memory CSV; PR-UI-008.
