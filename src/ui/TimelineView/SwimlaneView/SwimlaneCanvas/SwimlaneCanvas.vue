@@ -294,8 +294,6 @@ function onPointerMove(e: PointerEvent): void {
   const w = Math.max(1, rect.width);
   const time = timeAtX(x);
 
-  backend.setCursorX(x);
-  if (useWebGl.value) overlay.setCursorX(x);
   schedulePaint();
   emit('cursor', { time, xRatio: x / w });
 
@@ -339,8 +337,6 @@ function onPointerUp(e: PointerEvent): void {
 function onPointerLeave(): void {
   // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
   if (measureGestureActive) {
-    backend.setCursorX(null);
-    if (useWebGl.value) overlay.setCursorX(null);
     schedulePaint();
     emit('cursor', null);
     emit('hover', null, 0, 0);
@@ -348,8 +344,6 @@ function onPointerLeave(): void {
   }
   dragging = false;
   measureAnchorTime = null;
-  backend.setCursorX(null);
-  if (useWebGl.value) overlay.setCursorX(null);
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -56,6 +56,8 @@ const emit = defineEmits<{
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
+const bodyRef = ref<HTMLElement | null>(null);
+const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 /** Swimlane mouse-follow bar (DOM above Card strips). */
 const cursorXRatio = ref<number | null>(null);
@@ -101,13 +103,31 @@ const cardHeaders = computed(() => {
 
 const visibleCardStrips = computed(() => {
   const scrollY = props.view.scrollY;
-  // Body height unknown here; keep strips with any overlap of a generous viewport.
+  const viewportH = bodyViewportH.value || Number.POSITIVE_INFINITY;
   return cardHeaders.value
     .map((h) => ({
       ...h,
       top: h.y - scrollY,
     }))
-    .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < 4000);
+    .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < viewportH);
+});
+
+let bodyResizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  const el = bodyRef.value;
+  if (!el) return;
+  const sync = () => {
+    bodyViewportH.value = el.clientHeight;
+  };
+  sync();
+  bodyResizeObserver = new ResizeObserver(sync);
+  bodyResizeObserver.observe(el);
+});
+
+onUnmounted(() => {
+  bodyResizeObserver?.disconnect();
+  bodyResizeObserver = null;
 });
 
 watch(
@@ -181,6 +201,7 @@ defineExpose({
 
 <template>
   <div
+    ref="bodyRef"
     class="pr-swim-row pr-swim-row--body"
     :style="{ '--pr-gutter-width': `${localGutterWidth}px` }"
   >
