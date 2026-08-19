@@ -45,7 +45,7 @@ import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterT
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   title?: string;
   source?: ArrayBuffer | Uint8Array;
   swimlaneModel?: SwimlaneModel;
@@ -61,7 +61,10 @@ const props = defineProps<{
    *  as a data attribute for CSS/test hooking; intended to drive conditional sections
    *  (roofline, memory diagram, etc.) once those views land. */
   capabilities?: ReportCapability[];
-}>();
+}>(), {
+  dependencyMode: 'all',
+  dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+});
 
 const emit = defineEmits<{
   ready: [];
@@ -80,8 +83,8 @@ const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
-const localDependencyMode = ref<DependencyMode>(props.dependencyMode ?? 'all');
-const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth ?? DEFAULT_DEPENDENCY_DEPTH));
+const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
+const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 /** Session-only panel widths (not persisted). */
@@ -93,8 +96,6 @@ const collapsedGroupIds = ref<string[]>([]);
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
 const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
-const depMode = computed<DependencyMode>(() => localDependencyMode.value);
-const depDepth = computed(() => localDependencyDepth.value);
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
@@ -427,8 +428,8 @@ defineExpose({ selectEventById, viewState });
       :aside-available="asideAvailable"
       :zoom-percent="zoomPercent"
       :time-unit="unit"
-      :dependency-mode="depMode"
-      :dependency-depth="depDepth"
+      :dependency-mode="localDependencyMode"
+      :dependency-depth="localDependencyDepth"
       :locale="locale"
       :measure-mode="viewState.measureMode"
       @update:search-query="onSearch"
@@ -473,8 +474,8 @@ defineExpose({ selectEventById, viewState });
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
           :time-unit="unit"
-          :dependency-mode="depMode"
-          :dependency-depth="depDepth"
+          :dependency-mode="localDependencyMode"
+          :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
           @update:search-query="onSearch"
@@ -493,8 +494,8 @@ defineExpose({ selectEventById, viewState });
           :bounds="bounds"
           :view="viewState"
           :unit="unit"
-          :dependency-mode="depMode"
-          :dependency-depth="depDepth"
+          :dependency-mode="localDependencyMode"
+          :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
           :collapsed-ids="collapsedGroupIds"
           :display-swim="displaySwim"

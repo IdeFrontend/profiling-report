@@ -5,8 +5,7 @@ import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimla
 import * as depLinks from '../../src/swimlane/dependencyLinks';
 import {
   cubicControlPull,
-  dependencyLinks,
-  dependencyNeighborIds,
+  dependencyGraph,
   glLinkTime,
   linkIntersectsTimeView,
   linkToScreen,
@@ -14,6 +13,16 @@ import {
 } from '../../src/swimlane/dependencyLinks';
 import { eventBlockMetrics, eventLinkContentY, rebuildLayout } from '../../src/swimlane/layout';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
+
+function graphLinks(
+  ...args: Parameters<typeof dependencyGraph>
+): ReturnType<typeof dependencyGraph>['links'] {
+  return dependencyGraph(...args).links;
+}
+
+function graphIds(...args: Parameters<typeof dependencyGraph>): Set<string> {
+  return dependencyGraph(...args).ids;
+}
 
 function linkedModel(): SwimlaneModel {
   const parent: SwimEvent = {
@@ -59,8 +68,8 @@ describe('PR-DEPS: dependency links', () => {
     expect(layout.lanesByTid.get('t-a')).toBe(layout.lanes[0]);
     expect(layout.lanesByTid.get('t-b')).toBe(layout.lanes[1]);
     const view = { startTime: 0, endTime: 100, scrollY: 0 };
-    const fromParent = dependencyLinks(layout, 'e-parent');
-    const fromChild = dependencyLinks(layout, 'e-child');
+    const fromParent = graphLinks(layout, 'e-parent');
+    const fromChild = graphLinks(layout, 'e-child');
     expect(fromParent).toHaveLength(1);
     expect(fromChild).toHaveLength(1);
 
@@ -102,11 +111,11 @@ describe('PR-DEPS: dependency links', () => {
       duration: 5,
     });
     const layout = rebuildLayout(model);
-    expect(dependencyLinks(layout, null)).toEqual([]);
-    expect(dependencyLinks(layout, 'e-plain')).toEqual([]);
+    expect(graphLinks(layout, null)).toEqual([]);
+    expect(graphLinks(layout, 'e-plain')).toEqual([]);
     const orphan = linkedModel();
     orphan.processes[0]!.threads[0]!.events[0]!.dependencies!.successors = [{ tid: 'missing', index: 0 }];
-    expect(dependencyLinks(rebuildLayout(orphan), 'e-parent')).toEqual([]);
+    expect(graphLinks(rebuildLayout(orphan), 'e-parent')).toEqual([]);
   });
 
   it('PR-DEPS-003: Canvas and WebGL paint selected dependency curves without throw', () => {
@@ -137,7 +146,7 @@ describe('PR-DEPS: dependency links', () => {
 
   it('PR-DEPS-004: each curve gradient runs from predecessor fill to successor fill', () => {
     const layout = rebuildLayout(linkedModel());
-    const link = dependencyLinks(layout, 'e-parent')[0]!;
+    const link = graphLinks(layout, 'e-parent')[0]!;
     expect(link.fromColor).toBe(colorForThread('CUBE'));
     expect(link.toColor).toBe(colorForThread('SCALAR'));
     expect(link.fromColor).not.toBe(link.toColor);
@@ -184,26 +193,25 @@ describe('PR-DEPS: dependency links', () => {
       ],
     });
 
-    expect(dependencyLinks(layout, 'e-hub', 'all')).toHaveLength(2);
-    const predOnly = dependencyLinks(layout, 'e-hub', 'predecessors');
+    expect(graphLinks(layout, 'e-hub', 'all')).toHaveLength(2);
+    const predOnly = graphLinks(layout, 'e-hub', 'predecessors');
     expect(predOnly).toHaveLength(1);
     expect(predOnly[0]).toMatchObject({ t0: 20, t1: 30 });
-    const succOnly = dependencyLinks(layout, 'e-hub', 'successors');
+    const succOnly = graphLinks(layout, 'e-hub', 'successors');
     expect(succOnly).toHaveLength(1);
     expect(succOnly[0]).toMatchObject({ t0: 50, t1: 60 });
 
-    expect([...dependencyNeighborIds(layout, 'e-hub', 'predecessors')].sort()).toEqual([
+    expect([...graphIds(layout, 'e-hub', 'predecessors')].sort()).toEqual([
       'e-hub',
       'e-pred',
     ]);
-    expect([...dependencyNeighborIds(layout, 'e-hub', 'successors')].sort()).toEqual([
+    expect([...graphIds(layout, 'e-hub', 'successors')].sort()).toEqual([
       'e-hub',
       'e-succ',
     ]);
   });
 
   it('PR-DEPS-010: overlay uses renderer neighbor ids and does not walk the graph', () => {
-    const neighborSpy = vi.spyOn(depLinks, 'dependencyNeighborIds');
     const graphSpy = vi.spyOn(depLinks, 'dependencyGraph');
     const overlay = new SwimlaneOverlayPainter();
     overlay.setLayout(rebuildLayout(linkedModel()));
@@ -212,15 +220,12 @@ describe('PR-DEPS: dependency links', () => {
     overlay.setSearchQuery('p');
     overlay.setLayout(rebuildLayout(linkedModel()));
     overlay.setSelection('e-child', 'e-parent');
-    expect(neighborSpy).not.toHaveBeenCalled();
     expect(graphSpy).not.toHaveBeenCalled();
-    neighborSpy.mockRestore();
     graphSpy.mockRestore();
 
     const glCanvas = document.createElement('canvas');
     if (!WebGlSwimlaneRenderer.isSupported(glCanvas)) return;
     const glGraph = vi.spyOn(depLinks, 'dependencyGraph');
-    const glNeighbor = vi.spyOn(depLinks, 'dependencyNeighborIds');
     const gl = new WebGlSwimlaneRenderer();
     expect(gl.attach(glCanvas)).toBe(true);
     gl.resize(400, 120);
@@ -230,26 +235,21 @@ describe('PR-DEPS: dependency links', () => {
     overlay.setSelection('e-parent', null);
     overlay.setNeighborIds(gl.getNeighborIds());
     glGraph.mockClear();
-    glNeighbor.mockClear();
 
     overlay.setSelection('e-parent', 'e-child');
     overlay.setSearchQuery('parent');
     expect(glGraph).not.toHaveBeenCalled();
-    expect(glNeighbor).not.toHaveBeenCalled();
 
     gl.setSelection('e-child', null);
     overlay.setSelection('e-child', null);
     overlay.setNeighborIds(gl.getNeighborIds());
     expect(glGraph).toHaveBeenCalledTimes(1);
-    expect(glNeighbor).not.toHaveBeenCalled();
     gl.dispose();
     glGraph.mockRestore();
-    glNeighbor.mockRestore();
   });
 
   it('PR-DEPS-008: Canvas fallback does not recompute dependency graph on pan', () => {
     const graphSpy = vi.spyOn(depLinks, 'dependencyGraph');
-    const linksSpy = vi.spyOn(depLinks, 'dependencyLinks');
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
@@ -258,19 +258,16 @@ describe('PR-DEPS: dependency links', () => {
     renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
     renderer.setSelection('e-parent', null);
     graphSpy.mockClear();
-    linksSpy.mockClear();
 
     renderer.render();
     renderer.setView({ startTime: 10, endTime: 110, scrollY: 0 });
     renderer.render();
     expect(graphSpy).not.toHaveBeenCalled();
-    expect(linksSpy).not.toHaveBeenCalled();
 
     renderer.setSelection('e-child', null);
     expect(graphSpy).toHaveBeenCalledTimes(1);
     renderer.dispose();
     graphSpy.mockRestore();
-    linksSpy.mockRestore();
   });
 
   it('PR-DEPS-009: WebGL does not recompute dependency graph on search', () => {
@@ -332,21 +329,21 @@ describe('PR-DEPS: dependency links', () => {
       ],
     });
 
-    expect(dependencyLinks(layout, 'e-b', 'all', 1)).toHaveLength(2);
-    expect(dependencyLinks(layout, 'e-b', 'all', 2).map((l) => [l.t0, l.t1])).toEqual(
+    expect(graphLinks(layout, 'e-b', 'all', 1)).toHaveLength(2);
+    expect(graphLinks(layout, 'e-b', 'all', 2).map((l) => [l.t0, l.t1])).toEqual(
       expect.arrayContaining([
         [10, 20],
         [30, 40],
         [50, 60],
       ]),
     );
-    expect(dependencyLinks(layout, 'e-b', 'all', 2)).toHaveLength(3);
-    expect(dependencyLinks(layout, 'e-a', 'successors', 1)).toHaveLength(1);
-    expect(dependencyLinks(layout, 'e-a', 'successors', 2)).toHaveLength(2);
-    expect(dependencyLinks(layout, 'e-a', 'successors', -1)).toHaveLength(2);
-    expect(dependencyLinks(layout, 'e-b', 'all', 0)).toEqual([]);
-    expect([...dependencyNeighborIds(layout, 'e-b', 'all', 0)]).toEqual(['e-b']);
-    expect([...dependencyNeighborIds(layout, 'e-a', 'successors', 2)].sort()).toEqual([
+    expect(graphLinks(layout, 'e-b', 'all', 2)).toHaveLength(3);
+    expect(graphLinks(layout, 'e-a', 'successors', 1)).toHaveLength(1);
+    expect(graphLinks(layout, 'e-a', 'successors', 2)).toHaveLength(2);
+    expect(graphLinks(layout, 'e-a', 'successors', -1)).toHaveLength(2);
+    expect(graphLinks(layout, 'e-b', 'all', 0)).toEqual([]);
+    expect([...graphIds(layout, 'e-b', 'all', 0)]).toEqual(['e-b']);
+    expect([...graphIds(layout, 'e-a', 'successors', 2)].sort()).toEqual([
       'e-a',
       'e-b',
       'e-c',
@@ -373,7 +370,7 @@ describe('PR-DEPS: dependency links', () => {
       maxTime: n * 10,
       processes: [{ id: 'p', name: 'P', threads: [{ id: 't', name: 'CUBE', events }] }],
     });
-    const links = dependencyLinks(layout, 'e-0', 'successors', -1);
+    const links = graphLinks(layout, 'e-0', 'successors', -1);
     expect(links).toHaveLength(MAX_DEPENDENCY_LINKS);
     expect(n - 1).toBeGreaterThan(MAX_DEPENDENCY_LINKS);
 

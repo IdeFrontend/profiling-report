@@ -114,30 +114,6 @@ function walkDir(
   }
 }
 
-/** Selected event plus laid-out predecessor/successor ids (for undimmed fill + labels). */
-export function dependencyNeighborIds(
-  layout: SwimlaneLayout,
-  selectedId: string | null,
-  mode: DependencyMode = 'all',
-  depth: number = DEFAULT_DEPENDENCY_DEPTH,
-): Set<string> {
-  return dependencyGraph(layout, selectedId, mode, depth).ids;
-}
-
-/**
- * Predecessor right-mid → selected left-mid, then selected right-mid → successor left-mid,
- * repeated for each hop up to `depth`. Times and content Y are view-independent so WebGL
- * can pan/zoom with uniforms only. Skips refs not in the layout (collapsed / missing).
- */
-export function dependencyLinks(
-  layout: SwimlaneLayout,
-  selectedId: string | null,
-  mode: DependencyMode = 'all',
-  depth: number = DEFAULT_DEPENDENCY_DEPTH,
-): DependencyLink[] {
-  return dependencyGraph(layout, selectedId, mode, depth).links;
-}
-
 export function cubicControlPull(x0: number, x1: number): number {
   return Math.max(24, Math.abs(x1 - x0) * 0.4);
 }

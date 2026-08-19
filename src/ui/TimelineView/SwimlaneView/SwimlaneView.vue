@@ -1,31 +1,38 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type {
-  DependencyMode,
-  MeasureRange,
-  SwimEvent,
-  SwimlaneModel,
-  SwimlaneViewState,
-  TimeDisplayUnit,
+import {
+  DEFAULT_DEPENDENCY_DEPTH,
+  type DependencyMode,
+  type MeasureRange,
+  type SwimEvent,
+  type SwimlaneModel,
+  type SwimlaneViewState,
+  type TimeDisplayUnit,
 } from '../../../domain/types';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 
-const props = defineProps<{
-  groups: GutterGroup[];
-  collapsedIds: string[];
-  model: SwimlaneModel | null;
-  view: SwimlaneViewState;
-  selectedEventId: string | null;
-  hoveredEventId: string | null;
-  searchQuery: string;
-  measureMode?: boolean;
-  measureRange?: MeasureRange | null;
-  timeUnit?: TimeDisplayUnit;
-  dependencyMode?: DependencyMode;
-  dependencyDepth?: number;
-  preferRenderer?: 'auto' | 'webgl' | 'canvas';
-}>();
+const props = withDefaults(
+  defineProps<{
+    groups: GutterGroup[];
+    collapsedIds: string[];
+    model: SwimlaneModel | null;
+    view: SwimlaneViewState;
+    selectedEventId: string | null;
+    hoveredEventId: string | null;
+    searchQuery: string;
+    measureMode?: boolean;
+    measureRange?: MeasureRange | null;
+    timeUnit?: TimeDisplayUnit;
+    dependencyMode?: DependencyMode;
+    dependencyDepth?: number;
+    preferRenderer?: 'auto' | 'webgl' | 'canvas';
+  }>(),
+  {
+    dependencyMode: 'all',
+    dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+  },
+);
 
 const emit = defineEmits<{
   'update:scrollY': [scrollY: number];
@@ -88,8 +95,8 @@ defineExpose({
       :measure-mode="measureMode"
       :measure-range="measureRange"
       :time-unit="timeUnit"
-      :dependency-mode="dependencyMode ?? 'all'"
-      :dependency-depth="dependencyDepth ?? 1"
+      :dependency-mode="dependencyMode"
+      :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"

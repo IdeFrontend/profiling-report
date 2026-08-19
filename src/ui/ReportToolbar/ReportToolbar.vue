@@ -4,18 +4,24 @@ import type { TimeDisplayUnit, DependencyMode } from '../../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
 
-defineProps<{
-  searchQuery: string;
-  asideVisible: boolean;
-  asideAvailable: boolean;
-  zoomPercent: number;
-  timeUnit: TimeDisplayUnit;
-  dependencyMode?: DependencyMode;
-  dependencyDepth?: number;
-  locale?: string;
-  title?: string;
-  measureMode?: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    searchQuery: string;
+    asideVisible: boolean;
+    asideAvailable: boolean;
+    zoomPercent: number;
+    timeUnit: TimeDisplayUnit;
+    dependencyMode?: DependencyMode;
+    dependencyDepth?: number;
+    locale?: string;
+    title?: string;
+    measureMode?: boolean;
+  }>(),
+  {
+    dependencyMode: 'all',
+    dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+  },
+);
 
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
@@ -327,7 +333,7 @@ function onDependencyDepth(e: Event) {
             <span class="pr-toolbar__display-label">{{ t('dependencyDisplay', locale) }}</span>
             <select
               data-testid="dependency-mode"
-              :value="dependencyMode ?? 'all'"
+              :value="dependencyMode"
               @change="emit('update:dependencyMode', ($event.target as HTMLSelectElement).value as DependencyMode)"
             >
               <option value="all">{{ t('depModeAll', locale) }}</option>
@@ -343,7 +349,7 @@ function onDependencyDepth(e: Event) {
               min="-1"
               :max="MAX_DEPENDENCY_DEPTH"
               step="1"
-              :value="dependencyDepth ?? DEFAULT_DEPENDENCY_DEPTH"
+              :value="dependencyDepth"
               :title="t('dependencyDepthHint', locale)"
               @change="onDependencyDepth"
             >

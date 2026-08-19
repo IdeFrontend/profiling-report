@@ -1,33 +1,40 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { formatTime } from '../../../../domain/formatTime';
-import type {
-  DependencyMode,
-  MeasureRange,
-  SwimEvent,
-  SwimlaneModel,
-  SwimlaneViewWindow,
-  TimeDisplayUnit,
+import {
+  DEFAULT_DEPENDENCY_DEPTH,
+  type DependencyMode,
+  type MeasureRange,
+  type SwimEvent,
+  type SwimlaneModel,
+  type SwimlaneViewWindow,
+  type TimeDisplayUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import { contentHeightFromModel } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 
-const props = defineProps<{
-  model: SwimlaneModel | null;
-  view: SwimlaneViewWindow;
-  selectedEventId: string | null;
-  hoveredEventId: string | null;
-  searchQuery: string;
-  measureMode?: boolean;
-  measureRange?: MeasureRange | null;
-  timeUnit?: TimeDisplayUnit;
-  dependencyMode?: DependencyMode;
-  dependencyDepth?: number;
-  /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
-  preferRenderer?: 'auto' | 'webgl' | 'canvas';
-}>();
+const props = withDefaults(
+  defineProps<{
+    model: SwimlaneModel | null;
+    view: SwimlaneViewWindow;
+    selectedEventId: string | null;
+    hoveredEventId: string | null;
+    searchQuery: string;
+    measureMode?: boolean;
+    measureRange?: MeasureRange | null;
+    timeUnit?: TimeDisplayUnit;
+    dependencyMode?: DependencyMode;
+    dependencyDepth?: number;
+    /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
+    preferRenderer?: 'auto' | 'webgl' | 'canvas';
+  }>(),
+  {
+    dependencyMode: 'all',
+    dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+  },
+);
 
 const emit = defineEmits<{
   select: [event: SwimEvent | null];
@@ -105,8 +112,8 @@ function applyViewState(forceModel = false): void {
     attachedModel = props.model;
   }
   backend.setView(props.view);
-  backend.setDependencyMode?.(props.dependencyMode ?? 'all');
-  backend.setDependencyDepth?.(props.dependencyDepth ?? 1);
+  backend.setDependencyMode?.(props.dependencyMode);
+  backend.setDependencyDepth?.(props.dependencyDepth);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   if (useWebGl.value) {

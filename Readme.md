@@ -30,7 +30,7 @@ Start here: **[docs/README.md](docs/README.md)**
 
 - [`data/out.rep`](data/out.rep) — sample CANN report container
 - [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
-- [`data/ffn_dense.trace.json`](data/ffn_dense.trace.json) — denser CTEF fixture (async s/f pairs); most events are `ph: 'C'` counters (`ReadyCount_*`, `OOO_Mem_Usage(*)`) that the adapter skips — kept for a future counter-lane feature
+- [`data/ffn_dense.trace.json`](data/ffn_dense.trace.json) — denser CTEF fixture (async s/f pairs); `ph: 'C'` counters stripped (regenerate when a counter lane lands)
 - [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers
 
 ```bash

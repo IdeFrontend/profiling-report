@@ -9,7 +9,7 @@ import {
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
-import { dependencyNeighborIds } from '../../src/swimlane/dependencyLinks';
+import { dependencyGraph } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
@@ -197,7 +197,7 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
         },
       ],
     });
-    const ids = dependencyNeighborIds(layout, 'e-parent');
+    const ids = dependencyGraph(layout, 'e-parent').ids;
     expect(ids.has('e-parent')).toBe(true);
     expect(ids.has('e-child')).toBe(true);
     expect(ids.has('e-plain')).toBe(false);
