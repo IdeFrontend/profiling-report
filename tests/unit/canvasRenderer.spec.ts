@@ -70,7 +70,6 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     renderer.resize(400, 120);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
-    renderer.setCursorX(40);
     expect(() => renderer.render()).not.toThrow();
   });
 
@@ -241,7 +240,6 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
       setView() {},
       setSelection() {},
       setSearchQuery() {},
-      setCursorX() {},
       contentHeight: () => 0,
       eventScreenRect: () => null,
       findEvent: () => null,

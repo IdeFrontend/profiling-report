@@ -34,6 +34,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 4. **PR-CANVAS-004** — Measure overlay shows fade and gray borders when measureRange is set.
 5. **PR-CANVAS-005** — `pointerleave` during an active measure drag does not abort the drag or allow select.
 6. **PR-CANVAS-006** — Clearing measureMode/measureRange mid-drag does not pan or select on subsequent move/up.
+7. **PR-CANVAS-007** — Zero-length measure range (`start === end`) renders no fade/border overlay.
 
 ## Edge Cases
 
@@ -66,6 +67,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-08-19** — Zero-length measure range skips overlay; PR-CANVAS-007.
 - **2026-08-13** — Measure borders under Card strips; swim cursor owned by SwimlaneView above strips.
 - **2026-08-12** — Measure overlay corrected to match sketch: fade outside, gray borders, double-sided arrow.
 - **2026-08-10** — Flush paint after canvas resize (no blink on panel drag); draw surface = viewport height.

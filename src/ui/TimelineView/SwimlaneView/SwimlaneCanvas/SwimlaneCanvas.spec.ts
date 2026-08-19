@@ -70,6 +70,19 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="measure-border-right"]').exists()).toBe(true);
   });
 
+  it('PR-CANVAS-007: zero-length measure range renders no overlay', () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        measureMode: true,
+        measureRange: { startTime: 300, endTime: 300 },
+        timeUnit: 'ms',
+      },
+    });
+    expect(wrapper.find('[data-testid="measure-fade-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(false);
+  });
+
   it('PR-CANVAS-005: pointerleave during measure does not abort drag', async () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {

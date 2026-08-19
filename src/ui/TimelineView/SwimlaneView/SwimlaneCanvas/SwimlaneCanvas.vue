@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { formatTime } from '../../../../domain/formatTime';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -259,8 +258,11 @@ function xAtTime(t: number): number {
 const measureGeometry = computed(() => {
   const range = props.measureRange;
   if (!range) return null;
-  const left = xAtTime(Math.min(range.startTime, range.endTime));
-  const right = xAtTime(Math.max(range.startTime, range.endTime));
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  if (!(end > start)) return null;
+  const left = xAtTime(start);
+  const right = xAtTime(end);
   return { left, right, width: Math.max(1, right - left) };
 });
 
