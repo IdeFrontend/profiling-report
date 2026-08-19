@@ -1,5 +1,7 @@
 import type {
   AdaptedReport,
+  BandwidthCardModel,
+  BandwidthSideRow,
   CsvTableModel,
   HardwareDetailsModel,
   HardwareSection,
@@ -14,6 +16,7 @@ import type {
 } from '../domain/types';
 import { laneColorKey } from '../domain/laneColors';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
+import { firstLabelledMemoryTopology } from './memoryTopology';
 
 const COMPUTE_CSV_FILES = [
   'PipeUtilization.csv',
@@ -27,6 +30,22 @@ const MEMORY_CSV_FILES = [
   'Memory.csv',
   'MemoryUB.csv',
 ] as const;
+
+const BANDWIDTH_COLUMNS = {
+  input: {
+    aic: ['aic_main_mem_read_bw(GB/s)', 'aic_main_mem_read_bw'],
+    aiv: ['aiv_main_mem_read_bw(GB/s)', 'aiv_main_mem_read_bw'],
+  },
+  output: {
+    aic: ['aic_main_mem_write_bw(GB/s)', 'aic_main_mem_write_bw'],
+    aiv: ['aiv_main_mem_write_bw(GB/s)', 'aiv_main_mem_write_bw'],
+  },
+} as const;
+
+const ALL_MAIN_MEM_BW_COLUMNS = Object.values(BANDWIDTH_COLUMNS).flatMap((d) => [...d.aic, ...d.aiv]);
+
+/** I-Q6g: sketch 1.6 TB/s hardware guess for all four aic/aiv × in/out slots. */
+const BANDWIDTH_PEAK_GBS = 1600;
 
 /** I-Q11d fallback when Memory BW columns are all NA. */
 const ROOFLINE_PEAK_BW_FALLBACK_GBS = 100;
@@ -102,7 +121,7 @@ function parseNumber(raw: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function meanFamily(rows: Record<string, string>[], columns: string[]): number | undefined {
+function meanFamily(rows: Record<string, string>[], columns: readonly string[]): number | undefined {
   const vals: number[] = [];
   for (const col of columns) {
     for (const row of rows) {
@@ -114,7 +133,7 @@ function meanFamily(rows: Record<string, string>[], columns: string[]): number |
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-function maxFamily(rows: Record<string, string>[], columns: string[]): number | undefined {
+function maxFamily(rows: Record<string, string>[], columns: readonly string[]): number | undefined {
   let max: number | undefined;
   for (const col of columns) {
     for (const row of rows) {
@@ -190,13 +209,7 @@ function rooflineFromCsv(
   if (!(bytes > 0) || !(performance > 0)) return undefined;
 
   const intensity = fops / bytes;
-  const peakBw =
-    maxFamily(memRows, [
-      'aiv_main_mem_read_bw(GB/s)',
-      'aiv_main_mem_write_bw(GB/s)',
-      'aic_main_mem_read_bw(GB/s)',
-      'aic_main_mem_write_bw(GB/s)',
-    ]) ?? ROOFLINE_PEAK_BW_FALLBACK_GBS;
+  const peakBw = maxFamily(memRows, ALL_MAIN_MEM_BW_COLUMNS) ?? ROOFLINE_PEAK_BW_FALLBACK_GBS;
 
   const mixLabels = mixLabelsFromRows(arithRows, useVector ? VEC_MIX : CUBE_MIX);
 
@@ -214,6 +227,44 @@ function rooflineFromCsv(
     peakComputeTops: ROOFLINE_PEAK_COMPUTE_TOPS,
     peakBandwidthGBs: peakBw,
   };
+}
+
+function firstPresentColumn(
+  rows: Record<string, string>[],
+  aliases: readonly string[],
+): string | undefined {
+  const keys = rows[0];
+  if (!keys) return undefined;
+  return aliases.find((c) => Object.prototype.hasOwnProperty.call(keys, c));
+}
+
+function bandwidthSide(
+  rows: Record<string, string>[],
+  side: BandwidthSideRow['side'],
+  columns: readonly string[],
+): BandwidthSideRow | undefined {
+  const col = firstPresentColumn(rows, columns);
+  if (!col) return undefined;
+  const measuredGBs = meanFamily(rows, [col]);
+  if (measuredGBs == null) return undefined;
+  return { side, measuredGBs, peakGBs: BANDWIDTH_PEAK_GBS };
+}
+
+/** I-Q6g: mean non-NA Memory.csv main-mem BW; peak = sketch 1600 GB/s. */
+function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
+  if (!payload) return [];
+  const { rows } = parseCsv(decodeUtf8(payload));
+  if (rows.length === 0) return [];
+  const cards: BandwidthCardModel[] = [];
+  for (const id of ['input', 'output'] as const) {
+    const sides: BandwidthSideRow[] = [];
+    const aic = bandwidthSide(rows, 'aic', BANDWIDTH_COLUMNS[id].aic);
+    const aiv = bandwidthSide(rows, 'aiv', BANDWIDTH_COLUMNS[id].aiv);
+    if (aic) sides.push(aic);
+    if (aiv) sides.push(aiv);
+    if (sides.length > 0) cards.push({ id, sides });
+  }
+  return cards;
 }
 
 function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
@@ -400,6 +451,9 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
     parsed.payloads['Memory.csv'],
   );
   const hardwareDetails = hardwareDetailsFromParsed(parsed);
+  const labelled = firstLabelledMemoryTopology(memory.tables);
+  const memoryTopology = labelled?.model;
+  const bandwidthCards = bandwidthCardsFromMemory(parsed.payloads['Memory.csv']);
   return {
     summary: summaryFromOpBasicInfo(parsed.payloads['OpBasicInfo.csv']),
     pipeOccupancy: pipeOccupancyFromCsv(parsed.payloads['PipeUtilization.csv']),
@@ -407,8 +461,10 @@ function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
     computeTables: compute.tables,
     memoryTables: memory.tables,
     csvTexts: { ...compute.texts, ...memory.texts },
+    ...(bandwidthCards.length > 0 ? { bandwidthCards } : {}),
     ...(roofline ? { roofline } : {}),
     ...(hardwareDetails ? { hardwareDetails } : {}),
+    ...(memoryTopology ? { memoryTopology } : {}),
   };
 }
 
@@ -496,6 +552,7 @@ export function adaptRep(parsed: ParsedRep): AdaptedReport {
   const capabilities: ReportCapability[] = [];
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
+  if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
   return {
     swimlaneModel: swimlaneFromParsed(parsed, reportModel.pipeOccupancy),
     reportModel,

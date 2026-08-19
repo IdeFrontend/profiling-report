@@ -71,15 +71,21 @@ Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), o
 
 ### `ReportViewModel` (M)
 
-OP-report analytics bundle: `summary`, `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
+OP-report analytics bundle: `summary`, `bandwidthCards[]` (I-Q6g), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
 
 **Why:** Separates Ascend OP report chrome from the timeline. PyPTO-only hosts can omit it; `.rep` adapter always fills what CSVs allow.
 
 ### `SummaryMetrics` (M)
 
-Op name/type, task duration, optional raw frequency fields. Compute / bandwidth / avg util fields remain optional and **unset under Interim [I-Q6a](../context/INTERIM_DECISIONS.md)** until Q6 / data spec.
+Op name/type, task duration, optional raw frequency fields. Compute / avg util remain optional and **unset under [I-Q6a](../context/INTERIM_DECISIONS.md)**. I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([I-Q6g](../context/INTERIM_DECISIONS.md)), not `summary.ioBandwidth`.
 
-**Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns.
+**Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns plus documented I-Q6g guesses.
+
+### `BandwidthCardModel` (M, I-Q6g)
+
+`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1.6 TB/s constant until Product supplies a field. Optional on `ReportViewModel` (omit when unused).
+
+**Why:** Dual aic \| aiv columns match `summary-cards.png`; hide-if-NA per side. Same card chrome as duration.
 
 ### `PipeOccupancyItem` (M)
 
@@ -230,9 +236,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell (M):** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → open interim `HardwareDetailsPanel` when data exists (I-Q7a) and emit `open-hardware-details`. **PIPE (M):** scale, hatched bars, optional absolute times (I-Q6f), **详情** → emit `open-pipe-details` (detail panel M1 separate). Mode switcher remains an **M1 separate slice**.
-
-Inline today: summary cards + PIPE occupancy (+ Cube|Vector for MIX) + **RooflinePanel** (M2 interim I-Q11*) when `report.roofline.points` non-empty. Drill-down surfaces: `CsvFieldListPanel` (pipe/memory), `HardwareDetailsPanel` (I-Q7a). Planned: `MemoryTopologyPanel`.
+Right analytics column. **Shell:** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), hardware meta one-liner (核数 / aic频率 / NPU ARCH when present), **更多** → open interim `HardwareDetailsPanel` when data exists (I-Q7a) and emit `open-hardware-details`. **Stacked report:** duration card, I/O bandwidth cards (I-Q6g) when `bandwidthCards` non-empty, Roofline (M2 interim I-Q11*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay. No mode-tab switcher. Overlay header **←** returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
@@ -256,15 +260,15 @@ Searchable field list with CSV tabs, optional block switcher, **查看全部** e
 
 ### `RooflinePanel` (M2)
 
-Log-log roofline chart from `RooflineViewModel` (I-Q11a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until I-Q11f superseded. Mounted in `StatsAside` below PIPE; hide when no points.
+Log-log roofline chart from `RooflineViewModel` (I-Q11a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until I-Q11f superseded. Mounted on the StatsAside stacked report after the duration card; hide when no points.
 
 **Why:** FEATURE_MATRIX / sketches; interim math unblocks M2 while Q11 open.
 
 ### `MemoryTopologyPanel` (M2)
 
-Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([Q12](../context/OPEN_QUESTIONS.md), changelog #5); optional field list.
+Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([Q12](../context/OPEN_QUESTIONS.md), changelog #5). Mounted on the stacked 报告统计 below PIPE; **详情** opens the memory CSV overlay.
 
-**Why:** Named stub; geometry stays in asset, labels from adapter mapping table.
+**Why:** Geometry stays in the SVG asset; labels from adapter mapping table.
 
 ### `HardwareDetailsPanel` (M1 interim I-Q7a)
 

@@ -73,4 +73,17 @@ describe('CsvFieldListPanel', () => {
       text: csvTexts['PipeUtilization.csv'],
     });
   });
+
+  it('PR-CSV-005: tab switch does not emit bound block; field list falls back', async () => {
+    const wrapper = mount(CsvFieldListPanel, {
+      props: { tables, csvTexts, selectedBlockId: '1' },
+    });
+
+    expect(wrapper.text()).toContain('0.3');
+    await wrapper.get('[data-testid="csv-tab-ArithmeticUtilization.csv"]').trigger('click');
+    expect(wrapper.emitted('update:selectedBlockId')).toBeUndefined();
+    expect(wrapper.text()).toContain('aic_cube_ratio');
+    expect(wrapper.text()).toContain('NA');
+    expect(wrapper.get('[data-testid="csv-block"]').element).toHaveProperty('value', '0');
+  });
 });

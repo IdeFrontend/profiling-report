@@ -96,14 +96,14 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 
 - Aside **close (X)** clears `asideVisible` (equivalent to toolbar stats toggle off). See [StatsAside.spec.md](../../src/ui/StatsAside/StatsAside.spec.md).
 - **更多** / More opens interim `HardwareDetailsPanel` (I-Q7a) when data exists and emits `open-hardware-details`.
-- Aside modes (M1): overview drill-downs for Pipe details / Memory / Hardware — see [FEATURE_MATRIX](FEATURE_MATRIX.md) and changelog #2–#4.
+- Stacked 报告统计 (M2): duration, roofline, PIPE, topology — no mode-tab switcher. PIPE **详情** opens compute CSV overlay; topology **详情** opens memory CSV overlay; **←** returns to the stack.
 - PIPE bars remain global mean aggregates ([I-Q6b](../context/INTERIM_DECISIONS.md)) unless Product later ties them to selection or measure (Q22).
-- Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../context/INTERIM_DECISIONS.md)).
+- Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../context/INTERIM_DECISIONS.md)); topology labels use the same `selectedBlockId`.
 - Cube \| Vector toggle on PIPE for MIX ops only.
-- PIPE section **详情** navigates to compute CSV details + emits `open-pipe-details`.
-- Roofline (M2 interim I-Q11*): shown below PIPE when `report.roofline.points` non-empty; tabs omitted.
-- Compute details: tabs PipeUtilization | ArithmeticUtilization | ResourceConflictRatio.
-- Memory details: tabs Memory L1 | L2Cache | Memory L0 | Memory UB; **查看全部** opens full CSV ([I-Q6d](../context/INTERIM_DECISIONS.md)).
+- PIPE section **详情** navigates to compute CSV overlay + emits `open-pipe-details`.
+- Roofline (M2 interim I-Q11*): shown on the stack after the duration card when `report.roofline.points` non-empty; tabs omitted.
+- Compute details overlay: tabs PipeUtilization | ArithmeticUtilization | ResourceConflictRatio.
+- Memory details overlay: tabs Memory L1 | L2Cache | Memory L0 | Memory UB; **查看全部** opens full CSV ([I-Q6d](../context/INTERIM_DECISIONS.md)).
 - Selecting a lane or event may filter lists later (still open); do not invent until Product confirms.
 
 ## Accessibility and robustness

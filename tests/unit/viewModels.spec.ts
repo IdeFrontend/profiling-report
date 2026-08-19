@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { adaptRep, parseRep } from '../../src/index';
+import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../src/adapters/memoryTopology';
 import { loadOutRepBytes } from '../helpers/fixtures';
+import type { CsvTableModel } from '../../src/domain/types';
 
 describe('PR-VM: report view-models (interim)', () => {
   it('PR-VM-001 (interim I-Q6a): OpBasicInfo → thin summary only', () => {
@@ -17,6 +19,48 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.computeTflops).toBeUndefined();
     expect(summary.ioBandwidth).toBeUndefined();
     expect(summary.avgCoreUtil).toBeUndefined();
+  });
+
+  it('PR-VM-013 (interim I-Q6g): Memory.csv → bandwidthCards mean non-NA; peak 1600 GB/s', () => {
+    const fixture = adaptRep(parseRep(loadOutRepBytes())).reportModel.bandwidthCards;
+    expect(fixture).toBeDefined();
+    expect(fixture!.map((c) => c.id)).toEqual(['input', 'output']);
+    const fixtureIn = Object.fromEntries(fixture![0]!.sides.map((s) => [s.side, s]));
+    expect(fixtureIn.aic).toBeUndefined();
+    expect(fixtureIn.aiv).toBeDefined();
+    expect(fixtureIn.aiv!.measuredGBs).toBeGreaterThan(1);
+    expect(fixtureIn.aiv!.peakGBs).toBe(1600);
+    const fixtureOut = Object.fromEntries(fixture![1]!.sides.map((s) => [s.side, s]));
+    expect(fixtureOut.aic).toBeUndefined();
+    expect(fixtureOut.aiv!.peakGBs).toBe(1600);
+
+    const parsed = parseRep(loadOutRepBytes());
+    parsed.payloads['Memory.csv'] = new TextEncoder().encode(
+      [
+        'block_id,aic_main_mem_read_bw(GB/s),aiv_main_mem_read_bw(GB/s),aic_main_mem_write_bw(GB/s),aiv_main_mem_write_bw(GB/s)',
+        '0,80,90,NA,70',
+        '1,80,NA,NA,90',
+      ].join('\n'),
+    );
+    const cards = adaptRep(parsed).reportModel.bandwidthCards;
+    expect(cards?.map((c) => c.id)).toEqual(['input', 'output']);
+    const input = Object.fromEntries(cards![0]!.sides.map((s) => [s.side, s]));
+    expect(input.aic).toMatchObject({ measuredGBs: 80, peakGBs: 1600 });
+    expect(input.aiv?.measuredGBs).toBe(90);
+    const output = Object.fromEntries(cards![1]!.sides.map((s) => [s.side, s]));
+    expect(output.aic).toBeUndefined();
+    expect(output.aiv).toMatchObject({ measuredGBs: 80, peakGBs: 1600 });
+
+    parsed.payloads['Memory.csv'] = new TextEncoder().encode(
+      ['block_id,aiv_main_mem_read_bw', '0,50', '1,70'].join('\n'),
+    );
+    const aliased = adaptRep(parsed).reportModel.bandwidthCards;
+    expect(aliased).toEqual([
+      { id: 'input', sides: [{ side: 'aiv', measuredGBs: 60, peakGBs: 1600 }] },
+    ]);
+
+    delete parsed.payloads['Memory.csv'];
+    expect(adaptRep(parsed).reportModel.bandwidthCards).toBeUndefined();
   });
 
   it('PR-VM-002 (interim I-Q6b): PipeUtilization → PIPE bars mean of non-NA', () => {
@@ -170,13 +214,33 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(byKey['Current Freq']).toBe('1650');
   });
 
-  // M2 deferred: adaptRep does not yet populate memoryTopology (change-log #5).
-  it.skip('PR-VM-011 (Q12 + change-log #5): memoryTopology with data-driven edge labels', () => {
+  it('PR-VM-011 (Q12 + change-log #5): memoryTopology with data-driven edge labels', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const topo = adapted.reportModel.memoryTopology;
     expect(topo).toBeDefined();
     expect(adapted.capabilities).toContain('memoryDiagram');
     expect(topo!.nodes.length).toBeGreaterThan(0);
     expect(topo!.edges.filter((e) => e.label !== undefined).length).toBeGreaterThan(0);
+  });
+
+  it('PR-VM-012: topology labels are block-scoped; snapshot uses first labelled block', () => {
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+        rows: [
+          { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+          { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '4.25' },
+        ],
+        blockIds: ['0', '1'],
+      },
+    ];
+    expect(buildMemoryTopology(tables, '0')).toBeUndefined();
+    const block1 = buildMemoryTopology(tables, '1');
+    expect(block1?.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
+    expect(buildMemoryTopology(tables, '9')).toBeUndefined();
+    const first = firstLabelledMemoryTopology(tables);
+    expect(first?.blockId).toBe('1');
+    expect(first?.model.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
   });
 });

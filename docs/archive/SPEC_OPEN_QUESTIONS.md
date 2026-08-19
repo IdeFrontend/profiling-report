@@ -23,14 +23,16 @@ Prioritized questions to close gaps and contradictions between [INPUT_FORMATS.md
 
 For each card, what is **field → file → formula** (including peaks for the progress bars)?
 
-| Card | Needed |
-| --- | --- |
-| 算力情况 | Score (e.g. 90), measured TFLOPS, peak TFLOPS |
-| 输入带宽 | Score, measured TB/s, peak TB/s |
-| 输出带宽 | Score, measured TB/s, peak TB/s |
-| 平均核利用率 | %, enabled cores / total cores |
+| Card | Needed | Interim |
+| --- | --- | --- |
+| 算力情况 | Score (e.g. 90), measured TFLOPS, peak TFLOPS | Still hidden (I-Q6a) |
+| 输入带宽 | Score, measured TB/s, peak TB/s | **I-Q6g:** Memory.csv mean + 1.6 TB/s peak; score = measured/peak. Sketch 81 ≠ ~1% on `out.rep` |
+| 输出带宽 | Score, measured TB/s, peak TB/s | same as 输入 |
+| 平均核利用率 | %, enabled cores / total cores | Still hidden (I-Q6a) |
 
-Also: secondary text on 整体耗时 (“N 次迭代 / 核”) — source?
+Also: secondary text on 整体耗时 (“N 次迭代 / 核”) — source? **I-Q6e:** `Block Dim` → iterations/core.
+
+**Still open for 6–7:** real peak (HardwareInfo / Report.csv?), aggregation (mean vs max vs selected block), whether `Report.csv` is the card payload.
 
 ### Q4. Report statistics header
 

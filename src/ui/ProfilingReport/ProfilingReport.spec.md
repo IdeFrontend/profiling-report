@@ -140,7 +140,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Data loading.** When `source` is provided (without pre-parsed models), the component calls `loadReportSource`, which detects `.rep` (magic bytes) vs standalone CTEF JSON. A `.rep` binary produces a full report with swimlane, summary, and pipe occupancy. Standalone CTEF produces swimlane only — the report model's `summary` is empty and `pipeOccupancy` is `[]`.
 
-**Aside availability.** `asideAvailable` is true when `summary.taskDurationUs` is set (I-Q6a duration card) or `pipeOccupancy` is non-empty. Name/type alone do not open the aside.
+**Aside availability.** `asideAvailable` is true when duration, I/O bandwidth cards (I-Q6g), PIPE, CSV tables, roofline, hardware details, or labelled topology exist. Name/type alone do not open the aside. Missing `bandwidthCards` on a host-managed model is treated as empty.
 
 **State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
 
@@ -152,7 +152,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge. Clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).
 
-**Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — summary, pipe occupancy, compute tables, or memory tables (same gate as the toolbar toggle).
+**Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — duration, bandwidth cards, PIPE, CSV tables, roofline, hardware, or labelled topology (same gate as the toolbar toggle).
 
 ## Visual
 
@@ -191,6 +191,8 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-19** — Missing `bandwidthCards` treated as empty in `reportHasAsideContent`.
+- **2026-08-19** — I/O bandwidth cards count as aside content (I-Q6g).
 - **2026-08-14** — Display-control `dependencyMode` filters curves in place (no reload); PR-ROOT-003.
 - **2026-08-07** — `reportHasAsideContent` includes compute/memory CSV; PR-UI-008.
 - **2026-08-07** — Resizable lane gutter and aside (session-only widths).

@@ -60,8 +60,8 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | Shown as ms in mockup (unit conversion in UI) |
 | 5 | 算力情况 | — | — | **Unspecified in docx** |
-| 6 | 输入带宽 | — | — | **Unspecified in docx** |
-| 7 | 输出带宽 | — | — | **Unspecified in docx** |
+| 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **I-Q6g:** measured = mean non-`NA`; peak = 1600 GB/s (sketch 1.6 TB/s); display TB/s |
+| 7 | 输出带宽 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | same as #6 |
 | 8 | 平均核利用率 | — | — | **Unspecified in docx** |
 
 ### Visualization logic (from mockup)
@@ -70,13 +70,26 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | --- | --- |
 | Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
 | Meta row | Segments **核数** / **aic频率** / **NPU ARCH** only when `SummaryMetrics.coreCount` / `currentFreq` / `npuArchLabel` are set. Hide entire meta row if all empty. Do **not** invent values. Adapter may leave cores/ARCH unset until `HardwareInfo` mapping exists; `Current Freq` from OpBasicInfo feeds aic频率. **`Rated Freq` / `ratedFreq` is intentionally not shown** on this shell (sketch aic频率 only). |
-| 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Emit `open-hardware-details` only — full **硬件信息详情** panel (§11.2.3.1) remains **out of MVP (Q7)**. |
+| 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Opens interim `HardwareDetailsPanel` when data exists (I-Q7a) and emits `open-hardware-details`. |
 | 整体耗时 card | Large duration + **decorative** short cyan progress bar (I-Q6e, not a util %). Secondary: `blockDim` → iterations/core text; else `opName`; else omit. No standalone op-type card. |
 | 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — **hidden until Q6** |
-| 输入/输出带宽 card | Dual bars with measured / peak TB/s — **hidden until Q6** |
+| 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak TB/s` — **I-Q6g** (hide side/card when NA). Same card chrome as 整体耗时. |
 | 平均核利用率 card | Percentage bar + enabled cores fraction — **hidden until Q6** |
 
-Do **not** invent formulas for cards 5–8 until product defines fields; wire only once sources are known.
+Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 use [I-Q6g](../context/INTERIM_DECISIONS.md) until Q6 closes.
+
+### Interim I-Q6g (input / output bandwidth)
+
+| Slot | Interim |
+| --- | --- |
+| Measured | Mean of non-`NA` matching Memory.csv column(s) across `block_id` (same as I-Q6b) |
+| Peak | 1600 GB/s (1.6 TB/s) for every aic/aiv × in/out slot — sketch HW guess, **not** max of measured columns |
+| Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
+| Display | TB/s = GB/s ÷ 1000; ≥1 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 |
+| Layout | Same card chrome as 整体耗时. Inner aic \| aiv columns; `aic`/`aiv` to the right of the score (no `%`). Cards stack full-width |
+| Bar | Fill width = score % of track (`--pr-color-bandwidth-bar`); same 6px hatched track as duration; 0% fill has no 2px sliver |
+| NA | Omit that aic/aiv column; omit the card if both sides NA |
+| `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused |
 
 ---
 
@@ -174,7 +187,7 @@ Hide `RooflinePanel` when no GM point can be derived.
 
 - Horizontal 0–100% tracks with a percent scale above the rows; solid fill = ratio; hatched remainder to 100%.
 - In-bar absolute ([I-Q6f](../context/INTERIM_DECISIONS.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
-- **详情** emits `open-pipe-details` until the compute-load detail panel (§11.2.5.1 / M1) is implemented.
+- **详情** opens the compute CSV overlay (`CsvFieldListPanel`) and emits `open-pipe-details`.
 - Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([I-Q6b](../context/INTERIM_DECISIONS.md)); detail tabs are block-scoped ([I-Q6c](../context/INTERIM_DECISIONS.md)).
 - Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).
 
@@ -331,7 +344,8 @@ Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../context/OPEN
 
 | Topic | Source status |
 | --- | --- |
-| Report-stat cards 5–8 field derivation | Empty in product tables |
+| Report-stat cards 5, 8 field derivation | Empty in product tables |
+| I/O bandwidth peak / score (cards 6–7) | **I-Q6g** guesses; Product still open |
 | Stats header 核数 / freq / NPU ARCH source | HardwareInfo vs OpBasicInfo unresolved |
 | Roofline tab names vs pipe-ratio fields; missing axis formulas | Contradictory / incomplete |
 | Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |

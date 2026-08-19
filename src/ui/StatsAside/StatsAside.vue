@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
-import type { PipeOccupancyItem, ReportCapability, ReportViewModel } from '../../domain/types';
+import type {
+  BandwidthSideRow,
+  PipeOccupancyItem,
+  ReportCapability,
+  ReportViewModel,
+} from '../../domain/types';
+import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
+import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
@@ -20,9 +27,7 @@ const emit = defineEmits<{
 }>();
 
 type PipeSide = 'cube' | 'vector';
-type AsideMode = 'summary' | 'pipe' | 'compute' | 'memory';
-/** Overlay for I-Q7a hardware; CSV drill-downs use mode tabs. */
-type AsideSurface = 'modes' | 'hardware';
+type AsideSurface = 'report' | 'compute' | 'memory' | 'hardware';
 
 const COLOR: Record<string, string> = {
   cube: 'var(--pr-color-cube)',
@@ -35,37 +40,71 @@ const COLOR: Record<string, string> = {
   default: 'var(--pr-color-default)',
 };
 
-const hasSummary = computed(() => props.report?.summary.taskDurationUs != null);
-
+const hasDuration = computed(() => props.report?.summary.taskDurationUs != null);
+const bandwidthCards = computed(() => props.report?.bandwidthCards ?? []);
+const hasSummary = computed(() => hasDuration.value || bandwidthCards.value.length > 0);
+const bandwidthView = computed(() =>
+  bandwidthCards.value.map((card) => ({
+    id: card.id,
+    sides: card.sides.map((row) => ({
+      side: row.side,
+      score: bandwidthScore(row),
+      sub: `${formatTBs(row.measuredGBs)} / ${formatTBs(row.peakGBs)} TB/s`,
+    })),
+  })),
+);
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
 const showCompute = computed(() => (props.report?.computeTables?.length ?? 0) > 0);
 const showMemory = computed(() => (props.report?.memoryTables?.length ?? 0) > 0);
+const showRoofline = computed(() => (props.report?.roofline?.points?.length ?? 0) > 0);
+const hasHardwareDetails = computed(
+  () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
+);
 
-const availableModes = computed(() => {
-  const modes: AsideMode[] = [];
-  if (hasSummary.value) modes.push('summary');
-  if (showPipe.value) modes.push('pipe');
-  if (showCompute.value) modes.push('compute');
-  if (showMemory.value) modes.push('memory');
-  return modes;
-});
-
-const mode = ref<AsideMode>('summary');
-const asideSurface = ref<AsideSurface>('modes');
+const asideSurface = ref<AsideSurface>('report');
+const selectedBlockId = ref('');
 
 watch(
-  availableModes,
-  (modes) => {
-    if (!modes.includes(mode.value)) {
-      mode.value = modes[0] ?? 'summary';
-    }
+  () => props.report,
+  (report) => {
+    asideSurface.value = 'report';
+    const tables = report?.memoryTables ?? [];
+    const ids = tables.flatMap((t) => t.blockIds);
+    selectedBlockId.value =
+      ids.length === 0 ? '' : (firstLabelledMemoryTopology(tables)?.blockId ?? ids[0]!);
   },
   { immediate: true },
 );
 
-const showRoofline = computed(() => (props.report?.roofline?.points?.length ?? 0) > 0);
-const hasHardwareDetails = computed(
-  () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
+watch(
+  () => [showCompute.value, showMemory.value, hasHardwareDetails.value] as const,
+  ([compute, memory, hw]) => {
+    if (asideSurface.value === 'compute' && !compute) asideSurface.value = 'report';
+    else if (asideSurface.value === 'memory' && !memory) asideSurface.value = 'report';
+    else if (asideSurface.value === 'hardware' && !hw) asideSurface.value = 'report';
+  },
+);
+
+const topologyModel = computed(() => {
+  const tables = props.report?.memoryTables ?? [];
+  if (tables.length > 0) {
+    return selectedBlockId.value ? buildMemoryTopology(tables, selectedBlockId.value) : undefined;
+  }
+  return props.report?.memoryTopology;
+});
+
+const showTopology = computed(() => {
+  const m = topologyModel.value;
+  return Boolean(m && m.edges.some((e) => e.label != null && e.label !== ''));
+});
+
+const csvOnly = computed(
+  () =>
+    !hasSummary.value &&
+    !showPipe.value &&
+    !showRoofline.value &&
+    !showTopology.value &&
+    (showCompute.value || showMemory.value),
 );
 
 const summary = computed(() => props.report?.summary);
@@ -82,9 +121,7 @@ const durationSecondary = computed(() => {
 
 const hasMeta = computed(() => {
   const s = summary.value;
-  return Boolean(
-    s && (s.coreCount != null || s.currentFreq != null || s.npuArchLabel),
-  );
+  return Boolean(s && (s.coreCount != null || s.currentFreq != null || s.npuArchLabel));
 });
 
 const showMore = computed(
@@ -130,26 +167,34 @@ function formatDurationUs(us: number): string {
   return `${us.toFixed(us >= 10 ? 2 : 5)} µs`;
 }
 
-function modeLabel(m: AsideMode): string {
-  if (m === 'summary') return t('modeSummary', props.locale);
-  if (m === 'pipe') return t('modePipe', props.locale);
-  if (m === 'compute') return t('modeCompute', props.locale);
-  return t('modeMemory', props.locale);
-}
-
 function formatPipeAbsolute(v: number): string {
   if (Math.abs(v) >= 100) return v.toFixed(2);
   if (Math.abs(v) >= 1) return v.toFixed(2);
   return v.toFixed(5);
 }
 
+/** I-Q6g: GB/s → TB/s (decimal 1000). Magnitude rounding. */
+function formatTBs(gbs: number): string {
+  const tbs = gbs / 1000;
+  if (tbs >= 1) return tbs.toFixed(1);
+  if (tbs >= 0.01) return tbs.toFixed(2);
+  if (tbs >= 0.001) return tbs.toFixed(3);
+  return tbs.toFixed(4);
+}
+
+function bandwidthScore(row: BandwidthSideRow): number {
+  if (!(row.peakGBs > 0)) return 0;
+  return Math.min(100, Math.max(0, Math.round((row.measuredGBs / row.peakGBs) * 100)));
+}
+
 const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
 
-const headerTitle = computed(() =>
-  asideSurface.value === 'hardware'
-    ? t('hardwareDetails', props.locale)
-    : t('summary', props.locale),
-);
+const headerTitle = computed(() => {
+  if (asideSurface.value === 'hardware') return t('hardwareDetails', props.locale);
+  if (asideSurface.value === 'compute') return t('computeAnalysis', props.locale);
+  if (asideSurface.value === 'memory') return t('memoryAnalysis', props.locale);
+  return t('summary', props.locale);
+});
 
 function openHardware() {
   if (hasHardwareDetails.value) asideSurface.value = 'hardware';
@@ -157,12 +202,16 @@ function openHardware() {
 }
 
 function openPipeDetails() {
-  if (showCompute.value) mode.value = 'compute';
+  if (showCompute.value) asideSurface.value = 'compute';
   emit('open-pipe-details');
 }
 
-function backToModes() {
-  asideSurface.value = 'modes';
+function openMemoryDetails() {
+  if (showMemory.value) asideSurface.value = 'memory';
+}
+
+function backToReport() {
+  asideSurface.value = 'report';
 }
 </script>
 
@@ -174,21 +223,33 @@ function backToModes() {
     <header class="pr-aside__head">
       <div class="pr-aside__title-row">
         <button
-          v-if="asideSurface !== 'modes'"
+          v-if="asideSurface !== 'report'"
           type="button"
           class="pr-aside__back"
           data-testid="stats-aside-back"
           :aria-label="t('back', locale)"
           :title="t('back', locale)"
-          @click="backToModes"
+          @click="backToReport"
         >
           ←
         </button>
-        <span
+        <svg
           v-else
           class="pr-aside__icon"
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
           aria-hidden="true"
-        >▦</span>
+        >
+          <polyline
+            points="1,10 4,6 7,8 13,3"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          />
+        </svg>
         <h3>{{ headerTitle }}</h3>
         <button
           type="button"
@@ -202,7 +263,7 @@ function backToModes() {
         </button>
       </div>
       <p
-        v-if="asideSurface === 'modes' && (hasMeta || showMore)"
+        v-if="asideSurface === 'report' && (hasMeta || showMore)"
         class="pr-aside__meta"
         :data-testid="hasMeta ? 'stats-aside-meta' : undefined"
       >
@@ -241,34 +302,45 @@ function backToModes() {
       />
     </div>
 
-    <template v-else>
-      <nav
-        v-if="availableModes.length > 1"
-        class="pr-aside__modes"
-        data-testid="aside-modes"
-        role="tablist"
-      >
-        <button
-          v-for="m in availableModes"
-          :key="m"
-          type="button"
-          role="tab"
-          class="pr-aside__mode"
-          :class="{ 'pr-aside__mode--active': mode === m }"
-          :data-testid="`aside-mode-${m}`"
-          :aria-selected="mode === m"
-          @click="mode = m"
-        >
-          {{ modeLabel(m) }}
-        </button>
-      </nav>
+    <div
+      v-else-if="asideSurface === 'compute' && showCompute"
+      data-testid="stats-compute"
+      class="pr-aside__detail"
+    >
+      <CsvFieldListPanel
+        :tables="report?.computeTables ?? []"
+        :csv-texts="report?.csvTexts ?? {}"
+        :locale="locale"
+        @view-full-csv="emit('view-full-csv', $event)"
+      />
+    </div>
 
+    <div
+      v-else-if="asideSurface === 'memory' && showMemory"
+      data-testid="stats-memory"
+      class="pr-aside__detail"
+    >
+      <CsvFieldListPanel
+        :tables="report?.memoryTables ?? []"
+        :csv-texts="report?.csvTexts ?? {}"
+        :locale="locale"
+        :selected-block-id="selectedBlockId"
+        @update:selected-block-id="selectedBlockId = $event"
+        @view-full-csv="emit('view-full-csv', $event)"
+      />
+    </div>
+
+    <div
+      v-else
+      class="pr-aside__body"
+    >
       <div
-        v-if="mode === 'summary' && hasSummary"
+        v-if="hasSummary"
         class="pr-cards"
         data-testid="stats-summary"
       >
         <div
+          v-if="hasDuration"
           class="pr-card"
           data-testid="stats-duration-card"
         >
@@ -282,6 +354,10 @@ function backToModes() {
             class="pr-card__bar-track"
             data-testid="stats-duration-bar"
           >
+            <span
+              class="pr-card__bar-hatch"
+              aria-hidden="true"
+            />
             <span class="pr-card__bar-fill pr-card__bar-fill--duration" />
           </div>
           <div
@@ -292,15 +368,66 @@ function backToModes() {
             {{ durationSecondary }}
           </div>
         </div>
+        <div
+          v-for="card in bandwidthView"
+          :key="card.id"
+          class="pr-card pr-card--bw"
+          :data-testid="`stats-bandwidth-${card.id}`"
+        >
+          <div class="pr-card__label">
+            {{ t(card.id === 'input' ? 'inputBandwidth' : 'outputBandwidth', locale) }}
+          </div>
+          <div class="pr-bw-cols">
+            <div
+              v-for="row in card.sides"
+              :key="row.side"
+              class="pr-bw-col"
+              :data-testid="`stats-bandwidth-${card.id}-${row.side}`"
+            >
+              <div class="pr-bw-col__head">
+                <span
+                  class="pr-card__value"
+                  :data-testid="`stats-bandwidth-${card.id}-${row.side}-score`"
+                >{{ row.score }}</span>
+                <span class="pr-bw-col__side">{{ row.side }}</span>
+              </div>
+              <div class="pr-card__bar-track">
+                <span
+                  class="pr-card__bar-hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-card__bar-fill pr-card__bar-fill--bw"
+                  :style="{ width: `${row.score}%` }"
+                  :data-testid="`stats-bandwidth-${card.id}-${row.side}-bar`"
+                />
+              </div>
+              <div class="pr-card__sub">
+                {{ row.sub }}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div
-        v-if="mode === 'pipe' && showPipe"
+        v-if="showRoofline && report?.roofline"
+        class="pr-panel pr-panel--roofline"
+        data-testid="stats-roofline"
+      >
+        <RooflinePanel
+          :model="report.roofline"
+          :locale="locale"
+        />
+      </div>
+
+      <div
+        v-if="showPipe"
         class="pr-panel pr-panel--pipe"
         data-testid="pipe-occupancy"
       >
         <div class="pr-pipe-head">
-          <h4>{{ t('pipeOccupancy', locale) }}</h4>
+          <h4>{{ t('computeAnalysis', locale) }}</h4>
           <button
             type="button"
             class="pr-pipe-details"
@@ -359,6 +486,10 @@ function backToModes() {
             <span class="pr-pipe-row__label">{{ pipe.label }}</span>
             <span class="pr-pipe-row__track">
               <span
+                class="pr-pipe-row__grid"
+                aria-hidden="true"
+              />
+              <span
                 class="pr-pipe-row__hatch"
                 aria-hidden="true"
               />
@@ -382,48 +513,64 @@ function backToModes() {
       </div>
 
       <div
-        v-if="mode === 'compute' && showCompute"
-        data-testid="stats-compute"
-        class="pr-aside__detail"
+        v-if="showTopology || (showMemory && !csvOnly)"
+        class="pr-panel pr-panel--topo"
+        :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
       >
-        <h4 class="pr-aside__detail-title">
-          {{ t('computeAnalysis', locale) }}
-        </h4>
-        <CsvFieldListPanel
-          :tables="report?.computeTables ?? []"
-          :csv-texts="report?.csvTexts ?? {}"
+        <div class="pr-pipe-head">
+          <h4>{{ t('memoryAnalysis', locale) }}</h4>
+          <button
+            v-if="showMemory"
+            type="button"
+            class="pr-pipe-details"
+            data-testid="topology-details"
+            @click="openMemoryDetails"
+          >
+            {{ t('details', locale) }}
+          </button>
+        </div>
+        <MemoryTopologyPanel
+          v-if="showTopology"
+          :model="topologyModel"
           :locale="locale"
-          @view-full-csv="emit('view-full-csv', $event)"
         />
       </div>
 
-      <div
-        v-if="mode === 'memory' && showMemory"
-        data-testid="stats-memory"
-        class="pr-aside__detail"
-      >
-        <h4 class="pr-aside__detail-title">
-          {{ t('memoryAnalysis', locale) }}
-        </h4>
-        <CsvFieldListPanel
-          :tables="report?.memoryTables ?? []"
-          :csv-texts="report?.csvTexts ?? {}"
-          :locale="locale"
-          @view-full-csv="emit('view-full-csv', $event)"
-        />
-      </div>
-
-      <div
-        v-if="showRoofline && report?.roofline"
-        class="pr-panel pr-panel--roofline"
-        data-testid="stats-roofline"
-      >
-        <RooflinePanel
-          :model="report.roofline"
-          :locale="locale"
-        />
-      </div>
-    </template>
+      <template v-if="csvOnly">
+        <div
+          v-if="showCompute"
+          data-testid="stats-compute"
+          class="pr-aside__detail"
+        >
+          <h4 class="pr-aside__detail-title">
+            {{ t('computeAnalysis', locale) }}
+          </h4>
+          <CsvFieldListPanel
+            :tables="report?.computeTables ?? []"
+            :csv-texts="report?.csvTexts ?? {}"
+            :locale="locale"
+            @view-full-csv="emit('view-full-csv', $event)"
+          />
+        </div>
+        <div
+          v-if="showMemory"
+          data-testid="stats-memory"
+          class="pr-aside__detail"
+        >
+          <h4 class="pr-aside__detail-title">
+            {{ t('memoryAnalysis', locale) }}
+          </h4>
+          <CsvFieldListPanel
+            :tables="report?.memoryTables ?? []"
+            :csv-texts="report?.csvTexts ?? {}"
+            :locale="locale"
+            :selected-block-id="selectedBlockId"
+            @update:selected-block-id="selectedBlockId = $event"
+            @view-full-csv="emit('view-full-csv', $event)"
+          />
+        </div>
+      </template>
+    </div>
   </aside>
 </template>
 
@@ -437,9 +584,23 @@ function backToModes() {
   width: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   background: var(--pr-bg-panel);
   padding: 10px 12px;
+}
+
+.pr-aside__head {
+  flex-shrink: 0;
+  background: var(--pr-bg-panel);
+}
+
+.pr-aside__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .pr-aside__head h3 {
@@ -447,6 +608,7 @@ function backToModes() {
   font-size: 13px;
   font-weight: 600;
   flex: 1;
+  color: #ffffff;
 }
 
 .pr-aside__title-row {
@@ -456,16 +618,15 @@ function backToModes() {
 }
 
 .pr-aside__icon {
-  font-size: 12px;
-  color: #8ab4c8;
-  line-height: 1;
+  flex-shrink: 0;
+  color: #c8c8c8;
 }
 
 .pr-aside__back {
   appearance: none;
   border: 0;
   background: transparent;
-  color: #a8a8a8;
+  color: #e6e6e6;
   font-size: 16px;
   line-height: 1;
   padding: 0 4px 0 0;
@@ -473,14 +634,14 @@ function backToModes() {
 }
 
 .pr-aside__back:hover {
-  color: #e8e8e8;
+  color: #ffffff;
 }
 
 .pr-aside__close {
   appearance: none;
   border: 0;
   background: transparent;
-  color: #a8a8a8;
+  color: #e6e6e6;
   font-size: 16px;
   line-height: 1;
   padding: 0 2px;
@@ -488,7 +649,7 @@ function backToModes() {
 }
 
 .pr-aside__close:hover {
-  color: #f0f0f0;
+  color: #ffffff;
 }
 
 .pr-aside__meta {
@@ -501,57 +662,21 @@ function backToModes() {
   gap: 4px 8px;
 }
 
-.pr-aside__more {
+.pr-aside__more,
+.pr-pipe-details {
   appearance: none;
   border: 0;
   background: transparent;
-  color: #6cb6ff;
+  color: #9a9a9a;
   font-size: 11px;
   padding: 0;
   cursor: pointer;
 }
 
-.pr-aside__more:hover {
-  text-decoration: underline;
-}
-
-.pr-aside__modes {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 0;
-  border-bottom: 1px solid #3a3a3a;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.pr-aside__modes::-webkit-scrollbar {
-  display: none;
-}
-
-.pr-aside__mode {
-  appearance: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: #9a9a9a;
-  font-size: 12px;
-  padding: 6px 10px;
-  margin-bottom: -1px;
-  border-radius: 0;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.pr-aside__mode:hover {
+.pr-aside__more:hover,
+.pr-pipe-details:hover {
   color: #d0d0d0;
-}
-
-.pr-aside__mode--active {
-  background: transparent;
-  color: #f0f0f0;
-  border-bottom-color: var(--pr-playhead, #3078f0);
-  border-color: transparent;
-  border-bottom-color: var(--pr-playhead, #3078f0);
+  text-decoration: underline;
 }
 
 .pr-aside__detail {
@@ -561,11 +686,16 @@ function backToModes() {
   min-height: 0;
 }
 
+.pr-aside > .pr-aside__detail {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
 .pr-aside__detail-title {
   margin: 4px 0 2px;
   font-size: 12px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: #ffffff;
 }
 
 .pr-cards {
@@ -575,10 +705,10 @@ function backToModes() {
 }
 
 .pr-card {
-  background: #262626;
+  background: #2a2a2a;
   border: 1px solid #3a3a3a;
-  border-radius: 2px;
-  padding: 8px 10px;
+  border-radius: 4px;
+  padding: 10px 12px;
 }
 
 .pr-card__label {
@@ -588,24 +718,40 @@ function backToModes() {
 }
 
 .pr-card__value {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
+  color: #ffffff;
 }
 
 .pr-card__bar-track {
+  position: relative;
   margin-top: 8px;
   height: 6px;
   background: #1a1a1a;
-  border-radius: 1px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
+.pr-card__bar-hatch {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    #2a2a2a,
+    #2a2a2a 2px,
+    #1f1f1f 2px,
+    #1f1f1f 4px
+  );
+}
+
 .pr-card__bar-fill {
+  position: relative;
+  z-index: 1;
   display: block;
   height: 100%;
-  border-radius: 1px;
+  border-radius: 2px;
   min-width: 2px;
 }
 
@@ -614,16 +760,43 @@ function backToModes() {
   background: var(--pr-color-duration-bar);
 }
 
+.pr-card__bar-fill--bw {
+  min-width: 0;
+  background: var(--pr-color-bandwidth-bar);
+}
+
+.pr-bw-cols {
+  display: flex;
+  gap: 8px;
+}
+
+.pr-bw-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pr-bw-col__head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.pr-bw-col__side {
+  font-size: 11px;
+  color: #9a9a9a;
+}
+
 .pr-card__sub {
   margin-top: 6px;
   font-size: 11px;
   color: #8a8a8a;
 }
 
-.pr-panel--pipe {
-  background: transparent;
-  border-radius: 0;
-  padding: 4px 0 0;
+.pr-panel--pipe,
+.pr-panel--topo {
+  background: #1f1f1f;
+  border-radius: 4px;
+  padding: 10px;
 }
 
 .pr-pipe-head {
@@ -634,47 +807,36 @@ function backToModes() {
   margin-bottom: 8px;
 }
 
-.pr-panel--pipe h4 {
+.pr-panel--pipe h4,
+.pr-panel--topo h4 {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
-}
-
-.pr-pipe-details {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: #6cb6ff;
-  font-size: 11px;
-  padding: 0;
-  cursor: pointer;
-}
-
-.pr-pipe-details:hover {
-  text-decoration: underline;
+  color: #ffffff;
 }
 
 .pr-pipe-toggle {
   display: inline-flex;
   margin: 0 0 10px;
-  border: 1px solid #3a3a3a;
-  border-radius: 2px;
-  overflow: hidden;
+  background: #1a1a1a;
+  border-radius: 4px;
+  padding: 2px;
 }
 
 .pr-pipe-toggle__btn {
   appearance: none;
   border: 0;
-  background: #1f1f1f;
-  color: #b8b8b8;
+  background: transparent;
+  color: #9a9a9a;
   font-size: 11px;
-  padding: 4px 10px;
+  padding: 4px 12px;
+  border-radius: 4px;
   cursor: pointer;
 }
 
 .pr-pipe-toggle__btn--active {
-  background: #2f4f4f;
-  color: #f0f0f0;
+  background: #3a3a3a;
+  color: #ffffff;
 }
 
 .pr-pipe-scale {
@@ -687,8 +849,41 @@ function backToModes() {
 }
 
 .pr-pipe-scale__axis {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 12px;
+}
+
+.pr-pipe-scale__tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-pipe-scale__tick:nth-child(1) {
+  left: 0%;
+  transform: none;
+}
+
+.pr-pipe-scale__tick:nth-child(2) {
+  left: 20%;
+}
+
+.pr-pipe-scale__tick:nth-child(3) {
+  left: 40%;
+}
+
+.pr-pipe-scale__tick:nth-child(4) {
+  left: 60%;
+}
+
+.pr-pipe-scale__tick:nth-child(5) {
+  left: 80%;
+}
+
+.pr-pipe-scale__tick:nth-child(6) {
+  left: 100%;
+  transform: translateX(-100%);
 }
 
 .pr-pipe-list {
@@ -710,20 +905,40 @@ function backToModes() {
 .pr-pipe-row__label {
   font-size: 11px;
   color: #c0c0c0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .pr-pipe-row__track {
   position: relative;
   display: block;
-  height: 14px;
-  background: #1f1f1f;
-  border-radius: 1px;
-  overflow: hidden;
+  height: 16px;
+  background: #161616;
+  border-radius: 4px;
+  overflow: visible;
+}
+
+.pr-pipe-row__grid {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(20% - 1px),
+    #3a3a3a calc(20% - 1px),
+    #3a3a3a 20%
+  );
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .pr-pipe-row__hatch {
   position: absolute;
   inset: 0;
+  border-radius: 4px;
   background: repeating-linear-gradient(
     -45deg,
     #2a2a2a,
@@ -740,7 +955,7 @@ function backToModes() {
   display: flex;
   align-items: center;
   height: 100%;
-  border-radius: 1px;
+  border-radius: 4px;
   min-width: 2px;
   padding: 0 4px;
   box-sizing: border-box;

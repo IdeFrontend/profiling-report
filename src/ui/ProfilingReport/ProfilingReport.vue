@@ -175,25 +175,29 @@ function onToggleGroup(groupId: string): void {
 }
 
 /**
- * Aside has content when any of: duration card, pipe occupancy,
- * compute/memory CSV tables, roofline points, or hardware details are present.
+ * Aside has content when any of: duration card, I/O bandwidth cards,
+ * pipe occupancy, compute/memory CSV tables, roofline points, or hardware details are present.
  * Name/type alone do not open the aside (I-Q6a). Must stay in sync with StatsAside.
  */
 function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
   if (!rm) return false;
   const hasDuration = rm.summary.taskDurationUs != null;
+  const hasBandwidth = (rm.bandwidthCards ?? []).length > 0;
   const hasPipe = rm.pipeOccupancy.length > 0;
   const hasComputeTables = rm.computeTables.length > 0;
   const hasMemoryTables = rm.memoryTables.length > 0;
   const hasRoofline = (rm.roofline?.points?.length ?? 0) > 0;
   const hasHardware = (rm.hardwareDetails?.sections.length ?? 0) > 0;
+  const hasTopology = (rm.memoryTopology?.edges.some((e) => e.label) ?? false);
   return (
     hasDuration ||
+    hasBandwidth ||
     hasPipe ||
     hasComputeTables ||
     hasMemoryTables ||
     hasRoofline ||
-    hasHardware
+    hasHardware ||
+    hasTopology
   );
 }
 

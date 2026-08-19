@@ -15,14 +15,14 @@ Producer **format/data specification is still forthcoming**. Product has answere
 - Implement per [INTERIM_DECISIONS](INTERIM_DECISIONS.md) + [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)
 - Timeline with minimal data; hide panels without inputs (Q3)
 - Hide overview charts (Q5 / I-Q5+)
-- Thin summary + PIPE mean aggregation (I-Q6a / I-Q6b)
+- Thin summary + PIPE mean aggregation (I-Q6a / I-Q6b); I/O BW cards (I-Q6g)
 - Fixture `data/out.rep` for CI (I-Q4); colors [COLOR_TOKENS](../ui/COLOR_TOKENS.md)
 - Open Chrome Trace `.json` in profiling-report (Q15)
 - Packaging scaffold per [PACKAGING_SUGGESTIONS](PACKAGING_SUGGESTIONS.md) (I-Q16–19)
 
 ## Still blocking Product-final (not coding) acceptance
 
-- Exact summary tile formulas (Q6) — interim hides undecidable tiles
+- Exact summary tile formulas (Q6) — I-Q6g guesses I/O BW; compute / avg util still hidden
 - Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
 - Overview chart producer — interim keeps charts hidden
 - Phase 2 contracts Q9–Q11, Q10
@@ -39,7 +39,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q3** | Required embeds / missing data | **Resolved** | Minimal open; **hide** missing panels. → [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
 | **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
-| **Q6** | Report summary formulas | **Interim** | Thin OpBasicInfo tiles only; hide compute/BW/avg util; PIPE = mean non-`NA` — [I-Q6a](INTERIM_DECISIONS.md) / [I-Q6b](INTERIM_DECISIONS.md). **PIPE layout:** **Cube \| Vector toggle for MIX** ops ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)); non-MIX shows the relevant side only. Block-scoped details vs mean bars — [I-Q6c](INTERIM_DECISIONS.md). |
+| **Q6** | Report summary formulas | **Interim** | Duration thin tiles [I-Q6a](INTERIM_DECISIONS.md). **I/O BW cards** [I-Q6g](INTERIM_DECISIONS.md) (Memory.csv mean + sketch 1.6 TB/s peak). Still hide compute TFLOPS and avg core util. PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). **PIPE layout:** **Cube \| Vector toggle for MIX** ops ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)); non-MIX shows the relevant side only. Block-scoped details vs mean bars — [I-Q6c](INTERIM_DECISIONS.md). **Open:** Product peak (`HardwareInfo` / `Report.csv`?), whether score is measured/peak (sketch 81 disagrees), AIC+AIV aggregation vs split (sketch splits), `block_id` mean vs max vs selected block, **GB/s vs TB/s** when measured ≪ 1 TB/s. |
 | **Q7** | Hardware details sidebar | **Resolved (MVP)** | **Out of MVP** until further product/spec docs. |
 | **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children` (sketch Card tree). |
 
@@ -68,7 +68,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q17** | Design system / i18n | **Interim** | same |
 | **Q18** | PyPTO copy-paste license | **Interim** | same — Legal before verbatim paste |
 | **Q19** | Gesture parity | **Interim** | Wheel/slider/drag MVP; W/S/A/D P2 |
-| **Q20** | Cursor skills / agent rules | Open | process docs, `.cursor` skills/rules |
+| **Q20** | Cursor skills / agent rules | **Resolved** | Shared: [`AGENTS.md`](../../AGENTS.md), nested `specs/AGENTS.md` (Claude: `specs/CLAUDE.md` → `@./AGENTS.md`), skills in `.agents/skills/`. Cursor-only: `.cursor/rules/code-review-post-github.mdc`. Root Claude: [`CLAUDE.md`](../../CLAUDE.md) → `@AGENTS.md`. |
 | **Q21** | Acceptance owner | Open | PROJECT_GOALS, this file |
 
 ---
@@ -89,3 +89,4 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q15 | 2026-07-31 | `.json` → profiling-report | MSTT_INTEGRATION |
 | Q16–Q19 | 2026-07-31 | Engineering proposals filed | PACKAGING_SUGGESTIONS |
 | Interim set | 2026-07-31 | I-Q2, I-Q4, I-Q6a/b, I-Q5+, I-Q14, I-Q16–19 for MVP code | INTERIM_DECISIONS |
+| Q20 | 2026-08-12 | Shared agent rules in AGENTS.md (+ nested spec guides); Cursor-only review auto-post; skills in `.agents/skills/` | AGENTS.md, CLAUDE.md |
