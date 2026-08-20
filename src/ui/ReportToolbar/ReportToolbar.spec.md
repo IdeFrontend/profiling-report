@@ -42,8 +42,9 @@ Lives in the **main** column only (above the timeline), not spanning the StatsAs
 
 | Token | Value |
 |-------|--------|
-| Background | Mild vertical navy gradient `#222a3c → #1a2030 → #161b28` (sampled from [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) OP strip ~rgb(28,36,57); not flat `--pr-bg-deep`) |
-| Border | `1px solid #2a3142` bottom |
+| Background | `#1f1f1f` (`--pr-bg-deep`) |
+| Border | `1px solid #3a3a3a` bottom |
+| Corner wash | Owned by ProfilingReport — 208×60 top-left blue fade (see root spec) |
 
 ### OP selector (`visual/op-selector.png`, `visual/op-selector-open.png`)
 
@@ -134,13 +135,13 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
 7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) is not rendered (temporarily hidden).
 8. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
-9. **PR-TOOLBAR-009** — Strip uses mild navy gradient (`#222a3c`); search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
+9. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
 10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
 11. **PR-TOOLBAR-011** — `dependency-mode` select inside 显示控制 emits `update:dependencyMode` on change; popover stays open.
 12. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1, above 100 clamp to 100); popover stays open.
 13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows OP算子 brand; menu lists operator labels; selecting emits `update:selectedOperatorId`.
 14. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
-15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); chrome uses mild navy gradient.
+15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider).
 
 ## Edge Cases
 
@@ -163,6 +164,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-20** — Corner blue wash moved to ProfilingReport root (208×60); chrome strip back to flat `--pr-bg-deep`.
 - **2026-08-20** — OP selector matches sketch: text+chevron (no pill), OP算子 brand trigger, mild navy chrome gradient; crops + PR-TOOLBAR-015.
 - **2026-08-20** — OP selector at strip far-left for multi-operator packs; PR-TOOLBAR-013/014.
 - **2026-08-18** — Depth input clamps to `MAX_DEPENDENCY_DEPTH` (100); `max` attribute set on `<input>`.

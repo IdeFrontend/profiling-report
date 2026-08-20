@@ -446,6 +446,11 @@ defineExpose({ selectEventById, viewState });
     :data-theme="theme ?? 'dark'"
     :data-capabilities="(capabilities ?? []).join(',')"
   >
+    <div
+      class="pr-root__corner-wash"
+      data-testid="corner-wash"
+      aria-hidden="true"
+    />
     <ReportToolbar
       v-if="!showTimeline"
       :title="title"
@@ -581,6 +586,7 @@ defineExpose({ selectEventById, viewState });
 
 <style scoped>
 .pr-root {
+  position: relative;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -594,6 +600,22 @@ defineExpose({ selectEventById, viewState });
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
   overflow: hidden;
+}
+
+/** Top-left accent wash behind OP selector / tab strip (v930 sketch). */
+.pr-root__corner-wash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: 208px;
+  height: 60px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 90, 219, 0.1) 3.614%,
+    rgba(0, 2, 172, 0) 76.501%
+  );
+  pointer-events: none;
 }
 
 .pr-error {

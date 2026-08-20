@@ -13,6 +13,17 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.get('[data-testid="tab-timeline"]').text()).toMatch(/时间线|Timeline/);
   });
 
+  it('PR-ROOT-005: top-left corner wash is 208×60 with blue fade gradient', async () => {
+    const wrapper = mount(ProfilingReport, { props: { title: 'wash' } });
+    expect(wrapper.find('[data-testid="corner-wash"]').exists()).toBe(true);
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-root__corner-wash[\s\S]*?width:\s*208px/);
+    expect(src).toMatch(/\.pr-root__corner-wash[\s\S]*?height:\s*60px/);
+    expect(src).toMatch(
+      /\.pr-root__corner-wash[\s\S]*?linear-gradient\(\s*90deg,\s*rgba\(0,\s*90,\s*219,\s*0\.1\)\s*3\.614%/,
+    );
+  });
+
   it('PR-ROOT-002: accepts pre-parsed model props', () => {
     const wrapper = mount(ProfilingReport, {
       props: {

@@ -485,9 +485,8 @@ function onDependencyDepth(e: Event) {
   gap: 8px 12px;
   padding: 4px 8px;
   min-height: 36px;
-  /* Mild navy chrome gradient — sampled from v930/entry OP strip (~rgb 28,36,57) */
-  background: linear-gradient(180deg, #222a3c 0%, #1a2030 55%, #161b28 100%);
-  border-bottom: 1px solid #2a3142;
+  background: var(--pr-bg-deep, #1f1f1f);
+  border-bottom: 1px solid #3a3a3a;
   flex: 0 0 auto;
 }
 

@@ -72,8 +72,7 @@ describe('ReportToolbar', () => {
 
   it('PR-TOOLBAR-009: strip/search/zoom surface colors match sketch tokens', async () => {
     const src = (await import('./ReportToolbar.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-chrome[\s\S]*?linear-gradient/);
-    expect(src).toMatch(/\.pr-chrome[\s\S]*?#222a3c/);
+    expect(src).toMatch(/\.pr-chrome[\s\S]*?background:\s*var\(--pr-bg-deep/);
     expect(src).toMatch(/\.pr-toolbar__search input[\s\S]*?background:\s*#2a2a2a/);
     expect(src).toMatch(/\.pr-toolbar__zoom-pill[\s\S]*?background:\s*#363636/);
     expect(src).toMatch(/#ffffff\s+0%/); // filled track
@@ -180,10 +179,9 @@ describe('ReportToolbar', () => {
     expect(none.find('[data-testid="op-selector"]').exists()).toBe(false);
   });
 
-  it('PR-TOOLBAR-015: OP selector is text+chevron (no pill fill); chrome uses mild navy gradient', async () => {
+  it('PR-TOOLBAR-015: OP selector is text+chevron (no pill fill or divider)', async () => {
     const src = (await import('./ReportToolbar.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?background:\s*transparent/);
-    expect(src).toMatch(/\.pr-chrome[\s\S]*?linear-gradient\(180deg,\s*#222a3c/);
     expect(src).not.toMatch(/\.pr-op-select[\s\S]*?border-right:\s*1px solid/);
   });
 });
