@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { measureResizeMinSpan, resizeMeasureEdge } from './measureEdgeResize';
+import { measureResizeMinSpan, resizeMeasureEdge, bindWindowPointerDrag } from './measureEdgeResize';
 
 describe('measureEdgeResize', () => {
   it('measureResizeMinSpan is at least 1 and scales with view/px', () => {
@@ -57,5 +57,40 @@ describe('measureEdgeResize', () => {
         minSpan: 1,
       }),
     ).toEqual({ startTime: 200, endTime: 1000 });
+  });
+
+  it('ends drag on window pointerup even if element up is missed', () => {
+    const moves: number[] = [];
+    const ends: number[] = [];
+    const unbind = bindWindowPointerDrag({
+      onMove: (x) => moves.push(x),
+      onEnd: () => ends.push(1),
+    });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 42, buttons: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 42 }));
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 99, buttons: 0 }));
+    expect(moves).toEqual([42]);
+    expect(ends).toEqual([1]);
+    unbind();
+  });
+
+  it('ends drag on move with buttons===0 when pointerup was missed', () => {
+    const moves: number[] = [];
+    const ends: number[] = [];
+    bindWindowPointerDrag({
+      onMove: (x) => moves.push(x),
+      onEnd: () => ends.push(1),
+    });
+    const held = new PointerEvent('pointermove', { clientX: 10, buttons: 1 });
+    Object.defineProperty(held, 'isTrusted', { value: true });
+    window.dispatchEvent(held);
+    const released = new PointerEvent('pointermove', { clientX: 20, buttons: 0 });
+    Object.defineProperty(released, 'isTrusted', { value: true });
+    window.dispatchEvent(released);
+    const after = new PointerEvent('pointermove', { clientX: 30, buttons: 0 });
+    Object.defineProperty(after, 'isTrusted', { value: true });
+    window.dispatchEvent(after);
+    expect(moves).toEqual([10]);
+    expect(ends).toEqual([1]);
   });
 });

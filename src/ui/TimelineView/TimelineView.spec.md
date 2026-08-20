@@ -16,9 +16,9 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Narrow selection.** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, park the duration pill **outside** the bars (prefer **4px to the right** of the right bar; if that would clip, **4px to the left** of the left bar) while still drawing the two-sided arrow between the bars. When the span is so narrow that the arrowheads would overlap (`<` pads + both heads ≈ **20px**), hide heads **and** the horizontal shaft; only the outside duration label remains between/near the vertical bars.
 
-**Cursor vs measure chrome.** When a measure overlay is visible and the **cursor timestamp pill** overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside Δt label, the pill lifts **above** the viewport axis (`labelAbove`) with a short animated transition (see `CursorTimestamp`). Otherwise it stays in-track.
+**Cursor vs measure chrome.** When a measure overlay is visible and the **cursor timestamp pill** overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside Δt label, the pill lifts **above** the viewport axis (`labelAbove`) with a short animated transition (see `CursorTimestamp`). Otherwise it stays in-track. Hovering a measure edge bar **sticks** the cursor to that border (does not hide the timestamp); the lift rule still applies because the pill overlaps the bar.
 
-**Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (other edge fixed), clamped to the view window with a ~1px min span. Empty-axis drag still creates a new measure range.
+**Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (other edge fixed), clamped to the view window with a ~1px min span. Resize listens on `window` for move/up so releasing over Card strips (above the bars) still ends the drag. Empty-axis drag still creates a new measure range.
 
 ## Acceptance Criteria
 
@@ -32,9 +32,10 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 8. **PR-TIMELINE-008** — When the selection is so narrow that arrowheads would overlap, hide heads and the horizontal shaft; keep only the outside duration label.
 9. **PR-TIMELINE-009** — With a visible measure range, cursor pill overlapping the selection (inside, or outside with label crossing a border) uses above-axis placement; cursor clear of the range stays in-track.
 10. **PR-TIMELINE-010** — Dragging an axis measure bar resizes that edge (other edge fixed); bars use a 9px hit pad, `col-resize`, and 2px stem on hover.
+11. **PR-TIMELINE-011** — Hovering an axis measure bar emits `cursor` stuck to that edge (timestamp stays visible / lifts above).
 
 ## Changelog
-- **2026-08-20** — Ultra-narrow selection: no shaft connector, outside Δt only; PR-TIMELINE-008.
+- **2026-08-20** — Hover measure bar sticks cursor; PR-TIMELINE-011.
 - **2026-08-20** — Draggable axis measure bars; PR-TIMELINE-010.
 - **2026-08-20** — Cursor timestamp lifts above axis on measure chrome overlap; PR-TIMELINE-009.
 - **2026-08-20** — Outside-label keeps arrow; shaft-only when heads overlap; PR-TIMELINE-005/008.
