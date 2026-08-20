@@ -22,7 +22,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 **Pointer translation.** `pointerdown` records the starting position. `pointermove` performs hitTest and emits `hover` (with clientX/clientY for tooltip positioning) and `cursor` (time + xRatio for playhead). While dragging **and not in measureMode**, every move emits `pan` in time units. On `pointerup`, if total movement <=4px and not measuring, `hitTest` is called and the result emitted as `select`.
 
-**Measure mode (M2).** When `measureMode` is true, drag sets `measureRange` (`update:measureRange`) instead of pan/select. The overlay dims the swimlanes **outside** the measured span with a dark fade and draws a **gray** 1px border at each selection edge (canvas z-index under Card strips). Edges are **clamped to the current view window**; a range fully outside the view hides the overlay. The blue Δt arrow and blue vertical bars live on the viewport time axis (see `TimelineView.spec.md`). The mouse-follow cursor is owned by `SwimlaneView` under Card strips. Pan is suppressed. Aside sync is out of scope until Q22. `pointerleave` must not clear the measure anchor while a measure drag is active (pointer capture may keep delivering move/up outside the element). External cancel (`measureMode` false / `measureRange` null via Esc or toolbar) clears local drag/anchor immediately; a `measureGestureActive` flag suppresses pan and select until `pointerup`.
+**Measure mode (M2).** When `measureMode` is true, drag sets `measureRange` (`update:measureRange`) instead of pan/select. The overlay dims the swimlanes **outside** the measured span with a dark fade and draws a **gray** border at each selection edge (9px hit pad, 1px stem; hover/active 2px; `col-resize`; canvas z-index under Card strips). Dragging a border resizes that edge (other fixed, view-clamped, ~1px min span) without starting a new create-drag. Edges are **clamped to the current view window**; a range fully outside the view hides the overlay. The blue Δt arrow and blue vertical bars live on the viewport time axis (see `TimelineView.spec.md`). The mouse-follow cursor is owned by `SwimlaneView` under Card strips. Pan is suppressed. Aside sync is out of scope until Q22. `pointerleave` must not clear the measure anchor while a measure drag is active (pointer capture may keep delivering move/up outside the element). External cancel (`measureMode` false / `measureRange` null via Esc or toolbar) clears local drag/anchor immediately; a `measureGestureActive` flag suppresses pan and select until `pointerup`.
 
 **Reactivity.** A deep watcher on the viewport prop calls `renderer.setView()` and `renderer.render()` on every change. Model changes call `renderer.setModel()`. Selection/hover/`dependencyMode`/`dependencyDepth` changes trigger render only (layout unchanged; no page reload).
 
@@ -37,6 +37,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 7. **PR-CANVAS-007** — Zero-length measure range (`start === end`) renders no fade/border overlay.
 8. **PR-CANVAS-008** — Measure overlay edges clamp to the current view window when the range extends outside.
 9. **PR-CANVAS-009** — Measure overlay hides when the range is fully outside the current view.
+10. **PR-CANVAS-010** — Dragging a measure border resizes that edge (other edge fixed); borders use a 9px hit pad, `col-resize`, and 2px stem on hover.
 
 ## Edge Cases
 
@@ -69,6 +70,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-08-20** — Draggable swimlane measure borders; PR-CANVAS-010.
 - **2026-08-20** — Clamp measure overlay to view window; PR-CANVAS-008/009.
 - **2026-08-19** — Zero-length measure range skips overlay; PR-CANVAS-007.
 - **2026-08-20** — Swim cursor under Card strips; wheel forwarded from strips.

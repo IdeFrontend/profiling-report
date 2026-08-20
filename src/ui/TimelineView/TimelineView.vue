@@ -27,6 +27,11 @@ import {
   cursorLabelOverlapsMeasureChrome,
   estimateAxisLabelWidth,
 } from './cursorMeasureOverlap';
+import {
+  measureResizeMinSpan,
+  resizeMeasureEdge,
+  type MeasureResizeEdge,
+} from './measureEdgeResize';
 
 const props = withDefaults(
   defineProps<{
@@ -205,6 +210,8 @@ watch(
 /** Measure drag on the viewport time axis (same interaction as swimlane measure). */
 let measureAnchorTime: number | null = null;
 let measureGestureActive = false;
+let resizeEdge: MeasureResizeEdge | null = null;
+let resizeFixedOther = 0;
 
 function timeAtAxisX(clientX: number): number {
   const el = timeAxisRef.value;
@@ -215,8 +222,50 @@ function timeAtAxisX(clientX: number): number {
   return props.view.startTime + ratio * span;
 }
 
+function emitResizedRange(clientX: number) {
+  if (!resizeEdge) return;
+  const axisW = timeAxisWidth.value || timeAxisRef.value?.clientWidth || 1;
+  emit(
+    'update:measure-range',
+    resizeMeasureEdge({
+      edge: resizeEdge,
+      time: timeAtAxisX(clientX),
+      fixedOther: resizeFixedOther,
+      viewStart: props.view.startTime,
+      viewEnd: props.view.endTime,
+      minSpan: measureResizeMinSpan(props.view.startTime, props.view.endTime, axisW),
+    }),
+  );
+}
+
+function onMeasureBarPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
+  if (e.button !== 0 || !props.view.measureMode) return;
+  const range = props.view.measureRange;
+  if (!range) return;
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  resizeEdge = edge;
+  resizeFixedOther = edge === 'left' ? end : start;
+  measureGestureActive = false;
+  measureAnchorTime = null;
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  e.stopPropagation();
+  e.preventDefault();
+}
+
+function onMeasureBarPointerMove(e: PointerEvent) {
+  if (!resizeEdge) return;
+  emitResizedRange(e.clientX);
+}
+
+function onMeasureBarPointerUp() {
+  resizeEdge = null;
+}
+
 function onAxisPointerDown(e: PointerEvent) {
   if (e.button !== 0 || !props.view.measureMode) return;
+  if (resizeEdge) return;
+  if ((e.target as HTMLElement | null)?.closest?.('.pr-measure-axis-bar')) return;
   measureGestureActive = true;
   measureAnchorTime = timeAtAxisX(e.clientX);
   emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
@@ -225,6 +274,10 @@ function onAxisPointerDown(e: PointerEvent) {
 }
 
 function onAxisPointerMove(e: PointerEvent) {
+  if (resizeEdge) {
+    emitResizedRange(e.clientX);
+    return;
+  }
   if (!measureGestureActive || measureAnchorTime == null) return;
   emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, timeAtAxisX(e.clientX)));
 }
@@ -232,6 +285,7 @@ function onAxisPointerMove(e: PointerEvent) {
 function onAxisPointerUp() {
   measureGestureActive = false;
   measureAnchorTime = null;
+  resizeEdge = null;
 }
 
 watch(
@@ -298,11 +352,19 @@ defineExpose({
             class="pr-measure-axis-bar pr-measure-axis-bar--left"
             data-testid="measure-axis-bar-left"
             :style="{ left: `${measureAxis.left}%` }"
+            @pointerdown="onMeasureBarPointerDown($event, 'left')"
+            @pointermove="onMeasureBarPointerMove"
+            @pointerup="onMeasureBarPointerUp"
+            @pointercancel="onMeasureBarPointerUp"
           />
           <div
             class="pr-measure-axis-bar pr-measure-axis-bar--right"
             data-testid="measure-axis-bar-right"
             :style="{ left: `${measureAxis.right}%` }"
+            @pointerdown="onMeasureBarPointerDown($event, 'right')"
+            @pointermove="onMeasureBarPointerMove"
+            @pointerup="onMeasureBarPointerUp"
+            @pointercancel="onMeasureBarPointerUp"
           />
           <div
             class="pr-measure-arrow"
@@ -460,16 +522,37 @@ defineExpose({
   touch-action: none;
 }
 
-/* Measure range markers on the viewport time axis (v930/task-measure-mode). */
+/* Measure range edge handles on the viewport time axis (v930/task-measure-mode). */
 .pr-measure-axis-bar {
   position: absolute;
   top: 0;
   bottom: 0;
+  width: 9px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 5;
+  transform: translateX(-50%);
+}
+
+.pr-measure-axis-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
   width: 1px;
+  transform: translateX(-50%);
   background: var(--pr-playhead, #3078f0);
-  pointer-events: none;
-  z-index: 3;
-  transform: translateX(-0.5px);
+}
+
+.pr-measure-axis-bar:hover::before,
+.pr-measure-axis-bar:active::before {
+  width: 2px;
 }
 
 .pr-measure-arrow {

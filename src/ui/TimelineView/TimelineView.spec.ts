@@ -322,4 +322,51 @@ describe('TimelineView', () => {
       'pr-cursor__label--above',
     );
   });
+
+  it('PR-TIMELINE-010: dragging axis measure bar resizes that edge', async () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.measureMode = true;
+    view.measureRange = { startTime: 200, endTime: 500 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+    await wrapper.vm.$nextTick();
+
+    const left = wrapper.get('[data-testid="measure-axis-bar-left"]');
+    const axis = wrapper.find('[data-testid="time-axis"]').element as HTMLElement;
+    Object.defineProperty(axis, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 20, right: 400, bottom: 20 }),
+    });
+
+    await left.trigger('pointerdown', { clientX: 80, clientY: 10, button: 0, pointerId: 1 });
+    await left.trigger('pointermove', { clientX: 120, clientY: 10, pointerId: 1 });
+    await left.trigger('pointerup', { clientX: 120, clientY: 10, pointerId: 1 });
+
+    const ranges = wrapper.emitted('update:measure-range');
+    expect(ranges?.length).toBeGreaterThan(0);
+    const last = ranges![ranges!.length - 1][0] as { startTime: number; endTime: number };
+    expect(last.endTime).toBe(500);
+    expect(last.startTime).toBeGreaterThan(200);
+    expect(last.startTime).toBeLessThan(500);
+
+    const src = (await import('./TimelineView.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-measure-axis-bar\s*\{[^}]*width:\s*9px/);
+    expect(src).toMatch(/\.pr-measure-axis-bar\s*\{[^}]*cursor:\s*col-resize/);
+    expect(src).toMatch(
+      /\.pr-measure-axis-bar:hover::before[\s\S]*?width:\s*2px/,
+    );
+  });
 });

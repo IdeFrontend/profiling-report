@@ -13,6 +13,11 @@ import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import { contentHeightFromModel } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
+import {
+  measureResizeMinSpan,
+  resizeMeasureEdge,
+  type MeasureResizeEdge,
+} from '../../measureEdgeResize';
 
 const props = withDefaults(
   defineProps<{
@@ -65,6 +70,8 @@ let downX = 0;
 let measureAnchorTime: number | null = null;
 /** True from measure pointerdown until pointerup — survives external Esc/toolbar cancel. */
 let measureGestureActive = false;
+let resizeEdge: MeasureResizeEdge | null = null;
+let resizeFixedOther = 0;
 let lastW = 0;
 let lastH = 0;
 let resizeObserver: ResizeObserver | null = null;
@@ -227,6 +234,50 @@ watch(
 function abortMeasureDrag(): void {
   measureAnchorTime = null;
   dragging = false;
+  resizeEdge = null;
+}
+
+function emitResizedRange(clientX: number) {
+  if (!resizeEdge || !wrapRef.value) return;
+  const rect = wrapRef.value.getBoundingClientRect();
+  const w = Math.max(1, rect.width);
+  const time = timeAtX(clientX - rect.left);
+  emit(
+    'update:measureRange',
+    resizeMeasureEdge({
+      edge: resizeEdge,
+      time,
+      fixedOther: resizeFixedOther,
+      viewStart: props.view.startTime,
+      viewEnd: props.view.endTime,
+      minSpan: measureResizeMinSpan(props.view.startTime, props.view.endTime, w),
+    }),
+  );
+}
+
+function onMeasureBorderPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
+  if (e.button !== 0 || !props.measureMode) return;
+  const range = props.measureRange;
+  if (!range) return;
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  resizeEdge = edge;
+  resizeFixedOther = edge === 'left' ? end : start;
+  measureGestureActive = false;
+  measureAnchorTime = null;
+  dragging = false;
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  e.stopPropagation();
+  e.preventDefault();
+}
+
+function onMeasureBorderPointerMove(e: PointerEvent) {
+  if (!resizeEdge) return;
+  emitResizedRange(e.clientX);
+}
+
+function onMeasureBorderPointerUp() {
+  resizeEdge = null;
 }
 
 watch(
@@ -431,11 +482,19 @@ defineExpose({
         class="pr-measure-border pr-measure-border--left"
         data-testid="measure-border-left"
         :style="{ left: `${measureGeometry.left}px` }"
+        @pointerdown="onMeasureBorderPointerDown($event, 'left')"
+        @pointermove="onMeasureBorderPointerMove"
+        @pointerup="onMeasureBorderPointerUp"
+        @pointercancel="onMeasureBorderPointerUp"
       />
       <div
         class="pr-measure-border pr-measure-border--right"
         data-testid="measure-border-right"
         :style="{ left: `${measureGeometry.right}px` }"
+        @pointerdown="onMeasureBorderPointerDown($event, 'right')"
+        @pointermove="onMeasureBorderPointerMove"
+        @pointerup="onMeasureBorderPointerUp"
+        @pointercancel="onMeasureBorderPointerUp"
       />
     </template>
   </div>
@@ -509,10 +568,28 @@ defineExpose({
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background: #4c4c4c;
-  pointer-events: none;
+  width: 9px;
+  background: transparent;
+  cursor: col-resize;
+  pointer-events: auto;
+  touch-action: none;
   z-index: 3;
-  transform: translateX(-0.5px);
+  transform: translateX(-50%);
+}
+
+.pr-measure-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: #4c4c4c;
+}
+
+.pr-measure-border:hover::before,
+.pr-measure-border:active::before {
+  width: 2px;
 }
 </style>

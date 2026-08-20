@@ -180,4 +180,40 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('select')).toBeFalsy();
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-010: dragging measure border resizes that edge', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        measureMode: true,
+        measureRange: { startTime: 200, endTime: 500 },
+        timeUnit: 'ms',
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 100, right: 400, bottom: 100 }),
+    });
+    await wrapper.setProps({ measureRange: { startTime: 200, endTime: 500 } });
+
+    const right = wrapper.get('[data-testid="measure-border-right"]');
+    await right.trigger('pointerdown', { clientX: 200, clientY: 10, button: 0, pointerId: 1 });
+    await right.trigger('pointermove', { clientX: 280, clientY: 10, pointerId: 1 });
+    await right.trigger('pointerup', { clientX: 280, clientY: 10, pointerId: 1 });
+
+    const ranges = wrapper.emitted('update:measureRange');
+    expect(ranges?.length).toBeGreaterThan(0);
+    const last = ranges![ranges!.length - 1][0] as { startTime: number; endTime: number };
+    expect(last.startTime).toBe(200);
+    expect(last.endTime).toBeGreaterThan(500);
+    expect(last.endTime).toBeLessThanOrEqual(1000);
+
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-measure-border\s*\{[^}]*width:\s*9px/);
+    expect(src).toMatch(/\.pr-measure-border\s*\{[^}]*cursor:\s*col-resize/);
+    expect(src).toMatch(/\.pr-measure-border:hover::before[\s\S]*?width:\s*2px/);
+    wrapper.unmount();
+  });
 });
