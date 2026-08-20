@@ -137,7 +137,7 @@ const metrics = computed(() => {
   align-self: start;
   min-width: 0;
   border-radius: 10px;
-  background: #2f2f2f;
+  background: #313131;
 }
 
 .pr-detail-summary__identity {
@@ -153,9 +153,9 @@ const metrics = computed(() => {
   width: 52px;
   height: 52px;
   flex: 0 0 auto;
-  border: 1.5px solid #7a7a7a;
+  border: 1.5px solid #9a9a9a;
   border-radius: 50%;
-  color: #c8c8c8;
+  color: #b4b4b4;
 }
 
 .pr-detail-summary__titles {
@@ -177,9 +177,9 @@ const metrics = computed(() => {
   max-width: 100%;
   padding: 2px 8px;
   border-radius: 4px;
-  background: var(--pr-color-mov, #b868f8);
-  color: #fdfaff;
-  font-size: 12px;
+  background: #7356a6;
+  color: #f2ecfa;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -191,8 +191,8 @@ const metrics = computed(() => {
   gap: 8px;
   margin: 0;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: #383838;
+  border-radius: 10px;
+  background: #3c3c3c;
 }
 
 .pr-detail-summary__metric {
