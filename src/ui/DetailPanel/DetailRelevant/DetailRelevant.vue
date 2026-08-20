@@ -38,25 +38,25 @@ const DIRECTIONS: {
 ];
 
 /**
- * Sketch glyphs: fan-in, four-way node, fan-out. Each direction is two path strings —
- * the tree edges, and the nodes as zero-length segments that a round line cap turns into
- * dots (stroke-width 3 gives the sketch's radius of 1.5). Coordinates come straight from
- * the sketch, so keep them byte for byte when touching this table.
+ * Sketch glyphs: fan-in, four-way node, fan-out — drawn as a node graph, dots
+ * joined by short links, not a hairline tree. Each direction is two path strings:
+ * the link edges, and the nodes as zero-length segments that a round line cap
+ * turns into dots (stroke-width 4.6 gives the sketch's radius of 2.3).
+ * Coordinates come straight from the sketch, so keep them byte for byte.
  */
 const GLYPHS: Record<DependencyMode, { edges: string; dots: string }> = {
   predecessors: {
-    edges:
-      'M13 8L7.6 4.6M13 8L7.6 11.4M7.6 4.6L2.6 2.4M7.6 4.6L2.6 8M7.6 11.4L2.6 8M7.6 11.4L2.6 13.6',
-    dots: 'M13 8h0M7.6 4.6h0M7.6 11.4h0M2.6 2.4h0M2.6 8h0M2.6 13.6h0',
+    edges: 'M3.4 3.4 8 6.2M3.4 8 8 6.2M3.4 8 8 10.4M3.4 12.6 8 10.4M8 6.2 12.6 8M8 10.4 12.6 8',
+    dots: 'M3.4 3.4h0M3.4 8h0M3.4 12.6h0M8 6.2h0M8 10.4h0M12.6 8h0',
   },
   all: {
-    edges: 'M8 8L4 4M8 8L12 4M8 8L4 12M8 8L12 12',
+    edges: 'M8 8 4 4M8 8 12 4M8 8 4 12M8 8 12 12',
     dots: 'M8 8h0M4 4h0M12 4h0M4 12h0M12 12h0',
   },
   successors: {
     edges:
-      'M3 8L8.4 4.6M3 8L8.4 11.4M8.4 4.6L13.4 2.4M8.4 4.6L13.4 8M8.4 11.4L13.4 8M8.4 11.4L13.4 13.6',
-    dots: 'M3 8h0M8.4 4.6h0M8.4 11.4h0M13.4 2.4h0M13.4 8h0M13.4 13.6h0',
+      'M3.4 8 8 6.2M3.4 8 8 10.4M8 6.2 12.6 3.4M8 6.2 12.6 8M8 10.4 12.6 8M8 10.4 12.6 12.6',
+    dots: 'M3.4 8h0M8 6.2h0M8 10.4h0M12.6 3.4h0M12.6 8h0M12.6 12.6h0',
   },
 };
 
@@ -137,13 +137,13 @@ const linkHeight = computed(
               :d="GLYPHS[dir.value].edges"
               fill="none"
               stroke="currentColor"
-              stroke-width="0.9"
+              stroke-width="1.5"
             />
             <path
               :d="GLYPHS[dir.value].dots"
               fill="none"
               stroke="currentColor"
-              stroke-width="3"
+              stroke-width="4.6"
               stroke-linecap="round"
             />
           </svg>

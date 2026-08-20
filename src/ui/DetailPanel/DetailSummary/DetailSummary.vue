@@ -48,47 +48,60 @@ const metrics = computed(() => {
         class="pr-detail-summary__glyph"
         aria-hidden="true"
       >
+        <!--
+          Sketch glyph: a solid isometric cube (three shaded faces) wrapped by a
+          hexagonal node ring — three dots at the ring's upper-left, upper-right and
+          bottom vertices, the ring stroke broken around each. Coordinates come from
+          the sketch, so keep them byte for byte when touching this.
+        -->
         <svg
-          viewBox="0 0 24 24"
+          viewBox="4.5 4 23 23"
           width="30"
           height="30"
         >
-          <polygon
-            points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5"
+          <g
             fill="none"
             stroke="currentColor"
-            stroke-width="1.3"
+            stroke-width="1.9"
+            stroke-linecap="round"
             stroke-linejoin="round"
-          />
-          <path
-            d="M12 12V6.6M12 12l-4.7 2.7M12 12l4.7 2.7"
-            stroke="currentColor"
-            stroke-width="1.3"
-          />
-          <circle
-            cx="12"
-            cy="12"
-            r="1.9"
-            fill="currentColor"
-          />
-          <circle
-            cx="12"
-            cy="6.2"
-            r="1.4"
-            fill="currentColor"
-          />
-          <circle
-            cx="7"
-            cy="15"
-            r="1.4"
-            fill="currentColor"
-          />
-          <circle
-            cx="17"
-            cy="15"
-            r="1.4"
-            fill="currentColor"
-          />
+          >
+            <path d="M12.4 7.2 16 5.2l3.6 2" />
+            <path d="M23.6 9.6v6.7l-3.4 2" />
+            <path d="M11.8 18.3 8.4 16.3V9.6" />
+          </g>
+          <g fill="currentColor">
+            <circle
+              cx="9.4"
+              cy="8"
+              r="2.1"
+            />
+            <circle
+              cx="22.6"
+              cy="8"
+              r="2.1"
+            />
+            <circle
+              cx="16"
+              cy="24.4"
+              r="2.1"
+            />
+          </g>
+          <!-- Cube: top face lighter, the two side faces a shade down, as in the sketch. -->
+          <g fill="currentColor">
+            <path
+              d="M16 9.4 22.6 13 16 16.6 9.4 13Z"
+              opacity="0.95"
+            />
+            <path
+              d="M9.4 14.2 15.4 17.5v7.1l-6-3.3Z"
+              opacity="0.75"
+            />
+            <path
+              d="M22.6 14.2v7.1l-6 3.3v-7.1Z"
+              opacity="0.6"
+            />
+          </g>
         </svg>
       </span>
       <div class="pr-detail-summary__titles">
