@@ -67,7 +67,9 @@ const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 
 /** Pads (2) + heads (9+9) + shaft–label gaps (4+4). */
 const MEASURE_ARROW_CHROME_PX = 28;
-const MEASURE_COMPACT_GAP_PX = 4;
+/** Pads (2) + heads (9+9) — below this, heads overlap; keep shaft only. */
+const MEASURE_HEADS_MIN_PX = 20;
+const MEASURE_OUTSIDE_GAP_PX = 4;
 
 function estimateMeasureLabelWidth(label: string): number {
   // padding 1+8*2 ≈ 17; ~6.5px tabular glyph at 11px.
@@ -123,44 +125,32 @@ const measureAxis = computed(() => {
   };
 });
 
-/** In-between arrow vs compact outside-label when the selection is too narrow. */
+/** Inline label, outside label + arrow, or outside label + shaft-only. */
 const measureArrowLayout = computed(() => {
   const axis = measureAxis.value;
   if (!axis) return null;
+  const style = { left: `${axis.left}%`, width: `${axis.width}%` };
   const axisW = timeAxisWidth.value;
   if (axisW <= 0) {
-    return {
-      compact: false as const,
-      style: { left: `${axis.left}%`, width: `${axis.width}%` },
-    };
+    return { mode: 'inline' as const, style };
   }
   const rangePx = (axis.width / 100) * axisW;
   const labelW = measureLabelWidth.value || estimateMeasureLabelWidth(axis.label);
   const minFit = MEASURE_ARROW_CHROME_PX + labelW;
   if (rangePx >= minFit) {
-    return {
-      compact: false as const,
-      style: { left: `${axis.left}%`, width: `${axis.width}%` },
-    };
+    return { mode: 'inline' as const, style };
   }
   const rightPx = (axis.right / 100) * axisW;
-  const preferRight = rightPx + MEASURE_COMPACT_GAP_PX + labelW <= axisW;
-  if (preferRight) {
-    return {
-      compact: true as const,
-      side: 'right' as const,
-      style: { left: `${axis.right}%`, width: '0px' },
-    };
-  }
-  return {
-    compact: true as const,
-    side: 'left' as const,
-    style: { left: `${axis.left}%`, width: '0px' },
-  };
+  const side =
+    rightPx + MEASURE_OUTSIDE_GAP_PX + labelW <= axisW
+      ? ('right' as const)
+      : ('left' as const);
+  const mode = rangePx < MEASURE_HEADS_MIN_PX ? ('shaft' as const) : ('outside' as const);
+  return { mode, side, style };
 });
 
 watch(
-  () => [measureAxis.value?.label, measureArrowLayout.value?.compact] as const,
+  () => [measureAxis.value?.label, measureArrowLayout.value?.mode] as const,
   async () => {
     await nextTick();
     const el = measureLabelRef.value;
@@ -292,18 +282,22 @@ defineExpose({
             class="pr-measure-arrow"
             data-testid="measure-arrow"
             :class="{
-              'pr-measure-arrow--compact': measureArrowLayout?.compact,
-              'pr-measure-arrow--compact-right':
-                measureArrowLayout?.compact && measureArrowLayout.side === 'right',
-              'pr-measure-arrow--compact-left':
-                measureArrowLayout?.compact && measureArrowLayout.side === 'left',
+              'pr-measure-arrow--outside':
+                measureArrowLayout?.mode === 'outside' || measureArrowLayout?.mode === 'shaft',
+              'pr-measure-arrow--shaft': measureArrowLayout?.mode === 'shaft',
+              'pr-measure-arrow--outside-right':
+                (measureArrowLayout?.mode === 'outside' || measureArrowLayout?.mode === 'shaft') &&
+                measureArrowLayout.side === 'right',
+              'pr-measure-arrow--outside-left':
+                (measureArrowLayout?.mode === 'outside' || measureArrowLayout?.mode === 'shaft') &&
+                measureArrowLayout.side === 'left',
             }"
             :style="measureArrowLayout?.style"
           >
             <!--
               Flex: tip pad 1px | head | shaft | 4px | label | 4px | shaft | head
               Shaft negative margin pulls into chevron so the line meets the arms.
-              Compact: heads/shafts hidden; label parked outside the bars.
+              Outside: label parked outside; arrow (or shaft-only) still spans the bars.
             -->
             <svg
               class="pr-measure-arrow__head"
@@ -506,29 +500,45 @@ defineExpose({
   z-index: 2;
 }
 
-.pr-measure-arrow--compact {
-  padding: 0;
+/* Label outside the range; arrow still spans the bars. */
+.pr-measure-arrow--outside {
   overflow: visible;
 }
 
-.pr-measure-arrow--compact .pr-measure-arrow__head,
-.pr-measure-arrow--compact .pr-measure-arrow__shaft {
-  display: none;
+.pr-measure-arrow--outside .pr-measure-arrow__shaft--left {
+  margin-right: 0;
 }
 
-.pr-measure-arrow--compact .pr-measure-arrow__label {
+.pr-measure-arrow--outside .pr-measure-arrow__shaft--right {
+  margin-left: 0;
+}
+
+.pr-measure-arrow--outside .pr-measure-arrow__label {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
 }
 
-.pr-measure-arrow--compact-right .pr-measure-arrow__label {
-  left: 4px;
+.pr-measure-arrow--outside-right .pr-measure-arrow__label {
+  left: 100%;
+  margin-left: 4px;
 }
 
-.pr-measure-arrow--compact-left .pr-measure-arrow__label {
-  left: 0;
-  transform: translate(-100%, -50%) translateX(-4px);
+.pr-measure-arrow--outside-left .pr-measure-arrow__label {
+  right: 100%;
+  margin-right: 4px;
+  transform: translateY(-50%);
+}
+
+/* Heads would overlap: hide chevrons, keep continuous shaft between bars. */
+.pr-measure-arrow--shaft .pr-measure-arrow__head {
+  display: none;
+}
+
+.pr-measure-arrow--shaft .pr-measure-arrow__shaft--left,
+.pr-measure-arrow--shaft .pr-measure-arrow__shaft--right {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .pr-gutter--axis-spacer {

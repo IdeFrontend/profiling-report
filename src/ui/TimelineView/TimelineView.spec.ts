@@ -130,7 +130,8 @@ describe('TimelineView', () => {
     });
 
     const arrow = wrapper.get('[data-testid="measure-arrow"]');
-    expect(arrow.classes()).not.toContain('pr-measure-arrow--compact');
+    expect(arrow.classes()).not.toContain('pr-measure-arrow--outside');
+    expect(arrow.classes()).not.toContain('pr-measure-arrow--shaft');
 
     const heads = wrapper.findAll('[data-testid="measure-arrow-head"]');
     expect(heads).toHaveLength(2);
@@ -153,7 +154,7 @@ describe('TimelineView', () => {
     });
   });
 
-  it('PR-TIMELINE-005: narrow selection uses compact outside label', async () => {
+  it('PR-TIMELINE-005: narrow selection keeps outside label and two-sided arrow', async () => {
     stubAxisWidth(400);
     const view = createViewState({
       minTime: 0,
@@ -161,7 +162,41 @@ describe('TimelineView', () => {
       processes: [],
     });
     view.measureMode = true;
-    // 1% of 400px = 4px — far below chrome + label.
+    // 8% of 400px = 32px — fits both heads (≥20) but not chrome + label.
+    view.measureRange = { startTime: 0, endTime: 80 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+    await wrapper.vm.$nextTick();
+
+    const arrow = wrapper.get('[data-testid="measure-arrow"]');
+    expect(arrow.classes()).toContain('pr-measure-arrow--outside');
+    expect(arrow.classes()).toContain('pr-measure-arrow--outside-right');
+    expect(arrow.classes()).not.toContain('pr-measure-arrow--shaft');
+    expect(wrapper.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(2);
+    expect(wrapper.findAll('[data-testid="measure-arrow-shaft"]')).toHaveLength(2);
+    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').exists()).toBe(true);
+  });
+
+  it('PR-TIMELINE-008: overlapping heads fall back to shaft-only with outside label', async () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.measureMode = true;
+    // 1% of 400px = 4px — below MEASURE_HEADS_MIN_PX (20).
     view.measureRange = { startTime: 0, endTime: 10 };
     const wrapper = mount(TimelineView, {
       props: {
@@ -177,10 +212,16 @@ describe('TimelineView', () => {
     await wrapper.vm.$nextTick();
 
     const arrow = wrapper.get('[data-testid="measure-arrow"]');
-    expect(arrow.classes()).toContain('pr-measure-arrow--compact');
-    expect(arrow.classes()).toContain('pr-measure-arrow--compact-right');
-    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
+    expect(arrow.classes()).toContain('pr-measure-arrow--outside');
+    expect(arrow.classes()).toContain('pr-measure-arrow--shaft');
+    expect(arrow.classes()).toContain('pr-measure-arrow--outside-right');
+    // Heads stay in DOM but are hidden via --shaft CSS.
+    expect(wrapper.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(2);
+    expect(wrapper.findAll('[data-testid="measure-arrow-shaft"]')).toHaveLength(2);
+    const src = (await import('./TimelineView.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-measure-arrow--shaft\s+\.pr-measure-arrow__head\s*\{[^}]*display:\s*none/,
+    );
     expect(wrapper.find('[data-testid="measure-label"]').exists()).toBe(true);
   });
 
