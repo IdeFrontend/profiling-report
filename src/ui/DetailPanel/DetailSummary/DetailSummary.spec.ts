@@ -61,4 +61,32 @@ describe('DetailSummary', () => {
     });
     expect(without.find('[data-testid="detail-summary-kind"]').exists()).toBe(false);
   });
+
+  it('PR-DSUM-004: every truncating cell carries its full text on hover', () => {
+    // A real Ascend timestamp: the cell shows "708421242..." and the digits are the point.
+    const wrapper = mount(DetailSummary, {
+      props: {
+        selected: {
+          id: '1',
+          name: '0-0-103-13-2(matmul)',
+          startTime: 708_421_242_123_456,
+          duration: 41_000,
+          endTime: 708_421_242_164_456,
+          args: { op_type: 'event' },
+        },
+        unit: 'ms',
+      },
+    });
+
+    const titles = wrapper.findAll('.pr-detail-summary__value').map((n) => n.attributes('title'));
+    expect(titles).toEqual([
+      '708421242.123 ms',
+      '0.041 ms',
+      '708421242.164 ms',
+    ]);
+    expect(wrapper.find('.pr-detail-summary__name').attributes('title')).toBe(
+      '0-0-103-13-2(matmul)',
+    );
+    expect(wrapper.find('[data-testid="detail-summary-kind"]').attributes('title')).toBe('event');
+  });
 });
