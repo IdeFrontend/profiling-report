@@ -4,6 +4,11 @@
     data-testid="cursor-line"
     :style="{ left: `${xRatio * 100}%` }"
   >
+    <!-- Stem stacks under measure Δt (z-index 4); pill stacks above. -->
+    <div
+      class="pr-cursor__stem"
+      aria-hidden="true"
+    />
     <span
       class="pr-cursor__label"
       data-testid="cursor-label"
@@ -31,13 +36,23 @@ withDefaults(
   /* Extend through axis border-bottom so the stem meets the canvas line (no 1px gap). */
   bottom: -1px;
   width: 1px;
-  background: #317af7;
   pointer-events: none;
-  z-index: 5;
   /*
-   * left = xRatio% places the left edge at cursor x.
+   * No z-index on the wrapper — stem and label stack independently against measure chrome
+   * (bars 3, arrow/Δt 4). left = xRatio% places the left edge at cursor x.
    * Canvas stroke uses x+0.5 so it covers [x, x+1] — same column. Do not translateX(-0.5).
    */
+}
+
+.pr-cursor__stem {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: #317af7;
+  /* Under measure arrow / Δt label (z-index 4); co-level with bars (3). */
+  z-index: 3;
 }
 
 .pr-cursor__label {
@@ -59,6 +74,8 @@ withDefaults(
   line-height: 1.35;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   transition: transform 180ms ease;
+  /* Above measure Δt so the raised (or in-track) pill is never crossed by the stem alone. */
+  z-index: 6;
 }
 
 .pr-cursor__label--above {

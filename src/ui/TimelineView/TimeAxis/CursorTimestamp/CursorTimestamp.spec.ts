@@ -47,4 +47,12 @@ describe('CursorTimestamp', () => {
       /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*transition:\s*none/,
     );
   });
+
+  it('PR-CURSOR-005: stem stacks under measure Δt; label stacks above', async () => {
+    const src = (await import('./CursorTimestamp.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-cursor__stem\s*\{[^}]*z-index:\s*3/);
+    expect(src).toMatch(/\.pr-cursor__label\s*\{[^}]*z-index:\s*6/);
+    const timelineSrc = (await import('../../TimelineView.vue?raw')).default as string;
+    expect(timelineSrc).toMatch(/\.pr-measure-arrow\s*\{[^}]*z-index:\s*4/);
+  });
 });

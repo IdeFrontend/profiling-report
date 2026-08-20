@@ -18,7 +18,9 @@ None. Presentational only — positioned absolutely by the parent axis container
 
 The bubble is centered on the stem by default: `left: 50%; transform: translate(-50%, 0)` at `top: 2px` inside the track.
 
-**Above placement.** When `labelAbove` is true (parent detects overlap with measure borders / Δt), the pill uses `pr-cursor__label--above` and `transform: translate(-50%, calc(-100% - 6px))` so it sits fully above the axis top. `top` stays `2px`; only `transform` changes so the move can animate (`transition: transform 180ms ease`). `prefers-reduced-motion: reduce` disables the transition.
+**Above placement.** When `labelAbove` is true (parent: playhead inside the measure range, or cursor pill over an outside Δt), the pill uses `pr-cursor__label--above` and `transform: translate(-50%, calc(-100% - 6px))` so it sits fully above the axis top. `top` stays `2px`; only `transform` changes so the move can animate (`transition: transform 180ms ease`). `prefers-reduced-motion: reduce` disables the transition.
+
+**Stacking.** Stem (`z-index: 3`) paints **under** measure bars/Δt (`3`/`4`); the timestamp pill (`z-index: 6`) paints **above** Δt so the vertical line never crosses the duration label when the pill is raised.
 
 ## Visual
 
@@ -42,6 +44,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 2. **PR-CURSOR-002** — Label text matches the prop value.
 3. **PR-CURSOR-003** — Stem extends `bottom: -1px` to bridge the axis/canvas border (no gap).
 4. **PR-CURSOR-004** — `labelAbove` applies `pr-cursor__label--above` with above-axis transform; CSS declares a transform transition; `prefers-reduced-motion` disables it.
+5. **PR-CURSOR-005** — Stem `z-index` is below measure Δt; label `z-index` is above measure Δt (stem does not cross the duration pill).
 
 ## Edge Cases
 
@@ -51,6 +54,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 | xRatio = 1 | Stem at right edge; bubble within axis container |
 | Short trace (<1ms span) | Parent uses µs/ns unit; bubble digits change on move |
 | labelAbove toggles | Pill animates up/down unless reduced motion |
+| labelAbove + Δt under stem x | Stem under Δt; raised pill still readable |
 
 ## Design sketches
 
@@ -62,5 +66,6 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 [format-time](../../../../../specs/core/format-time.spec.md) (formatCursorTime).
 
 ## Changelog
+- **2026-08-20** — Stem under Δt, pill above; PR-CURSOR-005.
 - **2026-08-20** — Above-axis placement + transform transition; PR-CURSOR-004.
 - **2026-08-10** — Extracted from ProfilingReport into own component.

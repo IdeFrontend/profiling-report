@@ -282,7 +282,7 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(false);
   });
 
-  it('PR-TIMELINE-009: cursor label lifts above axis over measure chrome, not when clear', async () => {
+  it('PR-TIMELINE-009: cursor label lifts above axis inside measure range, not when clear', async () => {
     stubAxisWidth(400);
     const view = createViewState({
       minTime: 0,
@@ -299,8 +299,8 @@ describe('TimelineView', () => {
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
-        // Right border at 80% of axis.
-        cursor: { time: 800, xRatio: 0.8 },
+        // Mid-shaft between inline Δt (~50%) and right bar (80%).
+        cursor: { time: 650, xRatio: 0.65 },
       },
     });
     await wrapper.vm.$nextTick();

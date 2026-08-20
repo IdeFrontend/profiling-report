@@ -25,8 +25,7 @@ describe('cursorMeasureOverlap', () => {
     ).toBe(false);
   });
 
-  it('hits left measure border', () => {
-    // left at 100px; cursor centered on bar with 72px label.
+  it('hits when cursor is on left measure border', () => {
     expect(
       cursorLabelOverlapsMeasureChrome({
         ...base,
@@ -35,7 +34,7 @@ describe('cursorMeasureOverlap', () => {
     ).toBe(true);
   });
 
-  it('hits right measure border', () => {
+  it('hits when cursor is on right measure border', () => {
     expect(
       cursorLabelOverlapsMeasureChrome({
         ...base,
@@ -44,7 +43,7 @@ describe('cursorMeasureOverlap', () => {
     ).toBe(true);
   });
 
-  it('hits inline Δt at range midpoint', () => {
+  it('hits when cursor is at range midpoint (inline Δt)', () => {
     expect(
       cursorLabelOverlapsMeasureChrome({
         ...base,
@@ -53,10 +52,7 @@ describe('cursorMeasureOverlap', () => {
     ).toBe(true);
   });
 
-  it('misses mid-shaft away from borders and inline Δt', () => {
-    // Midway between left bar (100) and Δt center (200): ~150px.
-    // Cursor half-width 36 → [114, 186]; Δt [160, 240] with pad still overlaps...
-    // Use a wide range and narrow dt so mid-left shaft is clear.
+  it('hits mid-shaft between Δt and edge bar inside the range', () => {
     expect(
       cursorLabelOverlapsMeasureChrome({
         ...base,
@@ -64,12 +60,21 @@ describe('cursorMeasureOverlap', () => {
         measureRightPct: 90,
         dtLabelW: 40,
         cursorLabelW: 40,
-        cursorXRatio: 0.25, // 100px; left bar at 40, mid at 200, Δt [180,220]
+        cursorXRatio: 0.25, // inside [40, 360]
+      }),
+    ).toBe(true);
+  });
+
+  it('misses when cursor is clear of the selected range', () => {
+    expect(
+      cursorLabelOverlapsMeasureChrome({
+        ...base,
+        cursorXRatio: 0.05,
       }),
     ).toBe(false);
   });
 
-  it('hits outside-right Δt', () => {
+  it('hits outside-right Δt past the right bar', () => {
     expect(
       cursorLabelOverlapsMeasureChrome({
         ...base,
@@ -77,12 +82,12 @@ describe('cursorMeasureOverlap', () => {
         measureRightPct: 50,
         dtPlacement: { mode: 'outside', side: 'right' },
         dtLabelW: 60,
-        cursorXRatio: (200 + 4 + 30) / 400, // mid of outside label
+        cursorXRatio: (200 + 4 + 30) / 400,
       }),
     ).toBe(true);
   });
 
-  it('hits outside-left Δt', () => {
+  it('hits outside-left Δt past the left bar', () => {
     expect(
       cursorLabelOverlapsMeasureChrome({
         ...base,
