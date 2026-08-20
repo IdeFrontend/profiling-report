@@ -5,6 +5,8 @@
 .pr-root {
   --pr-bg-panel: #262626;
   --pr-bg-deep: #1f1f1f;
+  --pr-axis-tick: #343434;
+  --pr-axis-tick-muted: #272727;
   --pr-playhead: #3078f0;
   --pr-color-cube: #007084;
   --pr-color-vector: #007464;

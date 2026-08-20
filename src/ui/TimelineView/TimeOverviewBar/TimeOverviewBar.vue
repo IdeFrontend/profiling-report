@@ -222,7 +222,7 @@ function onPointerUp() {
   height: 20px;
   border-bottom: 1px solid #4a4a4a;
   cursor: default;
-  /* Visible so edge handles are not cropped L/R; AxisRuler clips tick text vs aside. */
+  /* Visible so edge handles are not cropped L/R (also unclips Y; tabs stay in-track). AxisRuler clips tick text vs aside. */
   overflow: visible;
 }
 
