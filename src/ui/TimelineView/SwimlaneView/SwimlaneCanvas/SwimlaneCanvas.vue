@@ -475,7 +475,7 @@ function onMeasureBorderPointerEnter(_e: PointerEvent, edge: MeasureResizeEdge) 
 }
 
 function onMeasureBorderPointerLeave(e: PointerEvent) {
-  if (resizeEdge) return;
+  if (resizeEdge || measureGestureActive || measureCreatePending || measurePressActive) return;
   if (isMeasureBorderEl(e.relatedTarget) || (e.relatedTarget as HTMLElement | null)?.closest?.('.pr-swim-canvas')) {
     return;
   }

@@ -4,7 +4,7 @@
     data-testid="cursor-line"
     :style="{ left: `${xRatio * 100}%` }"
   >
-    <!-- Stem stacks under measure Δt (z-index 4); pill stacks above. -->
+    <!-- Stem under axis Δt (z-index 4); axis bars are 5 — stem stays below both. -->
     <div
       class="pr-cursor__stem"
       aria-hidden="true"
@@ -39,7 +39,7 @@ withDefaults(
   pointer-events: none;
   /*
    * No z-index on the wrapper — stem and label stack independently against measure chrome
-   * (bars 3, arrow/Δt 4). left = xRatio% places the left edge at cursor x.
+   * (axis bars 5, arrow/Δt 4; swimlane borders 3). left = xRatio% places the left edge at cursor x.
    * Canvas stroke uses x+0.5 so it covers [x, x+1] — same column. Do not translateX(-0.5).
    */
 }
@@ -51,7 +51,7 @@ withDefaults(
   left: 0;
   width: 1px;
   background: #317af7;
-  /* Under measure arrow / Δt label (z-index 4); co-level with bars (3). */
+  /* Under axis Δt (4) and axis bars (5); swimlane borders share 3. */
   z-index: 3;
 }
 
