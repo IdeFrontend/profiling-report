@@ -32,8 +32,9 @@ export function estimateAxisLabelWidth(label: string, minWidth = 0): number {
 }
 
 /**
- * True when the cursor should lift above the axis: playhead is inside the
- * selected measure range, or the cursor pill intersects an outside Δt label.
+ * True when the cursor timestamp should lift above the axis:
+ * - cursor pill overlaps the selected range (playhead inside, or label crosses a border), or
+ * - cursor pill intersects an outside Δt label past the bars.
  */
 export function cursorLabelOverlapsMeasureChrome(input: CursorMeasureOverlapInput): boolean {
   const {
@@ -46,21 +47,21 @@ export function cursorLabelOverlapsMeasureChrome(input: CursorMeasureOverlapInpu
     dtPlacement,
     padPx = MEASURE_CHROME_HIT_PAD_PX,
   } = input;
-  if (!(axisW > 0)) return false;
+  if (!(axisW > 0) || !(cursorLabelW > 0)) return false;
 
   const cursorX = cursorXRatio * axisW;
-  const leftPx = (measureLeftPct / 100) * axisW;
-  const rightPx = (measureRightPct / 100) * axisW;
-
-  // Entire selection (including mid-shaft between Δt and bars).
-  if (cursorX >= leftPx - padPx && cursorX <= rightPx + padPx) return true;
-
-  // Outside Δt sits past the bars — still lift when the cursor pill covers it.
-  if (dtPlacement.mode === 'inline' || !(cursorLabelW > 0) || !(dtLabelW > 0)) return false;
-
   const half = cursorLabelW / 2;
   const c0 = cursorX - half;
   const c1 = cursorX + half;
+  const leftPx = (measureLeftPct / 100) * axisW;
+  const rightPx = (measureRightPct / 100) * axisW;
+
+  // Inside the selection, or just outside with the pill still crossing a border.
+  if (intervalsOverlap(c0, c1, leftPx - padPx, rightPx + padPx)) return true;
+
+  // Outside Δt sits past the bars — still lift when the cursor pill covers it.
+  if (dtPlacement.mode === 'inline' || !(dtLabelW > 0)) return false;
+
   let dt0: number;
   let dt1: number;
   if (dtPlacement.side === 'right') {

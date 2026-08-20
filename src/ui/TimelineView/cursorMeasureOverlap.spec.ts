@@ -65,13 +65,23 @@ describe('cursorMeasureOverlap', () => {
     ).toBe(true);
   });
 
-  it('misses when cursor is clear of the selected range', () => {
+  it('misses when cursor and label are clear of the selected range', () => {
     expect(
       cursorLabelOverlapsMeasureChrome({
         ...base,
-        cursorXRatio: 0.05,
+        cursorXRatio: 0.05, // 20px; label [−16, 56], range [100, 300]
       }),
     ).toBe(false);
+  });
+
+  it('hits when playhead is outside but label crosses the range border', () => {
+    // right bar at 300px; cursor at 320 (outside); 72px label → [284, 356] crosses 300.
+    expect(
+      cursorLabelOverlapsMeasureChrome({
+        ...base,
+        cursorXRatio: 320 / 400,
+      }),
+    ).toBe(true);
   });
 
   it('hits outside-right Δt past the right bar', () => {

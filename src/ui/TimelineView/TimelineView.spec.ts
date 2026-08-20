@@ -282,7 +282,7 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(false);
   });
 
-  it('PR-TIMELINE-009: cursor label lifts above axis inside measure range, not when clear', async () => {
+  it('PR-TIMELINE-009: cursor label lifts when overlapping measure range, not when clear', async () => {
     stubAxisWidth(400);
     const view = createViewState({
       minTime: 0,
@@ -305,6 +305,13 @@ describe('TimelineView', () => {
     });
     await wrapper.vm.$nextTick();
 
+    expect(wrapper.get('[data-testid="cursor-label"]').classes()).toContain(
+      'pr-cursor__label--above',
+    );
+
+    // Playhead just past right bar (80%); ~72px pill still crosses the border.
+    await wrapper.setProps({ cursor: { time: 820, xRatio: 0.82 } });
+    await wrapper.vm.$nextTick();
     expect(wrapper.get('[data-testid="cursor-label"]').classes()).toContain(
       'pr-cursor__label--above',
     );

@@ -18,7 +18,7 @@ None. Presentational only — positioned absolutely by the parent axis container
 
 The bubble is centered on the stem by default: `left: 50%; transform: translate(-50%, 0)` at `top: 2px` inside the track.
 
-**Above placement.** When `labelAbove` is true (parent: playhead inside the measure range, or cursor pill over an outside Δt), the pill uses `pr-cursor__label--above` and `transform: translate(-50%, calc(-100% - 6px))` so it sits fully above the axis top. `top` stays `2px`; only `transform` changes so the move can animate (`transition: transform 180ms ease`). `prefers-reduced-motion: reduce` disables the transition.
+**Above placement.** When `labelAbove` is true (parent: cursor pill overlaps the measure range or an outside Δt), the pill uses `pr-cursor__label--above` and `transform: translate(-50%, calc(-100% - 6px))` so it sits fully above the axis top. `top` stays `2px`; only `transform` changes so the move can animate (`transition: transform 180ms ease`). `prefers-reduced-motion: reduce` disables the transition.
 
 **Stacking.** Stem (`z-index: 3`) paints **under** measure bars/Δt (`3`/`4`); the timestamp pill (`z-index: 6`) paints **above** Δt so the vertical line never crosses the duration label when the pill is raised.
 

@@ -16,7 +16,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Narrow selection.** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, park the duration pill **outside** the bars (prefer **4px to the right** of the right bar; if that would clip, **4px to the left** of the left bar) while still drawing the two-sided arrow between the bars. When the span is so narrow that the arrowheads would overlap (`<` pads + both heads ≈ **20px**), hide the heads and keep a continuous horizontal shaft between the vertical bars; the outside label stays.
 
-**Cursor vs measure chrome.** When a measure overlay is visible and the cursor playhead is **inside the selected range** (or the cursor pill covers an outside Δt label), the cursor pill lifts **above** the viewport axis (`labelAbove`) with a short animated transition (see `CursorTimestamp`). Clear of the range and outside Δt, the pill stays in-track.
+**Cursor vs measure chrome.** When a measure overlay is visible and the **cursor timestamp pill** overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside Δt label, the pill lifts **above** the viewport axis (`labelAbove`) with a short animated transition (see `CursorTimestamp`). Otherwise it stays in-track.
 
 ## Acceptance Criteria
 
@@ -28,7 +28,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 6. **PR-TIMELINE-006** — Measure axis bars clamp to the current view window when the range extends outside.
 7. **PR-TIMELINE-007** — Measure axis overlay hides when the range is fully outside the current view.
 8. **PR-TIMELINE-008** — When the selection is so narrow that arrowheads would overlap, hide heads and keep the horizontal shaft between bars with the label outside.
-9. **PR-TIMELINE-009** — With a visible measure range, cursor inside the selection (including mid-shaft) uses above-axis placement; cursor clear of the range stays in-track.
+9. **PR-TIMELINE-009** — With a visible measure range, cursor pill overlapping the selection (inside, or outside with label crossing a border) uses above-axis placement; cursor clear of the range stays in-track.
 
 ## Changelog
 - **2026-08-20** — Cursor timestamp lifts above axis on measure chrome overlap; PR-TIMELINE-009.
