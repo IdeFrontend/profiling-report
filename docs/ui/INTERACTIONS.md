@@ -85,7 +85,7 @@ Sketch: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (swimla
 Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delivery: **M2**.
 
 - Toolbar **caliper** toggles `measureMode`. While active, pan-drag on the swimlane is disabled (zoom/wheel still allowed unless Product says otherwise).
-- Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized). On the swimlane, create starts only after move >4px; a click (≤4px) over an event snaps the range to that event’s borders (no event select). Empty swimlane click clears the range.
+- Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized). On the swimlane, create starts only after move >4px; a click (≤4px) over an event snaps the range to that event’s borders (no event select). Borders animate from a prior range when one exists, otherwise shrink in from the visible window; empty swimlane click expands the range to the visible window then clears it. During appear/clear (view↔range) tweens, hide the axis Δt arrow and duration label (borders + fades still animate); keep Δt chrome when tweening between two non-empty ranges.
 - Hovering an event in measure mode shows gray preview stems at the event edges (no fades; non-interactive).
 - Overlay: translucent shaded band spanning the interval + floating **Δt** label using the current display `timeUnit` (e.g. `3.0ms`).
 - **Focus:** clicking the Δt pill animates the viewport so the measured range is centered and spans half the visible width (~400ms ease-out; instant with reduced motion).

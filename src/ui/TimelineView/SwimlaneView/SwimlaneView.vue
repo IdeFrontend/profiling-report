@@ -62,6 +62,7 @@ const emit = defineEmits<{
   zoom: [factor: number, anchorTime: number];
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
+  'suppress-measure-dt': [suppress: boolean];
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
@@ -261,6 +262,7 @@ defineExpose({
       @zoom="(f, a) => emit('zoom', f, a)"
       @scroll-y="onScrollY"
       @update:measure-range="emit('update:measure-range', $event)"
+      @suppress-measure-dt="emit('suppress-measure-dt', $event)"
     />
 
     <div
