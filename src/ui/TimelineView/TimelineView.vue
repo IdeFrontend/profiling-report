@@ -122,14 +122,14 @@ const measureAxis = computed(() => {
   const visStart = Math.max(viewStart, start);
   const visEnd = Math.min(viewEnd, end);
   if (!(visEnd > visStart)) {
-    // Fully outside: park a one-sided cue at the near view edge.
+    // Fully outside: park a one-sided chevron + Δt at the near view edge (no edge bar).
     if (end <= viewStart) {
       return {
         placement: 'offscreen-left' as const,
         left: 0,
         right: 0,
         width: 0,
-        showLeft: true,
+        showLeft: false,
         showRight: false,
         label,
       };
@@ -141,7 +141,7 @@ const measureAxis = computed(() => {
         right: 100,
         width: 0,
         showLeft: false,
-        showRight: true,
+        showRight: false,
         label,
       };
     }
@@ -450,7 +450,6 @@ defineExpose({
           <div
             v-if="measureAxis.showLeft"
             class="pr-measure-axis-bar pr-measure-axis-bar--left"
-            :class="{ 'pr-measure-axis-bar--cue': measureAxis.placement !== 'visible' }"
             data-testid="measure-axis-bar-left"
             :style="{ left: `${measureAxis.left}%` }"
             @pointerdown="onMeasureBarPointerDown($event, 'left')"
@@ -460,7 +459,6 @@ defineExpose({
           <div
             v-if="measureAxis.showRight"
             class="pr-measure-axis-bar pr-measure-axis-bar--right"
-            :class="{ 'pr-measure-axis-bar--cue': measureAxis.placement !== 'visible' }"
             data-testid="measure-axis-bar-right"
             :style="{ left: `${measureAxis.right}%` }"
             @pointerdown="onMeasureBarPointerDown($event, 'right')"
@@ -494,10 +492,10 @@ defineExpose({
               Flex: tip pad 1px | head | shaft | 4px | label | 4px | shaft | head
               Shaft negative margin pulls into chevron so the line meets the arms.
               Outside: label parked outside; arrow spans the bars (or no connector when too narrow).
-              Offscreen: one head pointing off-view + Δt just inside the near edge.
+              Offscreen: one head pointing off-view + Δt just inside the near edge (no edge bar).
             -->
             <svg
-              v-if="measureAxis.showLeft"
+              v-if="measureAxis.showLeft || measureAxis.placement === 'offscreen-left'"
               class="pr-measure-arrow__head"
               data-testid="measure-arrow-head"
               viewBox="0 0 9 10"
@@ -531,7 +529,7 @@ defineExpose({
               data-testid="measure-arrow-shaft"
             />
             <svg
-              v-if="measureAxis.showRight"
+              v-if="measureAxis.showRight || measureAxis.placement === 'offscreen-right'"
               class="pr-measure-arrow__head"
               data-testid="measure-arrow-head"
               viewBox="0 0 9 10"
@@ -669,12 +667,6 @@ defineExpose({
 .pr-measure-axis-bar:hover::before,
 .pr-measure-axis-bar:active::before {
   width: 2px;
-}
-
-/* Offscreen cue: visual only — true edge is outside the view. */
-.pr-measure-axis-bar--cue {
-  cursor: default;
-  pointer-events: none;
 }
 
 .pr-measure-arrow {
