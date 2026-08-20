@@ -33,7 +33,14 @@ const metrics = computed(() => {
   ];
   return rows.map(([key, ns]) => {
     const parts = formatTimeParts(ns, props.unit);
-    return { key, value: parts.value, label: `${t(key, props.locale)} (${parts.unit})` };
+    return {
+      key,
+      value: parts.value,
+      label: `${t(key, props.locale)} (${parts.unit})`,
+      // The value cell truncates — a long timestamp is exactly the case where the
+      // digits matter — so the hover carries the number and its unit in full.
+      title: `${parts.value} ${parts.unit}`,
+    };
   });
 });
 </script>
@@ -112,6 +119,7 @@ const metrics = computed(() => {
           v-if="kind"
           class="pr-detail-summary__kind"
           data-testid="detail-summary-kind"
+          :title="kind"
         >
           {{ kind }}
         </div>
@@ -124,7 +132,10 @@ const metrics = computed(() => {
         :key="metric.key"
         class="pr-detail-summary__metric"
       >
-        <dt class="pr-detail-summary__value">
+        <dt
+          class="pr-detail-summary__value"
+          :title="metric.title"
+        >
           {{ metric.value }}
         </dt>
         <dd
