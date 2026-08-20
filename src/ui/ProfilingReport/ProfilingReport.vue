@@ -179,13 +179,14 @@ function animateToWindow(window: { startTime: number; endTime: number; scrollY: 
     startTime: viewState.value.startTime,
     endTime: viewState.value.endTime,
   };
+  const scrollY = window.scrollY;
   cancelViewWindowAnim = animateViewWindow({
     from,
     to: { startTime: window.startTime, endTime: window.endTime },
     onUpdate: (w) => {
       viewState.value = applyWindow(viewState.value, {
         ...w,
-        scrollY: viewState.value.scrollY,
+        scrollY,
       });
     },
     onDone: () => {
@@ -412,8 +413,7 @@ function onZoom(factor: number, anchorTime: number) {
 }
 
 function onZoomToFit() {
-  stopViewWindowAnim();
-  viewState.value = applyWindow(viewState.value, zoomToFitWindow(swim.value));
+  animateToWindow(zoomToFitWindow(swim.value));
 }
 
 function onZoomIn() {
