@@ -69,8 +69,19 @@ let dragging = false;
 let lastX = 0;
 let downX = 0;
 let measureAnchorTime: number | null = null;
-/** True from measure pointerdown until pointerup — survives external Esc/toolbar cancel. */
+/** True once freeform create has crossed the 4px threshold (until pointerup). */
 let measureGestureActive = false;
+/** Measure-mode press waiting for click-vs-drag resolution. */
+let measureCreatePending = false;
+/** Freeform create ran this press (survives window onEnd clearing gesture). */
+let measureDragOccurred = false;
+/**
+ * True from measure pointerdown until pointerup — survives Esc/toolbar abort so
+ * the same press cannot pan or select.
+ */
+let measurePressActive = false;
+const MEASURE_DRAG_THRESHOLD_PX = 4;
+const suppressMeasurePreview = ref(false);
 let resizeEdge: MeasureResizeEdge | null = null;
 let resizeFixedOther = 0;
 let unbindResizeDrag: (() => void) | null = null;
@@ -237,12 +248,14 @@ watch(
 );
 
 function abortMeasureDrag(): void {
-  // Unbind create/resize updates but keep measureGestureActive until pointerup
-  // so a mid-gesture Esc/toolbar cancel does not pan or select on the same press.
+  // Unbind create/resize updates but keep measurePressActive / measureGestureActive
+  // until pointerup so a mid-gesture Esc/toolbar cancel does not pan or select.
   unbindCreateDrag?.();
   unbindCreateDrag = null;
   measureAnchorTime = null;
+  measureCreatePending = false;
   dragging = false;
+  suppressMeasurePreview.value = false;
   endMeasureResize();
 }
 
@@ -250,6 +263,7 @@ function endMeasureResize(): void {
   unbindResizeDrag?.();
   unbindResizeDrag = null;
   resizeEdge = null;
+  suppressMeasurePreview.value = false;
 }
 
 function endMeasureCreate(): void {
@@ -257,7 +271,44 @@ function endMeasureCreate(): void {
   unbindCreateDrag = null;
   measureAnchorTime = null;
   measureGestureActive = false;
+  measureCreatePending = false;
+  measurePressActive = false;
   dragging = false;
+  suppressMeasurePreview.value = false;
+}
+
+function beginMeasureCreateFromDown(): void {
+  if (!wrapRef.value || measureGestureActive) return;
+  const rect = wrapRef.value.getBoundingClientRect();
+  measureCreatePending = false;
+  measureGestureActive = true;
+  measureDragOccurred = true;
+  suppressMeasurePreview.value = true;
+  measureAnchorTime = timeAtX(downX - rect.left);
+  emit(
+    'update:measureRange',
+    normalizeMeasureRange(measureAnchorTime, measureAnchorTime),
+  );
+}
+
+function onCreateDragMove(clientX: number): void {
+  if (measureCreatePending) {
+    if (Math.abs(clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX) return;
+    beginMeasureCreateFromDown();
+  }
+  emitCreateRange(clientX);
+}
+
+/** Window pointerup: stop listening; leave press flags for canvas `pointerup`. */
+function onCreateDragEnd(): void {
+  unbindCreateDrag?.();
+  unbindCreateDrag = null;
+  if (measureGestureActive) {
+    measureAnchorTime = null;
+    measureGestureActive = false;
+    dragging = false;
+    suppressMeasurePreview.value = false;
+  }
 }
 
 function emitResizedRange(clientX: number) {
@@ -321,6 +372,7 @@ function onMeasureBorderPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
   endMeasureResize();
   resizeEdge = edge;
   resizeFixedOther = edge === 'left' ? end : start;
+  suppressMeasurePreview.value = true;
   emitCursorAtMeasureEdge(edge);
   unbindResizeDrag = bindWindowPointerDrag({
     onMove: emitResizedRange,
@@ -391,29 +443,54 @@ const measureGeometry = computed(() => {
   };
 });
 
+/** Gray event-edge preview while hovering in measure mode (no fades). */
+const measurePreviewGeometry = computed(() => {
+  if (!props.measureMode || suppressMeasurePreview.value || !props.model) return null;
+  const id = props.hoveredEventId;
+  if (!id) return null;
+  // Depend on view so x positions update when the window pans/zooms.
+  void props.view.startTime;
+  void props.view.endTime;
+  const ev = backend.findEvent(id);
+  if (!ev) return null;
+  const start = ev.startTime;
+  const end = ev.startTime + ev.duration;
+  if (!(end > start)) return null;
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const showLeft = start >= viewStart && start <= viewEnd;
+  const showRight = end >= viewStart && end <= viewEnd;
+  if (!showLeft && !showRight) return null;
+  return {
+    left: xAtTime(start),
+    right: xAtTime(end),
+    showLeft,
+    showRight,
+  };
+});
+
 function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
 
 function onPointerDown(e: PointerEvent): void {
-  dragging = true;
   lastX = e.clientX;
   downX = e.clientX;
-  const canvas = activeCanvas();
-  if (props.measureMode && canvas) {
-    const rect = canvas.getBoundingClientRect();
+  measureDragOccurred = false;
+  if (props.measureMode && activeCanvas()) {
     endMeasureCreate();
     endMeasureResize();
-    measureGestureActive = true;
-    measureAnchorTime = timeAtX(e.clientX - rect.left);
-    emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
+    measurePressActive = true;
+    measureCreatePending = true;
+    measureGestureActive = false;
     unbindCreateDrag = bindWindowPointerDrag({
-      onMove: emitCreateRange,
-      onEnd: endMeasureCreate,
+      onMove: onCreateDragMove,
+      onEnd: onCreateDragEnd,
     });
   } else {
     endMeasureCreate();
   }
+  dragging = true;
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
 }
 
@@ -431,7 +508,7 @@ function onPointerMove(e: PointerEvent): void {
 
   if (dragging) {
     // Measure create is driven by window listeners (release over Card strips still ends).
-    if (measureGestureActive) {
+    if (measureGestureActive || measureCreatePending || measurePressActive) {
       emit('hover', null, e.clientX, e.clientY);
       return;
     }
@@ -448,23 +525,45 @@ function onPointerMove(e: PointerEvent): void {
 }
 
 function onPointerUp(e: PointerEvent): void {
-  const wasMeasuring = measureGestureActive;
+  const didFreeform = measureDragOccurred;
+  const wasPending = measureCreatePending && !didFreeform;
+  const wasMeasurePress = measurePressActive;
   endMeasureCreate();
+  measureDragOccurred = false;
   const target = activeCanvas();
   if (!target) return;
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   emit('set-playhead', timeAtX(x));
-  if (wasMeasuring) return;
-  if (Math.abs(e.clientX - downX) > 4) return;
+  if (wasMeasurePress || props.measureMode) {
+    if (
+      props.measureMode &&
+      wasPending &&
+      !didFreeform &&
+      Math.abs(e.clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX
+    ) {
+      const id = backend.hitTest(x, y);
+      const ev = id ? backend.findEvent(id) : null;
+      if (ev) {
+        emit(
+          'update:measureRange',
+          normalizeMeasureRange(ev.startTime, ev.startTime + ev.duration),
+        );
+      } else {
+        emit('update:measureRange', null);
+      }
+    }
+    return;
+  }
+  if (Math.abs(e.clientX - downX) > MEASURE_DRAG_THRESHOLD_PX) return;
   const id = backend.hitTest(x, y);
   emit('select', id ? backend.findEvent(id) : null);
 }
 
 function onPointerLeave(e: PointerEvent): void {
   // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
-  if (measureGestureActive) {
+  if (measureGestureActive || measureCreatePending || measurePressActive) {
     schedulePaint();
     emit('cursor', null);
     emit('hover', null, 0, 0);
@@ -575,6 +674,20 @@ defineExpose({
         @pointerleave="onMeasureBorderPointerLeave"
       />
     </template>
+    <template v-if="measureMode && measurePreviewGeometry">
+      <div
+        v-if="measurePreviewGeometry.showLeft"
+        class="pr-measure-border pr-measure-border--preview"
+        data-testid="measure-preview-left"
+        :style="{ left: `${measurePreviewGeometry.left}px` }"
+      />
+      <div
+        v-if="measurePreviewGeometry.showRight"
+        class="pr-measure-border pr-measure-border--preview"
+        data-testid="measure-preview-right"
+        :style="{ left: `${measurePreviewGeometry.right}px` }"
+      />
+    </template>
   </div>
 </template>
 
@@ -669,5 +782,11 @@ defineExpose({
 .pr-measure-border:hover::before,
 .pr-measure-border:active::before {
   width: 2px;
+}
+
+.pr-measure-border--preview {
+  pointer-events: none;
+  cursor: default;
+  z-index: 2;
 }
 </style>

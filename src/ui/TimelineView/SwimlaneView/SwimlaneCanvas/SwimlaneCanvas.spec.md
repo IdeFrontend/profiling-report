@@ -22,7 +22,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 **Pointer translation.** `pointerdown` records the starting position. `pointermove` performs hitTest and emits `hover` (with clientX/clientY for tooltip positioning) and `cursor` (time + xRatio for playhead). While dragging **and not in measureMode**, every move emits `pan` in time units. On `pointerup`, if total movement <=4px and not measuring, `hitTest` is called and the result emitted as `select`.
 
-**Measure mode (M2).** When `measureMode` is true, drag sets `measureRange` (`update:measureRange`) instead of pan/select. The overlay dims the swimlanes **outside** the measured span with a dark fade and draws a **gray** border at each **true** selection edge that falls inside the current view (9px hit pad, 1px stem; hover/active 2px; `col-resize`; canvas z-index under Card strips). An edge that is only clamped onto the view boundary is **not** drawn as a border (avoids a false “selection ends here” cue). Dragging a border resizes that edge (other fixed, view-clamped, ~1px min span) without starting a new create-drag; move/up are bound on `window` so release over Card strips still ends the resize. Hovering a border **sticks** the swim/`cursor` emit to that edge (canvas `pointerleave` does not clear when moving onto the border). Fades **clamp to the current view window**; a range fully outside the view hides the overlay. The blue Δt arrow and blue vertical bars live on the viewport time axis (see `TimelineView.spec.md`). The mouse-follow cursor is owned by `SwimlaneView` under Card strips. Pan is suppressed. Aside sync is out of scope until Q22. `pointerleave` must not clear the measure anchor while a measure drag is active (pointer capture may keep delivering move/up outside the element). External cancel (`measureMode` false / `measureRange` null via Esc or toolbar) clears local drag/anchor immediately; a `measureGestureActive` flag suppresses pan and select until `pointerup`.
+**Measure mode (M2).** When `measureMode` is true, pan and `select` are suppressed. **Hover** over an event shows two non-interactive **gray** full-height preview stems at the event’s true `startTime` / `endTime` (omit an edge outside the view; no fades). **Click** (move ≤4px) over an event snaps `measureRange` to that event’s borders via `update:measureRange` only — never `select`. Click on empty space clears `measureRange` (`null`). **Drag** (move >4px) starts freeform create (anchor at pointerdown X); `pointerdown` does **not** emit a range until the threshold is crossed. The committed overlay dims the swimlanes **outside** the measured span with a dark fade and draws a **gray** border at each **true** selection edge that falls inside the current view (9px hit pad, 1px stem; hover/active 2px; `col-resize`; canvas z-index under Card strips). An edge that is only clamped onto the view boundary is **not** drawn as a border (avoids a false “selection ends here” cue). Dragging a border resizes that edge (other fixed, view-clamped, ~1px min span) without starting a new create-drag; move/up are bound on `window` so release over Card strips still ends the resize. Hovering a border **sticks** the swim/`cursor` emit to that edge (canvas `pointerleave` does not clear when moving onto the border). Fades **clamp to the current view window**; a range fully outside the view hides the overlay. Preview stems are suppressed while creating or resizing. The blue Δt arrow and blue vertical bars live on the viewport time axis (see `TimelineView.spec.md`). The mouse-follow cursor is owned by `SwimlaneView` under Card strips. Aside sync is out of scope until Q22. `pointerleave` must not clear the measure anchor while a measure press/drag is active (pointer capture may keep delivering move/up outside the element). External cancel (`measureMode` false / `measureRange` null via Esc or toolbar) clears local drag/anchor immediately; a `measurePressActive` flag suppresses pan and select until `pointerup`.
 
 **Reactivity.** A deep watcher on the viewport prop calls `renderer.setView()` and `renderer.render()` on every change. Model changes call `renderer.setModel()`. Selection/hover/`dependencyMode`/`dependencyDepth` changes trigger render only (layout unchanged; no page reload).
 
@@ -30,7 +30,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 1. **PR-CANVAS-001** — Creates canvas element and 2D context.
 2. **PR-CANVAS-002** — Canvas persists after model change.
-3. **PR-CANVAS-003** — In measureMode, drag emits measureRange; pan is not emitted.
+3. **PR-CANVAS-003** — In measureMode, drag (>4px) emits measureRange; pan is not emitted; pointerdown alone does not emit a range.
 4. **PR-CANVAS-004** — Measure overlay shows fade and gray borders when measureRange is set.
 5. **PR-CANVAS-005** — `pointerleave` during an active measure drag does not abort the drag or allow select.
 6. **PR-CANVAS-006** — Clearing measureMode/measureRange mid-drag does not pan or select on subsequent move/up.
@@ -39,6 +39,8 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 9. **PR-CANVAS-009** — Measure overlay hides when the range is fully outside the current view.
 10. **PR-CANVAS-010** — Dragging a measure border resizes that edge (other edge fixed); borders use a 9px hit pad, `col-resize`, and 2px stem on hover.
 11. **PR-CANVAS-011** — Hovering a measure border emits `cursor` stuck to that edge (does not hide the timestamp).
+12. **PR-CANVAS-012** — In measureMode, hovering an event shows gray preview borders at its start/end (no fades); leaving clears them.
+13. **PR-CANVAS-013** — In measureMode, click (≤4px) on an event snaps measureRange to its borders and does not emit `select`; click on empty space clears measureRange.
 
 ## Edge Cases
 
@@ -71,6 +73,8 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-08-20** — Empty measure-mode swimlane click clears measureRange; PR-CANVAS-013.
+- **2026-08-20** — Measure-mode event hover preview + click-to-range; deferred create until >4px; PR-CANVAS-012/013.
 - **2026-08-20** — Omit gray borders for clamped/clipped edges; PR-CANVAS-008.
 - **2026-08-20** — Hover measure border sticks cursor; PR-CANVAS-011.
 - **2026-08-20** — Draggable swimlane measure borders; PR-CANVAS-010.

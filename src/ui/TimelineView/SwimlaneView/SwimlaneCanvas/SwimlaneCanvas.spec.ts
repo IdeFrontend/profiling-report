@@ -47,6 +47,8 @@ describe('SwimlaneCanvas', () => {
     });
 
     await canvas.trigger('pointerdown', { clientX: 20, clientY: 10, pointerId: 1 });
+    expect(wrapper.emitted('update:measureRange')).toBeFalsy();
+
     window.dispatchEvent(new PointerEvent('pointermove', { clientX: 120, clientY: 10, buttons: 1 }));
     window.dispatchEvent(new PointerEvent('pointerup', { clientX: 120, clientY: 10 }));
 
@@ -260,6 +262,96 @@ describe('SwimlaneCanvas', () => {
     const last = cursors![cursors!.length - 1][0] as { time: number; xRatio: number };
     expect(last.time).toBe(500);
     expect(last.xRatio).toBeCloseTo(0.5, 5);
+    wrapper.unmount();
+  });
+
+  const eventModel = {
+    minTime: 0,
+    maxTime: 1000,
+    processes: [
+      {
+        id: 'p-1',
+        name: 'P',
+        threads: [
+          {
+            id: 't-1',
+            name: 'T',
+            events: [{ id: 'e1', name: 'busy', startTime: 200, duration: 300 }],
+          },
+        ],
+      },
+    ],
+  };
+
+  async function mountWithEventModel(extra: Record<string, unknown> = {}) {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: eventModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: true,
+        measureRange: null,
+        timeUnit: 'ms',
+        ...extra,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    // Model watch → resize with real dimensions so hitTest/eventScreenRect match.
+    await wrapper.setProps({
+      model: { ...eventModel },
+      hoveredEventId: (extra.hoveredEventId as string | null | undefined) ?? null,
+    });
+    return { wrapper, canvas };
+  }
+
+  it('PR-CANVAS-012: hover event shows gray preview borders without fades', async () => {
+    const { wrapper } = await mountWithEventModel({ hoveredEventId: 'e1' });
+    expect(wrapper.find('[data-testid="measure-preview-left"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-preview-right"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-fade-left"]').exists()).toBe(false);
+    const left = wrapper.get('[data-testid="measure-preview-left"]');
+    expect(left.attributes('style')).toMatch(/left:\s*80px/);
+    expect(left.classes()).toContain('pr-measure-border--preview');
+
+    await wrapper.setProps({ hoveredEventId: null });
+    expect(wrapper.find('[data-testid="measure-preview-left"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-013: click event snaps measureRange without select; empty click clears', async () => {
+    const { wrapper, canvas } = await mountWithEventModel();
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1');
+    expect(rect).toBeTruthy();
+    const x = rect!.x + rect!.w / 2;
+    const y = rect!.y + rect!.h / 2;
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    expect(wrapper.emitted('update:measureRange')).toBeFalsy();
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+
+    expect(wrapper.emitted('select')).toBeFalsy();
+    const ranges = wrapper.emitted('update:measureRange');
+    expect(ranges?.length).toBe(1);
+    expect(ranges![0][0]).toEqual({ startTime: 200, endTime: 500 });
+
+    await wrapper.setProps({ measureRange: { startTime: 200, endTime: 500 } });
+    await canvas.trigger('pointerdown', { clientX: 10, clientY: 5, pointerId: 2 });
+    await canvas.trigger('pointerup', { clientX: 10, clientY: 5, pointerId: 2 });
+    const afterEmpty = wrapper.emitted('update:measureRange')!;
+    expect(afterEmpty[afterEmpty.length - 1][0]).toBeNull();
+    expect(wrapper.emitted('select')).toBeFalsy();
     wrapper.unmount();
   });
 });
