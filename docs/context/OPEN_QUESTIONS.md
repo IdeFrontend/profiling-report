@@ -22,7 +22,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 
 ## Still blocking Product-final (not coding) acceptance
 
-- Exact summary tile formulas (Q6) — I-Q6g guesses I/O BW; compute / avg util still hidden
+- Exact summary tile formulas (Q6) — measured I/O BW confirmed; peak/score still guessed; compute / avg util still hidden
 - Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
 - Overview chart producer — interim keeps charts hidden
 - Phase 2 contracts Q9–Q11, Q10
@@ -39,8 +39,8 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q3** | Required embeds / missing data | **Resolved** | Minimal open; **hide** missing panels. → [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
 | **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
-| **Q6** | Report summary formulas | **Interim** | Duration thin tiles [I-Q6a](INTERIM_DECISIONS.md). **I/O BW cards** [I-Q6g](INTERIM_DECISIONS.md) (Memory.csv mean + sketch 1.6 TB/s peak). Still hide compute TFLOPS and avg core util. PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). **PIPE layout:** **Cube \| Vector toggle for MIX** ops ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)); non-MIX shows the relevant side only. Block-scoped details vs mean bars — [I-Q6c](INTERIM_DECISIONS.md). **Open:** Product peak (`HardwareInfo` / `Report.csv`?), whether score is measured/peak (sketch 81 disagrees), AIC+AIV aggregation vs split (sketch splits), `block_id` mean vs max vs selected block, **GB/s vs TB/s** when measured ≪ 1 TB/s. |
-| **Q7** | Hardware details sidebar | **Resolved (MVP)** | **Out of MVP** until further product/spec docs. |
+| **Q6** | Report summary formulas | **Interim** | **Confirmed (npu-compute 0818):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read\|write}_bw`. **Still hide** compute TFLOPS and avg core util (empty in product table). PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score** (I-Q6g guess 1.6 TB/s; sketch 81 ≠ ratio), `block_id` mean vs max vs selected block, **GB/s vs TB/s** when measured ≪ 1 TB/s. |
+| **Q7** | Hardware details sidebar | **Resolved (source)** | **`HardwareInfo.jsonl`** is the details source (npu-compute 0818). Not required to open Timeline; hide **更多** overlay when jsonl and OpBasicInfo fallback are empty ([I-Q7a](INTERIM_DECISIONS.md)). Meta **核数** / **NPU ARCH** still unmapped. |
 | **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children` (sketch Card tree). |
 
 ---
@@ -81,7 +81,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q3 | 2026-07-31 | Minimal open; hide missing panels | VIEW_DATA_REQUIREMENTS |
 | Q4 | 2026-07-31 | Target = sketch-like multi-core Gantt (A) | UI_OVERVIEW, METRICS gap |
 | Q5 | 2026-07-31 | Hide overview until OverviewSeries (C) | VIEW_DATA_REQUIREMENTS |
-| Q7 | 2026-07-31 | Hardware aside out of MVP | FEATURE_MATRIX |
+| Q7 | 2026-08-20 | Hardware details source = `HardwareInfo.jsonl`; hide overlay if missing | VIEW_DATA_MAPPING, I-Q7a |
 | Q8 | 2026-07-31 | Producer fixed naming for now (A) | METRICS_AND_TRACE |
 | Q12 | 2026-07-31 | Static SVG + data-driven labels | VIEW_DATA_REQUIREMENTS |
 | Q13 | 2026-07-31 | Sketch colors normative | COLOR_TOKENS |

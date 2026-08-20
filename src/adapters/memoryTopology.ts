@@ -123,8 +123,8 @@ const EDGE_MAP: {
     to: 'l2',
     unit: 'GB/s',
     sources: [
-      { file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] },
       { file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_gm(GB/s)'] },
+      { file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] },
     ],
   },
   {
@@ -133,8 +133,8 @@ const EDGE_MAP: {
     to: 'ub',
     unit: 'GB/s',
     sources: [
-      { file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] },
       { file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_gm(GB/s)'] },
+      { file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] },
     ],
   },
   {
@@ -183,7 +183,7 @@ function formatLabel(n: number, unit: Unit): string {
 
 /**
  * Block-scoped memory topology from Memory* CSV tables (§11.2.6).
- * Omit when no edge yields a non-NA label.
+ * Product: hide `NA`; show 0. Omit the whole diagram when no edge has a label.
  */
 export function buildMemoryTopology(
   tables: CsvTableModel[],

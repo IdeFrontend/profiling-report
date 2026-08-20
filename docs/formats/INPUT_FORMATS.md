@@ -211,8 +211,8 @@ GM / L2 / L1 oriented bandwidth and data volumes.
 | --- | --- | --- | --- |
 | GM ← L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present (split AIC/AIV) |
 | GM → L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present |
-| L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | Present |
-| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | Present |
+| L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv` |
+| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed** |
 | L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → UB | — | — | **TBD** (docx); absent in sample |
@@ -236,8 +236,8 @@ Also present in sample (not all listed in docx edge table): MTE instruction/rati
 | --- | --- | --- | --- |
 | Vec → UB | `aiv_ub_read_bw_vector(GB/s)` | `aiv_ub_read_bw_vector(GB/s)` | Present |
 | UB → Vec | `aiv_ub_write_bw_vector(GB/s)` | `aiv_ub_write_bw_vector(GB/s)` | Present |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | **Name mismatch**: sample has GM↔UB BW on `Memory.csv` as `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same as above |
+| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | Product name on `MemoryUB.csv`; sample uses `aiv_ub_to_gm_bw` on `Memory.csv` (adapter tries product first) |
+| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same: product `MemoryUB.csv`, sample `aiv_gm_to_ub_bw` on `Memory.csv` |
 
 Sample also includes `aiv_ub_read_bw_scalar(GB/s)` / `aiv_ub_write_bw_scalar(GB/s)`.
 
@@ -314,7 +314,7 @@ Verified against unpacked payloads (2026-08-03 local sample):
 | Docx `L0C_to_L1_datas` / `L0C_to_GM_datas` | Present as `*_datas(KB)` (+ usage rate) on `Memory.csv` |
 | `OpBasicInfo.csv` PID / Op Type / Block Dim / Task Duration | Present |
 | `L2Cache.csv` hit-rate columns | Present |
-| `HardwareInfo.jsonl`, `MemoryL1.csv` | **Absent** |
+| `HardwareInfo.jsonl`, `MemoryL1.csv` | jsonl **present** in `npu-tools-main-docs/docs/example.rep` (nested npu-rep); **absent** from `data/out.rep`. No `MemoryL1.csv` — L1 BW on `Memory.csv` |
 | Supplementary (not in docx tables) | `ArithmeticUtilization.csv`, `ResourceConflictRatio.csv`, `trace.json` present |
 
 ---
@@ -326,10 +326,10 @@ See prioritized product-owner list: [OPEN_QUESTIONS.md](../context/OPEN_QUESTION
 | Item | Notes |
 | --- | --- |
 | `npu-rep` vs `cann-rep` | Product diagram vs repo packer; same conceptual layout |
-| `HardwareInfo.jsonl` | Required by hardware details UI; missing from sample archive |
-| `MemoryL1.csv` | Annotated on topology mockup; L1 BW currently on `Memory.csv` in sample |
-| UB↔GM field names | Product `aiv_ub_*_bw_gm` on `MemoryUB.csv` vs sample `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` on `Memory.csv` |
+| `HardwareInfo.jsonl` | Details source confirmed; missing from `out.rep`, present in `example.rep` |
+| `MemoryL1.csv` | Not required; L1 BW on `Memory.csv` |
+| UB↔GM field names | Product `MemoryUB.csv` first; sample `Memory.csv` fallback |
 | L0C → UB edge | 待确定; no sample column |
 | Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
-| Report-stat derived cards | 算力 / 平均核利用率 still empty; 输入/输出带宽 → [I-Q6g](../context/INTERIM_DECISIONS.md) |
+| Report-stat derived cards | 算力 / 平均核利用率 still empty; 输入/输出 **measured** confirmed; peak/score → [I-Q6g](../context/INTERIM_DECISIONS.md) |
 | Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |

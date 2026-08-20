@@ -12,13 +12,13 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Behavior
 
-**Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (microseconds as stored in CSV), optional `blockDim` from `Block Dim` (pass-through string/number, no formula). In MVP (I-Q6a), compute TFLOPS and core utilization stay unset. I/O bandwidth cards are **not** on summary — they are `bandwidthCards` (I-Q6g).
+**Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (**confirmed** `Task Duration(us)`), optional `blockDim` from `Block Dim` (pass-through). Compute TFLOPS and core utilization stay unset. I/O bandwidth cards are `bandwidthCards` (I-Q6g): **measured columns confirmed**; peak/score still interim.
 
 **I/O bandwidth (I-Q6g).** From `Memory.csv`: mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_main_mem_{read|write}_bw(GB/s)` (first matching header only; also accepts headers without the `(GB/s)` suffix). Peak = **1600 GB/s** (sketch 1.6 TB/s) for every side. Omit a side when all-NA; omit the card when both sides NA; omit `bandwidthCards` when Memory.csv is missing.
 
-**Aside meta (shell).** Optional header fields on `SummaryMetrics`: `coreCount?: number`, `npuArchLabel?: string`, plus existing `currentFreq` (displayed as aic频率). Adapter may leave `coreCount` / `npuArchLabel` unset until `HardwareInfo` / Product mapping exists — UI hides missing segments.
+**Aside meta (shell).** Optional header fields on `SummaryMetrics`: `coreCount?: number`, `npuArchLabel?: string`, plus `currentFreq` (**aic频率 confirmed:** `OpBasicInfo.csv` `Current Freq`). Adapter leaves `coreCount` / `npuArchLabel` unset. UI hides missing segments. **Rated Freq** is stored but not shown on the shell.
 
-**Pipe occupancy.** Reads `PipeUtilization.csv`, computes per-pipe-family means of non-NA ratios across all rows (I-Q6b). Optional `absoluteValue` = mean non-NA matching `*_time(us)` (I-Q6f). Include ICache Miss items when `*_icache_miss_rate` mean is present. Each item is **side-specific**: Cube uses `aic_*` columns, Vector uses `aiv_*` (VIEW_DATA_MAPPING tables). Shared family names (MTE2, Scalar) appear as separate cube/vector items — never a blended AIC+AIV mean. Ratios merge into matching swimlane threads by `laneColorKey` (mean when both sides contribute the same key).
+**Pipe occupancy.** Reads `PipeUtilization.csv`, computes per-pipe-family means of non-NA ratios across all rows (I-Q6b). Optional `absoluteValue` = mean non-NA matching `*_time(us)` (I-Q6f). **ICache Miss confirmed:** include when `*_icache_miss_rate` mean is present. Each item is **side-specific**: Cube uses `aic_*` columns, Vector uses `aiv_*`. Shared family names (MTE2, Scalar) appear as separate cube/vector items — never a blended AIC+AIV mean. Ratios merge into matching swimlane threads by `laneColorKey` (mean when both sides contribute the same key).
 
 **CSV detail tables (M1).** Builds `CsvTableModel` entries for compute tabs (`PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio`) and memory tabs (`Memory.csv`, `L2Cache`, `MemoryL0`, `MemoryUB`). Each table includes headers, rows, and distinct `blockIds` in fixture order (I-Q6c). Missing embeds are omitted. Raw CSV text is stored in `csvTexts[fileName]` for 查看全部 (I-Q6d).
 
@@ -30,9 +30,9 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Roofline (M2 interim I-Q11*).** When `ArithmeticUtilization.csv` and `Memory.csv` yield a GM point: set `reportModel.roofline` and include `'roofline'` in `capabilities`. Omit `roofline` (and the capability) when undecidable. L2 omitted (I-Q11c). Tabs omitted (I-Q11f).
 
-**Hardware details (M1 interim I-Q7a).** Prefer `HardwareInfo.jsonl` category sections; else OpBasicInfo non-empty columns. Omit when neither yields fields. Include `'hardwareDetails'` in capabilities when model present.
+**Hardware details (M1).** Prefer `HardwareInfo.jsonl` category sections (product source); else OpBasicInfo non-empty columns. Omit when neither yields fields. Include `'hardwareDetails'` in capabilities when model present. Do **not** map jsonl `ai_core_count` / `chip_info` onto aside meta 核数 / NPU ARCH until Product says so.
 
-**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` (`nodes` + `edges`) from `Memory.csv` / `MemoryL0.csv` / `MemoryUB.csv` / `L2Cache.csv` using the [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md) edge→field→source table. Default snapshot uses the first block that yields a labelled edge. `buildMemoryTopology(tables, blockId)` rebuilds labels for another block (I-Q6c). Each edge label is the non-`NA` mapped value (GB/s or KB); omit the label when all sources are `NA`. Omit `memoryTopology` (and include no `'memoryDiagram'` capability) when no edge yields a label.
+**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` from Memory* CSVs per [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md). L2↔L1 from `Memory.csv`. UB→L2 / L2→UB: product `MemoryUB.csv` names first, then sample `Memory.csv` names. `buildMemoryTopology(tables, blockId)` rebuilds labels for another block (I-Q6c). Hide `NA` labels; **show 0**. Omit `memoryTopology` (and `'memoryDiagram'`) when no edge yields a label.
 
 ## Acceptance Criteria
 
@@ -44,8 +44,8 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 6. **PR-VM-007** — `memoryTables` includes Memory.csv, L2Cache.csv, MemoryL0.csv, MemoryUB.csv with blockIds; `csvTexts` has raw text for each present table fileName.
 7. **PR-VM-008** — ICache Miss included when rate mean present.
 8. **PR-VM-009** — Roofline GM point + mix labels from ArithmeticUtilization + Memory (I-Q11a/b/e); capability `roofline` when points exist; omit when CSVs insufficient.
-9. **PR-VM-010** — `hardwareDetails` from HardwareInfo.jsonl or OpBasicInfo fallback (I-Q7a); omit when empty; capability `hardwareDetails` when present.
-10. **PR-VM-011** — `memoryTopology` edges from non-NA Memory* CSV columns per §11.2.6; edge labels omitted when NA; capability `memoryDiagram` when present.
+9. **PR-VM-010** — `hardwareDetails` from HardwareInfo.jsonl (preferred) or OpBasicInfo fallback; omit when empty; capability `hardwareDetails` when present.
+10. **PR-VM-011** — `memoryTopology` edges from non-NA Memory* CSV columns; L2↔L1 from Memory.csv; UB product names first; hide NA, show 0.
 11. **PR-VM-012** — Topology labels come only from the requested `block_id`; first labelled block is used for the adapter snapshot.
 12. **PR-VM-013** — `bandwidthCards` from Memory.csv mean non-NA main-mem BW; peak 1600 GB/s; omit NA sides/cards (I-Q6g). Also covers unmodified `out.rep` (aiv-only; peak 1600).
 
@@ -67,6 +67,7 @@ I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q6g, I-Q5+, I-Q7a, I-Q11a–f. [rep-format]
 Q6 — Product-final summary formulas (compute / avg util still open; bandwidth I-Q6g). Q11 — Product-final roofline. Q22 — measureRange aside sync.
 
 ## Changelog
+- **2026-08-20** — npu-compute 0818: duration / measured BW / ICache / HardwareInfo.jsonl / L2↔L1 / NA-hide confirmed; UB product names first (PR-VM-010/011).
 - **2026-08-19** — I-Q6g peak is sketch 1600 GB/s (not max of measured); `bandwidthCards` optional (PR-VM-013).
 - **2026-08-19** — I-Q6g `bandwidthCards` (PR-VM-013).
 - **2026-08-13** — PR-VM-011/012 memory topology helper; first labelled block snapshot.

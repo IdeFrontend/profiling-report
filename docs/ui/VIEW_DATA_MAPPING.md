@@ -58,9 +58,9 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 1 | 进程ID | `PID` / `Pid` | `OpBasicInfo.csv` | |
 | 2 | 算子类型 | `OpType` / `Op Type` | `OpBasicInfo.csv` | e.g. `vector`, `MIX` |
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
-| 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | Shown as ms in mockup (unit conversion in UI) |
+| 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | **Confirmed** (npu-compute 0818). Shown as ms in mockup (unit conversion in UI) |
 | 5 | 算力情况 | — | — | **Unspecified in docx** |
-| 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **I-Q6g:** measured = mean non-`NA`; peak = 1600 GB/s (sketch 1.6 TB/s); display TB/s |
+| 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **Measured confirmed.** Peak / score still **I-Q6g** (1600 GB/s guess; sketch 81 ≠ ratio) |
 | 7 | 输出带宽 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | same as #6 |
 | 8 | 平均核利用率 | — | — | **Unspecified in docx** |
 
@@ -69,20 +69,20 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | Element | Behavior |
 | --- | --- |
 | Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
-| Meta row | Segments **核数** / **aic频率** / **NPU ARCH** only when `SummaryMetrics.coreCount` / `currentFreq` / `npuArchLabel` are set. Hide entire meta row if all empty. Do **not** invent values. Adapter may leave cores/ARCH unset until `HardwareInfo` mapping exists; `Current Freq` from OpBasicInfo feeds aic频率. **`Rated Freq` / `ratedFreq` is intentionally not shown** on this shell (sketch aic频率 only). |
-| 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Opens interim `HardwareDetailsPanel` when data exists (I-Q7a) and emits `open-hardware-details`. |
+| Meta row | Segments **核数** / **aic频率** / **NPU ARCH** only when `SummaryMetrics.coreCount` / `currentFreq` / `npuArchLabel` are set. Hide entire meta row if all empty. Do **not** invent values. **aic频率 confirmed:** `OpBasicInfo.csv` `Current Freq`. **`Rated Freq` is not shown** on this shell. **核数** and **NPU ARCH** still unset (`HardwareInfo.jsonl` `ai_core_count` vs `Block Dim`; `chip_info` / `arch_info` are not the sketch `212 teraOPs`). |
+| 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Opens `HardwareDetailsPanel` from **`HardwareInfo.jsonl`** when present (OpBasicInfo fallback if jsonl missing) and emits `open-hardware-details`. Hide the overlay when neither source has fields. |
 | 整体耗时 card | Large duration + **decorative** short cyan progress bar (I-Q6e, not a util %). Secondary: `blockDim` → iterations/core text; else `opName`; else omit. No standalone op-type card. |
 | 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — **hidden until Q6** |
 | 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak TB/s` — **I-Q6g** (hide side/card when NA). Same card chrome as 整体耗时. |
 | 平均核利用率 card | Percentage bar + enabled cores fraction — **hidden until Q6** |
 
-Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 use [I-Q6g](../context/INTERIM_DECISIONS.md) until Q6 closes.
+Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [I-Q6g](../context/INTERIM_DECISIONS.md).
 
 ### Interim I-Q6g (input / output bandwidth)
 
 | Slot | Interim |
 | --- | --- |
-| Measured | Mean of non-`NA` matching Memory.csv column(s) across `block_id` (same as I-Q6b) |
+| Measured | **Confirmed:** mean of non-`NA` matching Memory.csv column(s) across `block_id` (same as I-Q6b) |
 | Peak | 1600 GB/s (1.6 TB/s) for every aic/aiv × in/out slot — sketch HW guess, **not** max of measured columns |
 | Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
 | Display | TB/s = GB/s ÷ 1000; ≥1 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 |
@@ -97,7 +97,7 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 
 ![Hardware details](./source/v930/hardware-more-detail.jpeg)
 
-**Source:** `HardwareInfo.jsonl` (one object per line, `category` discriminator).
+**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. Hide **更多** overlay when jsonl and the OpBasicInfo fallback are both empty. `data/out.rep` omits jsonl; `npu-tools-main-docs/docs/example.rep` includes it (nested `npu-rep`).
 
 | Section (UI) | Typical fields |
 | --- | --- |
@@ -108,8 +108,6 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 | Memory Information | HBM Total / Used (MB), HBM Frequency (MHZ) |
 
 **Interaction:** opened from 报告统计 → 更多; dismiss with close control. Label left / value right layout.
-
-**Gap:** file absent from local [`data/out.rep`](../../data/out.rep); viewer should hide or empty-state this panel when missing.
 
 ---
 
@@ -225,34 +223,34 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 
 ### Edge → field → source (engineering mapping for M2)
 
-Use this table for `MemoryTopologyPanel` labels. Product may refine ([Q12](../context/OPEN_QUESTIONS.md)); until then treat sample column names as canonical.
+Use this table for `MemoryTopologyPanel` labels.
 
 | Display edge | Field | Source | Notes |
 | --- | --- | --- | --- |
 | GM ← L2 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | Prefer non-`NA` AIC then AIV |
 | GM → L2 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | |
-| L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | No `MemoryL1.csv` in sample |
-| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | |
+| L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | **Confirmed.** No `MemoryL1.csv` |
+| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | **Confirmed.** |
 | L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | |
 | L1 → L0B | `aic_l0b_read_bw(GB/s)` | `MemoryL0.csv` | |
 | L0A → Cube | `aic_l0a_write_bw(GB/s)` | `MemoryL0.csv` | |
 | L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | |
 | L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
-| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | |
-| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | |
-| UB → L2 | `aiv_ub_to_gm_bw(GB/s)` or `aiv_ub_read_bw_gm(GB/s)` | `Memory.csv` / `MemoryUB.csv` | Prefer first present non-`NA` |
-| L2 → UB | `aiv_gm_to_ub_bw(GB/s)` or `aiv_ub_write_bw_gm(GB/s)` | `Memory.csv` / `MemoryUB.csv` | |
+| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |
+| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |
+| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` then `aiv_ub_to_gm_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | **Product name first;** sample fallback |
+| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` then `aiv_gm_to_ub_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | **Product name first;** sample fallback |
 | Vec → UB | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
 | UB → Vec | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | |
 | L2Cache Hit Rate | first `*_hit_rate(%)` | `L2Cache.csv` | AIC/AIV column choice TBD |
 
-Omit edge label when value is missing/`NA`. Edge thickness stays static.
+**NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
 
 ### Visualization logic
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
-- Overlay **GB/s** (or KB) on edges from the mapping table; emphasize non-zero paths.
+- Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
 - Overlay **Peak (%)** utilization on units only when a field mapping exists (still open for many units).
 - Labels are **block-scoped** via the same block switcher as memory details ([I-Q6c](../context/INTERIM_DECISIONS.md)).
 
@@ -345,18 +343,18 @@ Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../context/OPEN
 | Topic | Source status |
 | --- | --- |
 | Report-stat cards 5, 8 field derivation | Empty in product tables |
-| I/O bandwidth peak / score (cards 6–7) | **I-Q6g** guesses; Product still open |
-| Stats header 核数 / freq / NPU ARCH source | HardwareInfo vs OpBasicInfo unresolved |
+| I/O bandwidth peak / score (cards 6–7) | **Measured confirmed.** Peak / score still **I-Q6g** |
+| Stats header 核数 / NPU ARCH | Still open. **aic频率** = `Current Freq` (confirmed). **Rated Freq** not on shell |
 | Roofline tab names vs pipe-ratio fields; missing axis formulas | Contradictory / incomplete |
 | Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |
 | Dual-Die remote memory right-click details | Explicit product question |
 | Memory Peak (%) per unit | No field mapping |
-| L2 hit-rate column choice; MemoryL1 vs Memory.csv | Incomplete |
+| L2 hit-rate column choice | Incomplete |
 | L0C → UB edge | 待确定 |
-| UB↔GM column file + read/write direction | Name mismatch |
+| UB↔GM | Product `MemoryUB.csv` names first; sample `Memory.csv` fallback |
 | Statistical analysis series schema | Placeholder only |
 | Timeline + event-detail field tables | Empty; mockup-driven |
-| HardwareInfo / MemoryL1 availability | Missing from sample archive |
+| HardwareInfo | Confirmed source; in `example.rep`, absent from `out.rep` |
 | Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
 | `ResourceConflictRatio.csv` | In sample; no UI mapping |
 | Block-level aggregation for OP summary cards | Unspecified (sample has 8 blocks) |
