@@ -163,8 +163,8 @@ const metrics = computed(() => {
 .pr-detail-summary__glyph {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   flex: 0 0 auto;
   border: 1.5px solid #9a9a9a;
   border-radius: 50%;

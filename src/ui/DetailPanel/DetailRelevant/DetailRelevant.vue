@@ -68,8 +68,8 @@ function onDepthInput(event: Event) {
 }
 
 /** Chip row geometry, mirrored in CSS — the connectors are drawn, not measured. */
-const CHIP_HEIGHT = 22;
-const CHIP_PITCH = 28;
+const CHIP_HEIGHT = 18;
+const CHIP_PITCH = 26;
 const LINK_WIDTH = 32;
 
 function rowCenter(index: number): number {
@@ -297,7 +297,7 @@ const linkHeight = computed(
 .pr-detail-relevant__mode {
   display: grid;
   place-items: center;
-  width: 26px;
+  width: 25px;
   height: 22px;
   border: 0;
   border-radius: 4px;
@@ -320,8 +320,8 @@ const linkHeight = computed(
 }
 
 .pr-detail-relevant__level-input {
-  width: 96px;
-  padding: 5px 10px;
+  width: 66px;
+  padding: 4px 8px;
   border: 0;
   border-radius: 8px;
   background: #313131;
@@ -333,8 +333,8 @@ const linkHeight = computed(
 .pr-detail-relevant__help {
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border: 1px solid #6a6a6a;
   border-radius: 50%;
   color: #a0a0a0;
@@ -360,11 +360,17 @@ const linkHeight = computed(
 .pr-detail-relevant__column {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   min-width: 0;
 }
 
+.pr-detail-relevant__column--current {
+  align-items: center;
+}
+
 .pr-detail-relevant__column--out {
+  align-items: flex-end;
   text-align: right;
 }
 
@@ -403,15 +409,15 @@ const linkHeight = computed(
 .pr-detail-relevant__chip {
   /* Height and gap mirror CHIP_HEIGHT / CHIP_PITCH so the drawn connectors land on chips. */
   box-sizing: border-box;
-  height: 22px;
-  padding: 3px 8px;
+  height: 18px;
+  padding: 1px 8px;
   border-radius: 4px;
   line-height: 16px;
   text-align: center;
   background: #3c3c3c;
   color: #cfcfcf;
   font-size: 12px;
-  max-width: 100%;
+  max-width: min(100%, 150px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -77,8 +77,8 @@ const emit = defineEmits<{
   flex: 0 0 auto;
   /* Fixed dock height: a content-sized panel grows and shrinks with every
      selection, which shifts the whole timeline above it. Sketch proportion is
-     ~230px, and each column scrolls inside that. */
-  height: 232px;
+     ~247px at 1920 wide, and each column scrolls inside that. */
+  height: 247px;
   max-height: 45vh;
   background: var(--pr-bg-panel, #262626);
   border-top: 1px solid #3a3a3a;

@@ -44,6 +44,7 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 [dependencies](../../../specs/core/dependencies.spec.md) for the neighbour model.
 
 ## Changelog
+- **2026-08-20** — Dock height 247px, the sketch's proportion at 1920 wide.
 - **2026-08-20** — Relays `dependencyMode` / `dependencyDepth` instead of `level`: the dock's direction and depth controls now drive the swimlane curves too.
 - **2026-08-19** — Two-column fallback: the body drops the Relevent grid track when `neighbors` is omitted, so Parameter takes the freed width.
 - **2026-08-14** — Dropped the `direction` prop and its re-emit: DetailRelevant owns the direction toggle now, and the dock only relays `level`.
