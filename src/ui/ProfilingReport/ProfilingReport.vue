@@ -5,6 +5,7 @@ import {
   applyWindow,
   clearMeasure,
   createViewState,
+  measureFocusWindow,
   panBy,
   setMeasureMode,
   setMeasureRange,
@@ -42,6 +43,7 @@ import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
 import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
+import { animateViewWindow } from '../TimelineView/animateViewWindow';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 
@@ -150,7 +152,43 @@ const zoomPercent = computed(() => {
   return Math.min(100, Math.round((Math.log2(ratio) / Math.log2(100)) * 100));
 });
 
+let cancelViewWindowAnim: () => void = () => {};
+
+function stopViewWindowAnim() {
+  cancelViewWindowAnim();
+  cancelViewWindowAnim = () => {};
+}
+
+function animateToWindow(window: { startTime: number; endTime: number; scrollY: number }) {
+  stopViewWindowAnim();
+  const from = {
+    startTime: viewState.value.startTime,
+    endTime: viewState.value.endTime,
+  };
+  cancelViewWindowAnim = animateViewWindow({
+    from,
+    to: { startTime: window.startTime, endTime: window.endTime },
+    onUpdate: (w) => {
+      viewState.value = applyWindow(viewState.value, {
+        ...w,
+        scrollY: viewState.value.scrollY,
+      });
+    },
+    onDone: () => {
+      cancelViewWindowAnim = () => {};
+    },
+  });
+}
+
+function onFocusMeasure() {
+  const range = viewState.value.measureRange;
+  if (!range) return;
+  const target = measureFocusWindow(range, bounds.value, viewState.value.scrollY);
+  animateToWindow(target);
+}
+
 function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean): void {
+  stopViewWindowAnim();
   const next = createViewState(model);
   next.asideVisible = showAsidePanel;
   viewState.value = next;
@@ -248,6 +286,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  cancelViewWindowAnim();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
 
@@ -318,6 +357,7 @@ function onSetPlayhead(time: number) {
 }
 
 function onOverviewWindow(window: { startTime: number; endTime: number }) {
+  stopViewWindowAnim();
   viewState.value = applyWindow(viewState.value, {
     ...window,
     scrollY: viewState.value.scrollY,
@@ -329,6 +369,7 @@ function onScrollY(scrollY: number) {
 }
 
 function onPan(deltaTime: number) {
+  stopViewWindowAnim();
   viewState.value = applyWindow(
     viewState.value,
     panBy(viewState.value, deltaTime, bounds.value),
@@ -336,6 +377,7 @@ function onPan(deltaTime: number) {
 }
 
 function onZoom(factor: number, anchorTime: number) {
+  stopViewWindowAnim();
   viewState.value = applyWindow(
     viewState.value,
     zoomAt(viewState.value, factor, anchorTime, bounds.value),
@@ -343,6 +385,7 @@ function onZoom(factor: number, anchorTime: number) {
 }
 
 function onZoomToFit() {
+  stopViewWindowAnim();
   viewState.value = applyWindow(viewState.value, zoomToFitWindow(swim.value));
 }
 
@@ -357,6 +400,7 @@ function onZoomOut() {
 }
 
 function onZoomPercent(pct: number) {
+  stopViewWindowAnim();
   const full = bounds.value.maxTime - bounds.value.minTime;
   const ratio = 2 ** ((pct / 100) * Math.log2(100));
   const span = Math.max(1, full / Math.max(1, ratio));
@@ -518,6 +562,7 @@ defineExpose({ selectEventById, viewState });
           @pan="onPan"
           @zoom="onZoom"
           @update:measure-range="onMeasureRange"
+          @focus-measure="onFocusMeasure"
         />
       </template>
 

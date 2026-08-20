@@ -67,6 +67,7 @@ const emit = defineEmits<{
   zoom: [factor: number, anchorTime: number];
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
+  'focus-measure': [];
 }>();
 
 const timeAxisRef = ref<HTMLElement | null>(null);
@@ -321,6 +322,19 @@ function isMeasureAxisBarEl(t: EventTarget | null): boolean {
   return !!(t as HTMLElement | null)?.closest?.('.pr-measure-axis-bar');
 }
 
+/** Click Δt pill → parent animates viewport to center the measure range. */
+function onMeasureLabelActivate(e?: Event) {
+  e?.stopPropagation();
+  e?.preventDefault();
+  if (!props.view.measureRange) return;
+  emit('focus-measure');
+}
+
+function onMeasureLabelPointerDown(e: PointerEvent) {
+  // Keep axis create-drag from starting when pressing the pill.
+  e.stopPropagation();
+}
+
 function onMeasureBarPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
   if (e.button !== 0 || !props.view.measureMode) return;
   // Offscreen cue bars are not resizable (true edge is outside the view).
@@ -522,6 +536,13 @@ defineExpose({
               ref="measureLabelRef"
               class="pr-measure-arrow__label"
               data-testid="measure-label"
+              role="button"
+              tabindex="0"
+              title="Focus measure range"
+              @pointerdown="onMeasureLabelPointerDown"
+              @click="onMeasureLabelActivate"
+              @keydown.enter.prevent="onMeasureLabelActivate"
+              @keydown.space.prevent="onMeasureLabelActivate"
             >{{ measureAxis.label }}</span>
             <div
               v-if="measureArrowLayout?.mode !== 'offscreen'"
@@ -722,6 +743,15 @@ defineExpose({
   white-space: nowrap;
   position: relative;
   z-index: 2;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.pr-measure-arrow__label:hover,
+.pr-measure-arrow__label:focus-visible {
+  background: rgba(77, 148, 255, 1);
+  outline: none;
 }
 
 /* Label outside the range; arrow still spans the bars. */
