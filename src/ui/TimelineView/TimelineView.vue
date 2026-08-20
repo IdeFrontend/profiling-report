@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { buildAxisRulerTicks } from '../../domain/axisRuler';
 import {
   formatCursorTime,
@@ -60,8 +60,19 @@ const emit = defineEmits<{
 
 const timeAxisRef = ref<HTMLElement | null>(null);
 const timeAxisWidth = ref(0);
+const measureLabelRef = ref<HTMLElement | null>(null);
+const measureLabelWidth = ref(0);
 const swimlaneRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
+
+/** Pads (2) + heads (9+9) + shaft–label gaps (4+4). */
+const MEASURE_ARROW_CHROME_PX = 28;
+const MEASURE_COMPACT_GAP_PX = 4;
+
+function estimateMeasureLabelWidth(label: string): number {
+  // padding 1+8*2 ≈ 17; ~6.5px tabular glyph at 11px.
+  return 17 + Math.ceil(label.length * 6.5);
+}
 
 watch(
   () => props.gutterWidth,
@@ -106,6 +117,52 @@ const measureAxis = computed(() => {
     label: formatTime(end - start, props.unit),
   };
 });
+
+/** In-between arrow vs compact outside-label when the selection is too narrow. */
+const measureArrowLayout = computed(() => {
+  const axis = measureAxis.value;
+  if (!axis) return null;
+  const axisW = timeAxisWidth.value;
+  if (axisW <= 0) {
+    return {
+      compact: false as const,
+      style: { left: `${axis.left}%`, width: `${axis.width}%` },
+    };
+  }
+  const rangePx = (axis.width / 100) * axisW;
+  const labelW = measureLabelWidth.value || estimateMeasureLabelWidth(axis.label);
+  const minFit = MEASURE_ARROW_CHROME_PX + labelW;
+  if (rangePx >= minFit) {
+    return {
+      compact: false as const,
+      style: { left: `${axis.left}%`, width: `${axis.width}%` },
+    };
+  }
+  const rightPx = (axis.right / 100) * axisW;
+  const preferRight = rightPx + MEASURE_COMPACT_GAP_PX + labelW <= axisW;
+  if (preferRight) {
+    return {
+      compact: true as const,
+      side: 'right' as const,
+      style: { left: `${axis.right}%`, width: '0px' },
+    };
+  }
+  return {
+    compact: true as const,
+    side: 'left' as const,
+    style: { left: `${axis.left}%`, width: '0px' },
+  };
+});
+
+watch(
+  () => [measureAxis.value?.label, measureArrowLayout.value?.compact] as const,
+  async () => {
+    await nextTick();
+    const el = measureLabelRef.value;
+    measureLabelWidth.value = el ? el.offsetWidth : 0;
+  },
+  { flush: 'post' },
+);
 
 watch(
   timeAxisRef,
@@ -229,11 +286,19 @@ defineExpose({
           <div
             class="pr-measure-arrow"
             data-testid="measure-arrow"
-            :style="{ left: `${measureAxis.left}%`, width: `${measureAxis.width}%` }"
+            :class="{
+              'pr-measure-arrow--compact': measureArrowLayout?.compact,
+              'pr-measure-arrow--compact-right':
+                measureArrowLayout?.compact && measureArrowLayout.side === 'right',
+              'pr-measure-arrow--compact-left':
+                measureArrowLayout?.compact && measureArrowLayout.side === 'left',
+            }"
+            :style="measureArrowLayout?.style"
           >
             <!--
               Flex: tip pad 1px | head | shaft | 4px | label | 4px | shaft | head
               Shaft negative margin pulls into chevron so the line meets the arms.
+              Compact: heads/shafts hidden; label parked outside the bars.
             -->
             <svg
               class="pr-measure-arrow__head"
@@ -258,6 +323,7 @@ defineExpose({
               data-testid="measure-arrow-shaft"
             />
             <span
+              ref="measureLabelRef"
               class="pr-measure-arrow__label"
               data-testid="measure-label"
             >{{ measureAxis.label }}</span>
@@ -433,6 +499,31 @@ defineExpose({
   white-space: nowrap;
   position: relative;
   z-index: 2;
+}
+
+.pr-measure-arrow--compact {
+  padding: 0;
+  overflow: visible;
+}
+
+.pr-measure-arrow--compact .pr-measure-arrow__head,
+.pr-measure-arrow--compact .pr-measure-arrow__shaft {
+  display: none;
+}
+
+.pr-measure-arrow--compact .pr-measure-arrow__label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.pr-measure-arrow--compact-right .pr-measure-arrow__label {
+  left: 4px;
+}
+
+.pr-measure-arrow--compact-left .pr-measure-arrow__label {
+  left: 0;
+  transform: translate(-100%, -50%) translateX(-4px);
 }
 
 .pr-gutter--axis-spacer {

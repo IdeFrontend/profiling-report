@@ -1,7 +1,27 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createViewState } from '../../domain/viewState';
 import TimelineView from './TimelineView.vue';
+
+function stubAxisWidth(widthPx: number) {
+  class RO {
+    constructor(private cb: ResizeObserverCallback) {}
+    observe(el: Element) {
+      Object.defineProperty(el, 'clientWidth', {
+        configurable: true,
+        get: () => widthPx,
+      });
+      this.cb([], this as unknown as ResizeObserver);
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal('ResizeObserver', RO);
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('TimelineView', () => {
   it('PR-TIMELINE-001: renders overview, axis, and body', () => {
@@ -27,6 +47,7 @@ describe('TimelineView', () => {
   });
 
   it('PR-TIMELINE-002: measure mode keeps overview and draws axis bars + arrow', () => {
+    stubAxisWidth(400);
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -88,6 +109,7 @@ describe('TimelineView', () => {
   });
 
   it('PR-TIMELINE-004: measure arrow sharp miter chevrons, 1px tip gap, shaft meets arms', () => {
+    stubAxisWidth(400);
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -106,6 +128,9 @@ describe('TimelineView', () => {
         cursor: null,
       },
     });
+
+    const arrow = wrapper.get('[data-testid="measure-arrow"]');
+    expect(arrow.classes()).not.toContain('pr-measure-arrow--compact');
 
     const heads = wrapper.findAll('[data-testid="measure-arrow-head"]');
     expect(heads).toHaveLength(2);
@@ -126,5 +151,36 @@ describe('TimelineView', () => {
       expect(src).toMatch(/\.pr-measure-arrow__shaft\s*\{[^}]*height:\s*1\.5px/);
       expect(src).toMatch(/\.pr-measure-arrow\s*\{[^}]*color:\s*rgba\(49,\s*122,\s*247,\s*1\)/);
     });
+  });
+
+  it('PR-TIMELINE-005: narrow selection uses compact outside label', async () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.measureMode = true;
+    // 1% of 400px = 4px — far below chrome + label.
+    view.measureRange = { startTime: 0, endTime: 10 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+    await wrapper.vm.$nextTick();
+
+    const arrow = wrapper.get('[data-testid="measure-arrow"]');
+    expect(arrow.classes()).toContain('pr-measure-arrow--compact');
+    expect(arrow.classes()).toContain('pr-measure-arrow--compact-right');
+    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').exists()).toBe(true);
   });
 });

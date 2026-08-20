@@ -14,14 +14,18 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Δt arrow geometry (v930).** Each arrowhead is an **open stroke chevron** (single path, `fill="none"`, sharp **miter** tip — not bevelled/flat). The visible tip sits **1px** inward from the adjacent vertical measure bar. The shaft overlaps deep into each chevron until it meets the arms (no gap between shaft and arrow lines). The Δt duration label sits centered on the arrow with a **4px gap** on each side between the label chrome and the horizontal shaft (shaft breaks around the label; they do not touch). Shaft and chevron strokes are **1.5px** wide in solid `rgba(49, 122, 247, 1)`.
 
+**Narrow selection (compact).** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, hide heads and shafts and place the duration pill **outside** the bars: prefer **4px to the right** of the right bar; if that would clip past the axis right edge, place **4px to the left** of the left bar. Vertical measure bars stay at the true range edges.
+
 ## Acceptance Criteria
 
 1. **PR-TIMELINE-001** — Renders overview, time axis, and swimlane body regions.
 2. **PR-TIMELINE-002** — When `view.measureMode` and `view.measureRange` are set, the time axis shows blue bars and a Δt arrow; the overview bar remains rendered.
 3. **PR-TIMELINE-003** — In measure mode, drag on the time axis emits `update:measure-range`.
 4. **PR-TIMELINE-004** — Measure arrow: sharp miter stroke chevrons, **1px** tip–bar gap, shaft overlaps into heads, **4px** shaft–label gaps; 1.5px stroke; `rgba(49, 122, 247, 1)`.
+5. **PR-TIMELINE-005** — When the selection is too narrow to fit the in-between arrow, the arrow uses compact mode (no heads/shafts; label outside the range, prefer right).
 
 ## Changelog
+- **2026-08-20** — Compact outside Δt label when selection too narrow; PR-TIMELINE-005.
 - **2026-08-13** — Continuous overview/axis gutter (no mid-spacer horizontal rule); top chrome not resizable.
 - **2026-08-13** — 4px gaps between Δt label and horizontal shaft segments.
 - **2026-08-13** — Tip gap back to 1px.
