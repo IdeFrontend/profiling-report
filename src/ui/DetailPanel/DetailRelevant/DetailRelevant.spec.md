@@ -45,6 +45,7 @@ Normative crop: [`visual/relevant-graph.png`](./visual/relevant-graph.png) — [
 Chips are pinned to one line so the drawn connectors stay on their rows; a wrapping chip would drift from its curve. The swimlane-level overlay (`DependencyLinksLayer`) still has no geometry.
 
 ## Changelog
+- **2026-08-20** — Connectors reach their chips again: the chip columns and the connector column now share one gap token (they had drifted to 8px vs 6px, putting every curve 2px off its row), and the chip tracks are `fit-content(--pr-chip-max)` rather than `auto`, which had sized each column to the *untruncated* name and left the curve short of the capped pill. The connector svg stretches across whatever gap is left, with a non-scaling stroke.
 - **2026-08-20** — Geometry measured against the sketch's 4x export rather than eyeballed: 18px chips on a 26px pitch, 66px level field, 14px help glyph. Chips are content-sized — a flex column stretches its children by default, which had every chip spanning its whole track — and cap at 150px so a long name truncates instead of filling the column.
 - **2026-08-20** — Direction glyphs redrawn as the sketch's node graphs: fatter dots joined by short links, not hairline trees.
 - **2026-08-20** — Toolbar and chip surfaces sampled from the sketch: mode plate `#313131` with a `#464646` active cell, borderless `#313131` level field, neighbour chips `#3c3c3c`, and the Current chip its light `#d5bcff` lavender with dark text (it reads as the selection, not as a swimlane block).
