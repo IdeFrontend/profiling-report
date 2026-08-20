@@ -44,11 +44,8 @@ const opMenuOpen = ref(false);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
 
-const selectedOperatorLabel = computed(() => {
-  const list = props.operators ?? [];
-  const selected = list.find((o) => o.id === props.selectedOperatorId) ?? list[0];
-  return selected?.label ?? props.title ?? t('tabOp', props.locale);
-});
+/** Sketch always shows the OP算子 brand on the trigger; operator ids live in the menu. */
+const triggerLabel = computed(() => t('tabOp', props.locale));
 
 function toggleDisplayControl() {
   displayControlOpen.value = !displayControlOpen.value;
@@ -56,6 +53,10 @@ function toggleDisplayControl() {
 
 function closeDisplayControl() {
   displayControlOpen.value = false;
+}
+
+function toggleOpMenu() {
+  opMenuOpen.value = !opMenuOpen.value;
 }
 
 function selectOperator(id: string) {
@@ -89,24 +90,25 @@ function onDependencyDepth(e: Event) {
           class="pr-op-select__trigger"
           :aria-expanded="opMenuOpen"
           :aria-haspopup="'listbox'"
-          @click="opMenuOpen = !opMenuOpen"
+          @click="toggleOpMenu"
         >
           <span
             class="pr-op-select__label"
             data-testid="op-selector-label"
-          >{{ selectedOperatorLabel }}</span>
+          >{{ triggerLabel }}</span>
           <svg
             class="pr-op-select__chevron"
+            :class="{ 'pr-op-select__chevron--open': opMenuOpen }"
             viewBox="0 0 12 12"
-            width="12"
-            height="12"
+            width="10"
+            height="10"
             aria-hidden="true"
           >
             <path
               d="M2.5 4.5L6 8l3.5-3.5"
               fill="none"
               stroke="currentColor"
-              stroke-width="1.4"
+              stroke-width="1.3"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
@@ -483,8 +485,9 @@ function onDependencyDepth(e: Event) {
   gap: 8px 12px;
   padding: 4px 8px;
   min-height: 36px;
-  background: var(--pr-bg-deep, #1f1f1f);
-  border-bottom: 1px solid #3a3a3a;
+  /* Mild navy chrome gradient — sampled from v930/entry OP strip (~rgb 28,36,57) */
+  background: linear-gradient(180deg, #222a3c 0%, #1a2030 55%, #161b28 100%);
+  border-bottom: 1px solid #2a3142;
   flex: 0 0 auto;
 }
 
@@ -499,39 +502,48 @@ function onDependencyDepth(e: Event) {
   margin-right: 8px;
   padding: 4px 8px;
   font-size: 12px;
-  opacity: 0.85;
-  border-right: 1px solid #4a4a4a;
+  color: #ffffff;
+  opacity: 0.95;
 }
 
 .pr-op-select {
   position: relative;
-  margin-right: 8px;
-  padding-right: 8px;
-  border-right: 1px solid #4a4a4a;
+  margin-right: 4px;
 }
 
 .pr-op-select__trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
-  padding: 4px 8px;
+  padding: 4px 6px;
   border: none;
-  border-radius: 4px;
-  background: #2a2a2a;
-  color: #e8e8e8;
+  border-radius: 0;
+  background: transparent;
+  color: #ffffff;
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
   cursor: pointer;
 }
 
-.pr-op-select__trigger:hover,
-.pr-op-select__trigger[aria-expanded='true'] {
-  background: #363636;
+.pr-op-select__trigger:hover {
+  color: #ffffff;
+  background: transparent;
+}
+
+.pr-op-select__label {
+  white-space: nowrap;
 }
 
 .pr-op-select__chevron {
-  color: #9a9a9a;
+  color: #c8c8c8;
   flex: 0 0 auto;
+  transition: transform 0.12s ease;
+}
+
+.pr-op-select__chevron--open {
+  transform: rotate(180deg);
 }
 
 .pr-op-select__backdrop {
@@ -542,30 +554,35 @@ function onDependencyDepth(e: Event) {
 
 .pr-op-select__menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 2px);
   left: 0;
   z-index: 22;
-  min-width: 160px;
+  min-width: 140px;
   margin: 0;
   padding: 4px;
   list-style: none;
   background: #363636;
-  border: 1px solid #5e5e5e;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
 }
 
 .pr-op-select__item {
   padding: 6px 10px;
   border-radius: 4px;
-  color: #e0e0e0;
+  color: #d0d0d0;
+  font-size: 12px;
   cursor: pointer;
 }
 
-.pr-op-select__item:hover,
+.pr-op-select__item:hover {
+  background: #2a2a2a;
+  color: #ffffff;
+}
+
 .pr-op-select__item--active {
-  background: #1e2a3e;
-  color: #2d70e3;
+  background: #2a3550;
+  color: #ffffff;
 }
 
 .pr-tabs__tab {

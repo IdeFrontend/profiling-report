@@ -72,7 +72,8 @@ describe('ReportToolbar', () => {
 
   it('PR-TOOLBAR-009: strip/search/zoom surface colors match sketch tokens', async () => {
     const src = (await import('./ReportToolbar.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-chrome[\s\S]*?background:\s*var\(--pr-bg-deep/);
+    expect(src).toMatch(/\.pr-chrome[\s\S]*?linear-gradient/);
+    expect(src).toMatch(/\.pr-chrome[\s\S]*?#222a3c/);
     expect(src).toMatch(/\.pr-toolbar__search input[\s\S]*?background:\s*#2a2a2a/);
     expect(src).toMatch(/\.pr-toolbar__zoom-pill[\s\S]*?background:\s*#363636/);
     expect(src).toMatch(/#ffffff\s+0%/); // filled track
@@ -155,11 +156,15 @@ describe('ReportToolbar', () => {
     });
 
     expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
+    // Trigger always shows OP算子 brand (sketch); operator ids live in the menu.
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toMatch(/OP算子|OP/);
+    expect(wrapper.find('.pr-op-select__trigger').classes()).not.toContain('pr-op-select__trigger--pill');
 
     await wrapper.find('[data-testid="op-selector"] button').trigger('click');
     const items = wrapper.findAll('[data-testid="op-item"]');
     expect(items).toHaveLength(2);
+    expect(items[0].text()).toBe('op1');
+    expect(items[1].text()).toBe('op2');
     await items[1].trigger('click');
     expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2']]);
   });
@@ -173,5 +178,12 @@ describe('ReportToolbar', () => {
 
     const none = mount(ReportToolbar, { props: defaultProps });
     expect(none.find('[data-testid="op-selector"]').exists()).toBe(false);
+  });
+
+  it('PR-TOOLBAR-015: OP selector is text+chevron (no pill fill); chrome uses mild navy gradient', async () => {
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?background:\s*transparent/);
+    expect(src).toMatch(/\.pr-chrome[\s\S]*?linear-gradient\(180deg,\s*#222a3c/);
+    expect(src).not.toMatch(/\.pr-op-select[\s\S]*?border-right:\s*1px solid/);
   });
 });

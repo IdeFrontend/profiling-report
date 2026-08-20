@@ -111,14 +111,15 @@ describe('ProfilingReport scaffold', () => {
     });
 
     expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toMatch(/OP算子|OP/);
 
     await wrapper.find('[data-testid="op-selector"] button').trigger('click');
     const items = wrapper.findAll('[data-testid="op-item"]');
     expect(items).toHaveLength(2);
+    expect(items.map((i) => i.text())).toEqual(['op1', 'op2']);
     await items[1].trigger('click');
 
-    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op2');
     expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toMatch(/OP算子|OP/);
   });
 });

@@ -6,7 +6,7 @@
 
 Top toolbar with search, zoom controls, display-control popover (task display unit), and aside panel toggle. Measure (caliper) toggle is temporarily hidden from chrome.
 
-Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png), [`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
@@ -28,7 +28,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
 
-**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. A button shows the selected label + chevron and opens a floating menu of operator labels; selecting one emits `update:selectedOperatorId` and closes the menu. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
+**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label is always the OP算子 brand (`t('tabOp')`); operator ids/labels appear only in the floating menu. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
@@ -42,8 +42,24 @@ Lives in the **main** column only (above the timeline), not spanning the StatsAs
 
 | Token | Value |
 |-------|--------|
-| Background | `#1f1f1f` (`--pr-bg-deep`) |
-| Border | `1px solid #3a3a3a` bottom |
+| Background | Mild vertical navy gradient `#222a3c → #1a2030 → #161b28` (sampled from [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) OP strip ~rgb(28,36,57); not flat `--pr-bg-deep`) |
+| Border | `1px solid #2a3142` bottom |
+
+### OP selector (`visual/op-selector.png`, `visual/op-selector-open.png`)
+
+Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardware-more-detail.jpeg) (open). Context: [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png).
+
+| Token | Value |
+|-------|--------|
+| Trigger | Transparent — **no** pill fill, **no** border, **no** vertical divider |
+| Trigger label | Always OP算子 / `t('tabOp')` (white, ~12px, weight 600) |
+| Chevron | Thin stroke `10×10`, color `#c8c8c8`; down when closed, rotated 180° when open |
+| Gap label↔chevron | `4px` |
+| Menu bg | `#363636` |
+| Menu radius | `8px` |
+| Menu border | `1px solid #4a4a4a` |
+| Item text | `#d0d0d0` / 12px; active `#ffffff` on `#2a3550` |
+| Visible when | `operators.length > 1` |
 
 ### Search (`visual/search.png`)
 
@@ -118,12 +134,13 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
 7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) is not rendered (temporarily hidden).
 8. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
-9. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
+9. **PR-TOOLBAR-009** — Strip uses mild navy gradient (`#222a3c`); search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
 10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
 11. **PR-TOOLBAR-011** — `dependency-mode` select inside 显示控制 emits `update:dependencyMode` on change; popover stays open.
 12. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1, above 100 clamp to 100); popover stays open.
-13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; selecting emits `update:selectedOperatorId`.
+13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows OP算子 brand; menu lists operator labels; selecting emits `update:selectedOperatorId`.
 14. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
+15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); chrome uses mild navy gradient.
 
 ## Edge Cases
 
@@ -138,11 +155,15 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [zoom](./visual/zoom.png) — from `v930/entry`
 - [actions](./visual/actions.png) — all seven icons from `v930/entry`
 - [display-control](./visual/display-control.png) — from `v930/hardware-more-detail`
+- [op-selector](./visual/op-selector.png) — closed OP算子 text+chevron from `v930/entry`
+- [op-selector-tabs](./visual/op-selector-tabs.png) — OP + 时间线 context + chrome gradient from `v930/entry`
+- [op-selector-open](./visual/op-selector-open.png) — open menu from `v930/hardware-more-detail`
 - [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
-- [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger
+- [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger + open OP menu
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-20** — OP selector matches sketch: text+chevron (no pill), OP算子 brand trigger, mild navy chrome gradient; crops + PR-TOOLBAR-015.
 - **2026-08-20** — OP selector at strip far-left for multi-operator packs; PR-TOOLBAR-013/014.
 - **2026-08-18** — Depth input clamps to `MAX_DEPENDENCY_DEPTH` (100); `max` attribute set on `<input>`.
 - **2026-08-17** — Depth tooltip notes 10 000-link-per-side cap.
