@@ -78,6 +78,8 @@ const swimlaneRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 /** Pointer is over the viewport time axis — keep cursor lifted above ticks. */
 const axisHovering = ref(false);
+/** Swimlane appear/clear tween: hide Δt arrow + label (borders/fades still animate). */
+const suppressMeasureDt = ref(false);
 
 /** Pads (2) + heads (9+9) + shaft–label gaps (4+4). */
 const MEASURE_ARROW_CHROME_PX = 28;
@@ -165,6 +167,7 @@ const measureAxis = computed(() => {
 
 /** Inline label, outside label + arrow, offscreen cue, or outside label with no connector. */
 const measureArrowLayout = computed(() => {
+  if (suppressMeasureDt.value) return null;
   const axis = measureAxis.value;
   if (!axis) return null;
   if (axis.placement === 'offscreen-left') {
@@ -525,27 +528,28 @@ defineExpose({
             @pointerleave="onMeasureBarPointerLeave"
           />
           <div
+            v-if="measureArrowLayout"
             class="pr-measure-arrow"
             data-testid="measure-arrow"
             :class="{
               'pr-measure-arrow--outside':
-                measureArrowLayout?.mode === 'outside' || measureArrowLayout?.mode === 'shaft',
-              'pr-measure-arrow--shaft': measureArrowLayout?.mode === 'shaft',
+                measureArrowLayout.mode === 'outside' || measureArrowLayout.mode === 'shaft',
+              'pr-measure-arrow--shaft': measureArrowLayout.mode === 'shaft',
               'pr-measure-arrow--outside-right':
-                (measureArrowLayout?.mode === 'outside' || measureArrowLayout?.mode === 'shaft') &&
+                (measureArrowLayout.mode === 'outside' || measureArrowLayout.mode === 'shaft') &&
                 measureArrowLayout.side === 'right',
               'pr-measure-arrow--outside-left':
-                (measureArrowLayout?.mode === 'outside' || measureArrowLayout?.mode === 'shaft') &&
+                (measureArrowLayout.mode === 'outside' || measureArrowLayout.mode === 'shaft') &&
                 measureArrowLayout.side === 'left',
-              'pr-measure-arrow--offscreen': measureArrowLayout?.mode === 'offscreen',
+              'pr-measure-arrow--offscreen': measureArrowLayout.mode === 'offscreen',
               'pr-measure-arrow--offscreen-left':
-                measureArrowLayout?.mode === 'offscreen' && measureArrowLayout.side === 'left',
+                measureArrowLayout.mode === 'offscreen' && measureArrowLayout.side === 'left',
               'pr-measure-arrow--offscreen-right':
-                measureArrowLayout?.mode === 'offscreen' && measureArrowLayout.side === 'right',
+                measureArrowLayout.mode === 'offscreen' && measureArrowLayout.side === 'right',
               'pr-measure-arrow--no-left-head': !measureAxis.showLeft,
               'pr-measure-arrow--no-right-head': !measureAxis.showRight,
             }"
-            :style="measureArrowLayout?.style"
+            :style="measureArrowLayout.style"
           >
             <!--
               Flex: tip pad 1px | head | shaft | 4px | label | 4px | shaft | head
@@ -573,7 +577,7 @@ defineExpose({
               />
             </svg>
             <div
-              v-if="measureArrowLayout?.mode !== 'offscreen'"
+              v-if="measureArrowLayout.mode !== 'offscreen'"
               class="pr-measure-arrow__shaft pr-measure-arrow__shaft--left"
               data-testid="measure-arrow-shaft"
             />
@@ -590,7 +594,7 @@ defineExpose({
               @keydown.space.prevent="onMeasureLabelActivate"
             >{{ measureAxis.label }}</span>
             <div
-              v-if="measureArrowLayout?.mode !== 'offscreen'"
+              v-if="measureArrowLayout.mode !== 'offscreen'"
               class="pr-measure-arrow__shaft pr-measure-arrow__shaft--right"
               data-testid="measure-arrow-shaft"
             />
@@ -645,6 +649,7 @@ defineExpose({
       @pan="emit('pan', $event)"
       @zoom="(f, a) => emit('zoom', f, a)"
       @update:measure-range="emit('update:measure-range', $event)"
+      @suppress-measure-dt="suppressMeasureDt = $event"
     />
 
     <div

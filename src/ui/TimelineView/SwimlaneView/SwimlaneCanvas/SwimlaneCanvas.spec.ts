@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
 
 describe('SwimlaneCanvas', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
   const nullProps = {
     model: null,
     view: { startTime: 0, endTime: 1000, scrollY: 0 },
@@ -330,6 +334,15 @@ describe('SwimlaneCanvas', () => {
   });
 
   it('PR-CANVAS-013: click event snaps measureRange without select; empty click clears', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      callbacks.push(cb);
+      return callbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+
     const { wrapper, canvas } = await mountWithEventModel();
     const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
     const rect = vm.eventScreenRect('e1');
@@ -337,21 +350,203 @@ describe('SwimlaneCanvas', () => {
     const x = rect!.x + rect!.w / 2;
     const y = rect!.y + rect!.h / 2;
 
+    callbacks.length = 0;
     await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
     expect(wrapper.emitted('update:measureRange')).toBeFalsy();
     await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
 
     expect(wrapper.emitted('select')).toBeFalsy();
-    const ranges = wrapper.emitted('update:measureRange');
-    expect(ranges?.length).toBe(1);
-    expect(ranges![0][0]).toEqual({ startTime: 200, endTime: 500 });
+    expect(callbacks.length).toBeGreaterThan(0);
+    const snapCb = callbacks[0]!;
+    for (let ms = 0; ms <= 180; ms += 45) {
+      vi.spyOn(performance, 'now').mockReturnValue(ms);
+      snapCb(ms);
+    }
+    const ranges = wrapper.emitted('update:measureRange')!;
+    expect(ranges.at(-1)![0]).toEqual({ startTime: 200, endTime: 500 });
 
     await wrapper.setProps({ measureRange: { startTime: 200, endTime: 500 } });
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+    callbacks.length = 0;
     await canvas.trigger('pointerdown', { clientX: 10, clientY: 5, pointerId: 2 });
     await canvas.trigger('pointerup', { clientX: 10, clientY: 5, pointerId: 2 });
+
+    expect(callbacks.length).toBeGreaterThan(0);
+    const clearCb = callbacks[0]!;
+    for (let ms = 0; ms <= 180; ms += 45) {
+      vi.spyOn(performance, 'now').mockReturnValue(ms);
+      clearCb(ms);
+    }
     const afterEmpty = wrapper.emitted('update:measureRange')!;
-    expect(afterEmpty[afterEmpty.length - 1][0]).toBeNull();
+    expect(afterEmpty.at(-1)![0]).toBeNull();
     expect(wrapper.emitted('select')).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-014: event click with prior range tweens measureRange', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      callbacks.push(cb);
+      return callbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+
+    const { wrapper, canvas } = await mountWithEventModel({
+      measureRange: { startTime: 50, endTime: 100 },
+    });
+    await wrapper.setProps({ measureRange: { startTime: 50, endTime: 100 } });
+    callbacks.length = 0;
+
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const x = rect.x + rect.w / 2;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+
+    expect(callbacks.length).toBeGreaterThan(0);
+    const animCb = callbacks[0]!;
+    for (let ms = 0; ms <= 180; ms += 45) {
+      vi.spyOn(performance, 'now').mockReturnValue(ms);
+      animCb(ms);
+    }
+
+    const emitted = wrapper.emitted('update:measureRange')!;
+    expect(emitted.length).toBeGreaterThan(1);
+    const mid = emitted[Math.floor(emitted.length / 2)][0] as { startTime: number; endTime: number };
+    expect(mid.startTime).toBeGreaterThan(50);
+    expect(mid.startTime).toBeLessThan(200);
+    expect(emitted.at(-1)![0]).toEqual({ startTime: 200, endTime: 500 });
+    expect(wrapper.emitted('select')).toBeFalsy();
+    const suppress = wrapper.emitted('suppress-measure-dt') ?? [];
+    expect(suppress.every((e) => e[0] === false)).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-015: empty click expands measureRange to view then clears', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      callbacks.push(cb);
+      return callbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+
+    const { wrapper, canvas } = await mountWithEventModel({
+      measureRange: { startTime: 200, endTime: 500 },
+    });
+    await wrapper.setProps({ measureRange: { startTime: 200, endTime: 500 } });
+    callbacks.length = 0;
+
+    await canvas.trigger('pointerdown', { clientX: 10, clientY: 5, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: 10, clientY: 5, pointerId: 1 });
+
+    expect(callbacks.length).toBeGreaterThan(0);
+    const animCb = callbacks[0]!;
+    for (let ms = 0; ms <= 180; ms += 45) {
+      vi.spyOn(performance, 'now').mockReturnValue(ms);
+      animCb(ms);
+    }
+
+    const emitted = wrapper.emitted('update:measureRange')!;
+    expect(emitted.length).toBeGreaterThan(1);
+    const mid = emitted[Math.floor(emitted.length / 2)][0] as { startTime: number; endTime: number };
+    expect(mid).not.toBeNull();
+    expect(mid.startTime).toBeLessThan(200);
+    expect(mid.endTime).toBeGreaterThan(500);
+    // Penultimate frame is the visible window; last emit clears.
+    expect(emitted.at(-2)![0]).toEqual({ startTime: 0, endTime: 1000 });
+    expect(emitted.at(-1)![0]).toBeNull();
+    expect(wrapper.emitted('select')).toBeFalsy();
+    expect(wrapper.emitted('suppress-measure-dt')?.some((e) => e[0] === true)).toBe(true);
+    expect(wrapper.emitted('suppress-measure-dt')!.at(-1)![0]).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-016: event click with no prior range shrinks from view', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      callbacks.push(cb);
+      return callbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+
+    const { wrapper, canvas } = await mountWithEventModel({ measureRange: null });
+    callbacks.length = 0;
+
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const x = rect.x + rect.w / 2;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+
+    expect(callbacks.length).toBeGreaterThan(0);
+    const animCb = callbacks[0]!;
+    for (let ms = 0; ms <= 180; ms += 45) {
+      vi.spyOn(performance, 'now').mockReturnValue(ms);
+      animCb(ms);
+    }
+
+    const emitted = wrapper.emitted('update:measureRange')!;
+    expect(emitted.length).toBeGreaterThan(1);
+    expect(emitted[0]![0]).toEqual({ startTime: 0, endTime: 1000 });
+    const mid = emitted[Math.floor(emitted.length / 2)][0] as { startTime: number; endTime: number };
+    expect(mid.startTime).toBeGreaterThan(0);
+    expect(mid.startTime).toBeLessThan(200);
+    expect(mid.endTime).toBeLessThan(1000);
+    expect(mid.endTime).toBeGreaterThan(500);
+    expect(emitted.at(-1)![0]).toEqual({ startTime: 200, endTime: 500 });
+    expect(wrapper.emitted('select')).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-017: appear/clear suppress Δt; range-to-range does not', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      callbacks.push(cb);
+      return callbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+
+    const { wrapper, canvas } = await mountWithEventModel({ measureRange: null });
+    callbacks.length = 0;
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const x = rect.x + rect.w / 2;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    expect(wrapper.emitted('suppress-measure-dt')?.some((e) => e[0] === true)).toBe(true);
+    const appearCb = callbacks[0]!;
+    for (let ms = 0; ms <= 180; ms += 45) {
+      vi.spyOn(performance, 'now').mockReturnValue(ms);
+      appearCb(ms);
+    }
+    expect(wrapper.emitted('suppress-measure-dt')!.at(-1)![0]).toBe(false);
+
+    await wrapper.setProps({ measureRange: { startTime: 200, endTime: 500 } });
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+    callbacks.length = 0;
+    await canvas.trigger('pointerdown', { clientX: 10, clientY: 5, pointerId: 2 });
+    await canvas.trigger('pointerup', { clientX: 10, clientY: 5, pointerId: 2 });
+    expect(wrapper.emitted('suppress-measure-dt')?.some((e) => e[0] === true)).toBe(true);
+    const clearCb = callbacks[0]!;
+    for (let ms = 0; ms <= 180; ms += 45) {
+      vi.spyOn(performance, 'now').mockReturnValue(ms);
+      clearCb(ms);
+    }
+    expect(wrapper.emitted('suppress-measure-dt')!.at(-1)![0]).toBe(false);
     wrapper.unmount();
   });
 });

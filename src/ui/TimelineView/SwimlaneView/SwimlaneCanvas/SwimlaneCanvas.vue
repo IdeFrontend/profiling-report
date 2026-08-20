@@ -19,6 +19,7 @@ import {
   resizeMeasureEdge,
   type MeasureResizeEdge,
 } from '../../measureEdgeResize';
+import { animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
 
 const props = withDefaults(
   defineProps<{
@@ -50,6 +51,8 @@ const emit = defineEmits<{
   'scroll-y': [scrollY: number];
   'set-playhead': [time: number];
   'update:measureRange': [range: MeasureRange | null];
+  /** Hide axis Δt arrow/label during appear/clear (view↔range) tweens only. */
+  'suppress-measure-dt': [suppress: boolean];
 }>();
 
 const wrapRef = ref<HTMLDivElement | null>(null);
@@ -81,7 +84,10 @@ let measureDragOccurred = false;
  */
 let measurePressActive = false;
 const MEASURE_DRAG_THRESHOLD_PX = 4;
+/** Fast snap when clicking an event while a prior measure range exists. */
+const MEASURE_SNAP_DURATION_MS = 180;
 const suppressMeasurePreview = ref(false);
+let cancelMeasureSnap: (() => void) | null = null;
 let resizeEdge: MeasureResizeEdge | null = null;
 let resizeFixedOther = 0;
 let unbindResizeDrag: (() => void) | null = null;
@@ -222,6 +228,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  cancelMeasureSnapAnim();
   endMeasureCreate();
   endMeasureResize();
   resizeObserver?.disconnect();
@@ -247,9 +254,35 @@ watch(
   { deep: true },
 );
 
+function cancelMeasureSnapAnim(): void {
+  cancelMeasureSnap?.();
+  cancelMeasureSnap = null;
+  emit('suppress-measure-dt', false);
+}
+
+function runMeasureRangeTween(
+  from: MeasureRange,
+  to: MeasureRange,
+  opts: { suppressDt: boolean; clearWhenDone?: boolean },
+): void {
+  emit('suppress-measure-dt', opts.suppressDt);
+  cancelMeasureSnap = animateViewWindow({
+    from,
+    to,
+    durationMs: MEASURE_SNAP_DURATION_MS,
+    onUpdate: (w) => emit('update:measureRange', normalizeMeasureRange(w.startTime, w.endTime)),
+    onDone: () => {
+      cancelMeasureSnap = null;
+      emit('suppress-measure-dt', false);
+      if (opts.clearWhenDone) emit('update:measureRange', null);
+    },
+  });
+}
+
 function abortMeasureDrag(): void {
   // Unbind create/resize updates but keep measurePressActive / measureGestureActive
   // until pointerup so a mid-gesture Esc/toolbar cancel does not pan or select.
+  cancelMeasureSnapAnim();
   unbindCreateDrag?.();
   unbindCreateDrag = null;
   measureAnchorTime = null;
@@ -279,6 +312,7 @@ function endMeasureCreate(): void {
 
 function beginMeasureCreateFromDown(): void {
   if (!wrapRef.value || measureGestureActive) return;
+  cancelMeasureSnapAnim();
   const rect = wrapRef.value.getBoundingClientRect();
   measureCreatePending = false;
   measureGestureActive = true;
@@ -341,6 +375,58 @@ function emitCreateRange(clientX: number) {
   emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, time));
 }
 
+/** Snap to event borders; tween from prior range or (if none) from the visible window. */
+function snapMeasureToEvent(ev: SwimEvent): void {
+  const to = normalizeMeasureRange(ev.startTime, ev.startTime + ev.duration);
+  cancelMeasureSnapAnim();
+  if (prefersReducedMotion()) {
+    emit('update:measureRange', to);
+    return;
+  }
+  const prev = props.measureRange;
+  const viewSpan = normalizeMeasureRange(props.view.startTime, props.view.endTime);
+  let from: MeasureRange;
+  let suppressDt = false;
+  if (prev) {
+    from = normalizeMeasureRange(prev.startTime, prev.endTime);
+    if (!(from.endTime > from.startTime)) {
+      from = viewSpan;
+      suppressDt = true;
+    } else if (from.startTime === viewSpan.startTime && from.endTime === viewSpan.endTime) {
+      suppressDt = true;
+    }
+  } else {
+    from = viewSpan;
+    suppressDt = true;
+  }
+  if (from.startTime === to.startTime && from.endTime === to.endTime) {
+    emit('update:measureRange', to);
+    return;
+  }
+  runMeasureRangeTween(from, to, { suppressDt });
+}
+
+function clearMeasureRange(): void {
+  cancelMeasureSnapAnim();
+  const prev = props.measureRange;
+  if (!prev) {
+    emit('update:measureRange', null);
+    return;
+  }
+  const from = normalizeMeasureRange(prev.startTime, prev.endTime);
+  if (!(from.endTime > from.startTime) || prefersReducedMotion()) {
+    emit('update:measureRange', null);
+    return;
+  }
+  const to = normalizeMeasureRange(props.view.startTime, props.view.endTime);
+  // Already spans (or exceeds) the visible window — nothing to expand into.
+  if (from.startTime <= to.startTime && from.endTime >= to.endTime) {
+    emit('update:measureRange', null);
+    return;
+  }
+  runMeasureRangeTween(from, to, { suppressDt: true, clearWhenDone: true });
+}
+
 /** Stick playhead cursor to a measure edge while the hit pad owns the pointer. */
 function emitCursorAtMeasureEdge(edge: MeasureResizeEdge) {
   const geo = measureGeometry.value;
@@ -370,6 +456,7 @@ function onMeasureBorderPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
   const end = Math.max(range.startTime, range.endTime);
   endMeasureCreate();
   endMeasureResize();
+  cancelMeasureSnapAnim();
   resizeEdge = edge;
   resizeFixedOther = edge === 'left' ? end : start;
   suppressMeasurePreview.value = true;
@@ -546,12 +633,9 @@ function onPointerUp(e: PointerEvent): void {
       const id = backend.hitTest(x, y);
       const ev = id ? backend.findEvent(id) : null;
       if (ev) {
-        emit(
-          'update:measureRange',
-          normalizeMeasureRange(ev.startTime, ev.startTime + ev.duration),
-        );
+        snapMeasureToEvent(ev);
       } else {
-        emit('update:measureRange', null);
+        clearMeasureRange();
       }
     }
     return;
