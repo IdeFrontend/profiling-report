@@ -39,10 +39,19 @@ function adaptNpuRep(bytes: Uint8Array): AdaptedReport {
 
   const operators: ReportOperator[] = [];
   const operatorReports: Record<string, AdaptedReport> = {};
+  const seenStems = new Set<string>();
   for (const entry of nested) {
     const leaf = parseNpuRep(parsed.payloads[entry.name]);
-    const id = npuArchiveStem(entry.name);
-    operators.push({ id, label: id });
+    // FileInfo name is unique; stem is the short menu label (throw if stems collide).
+    const id = entry.name;
+    const label = npuArchiveStem(entry.name);
+    if (seenStems.has(label)) {
+      throw new Error(
+        `[profiling-report] loadReportSource: duplicate operator stem ${JSON.stringify(label)}`,
+      );
+    }
+    seenStems.add(label);
+    operators.push({ id, label });
     operatorReports[id] = adaptPayloads(leaf.payloads);
   }
 

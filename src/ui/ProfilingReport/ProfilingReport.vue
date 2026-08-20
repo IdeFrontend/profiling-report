@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
@@ -96,7 +96,8 @@ const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const collapsedGroupIds = ref<string[]>([]);
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
 const operators = ref<ReportOperator[]>([]);
-const operatorReports = ref<Record<string, AdaptedReport>>({});
+/** Shallow: avoid deep-proxying every swim event in every operator pack. */
+const operatorReports = shallowRef<Record<string, AdaptedReport>>({});
 const selectedOperatorId = ref<string | null>(null);
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
@@ -235,7 +236,7 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
 /** Swap the swimlane/report to another packaged operator without re-parsing the container. */
 function onOperatorChange(id: string) {
   const rep = operatorReports.value[id];
-  if (!rep) return;
+  if (!rep || id === selectedOperatorId.value) return;
   selectedOperatorId.value = id;
   internalSwim.value = rep.swimlaneModel;
   internalReport.value = rep.reportModel;
@@ -436,7 +437,7 @@ function selectEventById(eventId: string) {
   onSelect(ev ?? null);
 }
 
-defineExpose({ selectEventById, viewState });
+defineExpose({ selectEventById, viewState, selectedOperatorId });
 </script>
 
 <template>

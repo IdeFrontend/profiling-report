@@ -248,9 +248,9 @@ export interface ParsedRep {
 
 /** A selectable operator packaged in a multi-operator container. */
 export interface ReportOperator {
-  /** Stable id — nested archive stem (e.g. `op1`). */
+  /** Stable id — nested FileInfo name (e.g. `op1.npu.rep`); unique in the pack. */
   id: string;
-  /** Display label in the top-left OP selector. */
+  /** Display label in the top-left OP selector (archive stem, e.g. `op1`). */
   label: string;
 }
 

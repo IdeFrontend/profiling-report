@@ -16,18 +16,18 @@ parseNpuRep(bytes: Uint8Array): ParsedNpuRep
 
 **Nested operators.** `type === 6` (or a payload re-starting with the `npu-rep` magic) marks a nested per-operator archive (`.npu.rep`). An outer container packs N nested archives; each leaf archive packs `trace.json` + metric CSVs. A container with no nested archives is treated as a flat single-operator leaf pack.
 
-**Loading.** `loadReportSource` detects the `npu-rep` magic and returns a multi-operator `AdaptedReport` when nested archives exist (default-selecting the first operator), or a single-operator report for a flat leaf. Operator ids and labels are the archive name stems (`op1`, `op2`).
+**Loading.** `loadReportSource` detects the `npu-rep` magic and returns a multi-operator `AdaptedReport` when nested archives exist (default-selecting the first operator), or a single-operator report for a flat leaf. Operator **id** is the unique FileInfo name (`op1.npu.rep`); **label** is the archive stem (`op1`). Duplicate stems throw (same posture as duplicate embed names).
 
 ## Acceptance Criteria
 
 1. **PR-NPU-001** — Parses npu-rep head + 164-byte file table (2 nested archives).
 2. **PR-NPU-002** — Nested archives parse into leaf payloads (trace.json + CSVs).
 3. **PR-NPU-003** — Rejects bad magic / version / length mismatch.
-4. **PR-NPU-004** — loadReportSource loads multi-op npu-rep; defaults to first operator.
+4. **PR-NPU-004** — loadReportSource loads multi-op npu-rep; defaults to first operator; ids are FileInfo names.
 
 ## Edge Cases
 
-- Unknown/truncated magic → throw. Unsupported version → throw. `npuRepLength` mismatch → throw. Duplicate/overlapping embeds → throw. Flat leaf (no nested archive) → single-op adapted report.
+- Unknown/truncated magic → throw. Unsupported version → throw. `npuRepLength` mismatch → throw. Duplicate/overlapping embeds → throw. Duplicate operator stems → throw. Flat leaf (no nested archive) → single-op adapted report.
 
 ## Dependencies
 

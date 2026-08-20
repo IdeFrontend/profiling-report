@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import type { TimeDisplayUnit, DependencyMode, ReportOperator } from '../../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
+
+const OP_MENU_ID = 'pr-op-select-menu';
 
 const props = withDefaults(
   defineProps<{
@@ -41,6 +43,7 @@ const emit = defineEmits<{
 
 const displayControlOpen = ref(false);
 const opMenuOpen = ref(false);
+const activeOptionIndex = ref(0);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
 
@@ -55,13 +58,70 @@ function closeDisplayControl() {
   displayControlOpen.value = false;
 }
 
+function focusActiveOption() {
+  const el = document.querySelectorAll<HTMLElement>('[data-testid="op-item"]')[
+    activeOptionIndex.value
+  ];
+  el?.focus();
+}
+
+async function openOpMenu() {
+  const ops = props.operators ?? [];
+  const i = ops.findIndex((o) => o.id === props.selectedOperatorId);
+  activeOptionIndex.value = i >= 0 ? i : 0;
+  opMenuOpen.value = true;
+  await nextTick();
+  focusActiveOption();
+}
+
+function closeOpMenu() {
+  opMenuOpen.value = false;
+}
+
 function toggleOpMenu() {
-  opMenuOpen.value = !opMenuOpen.value;
+  if (opMenuOpen.value) closeOpMenu();
+  else void openOpMenu();
 }
 
 function selectOperator(id: string) {
-  emit('update:selectedOperatorId', id);
-  opMenuOpen.value = false;
+  if (id !== props.selectedOperatorId) {
+    emit('update:selectedOperatorId', id);
+  }
+  closeOpMenu();
+}
+
+function onTriggerKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && opMenuOpen.value) {
+    e.preventDefault();
+    closeOpMenu();
+    return;
+  }
+  if ((e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && !opMenuOpen.value) {
+    e.preventDefault();
+    void openOpMenu();
+  }
+}
+
+function onOptionKeydown(e: KeyboardEvent, id: string) {
+  const ops = props.operators ?? [];
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeOpMenu();
+    return;
+  }
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    selectOperator(id);
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (ops.length === 0) return;
+    const i = ops.findIndex((o) => o.id === id);
+    const delta = e.key === 'ArrowDown' ? 1 : -1;
+    activeOptionIndex.value = (i + delta + ops.length) % ops.length;
+    void nextTick(focusActiveOption);
+  }
 }
 
 function onDependencyDepth(e: Event) {
@@ -90,7 +150,9 @@ function onDependencyDepth(e: Event) {
           class="pr-op-select__trigger"
           :aria-expanded="opMenuOpen"
           :aria-haspopup="'listbox'"
+          :aria-controls="opMenuOpen ? OP_MENU_ID : undefined"
           @click="toggleOpMenu"
+          @keydown="onTriggerKeydown"
         >
           <span
             class="pr-op-select__label"
@@ -117,23 +179,27 @@ function onDependencyDepth(e: Event) {
         <div
           v-if="opMenuOpen"
           class="pr-op-select__backdrop"
-          @click="opMenuOpen = false"
+          @click="closeOpMenu"
         />
         <ul
           v-if="opMenuOpen"
+          :id="OP_MENU_ID"
           class="pr-op-select__menu"
           role="listbox"
           :aria-label="t('tabOp', locale)"
         >
           <li
-            v-for="op in operators"
+            v-for="(op, index) in operators"
             :key="op.id"
             class="pr-op-select__item"
             :class="{ 'pr-op-select__item--active': op.id === selectedOperatorId }"
             role="option"
+            tabindex="0"
             :aria-selected="op.id === selectedOperatorId"
             data-testid="op-item"
             @click="selectOperator(op.id)"
+            @keydown="onOptionKeydown($event, op.id)"
+            @focus="activeOptionIndex = index"
           >
             {{ op.label }}
           </li>

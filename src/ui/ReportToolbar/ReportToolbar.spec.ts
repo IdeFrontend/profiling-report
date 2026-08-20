@@ -168,6 +168,52 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2']]);
   });
 
+  it('PR-TOOLBAR-013b: OP listbox supports Escape / Enter / ArrowDown', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        operators: [
+          { id: 'op1', label: 'op1' },
+          { id: 'op2', label: 'op2' },
+        ],
+        selectedOperatorId: 'op1',
+      },
+    });
+
+    const trigger = wrapper.find('[data-testid="op-selector"] button');
+    await trigger.trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(true);
+    expect(trigger.attributes('aria-controls')).toBe('pr-op-select-menu');
+
+    const items = wrapper.findAll('[data-testid="op-item"]');
+    expect(items[0].attributes('tabindex')).toBe('0');
+    await items[0].trigger('keydown', { key: 'ArrowDown' });
+    await wrapper.findAll('[data-testid="op-item"]')[1].trigger('keydown', { key: 'Enter' });
+    expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2']]);
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+
+    await trigger.trigger('click');
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(true);
+    await wrapper.findAll('[data-testid="op-item"]')[0].trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+  });
+
+  it('PR-TOOLBAR-013c: re-selecting active operator does not emit', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        operators: [
+          { id: 'op1', label: 'op1' },
+          { id: 'op2', label: 'op2' },
+        ],
+        selectedOperatorId: 'op1',
+      },
+    });
+    await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+    await wrapper.findAll('[data-testid="op-item"]')[0].trigger('click');
+    expect(wrapper.emitted('update:selectedOperatorId')).toBeUndefined();
+  });
+
   it('PR-TOOLBAR-014: OP selector hidden for zero or one operator (brand shown)', () => {
     const single = mount(ReportToolbar, {
       props: { ...defaultProps, operators: [{ id: 'op1', label: 'op1' }] },

@@ -123,14 +123,103 @@ describe('ProfilingReport scaffold', () => {
 
     expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="op-selector-label"]').text()).toMatch(/OP算子|OP/);
+    expect(wrapper.vm.selectedOperatorId).toBe('op1.npu.rep');
 
     await wrapper.find('[data-testid="op-selector"] button').trigger('click');
     const items = wrapper.findAll('[data-testid="op-item"]');
     expect(items).toHaveLength(2);
     expect(items.map((i) => i.text())).toEqual(['op1', 'op2']);
+    expect(items[0].attributes('aria-selected')).toBe('true');
     await items[1].trigger('click');
 
+    expect(wrapper.vm.selectedOperatorId).toBe('op2.npu.rep');
     expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="op-selector-label"]').text()).toMatch(/OP算子|OP/);
+
+    await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+    const after = wrapper.findAll('[data-testid="op-item"]');
+    expect(after[1].attributes('aria-selected')).toBe('true');
+  });
+
+  it('PR-ROOT-004b: switching operator swaps models; re-select is a no-op', async () => {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const swimA = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [{ id: 'ea', name: 'event-a', startTime: 0, endTime: 10 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 10,
+    };
+    const swimB = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [{ id: 'eb', name: 'event-b', startTime: 0, endTime: 99 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 99,
+    };
+    const reportA = {
+      ...emptyReportViewModel(),
+      summary: { opName: 'alpha-op', taskDurationUs: 100 },
+    };
+    const reportB = {
+      ...emptyReportViewModel(),
+      summary: { opName: 'beta-op', taskDurationUs: 200 },
+    };
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swimA,
+      reportModel: reportA,
+      operators: [
+        { id: 'a.npu.rep', label: 'a' },
+        { id: 'b.npu.rep', label: 'b' },
+      ],
+      operatorReports: {
+        'a.npu.rep': { swimlaneModel: swimA, reportModel: reportA },
+        'b.npu.rep': { swimlaneModel: swimB, reportModel: reportB },
+      },
+      selectedOperatorId: 'a.npu.rep',
+    });
+
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: { source: new ArrayBuffer(8) },
+      });
+      expect(wrapper.text()).toContain('alpha-op');
+
+      await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+      await wrapper.findAll('[data-testid="op-item"]')[1].trigger('click');
+      expect(wrapper.vm.selectedOperatorId).toBe('b.npu.rep');
+      expect(wrapper.text()).toContain('beta-op');
+      expect(wrapper.text()).not.toContain('alpha-op');
+
+      const endBefore = wrapper.vm.viewState.endTime;
+      wrapper.vm.viewState.searchQuery = 'keep-me';
+      await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+      await wrapper.findAll('[data-testid="op-item"]')[1].trigger('click');
+      expect(wrapper.vm.viewState.searchQuery).toBe('keep-me');
+      expect(wrapper.vm.viewState.endTime).toBe(endBefore);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

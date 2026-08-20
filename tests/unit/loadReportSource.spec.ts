@@ -22,10 +22,11 @@ describe('PR-JSON: standalone Chrome Trace', () => {
 
   it('PR-NPU-004: loadReportSource loads multi-op npu-rep (default first operator)', () => {
     const adapted = loadReportSource(loadNpuRepBytes());
-    expect(adapted.operators?.map((o) => o.id)).toEqual(['op1', 'op2']);
-    expect(adapted.selectedOperatorId).toBe('op1');
+    expect(adapted.operators?.map((o) => o.id)).toEqual(['op1.npu.rep', 'op2.npu.rep']);
+    expect(adapted.operators?.map((o) => o.label)).toEqual(['op1', 'op2']);
+    expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
     expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
-    expect(adapted.operatorReports?.['op2']?.reportModel.summary.opName).toBe('add_custom');
+    expect(adapted.operatorReports?.['op2.npu.rep']?.reportModel.summary.opName).toBe('add_custom');
   });
 });

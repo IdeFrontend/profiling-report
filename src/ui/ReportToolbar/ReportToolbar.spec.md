@@ -28,7 +28,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
 
-**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label is always the OP算子 brand (`t('tabOp')`); operator ids/labels appear only in the floating menu. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
+**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label is always the OP算子 brand (`t('tabOp')`); operator labels appear only in the floating menu. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
@@ -139,7 +139,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
 11. **PR-TOOLBAR-011** — `dependency-mode` select inside 显示控制 emits `update:dependencyMode` on change; popover stays open.
 12. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1, above 100 clamp to 100); popover stays open.
-13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows OP算子 brand; menu lists operator labels; selecting emits `update:selectedOperatorId`.
+13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows OP算子 brand; menu lists operator labels; selecting emits `update:selectedOperatorId`; Escape/Enter/Arrow supported; re-select does not emit.
 14. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
 15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); trigger type is 18px / 700 / 26px lh.
 
