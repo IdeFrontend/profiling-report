@@ -87,6 +87,7 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 - Toolbar **caliper** toggles `measureMode`. While active, pan-drag on the swimlane is disabled (zoom/wheel still allowed unless Product says otherwise).
 - Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized).
 - Overlay: translucent shaded band spanning the interval + floating **Δt** label using the current display `timeUnit` (e.g. `3.0ms`).
+- Axis **cursor timestamp** lifts above the viewport time axis when its pill would cover a measure border or the Δt label (drag or idle hover), with a short animated transition; otherwise it stays in-track.
 - Does **not** change `timeWindow` (unlike overview brush). Does **not** multi-select events.
 - Clear: toggle off, Esc, or clear control — clears `measureRange` and exits measure mode.
 - **M2 minimum:** create range + clear + band + Δt label. Edge resize handles are optional polish.

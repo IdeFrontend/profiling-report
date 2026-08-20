@@ -281,4 +281,38 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(false);
   });
+
+  it('PR-TIMELINE-009: cursor label lifts above axis over measure chrome, not when clear', async () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.measureMode = true;
+    view.measureRange = { startTime: 200, endTime: 800 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        // Right border at 80% of axis.
+        cursor: { time: 800, xRatio: 0.8 },
+      },
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('[data-testid="cursor-label"]').classes()).toContain(
+      'pr-cursor__label--above',
+    );
+
+    await wrapper.setProps({ cursor: { time: 50, xRatio: 0.05 } });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="cursor-label"]').classes()).not.toContain(
+      'pr-cursor__label--above',
+    );
+  });
 });
