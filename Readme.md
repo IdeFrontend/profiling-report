@@ -10,6 +10,7 @@ Start here: **[docs/README.md](docs/README.md)**
 
 | Area | Entry |
 |------|--------|
+| Usage guide | [docs/usage/USAGE.md](docs/usage/USAGE.md) (how to consume the library) |
 | Goals & context | [docs/context/PROJECT_GOALS.md](docs/context/PROJECT_GOALS.md) |
 | Domain & users | [docs/context/DOMAIN_AND_USERS.md](docs/context/DOMAIN_AND_USERS.md) (pain points, glossary, UX link) |
 | Market & competitors | [docs/context/MARKET_AND_COMPETITORS.md](docs/context/MARKET_AND_COMPETITORS.md) (NVIDIA Nsight analogues) |
