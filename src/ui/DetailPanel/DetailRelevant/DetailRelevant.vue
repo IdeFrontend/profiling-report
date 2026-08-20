@@ -183,31 +183,30 @@ const linkHeight = computed(
       v-else
       class="pr-detail-relevant__graph"
     >
-      <div class="pr-detail-relevant__column">
-        <div class="pr-detail-relevant__column-head">
-          {{ t('incoming', locale) }}
-          <span
-            class="pr-detail-relevant__count"
-            data-testid="detail-relevant-incoming-count"
-          >{{ neighbors.incoming.length }}</span>
-        </div>
-        <span
-          v-for="node in neighbors.incoming"
-          :key="node.id"
-          class="pr-detail-relevant__chip"
-          :title="node.name"
-        >{{ node.name }}</span>
-      </div>
-
       <!--
-        Both connector columns are the same markup; only the link array differs. The current
-        column sits between them in the sketch, so it rides along with the incoming pass to
-        keep the grid's column order.
+        Three tracks, not five: each side is [chips + connector] and both sides are 1fr,
+        so the Current pill sits at the dock's centre no matter how wide either side's
+        chips are — or whether a direction filter emptied one. Inside a side the chip
+        column is content-sized and the connector absorbs the slack, so a curve always
+        reaches the chip it points at.
       -->
-      <template
-        v-for="(links, side) in { incoming: incomingLinks, outgoing: outgoingLinks }"
-        :key="side"
-      >
+      <div class="pr-detail-relevant__side">
+        <div class="pr-detail-relevant__column">
+          <div class="pr-detail-relevant__column-head">
+            {{ t('incoming', locale) }}
+            <span
+              class="pr-detail-relevant__count"
+              data-testid="detail-relevant-incoming-count"
+            >{{ neighbors.incoming.length }}</span>
+          </div>
+          <span
+            v-for="node in neighbors.incoming"
+            :key="node.id"
+            class="pr-detail-relevant__chip"
+            :title="node.name"
+          >{{ node.name }}</span>
+        </div>
+
         <div
           class="pr-detail-relevant__links"
           aria-hidden="true"
@@ -219,7 +218,7 @@ const linkHeight = computed(
             preserveAspectRatio="none"
           >
             <path
-              v-for="link in links"
+              v-for="link in incomingLinks"
               :key="link.id"
               :d="link.d"
               fill="none"
@@ -229,35 +228,57 @@ const linkHeight = computed(
             />
           </svg>
         </div>
+      </div>
 
-        <div
-          v-if="side === 'incoming'"
-          class="pr-detail-relevant__column pr-detail-relevant__column--current"
-        >
-          <div class="pr-detail-relevant__column-head">
-            {{ t('current', locale) }}
-          </div>
-          <span
-            class="pr-detail-relevant__chip pr-detail-relevant__chip--current"
-            :title="currentName"
-          >{{ currentName }}</span>
-        </div>
-      </template>
-
-      <div class="pr-detail-relevant__column pr-detail-relevant__column--out">
+      <div class="pr-detail-relevant__column pr-detail-relevant__column--current">
         <div class="pr-detail-relevant__column-head">
-          {{ t('outgoing', locale) }}
-          <span
-            class="pr-detail-relevant__count"
-            data-testid="detail-relevant-outgoing-count"
-          >{{ neighbors.outgoing.length }}</span>
+          {{ t('current', locale) }}
         </div>
         <span
-          v-for="node in neighbors.outgoing"
-          :key="node.id"
-          class="pr-detail-relevant__chip"
-          :title="node.name"
-        >{{ node.name }}</span>
+          class="pr-detail-relevant__chip pr-detail-relevant__chip--current"
+          :title="currentName"
+        >{{ currentName }}</span>
+      </div>
+
+      <!-- Same markup as the incoming side; CSS reverses it so the chips sit outermost. -->
+      <div class="pr-detail-relevant__side pr-detail-relevant__side--out">
+        <div class="pr-detail-relevant__column pr-detail-relevant__column--out">
+          <div class="pr-detail-relevant__column-head">
+            {{ t('outgoing', locale) }}
+            <span
+              class="pr-detail-relevant__count"
+              data-testid="detail-relevant-outgoing-count"
+            >{{ neighbors.outgoing.length }}</span>
+          </div>
+          <span
+            v-for="node in neighbors.outgoing"
+            :key="node.id"
+            class="pr-detail-relevant__chip"
+            :title="node.name"
+          >{{ node.name }}</span>
+        </div>
+
+        <div
+          class="pr-detail-relevant__links"
+          aria-hidden="true"
+        >
+          <div class="pr-detail-relevant__column-head" />
+          <svg
+            :height="linkHeight"
+            :viewBox="`0 0 ${LINK_WIDTH} ${linkHeight}`"
+            preserveAspectRatio="none"
+          >
+            <path
+              v-for="link in outgoingLinks"
+              :key="link.id"
+              :d="link.d"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              vector-effect="non-scaling-stroke"
+            />
+          </svg>
+        </div>
       </div>
     </div>
   </section>
@@ -357,15 +378,27 @@ const linkHeight = computed(
 
 .pr-detail-relevant__graph {
   display: grid;
-  /* Chip columns hug their chips; the connector tracks absorb the leftover width so a
-     curve reaches from chip edge to chip edge, as in the sketch. */
-  grid-template-columns:
-    fit-content(var(--pr-chip-max)) minmax(32px, 1fr)
-    fit-content(var(--pr-chip-max)) minmax(32px, 1fr)
-    fit-content(var(--pr-chip-max));
+  /* Equal side tracks keep Current centred; the pill itself is content-sized. */
+  grid-template-columns: 1fr fit-content(var(--pr-chip-max)) 1fr;
   gap: 8px 0;
   overflow: auto;
   min-height: 0;
+}
+
+.pr-detail-relevant__side {
+  display: grid;
+  /* Chips hug their content, the connector takes the rest of the side. */
+  grid-template-columns: fit-content(var(--pr-chip-max)) minmax(32px, 1fr);
+  min-width: 0;
+}
+
+.pr-detail-relevant__side--out {
+  grid-template-columns: minmax(32px, 1fr) fit-content(var(--pr-chip-max));
+}
+
+/* Mirrored side: chips outermost, connector against the Current pill. */
+.pr-detail-relevant__side--out .pr-detail-relevant__column {
+  order: 2;
 }
 
 .pr-detail-relevant__column {

@@ -18,7 +18,7 @@ Right column of the detail dock: direction filter, connection-level input, and t
 
 This is where dependency direction and depth are edited for the whole report: both travel up to the root, which feeds the same values to the swimlane curves, so the dock and the timeline can never disagree. The three icon buttons the sketch annotates, left to right, as 仅展示前向依赖 / 展示前后向依赖 / 仅展示后向依赖 emit the mode directly; 前向 means what the task waits on, so the left button selects `predecessors` (Incoming only) and the right one `successors` (Outgoing only).
 
-The walk blanks the suppressed side rather than dropping it, so the five-column grid never reflows when the user switches direction; counts and connector curves follow the same arrays as the chips.
+The walk blanks the suppressed side rather than dropping it, and the graph is three tracks — `[incoming chips + connector] | Current | [connector + outgoing chips]` — with both side tracks at `1fr`. So the Current pill holds the centre whatever the chips do: a longer neighbour name, or a direction filter emptying one side, moves nothing. Inside a side the chip column is content-sized (capped, then truncating) and the connector absorbs the slack, so a curve always spans chip edge to pill edge.
 
 The component never traverses the model itself: it renders the neighbours it is given, so mode and depth semantics live in one place ([dependencies](../../../specs/core/dependencies.spec.md)).
 
@@ -45,6 +45,7 @@ Normative crop: [`visual/relevant-graph.png`](./visual/relevant-graph.png) — [
 Chips are pinned to one line so the drawn connectors stay on their rows; a wrapping chip would drift from its curve. The swimlane-level overlay (`DependencyLinksLayer`) still has no geometry.
 
 ## Changelog
+- **2026-08-20** — Current stopped drifting: the graph went from five tracks to three with equal `1fr` sides, so an emptied or wider side no longer shifts the pill (measured 8-12px before, 0 after).
 - **2026-08-20** — Connectors reach their chips again: the chip columns and the connector column now share one gap token (they had drifted to 8px vs 6px, putting every curve 2px off its row), and the chip tracks are `fit-content(--pr-chip-max)` rather than `auto`, which had sized each column to the *untruncated* name and left the curve short of the capped pill. The connector svg stretches across whatever gap is left, with a non-scaling stroke.
 - **2026-08-20** — Geometry measured against the sketch's 4x export rather than eyeballed: 18px chips on a 26px pitch, 66px level field, 14px help glyph. Chips are content-sized — a flex column stretches its children by default, which had every chip spanning its whole track — and cap at 150px so a long name truncates instead of filling the column.
 - **2026-08-20** — Direction glyphs redrawn as the sketch's node graphs: fatter dots joined by short links, not hairline trees.
