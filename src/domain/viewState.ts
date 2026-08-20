@@ -107,6 +107,37 @@ export function panBy(
   return { startTime, endTime, scrollY: view.scrollY };
 }
 
+/**
+ * Viewport that centers `range` so it spans half the visible width (25% padding each side).
+ * Clamped to bounds; if 2× duration exceeds the full trace, fits the full bounds.
+ */
+export function measureFocusWindow(
+  range: MeasureRange,
+  bounds: { minTime: number; maxTime: number },
+  scrollY = 0,
+): SwimlaneViewWindow {
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  const duration = Math.max(MIN_WINDOW, end - start);
+  const full = Math.max(MIN_WINDOW, bounds.maxTime - bounds.minTime);
+  const span = Math.min(full, Math.max(MIN_WINDOW, duration * 2));
+  if (span >= full) {
+    return { startTime: bounds.minTime, endTime: bounds.maxTime, scrollY };
+  }
+  const mid = (start + end) / 2;
+  let startTime = mid - span / 2;
+  let endTime = mid + span / 2;
+  if (startTime < bounds.minTime) {
+    startTime = bounds.minTime;
+    endTime = startTime + span;
+  }
+  if (endTime > bounds.maxTime) {
+    endTime = bounds.maxTime;
+    startTime = endTime - span;
+  }
+  return { startTime, endTime, scrollY };
+}
+
 export function applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewState {
   return {
     ...state,

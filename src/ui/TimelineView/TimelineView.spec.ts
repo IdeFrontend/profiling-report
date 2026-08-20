@@ -472,4 +472,28 @@ describe('TimelineView', () => {
     expect(last.time).toBe(500);
     expect(last.xRatio).toBeCloseTo(0.5, 5);
   });
+
+  it('PR-TIMELINE-012: clicking Δt label emits focus-measure', async () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.measureMode = true;
+    view.measureRange = { startTime: 200, endTime: 500 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+    await wrapper.get('[data-testid="measure-label"]').trigger('click');
+    expect(wrapper.emitted('focus-measure')).toHaveLength(1);
+  });
 });

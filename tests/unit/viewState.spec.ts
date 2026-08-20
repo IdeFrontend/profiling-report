@@ -3,6 +3,7 @@ import {
   applyWindow,
   clearMeasure,
   createViewState,
+  measureFocusWindow,
   panBy,
   setMeasureRange,
   zoomAt,
@@ -60,5 +61,33 @@ describe('PR-VIEW: swimlane view window', () => {
     state = clearMeasure(state);
     expect(state.measureMode).toBe(false);
     expect(state.measureRange).toBeNull();
+  });
+
+  it('PR-VIEW-006: measureFocusWindow centers range at half viewport span', () => {
+    const next = measureFocusWindow(
+      { startTime: 2000, endTime: 3000 },
+      { minTime: 1000, maxTime: 5000 },
+      12,
+    );
+    // Duration 1000 → span 2000, centered on 2500.
+    expect(next.startTime).toBe(1500);
+    expect(next.endTime).toBe(3500);
+    expect(next.scrollY).toBe(12);
+  });
+
+  it('PR-VIEW-007: measureFocusWindow clamps to bounds and fits when 2× exceeds full', () => {
+    const nearEdge = measureFocusWindow(
+      { startTime: 1000, endTime: 1500 },
+      { minTime: 1000, maxTime: 5000 },
+    );
+    expect(nearEdge.startTime).toBe(1000);
+    expect(nearEdge.endTime - nearEdge.startTime).toBe(1000);
+
+    const tooWide = measureFocusWindow(
+      { startTime: 1000, endTime: 4000 },
+      { minTime: 1000, maxTime: 5000 },
+    );
+    expect(tooWide.startTime).toBe(1000);
+    expect(tooWide.endTime).toBe(5000);
   });
 });

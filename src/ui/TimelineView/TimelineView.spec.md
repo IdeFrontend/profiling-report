@@ -20,6 +20,8 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (other edge fixed), clamped to the view window with a ~1px min span. Resize listens on `window` for move/up so releasing over Card strips (above the bars) still ends the drag. Empty-axis drag still creates a new measure range.
 
+**Focus measure.** Clicking the Δt duration pill emits `focus-measure`. The parent animates the viewport so the measured range is centered and spans half the visible width (~400ms ease-out; instant when `prefers-reduced-motion`).
+
 ## Acceptance Criteria
 
 1. **PR-TIMELINE-001** — Renders overview, time axis, and swimlane body regions.
@@ -33,8 +35,10 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 9. **PR-TIMELINE-009** — With a visible measure range, cursor pill overlapping the selection (inside, or outside with label crossing a border) uses above-axis placement; cursor clear of the range stays in-track.
 10. **PR-TIMELINE-010** — Dragging an axis measure bar resizes that edge (other edge fixed); bars use a 9px hit pad, `col-resize`, and 2px stem on hover.
 11. **PR-TIMELINE-011** — Hovering an axis measure bar emits `cursor` stuck to that edge (timestamp stays visible / lifts above).
+12. **PR-TIMELINE-012** — Clicking the Δt label emits `focus-measure`.
 
 ## Changelog
+- **2026-08-20** — Click Δt label emits focus-measure; PR-TIMELINE-012.
 - **2026-08-20** — Offscreen cue is chevron + Δt only (no edge bar); PR-TIMELINE-007.
 - **2026-08-20** — Offscreen near-edge cue; omit clamped fake bars/heads; PR-TIMELINE-006/007.
 - **2026-08-20** — Hover measure bar sticks cursor; PR-TIMELINE-011.
