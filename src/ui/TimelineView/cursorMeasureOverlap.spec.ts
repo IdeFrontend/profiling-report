@@ -110,6 +110,45 @@ describe('cursorMeasureOverlap', () => {
     ).toBe(true);
   });
 
+  it('hits offscreen-left Δt parked inside the near edge', () => {
+    expect(
+      cursorLabelOverlapsMeasureChrome({
+        ...base,
+        measureLeftPct: 0,
+        measureRightPct: 0,
+        dtPlacement: { mode: 'offscreen', side: 'left' },
+        dtLabelW: 60,
+        cursorXRatio: (9 + 4 + 30) / 400,
+      }),
+    ).toBe(true);
+  });
+
+  it('hits offscreen-right Δt parked inside the near edge', () => {
+    expect(
+      cursorLabelOverlapsMeasureChrome({
+        ...base,
+        measureLeftPct: 100,
+        measureRightPct: 100,
+        dtPlacement: { mode: 'offscreen', side: 'right' },
+        dtLabelW: 60,
+        cursorXRatio: (400 - 9 - 4 - 30) / 400,
+      }),
+    ).toBe(true);
+  });
+
+  it('misses mid-view when only an offscreen-left cue is present', () => {
+    expect(
+      cursorLabelOverlapsMeasureChrome({
+        ...base,
+        measureLeftPct: 0,
+        measureRightPct: 0,
+        dtPlacement: { mode: 'offscreen', side: 'left' },
+        dtLabelW: 60,
+        cursorXRatio: 0.5,
+      }),
+    ).toBe(false);
+  });
+
   it('estimateAxisLabelWidth respects min width', () => {
     expect(estimateAxisLabelWidth('1', CURSOR_LABEL_MIN_WIDTH_PX)).toBe(CURSOR_LABEL_MIN_WIDTH_PX);
     expect(estimateAxisLabelWidth('00:12.345', CURSOR_LABEL_MIN_WIDTH_PX)).toBeGreaterThanOrEqual(

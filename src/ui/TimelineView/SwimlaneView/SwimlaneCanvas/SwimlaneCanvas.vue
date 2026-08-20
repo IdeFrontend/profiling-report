@@ -375,12 +375,20 @@ const measureGeometry = computed(() => {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
-  const visStart = Math.max(props.view.startTime, start);
-  const visEnd = Math.min(props.view.endTime, end);
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const visStart = Math.max(viewStart, start);
+  const visEnd = Math.min(viewEnd, end);
   if (!(visEnd > visStart)) return null;
   const left = xAtTime(visStart);
   const right = xAtTime(visEnd);
-  return { left, right, width: Math.max(1, right - left) };
+  return {
+    left,
+    right,
+    width: Math.max(1, right - left),
+    showLeft: start >= viewStart,
+    showRight: end <= viewEnd,
+  };
 });
 
 function activeCanvas(): HTMLCanvasElement | null {
@@ -549,6 +557,7 @@ defineExpose({
         :style="{ left: `${measureGeometry.right}px`, right: '0' }"
       />
       <div
+        v-if="measureGeometry.showLeft"
         class="pr-measure-border pr-measure-border--left"
         data-testid="measure-border-left"
         :style="{ left: `${measureGeometry.left}px` }"
@@ -557,6 +566,7 @@ defineExpose({
         @pointerleave="onMeasureBorderPointerLeave"
       />
       <div
+        v-if="measureGeometry.showRight"
         class="pr-measure-border pr-measure-border--right"
         data-testid="measure-border-right"
         :style="{ left: `${measureGeometry.right}px` }"

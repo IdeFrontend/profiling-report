@@ -237,7 +237,7 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
   });
 
-  it('PR-TIMELINE-006: measure axis clamps overlay to the current view window', () => {
+  it('PR-TIMELINE-006: measure axis hides bars/heads for edges clamped outside the view', () => {
     stubAxisWidth(400);
     const view = createViewState({
       minTime: 0,
@@ -260,14 +260,44 @@ describe('TimelineView', () => {
       },
     });
 
-    const left = wrapper.get('[data-testid="measure-axis-bar-left"]');
-    const right = wrapper.get('[data-testid="measure-axis-bar-right"]');
-    expect(left.attributes('style')).toMatch(/left:\s*0%/);
-    expect(right.attributes('style')).toMatch(/left:\s*100%/);
+    // Both true edges are outside — no fake bars at the view boundary.
+    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="measure-arrow-head"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ms/);
+    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
   });
 
-  it('PR-TIMELINE-007: measure axis hides when range is fully outside the view', () => {
+  it('PR-TIMELINE-006b: partial clip shows only the in-view measure edge', () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.startTime = 200;
+    view.endTime = 600;
+    view.measureMode = true;
+    view.measureRange = { startTime: 100, endTime: 500 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+
+    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
+    const right = wrapper.get('[data-testid="measure-axis-bar-right"]');
+    expect(right.attributes('style')).toMatch(/left:\s*75%/);
+    expect(wrapper.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(1);
+  });
+
+  it('PR-TIMELINE-007: measure axis shows near-edge cue when range is fully outside the view', () => {
     stubAxisWidth(400);
     const view = createViewState({
       minTime: 0,
@@ -290,8 +320,30 @@ describe('TimelineView', () => {
       },
     });
 
-    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(false);
+    const left = wrapper.get('[data-testid="measure-axis-bar-left"]');
+    expect(left.attributes('style')).toMatch(/left:\s*0%/);
+    expect(left.classes()).toContain('pr-measure-axis-bar--cue');
+    expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="measure-label"]').exists()).toBe(true);
+
+    view.measureRange = { startTime: 800, endTime: 900 };
+    const wrapperRight = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+    expect(wrapperRight.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
+    const right = wrapperRight.get('[data-testid="measure-axis-bar-right"]');
+    expect(right.attributes('style')).toMatch(/left:\s*100%/);
+    expect(wrapperRight.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(1);
   });
 
   it('PR-TIMELINE-009: cursor label lifts when overlapping measure range, not when clear', async () => {

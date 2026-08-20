@@ -7,7 +7,7 @@ export const MEASURE_OUTSIDE_LABEL_GAP_PX = 4;
 
 export type MeasureDtPlacement =
   | { mode: 'inline' }
-  | { mode: 'outside' | 'shaft'; side: 'left' | 'right' };
+  | { mode: 'outside' | 'shaft' | 'offscreen'; side: 'left' | 'right' };
 
 export type CursorMeasureOverlapInput = {
   axisW: number;
@@ -34,7 +34,7 @@ export function estimateAxisLabelWidth(label: string, minWidth = 0): number {
 /**
  * True when the cursor timestamp should lift above the axis:
  * - cursor pill overlaps the selected range (playhead inside, or label crosses a border), or
- * - cursor pill intersects an outside Δt label past the bars.
+ * - cursor pill intersects an outside / offscreen Δt label past the bars.
  */
 export function cursorLabelOverlapsMeasureChrome(input: CursorMeasureOverlapInput): boolean {
   const {
@@ -57,14 +57,30 @@ export function cursorLabelOverlapsMeasureChrome(input: CursorMeasureOverlapInpu
   const rightPx = (measureRightPct / 100) * axisW;
 
   // Inside the selection, or just outside with the pill still crossing a border.
-  if (intervalsOverlap(c0, c1, leftPx - padPx, rightPx + padPx)) return true;
+  // Offscreen cue has zero-width span — skip range hit (Δt check below).
+  if (
+    dtPlacement.mode !== 'offscreen' &&
+    intervalsOverlap(c0, c1, leftPx - padPx, rightPx + padPx)
+  ) {
+    return true;
+  }
 
-  // Outside Δt sits past the bars — still lift when the cursor pill covers it.
+  // Outside / offscreen Δt sits past the bars — still lift when the cursor pill covers it.
   if (dtPlacement.mode === 'inline' || !(dtLabelW > 0)) return false;
 
   let dt0: number;
   let dt1: number;
-  if (dtPlacement.side === 'right') {
+  if (dtPlacement.mode === 'offscreen') {
+    // Label parked just inside the near view edge (after the cue head + gap).
+    const headGap = 9 + MEASURE_OUTSIDE_LABEL_GAP_PX;
+    if (dtPlacement.side === 'left') {
+      dt0 = headGap;
+      dt1 = dt0 + dtLabelW;
+    } else {
+      dt1 = axisW - headGap;
+      dt0 = dt1 - dtLabelW;
+    }
+  } else if (dtPlacement.side === 'right') {
     dt0 = rightPx + MEASURE_OUTSIDE_LABEL_GAP_PX;
     dt1 = dt0 + dtLabelW;
   } else {

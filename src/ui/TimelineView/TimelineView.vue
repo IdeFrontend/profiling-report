@@ -108,7 +108,7 @@ const viewportRuler = computed(() =>
   }),
 );
 
-/** Measure range as % of the viewport span — clamped to the current view window. */
+/** Measure range as % of the viewport span — clamped; true edges only when in view. */
 const measureAxis = computed(() => {
   const range = props.view.measureRange;
   if (!props.view.measureMode || !range) return null;
@@ -118,23 +118,66 @@ const measureAxis = computed(() => {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
+  const label = formatTime(end - start, props.unit);
   const visStart = Math.max(viewStart, start);
   const visEnd = Math.min(viewEnd, end);
-  if (!(visEnd > visStart)) return null;
+  if (!(visEnd > visStart)) {
+    // Fully outside: park a one-sided cue at the near view edge.
+    if (end <= viewStart) {
+      return {
+        placement: 'offscreen-left' as const,
+        left: 0,
+        right: 0,
+        width: 0,
+        showLeft: true,
+        showRight: false,
+        label,
+      };
+    }
+    if (start >= viewEnd) {
+      return {
+        placement: 'offscreen-right' as const,
+        left: 100,
+        right: 100,
+        width: 0,
+        showLeft: false,
+        showRight: true,
+        label,
+      };
+    }
+    return null;
+  }
   const left = ((visStart - viewStart) / span) * 100;
   const width = ((visEnd - visStart) / span) * 100;
   return {
+    placement: 'visible' as const,
     left,
     right: left + width,
     width,
-    label: formatTime(end - start, props.unit),
+    showLeft: start >= viewStart,
+    showRight: end <= viewEnd,
+    label,
   };
 });
 
-/** Inline label, outside label + arrow, or outside label with no connector. */
+/** Inline label, outside label + arrow, offscreen cue, or outside label with no connector. */
 const measureArrowLayout = computed(() => {
   const axis = measureAxis.value;
   if (!axis) return null;
+  if (axis.placement === 'offscreen-left') {
+    return {
+      mode: 'offscreen' as const,
+      side: 'left' as const,
+      style: { left: '0%' },
+    };
+  }
+  if (axis.placement === 'offscreen-right') {
+    return {
+      mode: 'offscreen' as const,
+      side: 'right' as const,
+      style: { left: '100%' },
+    };
+  }
   const style = { left: `${axis.left}%`, width: `${axis.width}%` };
   const axisW = timeAxisWidth.value;
   if (axisW <= 0) {
@@ -280,6 +323,8 @@ function isMeasureAxisBarEl(t: EventTarget | null): boolean {
 
 function onMeasureBarPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
   if (e.button !== 0 || !props.view.measureMode) return;
+  // Offscreen cue bars are not resizable (true edge is outside the view).
+  if (measureAxis.value?.placement !== 'visible') return;
   const range = props.view.measureRange;
   if (!range) return;
   const start = Math.min(range.startTime, range.endTime);
@@ -403,7 +448,9 @@ defineExpose({
         />
         <template v-if="measureAxis">
           <div
+            v-if="measureAxis.showLeft"
             class="pr-measure-axis-bar pr-measure-axis-bar--left"
+            :class="{ 'pr-measure-axis-bar--cue': measureAxis.placement !== 'visible' }"
             data-testid="measure-axis-bar-left"
             :style="{ left: `${measureAxis.left}%` }"
             @pointerdown="onMeasureBarPointerDown($event, 'left')"
@@ -411,7 +458,9 @@ defineExpose({
             @pointerleave="onMeasureBarPointerLeave"
           />
           <div
+            v-if="measureAxis.showRight"
             class="pr-measure-axis-bar pr-measure-axis-bar--right"
+            :class="{ 'pr-measure-axis-bar--cue': measureAxis.placement !== 'visible' }"
             data-testid="measure-axis-bar-right"
             :style="{ left: `${measureAxis.right}%` }"
             @pointerdown="onMeasureBarPointerDown($event, 'right')"
@@ -431,6 +480,13 @@ defineExpose({
               'pr-measure-arrow--outside-left':
                 (measureArrowLayout?.mode === 'outside' || measureArrowLayout?.mode === 'shaft') &&
                 measureArrowLayout.side === 'left',
+              'pr-measure-arrow--offscreen': measureArrowLayout?.mode === 'offscreen',
+              'pr-measure-arrow--offscreen-left':
+                measureArrowLayout?.mode === 'offscreen' && measureArrowLayout.side === 'left',
+              'pr-measure-arrow--offscreen-right':
+                measureArrowLayout?.mode === 'offscreen' && measureArrowLayout.side === 'right',
+              'pr-measure-arrow--no-left-head': !measureAxis.showLeft,
+              'pr-measure-arrow--no-right-head': !measureAxis.showRight,
             }"
             :style="measureArrowLayout?.style"
           >
@@ -438,8 +494,10 @@ defineExpose({
               Flex: tip pad 1px | head | shaft | 4px | label | 4px | shaft | head
               Shaft negative margin pulls into chevron so the line meets the arms.
               Outside: label parked outside; arrow spans the bars (or no connector when too narrow).
+              Offscreen: one head pointing off-view + Δt just inside the near edge.
             -->
             <svg
+              v-if="measureAxis.showLeft"
               class="pr-measure-arrow__head"
               data-testid="measure-arrow-head"
               viewBox="0 0 9 10"
@@ -458,6 +516,7 @@ defineExpose({
               />
             </svg>
             <div
+              v-if="measureArrowLayout?.mode !== 'offscreen'"
               class="pr-measure-arrow__shaft pr-measure-arrow__shaft--left"
               data-testid="measure-arrow-shaft"
             />
@@ -467,10 +526,12 @@ defineExpose({
               data-testid="measure-label"
             >{{ measureAxis.label }}</span>
             <div
+              v-if="measureArrowLayout?.mode !== 'offscreen'"
               class="pr-measure-arrow__shaft pr-measure-arrow__shaft--right"
               data-testid="measure-arrow-shaft"
             />
             <svg
+              v-if="measureAxis.showRight"
               class="pr-measure-arrow__head"
               data-testid="measure-arrow-head"
               viewBox="0 0 9 10"
@@ -610,6 +671,12 @@ defineExpose({
   width: 2px;
 }
 
+/* Offscreen cue: visual only — true edge is outside the view. */
+.pr-measure-axis-bar--cue {
+  cursor: default;
+  pointer-events: none;
+}
+
 .pr-measure-arrow {
   position: absolute;
   top: 0;
@@ -699,6 +766,34 @@ defineExpose({
 .pr-measure-arrow--shaft .pr-measure-arrow__head,
 .pr-measure-arrow--shaft .pr-measure-arrow__shaft {
   display: none;
+}
+
+/* Clipped true edge: no arrowhead; shaft meets the view edge cleanly. */
+.pr-measure-arrow--no-left-head .pr-measure-arrow__shaft--left {
+  margin-left: 0;
+}
+
+.pr-measure-arrow--no-right-head .pr-measure-arrow__shaft--right {
+  margin-right: 0;
+}
+
+/* Fully off-screen: one chevron + Δt parked just inside the near view edge. */
+.pr-measure-arrow--offscreen {
+  overflow: visible;
+  width: auto;
+  padding: 0 1px;
+}
+
+.pr-measure-arrow--offscreen-left .pr-measure-arrow__label {
+  margin-left: 4px;
+}
+
+.pr-measure-arrow--offscreen-right {
+  transform: translateX(-100%);
+}
+
+.pr-measure-arrow--offscreen-right .pr-measure-arrow__label {
+  margin-right: 4px;
 }
 
 .pr-gutter--axis-spacer {

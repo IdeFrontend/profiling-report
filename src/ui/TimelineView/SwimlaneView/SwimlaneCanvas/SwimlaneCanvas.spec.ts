@@ -90,7 +90,7 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(false);
   });
 
-  it('PR-CANVAS-008: measure overlay clamps to the current view window', async () => {
+  it('PR-CANVAS-008: measure overlay clamps fades; omits borders for clipped edges', async () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
@@ -105,10 +105,16 @@ describe('SwimlaneCanvas', () => {
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
     await wrapper.setProps({ measureRange: { startTime: 100, endTime: 800 } });
 
-    const left = wrapper.get('[data-testid="measure-border-left"]');
+    // Both true edges outside — fades span the view, no fake borders at 0/width.
+    expect(wrapper.find('[data-testid="measure-fade-left"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-fade-right"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="measure-border-right"]').exists()).toBe(false);
+
+    await wrapper.setProps({ measureRange: { startTime: 100, endTime: 500 } });
+    expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(false);
     const right = wrapper.get('[data-testid="measure-border-right"]');
-    expect(left.attributes('style')).toMatch(/left:\s*0px/);
-    expect(right.attributes('style')).toMatch(/left:\s*400px/);
+    expect(right.attributes('style')).toMatch(/left:\s*300px/);
     wrapper.unmount();
   });
 
