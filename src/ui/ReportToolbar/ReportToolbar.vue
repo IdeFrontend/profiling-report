@@ -520,9 +520,10 @@ function onDependencyDepth(e: Event) {
   border-radius: 0;
   background: transparent;
   color: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 26px;
+  letter-spacing: 0;
   cursor: pointer;
 }
 

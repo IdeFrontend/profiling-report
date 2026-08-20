@@ -53,7 +53,7 @@ Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930
 | Token | Value |
 |-------|--------|
 | Trigger | Transparent — **no** pill fill, **no** border, **no** vertical divider |
-| Trigger label | Always OP算子 / `t('tabOp')` (white, ~12px, weight 600) |
+| Trigger label | Always OP算子 / `t('tabOp')` — white, 18px / weight 700 / line-height 26px / letter-spacing 0 |
 | Chevron | Thin stroke `10×10`, color `#c8c8c8`; down when closed, rotated 180° when open |
 | Gap label↔chevron | `4px` |
 | Menu bg | `#363636` |
@@ -141,7 +141,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 12. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1, above 100 clamp to 100); popover stays open.
 13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows OP算子 brand; menu lists operator labels; selecting emits `update:selectedOperatorId`.
 14. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
-15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider).
+15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); trigger type is 18px / 700 / 26px lh.
 
 ## Edge Cases
 
@@ -164,6 +164,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-20** — OP selector trigger type: 18px / weight 700 / line-height 26px.
 - **2026-08-20** — Corner blue wash moved to ProfilingReport root (208×60); chrome strip back to flat `--pr-bg-deep`.
 - **2026-08-20** — OP selector matches sketch: text+chevron (no pill), OP算子 brand trigger, mild navy chrome gradient; crops + PR-TOOLBAR-015.
 - **2026-08-20** — OP selector at strip far-left for multi-operator packs; PR-TOOLBAR-013/014.

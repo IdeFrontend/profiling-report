@@ -182,6 +182,9 @@ describe('ReportToolbar', () => {
   it('PR-TOOLBAR-015: OP selector is text+chevron (no pill fill or divider)', async () => {
     const src = (await import('./ReportToolbar.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?background:\s*transparent/);
+    expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?font-size:\s*18px/);
+    expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?font-weight:\s*700/);
+    expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?line-height:\s*26px/);
     expect(src).not.toMatch(/\.pr-op-select[\s\S]*?border-right:\s*1px solid/);
   });
 });
