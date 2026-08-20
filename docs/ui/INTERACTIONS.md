@@ -85,7 +85,8 @@ Sketch: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (swimla
 Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delivery: **M2**.
 
 - Toolbar **caliper** toggles `measureMode`. While active, pan-drag on the swimlane is disabled (zoom/wheel still allowed unless Product says otherwise).
-- Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized).
+- Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized). On the swimlane, create starts only after move >4px; a click (≤4px) over an event snaps the range to that event’s borders (no event select). Empty swimlane click clears the range.
+- Hovering an event in measure mode shows gray preview stems at the event edges (no fades; non-interactive).
 - Overlay: translucent shaded band spanning the interval + floating **Δt** label using the current display `timeUnit` (e.g. `3.0ms`).
 - **Focus:** clicking the Δt pill animates the viewport so the measured range is centered and spans half the visible width (~400ms ease-out; instant with reduced motion).
 - Axis **cursor timestamp** lifts above the viewport time axis when the pointer is over that axis (so ticks stay readable), when its pill overlaps the measured range (including when the playhead is just outside a border but the pill still crosses it), or when it covers an outside / offscreen Δt label, with a short animated transition; otherwise (swimlane hover, clear of measure chrome) it stays in-track. Axis hover also keeps the **full-height swimlane playhead** at the same x.
