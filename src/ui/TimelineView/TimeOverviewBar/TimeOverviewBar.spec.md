@@ -22,7 +22,7 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 **Shared ruler chrome.** Overview and viewport axes share `AxisRuler`: track height **20px**; labels in an **18px** top-aligned box at **12px / 400**; major **1px** bars with labels immediately to the **right**; **9** minor ticks (**5px** tall) between each major pair. Majors use a zoom-aware nice ns grid (`1|2|5×10ⁿ`, ~100px spacing) snapped to `origin + k·interval` so tick **positions** reflow with zoom/pan. Majors/minors outside the selected window are muted. `AxisRuler` clips its own overflow so labels never paint into the right aside. The overview root/track use `overflow: visible` so left/right edge handles are not cropped (CSS cannot uncrop only the X axis without also allowing Y; handle tabs stay flush in the top 10px of the 20px track — PR-OVERVIEW-005). ReportLayout `.pr-main` is also `overflow: visible` (z-index above aside) so edge handles may slightly overlap the aside seam.
 
-**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are a **vertical 4×10 white pill** on a **1px stem** (see **Visual**). The pill sits flush inside the top **10px** of the track (does **not** extend above the axis); stem runs from the pill bottom to the track bottom. Edge handles may paint past the track’s left/right bounds. Pointer events initiate a drag mode; pointer move adjusts window boundaries and emits `update:window` continuously. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
+**Drag modes.** The window indicator supports three operations: move the entire window, resize from the left handle, resize from the right handle. Handles are a **vertical 4×10 white pill** on a **1px stem** (see **Visual**). The pill sits flush inside the top **10px** of the track (does **not** extend above the axis); stem runs from the pill bottom to the track bottom. Edge handles may paint past the track’s left/right bounds. Pointer events initiate a drag mode; **move/up are bound on `window`** (via `bindWindowPointerDrag`) so releasing outside the overview (aside, off-chart) still ends the drag. A click on the track (with no drag) emits `update:window` to jump to the clicked position.
 
 **Parent integration.** The parent ProfilingReport receives the `update:window` event and applies the new window to `SwimlaneViewState` via `applyWindow`. All children re-render with the updated viewport.
 
@@ -49,6 +49,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 3. **PR-OVERVIEW-003** — Leftmost tick label is relative zero (`0ms` / `0µs` / `0ns`).
 4. **PR-OVERVIEW-004** — Ruler renders majors on a nice grid with minors between; `AxisRuler` clips tick overflow vs aside.
 5. **PR-OVERVIEW-005** — Handle tab is exactly `width: 4px; height: 10px; top: 0` (no vertical protrusion); overview track uses `overflow: visible` so left/right edge handles are not cropped (including slight overlap past the main/aside seam).
+6. **PR-OVERVIEW-006** — Handle/window drag ends on window `pointerup` (release outside the overview does not leave a stuck drag).
 
 ## Edge Cases
 
@@ -66,6 +67,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 - [Statistical analysis (overview charts)](../../../../docs/ui/source/v930/entry.jpeg)
 
 ## Changelog
+- **2026-08-20** — Window-level move/up for handle drag; PR-OVERVIEW-006.
 - **2026-08-20** — Edge handles may overlap aside seam via `.pr-main` overflow; PR-OVERVIEW-005.
 - **2026-08-13** — Handle head 4×10 flush vertically; horizontal edge uncrop via track `overflow: visible`; PR-OVERVIEW-005.
 - **2026-08-07** — Handle head **4×10**.

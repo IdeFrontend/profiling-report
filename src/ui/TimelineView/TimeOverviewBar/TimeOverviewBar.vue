@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { buildAxisRulerTicks } from '../../../domain/axisRuler';
 import type { TimeDisplayUnit } from '../../../domain/types';
+import { bindWindowPointerDrag } from '../measureEdgeResize';
 import AxisRuler from '../TimeAxis/AxisRuler/AxisRuler.vue';
 
 const props = defineProps<{
@@ -25,6 +26,7 @@ let dragMode: DragMode = null;
 let dragOriginX = 0;
 let dragStart = 0;
 let dragEnd = 0;
+let unbindWindowDrag: (() => void) | null = null;
 
 const fullSpan = computed(() => Math.max(1, props.maxTime - props.minTime));
 
@@ -61,6 +63,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  endDrag();
   resizeObserver?.disconnect();
   resizeObserver = null;
 });
@@ -95,12 +98,37 @@ function clampWindow(start: number, end: number): { startTime: number; endTime: 
   return { startTime: s, endTime: e };
 }
 
+function endDrag() {
+  unbindWindowDrag?.();
+  unbindWindowDrag = null;
+  dragMode = null;
+}
+
+function applyDragMove(clientX: number) {
+  if (!dragMode || !rootRef.value) return;
+  const rect = rootRef.value.getBoundingClientRect();
+  const dxRatio = (clientX - dragOriginX) / Math.max(1, rect.width);
+  const dt = dxRatio * fullSpan.value;
+  if (dragMode === 'move') {
+    emit('update:window', clampWindow(dragStart + dt, dragEnd + dt));
+  } else if (dragMode === 'left') {
+    emit('update:window', clampWindow(dragStart + dt, dragEnd));
+  } else if (dragMode === 'right') {
+    emit('update:window', clampWindow(dragStart, dragEnd + dt));
+  }
+}
+
 function onPointerDown(e: PointerEvent, mode: DragMode) {
-  if (!mode) return;
+  if (!mode || e.button !== 0) return;
+  endDrag();
   dragMode = mode;
   dragOriginX = e.clientX;
   dragStart = props.startTime;
   dragEnd = props.endTime;
+  unbindWindowDrag = bindWindowPointerDrag({
+    onMove: applyDragMove,
+    onEnd: endDrag,
+  });
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   e.preventDefault();
   e.stopPropagation();
@@ -112,24 +140,6 @@ function onTrackPointerDown(e: PointerEvent) {
   const span = props.endTime - props.startTime;
   const center = clientToTime(e.clientX);
   emit('update:window', clampWindow(center - span / 2, center + span / 2));
-}
-
-function onPointerMove(e: PointerEvent) {
-  if (!dragMode || !rootRef.value) return;
-  const rect = rootRef.value.getBoundingClientRect();
-  const dxRatio = (e.clientX - dragOriginX) / Math.max(1, rect.width);
-  const dt = dxRatio * fullSpan.value;
-  if (dragMode === 'move') {
-    emit('update:window', clampWindow(dragStart + dt, dragEnd + dt));
-  } else if (dragMode === 'left') {
-    emit('update:window', clampWindow(dragStart + dt, dragEnd));
-  } else if (dragMode === 'right') {
-    emit('update:window', clampWindow(dragStart, dragEnd + dt));
-  }
-}
-
-function onPointerUp() {
-  dragMode = null;
 }
 </script>
 
@@ -143,9 +153,6 @@ function onPointerUp() {
       class="pr-overview__track"
       data-testid="time-overview-track"
       @pointerdown="onTrackPointerDown"
-      @pointermove="onPointerMove"
-      @pointerup="onPointerUp"
-      @pointercancel="onPointerUp"
     >
       <!-- Dim outside selected window -->
       <div
