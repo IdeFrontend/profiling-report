@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe('TimelineView', () => {
-  it('PR-TIMELINE-001: renders overview, axis, and body', () => {
+  it('PR-TIMELINE-001: renders overview, axis, and body', async () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -44,6 +44,13 @@ describe('TimelineView', () => {
 
     expect(wrapper.find('[data-testid="time-axis"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="gutter-resize-handle"]').exists()).toBe(true);
+    const src = (await import('./TimelineView.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-swim-row\.pr-swim-row--head,\s*\.pr-swim-row\.pr-swim-row--overview\s*\{[^}]*z-index:\s*7/s,
+    );
+    expect(src).toMatch(
+      /\.pr-swim-row\.pr-swim-row--head,\s*\.pr-swim-row\.pr-swim-row--overview\s*\{[^}]*overflow:\s*visible/s,
+    );
   });
 
   it('PR-TIMELINE-002: measure mode keeps overview and draws axis bars + arrow', () => {
