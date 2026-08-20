@@ -35,6 +35,7 @@ Incoming and Outgoing carry count badges; the centre column carries none, matchi
 1. **PR-DREL-003** — The connection-level input emits `update:depth`, normalized.
 1. **PR-DREL-004** — Shows the empty note when neither side has neighbours.
 1. **PR-DREL-005** — Draws one connector curve per incoming and outgoing neighbour.
+1. **PR-DREL-006** — Each side's connector svg is sized and viewBox'd to its own chip column, not the taller of the two.
 
 ## Visual
 
@@ -45,6 +46,7 @@ Normative crop: [`visual/relevant-graph.png`](./visual/relevant-graph.png) — [
 Chips are pinned to one line so the drawn connectors stay on their rows; a wrapping chip would drift from its curve. The swimlane-level overlay (`DependencyLinksLayer`) still has no geometry.
 
 ## Changelog
+- **2026-08-20** — PR-DREL-006: the two connector svgs were both sized off `max(incoming, outgoing)`, so on a lopsided node (34 in / 55 out) the shorter side drew 34 rows stretched across 55 rows of height — `preserveAspectRatio="none"` turned that into a fan of curves missing every chip. Each side now spans its own column; verified in-browser at 34/55 that svg height equals chip span exactly on both sides.
 - **2026-08-20** — Chips centre their text through half-leading (`line-height` = the pill height, no vertical padding) instead of a hand-tuned 1px pad against a shorter line box. The old pair left ~1px of vertical slack, which Segoe UI's taller metrics consumed — parentheses and descenders clipped on Windows while Linux rendered clean.
 - **2026-08-20** — Current stopped drifting: the graph went from five tracks to three with equal `1fr` sides, so an emptied or wider side no longer shifts the pill (measured 8-12px before, 0 after).
 - **2026-08-20** — Connectors reach their chips again: the chip columns and the connector column now share one gap token (they had drifted to 8px vs 6px, putting every curve 2px off its row), and the chip tracks are `fit-content(--pr-chip-max)` rather than `auto`, which had sized each column to the *untruncated* name and left the curve short of the capped pill. The connector svg stretches across whatever gap is left, with a non-scaling stroke.

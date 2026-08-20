@@ -101,4 +101,27 @@ describe('DetailRelevant', () => {
     expect(wrapper.find('[data-testid="detail-relevant-empty"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="detail-relevant-level"]').exists()).toBe(true);
   });
+
+  it('PR-DREL-006: each side sizes its connector svg to its own chip column', () => {
+    // Lopsided on purpose: 5 in, 2 out. Sizing both svgs off the longer side stretched
+    // the shorter one's viewBox, fanning its curves away from the chips they point at.
+    const lopsided: DependencyNeighbors = {
+      incoming: Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, name: `pred${i}`, startTime: i })),
+      outgoing: Array.from({ length: 2 }, (_, i) => ({ id: `s${i}`, name: `succ${i}`, startTime: i })),
+    };
+    const columns = mountRelevant({ neighbors: lopsided }).findAll('.pr-detail-relevant__links');
+
+    // n rows on CHIP_PITCH(26), less the gap the last row doesn't use: 5 -> 122, 2 -> 44.
+    expect(columns[0].find('svg').attributes('height')).toBe('122');
+    expect(columns[1].find('svg').attributes('height')).toBe('44');
+    // The viewBox must match the height, or the stretch reappears silently.
+    expect(columns[0].find('svg').attributes('viewBox')).toBe('0 0 32 122');
+    expect(columns[1].find('svg').attributes('viewBox')).toBe('0 0 32 44');
+
+    // Last curve on each side ends on its last chip's row centre (9 + i*26).
+    const lastIn = columns[0].findAll('path').at(-1)!.attributes('d')!;
+    expect(lastIn).toContain('M0 113');
+    const lastOut = columns[1].findAll('path').at(-1)!.attributes('d')!;
+    expect(lastOut).toContain('32 35');
+  });
 });
