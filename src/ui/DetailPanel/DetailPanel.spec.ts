@@ -48,14 +48,19 @@ describe('DetailPanel', () => {
     expect(withDeps.text()).toContain('ProfilerStep#17');
   });
 
-  it('PR-DPANEL-004: forwards level updates', async () => {
+  it('PR-DPANEL-004: forwards dependency mode and depth updates', async () => {
     const wrapper = mount(DetailPanel, {
-      props: { selected, unit: 'ms', neighbors, level: -1 },
+      props: { selected, unit: 'ms', neighbors, dependencyMode: 'all', dependencyDepth: -1 },
     });
 
     const input = wrapper.find('[data-testid="detail-relevant-level"]');
     await input.setValue('2');
     await input.trigger('change');
-    expect(wrapper.emitted('update:level')?.[0]).toEqual([2]);
+    expect(wrapper.emitted('update:dependencyDepth')?.[0]).toEqual([2]);
+
+    await wrapper
+      .find('[data-testid="detail-relevant-direction-successors"]')
+      .trigger('click');
+    expect(wrapper.emitted('update:dependencyMode')?.[0]).toEqual(['successors']);
   });
 });

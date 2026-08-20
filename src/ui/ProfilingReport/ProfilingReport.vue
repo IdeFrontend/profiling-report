@@ -26,12 +26,7 @@ import {
   type TimeDisplayUnit,
   type ViewFullCsvPayload,
 } from '../../domain/types';
-import {
-  DEPENDENCY_LEVEL_UNLIMITED,
-  buildDependencyGraph,
-  hasDependencies,
-  neighborsOf,
-} from '../../domain/dependencies';
+import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   collectLeafEventsFromModel,
@@ -88,6 +83,8 @@ const loadError = ref<string | null>(null);
 const viewState = ref<SwimlaneViewState>(createViewState(null));
 const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
+/** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
+const selectedEvent = ref<SwimEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
@@ -99,8 +96,6 @@ const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
-/** Depth drives the graph walk below, so it stays here; the direction filter is DetailRelevant's own. */
-const dependencyLevel = ref<number>(DEPENDENCY_LEVEL_UNLIMITED);
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
@@ -172,8 +167,8 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   next.asideVisible = showAsidePanel;
   viewState.value = next;
   selected.value = null;
+  selectedEvent.value = null;
   hovered.value = null;
-  dependencyLevel.value = DEPENDENCY_LEVEL_UNLIMITED;
   const fromMeta = model?.metadata?.defaultCollapsedIds;
   collapsedGroupIds.value = Array.isArray(fromMeta)
     ? fromMeta.filter((id): id is string => typeof id === 'string')
@@ -233,6 +228,7 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     internalReport.value = null;
     internalCapabilities.value = null;
     selected.value = null;
+    selectedEvent.value = null;
     hovered.value = null;
     viewState.value = createViewState(null);
     loadError.value = cause instanceof Error ? cause.message : String(cause);
@@ -308,6 +304,7 @@ watch(
 function onSelect(ev: SwimEvent | null) {
   if (!ev) {
     selected.value = null;
+    selectedEvent.value = null;
     viewState.value = { ...viewState.value, selectedEventId: null };
     emit('select', null);
     return;
@@ -321,6 +318,7 @@ function onSelect(ev: SwimEvent | null) {
     args: ev.args,
   };
   selected.value = payload;
+  selectedEvent.value = ev;
   viewState.value = { ...viewState.value, selectedEventId: ev.id };
   emit('select', payload);
 }
@@ -434,19 +432,17 @@ function onDependencyDepth(depth: number) {
 }
 
 /**
- * Interim I-Q9: successor ids on the model, predecessors from the reverse index.
- * The cheap scan runs first — building the graph costs ~300 ms on a 324k-event model
- * and holds two Maps that size, and almost every report carries no edges at all.
+ * Detail-dock neighbours of the selection, walked over the same
+ * `SwimEvent.dependencies` refs the swimlane curves use, with the same mode and
+ * depth. The cheap `hasDependencies` scan gates it so reports with no edges never
+ * pay for the lane index.
+ *
+ * `undefined` (not an empty pair) so DetailPanel hides the column entirely.
  */
-const dependencyGraph = computed(() =>
-  hasDependencies(swim.value) ? buildDependencyGraph(swim.value) : null,
-);
-/** `undefined` (not an empty pair) so DetailPanel hides the column entirely. */
 const dependencyNeighbors = computed(() => {
-  const sel = selected.value;
-  const graph = dependencyGraph.value;
-  if (!sel || !graph) return undefined;
-  return neighborsOf(graph, sel.id, dependencyLevel.value);
+  const ev = selectedEvent.value;
+  if (!ev || !hasDependencies(swim.value)) return undefined;
+  return neighborsOf(swim.value, ev, localDependencyMode.value, localDependencyDepth.value);
 });
 
 /** Used by component tests to select an event without canvas pointer geometry. */
@@ -521,15 +517,11 @@ defineExpose({ selectEventById, viewState });
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
           :time-unit="unit"
-          :dependency-mode="localDependencyMode"
-          :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
           @update:search-query="onSearch"
           @update:aside-visible="onAside"
           @update:time-unit="onTimeUnit"
-          @update:dependency-mode="onDependencyMode"
-          @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
           @zoom-to-fit="onZoomToFit"
@@ -583,9 +575,11 @@ defineExpose({ selectEventById, viewState });
       :unit="unit"
       :locale="locale"
       :neighbors="dependencyNeighbors"
-      :level="dependencyLevel"
+      :dependency-mode="localDependencyMode"
+      :dependency-depth="localDependencyDepth"
       @close="onSelect(null)"
-      @update:level="dependencyLevel = $event"
+      @update:dependency-mode="onDependencyMode"
+      @update:dependency-depth="onDependencyDepth"
     />
 
     <EventTooltip

@@ -1,15 +1,13 @@
 /**
- * Interim Q9 dependency model — see docs/context/INTERIM_DECISIONS.md (I-Q9).
+ * Detail-dock view of the swimlane dependency edges.
  *
- * `SwimEvent.dependencies` holds `{ predecessors, successors }` as `EventRef`s
- * (thread id + index); this flattens them to an id graph for the detail dock.
- * Producers that ship no dependency data yield an empty graph, and every
- * dependency surface hides itself (VIEW_DATA_REQUIREMENTS hide-when-missing).
+ * `SwimEvent.dependencies` is master's `{ predecessors, successors }` pair of
+ * `EventRef`s (thread id + index) — the same data the swimlane link renderer
+ * walks in `src/swimlane/dependencyLinks.ts`. Reports that ship no edges yield
+ * empty sides and every dependency surface hides itself
+ * (VIEW_DATA_REQUIREMENTS hide-when-missing).
  */
-import type { EventRef, SwimlaneModel, SwimThread } from './types';
-
-/** Sketch toolbar (v930/task-click-detail): forward-only / both / backward-only. */
-export type DependencyDirection = 'forward' | 'both' | 'backward';
+import { normalizeDependencyDepth, type DependencyMode, type EventRef, type SwimEvent, type SwimlaneModel, type SwimThread } from './types';
 
 export interface DependencyNode {
   id: string;
@@ -17,26 +15,15 @@ export interface DependencyNode {
   startTime: number;
 }
 
-export interface DependencyGraph {
-  nodes: Map<string, DependencyNode>;
-  /** successor ids by event id (the encoded direction) */
-  outgoing: Map<string, string[]>;
-  /** predecessor ids by event id (reverse index) */
-  incoming: Map<string, string[]>;
-}
-
 export interface DependencyNeighbors {
   incoming: DependencyNode[];
   outgoing: DependencyNode[];
 }
 
-/** Sketch default for `Task Connection Level`: negative means "no depth limit". */
-export const DEPENDENCY_LEVEL_UNLIMITED = -1;
-
 /**
- * Per-side cap on a walk. The default level is "no depth limit", so a chained model
- * hands the panel its whole transitive closure — one chip and one SVG connector each,
- * which is where the time goes (20k neighbours ≈ 1.8 s to mount).
+ * Per-side cap on a walk. An unlimited depth hands the panel a whole transitive
+ * closure — one chip and one SVG connector each, which is where the time goes
+ * (20k neighbours ≈ 1.8 s to mount).
  *
  * ponytail: flat cap, and the panel shows ~8 rows at a time. Paginate or virtualise
  * the chip list if anyone ever needs to scroll past 200.
@@ -50,50 +37,13 @@ function walkThreads(threads: SwimThread[], visit: (thread: SwimThread) => void)
   }
 }
 
-export function buildDependencyGraph(model: SwimlaneModel | null | undefined): DependencyGraph {
-  const nodes = new Map<string, DependencyNode>();
-  const outgoing = new Map<string, string[]>();
-  const incoming = new Map<string, string[]>();
-  const threadsById = new Map<string, SwimThread>();
-
+/** tid → thread. Walks lanes, not events, so it is cheap enough to build per call. */
+function threadsById(model: SwimlaneModel | null | undefined): Map<string, SwimThread> {
+  const map = new Map<string, SwimThread>();
   for (const process of model?.processes ?? []) {
-    walkThreads(process.threads, (thread) => {
-      threadsById.set(thread.id, thread);
-      for (const ev of thread.events) {
-        nodes.set(ev.id, { id: ev.id, name: ev.name, startTime: ev.startTime });
-      }
-    });
+    walkThreads(process.threads, (thread) => map.set(thread.id, thread));
   }
-
-  const resolve = (ref: EventRef): string | undefined =>
-    threadsById.get(ref.tid)?.events[ref.index]?.id;
-
-  for (const process of model?.processes ?? []) {
-    walkThreads(process.threads, (thread) => {
-      for (const ev of thread.events) {
-        for (const ref of ev.dependencies?.successors ?? []) {
-          const target = resolve(ref);
-          // Ignore edges to events the model does not contain — a dangling id would
-          // otherwise render as a chip with no timing.
-          if (target === undefined || target === ev.id || !nodes.has(target)) continue;
-          const succ = outgoing.get(ev.id);
-          if (succ) {
-            // ponytail: linear scan — successor lists are a handful of ids per event in
-            // the sketch. Swap for a per-source Set if a producer ever ships fan-outs.
-            if (succ.includes(target)) continue;
-            succ.push(target);
-          } else {
-            outgoing.set(ev.id, [target]);
-          }
-          const pred = incoming.get(target);
-          if (pred) pred.push(ev.id);
-          else incoming.set(target, [ev.id]);
-        }
-      }
-    });
-  }
-
-  return { nodes, outgoing, incoming };
+  return map;
 }
 
 export function hasDependencies(model: SwimlaneModel | null | undefined): boolean {
@@ -113,39 +63,39 @@ export function hasDependencies(model: SwimlaneModel | null | undefined): boolea
 }
 
 function collect(
-  graph: DependencyGraph,
-  startId: string,
-  edges: Map<string, string[]>,
-  level: number,
+  threads: Map<string, SwimThread>,
+  start: SwimEvent,
+  dir: 'predecessors' | 'successors',
+  depth: number,
 ): DependencyNode[] {
-  const seen = new Set<string>([startId]);
-  const out: DependencyNode[] = [];
-  let frontier = [startId];
-  let depth = 0;
+  const resolve = (ref: EventRef): SwimEvent | undefined =>
+    threads.get(ref.tid)?.events[ref.index];
 
-  while (
-    frontier.length > 0 &&
-    out.length < DEPENDENCY_MAX_NEIGHBORS &&
-    (level < 0 || depth < level)
-  ) {
-    const next: string[] = [];
-    for (const id of frontier) {
-      for (const neighbor of edges.get(id) ?? []) {
-        if (seen.has(neighbor)) continue;
-        seen.add(neighbor);
-        const node = graph.nodes.get(neighbor);
-        if (node) out.push(node);
-        next.push(neighbor);
+  const seen = new Set<string>([start.id]);
+  const out: DependencyNode[] = [];
+  let frontier: SwimEvent[] = [start];
+  const unlimited = depth < 0;
+
+  for (let hop = 0; frontier.length > 0 && out.length < DEPENDENCY_MAX_NEIGHBORS; hop++) {
+    if (!unlimited && hop >= depth) break;
+    const next: SwimEvent[] = [];
+    for (const ev of frontier) {
+      for (const ref of ev.dependencies?.[dir] ?? []) {
+        const target = resolve(ref);
+        // Refs into a collapsed or missing lane would render as a chip with no timing.
+        if (!target || seen.has(target.id)) continue;
+        seen.add(target.id);
+        out.push({ id: target.id, name: target.name, startTime: target.startTime });
+        next.push(target);
       }
     }
     frontier = next;
-    depth += 1;
   }
 
   // Sort first, then cut: a hop that fans out past the cap still yields the earliest
-  // neighbours rather than whatever order the producer wrote its ids in.
+  // neighbours rather than whatever order the producer wrote its refs in.
   // ponytail: sorts the whole BFS result to keep DEPENDENCY_MAX_NEIGHBORS. Fine for the
-  // handful of ids per event I-Q9 producers ship; swap in a size-capped max-heap if one
+  // handful of refs per event producers ship; swap in a size-capped max-heap if one
   // ever ships wide fan-outs.
   return out
     .sort((a, b) => a.startTime - b.startTime || a.id.localeCompare(b.id))
@@ -153,18 +103,23 @@ function collect(
 }
 
 /**
- * Neighbours of `eventId` up to `level` hops, at most `DEPENDENCY_MAX_NEIGHBORS` per
- * side. `level < 0` walks the whole chain and `level === 0` returns nothing. Both sides
- * always come back: the sketch's three direction icons live in DetailRelevant, which
- * blanks the suppressed column itself.
+ * Neighbours of `event` up to `depth` hops, at most `DEPENDENCY_MAX_NEIGHBORS` per side.
+ * `depth < 0` walks the whole chain and `depth === 0` returns nothing — master's
+ * `normalizeDependencyDepth` semantics, shared with the swimlane curves.
+ *
+ * `mode` blanks the suppressed side rather than dropping it, so DetailRelevant's
+ * five-column grid keeps its shape and only loses chips.
  */
 export function neighborsOf(
-  graph: DependencyGraph,
-  eventId: string,
-  level: number = DEPENDENCY_LEVEL_UNLIMITED,
+  model: SwimlaneModel | null | undefined,
+  event: SwimEvent,
+  mode: DependencyMode,
+  depth: number,
 ): DependencyNeighbors {
+  const hops = normalizeDependencyDepth(depth);
+  const threads = threadsById(model);
   return {
-    incoming: collect(graph, eventId, graph.incoming, level),
-    outgoing: collect(graph, eventId, graph.outgoing, level),
+    incoming: mode === 'successors' ? [] : collect(threads, event, 'predecessors', hops),
+    outgoing: mode === 'predecessors' ? [] : collect(threads, event, 'successors', hops),
   };
 }

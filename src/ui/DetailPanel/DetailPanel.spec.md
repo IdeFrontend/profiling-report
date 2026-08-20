@@ -8,12 +8,12 @@ Raised bottom 「详情」 dock: titled header with a close control over a three
 
 ## Inputs
 
-**selected** (`SelectedEvent`), **unit**, optional **locale**. Optional **neighbors** (`DependencyNeighbors`) and **level** (default `-1`) drive the Relevent column.
+**selected** (`SelectedEvent`), **unit**, optional **locale**. Optional **neighbors** (`DependencyNeighbors`), **dependencyMode** and **dependencyDepth** drive the Relevent column.
 
 ## Outputs
 
 **close** — the header `×`; the parent clears the selection, which unmounts the dock.
-**update:level** — forwarded from the Relevent toolbar.
+**update:dependencyMode**, **update:dependencyDepth** — forwarded from the Relevent toolbar; the root owns both and shares them with the swimlane curves.
 
 ## Behavior
 
@@ -28,7 +28,7 @@ The dock keeps a fixed height and each column scrolls inside it, so switching se
 1. **PR-DPANEL-001** — Renders the detail panel shell with summary when selected is provided.
 1. **PR-DPANEL-002** — The header close button emits `close`.
 1. **PR-DPANEL-003** — The Relevent column renders only when `neighbors` is provided, and the body drops to a two-track grid without it.
-1. **PR-DPANEL-004** — Level changes from the Relevent toolbar are re-emitted to the parent.
+1. **PR-DPANEL-004** — Mode and depth changes from the Relevent toolbar are re-emitted to the parent.
 
 ## Visual
 
@@ -44,6 +44,7 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 [dependencies](../../../specs/core/dependencies.spec.md) for the neighbour model.
 
 ## Changelog
+- **2026-08-20** — Relays `dependencyMode` / `dependencyDepth` instead of `level`: the dock's direction and depth controls now drive the swimlane curves too.
 - **2026-08-19** — Two-column fallback: the body drops the Relevent grid track when `neighbors` is omitted, so Parameter takes the freed width.
 - **2026-08-14** — Dropped the `direction` prop and its re-emit: DetailRelevant owns the direction toggle now, and the dock only relays `level`.
 - **2026-08-13** — Fixed dock height and sketch column widths so the panel stops resizing per selection.

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { t } from '../../i18n';
 import type { DependencyNeighbors } from '../../domain/dependencies';
-import type { SelectedEvent, TimeDisplayUnit } from '../../domain/types';
+import type { DependencyMode, SelectedEvent, TimeDisplayUnit } from '../../domain/types';
+import { DEFAULT_DEPENDENCY_DEPTH } from '../../domain/types';
 import DetailSummary from './DetailSummary/DetailSummary.vue';
 import DetailParameter from './DetailParameter/DetailParameter.vue';
 import DetailRelevant from './DetailRelevant/DetailRelevant.vue';
@@ -12,12 +13,14 @@ defineProps<{
   locale?: string;
   /** Omitted when the report carries no dependency data — the column hides. */
   neighbors?: DependencyNeighbors;
-  level?: number;
+  dependencyMode?: DependencyMode;
+  dependencyDepth?: number;
 }>();
 
 const emit = defineEmits<{
   close: [];
-  'update:level': [level: number];
+  'update:dependencyMode': [mode: DependencyMode];
+  'update:dependencyDepth': [depth: number];
 }>();
 </script>
 
@@ -57,9 +60,11 @@ const emit = defineEmits<{
         v-if="neighbors"
         :current-name="selected.name"
         :neighbors="neighbors"
-        :level="level ?? -1"
+        :mode="dependencyMode ?? 'all'"
+        :depth="dependencyDepth ?? DEFAULT_DEPENDENCY_DEPTH"
         :locale="locale"
-        @update:level="emit('update:level', $event)"
+        @update:mode="emit('update:dependencyMode', $event)"
+        @update:depth="emit('update:dependencyDepth', $event)"
       />
     </div>
   </footer>

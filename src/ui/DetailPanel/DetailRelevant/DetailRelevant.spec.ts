@@ -16,7 +16,8 @@ function mountRelevant(props: Partial<Record<string, unknown>> = {}) {
     props: {
       currentName: 'MOV_OUT_TO_L1_MULTI_ND2NZ',
       neighbors,
-      level: -1,
+      mode: 'all',
+      depth: -1,
       ...props,
     },
   });
@@ -34,43 +35,54 @@ describe('DetailRelevant', () => {
     expect(wrapper.text()).toContain('ProfilerStep#17');
   });
 
-  it('PR-DREL-002: direction buttons follow sketch order, mark the active one and filter the columns', async () => {
+  it('PR-DREL-002: direction buttons follow sketch order, mark the active mode and emit it', async () => {
     const wrapper = mountRelevant();
 
     expect(
       wrapper
         .findAll('.pr-detail-relevant__mode')
         .map((n) => n.attributes('data-testid')?.replace('detail-relevant-direction-', '')),
-    ).toEqual(['backward', 'both', 'forward']);
+    ).toEqual(['predecessors', 'all', 'successors']);
     expect(
-      wrapper.find('[data-testid="detail-relevant-direction-both"]').attributes('aria-pressed'),
+      wrapper.find('[data-testid="detail-relevant-direction-all"]').attributes('aria-pressed'),
     ).toBe('true');
 
-    await wrapper.find('[data-testid="detail-relevant-direction-backward"]').trigger('click');
-    expect(
-      wrapper.find('[data-testid="detail-relevant-direction-backward"]').attributes('aria-pressed'),
-    ).toBe('true');
-    expect(wrapper.find('[data-testid="detail-relevant-incoming-count"]').text()).toBe('2');
-    // The suppressed side keeps its column and head, so the grid does not reflow.
-    expect(wrapper.find('[data-testid="detail-relevant-outgoing-count"]').text()).toBe('0');
-    expect(wrapper.text()).not.toContain('ProfilerStep#17');
+    await wrapper
+      .find('[data-testid="detail-relevant-direction-predecessors"]')
+      .trigger('click');
+    expect(wrapper.emitted('update:mode')?.[0]).toEqual(['predecessors']);
 
-    await wrapper.find('[data-testid="detail-relevant-direction-forward"]').trigger('click');
-    expect(wrapper.find('[data-testid="detail-relevant-incoming-count"]').text()).toBe('0');
-    expect(wrapper.find('[data-testid="detail-relevant-outgoing-count"]').text()).toBe('1');
+    // The walk does the filtering, so the column just renders what it is handed —
+    // the suppressed side keeps its head and reads 0, so the grid does not reflow.
+    const filtered = mountRelevant({
+      mode: 'predecessors',
+      neighbors: { incoming: neighbors.incoming, outgoing: [] },
+    });
+    expect(
+      filtered
+        .find('[data-testid="detail-relevant-direction-predecessors"]')
+        .attributes('aria-pressed'),
+    ).toBe('true');
+    expect(filtered.find('[data-testid="detail-relevant-incoming-count"]').text()).toBe('2');
+    expect(filtered.find('[data-testid="detail-relevant-outgoing-count"]').text()).toBe('0');
+    expect(filtered.text()).not.toContain('ProfilerStep#17');
   });
 
-  it('PR-DREL-003: level input emits update:level as an integer', async () => {
+  it('PR-DREL-003: depth input emits update:depth normalized', async () => {
     const wrapper = mountRelevant();
     const input = wrapper.find('[data-testid="detail-relevant-level"]');
 
     await input.setValue('3');
     await input.trigger('change');
-    expect(wrapper.emitted('update:level')?.[0]).toEqual([3]);
+    expect(wrapper.emitted('update:depth')?.[0]).toEqual([3]);
 
     (input.element as HTMLInputElement).value = '';
     await input.trigger('change');
-    expect(wrapper.emitted('update:level')?.at(-1)).toEqual([-1]);
+    expect(wrapper.emitted('update:depth')?.at(-1)).toEqual([1]);
+
+    (input.element as HTMLInputElement).value = '9999';
+    await input.trigger('change');
+    expect(wrapper.emitted('update:depth')?.at(-1)).toEqual([100]);
   });
 
   it('PR-DREL-005: draws one connector curve per neighbour', () => {
