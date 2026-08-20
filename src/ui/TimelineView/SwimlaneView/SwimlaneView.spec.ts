@@ -162,6 +162,33 @@ describe('SwimlaneView', () => {
     expect(cursorEmits[cursorEmits.length - 1]).toEqual([null]);
   });
 
+  it('PR-SWIMVIEW-007: parent cursorXRatio prop shows the swim cursor bar', async () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        cursorXRatio: 0.3,
+      },
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="swim-cursor"]').attributes('style')).toMatch(
+      /left:\s*30%/,
+    );
+    await wrapper.setProps({ cursorXRatio: null });
+    expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(false);
+  });
+
   it('PR-SWIMVIEW-006: card strip fill/hover bind to LANE_GROUP_HEADER tokens', async () => {
     const { LANE_GROUP_HEADER_FILL, LANE_GROUP_HEADER_HOVER } = await import(
       '../../../swimlane/layout'

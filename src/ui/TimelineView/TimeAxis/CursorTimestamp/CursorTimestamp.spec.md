@@ -18,7 +18,7 @@ None. Presentational only — positioned absolutely by the parent axis container
 
 The bubble is centered on the stem by default: `left: 50%; transform: translate(-50%, 0)` at `top: 2px` inside the track.
 
-**Above placement.** When `labelAbove` is true (parent: cursor pill overlaps the measure range or an outside Δt), the pill uses `pr-cursor__label--above` and `transform: translate(-50%, calc(-100% - 6px))` so it sits fully above the axis top. `top` stays `2px`; only `transform` changes so the move can animate (`transition: transform 180ms ease`). `prefers-reduced-motion: reduce` disables the transition.
+**Above placement.** When `labelAbove` is true (parent: pointer over the viewport time axis, or cursor pill overlaps the measure range / outside Δt), the pill uses `pr-cursor__label--above` and `transform: translate(-50%, calc(-100% - 6px))` so it sits fully above the axis top (into the overview / total-axis band). `top` stays `2px`; only `transform` changes so the move can animate (`transition: transform 180ms ease`). `prefers-reduced-motion: reduce` disables the transition.
 
 **Stacking.** Stem (`z-index: 3`) paints **under** measure bars/Δt (`3`/`4`); the timestamp pill (`z-index: 6`) paints **above** Δt so the vertical line never crosses the duration label when the pill is raised.
 
@@ -68,6 +68,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 [format-time](../../../../../specs/core/format-time.spec.md) (formatCursorTime).
 
 ## Changelog
+- **2026-08-20** — Parent also lifts pill while hovering the viewport time axis (TimelineView).
 - **2026-08-20** — Pill may overlap aside seam when playhead is at the edge.
 - **2026-08-20** — Stem under Δt, pill above; PR-CURSOR-005.
 - **2026-08-20** — Above-axis placement + transform transition; PR-CURSOR-004.
