@@ -88,9 +88,10 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 - Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized).
 - Overlay: translucent shaded band spanning the interval + floating **Δt** label using the current display `timeUnit` (e.g. `3.0ms`).
 - Axis **cursor timestamp** lifts above the viewport time axis when its pill overlaps the measured range (including when the playhead is just outside a border but the pill still crosses it) or covers an outside Δt label, with a short animated transition; otherwise it stays in-track.
+- **Edge resize:** left/right measure bars (axis blue + swimlane gray) are draggable. Hover uses `col-resize` and thickens the stem to 2px; drag moves that edge with a ~1px min span and clamps into the current view. Empty-axis / empty-swimlane drag still creates a new range.
 - Does **not** change `timeWindow` (unlike overview brush). Does **not** multi-select events.
 - Clear: toggle off, Esc, or clear control — clears `measureRange` and exits measure mode.
-- **M2 minimum:** create range + clear + band + Δt label. Edge resize handles are optional polish.
+- **M2 minimum:** create range + clear + band + Δt label + edge resize.
 - **Aside / other-view sync:** **Open [Q22](../context/OPEN_QUESTIONS.md)** — until answered, measure is a **local overlay only** (no PIPE/memory/summary recompute).
 
 ## Right panel coordination
