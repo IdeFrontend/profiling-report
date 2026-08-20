@@ -83,8 +83,12 @@ function curve(fromY: number, toY: number): string {
 }
 
 /**
- * `neighborsOf` already blanks the suppressed side, so the five-column grid keeps
- * its shape and only loses chips.
+ * `neighborsOf` already blanks the suppressed side, so the grid keeps its shape and
+ * only loses chips.
+ *
+ * Each side's connector svg spans its OWN chip column: sizing both off the longer
+ * side stretched the shorter one's viewBox (34 rows drawn across 55 rows of height),
+ * which fanned its curves away from the chips they point at.
  */
 const incomingLinks = computed(() =>
   props.neighbors.incoming.map((node, i) => ({ id: node.id, d: curve(rowCenter(i), rowCenter(0)) })),
@@ -94,10 +98,13 @@ const outgoingLinks = computed(() =>
   props.neighbors.outgoing.map((node, i) => ({ id: node.id, d: curve(rowCenter(0), rowCenter(i)) })),
 );
 
-const linkHeight = computed(
-  () =>
-    Math.max(1, props.neighbors.incoming.length, props.neighbors.outgoing.length) * CHIP_PITCH,
-);
+const incomingHeight = computed(() => sideHeight(props.neighbors.incoming.length));
+const outgoingHeight = computed(() => sideHeight(props.neighbors.outgoing.length));
+
+/** Height of a chip column: n rows on CHIP_PITCH, minus the gap the last row doesn't use. */
+function sideHeight(count: number): number {
+  return Math.max(1, count) * CHIP_PITCH - (CHIP_PITCH - CHIP_HEIGHT);
+}
 </script>
 
 <template>
@@ -213,8 +220,8 @@ const linkHeight = computed(
         >
           <div class="pr-detail-relevant__column-head" />
           <svg
-            :height="linkHeight"
-            :viewBox="`0 0 ${LINK_WIDTH} ${linkHeight}`"
+            :height="incomingHeight"
+            :viewBox="`0 0 ${LINK_WIDTH} ${incomingHeight}`"
             preserveAspectRatio="none"
           >
             <path
@@ -264,8 +271,8 @@ const linkHeight = computed(
         >
           <div class="pr-detail-relevant__column-head" />
           <svg
-            :height="linkHeight"
-            :viewBox="`0 0 ${LINK_WIDTH} ${linkHeight}`"
+            :height="outgoingHeight"
+            :viewBox="`0 0 ${LINK_WIDTH} ${outgoingHeight}`"
             preserveAspectRatio="none"
           >
             <path
