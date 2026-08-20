@@ -5,6 +5,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 ## Reading order
 
 1. **[context/PROJECT_GOALS.md](context/PROJECT_GOALS.md)** — why this project exists, consumers, MVP vs later, success criteria
+2. **[usage/USAGE.md](usage/USAGE.md)** — how to consume the library (props/emits, theming, i18n, capabilities, data flow)
 2. **[context/DOMAIN_AND_USERS.md](context/DOMAIN_AND_USERS.md)** — OP developers, pain points, glossary, link to UX scenarios
 3. **[context/MARKET_AND_COMPETITORS.md](context/MARKET_AND_COMPETITORS.md)** — NVIDIA Nsight analogues, competitors, market frame
 4. **[context/OPEN_QUESTIONS.md](context/OPEN_QUESTIONS.md)** — Product decisions and remaining blockers
@@ -35,6 +36,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 | Doc | Role |
 |-----|------|
 | [context/PROJECT_GOALS.md](context/PROJECT_GOALS.md) | Goals, non-goals, consumers, success criteria |
+| [usage/USAGE.md](usage/USAGE.md) | Consumer usage guide — public API, `ProfilingReport` props/emits, theming, i18n, capabilities |
 | [context/DOMAIN_AND_USERS.md](context/DOMAIN_AND_USERS.md) | Domain users, pain points, glossary → UX |
 | [context/MARKET_AND_COMPETITORS.md](context/MARKET_AND_COMPETITORS.md) | NVIDIA Nsight analogues and competitor landscape |
 | [context/OPEN_QUESTIONS.md](context/OPEN_QUESTIONS.md) | P0–P2 blockers; resolution log |
