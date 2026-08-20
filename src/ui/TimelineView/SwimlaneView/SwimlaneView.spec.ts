@@ -160,4 +160,57 @@ describe('SwimlaneView', () => {
     const cursorEmits = wrapper.emitted('cursor') ?? [];
     expect(cursorEmits[cursorEmits.length - 1]).toEqual([null]);
   });
+
+  it('PR-SWIMVIEW-006: card strip fill/hover bind to LANE_GROUP_HEADER tokens', async () => {
+    const { LANE_GROUP_HEADER_FILL, LANE_GROUP_HEADER_HOVER } = await import(
+      '../../../swimlane/layout'
+    );
+    expect(LANE_GROUP_HEADER_FILL).toBe('#2a2a2a');
+    expect(LANE_GROUP_HEADER_HOVER).toBe('#323232');
+
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l1', name: 'Lane', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+
+    const strips = wrapper.get('[data-testid="card-strips"]');
+    expect(strips.attributes('style')).toContain(`--pr-card-header-fill: ${LANE_GROUP_HEADER_FILL}`);
+    expect(strips.attributes('style')).toContain(
+      `--pr-card-header-hover: ${LANE_GROUP_HEADER_HOVER}`,
+    );
+
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(/background:\s*var\(--pr-card-header-fill\)/);
+    expect(src).toMatch(/background:\s*var\(--pr-card-header-hover\)/);
+    expect(src).not.toMatch(/background:\s*rgb\(42,\s*42,\s*42\)/);
+    expect(src).not.toMatch(/background:\s*rgb\(50,\s*50,\s*50\)/);
+  });
 });

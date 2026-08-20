@@ -8,6 +8,8 @@ export const LANE_PAD_Y = 3;
 export const LANE_GROUP_HEADER_HEIGHT = 28;
 /** Card / root group-header strip across gutter + swimlane (`rgb(42, 42, 42)`). */
 export const LANE_GROUP_HEADER_FILL = '#2a2a2a';
+/** Card strip hover fill (`rgb(50, 50, 50)`); DOM only — canvas headers stay static. */
+export const LANE_GROUP_HEADER_HOVER = '#323232';
 /** Corner radius for event blocks (Canvas fills/strokes + WebGL SDF fills). */
 export const EVENT_RADIUS = 5;
 /** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */

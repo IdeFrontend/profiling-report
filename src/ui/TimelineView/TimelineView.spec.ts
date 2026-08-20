@@ -183,4 +183,61 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-label"]').exists()).toBe(true);
   });
+
+  it('PR-TIMELINE-006: measure axis clamps overlay to the current view window', () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.startTime = 200;
+    view.endTime = 600;
+    view.measureMode = true;
+    view.measureRange = { startTime: 100, endTime: 800 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+
+    const left = wrapper.get('[data-testid="measure-axis-bar-left"]');
+    const right = wrapper.get('[data-testid="measure-axis-bar-right"]');
+    expect(left.attributes('style')).toMatch(/left:\s*0%/);
+    expect(right.attributes('style')).toMatch(/left:\s*100%/);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ms/);
+  });
+
+  it('PR-TIMELINE-007: measure axis hides when range is fully outside the view', () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.startTime = 400;
+    view.endTime = 600;
+    view.measureMode = true;
+    view.measureRange = { startTime: 0, endTime: 100 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+
+    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(false);
+  });
 });

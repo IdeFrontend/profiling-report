@@ -220,8 +220,11 @@ describe('PR-RENDER: lane chrome color', () => {
   });
 
   it('PR-RENDER-012: Canvas + WebGL Card header bands use LANE_GROUP_HEADER_FILL', async () => {
-    const { LANE_GROUP_HEADER_FILL } = await import('../../src/swimlane/layout');
+    const { LANE_GROUP_HEADER_FILL, LANE_GROUP_HEADER_HOVER } = await import(
+      '../../src/swimlane/layout'
+    );
     expect(LANE_GROUP_HEADER_FILL).toBe('#2a2a2a');
+    expect(LANE_GROUP_HEADER_HOVER).toBe('#323232');
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))

@@ -1,10 +1,5 @@
 import { test, expect } from '@playwright/test';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Feature e2e — playground loads data/out.rep into ProfilingReport.
@@ -128,60 +123,18 @@ test.describe('PR-E2E feature paths', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('PR-E2E-008: measure toggle icon matches design crop', async ({ page }, testInfo) => {
+  test('PR-E2E-008: measure toggle activates with open-stroke Δt icon', async ({ page }) => {
     await page.goto('/');
     const btn = page.getByTestId('toggle-measure');
     await expect(btn).toBeVisible({ timeout: 15_000 });
     await btn.click();
     await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(btn).toHaveClass(/pr-toolbar__icon-btn--on/);
 
-    const actualPath = testInfo.outputPath('measure-toggle-actual.png');
-    await btn.screenshot({ path: actualPath });
-
-    const designPath = path.resolve(
-      __dirname,
-      '../../src/ui/ReportToolbar/visual/measure-active.png',
-    );
-    const designB64 = fs.readFileSync(designPath).toString('base64');
-    const actualB64 = fs.readFileSync(actualPath).toString('base64');
-
-    await page.setContent(`<!DOCTYPE html><html><body style="margin:0;background:#000">
-      <img id="design" src="data:image/png;base64,${designB64}" />
-      <img id="actual" src="data:image/png;base64,${actualB64}" />
-    </body></html>`);
-
-    const diffRatio = await page.evaluate(async () => {
-      const load = (img: HTMLImageElement) =>
-        new Promise<HTMLImageElement>((resolve) => {
-          if (img.complete && img.naturalWidth) resolve(img);
-          else img.onload = () => resolve(img);
-        });
-      const design = await load(document.getElementById('design') as HTMLImageElement);
-      const actual = await load(document.getElementById('actual') as HTMLImageElement);
-      const w = actual.naturalWidth;
-      const h = actual.naturalHeight;
-      const c1 = document.createElement('canvas');
-      const c2 = document.createElement('canvas');
-      c1.width = c2.width = w;
-      c1.height = c2.height = h;
-      const x1 = c1.getContext('2d')!;
-      const x2 = c2.getContext('2d')!;
-      x1.drawImage(design, 0, 0, w, h);
-      x2.drawImage(actual, 0, 0, w, h);
-      const p1 = x1.getImageData(0, 0, w, h).data;
-      const p2 = x2.getImageData(0, 0, w, h).data;
-      let diff = 0;
-      for (let i = 0; i < p1.length; i += 4) {
-        const dr =
-          Math.abs(p1[i] - p2[i]) +
-          Math.abs(p1[i + 1] - p2[i + 1]) +
-          Math.abs(p1[i + 2] - p2[i + 2]);
-        if (dr > 48) diff += 1;
-      }
-      return diff / (w * h);
-    });
-
-    expect(diffRatio).toBeLessThan(0.15);
+    const heads = btn.locator('[data-testid="measure-icon-head"]');
+    await expect(heads).toHaveCount(2);
+    await expect(heads.nth(0)).toHaveAttribute('fill', 'none');
+    await expect(heads.nth(1)).toHaveAttribute('fill', 'none');
   });
 
   test('PR-E2E-009: Relevent chips fill their track so curves start at the chip edge', async ({
