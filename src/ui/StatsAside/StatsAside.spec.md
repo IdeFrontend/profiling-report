@@ -68,8 +68,8 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 9. **PR-STATS-009** — Duration card sketch chrome.
 10. **PR-STATS-010** — No type card; secondary hide-if-missing.
 11. **PR-STATS-011** — Compute/util cards absent; BW not from `summary.ioBandwidth`.
-12. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent; 0% fill width is `0%`.
-13. **PR-STATS-013** — Absolute time in bar when present.
+12. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent.
+13. **PR-STATS-013** — Absolute time is a track sibling.
 14. **PR-STATS-014** — Details emit open-pipe-details.
 15. **PR-STATS-015** — Roofline section when `roofline.points` present; hidden when absent.
 16. **PR-STATS-016** — PIPE 详情 opens compute overlay when compute tables exist and emits open-pipe-details.
@@ -162,7 +162,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 | Label | `12px` / `#999999`; column `72px` (ellipsis; fits `ICache Miss`) |
 | Bar height | `16px`; radius `4px`; row gap `16px` |
 | Grid | `rgba(255,255,255,0.15)` 1px overlay at 20/40/60/80% (reads dotted on hatch) |
-| Hatch | `color-mix(8%, #202020 / #303030)` of `colorKey`; diagonal 2px/2px |
+| Hatch | `color-mix(8%, #202020 / #303030)` of `colorKey`; diagonal 2px/2px. Baseline 2023 (`color-mix`); older engines drop the hatch. Duration/bandwidth cards keep the untinted `#2a2a2a` / `#1f1f1f` pair from `summary-cards.png`. |
 | In-bar abs | `12px` / `#ffffff`; left of track (sibling of fill, so short fills are not padded wider than the ratio) |
 | Percent | `12px` / `#ffffff` inside track, right-aligned |
 | Fills | COLOR_TOKENS `colorKey`; width = ratio%; `min-width: 0` |
@@ -185,6 +185,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-20** — PR-STATS-013 asserts abs is a track sibling (unit tests do not apply `min-width`). PIPE hatch tint vs card hatch is deliberate.
 - **2026-08-19** — PIPE fill width is ratio-only (`min-width: 0`; abs is a track sibling). Label column stays `72px` for ICache Miss. Panel stays `#1f1f1f` (artboard `#141414` is page, not card).
 - **2026-08-19** — Resampled `compute-load.jpeg`: title `14px`, scale/in-bar `12px`, Scalar `#1A743E`.
 - **2026-08-19** — PIPE card tokens from `pipe-bars.png` / `mode-tabs.png`: tinted hatch, in-track %, `#202020` well, 16px row gap.

@@ -928,10 +928,6 @@ function backToReport() {
   gap: 16px;
 }
 
-.pr-pipe-row {
-  --pr-pipe: var(--pr-color-default);
-}
-
 .pr-pipe-row__label {
   font-size: 12px;
   color: #999999;
@@ -950,6 +946,7 @@ function backToReport() {
 }
 
 .pr-pipe-row__hatch {
+  /* Tinted for the PIPE well (compute-load). Card hatch stays the summary-cards #2a2a2a/#1f1f1f pair. */
   position: absolute;
   inset: 0;
   border-radius: 4px;

@@ -38,7 +38,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 | `mte1` | `#885C00` | PIPE MTE1; yellow/gold event blocks (e.g. `DC_PRELOAD_*`) |
 | `fixp` | `#586C0C` | PIPE FixP (olive in sketches) |
 | `mte3` | `#A44830` | PIPE MTE3 (rust / red-brown) |
-| `scalar` | `#1A743E` | PIPE Scalar; green event accents |
+| `scalar` | `#1A743E` | PIPE Scalar bar in `compute-load.jpeg`. Swimlane greens in `entry.jpeg` sample closer to `#38702C`; one token per rule 1. |
 
 **Overview chart accent (brighter Cube sparkline):** `#3078F0` — use for filled overview “Cube” series when distinct from bar cyan is desired; keep `vector` series on `#007464` / teal family.
 
