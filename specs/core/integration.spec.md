@@ -34,13 +34,14 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-005**: Standalone JSON opens without CSV aside.
 1. **PR-E2E-006**: Overview brush updates time window and cursor line.
 1. **PR-E2E-007**: `?fixture=ffn_dense&renderer=webgl` attaches WebGL, paints selected dependency curves, and search does not rebuild the cached graph.
-1. **PR-E2E-008**: Active measure toggle screenshot matches `ReportToolbar/visual/measure-active.png` (open stroke Δt arrow).
+1. **PR-E2E-008**: Active measure toggle has `aria-pressed="true"` and open-stroke Δt arrowheads (`fill="none"`); geometry covered by `PR-TOOLBAR-007c`.
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-08-20** — PR-E2E-008 structural (no pixel crop diff); defers icon geometry to PR-TOOLBAR-007c.
 - **2026-08-19** — PR-E2E-007: Chromium WebGL dependency curves (`ffn_dense`).
 - **2026-08-12** — PR-E2E-008 measure toggle icon vs design crop.
 - **2026-08-05** — Initial spec. Core behaviors established.

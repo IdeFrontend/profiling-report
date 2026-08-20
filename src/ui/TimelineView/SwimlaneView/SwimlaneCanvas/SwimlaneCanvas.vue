@@ -261,8 +261,11 @@ const measureGeometry = computed(() => {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
-  const left = xAtTime(start);
-  const right = xAtTime(end);
+  const visStart = Math.max(props.view.startTime, start);
+  const visEnd = Math.min(props.view.endTime, end);
+  if (!(visEnd > visStart)) return null;
+  const left = xAtTime(visStart);
+  const right = xAtTime(visEnd);
   return { left, right, width: Math.max(1, right - left) };
 });
 

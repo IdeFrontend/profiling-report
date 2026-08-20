@@ -100,16 +100,21 @@ const viewportRuler = computed(() =>
   }),
 );
 
-/** Measure range as % of the viewport span — independent of measured axis width. */
+/** Measure range as % of the viewport span — clamped to the current view window. */
 const measureAxis = computed(() => {
   const range = props.view.measureRange;
   if (!props.view.measureMode || !range) return null;
-  const span = Math.max(1, props.view.endTime - props.view.startTime);
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const span = Math.max(1, viewEnd - viewStart);
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
-  const left = ((start - props.view.startTime) / span) * 100;
-  const width = ((end - start) / span) * 100;
+  const visStart = Math.max(viewStart, start);
+  const visEnd = Math.min(viewEnd, end);
+  if (!(visEnd > visStart)) return null;
+  const left = ((visStart - viewStart) / span) * 100;
+  const width = ((visEnd - visStart) / span) * 100;
   return {
     left,
     right: left + width,

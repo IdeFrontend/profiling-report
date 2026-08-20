@@ -10,11 +10,11 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Top chrome gutter.** Overview and viewport-axis gutter spacers form one continuous block: **no** horizontal border between those two spacer cells. (Timeline-column borders between overview track and viewport axis may remain.)
 
-**Measure mode (M2).** The overview bar stays visible for window navigation (no measure span is drawn on it). The viewport time axis draws blue vertical bars at the measured range edges plus a double-sided Δt arrow, and accepts the same drag-to-measure gesture as the swimlane. Swimlane fade/gray borders live in `SwimlaneCanvas`.
+**Measure mode (M2).** The overview bar stays visible for window navigation (no measure span is drawn on it). The viewport time axis draws blue vertical bars at the measured range edges plus a double-sided Δt arrow, and accepts the same drag-to-measure gesture as the swimlane. Bars/arrow geometry **clamp to the current view window**; a range fully outside the view hides the axis overlay (Δt label still uses the full measured duration when partially visible). Swimlane fade/gray borders live in `SwimlaneCanvas`.
 
 **Δt arrow geometry (v930).** Each arrowhead is an **open stroke chevron** (single path, `fill="none"`, sharp **miter** tip — not bevelled/flat). The visible tip sits **1px** inward from the adjacent vertical measure bar. The shaft overlaps deep into each chevron until it meets the arms (no gap between shaft and arrow lines). The Δt duration label sits centered on the arrow with a **4px gap** on each side between the label chrome and the horizontal shaft (shaft breaks around the label; they do not touch). Shaft and chevron strokes are **1.5px** wide in solid `rgba(49, 122, 247, 1)`.
 
-**Narrow selection (compact).** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, hide heads and shafts and place the duration pill **outside** the bars: prefer **4px to the right** of the right bar; if that would clip past the axis right edge, place **4px to the left** of the left bar. Vertical measure bars stay at the true range edges.
+**Narrow selection (compact).** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, hide heads and shafts and place the duration pill **outside** the bars: prefer **4px to the right** of the right bar; if that would clip past the axis right edge, place **4px to the left** of the left bar. Vertical measure bars stay at the (possibly clamped) range edges.
 
 ## Acceptance Criteria
 
@@ -23,8 +23,11 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 3. **PR-TIMELINE-003** — In measure mode, drag on the time axis emits `update:measure-range`.
 4. **PR-TIMELINE-004** — Measure arrow: sharp miter stroke chevrons, **1px** tip–bar gap, shaft overlaps into heads, **4px** shaft–label gaps; 1.5px stroke; `rgba(49, 122, 247, 1)`.
 5. **PR-TIMELINE-005** — When the selection is too narrow to fit the in-between arrow, the arrow uses compact mode (no heads/shafts; label outside the range, prefer right).
+6. **PR-TIMELINE-006** — Measure axis bars clamp to the current view window when the range extends outside.
+7. **PR-TIMELINE-007** — Measure axis overlay hides when the range is fully outside the current view.
 
 ## Changelog
+- **2026-08-20** — Clamp measure overlay to view window; PR-TIMELINE-006/007.
 - **2026-08-20** — Compact outside Δt label when selection too narrow; PR-TIMELINE-005.
 - **2026-08-13** — Continuous overview/axis gutter (no mid-spacer horizontal rule); top chrome not resizable.
 - **2026-08-13** — 4px gaps between Δt label and horizontal shaft segments.

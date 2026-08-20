@@ -83,6 +83,42 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(false);
   });
 
+  it('PR-CANVAS-008: measure overlay clamps to the current view window', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        view: { startTime: 200, endTime: 600, scrollY: 0 },
+        measureMode: true,
+        measureRange: { startTime: 150, endTime: 750 },
+        timeUnit: 'ms',
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    await wrapper.setProps({ measureRange: { startTime: 100, endTime: 800 } });
+
+    const left = wrapper.get('[data-testid="measure-border-left"]');
+    const right = wrapper.get('[data-testid="measure-border-right"]');
+    expect(left.attributes('style')).toMatch(/left:\s*0px/);
+    expect(right.attributes('style')).toMatch(/left:\s*400px/);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-009: measure overlay hides when range is fully outside the view', () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        view: { startTime: 400, endTime: 600, scrollY: 0 },
+        measureMode: true,
+        measureRange: { startTime: 0, endTime: 100 },
+        timeUnit: 'ms',
+      },
+    });
+    expect(wrapper.find('[data-testid="measure-fade-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(false);
+  });
+
   it('PR-CANVAS-005: pointerleave during measure does not abort drag', async () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {

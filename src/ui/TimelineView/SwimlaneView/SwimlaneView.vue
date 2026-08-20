@@ -9,7 +9,12 @@ import {
   type SwimlaneViewState,
   type TimeDisplayUnit,
 } from '../../../domain/types';
-import { LANE_GROUP_HEADER_HEIGHT, rebuildLayout } from '../../../swimlane/layout';
+import {
+  LANE_GROUP_HEADER_FILL,
+  LANE_GROUP_HEADER_HEIGHT,
+  LANE_GROUP_HEADER_HOVER,
+  rebuildLayout,
+} from '../../../swimlane/layout';
 import {
   GUTTER_WIDTH_DEFAULT,
   GUTTER_WIDTH_MAX,
@@ -249,6 +254,10 @@ defineExpose({
     <div
       class="pr-card-strips"
       data-testid="card-strips"
+      :style="{
+        '--pr-card-header-fill': LANE_GROUP_HEADER_FILL,
+        '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
+      }"
     >
       <button
         v-for="strip in visibleCardStrips"
@@ -353,7 +362,7 @@ defineExpose({
   padding: 0;
   border: 0;
   border-bottom: 1px solid #3a3a3a;
-  background: rgb(42, 42, 42);
+  background: var(--pr-card-header-fill);
   color: #e8e8e8;
   font: inherit;
   cursor: pointer;
@@ -364,7 +373,7 @@ defineExpose({
 }
 
 .pr-card-strip:hover {
-  background: rgb(50, 50, 50);
+  background: var(--pr-card-header-hover);
 }
 
 .pr-card-strip__label {
