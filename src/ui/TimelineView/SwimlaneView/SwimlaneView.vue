@@ -56,10 +56,11 @@ const emit = defineEmits<{
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
+const canvasRef = ref<{ handleWheel: (e: WheelEvent) => void } | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
-/** Swimlane mouse-follow bar (DOM above Card strips). */
+/** Swimlane mouse-follow bar (DOM under Card strips). */
 const cursorXRatio = ref<number | null>(null);
 
 watch(
@@ -165,6 +166,18 @@ function onCursor(payload: { time: number; xRatio: number } | null) {
   emit('cursor', payload);
 }
 
+/** Strips own the header hit target; clear immediately (do not wait for canvas leave). */
+function clearCursor() {
+  if (cursorXRatio.value == null) return;
+  cursorXRatio.value = null;
+  emit('cursor', null);
+}
+
+/** Keep scroll/zoom working over full-width Card chrome. */
+function onStripWheel(e: WheelEvent) {
+  canvasRef.value?.handleWheel(e);
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
@@ -196,7 +209,22 @@ defineExpose({
       @scroll="onGutterScroll"
       @toggle-group="emit('toggle-group', $event)"
     />
+    <!-- Under Card strips so the bar does not paint over header chrome. -->
+    <div
+      class="pr-swim-cursor-layer"
+      data-testid="swim-cursor-layer"
+      aria-hidden="true"
+    >
+      <div
+        v-if="cursorXRatio != null"
+        class="pr-swim-cursor"
+        data-testid="swim-cursor"
+        :style="{ left: `${cursorXRatio * 100}%` }"
+      />
+    </div>
+
     <SwimlaneCanvas
+      ref="canvasRef"
       :model="model"
       :view="view"
       :selected-event-id="selectedEventId"
@@ -222,20 +250,22 @@ defineExpose({
       class="pr-card-strips"
       data-testid="card-strips"
     >
-      <div
+      <button
         v-for="strip in visibleCardStrips"
         :key="strip.id"
+        type="button"
         class="pr-card-strip"
         :data-testid="`card-strip-${strip.id}`"
+        :aria-expanded="strip.expanded"
+        :aria-label="strip.name"
         :style="{ top: `${strip.top}px` }"
+        @pointerenter="clearCursor"
+        @click="emit('toggle-group', strip.id)"
+        @wheel="onStripWheel"
       >
-        <button
-          type="button"
+        <span
           class="pr-card-strip__label"
-          :aria-expanded="strip.expanded"
-          :aria-label="strip.name"
           :style="{ width: `var(--pr-gutter-width, ${localGutterWidth}px)` }"
-          @click="emit('toggle-group', strip.id)"
         >
           <span
             class="pr-card-strip__chevron"
@@ -243,22 +273,8 @@ defineExpose({
             aria-hidden="true"
           />
           <span class="pr-card-strip__name">{{ strip.name }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Above Card strips; measure borders stay in canvas under strips. -->
-    <div
-      class="pr-swim-cursor-layer"
-      data-testid="swim-cursor-layer"
-      aria-hidden="true"
-    >
-      <div
-        v-if="cursorXRatio != null"
-        class="pr-swim-cursor"
-        data-testid="swim-cursor"
-        :style="{ left: `${cursorXRatio * 100}%` }"
-      />
+        </span>
+      </button>
     </div>
   </div>
 </template>
@@ -313,7 +329,8 @@ defineExpose({
   bottom: 0;
   left: var(--pr-gutter-width, 280px);
   pointer-events: none;
-  z-index: 9;
+  /* Under Card strips (z-index 8) so the bar does not paint over header chrome. */
+  z-index: 7;
   overflow: hidden;
 }
 
@@ -339,10 +356,15 @@ defineExpose({
   background: rgb(42, 42, 42);
   color: #e8e8e8;
   font: inherit;
-  pointer-events: none;
+  cursor: pointer;
+  pointer-events: auto;
   display: flex;
   align-items: stretch;
   text-align: left;
+}
+
+.pr-card-strip:hover {
+  background: rgb(50, 50, 50);
 }
 
 .pr-card-strip__label {
@@ -351,20 +373,8 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0;
   padding: 0 8px;
-  border: 0;
   min-width: 0;
-  background: rgb(42, 42, 42);
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  pointer-events: auto;
-  text-align: left;
-}
-
-.pr-card-strip__label:hover {
-  background: rgb(50, 50, 50);
 }
 
 .pr-card-strip__chevron {

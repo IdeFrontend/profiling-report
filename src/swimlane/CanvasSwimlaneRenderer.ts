@@ -203,7 +203,7 @@ export class SwimlaneOverlayPainter {
       if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
     }
 
-    // Cursor is a DOM overlay above Card strips (SwimlaneView); not painted here.
+    // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
   }
 
   dispose(): void {
@@ -404,7 +404,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim);
     }
 
-    // Cursor is a DOM overlay above Card strips (SwimlaneView); not painted here.
+    // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
   }
 
   dispose(): void {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createViewState } from '../../../domain/viewState';
+import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import SwimlaneView from './SwimlaneView.vue';
 
 describe('SwimlaneView', () => {
@@ -60,10 +61,9 @@ describe('SwimlaneView', () => {
     });
 
     const strip = wrapper.get('[data-testid="card-strip-card0"]');
-    const label = strip.get('.pr-card-strip__label');
-    expect(label.attributes('aria-expanded')).toBe('true');
+    expect(strip.attributes('aria-expanded')).toBe('true');
     expect(strip.text()).toContain('Card0');
-    await label.trigger('click');
+    await strip.trigger('click');
     expect(wrapper.emitted('toggle-group')).toEqual([['card0']]);
   });
 
@@ -91,7 +91,7 @@ describe('SwimlaneView', () => {
     expect(src).toMatch(/\.pr-card-strips\s*\{[^}]*z-index:\s*8/);
   });
 
-  it('PR-SWIMVIEW-004: swim cursor layer stacks above card strips', async () => {
+  it('PR-SWIMVIEW-004: swim cursor layer stacks under card strips', async () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -112,16 +112,52 @@ describe('SwimlaneView', () => {
     expect(wrapper.find('[data-testid="swim-cursor-layer"]').exists()).toBe(true);
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-card-strips\s*\{[^}]*z-index:\s*8/);
-    expect(src).toMatch(/\.pr-swim-cursor-layer\s*\{[^}]*z-index:\s*9/);
-    // Measure borders live in SwimlaneCanvas under strips.
+    expect(src).toMatch(/\.pr-swim-cursor-layer\s*\{[^}]*z-index:\s*7/);
     const canvasSrc = (await import('./SwimlaneCanvas/SwimlaneCanvas.vue?raw')).default as string;
     expect(canvasSrc).toMatch(/\.pr-measure-border\s*\{[^}]*z-index:\s*3/);
   });
 
-  it('PR-SWIMVIEW-005: card strip label-only hit target', async () => {
-    const src = (await import('./SwimlaneView.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-card-strip\s*\{[^}]*pointer-events:\s*none/s);
-    expect(src).toMatch(/\.pr-card-strip__label\s*\{[^}]*pointer-events:\s*auto/s);
-    expect(src).toMatch(/rebuildLayout\(props\.model\)\.headers/);
+  it('PR-SWIMVIEW-005: Card strip pointerenter clears swim cursor immediately', async () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l1', name: 'Lane', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+
+    wrapper.findComponent(SwimlaneCanvas).vm.$emit('cursor', { time: 100, xRatio: 0.4 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="card-strip-card0"]').trigger('pointerenter');
+    expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(false);
+    const cursorEmits = wrapper.emitted('cursor') ?? [];
+    expect(cursorEmits[cursorEmits.length - 1]).toEqual([null]);
   });
 });

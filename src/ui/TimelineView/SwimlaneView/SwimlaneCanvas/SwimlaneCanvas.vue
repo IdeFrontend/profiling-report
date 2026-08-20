@@ -369,6 +369,8 @@ defineExpose({
   eventScreenRect: (id: string) => backend.eventScreenRect(id),
   renderer: () => backend,
   useWebGl,
+  /** Card strips sit above the canvas; SwimlaneView forwards wheel here. */
+  handleWheel: onWheel,
 });
 </script>
 
