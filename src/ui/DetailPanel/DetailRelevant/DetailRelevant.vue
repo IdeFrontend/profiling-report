@@ -1,39 +1,40 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { t } from '../../../i18n';
-import { DEPENDENCY_LEVEL_UNLIMITED } from '../../../domain/dependencies';
-import type { DependencyDirection, DependencyNeighbors } from '../../../domain/dependencies';
+import {
+  MAX_DEPENDENCY_DEPTH,
+  normalizeDependencyDepth,
+  type DependencyMode,
+} from '../../../domain/types';
+import type { DependencyNeighbors } from '../../../domain/dependencies';
 
 const props = defineProps<{
   /** Name of the selected event — the `Current` column of the sketch. */
   currentName: string;
   neighbors: DependencyNeighbors;
-  /** `-1` walks the whole chain (sketch default). */
-  level: number;
+  /** Shared with the swimlane curves — this panel is where both are edited. */
+  mode: DependencyMode;
+  /** `-1` walks the whole chain. */
+  depth: number;
   locale?: string;
 }>();
 
 const emit = defineEmits<{
-  'update:level': [level: number];
+  'update:mode': [mode: DependencyMode];
+  'update:depth': [depth: number];
 }>();
 
 /**
- * Direction only decides which half of the pair is drawn, so it lives here rather than
- * travelling up through DetailPanel to the report. Level stays a prop: it changes the walk.
- */
-const direction = ref<DependencyDirection>('both');
-
-/**
  * Sketch order: 仅展示前向依赖 · 展示前后向依赖 · 仅展示后向依赖. 前向 is what the task
- * waits on, so the left button keeps Incoming only — a `backward` walk of the graph.
+ * waits on, so the left button keeps Incoming only — master's `predecessors` mode.
  */
 const DIRECTIONS: {
-  value: DependencyDirection;
+  value: DependencyMode;
   key: 'depsUpstream' | 'depsBoth' | 'depsDownstream';
 }[] = [
-  { value: 'backward', key: 'depsUpstream' },
-  { value: 'both', key: 'depsBoth' },
-  { value: 'forward', key: 'depsDownstream' },
+  { value: 'predecessors', key: 'depsUpstream' },
+  { value: 'all', key: 'depsBoth' },
+  { value: 'successors', key: 'depsDownstream' },
 ];
 
 /**
@@ -42,29 +43,28 @@ const DIRECTIONS: {
  * dots (stroke-width 3 gives the sketch's radius of 1.5). Coordinates come straight from
  * the sketch, so keep them byte for byte when touching this table.
  */
-const GLYPHS: Record<DependencyDirection, { edges: string; dots: string }> = {
-  backward: {
+const GLYPHS: Record<DependencyMode, { edges: string; dots: string }> = {
+  predecessors: {
     edges:
       'M13 8L7.6 4.6M13 8L7.6 11.4M7.6 4.6L2.6 2.4M7.6 4.6L2.6 8M7.6 11.4L2.6 8M7.6 11.4L2.6 13.6',
     dots: 'M13 8h0M7.6 4.6h0M7.6 11.4h0M2.6 2.4h0M2.6 8h0M2.6 13.6h0',
   },
-  both: {
+  all: {
     edges: 'M8 8L4 4M8 8L12 4M8 8L4 12M8 8L12 12',
     dots: 'M8 8h0M4 4h0M12 4h0M4 12h0M12 12h0',
   },
-  forward: {
+  successors: {
     edges:
       'M3 8L8.4 4.6M3 8L8.4 11.4M8.4 4.6L13.4 2.4M8.4 4.6L13.4 8M8.4 11.4L13.4 8M8.4 11.4L13.4 13.6',
     dots: 'M3 8h0M8.4 4.6h0M8.4 11.4h0M13.4 2.4h0M13.4 8h0M13.4 13.6h0',
   },
 };
 
-function onLevelInput(event: Event) {
-  // A cleared number input reads as '' — treat it, and anything unparsable, as
-  // "no depth limit" so the graph never silently empties.
+function onDepthInput(event: Event) {
+  // A cleared number input reads as '' — normalizeDependencyDepth turns that (and
+  // anything unparsable) into the shared default rather than letting NaN through.
   const raw = (event.target as HTMLInputElement).value.trim();
-  const parsed = raw === '' ? Number.NaN : Number(raw);
-  emit('update:level', Number.isFinite(parsed) ? Math.trunc(parsed) : DEPENDENCY_LEVEL_UNLIMITED);
+  emit('update:depth', normalizeDependencyDepth(raw === '' ? Number.NaN : Number(raw)));
 }
 
 /** Chip row geometry, mirrored in CSS — the connectors are drawn, not measured. */
@@ -83,27 +83,20 @@ function curve(fromY: number, toY: number): string {
 }
 
 /**
- * The suppressed side is blanked to an empty array rather than dropped, so the five-column
- * grid keeps its shape and only loses chips.
+ * `neighborsOf` already blanks the suppressed side, so the five-column grid keeps
+ * its shape and only loses chips.
  */
-const shownIncoming = computed(() =>
-  direction.value === 'forward' ? [] : props.neighbors.incoming,
-);
-
-const shownOutgoing = computed(() =>
-  direction.value === 'backward' ? [] : props.neighbors.outgoing,
-);
-
 const incomingLinks = computed(() =>
-  shownIncoming.value.map((node, i) => ({ id: node.id, d: curve(rowCenter(i), rowCenter(0)) })),
+  props.neighbors.incoming.map((node, i) => ({ id: node.id, d: curve(rowCenter(i), rowCenter(0)) })),
 );
 
 const outgoingLinks = computed(() =>
-  shownOutgoing.value.map((node, i) => ({ id: node.id, d: curve(rowCenter(0), rowCenter(i)) })),
+  props.neighbors.outgoing.map((node, i) => ({ id: node.id, d: curve(rowCenter(0), rowCenter(i)) })),
 );
 
 const linkHeight = computed(
-  () => Math.max(1, shownIncoming.value.length, shownOutgoing.value.length) * CHIP_PITCH,
+  () =>
+    Math.max(1, props.neighbors.incoming.length, props.neighbors.outgoing.length) * CHIP_PITCH,
 );
 </script>
 
@@ -124,15 +117,15 @@ const linkHeight = computed(
         :aria-label="t('relevant', locale)"
       >
         <button
-          v-for="mode in DIRECTIONS"
-          :key="mode.value"
+          v-for="dir in DIRECTIONS"
+          :key="dir.value"
           type="button"
           class="pr-detail-relevant__mode"
-          :class="{ 'pr-detail-relevant__mode--active': direction === mode.value }"
-          :data-testid="`detail-relevant-direction-${mode.value}`"
-          :aria-pressed="direction === mode.value"
-          :title="t(mode.key, locale)"
-          @click="direction = mode.value"
+          :class="{ 'pr-detail-relevant__mode--active': mode === dir.value }"
+          :data-testid="`detail-relevant-direction-${dir.value}`"
+          :aria-pressed="mode === dir.value"
+          :title="t(dir.key, locale)"
+          @click="emit('update:mode', dir.value)"
         >
           <svg
             viewBox="0 0 16 16"
@@ -141,13 +134,13 @@ const linkHeight = computed(
             aria-hidden="true"
           >
             <path
-              :d="GLYPHS[mode.value].edges"
+              :d="GLYPHS[dir.value].edges"
               fill="none"
               stroke="currentColor"
               stroke-width="0.9"
             />
             <path
-              :d="GLYPHS[mode.value].dots"
+              :d="GLYPHS[dir.value].dots"
               fill="none"
               stroke="currentColor"
               stroke-width="3"
@@ -165,8 +158,9 @@ const linkHeight = computed(
           type="number"
           step="1"
           min="-1"
-          :value="level"
-          @change="onLevelInput"
+          :max="MAX_DEPENDENCY_DEPTH"
+          :value="depth"
+          @change="onDepthInput"
         >
       </label>
 
@@ -178,7 +172,7 @@ const linkHeight = computed(
     </div>
 
     <p
-      v-if="!shownIncoming.length && !shownOutgoing.length"
+      v-if="!neighbors.incoming.length && !neighbors.outgoing.length"
       class="pr-detail-relevant__empty"
       data-testid="detail-relevant-empty"
     >
@@ -195,10 +189,10 @@ const linkHeight = computed(
           <span
             class="pr-detail-relevant__count"
             data-testid="detail-relevant-incoming-count"
-          >{{ shownIncoming.length }}</span>
+          >{{ neighbors.incoming.length }}</span>
         </div>
         <span
-          v-for="node in shownIncoming"
+          v-for="node in neighbors.incoming"
           :key="node.id"
           class="pr-detail-relevant__chip"
           :title="node.name"
@@ -255,10 +249,10 @@ const linkHeight = computed(
           <span
             class="pr-detail-relevant__count"
             data-testid="detail-relevant-outgoing-count"
-          >{{ shownOutgoing.length }}</span>
+          >{{ neighbors.outgoing.length }}</span>
         </div>
         <span
-          v-for="node in shownOutgoing"
+          v-for="node in neighbors.outgoing"
           :key="node.id"
           class="pr-detail-relevant__chip"
           :title="node.name"
