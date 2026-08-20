@@ -104,7 +104,7 @@ Payloads are addressed by absolute byte offsets from the start of the container.
 | `PipeUtilization.csv` | CSV | `block_id` + `sub_block_id` | Roofline tabs, pipe occupancy, pipe details |
 | `Memory.csv` | CSV | block / sub-block | Memory load edges (GM/L2/L1) |
 | `MemoryL0.csv` | CSV | block / sub-block | L0A/B/C ↔ Cube edges |
-| `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / Scalar edges (GM↔UB BW is on `Memory.csv` in the sample) |
+| `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / Scalar; GM↔UB product names here, sample fallback `Memory.csv` |
 | `L2Cache.csv` | CSV | block / sub-block | L2 hit-rate overlay |
 | `MemoryL1.csv` | CSV | (docx mockup annotation only) | L2→L1 path — **not in sample** |
 | Timeline / kernel events | (unspecified in tables) | Block / pipe event | Kernel block timeline + event details |

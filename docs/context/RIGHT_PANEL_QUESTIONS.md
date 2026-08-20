@@ -173,26 +173,26 @@ Bandwidth labels on arrows are already mapped. These are still open.
     - **PARTIAL** — VIEW_DATA_MAPPING: Peak(%) has no field mapping. The doc's 理论值 column is empty for every row, so the percentage cannot be computed. Measured arrow BW and pipe ratios are not a substitute.
 
 35. **L2Cache Hit Rate** on the GM↔L2 arrow — which field: read, write, or total? Use AIC, AIV, or both?
-    - **PARTIAL** — the doc maps "L2Cache Hit Rate → L2Cache.csv" with no detail. Fields exist for read/write/total × aic/aiv, but which combination is unspecified.
+    - **INTERIM** — adapter uses the first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, `aic_read_hit_rate(%)`, `aiv_read_hit_rate(%)`. Product has not picked read/write/total × AIC/AIV.
 
 36. **UB → L2/GM** — which file and field? Two names exist:
     - `MemoryUB.csv`: `aiv_ub_read_bw_gm`
     - `Memory.csv`: `aiv_ub_to_gm_bw`
-    - **OPEN (doc/sample contradiction)** — the doc says `MemoryUB.csv → aiv_ub_read_bw_gm`, but the sample `MemoryUB.csv` has **no `*_gm` fields** (only `aiv_ub_read/write_bw_vector` and `_scalar`). The sample's `Memory.csv` has `aiv_ub_to_gm_bw(GB/s)`.
+    - **INTERIM** — adapter tries `MemoryUB.csv` → `aiv_ub_read_bw_gm(GB/s)` first, then `Memory.csv` → `aiv_ub_to_gm_bw(GB/s)`. Sample MemoryUB has **no `*_gm` fields** (only `aiv_ub_read/write_bw_vector` and `_scalar`). Product has not unified the names.
 
 37. **L2/GM → UB** — which file and field?
     - `MemoryUB.csv`: `aiv_ub_write_bw_gm`
     - `Memory.csv`: `aiv_gm_to_ub_bw`
-    - **OPEN (doc/sample contradiction)** — same issue: doc says `MemoryUB.csv → aiv_ub_write_bw_gm`; the sample has `Memory.csv → aiv_gm_to_ub_bw(GB/s)` and no gm fields in MemoryUB.csv.
+    - **INTERIM** — adapter tries `MemoryUB.csv` → `aiv_ub_write_bw_gm(GB/s)` first, then `Memory.csv` → `aiv_gm_to_ub_bw(GB/s)`. Same sample gap: no gm fields on MemoryUB.
 
 38. **L2 ↔ L1** — use `Memory.csv` (`aic_l1_*_bw`), or is a separate `MemoryL1.csv` required?
     - **RESOLVED** — `Memory.csv` → `aic_l1_read_bw(GB/s)` (L2→L1) and `aic_l1_write_bw(GB/s)` (L1→L2). No `MemoryL1.csv` exists.
 
 39. **L0C → L1** — show it? If yes, which field? (`L0C_to_L1_datas(KB)`?)
-    - **PARTIAL** — field exists in `Memory.csv` → `L0C_to_L1_datas(KB)` + `L0C_to_L1_bw_usage_rate(%)`. The doc marks its 理论值 待确定; "show or not" is a decision.
+    - **INTERIM** — we show `Memory.csv` → `L0C_to_L1_datas(KB)` when present (`L0C_to_L1_bw_usage_rate(%)` is unused). Product 理论值 is still 待确定.
 
 40. **L0C → L2/GM** — show it? If yes, which field? (`L0C_to_GM_datas(KB)`?)
-    - **PARTIAL** — field exists in `Memory.csv` → `L0C_to_GM_datas(KB)` + `L0C_to_GM_bw_usage_rate(%)`. Doc 理论值 待确定.
+    - **INTERIM** — we show `Memory.csv` → `L0C_to_GM_datas(KB)` when present. Product 理论值 is still 待确定.
 
 41. **L0C → UB** — show it? If yes, which field? (none in the sample)
     - **OPEN** — the doc leaves this blank (待确定); no field exists in sample or doc.
