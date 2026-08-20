@@ -1,34 +1,93 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { t } from '../../i18n';
 import type { DependencyNeighbors } from '../../domain/dependencies';
 import type { DependencyMode, SelectedEvent, TimeDisplayUnit } from '../../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH } from '../../domain/types';
+import {
+  DOCK_HEIGHT_DEFAULT,
+  DOCK_HEIGHT_MAX,
+  DOCK_HEIGHT_MIN,
+  startHorizontalResize,
+} from '../panelResize';
 import DetailSummary from './DetailSummary/DetailSummary.vue';
 import DetailParameter from './DetailParameter/DetailParameter.vue';
 import DetailRelevant from './DetailRelevant/DetailRelevant.vue';
 
-defineProps<{
-  selected: SelectedEvent;
-  unit: TimeDisplayUnit;
-  locale?: string;
-  /** Omitted when the report carries no dependency data — the column hides. */
-  neighbors?: DependencyNeighbors;
-  dependencyMode?: DependencyMode;
-  dependencyDepth?: number;
-}>();
+const props = withDefaults(
+  defineProps<{
+    selected: SelectedEvent;
+    unit: TimeDisplayUnit;
+    locale?: string;
+    /** Omitted when the report carries no dependency data — the column hides. */
+    neighbors?: DependencyNeighbors;
+    dependencyMode?: DependencyMode;
+    dependencyDepth?: number;
+    height?: number;
+  }>(),
+  {
+    height: DOCK_HEIGHT_DEFAULT,
+    locale: undefined,
+    neighbors: undefined,
+    dependencyMode: 'all',
+    dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+  },
+);
 
 const emit = defineEmits<{
   close: [];
   'update:dependencyMode': [mode: DependencyMode];
   'update:dependencyDepth': [depth: number];
+  'update:height': [height: number];
 }>();
+
+const dockStyle = computed(() => ({ height: `${props.height}px` }));
+
+let session: ReturnType<typeof startHorizontalResize> | null = null;
+
+function onResizePointerDown(e: PointerEvent) {
+  if (e.button !== 0) return;
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  session = startHorizontalResize({
+    startClientX: e.clientY,
+    startWidth: props.height,
+    min: DOCK_HEIGHT_MIN,
+    // Never eat the whole window: leave room for the toolbar and some timeline even
+    // when the ceiling constant is taller than the viewport.
+    max: Math.min(DOCK_HEIGHT_MAX, Math.max(DOCK_HEIGHT_MIN, window.innerHeight - 160)),
+    direction: -1, // drag the top edge: up → taller
+    onChange: (h) => emit('update:height', h),
+  });
+  e.preventDefault();
+}
+
+function onResizePointerMove(e: PointerEvent) {
+  session?.move(e.clientY);
+}
+
+function onResizePointerUp() {
+  session?.end();
+  session = null;
+}
 </script>
 
 <template>
   <footer
     class="pr-detail-panel"
     data-testid="detail-panel"
+    :style="dockStyle"
   >
+    <button
+      type="button"
+      class="pr-detail-panel__resize"
+      data-testid="detail-panel-resize-handle"
+      :aria-label="t('resizeDock', locale)"
+      :title="t('resizeDock', locale)"
+      @pointerdown="onResizePointerDown"
+      @pointermove="onResizePointerMove"
+      @pointerup="onResizePointerUp"
+      @pointercancel="onResizePointerUp"
+    />
     <header class="pr-detail-panel__head">
       <span class="pr-detail-panel__tab">{{ t('details', locale) }}</span>
       <button
@@ -60,8 +119,8 @@ const emit = defineEmits<{
         v-if="neighbors"
         :current-name="selected.name"
         :neighbors="neighbors"
-        :mode="dependencyMode ?? 'all'"
-        :depth="dependencyDepth ?? DEFAULT_DEPENDENCY_DEPTH"
+        :mode="dependencyMode"
+        :depth="dependencyDepth"
         :locale="locale"
         @update:mode="emit('update:dependencyMode', $event)"
         @update:depth="emit('update:dependencyDepth', $event)"
@@ -75,13 +134,33 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
-  /* Fixed dock height: a content-sized panel grows and shrinks with every
-     selection, which shifts the whole timeline above it. Sketch proportion is
-     ~247px at 1920 wide, and each column scrolls inside that. */
-  height: 247px;
-  max-height: 45vh;
+  position: relative;
+  /* Height is the `height` prop (drag the top edge to resize); a content-sized panel
+     grows and shrinks with every selection, which shifts the whole timeline above it.
+     Sketch proportion is ~247px at 1920 wide, and each column scrolls inside that. */
   background: var(--pr-bg-panel, #262626);
   border-top: 1px solid #3a3a3a;
+}
+
+/* Same 5px hit strip as the layout's column handles, turned on its side. */
+.pr-detail-panel__resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ns-resize;
+  transform: translateY(-50%);
+  z-index: 6;
+}
+
+.pr-detail-panel__resize:hover,
+.pr-detail-panel__resize:active {
+  background: rgba(49, 122, 247, 0.35);
 }
 
 .pr-detail-panel__head {

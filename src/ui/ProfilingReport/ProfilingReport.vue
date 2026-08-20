@@ -37,6 +37,7 @@ import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
+  DOCK_HEIGHT_DEFAULT,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
@@ -91,9 +92,10 @@ const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
-/** Session-only panel widths (not persisted). */
+/** Session-only panel sizes (not persisted). */
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
+const dockHeight = ref(DOCK_HEIGHT_DEFAULT);
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 
@@ -577,7 +579,9 @@ defineExpose({ selectEventById, viewState });
       :neighbors="dependencyNeighbors"
       :dependency-mode="localDependencyMode"
       :dependency-depth="localDependencyDepth"
+      :height="dockHeight"
       @close="onSelect(null)"
+      @update:height="dockHeight = $event"
       @update:dependency-mode="onDependencyMode"
       @update:dependency-depth="onDependencyDepth"
     />
