@@ -32,7 +32,7 @@ class CanvasSwimlaneRenderer {
 
 **Lane chrome.** Every event-sequence lane shares the same background fill (`#1f1f1f`); alternating zebra stripes are not used. **Card / root group headers** paint a full-width band `rgb(42, 42, 42)` (`#2a2a2a`) under the DOM Card strips in `SwimlaneView`. Horizontal dividers (`#3a3a3a`) are drawn at the bottom of each group header and each lane, aligned with the LaneGutter borders so separators read as continuous lines from the gutter across the timeline. WebGL draws the same uniform fill and 1px divider rects; Canvas uses strokes at the same edges.
 
-**Cursor.** Vertical cursor stroke uses `#317AF7` to match axis `.pr-cursor`. Swimlane paints the follow-bar as a DOM overlay in `SwimlaneView` (above Card strips); Canvas/WebGL renderers no longer stroke the cursor.
+**Cursor.** Vertical cursor stroke uses `#317AF7` to match axis `.pr-cursor`. Swimlane paints the follow-bar as a DOM overlay in `SwimlaneView` (under Card strips); Canvas/WebGL renderers no longer stroke the cursor.
 
 **WebGL intervals.** Coverage-AA rounded fills use **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend, which lit up overlaps as a bright “block inside block”. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
 
