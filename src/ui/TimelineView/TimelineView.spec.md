@@ -16,6 +16,8 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Narrow selection.** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, park the duration pill **outside** the bars (prefer **4px to the right** of the right bar; if that would clip, **4px to the left** of the left bar) while still drawing the two-sided arrow between the bars. When the span is so narrow that the arrowheads would overlap (`<` pads + both heads ≈ **20px**), hide the heads and keep a continuous horizontal shaft between the vertical bars; the outside label stays.
 
+**Cursor vs measure chrome.** When a measure overlay is visible and the cursor timestamp pill would horizontally intersect a measure border or the Δt label, the cursor pill lifts **above** the viewport axis (`labelAbove`) with a short animated transition (see `CursorTimestamp`). Clear of that chrome, the pill stays in-track.
+
 ## Acceptance Criteria
 
 1. **PR-TIMELINE-001** — Renders overview, time axis, and swimlane body regions.
@@ -26,8 +28,10 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 6. **PR-TIMELINE-006** — Measure axis bars clamp to the current view window when the range extends outside.
 7. **PR-TIMELINE-007** — Measure axis overlay hides when the range is fully outside the current view.
 8. **PR-TIMELINE-008** — When the selection is so narrow that arrowheads would overlap, hide heads and keep the horizontal shaft between bars with the label outside.
+9. **PR-TIMELINE-009** — With a visible measure range, cursor over a border or Δt uses above-axis cursor placement; cursor clear of that chrome stays in-track.
 
 ## Changelog
+- **2026-08-20** — Cursor timestamp lifts above axis on measure chrome overlap; PR-TIMELINE-009.
 - **2026-08-20** — Outside-label keeps arrow; shaft-only when heads overlap; PR-TIMELINE-005/008.
 - **2026-08-20** — Clamp measure overlay to view window; PR-TIMELINE-006/007.
 - **2026-08-20** — Compact outside Δt label when selection too narrow; PR-TIMELINE-005.

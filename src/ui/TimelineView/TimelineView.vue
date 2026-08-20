@@ -22,6 +22,11 @@ import AxisRuler from './TimeAxis/AxisRuler/AxisRuler.vue';
 import CursorTimestamp from './TimeAxis/CursorTimestamp/CursorTimestamp.vue';
 import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
+import {
+  CURSOR_LABEL_MIN_WIDTH_PX,
+  cursorLabelOverlapsMeasureChrome,
+  estimateAxisLabelWidth,
+} from './cursorMeasureOverlap';
 
 const props = withDefaults(
   defineProps<{
@@ -70,11 +75,6 @@ const MEASURE_ARROW_CHROME_PX = 28;
 /** Pads (2) + heads (9+9) — below this, heads overlap; keep shaft only. */
 const MEASURE_HEADS_MIN_PX = 20;
 const MEASURE_OUTSIDE_GAP_PX = 4;
-
-function estimateMeasureLabelWidth(label: string): number {
-  // padding 1+8*2 ≈ 17; ~6.5px tabular glyph at 11px.
-  return 17 + Math.ceil(label.length * 6.5);
-}
 
 watch(
   () => props.gutterWidth,
@@ -135,7 +135,7 @@ const measureArrowLayout = computed(() => {
     return { mode: 'inline' as const, style };
   }
   const rangePx = (axis.width / 100) * axisW;
-  const labelW = measureLabelWidth.value || estimateMeasureLabelWidth(axis.label);
+  const labelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
   const minFit = MEASURE_ARROW_CHROME_PX + labelW;
   if (rangePx >= minFit) {
     return { mode: 'inline' as const, style };
@@ -147,6 +147,31 @@ const measureArrowLayout = computed(() => {
       : ('left' as const);
   const mode = rangePx < MEASURE_HEADS_MIN_PX ? ('shaft' as const) : ('outside' as const);
   return { mode, side, style };
+});
+
+/** Lift cursor time pill above the axis when it would cover measure borders or Δt. */
+const cursorLabelAbove = computed(() => {
+  const axis = measureAxis.value;
+  const layout = measureArrowLayout.value;
+  const cursor = props.cursor;
+  const axisW = timeAxisWidth.value;
+  if (!axis || !layout || !cursor || axisW <= 0) return false;
+  const cursorLabel = formatCursorTime(cursor.time - props.bounds.minTime, cursorTimeUnit.value);
+  const cursorLabelW = estimateAxisLabelWidth(cursorLabel, CURSOR_LABEL_MIN_WIDTH_PX);
+  const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
+  const dtPlacement =
+    layout.mode === 'inline'
+      ? ({ mode: 'inline' } as const)
+      : ({ mode: layout.mode, side: layout.side } as const);
+  return cursorLabelOverlapsMeasureChrome({
+    axisW,
+    cursorXRatio: cursor.xRatio,
+    cursorLabelW,
+    measureLeftPct: axis.left,
+    measureRightPct: axis.right,
+    dtLabelW,
+    dtPlacement,
+  });
 });
 
 watch(
@@ -266,6 +291,7 @@ defineExpose({
           v-if="cursor"
           :x-ratio="cursor.xRatio"
           :label="formatCursorTime(cursor.time - bounds.minTime, cursorTimeUnit)"
+          :label-above="cursorLabelAbove"
         />
         <template v-if="measureAxis">
           <div
@@ -425,7 +451,8 @@ defineExpose({
   color: #c8c8c8;
   border-bottom: 1px solid #3a3a3a;
   flex: 0 0 auto;
-  overflow: hidden;
+  /* Visible so raised cursor / outside Δt pills are not clipped; AxisRuler clips itself. */
+  overflow: visible;
 }
 
 .pr-time-axis--measure {
