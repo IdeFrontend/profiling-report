@@ -36,14 +36,14 @@ sequenceDiagram
 
     User->>Toolbar: click + / - / zoom-to-fit
     Toolbar->>Root: emit('zoom-in' / 'zoom-out' / 'zoom-to-fit')
-    Root->>State: zoomAt / zoomToFitWindow
+    Root->>State: zoomAt / animated zoomToFitWindow
     State-->>Root: new SwimlaneViewWindow
     Root->>Canvas: update view prop
     Root->>TimeOverviewBar: update startTime/endTime
     Root->>Toolbar: update zoomPercent
 ```
 
-Ctrl+wheel zooms around cursor position. Toolbar buttons zoom around viewport center. All zoom operations are clamped to timeline bounds.
+Ctrl+wheel zooms around cursor position. Toolbar buttons zoom around viewport center. Zoom-to-fit eases both view edges to the full trace span (same animation as Δt measure focus). All zoom operations are clamped to timeline bounds.
 
 ### Drag-pan
 

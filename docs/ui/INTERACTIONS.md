@@ -12,7 +12,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 | Ctrl/Cmd + wheel | Zoom time axis around cursor | MVP |
 | Drag on time axis / empty swimlane (with modifier if needed) | Pan time | MVP |
 | Zoom slider / + / − | Zoom | MVP |
-| Zoom to fit | Fit full `[minTime, maxTime]` in view | MVP |
+| Zoom to fit | Fit full `[minTime, maxTime]` in view (animated, same easing as Δt focus) | MVP |
 | Click lane header expand/collapse | Toggle children | MVP |
 
 **MVP gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, drag pan, toolbar zoom / zoom-to-fit (table above). PyPTO keyboard shortcuts (W/S zoom, A/D pan) are **Phase 2** unless [Q19](../context/OPEN_QUESTIONS.md) resolves otherwise — do not treat them as MVP parity.
