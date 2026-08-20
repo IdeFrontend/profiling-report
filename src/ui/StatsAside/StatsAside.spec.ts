@@ -363,8 +363,10 @@ describe('StatsAside', () => {
     const scale = wrapper.get('[data-testid="pipe-scale"]').text();
     expect(scale).toContain('0%');
     expect(scale).toContain('100%');
+    expect(wrapper.find('.pr-pipe-chart').exists()).toBe(true);
     expect(wrapper.find('.pr-pipe-row__hatch').exists()).toBe(true);
     expect(wrapper.find('.pr-pipe-row__bar').exists()).toBe(true);
+    expect(wrapper.get('.pr-pipe-row__track').find('.pr-pipe-row__pct').exists()).toBe(true);
   });
 
   it('PR-STATS-013: absolute time in bar when present', () => {
@@ -385,6 +387,9 @@ describe('StatsAside', () => {
       },
     });
     expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toMatch(/0\.065/);
+    const track = withAbs.get('.pr-pipe-row__track');
+    expect(track.find('.pr-pipe-row__bar .pr-pipe-row__abs').exists()).toBe(false);
+    expect(track.find(':scope > .pr-pipe-row__abs').exists()).toBe(true);
 
     const without = mount(StatsAside, {
       props: {
