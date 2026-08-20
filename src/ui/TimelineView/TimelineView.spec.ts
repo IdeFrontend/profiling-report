@@ -188,7 +188,7 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-label"]').exists()).toBe(true);
   });
 
-  it('PR-TIMELINE-008: overlapping heads fall back to shaft-only with outside label', async () => {
+  it('PR-TIMELINE-008: overlapping heads hide shaft; outside label only', async () => {
     stubAxisWidth(400);
     const view = createViewState({
       minTime: 0,
@@ -215,14 +215,15 @@ describe('TimelineView', () => {
     expect(arrow.classes()).toContain('pr-measure-arrow--outside');
     expect(arrow.classes()).toContain('pr-measure-arrow--shaft');
     expect(arrow.classes()).toContain('pr-measure-arrow--outside-right');
-    // Heads stay in DOM but are hidden via --shaft CSS.
     expect(wrapper.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(2);
     expect(wrapper.findAll('[data-testid="measure-arrow-shaft"]')).toHaveLength(2);
     const src = (await import('./TimelineView.vue?raw')).default as string;
     expect(src).toMatch(
-      /\.pr-measure-arrow--shaft\s+\.pr-measure-arrow__head\s*\{[^}]*display:\s*none/,
+      /\.pr-measure-arrow--shaft\s+\.pr-measure-arrow__head[\s\S]*?\.pr-measure-arrow--shaft\s+\.pr-measure-arrow__shaft\s*\{[^}]*display:\s*none/,
     );
     expect(wrapper.find('[data-testid="measure-label"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
   });
 
   it('PR-TIMELINE-006: measure axis clamps overlay to the current view window', () => {

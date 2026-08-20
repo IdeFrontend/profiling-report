@@ -77,7 +77,7 @@ const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 
 /** Pads (2) + heads (9+9) + shaft–label gaps (4+4). */
 const MEASURE_ARROW_CHROME_PX = 28;
-/** Pads (2) + heads (9+9) — below this, heads overlap; keep shaft only. */
+/** Pads (2) + heads (9+9) — below this, heads overlap; hide heads + shaft. */
 const MEASURE_HEADS_MIN_PX = 20;
 const MEASURE_OUTSIDE_GAP_PX = 4;
 
@@ -130,7 +130,7 @@ const measureAxis = computed(() => {
   };
 });
 
-/** Inline label, outside label + arrow, or outside label + shaft-only. */
+/** Inline label, outside label + arrow, or outside label with no connector. */
 const measureArrowLayout = computed(() => {
   const axis = measureAxis.value;
   if (!axis) return null;
@@ -385,7 +385,7 @@ defineExpose({
             <!--
               Flex: tip pad 1px | head | shaft | 4px | label | 4px | shaft | head
               Shaft negative margin pulls into chevron so the line meets the arms.
-              Outside: label parked outside; arrow (or shaft-only) still spans the bars.
+              Outside: label parked outside; arrow spans the bars (or no connector when too narrow).
             -->
             <svg
               class="pr-measure-arrow__head"
@@ -640,15 +640,10 @@ defineExpose({
   transform: translateY(-50%);
 }
 
-/* Heads would overlap: hide chevrons, keep continuous shaft between bars. */
-.pr-measure-arrow--shaft .pr-measure-arrow__head {
+/* Too narrow for heads: hide chevrons and shaft; outside Δt label only. */
+.pr-measure-arrow--shaft .pr-measure-arrow__head,
+.pr-measure-arrow--shaft .pr-measure-arrow__shaft {
   display: none;
-}
-
-.pr-measure-arrow--shaft .pr-measure-arrow__shaft--left,
-.pr-measure-arrow--shaft .pr-measure-arrow__shaft--right {
-  margin-left: 0;
-  margin-right: 0;
 }
 
 .pr-gutter--axis-spacer {
