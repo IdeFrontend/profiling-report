@@ -302,6 +302,7 @@ defineExpose({
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .pr-gutter-resize {

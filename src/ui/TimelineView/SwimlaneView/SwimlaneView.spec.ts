@@ -89,6 +89,7 @@ describe('SwimlaneView', () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*z-index:\s*5/);
     expect(src).toMatch(/\.pr-card-strips\s*\{[^}]*z-index:\s*8/);
+    expect(src).toMatch(/\.pr-swim-row--body\s*\{[^}]*overflow:\s*hidden/s);
   });
 
   it('PR-SWIMVIEW-004: swim cursor layer stacks under card strips', async () => {

@@ -22,6 +22,8 @@ The bubble is centered on the stem by default: `left: 50%; transform: translate(
 
 **Stacking.** Stem (`z-index: 3`) paints **under** measure bars/Δt (`3`/`4`); the timestamp pill (`z-index: 6`) paints **above** Δt so the vertical line never crosses the duration label when the pill is raised.
 
+**Aside seam.** The pill is centered on the stem and may extend past the timeline column when the playhead is near the right (or left) edge. ReportLayout keeps `.pr-main` `overflow: visible` with stacking above the aside so the full pill stays painted (slight overlap over the sidebar is OK). The stem stays in-track.
+
 ## Visual
 
 Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/cursor-timestamp-context.png`](./visual/cursor-timestamp-context.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
@@ -50,8 +52,8 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 
 | State | Behavior |
 |---|---|
-| xRatio = 0 | Stem at left edge; bubble centered, no overflow clipping |
-| xRatio = 1 | Stem at right edge; bubble within axis container |
+| xRatio = 0 | Stem at left edge; bubble centered; may slightly overlap past the left column edge |
+| xRatio = 1 | Stem at right edge; bubble centered; may slightly overlap the aside seam (not clipped) |
 | Short trace (<1ms span) | Parent uses µs/ns unit; bubble digits change on move |
 | labelAbove toggles | Pill animates up/down unless reduced motion |
 | labelAbove + Δt under stem x | Stem under Δt; raised pill still readable |
@@ -66,6 +68,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 [format-time](../../../../../specs/core/format-time.spec.md) (formatCursorTime).
 
 ## Changelog
+- **2026-08-20** — Pill may overlap aside seam when playhead is at the edge.
 - **2026-08-20** — Stem under Δt, pill above; PR-CURSOR-005.
 - **2026-08-20** — Above-axis placement + transform transition; PR-CURSOR-004.
 - **2026-08-10** — Extracted from ProfilingReport into own component.

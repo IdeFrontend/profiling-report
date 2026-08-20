@@ -552,11 +552,14 @@ defineExpose({
 .pr-swim-row.pr-swim-row--head,
 .pr-swim-row.pr-swim-row--overview {
   flex: 0 0 auto;
+  /* Above aside resize (z-index 6) so edge handles / cursor pill win at the seam. */
+  position: relative;
+  z-index: 7;
+  overflow: visible;
 }
 
 .pr-swim-row.pr-swim-row--overview {
   align-items: stretch;
-  overflow: visible;
 }
 
 .pr-time-axis {
