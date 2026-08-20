@@ -320,11 +320,12 @@ describe('TimelineView', () => {
       },
     });
 
-    const left = wrapper.get('[data-testid="measure-axis-bar-left"]');
-    expect(left.attributes('style')).toMatch(/left:\s*0%/);
-    expect(left.classes()).toContain('pr-measure-axis-bar--cue');
+    // Chevron + Δt only — no vertical bar at the view edge.
+    expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-arrow"]').classes()).toContain(
+      'pr-measure-arrow--offscreen-left',
+    );
     expect(wrapper.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(1);
     expect(wrapper.find('[data-testid="measure-label"]').exists()).toBe(true);
 
@@ -341,8 +342,10 @@ describe('TimelineView', () => {
       },
     });
     expect(wrapperRight.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
-    const right = wrapperRight.get('[data-testid="measure-axis-bar-right"]');
-    expect(right.attributes('style')).toMatch(/left:\s*100%/);
+    expect(wrapperRight.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(false);
+    expect(wrapperRight.find('[data-testid="measure-arrow"]').classes()).toContain(
+      'pr-measure-arrow--offscreen-right',
+    );
     expect(wrapperRight.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(1);
   });
 

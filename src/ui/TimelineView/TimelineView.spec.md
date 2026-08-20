@@ -10,7 +10,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Top chrome gutter.** Overview and viewport-axis gutter spacers form one continuous block: **no** horizontal border between those two spacer cells. (Timeline-column borders between overview track and viewport axis may remain.)
 
-**Measure mode (M2).** The overview bar stays visible for window navigation (no measure span is drawn on it). The viewport time axis draws blue vertical bars at **true** measured-range edges that fall inside the current view, plus a double-sided Δt arrow across the visible measure span, and accepts the same drag-to-measure gesture as the swimlane. Geometry for the shaft/label **clamps to the current view window**; a bar and arrowhead are **not** drawn for an edge that is only clamped onto the view boundary (that would falsely read as the selection ending at the screen edge). When the range is **fully outside** the view, the axis keeps a one-sided **offscreen cue** at the near edge (cue bar + pointing chevron + Δt just inside; not resizable). Δt label always uses the full measured duration. Swimlane fade/gray borders live in `SwimlaneCanvas`.
+**Measure mode (M2).** The overview bar stays visible for window navigation (no measure span is drawn on it). The viewport time axis draws blue vertical bars at **true** measured-range edges that fall inside the current view, plus a double-sided Δt arrow across the visible measure span, and accepts the same drag-to-measure gesture as the swimlane. Geometry for the shaft/label **clamps to the current view window**; a bar and arrowhead are **not** drawn for an edge that is only clamped onto the view boundary (that would falsely read as the selection ending at the screen edge). When the range is **fully outside** the view, the axis keeps a one-sided **offscreen cue** at the near edge (pointing chevron + Δt just inside; **no** vertical edge bar). Δt label always uses the full measured duration. Swimlane fade/gray borders live in `SwimlaneCanvas`.
 
 **Δt arrow geometry (v930).** Each arrowhead is an **open stroke chevron** (single path, `fill="none"`, sharp **miter** tip — not bevelled/flat). The visible tip sits **1px** inward from the adjacent vertical measure bar. The shaft overlaps deep into each chevron until it meets the arms (no gap between shaft and arrow lines). The Δt duration label sits centered on the arrow with a **4px gap** on each side between the label chrome and the horizontal shaft (shaft breaks around the label; they do not touch). Shaft and chevron strokes are **1.5px** wide in solid `rgba(49, 122, 247, 1)`.
 
@@ -18,7 +18,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Cursor vs measure chrome.** When a measure overlay is visible and the **cursor timestamp pill** overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside / offscreen Δt label, the pill lifts **above** the viewport axis (`labelAbove`) with a short animated transition (see `CursorTimestamp`). Otherwise it stays in-track. Hovering a measure edge bar **sticks** the cursor to that border (does not hide the timestamp); the lift rule still applies because the pill overlaps the bar. Overview/axis rows stay `overflow: visible` with stacking above the aside so edge handles and the cursor pill are not clipped at the main/aside seam.
 
-**Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (other edge fixed), clamped to the view window with a ~1px min span. Resize listens on `window` for move/up so releasing over Card strips (above the bars) still ends the drag. Empty-axis drag still creates a new measure range. Offscreen cue bars are visual-only (no resize).
+**Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (other edge fixed), clamped to the view window with a ~1px min span. Resize listens on `window` for move/up so releasing over Card strips (above the bars) still ends the drag. Empty-axis drag still creates a new measure range.
 
 ## Acceptance Criteria
 
@@ -28,13 +28,14 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 4. **PR-TIMELINE-004** — Measure arrow: sharp miter stroke chevrons, **1px** tip–bar gap, shaft overlaps into heads, **4px** shaft–label gaps; 1.5px stroke; `rgba(49, 122, 247, 1)`.
 5. **PR-TIMELINE-005** — When the selection is too narrow for an in-between label but wide enough for both heads, the label sits outside the range and the two-sided arrow still spans the bars.
 6. **PR-TIMELINE-006** — When a measure edge lies outside the view, that bar and arrowhead are omitted (shaft/label still span the visible intersection); both edges outside → no bars/heads.
-7. **PR-TIMELINE-007** — When the range is fully outside the view, the axis shows a near-edge offscreen cue (cue bar + one pointing head + Δt), not an empty axis.
+7. **PR-TIMELINE-007** — When the range is fully outside the view, the axis shows a near-edge offscreen cue (one pointing head + Δt; no vertical edge bar), not an empty axis.
 8. **PR-TIMELINE-008** — When the selection is so narrow that arrowheads would overlap, hide heads and the horizontal shaft; keep only the outside duration label.
 9. **PR-TIMELINE-009** — With a visible measure range, cursor pill overlapping the selection (inside, or outside with label crossing a border) uses above-axis placement; cursor clear of the range stays in-track.
 10. **PR-TIMELINE-010** — Dragging an axis measure bar resizes that edge (other edge fixed); bars use a 9px hit pad, `col-resize`, and 2px stem on hover.
 11. **PR-TIMELINE-011** — Hovering an axis measure bar emits `cursor` stuck to that edge (timestamp stays visible / lifts above).
 
 ## Changelog
+- **2026-08-20** — Offscreen cue is chevron + Δt only (no edge bar); PR-TIMELINE-007.
 - **2026-08-20** — Offscreen near-edge cue; omit clamped fake bars/heads; PR-TIMELINE-006/007.
 - **2026-08-20** — Hover measure bar sticks cursor; PR-TIMELINE-011.
 - **2026-08-20** — Draggable axis measure bars; PR-TIMELINE-010.
