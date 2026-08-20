@@ -20,7 +20,7 @@ The bubble is centered on the stem by default: `left: 50%; transform: translate(
 
 **Above placement.** When `labelAbove` is true (parent: pointer over the viewport time axis, or cursor pill overlaps the measure range / outside Δt), the pill uses `pr-cursor__label--above` and `transform: translate(-50%, calc(-100% - 6px))` so it sits fully above the axis top (into the overview / total-axis band). `top` stays `2px`; only `transform` changes so the move can animate (`transition: transform 180ms ease`). `prefers-reduced-motion: reduce` disables the transition.
 
-**Stacking.** Stem (`z-index: 3`) paints **under** measure bars/Δt (`3`/`4`); the timestamp pill (`z-index: 6`) paints **above** Δt so the vertical line never crosses the duration label when the pill is raised.
+**Stacking.** Stem (`z-index: 3`) paints under axis Δt (`4`) and axis measure bars (`5`); the timestamp pill (`z-index: 6`) paints above Δt so the vertical line never crosses the duration label when the pill is raised. Swimlane measure borders also use `3` (same band as the stem).
 
 **Aside seam.** The pill is centered on the stem and may extend past the timeline column when the playhead is near the right (or left) edge. ReportLayout keeps `.pr-main` `overflow: visible` with stacking above the aside so the full pill stays painted (slight overlap over the sidebar is OK). The stem stays in-track.
 

@@ -59,17 +59,27 @@ describe('measureEdgeResize', () => {
     ).toEqual({ startTime: 200, endTime: 1000 });
   });
 
-  it('clamps fixedOther into the view window', () => {
+  it('preserves off-screen fixedOther (does not truncate the other edge)', () => {
     expect(
       resizeMeasureEdge({
         edge: 'left',
-        time: 100,
-        fixedOther: 2000,
+        time: 40,
+        fixedOther: 200,
         viewStart: 0,
-        viewEnd: 1000,
+        viewEnd: 100,
         minSpan: 1,
       }),
-    ).toEqual({ startTime: 100, endTime: 1000 });
+    ).toEqual({ startTime: 40, endTime: 200 });
+    expect(
+      resizeMeasureEdge({
+        edge: 'left',
+        time: 30,
+        fixedOther: 200,
+        viewStart: 0,
+        viewEnd: 100,
+        minSpan: 1,
+      }),
+    ).toEqual({ startTime: 30, endTime: 200 });
   });
 
   it('ends drag on window pointerup even if element up is missed', () => {
