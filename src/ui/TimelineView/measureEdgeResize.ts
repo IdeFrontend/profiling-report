@@ -25,7 +25,7 @@ export function resizeMeasureEdge(input: {
   const minSpan = Math.max(1, input.minSpan);
   const lo = Math.min(viewStart, viewEnd);
   const hi = Math.max(viewStart, viewEnd);
-  let t = Math.min(hi, Math.max(lo, input.time));
+  const t = Math.min(hi, Math.max(lo, input.time));
 
   if (edge === 'left') {
     const maxStart = Math.min(hi, fixedOther - minSpan);
