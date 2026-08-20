@@ -114,6 +114,12 @@ describe('TimelineView', () => {
     const last = ranges![ranges!.length - 1][0] as { startTime: number; endTime: number };
     expect(last.endTime).toBeGreaterThan(last.startTime);
 
+    // Cursor follows the drag pointer (not stuck at the press x).
+    const cursors = wrapper.emitted('cursor') ?? [];
+    expect(cursors.length).toBeGreaterThan(0);
+    const lastCursor = cursors[cursors.length - 1][0] as { time: number; xRatio: number };
+    expect(lastCursor.xRatio).toBeCloseTo(0.7, 5);
+
     const countAfterUp = ranges!.length;
     window.dispatchEvent(new PointerEvent('pointermove', { clientX: 180, clientY: 10, buttons: 0 }));
     expect(wrapper.emitted('update:measure-range')!.length).toBe(countAfterUp);
@@ -495,5 +501,50 @@ describe('TimelineView', () => {
     });
     await wrapper.get('[data-testid="measure-label"]').trigger('click');
     expect(wrapper.emitted('focus-measure')).toHaveLength(1);
+  });
+
+  it('PR-TIMELINE-013: hovering viewport axis emits cursor and lifts the timestamp', async () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+    const axis = wrapper.get('[data-testid="time-axis"]');
+    Object.defineProperty(axis.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 20, right: 400, bottom: 20 }),
+    });
+
+    await axis.trigger('pointerenter', { clientX: 100, clientY: 10 });
+    const cursors = wrapper.emitted('cursor');
+    expect(cursors?.length).toBeGreaterThan(0);
+    const last = cursors![cursors!.length - 1][0] as { time: number; xRatio: number };
+    expect(last.xRatio).toBeCloseTo(0.25, 5);
+    expect(last.time).toBeCloseTo(250, 5);
+
+    await wrapper.setProps({ cursor: last });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="cursor-label"]').classes()).toContain(
+      'pr-cursor__label--above',
+    );
+    expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="swim-cursor"]').attributes('style')).toMatch(
+      /left:\s*25%/,
+    );
+
+    await axis.trigger('pointerleave', { clientX: 100, clientY: -5, relatedTarget: null });
+    const afterLeave = wrapper.emitted('cursor')!;
+    expect(afterLeave[afterLeave.length - 1][0]).toBeNull();
   });
 });

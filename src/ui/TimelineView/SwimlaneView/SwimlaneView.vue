@@ -41,10 +41,13 @@ const props = withDefaults(
     dependencyDepth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
     gutterWidth?: number;
+    /** Shared playhead x from parent (axis hover + canvas); drives the swim vertical bar. */
+    cursorXRatio?: number | null;
   }>(),
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    cursorXRatio: null,
   },
 );
 
@@ -66,8 +69,15 @@ const canvasRef = ref<{ handleWheel: (e: WheelEvent) => void } | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
-/** Swimlane mouse-follow bar (DOM under Card strips). */
-const cursorXRatio = ref<number | null>(null);
+/** Swimlane mouse-follow bar; synced from canvas emits and parent `cursorXRatio` (axis hover). */
+const cursorXRatio = ref<number | null>(props.cursorXRatio ?? null);
+
+watch(
+  () => props.cursorXRatio,
+  (v) => {
+    cursorXRatio.value = v ?? null;
+  },
+);
 
 watch(
   () => props.gutterWidth,

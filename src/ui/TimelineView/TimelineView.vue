@@ -76,6 +76,8 @@ const measureLabelRef = ref<HTMLElement | null>(null);
 const measureLabelWidth = ref(0);
 const swimlaneRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
+/** Pointer is over the viewport time axis — keep cursor lifted above ticks. */
+const axisHovering = ref(false);
 
 /** Pads (2) + heads (9+9) + shaft–label gaps (4+4). */
 const MEASURE_ARROW_CHROME_PX = 28;
@@ -199,8 +201,9 @@ const measureArrowLayout = computed(() => {
   return { mode, side, style };
 });
 
-/** Lift cursor time pill above the axis when it would cover measure borders or Δt. */
+/** Lift cursor time pill above the axis when hovering the axis or covering measure chrome. */
 const cursorLabelAbove = computed(() => {
+  if (axisHovering.value && props.cursor) return true;
   const axis = measureAxis.value;
   const layout = measureArrowLayout.value;
   const cursor = props.cursor;
@@ -267,6 +270,17 @@ function timeAtAxisX(clientX: number): number {
   const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
   const span = Math.max(1, props.view.endTime - props.view.startTime);
   return props.view.startTime + ratio * span;
+}
+
+function emitCursorAtAxisX(clientX: number) {
+  const el = timeAxisRef.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
+  emit('cursor', {
+    time: timeAtAxisX(clientX),
+    xRatio,
+  });
 }
 
 function endMeasureResize() {
@@ -358,12 +372,34 @@ function onMeasureBarPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
 }
 
 function onMeasureBarPointerEnter(_e: PointerEvent, edge: MeasureResizeEdge) {
+  axisHovering.value = true;
   emitCursorAtAxisEdge(edge);
 }
 
 function onMeasureBarPointerLeave(e: PointerEvent) {
   if (resizeEdge || measureGestureActive) return;
   if (isMeasureAxisBarEl(e.relatedTarget)) return;
+  // Still on the time axis — keep a lifted cursor at the pointer.
+  const related = e.relatedTarget as Node | null;
+  if (related && timeAxisRef.value?.contains(related)) {
+    emitCursorAtAxisX(e.clientX);
+    return;
+  }
+  axisHovering.value = false;
+  emit('cursor', null);
+}
+
+function onAxisPointerEnter(e: PointerEvent) {
+  axisHovering.value = true;
+  if (resizeEdge || measureGestureActive) return;
+  if (isMeasureAxisBarEl(e.target)) return;
+  emitCursorAtAxisX(e.clientX);
+}
+
+function onAxisPointerLeave(e: PointerEvent) {
+  if (isMeasureAxisBarEl(e.relatedTarget)) return;
+  axisHovering.value = false;
+  if (resizeEdge || measureGestureActive) return;
   emit('cursor', null);
 }
 
@@ -375,11 +411,14 @@ function onAxisPointerDown(e: PointerEvent) {
   endMeasureResize();
   measureGestureActive = true;
   measureAnchorTime = timeAtAxisX(e.clientX);
+  axisHovering.value = true;
+  emitCursorAtAxisX(e.clientX);
   emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
   unbindCreateDrag = bindWindowPointerDrag({
     onMove: (clientX) => {
       if (!measureGestureActive || measureAnchorTime == null) return;
       emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, timeAtAxisX(clientX)));
+      emitCursorAtAxisX(clientX);
     },
     onEnd: endMeasureCreate,
   });
@@ -387,8 +426,12 @@ function onAxisPointerDown(e: PointerEvent) {
   e.preventDefault();
 }
 
-function onAxisPointerMove(_e: PointerEvent) {
+function onAxisPointerMove(e: PointerEvent) {
   // Create/resize measure drags are driven by window listeners (survive release over Card strips).
+  if (resizeEdge || measureGestureActive) return;
+  if (isMeasureAxisBarEl(e.target)) return;
+  axisHovering.value = true;
+  emitCursorAtAxisX(e.clientX);
 }
 
 function onAxisPointerUp() {
@@ -445,6 +488,8 @@ defineExpose({
         class="pr-time-axis"
         data-testid="time-axis"
         :class="{ 'pr-time-axis--measure': view.measureMode }"
+        @pointerenter="onAxisPointerEnter"
+        @pointerleave="onAxisPointerLeave"
         @pointerdown="onAxisPointerDown"
         @pointermove="onAxisPointerMove"
         @pointerup="onAxisPointerUp"
@@ -589,6 +634,7 @@ defineExpose({
       :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"
       :gutter-width="localGutterWidth"
+      :cursor-x-ratio="cursor?.xRatio ?? null"
       @update:scroll-y="emit('update:scrollY', $event)"
       @update:gutter-width="onGutterWidth"
       @toggle-group="emit('toggle-group', $event)"

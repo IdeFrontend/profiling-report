@@ -16,7 +16,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Narrow selection.** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, park the duration pill **outside** the bars (prefer **4px to the right** of the right bar; if that would clip, **4px to the left** of the left bar) while still drawing the two-sided arrow between the bars. When the span is so narrow that the arrowheads would overlap (`<` pads + both heads ≈ **20px**), hide heads **and** the horizontal shaft; only the outside duration label remains between/near the vertical bars.
 
-**Cursor vs measure chrome.** When a measure overlay is visible and the **cursor timestamp pill** overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside / offscreen Δt label, the pill lifts **above** the viewport axis (`labelAbove`) with a short animated transition (see `CursorTimestamp`). Otherwise it stays in-track. Hovering a measure edge bar **sticks** the cursor to that border (does not hide the timestamp); the lift rule still applies because the pill overlaps the bar. Overview/axis rows stay `overflow: visible` with stacking above the aside so edge handles and the cursor pill are not clipped at the main/aside seam.
+**Cursor vs measure chrome.** Hovering the **viewport time axis** keeps the cursor timestamp visible and lifts it **above** the axis (`labelAbove`) so the pill does not cover tick labels (same placement as measure-overlap lift), and keeps the **full-height swimlane playhead** in sync via the shared `cursor` prop. When a measure overlay is visible and the pill overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside / offscreen Δt label, the pill also lifts above. Otherwise (pointer over the swimlane, clear of measure chrome) it stays in-track. Hovering a measure edge bar **sticks** the cursor to that border (does not hide the timestamp); leaving the bar onto empty axis keeps the lifted axis cursor. Overview/axis rows stay `overflow: visible` with stacking above the aside so edge handles and the cursor pill are not clipped at the main/aside seam.
 
 **Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (other edge fixed), clamped to the view window with a ~1px min span. Resize listens on `window` for move/up so releasing over Card strips (above the bars) still ends the drag. Empty-axis drag still creates a new measure range.
 
@@ -36,8 +36,10 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 10. **PR-TIMELINE-010** — Dragging an axis measure bar resizes that edge (other edge fixed); bars use a 9px hit pad, `col-resize`, and 2px stem on hover.
 11. **PR-TIMELINE-011** — Hovering an axis measure bar emits `cursor` stuck to that edge (timestamp stays visible / lifts above).
 12. **PR-TIMELINE-012** — Clicking the Δt label emits `focus-measure`.
+13. **PR-TIMELINE-013** — Hovering the viewport time axis emits `cursor`, lifts the timestamp above the ticks, and shows the swimlane vertical playhead at the same x (default and measure mode).
 
 ## Changelog
+- **2026-08-20** — Viewport-axis hover keeps lifted timestamp + swim playhead; PR-TIMELINE-013.
 - **2026-08-20** — Click Δt label emits focus-measure; PR-TIMELINE-012.
 - **2026-08-20** — Offscreen cue is chevron + Δt only (no edge bar); PR-TIMELINE-007.
 - **2026-08-20** — Offscreen near-edge cue; omit clamped fake bars/heads; PR-TIMELINE-006/007.

@@ -12,7 +12,7 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 
 **Body scroll.** `.pr-swim-row--body` uses `overflow: hidden` so lane scroll stays contained while ReportLayout `.pr-main` stays `overflow: visible` for overview/axis chrome at the aside seam.
 
-**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. The mouse-following cursor bar is a DOM overlay **under** Card strips (`z-index: 7`, `pointer-events: none`) so it does not paint over header chrome. Gutter resize handle stays under strips (`z-index: 5`).
+**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. The mouse-following cursor bar is a DOM overlay **under** Card strips (`z-index: 7`, `pointer-events: none`) so it does not paint over header chrome. Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
 
 **Gutter resize.** The `ew-resize` handle (`data-testid="gutter-resize-handle"`) lives on the swim body seam (`z-index: 5`), under Card strips (`z-index: 8`), so it is inactive across Card bands. Overview/axis rows do not host the handle.
 
@@ -24,8 +24,10 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 4. **PR-SWIMVIEW-004** — Stacking: measure borders below Card strips (`z-index: 8`); swim cursor under strips (`z-index: 7`).
 5. **PR-SWIMVIEW-005** — `pointerenter` on a Card strip clears the swim cursor and emits `cursor` `null` immediately.
 6. **PR-SWIMVIEW-006** — Card strip fill/hover use `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` CSS vars (no hardcoded `rgb(42…)` / `rgb(50…)`).
+7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar (axis hover / shared playhead).
 
 ## Changelog
+- **2026-08-20** — Swim cursor follows parent `cursorXRatio`; PR-SWIMVIEW-007.
 - **2026-08-20** — Body `overflow: hidden` while main column stays visible for aside-seam chrome.
 - **2026-08-20** — Card strip colors from layout tokens; PR-SWIMVIEW-006.
 - **2026-08-20** — Full-width strip click + clearCursor; cursor under strips; wheel forwarded; PR-SWIMVIEW-005.
