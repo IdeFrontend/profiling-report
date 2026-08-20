@@ -45,6 +45,7 @@ Normative crop: [`visual/relevant-graph.png`](./visual/relevant-graph.png) — [
 Chips are pinned to one line so the drawn connectors stay on their rows; a wrapping chip would drift from its curve. The swimlane-level overlay (`DependencyLinksLayer`) still has no geometry.
 
 ## Changelog
+- **2026-08-20** — Toolbar and chip surfaces sampled from the sketch: mode plate `#313131` with a `#464646` active cell, borderless `#313131` level field, neighbour chips `#3c3c3c`, and the Current chip its light `#d5bcff` lavender with dark text (it reads as the selection, not as a swimlane block).
 - **2026-08-20** — Direction and depth moved here from 显示控制 and became `DependencyMode` / `dependencyDepth`, the same pair the swimlane curves read: both are now emitted upward instead of one living as local state. PR-DREL-002/003 restated.
 - **2026-08-14** — Direction became local state and the component blanks the suppressed side itself, instead of relaying the choice through DetailPanel to the report. Same rendering.
 - **2026-08-14** — Glyphs became one path pair per direction, and the two connector columns share one template. Same coordinates, same rendering.

@@ -289,9 +289,9 @@ const linkHeight = computed(
 .pr-detail-relevant__modes {
   display: flex;
   gap: 2px;
-  padding: 2px;
-  border-radius: 6px;
-  background: #2a2a2a;
+  padding: 3px;
+  border-radius: 8px;
+  background: #313131;
 }
 
 .pr-detail-relevant__mode {
@@ -307,7 +307,7 @@ const linkHeight = computed(
 }
 
 .pr-detail-relevant__mode--active {
-  background: #3f3f3f;
+  background: #464646;
   color: #f0f0f0;
 }
 
@@ -320,12 +320,13 @@ const linkHeight = computed(
 }
 
 .pr-detail-relevant__level-input {
-  width: 64px;
-  padding: 3px 6px;
-  border: 1px solid #4a4a4a;
-  border-radius: 4px;
-  background: #2a2a2a;
-  color: inherit;
+  width: 96px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #313131;
+  color: #e6e6e6;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -394,8 +395,8 @@ const linkHeight = computed(
   height: 18px;
   padding: 0 4px;
   border-radius: 9px;
-  background: #3a3a3a;
-  color: #d0d0d0;
+  background: #3c3c3c;
+  color: #cfcfcf;
   font-size: 11px;
 }
 
@@ -407,8 +408,8 @@ const linkHeight = computed(
   border-radius: 4px;
   line-height: 16px;
   text-align: center;
-  background: #3a3a3a;
-  color: #d0d0d0;
+  background: #3c3c3c;
+  color: #cfcfcf;
   font-size: 12px;
   max-width: 100%;
   overflow: hidden;
@@ -417,8 +418,8 @@ const linkHeight = computed(
 }
 
 .pr-detail-relevant__chip--current {
-  background: var(--pr-color-mov, #b868f8);
-  color: #1a1a1a;
+  background: #d5bcff;
+  color: #241a33;
 }
 
 @media (max-width: 900px) {
