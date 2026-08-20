@@ -99,13 +99,17 @@ describe('TimelineView', () => {
     });
 
     await axis.trigger('pointerdown', { clientX: 40, clientY: 10, button: 0, pointerId: 1 });
-    await axis.trigger('pointermove', { clientX: 140, clientY: 10, pointerId: 1 });
-    await axis.trigger('pointerup', { clientX: 140, clientY: 10, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 140, clientY: 10, buttons: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 140, clientY: 10 }));
 
     const ranges = wrapper.emitted('update:measure-range');
     expect(ranges?.length).toBeGreaterThan(0);
     const last = ranges![ranges!.length - 1][0] as { startTime: number; endTime: number };
     expect(last.endTime).toBeGreaterThan(last.startTime);
+
+    const countAfterUp = ranges!.length;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 180, clientY: 10, buttons: 0 }));
+    expect(wrapper.emitted('update:measure-range')!.length).toBe(countAfterUp);
   });
 
   it('PR-TIMELINE-004: measure arrow sharp miter chevrons, 1px tip gap, shaft meets arms', () => {
@@ -353,8 +357,8 @@ describe('TimelineView', () => {
     });
 
     await left.trigger('pointerdown', { clientX: 80, clientY: 10, button: 0, pointerId: 1 });
-    await left.trigger('pointermove', { clientX: 120, clientY: 10, pointerId: 1 });
-    await left.trigger('pointerup', { clientX: 120, clientY: 10, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 120, clientY: 10, buttons: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 120, clientY: 10 }));
 
     const ranges = wrapper.emitted('update:measure-range');
     expect(ranges?.length).toBeGreaterThan(0);
@@ -363,11 +367,47 @@ describe('TimelineView', () => {
     expect(last.startTime).toBeGreaterThan(200);
     expect(last.startTime).toBeLessThan(500);
 
+    const countAfterUp = ranges!.length;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 160, clientY: 10, buttons: 0 }));
+    expect(wrapper.emitted('update:measure-range')!.length).toBe(countAfterUp);
+
     const src = (await import('./TimelineView.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-measure-axis-bar\s*\{[^}]*width:\s*9px/);
     expect(src).toMatch(/\.pr-measure-axis-bar\s*\{[^}]*cursor:\s*col-resize/);
     expect(src).toMatch(
       /\.pr-measure-axis-bar:hover::before[\s\S]*?width:\s*2px/,
     );
+  });
+
+  it('PR-TIMELINE-011: hovering axis measure bar emits cursor stuck to that edge', async () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.measureMode = true;
+    view.measureRange = { startTime: 200, endTime: 500 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+      },
+    });
+    await wrapper.vm.$nextTick();
+
+    const right = wrapper.get('[data-testid="measure-axis-bar-right"]');
+    await right.trigger('pointerenter', { clientX: 200, clientY: 10 });
+
+    const cursors = wrapper.emitted('cursor');
+    expect(cursors?.length).toBeGreaterThan(0);
+    const last = cursors![cursors!.length - 1][0] as { time: number; xRatio: number };
+    expect(last.time).toBe(500);
+    expect(last.xRatio).toBeCloseTo(0.5, 5);
   });
 });

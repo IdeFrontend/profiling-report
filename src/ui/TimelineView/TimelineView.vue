@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { buildAxisRulerTicks } from '../../domain/axisRuler';
 import {
   formatCursorTime,
@@ -28,6 +28,7 @@ import {
   estimateAxisLabelWidth,
 } from './cursorMeasureOverlap';
 import {
+  bindWindowPointerDrag,
   measureResizeMinSpan,
   resizeMeasureEdge,
   type MeasureResizeEdge,
@@ -212,6 +213,8 @@ let measureAnchorTime: number | null = null;
 let measureGestureActive = false;
 let resizeEdge: MeasureResizeEdge | null = null;
 let resizeFixedOther = 0;
+let unbindResizeDrag: (() => void) | null = null;
+let unbindCreateDrag: (() => void) | null = null;
 
 function timeAtAxisX(clientX: number): number {
   const el = timeAxisRef.value;
@@ -222,20 +225,55 @@ function timeAtAxisX(clientX: number): number {
   return props.view.startTime + ratio * span;
 }
 
+function endMeasureResize() {
+  unbindResizeDrag?.();
+  unbindResizeDrag = null;
+  resizeEdge = null;
+}
+
+function endMeasureCreate() {
+  unbindCreateDrag?.();
+  unbindCreateDrag = null;
+  measureGestureActive = false;
+  measureAnchorTime = null;
+}
+
 function emitResizedRange(clientX: number) {
   if (!resizeEdge) return;
   const axisW = timeAxisWidth.value || timeAxisRef.value?.clientWidth || 1;
-  emit(
-    'update:measure-range',
-    resizeMeasureEdge({
-      edge: resizeEdge,
-      time: timeAtAxisX(clientX),
-      fixedOther: resizeFixedOther,
-      viewStart: props.view.startTime,
-      viewEnd: props.view.endTime,
-      minSpan: measureResizeMinSpan(props.view.startTime, props.view.endTime, axisW),
-    }),
-  );
+  const next = resizeMeasureEdge({
+    edge: resizeEdge,
+    time: timeAtAxisX(clientX),
+    fixedOther: resizeFixedOther,
+    viewStart: props.view.startTime,
+    viewEnd: props.view.endTime,
+    minSpan: measureResizeMinSpan(props.view.startTime, props.view.endTime, axisW),
+  });
+  emit('update:measure-range', next);
+  const edgeTime = resizeEdge === 'left' ? next.startTime : next.endTime;
+  const span = Math.max(1, props.view.endTime - props.view.startTime);
+  const xRatio = (edgeTime - props.view.startTime) / span;
+  emit('cursor', {
+    time: edgeTime,
+    xRatio: Math.min(1, Math.max(0, xRatio)),
+  });
+}
+
+/** Stick axis cursor timestamp to a measure bar while the hit pad owns the pointer. */
+function emitCursorAtAxisEdge(edge: MeasureResizeEdge) {
+  const axis = measureAxis.value;
+  const range = props.view.measureRange;
+  if (!axis || !range) return;
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  emit('cursor', {
+    time: edge === 'left' ? start : end,
+    xRatio: (edge === 'left' ? axis.left : axis.right) / 100,
+  });
+}
+
+function isMeasureAxisBarEl(t: EventTarget | null): boolean {
+  return !!(t as HTMLElement | null)?.closest?.('.pr-measure-axis-bar');
 }
 
 function onMeasureBarPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
@@ -244,48 +282,57 @@ function onMeasureBarPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
   if (!range) return;
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
+  endMeasureCreate();
+  endMeasureResize();
   resizeEdge = edge;
   resizeFixedOther = edge === 'left' ? end : start;
-  measureGestureActive = false;
-  measureAnchorTime = null;
+  emitCursorAtAxisEdge(edge);
+  unbindResizeDrag = bindWindowPointerDrag({
+    onMove: emitResizedRange,
+    onEnd: endMeasureResize,
+  });
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   e.stopPropagation();
   e.preventDefault();
 }
 
-function onMeasureBarPointerMove(e: PointerEvent) {
-  if (!resizeEdge) return;
-  emitResizedRange(e.clientX);
+function onMeasureBarPointerEnter(_e: PointerEvent, edge: MeasureResizeEdge) {
+  emitCursorAtAxisEdge(edge);
 }
 
-function onMeasureBarPointerUp() {
-  resizeEdge = null;
+function onMeasureBarPointerLeave(e: PointerEvent) {
+  if (resizeEdge || measureGestureActive) return;
+  if (isMeasureAxisBarEl(e.relatedTarget)) return;
+  emit('cursor', null);
 }
 
 function onAxisPointerDown(e: PointerEvent) {
   if (e.button !== 0 || !props.view.measureMode) return;
   if (resizeEdge) return;
   if ((e.target as HTMLElement | null)?.closest?.('.pr-measure-axis-bar')) return;
+  endMeasureCreate();
+  endMeasureResize();
   measureGestureActive = true;
   measureAnchorTime = timeAtAxisX(e.clientX);
   emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
+  unbindCreateDrag = bindWindowPointerDrag({
+    onMove: (clientX) => {
+      if (!measureGestureActive || measureAnchorTime == null) return;
+      emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, timeAtAxisX(clientX)));
+    },
+    onEnd: endMeasureCreate,
+  });
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   e.preventDefault();
 }
 
-function onAxisPointerMove(e: PointerEvent) {
-  if (resizeEdge) {
-    emitResizedRange(e.clientX);
-    return;
-  }
-  if (!measureGestureActive || measureAnchorTime == null) return;
-  emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, timeAtAxisX(e.clientX)));
+function onAxisPointerMove(_e: PointerEvent) {
+  // Create/resize measure drags are driven by window listeners (survive release over Card strips).
 }
 
 function onAxisPointerUp() {
-  measureGestureActive = false;
-  measureAnchorTime = null;
-  resizeEdge = null;
+  endMeasureCreate();
+  endMeasureResize();
 }
 
 watch(
@@ -294,6 +341,11 @@ watch(
     if (!mode) onAxisPointerUp();
   },
 );
+
+onBeforeUnmount(() => {
+  endMeasureCreate();
+  endMeasureResize();
+});
 
 defineExpose({
   get gutterRoot() {
@@ -353,18 +405,16 @@ defineExpose({
             data-testid="measure-axis-bar-left"
             :style="{ left: `${measureAxis.left}%` }"
             @pointerdown="onMeasureBarPointerDown($event, 'left')"
-            @pointermove="onMeasureBarPointerMove"
-            @pointerup="onMeasureBarPointerUp"
-            @pointercancel="onMeasureBarPointerUp"
+            @pointerenter="onMeasureBarPointerEnter($event, 'left')"
+            @pointerleave="onMeasureBarPointerLeave"
           />
           <div
             class="pr-measure-axis-bar pr-measure-axis-bar--right"
             data-testid="measure-axis-bar-right"
             :style="{ left: `${measureAxis.right}%` }"
             @pointerdown="onMeasureBarPointerDown($event, 'right')"
-            @pointermove="onMeasureBarPointerMove"
-            @pointerup="onMeasureBarPointerUp"
-            @pointercancel="onMeasureBarPointerUp"
+            @pointerenter="onMeasureBarPointerEnter($event, 'right')"
+            @pointerleave="onMeasureBarPointerLeave"
           />
           <div
             class="pr-measure-arrow"

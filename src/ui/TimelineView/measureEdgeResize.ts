@@ -37,3 +37,36 @@ export function resizeMeasureEdge(input: {
   const end = Math.max(minEnd, Math.min(hi, t));
   return { startTime: Math.min(end - minSpan, fixedOther), endTime: end };
 }
+
+/**
+ * Window-level move/up for measure create + edge resize so the gesture ends even when
+ * pointerup lands on Card strips (above canvas/borders) or element capture is missed.
+ * Move uses capture; up/cancel bubble so the element handler can see the gesture first.
+ * Trusted moves with buttons===0 recover from a lost pointerup (skip synthetic test events).
+ */
+export function bindWindowPointerDrag(handlers: {
+  onMove: (clientX: number) => void;
+  onEnd: () => void;
+}): () => void {
+  const moveOpts: AddEventListenerOptions = { capture: true };
+  const onMove = (e: PointerEvent) => {
+    if (e.isTrusted && e.buttons === 0) {
+      onEnd();
+      return;
+    }
+    handlers.onMove(e.clientX);
+  };
+  const onEnd = () => {
+    cleanup();
+    handlers.onEnd();
+  };
+  const cleanup = () => {
+    window.removeEventListener('pointermove', onMove, moveOpts);
+    window.removeEventListener('pointerup', onEnd);
+    window.removeEventListener('pointercancel', onEnd);
+  };
+  window.addEventListener('pointermove', onMove, moveOpts);
+  window.addEventListener('pointerup', onEnd);
+  window.addEventListener('pointercancel', onEnd);
+  return cleanup;
+}

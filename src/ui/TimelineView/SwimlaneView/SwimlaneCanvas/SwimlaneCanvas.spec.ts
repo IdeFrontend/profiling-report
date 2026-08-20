@@ -42,16 +42,23 @@ describe('SwimlaneCanvas', () => {
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 }),
+    });
 
     await canvas.trigger('pointerdown', { clientX: 20, clientY: 10, pointerId: 1 });
-    await canvas.trigger('pointermove', { clientX: 120, clientY: 10, pointerId: 1 });
-    await canvas.trigger('pointerup', { clientX: 120, clientY: 10, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 120, clientY: 10, buttons: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 120, clientY: 10 }));
 
     expect(wrapper.emitted('pan')).toBeFalsy();
     const ranges = wrapper.emitted('update:measureRange');
     expect(ranges?.length).toBeGreaterThan(0);
     const last = ranges![ranges!.length - 1][0] as { startTime: number; endTime: number };
     expect(last.endTime).toBeGreaterThan(last.startTime);
+
+    const countAfterUp = ranges!.length;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 180, clientY: 10, buttons: 0 }));
+    expect(wrapper.emitted('update:measureRange')!.length).toBe(countAfterUp);
     wrapper.unmount();
   });
 
@@ -137,11 +144,14 @@ describe('SwimlaneCanvas', () => {
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 }),
+    });
 
     await canvas.trigger('pointerdown', { clientX: 20, clientY: 10, pointerId: 1 });
     await canvas.trigger('pointerleave', { clientX: 20, clientY: -5, pointerId: 1 });
-    await canvas.trigger('pointermove', { clientX: 160, clientY: 10, pointerId: 1 });
-    await canvas.trigger('pointerup', { clientX: 160, clientY: 10, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 160, clientY: 10, buttons: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 160, clientY: 10 }));
 
     expect(wrapper.emitted('select')).toBeFalsy();
     const ranges = wrapper.emitted('update:measureRange');
@@ -200,8 +210,8 @@ describe('SwimlaneCanvas', () => {
 
     const right = wrapper.get('[data-testid="measure-border-right"]');
     await right.trigger('pointerdown', { clientX: 200, clientY: 10, button: 0, pointerId: 1 });
-    await right.trigger('pointermove', { clientX: 280, clientY: 10, pointerId: 1 });
-    await right.trigger('pointerup', { clientX: 280, clientY: 10, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 280, clientY: 10, buttons: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 280, clientY: 10 }));
 
     const ranges = wrapper.emitted('update:measureRange');
     expect(ranges?.length).toBeGreaterThan(0);
@@ -210,10 +220,40 @@ describe('SwimlaneCanvas', () => {
     expect(last.endTime).toBeGreaterThan(500);
     expect(last.endTime).toBeLessThanOrEqual(1000);
 
+    // Further window moves must not keep resizing after pointerup (e.g. over Card strip).
+    const countAfterUp = ranges!.length;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 320, clientY: 10, buttons: 0 }));
+    expect(wrapper.emitted('update:measureRange')!.length).toBe(countAfterUp);
+
     const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-measure-border\s*\{[^}]*width:\s*9px/);
     expect(src).toMatch(/\.pr-measure-border\s*\{[^}]*cursor:\s*col-resize/);
     expect(src).toMatch(/\.pr-measure-border:hover::before[\s\S]*?width:\s*2px/);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-011: hovering measure border sticks cursor to that edge', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        measureMode: true,
+        measureRange: { startTime: 200, endTime: 500 },
+        timeUnit: 'ms',
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    await wrapper.setProps({ measureRange: { startTime: 200, endTime: 500 } });
+
+    const right = wrapper.get('[data-testid="measure-border-right"]');
+    await right.trigger('pointerenter', { clientX: 200, clientY: 10 });
+
+    const cursors = wrapper.emitted('cursor');
+    expect(cursors?.length).toBeGreaterThan(0);
+    const last = cursors![cursors!.length - 1][0] as { time: number; xRatio: number };
+    expect(last.time).toBe(500);
+    expect(last.xRatio).toBeCloseTo(0.5, 5);
     wrapper.unmount();
   });
 });

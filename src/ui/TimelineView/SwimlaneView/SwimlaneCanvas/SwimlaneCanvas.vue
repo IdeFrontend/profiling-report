@@ -14,6 +14,7 @@ import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRendere
 import { contentHeightFromModel } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
+  bindWindowPointerDrag,
   measureResizeMinSpan,
   resizeMeasureEdge,
   type MeasureResizeEdge,
@@ -72,6 +73,8 @@ let measureAnchorTime: number | null = null;
 let measureGestureActive = false;
 let resizeEdge: MeasureResizeEdge | null = null;
 let resizeFixedOther = 0;
+let unbindResizeDrag: (() => void) | null = null;
+let unbindCreateDrag: (() => void) | null = null;
 let lastW = 0;
 let lastH = 0;
 let resizeObserver: ResizeObserver | null = null;
@@ -208,6 +211,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  endMeasureCreate();
+  endMeasureResize();
   resizeObserver?.disconnect();
   if (raf) cancelAnimationFrame(raf);
   backend.dispose();
@@ -232,9 +237,27 @@ watch(
 );
 
 function abortMeasureDrag(): void {
+  // Unbind create/resize updates but keep measureGestureActive until pointerup
+  // so a mid-gesture Esc/toolbar cancel does not pan or select on the same press.
+  unbindCreateDrag?.();
+  unbindCreateDrag = null;
   measureAnchorTime = null;
   dragging = false;
+  endMeasureResize();
+}
+
+function endMeasureResize(): void {
+  unbindResizeDrag?.();
+  unbindResizeDrag = null;
   resizeEdge = null;
+}
+
+function endMeasureCreate(): void {
+  unbindCreateDrag?.();
+  unbindCreateDrag = null;
+  measureAnchorTime = null;
+  measureGestureActive = false;
+  dragging = false;
 }
 
 function emitResizedRange(clientX: number) {
@@ -242,17 +265,48 @@ function emitResizedRange(clientX: number) {
   const rect = wrapRef.value.getBoundingClientRect();
   const w = Math.max(1, rect.width);
   const time = timeAtX(clientX - rect.left);
-  emit(
-    'update:measureRange',
-    resizeMeasureEdge({
-      edge: resizeEdge,
-      time,
-      fixedOther: resizeFixedOther,
-      viewStart: props.view.startTime,
-      viewEnd: props.view.endTime,
-      minSpan: measureResizeMinSpan(props.view.startTime, props.view.endTime, w),
-    }),
-  );
+  const next = resizeMeasureEdge({
+    edge: resizeEdge,
+    time,
+    fixedOther: resizeFixedOther,
+    viewStart: props.view.startTime,
+    viewEnd: props.view.endTime,
+    minSpan: measureResizeMinSpan(props.view.startTime, props.view.endTime, w),
+  });
+  emit('update:measureRange', next);
+  const edgeTime = resizeEdge === 'left' ? next.startTime : next.endTime;
+  const span = Math.max(1, props.view.endTime - props.view.startTime);
+  const xRatio = (edgeTime - props.view.startTime) / span;
+  emit('cursor', {
+    time: edgeTime,
+    xRatio: Math.min(1, Math.max(0, xRatio)),
+  });
+}
+
+function emitCreateRange(clientX: number) {
+  if (!measureGestureActive || measureAnchorTime == null || !wrapRef.value) return;
+  const rect = wrapRef.value.getBoundingClientRect();
+  const time = timeAtX(clientX - rect.left);
+  emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, time));
+}
+
+/** Stick playhead cursor to a measure edge while the hit pad owns the pointer. */
+function emitCursorAtMeasureEdge(edge: MeasureResizeEdge) {
+  const geo = measureGeometry.value;
+  const range = props.measureRange;
+  if (!geo || !range || !wrapRef.value) return;
+  const w = Math.max(1, wrapRef.value.clientWidth);
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  const x = edge === 'left' ? geo.left : geo.right;
+  emit('cursor', {
+    time: edge === 'left' ? start : end,
+    xRatio: x / w,
+  });
+}
+
+function isMeasureBorderEl(t: EventTarget | null): boolean {
+  return !!(t as HTMLElement | null)?.closest?.('.pr-measure-border');
 }
 
 function onMeasureBorderPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
@@ -261,23 +315,30 @@ function onMeasureBorderPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
   if (!range) return;
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
+  endMeasureCreate();
+  endMeasureResize();
   resizeEdge = edge;
   resizeFixedOther = edge === 'left' ? end : start;
-  measureGestureActive = false;
-  measureAnchorTime = null;
-  dragging = false;
+  emitCursorAtMeasureEdge(edge);
+  unbindResizeDrag = bindWindowPointerDrag({
+    onMove: emitResizedRange,
+    onEnd: endMeasureResize,
+  });
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   e.stopPropagation();
   e.preventDefault();
 }
 
-function onMeasureBorderPointerMove(e: PointerEvent) {
-  if (!resizeEdge) return;
-  emitResizedRange(e.clientX);
+function onMeasureBorderPointerEnter(_e: PointerEvent, edge: MeasureResizeEdge) {
+  emitCursorAtMeasureEdge(edge);
 }
 
-function onMeasureBorderPointerUp() {
-  resizeEdge = null;
+function onMeasureBorderPointerLeave(e: PointerEvent) {
+  if (resizeEdge) return;
+  if (isMeasureBorderEl(e.relatedTarget) || (e.relatedTarget as HTMLElement | null)?.closest?.('.pr-swim-canvas')) {
+    return;
+  }
+  emit('cursor', null);
 }
 
 watch(
@@ -331,12 +392,17 @@ function onPointerDown(e: PointerEvent): void {
   const canvas = activeCanvas();
   if (props.measureMode && canvas) {
     const rect = canvas.getBoundingClientRect();
+    endMeasureCreate();
+    endMeasureResize();
     measureGestureActive = true;
     measureAnchorTime = timeAtX(e.clientX - rect.left);
     emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
+    unbindCreateDrag = bindWindowPointerDrag({
+      onMove: emitCreateRange,
+      onEnd: endMeasureCreate,
+    });
   } else {
-    measureGestureActive = false;
-    measureAnchorTime = null;
+    endMeasureCreate();
   }
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
 }
@@ -354,10 +420,8 @@ function onPointerMove(e: PointerEvent): void {
   emit('cursor', { time, xRatio: x / w });
 
   if (dragging) {
+    // Measure create is driven by window listeners (release over Card strips still ends).
     if (measureGestureActive) {
-      if (props.measureMode && measureAnchorTime != null) {
-        emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, time));
-      }
       emit('hover', null, e.clientX, e.clientY);
       return;
     }
@@ -375,9 +439,7 @@ function onPointerMove(e: PointerEvent): void {
 
 function onPointerUp(e: PointerEvent): void {
   const wasMeasuring = measureGestureActive;
-  dragging = false;
-  measureAnchorTime = null;
-  measureGestureActive = false;
+  endMeasureCreate();
   const target = activeCanvas();
   if (!target) return;
   const rect = target.getBoundingClientRect();
@@ -390,11 +452,17 @@ function onPointerUp(e: PointerEvent): void {
   emit('select', id ? backend.findEvent(id) : null);
 }
 
-function onPointerLeave(): void {
+function onPointerLeave(e: PointerEvent): void {
   // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
   if (measureGestureActive) {
     schedulePaint();
     emit('cursor', null);
+    emit('hover', null, 0, 0);
+    return;
+  }
+  // Measure borders sit above the canvas; they stick the cursor — do not clear on the way there.
+  if (isMeasureBorderEl(e.relatedTarget)) {
+    schedulePaint();
     emit('hover', null, 0, 0);
     return;
   }
@@ -483,18 +551,16 @@ defineExpose({
         data-testid="measure-border-left"
         :style="{ left: `${measureGeometry.left}px` }"
         @pointerdown="onMeasureBorderPointerDown($event, 'left')"
-        @pointermove="onMeasureBorderPointerMove"
-        @pointerup="onMeasureBorderPointerUp"
-        @pointercancel="onMeasureBorderPointerUp"
+        @pointerenter="onMeasureBorderPointerEnter($event, 'left')"
+        @pointerleave="onMeasureBorderPointerLeave"
       />
       <div
         class="pr-measure-border pr-measure-border--right"
         data-testid="measure-border-right"
         :style="{ left: `${measureGeometry.right}px` }"
         @pointerdown="onMeasureBorderPointerDown($event, 'right')"
-        @pointermove="onMeasureBorderPointerMove"
-        @pointerup="onMeasureBorderPointerUp"
-        @pointercancel="onMeasureBorderPointerUp"
+        @pointerenter="onMeasureBorderPointerEnter($event, 'right')"
+        @pointerleave="onMeasureBorderPointerLeave"
       />
     </template>
   </div>
