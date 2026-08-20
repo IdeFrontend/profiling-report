@@ -100,13 +100,13 @@ function csvTableFromPayload(fileName: string, payload?: Uint8Array): CsvTableMo
 }
 
 function collectCsvTables(
-  parsed: ParsedRep,
+  payloads: Record<string, Uint8Array>,
   fileNames: readonly string[],
 ): { tables: CsvTableModel[]; texts: Record<string, string> } {
   const tables: CsvTableModel[] = [];
   const texts: Record<string, string> = {};
   for (const name of fileNames) {
-    const payload = parsed.payloads[name];
+    const payload = payloads[name];
     const table = csvTableFromPayload(name, payload);
     if (!table) continue;
     tables.push(table);
@@ -443,20 +443,20 @@ function withPipeLaneUtilizations(
   };
 }
 
-function reportModelFromParsed(parsed: ParsedRep): ReportViewModel {
-  const compute = collectCsvTables(parsed, COMPUTE_CSV_FILES);
-  const memory = collectCsvTables(parsed, MEMORY_CSV_FILES);
+function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportViewModel {
+  const compute = collectCsvTables(payloads, COMPUTE_CSV_FILES);
+  const memory = collectCsvTables(payloads, MEMORY_CSV_FILES);
   const roofline = rooflineFromCsv(
-    parsed.payloads['ArithmeticUtilization.csv'],
-    parsed.payloads['Memory.csv'],
+    payloads['ArithmeticUtilization.csv'],
+    payloads['Memory.csv'],
   );
-  const hardwareDetails = hardwareDetailsFromParsed(parsed);
+  const hardwareDetails = hardwareDetailsFromPayloads(payloads);
   const labelled = firstLabelledMemoryTopology(memory.tables);
   const memoryTopology = labelled?.model;
-  const bandwidthCards = bandwidthCardsFromMemory(parsed.payloads['Memory.csv']);
+  const bandwidthCards = bandwidthCardsFromMemory(payloads['Memory.csv']);
   return {
-    summary: summaryFromOpBasicInfo(parsed.payloads['OpBasicInfo.csv']),
-    pipeOccupancy: pipeOccupancyFromCsv(parsed.payloads['PipeUtilization.csv']),
+    summary: summaryFromOpBasicInfo(payloads['OpBasicInfo.csv']),
+    pipeOccupancy: pipeOccupancyFromCsv(payloads['PipeUtilization.csv']),
     overviewSeries: [],
     computeTables: compute.tables,
     memoryTables: memory.tables,
@@ -480,14 +480,20 @@ export function emptyReportViewModel(): ReportViewModel {
   };
 }
 
+<<<<<<< HEAD
 /** HardwareInfo.jsonl categories (product source); else OpBasicInfo flat fields. */
 function hardwareDetailsFromParsed(parsed: ParsedRep): HardwareDetailsModel | undefined {
   const jsonl = parsed.payloads['HardwareInfo.jsonl'];
+=======
+/** I-Q7a: HardwareInfo.jsonl sections, else OpBasicInfo flat fields. */
+function hardwareDetailsFromPayloads(payloads: Record<string, Uint8Array>): HardwareDetailsModel | undefined {
+  const jsonl = payloads['HardwareInfo.jsonl'];
+>>>>>>> 9508529 (Add npu-rep multi-operator container support with OP selector)
   if (jsonl) {
     const sections = hardwareSectionsFromJsonl(decodeUtf8(jsonl));
     if (sections.length > 0) return { sections };
   }
-  const op = parsed.payloads['OpBasicInfo.csv'];
+  const op = payloads['OpBasicInfo.csv'];
   if (!op) return undefined;
   const { headers, rows } = parseCsv(decodeUtf8(op));
   const row = rows[0];
@@ -528,8 +534,8 @@ function hardwareSectionsFromJsonl(text: string): HardwareSection[] {
   }
   return sections;
 }
-function swimlaneFromParsed(parsed: ParsedRep, pipes: PipeOccupancyItem[]): SwimlaneModel {
-  const bytes = parsed.payloads['trace.json'];
+function swimlaneFromPayloads(payloads: Record<string, Uint8Array>, pipes: PipeOccupancyItem[]): SwimlaneModel {
+  const bytes = payloads['trace.json'];
   if (!bytes) {
     throw new Error(
       '[profiling-report] adaptRep: trace.json missing — timeline requires a swimlane source',
@@ -548,13 +554,18 @@ function swimlaneFromParsed(parsed: ParsedRep, pipes: PipeOccupancyItem[]): Swim
 
 /** Map parsed `.rep` embeds → swimlane + report view-models. */
 export function adaptRep(parsed: ParsedRep): AdaptedReport {
-  const reportModel = reportModelFromParsed(parsed);
+  return adaptPayloads(parsed.payloads);
+}
+
+/** Map raw payloads (any container: `cann-rep` leaf or `npu-rep` leaf) → swimlane + report. */
+export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedReport {
+  const reportModel = reportModelFromPayloads(payloads);
   const capabilities: ReportCapability[] = [];
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
   return {
-    swimlaneModel: swimlaneFromParsed(parsed, reportModel.pipeOccupancy),
+    swimlaneModel: swimlaneFromPayloads(payloads, reportModel.pipeOccupancy),
     reportModel,
     capabilities,
   };

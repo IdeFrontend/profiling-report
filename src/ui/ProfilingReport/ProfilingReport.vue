@@ -14,9 +14,11 @@ import {
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   normalizeDependencyDepth,
+  type AdaptedReport,
   type DependencyMode,
   type MeasureRange,
   type ReportCapability,
+  type ReportOperator,
   type ReportViewModel,
   type SelectedEvent,
   type SwimEvent,
@@ -92,6 +94,10 @@ const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+/** Multi-operator packs: selector options + adapted reports (empty for single-op). */
+const operators = ref<ReportOperator[]>([]);
+const operatorReports = ref<Record<string, AdaptedReport>>({});
+const selectedOperatorId = ref<string | null>(null);
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
@@ -204,12 +210,18 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
 function loadFromSource(source: ArrayBuffer | Uint8Array) {
   try {
     const adapted = loadReportSource(source);
+    operators.value = adapted.operators ?? [];
+    operatorReports.value = adapted.operatorReports ?? {};
+    selectedOperatorId.value = adapted.selectedOperatorId ?? null;
     internalSwim.value = adapted.swimlaneModel;
     internalReport.value = adapted.reportModel;
     resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
     loadError.value = null;
     emit('ready');
   } catch (cause) {
+    operators.value = [];
+    operatorReports.value = {};
+    selectedOperatorId.value = null;
     internalSwim.value = null;
     internalReport.value = null;
     selected.value = null;
@@ -218,6 +230,16 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     loadError.value = cause instanceof Error ? cause.message : String(cause);
     emit('error', { message: loadError.value, cause });
   }
+}
+
+/** Swap the swimlane/report to another packaged operator without re-parsing the container. */
+function onOperatorChange(id: string) {
+  const rep = operatorReports.value[id];
+  if (!rep) return;
+  selectedOperatorId.value = id;
+  internalSwim.value = rep.swimlaneModel;
+  internalReport.value = rep.reportModel;
+  resetViewFromModel(rep.swimlaneModel, reportHasAsideContent(rep.reportModel));
 }
 
 /** Parse before first paint when `source` is already available (avoids empty→loaded height jump). */
@@ -436,7 +458,10 @@ defineExpose({ selectEventById, viewState });
       :dependency-depth="localDependencyDepth"
       :locale="locale"
       :measure-mode="viewState.measureMode"
+      :operators="operators"
+      :selected-operator-id="selectedOperatorId"
       @update:search-query="onSearch"
+      @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
       @update:time-unit="onTimeUnit"
       @update:dependency-mode="onDependencyMode"
@@ -482,7 +507,10 @@ defineExpose({ selectEventById, viewState });
           :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
+          :operators="operators"
+          :selected-operator-id="selectedOperatorId"
           @update:search-query="onSearch"
+          @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
           @update:time-unit="onTimeUnit"
           @update:dependency-mode="onDependencyMode"

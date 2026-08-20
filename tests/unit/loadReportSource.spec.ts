@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
-import { loadOutRepBytes, loadOutTraceBytes } from '../helpers/fixtures';
+import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes } from '../helpers/fixtures';
 
 describe('PR-JSON: standalone Chrome Trace', () => {
   it('PR-JSON-001: loads CTEF JSON without report aside data (Q15)', () => {
@@ -18,5 +18,14 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     const adapted = loadReportSource(loadOutRepBytes());
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+  });
+
+  it('PR-NPU-004: loadReportSource loads multi-op npu-rep (default first operator)', () => {
+    const adapted = loadReportSource(loadNpuRepBytes());
+    expect(adapted.operators?.map((o) => o.id)).toEqual(['op1', 'op2']);
+    expect(adapted.selectedOperatorId).toBe('op1');
+    expect(adapted.reportModel.summary.opName).toBe('add_custom');
+    expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
+    expect(adapted.operatorReports?.['op2']?.reportModel.summary.opName).toBe('add_custom');
   });
 });

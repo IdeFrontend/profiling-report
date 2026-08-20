@@ -103,4 +103,22 @@ describe('ProfilingReport scaffold', () => {
     expect(directToolbar).toBe(false);
     expect(wrapper.find('.pr-layout__aside [data-testid="stats-aside"]').exists()).toBe(true);
   });
+
+  it('PR-ROOT-004: multi-op npu-rep source renders OP selector and switches operator', async () => {
+    const { loadNpuRepBuffer } = await import('../../../tests/helpers/fixtures');
+    const wrapper = mount(ProfilingReport, {
+      props: { source: loadNpuRepBuffer() },
+    });
+
+    expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
+
+    await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+    const items = wrapper.findAll('[data-testid="op-item"]');
+    expect(items).toHaveLength(2);
+    await items[1].trigger('click');
+
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op2');
+    expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
+  });
 });

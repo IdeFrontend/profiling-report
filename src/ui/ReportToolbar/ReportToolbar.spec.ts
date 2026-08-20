@@ -141,4 +141,37 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([100]);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
   });
+
+  it('PR-TOOLBAR-013: OP selector renders for multiple operators and emits selected id', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        operators: [
+          { id: 'op1', label: 'op1' },
+          { id: 'op2', label: 'op2' },
+        ],
+        selectedOperatorId: 'op1',
+      },
+    });
+
+    expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
+
+    await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+    const items = wrapper.findAll('[data-testid="op-item"]');
+    expect(items).toHaveLength(2);
+    await items[1].trigger('click');
+    expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2']]);
+  });
+
+  it('PR-TOOLBAR-014: OP selector hidden for zero or one operator (brand shown)', () => {
+    const single = mount(ReportToolbar, {
+      props: { ...defaultProps, operators: [{ id: 'op1', label: 'op1' }] },
+    });
+    expect(single.find('[data-testid="op-selector"]').exists()).toBe(false);
+    expect(single.find('.pr-tabs__brand').exists()).toBe(true);
+
+    const none = mount(ReportToolbar, { props: defaultProps });
+    expect(none.find('[data-testid="op-selector"]').exists()).toBe(false);
+  });
 });

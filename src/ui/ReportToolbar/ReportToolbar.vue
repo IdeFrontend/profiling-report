@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import type { TimeDisplayUnit, DependencyMode } from '../../domain/types';
+import { computed, ref } from 'vue';
+import type { TimeDisplayUnit, DependencyMode, ReportOperator } from '../../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     searchQuery: string;
     asideVisible: boolean;
@@ -16,6 +16,8 @@ withDefaults(
     locale?: string;
     title?: string;
     measureMode?: boolean;
+    operators?: ReportOperator[];
+    selectedOperatorId?: string | null;
   }>(),
   {
     dependencyMode: 'all',
@@ -30,6 +32,7 @@ const emit = defineEmits<{
   'update:dependencyMode': [value: DependencyMode];
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
+  'update:selectedOperatorId': [id: string];
   'zoom-to-fit': [];
   'zoom-in': [];
   'zoom-out': [];
@@ -37,6 +40,15 @@ const emit = defineEmits<{
 }>();
 
 const displayControlOpen = ref(false);
+const opMenuOpen = ref(false);
+
+const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
+
+const selectedOperatorLabel = computed(() => {
+  const list = props.operators ?? [];
+  const selected = list.find((o) => o.id === props.selectedOperatorId) ?? list[0];
+  return selected?.label ?? props.title ?? t('tabOp', props.locale);
+});
 
 function toggleDisplayControl() {
   displayControlOpen.value = !displayControlOpen.value;
@@ -44,6 +56,11 @@ function toggleDisplayControl() {
 
 function closeDisplayControl() {
   displayControlOpen.value = false;
+}
+
+function selectOperator(id: string) {
+  emit('update:selectedOperatorId', id);
+  opMenuOpen.value = false;
 }
 
 function onDependencyDepth(e: Event) {
@@ -62,7 +79,68 @@ function onDependencyDepth(e: Event) {
       data-testid="report-tabs"
       aria-label="report views"
     >
-      <span class="pr-tabs__brand">{{ title || t('tabOp', locale) }}</span>
+      <div
+        v-if="showOperatorSelector"
+        class="pr-op-select"
+        data-testid="op-selector"
+      >
+        <button
+          type="button"
+          class="pr-op-select__trigger"
+          :aria-expanded="opMenuOpen"
+          :aria-haspopup="'listbox'"
+          @click="opMenuOpen = !opMenuOpen"
+        >
+          <span
+            class="pr-op-select__label"
+            data-testid="op-selector-label"
+          >{{ selectedOperatorLabel }}</span>
+          <svg
+            class="pr-op-select__chevron"
+            viewBox="0 0 12 12"
+            width="12"
+            height="12"
+            aria-hidden="true"
+          >
+            <path
+              d="M2.5 4.5L6 8l3.5-3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <div
+          v-if="opMenuOpen"
+          class="pr-op-select__backdrop"
+          @click="opMenuOpen = false"
+        />
+        <ul
+          v-if="opMenuOpen"
+          class="pr-op-select__menu"
+          role="listbox"
+          :aria-label="t('tabOp', locale)"
+        >
+          <li
+            v-for="op in operators"
+            :key="op.id"
+            class="pr-op-select__item"
+            :class="{ 'pr-op-select__item--active': op.id === selectedOperatorId }"
+            role="option"
+            :aria-selected="op.id === selectedOperatorId"
+            data-testid="op-item"
+            @click="selectOperator(op.id)"
+          >
+            {{ op.label }}
+          </li>
+        </ul>
+      </div>
+      <span
+        v-else
+        class="pr-tabs__brand"
+      >{{ title || t('tabOp', locale) }}</span>
       <button
         type="button"
         class="pr-tabs__tab pr-tabs__tab--active"
@@ -423,6 +501,71 @@ function onDependencyDepth(e: Event) {
   font-size: 12px;
   opacity: 0.85;
   border-right: 1px solid #4a4a4a;
+}
+
+.pr-op-select {
+  position: relative;
+  margin-right: 8px;
+  padding-right: 8px;
+  border-right: 1px solid #4a4a4a;
+}
+
+.pr-op-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: #2a2a2a;
+  color: #e8e8e8;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pr-op-select__trigger:hover,
+.pr-op-select__trigger[aria-expanded='true'] {
+  background: #363636;
+}
+
+.pr-op-select__chevron {
+  color: #9a9a9a;
+  flex: 0 0 auto;
+}
+
+.pr-op-select__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 21;
+}
+
+.pr-op-select__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 22;
+  min-width: 160px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #363636;
+  border: 1px solid #5e5e5e;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.pr-op-select__item {
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: #e0e0e0;
+  cursor: pointer;
+}
+
+.pr-op-select__item:hover,
+.pr-op-select__item--active {
+  background: #1e2a3e;
+  color: #2d70e3;
 }
 
 .pr-tabs__tab {
