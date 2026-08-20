@@ -13,7 +13,7 @@ import {
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_GROUP_HEADER_HOVER,
-  rebuildLayout,
+  layoutHeaders,
 } from '../../../swimlane/layout';
 import {
   GUTTER_WIDTH_DEFAULT,
@@ -21,6 +21,7 @@ import {
   GUTTER_WIDTH_MIN,
   startHorizontalResize,
 } from '../../panelResize';
+import Chevron from '../../Chevron.vue';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 
@@ -77,9 +78,9 @@ watch(
 
 const collapsed = computed(() => new Set(props.collapsedIds));
 
-/** Card header Y from the same layout walk as SwimlaneCanvas (rebuildLayout). */
+/** Card header Y from the same row walk as the canvas, without an event-layout rebuild. */
 const cardHeaders = computed(() =>
-  rebuildLayout(props.model).headers.map((h) => ({
+  layoutHeaders(props.model).map((h) => ({
     id: h.id,
     name: h.name,
     y: h.y,
@@ -89,7 +90,8 @@ const cardHeaders = computed(() =>
 
 const visibleCardStrips = computed(() => {
   const scrollY = props.view.scrollY;
-  const viewportH = bodyViewportH.value || Number.POSITIVE_INFINITY;
+  // 0 until ResizeObserver / mount measures the body; show all and let overflow:hidden clip.
+  const viewportH = bodyViewportH.value > 0 ? bodyViewportH.value : Number.POSITIVE_INFINITY;
   return cardHeaders.value
     .map((h) => ({
       ...h,
@@ -276,10 +278,9 @@ defineExpose({
           class="pr-card-strip__label"
           :style="{ width: `var(--pr-gutter-width, ${localGutterWidth}px)` }"
         >
-          <span
+          <Chevron
             class="pr-card-strip__chevron"
-            :class="strip.expanded ? 'pr-card-strip__chevron--down' : 'pr-card-strip__chevron--right'"
-            aria-hidden="true"
+            :expanded="strip.expanded"
           />
           <span class="pr-card-strip__name">{{ strip.name }}</span>
         </span>
@@ -384,39 +385,6 @@ defineExpose({
   gap: 6px;
   padding: 0 8px;
   min-width: 0;
-}
-
-.pr-card-strip__chevron {
-  box-sizing: border-box;
-  flex: 0 0 10px;
-  width: 10px;
-  height: 10px;
-  display: inline-block;
-  position: relative;
-  color: #a8a8a8;
-}
-
-.pr-card-strip__chevron::before {
-  content: '';
-  position: absolute;
-  box-sizing: border-box;
-  border-style: solid;
-  border-color: currentColor;
-  border-width: 0 1.2px 1.2px 0;
-  width: 5px;
-  height: 5px;
-}
-
-.pr-card-strip__chevron--down::before {
-  top: 1px;
-  left: 2px;
-  transform: rotate(45deg);
-}
-
-.pr-card-strip__chevron--right::before {
-  top: 2px;
-  left: 1px;
-  transform: rotate(-45deg);
 }
 
 .pr-card-strip__name {

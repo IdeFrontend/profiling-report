@@ -59,6 +59,19 @@ describe('measureEdgeResize', () => {
     ).toEqual({ startTime: 200, endTime: 1000 });
   });
 
+  it('clamps fixedOther into the view window', () => {
+    expect(
+      resizeMeasureEdge({
+        edge: 'left',
+        time: 100,
+        fixedOther: 2000,
+        viewStart: 0,
+        viewEnd: 1000,
+        minSpan: 1,
+      }),
+    ).toEqual({ startTime: 100, endTime: 1000 });
+  });
+
   it('ends drag on window pointerup even if element up is missed', () => {
     const moves: number[] = [];
     const ends: number[] = [];

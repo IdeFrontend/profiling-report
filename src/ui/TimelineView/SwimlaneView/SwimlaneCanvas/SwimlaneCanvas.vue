@@ -300,7 +300,9 @@ function emitCursorAtMeasureEdge(edge: MeasureResizeEdge) {
   const end = Math.max(range.startTime, range.endTime);
   const x = edge === 'left' ? geo.left : geo.right;
   emit('cursor', {
-    time: edge === 'left' ? start : end,
+    time: edge === 'left'
+      ? Math.max(props.view.startTime, start)
+      : Math.min(props.view.endTime, end),
     xRatio: x / w,
   });
 }

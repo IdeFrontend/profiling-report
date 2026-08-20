@@ -11,7 +11,9 @@ export function measureResizeMinSpan(viewStart: number, viewEnd: number, widthPx
 
 /**
  * Resize one measure edge without crossing the other; clamp into the view window.
- * `fixedOther` is the unchanged bound (end for left drag, start for right drag).
+ * `fixedOther` is the unchanged bound (end for left drag, start for right drag);
+ * it is also clamped into the view so a first drag on a clamped bar does not keep
+ * an off-screen fixed edge.
  */
 export function resizeMeasureEdge(input: {
   edge: MeasureResizeEdge;
@@ -21,11 +23,12 @@ export function resizeMeasureEdge(input: {
   viewEnd: number;
   minSpan: number;
 }): MeasureRange {
-  const { edge, fixedOther, viewStart, viewEnd } = input;
+  const { edge, viewStart, viewEnd } = input;
   const minSpan = Math.max(1, input.minSpan);
   const lo = Math.min(viewStart, viewEnd);
   const hi = Math.max(viewStart, viewEnd);
   const t = Math.min(hi, Math.max(lo, input.time));
+  const fixedOther = Math.min(hi, Math.max(lo, input.fixedOther));
 
   if (edge === 'left') {
     const maxStart = Math.min(hi, fixedOther - minSpan);

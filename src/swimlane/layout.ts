@@ -89,6 +89,25 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
   return Math.max(120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
 
+/**
+ * Card header Y positions only — same row walk as `rebuildLayout`, without sorting/pushing events.
+ * Use for DOM Card strips so collapse toggles are not O(events).
+ */
+export function layoutHeaders(model: SwimlaneModel | null): GroupHeader[] {
+  if (!model) return [];
+  const headers: GroupHeader[] = [];
+  let y = 0;
+  for (const row of walkVisibleRows(model)) {
+    if (row.kind === 'header') {
+      headers.push({ id: row.process.id, name: row.process.name, y });
+      y += LANE_GROUP_HEADER_HEIGHT;
+    } else {
+      y += LANE_HEIGHT;
+    }
+  }
+  return headers;
+}
+
 export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   if (!model) {
     return {

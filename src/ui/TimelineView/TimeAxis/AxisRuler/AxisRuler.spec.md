@@ -25,9 +25,9 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 | Label font | **12px** / weight **400**, `#c8c8c8`, tabular-nums |
 | Origin | Labels are **relative to `minTime`** (trace start = **0**). Absolute CTEF `ts` must not appear on the axis. |
 | Leftmost total-scale label | `0ms` / `0µs` / `0ns` (compact zero — not `0.00xxx…`) |
-| Major bar | **1px** full track height (20px), `rgb(52, 52, 52)` (muted / outside visible window: `rgb(39, 39, 39)`) |
+| Major bar | **1px** full track height (20px), `--pr-axis-tick` / fallback `rgb(52, 52, 52)` (muted: `--pr-axis-tick-muted` / `rgb(39, 39, 39)`; v930 samples — see `COLOR_TOKENS.md`) |
 | Label placement | Immediately **to the right** of its major bar (`left: pct` + ~2–3px gap; **not** centered) |
-| Minor ticks | **9** between each adjacent major pair (10 subdivisions); **5px** tall from bottom; `rgb(52, 52, 52)` (muted `rgb(39, 39, 39)`) |
+| Minor ticks | **9** between each adjacent major pair (10 subdivisions); **5px** tall from bottom; same tick tokens as majors |
 | Major placement | **Nice ns steps** (`1\|2\|5×10ⁿ`) targeting ~**100px** spacing; majors at `origin + k·interval` (positions move with zoom/pan — not fixed percentages) |
 | Containment | Tick text must stay inside the timeline column — **never** paint over the right aside. Track/axis `overflow: hidden` |
 
@@ -35,7 +35,7 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 
 1. **PR-AXIS-001** — Renders majors and minors with testids.
 2. **PR-AXIS-002** — `buildAxisRulerTicks` yields 9 minors per gap and relative-zero first label.
-3. **PR-AXIS-003** — Major bars and minor ticks use `rgb(52, 52, 52)`; muted (outside visible range) use `rgb(39, 39, 39)`.
+3. **PR-AXIS-003** — Major bars and minor ticks use `--pr-axis-tick` (fallback `rgb(52, 52, 52)`); muted use `--pr-axis-tick-muted` (fallback `rgb(39, 39, 39)`).
 
 ## Design sketches
 

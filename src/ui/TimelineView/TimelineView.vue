@@ -267,7 +267,9 @@ function emitCursorAtAxisEdge(edge: MeasureResizeEdge) {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   emit('cursor', {
-    time: edge === 'left' ? start : end,
+    time: edge === 'left'
+      ? Math.max(props.view.startTime, start)
+      : Math.min(props.view.endTime, end),
     xRatio: (edge === 'left' ? axis.left : axis.right) / 100,
   });
 }
