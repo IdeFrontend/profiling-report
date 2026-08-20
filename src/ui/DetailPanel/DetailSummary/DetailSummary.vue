@@ -49,15 +49,15 @@ const metrics = computed(() => {
         aria-hidden="true"
       >
         <!--
-          Sketch glyph: a solid isometric cube (three shaded faces) wrapped by a
-          hexagonal node ring — three dots at the ring's upper-left, upper-right and
-          bottom vertices, the ring stroke broken around each. Coordinates come from
-          the sketch, so keep them byte for byte when touching this.
+          Sketch glyph: a solid isometric cube inside a hexagonal node ring. The ring is
+          three broken strokes — chevron over the top, then down each side to the bottom
+          node — leaving a gap around each of the three dots. Regular hexagon, r=11 about
+          (16,16); the cube's three faces carry a seam between them, as in the sketch.
         -->
         <svg
-          viewBox="4.5 4 23 23"
-          width="30"
-          height="30"
+          viewBox="0 0 32 32"
+          width="28"
+          height="28"
         >
           <g
             fill="none"
@@ -66,40 +66,37 @@ const metrics = computed(() => {
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <path d="M12.4 7.2 16 5.2l3.6 2" />
-            <path d="M23.6 9.6v6.7l-3.4 2" />
-            <path d="M11.8 18.3 8.4 16.3V9.6" />
+            <path d="M8.9 9.1 16 5l7.1 4.1" />
+            <path d="M25.5 13.3v8.2l-7.1 4.1" />
+            <path d="M13.6 25.6 6.5 21.5v-8.2" />
           </g>
           <g fill="currentColor">
             <circle
-              cx="9.4"
-              cy="8"
-              r="2.1"
+              cx="6.5"
+              cy="10.5"
+              r="2.3"
             />
             <circle
-              cx="22.6"
-              cy="8"
-              r="2.1"
+              cx="25.5"
+              cy="10.5"
+              r="2.3"
             />
             <circle
               cx="16"
-              cy="24.4"
-              r="2.1"
+              cy="27"
+              r="2.3"
             />
           </g>
-          <!-- Cube: top face lighter, the two side faces a shade down, as in the sketch. -->
+          <!-- Top face lightest, then the two sides, so the cube reads as isometric. -->
           <g fill="currentColor">
+            <path d="M16 8.2 21.8 11.6 16 15 10.2 11.6Z" />
             <path
-              d="M16 9.4 22.6 13 16 16.6 9.4 13Z"
-              opacity="0.95"
+              d="M9.8 12.4 15.5 15.7v6.9L9.8 19.3Z"
+              opacity="0.72"
             />
             <path
-              d="M9.4 14.2 15.4 17.5v7.1l-6-3.3Z"
-              opacity="0.75"
-            />
-            <path
-              d="M22.6 14.2v7.1l-6 3.3v-7.1Z"
-              opacity="0.6"
+              d="M22.2 12.4 16.5 15.7v6.9l5.7-3.3Z"
+              opacity="0.86"
             />
           </g>
         </svg>

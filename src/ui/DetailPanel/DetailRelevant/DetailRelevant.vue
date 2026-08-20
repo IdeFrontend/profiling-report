@@ -214,9 +214,9 @@ const linkHeight = computed(
         >
           <div class="pr-detail-relevant__column-head" />
           <svg
-            :width="LINK_WIDTH"
             :height="linkHeight"
             :viewBox="`0 0 ${LINK_WIDTH} ${linkHeight}`"
+            preserveAspectRatio="none"
           >
             <path
               v-for="link in links"
@@ -225,6 +225,7 @@ const linkHeight = computed(
               fill="none"
               stroke="currentColor"
               stroke-width="1.4"
+              vector-effect="non-scaling-stroke"
             />
           </svg>
         </div>
@@ -264,6 +265,12 @@ const linkHeight = computed(
 
 <style scoped>
 .pr-detail-relevant {
+  /* CHIP_PITCH - CHIP_HEIGHT. The chip columns and the connector column both read it,
+     so an svg row can never drift off its chip row again. */
+  --pr-chip-gap: 8px;
+  /* Widest a chip pill gets before it truncates. The grid tracks read it too, so a
+     long name cannot stretch its column and leave the connector short of the chip. */
+  --pr-chip-max: 150px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -350,8 +357,12 @@ const linkHeight = computed(
 
 .pr-detail-relevant__graph {
   display: grid;
-  /* Chip column, connector column, chip column, connector column, chip column. */
-  grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr) 32px minmax(0, 1fr);
+  /* Chip columns hug their chips; the connector tracks absorb the leftover width so a
+     curve reaches from chip edge to chip edge, as in the sketch. */
+  grid-template-columns:
+    fit-content(var(--pr-chip-max)) minmax(32px, 1fr)
+    fit-content(var(--pr-chip-max)) minmax(32px, 1fr)
+    fit-content(var(--pr-chip-max));
   gap: 8px 0;
   overflow: auto;
   min-height: 0;
@@ -361,7 +372,7 @@ const linkHeight = computed(
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--pr-chip-gap);
   min-width: 0;
 }
 
@@ -377,8 +388,14 @@ const linkHeight = computed(
 .pr-detail-relevant__links {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--pr-chip-gap);
   color: #7a7a7a;
+}
+
+.pr-detail-relevant__links svg {
+  /* Stretches across whatever gap the chip columns leave, so a curve always joins a
+     chip to the current pill; non-scaling-stroke keeps it 1.4px through the stretch. */
+  width: 100%;
 }
 
 .pr-detail-relevant__column-head {
@@ -417,7 +434,7 @@ const linkHeight = computed(
   background: #3c3c3c;
   color: #cfcfcf;
   font-size: 12px;
-  max-width: min(100%, 150px);
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
