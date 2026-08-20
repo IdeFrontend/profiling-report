@@ -14,7 +14,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Δt arrow geometry (v930).** Each arrowhead is an **open stroke chevron** (single path, `fill="none"`, sharp **miter** tip — not bevelled/flat). The visible tip sits **1px** inward from the adjacent vertical measure bar. The shaft overlaps deep into each chevron until it meets the arms (no gap between shaft and arrow lines). The Δt duration label sits centered on the arrow with a **4px gap** on each side between the label chrome and the horizontal shaft (shaft breaks around the label; they do not touch). Shaft and chevron strokes are **1.5px** wide in solid `rgba(49, 122, 247, 1)`.
 
-**Narrow selection.** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, park the duration pill **outside** the bars (prefer **4px to the right** of the right bar; if that would clip, **4px to the left** of the left bar) while still drawing the two-sided arrow between the bars. When the span is so narrow that the arrowheads would overlap (`<` pads + both heads ≈ **20px**), hide the heads and keep a continuous horizontal shaft between the vertical bars; the outside label stays.
+**Narrow selection.** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, park the duration pill **outside** the bars (prefer **4px to the right** of the right bar; if that would clip, **4px to the left** of the left bar) while still drawing the two-sided arrow between the bars. When the span is so narrow that the arrowheads would overlap (`<` pads + both heads ≈ **20px**), hide heads **and** the horizontal shaft; only the outside duration label remains between/near the vertical bars.
 
 **Cursor vs measure chrome.** When a measure overlay is visible and the **cursor timestamp pill** overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside Δt label, the pill lifts **above** the viewport axis (`labelAbove`) with a short animated transition (see `CursorTimestamp`). Otherwise it stays in-track.
 
@@ -29,11 +29,12 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 5. **PR-TIMELINE-005** — When the selection is too narrow for an in-between label but wide enough for both heads, the label sits outside the range and the two-sided arrow still spans the bars.
 6. **PR-TIMELINE-006** — Measure axis bars clamp to the current view window when the range extends outside.
 7. **PR-TIMELINE-007** — Measure axis overlay hides when the range is fully outside the current view.
-8. **PR-TIMELINE-008** — When the selection is so narrow that arrowheads would overlap, hide heads and keep the horizontal shaft between bars with the label outside.
+8. **PR-TIMELINE-008** — When the selection is so narrow that arrowheads would overlap, hide heads and the horizontal shaft; keep only the outside duration label.
 9. **PR-TIMELINE-009** — With a visible measure range, cursor pill overlapping the selection (inside, or outside with label crossing a border) uses above-axis placement; cursor clear of the range stays in-track.
 10. **PR-TIMELINE-010** — Dragging an axis measure bar resizes that edge (other edge fixed); bars use a 9px hit pad, `col-resize`, and 2px stem on hover.
 
 ## Changelog
+- **2026-08-20** — Ultra-narrow selection: no shaft connector, outside Δt only; PR-TIMELINE-008.
 - **2026-08-20** — Draggable axis measure bars; PR-TIMELINE-010.
 - **2026-08-20** — Cursor timestamp lifts above axis on measure chrome overlap; PR-TIMELINE-009.
 - **2026-08-20** — Outside-label keeps arrow; shaft-only when heads overlap; PR-TIMELINE-005/008.
