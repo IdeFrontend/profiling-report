@@ -460,9 +460,13 @@ const linkHeight = computed(
   /* Height and gap mirror CHIP_HEIGHT / CHIP_PITCH so the drawn connectors land on chips. */
   box-sizing: border-box;
   height: 18px;
-  padding: 1px 8px;
+  /* Vertical padding is 0 and the line box is the full height: the text centres itself
+     through half-leading, whatever the platform font's natural line box turns out to be.
+     A 1px pad against a 16px line left ~1px of slack, and Segoe UI's taller metrics ate
+     it — descenders and parentheses clipped on Windows but not on Linux. */
+  padding: 0 8px;
   border-radius: 4px;
-  line-height: 16px;
+  line-height: 18px;
   text-align: center;
   background: #3c3c3c;
   color: #cfcfcf;
