@@ -42,6 +42,7 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 [format-time](../../../../specs/core/format-time.spec.md).
 
 ## Changelog
+- **2026-08-20** — Glyph redrawn from the sketch: a solid isometric cube in a broken hexagonal node ring with three dots, replacing the hollow wireframe hexagon and its four-dot star.
 - **2026-08-20** — Surfaces sampled from the sketch rather than eyeballed: card `#313131` on the `#262626` dock, metric panel `#3c3c3c`, and the type pill takes the sketch's muted `#7356a6` instead of the bright swimlane `mov` purple — the pill is dock chrome, not an event block.
 - **2026-08-13** — Sketch card proportions: larger node glyph, unit moved into the metric captions.
 - **2026-08-13** — Identity card layout (glyph, type pill, inset metric panel).
