@@ -4,7 +4,8 @@ Please answer each question with: **file name**, **field name**, and **formula**
 
 Answers below are annotated with a status tag and, where known, `file → field` / formula. Sources: `example.rep` (the 11 embedded CSVs/JSONLs) and the `npu-compute性能优化.docx` field dictionary in `npu-tools/docs`.
 
-- **RESOLVED** — concrete `file → field` confirmed by the docs/sample.
+- **RESOLVED** — Product-confirmed `file → field` (npu-compute 0818 / sample).
+- **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.
 - **PARTIAL** — field name known, but a value or a product decision is still missing.
 - **OPEN** — not derivable from the current docs or sample.
 
@@ -15,13 +16,13 @@ Answers below are annotated with a status tag and, where known, `file → field`
 Sketch shows: **核数** (core count) · **aic频率** (AIC frequency) · **NPU ARCH**
 
 1. **核数** (core count) — which file and field?
-   - **RESOLVED** — `HardwareInfo.jsonl` → `AI Core Information.ai_core_count` (sample = 36; also `ai_cube_count`=36, `ai_vector_count`=72). The doc's 硬件详情 row points here. `OpBasicInfo.csv` → `Block Dim` is the per-op split (sample = 8), not the chip core count.
+   - **PARTIAL** — two candidates; Product has not picked the header slot. `HardwareInfo.jsonl` → `AI Core Information.ai_core_count` is the hardware-details field (sample = 36; also `ai_cube_count`=36, `ai_vector_count`=72). `OpBasicInfo.csv` → `Block Dim` is the per-op split (sample = 8, matches sketch **8 次迭代 / 核**). Meta row still unset ([OPEN_QUESTIONS](OPEN_QUESTIONS.md) Q7).
 
 2. **aic频率** (AIC frequency) — which file and field?
-   - **PARTIAL** — two candidates, doc does not pick one: `HardwareInfo.jsonl` → `ai_core_frequency_MHZ` (sample value is an *array* `[100,100]`), or `OpBasicInfo.csv` → `Current Freq`. Array-vs-scalar handling is unresolved.
+   - **RESOLVED** (shell) — `OpBasicInfo.csv` → `Current Freq`. `HardwareInfo.jsonl` → `ai_core_frequency_MHZ` is a second source for the **更多** overlay (sample is an *array* `[100,100]`), not a tie for the meta row.
 
 3. Do we also show **Rated Freq**? Yes or no. If yes, which field?
-   - **PARTIAL** — field is `OpBasicInfo.csv` → `Rated Freq` ("AI处理器的理论频率"; also `Current Freq`). Whether to *display* it is a product decision, not a data question.
+   - **INTERIM** — field is `OpBasicInfo.csv` → `Rated Freq` ("AI处理器的理论频率"). Shell does **not** show it (VIEW_DATA_MAPPING). Parsed onto `summary.ratedFreq` for details fallback only.
 
 4. **NPU ARCH** (for example `212 teraOPs`) — which file and field?
    - **PARTIAL** — the *name* is `HardwareInfo.jsonl` → `chip_info` ("Ascend 950PR_9599 V100") and `arch_info` ("3510"). But "212 teraOPs" is a peak-compute number that appears in **no file** and is documented nowhere.
@@ -33,7 +34,7 @@ Sketch shows: **核数** (core count) · **aic频率** (AIC frequency) · **NPU 
    - **OPEN** — the doc shows it is collected during 基础信息采集, but gives no availability guarantee.
 
 7. If that file is missing, what happens to **更多** (More) / 硬件信息详情 (Hardware details)? Hide it, or show an empty page?
-   - **OPEN** — pure UX, not in the docs.
+   - **INTERIM** — [I-Q7a](INTERIM_DECISIONS.md): prefer `HardwareInfo.jsonl`; fall back to non-empty `OpBasicInfo.csv` columns; hide the overlay when both are empty. Product can still override.
 
 ---
 
@@ -45,10 +46,10 @@ Sketch shows: `4.06 ms`, a bar, and `8 次迭代 / 核` (8 iterations / core).
    - **RESOLVED** — `OpBasicInfo.csv` → `Task Duration(us)`. The doc's 报告统计 table item 4 maps 整体耗时 to this field explicitly.
 
 9. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
-   - **OPEN** — not specified anywhere.
+   - **INTERIM** — [I-Q6e](INTERIM_DECISIONS.md): decorative (fixed short cyan fill), not a % of peak. Product has not defined a scale.
 
 10. The line **N 次迭代 / 核** (N iterations / core) — which field? (Is it `Block Dim`?)
-    - **PARTIAL** — `OpBasicInfo.csv` → `Block Dim` ("Task运行切分数量，对应Task运行时核数"). Sample = 8, matching the sketch's "8 次迭代 / 核", but the "iterations-per-core" label semantics vs "block count" is not explicitly equated.
+    - **INTERIM** — [I-Q6e](INTERIM_DECISIONS.md) uses `OpBasicInfo.csv` → `Block Dim` ("Task运行切分数量，对应Task运行时核数"). Sample = 8, matching the sketch. "Iterations-per-core" vs "block count" is not explicitly equated by Product.
 
 ---
 
@@ -141,10 +142,10 @@ This card is hidden until we have answers. Sketch shows: `82%` and **启用 24/2
 These bars are already on screen. Please confirm.
 
 31. The number **inside** the bar (for example `301001.38`) — is it time (`*_time(us)`) or cycles (`*_total_cycles`)?
-    - **OPEN** — both `*_time(us)` and `*_total_cycles` exist; the doc maps bars to `*_ratio` fields but never states whether the in-bar number is time or cycles. The sketch value `301001.38` matches neither sample magnitude.
+    - **INTERIM** — [I-Q6f](INTERIM_DECISIONS.md): mean of non-`NA` `*_time(us)` for the same family/side as the ratio; omit when all NA. Not cycles. Sketch `301001.38` does not match `example.rep` magnitudes (fixture mismatch, not a missing mapping). Product can still pick cycles.
 
 32. On the summary bars, do we average all blocks? On **详情** (Details), do we show only the selected block?
-    - **OPEN** — aggregation rule undocumented (overlaps Q45–46).
+    - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): summary PIPE bars = mean of non-`NA` ratios across `block_id`. [I-Q6c](INTERIM_DECISIONS.md): **详情** / memory / metrics = selected block. Overlaps Q45–46.
 
 33. Show an **ICache Miss** row? Yes or no. If yes, which fields? (`aic_icache_miss_rate` / `aiv_icache_miss_rate`?)
     - **RESOLVED** — `PipeUtilization.csv` → `aic_icache_miss_rate` (Cube) and `aiv_icache_miss_rate` (Vector). The doc's 计算负载 tables map both.
@@ -159,17 +160,17 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
     | Box | File | Field |
     |-----|------|-------|
-    | GM | `Memory.csv` | `aic/aiv_main_mem_*_bw` (measured only) |
-    | L2 | `Memory.csv` | `aic_l1_read/write_bw` (measured only) |
-    | L1 | `Memory.csv` | `aic_l1_read/write_bw` (measured only) |
-    | L0A / L0B / L0C | `MemoryL0.csv` | `aic_l0a/l0b/l0c_*_bw` (measured only) |
-    | Cube | `PipeUtilization.csv` | `aic_cube_ratio` (measured only) |
-    | FixP | `PipeUtilization.csv` | `aic_fixpipe_ratio` (measured only) |
-    | UB | `MemoryUB.csv` | `aiv_ub_read/write_bw_*` (measured only) |
-    | Vec | `PipeUtilization.csv` | `aiv_vec_ratio` (measured only) |
-    | Scalar | `PipeUtilization.csv` | `aic/aiv_scalar_ratio` (measured only) |
+    | GM | — | no Peak(%) / 理论值. `aic/aiv_main_mem_*_bw` is GM↔L2 *arrow* BW, not a box peak |
+    | L2 | — | no Peak(%) field. Do **not** use `aic_l1_*_bw` (that is L1 arrow BW) |
+    | L1 | — | no 理论值. `Memory.csv` `aic_l1_read/write_bw` is L2↔L1 *arrow* BW, not a box peak |
+    | L0A / L0B / L0C | — | no 理论值. `MemoryL0.csv` `aic_l0a/l0b/l0c_*_bw` is measured arrow BW |
+    | Cube | — | `aic_cube_ratio` is pipe occupancy, not Peak(%) unless Product says so |
+    | FixP | — | `aic_fixpipe_ratio` is pipe occupancy, not Peak(%) |
+    | UB | — | no 理论值. `MemoryUB.csv` `aiv_ub_read/write_bw_*` is measured arrow BW |
+    | Vec | — | `aiv_vec_ratio` is pipe occupancy, not Peak(%) |
+    | Scalar | — | `aic/aiv_scalar_ratio` is pipe occupancy, not Peak(%) |
 
-    - **PARTIAL** — measured fields per box are mapped in the doc, but the "理论值" (peak) column is empty for every row, so the percentage cannot be computed.
+    - **PARTIAL** — VIEW_DATA_MAPPING: Peak(%) has no field mapping. The doc's 理论值 column is empty for every row, so the percentage cannot be computed. Measured arrow BW and pipe ratios are not a substitute.
 
 35. **L2Cache Hit Rate** on the GM↔L2 arrow — which field: read, write, or total? Use AIC, AIV, or both?
     - **PARTIAL** — the doc maps "L2Cache Hit Rate → L2Cache.csv" with no detail. Fields exist for read/write/total × aic/aiv, but which combination is unspecified.
@@ -210,10 +211,10 @@ Bandwidth labels on arrows are already mapped. These are still open.
 ## Rules that apply everywhere
 
 45. A CSV often has many `block_id` rows (the sample has 8). For summary numbers, do we use **mean**, **max**, **first block**, or **the selected block**?
-    - **OPEN** — aggregation rule not documented.
+    - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): mean of non-`NA` values across `block_id` for summary PIPE / I/O measured BW. Product has not confirmed mean vs max vs selected.
 
 46. Same rule for every widget (cards, PIPE, Roofline, memory diagram)? Yes or no. If no, list the exceptions.
-    - **OPEN** — depends on Q45.
+    - **INTERIM** — [I-Q6c](INTERIM_DECISIONS.md): summary PIPE (and I-Q6g measured BW) stay I-Q6b mean-across-blocks; **详情** / memory diagram / metrics lists are the selected block. Roofline interim aggregates like I-Q6b ([I-Q11a](INTERIM_DECISIONS.md)).
 
 47. A cell is `NA` — hide the row/card, show the text "NA", or treat it as 0?
     - **RESOLVED** — doc line "NA的参数值不做显示, 0值照常显示": hide `NA`, show `0` as-is.
