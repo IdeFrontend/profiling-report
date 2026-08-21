@@ -229,9 +229,9 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 | --- | --- | --- | --- |
 | GM → L2 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | Prefer non-`NA` AIC then AIV. Read = leaving GM (`out.rep` 16.89) |
 | GM ← L2 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | Write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
-| L2 ← L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | **Confirmed** file. Direction unverified (`out.rep` NA); same bare-column rule |
-| L2 → L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | Same; unverified |
-| L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | Direction unverified (`out.rep` NA; bare-column rule) |
+| L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | **Confirmed** file. Keep master L2→cluster; `out.rep` NA |
+| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | Same |
+| L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | Keep master L1→L0A (operand buffer); `out.rep` NA |
 | L1 → L0B | `aic_l0b_read_bw(GB/s)` | `MemoryL0.csv` | Same |
 | L0A → Cube | `aic_l0a_write_bw(GB/s)` | `MemoryL0.csv` | Same |
 | L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | Same |

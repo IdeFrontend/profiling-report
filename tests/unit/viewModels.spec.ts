@@ -252,6 +252,12 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(dir('gm-l2-write')).toBe('l2->gm');
     expect(dir('ub-vec')).toBe('ub->vec');
     expect(dir('vec-ub')).toBe('vec->ub');
+    expect(dir('l2-l1-read')).toBe('l2->l1');
+    expect(dir('l2-l1-write')).toBe('l1->l2');
+    expect(dir('l1-l0a')).toBe('l1->l0a');
+    expect(dir('l1-l0b')).toBe('l1->l0b');
+    expect(dir('l0a-cube')).toBe('l0a->cube');
+    expect(dir('l0b-cube')).toBe('l0b->cube');
     const both: CsvTableModel[] = [
       {
         fileName: 'Memory.csv',

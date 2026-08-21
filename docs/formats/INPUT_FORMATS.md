@@ -211,8 +211,8 @@ GM / L2 / L1 oriented bandwidth and data volumes. Bare `*_read_bw` = leaving the
 | --- | --- | --- | --- |
 | GM → L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present; read = leaving GM (`out.rep` 16.89 tracks `gm_to_ub`) |
 | GM ← L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present; write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
-| L2 → L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed** file; direction unverified (`out.rep` NA) |
-| L2 ← L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | Same; no `MemoryL1.csv` |
+| L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv`; `out.rep` NA |
+| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed**; `out.rep` NA |
 | L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → UB | — | — | **TBD** (docx); absent in sample |
@@ -221,7 +221,7 @@ Also present in sample (not all listed in docx edge table): MTE instruction/rati
 
 ### 3.5 `MemoryL0.csv`
 
-L0C `_bw_cube` directions are confirmed by suffix. L0A/L0B bare `*_read_bw` / `*_write_bw` follow the same leaving/arriving rule as GM; `out.rep` is NA so those arrows are unverified.
+L0C `_bw_cube` directions are confirmed by suffix. L0A/L0B keep master L1→buffer→Cube; `out.rep` is NA.
 
 | Docx display edge | Field | Sample |
 | --- | --- | --- |
