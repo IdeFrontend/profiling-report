@@ -411,17 +411,21 @@ function sideHeight(count: number): number {
 .pr-detail-relevant__column {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  /* Chips fill their track rather than hugging their own text. The track is already
+     content-sized — fit-content(--pr-chip-max) — so this makes the column uniform AND
+     puts every chip's edge exactly where the connector starts. Content-sized chips left
+     a dead gap between the shorter names and their curves. */
+  align-items: stretch;
   gap: var(--pr-chip-gap);
   min-width: 0;
 }
 
+/* The Current pill is one chip in its own track, so it hugs its text. */
 .pr-detail-relevant__column--current {
   align-items: center;
 }
 
 .pr-detail-relevant__column--out {
-  align-items: flex-end;
   text-align: right;
 }
 

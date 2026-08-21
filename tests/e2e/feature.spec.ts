@@ -122,4 +122,60 @@ test.describe('PR-E2E feature paths', () => {
     await expect(swim).toHaveAttribute('data-renderer', 'webgl');
     expect(pageErrors).toEqual([]);
   });
+
+  test('PR-E2E-008: Relevent curves meet their chips with no dead gap', async ({ page }) => {
+    // Wide enough that neighbour names differ in length. At the 1280 default they all
+    // hit the chip's max width and truncate to the same size, which hides the bug.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=ffn_dense');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = await overlay.boundingBox();
+    expect(box).toBeTruthy();
+
+    // Find a selection with neighbours on both sides.
+    const panel = page.getByTestId('detail-panel');
+    let found = false;
+    for (let lane = 0; lane < 12 && !found; lane++) {
+      const y = box!.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+      for (const xOff of [24, 80, 160, 270, 380]) {
+        await page.mouse.click(box!.x + xOff, y);
+        if (!(await panel.isVisible())) continue;
+        const inCount = page.getByTestId('detail-relevant-incoming-count');
+        if ((await inCount.count()) === 0) continue;
+        if (Number(await inCount.innerText()) > 0) {
+          found = true;
+          break;
+        }
+      }
+    }
+    expect(found).toBe(true);
+
+    // A deep walk gives names of very different lengths in one column — the case where
+    // content-sized chips left the short ones short of the connector. The field commits
+    // on change, not on every keystroke.
+    const level = page.getByTestId('detail-relevant-level');
+    await level.fill('30');
+    await level.blur();
+    // The deep walk has to land before the gap means anything: at depth 1 there is one
+    // chip per side and every layout passes.
+    await expect(page.getByTestId('detail-relevant-incoming-count')).not.toHaveText('1');
+
+    // Every chip must span its whole track. Comparing chip-to-curve distance is not
+    // enough: when all the names happen to be the same length the gap is zero either
+    // way, and the assertion passes on a broken layout.
+    const fill = await page.evaluate(() => {
+      const cols = [...document.querySelectorAll('.pr-detail-relevant__side .pr-detail-relevant__column')];
+      return cols.flatMap((col) => {
+        const track = col.getBoundingClientRect().width;
+        return [...col.querySelectorAll('.pr-detail-relevant__chip')].map(
+          (chip) => track - chip.getBoundingClientRect().width,
+        );
+      });
+    });
+
+    expect(fill.length).toBeGreaterThan(10);
+    for (const short of fill) expect(Math.abs(short)).toBeLessThan(1);
+  });
 });
