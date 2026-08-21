@@ -235,6 +235,94 @@ export function findEvent(layout: SwimlaneLayout, id: string): SwimEvent | null 
   return findLaidOutEvent(layout, id)?.event ?? null;
 }
 
+export type EventEdgeKind = 'start' | 'end';
+
+export interface NearestEventEdge {
+  time: number;
+  edge: EventEdgeKind;
+  eventId: string;
+  xPx: number;
+}
+
+/** Magnet: nearest start/end on the leaf lane under (x,y), if within thresholdPx. */
+export function nearestEventEdgeAtPoint(
+  layout: SwimlaneLayout,
+  view: SwimlaneViewWindow,
+  width: number,
+  x: number,
+  y: number,
+  thresholdPx: number,
+): NearestEventEdge | null {
+  const contentY = y + view.scrollY;
+  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
+  if (!lane || lane.folder) return null;
+  const laneIndex = layout.lanes.indexOf(lane);
+  const span = Math.max(1, view.endTime - view.startTime);
+  const w = Math.max(1, width);
+  let best: NearestEventEdge | null = null;
+  let bestDist = Infinity;
+  for (const item of layout.events) {
+    if (item.laneIndex !== laneIndex) continue;
+    const ev = item.event;
+    const end = ev.startTime + ev.duration;
+    if (end < view.startTime || ev.startTime > view.endTime) continue;
+    const startX = ((ev.startTime - view.startTime) / span) * w;
+    const endX = ((end - view.startTime) / span) * w;
+    for (const [edge, time, edgeX] of [
+      ['start', ev.startTime, startX],
+      ['end', end, endX],
+    ] as const) {
+      const dist = Math.abs(edgeX - x);
+      if (dist > thresholdPx || dist >= bestDist) continue;
+      bestDist = dist;
+      best = { time, edge, eventId: item.id, xPx: edgeX };
+    }
+  }
+  return best;
+}
+
+/** Short blue marks: every visible event edge whose time exactly equals a range bound. */
+export function measureRangeExactEdgeMarks(
+  layout: SwimlaneLayout,
+  view: SwimlaneViewWindow,
+  width: number,
+  rangeStart: number,
+  rangeEnd: number,
+): { eventId: string; edge: EventEdgeKind; time: number; x: number; y: number; h: number }[] {
+  if (!(rangeEnd > rangeStart)) return [];
+  const span = Math.max(1, view.endTime - view.startTime);
+  const w = Math.max(1, width);
+  const bounds = new Set([rangeStart, rangeEnd]);
+  const out: { eventId: string; edge: EventEdgeKind; time: number; x: number; y: number; h: number }[] = [];
+  for (const item of layout.events) {
+    const ev = item.event;
+    const end = ev.startTime + ev.duration;
+    if (end < view.startTime || ev.startTime > view.endTime) continue;
+    const { y, h } = eventBlockMetrics(item.y, view.scrollY);
+    if (bounds.has(ev.startTime)) {
+      out.push({
+        eventId: item.id,
+        edge: 'start',
+        time: ev.startTime,
+        x: ((ev.startTime - view.startTime) / span) * w,
+        y,
+        h,
+      });
+    }
+    if (bounds.has(end)) {
+      out.push({
+        eventId: item.id,
+        edge: 'end',
+        time: end,
+        x: ((end - view.startTime) / span) * w,
+        y,
+        h,
+      });
+    }
+  }
+  return out;
+}
+
 /** Encode [start,end] relative to base for float32 VBOs; keep end > start after fround. */
 export function encodeIntervalPair(
   start: number,

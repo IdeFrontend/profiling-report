@@ -11,7 +11,7 @@ import {
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
-import { contentHeightFromModel } from '../../../../swimlane/layout';
+import { contentHeightFromModel, measureRangeExactEdgeMarks, nearestEventEdgeAtPoint } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -71,6 +71,8 @@ let attachedModel: SwimlaneModel | null = null;
 let dragging = false;
 let lastX = 0;
 let downX = 0;
+/** Client Y for magnet during window-level measure create/resize. */
+let lastPointerClientY = 0;
 let measureAnchorTime: number | null = null;
 /** True once freeform create has crossed the 4px threshold (until pointerup). */
 let measureGestureActive = false;
@@ -84,9 +86,13 @@ let measureDragOccurred = false;
  */
 let measurePressActive = false;
 const MEASURE_DRAG_THRESHOLD_PX = 4;
+/** Magnet snap to nearest in-lane event start/end. */
+const EVENT_EDGE_MAGNET_PX = 10;
 /** Fast snap when clicking an event while a prior measure range exists. */
 const MEASURE_SNAP_DURATION_MS = 180;
 const suppressMeasurePreview = ref(false);
+/** Live magnet highlight on the snapped event edge (block-height blue stem). */
+const edgeSnapHighlight = ref<{ x: number; y: number; h: number } | null>(null);
 let cancelMeasureSnap: (() => void) | null = null;
 let resizeEdge: MeasureResizeEdge | null = null;
 let resizeFixedOther = 0;
@@ -318,19 +324,25 @@ function beginMeasureCreateFromDown(): void {
   measureGestureActive = true;
   measureDragOccurred = true;
   suppressMeasurePreview.value = true;
-  measureAnchorTime = timeAtX(downX - rect.left);
+  // Use last known Y from pointer; downX is client X — magnetize at down.
+  const local = localFromClient(downX, lastPointerClientY);
+  const mag = local
+    ? magnetizeLocal(local.x, local.y)
+    : { time: timeAtX(downX - rect.left), xPx: downX - rect.left, xRatio: 0, eventId: null };
+  measureAnchorTime = mag.time;
   emit(
     'update:measureRange',
     normalizeMeasureRange(measureAnchorTime, measureAnchorTime),
   );
 }
 
-function onCreateDragMove(clientX: number): void {
+function onCreateDragMove(clientX: number, clientY: number): void {
+  lastPointerClientY = clientY;
   if (measureCreatePending) {
     if (Math.abs(clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX) return;
     beginMeasureCreateFromDown();
   }
-  emitCreateRange(clientX);
+  emitCreateRange(clientX, clientY);
 }
 
 /** Window pointerup: stop listening; leave press flags for canvas `pointerup`. */
@@ -345,14 +357,21 @@ function onCreateDragEnd(): void {
   }
 }
 
-function emitResizedRange(clientX: number) {
+function emitResizedRange(clientX: number, clientY: number) {
   if (!resizeEdge || !wrapRef.value) return;
-  const rect = wrapRef.value.getBoundingClientRect();
-  const w = Math.max(1, rect.width);
-  const time = timeAtX(clientX - rect.left);
+  lastPointerClientY = clientY;
+  const local = localFromClient(clientX, clientY);
+  const mag = local
+    ? magnetizeLocal(local.x, local.y)
+    : (() => {
+        const rect = wrapRef.value!.getBoundingClientRect();
+        const t = timeAtX(clientX - rect.left);
+        return { time: t, xPx: clientX - rect.left, xRatio: 0, eventId: null };
+      })();
+  const w = Math.max(1, wrapRef.value.clientWidth);
   const next = resizeMeasureEdge({
     edge: resizeEdge,
-    time,
+    time: mag.time,
     fixedOther: resizeFixedOther,
     viewStart: props.view.startTime,
     viewEnd: props.view.endTime,
@@ -368,11 +387,15 @@ function emitResizedRange(clientX: number) {
   });
 }
 
-function emitCreateRange(clientX: number) {
+function emitCreateRange(clientX: number, clientY: number) {
   if (!measureGestureActive || measureAnchorTime == null || !wrapRef.value) return;
-  const rect = wrapRef.value.getBoundingClientRect();
-  const time = timeAtX(clientX - rect.left);
-  emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, time));
+  lastPointerClientY = clientY;
+  const local = localFromClient(clientX, clientY);
+  const mag = local
+    ? magnetizeLocal(local.x, local.y)
+    : { time: timeAtX(clientX - wrapRef.value.getBoundingClientRect().left), xPx: 0, xRatio: 0, eventId: null };
+  emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, mag.time));
+  emit('cursor', { time: mag.time, xRatio: mag.xRatio });
 }
 
 /** Snap to event borders; tween from prior range or (if none) from the visible window. */
@@ -508,6 +531,48 @@ function xAtTime(t: number): number {
   return ((t - props.view.startTime) / span) * w;
 }
 
+/** Magnetize local canvas coords; updates live edge snap highlight. */
+function magnetizeLocal(
+  localX: number,
+  localY: number,
+): { time: number; xPx: number; xRatio: number; eventId: string | null } {
+  const w = Math.max(1, wrapRef.value?.clientWidth || 1);
+  const hit = nearestEventEdgeAtPoint(
+    backend.getLayout(),
+    props.view,
+    w,
+    localX,
+    localY,
+    EVENT_EDGE_MAGNET_PX,
+  );
+  if (!hit) {
+    edgeSnapHighlight.value = null;
+    return { time: timeAtX(localX), xPx: localX, xRatio: localX / w, eventId: null };
+  }
+  const rect = backend.eventScreenRect(hit.eventId);
+  edgeSnapHighlight.value = rect
+    ? { x: hit.xPx, y: rect.y, h: rect.h }
+    : null;
+  return { time: hit.time, xPx: hit.xPx, xRatio: hit.xPx / w, eventId: hit.eventId };
+}
+
+/** Hover/select target: magnetized edge event wins, else spatial hitTest. */
+function eventAtPointer(localX: number, localY: number, magnetEventId: string | null) {
+  if (magnetEventId) {
+    const ev = backend.findEvent(magnetEventId);
+    if (ev) return ev;
+  }
+  const id = backend.hitTest(localX, localY);
+  return id ? backend.findEvent(id) : null;
+}
+
+function localFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
+  const target = activeCanvas() ?? wrapRef.value;
+  if (!target) return null;
+  const rect = target.getBoundingClientRect();
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
 const measureGeometry = computed(() => {
   const range = props.measureRange;
   if (!range) return null;
@@ -556,6 +621,20 @@ const measurePreviewGeometry = computed(() => {
   };
 });
 
+/** Short blue bars on event edges that exactly equal committed measure bounds. */
+const measureExactEdgeMarks = computed(() => {
+  if (!props.measureMode || !props.measureRange || !props.model) return [];
+  const start = Math.min(props.measureRange.startTime, props.measureRange.endTime);
+  const end = Math.max(props.measureRange.startTime, props.measureRange.endTime);
+  if (!(end > start)) return [];
+  void props.view.startTime;
+  void props.view.endTime;
+  void props.view.scrollY;
+  const w = wrapRef.value?.clientWidth || 0;
+  if (w <= 0) return [];
+  return measureRangeExactEdgeMarks(backend.getLayout(), props.view, w, start, end);
+});
+
 function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
@@ -563,6 +642,7 @@ function activeCanvas(): HTMLCanvasElement | null {
 function onPointerDown(e: PointerEvent): void {
   lastX = e.clientX;
   downX = e.clientX;
+  lastPointerClientY = e.clientY;
   measureDragOccurred = false;
   if (props.measureMode && activeCanvas()) {
     endMeasureCreate();
@@ -588,10 +668,11 @@ function onPointerMove(e: PointerEvent): void {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   const w = Math.max(1, rect.width);
-  const time = timeAtX(x);
+  lastPointerClientY = e.clientY;
 
   schedulePaint();
-  emit('cursor', { time, xRatio: x / w });
+  const mag = magnetizeLocal(x, y);
+  emit('cursor', { time: mag.time, xRatio: mag.xRatio });
 
   if (dragging) {
     // Measure create is driven by window listeners (release over Card strips still ends).
@@ -607,8 +688,7 @@ function onPointerMove(e: PointerEvent): void {
     return;
   }
 
-  const id = backend.hitTest(x, y);
-  emit('hover', id ? backend.findEvent(id) : null, e.clientX, e.clientY);
+  emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
 }
 
 function onPointerUp(e: PointerEvent): void {
@@ -622,7 +702,8 @@ function onPointerUp(e: PointerEvent): void {
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  emit('set-playhead', timeAtX(x));
+  const mag = magnetizeLocal(x, y);
+  emit('set-playhead', mag.time);
   if (wasMeasurePress || props.measureMode) {
     if (
       props.measureMode &&
@@ -630,8 +711,7 @@ function onPointerUp(e: PointerEvent): void {
       !didFreeform &&
       Math.abs(e.clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX
     ) {
-      const id = backend.hitTest(x, y);
-      const ev = id ? backend.findEvent(id) : null;
+      const ev = eventAtPointer(x, y, mag.eventId);
       if (ev) {
         snapMeasureToEvent(ev);
       } else {
@@ -641,14 +721,14 @@ function onPointerUp(e: PointerEvent): void {
     return;
   }
   if (Math.abs(e.clientX - downX) > MEASURE_DRAG_THRESHOLD_PX) return;
-  const id = backend.hitTest(x, y);
-  emit('select', id ? backend.findEvent(id) : null);
+  emit('select', eventAtPointer(x, y, mag.eventId));
 }
 
 function onPointerLeave(e: PointerEvent): void {
   // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
   if (measureGestureActive || measureCreatePending || measurePressActive) {
     schedulePaint();
+    edgeSnapHighlight.value = null;
     emit('cursor', null);
     emit('hover', null, 0, 0);
     return;
@@ -661,6 +741,7 @@ function onPointerLeave(e: PointerEvent): void {
   }
   dragging = false;
   measureAnchorTime = null;
+  edgeSnapHighlight.value = null;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
@@ -772,6 +853,27 @@ defineExpose({
         :style="{ left: `${measurePreviewGeometry.right}px` }"
       />
     </template>
+    <div
+      v-if="edgeSnapHighlight"
+      class="pr-measure-edge-mark pr-measure-edge-mark--snap"
+      data-testid="measure-edge-snap"
+      :style="{
+        left: `${edgeSnapHighlight.x}px`,
+        top: `${edgeSnapHighlight.y}px`,
+        height: `${edgeSnapHighlight.h}px`,
+      }"
+    />
+    <div
+      v-for="(mark, i) in measureExactEdgeMarks"
+      :key="`${mark.eventId}-${mark.edge}-${i}`"
+      class="pr-measure-edge-mark"
+      data-testid="measure-edge-exact"
+      :style="{
+        left: `${mark.x}px`,
+        top: `${mark.y}px`,
+        height: `${mark.h}px`,
+      }"
+    />
   </div>
 </template>
 
@@ -872,5 +974,19 @@ defineExpose({
   pointer-events: none;
   cursor: default;
   z-index: 2;
+}
+
+/* Short blue event-edge marks (live magnet + committed exact matches). */
+.pr-measure-edge-mark {
+  position: absolute;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--pr-playhead, #3078f0);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.pr-measure-edge-mark--snap {
+  z-index: 5;
 }
 </style>

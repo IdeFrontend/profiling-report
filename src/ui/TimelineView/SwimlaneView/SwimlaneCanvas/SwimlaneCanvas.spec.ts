@@ -549,4 +549,69 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('suppress-measure-dt')!.at(-1)![0]).toBe(false);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-018: near event edge snaps cursor and shows snap stem', async () => {
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    // Just outside the block, still within magnet threshold of the start edge.
+    await canvas.trigger('pointermove', {
+      clientX: rect.x - 5,
+      clientY: y,
+      pointerId: 1,
+    });
+    const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number; xRatio: number };
+    expect(last.time).toBe(200);
+    expect(wrapper.find('[data-testid="measure-edge-snap"]').exists()).toBe(true);
+    const hover = wrapper.emitted('hover')!.at(-1)![0] as { id: string } | null;
+    expect(hover?.id).toBe('e1');
+
+    await canvas.trigger('pointerdown', { clientX: rect.x - 5, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: rect.x - 5, clientY: y, pointerId: 1 });
+    const selected = wrapper.emitted('select')!.at(-1)![0] as { id: string } | null;
+    expect(selected?.id).toBe('e1');
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-019: outside magnet threshold uses free timeAtX', async () => {
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    const x = rect.x + rect.w / 2; // mid-block, far from both edges on 400px view
+    await canvas.trigger('pointermove', { clientX: x, clientY: y, pointerId: 1 });
+    const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number };
+    expect(last.time).toBeCloseTo((x / 400) * 1000, 5);
+    expect(wrapper.find('[data-testid="measure-edge-snap"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-020: freeform create magnetizes moving edge', async () => {
+    const { wrapper, canvas } = await mountWithEventModel();
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    // Start far left (free), drag near event start so moving edge snaps to 200.
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: y, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 40, clientY: y, buttons: 1 }));
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: rect.x + 4, clientY: y, buttons: 1 }),
+    );
+    const ranges = wrapper.emitted('update:measureRange')!;
+    expect(ranges.length).toBeGreaterThan(0);
+    const last = ranges.at(-1)![0] as { startTime: number; endTime: number };
+    expect(last.startTime === 200 || last.endTime === 200).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-021: committed range shows exact-match blue edge marks', async () => {
+    const { wrapper } = await mountWithEventModel({
+      measureRange: { startTime: 200, endTime: 500 },
+    });
+    const marks = wrapper.findAll('[data-testid="measure-edge-exact"]');
+    expect(marks.length).toBeGreaterThanOrEqual(2);
+    expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
 });
