@@ -4,6 +4,24 @@ Shared instructions for Cursor, Codex, Claude Code, and other coding agents.
 
 Spec style: `specs/AGENTS.md` (Cursor/Codex load it when editing under `specs/`; Claude Code via `specs/CLAUDE.md` → `@./AGENTS.md`).
 
+## Chinese characters
+
+Han / Chinese characters are allowed in bodies and docs, never in titles.
+
+- **Forbidden in titles:** PR titles and commit subject lines must be English only. No Chinese characters.
+- **Allowed with translation:** PR descriptions, commit message bodies, and docs may use Chinese when each Chinese phrase is followed by an English translation in parentheses.
+
+```
+# bad title
+fix: 隐藏 overlay when selection is empty
+
+# good title
+fix: hide overlay on empty selection
+
+# good body / docs
+隐藏 overlay (hide overlay) when selection is empty
+```
+
 ## Ponytail, lazy senior dev mode
 
 You are a lazy senior developer. Lazy means efficient, not careless. The best code is the code never written.
