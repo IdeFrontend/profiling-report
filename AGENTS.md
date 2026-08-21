@@ -6,10 +6,10 @@ Spec style: `specs/AGENTS.md` (Cursor/Codex load it when editing under `specs/`;
 
 ## Chinese characters
 
-Han / Chinese characters are allowed in bodies and docs, never in titles.
+Han / Chinese characters must not appear in PR titles or commit subject lines. They are allowed in PR descriptions, commit bodies, docs, specs, UI copy, and test names.
 
-- **Forbidden in titles:** PR titles and commit subject lines must be English only. No Chinese characters.
-- **Allowed with translation:** PR descriptions, commit message bodies, and docs may use Chinese when each Chinese phrase is followed by an English translation in parentheses.
+- **Forbidden:** PR titles and commit subject lines must be English only.
+- **Allowed:** PR descriptions, commit bodies, and docs may include Chinese. Gloss the first occurrence (parentheses or slash), or point at an existing glossary. Do not rewrite files that already mix Chinese UI labels with English.
 
 ```
 # bad title
@@ -20,6 +20,7 @@ fix: hide overlay on empty selection
 
 # good body / docs
 隐藏 overlay (hide overlay) when selection is empty
+**更多** / More
 ```
 
 ## Ponytail, lazy senior dev mode
