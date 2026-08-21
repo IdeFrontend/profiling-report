@@ -69,6 +69,10 @@ function fillColor(util: number): string {
         }"
       />
       <span
+        class="pr-gutter__util-mid"
+        aria-hidden="true"
+      />
+      <span
         v-if="utilSizeClass === 'pr-gutter__util--thick'"
         class="pr-gutter__util-pct"
       >{{ pctLabel(lane.utilization) }}</span>
@@ -112,6 +116,10 @@ function fillColor(util: number): string {
           width: `${Math.min(100, Math.max(0, lane.utilization * 100))}%`,
           background: fillColor(lane.utilization),
         }"
+      />
+      <span
+        class="pr-gutter__util-mid"
+        aria-hidden="true"
       />
       <span
         v-if="utilSizeClass === 'pr-gutter__util--thick'"
@@ -224,8 +232,7 @@ function fillColor(util: number): string {
   overflow: hidden;
 }
 
-.pr-gutter__util:not(.pr-gutter__util--empty)::after {
-  content: '';
+.pr-gutter__util-mid {
   position: absolute;
   left: 50%;
   top: 0;
