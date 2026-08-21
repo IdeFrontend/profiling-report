@@ -155,7 +155,6 @@ const metrics = computed(() => {
   flex-direction: column;
   gap: 14px;
   padding: 16px;
-  align-self: start;
   min-width: 0;
   border-radius: 10px;
   background: #313131;

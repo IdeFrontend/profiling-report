@@ -35,6 +35,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-006**: Overview brush updates time window and cursor line.
 1. **PR-E2E-007**: `?fixture=ffn_dense&renderer=webgl` attaches WebGL, paints selected dependency curves, and search does not rebuild the cached graph.
 1. **PR-E2E-008**: Relevent connector curves meet their chips flush, at any name length.
+1. **PR-E2E-009**: Dragging the dock taller grows its columns with it.
 
 ## Dependencies
 

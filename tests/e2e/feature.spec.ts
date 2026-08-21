@@ -171,4 +171,42 @@ test.describe('PR-E2E feature paths', () => {
     expect(fill.length).toBeGreaterThanOrEqual(4);
     for (const short of fill) expect(Math.abs(short)).toBeLessThan(1);
   });
+
+  test('PR-E2E-009: dragging the dock taller grows its columns with it', async ({ page }) => {
+    // The body was content-sized, so it kept its ~212px whatever height the drag gave
+    // the dock: the identity card stopped short and the rest was dead space. Only a
+    // real layout engine sees this — jsdom reports zero-height boxes.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+
+    await page.mouse.click(box.x + 106, box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
+    const panel = page.getByTestId('detail-panel');
+    await expect(panel).toBeVisible();
+
+    const heights = async () =>
+      page.evaluate(() =>
+        ['.pr-detail-panel', '.pr-detail-panel__body', '.pr-detail-summary'].map(
+          (sel) => document.querySelector(sel)!.getBoundingClientRect().height,
+        ),
+      );
+    const [dock0, body0] = await heights();
+
+    const handle = page.getByTestId('detail-panel-resize-handle');
+    const grip = (await handle.boundingBox())!;
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(grip.x + grip.width / 2, grip.y - 200, { steps: 10 });
+    await page.mouse.up();
+
+    const [dock1, body1, card1] = await heights();
+    expect(dock1).toBeGreaterThan(dock0 + 100);
+    // The body has to follow the dock, and the card has to fill the body.
+    expect(body1).toBeGreaterThan(body0 + 100);
+    expect(dock1 - body1).toBeCloseTo(dock0 - body0, 0);
+    expect(card1).toBeGreaterThan(body1 - 40);
+  });
 });
