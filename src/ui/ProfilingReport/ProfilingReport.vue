@@ -100,7 +100,6 @@ const collapsedGroupIds = ref<string[]>([]);
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
 const clockFreqMHz = computed(() => resolveClockFreqMHz(report.value?.summary));
-const timeDisplayMode = computed<TimeDisplayMode>(() => localTimeDisplayMode.value);
 const viewportTimeScaleUnit = computed(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );
@@ -444,7 +443,7 @@ defineExpose({ selectEventById, viewState });
       :aside-visible="viewState.asideVisible"
       :aside-available="asideAvailable"
       :zoom-percent="zoomPercent"
-      :time-display-mode="timeDisplayMode"
+      :time-display-mode="localTimeDisplayMode"
       :clock-freq-m-hz="clockFreqMHz"
       :dependency-mode="localDependencyMode"
       :dependency-depth="localDependencyDepth"
@@ -491,7 +490,7 @@ defineExpose({ selectEventById, viewState });
           :aside-visible="viewState.asideVisible"
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
-          :time-display-mode="timeDisplayMode"
+          :time-display-mode="localTimeDisplayMode"
           :clock-freq-m-hz="clockFreqMHz"
           :dependency-mode="localDependencyMode"
           :dependency-depth="localDependencyDepth"
@@ -512,7 +511,7 @@ defineExpose({ selectEventById, viewState });
           ref="timelineRef"
           :bounds="bounds"
           :view="viewState"
-          :time-display-mode="timeDisplayMode"
+          :time-display-mode="localTimeDisplayMode"
           :time-scale-unit="viewportTimeScaleUnit"
           :clock-freq-m-hz="clockFreqMHz"
           :dependency-mode="localDependencyMode"
@@ -554,7 +553,7 @@ defineExpose({ selectEventById, viewState });
     <DetailPanel
       v-if="selected && showTimeline"
       :selected="selected"
-      :time-display-mode="timeDisplayMode"
+      :time-display-mode="localTimeDisplayMode"
       :time-scale-unit="viewportTimeScaleUnit"
       :clock-freq-m-hz="clockFreqMHz"
       :locale="locale"
@@ -564,7 +563,7 @@ defineExpose({ selectEventById, viewState });
       v-if="hovered && showTimeline"
       :event="hovered"
       :style-pos="tooltipStyle"
-      :time-display-mode="timeDisplayMode"
+      :time-display-mode="localTimeDisplayMode"
       :time-scale-unit="viewportTimeScaleUnit"
       :clock-freq-m-hz="clockFreqMHz"
       :locale="locale"
