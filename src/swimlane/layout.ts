@@ -49,6 +49,8 @@ export interface SwimlaneLayout {
   bands: SwimlaneBand[];
   eventsById: Map<string, LaidOutEvent>;
   lanesByTid: Map<string, FlatLane>;
+  /** Events for each lane index (contiguous groups from rebuild); folders are `[]`. */
+  eventsByLane: LaidOutEvent[][];
 }
 
 export const EMPTY_LAYOUT: SwimlaneLayout = {
@@ -58,6 +60,7 @@ export const EMPTY_LAYOUT: SwimlaneLayout = {
   bands: [],
   eventsById: new Map(),
   lanesByTid: new Map(),
+  eventsByLane: [],
 };
 
 /** Folder rows and depth-0 spacer leaves (通信 / 储存HBM) show ProfilerStep bands. */
@@ -117,6 +120,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       bands: [],
       eventsById: new Map(),
       lanesByTid: new Map(),
+      eventsByLane: [],
     };
   }
   const lanes: FlatLane[] = [];
@@ -124,6 +128,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   const events: LaidOutEvent[] = [];
   const eventsById = new Map<string, LaidOutEvent>();
   const lanesByTid = new Map<string, FlatLane>();
+  const eventsByLane: LaidOutEvent[][] = [];
   const bands = model.bands ?? [];
 
   let y = 0;
@@ -139,21 +144,25 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       const lane: FlatLane = { thread, y, color, folder: true, depth: row.depth };
       lanes.push(lane);
       lanesByTid.set(thread.id, lane);
+      eventsByLane.push([]);
       y += LANE_HEIGHT;
       continue;
     }
     const lane: FlatLane = { thread, y, color, depth: row.depth };
     lanes.push(lane);
     lanesByTid.set(thread.id, lane);
+    const laneEvents: LaidOutEvent[] = [];
     const sorted = [...thread.events].sort((a, b) => b.duration - a.duration);
     for (const ev of sorted) {
       const item: LaidOutEvent = { id: ev.id, event: ev, laneIndex: lanes.length - 1, y, color };
       events.push(item);
       eventsById.set(ev.id, item);
+      laneEvents.push(item);
     }
+    eventsByLane.push(laneEvents);
     y += LANE_HEIGHT;
   }
-  return { lanes, headers, events, bands, eventsById, lanesByTid };
+  return { lanes, headers, events, bands, eventsById, lanesByTid, eventsByLane };
 }
 
 /** Event block height and Y, vertically centered in the lane between row dividers. */
@@ -211,8 +220,7 @@ export function hitTestLayout(
   const laneIndex = layout.lanes.indexOf(lane);
   const span = Math.max(1, view.endTime - view.startTime);
   const candidates: { id: string; duration: number }[] = [];
-  for (const item of layout.events) {
-    if (item.laneIndex !== laneIndex) continue;
+  for (const item of layout.eventsByLane[laneIndex] ?? []) {
     const ev = item.event;
     if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
     const ex = ((ev.startTime - view.startTime) / span) * width;
@@ -261,8 +269,7 @@ export function nearestEventEdgeAtPoint(
   const w = Math.max(1, width);
   let best: NearestEventEdge | null = null;
   let bestDist = Infinity;
-  for (const item of layout.events) {
-    if (item.laneIndex !== laneIndex) continue;
+  for (const item of layout.eventsByLane[laneIndex] ?? []) {
     const ev = item.event;
     const end = ev.startTime + ev.duration;
     if (end < view.startTime || ev.startTime > view.endTime) continue;
@@ -281,48 +288,80 @@ export function nearestEventEdgeAtPoint(
   return best;
 }
 
-/** 1px blue marks spanning full lane height on event edges matching a range bound. */
+export interface ExactEdgeMatch {
+  eventId: string;
+  edge: EventEdgeKind;
+  time: number;
+  /** Content-space lane Y (pre-scroll); project with `view.scrollY` each frame. */
+  laneY: number;
+}
+
+/** View-invariant: which event edges exactly equal a range bound (scan once per range/model). */
+export function findExactEdgeMatches(
+  layout: SwimlaneLayout,
+  rangeStart: number,
+  rangeEnd: number,
+): ExactEdgeMatch[] {
+  if (!(rangeEnd > rangeStart)) return [];
+  const bounds = new Set([rangeStart, rangeEnd]);
+  const out: ExactEdgeMatch[] = [];
+  for (const item of layout.events) {
+    const ev = item.event;
+    const end = ev.startTime + ev.duration;
+    if (bounds.has(ev.startTime)) {
+      out.push({ eventId: item.id, edge: 'start', time: ev.startTime, laneY: item.y });
+    }
+    if (bounds.has(end)) {
+      out.push({ eventId: item.id, edge: 'end', time: end, laneY: item.y });
+    }
+  }
+  return out;
+}
+
+/** Project cached matches into screen marks; optional viewportH culls off-screen rows. */
+export function projectExactEdgeMarks(
+  matches: ExactEdgeMatch[],
+  view: SwimlaneViewWindow,
+  width: number,
+  viewportH = Infinity,
+): { eventId: string; edge: EventEdgeKind; time: number; x: number; y: number; h: number }[] {
+  if (matches.length === 0) return [];
+  const span = Math.max(1, view.endTime - view.startTime);
+  const w = Math.max(1, width);
+  const out: { eventId: string; edge: EventEdgeKind; time: number; x: number; y: number; h: number }[] =
+    [];
+  for (const m of matches) {
+    if (m.time < view.startTime || m.time > view.endTime) continue;
+    const y = m.laneY - view.scrollY;
+    const h = LANE_HEIGHT;
+    if (y + h < 0 || y > viewportH) continue;
+    out.push({
+      eventId: m.eventId,
+      edge: m.edge,
+      time: m.time,
+      x: ((m.time - view.startTime) / span) * w,
+      y,
+      h,
+    });
+  }
+  return out;
+}
+
+/** Convenience: scan + project (tests / one-shots). Prefer split helpers under animation. */
 export function measureRangeExactEdgeMarks(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
   width: number,
   rangeStart: number,
   rangeEnd: number,
+  viewportH = Infinity,
 ): { eventId: string; edge: EventEdgeKind; time: number; x: number; y: number; h: number }[] {
-  if (!(rangeEnd > rangeStart)) return [];
-  const span = Math.max(1, view.endTime - view.startTime);
-  const w = Math.max(1, width);
-  const bounds = new Set([rangeStart, rangeEnd]);
-  const out: { eventId: string; edge: EventEdgeKind; time: number; x: number; y: number; h: number }[] = [];
-  for (const item of layout.events) {
-    const ev = item.event;
-    const end = ev.startTime + ev.duration;
-    if (end < view.startTime || ev.startTime > view.endTime) continue;
-    // Full lane height so stacked markers at the same x meet with no gap.
-    const y = item.y - view.scrollY;
-    const h = LANE_HEIGHT;
-    if (bounds.has(ev.startTime)) {
-      out.push({
-        eventId: item.id,
-        edge: 'start',
-        time: ev.startTime,
-        x: ((ev.startTime - view.startTime) / span) * w,
-        y,
-        h,
-      });
-    }
-    if (bounds.has(end)) {
-      out.push({
-        eventId: item.id,
-        edge: 'end',
-        time: end,
-        x: ((end - view.startTime) / span) * w,
-        y,
-        h,
-      });
-    }
-  }
-  return out;
+  return projectExactEdgeMarks(
+    findExactEdgeMatches(layout, rangeStart, rangeEnd),
+    view,
+    width,
+    viewportH,
+  );
 }
 
 /** Encode [start,end] relative to base for float32 VBOs; keep end > start after fround. */

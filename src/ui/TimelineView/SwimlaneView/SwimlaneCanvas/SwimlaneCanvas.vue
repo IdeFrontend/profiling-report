@@ -11,7 +11,7 @@ import {
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
-import { contentHeightFromModel, LANE_HEIGHT, measureRangeExactEdgeMarks, nearestEventEdgeAtPoint } from '../../../../swimlane/layout';
+import { contentHeightFromModel, findExactEdgeMatches, LANE_HEIGHT, nearestEventEdgeAtPoint, projectExactEdgeMarks, type ExactEdgeMatch } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -93,10 +93,13 @@ const MEASURE_SNAP_DURATION_MS = 180;
 const suppressMeasurePreview = ref(false);
 /** Live magnet highlight on the snapped event edge (block-height blue stem). */
 const edgeSnapHighlight = ref<{ x: number; y: number; h: number } | null>(null);
-/** Committed exact-match marks; refreshed with setView so Δt-focus anim keeps them aligned. */
+/** Committed exact-match marks; projected each frame from a cached match set. */
 const measureExactEdgeMarks = shallowRef<
   { eventId: string; edge: 'start' | 'end'; time: number; x: number; y: number; h: number }[]
 >([]);
+/** View-invariant matches for the current measureRange + layout; rescanned only when those change. */
+let cachedExactEdgeMatches: ExactEdgeMatch[] = [];
+let cachedExactEdgeMatchKey = '';
 let cancelMeasureSnap: (() => void) | null = null;
 let resizeEdge: MeasureResizeEdge | null = null;
 /** Which measure border currently owns the pointer (for stuck cursor + zoom anchor). */
@@ -145,12 +148,16 @@ function flushPaint(): void {
 
 function applyViewState(forceModel = false): void {
   if (!props.model) {
+    cachedExactEdgeMatches = [];
+    cachedExactEdgeMatchKey = '';
     measureExactEdgeMarks.value = [];
     return;
   }
-  if (forceModel || props.model !== attachedModel) {
+  const modelChanged = forceModel || props.model !== attachedModel;
+  if (modelChanged) {
     backend.setModel(props.model);
     attachedModel = props.model;
+    cachedExactEdgeMatchKey = ''; // layout identity changed — rescan matches
   }
   backend.setView(props.view);
   backend.setDependencyMode?.(props.dependencyMode);
@@ -164,18 +171,25 @@ function applyViewState(forceModel = false): void {
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSearchQuery(props.searchQuery);
   }
-  refreshMeasureExactEdgeMarks();
+  refreshMeasureExactEdgeMarks(modelChanged);
 }
 
-/** Keep blue event-edge marks in lockstep with canvas setView (incl. focus animation frames). */
-function refreshMeasureExactEdgeMarks(): void {
+/**
+ * Keep blue event-edge marks aligned with setView during Δt-focus / zoom.
+ * Matching events are scanned once per measureRange+layout; each frame only re-projects x/y.
+ */
+function refreshMeasureExactEdgeMarks(forceRescan = false): void {
   if (!props.measureMode || !props.measureRange || !props.model) {
+    cachedExactEdgeMatches = [];
+    cachedExactEdgeMatchKey = '';
     measureExactEdgeMarks.value = [];
     return;
   }
   const start = Math.min(props.measureRange.startTime, props.measureRange.endTime);
   const end = Math.max(props.measureRange.startTime, props.measureRange.endTime);
   if (!(end > start)) {
+    cachedExactEdgeMatches = [];
+    cachedExactEdgeMatchKey = '';
     measureExactEdgeMarks.value = [];
     return;
   }
@@ -184,15 +198,21 @@ function refreshMeasureExactEdgeMarks(): void {
     measureExactEdgeMarks.value = [];
     return;
   }
-  const startTime = props.view.startTime;
-  const endTime = props.view.endTime;
-  const scrollY = props.view.scrollY;
-  measureExactEdgeMarks.value = measureRangeExactEdgeMarks(
-    backend.getLayout(),
-    { startTime, endTime, scrollY },
+  const key = `${start}:${end}`;
+  if (forceRescan || key !== cachedExactEdgeMatchKey) {
+    cachedExactEdgeMatchKey = key;
+    cachedExactEdgeMatches = findExactEdgeMatches(backend.getLayout(), start, end);
+  }
+  const viewportH = wrapRef.value?.clientHeight || 0;
+  measureExactEdgeMarks.value = projectExactEdgeMarks(
+    cachedExactEdgeMatches,
+    {
+      startTime: props.view.startTime,
+      endTime: props.view.endTime,
+      scrollY: props.view.scrollY,
+    },
     w,
-    start,
-    end,
+    viewportH > 0 ? viewportH : Infinity,
   );
 }
 
@@ -575,7 +595,7 @@ watch(
   () => props.measureRange,
   (range) => {
     if (range == null) abortMeasureDrag();
-    refreshMeasureExactEdgeMarks();
+    refreshMeasureExactEdgeMarks(true);
   },
 );
 
@@ -583,7 +603,7 @@ watch(
   () => props.measureMode,
   (mode) => {
     if (!mode) abortMeasureDrag();
-    refreshMeasureExactEdgeMarks();
+    refreshMeasureExactEdgeMarks(true);
   },
 );
 
