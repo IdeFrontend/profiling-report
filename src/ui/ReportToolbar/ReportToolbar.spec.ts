@@ -155,8 +155,8 @@ describe('ReportToolbar', () => {
     });
 
     expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
-    // Trigger always shows OP算子 brand (sketch); operator ids live in the menu.
-    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toMatch(/OP算子|OP/);
+    // Trigger shows the selected operator label.
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
     expect(wrapper.find('.pr-op-select__trigger').classes()).not.toContain('pr-op-select__trigger--pill');
 
     await wrapper.find('[data-testid="op-selector"] button').trigger('click');
@@ -166,6 +166,22 @@ describe('ReportToolbar', () => {
     expect(items[1].text()).toBe('op2');
     await items[1].trigger('click');
     expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2']]);
+  });
+
+  it('PR-TOOLBAR-013a: trigger label follows selectedOperatorId', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        operators: [
+          { id: 'op1', label: 'op1' },
+          { id: 'op2', label: 'op2' },
+        ],
+        selectedOperatorId: 'op1',
+      },
+    });
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
+    await wrapper.setProps({ selectedOperatorId: 'op2' });
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op2');
   });
 
   it('PR-TOOLBAR-013b: OP listbox supports Escape / Enter / ArrowDown', async () => {

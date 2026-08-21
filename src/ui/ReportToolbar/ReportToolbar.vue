@@ -47,8 +47,12 @@ const activeOptionIndex = ref(0);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
 
-/** Sketch always shows the OP算子 brand on the trigger; operator ids live in the menu. */
-const triggerLabel = computed(() => t('tabOp', props.locale));
+/** Trigger shows the selected operator label (falls back to OP算子 brand). */
+const triggerLabel = computed(() => {
+  const ops = props.operators ?? [];
+  const selected = ops.find((o) => o.id === props.selectedOperatorId);
+  return selected?.label ?? ops[0]?.label ?? t('tabOp', props.locale);
+});
 
 function toggleDisplayControl() {
   displayControlOpen.value = !displayControlOpen.value;

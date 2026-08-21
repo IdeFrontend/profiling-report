@@ -122,7 +122,7 @@ describe('ProfilingReport scaffold', () => {
     });
 
     expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toMatch(/OP算子|OP/);
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
     expect(wrapper.vm.selectedOperatorId).toBe('op1.npu.rep');
 
     await wrapper.find('[data-testid="op-selector"] button').trigger('click');
@@ -133,8 +133,8 @@ describe('ProfilingReport scaffold', () => {
     await items[1].trigger('click');
 
     expect(wrapper.vm.selectedOperatorId).toBe('op2.npu.rep');
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op2');
     expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toMatch(/OP算子|OP/);
 
     await wrapper.find('[data-testid="op-selector"] button').trigger('click');
     const after = wrapper.findAll('[data-testid="op-item"]');

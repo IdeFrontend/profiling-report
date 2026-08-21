@@ -28,7 +28,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
 
-**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label is always the OP算子 brand (`t('tabOp')`); operator labels appear only in the floating menu. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
+**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** label (e.g. `op1` / `op2`); menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
@@ -53,7 +53,7 @@ Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930
 | Token | Value |
 |-------|--------|
 | Trigger | Transparent — **no** pill fill, **no** border, **no** vertical divider |
-| Trigger label | Always OP算子 / `t('tabOp')` — white, 18px / weight 700 / line-height 26px / letter-spacing 0 |
+| Trigger label | Selected operator label (e.g. `op1`) — white, 18px / weight 700 / line-height 26px / letter-spacing 0 |
 | Chevron | Thin stroke `10×10`, color `#c8c8c8`; down when closed, rotated 180° when open |
 | Gap label↔chevron | `4px` |
 | Menu bg | `#363636` |
@@ -139,7 +139,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
 11. **PR-TOOLBAR-011** — `dependency-mode` select inside 显示控制 emits `update:dependencyMode` on change; popover stays open.
 12. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1, above 100 clamp to 100); popover stays open.
-13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows OP算子 brand; menu lists operator labels; selecting emits `update:selectedOperatorId`; Escape/Enter/Arrow supported; re-select does not emit.
+13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows selected operator label; menu lists operators; selecting emits `update:selectedOperatorId`; Escape/Enter/Arrow supported; re-select does not emit.
 14. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
 15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); trigger type is 18px / 700 / 26px lh.
 
@@ -164,6 +164,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-21** — OP selector trigger shows selected operator label (not fixed OP算子).
 - **2026-08-20** — OP selector trigger type: 18px / weight 700 / line-height 26px.
 - **2026-08-20** — Corner blue wash moved to ProfilingReport root (208×60); chrome strip back to flat `--pr-bg-deep`.
 - **2026-08-20** — OP selector matches sketch: text+chevron (no pill), OP算子 brand trigger, mild navy chrome gradient; crops + PR-TOOLBAR-015.
