@@ -164,6 +164,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-21** — OP menu: `useId` + menu ref for focus; restore trigger focus on Escape/select.
 - **2026-08-21** — OP selector trigger shows selected operator label (not fixed OP算子).
 - **2026-08-20** — OP selector trigger type: 18px / weight 700 / line-height 26px.
 - **2026-08-20** — Corner blue wash moved to ProfilingReport root (208×60); chrome strip back to flat `--pr-bg-deep`.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
+import { operatorsFromNestedNames } from '../../src/adapters/loadReportSource';
 import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes } from '../helpers/fixtures';
 
 describe('PR-JSON: standalone Chrome Trace', () => {
@@ -28,5 +29,15 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
     expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
     expect(adapted.operatorReports?.['op2.npu.rep']?.reportModel.summary.opName).toBe('add_custom');
+  });
+
+  it('PR-NPU-005: duplicate operator stems throw', () => {
+    expect(() => operatorsFromNestedNames(['op1.npu.rep', 'op1.rep'])).toThrow(
+      /duplicate operator stem "op1"/,
+    );
+    expect(operatorsFromNestedNames(['op1.npu.rep', 'op2.npu.rep'])).toEqual([
+      { id: 'op1.npu.rep', label: 'op1' },
+      { id: 'op2.npu.rep', label: 'op2' },
+    ]);
   });
 });

@@ -25,6 +25,26 @@ export function adaptChromeTrace(trace: unknown): AdaptedReport {
 }
 
 /**
+ * Map nested archive FileInfo names → operators; throws on duplicate stems
+ * (`op1.npu.rep` + `op1.rep` both stem to `op1`).
+ */
+export function operatorsFromNestedNames(names: string[]): ReportOperator[] {
+  const seenStems = new Set<string>();
+  const operators: ReportOperator[] = [];
+  for (const name of names) {
+    const label = npuArchiveStem(name);
+    if (seenStems.has(label)) {
+      throw new Error(
+        `[profiling-report] loadReportSource: duplicate operator stem ${JSON.stringify(label)}`,
+      );
+    }
+    seenStems.add(label);
+    operators.push({ id: name, label });
+  }
+  return operators;
+}
+
+/**
  * Adapt `npu-rep` bytes. An outer container (nested `.npu.rep` archives) yields
  * a multi-operator report (default-selecting the first); a flat leaf pack yields
  * a single-operator report exactly like `adaptRep`.
@@ -37,22 +57,11 @@ function adaptNpuRep(bytes: Uint8Array): AdaptedReport {
     return adaptPayloads(parsed.payloads);
   }
 
-  const operators: ReportOperator[] = [];
+  const operators = operatorsFromNestedNames(nested.map((e) => e.name));
   const operatorReports: Record<string, AdaptedReport> = {};
-  const seenStems = new Set<string>();
   for (const entry of nested) {
     const leaf = parseNpuRep(parsed.payloads[entry.name]);
-    // FileInfo name is unique; stem is the short menu label (throw if stems collide).
-    const id = entry.name;
-    const label = npuArchiveStem(entry.name);
-    if (seenStems.has(label)) {
-      throw new Error(
-        `[profiling-report] loadReportSource: duplicate operator stem ${JSON.stringify(label)}`,
-      );
-    }
-    seenStems.add(label);
-    operators.push({ id, label });
-    operatorReports[id] = adaptPayloads(leaf.payloads);
+    operatorReports[entry.name] = adaptPayloads(leaf.payloads);
   }
 
   const selectedOperatorId = operators[0].id;

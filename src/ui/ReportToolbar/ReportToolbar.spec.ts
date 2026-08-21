@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import ReportToolbar from './ReportToolbar.vue';
 
 describe('ReportToolbar', () => {
@@ -186,6 +186,7 @@ describe('ReportToolbar', () => {
 
   it('PR-TOOLBAR-013b: OP listbox supports Escape / Enter / ArrowDown', async () => {
     const wrapper = mount(ReportToolbar, {
+      attachTo: document.body,
       props: {
         ...defaultProps,
         operators: [
@@ -198,20 +199,27 @@ describe('ReportToolbar', () => {
 
     const trigger = wrapper.find('[data-testid="op-selector"] button');
     await trigger.trigger('keydown', { key: 'ArrowDown' });
-    expect(wrapper.find('[role="listbox"]').exists()).toBe(true);
-    expect(trigger.attributes('aria-controls')).toBe('pr-op-select-menu');
+    const menu = wrapper.find('[role="listbox"]');
+    expect(menu.exists()).toBe(true);
+    expect(trigger.attributes('aria-controls')).toBe(menu.attributes('id'));
+    expect(menu.attributes('id')).toBeTruthy();
 
     const items = wrapper.findAll('[data-testid="op-item"]');
     expect(items[0].attributes('tabindex')).toBe('0');
     await items[0].trigger('keydown', { key: 'ArrowDown' });
     await wrapper.findAll('[data-testid="op-item"]')[1].trigger('keydown', { key: 'Enter' });
+    await flushPromises();
     expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2']]);
     expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
 
     await trigger.trigger('click');
     expect(wrapper.find('[role="listbox"]').exists()).toBe(true);
     await wrapper.findAll('[data-testid="op-item"]')[0].trigger('keydown', { key: 'Escape' });
+    await flushPromises();
     expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
+    wrapper.unmount();
   });
 
   it('PR-TOOLBAR-013c: re-selecting active operator does not emit', async () => {

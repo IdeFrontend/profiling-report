@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, useId } from 'vue';
 import type { TimeDisplayUnit, DependencyMode, ReportOperator } from '../../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
-
-const OP_MENU_ID = 'pr-op-select-menu';
 
 const props = withDefaults(
   defineProps<{
@@ -44,6 +42,9 @@ const emit = defineEmits<{
 const displayControlOpen = ref(false);
 const opMenuOpen = ref(false);
 const activeOptionIndex = ref(0);
+const opMenuId = useId();
+const opTriggerRef = ref<HTMLButtonElement | null>(null);
+const opMenuRef = ref<HTMLElement | null>(null);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
 
@@ -63,10 +64,8 @@ function closeDisplayControl() {
 }
 
 function focusActiveOption() {
-  const el = document.querySelectorAll<HTMLElement>('[data-testid="op-item"]')[
-    activeOptionIndex.value
-  ];
-  el?.focus();
+  const items = opMenuRef.value?.querySelectorAll<HTMLElement>('[data-testid="op-item"]');
+  items?.[activeOptionIndex.value]?.focus();
 }
 
 async function openOpMenu() {
@@ -78,12 +77,16 @@ async function openOpMenu() {
   focusActiveOption();
 }
 
-function closeOpMenu() {
+async function closeOpMenu(opts?: { restoreFocus?: boolean }) {
   opMenuOpen.value = false;
+  if (opts?.restoreFocus) {
+    await nextTick();
+    opTriggerRef.value?.focus();
+  }
 }
 
 function toggleOpMenu() {
-  if (opMenuOpen.value) closeOpMenu();
+  if (opMenuOpen.value) void closeOpMenu();
   else void openOpMenu();
 }
 
@@ -91,13 +94,13 @@ function selectOperator(id: string) {
   if (id !== props.selectedOperatorId) {
     emit('update:selectedOperatorId', id);
   }
-  closeOpMenu();
+  void closeOpMenu({ restoreFocus: true });
 }
 
 function onTriggerKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && opMenuOpen.value) {
     e.preventDefault();
-    closeOpMenu();
+    void closeOpMenu({ restoreFocus: true });
     return;
   }
   if ((e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && !opMenuOpen.value) {
@@ -110,7 +113,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   const ops = props.operators ?? [];
   if (e.key === 'Escape') {
     e.preventDefault();
-    closeOpMenu();
+    void closeOpMenu({ restoreFocus: true });
     return;
   }
   if (e.key === 'Enter' || e.key === ' ') {
@@ -150,11 +153,12 @@ function onDependencyDepth(e: Event) {
         data-testid="op-selector"
       >
         <button
+          ref="opTriggerRef"
           type="button"
           class="pr-op-select__trigger"
           :aria-expanded="opMenuOpen"
           :aria-haspopup="'listbox'"
-          :aria-controls="opMenuOpen ? OP_MENU_ID : undefined"
+          :aria-controls="opMenuOpen ? opMenuId : undefined"
           @click="toggleOpMenu"
           @keydown="onTriggerKeydown"
         >
@@ -183,11 +187,12 @@ function onDependencyDepth(e: Event) {
         <div
           v-if="opMenuOpen"
           class="pr-op-select__backdrop"
-          @click="closeOpMenu"
+          @click="closeOpMenu()"
         />
         <ul
           v-if="opMenuOpen"
-          :id="OP_MENU_ID"
+          :id="opMenuId"
+          ref="opMenuRef"
           class="pr-op-select__menu"
           role="listbox"
           :aria-label="t('tabOp', locale)"
