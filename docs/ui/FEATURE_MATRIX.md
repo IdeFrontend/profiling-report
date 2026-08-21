@@ -70,7 +70,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 | Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists |
 | Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [I-Q6c](../context/INTERIM_DECISIONS.md); 查看全部 [I-Q6d](../context/INTERIM_DECISIONS.md) (#4) |
 | Roofline bottleneck chart | M2 | `source/v930/report-stats-open.jpeg` / [milestone-2](../process/roadmap/milestone-2.md) |
-| Hardware info details | M1 interim | [I-Q7a](../context/INTERIM_DECISIONS.md): HardwareInfo.jsonl or OpBasicInfo fallback; no invented peaks |
+| Hardware info details | M1 | **Source confirmed:** `HardwareInfo.jsonl`; OpBasicInfo fallback ([I-Q7a](../context/INTERIM_DECISIONS.md)). Hide overlay if both absent |
 | Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([Q12](../context/OPEN_QUESTIONS.md), changelog #5) |
 
 ## Selection details
@@ -94,7 +94,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 
 ## Explicitly out of MVP (still may be later)
 
-- Product-final hardware inventory beyond I-Q7a interim OpBasicInfo / HardwareInfo.jsonl
+- Product-final 核数 / NPU ARCH meta mapping (HardwareInfo fields exist; header mapping still open)
 - PyPTO AICPU E2E mode, Mix/wrap, three-column compute-graph jumps
 - MindStudio system/cluster/serving modes
 - Replacing Insight for `.bin`

@@ -104,7 +104,7 @@ Payloads are addressed by absolute byte offsets from the start of the container.
 | `PipeUtilization.csv` | CSV | `block_id` + `sub_block_id` | Roofline tabs, pipe occupancy, pipe details |
 | `Memory.csv` | CSV | block / sub-block | Memory load edges (GM/L2/L1) |
 | `MemoryL0.csv` | CSV | block / sub-block | L0A/B/C ↔ Cube edges |
-| `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / Scalar edges (GM↔UB BW is on `Memory.csv` in the sample) |
+| `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / Scalar; GM↔UB product names here, sample fallback `Memory.csv` |
 | `L2Cache.csv` | CSV | block / sub-block | L2 hit-rate overlay |
 | `MemoryL1.csv` | CSV | (docx mockup annotation only) | L2→L1 path — **not in sample** |
 | Timeline / kernel events | (unspecified in tables) | Block / pipe event | Kernel block timeline + event details |
@@ -205,14 +205,14 @@ Full sample header also includes dual/single scalar times and wait/stall breakdo
 
 ### 3.4 `Memory.csv`
 
-GM / L2 / L1 oriented bandwidth and data volumes.
+GM / L2 / L1 oriented bandwidth and data volumes. Bare `*_read_bw` = leaving the named resource; `*_write_bw` = arriving there (same rule as UB: `ub_read_*` = leaving UB).
 
 | Docx display edge | Docx field | Sample column | Status |
 | --- | --- | --- | --- |
-| GM ← L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present (split AIC/AIV) |
-| GM → L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present |
-| L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | Present |
-| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | Present |
+| GM → L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present; read = leaving GM (`out.rep` 16.89 tracks `gm_to_ub`) |
+| GM ← L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present; write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
+| L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv`; `out.rep` NA |
+| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed**; `out.rep` NA |
 | L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → UB | — | — | **TBD** (docx); absent in sample |
@@ -220,6 +220,8 @@ GM / L2 / L1 oriented bandwidth and data volumes.
 Also present in sample (not all listed in docx edge table): MTE instruction/ratio columns, `GM_to_L1_*`, `UB_to_GM_*`, `aiv_ub_to_gm_bw(GB/s)`, `aiv_gm_to_ub_bw(GB/s)`, etc.
 
 ### 3.5 `MemoryL0.csv`
+
+L0C `_bw_cube` directions are confirmed by suffix. L0A/L0B keep master L1→buffer→Cube; `out.rep` is NA.
 
 | Docx display edge | Field | Sample |
 | --- | --- | --- |
@@ -234,10 +236,10 @@ Also present in sample (not all listed in docx edge table): MTE instruction/rati
 
 | Docx display edge | Docx field | Sample column | Status |
 | --- | --- | --- | --- |
-| Vec → UB | `aiv_ub_read_bw_vector(GB/s)` | `aiv_ub_read_bw_vector(GB/s)` | Present |
-| UB → Vec | `aiv_ub_write_bw_vector(GB/s)` | `aiv_ub_write_bw_vector(GB/s)` | Present |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | **Name mismatch**: sample has GM↔UB BW on `Memory.csv` as `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same as above |
+| Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `aiv_ub_write_bw_vector(GB/s)` | Present; `ub_read_*` = leaving UB |
+| UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `aiv_ub_read_bw_vector(GB/s)` | Present |
+| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | Product name on `MemoryUB.csv` (unverified; absent from sample); sample uses `aiv_ub_to_gm_bw` on `Memory.csv` |
+| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same: product `MemoryUB.csv` unverified; sample `aiv_gm_to_ub_bw` on `Memory.csv` |
 
 Sample also includes `aiv_ub_read_bw_scalar(GB/s)` / `aiv_ub_write_bw_scalar(GB/s)`.
 
@@ -314,7 +316,7 @@ Verified against unpacked payloads (2026-08-03 local sample):
 | Docx `L0C_to_L1_datas` / `L0C_to_GM_datas` | Present as `*_datas(KB)` (+ usage rate) on `Memory.csv` |
 | `OpBasicInfo.csv` PID / Op Type / Block Dim / Task Duration | Present |
 | `L2Cache.csv` hit-rate columns | Present |
-| `HardwareInfo.jsonl`, `MemoryL1.csv` | **Absent** |
+| `HardwareInfo.jsonl`, `MemoryL1.csv` | jsonl in the toolkit `example.rep` pack (not in git); **absent** from `data/out.rep`. No `MemoryL1.csv` — L1 BW on `Memory.csv` |
 | Supplementary (not in docx tables) | `ArithmeticUtilization.csv`, `ResourceConflictRatio.csv`, `trace.json` present |
 
 ---
@@ -326,10 +328,10 @@ See prioritized product-owner list: [OPEN_QUESTIONS.md](../context/OPEN_QUESTION
 | Item | Notes |
 | --- | --- |
 | `npu-rep` vs `cann-rep` | Product diagram vs repo packer; same conceptual layout |
-| `HardwareInfo.jsonl` | Required by hardware details UI; missing from sample archive |
-| `MemoryL1.csv` | Annotated on topology mockup; L1 BW currently on `Memory.csv` in sample |
-| UB↔GM field names | Product `aiv_ub_*_bw_gm` on `MemoryUB.csv` vs sample `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` on `Memory.csv` |
+| `HardwareInfo.jsonl` | Details source confirmed; missing from `out.rep`; toolkit `example.rep` pack (not in git) |
+| `MemoryL1.csv` | Not required; L1 BW on `Memory.csv` |
+| UB↔GM field names | Product `MemoryUB.csv` first; sample `Memory.csv` fallback |
 | L0C → UB edge | 待确定; no sample column |
 | Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
-| Report-stat derived cards | 算力 / 平均核利用率 still empty; 输入/输出带宽 → [I-Q6g](../context/INTERIM_DECISIONS.md) |
+| Report-stat derived cards | 算力 / 平均核利用率 still empty; 输入/输出 **measured** confirmed; peak/score → [I-Q6g](../context/INTERIM_DECISIONS.md) |
 | Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |

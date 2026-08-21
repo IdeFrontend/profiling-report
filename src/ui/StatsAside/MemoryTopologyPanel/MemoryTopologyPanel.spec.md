@@ -17,7 +17,7 @@ None — display-only.
 ## Behavior
 
 1. Render the static topology chrome: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar), plus the redrawn nodes `XN_IMM` / `Data Cache` ([VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md)).
-2. Overlay GB/s (or KB) labels on Buffer links from `model.edges`. Omit a label when the mapped CSV value is missing/`NA` (no `label` on the edge). GM↔L2 and L2↔cluster labels sit in the corridors **between** pillars (rotated −90°), not on the GM/L2 rects. VEC↔UB labels sit in the gap under the UB box on **both** AIV0 and AIV1, not on the cache fill. AIC L1/L0/Cube labels sit in the gap under the AIC boxes.
+2. Overlay GB/s (or KB) labels on Buffer links from `model.edges`. Omit a label when the edge has no `label` (the adapter hides `NA` and formats `0`). GM↔L2 and L2↔cluster labels sit in the corridors **between** pillars (rotated −90°), not on the GM/L2 rects. VEC↔UB labels sit in the gap under the UB box on **both** AIV0 and AIV1, not on the cache fill. AIC L1/L0/Cube labels sit in the gap under the AIC boxes.
 3. Labels follow the **model** the parent passes; when the parent rebuilds for a new `block_id`, labels update.
 4. Edge thickness stays static (not data-driven).
 5. Hide the diagram (empty root) when `model` is absent or has no labelled edges.
@@ -26,7 +26,7 @@ None — display-only.
 
 1. **PR-MEMTOP-001** — Renders the topology nodes (GM, L2 Cache, Cube, UB, …).
 2. **PR-MEMTOP-002** — Renders data-driven edge labels (GB/s) from `model.edges`; Vec↔UB on AIV0 and AIV1; AIC L1/L0/Cube labels when present.
-3. **PR-MEMTOP-003** — Omits the label for an edge whose value is `NA`/missing.
+3. **PR-MEMTOP-003** — Omits the label for an edge with no `label`.
 4. **PR-MEMTOP-004** — Hides the diagram when `model` is null/empty.
 5. **PR-MEMTOP-005** — Edge labels update when `model.edges` labels change.
 6. **PR-MEMTOP-006** — GM↔L2 labels sit between GM and L2; L2↔cluster labels sit between L2 and the AIV/AIC cluster (rotated).
@@ -45,8 +45,8 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 | DCache / XN_IMM | `#4a4a4a` |
 | Cluster dash | `#6a6a6a` `1px` dashed |
 | Edge label | `#e8c040` `8px`; GM↔L2 / L2↔cluster rotated −90° in corridors |
-| Write arrows (GM→L2) | `#4a8ec8` |
-| Read arrows (L2→GM) | `#e8c040` |
+| Write arrows (L2→GM) | `#4a8ec8` |
+| Read arrows (GM→L2) | `#e8c040` |
 | Unit Peak(%) | omit until §11.2.6 mapping exists |
 
 ## Design sketches
@@ -61,6 +61,8 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 I-Q6c, Q12, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
+- **2026-08-21** — GM↔L2 arrows: read = leaving GM (GM→L2 gold), write = arriving at GM (L2→GM blue).
+- **2026-08-20** — Product NA rule (hide NA, show 0) lives in the adapter; panel still omits edges with no `label`. UB prefers MemoryUB names then Memory.csv.
 
 - **2026-08-14** — AIC-internal L1/L0/Cube labels (PR-MEMTOP-002).
 - **2026-08-13** — Corridor labels (PR-MEMTOP-006); rotated GB/s between pillars.
