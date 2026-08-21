@@ -17,6 +17,10 @@ crops:
     source: v930/entry
     region: "All seven action icon buttons (measure/fit/chart/flag/deps/layers/help)"
     box: { x: 6585, y: 365, w: 1035, h: 120 }
+  measure-active.png:
+    source: v930/task-measure-mode
+    region: "Measure action button in active/blue state — bars + open stroke Δt arrow (2nd action icon)"
+    box: { x: 4820, y: 365, w: 112, h: 120 }
   display-control.png:
     source: v930/hardware-more-detail
     region: "显示控制 popover under layers icon (task display unit)"

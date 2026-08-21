@@ -122,4 +122,18 @@ test.describe('PR-E2E feature paths', () => {
     await expect(swim).toHaveAttribute('data-renderer', 'webgl');
     expect(pageErrors).toEqual([]);
   });
+
+  test('PR-E2E-008: measure toggle activates with open-stroke Δt icon', async ({ page }) => {
+    await page.goto('/');
+    const btn = page.getByTestId('toggle-measure');
+    await expect(btn).toBeVisible({ timeout: 15_000 });
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(btn).toHaveClass(/pr-toolbar__icon-btn--on/);
+
+    const heads = btn.locator('[data-testid="measure-icon-head"]');
+    await expect(heads).toHaveCount(2);
+    await expect(heads.nth(0)).toHaveAttribute('fill', 'none');
+    await expect(heads.nth(1)).toHaveAttribute('fill', 'none');
+  });
 });

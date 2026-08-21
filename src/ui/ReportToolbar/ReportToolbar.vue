@@ -255,7 +255,66 @@ function onDependencyDepth(e: Event) {
         </svg>
       </button>
 
-      <!-- Measure toggle temporarily hidden; prop/emit kept for easy restore. -->
+      <button
+        type="button"
+        class="pr-toolbar__icon-btn"
+        data-testid="toggle-measure"
+        :aria-pressed="measureMode"
+        :aria-label="t('measure', locale)"
+        :class="{ 'pr-toolbar__icon-btn--on': measureMode }"
+        :title="t('measure', locale)"
+        @click="emit('update:measureMode', !measureMode)"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
+          aria-hidden="true"
+          data-testid="measure-icon"
+        >
+          <!-- Vertical bars (selection edges) -->
+          <path
+            d="M3 3v10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+          <path
+            d="M13 3v10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+          <!-- Shaft + open stroke chevrons; ~1px gap from bars -->
+          <path
+            d="M6 8h4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="butt"
+          />
+          <path
+            data-testid="measure-icon-head"
+            d="M6.2 5.6 L4 8 L6.2 10.4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="butt"
+            stroke-linejoin="miter"
+          />
+          <path
+            data-testid="measure-icon-head"
+            d="M9.8 5.6 L12 8 L9.8 10.4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="butt"
+            stroke-linejoin="miter"
+          />
+        </svg>
+      </button>
 
       <div class="pr-toolbar__display-wrap">
         <button
@@ -601,10 +660,6 @@ function onDependencyDepth(e: Event) {
 .pr-toolbar__icon-btn[aria-expanded='true'] {
   background: #1e2a3e;
   color: #2d70e3;
-}
-
-.pr-toolbar__caliper {
-  display: block;
 }
 
 .pr-toolbar__display-wrap {

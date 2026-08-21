@@ -5,10 +5,13 @@ import {
   applyWindow,
   clearMeasure,
   createViewState,
+  measureFocusWindow,
   panBy,
   setMeasureMode,
   setMeasureRange,
+  spanFromZoomPercent,
   zoomAt,
+  zoomPercentFromSpan,
   zoomToFitWindow,
 } from '../../domain/viewState';
 import {
@@ -42,6 +45,7 @@ import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
 import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
+import { animateViewWindow } from '../TimelineView/animateViewWindow';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 
@@ -140,17 +144,52 @@ const bounds = computed(() => {
   };
 });
 
-/** Cursor MM:SS.mmm unit — finer than toolbar ms when the trace span is sub-ms. */
-/** 0 = fit (full span); 100 = max zoom (~1/100 of full span). */
-const zoomPercent = computed(() => {
-  const full = bounds.value.maxTime - bounds.value.minTime;
-  const span = Math.max(1, viewState.value.endTime - viewState.value.startTime);
-  if (span >= full) return 0;
-  const ratio = full / span;
-  return Math.min(100, Math.round((Math.log2(ratio) / Math.log2(100)) * 100));
-});
+/** Log zoom: 0 = fit, 100 = min window (same floor as Ctrl+wheel / zoomAt). */
+const zoomPercent = computed(() =>
+  zoomPercentFromSpan(
+    viewState.value.endTime - viewState.value.startTime,
+    bounds.value.maxTime - bounds.value.minTime,
+  ),
+);
+
+let cancelViewWindowAnim: () => void = () => {};
+
+function stopViewWindowAnim() {
+  cancelViewWindowAnim();
+  cancelViewWindowAnim = () => {};
+}
+
+function animateToWindow(window: { startTime: number; endTime: number; scrollY: number }) {
+  stopViewWindowAnim();
+  const from = {
+    startTime: viewState.value.startTime,
+    endTime: viewState.value.endTime,
+  };
+  const scrollY = window.scrollY;
+  cancelViewWindowAnim = animateViewWindow({
+    from,
+    to: { startTime: window.startTime, endTime: window.endTime },
+    onUpdate: (w) => {
+      viewState.value = applyWindow(viewState.value, {
+        ...w,
+        scrollY,
+      });
+    },
+    onDone: () => {
+      cancelViewWindowAnim = () => {};
+    },
+  });
+}
+
+function onFocusMeasure() {
+  const range = viewState.value.measureRange;
+  if (!range) return;
+  const target = measureFocusWindow(range, bounds.value, viewState.value.scrollY);
+  animateToWindow(target);
+}
 
 function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean): void {
+  stopViewWindowAnim();
   const next = createViewState(model);
   next.asideVisible = showAsidePanel;
   viewState.value = next;
@@ -248,6 +287,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  cancelViewWindowAnim();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
 
@@ -318,6 +358,7 @@ function onSetPlayhead(time: number) {
 }
 
 function onOverviewWindow(window: { startTime: number; endTime: number }) {
+  stopViewWindowAnim();
   viewState.value = applyWindow(viewState.value, {
     ...window,
     scrollY: viewState.value.scrollY,
@@ -329,6 +370,7 @@ function onScrollY(scrollY: number) {
 }
 
 function onPan(deltaTime: number) {
+  stopViewWindowAnim();
   viewState.value = applyWindow(
     viewState.value,
     panBy(viewState.value, deltaTime, bounds.value),
@@ -336,6 +378,7 @@ function onPan(deltaTime: number) {
 }
 
 function onZoom(factor: number, anchorTime: number) {
+  stopViewWindowAnim();
   viewState.value = applyWindow(
     viewState.value,
     zoomAt(viewState.value, factor, anchorTime, bounds.value),
@@ -343,7 +386,7 @@ function onZoom(factor: number, anchorTime: number) {
 }
 
 function onZoomToFit() {
-  viewState.value = applyWindow(viewState.value, zoomToFitWindow(swim.value));
+  animateToWindow(zoomToFitWindow(swim.value));
 }
 
 function onZoomIn() {
@@ -357,9 +400,9 @@ function onZoomOut() {
 }
 
 function onZoomPercent(pct: number) {
+  stopViewWindowAnim();
   const full = bounds.value.maxTime - bounds.value.minTime;
-  const ratio = 2 ** ((pct / 100) * Math.log2(100));
-  const span = Math.max(1, full / Math.max(1, ratio));
+  const span = spanFromZoomPercent(pct, full);
   const mid = (viewState.value.startTime + viewState.value.endTime) / 2;
   let startTime = mid - span / 2;
   let endTime = mid + span / 2;
@@ -518,6 +561,7 @@ defineExpose({ selectEventById, viewState });
           @pan="onPan"
           @zoom="onZoom"
           @update:measure-range="onMeasureRange"
+          @focus-measure="onFocusMeasure"
         />
       </template>
 

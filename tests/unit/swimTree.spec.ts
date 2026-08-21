@@ -11,6 +11,7 @@ import {
   contentHeightFromModel,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  layoutHeaders,
   rebuildLayout,
   showsProfilerStepBands,
 } from '../../src/swimlane/layout';
@@ -100,6 +101,7 @@ describe('swimTree + nested layout', () => {
 
     const layout = rebuildLayout(model);
     expect(layout.headers[0]).toMatchObject({ id: 'card0', name: 'Card0', y: 0 });
+    expect(layoutHeaders(model)).toEqual(layout.headers);
     expect(layout.events.map((e) => e.id).sort()).toEqual(['e1', 'e2']);
     expect(layout.lanes.some((l) => l.folder && l.thread.name === '计算')).toBe(true);
     expect(layout.lanes.find((l) => l.thread.id === 'mte1')?.folder).toBeFalsy();

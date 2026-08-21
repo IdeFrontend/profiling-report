@@ -1,10 +1,28 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { adaptRep, emptyReportViewModel, parseRep, ProfilingReport } from '../../src/index';
 import { loadOutRepBuffer, loadOutRepBytes } from '../helpers/fixtures';
 import type { SwimlaneModel } from '../../src/domain/types';
 
 describe('PR-UI: ProfilingReport feature contract', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Zoom-to-fit / Δt focus animate the window; tests assert final bounds instantly. */
+  function stubReducedMotion() {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+      onchange: null,
+    }));
+  }
+
   it('PR-UI-001: mounts with fixture source and shows timeline chrome', async () => {
     const wrapper = mount(ProfilingReport, {
       props: { source: loadOutRepBuffer() },
@@ -82,6 +100,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
   });
 
   it('PR-UI-004: zoom-to-fit resets time window', async () => {
+    stubReducedMotion();
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(ProfilingReport, {
       props: {
@@ -184,6 +203,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
   });
 
   it('PR-UI-007: time overview brush adjusts visible window', async () => {
+    stubReducedMotion();
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(ProfilingReport, {
       props: {

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { formatTime } from '../../../../domain/formatTime';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -12,8 +11,15 @@ import {
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
-import { contentHeightFromModel } from '../../../../swimlane/layout';
+import { contentHeightFromModel, findExactEdgeMatches, LANE_HEIGHT, nearestEventEdgeAtPoint, projectExactEdgeMarks, type ExactEdgeMatch } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
+import {
+  bindWindowPointerDrag,
+  measureResizeMinSpan,
+  resizeMeasureEdge,
+  type MeasureResizeEdge,
+} from '../../measureEdgeResize';
+import { animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
 
 const props = withDefaults(
   defineProps<{
@@ -45,6 +51,8 @@ const emit = defineEmits<{
   'scroll-y': [scrollY: number];
   'set-playhead': [time: number];
   'update:measureRange': [range: MeasureRange | null];
+  /** Hide axis Δt arrow/label during appear/clear (view↔range) tweens only. */
+  'suppress-measure-dt': [suppress: boolean];
 }>();
 
 const wrapRef = ref<HTMLDivElement | null>(null);
@@ -63,9 +71,42 @@ let attachedModel: SwimlaneModel | null = null;
 let dragging = false;
 let lastX = 0;
 let downX = 0;
+/** Client Y for magnet during window-level measure create/resize. */
+let lastPointerClientY = 0;
 let measureAnchorTime: number | null = null;
-/** True from measure pointerdown until pointerup — survives external Esc/toolbar cancel. */
+/** True once freeform create has crossed the 4px threshold (until pointerup). */
 let measureGestureActive = false;
+/** Measure-mode press waiting for click-vs-drag resolution. */
+let measureCreatePending = false;
+/** Freeform create ran this press (survives window onEnd clearing gesture). */
+let measureDragOccurred = false;
+/**
+ * True from measure pointerdown until pointerup — survives Esc/toolbar abort so
+ * the same press cannot pan or select.
+ */
+let measurePressActive = false;
+const MEASURE_DRAG_THRESHOLD_PX = 4;
+/** Magnet snap to nearest in-lane event start/end. */
+const EVENT_EDGE_MAGNET_PX = 10;
+/** Fast snap when clicking an event while a prior measure range exists. */
+const MEASURE_SNAP_DURATION_MS = 180;
+const suppressMeasurePreview = ref(false);
+/** Live magnet highlight on the snapped event edge (block-height blue stem). */
+const edgeSnapHighlight = ref<{ x: number; y: number; h: number } | null>(null);
+/** Committed exact-match marks; projected each frame from a cached match set. */
+const measureExactEdgeMarks = shallowRef<
+  { eventId: string; edge: 'start' | 'end'; time: number; x: number; y: number; h: number }[]
+>([]);
+/** View-invariant matches for the current measureRange + layout; rescanned only when those change. */
+let cachedExactEdgeMatches: ExactEdgeMatch[] = [];
+let cachedExactEdgeMatchKey = '';
+let cancelMeasureSnap: (() => void) | null = null;
+let resizeEdge: MeasureResizeEdge | null = null;
+/** Which measure border currently owns the pointer (for stuck cursor + zoom anchor). */
+let hoveredMeasureEdge: MeasureResizeEdge | null = null;
+let resizeFixedOther = 0;
+let unbindResizeDrag: (() => void) | null = null;
+let unbindCreateDrag: (() => void) | null = null;
 let lastW = 0;
 let lastH = 0;
 let resizeObserver: ResizeObserver | null = null;
@@ -106,10 +147,17 @@ function flushPaint(): void {
 }
 
 function applyViewState(forceModel = false): void {
-  if (!props.model) return;
-  if (forceModel || props.model !== attachedModel) {
+  if (!props.model) {
+    cachedExactEdgeMatches = [];
+    cachedExactEdgeMatchKey = '';
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  const modelChanged = forceModel || props.model !== attachedModel;
+  if (modelChanged) {
     backend.setModel(props.model);
     attachedModel = props.model;
+    cachedExactEdgeMatchKey = ''; // layout identity changed — rescan matches
   }
   backend.setView(props.view);
   backend.setDependencyMode?.(props.dependencyMode);
@@ -123,6 +171,56 @@ function applyViewState(forceModel = false): void {
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSearchQuery(props.searchQuery);
   }
+  refreshMeasureExactEdgeMarks(modelChanged);
+}
+
+/**
+ * Keep blue event-edge marks aligned with setView during Δt-focus / zoom.
+ * Matching events are scanned once per settled measureRange+layout; each frame only re-projects x/y.
+ * Skip the scan while a range tween or freeform create-drag is in flight — mid values are floats
+ * that cannot hit exact edges (wasteful full scans); refresh on settle in onDone / create end.
+ */
+function refreshMeasureExactEdgeMarks(forceRescan = false): void {
+  if (!props.measureMode || !props.measureRange || !props.model) {
+    cachedExactEdgeMatches = [];
+    cachedExactEdgeMatchKey = '';
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  // Range is moving — hide marks; do not key/scan on interpolating bounds.
+  if (cancelMeasureSnap != null || measureGestureActive) {
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  const start = Math.min(props.measureRange.startTime, props.measureRange.endTime);
+  const end = Math.max(props.measureRange.startTime, props.measureRange.endTime);
+  if (!(end > start)) {
+    cachedExactEdgeMatches = [];
+    cachedExactEdgeMatchKey = '';
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  const w = wrapRef.value?.clientWidth || 0;
+  if (w <= 0) {
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  const key = `${start}:${end}`;
+  if (forceRescan || key !== cachedExactEdgeMatchKey) {
+    cachedExactEdgeMatchKey = key;
+    cachedExactEdgeMatches = findExactEdgeMatches(backend.getLayout(), start, end);
+  }
+  const viewportH = wrapRef.value?.clientHeight || 0;
+  measureExactEdgeMarks.value = projectExactEdgeMarks(
+    cachedExactEdgeMatches,
+    {
+      startTime: props.view.startTime,
+      endTime: props.view.endTime,
+      scrollY: props.view.scrollY,
+    },
+    w,
+    viewportH > 0 ? viewportH : Infinity,
+  );
 }
 
 function sync(forceModel = false): void {
@@ -202,6 +300,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  cancelMeasureSnapAnim();
+  endMeasureCreate();
+  endMeasureResize();
   resizeObserver?.disconnect();
   if (raf) cancelAnimationFrame(raf);
   backend.dispose();
@@ -225,22 +326,296 @@ watch(
   { deep: true },
 );
 
-function abortMeasureDrag(): void {
-  measureAnchorTime = null;
-  dragging = false;
-}
-
+/** Drop live magnet stem when the time window moves (zoom / pan / Δt focus anim). */
 watch(
-  () => props.measureMode,
-  (mode) => {
-    if (!mode) abortMeasureDrag();
+  () => [props.view.startTime, props.view.endTime] as const,
+  () => {
+    edgeSnapHighlight.value = null;
   },
 );
+
+function cancelMeasureSnapAnim(): void {
+  cancelMeasureSnap?.();
+  cancelMeasureSnap = null;
+  emit('suppress-measure-dt', false);
+}
+
+function runMeasureRangeTween(
+  from: MeasureRange,
+  to: MeasureRange,
+  opts: { suppressDt: boolean; clearWhenDone?: boolean },
+): void {
+  emit('suppress-measure-dt', opts.suppressDt);
+  cancelMeasureSnap = animateViewWindow({
+    from,
+    to,
+    durationMs: MEASURE_SNAP_DURATION_MS,
+    onUpdate: (w) => emit('update:measureRange', normalizeMeasureRange(w.startTime, w.endTime)),
+    onDone: () => {
+      cancelMeasureSnap = null;
+      emit('suppress-measure-dt', false);
+      if (opts.clearWhenDone) {
+        emit('update:measureRange', null);
+      } else {
+        refreshMeasureExactEdgeMarks(true);
+      }
+    },
+  });
+}
+
+function abortMeasureDrag(): void {
+  // Unbind create/resize updates but keep measurePressActive / measureGestureActive
+  // until pointerup so a mid-gesture Esc/toolbar cancel does not pan or select.
+  cancelMeasureSnapAnim();
+  unbindCreateDrag?.();
+  unbindCreateDrag = null;
+  measureAnchorTime = null;
+  measureCreatePending = false;
+  dragging = false;
+  suppressMeasurePreview.value = false;
+  hoveredMeasureEdge = null;
+  endMeasureResize();
+}
+
+function endMeasureResize(): void {
+  unbindResizeDrag?.();
+  unbindResizeDrag = null;
+  resizeEdge = null;
+  suppressMeasurePreview.value = false;
+}
+
+function endMeasureCreate(): void {
+  unbindCreateDrag?.();
+  unbindCreateDrag = null;
+  measureAnchorTime = null;
+  measureGestureActive = false;
+  measureCreatePending = false;
+  measurePressActive = false;
+  dragging = false;
+  suppressMeasurePreview.value = false;
+}
+
+function beginMeasureCreateFromDown(): void {
+  if (!wrapRef.value || measureGestureActive) return;
+  cancelMeasureSnapAnim();
+  const rect = wrapRef.value.getBoundingClientRect();
+  measureCreatePending = false;
+  measureGestureActive = true;
+  measureDragOccurred = true;
+  suppressMeasurePreview.value = true;
+  // Use last known Y from pointer; downX is client X — magnetize at down.
+  const local = localFromClient(downX, lastPointerClientY);
+  const mag = local
+    ? magnetizeLocal(local.x, local.y)
+    : { time: timeAtX(downX - rect.left), xPx: downX - rect.left, xRatio: 0, eventId: null };
+  measureAnchorTime = mag.time;
+  emit(
+    'update:measureRange',
+    normalizeMeasureRange(measureAnchorTime, measureAnchorTime),
+  );
+}
+
+function onCreateDragMove(clientX: number, clientY: number): void {
+  lastPointerClientY = clientY;
+  if (measureCreatePending) {
+    if (Math.abs(clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX) return;
+    beginMeasureCreateFromDown();
+  }
+  emitCreateRange(clientX, clientY);
+}
+
+/** Window pointerup: stop listening; leave press flags for canvas `pointerup`. */
+function onCreateDragEnd(): void {
+  unbindCreateDrag?.();
+  unbindCreateDrag = null;
+  if (measureGestureActive) {
+    measureAnchorTime = null;
+    measureGestureActive = false;
+    dragging = false;
+    suppressMeasurePreview.value = false;
+    refreshMeasureExactEdgeMarks(true);
+  }
+}
+
+function emitResizedRange(clientX: number, clientY: number) {
+  if (!resizeEdge || !wrapRef.value) return;
+  lastPointerClientY = clientY;
+  const local = localFromClient(clientX, clientY);
+  const mag = local
+    ? magnetizeLocal(local.x, local.y)
+    : (() => {
+        const rect = wrapRef.value!.getBoundingClientRect();
+        const t = timeAtX(clientX - rect.left);
+        return { time: t, xPx: clientX - rect.left, xRatio: 0, eventId: null };
+      })();
+  const w = Math.max(1, wrapRef.value.clientWidth);
+  const next = resizeMeasureEdge({
+    edge: resizeEdge,
+    time: mag.time,
+    fixedOther: resizeFixedOther,
+    viewStart: props.view.startTime,
+    viewEnd: props.view.endTime,
+    minSpan: measureResizeMinSpan(props.view.startTime, props.view.endTime, w),
+  });
+  emit('update:measureRange', next);
+  const edgeTime = resizeEdge === 'left' ? next.startTime : next.endTime;
+  const span = Math.max(1, props.view.endTime - props.view.startTime);
+  const xRatio = (edgeTime - props.view.startTime) / span;
+  emit('cursor', {
+    time: edgeTime,
+    xRatio: Math.min(1, Math.max(0, xRatio)),
+  });
+}
+
+function emitCreateRange(clientX: number, clientY: number) {
+  if (!measureGestureActive || measureAnchorTime == null || !wrapRef.value) return;
+  lastPointerClientY = clientY;
+  const local = localFromClient(clientX, clientY);
+  const mag = local
+    ? magnetizeLocal(local.x, local.y)
+    : { time: timeAtX(clientX - wrapRef.value.getBoundingClientRect().left), xPx: 0, xRatio: 0, eventId: null };
+  emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, mag.time));
+  emit('cursor', { time: mag.time, xRatio: mag.xRatio });
+}
+
+/** Snap to event borders; tween from prior range or (if none) from the visible window. */
+function snapMeasureToEvent(ev: SwimEvent): void {
+  const to = normalizeMeasureRange(ev.startTime, ev.startTime + ev.duration);
+  cancelMeasureSnapAnim();
+  if (prefersReducedMotion()) {
+    emit('update:measureRange', to);
+    return;
+  }
+  const prev = props.measureRange;
+  const viewSpan = normalizeMeasureRange(props.view.startTime, props.view.endTime);
+  let from: MeasureRange;
+  let suppressDt = false;
+  if (prev) {
+    from = normalizeMeasureRange(prev.startTime, prev.endTime);
+    if (!(from.endTime > from.startTime)) {
+      from = viewSpan;
+      suppressDt = true;
+    } else if (from.startTime === viewSpan.startTime && from.endTime === viewSpan.endTime) {
+      suppressDt = true;
+    }
+  } else {
+    from = viewSpan;
+    suppressDt = true;
+  }
+  if (from.startTime === to.startTime && from.endTime === to.endTime) {
+    emit('update:measureRange', to);
+    return;
+  }
+  runMeasureRangeTween(from, to, { suppressDt });
+}
+
+function clearMeasureRange(): void {
+  cancelMeasureSnapAnim();
+  const prev = props.measureRange;
+  if (!prev) {
+    emit('update:measureRange', null);
+    return;
+  }
+  const from = normalizeMeasureRange(prev.startTime, prev.endTime);
+  if (!(from.endTime > from.startTime) || prefersReducedMotion()) {
+    emit('update:measureRange', null);
+    return;
+  }
+  const to = normalizeMeasureRange(props.view.startTime, props.view.endTime);
+  // Already spans (or exceeds) the visible window — nothing to expand into.
+  if (from.startTime <= to.startTime && from.endTime >= to.endTime) {
+    emit('update:measureRange', null);
+    return;
+  }
+  runMeasureRangeTween(from, to, { suppressDt: true, clearWhenDone: true });
+}
+
+/** Stick playhead cursor to a measure edge while the hit pad owns the pointer. */
+function emitCursorAtMeasureEdge(edge: MeasureResizeEdge) {
+  const geo = measureGeometry.value;
+  const range = props.measureRange;
+  if (!geo || !range || !wrapRef.value) return;
+  const w = Math.max(1, wrapRef.value.clientWidth);
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  const x = edge === 'left' ? geo.left : geo.right;
+  emit('cursor', {
+    time: edge === 'left'
+      ? Math.max(props.view.startTime, start)
+      : Math.min(props.view.endTime, end),
+    xRatio: x / w,
+  });
+}
+
+/** Time of the measure border currently under the pointer (zoom anchor). */
+function stuckMeasureEdgeTime(): number | null {
+  const edge = hoveredMeasureEdge ?? resizeEdge;
+  const range = props.measureRange;
+  if (!edge || !range) return null;
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  return edge === 'left'
+    ? Math.max(props.view.startTime, start)
+    : Math.min(props.view.endTime, end);
+}
+
+function isMeasureBorderEl(t: EventTarget | null): boolean {
+  return !!(t as HTMLElement | null)?.closest?.('.pr-measure-border');
+}
+
+function onMeasureBorderPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
+  if (e.button !== 0 || !props.measureMode) return;
+  const range = props.measureRange;
+  if (!range) return;
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  endMeasureCreate();
+  endMeasureResize();
+  cancelMeasureSnapAnim();
+  hoveredMeasureEdge = edge;
+  resizeEdge = edge;
+  resizeFixedOther = edge === 'left' ? end : start;
+  suppressMeasurePreview.value = true;
+  emitCursorAtMeasureEdge(edge);
+  unbindResizeDrag = bindWindowPointerDrag({
+    onMove: emitResizedRange,
+    onEnd: endMeasureResize,
+  });
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  e.stopPropagation();
+  e.preventDefault();
+}
+
+function onMeasureBorderPointerEnter(_e: PointerEvent, edge: MeasureResizeEdge) {
+  hoveredMeasureEdge = edge;
+  emitCursorAtMeasureEdge(edge);
+}
+
+function onMeasureBorderPointerLeave(e: PointerEvent) {
+  if (resizeEdge || measureGestureActive || measureCreatePending || measurePressActive) return;
+  if (isMeasureBorderEl(e.relatedTarget)) return;
+  // Onto canvas: drop border zoom stick; canvas pointermove owns cursor next.
+  if ((e.relatedTarget as HTMLElement | null)?.closest?.('.pr-swim-canvas')) {
+    hoveredMeasureEdge = null;
+    return;
+  }
+  hoveredMeasureEdge = null;
+  emit('cursor', null);
+}
 
 watch(
   () => props.measureRange,
   (range) => {
     if (range == null) abortMeasureDrag();
+    refreshMeasureExactEdgeMarks(true);
+  },
+);
+
+watch(
+  () => props.measureMode,
+  (mode) => {
+    if (!mode) abortMeasureDrag();
+    refreshMeasureExactEdgeMarks(true);
   },
 );
 
@@ -256,21 +631,94 @@ function xAtTime(t: number): number {
   return ((t - props.view.startTime) / span) * w;
 }
 
-const measureOverlayStyle = computed(() => {
+/** Magnetize local canvas coords; updates live edge snap highlight. */
+function magnetizeLocal(
+  localX: number,
+  localY: number,
+): { time: number; xPx: number; xRatio: number; eventId: string | null } {
+  const w = Math.max(1, wrapRef.value?.clientWidth || 1);
+  const hit = nearestEventEdgeAtPoint(
+    backend.getLayout(),
+    props.view,
+    w,
+    localX,
+    localY,
+    EVENT_EDGE_MAGNET_PX,
+  );
+  if (!hit) {
+    edgeSnapHighlight.value = null;
+    return { time: timeAtX(localX), xPx: localX, xRatio: localX / w, eventId: null };
+  }
+  const item = backend.getLayout().eventsById.get(hit.eventId);
+  edgeSnapHighlight.value = item
+    ? { x: hit.xPx, y: item.y - props.view.scrollY, h: LANE_HEIGHT }
+    : null;
+  return { time: hit.time, xPx: hit.xPx, xRatio: hit.xPx / w, eventId: hit.eventId };
+}
+
+/** Hover/select target: magnetized edge event wins, else spatial hitTest. */
+function eventAtPointer(localX: number, localY: number, magnetEventId: string | null) {
+  if (magnetEventId) {
+    const ev = backend.findEvent(magnetEventId);
+    if (ev) return ev;
+  }
+  const id = backend.hitTest(localX, localY);
+  return id ? backend.findEvent(id) : null;
+}
+
+function localFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
+  const target = activeCanvas() ?? wrapRef.value;
+  if (!target) return null;
+  const rect = target.getBoundingClientRect();
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+const measureGeometry = computed(() => {
   const range = props.measureRange;
   if (!range) return null;
-  const left = xAtTime(range.startTime);
-  const right = xAtTime(range.endTime);
-  const x = Math.min(left, right);
-  const width = Math.max(1, Math.abs(right - left));
-  return { left: `${x}px`, width: `${width}px` };
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  if (!(end > start)) return null;
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const visStart = Math.max(viewStart, start);
+  const visEnd = Math.min(viewEnd, end);
+  if (!(visEnd > visStart)) return null;
+  const left = xAtTime(visStart);
+  const right = xAtTime(visEnd);
+  return {
+    left,
+    right,
+    width: Math.max(1, right - left),
+    showLeft: start >= viewStart,
+    showRight: end <= viewEnd,
+  };
 });
 
-const measureLabel = computed(() => {
-  const range = props.measureRange;
-  if (!range) return '';
-  const dur = Math.abs(range.endTime - range.startTime);
-  return formatTime(dur, props.timeUnit ?? 'ms');
+/** Gray event-edge preview while hovering in measure mode (no fades). */
+const measurePreviewGeometry = computed(() => {
+  if (!props.measureMode || suppressMeasurePreview.value || !props.model) return null;
+  const id = props.hoveredEventId;
+  if (!id) return null;
+  // Depend on view so x positions update when the window pans/zooms.
+  void props.view.startTime;
+  void props.view.endTime;
+  const ev = backend.findEvent(id);
+  if (!ev) return null;
+  const start = ev.startTime;
+  const end = ev.startTime + ev.duration;
+  if (!(end > start)) return null;
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const showLeft = start >= viewStart && start <= viewEnd;
+  const showRight = end >= viewStart && end <= viewEnd;
+  if (!showLeft && !showRight) return null;
+  return {
+    left: xAtTime(start),
+    right: xAtTime(end),
+    showLeft,
+    showRight,
+  };
 });
 
 function activeCanvas(): HTMLCanvasElement | null {
@@ -278,19 +726,24 @@ function activeCanvas(): HTMLCanvasElement | null {
 }
 
 function onPointerDown(e: PointerEvent): void {
-  dragging = true;
   lastX = e.clientX;
   downX = e.clientX;
-  const canvas = activeCanvas();
-  if (props.measureMode && canvas) {
-    const rect = canvas.getBoundingClientRect();
-    measureGestureActive = true;
-    measureAnchorTime = timeAtX(e.clientX - rect.left);
-    emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
-  } else {
+  lastPointerClientY = e.clientY;
+  measureDragOccurred = false;
+  if (props.measureMode && activeCanvas()) {
+    endMeasureCreate();
+    endMeasureResize();
+    measurePressActive = true;
+    measureCreatePending = true;
     measureGestureActive = false;
-    measureAnchorTime = null;
+    unbindCreateDrag = bindWindowPointerDrag({
+      onMove: onCreateDragMove,
+      onEnd: onCreateDragEnd,
+    });
+  } else {
+    endMeasureCreate();
   }
+  dragging = true;
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
 }
 
@@ -301,18 +754,15 @@ function onPointerMove(e: PointerEvent): void {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   const w = Math.max(1, rect.width);
-  const time = timeAtX(x);
+  lastPointerClientY = e.clientY;
 
-  backend.setCursorX(x);
-  if (useWebGl.value) overlay.setCursorX(x);
   schedulePaint();
-  emit('cursor', { time, xRatio: x / w });
+  const mag = magnetizeLocal(x, y);
+  emit('cursor', { time: mag.time, xRatio: mag.xRatio });
 
   if (dragging) {
-    if (measureGestureActive) {
-      if (props.measureMode && measureAnchorTime != null) {
-        emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, time));
-      }
+    // Measure create is driven by window listeners (release over Card strips still ends).
+    if (measureGestureActive || measureCreatePending || measurePressActive) {
       emit('hover', null, e.clientX, e.clientY);
       return;
     }
@@ -324,41 +774,60 @@ function onPointerMove(e: PointerEvent): void {
     return;
   }
 
-  const id = backend.hitTest(x, y);
-  emit('hover', id ? backend.findEvent(id) : null, e.clientX, e.clientY);
+  emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
 }
 
 function onPointerUp(e: PointerEvent): void {
-  const wasMeasuring = measureGestureActive;
-  dragging = false;
-  measureAnchorTime = null;
-  measureGestureActive = false;
+  const didFreeform = measureDragOccurred;
+  const wasPending = measureCreatePending && !didFreeform;
+  const wasMeasurePress = measurePressActive;
+  endMeasureCreate();
+  measureDragOccurred = false;
   const target = activeCanvas();
   if (!target) return;
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  emit('set-playhead', timeAtX(x));
-  if (wasMeasuring) return;
-  if (Math.abs(e.clientX - downX) > 4) return;
-  const id = backend.hitTest(x, y);
-  emit('select', id ? backend.findEvent(id) : null);
+  const mag = magnetizeLocal(x, y);
+  emit('set-playhead', mag.time);
+  if (wasMeasurePress || props.measureMode) {
+    if (
+      props.measureMode &&
+      wasPending &&
+      !didFreeform &&
+      Math.abs(e.clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX
+    ) {
+      const ev = eventAtPointer(x, y, mag.eventId);
+      if (ev) {
+        snapMeasureToEvent(ev);
+      } else {
+        clearMeasureRange();
+      }
+    }
+    return;
+  }
+  if (Math.abs(e.clientX - downX) > MEASURE_DRAG_THRESHOLD_PX) return;
+  emit('select', eventAtPointer(x, y, mag.eventId));
 }
 
-function onPointerLeave(): void {
+function onPointerLeave(e: PointerEvent): void {
   // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
-  if (measureGestureActive) {
-    backend.setCursorX(null);
-    if (useWebGl.value) overlay.setCursorX(null);
+  if (measureGestureActive || measureCreatePending || measurePressActive) {
     schedulePaint();
+    edgeSnapHighlight.value = null;
     emit('cursor', null);
+    emit('hover', null, 0, 0);
+    return;
+  }
+  // Measure borders sit above the canvas; they stick the cursor — do not clear on the way there.
+  if (isMeasureBorderEl(e.relatedTarget)) {
+    schedulePaint();
     emit('hover', null, 0, 0);
     return;
   }
   dragging = false;
   measureAnchorTime = null;
-  backend.setCursorX(null);
-  if (useWebGl.value) overlay.setCursorX(null);
+  edgeSnapHighlight.value = null;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
@@ -370,8 +839,11 @@ function onWheel(e: WheelEvent): void {
   if (!target) return;
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
   if (e.ctrlKey || e.metaKey) {
-    emit('zoom', e.deltaY > 0 ? 1 / 1.15 : 1.15, timeAtX(x));
+    const mag = magnetizeLocal(x, y);
+    const anchor = stuckMeasureEdgeTime() ?? mag.time;
+    emit('zoom', e.deltaY > 0 ? 1 / 1.15 : 1.15, anchor);
   } else {
     localScrollY = clampScrollY(localScrollY + e.deltaY);
     emit('scroll-y', localScrollY);
@@ -382,6 +854,8 @@ defineExpose({
   eventScreenRect: (id: string) => backend.eventScreenRect(id),
   renderer: () => backend,
   useWebGl,
+  /** Card strips sit above the canvas; SwimlaneView forwards wheel here. */
+  handleWheel: onWheel,
 });
 </script>
 
@@ -424,17 +898,73 @@ defineExpose({
       @pointerleave="onPointerLeave"
       @wheel="onWheel"
     />
+    <template v-if="measureMode && measureGeometry">
+      <div
+        class="pr-measure-fade pr-measure-fade--left"
+        data-testid="measure-fade-left"
+        :style="{ width: `${measureGeometry.left}px` }"
+      />
+      <div
+        class="pr-measure-fade pr-measure-fade--right"
+        data-testid="measure-fade-right"
+        :style="{ left: `${measureGeometry.right}px`, right: '0' }"
+      />
+      <div
+        v-if="measureGeometry.showLeft"
+        class="pr-measure-border pr-measure-border--left"
+        data-testid="measure-border-left"
+        :style="{ left: `${measureGeometry.left}px` }"
+        @pointerdown="onMeasureBorderPointerDown($event, 'left')"
+        @pointerenter="onMeasureBorderPointerEnter($event, 'left')"
+        @pointerleave="onMeasureBorderPointerLeave"
+        @wheel="onWheel"
+      />
+      <div
+        v-if="measureGeometry.showRight"
+        class="pr-measure-border pr-measure-border--right"
+        data-testid="measure-border-right"
+        :style="{ left: `${measureGeometry.right}px` }"
+        @pointerdown="onMeasureBorderPointerDown($event, 'right')"
+        @pointerenter="onMeasureBorderPointerEnter($event, 'right')"
+        @pointerleave="onMeasureBorderPointerLeave"
+        @wheel="onWheel"
+      />
+    </template>
+    <template v-if="measureMode && measurePreviewGeometry">
+      <div
+        v-if="measurePreviewGeometry.showLeft"
+        class="pr-measure-border pr-measure-border--preview"
+        data-testid="measure-preview-left"
+        :style="{ left: `${measurePreviewGeometry.left}px` }"
+      />
+      <div
+        v-if="measurePreviewGeometry.showRight"
+        class="pr-measure-border pr-measure-border--preview"
+        data-testid="measure-preview-right"
+        :style="{ left: `${measurePreviewGeometry.right}px` }"
+      />
+    </template>
     <div
-      v-if="measureOverlayStyle"
-      class="pr-measure-band"
-      data-testid="measure-band"
-      :style="measureOverlayStyle"
-    >
-      <span
-        class="pr-measure-band__label"
-        data-testid="measure-label"
-      >{{ measureLabel }}</span>
-    </div>
+      v-if="edgeSnapHighlight"
+      class="pr-measure-edge-mark pr-measure-edge-mark--snap"
+      data-testid="measure-edge-snap"
+      :style="{
+        left: `${edgeSnapHighlight.x}px`,
+        top: `${edgeSnapHighlight.y}px`,
+        height: `${edgeSnapHighlight.h}px`,
+      }"
+    />
+    <div
+      v-for="(mark, i) in measureExactEdgeMarks"
+      :key="`${mark.eventId}-${mark.edge}-${i}`"
+      class="pr-measure-edge-mark"
+      data-testid="measure-edge-exact"
+      :style="{
+        left: `${mark.x}px`,
+        top: `${mark.y}px`,
+        height: `${mark.h}px`,
+      }"
+    />
   </div>
 </template>
 
@@ -483,28 +1013,71 @@ defineExpose({
   pointer-events: none;
 }
 
-.pr-measure-band {
+/* Measure mode (M2): fade outside the selection + gray swimlane borders.
+ * Blue bars + Δt arrow live on the time axis (TimelineView). */
+.pr-measure-fade {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(48, 120, 240, 0.22);
-  border-left: 1px solid rgba(48, 120, 240, 0.85);
-  border-right: 1px solid rgba(48, 120, 240, 0.85);
+  background: rgba(0, 0, 0, 0.3);
   pointer-events: none;
   z-index: 3;
 }
 
-.pr-measure-band__label {
+.pr-measure-fade--left {
+  left: 0;
+}
+
+.pr-measure-fade--right {
+  right: 0;
+}
+
+.pr-measure-border {
   position: absolute;
-  top: 6px;
-  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  background: transparent;
+  cursor: col-resize;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 3;
   transform: translateX(-50%);
-  padding: 1px 6px;
-  border-radius: 2px;
-  background: rgba(20, 20, 20, 0.85);
-  color: #e8e8e8;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+}
+
+.pr-measure-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: #4c4c4c;
+}
+
+.pr-measure-border:hover::before,
+.pr-measure-border:active::before {
+  width: 2px;
+}
+
+.pr-measure-border--preview {
+  pointer-events: none;
+  cursor: default;
+  z-index: 2;
+}
+
+/* 1px blue event-edge marks (full lane height — adjacent lanes meet with no gap). */
+.pr-measure-edge-mark {
+  position: absolute;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--pr-playhead, #3078f0);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.pr-measure-edge-mark--snap {
+  z-index: 5;
 }
 </style>

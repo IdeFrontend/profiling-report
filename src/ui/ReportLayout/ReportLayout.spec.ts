@@ -46,4 +46,12 @@ describe('ReportLayout', () => {
     });
     expect(wrapper.find('[data-testid="aside-resize-handle"]').exists()).toBe(true);
   });
+
+  it('PR-LAYOUT-005: main column overflow visible and stacks above aside', async () => {
+    const src = (await import('./ReportLayout.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-main\s*\{[^}]*overflow:\s*visible/s);
+    expect(src).not.toMatch(/\.pr-main\s*\{[^}]*overflow:\s*hidden/s);
+    expect(src).toMatch(/\.pr-main\s*\{[^}]*z-index:\s*1/s);
+    expect(src).toMatch(/\.pr-layout__aside\s*\{[^}]*z-index:\s*0/s);
+  });
 });

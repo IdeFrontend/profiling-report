@@ -38,20 +38,12 @@ defineExpose({ root });
       v-for="group in groups"
       :key="group.id"
     >
-      <button
-        type="button"
+      <!-- Card chrome (label/click) lives on SwimlaneView full-width strips. -->
+      <div
         class="pr-gutter__group"
         :data-testid="`gutter-group-${group.id}`"
-        :aria-expanded="!isCollapsed(group.id)"
-        @click="emit('toggle-group', group.id)"
-      >
-        <span
-          class="pr-gutter__chevron"
-          :class="isCollapsed(group.id) ? 'pr-gutter__chevron--right' : 'pr-gutter__chevron--down'"
-          aria-hidden="true"
-        />
-        <span class="pr-gutter__group-name">{{ group.name }}</span>
-      </button>
+        aria-hidden="true"
+      />
       <template v-if="!isCollapsed(group.id)">
         <LaneGutterNode
           v-for="lane in group.lanes"
@@ -87,66 +79,15 @@ defineExpose({ root });
 
 .pr-gutter__group {
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 6px;
   flex: 0 0 28px;
   height: 28px;
   min-height: 28px;
   width: 100%;
   margin: 0;
-  padding: 0 8px 0 8px;
+  padding: 0;
   border: 0;
   border-bottom: 1px solid #3a3a3a;
-  background: #262626;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: #e8e8e8;
-  text-align: left;
-  cursor: pointer;
-}
-
-.pr-gutter__group:hover {
-  background: #2f2f2f;
-}
-
-.pr-gutter__chevron {
-  box-sizing: border-box;
-  flex: 0 0 10px;
-  width: 10px;
-  height: 10px;
-  display: inline-block;
-  position: relative;
-  color: #a8a8a8;
-}
-
-.pr-gutter__chevron::before {
-  content: '';
-  position: absolute;
-  box-sizing: border-box;
-  border-style: solid;
-  border-color: currentColor;
-  border-width: 0 1.2px 1.2px 0;
-  width: 5px;
-  height: 5px;
-}
-
-.pr-gutter__chevron--down::before {
-  top: 1px;
-  left: 2px;
-  transform: rotate(45deg);
-}
-
-.pr-gutter__chevron--right::before {
-  top: 2px;
-  left: 1px;
-  transform: rotate(-45deg);
-}
-
-.pr-gutter__group-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  background: transparent;
+  pointer-events: none;
 }
 </style>
