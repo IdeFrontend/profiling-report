@@ -153,7 +153,7 @@ describe('ProfilingReport scaffold', () => {
             {
               id: 't',
               name: 'T',
-              events: [{ id: 'ea', name: 'event-a', startTime: 0, endTime: 10 }],
+              events: [{ id: 'ea', name: 'event-a', startTime: 0, duration: 10 }],
             },
           ],
         },
@@ -170,7 +170,7 @@ describe('ProfilingReport scaffold', () => {
             {
               id: 't',
               name: 'T',
-              events: [{ id: 'eb', name: 'event-b', startTime: 0, endTime: 99 }],
+              events: [{ id: 'eb', name: 'event-b', startTime: 0, duration: 99 }],
             },
           ],
         },
