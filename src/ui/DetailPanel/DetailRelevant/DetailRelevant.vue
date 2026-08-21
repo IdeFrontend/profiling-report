@@ -1,27 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { t } from '../../../i18n';
-import {
-  MAX_DEPENDENCY_DEPTH,
-  normalizeDependencyDepth,
-  type DependencyMode,
-} from '../../../domain/types';
+import { type DependencyMode } from '../../../domain/types';
 import type { DependencyNeighbors } from '../../../domain/dependencies';
 
 const props = defineProps<{
   /** Name of the selected event — the `Current` column of the sketch. */
   currentName: string;
   neighbors: DependencyNeighbors;
-  /** Shared with the swimlane curves — this panel is where both are edited. */
+  /** Which sides to show. Depth belongs to 显示控制 and drives the swimlane only. */
   mode: DependencyMode;
-  /** `-1` walks the whole chain. */
-  depth: number;
   locale?: string;
 }>();
 
 const emit = defineEmits<{
   'update:mode': [mode: DependencyMode];
-  'update:depth': [depth: number];
 }>();
 
 /**
@@ -59,13 +52,6 @@ const GLYPHS: Record<DependencyMode, { edges: string; dots: string }> = {
     dots: 'M3.4 8h0M8 6.2h0M8 10.4h0M12.6 3.4h0M12.6 8h0M12.6 12.6h0',
   },
 };
-
-function onDepthInput(event: Event) {
-  // A cleared number input reads as '' — normalizeDependencyDepth turns that (and
-  // anything unparsable) into the shared default rather than letting NaN through.
-  const raw = (event.target as HTMLInputElement).value.trim();
-  emit('update:depth', normalizeDependencyDepth(raw === '' ? Number.NaN : Number(raw)));
-}
 
 /** Chip row geometry, mirrored in CSS — the connectors are drawn, not measured. */
 const CHIP_HEIGHT = 18;
@@ -156,26 +142,6 @@ function sideHeight(count: number): number {
           </svg>
         </button>
       </div>
-
-      <label class="pr-detail-relevant__level">
-        <span>{{ t('connectionLevel', locale) }}:</span>
-        <input
-          class="pr-detail-relevant__level-input"
-          data-testid="detail-relevant-level"
-          type="number"
-          step="1"
-          min="-1"
-          :max="MAX_DEPENDENCY_DEPTH"
-          :value="depth"
-          @change="onDepthInput"
-        >
-      </label>
-
-      <span
-        class="pr-detail-relevant__help"
-        :title="t('connectionLevelHelp', locale)"
-        aria-hidden="true"
-      >?</span>
     </div>
 
     <p
@@ -346,36 +312,8 @@ function sideHeight(count: number): number {
   color: #f0f0f0;
 }
 
-.pr-detail-relevant__level {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #c0c0c0;
-  font-size: 12px;
-}
 
-.pr-detail-relevant__level-input {
-  width: 66px;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: 8px;
-  background: #313131;
-  color: #e6e6e6;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
 
-.pr-detail-relevant__help {
-  display: grid;
-  place-items: center;
-  width: 14px;
-  height: 14px;
-  border: 1px solid #6a6a6a;
-  border-radius: 50%;
-  color: #a0a0a0;
-  font-size: 11px;
-  cursor: help;
-}
 
 .pr-detail-relevant__empty {
   margin: 0;

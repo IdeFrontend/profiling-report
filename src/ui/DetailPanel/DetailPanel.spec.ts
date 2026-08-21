@@ -49,15 +49,13 @@ describe('DetailPanel', () => {
     expect(withDeps.text()).toContain('ProfilerStep#17');
   });
 
-  it('PR-DPANEL-004: forwards dependency mode and depth updates', async () => {
+  it('PR-DPANEL-004: forwards dependency mode updates', async () => {
     const wrapper = mount(DetailPanel, {
-      props: { selected, unit: 'ms', neighbors, dependencyMode: 'all', dependencyDepth: -1 },
+      props: { selected, unit: 'ms', neighbors, dependencyMode: 'all' },
     });
 
-    const input = wrapper.find('[data-testid="detail-relevant-level"]');
-    await input.setValue('2');
-    await input.trigger('change');
-    expect(wrapper.emitted('update:dependencyDepth')?.[0]).toEqual([2]);
+    // Depth lives in 显示控制 and drives the swimlane graph, not this column.
+    expect(wrapper.find('[data-testid="detail-relevant-level"]').exists()).toBe(false);
 
     await wrapper
       .find('[data-testid="detail-relevant-direction-successors"]')

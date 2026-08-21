@@ -444,7 +444,9 @@ function onDependencyDepth(depth: number) {
 const dependencyNeighbors = computed(() => {
   const ev = selectedEvent.value;
   if (!ev || !hasDependencies(swim.value)) return undefined;
-  return neighborsOf(swim.value, ev, localDependencyMode.value, localDependencyDepth.value);
+  // One hop: the dock lists what this event directly waits on and feeds. Depth is a
+  // 显示控制 setting for the swimlane graph and deliberately does not reach here.
+  return neighborsOf(swim.value, ev, localDependencyMode.value, DEFAULT_DEPENDENCY_DEPTH);
 });
 
 /** Used by component tests to select an event without canvas pointer geometry. */
@@ -519,11 +521,13 @@ defineExpose({ selectEventById, viewState });
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
           :time-unit="unit"
+          :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
           @update:search-query="onSearch"
           @update:aside-visible="onAside"
           @update:time-unit="onTimeUnit"
+          @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
           @zoom-to-fit="onZoomToFit"
@@ -578,12 +582,10 @@ defineExpose({ selectEventById, viewState });
       :locale="locale"
       :neighbors="dependencyNeighbors"
       :dependency-mode="localDependencyMode"
-      :dependency-depth="localDependencyDepth"
       :height="dockHeight"
       @close="onSelect(null)"
       @update:height="dockHeight = $event"
       @update:dependency-mode="onDependencyMode"
-      @update:dependency-depth="onDependencyDepth"
     />
 
     <EventTooltip

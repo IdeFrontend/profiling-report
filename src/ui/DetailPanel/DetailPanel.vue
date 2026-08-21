@@ -3,7 +3,6 @@ import { computed } from 'vue';
 import { t } from '../../i18n';
 import type { DependencyNeighbors } from '../../domain/dependencies';
 import type { DependencyMode, SelectedEvent, TimeDisplayUnit } from '../../domain/types';
-import { DEFAULT_DEPENDENCY_DEPTH } from '../../domain/types';
 import {
   DOCK_HEIGHT_DEFAULT,
   DOCK_HEIGHT_MAX,
@@ -22,7 +21,6 @@ const props = withDefaults(
     /** Omitted when the report carries no dependency data — the column hides. */
     neighbors?: DependencyNeighbors;
     dependencyMode?: DependencyMode;
-    dependencyDepth?: number;
     height?: number;
   }>(),
   {
@@ -30,14 +28,12 @@ const props = withDefaults(
     locale: undefined,
     neighbors: undefined,
     dependencyMode: 'all',
-    dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
   },
 );
 
 const emit = defineEmits<{
   close: [];
   'update:dependencyMode': [mode: DependencyMode];
-  'update:dependencyDepth': [depth: number];
   'update:height': [height: number];
 }>();
 
@@ -120,10 +116,8 @@ function onResizePointerUp() {
         :current-name="selected.name"
         :neighbors="neighbors"
         :mode="dependencyMode"
-        :depth="dependencyDepth"
         :locale="locale"
         @update:mode="emit('update:dependencyMode', $event)"
-        @update:depth="emit('update:dependencyDepth', $event)"
       />
     </div>
   </footer>

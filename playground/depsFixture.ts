@@ -36,7 +36,10 @@ export function depsTraceFixture(): { displayTimeUnit: string; traceEvents: Chro
       { ph: 'M', name: 'thread_name', pid: 1, tid: 3, args: { name: 'Core0.Vec0/ALL' } },
 
       task(1, 'ProfilerStep#1', 0, 1_200, 'step-1', ['mov-out']),
-      task(1, 'ProfilerStep#2', 1_400, 900, 'step-2', ['mov-out']),
+      // Deliberately longer than its sibling: chips of unequal name length are what
+      // exposed a chip hugging its text instead of filling its track, leaving a gap
+      // before the connector (PR-E2E-008).
+      task(1, 'ProfilerStep#2_with_a_longer_name', 1_400, 900, 'step-2', ['mov-out']),
 
       task(2, 'MOV_OUT_TO_L1_MULTI_ND2NZ', 2_600, 974, 'mov-out', ['step-17', 'step-18'], {
         op_type: 'MOV_OUT_TO_L1_MULTI_ND2NZ',
