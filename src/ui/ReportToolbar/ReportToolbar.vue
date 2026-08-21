@@ -1,33 +1,25 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { TimeDisplayUnit, DependencyMode } from '../../domain/types';
-import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
+import type { TimeDisplayUnit } from '../../domain/types';
+import { MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
 
-withDefaults(
-  defineProps<{
-    searchQuery: string;
-    asideVisible: boolean;
-    asideAvailable: boolean;
-    zoomPercent: number;
-    timeUnit: TimeDisplayUnit;
-    dependencyMode?: DependencyMode;
-    dependencyDepth?: number;
-    locale?: string;
-    title?: string;
-    measureMode?: boolean;
-  }>(),
-  {
-    dependencyMode: 'all',
-    dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
-  },
-);
+defineProps<{
+  searchQuery: string;
+  asideVisible: boolean;
+  asideAvailable: boolean;
+  zoomPercent: number;
+  timeUnit: TimeDisplayUnit;
+  dependencyDepth: number;
+  locale?: string;
+  title?: string;
+  measureMode?: boolean;
+}>();
 
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:asideVisible': [value: boolean];
   'update:timeUnit': [value: TimeDisplayUnit];
-  'update:dependencyMode': [value: DependencyMode];
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
   'zoom-to-fit': [];
@@ -35,6 +27,13 @@ const emit = defineEmits<{
   'zoom-out': [];
   'update:zoomPercent': [value: number];
 }>();
+
+function onDepthChange(event: Event) {
+  // A cleared number input reads as '' — normalizeDependencyDepth turns that (and
+  // anything unparsable) into the shared default rather than letting NaN through.
+  const raw = (event.target as HTMLInputElement).value.trim();
+  emit('update:dependencyDepth', normalizeDependencyDepth(raw === '' ? Number.NaN : Number(raw)));
+}
 
 const displayControlOpen = ref(false);
 
@@ -44,11 +43,6 @@ function toggleDisplayControl() {
 
 function closeDisplayControl() {
   displayControlOpen.value = false;
-}
-
-function onDependencyDepth(e: Event) {
-  const n = Number.parseInt((e.target as HTMLInputElement).value, 10);
-  emit('update:dependencyDepth', normalizeDependencyDepth(n));
 }
 </script>
 
@@ -330,28 +324,22 @@ function onDependencyDepth(e: Event) {
             </select>
           </label>
           <label class="pr-toolbar__display-field">
-            <span class="pr-toolbar__display-label">{{ t('dependencyDisplay', locale) }}</span>
-            <select
-              data-testid="dependency-mode"
-              :value="dependencyMode"
-              @change="emit('update:dependencyMode', ($event.target as HTMLSelectElement).value as DependencyMode)"
-            >
-              <option value="all">{{ t('depModeAll', locale) }}</option>
-              <option value="predecessors">{{ t('depModePredecessors', locale) }}</option>
-              <option value="successors">{{ t('depModeSuccessors', locale) }}</option>
-            </select>
-          </label>
-          <label class="pr-toolbar__display-field">
-            <span class="pr-toolbar__display-label">{{ t('dependencyDepth', locale) }}</span>
+            <span class="pr-toolbar__display-label">
+              {{ t('connectionLevel', locale) }}
+              <span
+                class="pr-toolbar__display-help"
+                :title="t('connectionLevelHelp', locale)"
+                aria-hidden="true"
+              >?</span>
+            </span>
             <input
               data-testid="dependency-depth"
               type="number"
+              step="1"
               min="-1"
               :max="MAX_DEPENDENCY_DEPTH"
-              step="1"
               :value="dependencyDepth"
-              :title="t('dependencyDepthHint', locale)"
-              @change="onDependencyDepth"
+              @change="onDepthChange"
             >
           </label>
         </div>
@@ -672,6 +660,20 @@ function onDependencyDepth(e: Event) {
   font-size: 12px;
   color: #b2b2b2;
   line-height: 1.2;
+}
+
+.pr-toolbar__display-help {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border: 1px solid #6a6a6a;
+  border-radius: 50%;
+  color: #a0a0a0;
+  font-size: 11px;
+  cursor: help;
+  vertical-align: -2px;
 }
 
 .pr-toolbar__display-field select,

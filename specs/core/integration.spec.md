@@ -34,6 +34,8 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-005**: Standalone JSON opens without CSV aside.
 1. **PR-E2E-006**: Overview brush updates time window and cursor line.
 1. **PR-E2E-007**: `?fixture=ffn_dense&renderer=webgl` attaches WebGL, paints selected dependency curves, and search does not rebuild the cached graph.
+1. **PR-E2E-008**: Relevent connector curves meet their chips flush, at any name length.
+1. **PR-E2E-009**: Dragging the dock taller grows its columns with it.
 
 ## Dependencies
 
@@ -41,4 +43,5 @@ Outside-in tests verifying the full component tree and playground render correct
 
 ## Changelog
 - **2026-08-19** — PR-E2E-007: Chromium WebGL dependency curves (`ffn_dense`).
+- **2026-08-20** — PR-E2E-008: chip-to-curve join measured in a real layout engine. Chips are content-sized in jsdom too, so only a browser can catch a short name sitting ~28px short of its connector.
 - **2026-08-05** — Initial spec. Core behaviors established.
