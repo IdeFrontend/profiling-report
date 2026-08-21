@@ -1,6 +1,8 @@
 /**
  * Normative color / surface tokens — COLOR_TOKENS.md
  */
+@import './fonts.css';
+
 :root,
 .pr-root {
   --pr-bg-panel: #262626;
