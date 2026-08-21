@@ -7,7 +7,8 @@ describe('DetailSummary', () => {
     const wrapper = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'test_op', startTime: 100, duration: 100, endTime: 200 },
-        unit: 'ms',
+        timeDisplayMode: 'time',
+        timeScaleUnit: 'ms',
       },
     });
 
@@ -19,7 +20,8 @@ describe('DetailSummary', () => {
     const wrapper = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'op', startTime: 1_000_000, duration: 500_000, endTime: 1_500_000 },
-        unit: 'us',
+        timeDisplayMode: 'time',
+        timeScaleUnit: 'us',
       },
     });
 

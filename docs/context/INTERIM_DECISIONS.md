@@ -34,7 +34,7 @@ Canonical Product answers stay in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md). Packag
 | **I-Q11e** | Roofline op-mix | Normalize non-zero Vector `aiv_vec_{fp32,fp16,int32,int16,misc}_ratio` (or Cube `aic_cube_*`) to %; show top contributors | Mix labels on chart | Product mix definition |
 | **I-Q11f** | Roofline tabs | **Hide** 内存单元 / 通路 / 搬运 until Q11 defines distinct series | Single chart chrome | Product tab semantics |
 | **I-Q7a** | Hardware details panel | Ship **interim** panel despite Product Q7 “out of MVP”: prefer `HardwareInfo.jsonl` category sections when present; else flat **OpBasicInfo** non-empty columns (raw headers). Never invent cores/HBM/peaks. Omit model when both absent | `HardwareDetailsPanel`, adapter tests | Product hardware inventory / Q7 reopen |
-| **I-Q14** | Time units | Configurable display: **ms / µs / ns** only. Default **ms**. **No** clock-cycle mode in MVP | Formatter + host/locale pref prop | Product specifies cycle mode + frequency source |
+| **I-Q14** | Time display | **Time (auto)** vs **CPU clocks**. Time mode auto-scales s/ms/µs/ns (viewport from visible span; overview from total span×width). Clocks use `currentFreq ?? ratedFreq` (MHz); hide clocks option when missing; fall back to time if freq disappears while in cycles | Formatter + toolbar mode + host `timeDisplayMode` prop | Product may refine freq source / labels |
 | **I-Q16–19** | Packaging / UX chrome | Follow [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md) as if accepted for scaffold | Repo-root `src/`, Ant Design + custom swimlane CSS, zh-CN default + EN keys, wheel/slider MVP gestures | Product confirm/change each Q16–Q19 |
 
 ---
@@ -57,7 +57,6 @@ Not required for first MVP merge:
 - Full report stats tiles (compute / avg util) — I/O BW shipped under I-Q6g
 - Overview charts with real series
 - Product-final hardware inventory beyond I-Q7a; roofline tabs / L2 series beyond I-Q11*; memory SVG; deps; secondary tabs
-- Clock-cycle display mode
 
 ---
 

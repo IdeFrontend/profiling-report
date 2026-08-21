@@ -73,7 +73,7 @@ Test coverage: PR-RENDER-001..005, PR-TIME-001..004, PR-VIEW-001..005 — all gr
 | `emptyReportViewModel()` | `src/adapters/adaptRep.ts` — empty analytics model for JSON-only loads (shows Swimlane only, no aside) |
 | Gutter utilization mini-bars | `src/domain/utilization.ts` — `computeThreadUtilization`, `withDerivedUtilizations` (PR-UTIL-001..002) |
 | Lane gutter | `src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.vue` — hierarchical lane labels + utilization bars |
-| Time display unit control | `TimeDisplayUnit` type: `'ms' | 'us' | 'ns'` — toolbar switch updates all formatted labels |
+| Time display mode control | `TimeDisplayMode`: `'time' | 'cycles'` — auto scale + optional CPU clocks |
 | Event tooltip | `src/ui/EventTooltip/EventTooltip.vue` — hover shows name, start, duration, end |
 | Compact detail strip | `src/ui/DetailPanel/DetailPanel.vue` — single-select event details |
 | i18n scaffolding | `src/i18n/index.ts` — `t()` function, zh-CN default, en fallback |

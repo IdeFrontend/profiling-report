@@ -14,7 +14,8 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeDisplayMode: 'time',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },

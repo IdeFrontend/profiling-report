@@ -8,7 +8,8 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewWindow,
-  type TimeDisplayUnit,
+  type TimeDisplayMode,
+  type TimeScaleUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
@@ -24,7 +25,9 @@ const props = withDefaults(
     searchQuery: string;
     measureMode?: boolean;
     measureRange?: MeasureRange | null;
-    timeUnit?: TimeDisplayUnit;
+    timeDisplayMode?: TimeDisplayMode;
+    timeScaleUnit?: TimeScaleUnit;
+    clockFreqMHz?: number;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
@@ -33,6 +36,8 @@ const props = withDefaults(
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    timeDisplayMode: 'time',
+    timeScaleUnit: 'ms',
   },
 );
 
@@ -270,7 +275,10 @@ const measureLabel = computed(() => {
   const range = props.measureRange;
   if (!range) return '';
   const dur = Math.abs(range.endTime - range.startTime);
-  return formatTime(dur, props.timeUnit ?? 'ms');
+  return formatTime(dur, props.timeDisplayMode ?? 'time', {
+    unit: props.timeScaleUnit ?? 'ms',
+    clockFreqMHz: props.clockFreqMHz,
+  });
 });
 
 function activeCanvas(): HTMLCanvasElement | null {

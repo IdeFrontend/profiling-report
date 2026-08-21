@@ -8,7 +8,7 @@ Full timeline preview bar with a draggable/resizable window indicator representi
 
 ## Inputs
 
-The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). **timeUnit** controls label formatting.
+The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). **timeDisplayMode** and optional **clockFreqMHz** control label formatting; overview wall-time unit is derived from total span × track width (not the brush window).
 
 ## Outputs
 

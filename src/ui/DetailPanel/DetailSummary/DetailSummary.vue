@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { formatTime } from '../../../domain/formatTime';
 import { t } from '../../../i18n';
-import type { SelectedEvent, TimeDisplayUnit } from '../../../domain/types';
+import type { SelectedEvent, TimeDisplayMode, TimeScaleUnit } from '../../../domain/types';
 
 defineProps<{
   selected: SelectedEvent;
-  unit: TimeDisplayUnit;
+  timeDisplayMode: TimeDisplayMode;
+  timeScaleUnit: TimeScaleUnit;
+  clockFreqMHz?: number;
   locale?: string;
 }>();
 </script>
@@ -19,13 +21,13 @@ defineProps<{
       {{ selected.name }}
     </div>
     <div class="pr-detail-summary__times">
-      <span>{{ t('start', locale) }}: {{ formatTime(selected.startTime, unit) }}</span>
+      <span>{{ t('start', locale) }}: {{ formatTime(selected.startTime, timeDisplayMode, { unit: timeScaleUnit, clockFreqMHz }) }}</span>
     </div>
     <div class="pr-detail-summary__times">
-      <span>{{ t('dur', locale) }}: {{ formatTime(selected.duration, unit) }}</span>
+      <span>{{ t('dur', locale) }}: {{ formatTime(selected.duration, timeDisplayMode, { unit: timeScaleUnit, clockFreqMHz }) }}</span>
     </div>
     <div class="pr-detail-summary__end">
-      {{ t('end', locale) }}: {{ formatTime(selected.endTime, unit) }}
+      {{ t('end', locale) }}: {{ formatTime(selected.endTime, timeDisplayMode, { unit: timeScaleUnit, clockFreqMHz }) }}
     </div>
   </div>
 </template>

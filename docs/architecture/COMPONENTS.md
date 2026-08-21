@@ -206,7 +206,7 @@ Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced wit
 
 ### `TimeAxis` (M)
 
-Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**; **display unit is configurable** ([Q14](../context/OPEN_QUESTIONS.md)). **Interim MVP ([I-Q14](../context/INTERIM_DECISIONS.md)):** ms / µs / ns only; default **ms**; no clock-cycle mode.
+Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**; **display mode is configurable** ([Q14](../context/OPEN_QUESTIONS.md)). **Interim ([I-Q14](../context/INTERIM_DECISIONS.md)):** Time (auto) with independent viewport vs overview scales, or CPU clocks when frequency is available.
 
 **Why:** Shared alignment for overview charts and swimlane; playhead per INTERACTIONS.
 

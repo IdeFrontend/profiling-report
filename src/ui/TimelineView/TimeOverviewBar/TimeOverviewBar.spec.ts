@@ -10,7 +10,7 @@ describe('TimeOverviewBar', () => {
         maxTime: 10000,
         startTime: 2000,
         endTime: 8000,
-        timeUnit: 'us',
+        timeDisplayMode: 'time',
       },
     });
 
@@ -24,7 +24,7 @@ describe('TimeOverviewBar', () => {
         maxTime: 10000,
         startTime: 3000,
         endTime: 7000,
-        timeUnit: 'ms',
+        timeDisplayMode: 'time',
       },
     });
 
@@ -42,11 +42,12 @@ describe('TimeOverviewBar', () => {
         maxTime: 5260,
         startTime: 986,
         endTime: 5260,
-        timeUnit: 'ms',
+        timeDisplayMode: 'time',
       },
     });
     const firstLabel = wrapper.find('.pr-axis-ruler__label');
-    expect(firstLabel.text()).toBe('0ms');
+    // Auto unit from span×width (≈4µs span → us scale), not brush window.
+    expect(firstLabel.text()).toBe('0µs');
   });
 
   it('PR-OVERVIEW-004: ruler renders majors and minors', () => {
@@ -56,7 +57,7 @@ describe('TimeOverviewBar', () => {
         maxTime: 10000,
         startTime: 0,
         endTime: 10000,
-        timeUnit: 'ms',
+        timeDisplayMode: 'time',
       },
     });
     expect(wrapper.find('[data-testid="axis-ruler"]').exists()).toBe(true);

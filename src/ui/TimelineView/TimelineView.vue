@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { buildAxisRulerTicks } from '../../domain/axisRuler';
-import {
-  formatCursorTime,
-  resolveCursorTimeUnit,
-} from '../../domain/formatTime';
+import { formatCursorTime } from '../../domain/formatTime';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -12,7 +9,8 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
-  type TimeDisplayUnit,
+  type TimeDisplayMode,
+  type TimeScaleUnit,
 } from '../../domain/types';
 import {
   GUTTER_WIDTH_DEFAULT,
@@ -30,7 +28,9 @@ const props = withDefaults(
   defineProps<{
     bounds: { minTime: number; maxTime: number };
     view: SwimlaneViewState;
-    unit: TimeDisplayUnit;
+    timeDisplayMode: TimeDisplayMode;
+    timeScaleUnit: TimeScaleUnit;
+    clockFreqMHz?: number;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     groups: GutterGroup[];
@@ -73,16 +73,22 @@ watch(
   },
 );
 
-const cursorTimeUnit = computed(() =>
-  resolveCursorTimeUnit(props.bounds.maxTime - props.bounds.minTime, props.unit),
-);
+const cursorLabel = computed(() => {
+  if (!props.cursor) return '';
+  return formatCursorTime(props.cursor.time - props.bounds.minTime, props.timeDisplayMode, {
+    unit: props.timeScaleUnit,
+    clockFreqMHz: props.clockFreqMHz,
+  });
+});
 
 const viewportRuler = computed(() =>
   buildAxisRulerTicks({
     rangeStart: props.view.startTime,
     rangeEnd: props.view.endTime,
     origin: props.bounds.minTime,
-    timeUnit: props.unit,
+    timeDisplayMode: props.timeDisplayMode,
+    timeScaleUnit: props.timeScaleUnit,
+    clockFreqMHz: props.clockFreqMHz,
     widthPx: timeAxisWidth.value,
   }),
 );
@@ -165,7 +171,8 @@ defineExpose({
         :max-time="bounds.maxTime"
         :start-time="view.startTime"
         :end-time="view.endTime"
-        :time-unit="unit"
+        :time-display-mode="timeDisplayMode"
+        :clock-freq-m-hz="clockFreqMHz"
         @update:window="emit('update:window', $event)"
       />
     </div>
@@ -187,7 +194,7 @@ defineExpose({
         <CursorTimestamp
           v-if="cursor"
           :x-ratio="cursor.xRatio"
-          :label="formatCursorTime(cursor.time - bounds.minTime, cursorTimeUnit)"
+          :label="cursorLabel"
         />
       </div>
     </div>
@@ -203,7 +210,9 @@ defineExpose({
       :search-query="view.searchQuery"
       :measure-mode="view.measureMode"
       :measure-range="view.measureRange"
-      :time-unit="unit"
+      :time-display-mode="timeDisplayMode"
+      :time-scale-unit="timeScaleUnit"
+      :clock-freq-m-hz="clockFreqMHz"
       :dependency-mode="dependencyMode"
       :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"
