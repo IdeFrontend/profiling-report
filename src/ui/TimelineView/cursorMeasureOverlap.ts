@@ -2,8 +2,10 @@
 export const CURSOR_LABEL_MIN_WIDTH_PX = 72;
 /** Expand range / Δt hit boxes to reduce edge flicker. */
 export const MEASURE_CHROME_HIT_PAD_PX = 4;
-/** Gap between measure bar and outside Δt pill. */
+/** Gap between measure bar and outside Δt pill (also shaft–label gap in the arrow). */
 export const MEASURE_OUTSIDE_LABEL_GAP_PX = 4;
+/** Open-stroke Δt arrowhead width (SVG viewBox / width). */
+export const MEASURE_ARROW_HEAD_PX = 9;
 
 export type MeasureDtPlacement =
   | { mode: 'inline' }
@@ -72,7 +74,7 @@ export function cursorLabelOverlapsMeasureChrome(input: CursorMeasureOverlapInpu
   let dt1: number;
   if (dtPlacement.mode === 'offscreen') {
     // Label parked just inside the near view edge (after the cue head + gap).
-    const headGap = 9 + MEASURE_OUTSIDE_LABEL_GAP_PX;
+    const headGap = MEASURE_ARROW_HEAD_PX + MEASURE_OUTSIDE_LABEL_GAP_PX;
     if (dtPlacement.side === 'left') {
       dt0 = headGap;
       dt1 = dt0 + dtLabelW;

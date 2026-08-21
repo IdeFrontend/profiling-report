@@ -27,7 +27,6 @@ export function animateViewWindow(opts: {
   to: AnimViewWindow;
   onUpdate: (window: AnimViewWindow) => void;
   durationMs?: number;
-  bounds?: { minTime: number; maxTime: number };
   onDone?: () => void;
 }): () => void {
   const duration =
