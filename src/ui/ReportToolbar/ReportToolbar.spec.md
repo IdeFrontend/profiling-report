@@ -139,7 +139,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
 11. **PR-TOOLBAR-011** — `dependency-mode` select inside 显示控制 emits `update:dependencyMode` on change; popover stays open.
 12. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1, above 100 clamp to 100); popover stays open.
-13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows selected operator label; menu lists operators; selecting emits `update:selectedOperatorId`; Escape/Enter/Arrow supported; re-select does not emit.
+13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows selected operator label; menu lists operators; selecting emits `update:selectedOperatorId`; Escape/Enter/Arrow supported; re-select does not emit; open state clears when selector unmounts.
 14. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
 15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); trigger type is 18px / 700 / 26px lh.
 
