@@ -59,6 +59,12 @@ Production URL: [https://profiling-report.vercel.app](https://profiling-report.v
 
 Redeploys on every push to `master` (and PR previews) via Vercel Git on the **IDE Frontend** team (`vercel.json` → `npm run build:demo` → `playground/dist`). Manual backup: [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml) (`workflow_dispatch` only).
 
+## Fonts
+
+This software uses **HarmonyOS Sans Fonts** (HarmonyOS Sans SC, 2025 package) under the
+[HarmonyOS Sans Fonts License Agreement](src/assets/fonts/LICENSE.txt)
+(also shipped as `dist/LICENSE-HarmonyOS-Sans.txt` after `npm run build`).
+
 ## Status
 
 Library timeline MVP (engineering milestones 1–4) is green on `master` (`npm run ci`).

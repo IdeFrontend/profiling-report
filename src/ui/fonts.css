@@ -1,0 +1,30 @@
+/**
+ * This software uses HarmonyOS Sans Fonts (HarmonyOS Sans SC, 2025 package).
+ * See ../assets/fonts/LICENSE.txt and dist/LICENSE-HarmonyOS-Sans.txt.
+ * Copyright Huawei Device Co., Ltd. — HarmonyOS Sans Fonts License Agreement.
+ */
+
+/* ?no-inline: Vite lib mode otherwise base64-inlines every CSS url() asset. */
+@font-face {
+  font-family: 'HarmonyOS Sans SC 2025';
+  src: url('../assets/fonts/HarmonyOS_Sans_SC_Light.woff2?no-inline') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HarmonyOS Sans SC 2025';
+  src: url('../assets/fonts/HarmonyOS_Sans_SC_Regular.woff2?no-inline') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HarmonyOS Sans SC 2025';
+  src: url('../assets/fonts/HarmonyOS_Sans_SC_Semibold.woff2?no-inline') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}

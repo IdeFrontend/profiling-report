@@ -43,7 +43,7 @@ function drawEventLabel(
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = "10px 'HarmonyOS Sans SC 2025', ui-sans-serif, system-ui, sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
