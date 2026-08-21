@@ -10,7 +10,7 @@ Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **dependencyMode** sets the dependency-display dropdown (`all` / `predecessors` / `successors`), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **dependencyMode** sets the dependency-display dropdown (`all` / `predecessors` / `successors`), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
 
 ## Outputs
 

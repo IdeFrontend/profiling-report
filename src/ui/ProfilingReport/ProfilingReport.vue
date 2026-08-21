@@ -9,7 +9,9 @@ import {
   panBy,
   setMeasureMode,
   setMeasureRange,
+  spanFromZoomPercent,
   zoomAt,
+  zoomPercentFromSpan,
   zoomToFitWindow,
 } from '../../domain/viewState';
 import {
@@ -142,15 +144,13 @@ const bounds = computed(() => {
   };
 });
 
-/** Cursor MM:SS.mmm unit — finer than toolbar ms when the trace span is sub-ms. */
-/** 0 = fit (full span); 100 = max zoom (~1/100 of full span). */
-const zoomPercent = computed(() => {
-  const full = bounds.value.maxTime - bounds.value.minTime;
-  const span = Math.max(1, viewState.value.endTime - viewState.value.startTime);
-  if (span >= full) return 0;
-  const ratio = full / span;
-  return Math.min(100, Math.round((Math.log2(ratio) / Math.log2(100)) * 100));
-});
+/** Log zoom: 0 = fit, 100 = min window (same floor as Ctrl+wheel / zoomAt). */
+const zoomPercent = computed(() =>
+  zoomPercentFromSpan(
+    viewState.value.endTime - viewState.value.startTime,
+    bounds.value.maxTime - bounds.value.minTime,
+  ),
+);
 
 let cancelViewWindowAnim: () => void = () => {};
 
@@ -402,8 +402,7 @@ function onZoomOut() {
 function onZoomPercent(pct: number) {
   stopViewWindowAnim();
   const full = bounds.value.maxTime - bounds.value.minTime;
-  const ratio = 2 ** ((pct / 100) * Math.log2(100));
-  const span = Math.max(1, full / Math.max(1, ratio));
+  const span = spanFromZoomPercent(pct, full);
   const mid = (viewState.value.startTime + viewState.value.endTime) / 2;
   let startTime = mid - span / 2;
   let endTime = mid + span / 2;

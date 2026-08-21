@@ -13,6 +13,8 @@ panBy(view: SwimlaneViewWindow, deltaTime: number, bounds?: Bounds): SwimlaneVie
 zoomToFitWindow(model: SwimlaneModel | null | undefined): SwimlaneViewWindow
 applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewState
 measureFocusWindow(range: MeasureRange, bounds: Bounds, scrollY?: number): SwimlaneViewWindow
+zoomPercentFromSpan(span: number, fullSpan: number): number
+spanFromZoomPercent(pct: number, fullSpan: number): number
 ```
 
 ## Behavior
@@ -23,7 +25,9 @@ measureFocusWindow(range: MeasureRange, bounds: Bounds, scrollY?: number): Swiml
 
 **Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only until Q22. `measureFocusWindow` centers a measured range so it spans half the visible width (25% padding each side), clamps to bounds, and fits the full bounds when 2× duration exceeds the trace.
 
-**Zoom.** `zoomAt` zooms around an anchor time point. Factor >1 zooms in, <1 zooms out. Span is clamped to a minimum of 1. With bounds, the zoomed window never exceeds the bounds edges — if the zoomed span exceeds the full bounds, returns the full bounds.
+**Zoom.** `zoomAt` zooms around an anchor time point. Factor >1 zooms in, <1 zooms out. Span is clamped to a minimum of 1 (`MIN_WINDOW`). With bounds, the zoomed window never exceeds the bounds edges — if the zoomed span exceeds the full bounds, returns the full bounds.
+
+**Shared zoom range (toolbar slider).** `zoomPercentFromSpan` / `spanFromZoomPercent` map the same extremes as wheel/`zoomAt`: slider 0 = fit (`fullSpan`), slider 100 = `MIN_WINDOW`. Log2 interpolate with `maxRatio = fullSpan / MIN_WINDOW` (not a hard 100× cap).
 
 **Pan.** `panBy` shifts the viewport by delta time units. Positive delta moves later times into view. With bounds, the window is clamped to stay within bounds edges.
 
@@ -38,6 +42,9 @@ measureFocusWindow(range: MeasureRange, bounds: Bounds, scrollY?: number): Swiml
 5. **PR-VIEW-005** — setMeasureRange normalizes; clearMeasure resets.
 6. **PR-VIEW-006** — measureFocusWindow centers at half span.
 7. **PR-VIEW-007** — measureFocusWindow clamps / fits when 2× exceeds.
+8. **PR-VIEW-008** — zoomPercent extremes: 0 ↔ full, 100 ↔ MIN_VIEW_WINDOW.
+9. **PR-VIEW-009** — zoomPercent ↔ span round-trip.
+10. **PR-VIEW-010** — slider max matches zoomAt floor.
 
 ## Edge Cases
 
@@ -54,6 +61,7 @@ measureFocusWindow(range: MeasureRange, bounds: Bounds, scrollY?: number): Swiml
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-08-21** — Shared zoomPercent ↔ span helpers; slider 100 = MIN_WINDOW (PR-VIEW-008…010).
 - **2026-08-21** — Document measureFocusWindow; PR-VIEW-006/007.
 - **2026-08-07** — Note M2 measure as planned; no AC until coded.
 - **2026-08-05** — Initial spec. Core behaviors established.
