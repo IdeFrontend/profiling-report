@@ -203,7 +203,7 @@ describe('PR-VM: report view-models (interim)', () => {
     ]);
   });
 
-  it('PR-VM-010: hardwareDetails prefers HardwareInfo.jsonl categories', () => {
+  it('PR-VM-010: hardwareDetails prefers HardwareInfo.jsonl; else OpBasicInfo', () => {
     const parsed = parseRep(loadOutRepBytes());
     parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
       [
@@ -211,38 +211,37 @@ describe('PR-VM: report view-models (interim)', () => {
         '{"category":"Device Info","chip_info":"Ascend 950PR_9599 V100","arch_info":"3510"}',
       ].join('\n'),
     );
-    const adapted = adaptRep(parsed);
-    const titles = adapted.reportModel.hardwareDetails!.sections.map((s) => s.title);
+    const fromJsonl = adaptRep(parsed);
+    const titles = fromJsonl.reportModel.hardwareDetails!.sections.map((s) => s.title);
     expect(titles).toEqual(['AI Core Information', 'Device Info']);
     const cores = Object.fromEntries(
-      adapted.reportModel.hardwareDetails!.sections[0]!.fields.map((f) => [f.key, f.value]),
+      fromJsonl.reportModel.hardwareDetails!.sections[0]!.fields.map((f) => [f.key, f.value]),
     );
     expect(cores.ai_core_count).toBe('36');
-    expect(adapted.reportModel.summary.coreCount).toBeUndefined();
-    expect(adapted.reportModel.summary.npuArchLabel).toBeUndefined();
-  });
+    expect(fromJsonl.reportModel.summary.coreCount).toBeUndefined();
+    expect(fromJsonl.reportModel.summary.npuArchLabel).toBeUndefined();
 
-  it('PR-VM-010 (interim I-Q7a): hardwareDetails falls back to OpBasicInfo', () => {
-    const adapted = adaptRep(parseRep(loadOutRepBytes()));
-    expect(adapted.reportModel.hardwareDetails).toBeDefined();
-    expect(adapted.capabilities).toContain('hardwareDetails');
-    const section = adapted.reportModel.hardwareDetails!.sections[0];
+    const fallback = adaptRep(parseRep(loadOutRepBytes()));
+    expect(fallback.reportModel.hardwareDetails).toBeDefined();
+    expect(fallback.capabilities).toContain('hardwareDetails');
+    const section = fallback.reportModel.hardwareDetails!.sections[0];
     expect(section.title).toBe('OpBasicInfo');
     const byKey = Object.fromEntries(section.fields.map((f) => [f.key, f.value]));
     expect(byKey['Op Name']).toBe('add_custom');
     expect(byKey['Current Freq']).toBe('1650');
   });
 
-  it('PR-VM-011 (Q12 + change-log #5): memoryTopology with data-driven edge labels', () => {
+  it('PR-VM-011: out.rep UB/Vec 2:1; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const topo = adapted.reportModel.memoryTopology;
     expect(topo).toBeDefined();
     expect(adapted.capabilities).toContain('memoryDiagram');
     expect(topo!.nodes.length).toBeGreaterThan(0);
-    expect(topo!.edges.filter((e) => e.label !== undefined).length).toBeGreaterThan(0);
-  });
-
-  it('PR-VM-011: L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {
+    const label = (id: string) => topo!.edges.find((e) => e.id === id)?.label;
+    expect(label('l2-ub')).toBe('16.76 GB/s');
+    expect(label('ub-l2')).toBe('8.38 GB/s');
+    expect(label('ub-vec')).toBe('16.76 GB/s');
+    expect(label('vec-ub')).toBe('8.38 GB/s');
     const both: CsvTableModel[] = [
       {
         fileName: 'Memory.csv',

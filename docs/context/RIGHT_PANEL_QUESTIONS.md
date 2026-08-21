@@ -2,7 +2,11 @@
 
 Please answer each question with: **file name**, **field name**, and **formula** if the number is calculated.
 
-Answers below are annotated with a status tag and, where known, `file → field` / formula. Sources: `example.rep` (the 11 embedded CSVs/JSONLs) and the `npu-compute性能优化.docx` field dictionary in `npu-tools/docs`.
+Answers below are annotated with a status tag and, where known, `file → field` / formula.
+
+**Sources (not all in git).** CI fixture is [`data/out.rep`](../../data/out.rep). Product dictionary is `npu-compute性能优化.docx` (外发版 0818, Ascend C Toolkit pack). `example.rep` is the same pack (`npu-tools-main-docs/docs/example.rep` when dropped locally; nested `npu-rep`; includes `HardwareInfo.jsonl`). Neither the docx nor `example.rep` is committed.
+
+Breakdown: **7 RESOLVED** / **13 INTERIM** / **5 PARTIAL** / **23 OPEN**.
 
 - **RESOLVED** — Product-confirmed `file → field` (npu-compute 0818 / sample).
 - **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.

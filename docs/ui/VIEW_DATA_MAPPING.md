@@ -97,7 +97,7 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 
 ![Hardware details](./source/v930/hardware-more-detail.jpeg)
 
-**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. Hide **更多** overlay when jsonl and the OpBasicInfo fallback are both empty. `data/out.rep` omits jsonl; `npu-tools-main-docs/docs/example.rep` includes it (nested `npu-rep`).
+**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. Hide **更多** overlay when jsonl and the OpBasicInfo fallback are both empty. `data/out.rep` omits jsonl; the toolkit `example.rep` pack includes it (not in git).
 
 | Section (UI) | Typical fields |
 | --- | --- |
@@ -239,10 +239,10 @@ Use this table for `MemoryTopologyPanel` labels.
 | Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |
 | L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` then `aiv_ub_to_gm_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | **Product name first;** sample fallback |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` then `aiv_gm_to_ub_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | **Product name first;** sample fallback |
-| Vec → UB | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
-| UB → Vec | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | |
+| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` then `aiv_ub_to_gm_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | Product name first (unverified; absent from sample); sample fallback |
+| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` then `aiv_gm_to_ub_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | Product name first (unverified; absent from sample); sample fallback |
+| Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | `ub_read_*` = leaving UB (`out.rep` add 2:1) |
+| UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
 | L2Cache Hit Rate | first `*_hit_rate(%)` | `L2Cache.csv` | AIC/AIV column choice TBD |
 
 **NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
@@ -354,7 +354,7 @@ Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../context/OPEN
 | UB↔GM | Product `MemoryUB.csv` names first; sample `Memory.csv` fallback |
 | Statistical analysis series schema | Placeholder only |
 | Timeline + event-detail field tables | Empty; mockup-driven |
-| HardwareInfo | Confirmed source; in `example.rep`, absent from `out.rep` |
+| HardwareInfo | Confirmed source; in toolkit `example.rep` (not in git), absent from `out.rep` |
 | Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
 | `ResourceConflictRatio.csv` | In sample; no UI mapping |
 | Block-level aggregation for OP summary cards | Unspecified (sample has 8 blocks) |

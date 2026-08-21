@@ -142,14 +142,15 @@ const EDGE_MAP: {
     from: 'vec',
     to: 'ub',
     unit: 'GB/s',
-    sources: [{ file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_vector(GB/s)'] }],
+    // ub_read_* = leaving UB (same as ub-l2). out.rep add_custom is 2:1 in:out.
+    sources: [{ file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_vector(GB/s)'] }],
   },
   {
     id: 'ub-vec',
     from: 'ub',
     to: 'vec',
     unit: 'GB/s',
-    sources: [{ file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_vector(GB/s)'] }],
+    sources: [{ file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_vector(GB/s)'] }],
   },
   {
     id: 'l2-hit',

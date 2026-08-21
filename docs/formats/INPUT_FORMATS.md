@@ -234,10 +234,10 @@ Also present in sample (not all listed in docx edge table): MTE instruction/rati
 
 | Docx display edge | Docx field | Sample column | Status |
 | --- | --- | --- | --- |
-| Vec → UB | `aiv_ub_read_bw_vector(GB/s)` | `aiv_ub_read_bw_vector(GB/s)` | Present |
-| UB → Vec | `aiv_ub_write_bw_vector(GB/s)` | `aiv_ub_write_bw_vector(GB/s)` | Present |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | Product name on `MemoryUB.csv`; sample uses `aiv_ub_to_gm_bw` on `Memory.csv` (adapter tries product first) |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same: product `MemoryUB.csv`, sample `aiv_gm_to_ub_bw` on `Memory.csv` |
+| Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `aiv_ub_write_bw_vector(GB/s)` | Present; `ub_read_*` = leaving UB |
+| UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `aiv_ub_read_bw_vector(GB/s)` | Present |
+| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | Product name on `MemoryUB.csv` (unverified; absent from sample); sample uses `aiv_ub_to_gm_bw` on `Memory.csv` |
+| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same: product `MemoryUB.csv` unverified; sample `aiv_gm_to_ub_bw` on `Memory.csv` |
 
 Sample also includes `aiv_ub_read_bw_scalar(GB/s)` / `aiv_ub_write_bw_scalar(GB/s)`.
 
@@ -314,7 +314,7 @@ Verified against unpacked payloads (2026-08-03 local sample):
 | Docx `L0C_to_L1_datas` / `L0C_to_GM_datas` | Present as `*_datas(KB)` (+ usage rate) on `Memory.csv` |
 | `OpBasicInfo.csv` PID / Op Type / Block Dim / Task Duration | Present |
 | `L2Cache.csv` hit-rate columns | Present |
-| `HardwareInfo.jsonl`, `MemoryL1.csv` | jsonl **present** in `npu-tools-main-docs/docs/example.rep` (nested npu-rep); **absent** from `data/out.rep`. No `MemoryL1.csv` — L1 BW on `Memory.csv` |
+| `HardwareInfo.jsonl`, `MemoryL1.csv` | jsonl in the toolkit `example.rep` pack (not in git); **absent** from `data/out.rep`. No `MemoryL1.csv` — L1 BW on `Memory.csv` |
 | Supplementary (not in docx tables) | `ArithmeticUtilization.csv`, `ResourceConflictRatio.csv`, `trace.json` present |
 
 ---
@@ -326,7 +326,7 @@ See prioritized product-owner list: [OPEN_QUESTIONS.md](../context/OPEN_QUESTION
 | Item | Notes |
 | --- | --- |
 | `npu-rep` vs `cann-rep` | Product diagram vs repo packer; same conceptual layout |
-| `HardwareInfo.jsonl` | Details source confirmed; missing from `out.rep`, present in `example.rep` |
+| `HardwareInfo.jsonl` | Details source confirmed; missing from `out.rep`; toolkit `example.rep` pack (not in git) |
 | `MemoryL1.csv` | Not required; L1 BW on `Memory.csv` |
 | UB↔GM field names | Product `MemoryUB.csv` first; sample `Memory.csv` fallback |
 | L0C → UB edge | 待确定; no sample column |
