@@ -480,15 +480,9 @@ export function emptyReportViewModel(): ReportViewModel {
   };
 }
 
-<<<<<<< HEAD
 /** HardwareInfo.jsonl categories (product source); else OpBasicInfo flat fields. */
-function hardwareDetailsFromParsed(parsed: ParsedRep): HardwareDetailsModel | undefined {
-  const jsonl = parsed.payloads['HardwareInfo.jsonl'];
-=======
-/** I-Q7a: HardwareInfo.jsonl sections, else OpBasicInfo flat fields. */
 function hardwareDetailsFromPayloads(payloads: Record<string, Uint8Array>): HardwareDetailsModel | undefined {
   const jsonl = payloads['HardwareInfo.jsonl'];
->>>>>>> 9508529 (Add npu-rep multi-operator container support with OP selector)
   if (jsonl) {
     const sections = hardwareSectionsFromJsonl(decodeUtf8(jsonl));
     if (sections.length > 0) return { sections };

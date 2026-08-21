@@ -238,6 +238,25 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:selectedOperatorId')).toBeUndefined();
   });
 
+  it('PR-TOOLBAR-013d: closing selector clears open menu state', async () => {
+    const ops = [
+      { id: 'op1', label: 'op1' },
+      { id: 'op2', label: 'op2' },
+    ];
+    const wrapper = mount(ReportToolbar, {
+      props: { ...defaultProps, operators: ops, selectedOperatorId: 'op1' },
+    });
+    await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(true);
+
+    await wrapper.setProps({ operators: [{ id: 'op1', label: 'op1' }] });
+    expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(false);
+
+    await wrapper.setProps({ operators: ops, selectedOperatorId: 'op1' });
+    expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+  });
+
   it('PR-TOOLBAR-014: OP selector hidden for zero or one operator (brand shown)', () => {
     const single = mount(ReportToolbar, {
       props: { ...defaultProps, operators: [{ id: 'op1', label: 'op1' }] },

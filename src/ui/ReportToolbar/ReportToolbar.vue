@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId } from 'vue';
+import { computed, nextTick, ref, useId, watch } from 'vue';
 import type { TimeDisplayUnit, DependencyMode, ReportOperator } from '../../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
@@ -47,6 +47,11 @@ const opTriggerRef = ref<HTMLButtonElement | null>(null);
 const opMenuRef = ref<HTMLElement | null>(null);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
+
+/** Drop stale open state when the selector unmounts (e.g. host swaps to a single-op source). */
+watch(showOperatorSelector, (show) => {
+  if (!show) opMenuOpen.value = false;
+});
 
 /** Trigger shows the selected operator label (falls back to OP算子 brand). */
 const triggerLabel = computed(() => {
