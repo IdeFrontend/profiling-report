@@ -21,7 +21,9 @@ const NODES: MemoryTopologyModel['nodes'] = [
 
 type Unit = 'GB/s' | 'KB' | '%';
 
-/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins. */
+/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins.
+ *  Bare `*_read_bw` = leaving the named resource; `*_write_bw` = arriving there.
+ *  Counterparty-suffix columns (`_bw_gm` / `_vector` / `_cube`) already name the other end. */
 const EDGE_MAP: {
   id: string;
   from: string;
@@ -31,8 +33,8 @@ const EDGE_MAP: {
 }[] = [
   {
     id: 'gm-l2-read',
-    from: 'l2',
-    to: 'gm',
+    from: 'gm',
+    to: 'l2',
     unit: 'GB/s',
     sources: [
       { file: 'Memory.csv', columns: ['aic_main_mem_read_bw(GB/s)', 'aiv_main_mem_read_bw(GB/s)'] },
@@ -40,13 +42,14 @@ const EDGE_MAP: {
   },
   {
     id: 'gm-l2-write',
-    from: 'gm',
-    to: 'l2',
+    from: 'l2',
+    to: 'gm',
     unit: 'GB/s',
     sources: [
       { file: 'Memory.csv', columns: ['aic_main_mem_write_bw(GB/s)', 'aiv_main_mem_write_bw(GB/s)'] },
     ],
   },
+  // ponytail: L1/L0 stay at master from/to. out.rep is NA; L0A/L0B are L1→buffer→Cube, so the GM leaving-resource flip does not apply. Verify on an AIC-populated .rep.
   {
     id: 'l2-l1-read',
     from: 'l2',
@@ -123,8 +126,8 @@ const EDGE_MAP: {
     to: 'l2',
     unit: 'GB/s',
     sources: [
-      { file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] },
       { file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_gm(GB/s)'] },
+      { file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] },
     ],
   },
   {
@@ -133,8 +136,8 @@ const EDGE_MAP: {
     to: 'ub',
     unit: 'GB/s',
     sources: [
-      { file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] },
       { file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_gm(GB/s)'] },
+      { file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] },
     ],
   },
   {
@@ -142,14 +145,15 @@ const EDGE_MAP: {
     from: 'vec',
     to: 'ub',
     unit: 'GB/s',
-    sources: [{ file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_vector(GB/s)'] }],
+    // ub_read_* = leaving UB (same as ub-l2). out.rep add_custom is 2:1 in:out.
+    sources: [{ file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_vector(GB/s)'] }],
   },
   {
     id: 'ub-vec',
     from: 'ub',
     to: 'vec',
     unit: 'GB/s',
-    sources: [{ file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_vector(GB/s)'] }],
+    sources: [{ file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_vector(GB/s)'] }],
   },
   {
     id: 'l2-hit',
@@ -183,7 +187,7 @@ function formatLabel(n: number, unit: Unit): string {
 
 /**
  * Block-scoped memory topology from Memory* CSV tables (§11.2.6).
- * Omit when no edge yields a non-NA label.
+ * Product: hide `NA`; show 0. Omit the whole diagram when no edge has a label.
  */
 export function buildMemoryTopology(
   tables: CsvTableModel[],

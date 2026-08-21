@@ -185,6 +185,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-20** — npu-compute 0818: measured BW / HardwareInfo source / ICache / NA-hide confirmed; peak/score still open.
 - **2026-08-20** — PR-STATS-013 asserts abs is a track sibling (unit tests do not apply `min-width`). PIPE hatch tint vs card hatch is deliberate.
 - **2026-08-19** — PIPE fill width is ratio-only (`min-width: 0`; abs is a track sibling). Label column stays `72px` for ICache Miss. Panel stays `#1f1f1f` (artboard `#141414` is page, not card).
 - **2026-08-19** — Resampled `compute-load.jpeg`: title `14px`, scale/in-bar `12px`, Scalar `#1A743E`.
@@ -207,4 +208,4 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Open
 
-Q22 — measureRange aside sync. Q6 — peak/score for bandwidth still Product-open (I-Q6g guesses).
+Q22 — measureRange aside sync. Q6 — compute / avg-util / bandwidth peak+score still Product-open (measured BW columns confirmed).

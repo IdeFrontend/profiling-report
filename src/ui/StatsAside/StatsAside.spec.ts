@@ -532,7 +532,7 @@ describe('StatsAside', () => {
         report: report({
           memoryTopology: {
             nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
-            edges: [{ id: 'gm-l2-read', from: 'l2', to: 'gm', label: '1.56 GB/s' }],
+            edges: [{ id: 'gm-l2-read', from: 'gm', to: 'l2', label: '1.56 GB/s' }],
           },
         }),
       },
@@ -648,7 +648,7 @@ describe('StatsAside', () => {
           memoryTables: tables,
           memoryTopology: {
             nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
-            edges: [{ id: 'gm-l2-read', from: 'l2', to: 'gm', label: '1.56 GB/s' }],
+            edges: [{ id: 'gm-l2-read', from: 'gm', to: 'l2', label: '1.56 GB/s' }],
           },
           csvTexts: { 'Memory.csv': 'block_id,aiv_main_mem_read_bw(GB/s)\n0,1.56\n1,NA\n' },
         }),

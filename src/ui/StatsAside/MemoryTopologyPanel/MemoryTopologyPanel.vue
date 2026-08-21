@@ -148,36 +148,36 @@ function rot(x: number, y: number): string {
         class="pr-topo__tiny"
       >Data Cache</text>
 
-      <!-- GM ↔ L2 corridor -->
+      <!-- GM ↔ L2 corridor. read = leaving GM (GM→L2); write = arriving at GM (L2→GM). -->
       <path
         :d="`M ${GM.x + GM.w} 176 L ${L2.x} 176`"
-        class="pr-topo__arrow-write"
-        marker-end="url(#pr-topo-write)"
-      />
-      <path
-        :d="`M ${L2.x} 252 L ${GM.x + GM.w} 252`"
         class="pr-topo__arrow-read"
         marker-end="url(#pr-topo-read)"
       />
+      <path
+        :d="`M ${L2.x} 252 L ${GM.x + GM.w} 252`"
+        class="pr-topo__arrow-write"
+        marker-end="url(#pr-topo-write)"
+      />
       <text
+        v-if="label('gm-l2-read')"
         :x="GM_L2_X"
         y="176"
         text-anchor="middle"
         dominant-baseline="middle"
         :transform="rot(GM_L2_X, 176)"
         class="pr-topo__edge"
-        data-testid="edge-gm-l2-write"
-      >{{ label('gm-l2-write') ?? '' }}</text>
+        data-testid="edge-gm-l2-read"
+      >{{ label('gm-l2-read') }}</text>
       <text
-        v-if="label('gm-l2-read')"
         :x="GM_L2_X"
         y="252"
         text-anchor="middle"
         dominant-baseline="middle"
         :transform="rot(GM_L2_X, 252)"
         class="pr-topo__edge"
-        data-testid="edge-gm-l2-read"
-      >{{ label('gm-l2-read') }}</text>
+        data-testid="edge-gm-l2-write"
+      >{{ label('gm-l2-write') ?? '' }}</text>
 
       <!-- AIV0 -->
       <rect
