@@ -22,7 +22,7 @@ The walk blanks the suppressed side rather than dropping it, and the graph is th
 
 The component never traverses the model itself: it renders the neighbours it is given, so traversal semantics live in one place ([dependencies](../../../specs/core/dependencies.spec.md)).
 
-Each button carries the sketch's node-graph glyph: a fan-in tree for upstream, a four-way node for both, a fan-out tree for downstream. The glyphs are drawn as SVG path data rather than an icon font, since the library ships no icon dependency — one path for the tree edges, one for the nodes.
+Each button carries the sketch's node-graph glyph: a fan-in tree for upstream, a four-way node for both, a fan-out tree for downstream. The glyphs are drawn as SVG path data rather than an icon font, since the library ships no icon dependency — one path for the tree edges, one for the nodes. The nodes are round line caps on zero-length segments, so their stroke width *is* the dot diameter: it has to stay under the lattice pitch, or neighbouring dots touch and the tree renders as one filled triangle. Links are drawn at half the node's opacity, as in the sketch.
 
 Between the chip columns sit two connector columns: one SVG S-curve per neighbour, from the current chip's row to that neighbour's row, as in the sketch. Row geometry (chip height and pitch) is a constant shared with the stylesheet instead of a DOM measurement, so the curves need no layout pass.
 
@@ -35,6 +35,7 @@ Incoming and Outgoing carry count badges; the centre column carries none, matchi
 1. **PR-DREL-004** — Shows the empty note when neither side has neighbours.
 1. **PR-DREL-005** — Draws one connector curve per incoming and outgoing neighbour.
 1. **PR-DREL-006** — Each side's connector svg is sized and viewBox'd to its own chip column, not the taller of the two.
+1. **PR-DREL-007** — Glyph dots stay smaller than the lattice pitch, so the trees never fuse.
 
 ## Visual
 

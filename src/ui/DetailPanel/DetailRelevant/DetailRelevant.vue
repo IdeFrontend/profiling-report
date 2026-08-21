@@ -34,22 +34,31 @@ const DIRECTIONS: {
  * Sketch glyphs: fan-in, four-way node, fan-out — drawn as a node graph, dots
  * joined by short links, not a hairline tree. Each direction is two path strings:
  * the link edges, and the nodes as zero-length segments that a round line cap
- * turns into dots (stroke-width 4.6 gives the sketch's radius of 2.3).
- * Coordinates come straight from the sketch, so keep them byte for byte.
+ * turns into dots.
+ *
+ * The viewBox is 1:1 with the rendered px box, so these are the sketch's own
+ * measurements (its 4x export, divided by four): dots on a 5px grid, 3.5px across,
+ * leaving a 1.5px gap between neighbours. The previous pass packed the same dots
+ * onto a 4.6px pitch at 4.6px across — wider than their spacing — so every tree
+ * fused into a solid triangle. Keep DOT_SIZE below the 5px pitch.
  */
+const DOT_SIZE = 3.5;
+const EDGE_WIDTH = 1;
+/** Sketch draws the links at half the dot's strength — measured alpha 0.500 on both states. */
+const EDGE_OPACITY = 0.5;
+
 const GLYPHS: Record<DependencyMode, { edges: string; dots: string }> = {
   predecessors: {
-    edges: 'M3.4 3.4 8 6.2M3.4 8 8 6.2M3.4 8 8 10.4M3.4 12.6 8 10.4M8 6.2 12.6 8M8 10.4 12.6 8',
-    dots: 'M3.4 3.4h0M3.4 8h0M3.4 12.6h0M8 6.2h0M8 10.4h0M12.6 8h0',
+    edges: 'M2 2 7 4.5M2 7 7 9.5M2 12 7 9.5M7 4.5 12 7M7 9.5 12 7',
+    dots: 'M2 2h0M2 7h0M2 12h0M7 4.5h0M7 9.5h0M12 7h0',
   },
   all: {
-    edges: 'M8 8 4 4M8 8 12 4M8 8 4 12M8 8 12 12',
-    dots: 'M8 8h0M4 4h0M12 4h0M4 12h0M12 12h0',
+    edges: 'M7 7 3 3M7 7 11 3M7 7 3 11M7 7 11 11',
+    dots: 'M7 7h0M3 3h0M11 3h0M3 11h0M11 11h0',
   },
   successors: {
-    edges:
-      'M3.4 8 8 6.2M3.4 8 8 10.4M8 6.2 12.6 3.4M8 6.2 12.6 8M8 10.4 12.6 8M8 10.4 12.6 12.6',
-    dots: 'M3.4 8h0M8 6.2h0M8 10.4h0M12.6 3.4h0M12.6 8h0M12.6 12.6h0',
+    edges: 'M2 7 7 4.5M2 7 7 9.5M7 4.5 12 2M7 9.5 12 7M7 9.5 12 12',
+    dots: 'M2 7h0M7 4.5h0M7 9.5h0M12 2h0M12 7h0M12 12h0',
   },
 };
 
@@ -121,7 +130,7 @@ function sideHeight(count: number): number {
           @click="emit('update:mode', dir.value)"
         >
           <svg
-            viewBox="0 0 16 16"
+            viewBox="0 0 14 14"
             width="14"
             height="14"
             aria-hidden="true"
@@ -130,13 +139,14 @@ function sideHeight(count: number): number {
               :d="GLYPHS[dir.value].edges"
               fill="none"
               stroke="currentColor"
-              stroke-width="1.5"
+              :stroke-width="EDGE_WIDTH"
+              :stroke-opacity="EDGE_OPACITY"
             />
             <path
               :d="GLYPHS[dir.value].dots"
               fill="none"
               stroke="currentColor"
-              stroke-width="4.6"
+              :stroke-width="DOT_SIZE"
               stroke-linecap="round"
             />
           </svg>
@@ -289,27 +299,29 @@ function sideHeight(count: number): number {
 
 .pr-detail-relevant__modes {
   display: flex;
+  /* Sketch's 4x export at the pill's centre row (away from the corner radius):
+     80px pill around three 24px buttons, leaving 2px padding + 2px gaps. */
   gap: 2px;
-  padding: 3px;
-  border-radius: 8px;
+  padding: 2px;
+  border-radius: 6px;
   background: #313131;
 }
 
 .pr-detail-relevant__mode {
   display: grid;
   place-items: center;
-  width: 25px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
-  color: #b0b0b0;
+  color: #b3b3b3;
   cursor: pointer;
 }
 
 .pr-detail-relevant__mode--active {
   background: #464646;
-  color: #f0f0f0;
+  color: #e6e6e6;
 }
 
 

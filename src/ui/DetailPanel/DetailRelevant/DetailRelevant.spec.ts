@@ -107,4 +107,36 @@ describe('DetailRelevant', () => {
     const lastOut = columns[1].findAll('path').at(-1)!.attributes('d')!;
     expect(lastOut).toContain('32 35');
   });
+
+  it('PR-DREL-007: glyph dots stay smaller than the lattice pitch', () => {
+    // The dots are round caps on zero-length segments, so stroke-width IS the dot
+    // diameter. At 4.6 wide on a 4.6 pitch every dot touched its neighbour and each
+    // tree rendered as one filled triangle instead of a node graph.
+    const wrapper = mountRelevant();
+
+    for (const button of wrapper.findAll('.pr-detail-relevant__mode')) {
+      const [edges, dots] = button.findAll('path');
+      const diameter = Number(dots.attributes('stroke-width'));
+
+      // Every dot centre in the glyph, from its `M x y h0` segments.
+      const centres = [...dots.attributes('d')!.matchAll(/M([\d.]+) ([\d.]+)h0/g)].map(
+        ([, x, y]) => [Number(x), Number(y)] as const,
+      );
+      expect(centres.length).toBeGreaterThanOrEqual(5);
+
+      let pitch = Infinity;
+      for (const [i, a] of centres.entries()) {
+        for (const b of centres.slice(i + 1)) {
+          pitch = Math.min(pitch, Math.hypot(a[0] - b[0], a[1] - b[1]));
+        }
+      }
+      // Sketch: 3.5px dots on a 5px lattice — a clear gap, not a hairline seam.
+      expect(diameter).toBeLessThan(pitch);
+      expect(pitch - diameter).toBeGreaterThanOrEqual(1);
+
+      // Links read as connections behind the nodes, not as thick as them.
+      expect(Number(edges.attributes('stroke-width'))).toBeLessThan(diameter);
+      expect(Number(edges.attributes('stroke-opacity'))).toBeLessThan(1);
+    }
+  });
 });
