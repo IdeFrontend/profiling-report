@@ -21,3 +21,15 @@ crops:
     source: v930/hardware-more-detail
     region: "显示控制 popover under layers icon (task display unit)"
     box: { x: 4528, y: 500, w: 950, h: 520 }
+  op-selector.png:
+    source: v930/entry
+    region: "Closed OP算子 selector — text label + thin down-chevron (no pill fill)"
+    box: { x: 1190, y: 360, w: 300, h: 70 }
+  op-selector-tabs.png:
+    source: v930/entry
+    region: "OP算子 selector beside 时间线/源码 tabs; mild navy chrome gradient"
+    box: { x: 1170, y: 345, w: 720, h: 110 }
+  op-selector-open.png:
+    source: v930/hardware-more-detail
+    region: "Open OP算子 selector — up-chevron + floating dark menu of operator items"
+    box: { x: 255, y: 325, w: 420, h: 280 }

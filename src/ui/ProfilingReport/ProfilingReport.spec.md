@@ -154,6 +154,10 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — duration, bandwidth cards, PIPE, CSV tables, roofline, hardware, or labelled topology (same gate as the toolbar toggle).
 
+**Multi-operator packs.** An `npu-rep` container with nested operator archives renders a top-left OP selector in the toolbar. Switching operators swaps the swimlane + report models from the pre-adapted per-operator reports (no re-parse) and resets the viewport/selection like a fresh load. Re-selecting the already-active operator is a no-op (no reset).
+
+**Corner wash.** A decorative 208×60 box at the report root top-left (`data-testid="corner-wash"`) uses `linear-gradient(90deg, rgba(0,90,219,0.1) 3.614%, rgba(0,2,172,0) 76.501%)`. Non-interactive (`pointer-events: none`).
+
 ## Visual
 
 (Orchestration only — component chrome lives in child specs. Panel clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).)
@@ -163,6 +167,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 1. **PR-ROOT-001** — Mounts with title, shows shell, handles empty source.
 2. **PR-ROOT-002** — Accepts pre-parsed swimlaneModel and reportModel.
 3. **PR-ROOT-003** — Switching `dependencyMode` in 显示控制 does not reload the page.
+4. **PR-ROOT-004** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models; re-select is a no-op.
+5. **PR-ROOT-005** — Top-left corner wash is 208×60 with blue fade gradient.
 
 ## Edge Cases
 
@@ -191,6 +197,8 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-20** — Top-left 208×60 blue fade corner wash (PR-ROOT-005).
+- **2026-08-20** — Multi-operator npu-rep packs: OP selector + operator switch (PR-ROOT-004).
 - **2026-08-19** — Missing `bandwidthCards` treated as empty in `reportHasAsideContent`.
 - **2026-08-19** — I/O bandwidth cards count as aside content (I-Q6g).
 - **2026-08-14** — Display-control `dependencyMode` filters curves in place (no reload); PR-ROOT-003.

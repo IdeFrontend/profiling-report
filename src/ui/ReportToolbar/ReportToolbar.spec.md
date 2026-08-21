@@ -6,15 +6,15 @@
 
 Top toolbar with search, zoom controls, display-control popover (task display unit), and aside panel toggle. Measure (caliper) toggle is temporarily hidden from chrome.
 
-Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png), [`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **dependencyMode** sets the dependency-display dropdown (`all` / `predecessors` / `successors`), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **dependencyMode** sets the dependency-display dropdown (`all` / `predecessors` / `successors`), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only).
 
 ## Outputs
 
-The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:dependencyMode** carries the selected dependency filter. **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode.
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:dependencyMode** carries the selected dependency filter. **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector.
 
 ## Behavior
 
@@ -27,6 +27,8 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 **Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)), **依赖显示** (`data-testid="dependency-mode"`: all / predecessors / successors), and **依赖深度** (`data-testid="dependency-depth"`: integer, default 1, min −1 = no hop cap, max 100; tooltip notes the 10 000-link-per-side cap). Toggle the button or click **X** to close; leave open after unit, mode, or depth change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode. Changing dependency mode or depth must not reload the page.
 
 **Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
+
+**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** label (e.g. `op1` / `op2`); menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
@@ -42,6 +44,23 @@ Lives in the **main** column only (above the timeline), not spanning the StatsAs
 |-------|--------|
 | Background | `#1f1f1f` (`--pr-bg-deep`) |
 | Border | `1px solid #3a3a3a` bottom |
+| Corner wash | Owned by ProfilingReport — 208×60 top-left blue fade (see root spec) |
+
+### OP selector (`visual/op-selector.png`, `visual/op-selector-open.png`)
+
+Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardware-more-detail.jpeg) (open). Context: [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png).
+
+| Token | Value |
+|-------|--------|
+| Trigger | Transparent — **no** pill fill, **no** border, **no** vertical divider |
+| Trigger label | Selected operator label (e.g. `op1`) — white, 18px / weight 700 / line-height 26px / letter-spacing 0 |
+| Chevron | Thin stroke `10×10`, color `#c8c8c8`; down when closed, rotated 180° when open |
+| Gap label↔chevron | `4px` |
+| Menu bg | `#363636` |
+| Menu radius | `8px` |
+| Menu border | `1px solid #4a4a4a` |
+| Item text | `#d0d0d0` / 12px; active `#ffffff` on `#2a3550` |
+| Visible when | `operators.length > 1` |
 
 ### Search (`visual/search.png`)
 
@@ -120,6 +139,9 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
 11. **PR-TOOLBAR-011** — `dependency-mode` select inside 显示控制 emits `update:dependencyMode` on change; popover stays open.
 12. **PR-TOOLBAR-012** — `dependency-depth` input inside 显示控制 emits `update:dependencyDepth` on change (values below −1 clamp to −1, above 100 clamp to 100); popover stays open.
+13. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows selected operator label; menu lists operators; selecting emits `update:selectedOperatorId`; Escape/Enter/Arrow supported; re-select does not emit; open state clears when selector unmounts.
+14. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
+15. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); trigger type is 18px / 700 / 26px lh.
 
 ## Edge Cases
 
@@ -134,11 +156,21 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [zoom](./visual/zoom.png) — from `v930/entry`
 - [actions](./visual/actions.png) — all seven icons from `v930/entry`
 - [display-control](./visual/display-control.png) — from `v930/hardware-more-detail`
+- [op-selector](./visual/op-selector.png) — closed OP算子 text+chevron from `v930/entry`
+- [op-selector-tabs](./visual/op-selector-tabs.png) — OP + 时间线 context + chrome gradient from `v930/entry`
+- [op-selector-open](./visual/op-selector-open.png) — open menu from `v930/hardware-more-detail`
 - [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
-- [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger
+- [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger + open OP menu
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-21** — Reset `opMenuOpen` when OP selector unmounts (single-op swap).
+- **2026-08-21** — OP menu: `useId` + menu ref for focus; restore trigger focus on Escape/select.
+- **2026-08-21** — OP selector trigger shows selected operator label (not fixed OP算子).
+- **2026-08-20** — OP selector trigger type: 18px / weight 700 / line-height 26px.
+- **2026-08-20** — Corner blue wash moved to ProfilingReport root (208×60); chrome strip back to flat `--pr-bg-deep`.
+- **2026-08-20** — OP selector matches sketch: text+chevron (no pill), OP算子 brand trigger, mild navy chrome gradient; crops + PR-TOOLBAR-015.
+- **2026-08-20** — OP selector at strip far-left for multi-operator packs; PR-TOOLBAR-013/014.
 - **2026-08-18** — Depth input clamps to `MAX_DEPENDENCY_DEPTH` (100); `max` attribute set on `<input>`.
 - **2026-08-17** — Depth tooltip notes 10 000-link-per-side cap.
 - **2026-08-17** — Dependency depth number field in 显示控制 (default 1, −1 no hop cap); PR-TOOLBAR-012.

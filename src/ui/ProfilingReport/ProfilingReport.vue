@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
@@ -14,9 +14,11 @@ import {
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   normalizeDependencyDepth,
+  type AdaptedReport,
   type DependencyMode,
   type MeasureRange,
   type ReportCapability,
+  type ReportOperator,
   type ReportViewModel,
   type SelectedEvent,
   type SwimEvent,
@@ -92,6 +94,11 @@ const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+/** Multi-operator packs: selector options + adapted reports (empty for single-op). */
+const operators = ref<ReportOperator[]>([]);
+/** Shallow: avoid deep-proxying every swim event in every operator pack. */
+const operatorReports = shallowRef<Record<string, AdaptedReport>>({});
+const selectedOperatorId = ref<string | null>(null);
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
@@ -204,12 +211,18 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
 function loadFromSource(source: ArrayBuffer | Uint8Array) {
   try {
     const adapted = loadReportSource(source);
+    operators.value = adapted.operators ?? [];
+    operatorReports.value = adapted.operatorReports ?? {};
+    selectedOperatorId.value = adapted.selectedOperatorId ?? null;
     internalSwim.value = adapted.swimlaneModel;
     internalReport.value = adapted.reportModel;
     resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
     loadError.value = null;
     emit('ready');
   } catch (cause) {
+    operators.value = [];
+    operatorReports.value = {};
+    selectedOperatorId.value = null;
     internalSwim.value = null;
     internalReport.value = null;
     selected.value = null;
@@ -218,6 +231,16 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     loadError.value = cause instanceof Error ? cause.message : String(cause);
     emit('error', { message: loadError.value, cause });
   }
+}
+
+/** Swap the swimlane/report to another packaged operator without re-parsing the container. */
+function onOperatorChange(id: string) {
+  const rep = operatorReports.value[id];
+  if (!rep || id === selectedOperatorId.value) return;
+  selectedOperatorId.value = id;
+  internalSwim.value = rep.swimlaneModel;
+  internalReport.value = rep.reportModel;
+  resetViewFromModel(rep.swimlaneModel, reportHasAsideContent(rep.reportModel));
 }
 
 /** Parse before first paint when `source` is already available (avoids empty→loaded height jump). */
@@ -414,7 +437,7 @@ function selectEventById(eventId: string) {
   onSelect(ev ?? null);
 }
 
-defineExpose({ selectEventById, viewState });
+defineExpose({ selectEventById, viewState, selectedOperatorId });
 </script>
 
 <template>
@@ -424,6 +447,11 @@ defineExpose({ selectEventById, viewState });
     :data-theme="theme ?? 'dark'"
     :data-capabilities="(capabilities ?? []).join(',')"
   >
+    <div
+      class="pr-root__corner-wash"
+      data-testid="corner-wash"
+      aria-hidden="true"
+    />
     <ReportToolbar
       v-if="!showTimeline"
       :title="title"
@@ -436,7 +464,10 @@ defineExpose({ selectEventById, viewState });
       :dependency-depth="localDependencyDepth"
       :locale="locale"
       :measure-mode="viewState.measureMode"
+      :operators="operators"
+      :selected-operator-id="selectedOperatorId"
       @update:search-query="onSearch"
+      @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
       @update:time-unit="onTimeUnit"
       @update:dependency-mode="onDependencyMode"
@@ -482,7 +513,10 @@ defineExpose({ selectEventById, viewState });
           :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
+          :operators="operators"
+          :selected-operator-id="selectedOperatorId"
           @update:search-query="onSearch"
+          @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
           @update:time-unit="onTimeUnit"
           @update:dependency-mode="onDependencyMode"
@@ -553,6 +587,7 @@ defineExpose({ selectEventById, viewState });
 
 <style scoped>
 .pr-root {
+  position: relative;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -566,6 +601,22 @@ defineExpose({ selectEventById, viewState });
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
   overflow: hidden;
+}
+
+/** Top-left accent wash behind OP selector / tab strip (v930 sketch). */
+.pr-root__corner-wash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: 208px;
+  height: 60px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 90, 219, 0.1) 3.614%,
+    rgba(0, 2, 172, 0) 76.501%
+  );
+  pointer-events: none;
 }
 
 .pr-error {
