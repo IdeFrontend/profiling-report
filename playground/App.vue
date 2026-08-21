@@ -308,7 +308,7 @@ body,
   height: 100%;
   background: #1f1f1f;
   color: #ddd;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: 'HarmonyOS Sans SC 2025', ui-sans-serif, system-ui, sans-serif;
 }
 
 .playground {

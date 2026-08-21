@@ -765,7 +765,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   padding: 0;
   color: #e8e8e8;
   background: var(--pr-bg-deep);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: 'HarmonyOS Sans SC 2025', ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
   overflow: hidden;
 }
