@@ -24,7 +24,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Aside toggle.** Visible only when `asideAvailable` is true. Square icon button with panel SVG.
 
-**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)). Toggle the button or click **X** to close; leave open after a unit change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode. Dependency direction and depth are **not** here: they belong to the selection, so they live in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
+**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)). Toggle the button or click **X** to close; leave open after a unit change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode. Also carries **任务连接层级** (`data-testid="dependency-depth"`, `update:dependencyDepth`): how many hops the swimlane dependency graph walks, `-1` for the whole chain, normalized through `normalizeDependencyDepth` so a cleared field yields the shared default rather than `NaN`. It commits on `change`, not per keystroke — a half-typed number must not rebuild the graph. Dependency *direction* is not here: it filters what the selected event shows, so it lives in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
 
 **Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
 
@@ -118,6 +118,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 8. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
 9. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
 10. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
+11. **PR-TOOLBAR-011** — 显示控制 carries the dependency depth field; emits normalized on change.
 
 ## Edge Cases
 
@@ -137,6 +138,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure / caliper active
 
 ## Changelog
+- **2026-08-20** — Depth came back to 显示控制 as PR-TOOLBAR-011: it scopes the swimlane graph, not the selection, so it belongs with the other view-wide settings. Only direction stayed in the dock.
 - **2026-08-20** — Dependency display and depth left 显示控制 for the detail dock's Relevent toolbar, where the selection they filter already lives; PR-TOOLBAR-011/012 dropped with them.
 - **2026-08-18** — Depth input clamps to `MAX_DEPENDENCY_DEPTH` (100); `max` attribute set on `<input>`.
 - **2026-08-17** — Depth tooltip notes 10 000-link-per-side cap.

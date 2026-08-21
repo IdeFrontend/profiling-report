@@ -17,7 +17,6 @@ function mountRelevant(props: Partial<Record<string, unknown>> = {}) {
       currentName: 'MOV_OUT_TO_L1_MULTI_ND2NZ',
       neighbors,
       mode: 'all',
-      depth: -1,
       ...props,
     },
   });
@@ -68,21 +67,12 @@ describe('DetailRelevant', () => {
     expect(filtered.text()).not.toContain('ProfilerStep#17');
   });
 
-  it('PR-DREL-003: depth input emits update:depth normalized', async () => {
-    const wrapper = mountRelevant();
-    const input = wrapper.find('[data-testid="detail-relevant-level"]');
+  it('PR-DREL-004: shows the empty note when neither side has neighbours', () => {
+    const wrapper = mountRelevant({ neighbors: { incoming: [], outgoing: [] } });
 
-    await input.setValue('3');
-    await input.trigger('change');
-    expect(wrapper.emitted('update:depth')?.[0]).toEqual([3]);
-
-    (input.element as HTMLInputElement).value = '';
-    await input.trigger('change');
-    expect(wrapper.emitted('update:depth')?.at(-1)).toEqual([1]);
-
-    (input.element as HTMLInputElement).value = '9999';
-    await input.trigger('change');
-    expect(wrapper.emitted('update:depth')?.at(-1)).toEqual([100]);
+    expect(wrapper.find('[data-testid="detail-relevant-empty"]').exists()).toBe(true);
+    // Direction buttons stay reachable so the user can widen the walk from empty.
+    expect(wrapper.find('[data-testid="detail-relevant-direction-all"]').exists()).toBe(true);
   });
 
   it('PR-DREL-005: draws one connector curve per neighbour', () => {
@@ -93,13 +83,6 @@ describe('DetailRelevant', () => {
     expect(columns[0].findAll('path')).toHaveLength(2);
     expect(columns[1].findAll('path')).toHaveLength(1);
     expect(columns[1].find('path').attributes('d')).toContain('C');
-  });
-
-  it('PR-DREL-004: shows the empty note when neither side has neighbours', () => {
-    const wrapper = mountRelevant({ neighbors: { incoming: [], outgoing: [] } });
-
-    expect(wrapper.find('[data-testid="detail-relevant-empty"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="detail-relevant-level"]').exists()).toBe(true);
   });
 
   it('PR-DREL-006: each side sizes its connector svg to its own chip column', () => {
