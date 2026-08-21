@@ -7,7 +7,7 @@ import type {
   SwimThread,
 } from '../domain/types';
 
-interface ChromeTraceEvent {
+export interface ChromeTraceEvent {
   ph?: string;
   name?: string;
   pid?: number | string;
@@ -68,6 +68,29 @@ function key(pid: number | string | undefined, tid: number | string | undefined)
   return `${pid ?? 0}:${tid ?? 0}`;
 }
 
+/**
+ * Interim I-Q9 encoding: an X event may carry a producer-stable `args.event_id`
+ * and `args.dependencies` (successor ids). Without `event_id` the adapter's own
+ * `e-<seq>` id stays authoritative and dependency ids cannot resolve.
+ *
+ * Producers write ids as either strings or numbers, so both `event_id` and the
+ * `dependencies` entries share one acceptance rule: non-empty string or finite
+ * number, stringified. Anything else is treated as absent.
+ */
+function usableId(raw: unknown): boolean {
+  return (typeof raw === 'string' && raw !== '') || Number.isFinite(raw);
+}
+
+function stableId(args: Record<string, unknown> | undefined): string | undefined {
+  const raw = args?.event_id;
+  return usableId(raw) ? String(raw) : undefined;
+}
+
+function dependencyIds(args: Record<string, unknown> | undefined): string[] {
+  const raw = args?.dependencies;
+  return Array.isArray(raw) ? raw.filter(usableId).map(String) : [];
+}
+
 function extractEvents(trace: unknown): { events: ChromeTraceEvent[]; displayTimeUnit?: string } {
   if (Array.isArray(trace)) {
     return { events: trace as ChromeTraceEvent[] };
@@ -104,8 +127,11 @@ export function chromeTraceToSwimlane(
   }
 
   const processMap = new Map<string, Map<string, SwimThread>>();
+  const usedIds = new Set<string>();
   const flowStarts = new Map<string, AsyncEndpoint[]>();
   const flowFinishes = new Map<string, AsyncEndpoint[]>();
+  /** `args.dependencies` targets, resolved to refs once events are sorted. */
+  const declaredDeps: { event: SwimEvent; targets: string[] }[] = [];
   let minTime = Number.POSITIVE_INFINITY;
   let maxTime = Number.NEGATIVE_INFINITY;
   let eventSeq = 0;
@@ -151,13 +177,26 @@ export function chromeTraceToSwimlane(
     minTime = Math.min(minTime, startTime);
     maxTime = Math.max(maxTime, startTime + duration);
 
+    const seqId = `e-${eventSeq++}`;
+    // A producer id that another event already claimed would collapse two events into
+    // one: the later wins in every id-keyed map (dependency graph, hit-test, selection).
+    // Keep the first claimant; a duplicate — or a producer squatting an `e-<seq>` id —
+    // falls back to the next free sequence id.
+    const stable = stableId(e.args);
+    let id = stable !== undefined && !usedIds.has(stable) ? stable : seqId;
+    while (usedIds.has(id)) id = `e-${eventSeq++}`;
+    usedIds.add(id);
     const ev: SwimEvent = {
-      id: `e-${eventSeq++}`,
+      id,
       name: e.name ?? 'event',
       startTime,
       duration,
       args: e.args,
     };
+    const deps = dependencyIds(e.args);
+    if (deps.length > 0) {
+      declaredDeps.push({ event: ev, targets: deps });
+    }
     if (e.cat) {
       ev.args = { ...ev.args, cat: e.cat };
     }
@@ -181,6 +220,9 @@ export function chromeTraceToSwimlane(
   }
   if (connectionPairs.length > 0) {
     linkAsyncDependencies(processMap, connectionPairs, nestByThread);
+  }
+  if (declaredDeps.length > 0) {
+    linkDeclaredDependencies(processMap, declaredDeps);
   }
 
   const processes: SwimProcess[] = [...processMap.entries()].map(([pid, threads]) => ({
@@ -312,4 +354,35 @@ function seenSet(map: Map<SwimEvent, Set<string>>, event: SwimEvent): Set<string
     map.set(event, keys);
   }
   return keys;
+}
+
+/**
+ * Interim I-Q9: `args.dependencies` names successor event ids, which only become
+ * positions once every thread is sorted. Targets the model does not contain are
+ * dropped — a dangling id would otherwise render as a link to nothing.
+ */
+function linkDeclaredDependencies(
+  processMap: Map<string, Map<string, SwimThread>>,
+  declared: { event: SwimEvent; targets: string[] }[],
+): void {
+  const byId = new Map<string, { event: SwimEvent; ref: EventRef }>();
+  for (const threads of processMap.values()) {
+    for (const thread of threads.values()) {
+      thread.events.forEach((event, index) => {
+        byId.set(event.id, { event, ref: { tid: thread.id, index } });
+      });
+    }
+  }
+  const seenSucc = new Map<SwimEvent, Set<string>>();
+  const seenPred = new Map<SwimEvent, Set<string>>();
+  for (const { event, targets } of declared) {
+    const from = byId.get(event.id);
+    if (!from) continue;
+    for (const targetId of targets) {
+      const to = byId.get(targetId);
+      if (!to || to.event === event) continue;
+      pushRef(ensureDeps(event).successors, seenSet(seenSucc, event), to.ref);
+      pushRef(ensureDeps(to.event).predecessors, seenSet(seenPred, to.event), from.ref);
+    }
+  }
 }

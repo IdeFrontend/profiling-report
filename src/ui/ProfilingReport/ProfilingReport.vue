@@ -26,6 +26,7 @@ import {
   type TimeDisplayUnit,
   type ViewFullCsvPayload,
 } from '../../domain/types';
+import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   collectLeafEventsFromModel,
@@ -36,6 +37,7 @@ import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
+  DOCK_HEIGHT_DEFAULT,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
@@ -57,9 +59,9 @@ const props = withDefaults(defineProps<{
   dependencyDepth?: number;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
-  /** Future feature-gate: controls which sub-panels/tabs are rendered. Currently exposed
-   *  as a data attribute for CSS/test hooking; intended to drive conditional sections
-   *  (roofline, memory diagram, etc.) once those views land. */
+  /** Feature gate. Omit and the adapter's own capabilities (derived from the loaded
+   *  source) apply; pass an array to override them. Exposed as a data attribute for
+   *  CSS/test hooking and read by the aside. */
   capabilities?: ReportCapability[];
 }>(), {
   dependencyMode: 'all',
@@ -77,24 +79,36 @@ const emit = defineEmits<{
 
 const internalSwim = ref<SwimlaneModel | null>(null);
 const internalReport = ref<ReportViewModel | null>(null);
+const internalCapabilities = ref<ReportCapability[] | null>(null);
 const loadError = ref<string | null>(null);
 const viewState = ref<SwimlaneViewState>(createViewState(null));
 const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
+/** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
+const selectedEvent = ref<SwimEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
-/** Session-only panel widths (not persisted). */
+/** Session-only panel sizes (not persisted). */
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
+const dockHeight = ref(DOCK_HEIGHT_DEFAULT);
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
+/** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
+const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
+/** Host prop wins; otherwise the ones the adapter derived from the loaded source. */
+const caps = computed<ReportCapability[]>(() => {
+  if (props.capabilities) return props.capabilities;
+  if (hostManaged.value) return [];
+  return internalCapabilities.value ?? [];
+});
 const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
@@ -155,6 +169,7 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   next.asideVisible = showAsidePanel;
   viewState.value = next;
   selected.value = null;
+  selectedEvent.value = null;
   hovered.value = null;
   const fromMeta = model?.metadata?.defaultCollapsedIds;
   collapsedGroupIds.value = Array.isArray(fromMeta)
@@ -206,13 +221,16 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     const adapted = loadReportSource(source);
     internalSwim.value = adapted.swimlaneModel;
     internalReport.value = adapted.reportModel;
+    internalCapabilities.value = adapted.capabilities ?? null;
     resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
     loadError.value = null;
     emit('ready');
   } catch (cause) {
     internalSwim.value = null;
     internalReport.value = null;
+    internalCapabilities.value = null;
     selected.value = null;
+    selectedEvent.value = null;
     hovered.value = null;
     viewState.value = createViewState(null);
     loadError.value = cause instanceof Error ? cause.message : String(cause);
@@ -224,7 +242,14 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
 watch(
   () => props.source,
   (src) => {
-    if (src) loadFromSource(src);
+    if (src) {
+      loadFromSource(src);
+      return;
+    }
+    // Source removed: drop what the adapter derived, or its flags outlive the report.
+    internalSwim.value = null;
+    internalReport.value = null;
+    internalCapabilities.value = null;
   },
   { immediate: true },
 );
@@ -281,6 +306,7 @@ watch(
 function onSelect(ev: SwimEvent | null) {
   if (!ev) {
     selected.value = null;
+    selectedEvent.value = null;
     viewState.value = { ...viewState.value, selectedEventId: null };
     emit('select', null);
     return;
@@ -294,6 +320,7 @@ function onSelect(ev: SwimEvent | null) {
     args: ev.args,
   };
   selected.value = payload;
+  selectedEvent.value = ev;
   viewState.value = { ...viewState.value, selectedEventId: ev.id };
   emit('select', payload);
 }
@@ -406,6 +433,22 @@ function onDependencyDepth(depth: number) {
   localDependencyDepth.value = normalizeDependencyDepth(depth);
 }
 
+/**
+ * Detail-dock neighbours of the selection, walked over the same
+ * `SwimEvent.dependencies` refs the swimlane curves use, with the same mode and
+ * depth. The cheap `hasDependencies` scan gates it so reports with no edges never
+ * pay for the lane index.
+ *
+ * `undefined` (not an empty pair) so DetailPanel hides the column entirely.
+ */
+const dependencyNeighbors = computed(() => {
+  const ev = selectedEvent.value;
+  if (!ev || !hasDependencies(swim.value)) return undefined;
+  // One hop: the dock lists what this event directly waits on and feeds. Depth is a
+  // 显示控制 setting for the swimlane graph and deliberately does not reach here.
+  return neighborsOf(swim.value, ev, localDependencyMode.value, DEFAULT_DEPENDENCY_DEPTH);
+});
+
 /** Used by component tests to select an event without canvas pointer geometry. */
 function selectEventById(eventId: string) {
   const ev = swim.value
@@ -422,7 +465,7 @@ defineExpose({ selectEventById, viewState });
     class="pr-root"
     data-testid="profiling-report"
     :data-theme="theme ?? 'dark'"
-    :data-capabilities="(capabilities ?? []).join(',')"
+    :data-capabilities="caps.join(',')"
   >
     <ReportToolbar
       v-if="!showTimeline"
@@ -478,14 +521,12 @@ defineExpose({ selectEventById, viewState });
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
           :time-unit="unit"
-          :dependency-mode="localDependencyMode"
           :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
           @update:search-query="onSearch"
           @update:aside-visible="onAside"
           @update:time-unit="onTimeUnit"
-          @update:dependency-mode="onDependencyMode"
           @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
@@ -525,7 +566,7 @@ defineExpose({ selectEventById, viewState });
         <StatsAside
           :report="report"
           :locale="locale"
-          :capabilities="capabilities"
+          :capabilities="caps"
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
@@ -539,6 +580,12 @@ defineExpose({ selectEventById, viewState });
       :selected="selected"
       :unit="unit"
       :locale="locale"
+      :neighbors="dependencyNeighbors"
+      :dependency-mode="localDependencyMode"
+      :height="dockHeight"
+      @close="onSelect(null)"
+      @update:height="dockHeight = $event"
+      @update:dependency-mode="onDependencyMode"
     />
 
     <EventTooltip

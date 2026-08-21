@@ -8,6 +8,7 @@ import {
   type StressSwimlanePreset,
 } from '../src/domain/generateStressSwimlane';
 import type { SwimlaneModel } from '../src/domain/types';
+import { depsTraceFixture } from './depsFixture';
 
 const FILE_FIXTURES = {
   rep: { name: 'out.rep', url: '/data/out.rep' },
@@ -16,7 +17,7 @@ const FILE_FIXTURES = {
 } as const;
 
 type FileFixtureKind = keyof typeof FILE_FIXTURES;
-type FixtureKind = FileFixtureKind | 'stress';
+type FixtureKind = FileFixtureKind | 'stress' | 'deps';
 type PreferRenderer = 'auto' | 'webgl' | 'canvas';
 
 const status = ref('loading');
@@ -34,7 +35,7 @@ function readQuery(): URLSearchParams {
 
 const queryFixture = computed((): FixtureKind => {
   const f = readQuery().get('fixture');
-  if (f === 'stress') return f;
+  if (f === 'stress' || f === 'deps') return f;
   if (f && f in FILE_FIXTURES) return f as FileFixtureKind;
   return 'rep';
 });
@@ -57,6 +58,7 @@ const title = computed(() => {
     const n = stats ? `${stats.eventCount.toLocaleString()} events` : '…';
     return `stress (${stressPreset.value}, ${n})`;
   }
+  if (kind === 'deps') return 'deps demo (I-Q9)';
   return FILE_FIXTURES[kind].name;
 });
 
@@ -98,10 +100,25 @@ function loadStress(preset: StressSwimlanePreset): void {
   });
 }
 
+/** I-Q9 demo: synthetic CTEF trace with known edges, through the real load path. */
+function loadDeps(): void {
+  status.value = 'loading';
+  error.value = null;
+  stressModel.value = null;
+  const bytes = new TextEncoder().encode(JSON.stringify(depsTraceFixture()));
+  source.value = bytes.buffer.slice(0) as ArrayBuffer;
+  loadToken.value += 1;
+  status.value = 'ready';
+}
+
 async function loadFixture(kind: FixtureKind): Promise<void> {
   openedName.value = null;
   if (kind === 'stress') {
     loadStress(stressPreset.value);
+    return;
+  }
+  if (kind === 'deps') {
+    loadDeps();
     return;
   }
   await loadUrl(FILE_FIXTURES[kind].url);
@@ -179,6 +196,10 @@ onMounted(async () => {
           href="/?fixture=trace"
           data-testid="fixture-trace"
         >out.trace.json</a>
+        <a
+          href="/?fixture=deps"
+          data-testid="fixture-deps"
+        >deps</a>
         <a
           href="/?fixture=ffn_dense"
           data-testid="fixture-ffn-dense"

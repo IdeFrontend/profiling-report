@@ -9,6 +9,7 @@ describe('ReportToolbar', () => {
     asideAvailable: true,
     zoomPercent: 100,
     timeUnit: 'ms',
+    dependencyDepth: 1,
   } as const;
 
   it('PR-TOOLBAR-001: emits update:searchQuery on text input', async () => {
@@ -114,31 +115,23 @@ describe('ReportToolbar', () => {
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
   });
 
-  it('PR-TOOLBAR-011: dependency-mode select emits update:dependencyMode; popover stays open', async () => {
+  it('PR-TOOLBAR-011: 显示控制 carries the dependency depth field', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
-    const select = wrapper.find('[data-testid="dependency-mode"]');
-    expect(select.exists()).toBe(true);
-    await select.setValue('predecessors');
-    expect(wrapper.emitted('update:dependencyMode')).toEqual([['predecessors']]);
-    await select.setValue('successors');
-    expect(wrapper.emitted('update:dependencyMode')).toEqual([['predecessors'], ['successors']]);
-    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
-  });
 
-  it('PR-TOOLBAR-012: dependency-depth input emits update:dependencyDepth; popover stays open', async () => {
-    const wrapper = mount(ReportToolbar, { props: defaultProps });
-    await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
-    const input = wrapper.find('[data-testid="dependency-depth"]');
-    expect(input.exists()).toBe(true);
-    await input.setValue('2');
-    expect(wrapper.emitted('update:dependencyDepth')).toEqual([[2]]);
-    await input.setValue('-1');
-    expect(wrapper.emitted('update:dependencyDepth')).toEqual([[2], [-1]]);
-    await input.setValue('-5');
-    expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([-1]);
-    await input.setValue('999999');
-    expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([100]);
-    expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
+    const field = wrapper.find('[data-testid="dependency-depth"]');
+    expect(field.exists()).toBe(true);
+    expect((field.element as HTMLInputElement).value).toBe('1');
+
+    // Commits on change, not on every keystroke — a half-typed number must not
+    // rebuild the graph.
+    await field.setValue('5');
+    await field.trigger('change');
+    expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([5]);
+
+    // Cleared field falls back to the shared default instead of emitting NaN.
+    await field.setValue('');
+    await field.trigger('change');
+    expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([1]);
   });
 });

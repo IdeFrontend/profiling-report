@@ -20,6 +20,42 @@
   --pr-color-default: #606060;
 }
 
+/**
+ * Sketch scrollbars are a thin rounded thumb on no track (v930/task-click-detail).
+ * The library ships dark panels, so the platform default light chrome reads as a
+ * bright bar against them; scoped to .pr-root so a host page keeps its own.
+ */
+.pr-root {
+  scrollbar-width: thin;
+  scrollbar-color: #5a5a5a transparent;
+}
+
+.pr-root ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pr-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pr-root ::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  /* Painted inside the padding box so the border above reads as a gap, not a frame. */
+  background: #5a5a5a;
+  background-clip: content-box;
+}
+
+.pr-root ::-webkit-scrollbar-thumb:hover {
+  background: #6e6e6e;
+  background-clip: content-box;
+}
+
+.pr-root ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .pr-root[data-theme='light'] {
   --pr-bg-panel: #f4f4f4;
   --pr-bg-deep: #e8ecf0;
