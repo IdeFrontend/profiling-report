@@ -261,8 +261,14 @@ export interface SelectedEvent {
   args?: Record<string, unknown>;
 }
 
-/** Interim I-Q14: ms / µs / ns only (no clock-cycle mode). */
-export type TimeDisplayUnit = 'ms' | 'us' | 'ns';
+/**
+ * User preference (I-Q14): wall time with auto s/ms/µs/ns, or CPU clocks.
+ * Clocks require OpBasicInfo currentFreq/ratedFreq (MHz).
+ */
+export type TimeDisplayMode = 'time' | 'cycles';
+
+/** Resolved wall-time scale when mode is `time`. */
+export type TimeScaleUnit = 's' | 'ms' | 'us' | 'ns';
 
 /** Which selection dependency curves (and undimmed neighbors) to show. */
 export type DependencyMode = 'all' | 'predecessors' | 'successors';

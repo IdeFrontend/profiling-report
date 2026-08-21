@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { formatTime } from '../../domain/formatTime';
 import { t } from '../../i18n';
-import type { SwimEvent, TimeDisplayUnit } from '../../domain/types';
+import type { SwimEvent, TimeDisplayMode, TimeScaleUnit } from '../../domain/types';
 
 defineProps<{
   event: SwimEvent;
   stylePos: { left: string; top: string };
-  unit: TimeDisplayUnit;
+  timeDisplayMode: TimeDisplayMode;
+  timeScaleUnit: TimeScaleUnit;
+  clockFreqMHz?: number;
   locale?: string;
 }>();
 </script>
@@ -20,9 +22,9 @@ defineProps<{
     <div class="pr-tooltip__name">
       {{ event.name }}
     </div>
-    <div>{{ t('start', locale) }}: {{ formatTime(event.startTime, unit) }}</div>
-    <div>{{ t('dur', locale) }}: {{ formatTime(event.duration, unit) }}</div>
-    <div>{{ t('end', locale) }}: {{ formatTime(event.startTime + event.duration, unit) }}</div>
+    <div>{{ t('start', locale) }}: {{ formatTime(event.startTime, timeDisplayMode, { unit: timeScaleUnit, clockFreqMHz }) }}</div>
+    <div>{{ t('dur', locale) }}: {{ formatTime(event.duration, timeDisplayMode, { unit: timeScaleUnit, clockFreqMHz }) }}</div>
+    <div>{{ t('end', locale) }}: {{ formatTime(event.startTime + event.duration, timeDisplayMode, { unit: timeScaleUnit, clockFreqMHz }) }}</div>
   </div>
 </template>
 

@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import type { SelectedEvent, TimeDisplayUnit } from '../../domain/types';
+import type { SelectedEvent, TimeDisplayMode, TimeScaleUnit } from '../../domain/types';
 import DetailSummary from './DetailSummary/DetailSummary.vue';
 import DetailParameter from './DetailParameter/DetailParameter.vue';
 import DetailRelevant from './DetailRelevant/DetailRelevant.vue';
 
 defineProps<{
   selected: SelectedEvent;
-  unit: TimeDisplayUnit;
+  timeDisplayMode: TimeDisplayMode;
+  timeScaleUnit: TimeScaleUnit;
+  clockFreqMHz?: number;
   locale?: string;
 }>();
 </script>
@@ -18,7 +20,9 @@ defineProps<{
   >
     <DetailSummary
       :selected="selected"
-      :unit="unit"
+      :time-display-mode="timeDisplayMode"
+      :time-scale-unit="timeScaleUnit"
+      :clock-freq-m-hz="clockFreqMHz"
       :locale="locale"
     />
     <DetailParameter />

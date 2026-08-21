@@ -8,7 +8,7 @@ describe('ReportToolbar', () => {
     asideVisible: false,
     asideAvailable: true,
     zoomPercent: 100,
-    timeUnit: 'ms',
+    timeDisplayMode: 'time',
   } as const;
 
   it('PR-TOOLBAR-001: emits update:searchQuery on text input', async () => {
@@ -36,18 +36,27 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('zoom-to-fit')).toBeTruthy();
   });
 
-  it('PR-TOOLBAR-005: layers opens display control; unit select emits update:timeUnit', async () => {
-    const wrapper = mount(ReportToolbar, { props: defaultProps });
-    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
+  it('PR-TOOLBAR-005: layers opens display control; mode select emits update:timeDisplayMode', async () => {
+    const wrapper = mount(ReportToolbar, { props: { ...defaultProps, clockFreqMHz: 1800 } });
+    expect(wrapper.find('[data-testid="time-display-mode"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
 
     await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
-    const select = wrapper.find('[data-testid="time-unit"]');
+    const select = wrapper.find('[data-testid="time-display-mode"]');
     expect(select.exists()).toBe(true);
-    await select.setValue('us');
-    expect(wrapper.emitted('update:timeUnit')).toEqual([['us']]);
+    expect(select.find('option[value="cycles"]').exists()).toBe(true);
+    await select.setValue('cycles');
+    expect(wrapper.emitted('update:timeDisplayMode')).toEqual([['cycles']]);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
+  });
+
+  it('PR-TOOLBAR-005b: cycles option hidden without clockFreqMHz', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
+    const select = wrapper.find('[data-testid="time-display-mode"]');
+    expect(select.find('option[value="time"]').exists()).toBe(true);
+    expect(select.find('option[value="cycles"]').exists()).toBe(false);
   });
 
   it('PR-TOOLBAR-006: emits update:asideVisible when aside toggle is clicked', async () => {

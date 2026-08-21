@@ -54,7 +54,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q11** | Roofline formulas | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, COMPONENTS |
 | **Q12** | Memory topology | **Resolved** | Static SVG + data-driven edge labels. |
 | **Q13** | Color / category legend | **Resolved** | [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
-| **Q14** | Time units UX | **Resolved (partial)** + **Interim (MVP units)** | Configurable; MVP = ms/µs/ns only, default ms; no cycles — [I-Q14](INTERIM_DECISIONS.md). |
+| **Q14** | Time units UX | **Resolved (interim)** | Time (auto) vs CPU clocks; auto s/ms/µs/ns; freq from OpBasicInfo — [I-Q14](INTERIM_DECISIONS.md). |
 | **Q15** | MSTT `.json` policy | **Resolved** | Chrome Trace `.json` → profiling-report. |
 | **Q22** | Time-range measure → which views? | **Open** | When timeline **度量模式** sets `measureRange [t0,t1]` ([`v930/task-measure-mode`](../ui/source/v930/task-measure-mode.jpeg)), which views must update? Candidates: PIPE / Cube·Vector bars; compute-load detail tabs; memory detail tabs + topology; report summary; detail strip; overview charts (if present). Distinct from overview brush (`timeWindow`) and event selection. Until answered: measure UI is **local overlay only** (band + Δt; no aside recompute). Specs when answered: UX_SPEC sync, INTERACTIONS, FEATURE_MATRIX, COMPONENTS, view-state / StatsAside. |
 

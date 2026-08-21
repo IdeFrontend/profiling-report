@@ -7,43 +7,48 @@
 Format internal nanosecond time values to human-readable strings for axis ticks, cursor labels, tooltips, and the detail strip.
 
 ```ts
-formatTime(ns: number, unit: TimeDisplayUnit): string
-formatAxisTime(ns: number, unit: TimeDisplayUnit, tickStepNs?: number): string
-formatCursorTime(ns: number): string
+formatTime(ns, mode='time', opts?: { unit?, tickStepNs?, clockFreqMHz? }): string
+formatAxisTime(ns, mode='time', opts?): string
+formatCursorTime(ns, mode='time', opts?): string
+timeScaleUnitFromNsQuantum(quantumNs): TimeScaleUnit
+resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
+resolveClockFreqMHz(summary?): number | undefined
+nsToCycles(ns, clockFreqMHz): number
 ```
 
 ## Behavior
 
-**Internal representation.** All time values throughout the system use nanoseconds internally. Conversion to display units happens only at the formatting layer. This avoids precision loss from intermediate conversions.
+**Internal representation.** All time values throughout the system use nanoseconds internally. Conversion to display units happens only at the formatting layer.
 
-**Tooltip/detail formatting.** `formatTime` divides by 1e3 (µs) or 1e6 (ms), displaying 3 decimal places. NaN/Infinity → `—`. Integer display for ns.
+**Modes.** `time` = wall time with auto `TimeScaleUnit` (`s` / `ms` / `us` / `ns`). `cycles` = CPU clocks via `ns * freqMHz / 1000`; missing freq → `—`.
 
-**Axis tick formatting.** `formatAxisTime` adapts decimal places based on `tickStepNs` to prevent zoomed axes from collapsing to identical labels. Step ≥1 → 1 decimal, ≥0.1 → 2, ≥0.01 → 3, ≥0.001 → 4, otherwise 5.
+**Auto scale (time mode).** Viewport chrome uses `resolveTimeUnitFromVisibleRange(end − start)`. Overview / total axis uses major-tick step from span×width (`resolveTimeUnitFromAxisDensity` in axisRuler) — brush window must not change overview unit.
 
-**Cursor formatting.** `formatCursorTime(ns, unit)` renders the value in `unit` as `MM:SS.mmm` (sketch: 4.456ms → `00:04.456`). Negative values clamped to 0. No hour component. `resolveCursorTimeUnit(spanNs, preferred)` picks `us`/`ns` when the trace span is sub-ms so short kernel fixtures still update the label while moving.
+**Tooltip/detail formatting.** `formatTime` in time mode shows 3 decimal places (integer ns). Cycles use a plain count with ` cycles` suffix.
 
-**Unit switching.** When the user changes the time unit, all formatted times update simultaneously — axis ticks, tooltip, detail strip, cursor label. The change is purely formatting; internal precision is preserved.
+**Axis tick formatting.** `formatAxisTime` adapts decimals from `tickStepNs`. Compact cycles suffix `cyc`. Origin → compact zero (`0ms` / `0cyc`).
+
+**Cursor formatting.** Time mode: `MM:SS.mmm` in the resolved scale (sketch: 4.456ms → `00:04.456`). Cycles mode: plain cycle count (not clock-style).
 
 ## Acceptance Criteria
 
-1. **PR-TIME-001**: 1_234_000 ns → `'1.234 ms'` / `'1234.000 µs'` / `'1234000 ns'`.
-1. **PR-TIME-002**: formatCursorTime renders `MM:SS.mmm` in unit (4_456_000 ns + ms → `00:04.456`).
-1. **PR-TIME-003**: formatAxisTime adapts decimal places to tickStepNs.
-1. **PR-TIME-004**: formatAxisTime(0) is compact zero (`0ms` / `0µs` / `0ns`).
+1. **PR-TIME-001** — time-mode format by scale unit.
+1. **PR-TIME-002** — cursor MM:SS.mmm / cycles count.
+1. **PR-TIME-002b** — visible-range / quantum resolvers.
+1. **PR-TIME-003** — axis decimals follow tick step.
+1. **PR-TIME-004** — compact axis zero.
+1. **PR-TIME-005** — cycles conversion and freq resolve.
 
 ## Edge Cases
 
-Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTime(0)` still `'0.000 ms'`. NaN/Infinity → `'—'`. Negative cursor → clamped to 0.
+Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTime(0)` still `'0.000 ms'`. NaN/Infinity → `'—'`. Negative cursor → clamped to 0. Cycles without freq → `'—'`.
 
 ## Dependencies
 
-I-Q14 — ms/µs/ns only, no clock-cycle mode in MVP.
-
-## Open
-
-Future cycles unit if product requires.
+I-Q14 — Time (auto) vs CPU clocks; freq from `currentFreq ?? ratedFreq`.
 
 ## Changelog
+- **2026-08-21** — Time vs cycles modes; auto scale; remove resolveCursorTimeUnit; seconds support.
 - **2026-08-07** — PR-TIME-004 compact axis zero; cursor unit resolution for short spans.
 - **2026-08-07** — Cursor format uses display unit (sketch ms→clock); resolveCursorTimeUnit for short spans.
 - **2026-08-05** — Initial spec. Core behaviors established.

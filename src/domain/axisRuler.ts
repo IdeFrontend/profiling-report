@@ -1,5 +1,5 @@
-import { formatAxisTime } from './formatTime';
-import type { TimeDisplayUnit } from './types';
+import { formatAxisTime, timeScaleUnitFromNsQuantum } from './formatTime';
+import type { TimeDisplayMode, TimeScaleUnit } from './types';
 
 /** Minor ticks between each adjacent major pair (10 subdivisions). */
 export const AXIS_RULER_MINORS_PER_GAP = 9;
@@ -38,7 +38,11 @@ export interface BuildAxisRulerTicksOptions {
   rangeEnd: number;
   /** Subtracted from absolute times for display labels (usually model minTime). */
   origin: number;
-  timeUnit: TimeDisplayUnit;
+  timeDisplayMode: TimeDisplayMode;
+  /** Wall-time scale when mode is `time` (viewport or overview auto unit). */
+  timeScaleUnit?: TimeScaleUnit;
+  /** AIC frequency in MHz when mode is `cycles`. */
+  clockFreqMHz?: number;
   /** Pixel width of the ruler track (drives tick density). */
   widthPx?: number;
   /**
@@ -128,6 +132,16 @@ export function calculateGridInterval(timePerPixel: number): number {
 }
 
 /**
+ * Overview / total-axis unit from full span × track width (not the brush window).
+ * Uses the same major-step picker as tick layout, then maps that step to a scale.
+ */
+export function resolveTimeUnitFromAxisDensity(spanNs: number, widthPx: number): TimeScaleUnit {
+  const w = widthPx > 0 ? widthPx : AXIS_RULER_DEFAULT_WIDTH_PX;
+  const interval = calculateGridInterval(Math.max(1, spanNs) / w);
+  return timeScaleUnitFromNsQuantum(interval);
+}
+
+/**
  * Build major bars + labels on a nice ns grid, plus 9 minors per major gap.
  * Labels are relative to `origin` (trace start = 0). Major positions move with
  * zoom because the interval depends on `span / widthPx`.
@@ -138,6 +152,8 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
   const interval = calculateGridInterval(span / widthPx);
   const mute = opts.muteOutside;
   const origin = opts.origin;
+  const mode = opts.timeDisplayMode;
+  const unit = opts.timeScaleUnit ?? 'ms';
 
   // Snap to origin + k·interval (integral relative timestamps).
   let t0 = origin + Math.ceil((opts.rangeStart - origin) / interval) * interval;
@@ -156,7 +172,11 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
     majors.push({
       t,
       pct: Math.min(100, Math.max(0, pct)),
-      label: formatAxisTime(t - origin, opts.timeUnit, interval),
+      label: formatAxisTime(t - origin, mode, {
+        unit,
+        tickStepNs: interval,
+        clockFreqMHz: opts.clockFreqMHz,
+      }),
       muted: isOutside(t, mute),
     });
   }

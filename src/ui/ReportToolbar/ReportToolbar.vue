@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { TimeDisplayUnit, DependencyMode } from '../../domain/types';
+import type { TimeDisplayMode, DependencyMode } from '../../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
 
@@ -10,7 +10,9 @@ withDefaults(
     asideVisible: boolean;
     asideAvailable: boolean;
     zoomPercent: number;
-    timeUnit: TimeDisplayUnit;
+    timeDisplayMode: TimeDisplayMode;
+    /** When set, CPU clocks option is shown. */
+    clockFreqMHz?: number;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     locale?: string;
@@ -26,7 +28,7 @@ withDefaults(
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:asideVisible': [value: boolean];
-  'update:timeUnit': [value: TimeDisplayUnit];
+  'update:timeDisplayMode': [value: TimeDisplayMode];
   'update:dependencyMode': [value: DependencyMode];
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
@@ -320,13 +322,17 @@ function onDependencyDepth(e: Event) {
           <label class="pr-toolbar__display-field">
             <span class="pr-toolbar__display-label">{{ t('taskDisplayUnit', locale) }}</span>
             <select
-              data-testid="time-unit"
-              :value="timeUnit"
-              @change="emit('update:timeUnit', ($event.target as HTMLSelectElement).value as TimeDisplayUnit)"
+              data-testid="time-display-mode"
+              :value="timeDisplayMode"
+              @change="emit('update:timeDisplayMode', ($event.target as HTMLSelectElement).value as TimeDisplayMode)"
             >
-              <option value="ms">ms</option>
-              <option value="us">µs</option>
-              <option value="ns">ns</option>
+              <option value="time">{{ t('displayModeTime', locale) }}</option>
+              <option
+                v-if="clockFreqMHz != null"
+                value="cycles"
+              >
+                {{ t('displayModeCycles', locale) }}
+              </option>
             </select>
           </label>
           <label class="pr-toolbar__display-field">

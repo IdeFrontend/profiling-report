@@ -17,7 +17,8 @@ describe('EventTooltip', () => {
       props: {
         event: makeEvent(),
         stylePos: { left: '10px', top: '20px' },
-        unit: 'ms',
+        timeDisplayMode: 'time',
+        timeScaleUnit: 'ms',
       },
     });
 
@@ -30,7 +31,8 @@ describe('EventTooltip', () => {
       props: {
         event: makeEvent(),
         stylePos: { left: '0px', top: '0px' },
-        unit: 'us',
+        timeDisplayMode: 'time',
+        timeScaleUnit: 'us',
       },
     });
 

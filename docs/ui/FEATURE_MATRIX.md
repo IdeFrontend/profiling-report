@@ -26,7 +26,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; local overlay until [Q22](../context/OPEN_QUESTIONS.md). Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
-| Task display unit (ms/µs/ns) | M | Via toolbar **layers** → **显示控制** popover ([`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg)); not an inline toolbar select. Cycle mode deferred ([I-Q14](../context/INTERIM_DECISIONS.md)) |
+| Task display unit (Time auto / CPU clocks) | M | Via toolbar **layers** → **显示控制** popover ([`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg)); Time (auto) always; CPU clocks when OpBasicInfo freq present ([I-Q14](../context/INTERIM_DECISIONS.md)) |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
 | Settings | P2 | |
 

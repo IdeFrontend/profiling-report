@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { buildAxisRulerTicks } from '../../../domain/axisRuler';
-import type { TimeDisplayUnit } from '../../../domain/types';
+import {
+  buildAxisRulerTicks,
+  resolveTimeUnitFromAxisDensity,
+} from '../../../domain/axisRuler';
+import type { TimeDisplayMode } from '../../../domain/types';
 import AxisRuler from '../TimeAxis/AxisRuler/AxisRuler.vue';
 
 const props = defineProps<{
@@ -9,7 +12,8 @@ const props = defineProps<{
   maxTime: number;
   startTime: number;
   endTime: number;
-  timeUnit: TimeDisplayUnit;
+  timeDisplayMode: TimeDisplayMode;
+  clockFreqMHz?: number;
 }>();
 
 const emit = defineEmits<{
@@ -36,12 +40,19 @@ const rightPct = computed(
 );
 const widthPct = computed(() => Math.max(0.4, rightPct.value - leftPct.value));
 
+/** Overview unit from total span × width only — brush window must not affect it. */
+const overviewTimeScaleUnit = computed(() =>
+  resolveTimeUnitFromAxisDensity(fullSpan.value, trackWidth.value),
+);
+
 const ruler = computed(() =>
   buildAxisRulerTicks({
     rangeStart: props.minTime,
     rangeEnd: props.maxTime,
     origin: props.minTime,
-    timeUnit: props.timeUnit,
+    timeDisplayMode: props.timeDisplayMode,
+    timeScaleUnit: overviewTimeScaleUnit.value,
+    clockFreqMHz: props.clockFreqMHz,
     widthPx: trackWidth.value,
     muteOutside: { start: props.startTime, end: props.endTime },
   }),

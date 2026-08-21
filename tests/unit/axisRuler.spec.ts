@@ -3,6 +3,7 @@ import {
   AXIS_RULER_MIN_PIXEL_INTERVAL,
   buildAxisRulerTicks,
   calculateGridInterval,
+  resolveTimeUnitFromAxisDensity,
 } from '../../src/domain/axisRuler';
 
 describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
@@ -22,14 +23,16 @@ describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
       rangeStart: 0,
       rangeEnd: 10_000,
       origin: 0,
-      timeUnit: 'us',
+      timeDisplayMode: 'time',
+      timeScaleUnit: 'us',
       widthPx: 200,
     });
     const b = buildAxisRulerTicks({
       rangeStart: 0,
       rangeEnd: 10_000,
       origin: 0,
-      timeUnit: 'us',
+      timeDisplayMode: 'time',
+      timeScaleUnit: 'us',
       widthPx: 2000,
     });
     expect(b.interval).toBeLessThan(a.interval);
@@ -37,5 +40,12 @@ describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
     for (const m of a.majors) {
       expect(m.t % a.interval).toBe(0);
     }
+  });
+
+  it('resolveTimeUnitFromAxisDensity maps major step to scale unit', () => {
+    // 10 ns/px → interval 1000 ns → us
+    expect(resolveTimeUnitFromAxisDensity(8000, 800)).toBe('us');
+    // very long span → coarser unit
+    expect(resolveTimeUnitFromAxisDensity(2e12, 800)).toBe('s');
   });
 });

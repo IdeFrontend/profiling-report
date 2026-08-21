@@ -45,7 +45,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-------|-------------|
 | `SwimlaneModel.minTime` / `maxTime` (ns) | **Required** |
 | `SwimlaneViewState` visible window | **Required** (defaults to full range) |
-| Display unit preference (ms / µs / ns) | **Optional** — configurable ([Q14](../context/OPEN_QUESTIONS.md)); **Interim MVP:** ms / µs / ns only, default **ms**; no clock-cycle mode ([I-Q14](../context/INTERIM_DECISIONS.md)) |
+| Display mode preference (time / cycles) | **Optional** — configurable ([Q14](../context/OPEN_QUESTIONS.md)); **Interim:** Time (auto) vs CPU clocks when freq present ([I-Q14](../context/INTERIM_DECISIONS.md)) |
 
 ---
 

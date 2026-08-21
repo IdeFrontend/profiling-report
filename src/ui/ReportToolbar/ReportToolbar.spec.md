@@ -10,11 +10,11 @@ Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **dependencyMode** sets the dependency-display dropdown (`all` / `predecessors` / `successors`), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit, higher=zoom-in), **timeDisplayMode** sets the popover dropdown (`time` / `cycles`), optional **clockFreqMHz** shows the clocks option when set, **dependencyMode** sets the dependency-display dropdown (`all` / `predecessors` / `successors`), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state.
 
 ## Outputs
 
-The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:dependencyMode** carries the selected dependency filter. **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode.
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeDisplayMode** carries `time` or `cycles`. **update:dependencyMode** carries the selected dependency filter. **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode.
 
 ## Behavior
 
@@ -24,7 +24,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Aside toggle.** Visible only when `asideAvailable` is true. Square icon button with panel SVG.
 
-**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)), **依赖显示** (`data-testid="dependency-mode"`: all / predecessors / successors), and **依赖深度** (`data-testid="dependency-depth"`: integer, default 1, min −1 = no hop cap, max 100; tooltip notes the 10 000-link-per-side cap). Toggle the button or click **X** to close; leave open after unit, mode, or depth change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode. Changing dependency mode or depth must not reload the page.
+**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-display-mode"`: Time (auto) / CPU clocks per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md); clocks option only when **clockFreqMHz** is set), **依赖显示** (`data-testid="dependency-mode"`: all / predecessors / successors), and **依赖深度** (`data-testid="dependency-depth"`: integer, default 1, min −1 = no hop cap, max 100; tooltip notes the 10 000-link-per-side cap). Toggle the button or click **X** to close; leave open after mode or depth change. Changing dependency mode or depth must not reload the page.
 
 **Measure (M2).** Temporarily hidden from the toolbar. Prop/emit (`measureMode` / `update:measureMode`) and canvas measure wiring remain so the caliper can be restored later.
 
@@ -100,7 +100,7 @@ Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardwa
 | Select bg | `#404040` |
 | Select radius | `6px` |
 | Select height | `32px`; text `#ffffff`; custom chevron (no native arrow) |
-| Options (MVP) | ms / µs / ns ([I-Q14](../../../docs/context/INTERIM_DECISIONS.md); sketch may show 时钟周期) |
+| Options | Time (auto) always; CPU clocks when `clockFreqMHz` set ([I-Q14](../../../docs/context/INTERIM_DECISIONS.md)) |
 
 ### Full strip (`visual/toolbar.png`)
 
@@ -112,7 +112,8 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 2. **PR-TOOLBAR-002** — Emits zoom-in on button click.
 3. **PR-TOOLBAR-003** — Emits `zoom-out` on button click.
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
-5. **PR-TOOLBAR-005** — Layers button opens 显示控制; `time-unit` select inside emits `update:timeUnit` on change; select is not visible until popover open.
+5. **PR-TOOLBAR-005** — Layers opens 显示控制; mode select emits `update:timeDisplayMode`.
+5. **PR-TOOLBAR-005b** — Cycles option hidden without freq.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
 7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) is not rendered (temporarily hidden).
 8. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
@@ -125,7 +126,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 
 - asideAvailable=false → toggle button hidden.
 - Search query initially empty, user types to filter.
-- Popover closed → `time-unit` not in DOM (or not visible).
+- Popover closed → `time-display-mode` not in DOM (or not visible).
 
 ## Design sketches
 

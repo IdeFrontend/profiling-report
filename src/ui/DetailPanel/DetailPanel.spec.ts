@@ -7,7 +7,8 @@ describe('DetailPanel', () => {
     const wrapper = mount(DetailPanel, {
       props: {
         selected: { id: '1', name: 'test_op', startTime: 100, duration: 100, endTime: 200 },
-        unit: 'ms',
+        timeDisplayMode: 'time',
+        timeScaleUnit: 'ms',
       },
     });
 
