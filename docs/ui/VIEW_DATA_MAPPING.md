@@ -223,18 +223,18 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 
 ### Edge → field → source (engineering mapping for M2)
 
-Use this table for `MemoryTopologyPanel` labels.
+Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the named resource; `*_write_bw` = arriving there.
 
 | Display edge | Field | Source | Notes |
 | --- | --- | --- | --- |
-| GM ← L2 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | Prefer non-`NA` AIC then AIV |
-| GM → L2 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | |
-| L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | **Confirmed.** No `MemoryL1.csv` |
-| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | **Confirmed.** |
-| L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | |
-| L1 → L0B | `aic_l0b_read_bw(GB/s)` | `MemoryL0.csv` | |
-| L0A → Cube | `aic_l0a_write_bw(GB/s)` | `MemoryL0.csv` | |
-| L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | |
+| GM → L2 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | Prefer non-`NA` AIC then AIV. Read = leaving GM (`out.rep` 16.89) |
+| GM ← L2 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | Write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
+| L2 ← L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | **Confirmed** file. Direction unverified (`out.rep` NA); same bare-column rule |
+| L2 → L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | Same; unverified |
+| L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | Direction unverified (`out.rep` NA; bare-column rule) |
+| L1 → L0B | `aic_l0b_read_bw(GB/s)` | `MemoryL0.csv` | Same |
+| L0A → Cube | `aic_l0a_write_bw(GB/s)` | `MemoryL0.csv` | Same |
+| L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | Same |
 | L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |

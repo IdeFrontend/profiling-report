@@ -21,7 +21,9 @@ const NODES: MemoryTopologyModel['nodes'] = [
 
 type Unit = 'GB/s' | 'KB' | '%';
 
-/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins. */
+/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins.
+ *  Bare `*_read_bw` = leaving the named resource; `*_write_bw` = arriving there.
+ *  Counterparty-suffix columns (`_bw_gm` / `_vector` / `_cube`) already name the other end. */
 const EDGE_MAP: {
   id: string;
   from: string;
@@ -31,8 +33,8 @@ const EDGE_MAP: {
 }[] = [
   {
     id: 'gm-l2-read',
-    from: 'l2',
-    to: 'gm',
+    from: 'gm',
+    to: 'l2',
     unit: 'GB/s',
     sources: [
       { file: 'Memory.csv', columns: ['aic_main_mem_read_bw(GB/s)', 'aiv_main_mem_read_bw(GB/s)'] },
@@ -40,52 +42,53 @@ const EDGE_MAP: {
   },
   {
     id: 'gm-l2-write',
-    from: 'gm',
-    to: 'l2',
+    from: 'l2',
+    to: 'gm',
     unit: 'GB/s',
     sources: [
       { file: 'Memory.csv', columns: ['aic_main_mem_write_bw(GB/s)', 'aiv_main_mem_write_bw(GB/s)'] },
     ],
   },
+  // ponytail: L1/L0 bare read/write from/to follow the same rule as gm-l2-*; out.rep is all NA so unverified.
   {
     id: 'l2-l1-read',
-    from: 'l2',
-    to: 'l1',
+    from: 'l1',
+    to: 'l2',
     unit: 'GB/s',
     sources: [{ file: 'Memory.csv', columns: ['aic_l1_read_bw(GB/s)'] }],
   },
   {
     id: 'l2-l1-write',
-    from: 'l1',
-    to: 'l2',
+    from: 'l2',
+    to: 'l1',
     unit: 'GB/s',
     sources: [{ file: 'Memory.csv', columns: ['aic_l1_write_bw(GB/s)'] }],
   },
   {
     id: 'l1-l0a',
-    from: 'l1',
-    to: 'l0a',
+    from: 'l0a',
+    to: 'l1',
     unit: 'GB/s',
     sources: [{ file: 'MemoryL0.csv', columns: ['aic_l0a_read_bw(GB/s)'] }],
   },
   {
     id: 'l1-l0b',
-    from: 'l1',
-    to: 'l0b',
+    from: 'l0b',
+    to: 'l1',
     unit: 'GB/s',
     sources: [{ file: 'MemoryL0.csv', columns: ['aic_l0b_read_bw(GB/s)'] }],
   },
   {
     id: 'l0a-cube',
-    from: 'l0a',
-    to: 'cube',
+    from: 'cube',
+    to: 'l0a',
     unit: 'GB/s',
     sources: [{ file: 'MemoryL0.csv', columns: ['aic_l0a_write_bw(GB/s)'] }],
   },
   {
     id: 'l0b-cube',
-    from: 'l0b',
-    to: 'cube',
+    from: 'cube',
+    to: 'l0b',
     unit: 'GB/s',
     sources: [{ file: 'MemoryL0.csv', columns: ['aic_l0b_write_bw(GB/s)'] }],
   },

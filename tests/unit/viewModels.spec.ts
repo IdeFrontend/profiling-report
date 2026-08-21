@@ -231,17 +231,27 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(byKey['Current Freq']).toBe('1650');
   });
 
-  it('PR-VM-011: out.rep UB/Vec 2:1; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {
+  it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const topo = adapted.reportModel.memoryTopology;
     expect(topo).toBeDefined();
     expect(adapted.capabilities).toContain('memoryDiagram');
     expect(topo!.nodes.length).toBeGreaterThan(0);
     const label = (id: string) => topo!.edges.find((e) => e.id === id)?.label;
+    const dir = (id: string) => {
+      const e = topo!.edges.find((x) => x.id === id)!;
+      return `${e.from}->${e.to}`;
+    };
     expect(label('l2-ub')).toBe('16.76 GB/s');
     expect(label('ub-l2')).toBe('8.38 GB/s');
     expect(label('ub-vec')).toBe('16.76 GB/s');
     expect(label('vec-ub')).toBe('8.38 GB/s');
+    expect(label('gm-l2-read')).toBe('16.89 GB/s');
+    expect(label('gm-l2-write')).toBe('8.38 GB/s');
+    expect(dir('gm-l2-read')).toBe('gm->l2');
+    expect(dir('gm-l2-write')).toBe('l2->gm');
+    expect(dir('ub-vec')).toBe('ub->vec');
+    expect(dir('vec-ub')).toBe('vec->ub');
     const both: CsvTableModel[] = [
       {
         fileName: 'Memory.csv',

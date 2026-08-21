@@ -205,14 +205,14 @@ Full sample header also includes dual/single scalar times and wait/stall breakdo
 
 ### 3.4 `Memory.csv`
 
-GM / L2 / L1 oriented bandwidth and data volumes.
+GM / L2 / L1 oriented bandwidth and data volumes. Bare `*_read_bw` = leaving the named resource; `*_write_bw` = arriving there (same rule as UB: `ub_read_*` = leaving UB).
 
 | Docx display edge | Docx field | Sample column | Status |
 | --- | --- | --- | --- |
-| GM ← L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present (split AIC/AIV) |
-| GM → L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present |
-| L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv` |
-| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed** |
+| GM → L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present; read = leaving GM (`out.rep` 16.89 tracks `gm_to_ub`) |
+| GM ← L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present; write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
+| L2 → L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed** file; direction unverified (`out.rep` NA) |
+| L2 ← L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | Same; no `MemoryL1.csv` |
 | L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → UB | — | — | **TBD** (docx); absent in sample |
@@ -220,6 +220,8 @@ GM / L2 / L1 oriented bandwidth and data volumes.
 Also present in sample (not all listed in docx edge table): MTE instruction/ratio columns, `GM_to_L1_*`, `UB_to_GM_*`, `aiv_ub_to_gm_bw(GB/s)`, `aiv_gm_to_ub_bw(GB/s)`, etc.
 
 ### 3.5 `MemoryL0.csv`
+
+L0C `_bw_cube` directions are confirmed by suffix. L0A/L0B bare `*_read_bw` / `*_write_bw` follow the same leaving/arriving rule as GM; `out.rep` is NA so those arrows are unverified.
 
 | Docx display edge | Field | Sample |
 | --- | --- | --- |

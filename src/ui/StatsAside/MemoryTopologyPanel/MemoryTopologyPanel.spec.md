@@ -45,8 +45,8 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 | DCache / XN_IMM | `#4a4a4a` |
 | Cluster dash | `#6a6a6a` `1px` dashed |
 | Edge label | `#e8c040` `8px`; GM↔L2 / L2↔cluster rotated −90° in corridors |
-| Write arrows (GM→L2) | `#4a8ec8` |
-| Read arrows (L2→GM) | `#e8c040` |
+| Write arrows (L2→GM) | `#4a8ec8` |
+| Read arrows (GM→L2) | `#e8c040` |
 | Unit Peak(%) | omit until §11.2.6 mapping exists |
 
 ## Design sketches
@@ -61,6 +61,7 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 I-Q6c, Q12, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
+- **2026-08-21** — GM↔L2 arrows: read = leaving GM (GM→L2 gold), write = arriving at GM (L2→GM blue).
 - **2026-08-20** — Product NA rule (hide NA, show 0) lives in the adapter; panel still omits edges with no `label`. UB prefers MemoryUB names then Memory.csv.
 
 - **2026-08-14** — AIC-internal L1/L0/Cube labels (PR-MEMTOP-002).
