@@ -28,7 +28,7 @@ Lane event-sequence fill matches `--pr-bg-deep` (`#1F1F1F`).
 
 ## PIPE occupancy + category keys
 
-Sampled primarily from PIPE bars in `source/v930/entry.jpeg` (bottom-right), ordered as in sketches: Cube → Vector → MTE2 → MTE1 → FixP → MTE3 → Scalar.
+Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-load.jpeg) (and `entry.jpeg` swimlane), ordered as in sketches: Cube → Vector → MTE2 → MTE1 → FixP → MTE3 → Scalar.
 
 | `colorKey` | Hex | Role |
 |------------|-----|------|
@@ -38,7 +38,7 @@ Sampled primarily from PIPE bars in `source/v930/entry.jpeg` (bottom-right), ord
 | `mte1` | `#885C00` | PIPE MTE1; yellow/gold event blocks (e.g. `DC_PRELOAD_*`) |
 | `fixp` | `#586C0C` | PIPE FixP (olive in sketches) |
 | `mte3` | `#A44830` | PIPE MTE3 (rust / red-brown) |
-| `scalar` | `#38702C` | PIPE Scalar; green event accents |
+| `scalar` | `#1A743E` | PIPE Scalar bar in `compute-load.jpeg`. Swimlane greens in `entry.jpeg` sample closer to `#38702C`; one token per rule 1. |
 
 **Overview chart accent (brighter Cube sparkline):** `#3078F0` — use for filled overview “Cube” series when distinct from bar cyan is desired; keep `vector` series on `#007464` / teal family.
 
@@ -61,7 +61,7 @@ Sampled primarily from PIPE bars in `source/v930/entry.jpeg` (bottom-right), ord
   --pr-color-mte2: #985000;
   --pr-color-mte3: #a44830;
   --pr-color-fixp: #586c0c;
-  --pr-color-scalar: #38702c;
+  --pr-color-scalar: #1a743e;
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
   --pr-color-bandwidth-bar: #3078f0;
@@ -75,7 +75,7 @@ Sampled primarily from PIPE bars in `source/v930/entry.jpeg` (bottom-right), ord
 ## Rules
 
 1. Same `colorKey` must match across PIPE aside bars, overview series, and swimlane **event** fills when category is known.
-2. **Gutter utilization bars** use threshold fills only: util &lt; 0.5 → `#733234`, util ≥ 0.5 → `#5c5c5c` — not `colorKey` / pipe category hues.
+2. **Gutter utilization bars** use threshold fills only: util &lt; 0.5 → `#733234`, util ≥ 0.5 → `#5c5c5c` — not `colorKey` / pipe category hues. Midline dash at 50% track width: `1px dashed rgba(255,255,255,0.1)`.
 3. Unknown swimlane category → neutral gray (`#606060`), not a random hue.
 4. Changing tokens requires updating this file and visual fixtures in the same PR.
 

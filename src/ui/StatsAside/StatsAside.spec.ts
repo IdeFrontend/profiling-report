@@ -363,8 +363,10 @@ describe('StatsAside', () => {
     const scale = wrapper.get('[data-testid="pipe-scale"]').text();
     expect(scale).toContain('0%');
     expect(scale).toContain('100%');
+    expect(wrapper.find('.pr-pipe-chart').exists()).toBe(true);
     expect(wrapper.find('.pr-pipe-row__hatch').exists()).toBe(true);
     expect(wrapper.find('.pr-pipe-row__bar').exists()).toBe(true);
+    expect(wrapper.get('.pr-pipe-row__track').find('.pr-pipe-row__pct').exists()).toBe(true);
   });
 
   it('PR-STATS-013: absolute time in bar when present', () => {
@@ -385,6 +387,9 @@ describe('StatsAside', () => {
       },
     });
     expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toMatch(/0\.065/);
+    const track = withAbs.get('.pr-pipe-row__track');
+    expect(track.find('.pr-pipe-row__bar .pr-pipe-row__abs').exists()).toBe(false);
+    expect(track.find(':scope > .pr-pipe-row__abs').exists()).toBe(true);
 
     const without = mount(StatsAside, {
       props: {
@@ -527,7 +532,7 @@ describe('StatsAside', () => {
         report: report({
           memoryTopology: {
             nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
-            edges: [{ id: 'gm-l2-read', from: 'l2', to: 'gm', label: '1.56 GB/s' }],
+            edges: [{ id: 'gm-l2-read', from: 'gm', to: 'l2', label: '1.56 GB/s' }],
           },
         }),
       },
@@ -643,7 +648,7 @@ describe('StatsAside', () => {
           memoryTables: tables,
           memoryTopology: {
             nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
-            edges: [{ id: 'gm-l2-read', from: 'l2', to: 'gm', label: '1.56 GB/s' }],
+            edges: [{ id: 'gm-l2-read', from: 'gm', to: 'l2', label: '1.56 GB/s' }],
           },
           csvTexts: { 'Memory.csv': 'block_id,aiv_main_mem_read_bw(GB/s)\n0,1.56\n1,NA\n' },
         }),

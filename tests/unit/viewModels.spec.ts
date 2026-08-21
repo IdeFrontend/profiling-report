@@ -203,24 +203,102 @@ describe('PR-VM: report view-models (interim)', () => {
     ]);
   });
 
-  it('PR-VM-010 (interim I-Q7a): hardwareDetails falls back to OpBasicInfo', () => {
-    const adapted = adaptRep(parseRep(loadOutRepBytes()));
-    expect(adapted.reportModel.hardwareDetails).toBeDefined();
-    expect(adapted.capabilities).toContain('hardwareDetails');
-    const section = adapted.reportModel.hardwareDetails!.sections[0];
+  it('PR-VM-010: hardwareDetails prefers HardwareInfo.jsonl; else OpBasicInfo', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      [
+        '{"category":"AI Core Information","ai_core_count":36,"ai_core_frequency_MHZ":[1650]}',
+        '{"category":"Device Info","chip_info":"Ascend 950PR_9599 V100","arch_info":"3510"}',
+      ].join('\n'),
+    );
+    const fromJsonl = adaptRep(parsed);
+    const titles = fromJsonl.reportModel.hardwareDetails!.sections.map((s) => s.title);
+    expect(titles).toEqual(['AI Core Information', 'Device Info']);
+    const cores = Object.fromEntries(
+      fromJsonl.reportModel.hardwareDetails!.sections[0]!.fields.map((f) => [f.key, f.value]),
+    );
+    expect(cores.ai_core_count).toBe('36');
+    expect(fromJsonl.reportModel.summary.coreCount).toBeUndefined();
+    expect(fromJsonl.reportModel.summary.npuArchLabel).toBeUndefined();
+
+    const fallback = adaptRep(parseRep(loadOutRepBytes()));
+    expect(fallback.reportModel.hardwareDetails).toBeDefined();
+    expect(fallback.capabilities).toContain('hardwareDetails');
+    const section = fallback.reportModel.hardwareDetails!.sections[0];
     expect(section.title).toBe('OpBasicInfo');
     const byKey = Object.fromEntries(section.fields.map((f) => [f.key, f.value]));
     expect(byKey['Op Name']).toBe('add_custom');
     expect(byKey['Current Freq']).toBe('1650');
   });
 
-  it('PR-VM-011 (Q12 + change-log #5): memoryTopology with data-driven edge labels', () => {
+  it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const topo = adapted.reportModel.memoryTopology;
     expect(topo).toBeDefined();
     expect(adapted.capabilities).toContain('memoryDiagram');
     expect(topo!.nodes.length).toBeGreaterThan(0);
-    expect(topo!.edges.filter((e) => e.label !== undefined).length).toBeGreaterThan(0);
+    const label = (id: string) => topo!.edges.find((e) => e.id === id)?.label;
+    const dir = (id: string) => {
+      const e = topo!.edges.find((x) => x.id === id)!;
+      return `${e.from}->${e.to}`;
+    };
+    expect(label('l2-ub')).toBe('16.76 GB/s');
+    expect(label('ub-l2')).toBe('8.38 GB/s');
+    expect(label('ub-vec')).toBe('16.76 GB/s');
+    expect(label('vec-ub')).toBe('8.38 GB/s');
+    expect(label('gm-l2-read')).toBe('16.89 GB/s');
+    expect(label('gm-l2-write')).toBe('8.38 GB/s');
+    expect(dir('gm-l2-read')).toBe('gm->l2');
+    expect(dir('gm-l2-write')).toBe('l2->gm');
+    expect(dir('ub-vec')).toBe('ub->vec');
+    expect(dir('vec-ub')).toBe('vec->ub');
+    expect(dir('l2-l1-read')).toBe('l2->l1');
+    expect(dir('l2-l1-write')).toBe('l1->l2');
+    expect(dir('l1-l0a')).toBe('l1->l0a');
+    expect(dir('l1-l0b')).toBe('l1->l0b');
+    expect(dir('l0a-cube')).toBe('l0a->cube');
+    expect(dir('l0b-cube')).toBe('l0b->cube');
+    const both: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aic_l1_read_bw(GB/s)', 'aiv_ub_to_gm_bw(GB/s)'],
+        rows: [
+          {
+            block_id: '0',
+            'aic_l1_read_bw(GB/s)': '0',
+            'aiv_ub_to_gm_bw(GB/s)': '1.11',
+          },
+        ],
+        blockIds: ['0'],
+      },
+      {
+        fileName: 'MemoryUB.csv',
+        headers: ['block_id', 'aiv_ub_read_bw_gm(GB/s)'],
+        rows: [{ block_id: '0', 'aiv_ub_read_bw_gm(GB/s)': '9.25' }],
+        blockIds: ['0'],
+      },
+    ];
+    const labelled = buildMemoryTopology(both, '0');
+    expect(labelled?.edges.find((e) => e.id === 'l2-l1-read')?.label).toBe('0.00 GB/s');
+    expect(labelled?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('9.25 GB/s');
+
+    const sampleOnly: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aiv_ub_to_gm_bw(GB/s)', 'aic_l1_write_bw(GB/s)'],
+        rows: [
+          {
+            block_id: '0',
+            'aiv_ub_to_gm_bw(GB/s)': '8.38',
+            'aic_l1_write_bw(GB/s)': 'NA',
+          },
+        ],
+        blockIds: ['0'],
+      },
+    ];
+    const sample = buildMemoryTopology(sampleOnly, '0');
+    expect(sample?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('8.38 GB/s');
+    expect(sample?.edges.find((e) => e.id === 'l2-l1-write')?.label).toBeUndefined();
   });
 
   it('PR-VM-012: topology labels are block-scoped; snapshot uses first labelled block', () => {

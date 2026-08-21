@@ -7,7 +7,7 @@ export const LANE_COLOR_HEX = {
   mte2: '#985000',
   mte3: '#A44830',
   fixp: '#586C0C',
-  scalar: '#38702C',
+  scalar: '#1A743E',
   default: '#606060',
 } as const;
 
