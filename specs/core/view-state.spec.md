@@ -12,6 +12,7 @@ zoomAt(view: SwimlaneViewWindow, factor: number, anchorTime: number, bounds?: Bo
 panBy(view: SwimlaneViewWindow, deltaTime: number, bounds?: Bounds): SwimlaneViewWindow
 zoomToFitWindow(model: SwimlaneModel | null | undefined): SwimlaneViewWindow
 applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewState
+measureFocusWindow(range: MeasureRange, bounds: Bounds, scrollY?: number): SwimlaneViewWindow
 ```
 
 ## Behavior
@@ -20,7 +21,7 @@ applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewS
 
 **Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
 
-**Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only until Q22.
+**Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only until Q22. `measureFocusWindow` centers a measured range so it spans half the visible width (25% padding each side), clamps to bounds, and fits the full bounds when 2× duration exceeds the trace.
 
 **Zoom.** `zoomAt` zooms around an anchor time point. Factor >1 zooms in, <1 zooms out. Span is clamped to a minimum of 1. With bounds, the zoomed window never exceeds the bounds edges — if the zoomed span exceeds the full bounds, returns the full bounds.
 
@@ -30,11 +31,13 @@ applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewS
 
 ## Acceptance Criteria
 
-1. **PR-VIEW-001**: zoomToFitWindow returns window covering model min/max times.
-1. **PR-VIEW-002**: zoomAt shrinks window around an anchor time point.
-1. **PR-VIEW-003**: panBy shifts window within timeline bounds.
-1. **PR-VIEW-004**: createViewState initializes measureMode=false and measureRange=null.
-1. **PR-VIEW-005**: setMeasureRange normalizes endpoints; clearMeasure nulls range and mode.
+1. **PR-VIEW-001** — zoomToFitWindow covers model min/max.
+2. **PR-VIEW-002** — zoomAt shrinks around anchor.
+3. **PR-VIEW-003** — panBy shifts within bounds.
+4. **PR-VIEW-004** — createViewState initializes measure off.
+5. **PR-VIEW-005** — setMeasureRange normalizes; clearMeasure resets.
+6. **PR-VIEW-006** — measureFocusWindow centers at half span.
+7. **PR-VIEW-007** — measureFocusWindow clamps / fits when 2× exceeds.
 
 ## Edge Cases
 
@@ -51,5 +54,6 @@ applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewS
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-08-21** — Document measureFocusWindow; PR-VIEW-006/007.
 - **2026-08-07** — Note M2 measure as planned; no AC until coded.
 - **2026-08-05** — Initial spec. Core behaviors established.
