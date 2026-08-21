@@ -481,7 +481,7 @@ export function emptyReportViewModel(): ReportViewModel {
   };
 }
 
-/** I-Q7a: HardwareInfo.jsonl sections, else OpBasicInfo flat fields. */
+/** HardwareInfo.jsonl categories (product source); else OpBasicInfo flat fields. */
 function hardwareDetailsFromParsed(parsed: ParsedRep): HardwareDetailsModel | undefined {
   const jsonl = parsed.payloads['HardwareInfo.jsonl'];
   if (jsonl) {

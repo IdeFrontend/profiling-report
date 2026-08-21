@@ -167,4 +167,28 @@ describe('LaneGutter', () => {
       'background: #733234',
     );
   });
+
+  it('PR-GUTTER-007: filled util has 50% midline; empty util does not', () => {
+    const wrapper = mount(LaneGutter, {
+      props: {
+        groups: [
+          {
+            id: 'p1',
+            name: 'Process 1',
+            lanes: [
+              { id: 'a', name: 'A', color: '#f00', utilization: 0.46 },
+              { id: 'b', name: 'B', color: '#0f0' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(
+      wrapper.get('[data-testid="gutter-lane-a"] [data-testid="lane-util"]').find('.pr-gutter__util-mid')
+        .exists(),
+    ).toBe(true);
+    expect(wrapper.get('[data-testid="gutter-lane-b"] .pr-gutter__util--empty').find('.pr-gutter__util-mid').exists()).toBe(
+      false,
+    );
+  });
 });

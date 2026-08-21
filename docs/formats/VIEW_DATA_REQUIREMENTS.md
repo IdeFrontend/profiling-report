@@ -98,13 +98,13 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 | Metric (sketch) | Likely embeds | Requirement |
 |-----------------|---------------|-------------|
-| Op name / type / task duration | `OpBasicInfo.csv` | **Interim MVP ([I-Q6a](../context/INTERIM_DECISIONS.md)):** duration card when `taskDurationUs` present (sketch chrome per I-Q6e). Op type is not a separate card. `opName` / `blockDim` may feed duration secondary only |
-| Current / rated frequency (raw) | `OpBasicInfo.csv` | **Optional** — adapter may populate both. Aside **shell meta** shows `currentFreq` as aic频率 only; **`ratedFreq` intentionally omitted** from shell (sketch). |
+| Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Chrome still I-Q6e. Op type is not a separate card. `opName` / `blockDim` may feed duration secondary only |
+| Current / rated frequency (raw) | `OpBasicInfo.csv` | **aic频率 confirmed:** `Current Freq`. **`Rated Freq` not shown** on the aside shell. |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Hide** until Q6 / data spec |
-| I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **I-Q6g:** show when a side has non-`NA`; hide card if both NA. Peak 1.6 TB/s sketch HW guess |
+| I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Peak 1.6 TB/s still I-Q6g guess |
 | Avg core util % | PipeUtilization / OpBasicInfo TBD | **Hide** until Q6 / data spec |
-| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** raw on aside **meta row** only: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. Show each segment only when set; **never invent** peaks/cores |
-| Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Interim ([I-Q7a](../context/INTERIM_DECISIONS.md)):** `HardwareDetailsPanel` from jsonl sections or OpBasicInfo fallback; 更多 opens it |
+| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** meta row: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. **核数 / NPU ARCH still unset.** Never invent |
+| Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
 
 If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card group (PIPE may still show). Meta row is independent of summary cards (may show freq alone).
 
@@ -119,6 +119,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | Absolute in-bar | **Optional ([I-Q6f](../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)`; omit when NA |
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
+| ICache Miss | **Confirmed:** `aic_icache_miss_rate` / `aiv_icache_miss_rate` when the mean is present |
 | Colors | Normative sketch tokens — [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
 | 详情 | Navigate to compute `CsvFieldListPanel` + emit `open-pipe-details` |
 
@@ -157,7 +158,7 @@ Hide when no usable GM point. M3 swaps formulas when Product closes Q11.
 | Input | Requirement |
 |-------|-------------|
 | Static SVG topology asset | **Required** for diagram chrome |
-| Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) §11.2.6 engineering table + selected block (Q12 + changelog #5) |
+| Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) §11.2.6 + selected block. **Hide `NA`; show 0.** L2↔L1 from `Memory.csv`. UB: `MemoryUB.csv` names first, then `Memory.csv` sample names |
 | Edge **thicknesses** | **Not** data-driven — keep static SVG geometry |
 | Memory* / L2Cache CSVs | **Required to show**; hide diagram if no label data |
 | Field list mode | Optional — same CSVs as memory detail tabs |
