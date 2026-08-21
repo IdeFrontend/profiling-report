@@ -192,6 +192,10 @@ function onResizePointerUp() {
   grid-template-columns: minmax(200px, 0.8fr) minmax(240px, 1.5fr) minmax(280px, 1.2fr);
   gap: 0;
   align-items: stretch;
+  /* Claim the height the dock's `height` prop gives us. Content-sized (`0 1 auto`),
+     the body stayed ~173px however far the top edge was dragged, so every column —
+     and the scroll area inside each — ignored the drag. */
+  flex: 1 1 auto;
   padding: 8px 12px 12px;
   min-height: 0;
   overflow: auto;
