@@ -7,6 +7,39 @@ import type {
 
 const MIN_WINDOW = 1;
 
+/** Shared zoom-in floor (same as `zoomAt`); export for tests / slider mapping. */
+export const MIN_VIEW_WINDOW = MIN_WINDOW;
+
+/** Max zoom ratio for a trace: fullSpan / MIN_WINDOW (≥ 1). */
+export function maxZoomRatio(fullSpan: number): number {
+  const full = Math.max(MIN_WINDOW, fullSpan);
+  return Math.max(1, full / MIN_WINDOW);
+}
+
+/**
+ * Toolbar slider 0…100 from current window span.
+ * 0 = fit (full span); 100 = min window (`MIN_WINDOW`, same floor as Ctrl+wheel).
+ */
+export function zoomPercentFromSpan(span: number, fullSpan: number): number {
+  const full = Math.max(MIN_WINDOW, fullSpan);
+  const s = Math.max(MIN_WINDOW, span);
+  if (s >= full) return 0;
+  const maxR = maxZoomRatio(full);
+  if (maxR <= 1) return 0;
+  const ratio = full / s;
+  return Math.min(100, Math.round((Math.log2(ratio) / Math.log2(maxR)) * 100));
+}
+
+/** Inverse of `zoomPercentFromSpan` — span for a slider percent. */
+export function spanFromZoomPercent(pct: number, fullSpan: number): number {
+  const full = Math.max(MIN_WINDOW, fullSpan);
+  const maxR = maxZoomRatio(full);
+  if (pct <= 0 || maxR <= 1) return full;
+  if (pct >= 100) return MIN_WINDOW;
+  const ratio = 2 ** ((pct / 100) * Math.log2(maxR));
+  return Math.max(MIN_WINDOW, full / Math.max(1, ratio));
+}
+
 export function createViewState(model: SwimlaneModel | null | undefined): SwimlaneViewState {
   const fit = zoomToFitWindow(model);
   return {
