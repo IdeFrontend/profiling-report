@@ -176,12 +176,19 @@ function applyViewState(forceModel = false): void {
 
 /**
  * Keep blue event-edge marks aligned with setView during Δt-focus / zoom.
- * Matching events are scanned once per measureRange+layout; each frame only re-projects x/y.
+ * Matching events are scanned once per settled measureRange+layout; each frame only re-projects x/y.
+ * Skip the scan while a range tween or freeform create-drag is in flight — mid values are floats
+ * that cannot hit exact edges (wasteful full scans); refresh on settle in onDone / create end.
  */
 function refreshMeasureExactEdgeMarks(forceRescan = false): void {
   if (!props.measureMode || !props.measureRange || !props.model) {
     cachedExactEdgeMatches = [];
     cachedExactEdgeMatchKey = '';
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  // Range is moving — hide marks; do not key/scan on interpolating bounds.
+  if (cancelMeasureSnap != null || measureGestureActive) {
     measureExactEdgeMarks.value = [];
     return;
   }
@@ -347,7 +354,11 @@ function runMeasureRangeTween(
     onDone: () => {
       cancelMeasureSnap = null;
       emit('suppress-measure-dt', false);
-      if (opts.clearWhenDone) emit('update:measureRange', null);
+      if (opts.clearWhenDone) {
+        emit('update:measureRange', null);
+      } else {
+        refreshMeasureExactEdgeMarks(true);
+      }
     },
   });
 }
@@ -422,6 +433,7 @@ function onCreateDragEnd(): void {
     measureGestureActive = false;
     dragging = false;
     suppressMeasurePreview.value = false;
+    refreshMeasureExactEdgeMarks(true);
   }
 }
 

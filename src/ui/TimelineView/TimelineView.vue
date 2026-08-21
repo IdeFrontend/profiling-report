@@ -24,6 +24,8 @@ import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
 import {
   CURSOR_LABEL_MIN_WIDTH_PX,
+  MEASURE_ARROW_HEAD_PX,
+  MEASURE_OUTSIDE_LABEL_GAP_PX,
   cursorLabelOverlapsMeasureChrome,
   estimateAxisLabelWidth,
 } from './cursorMeasureOverlap';
@@ -81,11 +83,11 @@ const axisHovering = ref(false);
 /** Swimlane appear/clear tween: hide Δt arrow + label (borders/fades still animate). */
 const suppressMeasureDt = ref(false);
 
-/** Pads (2) + heads (9+9) + shaft–label gaps (4+4). */
-const MEASURE_ARROW_CHROME_PX = 28;
-/** Pads (2) + heads (9+9) — below this, heads overlap; hide heads + shaft. */
-const MEASURE_HEADS_MIN_PX = 20;
-const MEASURE_OUTSIDE_GAP_PX = 4;
+/** Pads (2) + heads + shaft–label gaps — min width for inline Δt. */
+const MEASURE_ARROW_CHROME_PX =
+  2 + 2 * MEASURE_ARROW_HEAD_PX + 2 * MEASURE_OUTSIDE_LABEL_GAP_PX;
+/** Pads (2) + heads — below this, heads overlap; hide heads + shaft. */
+const MEASURE_HEADS_MIN_PX = 2 + 2 * MEASURE_ARROW_HEAD_PX;
 
 watch(
   () => props.gutterWidth,
@@ -197,7 +199,7 @@ const measureArrowLayout = computed(() => {
   }
   const rightPx = (axis.right / 100) * axisW;
   const side =
-    rightPx + MEASURE_OUTSIDE_GAP_PX + labelW <= axisW
+    rightPx + MEASURE_OUTSIDE_LABEL_GAP_PX + labelW <= axisW
       ? ('right' as const)
       : ('left' as const);
   const mode = rangePx < MEASURE_HEADS_MIN_PX ? ('shaft' as const) : ('outside' as const);
@@ -561,8 +563,8 @@ defineExpose({
               v-if="measureAxis.showLeft || measureAxis.placement === 'offscreen-left'"
               class="pr-measure-arrow__head"
               data-testid="measure-arrow-head"
-              viewBox="0 0 9 10"
-              width="9"
+              :viewBox="`0 0 ${MEASURE_ARROW_HEAD_PX} 10`"
+              :width="MEASURE_ARROW_HEAD_PX"
               height="10"
               aria-hidden="true"
             >
@@ -602,8 +604,8 @@ defineExpose({
               v-if="measureAxis.showRight || measureAxis.placement === 'offscreen-right'"
               class="pr-measure-arrow__head"
               data-testid="measure-arrow-head"
-              viewBox="0 0 9 10"
-              width="9"
+              :viewBox="`0 0 ${MEASURE_ARROW_HEAD_PX} 10`"
+              :width="MEASURE_ARROW_HEAD_PX"
               height="10"
               aria-hidden="true"
             >
