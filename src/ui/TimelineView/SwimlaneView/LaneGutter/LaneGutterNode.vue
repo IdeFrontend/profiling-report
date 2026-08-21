@@ -224,6 +224,17 @@ function fillColor(util: number): string {
   overflow: hidden;
 }
 
+.pr-gutter__util:not(.pr-gutter__util--empty)::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .pr-gutter__util--thick {
   height: 16px;
 }
@@ -258,6 +269,6 @@ function fillColor(util: number): string {
   color: #b0b0b0;
   line-height: 1;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 </style>

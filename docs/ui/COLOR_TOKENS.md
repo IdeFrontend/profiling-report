@@ -75,7 +75,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 ## Rules
 
 1. Same `colorKey` must match across PIPE aside bars, overview series, and swimlane **event** fills when category is known.
-2. **Gutter utilization bars** use threshold fills only: util &lt; 0.5 → `#733234`, util ≥ 0.5 → `#5c5c5c` — not `colorKey` / pipe category hues.
+2. **Gutter utilization bars** use threshold fills only: util &lt; 0.5 → `#733234`, util ≥ 0.5 → `#5c5c5c` — not `colorKey` / pipe category hues. Midline dash at 50% track width: `1px dashed rgba(255,255,255,0.1)`.
 3. Unknown swimlane category → neutral gray (`#606060`), not a random hue.
 4. Changing tokens requires updating this file and visual fixtures in the same PR.
 
