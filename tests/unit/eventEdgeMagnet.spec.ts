@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  findExactEdgeMatches,
   measureRangeExactEdgeMarks,
   nearestEventEdgeAtPoint,
+  projectExactEdgeMarks,
   rebuildLayout,
 } from '../../src/swimlane/layout';
 import type { SwimlaneModel } from '../../src/domain/types';
@@ -80,5 +82,30 @@ describe('nearestEventEdgeAtPoint / measureRangeExactEdgeMarks', () => {
     expect(ends).toHaveLength(1);
     expect(ends[0]!.eventId).toBe('e-long');
     expect(ends[0]!.h).toBe(LANE_HEIGHT);
+  });
+
+  it('eventsByLane scopes magnet/hitTest to one lane without scanning all events', () => {
+    const layout = rebuildLayout(model());
+    expect(layout.eventsByLane).toHaveLength(layout.lanes.length);
+    const leaf = layout.lanes.findIndex((l) => !l.folder);
+    expect(leaf).toBeGreaterThanOrEqual(0);
+    expect(layout.eventsByLane[leaf]!.every((e) => e.laneIndex === leaf)).toBe(true);
+  });
+
+  it('findExactEdgeMatches is view-invariant; projectExactEdgeMarks only moves x/y', () => {
+    const layout = rebuildLayout(model());
+    const matches = findExactEdgeMatches(layout, 100, 500);
+    expect(matches.map((m) => `${m.eventId}:${m.edge}`).sort()).toEqual([
+      'e-long:end',
+      'e-long:start',
+      'e-short:start',
+    ]);
+    const wide = projectExactEdgeMarks(matches, { startTime: 0, endTime: 1000, scrollY: 0 }, width);
+    const zoomed = projectExactEdgeMarks(matches, { startTime: 0, endTime: 500, scrollY: 0 }, width);
+    expect(wide.map((m) => `${m.eventId}:${m.edge}`).sort()).toEqual(
+      zoomed.map((m) => `${m.eventId}:${m.edge}`).sort(),
+    );
+    expect(wide.find((m) => m.eventId === 'e-long' && m.edge === 'start')!.x).toBe(100);
+    expect(zoomed.find((m) => m.eventId === 'e-long' && m.edge === 'start')!.x).toBe(200);
   });
 });
