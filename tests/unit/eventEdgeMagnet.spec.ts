@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   LANE_GROUP_HEADER_HEIGHT,
+  LANE_HEIGHT,
   measureRangeExactEdgeMarks,
   nearestEventEdgeAtPoint,
   rebuildLayout,
@@ -78,5 +79,6 @@ describe('nearestEventEdgeAtPoint / measureRangeExactEdgeMarks', () => {
     const ends = marks.filter((m) => m.edge === 'end' && m.time === 500);
     expect(ends).toHaveLength(1);
     expect(ends[0]!.eventId).toBe('e-long');
+    expect(ends[0]!.h).toBe(LANE_HEIGHT);
   });
 });

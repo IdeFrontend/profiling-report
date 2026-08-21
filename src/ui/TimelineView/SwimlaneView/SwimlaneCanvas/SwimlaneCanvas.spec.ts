@@ -612,6 +612,50 @@ describe('SwimlaneCanvas', () => {
     const marks = wrapper.findAll('[data-testid="measure-edge-exact"]');
     expect(marks.length).toBeGreaterThanOrEqual(2);
     expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(true);
+
+    const leftBefore = marks[0]!.attributes('style') ?? '';
+    await wrapper.setProps({ view: { startTime: 0, endTime: 2000, scrollY: 0 } });
+    const marksAfter = wrapper.findAll('[data-testid="measure-edge-exact"]');
+    expect(marksAfter.length).toBeGreaterThanOrEqual(2);
+    expect(marksAfter[0]!.attributes('style')).not.toBe(leftBefore);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-022: Ctrl+wheel near magnetized edge zooms on edge time', async () => {
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    const pointerX = rect.x - 5;
+    await canvas.trigger('wheel', {
+      clientX: pointerX,
+      clientY: y,
+      deltaY: -100,
+      ctrlKey: true,
+    });
+    const zoom = wrapper.emitted('zoom')!.at(-1)!;
+    expect(zoom[0]).toBe(1.15);
+    expect(zoom[1]).toBe(200);
+    // Free time under pointer would differ from the magnet edge.
+    expect(zoom[1]).not.toBeCloseTo((pointerX / 400) * 1000, 0);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-023: Ctrl+wheel on measure border zooms on stuck edge time', async () => {
+    const { wrapper } = await mountWithEventModel({
+      measureRange: { startTime: 200, endTime: 500 },
+    });
+    const border = wrapper.get('[data-testid="measure-border-right"]');
+    await border.trigger('pointerenter', { clientX: 200, clientY: 10 });
+    await border.trigger('wheel', {
+      clientX: 205,
+      clientY: 10,
+      deltaY: -100,
+      ctrlKey: true,
+    });
+    const zoom = wrapper.emitted('zoom')!.at(-1)!;
+    expect(zoom[0]).toBe(1.15);
+    expect(zoom[1]).toBe(500);
     wrapper.unmount();
   });
 });

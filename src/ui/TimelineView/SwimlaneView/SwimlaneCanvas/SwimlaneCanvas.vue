@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -11,7 +11,7 @@ import {
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
-import { contentHeightFromModel, measureRangeExactEdgeMarks, nearestEventEdgeAtPoint } from '../../../../swimlane/layout';
+import { contentHeightFromModel, LANE_HEIGHT, measureRangeExactEdgeMarks, nearestEventEdgeAtPoint } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -93,8 +93,14 @@ const MEASURE_SNAP_DURATION_MS = 180;
 const suppressMeasurePreview = ref(false);
 /** Live magnet highlight on the snapped event edge (block-height blue stem). */
 const edgeSnapHighlight = ref<{ x: number; y: number; h: number } | null>(null);
+/** Committed exact-match marks; refreshed with setView so Δt-focus anim keeps them aligned. */
+const measureExactEdgeMarks = shallowRef<
+  { eventId: string; edge: 'start' | 'end'; time: number; x: number; y: number; h: number }[]
+>([]);
 let cancelMeasureSnap: (() => void) | null = null;
 let resizeEdge: MeasureResizeEdge | null = null;
+/** Which measure border currently owns the pointer (for stuck cursor + zoom anchor). */
+let hoveredMeasureEdge: MeasureResizeEdge | null = null;
 let resizeFixedOther = 0;
 let unbindResizeDrag: (() => void) | null = null;
 let unbindCreateDrag: (() => void) | null = null;
@@ -138,7 +144,10 @@ function flushPaint(): void {
 }
 
 function applyViewState(forceModel = false): void {
-  if (!props.model) return;
+  if (!props.model) {
+    measureExactEdgeMarks.value = [];
+    return;
+  }
   if (forceModel || props.model !== attachedModel) {
     backend.setModel(props.model);
     attachedModel = props.model;
@@ -155,6 +164,36 @@ function applyViewState(forceModel = false): void {
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSearchQuery(props.searchQuery);
   }
+  refreshMeasureExactEdgeMarks();
+}
+
+/** Keep blue event-edge marks in lockstep with canvas setView (incl. focus animation frames). */
+function refreshMeasureExactEdgeMarks(): void {
+  if (!props.measureMode || !props.measureRange || !props.model) {
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  const start = Math.min(props.measureRange.startTime, props.measureRange.endTime);
+  const end = Math.max(props.measureRange.startTime, props.measureRange.endTime);
+  if (!(end > start)) {
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  const w = wrapRef.value?.clientWidth || 0;
+  if (w <= 0) {
+    measureExactEdgeMarks.value = [];
+    return;
+  }
+  const startTime = props.view.startTime;
+  const endTime = props.view.endTime;
+  const scrollY = props.view.scrollY;
+  measureExactEdgeMarks.value = measureRangeExactEdgeMarks(
+    backend.getLayout(),
+    { startTime, endTime, scrollY },
+    w,
+    start,
+    end,
+  );
 }
 
 function sync(forceModel = false): void {
@@ -260,6 +299,14 @@ watch(
   { deep: true },
 );
 
+/** Drop live magnet stem when the time window moves (zoom / pan / Δt focus anim). */
+watch(
+  () => [props.view.startTime, props.view.endTime] as const,
+  () => {
+    edgeSnapHighlight.value = null;
+  },
+);
+
 function cancelMeasureSnapAnim(): void {
   cancelMeasureSnap?.();
   cancelMeasureSnap = null;
@@ -295,6 +342,7 @@ function abortMeasureDrag(): void {
   measureCreatePending = false;
   dragging = false;
   suppressMeasurePreview.value = false;
+  hoveredMeasureEdge = null;
   endMeasureResize();
 }
 
@@ -467,6 +515,18 @@ function emitCursorAtMeasureEdge(edge: MeasureResizeEdge) {
   });
 }
 
+/** Time of the measure border currently under the pointer (zoom anchor). */
+function stuckMeasureEdgeTime(): number | null {
+  const edge = hoveredMeasureEdge ?? resizeEdge;
+  const range = props.measureRange;
+  if (!edge || !range) return null;
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  return edge === 'left'
+    ? Math.max(props.view.startTime, start)
+    : Math.min(props.view.endTime, end);
+}
+
 function isMeasureBorderEl(t: EventTarget | null): boolean {
   return !!(t as HTMLElement | null)?.closest?.('.pr-measure-border');
 }
@@ -480,6 +540,7 @@ function onMeasureBorderPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
   endMeasureCreate();
   endMeasureResize();
   cancelMeasureSnapAnim();
+  hoveredMeasureEdge = edge;
   resizeEdge = edge;
   resizeFixedOther = edge === 'left' ? end : start;
   suppressMeasurePreview.value = true;
@@ -494,28 +555,35 @@ function onMeasureBorderPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
 }
 
 function onMeasureBorderPointerEnter(_e: PointerEvent, edge: MeasureResizeEdge) {
+  hoveredMeasureEdge = edge;
   emitCursorAtMeasureEdge(edge);
 }
 
 function onMeasureBorderPointerLeave(e: PointerEvent) {
   if (resizeEdge || measureGestureActive || measureCreatePending || measurePressActive) return;
-  if (isMeasureBorderEl(e.relatedTarget) || (e.relatedTarget as HTMLElement | null)?.closest?.('.pr-swim-canvas')) {
+  if (isMeasureBorderEl(e.relatedTarget)) return;
+  // Onto canvas: drop border zoom stick; canvas pointermove owns cursor next.
+  if ((e.relatedTarget as HTMLElement | null)?.closest?.('.pr-swim-canvas')) {
+    hoveredMeasureEdge = null;
     return;
   }
+  hoveredMeasureEdge = null;
   emit('cursor', null);
 }
-
-watch(
-  () => props.measureMode,
-  (mode) => {
-    if (!mode) abortMeasureDrag();
-  },
-);
 
 watch(
   () => props.measureRange,
   (range) => {
     if (range == null) abortMeasureDrag();
+    refreshMeasureExactEdgeMarks();
+  },
+);
+
+watch(
+  () => props.measureMode,
+  (mode) => {
+    if (!mode) abortMeasureDrag();
+    refreshMeasureExactEdgeMarks();
   },
 );
 
@@ -549,9 +617,9 @@ function magnetizeLocal(
     edgeSnapHighlight.value = null;
     return { time: timeAtX(localX), xPx: localX, xRatio: localX / w, eventId: null };
   }
-  const rect = backend.eventScreenRect(hit.eventId);
-  edgeSnapHighlight.value = rect
-    ? { x: hit.xPx, y: rect.y, h: rect.h }
+  const item = backend.getLayout().eventsById.get(hit.eventId);
+  edgeSnapHighlight.value = item
+    ? { x: hit.xPx, y: item.y - props.view.scrollY, h: LANE_HEIGHT }
     : null;
   return { time: hit.time, xPx: hit.xPx, xRatio: hit.xPx / w, eventId: hit.eventId };
 }
@@ -619,20 +687,6 @@ const measurePreviewGeometry = computed(() => {
     showLeft,
     showRight,
   };
-});
-
-/** Short blue bars on event edges that exactly equal committed measure bounds. */
-const measureExactEdgeMarks = computed(() => {
-  if (!props.measureMode || !props.measureRange || !props.model) return [];
-  const start = Math.min(props.measureRange.startTime, props.measureRange.endTime);
-  const end = Math.max(props.measureRange.startTime, props.measureRange.endTime);
-  if (!(end > start)) return [];
-  void props.view.startTime;
-  void props.view.endTime;
-  void props.view.scrollY;
-  const w = wrapRef.value?.clientWidth || 0;
-  if (w <= 0) return [];
-  return measureRangeExactEdgeMarks(backend.getLayout(), props.view, w, start, end);
 });
 
 function activeCanvas(): HTMLCanvasElement | null {
@@ -753,8 +807,11 @@ function onWheel(e: WheelEvent): void {
   if (!target) return;
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
   if (e.ctrlKey || e.metaKey) {
-    emit('zoom', e.deltaY > 0 ? 1 / 1.15 : 1.15, timeAtX(x));
+    const mag = magnetizeLocal(x, y);
+    const anchor = stuckMeasureEdgeTime() ?? mag.time;
+    emit('zoom', e.deltaY > 0 ? 1 / 1.15 : 1.15, anchor);
   } else {
     localScrollY = clampScrollY(localScrollY + e.deltaY);
     emit('scroll-y', localScrollY);
@@ -828,6 +885,7 @@ defineExpose({
         @pointerdown="onMeasureBorderPointerDown($event, 'left')"
         @pointerenter="onMeasureBorderPointerEnter($event, 'left')"
         @pointerleave="onMeasureBorderPointerLeave"
+        @wheel="onWheel"
       />
       <div
         v-if="measureGeometry.showRight"
@@ -837,6 +895,7 @@ defineExpose({
         @pointerdown="onMeasureBorderPointerDown($event, 'right')"
         @pointerenter="onMeasureBorderPointerEnter($event, 'right')"
         @pointerleave="onMeasureBorderPointerLeave"
+        @wheel="onWheel"
       />
     </template>
     <template v-if="measureMode && measurePreviewGeometry">
@@ -976,10 +1035,10 @@ defineExpose({
   z-index: 2;
 }
 
-/* Short blue event-edge marks (live magnet + committed exact matches). */
+/* 1px blue event-edge marks (full lane height — adjacent lanes meet with no gap). */
 .pr-measure-edge-mark {
   position: absolute;
-  width: 2px;
+  width: 1px;
   transform: translateX(-50%);
   background: var(--pr-playhead, #3078f0);
   pointer-events: none;

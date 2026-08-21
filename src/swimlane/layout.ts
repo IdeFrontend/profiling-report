@@ -281,7 +281,7 @@ export function nearestEventEdgeAtPoint(
   return best;
 }
 
-/** Short blue marks: every visible event edge whose time exactly equals a range bound. */
+/** 1px blue marks spanning full lane height on event edges matching a range bound. */
 export function measureRangeExactEdgeMarks(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
@@ -298,7 +298,9 @@ export function measureRangeExactEdgeMarks(
     const ev = item.event;
     const end = ev.startTime + ev.duration;
     if (end < view.startTime || ev.startTime > view.endTime) continue;
-    const { y, h } = eventBlockMetrics(item.y, view.scrollY);
+    // Full lane height so stacked markers at the same x meet with no gap.
+    const y = item.y - view.scrollY;
+    const h = LANE_HEIGHT;
     if (bounds.has(ev.startTime)) {
       out.push({
         eventId: item.id,
