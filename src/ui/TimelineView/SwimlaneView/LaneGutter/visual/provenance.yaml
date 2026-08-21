@@ -17,3 +17,11 @@ crops:
     source: v930/entry
     region: "Utilization bar column with percentages"
     box: { x: 1280, y: 980, w: 1040, h: 500 }
+  util-midline.png:
+    source: v930/entry
+    region: "100% and 46% util bars with 50% dashed midline"
+    box: { x: 1785, y: 1438, w: 520, h: 185 }
+  util-midline-detail.png:
+    source: v930/entry
+    region: "Close-up of <50% util bar: red fill, hatch, 50% dash"
+    box: { x: 1805, y: 1530, w: 480, h: 75 }

@@ -6,7 +6,7 @@
 
 Left-side vertical gutter showing Card / nested lane hierarchy, lane names, and utilization percentages. Scroll-synced with the swimlane canvas so lane labels align with event rows.
 
-Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detail.png`](./visual/expander-detail.png), [`visual/gutter-util.png`](./visual/gutter-util.png), [`visual/util-bars.png`](./visual/util-bars.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detail.png`](./visual/expander-detail.png), [`visual/gutter-util.png`](./visual/gutter-util.png), [`visual/util-bars.png`](./visual/util-bars.png), [`visual/util-midline.png`](./visual/util-midline.png), [`visual/util-midline-detail.png`](./visual/util-midline-detail.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
@@ -49,7 +49,7 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 
 ## Visual
 
-### Util bars (`visual/gutter-util.png`, `visual/util-bars.png`)
+### Util bars (`visual/gutter-util.png`, `visual/util-bars.png`, `visual/util-midline.png`, `visual/util-midline-detail.png`)
 
 | Token | Value |
 |-------|--------|
@@ -59,6 +59,7 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 | Shape | Rounded rect: `border-radius: 2px` (not a full capsule / `height/2`) |
 | Track / unfilled | Gray **diagonal hatch** — repeating `-45deg` stripes `#3a3a3a` on `#2a2a2a` |
 | Value fill | **Two colors only:** util &lt; 0.5 → `#733234` (red); util ≥ 0.5 → `#5c5c5c` (gray). Do **not** use pipe/category `lane.color` |
+| 50% midline | `1px dashed rgba(255,255,255,0.1)` at `left: 50%` of track (full height); above fill, under % text; omit on empty util slots |
 | % text | **Thick bars only**, inside track, right-aligned, `padding-right: 6px`. **Thin bars omit %** |
 | % font | 10px, weight 600, tabular-nums, color **`#b0b0b0`** (same as lane title — not bright white) |
 | Layout | `grid-template-columns: minmax(0,1fr) 110px` (name + util) |
@@ -84,6 +85,7 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 4. **PR-GUTTER-004** — When a Card id is in `collapsedIds`, child lanes are hidden; `aria-expanded="false"`. When a nested folder id is collapsed, its descendants are hidden but the folder row remains.
 5. **PR-GUTTER-005** — Nested indent increases with depth; only Card uses group-header chrome.
 6. **PR-GUTTER-006** — Util fills are red (`#733234`) when util &lt; 0.5 and gray (`#5c5c5c`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the % label.
+7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width; empty util slots do not.
 
 ## Edge Cases
 
@@ -102,8 +104,11 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 - [expander-detail](./visual/expander-detail.png) — from `v930/entry`
 - [gutter-util](./visual/gutter-util.png) — from `v930/entry`
 - [util-bars](./visual/util-bars.png) — from `v930/entry`
+- [util-midline](./visual/util-midline.png) — from `v930/entry`
+- [util-midline-detail](./visual/util-midline-detail.png) — from `v930/entry`
 
 ## Changelog
+- **2026-08-21** — Util bars: 50% dashed midline (`PR-GUTTER-007`); tight midline crops.
 - **2026-08-11** — Util bars: thick/thin by depth; red/gray threshold fills only.
 - **2026-08-11** — Nested Card → category → Core → pipe; Card-only group header; folder lane-rows with util.
 - **2026-08-07** — Util bars inside track; open-angle carets.
