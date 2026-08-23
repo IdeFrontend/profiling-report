@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import type { TimeDisplayUnit } from '../../domain/types';
+import { computed, nextTick, ref, useId, watch } from 'vue';
+import type { TimeDisplayUnit, ReportOperator } from '../../domain/types';
 import { MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
 
-defineProps<{
+const props = defineProps<{
   searchQuery: string;
   asideVisible: boolean;
   asideAvailable: boolean;
@@ -14,6 +14,8 @@ defineProps<{
   locale?: string;
   title?: string;
   measureMode?: boolean;
+  operators?: ReportOperator[];
+  selectedOperatorId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -22,6 +24,7 @@ const emit = defineEmits<{
   'update:timeUnit': [value: TimeDisplayUnit];
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
+  'update:selectedOperatorId': [id: string];
   'zoom-to-fit': [];
   'zoom-in': [];
   'zoom-out': [];
@@ -36,6 +39,25 @@ function onDepthChange(event: Event) {
 }
 
 const displayControlOpen = ref(false);
+const opMenuOpen = ref(false);
+const activeOptionIndex = ref(0);
+const opMenuId = useId();
+const opTriggerRef = ref<HTMLButtonElement | null>(null);
+const opMenuRef = ref<HTMLElement | null>(null);
+
+const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
+
+/** Drop stale open state when the selector unmounts (e.g. host swaps to a single-op source). */
+watch(showOperatorSelector, (show) => {
+  if (!show) opMenuOpen.value = false;
+});
+
+/** Trigger shows the selected operator label (falls back to OP算子 brand). */
+const triggerLabel = computed(() => {
+  const ops = props.operators ?? [];
+  const selected = ops.find((o) => o.id === props.selectedOperatorId);
+  return selected?.label ?? ops[0]?.label ?? t('tabOp', props.locale);
+});
 
 function toggleDisplayControl() {
   displayControlOpen.value = !displayControlOpen.value;
@@ -43,6 +65,74 @@ function toggleDisplayControl() {
 
 function closeDisplayControl() {
   displayControlOpen.value = false;
+}
+
+function focusActiveOption() {
+  const items = opMenuRef.value?.querySelectorAll<HTMLElement>('[data-testid="op-item"]');
+  items?.[activeOptionIndex.value]?.focus();
+}
+
+async function openOpMenu() {
+  const ops = props.operators ?? [];
+  const i = ops.findIndex((o) => o.id === props.selectedOperatorId);
+  activeOptionIndex.value = i >= 0 ? i : 0;
+  opMenuOpen.value = true;
+  await nextTick();
+  focusActiveOption();
+}
+
+async function closeOpMenu(opts?: { restoreFocus?: boolean }) {
+  opMenuOpen.value = false;
+  if (opts?.restoreFocus) {
+    await nextTick();
+    opTriggerRef.value?.focus();
+  }
+}
+
+function toggleOpMenu() {
+  if (opMenuOpen.value) void closeOpMenu();
+  else void openOpMenu();
+}
+
+function selectOperator(id: string) {
+  if (id !== props.selectedOperatorId) {
+    emit('update:selectedOperatorId', id);
+  }
+  void closeOpMenu({ restoreFocus: true });
+}
+
+function onTriggerKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && opMenuOpen.value) {
+    e.preventDefault();
+    void closeOpMenu({ restoreFocus: true });
+    return;
+  }
+  if ((e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && !opMenuOpen.value) {
+    e.preventDefault();
+    void openOpMenu();
+  }
+}
+
+function onOptionKeydown(e: KeyboardEvent, id: string) {
+  const ops = props.operators ?? [];
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    void closeOpMenu({ restoreFocus: true });
+    return;
+  }
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    selectOperator(id);
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (ops.length === 0) return;
+    const i = ops.findIndex((o) => o.id === id);
+    const delta = e.key === 'ArrowDown' ? 1 : -1;
+    activeOptionIndex.value = (i + delta + ops.length) % ops.length;
+    void nextTick(focusActiveOption);
+  }
 }
 </script>
 
@@ -56,7 +146,77 @@ function closeDisplayControl() {
       data-testid="report-tabs"
       aria-label="report views"
     >
-      <span class="pr-tabs__brand">{{ title || t('tabOp', locale) }}</span>
+      <div
+        v-if="showOperatorSelector"
+        class="pr-op-select"
+        data-testid="op-selector"
+      >
+        <button
+          ref="opTriggerRef"
+          type="button"
+          class="pr-op-select__trigger"
+          :aria-expanded="opMenuOpen"
+          :aria-haspopup="'listbox'"
+          :aria-controls="opMenuOpen ? opMenuId : undefined"
+          @click="toggleOpMenu"
+          @keydown="onTriggerKeydown"
+        >
+          <span
+            class="pr-op-select__label"
+            data-testid="op-selector-label"
+          >{{ triggerLabel }}</span>
+          <svg
+            class="pr-op-select__chevron"
+            :class="{ 'pr-op-select__chevron--open': opMenuOpen }"
+            viewBox="0 0 12 12"
+            width="10"
+            height="10"
+            aria-hidden="true"
+          >
+            <path
+              d="M2.5 4.5L6 8l3.5-3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <div
+          v-if="opMenuOpen"
+          class="pr-op-select__backdrop"
+          @click="closeOpMenu()"
+        />
+        <ul
+          v-if="opMenuOpen"
+          :id="opMenuId"
+          ref="opMenuRef"
+          class="pr-op-select__menu"
+          role="listbox"
+          :aria-label="t('tabOp', locale)"
+        >
+          <li
+            v-for="(op, index) in operators"
+            :key="op.id"
+            class="pr-op-select__item"
+            :class="{ 'pr-op-select__item--active': op.id === selectedOperatorId }"
+            role="option"
+            tabindex="0"
+            :aria-selected="op.id === selectedOperatorId"
+            data-testid="op-item"
+            @click="selectOperator(op.id)"
+            @keydown="onOptionKeydown($event, op.id)"
+            @focus="activeOptionIndex = index"
+          >
+            {{ op.label }}
+          </li>
+        </ul>
+      </div>
+      <span
+        v-else
+        class="pr-tabs__brand"
+      >{{ title || t('tabOp', locale) }}</span>
       <button
         type="button"
         class="pr-tabs__tab pr-tabs__tab--active"
@@ -468,8 +628,88 @@ function closeDisplayControl() {
   margin-right: 8px;
   padding: 4px 8px;
   font-size: 12px;
-  opacity: 0.85;
-  border-right: 1px solid #4a4a4a;
+  color: #ffffff;
+  opacity: 0.95;
+}
+
+.pr-op-select {
+  position: relative;
+  margin-right: 4px;
+}
+
+.pr-op-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 26px;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.pr-op-select__trigger:hover {
+  color: #ffffff;
+  background: transparent;
+}
+
+.pr-op-select__label {
+  white-space: nowrap;
+}
+
+.pr-op-select__chevron {
+  color: #c8c8c8;
+  flex: 0 0 auto;
+  transition: transform 0.12s ease;
+}
+
+.pr-op-select__chevron--open {
+  transform: rotate(180deg);
+}
+
+.pr-op-select__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 21;
+}
+
+.pr-op-select__menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 22;
+  min-width: 140px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #363636;
+  border: 1px solid #4a4a4a;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+.pr-op-select__item {
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: #d0d0d0;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pr-op-select__item:hover {
+  background: #2a2a2a;
+  color: #ffffff;
+}
+
+.pr-op-select__item--active {
+  background: #2a3550;
+  color: #ffffff;
 }
 
 .pr-tabs__tab {

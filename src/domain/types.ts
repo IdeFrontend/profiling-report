@@ -246,10 +246,24 @@ export interface ParsedRep {
   payloads: Record<string, Uint8Array>;
 }
 
+/** A selectable operator packaged in a multi-operator container. */
+export interface ReportOperator {
+  /** Stable id — nested FileInfo name (e.g. `op1.npu.rep`); unique in the pack. */
+  id: string;
+  /** Display label in the top-left OP selector (archive stem, e.g. `op1`). */
+  label: string;
+}
+
 export interface AdaptedReport {
   swimlaneModel: SwimlaneModel;
   reportModel: ReportViewModel;
   capabilities?: ReportCapability[];
+  /** Multi-operator packs only: selectable operators (omit for single-op sources). */
+  operators?: ReportOperator[];
+  /** Adapted report per operator id (multi-op only). */
+  operatorReports?: Record<string, AdaptedReport>;
+  /** Currently selected operator id (multi-op only; defaults to the first). */
+  selectedOperatorId?: string;
 }
 
 export interface SelectedEvent {

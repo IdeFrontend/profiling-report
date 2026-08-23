@@ -13,6 +13,7 @@ import { depsTraceFixture } from './depsFixture';
 const FILE_FIXTURES = {
   rep: { name: 'out.rep', url: '/data/out.rep' },
   trace: { name: 'out.trace.json', url: '/data/out.trace.json' },
+  example: { name: 'example.rep', url: '/data/example.rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
 } as const;
 
@@ -196,6 +197,10 @@ onMounted(async () => {
           href="/?fixture=trace"
           data-testid="fixture-trace"
         >out.trace.json</a>
+        <a
+          href="/?fixture=example"
+          data-testid="fixture-example"
+        >example.rep</a>
         <a
           href="/?fixture=deps"
           data-testid="fixture-deps"

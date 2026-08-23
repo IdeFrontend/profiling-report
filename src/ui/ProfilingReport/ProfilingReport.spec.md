@@ -154,6 +154,10 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — duration, bandwidth cards, PIPE, CSV tables, roofline, hardware, or labelled topology (same gate as the toolbar toggle).
 
+**Multi-operator packs.** An `npu-rep` container with nested operator archives renders a top-left OP selector in the toolbar. Switching operators swaps the swimlane + report models from the pre-adapted per-operator reports (no re-parse) and resets the viewport/selection like a fresh load. Re-selecting the already-active operator is a no-op (no reset).
+
+**Corner wash.** A decorative 208×60 box at the report root top-left (`data-testid="corner-wash"`) uses `linear-gradient(90deg, rgba(0,90,219,0.1) 3.614%, rgba(0,2,172,0) 76.501%)`. Non-interactive (`pointer-events: none`).
+
 **Dependency state.** `dependencyMode` and `dependencyDepth` are one pair of values, held here and read by both dependency surfaces: the swimlane curves and the detail dock's Relevent column, which walk the same `SwimEvent.dependencies` refs with the same filter. The dock's Relevent toolbar is where the user edits them; the props seed them and a change re-walks in place. `hasDependencies` gates the walk, so a model without edges hands the dock no neighbours and the column never mounts. Neighbour semantics — cap, ordering, cycles — belong to [dependencies](../../../specs/core/dependencies.spec.md).
 
 ## Visual
@@ -166,6 +170,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 2. **PR-ROOT-002** — Accepts pre-parsed swimlaneModel and reportModel.
 3. **PR-ROOT-003** — Switching dependency mode in the detail dock re-walks in place, without a page reload.
 4. **PR-ROOT-004** — Auto-loaded sources apply the adapter's capabilities; the prop overrides them; host-managed models and a removed `source` publish none.
+5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models; re-select is a no-op.
+6. **PR-ROOT-006** — Top-left corner wash is 208×60 with blue fade gradient.
 
 ## Edge Cases
 
@@ -194,6 +200,8 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-20** — Top-left 208×60 blue fade corner wash (PR-ROOT-006).
+- **2026-08-20** — Multi-operator npu-rep packs: OP selector + operator switch (PR-ROOT-005).
 - **2026-08-20** — Owns the detail dock's height alongside the gutter and aside widths; session-only, like the other two.
 - **2026-08-20** — One dependency state for both surfaces: the detail dock's Relevent column walks the model's `EventRef`s with the same `dependencyMode` / `dependencyDepth` the swimlane curves use, and its toolbar is where they are edited (they left 显示控制). The separate I-Q9 id graph and its `level` are gone. PR-ROOT-003 restated against the dock.
 - **2026-08-19** — Adapter capabilities no longer leak: cleared when `source` is removed and ignored while the host drives `swimlaneModel` / `reportModel`; `dependencyLevel` resets with the view on model load.
