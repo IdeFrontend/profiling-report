@@ -81,7 +81,7 @@ const swimlaneRef = ref<{
   magnetizeAtClient?: (
     clientX: number,
     clientY: number,
-  ) => { time: number; xRatio: number } | null;
+  ) => { time: number; xRatio: number; eventId?: string | null } | null;
   clearEdgeSnapHighlight?: () => void;
 } | null>(null);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
@@ -284,9 +284,14 @@ function timeAtAxisX(clientX: number): number {
   return props.view.startTime + ratio * span;
 }
 
+function xRatioAtViewTime(time: number): number {
+  const span = Math.max(1, props.view.endTime - props.view.startTime);
+  return Math.min(1, Math.max(0, (time - props.view.startTime) / span));
+}
+
 function pointerTimeAtClient(clientX: number, clientY: number): { time: number; xRatio: number } {
   const mag = swimlaneRef.value?.magnetizeAtClient?.(clientX, clientY);
-  if (mag) return mag;
+  if (mag?.eventId) return { time: mag.time, xRatio: xRatioAtViewTime(mag.time) };
   const el = timeAxisRef.value;
   if (!el) return { time: timeAtAxisX(clientX), xRatio: 0 };
   const rect = el.getBoundingClientRect();
