@@ -5,6 +5,7 @@ import type {
   SwimlaneRenderer,
   SwimlaneViewWindow,
 } from '../domain/types';
+import { CANVAS_LABEL_FONT } from '../ui/fontStack';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
 import { dependencyGraph, paintDependencyLinks, type DependencyLink } from './dependencyLinks';
 import {
@@ -44,7 +45,7 @@ function drawEventLabel(
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.font = "10px 'HarmonyOS Sans SC 2025', ui-sans-serif, system-ui, sans-serif";
+  ctx.font = CANVAS_LABEL_FONT;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);

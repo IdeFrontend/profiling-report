@@ -58,6 +58,8 @@ npm run preview:demo        # preview playground/dist
 
 Fixture switcher: `?fixture=sample` (default), `?fixture=rep`, `?fixture=example`, or `?fixture=ffn_dense`.
 
+Font switcher: `?fonts=harmony` (default, embeds HarmonyOS Sans SC) or `?fonts=system` (system UI only, no woff2 fetch).
+
 Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
 
 Redeploys on every push to `master` (and PR previews) via Vercel Git on the **IDE Frontend** team (`vercel.json` → `npm run build:demo` → `playground/dist`). Manual backup: [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml) (`workflow_dispatch` only).

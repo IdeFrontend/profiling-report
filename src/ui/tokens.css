@@ -1,10 +1,10 @@
 /**
  * Normative color / surface tokens — COLOR_TOKENS.md
  */
-@import './fonts.css';
 
 :root,
 .pr-root {
+  --pr-font-family: ui-sans-serif, system-ui, sans-serif;
   --pr-bg-panel: #262626;
   --pr-bg-deep: #1f1f1f;
   --pr-axis-tick: #343434;

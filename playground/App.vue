@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue';
-import { ProfilingReport } from '../src/index';
+import ProfilingReport from '../src/ui/ProfilingReport/ProfilingReport.vue';
 import {
   generateStressSwimlane,
   stressPresetFromQuery,
@@ -51,6 +51,11 @@ const preferRenderer = computed((): PreferRenderer => {
   return 'auto';
 });
 
+const fontMode = computed((): 'harmony' | 'system' => {
+  const f = readQuery().get('fonts');
+  return f === 'system' ? 'system' : 'harmony';
+});
+
 const title = computed(() => {
   if (openedName.value) return openedName.value;
   const kind = queryFixture.value;
@@ -65,7 +70,7 @@ const title = computed(() => {
 
 const statusLine = computed(() => {
   const renderer = preferRenderer.value === 'auto' ? 'auto' : preferRenderer.value;
-  return `${status.value} · ${title.value} · renderer=${renderer}`;
+  return `${status.value} · ${title.value} · renderer=${renderer} · fonts=${fontMode.value}`;
 });
 
 async function loadUrl(url: string): Promise<void> {
@@ -308,7 +313,7 @@ body,
   height: 100%;
   background: #1f1f1f;
   color: #ddd;
-  font-family: 'HarmonyOS Sans SC 2025', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--pr-font-family);
 }
 
 .playground {

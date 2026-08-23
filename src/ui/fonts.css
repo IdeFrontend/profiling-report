@@ -4,10 +4,18 @@
  * Copyright Huawei Device Co., Ltd. — HarmonyOS Sans Fonts License Agreement.
  */
 
+:root,
+.pr-root {
+  --pr-font-family: 'HarmonyOS Sans SC 2025', ui-sans-serif, system-ui, sans-serif;
+}
+
 /* ?no-inline: Vite lib mode otherwise base64-inlines every CSS url() asset. */
 @font-face {
   font-family: 'HarmonyOS Sans SC 2025';
-  src: url('../assets/fonts/HarmonyOS_Sans_SC_Light.woff2?no-inline') format('woff2');
+  src:
+    local('HarmonyOS Sans SC'),
+    local('鸿蒙黑体'),
+    url('../assets/fonts/HarmonyOS_Sans_SC_Light.woff2?no-inline') format('woff2');
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -15,7 +23,10 @@
 
 @font-face {
   font-family: 'HarmonyOS Sans SC 2025';
-  src: url('../assets/fonts/HarmonyOS_Sans_SC_Regular.woff2?no-inline') format('woff2');
+  src:
+    local('HarmonyOS Sans SC'),
+    local('鸿蒙黑体'),
+    url('../assets/fonts/HarmonyOS_Sans_SC_Regular.woff2?no-inline') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -23,7 +34,10 @@
 
 @font-face {
   font-family: 'HarmonyOS Sans SC 2025';
-  src: url('../assets/fonts/HarmonyOS_Sans_SC_Semibold.woff2?no-inline') format('woff2');
+  src:
+    local('HarmonyOS Sans SC'),
+    local('鸿蒙黑体'),
+    url('../assets/fonts/HarmonyOS_Sans_SC_Semibold.woff2?no-inline') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;

@@ -7,6 +7,7 @@
  */
 
 import './ui/tokens.css';
+import './ui/fonts.css';
 
 export const LIBRARY_NAME = 'profiling-report' as const;
 
