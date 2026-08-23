@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { formatCursorTime } from '../../domain/formatTime';
+import { formatTime } from '../../domain/formatTime';
 import { createViewState } from '../../domain/viewState';
 import SwimlaneCanvas from './SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.vue';
 import TimelineView from './TimelineView.vue';
@@ -671,7 +671,7 @@ describe('TimelineView', () => {
     });
 
     expect(wrapper.find('[data-testid="cursor-label"]').text()).toBe(
-      formatCursorTime(3_354_000, 'us'),
+      formatTime(3_354_000, 'us'),
     );
   });
 });

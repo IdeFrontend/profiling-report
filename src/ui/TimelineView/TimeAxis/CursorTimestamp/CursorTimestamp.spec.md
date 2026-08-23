@@ -8,7 +8,7 @@ Playhead time bubble on the viewport time axis. Shows the cursor position as `MM
 
 ## Inputs
 
-**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (`MM:SS.mmm` in the active display unit). The parent (ProfilingReport) formats absolute cursor time via `formatCursorTime`.
+**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (scalar `formatTime`, same as tooltip). The parent formats absolute producer time via `formatTime`.
 
 ## Outputs
 
@@ -32,13 +32,13 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 |-------|--------|
 | Bubble fill | `#317AF7` (align `--pr-playhead` / `#3078F0` ±) |
 | Text | `#ffffff`, 11px, weight 600, tabular-nums |
-| Format | `MM:SS.mmm` from **producer timestamp** (absolute ns, origin t = 0) in **active display unit** (see `formatCursorTime`) |
+| Format | Scalar **producer timestamp** via `formatTime` (e.g. `3.354 µs`) — matches tooltip/detail |
 | Size | ~72×19px content; `padding: 1px 8px`; `border-radius: 4px`; `min-width: 72px` |
 | Stem | 1px line same blue (`#317AF7`), continuous from axis through swimlane — **no** 1px gap at the axis/canvas border; axis + canvas segments share the same x (no horizontal jog) |
 | Behavior | Must update on pointer move; short traces use µs/ns unit so digits change |
 | Above | `labelAbove` → pill above axis; 180ms transform transition |
 
-**Example:** axis `4.456ms` (producer) → label `00:04.456` when unit is `ms`.
+**Example:** producer `4.456ms` → label `4.456 ms` when unit is `ms`.
 
 ## Acceptance Criteria
 
@@ -65,9 +65,10 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 
 ## Dependencies
 
-[format-time](../../../../../specs/core/format-time.spec.md) (formatCursorTime).
+[format-time](../../../../../specs/core/format-time.spec.md) (formatTime).
 
 ## Changelog
+- **2026-08-24** — Scalar `formatTime` cursor label (matches tooltip).
 - **2026-08-20** — Parent also lifts pill while hovering the viewport time axis (TimelineView).
 - **2026-08-20** — Pill may overlap aside seam when playhead is at the edge.
 - **2026-08-20** — Stem under Δt, pill above; PR-CURSOR-005.
