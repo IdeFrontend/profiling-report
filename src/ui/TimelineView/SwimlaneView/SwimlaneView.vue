@@ -66,7 +66,14 @@ const emit = defineEmits<{
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
-const canvasRef = ref<{ handleWheel: (e: WheelEvent) => void } | null>(null);
+const canvasRef = ref<{
+  handleWheel: (e: WheelEvent) => void;
+  magnetizeAtClient: (
+    clientX: number,
+    clientY: number,
+  ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
+  clearEdgeSnapHighlight: () => void;
+} | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
