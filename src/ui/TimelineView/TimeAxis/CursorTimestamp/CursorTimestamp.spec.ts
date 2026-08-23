@@ -30,4 +30,29 @@ describe('CursorTimestamp', () => {
     const label = wrapper.get('[data-testid="cursor-label"]');
     expect(label.classes()).toContain('pr-cursor__label');
   });
+
+  it('PR-CURSOR-004: labelAbove parks pill above axis with animated transform', async () => {
+    const wrapper = mount(CursorTimestamp, {
+      props: { xRatio: 0.5, label: '00:01.787', labelAbove: true },
+    });
+    const label = wrapper.get('[data-testid="cursor-label"]');
+    expect(label.classes()).toContain('pr-cursor__label--above');
+
+    const src = (await import('./CursorTimestamp.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-cursor__label--above\s*\{[^}]*transform:\s*translate\(-50%,\s*calc\(-100%\s*-\s*6px\)\)/,
+    );
+    expect(src).toMatch(/\.pr-cursor__label\s*\{[^}]*transition:\s*transform\s+180ms\s+ease/);
+    expect(src).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*transition:\s*none/,
+    );
+  });
+
+  it('PR-CURSOR-005: stem stacks under measure Δt; label stacks above', async () => {
+    const src = (await import('./CursorTimestamp.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-cursor__stem\s*\{[^}]*z-index:\s*3/);
+    expect(src).toMatch(/\.pr-cursor__label\s*\{[^}]*z-index:\s*6/);
+    const timelineSrc = (await import('../../TimelineView.vue?raw')).default as string;
+    expect(timelineSrc).toMatch(/\.pr-measure-arrow\s*\{[^}]*z-index:\s*4/);
+  });
 });

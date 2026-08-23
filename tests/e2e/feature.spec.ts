@@ -123,7 +123,21 @@ test.describe('PR-E2E feature paths', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('PR-E2E-008: Relevent chips fill their track so curves start at the chip edge', async ({
+  test('PR-E2E-008: measure toggle activates with open-stroke Δt icon', async ({ page }) => {
+    await page.goto('/');
+    const btn = page.getByTestId('toggle-measure');
+    await expect(btn).toBeVisible({ timeout: 15_000 });
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(btn).toHaveClass(/pr-toolbar__icon-btn--on/);
+
+    const heads = btn.locator('[data-testid="measure-icon-head"]');
+    await expect(heads).toHaveCount(2);
+    await expect(heads.nth(0)).toHaveAttribute('fill', 'none');
+    await expect(heads.nth(1)).toHaveAttribute('fill', 'none');
+  });
+
+  test('PR-E2E-009: Relevent chips fill their track so curves start at the chip edge', async ({
     page,
   }) => {
     // The deps fixture pairs a short predecessor name with a long one — chips of
@@ -172,7 +186,7 @@ test.describe('PR-E2E feature paths', () => {
     for (const short of fill) expect(Math.abs(short)).toBeLessThan(1);
   });
 
-  test('PR-E2E-009: dragging the dock taller grows its columns with it', async ({ page }) => {
+  test('PR-E2E-010: dragging the dock taller grows its columns with it', async ({ page }) => {
     // The body was content-sized, so it kept its ~212px whatever height the drag gave
     // the dock: the identity card stopped short and the rest was dead space. Only a
     // real layout engine sees this — jsdom reports zero-height boxes.
