@@ -237,13 +237,14 @@ describe('ProfilingReport scaffold', () => {
     const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
       swimlaneModel: swimA,
       reportModel: reportA,
+      capabilities: ['roofline'],
       operators: [
         { id: 'a.npu.rep', label: 'a' },
         { id: 'b.npu.rep', label: 'b' },
       ],
       operatorReports: {
-        'a.npu.rep': { swimlaneModel: swimA, reportModel: reportA },
-        'b.npu.rep': { swimlaneModel: swimB, reportModel: reportB },
+        'a.npu.rep': { swimlaneModel: swimA, reportModel: reportA, capabilities: ['roofline'] },
+        'b.npu.rep': { swimlaneModel: swimB, reportModel: reportB, capabilities: ['dependencies'] },
       },
       selectedOperatorId: 'a.npu.rep',
     });
@@ -253,11 +254,17 @@ describe('ProfilingReport scaffold', () => {
         props: { source: new ArrayBuffer(8) },
       });
       expect(wrapper.text()).toContain('alpha-op');
+      expect(wrapper.find('[data-testid="profiling-report"]').attributes('data-capabilities')).toBe(
+        'roofline',
+      );
 
       await wrapper.find('[data-testid="op-selector"] button').trigger('click');
       await wrapper.findAll('[data-testid="op-item"]')[1].trigger('click');
       expect(wrapper.vm.selectedOperatorId).toBe('b.npu.rep');
       expect(wrapper.text()).toContain('beta-op');
+      expect(wrapper.find('[data-testid="profiling-report"]').attributes('data-capabilities')).toBe(
+        'dependencies',
+      );
       expect(wrapper.text()).not.toContain('alpha-op');
 
       const endBefore = wrapper.vm.viewState.endTime;

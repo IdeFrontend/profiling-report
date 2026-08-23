@@ -297,6 +297,7 @@ function onOperatorChange(id: string) {
   selectedOperatorId.value = id;
   internalSwim.value = rep.swimlaneModel;
   internalReport.value = rep.reportModel;
+  internalCapabilities.value = rep.capabilities ?? null;
   resetViewFromModel(rep.swimlaneModel, reportHasAsideContent(rep.reportModel));
 }
 
@@ -699,7 +700,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 5;
+  z-index: 0;
   width: 208px;
   height: 60px;
   background: linear-gradient(

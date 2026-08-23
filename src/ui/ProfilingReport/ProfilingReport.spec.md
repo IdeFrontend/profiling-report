@@ -170,7 +170,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 2. **PR-ROOT-002** — Accepts pre-parsed swimlaneModel and reportModel.
 3. **PR-ROOT-003** — Switching dependency mode in the detail dock re-walks in place, without a page reload.
 4. **PR-ROOT-004** — Auto-loaded sources apply the adapter's capabilities; the prop overrides them; host-managed models and a removed `source` publish none.
-5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models; re-select is a no-op.
+5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models and capabilities; re-select is a no-op.
 6. **PR-ROOT-006** — Top-left corner wash is 208×60 with blue fade gradient.
 
 ## Edge Cases
