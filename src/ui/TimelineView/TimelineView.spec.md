@@ -37,9 +37,10 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 11. **PR-TIMELINE-011** — Hovering an axis measure bar emits `cursor` stuck to that edge (timestamp stays visible / lifts above).
 12. **PR-TIMELINE-012** — Clicking the Δt label emits `focus-measure`.
 13. **PR-TIMELINE-013** — Hovering the viewport time axis emits `cursor`, lifts the timestamp above the ticks, and shows the swimlane vertical playhead at the same x (default and measure mode).
-14. **PR-TIMELINE-014** — Axis-started measure drag magnetizes the moving edge when the pointer moves over the swimlane (same as canvas-started drag).
+14. **PR-TIMELINE-014** — Axis-started measure drag magnetizes the moving edge when the pointer moves over the swimlane (same as canvas-started drag); emitted `cursor` uses the magnetized `time` and matching `xRatio` (not raw pointer x).
 
 ## Changelog
+- **2026-08-23** — Axis magnet path emits cursor `xRatio` from swimlane magnet, not raw pointer x; PR-TIMELINE-014.
 - **2026-08-23** — Axis measure range borders use a 2px stem (not 1px / hover-only); PR-TIMELINE-010.
 - **2026-08-23** — Axis measure create/resize uses swimlane magnet when pointer is over canvas; PR-TIMELINE-014.
 - **2026-08-20** — Hide Δt arrow/label during swimlane appear/clear tweens.

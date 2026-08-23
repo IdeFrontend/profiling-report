@@ -286,12 +286,12 @@ function timeAtAxisX(clientX: number): number {
 
 function pointerTimeAtClient(clientX: number, clientY: number): { time: number; xRatio: number } {
   const mag = swimlaneRef.value?.magnetizeAtClient?.(clientX, clientY);
-  const time = mag?.time ?? timeAtAxisX(clientX);
+  if (mag) return mag;
   const el = timeAxisRef.value;
-  if (!el) return { time, xRatio: 0 };
+  if (!el) return { time: timeAtAxisX(clientX), xRatio: 0 };
   const rect = el.getBoundingClientRect();
   const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
-  return { time, xRatio };
+  return { time: timeAtAxisX(clientX), xRatio };
 }
 
 function emitCursorAtAxisX(clientX: number) {

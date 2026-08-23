@@ -645,6 +645,11 @@ describe('TimelineView', () => {
     ranges = wrapper.emitted('update:measure-range')!;
     last = ranges.at(-1)![0] as { startTime: number; endTime: number };
     expect(last.startTime === 200 || last.endTime === 200).toBe(true);
+
+    const cursors = wrapper.emitted('cursor')!;
+    const magnetCursor = cursors.at(-1)![0] as { time: number; xRatio: number };
+    expect(magnetCursor.time).toBeCloseTo(200, 0);
+    expect(magnetCursor.xRatio).toBeCloseTo(0.2, 2);
     wrapper.unmount();
   });
 });
