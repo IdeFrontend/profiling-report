@@ -687,6 +687,30 @@ function clearEdgeSnapHighlight() {
   edgeSnapHighlight.value = null;
 }
 
+/** Fade bands outside the visible selection (persists when range is fully off-screen). */
+const measureFadeGeometry = computed(() => {
+  const range = props.measureRange;
+  if (!range) return null;
+  const start = Math.min(range.startTime, range.endTime);
+  const end = Math.max(range.startTime, range.endTime);
+  if (!(end > start)) return null;
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const w = wrapRef.value?.clientWidth || 1;
+  if (end <= viewStart) {
+    return { leftWidth: w, rightLeft: w };
+  }
+  if (start >= viewEnd) {
+    return { leftWidth: 0, rightLeft: 0 };
+  }
+  const visStart = Math.max(viewStart, start);
+  const visEnd = Math.min(viewEnd, end);
+  return {
+    leftWidth: xAtTime(visStart),
+    rightLeft: xAtTime(visEnd),
+  };
+});
+
 const measureGeometry = computed(() => {
   const range = props.measureRange;
   if (!range) return null;
@@ -914,17 +938,19 @@ defineExpose({
       @pointerleave="onPointerLeave"
       @wheel="onWheel"
     />
-    <template v-if="measureMode && measureGeometry">
+    <template v-if="measureMode && measureFadeGeometry">
       <div
         class="pr-measure-fade pr-measure-fade--left"
         data-testid="measure-fade-left"
-        :style="{ width: `${measureGeometry.left}px` }"
+        :style="{ width: `${measureFadeGeometry.leftWidth}px` }"
       />
       <div
         class="pr-measure-fade pr-measure-fade--right"
         data-testid="measure-fade-right"
-        :style="{ left: `${measureGeometry.right}px`, right: '0' }"
+        :style="{ left: `${measureFadeGeometry.rightLeft}px`, right: '0' }"
       />
+    </template>
+    <template v-if="measureMode && measureGeometry">
       <div
         v-if="measureGeometry.showLeft"
         class="pr-measure-border pr-measure-border--left"
