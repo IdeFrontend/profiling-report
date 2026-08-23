@@ -116,7 +116,7 @@ const viewportRuler = computed(() =>
   buildAxisRulerTicks({
     rangeStart: props.view.startTime,
     rangeEnd: props.view.endTime,
-    origin: props.bounds.minTime,
+    origin: 0,
     timeUnit: props.unit,
     widthPx: timeAxisWidth.value,
   }),
@@ -221,7 +221,7 @@ const cursorLabelAbove = computed(() => {
   const cursor = props.cursor;
   const axisW = timeAxisWidth.value;
   if (!axis || !layout || !cursor || axisW <= 0) return false;
-  const cursorLabel = formatCursorTime(cursor.time - props.bounds.minTime, cursorTimeUnit.value);
+  const cursorLabel = formatCursorTime(cursor.time, cursorTimeUnit.value);
   const cursorLabelW = estimateAxisLabelWidth(cursorLabel, CURSOR_LABEL_MIN_WIDTH_PX);
   const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
   const dtPlacement =
@@ -533,7 +533,7 @@ defineExpose({
         <CursorTimestamp
           v-if="cursor"
           :x-ratio="cursor.xRatio"
-          :label="formatCursorTime(cursor.time - bounds.minTime, cursorTimeUnit)"
+          :label="formatCursorTime(cursor.time, cursorTimeUnit)"
           :label-above="cursorLabelAbove"
         />
         <template v-if="measureAxis">

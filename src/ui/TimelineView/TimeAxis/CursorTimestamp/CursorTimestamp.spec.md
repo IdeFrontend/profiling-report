@@ -4,11 +4,11 @@
 |----------------|
 | PR-CURSOR-*    |
 
-Playhead time bubble on the viewport time axis. Shows the cursor position as `MM:SS.mmm` relative to the viewport origin.
+Playhead time bubble on the viewport time axis. Shows the cursor position as `MM:SS.mmm` at producer trace time (CTEF ts).
 
 ## Inputs
 
-**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (`MM:SS.mmm` in the active display unit). The parent (ProfilingReport) computes the relative time and formats it via `formatCursorTime`.
+**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (`MM:SS.mmm` in the active display unit). The parent (ProfilingReport) formats absolute cursor time via `formatCursorTime`.
 
 ## Outputs
 
@@ -32,13 +32,13 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 |-------|--------|
 | Bubble fill | `#317AF7` (align `--pr-playhead` / `#3078F0` ±) |
 | Text | `#ffffff`, 11px, weight 600, tabular-nums |
-| Format | `MM:SS.mmm` from time **relative to `minTime`** in **active display unit** (see `formatCursorTime`) |
+| Format | `MM:SS.mmm` from **producer timestamp** (absolute ns, origin t = 0) in **active display unit** (see `formatCursorTime`) |
 | Size | ~72×19px content; `padding: 1px 8px`; `border-radius: 4px`; `min-width: 72px` |
 | Stem | 1px line same blue (`#317AF7`), continuous from axis through swimlane — **no** 1px gap at the axis/canvas border; axis + canvas segments share the same x (no horizontal jog) |
 | Behavior | Must update on pointer move; short traces use µs/ns unit so digits change |
 | Above | `labelAbove` → pill above axis; 180ms transform transition |
 
-**Example:** axis `4.456ms` (relative) → label `00:04.456` when unit is `ms`.
+**Example:** axis `4.456ms` (producer) → label `00:04.456` when unit is `ms`.
 
 ## Acceptance Criteria
 
