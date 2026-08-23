@@ -200,6 +200,9 @@ defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
   },
+  magnetizeAtClient: (clientX: number, clientY: number) =>
+    canvasRef.value?.magnetizeAtClient(clientX, clientY) ?? null,
+  clearEdgeSnapHighlight: () => canvasRef.value?.clearEdgeSnapHighlight(),
 });
 </script>
 

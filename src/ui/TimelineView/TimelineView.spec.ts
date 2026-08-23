@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createViewState } from '../../domain/viewState';
+import SwimlaneCanvas from './SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.vue';
 import TimelineView from './TimelineView.vue';
 
 function stubAxisWidth(widthPx: number) {
@@ -546,5 +547,106 @@ describe('TimelineView', () => {
     await axis.trigger('pointerleave', { clientX: 100, clientY: -5, relatedTarget: null });
     const afterLeave = wrapper.emitted('cursor')!;
     expect(afterLeave[afterLeave.length - 1][0]).toBeNull();
+  });
+
+  it('PR-TIMELINE-014: axis measure drag magnetizes when pointer moves over swimlane', async () => {
+    stubAxisWidth(400);
+    const eventModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [{ id: 'e1', name: 'busy', startTime: 200, duration: 300 }],
+            },
+          ],
+        },
+      ],
+    };
+    const view = createViewState(eventModel);
+    view.measureMode = true;
+    const wrapper = mount(TimelineView, {
+      attachTo: document.body,
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        unit: 'ms',
+        groups: [
+          {
+            id: 'p-1',
+            name: 'P',
+            lanes: [{ id: 't-1', name: 'T', color: '#f00', utilization: 0 }],
+          },
+        ],
+        collapsedIds: [],
+        displaySwim: eventModel,
+        cursor: null,
+        gutterWidth: 280,
+        preferRenderer: 'canvas',
+      },
+    });
+
+    const axis = wrapper.get('[data-testid="time-axis"]');
+    const canvasRect = { left: 280, top: 120, width: 400, height: 120 };
+    Object.defineProperty(axis.element, 'getBoundingClientRect', {
+      value: () => ({ left: 280, top: 80, width: 400, height: 20, right: 680, bottom: 100 }),
+    });
+
+    const canvas = wrapper.findComponent(SwimlaneCanvas);
+    const wrap = wrapper.find('[data-testid="swimlane"]');
+    Object.defineProperty(wrap.element, 'clientWidth', { value: canvasRect.width, configurable: true });
+    Object.defineProperty(wrap.element, 'clientHeight', { value: canvasRect.height, configurable: true });
+    Object.defineProperty(wrap.element, 'getBoundingClientRect', {
+      value: () => ({
+        left: canvasRect.left,
+        top: canvasRect.top,
+        width: canvasRect.width,
+        height: canvasRect.height,
+        right: canvasRect.left + canvasRect.width,
+        bottom: canvasRect.top + canvasRect.height,
+      }),
+    });
+    const canvasEl = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvasEl.element, 'getBoundingClientRect', {
+      value: () => ({
+        left: canvasRect.left,
+        top: canvasRect.top,
+        width: canvasRect.width,
+        height: canvasRect.height,
+        right: canvasRect.left + canvasRect.width,
+        bottom: canvasRect.top + canvasRect.height,
+      }),
+    });
+
+    await wrapper.setProps({ displaySwim: { ...eventModel } });
+    await canvas.vm.$nextTick();
+
+    const rect = (
+      canvas.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
+    ).eventScreenRect('e1')!;
+    expect(rect).toBeTruthy();
+
+    await axis.trigger('pointerdown', { clientX: 300, clientY: 90, button: 0, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 640, clientY: 90, buttons: 1 }));
+    let ranges = wrapper.emitted('update:measure-range')!;
+    let last = ranges.at(-1)![0] as { startTime: number; endTime: number };
+    expect(last.endTime).toBeCloseTo(900, 0);
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: canvasRect.left + rect.x + 4,
+        clientY: canvasRect.top + rect.y + rect.h / 2,
+        buttons: 1,
+      }),
+    );
+    ranges = wrapper.emitted('update:measure-range')!;
+    last = ranges.at(-1)![0] as { startTime: number; endTime: number };
+    expect(last.startTime === 200 || last.endTime === 200).toBe(true);
+    wrapper.unmount();
   });
 });

@@ -76,7 +76,14 @@ const timeAxisRef = ref<HTMLElement | null>(null);
 const timeAxisWidth = ref(0);
 const measureLabelRef = ref<HTMLElement | null>(null);
 const measureLabelWidth = ref(0);
-const swimlaneRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
+const swimlaneRef = ref<{
+  gutterRoot: HTMLElement | null;
+  magnetizeAtClient?: (
+    clientX: number,
+    clientY: number,
+  ) => { time: number; xRatio: number } | null;
+  clearEdgeSnapHighlight?: () => void;
+} | null>(null);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 /** Pointer is over the viewport time axis — keep cursor lifted above ticks. */
 const axisHovering = ref(false);
@@ -277,6 +284,16 @@ function timeAtAxisX(clientX: number): number {
   return props.view.startTime + ratio * span;
 }
 
+function pointerTimeAtClient(clientX: number, clientY: number): { time: number; xRatio: number } {
+  const mag = swimlaneRef.value?.magnetizeAtClient?.(clientX, clientY);
+  const time = mag?.time ?? timeAtAxisX(clientX);
+  const el = timeAxisRef.value;
+  if (!el) return { time, xRatio: 0 };
+  const rect = el.getBoundingClientRect();
+  const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
+  return { time, xRatio };
+}
+
 function emitCursorAtAxisX(clientX: number) {
   const el = timeAxisRef.value;
   if (!el) return;
@@ -292,6 +309,7 @@ function endMeasureResize() {
   unbindResizeDrag?.();
   unbindResizeDrag = null;
   resizeEdge = null;
+  swimlaneRef.value?.clearEdgeSnapHighlight?.();
 }
 
 function endMeasureCreate() {
@@ -299,14 +317,16 @@ function endMeasureCreate() {
   unbindCreateDrag = null;
   measureGestureActive = false;
   measureAnchorTime = null;
+  swimlaneRef.value?.clearEdgeSnapHighlight?.();
 }
 
-function emitResizedRange(clientX: number) {
+function emitResizedRange(clientX: number, clientY: number) {
   if (!resizeEdge) return;
   const axisW = timeAxisWidth.value || timeAxisRef.value?.clientWidth || 1;
+  const { time } = pointerTimeAtClient(clientX, clientY);
   const next = resizeMeasureEdge({
     edge: resizeEdge,
-    time: timeAtAxisX(clientX),
+    time,
     fixedOther: resizeFixedOther,
     viewStart: props.view.startTime,
     viewEnd: props.view.endTime,
@@ -420,10 +440,11 @@ function onAxisPointerDown(e: PointerEvent) {
   emitCursorAtAxisX(e.clientX);
   emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, measureAnchorTime));
   unbindCreateDrag = bindWindowPointerDrag({
-    onMove: (clientX) => {
+    onMove: (clientX, clientY) => {
       if (!measureGestureActive || measureAnchorTime == null) return;
-      emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, timeAtAxisX(clientX)));
-      emitCursorAtAxisX(clientX);
+      const { time, xRatio } = pointerTimeAtClient(clientX, clientY);
+      emit('update:measure-range', normalizeMeasureRange(measureAnchorTime, time));
+      emit('cursor', { time, xRatio });
     },
     onEnd: endMeasureCreate,
   });

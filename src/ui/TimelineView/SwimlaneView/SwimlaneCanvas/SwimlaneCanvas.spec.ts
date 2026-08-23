@@ -618,6 +618,8 @@ describe('SwimlaneCanvas', () => {
     const marksAfter = wrapper.findAll('[data-testid="measure-edge-exact"]');
     expect(marksAfter.length).toBeGreaterThanOrEqual(2);
     expect(marksAfter[0]!.attributes('style')).not.toBe(leftBefore);
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-measure-edge-mark--exact\s*\{[^}]*width:\s*2px/);
     wrapper.unmount();
   });
 

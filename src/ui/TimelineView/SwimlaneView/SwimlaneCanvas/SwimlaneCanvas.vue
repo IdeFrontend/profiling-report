@@ -673,6 +673,20 @@ function localFromClient(clientX: number, clientY: number): { x: number; y: numb
   return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
+/** Window-level measure drag from the axis — magnetize when pointer is over the canvas. */
+function magnetizeAtClient(clientX: number, clientY: number) {
+  const local = localFromClient(clientX, clientY);
+  if (!local) {
+    edgeSnapHighlight.value = null;
+    return null;
+  }
+  return magnetizeLocal(local.x, local.y);
+}
+
+function clearEdgeSnapHighlight() {
+  edgeSnapHighlight.value = null;
+}
+
 const measureGeometry = computed(() => {
   const range = props.measureRange;
   if (!range) return null;
@@ -856,6 +870,8 @@ defineExpose({
   useWebGl,
   /** Card strips sit above the canvas; SwimlaneView forwards wheel here. */
   handleWheel: onWheel,
+  magnetizeAtClient,
+  clearEdgeSnapHighlight,
 });
 </script>
 
@@ -957,7 +973,7 @@ defineExpose({
     <div
       v-for="(mark, i) in measureExactEdgeMarks"
       :key="`${mark.eventId}-${mark.edge}-${i}`"
-      class="pr-measure-edge-mark"
+      class="pr-measure-edge-mark pr-measure-edge-mark--exact"
       data-testid="measure-edge-exact"
       :style="{
         left: `${mark.x}px`,
@@ -1067,7 +1083,7 @@ defineExpose({
   z-index: 2;
 }
 
-/* 1px blue event-edge marks (full lane height — adjacent lanes meet with no gap). */
+/* Event-edge marks: 1px live snap stem; 2px committed exact-match (full lane height). */
 .pr-measure-edge-mark {
   position: absolute;
   width: 1px;
@@ -1075,6 +1091,10 @@ defineExpose({
   background: var(--pr-playhead, #3078f0);
   pointer-events: none;
   z-index: 4;
+}
+
+.pr-measure-edge-mark--exact {
+  width: 2px;
 }
 
 .pr-measure-edge-mark--snap {
