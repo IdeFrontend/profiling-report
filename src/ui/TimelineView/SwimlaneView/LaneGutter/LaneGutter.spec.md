@@ -24,7 +24,7 @@ Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneNa
 
 **scroll** fires when the user scrolls the gutter. The parent reads the gutter's `scrollTop` and propagates it as `scrollY` to the swimlane canvas. The element is exposed via `defineExpose` for imperative scroll sync in the reverse direction.
 
-**toggle-group** fires with a node `id` (Card or nested folder) when the user clicks a header/folder row. Parent toggles that id in `collapsedIds`.
+**toggle-group** fires with a **folder** node `id` when the user clicks a folder row. **Card** expand/collapse is emitted by `SwimlaneView` Card strips (not this gutter). Parent toggles that id in `collapsedIds`.
 
 ## Behavior
 
@@ -32,16 +32,15 @@ Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneNa
 
 | Element | Visual (normative) |
 |---------|-------------------|
-| Card chevron | **Open-angle** stroke caret. Expanded = **down**; collapsed = **right**. Color `#a8a8a8`. Layout box `10×10`, stroke ~1.2px. |
-| Nested folder chevron | Same caret on lane-style rows that have `children`. |
+| Card chrome | Owned by `SwimlaneView` full-width strips: open-angle caret (`#a8a8a8`, 10×10), label `12px` / `600` / `#e8e8e8`, fill `rgb(42, 42, 42)`, row `28px`. Gutter contributes only a transparent **28px spacer**. |
+| Nested folder chevron | Open-angle stroke caret on lane-style rows that have `children`. Expanded = **down**; collapsed = **right**. Color `#a8a8a8`. Layout box `10×10`, stroke ~1.2px. |
 | Leaf chevron | **Omitted**. |
-| Card label | `12px` / weight `600` / `#e8e8e8`; row height `28px` (`LANE_GROUP_HEADER_HEIGHT`). |
 | Lane / folder label | `11px` / weight `400` / `#b0b0b0`; row height `22px` (`LANE_HEIGHT`); truncated with ellipsis. |
 | Indent | Depth 0 under Card: pad-left `24px` (= group pad `8` + chev `10` + gap `6`). Each nested level adds `14px`. |
-| Separators | `1px` rule under Card header and under each lane/folder (`#3a3a3a` / `#333`). |
-| Gutter surface | Lane rows `#1f1f1f` (`--pr-bg-deep`); Card headers `#262626` (`--pr-bg-panel`); right border `1px solid #3a3a3a`. |
+| Separators | `1px` rule under Card spacer and under each lane/folder (`#3a3a3a` / `#333`). |
+| Gutter surface | Lane rows `#1f1f1f` (`--pr-bg-deep`). Lane rows keep the gutter `1px solid #3a3a3a` right border. |
 
-Clicking the **Card** header or a **folder** lane toggles expand/collapse (`aria-expanded`). Collapse hides descendants; parent syncs canvas row heights.
+Clicking a **folder** lane toggles expand/collapse (`aria-expanded`). Card toggle is on the SwimlaneView strip. Collapse hides descendants; parent syncs canvas row heights.
 
 ### Utilization
 
@@ -75,24 +74,25 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 | Collapsed | Right-pointing caret |
 | Nested folders | Chevron on lane-style rows with children |
 | Leaf lanes | No expander chevron |
-| Interaction | Card header or folder row click → `toggle-group` |
+| Interaction | Folder row click → `toggle-group`. **Card** expand/collapse is owned by `SwimlaneView` Card strips (not the gutter spacer). |
 
 ## Acceptance Criteria
 
 1. **PR-GUTTER-001** — Renders lane names for each group (including nested when expanded).
 2. **PR-GUTTER-002** — Shows utilization percent **inside** the util bar (right-aligned) on leaves and folders when set.
-3. **PR-GUTTER-003** — Card expander uses open-angle carets; nested folders show chevrons; leaf lanes have **no** chevron; click emits `toggle-group` with node id.
-4. **PR-GUTTER-004** — When a Card id is in `collapsedIds`, child lanes are hidden; `aria-expanded="false"`. When a nested folder id is collapsed, its descendants are hidden but the folder row remains.
-5. **PR-GUTTER-005** — Nested indent increases with depth; only Card uses group-header chrome.
+3. **PR-GUTTER-003** — Nested folders show open-angle carets; leaf lanes have **no** chevron; folder click emits `toggle-group` with node id. Card expand UI lives on SwimlaneView strips (gutter Card is a spacer).
+4. **PR-GUTTER-004** — When a Card id is in `collapsedIds`, child lanes are hidden. When a nested folder id is collapsed, its descendants are hidden but the folder row remains.
+5. **PR-GUTTER-005** — Nested indent increases with depth; only Card uses group-header spacer chrome.
 6. **PR-GUTTER-006** — Util fills are red (`#733234`) when util &lt; 0.5 and gray (`#5c5c5c`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the % label.
 7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width; empty util slots do not.
+8. **PR-GUTTER-008** — Card row is a non-interactive 28px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
 
 ## Edge Cases
 
 | State | Behavior |
 |---|---|
 | Empty groups array | Empty gutter |
-| Groups with zero lanes | Card header rendered, no lane rows |
+| Groups with zero lanes | Card spacer rendered, no lane rows |
 | Standalone CTEF (no pipe data) | All lanes show empty util slot (no %) |
 | Flat CTEF (no `children`) | Card → leaf lanes only (MVP-compatible) |
 | Very long thread names | CSS text-overflow truncation |
@@ -108,7 +108,8 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 - [util-midline-detail](./visual/util-midline-detail.png) — from `v930/entry`
 
 ## Changelog
-- **2026-08-21** — Util bars: 50% dashed midline (`PR-GUTTER-007`); tight midline crops.
+- **2026-08-21** — Util bars: 50% dashed midline (`PR-GUTTER-007`); tight midline crops. Card spacer renumbered to `PR-GUTTER-008`.
+- **2026-08-13** — Card chrome moved to SwimlaneView full-width strips; gutter Card is spacer.
 - **2026-08-11** — Util bars: thick/thin by depth; red/gray threshold fills only.
 - **2026-08-11** — Nested Card → category → Core → pipe; Card-only group header; folder lane-rows with util.
 - **2026-08-07** — Util bars inside track; open-angle carets.
