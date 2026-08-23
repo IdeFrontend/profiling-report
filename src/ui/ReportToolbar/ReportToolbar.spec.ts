@@ -57,9 +57,33 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:asideVisible')).toEqual([[true]]);
   });
 
-  it('PR-TOOLBAR-007: measure toggle is temporarily hidden', () => {
+  it('PR-TOOLBAR-007: measure toggle renders and emits update:measureMode', async () => {
     const wrapper = mount(ReportToolbar, { props: { ...defaultProps, measureMode: false } });
-    expect(wrapper.find('[data-testid="toggle-measure"]').exists()).toBe(false);
+    const btn = wrapper.find('[data-testid="toggle-measure"]');
+    expect(btn.exists()).toBe(true);
+    expect(btn.attributes('aria-pressed')).toBe('false');
+    expect(wrapper.find('[data-testid="measure-icon"]').exists()).toBe(true);
+
+    await btn.trigger('click');
+    expect(wrapper.emitted('update:measureMode')).toEqual([[true]]);
+  });
+
+  it('PR-TOOLBAR-007b: measure toggle reflects active state via aria-pressed and --on', () => {
+    const wrapper = mount(ReportToolbar, { props: { ...defaultProps, measureMode: true } });
+    const btn = wrapper.find('[data-testid="toggle-measure"]');
+    expect(btn.attributes('aria-pressed')).toBe('true');
+    expect(btn.classes()).toContain('pr-toolbar__icon-btn--on');
+  });
+
+  it('PR-TOOLBAR-007c: measure icon arrowheads are open stroke chevrons', () => {
+    const wrapper = mount(ReportToolbar, { props: { ...defaultProps, measureMode: true } });
+    const heads = wrapper.findAll('[data-testid="measure-icon-head"]');
+    expect(heads).toHaveLength(2);
+    for (const head of heads) {
+      expect(head.attributes('fill')).toBe('none');
+      expect(head.attributes('stroke')).toBeTruthy();
+      expect(head.attributes('d') ?? '').not.toMatch(/z$/i);
+    }
   });
 
   it('PR-TOOLBAR-008: search magnifier SVG and zoom compound pill chrome', () => {
