@@ -754,14 +754,9 @@ defineExpose({
   top: 0;
   bottom: 0;
   left: 50%;
-  width: 1px;
+  width: 2px;
   transform: translateX(-50%);
   background: var(--pr-playhead, #3078f0);
-}
-
-.pr-measure-axis-bar:hover::before,
-.pr-measure-axis-bar:active::before {
-  width: 2px;
 }
 
 .pr-measure-arrow {

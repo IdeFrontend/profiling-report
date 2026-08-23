@@ -33,13 +33,14 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 7. **PR-TIMELINE-007** — When the range is fully outside the view, the axis shows a near-edge offscreen cue (one pointing head + Δt; no vertical edge bar), not an empty axis.
 8. **PR-TIMELINE-008** — When the selection is so narrow that arrowheads would overlap, hide heads and the horizontal shaft; keep only the outside duration label.
 9. **PR-TIMELINE-009** — With a visible measure range, cursor pill overlapping the selection (inside, or outside with label crossing a border) uses above-axis placement; cursor clear of the range stays in-track.
-10. **PR-TIMELINE-010** — Dragging an axis measure bar resizes that edge (other edge fixed); bars use a 9px hit pad, `col-resize`, and 2px stem on hover.
+10. **PR-TIMELINE-010** — Dragging an axis measure bar resizes that edge (other edge fixed); bars use a 9px hit pad, `col-resize`, and a 2px stem.
 11. **PR-TIMELINE-011** — Hovering an axis measure bar emits `cursor` stuck to that edge (timestamp stays visible / lifts above).
 12. **PR-TIMELINE-012** — Clicking the Δt label emits `focus-measure`.
 13. **PR-TIMELINE-013** — Hovering the viewport time axis emits `cursor`, lifts the timestamp above the ticks, and shows the swimlane vertical playhead at the same x (default and measure mode).
 14. **PR-TIMELINE-014** — Axis-started measure drag magnetizes the moving edge when the pointer moves over the swimlane (same as canvas-started drag).
 
 ## Changelog
+- **2026-08-23** — Axis measure range borders use a 2px stem (not 1px / hover-only); PR-TIMELINE-010.
 - **2026-08-23** — Axis measure create/resize uses swimlane magnet when pointer is over canvas; PR-TIMELINE-014.
 - **2026-08-20** — Hide Δt arrow/label during swimlane appear/clear tweens.
 - **2026-08-20** — Viewport-axis hover keeps lifted timestamp + swim playhead; PR-TIMELINE-013.

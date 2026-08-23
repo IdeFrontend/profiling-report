@@ -443,9 +443,7 @@ describe('TimelineView', () => {
     const src = (await import('./TimelineView.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-measure-axis-bar\s*\{[^}]*width:\s*9px/);
     expect(src).toMatch(/\.pr-measure-axis-bar\s*\{[^}]*cursor:\s*col-resize/);
-    expect(src).toMatch(
-      /\.pr-measure-axis-bar:hover::before[\s\S]*?width:\s*2px/,
-    );
+    expect(src).toMatch(/\.pr-measure-axis-bar::before\s*\{[^}]*width:\s*2px/);
   });
 
   it('PR-TIMELINE-011: hovering axis measure bar emits cursor stuck to that edge', async () => {
