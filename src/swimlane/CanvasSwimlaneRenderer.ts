@@ -11,6 +11,7 @@ import {
   BAND_FILL,
   EMPTY_LAYOUT,
   EVENT_RADIUS,
+  LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   contentHeightFromLayout,
@@ -113,7 +114,6 @@ export class SwimlaneOverlayPainter {
   private hoveredId: string | null = null;
   private neighborIds = new Set<string>();
   private searchQuery = '';
-  private cursorX: number | null = null;
   private width = 0;
   private height = 0;
 
@@ -159,9 +159,6 @@ export class SwimlaneOverlayPainter {
     this.searchQuery = query.trim().toLowerCase();
   }
 
-  setCursorX(x: number | null): void {
-    this.cursorX = x;
-  }
 
   render(): void {
     const ctx = this.ctx;
@@ -206,14 +203,7 @@ export class SwimlaneOverlayPainter {
       if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
     }
 
-    if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {
-      ctx.strokeStyle = '#317AF7';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(this.cursorX + 0.5, 0);
-      ctx.lineTo(this.cursorX + 0.5, this.height);
-      ctx.stroke();
-    }
+    // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
   }
 
   dispose(): void {
@@ -237,7 +227,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private searchQuery = '';
-  private cursorX: number | null = null;
   private width = 0;
   private height = 0;
 
@@ -295,9 +284,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
   }
 
-  setCursorX(x: number | null): void {
-    this.cursorX = x;
-  }
 
   contentHeight(): number {
     return contentHeightFromLayout(this.layout);
@@ -341,7 +327,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     for (const header of this.layout.headers) {
       const headerTop = header.y - this.view.scrollY;
       if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < this.height) {
-        ctx.fillStyle = '#1f1f1f';
+        ctx.fillStyle = LANE_GROUP_HEADER_FILL;
         ctx.fillRect(0, headerTop, this.width, LANE_GROUP_HEADER_HEIGHT);
         ctx.strokeStyle = '#3a3a3a';
         ctx.beginPath();
@@ -418,17 +404,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim);
     }
 
-    if (this.cursorX != null && this.cursorX >= 0 && this.cursorX <= this.width) {
-      ctx.save();
-      // Match CursorTimestamp `.pr-cursor` (#317AF7); +0.5 aligns stroke with CSS left-edge at x.
-      ctx.strokeStyle = '#317AF7';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(this.cursorX + 0.5, 0);
-      ctx.lineTo(this.cursorX + 0.5, this.height);
-      ctx.stroke();
-      ctx.restore();
-    }
+    // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
   }
 
   dispose(): void {
@@ -441,6 +417,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 }
 
 export {
+  LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   LANE_PAD_Y,

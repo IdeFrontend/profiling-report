@@ -20,6 +20,8 @@ The main column always renders as a vertical stack (toolbar strip, then timeline
 
 Main column background is `--pr-bg-deep` (`#1f1f1f`). There is no full-width border across the top of the two-column grid (toolbar `border-bottom` only covers main).
 
+**Aside seam overflow.** `.pr-main` uses `overflow: visible` and `z-index: 1` (aside `z-index: 0`) so timeline top chrome — overview range handles and the axis cursor timestamp pill — can paint slightly over the aside border instead of being clipped. Swimlane body scroll containment lives on the swim body row (`overflow: hidden`), not on `.pr-main`.
+
 The parent ProfilingReport owns `asideWidth` (session-only) and also resizes the left lane gutter via `--pr-gutter-width` (180–480, default 280).
 
 ## Visual
@@ -40,6 +42,7 @@ Resizable panel chrome (gutter width owned by ProfilingReport; aside width by th
 2. **PR-LAYOUT-002** — Shows aside panel.
 3. **PR-LAYOUT-003** — Hides aside panel.
 4. **PR-LAYOUT-004** — Exposes aside resize handle when aside is visible.
+5. **PR-LAYOUT-005** — `.pr-main` is `overflow: visible` (not `hidden`) with stacking above the aside so timeline edge chrome is not clipped at the seam.
 
 ## Edge Cases
 
@@ -50,6 +53,7 @@ Resizable panel chrome (gutter width owned by ProfilingReport; aside width by th
 - [Entry overview](../../../docs/ui/source/v930/entry.jpeg) — two-column layout
 
 ## Changelog
+- **2026-08-20** — `.pr-main` overflow visible above aside for timeline edge chrome; PR-LAYOUT-005.
 - **2026-08-11** — Main slot hosts toolbar + timeline; aside full height; main bg `--pr-bg-deep`.
 - **2026-08-10** — Absorbed resizable-panel tokens from retired `docs/ui/components/VISUAL_SPEC.md`.
 - **2026-08-07** — Resizable aside width (drag handle + `asideWidth` prop).

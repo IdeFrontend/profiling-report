@@ -104,12 +104,15 @@ function onAsideResizePointerUp() {
   background: var(--pr-bg-deep);
   padding: 0;
   border-right: 1px solid #3a3a3a;
-  overflow: hidden;
+  /* Visible so overview handles / cursor pill can paint over the aside seam. */
+  overflow: visible;
   position: relative;
+  z-index: 1;
 }
 
 .pr-layout__aside {
   position: relative;
+  z-index: 0;
   min-width: 0;
   min-height: 0;
   display: flex;
