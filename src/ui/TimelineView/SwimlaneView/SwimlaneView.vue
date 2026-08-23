@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -9,6 +9,19 @@ import {
   type SwimlaneViewState,
   type TimeDisplayUnit,
 } from '../../../domain/types';
+import {
+  LANE_GROUP_HEADER_FILL,
+  LANE_GROUP_HEADER_HEIGHT,
+  LANE_GROUP_HEADER_HOVER,
+  layoutHeaders,
+} from '../../../swimlane/layout';
+import {
+  GUTTER_WIDTH_DEFAULT,
+  GUTTER_WIDTH_MAX,
+  GUTTER_WIDTH_MIN,
+  startHorizontalResize,
+} from '../../panelResize';
+import Chevron from '../../Chevron.vue';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 
@@ -27,15 +40,20 @@ const props = withDefaults(
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
+    gutterWidth?: number;
+    /** Shared playhead x from parent (axis hover + canvas); drives the swim vertical bar. */
+    cursorXRatio?: number | null;
   }>(),
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    cursorXRatio: null,
   },
 );
 
 const emit = defineEmits<{
   'update:scrollY': [scrollY: number];
+  'update:gutterWidth': [width: number];
   'toggle-group': [groupId: string];
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
@@ -44,9 +62,79 @@ const emit = defineEmits<{
   zoom: [factor: number, anchorTime: number];
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
+  'suppress-measure-dt': [suppress: boolean];
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
+const canvasRef = ref<{
+  handleWheel: (e: WheelEvent) => void;
+  magnetizeAtClient: (
+    clientX: number,
+    clientY: number,
+  ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
+  clearEdgeSnapHighlight: () => void;
+} | null>(null);
+const bodyRef = ref<HTMLElement | null>(null);
+const bodyViewportH = ref(0);
+const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
+/** Swimlane mouse-follow bar; synced from canvas emits and parent `cursorXRatio` (axis hover). */
+const cursorXRatio = ref<number | null>(props.cursorXRatio ?? null);
+
+watch(
+  () => props.cursorXRatio,
+  (v) => {
+    cursorXRatio.value = v ?? null;
+  },
+);
+
+watch(
+  () => props.gutterWidth,
+  (w) => {
+    if (w != null) localGutterWidth.value = w;
+  },
+);
+
+const collapsed = computed(() => new Set(props.collapsedIds));
+
+/** Card header Y from the same row walk as the canvas, without an event-layout rebuild. */
+const cardHeaders = computed(() =>
+  layoutHeaders(props.model).map((h) => ({
+    id: h.id,
+    name: h.name,
+    y: h.y,
+    expanded: !collapsed.value.has(h.id),
+  })),
+);
+
+const visibleCardStrips = computed(() => {
+  const scrollY = props.view.scrollY;
+  // 0 until ResizeObserver / mount measures the body; show all and let overflow:hidden clip.
+  const viewportH = bodyViewportH.value > 0 ? bodyViewportH.value : Number.POSITIVE_INFINITY;
+  return cardHeaders.value
+    .map((h) => ({
+      ...h,
+      top: h.y - scrollY,
+    }))
+    .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < viewportH);
+});
+
+let bodyResizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  const el = bodyRef.value;
+  if (!el) return;
+  const sync = () => {
+    bodyViewportH.value = el.clientHeight;
+  };
+  sync();
+  bodyResizeObserver = new ResizeObserver(sync);
+  bodyResizeObserver.observe(el);
+});
+
+onUnmounted(() => {
+  bodyResizeObserver?.disconnect();
+  bodyResizeObserver = null;
+});
 
 watch(
   () => props.view.scrollY,
@@ -70,15 +158,78 @@ function onGutterScroll(): void {
   }
 }
 
+let gutterResizeSession: ReturnType<typeof startHorizontalResize> | null = null;
+
+function onGutterResizePointerDown(e: PointerEvent) {
+  if (e.button !== 0) return;
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  gutterResizeSession = startHorizontalResize({
+    startClientX: e.clientX,
+    startWidth: localGutterWidth.value,
+    min: GUTTER_WIDTH_MIN,
+    max: GUTTER_WIDTH_MAX,
+    direction: 1,
+    onChange: (w) => {
+      localGutterWidth.value = w;
+      emit('update:gutterWidth', w);
+    },
+  });
+  e.preventDefault();
+}
+
+function onGutterResizePointerMove(e: PointerEvent) {
+  gutterResizeSession?.move(e.clientX);
+}
+
+function onGutterResizePointerUp() {
+  gutterResizeSession?.end();
+  gutterResizeSession = null;
+}
+
+function onCursor(payload: { time: number; xRatio: number } | null) {
+  cursorXRatio.value = payload?.xRatio ?? null;
+  emit('cursor', payload);
+}
+
+/** Strips own the header hit target; clear immediately (do not wait for canvas leave). */
+function clearCursor() {
+  if (cursorXRatio.value == null) return;
+  cursorXRatio.value = null;
+  emit('cursor', null);
+}
+
+/** Keep scroll/zoom working over full-width Card chrome. */
+function onStripWheel(e: WheelEvent) {
+  canvasRef.value?.handleWheel(e);
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
   },
+  magnetizeAtClient: (clientX: number, clientY: number) =>
+    canvasRef.value?.magnetizeAtClient(clientX, clientY) ?? null,
+  clearEdgeSnapHighlight: () => canvasRef.value?.clearEdgeSnapHighlight(),
 });
 </script>
 
 <template>
-  <div class="pr-swim-row pr-swim-row--body">
+  <div
+    ref="bodyRef"
+    class="pr-swim-row pr-swim-row--body"
+    :style="{ '--pr-gutter-width': `${localGutterWidth}px` }"
+  >
+    <button
+      type="button"
+      class="pr-gutter-resize"
+      data-testid="gutter-resize-handle"
+      aria-label="Resize lane gutter"
+      @pointerdown="onGutterResizePointerDown"
+      @pointermove="onGutterResizePointerMove"
+      @pointerup="onGutterResizePointerUp"
+      @pointercancel="onGutterResizePointerUp"
+    />
+
     <LaneGutter
       ref="gutterRef"
       :groups="groups"
@@ -86,7 +237,22 @@ defineExpose({
       @scroll="onGutterScroll"
       @toggle-group="emit('toggle-group', $event)"
     />
+    <!-- Under Card strips so the bar does not paint over header chrome. -->
+    <div
+      class="pr-swim-cursor-layer"
+      data-testid="swim-cursor-layer"
+      aria-hidden="true"
+    >
+      <div
+        v-if="cursorXRatio != null"
+        class="pr-swim-cursor"
+        data-testid="swim-cursor"
+        :style="{ left: `${cursorXRatio * 100}%` }"
+      />
+    </div>
+
     <SwimlaneCanvas
+      ref="canvasRef"
       :model="model"
       :view="view"
       :selected-event-id="selectedEventId"
@@ -100,13 +266,48 @@ defineExpose({
       :prefer-renderer="preferRenderer ?? 'auto'"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
-      @cursor="emit('cursor', $event)"
+      @cursor="onCursor"
       @set-playhead="emit('set-playhead', $event)"
       @pan="emit('pan', $event)"
       @zoom="(f, a) => emit('zoom', f, a)"
       @scroll-y="onScrollY"
       @update:measure-range="emit('update:measure-range', $event)"
+      @suppress-measure-dt="emit('suppress-measure-dt', $event)"
     />
+
+    <div
+      class="pr-card-strips"
+      data-testid="card-strips"
+      :style="{
+        '--pr-card-header-fill': LANE_GROUP_HEADER_FILL,
+        '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
+      }"
+    >
+      <button
+        v-for="strip in visibleCardStrips"
+        :key="strip.id"
+        type="button"
+        class="pr-card-strip"
+        :data-testid="`card-strip-${strip.id}`"
+        :aria-expanded="strip.expanded"
+        :aria-label="strip.name"
+        :style="{ top: `${strip.top}px` }"
+        @pointerenter="clearCursor"
+        @click="emit('toggle-group', strip.id)"
+        @wheel="onStripWheel"
+      >
+        <span
+          class="pr-card-strip__label"
+          :style="{ width: `var(--pr-gutter-width, ${localGutterWidth}px)` }"
+        >
+          <Chevron
+            class="pr-card-strip__chevron"
+            :expanded="strip.expanded"
+          />
+          <span class="pr-card-strip__name">{{ strip.name }}</span>
+        </span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -120,13 +321,110 @@ defineExpose({
 }
 
 .pr-swim-row--body {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
+}
+
+.pr-gutter-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pr-gutter-width, 280px);
+  width: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  z-index: 5;
+  transform: translateX(-50%);
+}
+
+.pr-gutter-resize:hover,
+.pr-gutter-resize:active {
+  background: rgba(49, 122, 247, 0.35);
+}
+
+.pr-card-strips {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  overflow: hidden;
+}
+
+.pr-swim-cursor-layer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--pr-gutter-width, 280px);
+  pointer-events: none;
+  /* Under Card strips (z-index 8) so the bar does not paint over header chrome. */
+  z-index: 7;
+  overflow: hidden;
+}
+
+.pr-swim-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #317af7;
+  transform: translateX(-0.5px);
+}
+
+.pr-card-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 28px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #3a3a3a;
+  background: var(--pr-card-header-fill);
+  color: #e8e8e8;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  align-items: stretch;
+  text-align: left;
+}
+
+.pr-card-strip:hover {
+  background: var(--pr-card-header-hover);
+}
+
+.pr-card-strip__label {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  min-width: 0;
+}
+
+.pr-card-strip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {
   .pr-swim-row {
     grid-template-columns: 1fr;
+  }
+
+  .pr-gutter-resize {
+    display: none;
   }
 }
 </style>

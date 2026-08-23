@@ -40,5 +40,7 @@ Maps product specs and interim decisions to stable **test ids**. See [docs/proce
 | PR-E2E-004 | e2e | `tests/e2e/feature.spec.ts` | UX S2 |
 | PR-E2E-005 | e2e | `tests/e2e/feature.spec.ts` | Q15 |
 | PR-E2E-006 | e2e | `tests/e2e/feature.spec.ts` | Overview brush + cursor line |
+| PR-E2E-007 | e2e | `tests/e2e/feature.spec.ts` | WebGL dependency curves (`ffn_dense`) |
+| PR-E2E-008 | e2e | `tests/e2e/feature.spec.ts` | Measure toggle active + open-stroke icon |
 
 Put the id in the test title, e.g. `it('PR-E2E-002: hover shows tooltip', …)`.

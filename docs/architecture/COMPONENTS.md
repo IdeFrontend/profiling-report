@@ -25,7 +25,7 @@ ProfilingReport
 │  │  ├─ TimeOverviewBar
 │  │  ├─ TimeAxis → AxisRuler, CursorTimestamp
 │  │  ├─ OverviewCharts
-│  │  └─ SwimlaneView → LaneGutter, SwimlaneCanvas (dep curves in renderer)
+│  │  └─ SwimlaneView → LaneGutter, SwimlaneCanvas (dep curves), Card strips + swim cursor
 │  └─ StatsAside
 │     ├─ StatsSummaryPanel
 │     ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1)
@@ -172,7 +172,7 @@ Canvas 2D implementation of `SwimlaneRenderer`. Uniform `#1f1f1f` event-sequence
 
 ### `WebGlSwimlaneRenderer` (P2 → implemented)
 
-WebGL2 coverage-AA interval backend (Sudu-inspired). Same uniform lane fill and 1px dividers as Canvas. Used by default from `SwimlaneCanvas` with a Canvas2D overlay for labels/selection/cursor; falls back to `CanvasSwimlaneRenderer` when WebGL2 is unavailable.
+WebGL2 coverage-AA interval backend (Sudu-inspired). Same uniform lane fill and 1px dividers as Canvas. Used by default from `SwimlaneCanvas` with a Canvas2D overlay for labels/selection; falls back to `CanvasSwimlaneRenderer` when WebGL2 is unavailable. The mouse-follow cursor bar is a DOM overlay in `SwimlaneView` (under Card strips), not stroked by the renderers.
 
 **Why:** Named interface stays stable; WebGL path ships for dense traces.
 
@@ -200,7 +200,7 @@ CSS grid: gutter | main | aside (+ detail strip region).
 
 ### `LaneGutter` (M)
 
-Hierarchical expand/collapse labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on groups and lanes; util % inside pill bars. Row `#3a3a3a` bottom borders align with swimlane horizontal dividers. Spec: [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md).
+Hierarchical folder/leaf labels and utilization mini-bars, scroll-synced with the timeline. Open-angle stroke chevrons on **folders** and util % inside pill bars. Card expand chrome is owned by full-width strips in `SwimlaneView` (gutter Card row is a height spacer only). Row `#3a3a3a` bottom borders align with swimlane horizontal dividers. Spec: [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md).
 
 **Why:** DOM text for a11y/i18n; avoids baking labels into WebGL. Hierarchy comes from `SwimProcess` / `SwimThread`.
 

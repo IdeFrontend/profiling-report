@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import Chevron from '../../../Chevron.vue';
 import type { GutterLane } from './gutterTypes';
 
 const props = defineProps<{
@@ -45,10 +46,9 @@ function fillColor(util: number): string {
     @click="emit('toggle', lane.id)"
   >
     <span class="pr-gutter__lane-main">
-      <span
+      <Chevron
         class="pr-gutter__chevron"
-        :class="isCollapsed ? 'pr-gutter__chevron--right' : 'pr-gutter__chevron--down'"
-        aria-hidden="true"
+        :expanded="!isCollapsed"
       />
       <span
         class="pr-gutter__name"
@@ -136,39 +136,6 @@ function fillColor(util: number): string {
 </template>
 
 <style scoped>
-.pr-gutter__chevron {
-  box-sizing: border-box;
-  flex: 0 0 10px;
-  width: 10px;
-  height: 10px;
-  display: inline-block;
-  position: relative;
-  color: #a8a8a8;
-}
-
-.pr-gutter__chevron::before {
-  content: '';
-  position: absolute;
-  box-sizing: border-box;
-  border-style: solid;
-  border-color: currentColor;
-  border-width: 0 1.2px 1.2px 0;
-  width: 5px;
-  height: 5px;
-}
-
-.pr-gutter__chevron--down::before {
-  top: 1px;
-  left: 2px;
-  transform: rotate(45deg);
-}
-
-.pr-gutter__chevron--right::before {
-  top: 2px;
-  left: 1px;
-  transform: rotate(-45deg);
-}
-
 .pr-gutter__lane {
   box-sizing: border-box;
   display: grid;
