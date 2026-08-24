@@ -108,7 +108,7 @@ Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../docs/ui/DESIGN_INDEX.md).
 - Post-commit: full opacity on selected, 25% dim on rest, no dependency curves.
 - Renderer gains **`setMultiSelection(ids: string[])`** (empty clears dim).
 
-#### ProfilingReport — state ownership (PR-ROOT-005…)
+#### ProfilingReport — state ownership (PR-ROOT-007…)
 
 Root adds `multiSelectedIds: string[]`. Handles `multi-select`, `close`, `select-single` from MultiSelectSummary, empty-space click, Escape.
 
@@ -127,4 +127,4 @@ Root adds `multiSelectedIds: string[]`. Handles `multi-select`, `close`, `select
 
 ## Changelog
 
-- **2026-08-24** — Initial spec. Q-MSEL-1/2/3/4/6 resolved; Q-MSEL-5 escalated to Q23.
+- **2026-08-24** — Initial spec. Q22/Q23 escalated to OPEN_QUESTIONS.
