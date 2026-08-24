@@ -30,6 +30,8 @@ Producer **format/data specification is still forthcoming**. Product has answere
 - Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
 - Overview chart producer — interim keeps charts hidden
 - Phase 2 contracts Q9–Q11, Q10
++ - Measure-range cross-view sync (Q22)
++ - Multi-select Self time data source (Q23)
 
 ---
 
@@ -59,6 +61,8 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q13** | Color / category legend | **Resolved** | [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
 | **Q14** | Time units UX | **Resolved (partial)** + **Interim (auto time)** | Two-tier auto: chrome from zoom/density; tooltip/detail/Δt per-value — [I-Q14](INTERIM_DECISIONS.md). Cycles deferred. |
 | **Q15** | MSTT `.json` policy | **Resolved** | Chrome Trace `.json` → profiling-report. |
+| **Q22** | Time-range measure / multi-select → which views? | **Open** | When timeline **度量模式** sets `measureRange [t0,t1]` ([`v930/task-measure-mode`](../ui/source/v930/task-measure-mode.jpeg)), or marquee multi-select picks N events ([`v930/task-marquee`](../ui/source/v930/task-marquee.jpeg)), which views must update? Candidates: PIPE / Cube·Vector bars; compute-load detail tabs; memory detail tabs + topology; report summary; detail strip; overview charts (if present). Distinct from overview brush (`timeWindow`) and event selection. Until answered: measure UI is **local overlay only** (band + Δt; no aside recompute); multi-select is **local panel only** (table, no aside recompute). Specs when answered: UX_SPEC sync, INTERACTIONS, FEATURE_MATRIX, COMPONENTS, view-state / StatsAside, [MultiSelectSummary](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md). |
+| **Q23** | Multi-select Self time data source | **Open** | The sketch shows Self time = Wall Duration for every event (flat events, no parent/child nesting). Does the producer plan to emit a per-event `selfTime` field (e.g. in Chrome Trace `args.selfTime`)? Until answered: Self time column = `event.duration`. Specs when answered: [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md), [MultiSelectSummary](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md). |
 
 ---
 
