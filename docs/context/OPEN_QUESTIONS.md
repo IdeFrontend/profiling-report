@@ -30,8 +30,9 @@ Producer **format/data specification is still forthcoming**. Product has answere
 - Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
 - Overview chart producer — interim keeps charts hidden
 - Phase 2 contracts Q9–Q11, Q10
-+ - Measure-range cross-view sync (Q22)
-+ - Multi-select Self time data source (Q23)
+- Measure-range cross-view sync (Q22)
+- Multi-select Self time data source (Q23)
+- Context menu: 翻屏播放 semantics + Ctrl+Z conflict (Q24), Offset contract (Q25), 置顶显示 vs Pin row (Q26)
 
 ---
 
@@ -76,6 +77,9 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q19** | Gesture parity | **Interim** | Wheel/slider/drag MVP; W/S/A/D P2 |
 | **Q20** | Cursor skills / agent rules | **Resolved** | Shared: [`AGENTS.md`](../../AGENTS.md), nested `specs/AGENTS.md` (Claude: `specs/CLAUDE.md` → `@./AGENTS.md`), skills in `.agents/skills/`. Cursor-only: `.cursor/rules/code-review-post-github.mdc`. Root Claude: [`CLAUDE.md`](../../CLAUDE.md) → `@AGENTS.md`. |
 | **Q21** | Acceptance owner | Open | PROJECT_GOALS, this file |
+| **Q24** | 翻屏播放 (Scroll playback) semantics | **Open** | Sketch `v930/task-context-menu` shows shortcut Ctrl+Z (collides with undo). What does the action do — auto-scroll the timeline one screen width at playback speed, or jump to next event? Is Ctrl+Z the real binding? Until answered: **omit from MVP context menu**. Specs when answered: [ContextMenu](../../src/ui/ContextMenu/ContextMenu.spec.md), INTERACTIONS, UX_SPEC. |
+| **Q25** | Offset action contract | **Open** | Context menu item "Offset" on lane right-click (`v930/task-context-menu`). Does it open a numeric input dialog for manual Δt entry, or apply an auto-calculated offset (align lane start to t=0)? No sub-menu arrow in the sketch suggests a single click. Until answered: **omit from MVP context menu**. Specs when answered: [ContextMenu](../../src/ui/ContextMenu/ContextMenu.spec.md), INTERACTIONS. |
+| **Q26** | 置顶显示 vs Pin row distinction | **Open** | Sketch shows both 置顶显示 (Pin to top, event-scope) and Pin row (Ctrl+P, lane-scope). 置顶显示 pins a single event to the top of its lane? Or pins the lane like Pin row but scoped to the event's card? Clarify the two pinning semantics. Until answered: **implement Pin row only** (lane pinning is unambiguous); treat 置顶显示 as a synonym until Product clarifies. Specs when answered: [ContextMenu](../../src/ui/ContextMenu/ContextMenu.spec.md), UX_SPEC. |
 
 ---
 
