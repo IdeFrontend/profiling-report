@@ -10,8 +10,13 @@ export const LANE_GROUP_HEADER_HEIGHT = 28;
 export const LANE_GROUP_HEADER_FILL = '#2a2a2a';
 /** Card strip hover fill (`rgb(50, 50, 50)`); DOM only — canvas headers stay static. */
 export const LANE_GROUP_HEADER_HOVER = '#323232';
-/** Corner radius for event blocks (Canvas fills/strokes + WebGL SDF fills). */
-export const EVENT_RADIUS = 5;
+/** Corner radius for group phase bands (Canvas overlay + fallback). */
+export const BAND_RADIUS = 5;
+/** Corner radius for event blocks, width-dependent: narrow (<4px) → 1px, else 2px.
+ *  Mirrors the rounded-rect SDF in `shaders.ts` (WebGL swimlane fills). */
+export function eventRadius(w: number): number {
+  return w < 4 ? 1 : 2;
+}
 /** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */
 export const BAND_FILL = '#2c2c2c';
 

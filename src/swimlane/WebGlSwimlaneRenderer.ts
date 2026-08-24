@@ -9,7 +9,6 @@ import {
 } from '../domain/types';
 import {
   EMPTY_LAYOUT,
-  EVENT_RADIUS,
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
@@ -39,7 +38,6 @@ interface GlProgram {
   uResolution: WebGLUniformLocation | null;
   uColor: WebGLUniformLocation;
   uYBounds: WebGLUniformLocation | null;
-  uRadius: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -113,7 +111,6 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uResolution: gl.getUniformLocation(program, 'uResolution'),
     uColor,
     uYBounds: gl.getUniformLocation(program, 'uYBounds'),
-    uRadius: gl.getUniformLocation(program, 'uRadius'),
   };
 }
 
@@ -429,7 +426,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, resX, resY);
-    if (swim.uRadius) gl.uniform1f(swim.uRadius, EVENT_RADIUS);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).

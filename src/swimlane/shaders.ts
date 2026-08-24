@@ -47,7 +47,6 @@ precision highp float;
 
 uniform vec4 uColor;
 uniform vec2 uYBounds; // top, bottom in CSS pixels
-uniform float uRadius;
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
@@ -66,7 +65,8 @@ void main() {
   float b = uYBounds.y;
   float w = max(r - l, 0.0);
   float h = max(b - t, 0.0);
-  float rad = min(uRadius, min(w, h) * 0.5);
+  // Width-dependent corner radius, matching eventRadius in layout.ts: <4px -> 1px, else 2px.
+  float rad = min(w < 4.0 ? 1.0 : 2.0, min(w, h) * 0.5);
 
   vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
