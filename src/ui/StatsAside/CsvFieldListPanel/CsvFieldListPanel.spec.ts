@@ -67,7 +67,7 @@ describe('CsvFieldListPanel', () => {
     expect(src).toMatch(/\.pr-csv__field-match[\s\S]*?background:\s*#1d283c/);
     expect(src).toMatch(/\.pr-csv__field-match[\s\S]*?color:\s*#688aec/);
     expect(src).toMatch(/\.pr-csv__field-match[\s\S]*?font-weight:\s*600/);
-    expect(wrapper.get('[data-testid="csv-search-clear"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="csv-search-clear"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="csv-search-clear"]').trigger('click');
     expect(wrapper.findAll('[data-testid="csv-field-match"]')).toHaveLength(0);
