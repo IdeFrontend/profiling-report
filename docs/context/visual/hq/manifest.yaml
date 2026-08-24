@@ -1,160 +1,308 @@
-# HQ open-questions annotated crops (doc-only; regenerate: npm run render:hq-visuals)
-# crop.box: pixels on source frame; highlights.box: relative to cropped image
-# source_file: repo-relative path (component crop); source: v930 id from docs/ui/source/manifest.yaml
+# One image per HQ question. Exactly one highlight per image.
+# crop.box: pixels on source; highlights.box: relative to cropped image
+# regenerate: npm run render:hq-visuals
 
 images:
-  header-meta:
+  q1:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 0, y: 0, w: 1850, h: 240 }
+    crop: { x: 0, y: 0, w: 1850, h: 220 }
     maxWidth: 900
     highlights:
-      - label: "Q1 核数"
-        box: { x: 100, y: 152, w: 165, h: 50 }
-      - label: "Q31 aic频率"
-        box: { x: 305, y: 152, w: 210, h: 50 }
-      - label: "Q2 NPU ARCH"
-        box: { x: 868, y: 152, w: 110, h: 50 }
-      - label: "Q33 更多"
-        box: { x: 1055, y: 152, w: 145, h: 50 }
+      - label: "Q1 meta (not 核数)"
+        box: { x: 8, y: 148, w: 880, h: 62 }
 
-  duration-card:
+  q2:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 30, y: 265, w: 590, h: 260 }
+    crop: { x: 0, y: 0, w: 1850, h: 220 }
     maxWidth: 900
     highlights:
-      - label: "Q4 duration"
-        box: { x: 38, y: 67, w: 198, h: 52 }
-      - label: "Q34 bar"
-        box: { x: 28, y: 143, w: 175, h: 42 }
+      - label: "Q2 no NPU ARCH"
+        box: { x: 8, y: 148, w: 880, h: 62 }
+
+  q3:
+    source_file: src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png
+    maxWidth: 900
+    highlights:
+      - label: "Q3 overlay"
+        box: { x: 0, y: 0, w: 1850, h: 110 }
+
+  q4:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
       - label: "Q4 次迭代/核"
-        box: { x: 38, y: 163, w: 225, h: 52 }
+        box: { x: 28, y: 298, w: 340, h: 52 }
 
-  compute-card:
+  q5:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 620, y: 265, w: 640, h: 260 }
+    crop: { x: 630, y: 270, w: 600, h: 370 }
     maxWidth: 900
     highlights:
-      - label: "Q5–7 score"
-        box: { x: 56, y: 65, w: 145, h: 50 }
-      - label: "Q5–6 TFLOPS"
-        box: { x: 56, y: 160, w: 445, h: 55 }
+      - label: "Q5 172"
+        box: { x: 28, y: 298, w: 140, h: 52 }
 
-  bandwidth-cards:
+  q6:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 30, y: 548, w: 1790, h: 240 }
+    crop: { x: 630, y: 270, w: 600, h: 370 }
     maxWidth: 900
     highlights:
-      - label: "Q10 in score"
-        box: { x: 58, y: 0, w: 150, h: 88 }
-      - label: "Q8–9 in peak"
-        box: { x: 38, y: 165, w: 450, h: 62 }
-      - label: "Q35 aic"
-        box: { x: 648, y: 0, w: 150, h: 92 }
-      - label: "Q35 aiv"
-        box: { x: 788, y: 0, w: 150, h: 92 }
-      - label: "Q36 in units"
-        box: { x: 648, y: 165, w: 295, h: 62 }
-      - label: "Q10 out score"
-        box: { x: 918, y: 0, w: 170, h: 88 }
-      - label: "Q8–9 out peak"
-        box: { x: 948, y: 165, w: 530, h: 62 }
+      - label: "Q6 320"
+        box: { x: 160, y: 298, w: 280, h: 52 }
 
-  util-card:
+  q7:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 1260, y: 265, w: 560, h: 260 }
+    crop: { x: 630, y: 270, w: 600, h: 370 }
     maxWidth: 900
     highlights:
-      - label: "Q12 %"
-        box: { x: 24, y: 65, w: 170, h: 50 }
+      - label: "Q7 90%"
+        box: { x: 28, y: 130, w: 180, h: 80 }
+
+  q8:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q8 1.6 peak"
+        box: { x: 20, y: 288, w: 850, h: 58 }
+
+  q9:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q9 all peaks"
+        box: { x: 20, y: 288, w: 1730, h: 58 }
+
+  q10:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q10 81"
+        box: { x: 20, y: 100, w: 850, h: 140 }
+
+  q11:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q11 I/O cards"
+        box: { x: 8, y: 8, w: 1794, h: 384 }
+
+  q12:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 1240, y: 270, w: 590, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q12 82%"
+        box: { x: 24, y: 138, w: 200, h: 72 }
+
+  q13:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 1240, y: 270, w: 590, h: 370 }
+    maxWidth: 900
+    highlights:
       - label: "Q13 启用核"
-        box: { x: 24, y: 160, w: 430, h: 55 }
+        box: { x: 24, y: 298, w: 420, h: 52 }
 
-  roofline:
+  q14:
     source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
     maxWidth: 900
     highlights:
-      - label: "Q37 tabs"
-        box: { x: 15, y: 98, w: 420, h: 44 }
-      - label: "Q16 Y TOps/s"
-        box: { x: 0, y: 205, w: 135, h: 975 }
-      - label: "Q15 X Ops/Byte"
-        box: { x: 105, y: 1178, w: 1590, h: 72 }
-      - label: "Q17 roof"
-        box: { x: 150, y: 215, w: 1550, h: 960 }
-      - label: "Q18 L2"
-        box: { x: 845, y: 595, w: 310, h: 130 }
-      - label: "Q19 mix"
-        box: { x: 782, y: 428, w: 620, h: 44 }
+      - label: "Q14 chart (not pipe ratios)"
+        box: { x: 150, y: 470, w: 1550, h: 740 }
 
-  pipe-bars:
+  q15:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q15 X Ops/Byte"
+        box: { x: 80, y: 1235, w: 1780, h: 90 }
+
+  q16:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q16 Y TOps/s"
+        box: { x: 0, y: 360, w: 140, h: 840 }
+
+  q17:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q17 roof"
+        box: { x: 150, y: 470, w: 1550, h: 740 }
+
+  q18:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q18 L2"
+        box: { x: 1180, y: 410, w: 430, h: 50 }
+
+  q19:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q19 mix"
+        box: { x: 430, y: 610, w: 1000, h: 70 }
+
+  q20:
     source_file: src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png
     maxWidth: 900
     highlights:
       - label: "Q20 in-bar"
-        box: { x: 248, y: 200, w: 645, h: 42 }
-      - label: "Q21 详情"
-        box: { x: 1695, y: 18, w: 105, h: 58 }
-      - label: "Q29 mean %"
-        box: { x: 1648, y: 198, w: 100, h: 790 }
+        box: { x: 250, y: 275, w: 280, h: 50 }
 
-  pipe-detail:
+  q21:
     source_file: src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png
     maxWidth: 900
     highlights:
-      - label: "Q21 tabs"
-        box: { x: 20, y: 82, w: 860, h: 42 }
       - label: "Q21 详情"
-        box: { x: 20, y: 148, w: 1640, h: 430 }
+        box: { x: 145, y: 188, w: 1480, h: 382 }
 
-  memory-topology:
+  q22:
     source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
     maxWidth: 900
     highlights:
-      - label: "Q22 GM"
-        box: { x: 95, y: 145, w: 160, h: 960 }
-      - label: "Q22 L2"
-        box: { x: 245, y: 145, w: 210, h: 960 }
-      - label: "Q22 L1"
-        box: { x: 468, y: 512, w: 120, h: 175 }
-      - label: "Q23 L2 hit"
-        box: { x: 228, y: 340, w: 255, h: 320 }
-      - label: "Q24–28 edges"
-        box: { x: 540, y: 330, w: 220, h: 180 }
-      - label: "Q40 KB"
-        box: { x: 468, y: 842, w: 175, h: 165 }
-      - label: "Q40 GB/s"
-        box: { x: 468, y: 495, w: 290, h: 210 }
+      - label: "Q22 Peak%"
+        box: { x: 470, y: 1080, w: 180, h: 160 }
 
-  memory-remote:
-    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png
+  q23:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
     maxWidth: 900
     highlights:
-      - label: "Q38 remote"
-        box: { x: 48, y: 95, w: 940, h: 810 }
+      - label: "Q23 GM↔L2"
+        box: { x: 310, y: 1070, w: 180, h: 160 }
 
-  hardware-detail:
-    source_file: src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png
+  q24:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
     maxWidth: 900
     highlights:
-      - label: "Q2 chip/arch"
-        box: { x: 40, y: 500, w: 880, h: 110 }
-      - label: "Q33 overlay"
-        box: { x: 0, y: 60, w: 1850, h: 1780 }
+      - label: "Q24 UB → L2"
+        box: { x: 670, y: 450, w: 380, h: 95 }
 
-  measure-mode:
-    source_file: src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/measure-mode.png
+  q25:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
     maxWidth: 900
     highlights:
-      - label: "Q41 caliper"
-        box: { x: 1168, y: 28, w: 128, h: 48 }
-      - label: "Q41 range"
-        box: { x: 205, y: 64, w: 690, h: 52 }
+      - label: "Q25 L2 → UB"
+        box: { x: 670, y: 545, w: 380, h: 80 }
 
-  block-scope-detail:
+  q26:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q26 L0C → L1"
+        box: { x: 1550, y: 960, w: 300, h: 340 }
+
+  q27:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q27 L0C → L2/GM"
+        box: { x: 1550, y: 960, w: 300, h: 340 }
+
+  q28:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q28 L0C → UB"
+        box: { x: 1550, y: 960, w: 300, h: 340 }
+
+  q29:
+    source_file: src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png
+    maxWidth: 900
+    highlights:
+      - label: "Q29 mean %"
+        box: { x: 1630, y: 270, w: 130, h: 720 }
+
+  q30:
     source_file: src/ui/StatsAside/CsvFieldListPanel/visual/block-switcher-view-all.png
     maxWidth: 900
     highlights:
-      - label: "Q30 block"
-        box: { x: 1468, y: 166, w: 142, h: 48 }
-      - label: "Q30 查看全部"
-        box: { x: 1602, y: 166, w: 122, h: 48 }
+      - label: "Q30 selected block"
+        box: { x: 1140, y: 370, w: 495, h: 70 }
+
+  q31:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 0, y: 0, w: 1850, h: 220 }
+    maxWidth: 900
+    highlights:
+      - label: "Q31 no Rated Freq"
+        box: { x: 8, y: 148, w: 880, h: 62 }
+
+  q32:
+    source_file: src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png
+    maxWidth: 900
+    highlights:
+      - label: "Q32 chip/arch"
+        box: { x: 36, y: 1180, w: 1750, h: 230 }
+
+  q33:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 0, y: 0, w: 1850, h: 220 }
+    maxWidth: 900
+    highlights:
+      - label: "Q33 更多"
+        box: { x: 910, y: 148, w: 170, h: 62 }
+
+  q34:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q34 bar"
+        box: { x: 28, y: 240, w: 340, h: 38 }
+
+  q35:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 630, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q35 one number"
+        box: { x: 20, y: 90, w: 540, h: 150 }
+
+  q36:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q36 TB/s"
+        box: { x: 20, y: 288, w: 850, h: 58 }
+
+  q37:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q37 tabs"
+        box: { x: 10, y: 195, w: 1000, h: 90 }
+
+  q38:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png
+    maxWidth: 900
+    highlights:
+      - label: "Q38 leftover _XN_IMM"
+        box: { x: 0, y: 165, w: 145, h: 55 }
+
+  q39:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q39 diagram (no right-click UI)"
+        box: { x: 160, y: 80, w: 1780, h: 1860 }
+
+  q40:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q40 GB/s"
+        box: { x: 310, y: 1070, w: 180, h: 160 }
+
+  q41:
+    source_file: src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/measure-mode.png
+    maxWidth: 900
+    highlights:
+      - label: "Q41 range"
+        box: { x: 175, y: 138, w: 650, h: 95 }

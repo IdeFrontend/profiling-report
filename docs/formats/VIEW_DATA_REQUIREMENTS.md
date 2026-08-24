@@ -103,7 +103,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Hide** until Q6 / data spec |
 | I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Peak 1.6 TB/s still I-Q6g guess |
 | Avg core util % | PipeUtilization / OpBasicInfo TBD | **Hide** until Q6 / data spec |
-| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** meta row: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. **核数 / NPU ARCH still unset.** Never invent |
+| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** code path: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. **v930 header is 进程 / 算子类型 / Blocks, not those labels.** Adapter leaves 核数 / `npuArchLabel` unset. Never invent |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
 
 If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card group (PIPE may still show). Meta row is independent of summary cards (may show freq alone).

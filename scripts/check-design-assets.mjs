@@ -334,6 +334,9 @@ function checkHqVisuals(maps) {
       fail(`hq visual missing output: ${relative(ROOT, outPath)} (run npm run render:hq-visuals)`);
     }
 
+    const n = (meta.highlights ?? []).length;
+    if (n !== 1) fail(`hq visual ${id}: exactly one highlight required (got ${n})`);
+
     const srcFile = meta.source_file;
     const srcId = meta.source;
     if (srcFile) {
@@ -346,6 +349,12 @@ function checkHqVisuals(maps) {
     } else {
       fail(`hq visual ${id}: missing source or source_file`);
     }
+  }
+
+  const listed = new Set(ids.map((id) => `${id}.png`));
+  for (const name of readdirSync(HQ_OUT_DIR)) {
+    if (!IMAGE_EXT.test(name)) continue;
+    if (!listed.has(name)) fail(`hq visual extra output: ${name} (not in manifest.yaml)`);
   }
 }
 

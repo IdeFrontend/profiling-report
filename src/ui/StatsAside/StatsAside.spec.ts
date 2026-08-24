@@ -202,7 +202,7 @@ describe('StatsAside', () => {
           summary: {
             coreCount: 8,
             currentFreq: 1280,
-            npuArchLabel: '212 teraOPs',
+            npuArchLabel: 'placeholder-arch',
           },
         }),
       },
@@ -210,7 +210,7 @@ describe('StatsAside', () => {
     const fullMeta = full.get('[data-testid="stats-aside-meta"]').text();
     expect(fullMeta).toMatch(/8/);
     expect(fullMeta).toMatch(/1280/);
-    expect(fullMeta).toMatch(/212 teraOPs/);
+    expect(fullMeta).toMatch(/placeholder-arch/);
   });
 
   it('PR-STATS-008: 更多 visible with capability or meta; emits open-hardware-details', async () => {

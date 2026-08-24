@@ -1,13 +1,13 @@
 # HQ open-questions visuals
 
-Annotated crops for [`HQ_OPEN_QUESTIONS.md`](../../HQ_OPEN_QUESTIONS.md). Each PNG is generated from component crops under `src/ui/**/visual/` (preferred) or v930 source frames, plus highlight callouts in [`manifest.yaml`](./manifest.yaml).
+One annotated PNG per question in [`HQ_OPEN_QUESTIONS.md`](../../HQ_OPEN_QUESTIONS.md). Each image has **exactly one** highlight box.
 
-Regenerate after changing source frames or highlight boxes:
+Generated from component crops under `src/ui/**/visual/` plus callouts in [`manifest.yaml`](./manifest.yaml).
 
 ```bash
 npm run render:hq-visuals
 ```
 
-This rewrites the PNGs, `dimensions.json`, and `<img width height>` tags in [`HQ_OPEN_QUESTIONS.md`](../../HQ_OPEN_QUESTIONS.md). GitHub markdown stretches bare `![]()` on wide crops; explicit HTML dimensions plus letterboxing (max 4:1) avoids distortion.
+This rewrites `q1.png`–`q41.png`, `dimensions.json`, and `<img width height>` tags in [`HQ_OPEN_QUESTIONS.md`](../../HQ_OPEN_QUESTIONS.md). GitHub markdown stretches bare `![]()` on wide crops; explicit HTML dimensions plus letterboxing (max 4:1) avoids distortion.
 
 Commit the PNGs; CI validates links via `npm run check:design` (does not re-render).

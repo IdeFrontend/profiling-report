@@ -5,7 +5,7 @@
  * and v930 source frames under docs/ui/source/.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -193,6 +193,9 @@ function resolveSourcePath(id, meta, sourceIds) {
 }
 
 async function renderOne(id, meta, sourceIds) {
+  const n = (meta.highlights ?? []).length;
+  if (n !== 1) throw new Error(`${id}: exactly one highlight required (got ${n})`);
+
   const sourcePath = resolveSourcePath(id, meta, sourceIds);
 
   const crop = meta.crop ?? {};
@@ -302,6 +305,14 @@ async function main() {
 
   writeFileSync(join(HQ_OUT_DIR, 'dimensions.json'), `${JSON.stringify(dimensions, null, 2)}\n`);
   await syncMdEmbeds(dimensions);
+
+  const keep = new Set(['manifest.yaml', 'README.md', 'dimensions.json', ...ids.map((id) => `${id}.png`)]);
+  for (const name of readdirSync(HQ_OUT_DIR)) {
+    if (keep.has(name)) continue;
+    if (!name.endsWith('.png')) continue;
+    unlinkSync(join(HQ_OUT_DIR, name));
+    console.log(`removed stale ${name}`);
+  }
 
   console.log(`render-hq-visuals: ok (${ids.length} image(s))`);
 }

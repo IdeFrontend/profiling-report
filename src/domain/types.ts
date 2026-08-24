@@ -74,7 +74,10 @@ export interface SummaryMetrics {
   ratedFreq?: number;
   /** Aside meta shell: core count (核数). Leave unset until HardwareInfo / Product mapping. */
   coreCount?: number;
-  /** Aside meta shell: NPU ARCH peak label (e.g. `212 teraOPs`). */
+  /**
+   * Aside meta: NPU ARCH text if Product maps a header slot.
+   * Adapter leaves unset. Not in the v930 header (进程 / 算子类型 / Blocks).
+   */
   npuArchLabel?: string;
   /** OpBasicInfo `Block Dim` pass-through (I-Q6e secondary). */
   blockDim?: string | number;

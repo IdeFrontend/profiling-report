@@ -69,7 +69,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | Element | Behavior |
 | --- | --- |
 | Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
-| Meta row | Segments **核数** / **aic频率** / **NPU ARCH** only when `SummaryMetrics.coreCount` / `currentFreq` / `npuArchLabel` are set. Hide entire meta row if all empty. Do **not** invent values. **aic频率 confirmed:** `OpBasicInfo.csv` `Current Freq`. **`Rated Freq` is not shown** on this shell. **核数** and **NPU ARCH** still unset (`HardwareInfo.jsonl` `ai_core_count` vs `Block Dim`; `chip_info` / `arch_info` are not the sketch `212 teraOPs`). |
+| Meta row | v930 shows **进程** / **算子类型** / **Blocks** / **更多**. Code can also render **核数** / **aic频率** / **NPU ARCH** when `coreCount` / `currentFreq` / `npuArchLabel` are set. Hide the row if all empty. Do **not** invent values. **aic频率 confirmed:** `OpBasicInfo.csv` `Current Freq`. **`Rated Freq` is not shown** on this shell. **核数** and **`npuArchLabel` still unset.** Overlay `chip_info` / `arch_info` are Device Info names, not a header NPU ARCH value. There is no `212 teraOPs` in the sketch, sample, or product dictionary. |
 | 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Opens `HardwareDetailsPanel` from **`HardwareInfo.jsonl`** when present (OpBasicInfo fallback if jsonl missing) and emits `open-hardware-details`. Hide the overlay when neither source has fields. |
 | 整体耗时 card | Large duration + **decorative** short cyan progress bar (I-Q6e, not a util %). Secondary: `blockDim` → iterations/core text; else `opName`; else omit. No standalone op-type card. |
 | 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — **hidden until Q6** |
@@ -344,7 +344,7 @@ Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../context/OPEN
 | --- | --- |
 | Report-stat cards 5, 8 field derivation | Empty in product tables |
 | I/O bandwidth peak / score (cards 6–7) | **Measured confirmed.** Peak / score still **I-Q6g** |
-| Stats header 核数 / NPU ARCH | Still open. **aic频率** = `Current Freq` (confirmed). **Rated Freq** not on shell |
+| Stats header 核数 / NPU ARCH | Still open. v930 header has neither label. **aic频率** = `Current Freq` (confirmed). **Rated Freq** not on shell. `npuArchLabel` unset; `212 teraOPs` was a test fixture, not sketch copy |
 | Roofline tab names vs pipe-ratio fields; missing axis formulas | Contradictory / incomplete |
 | Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |
 | Dual-Die remote memory right-click details | Explicit product question |
