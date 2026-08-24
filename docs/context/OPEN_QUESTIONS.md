@@ -30,6 +30,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 - Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
 - Overview chart producer — interim keeps charts hidden
 - Phase 2 contracts Q9–Q11, Q10
+- Multi-select Self time data source (Q23)
 
 ---
 
@@ -59,6 +60,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q13** | Color / category legend | **Resolved** | [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
 | **Q14** | Time units UX | **Resolved (partial)** + **Interim (auto time)** | Two-tier auto: chrome from zoom/density; tooltip/detail/Δt per-value — [I-Q14](INTERIM_DECISIONS.md). Cycles deferred. |
 | **Q15** | MSTT `.json` policy | **Resolved** | Chrome Trace `.json` → profiling-report. |
+| **Q23** | Multi-select Self time data source | **Open** | The sketch shows Self time = Wall Duration for every event (flat events, no parent/child nesting). Does the producer plan to emit a per-event `selfTime` field (e.g. in Chrome Trace `args.selfTime`)? Until answered: Self time column = `event.duration`. Specs when answered: [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md), [MultiSelectSummary](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md). |
 
 ---
 
@@ -92,7 +94,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q16–Q19 | 2026-07-31 | Engineering proposals filed | PACKAGING_SUGGESTIONS |
 | Interim set | 2026-07-31 | I-Q2, I-Q4, I-Q6a/b, I-Q5+, I-Q14, I-Q16–19 for MVP code | INTERIM_DECISIONS |
 | Q20 | 2026-08-12 | Shared agent rules in AGENTS.md (+ nested spec guides); Cursor-only review auto-post; skills in `.agents/skills/` | AGENTS.md, CLAUDE.md |
-| OPEN Q22 | 2026-08-25 | Measure mode does **not** recompute right panel / other views (local overlay only). Not HQ 22. | [INTERACTIONS](../ui/INTERACTIONS.md), [UX_SPEC](../ui/UX_SPEC.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
+| OPEN Q22 | 2026-08-25 | Measure mode and marquee multi-select do **not** recompute right panel / other views (local overlay / local panel only). Not HQ 22. | [INTERACTIONS](../ui/INTERACTIONS.md), [UX_SPEC](../ui/UX_SPEC.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md), [MultiSelectSummary](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md) |
 | HQ 37 | 2026-08-28 | CSV 详情 search filters non-matching rows and highlights the matching substring (flush chip). Same on compute and memory. | [CsvFieldListPanel](../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md), [UX_SPEC](../ui/UX_SPEC.md) |
 | HQ 18 | 2026-08-31 | PIPE in-bar absolute = mean non-`NA` `*_time(us)` per family/side (not cycles) | [INTERIM_DECISIONS](INTERIM_DECISIONS.md) I-Q6f, [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |
 | HQ 1, HQ 32 | 2026-09-01 | Duration secondary `{blockDim}/{coreCount}`; bar = `min(100%, Block Dim/core_count×100%)`; `coreCount` from HardwareInfo.jsonl by op type | [INTERIM_DECISIONS](INTERIM_DECISIONS.md) I-Q6e, [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |
