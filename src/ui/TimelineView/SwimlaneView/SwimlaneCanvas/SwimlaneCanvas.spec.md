@@ -16,7 +16,9 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Behavior
 
-**Canvas lifecycle.** The renderer is created eagerly, the canvas element is attached on mount (initializing the 2D context), and disposed on unmount. A `ResizeObserver` triggers `renderer.resize()` when the container size changes, accounting for `devicePixelRatio`. After a buffer resize (which clears pixels), paint runs in the same turn — not deferred to the next animation frame — so gutter/aside drag does not flash a blank swimlane.
+**Canvas lifecycle.** The renderer is created eagerly, the canvas element is attached on mount (initializing the 2D context), and disposed on unmount. A `ResizeObserver` triggers `renderer.resize()` when the container size changes, accounting for `devicePixelRatio`. Initial sizing reads the swimlane wrap width (not the HTML canvas default 300px). After a buffer resize (which clears pixels), paint runs in the same turn — not deferred to the next animation frame — so gutter/aside drag does not flash a blank swimlane.
+
+**Track width.** `cursor` `xRatio` and `time` derive from the same track width as hit testing and resize (wrap `clientWidth` / bounding rect).
 
 **Scroll model.** The container uses `overflow: hidden` with a synthetic scroll mechanism: a sizer div sets the total content height, and `localScrollY` tracks the actual scroll offset. The drawing surface is sized to the **visible viewport** only; lanes are scrolled via `scrollY` in the renderer.
 
@@ -51,6 +53,8 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 21. **PR-CANVAS-021** — Non-empty `measureRange` paints **2px** blue `measure-edge-exact` marks on all visible event edges that exactly equal a range bound (above gray borders); marks reposition whenever the view window changes (incl. Δt focus animation).
 22. **PR-CANVAS-022** — Ctrl/Cmd+wheel near a magnetized event edge emits `zoom` with that edge’s time (not free `timeAtX` at the pointer).
 23. **PR-CANVAS-023** — Ctrl/Cmd+wheel on a measure border emits `zoom` with that border’s stuck edge time.
+24. **PR-CANVAS-024** — Cursor `xRatio` and `time` share one track width.
+25. **PR-CANVAS-025** — Canvas sizes to wrap width, not HTML default 300px.
 
 ## Edge Cases
 
@@ -84,6 +88,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 
 ## Changelog
 - **2026-08-25** — Measure-mode event click also selects the event; empty-space click also clears the selection (PR-CANVAS-013/014/015/016).
+- **2026-08-24** — Unified track width for cursor/time; size canvas from wrap; PR-CANVAS-024/025.
 - **2026-08-21** — Ctrl+wheel zooms on magnet / measure-border stuck time; border wheel forward; PR-CANVAS-022/023.
 - **2026-08-23** — Committed exact-match edge marks are 2px (`measure-edge-exact`); live snap stem stays 1px.
 - **2026-08-21** — Event-edge magnet (~10px) + committed exact-match blue marks; PR-CANVAS-018–021.

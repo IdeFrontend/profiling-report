@@ -284,7 +284,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.curveProg = linkCurveProgram(gl);
     this.unitQuad = createUnitQuad(gl);
     this.initCurveBuffers(gl);
-    this.resize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
     return true;
   }
 
