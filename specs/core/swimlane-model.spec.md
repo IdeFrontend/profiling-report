@@ -48,6 +48,8 @@ interface SwimEvent    {
 
 **Ordering.** Processes and threads ordered by first event start time. Within each thread, events sorted by `startTime` ascending, longest `duration` first on ties. Processes/threads with no events are excluded.
 
+**`minTime` vs axis origin.** `minTime` is the earliest painted event timestamp. The timeline viewport and axis rulers anchor at producer **t = 0** (`bounds.minTime = 0`, `zoomToFitWindow` → `[0, maxTime]`), so when `minTime > 0` events appear inset and a leading gap is expected. `minTime` still drives thread utilization spans and WebGL `timeBase` (float32 precision); it is not the left edge of the axis.
+
 **Error on empty.** If the trace contains no complete X events, `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.
 
 **Nested helpers.** Layout / selection walk `children` recursively (`filterCollapsedTree`, `collectLeafEvents`, visible folder/leaf rows).

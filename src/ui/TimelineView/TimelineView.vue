@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { buildAxisRulerTicks } from '../../domain/axisRuler';
-import {
-  formatCursorTime,
-  formatTime,
-  resolveCursorTimeUnit,
-} from '../../domain/formatTime';
+import { formatTime } from '../../domain/formatTime';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -108,15 +104,11 @@ function onGutterWidth(w: number) {
   emit('update:gutterWidth', w);
 }
 
-const cursorTimeUnit = computed(() =>
-  resolveCursorTimeUnit(props.bounds.maxTime - props.bounds.minTime, props.unit),
-);
-
 const viewportRuler = computed(() =>
   buildAxisRulerTicks({
     rangeStart: props.view.startTime,
     rangeEnd: props.view.endTime,
-    origin: props.bounds.minTime,
+    origin: 0,
     timeUnit: props.unit,
     widthPx: timeAxisWidth.value,
   }),
@@ -221,7 +213,7 @@ const cursorLabelAbove = computed(() => {
   const cursor = props.cursor;
   const axisW = timeAxisWidth.value;
   if (!axis || !layout || !cursor || axisW <= 0) return false;
-  const cursorLabel = formatCursorTime(cursor.time - props.bounds.minTime, cursorTimeUnit.value);
+  const cursorLabel = formatTime(cursor.time, props.unit);
   const cursorLabelW = estimateAxisLabelWidth(cursorLabel, CURSOR_LABEL_MIN_WIDTH_PX);
   const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
   const dtPlacement =
@@ -533,7 +525,7 @@ defineExpose({
         <CursorTimestamp
           v-if="cursor"
           :x-ratio="cursor.xRatio"
-          :label="formatCursorTime(cursor.time - bounds.minTime, cursorTimeUnit)"
+          :label="formatTime(cursor.time, unit)"
           :label-above="cursorLabelAbove"
         />
         <template v-if="measureAxis">

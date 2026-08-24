@@ -160,8 +160,8 @@ const bounds = computed(() => {
   const m = swim.value;
   if (!m) return { minTime: 0, maxTime: 1 };
   return {
-    minTime: m.minTime,
-    maxTime: m.maxTime > m.minTime ? m.maxTime : m.minTime + 1,
+    minTime: 0,
+    maxTime: m.maxTime > 0 ? m.maxTime : 1,
   };
 });
 

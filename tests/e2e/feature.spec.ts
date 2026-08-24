@@ -1,5 +1,85 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
+
+/** Viewport starts at producer t=0, so events may sit anywhere along the width. */
+const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.35, 0.5, 0.65, 0.8, 0.9, 0.95, 0.98];
+
+const FFN_DENSE_X_FRACTIONS = [0.99, 0.985, 0.98, 0.975, 0.97, 0.95];
+
+type CanvasBox = { x: number; y: number; width: number; height: number };
+
+function xOffsets(box: CanvasBox, fractions: number[]): number[] {
+  return fractions.map((f) => Math.min(Math.round(f * box.width), box.width - 4));
+}
+
+async function waitForDepCurves(
+  page: Page,
+  gl: ReturnType<Page['getByTestId']>,
+  timeoutMs: number,
+): Promise<boolean> {
+  const before = Number((await gl.getAttribute('data-dep-curves')) ?? 0);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const now = Number((await gl.getAttribute('data-dep-curves')) ?? 0);
+    if (now > 0 && now !== before) return true;
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
+  }
+  return false;
+}
+
+async function probeSwimlane(
+  page: Page,
+  box: CanvasBox,
+  opts: {
+    action: 'move' | 'click';
+    expectTestId: 'event-tooltip' | 'detail-panel';
+    maxLanes?: number;
+    xFractions?: number[];
+    hitTimeoutMs?: number;
+    predicate?: () => Promise<boolean>;
+  },
+): Promise<boolean> {
+  const maxLanes = opts.maxLanes ?? 12;
+  const fractions = opts.xFractions ?? EVENT_X_FRACTIONS;
+  const hitTimeoutMs = opts.hitTimeoutMs ?? 400;
+  for (let lane = 0; lane < maxLanes; lane++) {
+    const y = box.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+    for (const xOff of xOffsets(box, fractions)) {
+      const x = box.x + xOff;
+      if (opts.action === 'move') await page.mouse.move(x, y);
+      else await page.mouse.click(x, y);
+      const hit = await page
+        .getByTestId(opts.expectTestId)
+        .waitFor({ state: 'visible', timeout: hitTimeoutMs })
+        .then(() => true)
+        .catch(() => false);
+      if (!hit) continue;
+      if (opts.predicate && !(await opts.predicate())) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Click until WebGL dependency curves paint (avoids sticky detail-panel false hits). */
+async function probeSwimlaneDepCurves(
+  page: Page,
+  gl: ReturnType<Page['getByTestId']>,
+  box: CanvasBox,
+  opts?: { maxLanes?: number; xFractions?: number[]; paintTimeoutMs?: number },
+): Promise<boolean> {
+  const maxLanes = opts?.maxLanes ?? 60;
+  const fractions = opts?.xFractions ?? FFN_DENSE_X_FRACTIONS;
+  const paintTimeoutMs = opts?.paintTimeoutMs ?? 500;
+  for (let lane = 0; lane < maxLanes; lane++) {
+    const y = box.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+    for (const xOff of xOffsets(box, fractions)) {
+      await page.mouse.click(box.x + xOff, y);
+      if (await waitForDepCurves(page, gl, paintTimeoutMs)) return true;
+    }
+  }
+  return false;
+}
 
 /**
  * Feature e2e — playground loads data/out.rep into ProfilingReport.
@@ -22,8 +102,9 @@ test.describe('PR-E2E feature paths', () => {
     await expect(canvas).toBeVisible({ timeout: 15_000 });
     const box = await canvas.boundingBox();
     expect(box).toBeTruthy();
-    // First lane mid-row: LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT/2
-    await page.mouse.move(box!.x + 8, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
+    expect(
+      await probeSwimlane(page, box!, { action: 'move', expectTestId: 'event-tooltip' }),
+    ).toBe(true);
     await expect(page.getByTestId('event-tooltip')).toBeVisible();
   });
 
@@ -33,7 +114,9 @@ test.describe('PR-E2E feature paths', () => {
     await expect(canvas).toBeVisible({ timeout: 15_000 });
     const box = await canvas.boundingBox();
     expect(box).toBeTruthy();
-    await page.mouse.click(box!.x + 8, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
+    expect(
+      await probeSwimlane(page, box!, { action: 'click', expectTestId: 'detail-panel' }),
+    ).toBe(true);
     await expect(page.getByTestId('detail-panel')).toBeVisible();
   });
 
@@ -68,10 +151,11 @@ test.describe('PR-E2E feature paths', () => {
     await page.mouse.move(box!.x + 40, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
     await expect(page.getByTestId('cursor-line')).toBeVisible();
     await expect(page.getByTestId('cursor-label')).toBeVisible();
-    await expect(page.getByTestId('cursor-label')).toHaveText(/^\d{2}:\d{2}\.\d{3}$/);
+    await expect(page.getByTestId('cursor-label')).toHaveText(/^[\d.]+\s+(ms|µs|ns)$/);
   });
 
   test('PR-E2E-007: Chromium WebGL paints ffn_dense dependency curves', async ({ page }) => {
+    test.setTimeout(120_000);
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
@@ -87,29 +171,8 @@ test.describe('PR-E2E feature paths', () => {
     const box = await overlay.boundingBox();
     expect(box).toBeTruthy();
 
-    const panel = page.getByTestId('detail-panel');
-    let painted = false;
-    for (let lane = 0; lane < 12 && !painted; lane++) {
-      const y = box!.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
-      for (const xOff of [24, 80, 160, 280]) {
-        await page.mouse.click(box!.x + xOff, y);
-        const selected = await panel
-          .waitFor({ state: 'visible', timeout: 400 })
-          .then(() => true)
-          .catch(() => false);
-        if (!selected) continue;
-        const deadline = Date.now() + 500;
-        while (Date.now() < deadline) {
-          if (Number((await gl.getAttribute('data-dep-curves')) ?? 0) > 0) {
-            painted = true;
-            break;
-          }
-          await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
-        }
-        if (painted) break;
-      }
-    }
-    expect(painted).toBe(true);
+    // ffn_dense timestamps sit at ~100% of maxTime; poll dep-curves directly (not detail-panel).
+    expect(await probeSwimlaneDepCurves(page, gl, box!)).toBe(true);
 
     const gen = await gl.getAttribute('data-dep-graph-gen');
     expect(gen).toBeTruthy();
@@ -152,22 +215,16 @@ test.describe('PR-E2E feature paths', () => {
     expect(box).toBeTruthy();
 
     // Select MOV_OUT: the one task with two predecessors and two successors.
-    const panel = page.getByTestId('detail-panel');
     const inCount = page.getByTestId('detail-relevant-incoming-count');
-    let found = false;
-    for (let lane = 0; lane < 8 && !found; lane++) {
-      const y = box!.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
-      for (const xOff of [24, 80, 160, 240, 320, 420, 520]) {
-        await page.mouse.click(box!.x + xOff, y);
-        if (!(await panel.isVisible())) continue;
-        if ((await inCount.count()) === 0) continue;
-        if (Number(await inCount.innerText()) >= 2) {
-          found = true;
-          break;
-        }
-      }
-    }
-    expect(found).toBe(true);
+    expect(
+      await probeSwimlane(page, box!, {
+        action: 'click',
+        expectTestId: 'detail-panel',
+        maxLanes: 8,
+        predicate: async () =>
+          (await inCount.count()) > 0 && Number(await inCount.innerText()) >= 2,
+      }),
+    ).toBe(true);
 
     // Every chip must span its whole track. Comparing chip-to-curve distance is not
     // enough: when all the names happen to be the same length the gap is zero either

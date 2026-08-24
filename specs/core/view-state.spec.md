@@ -31,11 +31,13 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Pan.** `panBy` shifts the viewport by delta time units. Positive delta moves later times into view. With bounds, the window is clamped to stay within bounds edges.
 
+**Zoom-to-fit.** `zoomToFitWindow` spans producer **t = 0** through `model.maxTime` (not `[minTime, maxTime]`). When the first event starts well after t = 0, zoom-to-fit shows a leading empty gap and events appear inset at their absolute producer timestamps — intentional, so axis/cursor/tooltip stay consistent.
+
 **Bounds protection.** The caller adds a +1 guard when `maxTime === minTime` to prevent division by zero during zoom calculations.
 
 ## Acceptance Criteria
 
-1. **PR-VIEW-001** — zoomToFitWindow covers model min/max.
+1. **PR-VIEW-001** — zoomToFitWindow covers producer origin 0 through model maxTime.
 2. **PR-VIEW-002** — zoomAt shrinks around anchor.
 3. **PR-VIEW-003** — panBy shifts within bounds.
 4. **PR-VIEW-004** — createViewState initializes measure off.
@@ -61,7 +63,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
-- **2026-08-21** — Shared zoomPercent ↔ span helpers; slider 100 = MIN_WINDOW (PR-VIEW-008…010).
+- **2026-08-24** — zoomToFit starts at producer t=0 (events align with absolute axis/tooltip).
 - **2026-08-21** — Document measureFocusWindow; PR-VIEW-006/007.
 - **2026-08-07** — Note M2 measure as planned; no AC until coded.
 - **2026-08-05** — Initial spec. Core behaviors established.
