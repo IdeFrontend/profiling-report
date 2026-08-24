@@ -334,14 +334,18 @@ function checkHqVisuals(maps) {
       fail(`hq visual missing output: ${relative(ROOT, outPath)} (run npm run render:hq-visuals)`);
     }
 
+    const srcFile = meta.source_file;
     const srcId = meta.source;
-    if (!srcId) {
-      fail(`hq visual ${id}: missing source id`);
-      continue;
+    if (srcFile) {
+      const abs = resolve(ROOT, srcFile);
+      if (!existsSync(abs)) fail(`hq visual ${id}: source_file missing ${srcFile}`);
+    } else if (srcId) {
+      const abs = resolveSourceId(srcId, maps);
+      if (!abs) fail(`hq visual ${id}: unknown source id "${srcId}"`);
+      else if (!existsSync(abs)) fail(`hq visual ${id}: source file missing for ${srcId}`);
+    } else {
+      fail(`hq visual ${id}: missing source or source_file`);
     }
-    const abs = resolveSourceId(srcId, maps);
-    if (!abs) fail(`hq visual ${id}: unknown source id "${srcId}"`);
-    else if (!existsSync(abs)) fail(`hq visual ${id}: source file missing for ${srcId}`);
   }
 }
 

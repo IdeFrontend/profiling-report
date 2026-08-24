@@ -180,20 +180,39 @@ function buildHighlightSvg(width, height, highlights, scale) {
   return parts.join('');
 }
 
-async function renderOne(id, meta, sourceIds) {
+function resolveSourcePath(id, meta, sourceIds) {
+  if (meta.source_file) {
+    const p = resolve(ROOT, meta.source_file);
+    if (!existsSync(p)) throw new Error(`${id}: missing source_file ${meta.source_file}`);
+    return p;
+  }
   const sourcePath = sourceIds.get(meta.source);
   if (!sourcePath) throw new Error(`${id}: unknown source id "${meta.source}"`);
   if (!existsSync(sourcePath)) throw new Error(`${id}: missing source file ${sourcePath}`);
+  return sourcePath;
+}
+
+async function renderOne(id, meta, sourceIds) {
+  const sourcePath = resolveSourcePath(id, meta, sourceIds);
 
   const crop = meta.crop ?? {};
-  const { x = 0, y = 0, w = 0, h = 0 } = crop;
-  if (w <= 0 || h <= 0) throw new Error(`${id}: invalid crop`);
+  let { x = 0, y = 0, w = 0, h = 0 } = crop;
 
-  let pipeline = sharp(sourcePath).extract({ left: x, top: y, width: w, height: h });
+  let pipeline = sharp(sourcePath);
+  if (w > 0 && h > 0) {
+    pipeline = pipeline.extract({ left: x, top: y, width: w, height: h });
+  } else {
+    const meta0 = await sharp(sourcePath).metadata();
+    w = meta0.width ?? 0;
+    h = meta0.height ?? 0;
+    if (w <= 0 || h <= 0) throw new Error(`${id}: could not read source dimensions`);
+  }
 
   // Use manifest crop dims — sharp().metadata() after extract still reports the full source frame.
   const cropW = w;
   const cropH = h;
+
+  let resized = pipeline;
 
   const maxWidth = meta.maxWidth ?? 900;
   const scale = cropW > maxWidth ? maxWidth / cropW : 1;
@@ -201,10 +220,10 @@ async function renderOne(id, meta, sourceIds) {
   const outH = Math.round(cropH * scale);
 
   if (scale !== 1) {
-    pipeline = pipeline.resize(outW, outH);
+    resized = resized.resize(outW, outH);
   }
 
-  const baseBuf = await pipeline.png().toBuffer();
+  const baseBuf = await resized.png().toBuffer();
   const svg = buildHighlightSvg(outW, outH, meta.highlights, scale);
   const outPath = join(HQ_OUT_DIR, `${id}.png`);
 

@@ -37,7 +37,7 @@ Sketch shows: **核数** (core count) · **aic频率** (AIC frequency) · **NPU 
 
 ### 整体耗时 (Total duration)
 
-<img src="visual/hq/duration-card.png" alt="Duration card — Q4, Q34" width="900" height="225">
+<img src="visual/hq/duration-card.png" alt="Duration card — Q4, Q34" width="590" height="260">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (duration card)
 
@@ -48,7 +48,7 @@ Sketch shows: `4.06 ms`, a bar, and `8 次迭代 / 核` (8 iterations / core).
 
 ### 算力情况 (Compute power)
 
-<img src="visual/hq/compute-card.png" alt="Compute TFLOPS card — Q5–7, Q35" width="900" height="225">
+<img src="visual/hq/compute-card.png" alt="Compute TFLOPS card — Q5–7, Q35" width="640" height="260">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (TFLOPS card)
 
@@ -87,7 +87,7 @@ On real data, `0.08 / 1.6` is about **5%**, not 81. So the score formula is uncl
 
 ### 平均核利用率 (Average core utilization)
 
-<img src="visual/hq/util-card.png" alt="Core utilization card — Q12–13" width="900" height="225">
+<img src="visual/hq/util-card.png" alt="Core utilization card — Q12–13" width="560" height="260">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (utilization card)
 
@@ -224,7 +224,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### 整体耗时 (Total duration)
 
-<img src="visual/hq/duration-card.png" alt="Duration card — Q4, Q34" width="900" height="225">
+<img src="visual/hq/duration-card.png" alt="Duration card — Q4, Q34" width="590" height="260">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (duration card + bar)
 
@@ -233,7 +233,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### 算力情况 (Compute power)
 
-<img src="visual/hq/compute-card.png" alt="Compute TFLOPS card — Q5–7, Q35" width="900" height="225">
+<img src="visual/hq/compute-card.png" alt="Compute TFLOPS card — Q5–7, Q35" width="640" height="260">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (TFLOPS card)
 
