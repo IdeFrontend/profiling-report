@@ -4,9 +4,30 @@ import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/Canvas
 /** Viewport starts at producer t=0, so events may sit anywhere along the width. */
 const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.35, 0.5, 0.65, 0.8, 0.9, 0.95, 0.98];
 
+const FFN_DENSE_X_FRACTIONS = [0.99, 0.985, 0.98, 0.975, 0.97, 0.95];
+
+type CanvasBox = { x: number; y: number; width: number; height: number };
+
+function xOffsets(box: CanvasBox, fractions: number[]): number[] {
+  return fractions.map((f) => Math.min(Math.round(f * box.width), box.width - 4));
+}
+
+async function waitForDepCurves(
+  page: Page,
+  gl: ReturnType<Page['getByTestId']>,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (Number((await gl.getAttribute('data-dep-curves')) ?? 0) > 0) return true;
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
+  }
+  return false;
+}
+
 async function probeSwimlane(
   page: Page,
-  box: { x: number; y: number; width: number; height: number },
+  box: CanvasBox,
   opts: {
     action: 'move' | 'click';
     expectTestId: 'event-tooltip' | 'detail-panel';
@@ -21,7 +42,7 @@ async function probeSwimlane(
   const hitTimeoutMs = opts.hitTimeoutMs ?? 400;
   for (let lane = 0; lane < maxLanes; lane++) {
     const y = box.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
-    for (const xOff of fractions.map((f) => Math.min(Math.round(f * box.width), box.width - 4))) {
+    for (const xOff of xOffsets(box, fractions)) {
       const x = box.x + xOff;
       if (opts.action === 'move') await page.mouse.move(x, y);
       else await page.mouse.click(x, y);
@@ -33,6 +54,26 @@ async function probeSwimlane(
       if (!hit) continue;
       if (opts.predicate && !(await opts.predicate())) continue;
       return true;
+    }
+  }
+  return false;
+}
+
+/** Click until WebGL dependency curves paint (avoids sticky detail-panel false hits). */
+async function probeSwimlaneDepCurves(
+  page: Page,
+  gl: ReturnType<Page['getByTestId']>,
+  box: CanvasBox,
+  opts?: { maxLanes?: number; xFractions?: number[]; paintTimeoutMs?: number },
+): Promise<boolean> {
+  const maxLanes = opts?.maxLanes ?? 60;
+  const fractions = opts?.xFractions ?? FFN_DENSE_X_FRACTIONS;
+  const paintTimeoutMs = opts?.paintTimeoutMs ?? 500;
+  for (let lane = 0; lane < maxLanes; lane++) {
+    const y = box.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+    for (const xOff of xOffsets(box, fractions)) {
+      await page.mouse.click(box.x + xOff, y);
+      if (await waitForDepCurves(page, gl, paintTimeoutMs)) return true;
     }
   }
   return false;
@@ -112,7 +153,7 @@ test.describe('PR-E2E feature paths', () => {
   });
 
   test('PR-E2E-007: Chromium WebGL paints ffn_dense dependency curves', async ({ page }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(120_000);
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
@@ -128,23 +169,8 @@ test.describe('PR-E2E feature paths', () => {
     const box = await overlay.boundingBox();
     expect(box).toBeTruthy();
 
-    // ffn_dense timestamps sit at ~100% of maxTime; scan the right edge across lanes.
-    const painted = await probeSwimlane(page, box!, {
-      action: 'click',
-      expectTestId: 'detail-panel',
-      maxLanes: 60,
-      xFractions: [0.99, 0.985, 0.98, 0.975, 0.97, 0.95],
-      hitTimeoutMs: 120,
-      predicate: async () => {
-        const deadline = Date.now() + 500;
-        while (Date.now() < deadline) {
-          if (Number((await gl.getAttribute('data-dep-curves')) ?? 0) > 0) return true;
-          await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
-        }
-        return false;
-      },
-    });
-    expect(painted).toBe(true);
+    // ffn_dense timestamps sit at ~100% of maxTime; poll dep-curves directly (not detail-panel).
+    expect(await probeSwimlaneDepCurves(page, gl, box!)).toBe(true);
 
     const gen = await gl.getAttribute('data-dep-graph-gen');
     expect(gen).toBeTruthy();

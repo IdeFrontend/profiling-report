@@ -42,6 +42,7 @@ export interface SwimProcess {
 
 export interface SwimlaneModel {
   processes: SwimProcess[];
+  /** Earliest event `startTime` (ns). Used for utilization/WebGL precision — not the timeline axis origin (producer t=0). */
   minTime: number;
   maxTime: number;
   /**
