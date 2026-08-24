@@ -26,6 +26,7 @@ const HQ_OUT_DIR = resolve(DOCS_CONTEXT, 'visual/hq');
 
 const IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i;
 const MD_LINK_RE = /!\[[^\]]*\]\(([^)]+)\)|\[[^\]]*\]\(([^)]+\.(?:png|jpe?g|webp|gif)(?:#[^)]*)?)\)/gi;
+const HTML_IMG_RE = /<img[^>]+src=["']([^"']+\.(?:png|jpe?g|webp|gif))["']/gi;
 
 const errors = [];
 const warnings = [];
@@ -270,6 +271,17 @@ function stripLinkTarget(raw) {
   return t.replace(/^<|>$/g, '');
 }
 
+function resolveImageLink(base, raw) {
+  const target = stripLinkTarget(raw);
+  if (!target || target.startsWith('http://') || target.startsWith('https://') || target.startsWith('data:')) {
+    return null;
+  }
+  if (!IMAGE_EXT.test(target)) return null;
+  return target.startsWith('/')
+    ? resolve(ROOT, target.replace(/^\//, ''))
+    : resolve(base, target);
+}
+
 function checkMarkdownLinks() {
   const mdFiles = [
     ...findFiles(UI_DIR, (n) => n.endsWith('.md')),
@@ -286,14 +298,19 @@ function checkMarkdownLinks() {
     while ((m = MD_LINK_RE.exec(content))) {
       const raw = m[1] || m[2];
       if (!raw) continue;
-      const target = stripLinkTarget(raw);
-      if (!target || target.startsWith('http://') || target.startsWith('https://') || target.startsWith('data:')) continue;
-      if (!IMAGE_EXT.test(target)) continue;
-      const abs = target.startsWith('/')
-        ? resolve(ROOT, target.replace(/^\//, ''))
-        : resolve(base, target);
-      if (!existsSync(abs)) {
-        fail(`broken image link in ${relative(ROOT, file)}: ${target}`);
+      const abs = resolveImageLink(base, raw);
+      if (abs && !existsSync(abs)) {
+        fail(`broken image link in ${relative(ROOT, file)}: ${stripLinkTarget(raw)}`);
+      }
+    }
+
+    HTML_IMG_RE.lastIndex = 0;
+    while ((m = HTML_IMG_RE.exec(content))) {
+      const raw = m[1];
+      if (!raw) continue;
+      const abs = resolveImageLink(base, raw);
+      if (abs && !existsSync(abs)) {
+        fail(`broken image link in ${relative(ROOT, file)}: ${stripLinkTarget(raw)}`);
       }
     }
   }

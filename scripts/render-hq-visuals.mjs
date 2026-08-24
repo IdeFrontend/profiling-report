@@ -5,7 +5,7 @@
  * and v930 source frames under docs/ui/source/.
  */
 
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -14,7 +14,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const SOURCE_MANIFEST = resolve(ROOT, 'docs/ui/source/manifest.yaml');
 const HQ_MANIFEST = resolve(ROOT, 'docs/context/visual/hq/manifest.yaml');
-const HQ_OUT_DIR = resolve(ROOT, 'docs/context/visual/hq');
+const DOCS_CONTEXT = resolve(ROOT, 'docs/context');
+const HQ_MD = resolve(DOCS_CONTEXT, 'HQ_OPEN_QUESTIONS.md');
+const HQ_OUT_DIR = resolve(DOCS_CONTEXT, 'visual/hq');
 const SOURCE_DIR = resolve(ROOT, 'docs/ui/source');
 
 const STROKE = '#2d70e3';
@@ -206,12 +208,52 @@ async function renderOne(id, meta, sourceIds) {
   const svg = buildHighlightSvg(outW, outH, meta.highlights, scale);
   const outPath = join(HQ_OUT_DIR, `${id}.png`);
 
-  await sharp(baseBuf)
+  let composed = await sharp(baseBuf)
     .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
     .png()
-    .toFile(outPath);
+    .toBuffer();
 
-  return outPath;
+  // GitHub markdown stretches very wide short images; letterbox to max 4:1 aspect.
+  const maxAspect = meta.maxAspect ?? 4;
+  const minH = Math.ceil(outW / maxAspect);
+  let finalH = outH;
+  if (outH < minH) {
+    composed = await sharp(composed)
+      .extend({ bottom: minH - outH, background: '#262626' })
+      .png()
+      .toBuffer();
+    finalH = minH;
+  }
+
+  await sharp(composed).png().toFile(outPath);
+
+  return { outPath, outW, outH: finalH };
+}
+
+async function syncMdEmbeds(dimensions) {
+  if (!existsSync(HQ_MD)) return;
+  const embedRe = /!\[([^\]]*)\]\(visual\/hq\/([a-z0-9-]+)\.png\)/g;
+  const htmlRe = /<img src="visual\/hq\/([a-z0-9-]+)\.png"[^>]*>/g;
+  let md = readFileSync(HQ_MD, 'utf-8');
+  let changed = false;
+
+  md = md.replace(embedRe, (match, alt, id) => {
+    const d = dimensions[id];
+    if (!d) return match;
+    changed = true;
+    return `<img src="visual/hq/${id}.png" alt="${alt}" width="${d.w}" height="${d.h}">`;
+  });
+
+  md = md.replace(htmlRe, (tag, id) => {
+    const d = dimensions[id];
+    if (!d) return tag;
+    const altMatch = tag.match(/alt="([^"]*)"/);
+    const alt = altMatch?.[1] ?? id;
+    changed = true;
+    return `<img src="visual/hq/${id}.png" alt="${alt}" width="${d.w}" height="${d.h}">`;
+  });
+
+  if (changed) writeFileSync(HQ_MD, md);
 }
 
 async function main() {
@@ -231,10 +273,16 @@ async function main() {
     process.exit(1);
   }
 
+  const dimensions = {};
+
   for (const id of ids) {
-    const out = await renderOne(id, images[id], sourceIds);
-    console.log(`rendered ${id} → ${out}`);
+    const { outPath, outW, outH } = await renderOne(id, images[id], sourceIds);
+    dimensions[id] = { w: outW, h: outH };
+    console.log(`rendered ${id} → ${outPath} (${outW}×${outH})`);
   }
+
+  writeFileSync(join(HQ_OUT_DIR, 'dimensions.json'), `${JSON.stringify(dimensions, null, 2)}\n`);
+  await syncMdEmbeds(dimensions);
 
   console.log(`render-hq-visuals: ok (${ids.length} image(s))`);
 }

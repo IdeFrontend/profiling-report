@@ -20,7 +20,7 @@ Resolved right-panel mappings (aic频率, Task Duration, measured I/O BW, ICache
 
 ### Header
 
-![Header meta row — Q1–3, Q31–33](visual/hq/header-meta.png)
+<img src="visual/hq/header-meta.png" alt="Header meta row — Q1–3, Q31–33" width="900" height="225">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (meta row) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png) (Q33 更多)
 
@@ -37,7 +37,7 @@ Sketch shows: **核数** (core count) · **aic频率** (AIC frequency) · **NPU 
 
 ### 整体耗时 (Total duration)
 
-![Duration card — Q4, Q34](visual/hq/duration-card.png)
+<img src="visual/hq/duration-card.png" alt="Duration card — Q4, Q34" width="900" height="225">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (duration card)
 
@@ -48,7 +48,7 @@ Sketch shows: `4.06 ms`, a bar, and `8 次迭代 / 核` (8 iterations / core).
 
 ### 算力情况 (Compute power)
 
-![Compute TFLOPS card — Q5–7, Q35](visual/hq/compute-card.png)
+<img src="visual/hq/compute-card.png" alt="Compute TFLOPS card — Q5–7, Q35" width="900" height="225">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (TFLOPS card)
 
@@ -65,7 +65,7 @@ This card is hidden until we have answers. Sketch shows: `90%` and `172 / 320 TF
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
 
-![I/O bandwidth cards — Q8–11, Q36](visual/hq/bandwidth-cards.png)
+<img src="visual/hq/bandwidth-cards.png" alt="I/O bandwidth cards — Q8–11, Q36" width="900" height="225">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (I/O BW cards)
 
@@ -87,7 +87,7 @@ On real data, `0.08 / 1.6` is about **5%**, not 81. So the score formula is uncl
 
 ### 平均核利用率 (Average core utilization)
 
-![Core utilization card — Q12–13](visual/hq/util-card.png)
+<img src="visual/hq/util-card.png" alt="Core utilization card — Q12–13" width="900" height="225">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (utilization card)
 
@@ -101,7 +101,7 @@ This card is hidden until we have answers. Sketch shows: `82%` and **启用 24/2
 
 ### Roofline 瓶颈分析 (Roofline bottleneck analysis)
 
-![Roofline chart — Q14–19, Q37](visual/hq/roofline.png)
+<img src="visual/hq/roofline.png" alt="Roofline chart — Q14–19, Q37" width="900" height="655">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`roofline.png`](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png) (chart + tabs Q37)
 
@@ -125,9 +125,9 @@ This card is hidden until we have answers. Sketch shows: `82%` and **启用 24/2
 
 ### PIPE 占用率 / 计算负载分析 (Pipe occupancy / compute load)
 
-![PIPE occupancy bars — Q20, Q29](visual/hq/pipe-bars.png)
+<img src="visual/hq/pipe-bars.png" alt="PIPE occupancy bars — Q20, Q29" width="900" height="524">
 
-![Compute detail tabs — Q21](visual/hq/pipe-detail.png)
+<img src="visual/hq/pipe-detail.png" alt="Compute detail tabs — Q21" width="900" height="315">
 
 **Design:** [`v930/compute-load`](../ui/source/v930/compute-load.jpeg) · [`pipe-bars.png`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png) (Q20) · [`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg) · [`compute-detail-tabs.png`](../../src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png) (Q21 详情)
 
@@ -141,9 +141,9 @@ These bars are already on screen. Please confirm.
 
 ### 内存负载分析 (Memory load analysis)
 
-![Memory topology — Q22–28, Q40](visual/hq/memory-topology.png)
+<img src="visual/hq/memory-topology.png" alt="Memory topology — Q22–28, Q40" width="900" height="900">
 
-![Remote / Dual-Die arrows — Q38](visual/hq/memory-remote.png)
+<img src="visual/hq/memory-remote.png" alt="Remote / Dual-Die arrows — Q38" width="900" height="944">
 
 **Design:** [`v930/report-stats-scrolled`](../ui/source/v930/report-stats-scrolled.jpeg) · [`memory-topology.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) (Q22–28, Q38, Q40) · [`buffer-links.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png) (Q38 remote arrows) · [`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg) · [`block-switcher-view-all.png`](../../src/ui/StatsAside/CsvFieldListPanel/visual/block-switcher-view-all.png) (详情) · Q39: no mockup for memory-diagram right-click
 
@@ -189,9 +189,9 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### Rules that apply everywhere
 
-![PIPE summary (mean across blocks) — Q29](visual/hq/pipe-bars.png)
+<img src="visual/hq/pipe-bars.png" alt="PIPE summary (mean across blocks) — Q29" width="900" height="524">
 
-![Detail block switcher (selected block) — Q30](visual/hq/block-scope-detail.png)
+<img src="visual/hq/block-scope-detail.png" alt="Detail block switcher (selected block) — Q30" width="900" height="318">
 
 **Design:** [`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg) · [`pipe-bars.png`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png) (summary mean, Q29) · [`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg) · [`block-switcher-view-all.png`](../../src/ui/StatsAside/CsvFieldListPanel/visual/block-switcher-view-all.png) (selected block, Q30)
 
@@ -207,9 +207,9 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### Header
 
-![Header meta row — Q1–3, Q31–33](visual/hq/header-meta.png)
+<img src="visual/hq/header-meta.png" alt="Header meta row — Q1–3, Q31–33" width="900" height="225">
 
-![Hardware details overlay — Q33](visual/hq/hardware-detail.png)
+<img src="visual/hq/hardware-detail.png" alt="Hardware details overlay — Q33" width="900" height="900">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (meta row) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png) (Q33 更多)
 
@@ -224,7 +224,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### 整体耗时 (Total duration)
 
-![Duration card — Q4, Q34](visual/hq/duration-card.png)
+<img src="visual/hq/duration-card.png" alt="Duration card — Q4, Q34" width="900" height="225">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (duration card + bar)
 
@@ -233,7 +233,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### 算力情况 (Compute power)
 
-![Compute TFLOPS card — Q5–7, Q35](visual/hq/compute-card.png)
+<img src="visual/hq/compute-card.png" alt="Compute TFLOPS card — Q5–7, Q35" width="900" height="225">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (TFLOPS card)
 
@@ -242,7 +242,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
 
-![I/O bandwidth cards — Q8–11, Q36](visual/hq/bandwidth-cards.png)
+<img src="visual/hq/bandwidth-cards.png" alt="I/O bandwidth cards — Q8–11, Q36" width="900" height="225">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (I/O BW cards)
 
@@ -251,7 +251,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### Roofline 瓶颈分析 (Roofline bottleneck analysis)
 
-![Roofline chart — Q14–19, Q37](visual/hq/roofline.png)
+<img src="visual/hq/roofline.png" alt="Roofline chart — Q14–19, Q37" width="900" height="655">
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`roofline.png`](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png) (tabs Q37)
 
@@ -260,9 +260,9 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### 内存负载分析 (Memory load analysis)
 
-![Memory topology — Q22–28, Q40](visual/hq/memory-topology.png)
+<img src="visual/hq/memory-topology.png" alt="Memory topology — Q22–28, Q40" width="900" height="900">
 
-![Remote / Dual-Die arrows — Q38](visual/hq/memory-remote.png)
+<img src="visual/hq/memory-remote.png" alt="Remote / Dual-Die arrows — Q38" width="900" height="944">
 
 **Design:** [`v930/report-stats-scrolled`](../ui/source/v930/report-stats-scrolled.jpeg) · [`memory-topology.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) · [`buffer-links.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png) (Q38) · Q39: no mockup for memory-diagram right-click
 
@@ -277,7 +277,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### Rules that apply everywhere
 
-![Measure mode — Q41](visual/hq/measure-mode.png)
+<img src="visual/hq/measure-mode.png" alt="Measure mode — Q41" width="900" height="225">
 
 **Design:** [`v930/task-measure-mode`](../ui/source/v930/task-measure-mode.jpeg) · [`measure-mode.png`](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/measure-mode.png) · [`measure-active.png`](../../src/ui/ReportToolbar/visual/measure-active.png) (Q41)
 

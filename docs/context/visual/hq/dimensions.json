@@ -1,0 +1,54 @@
+{
+  "header-meta": {
+    "w": 900,
+    "h": 225
+  },
+  "duration-card": {
+    "w": 900,
+    "h": 225
+  },
+  "compute-card": {
+    "w": 900,
+    "h": 225
+  },
+  "bandwidth-cards": {
+    "w": 900,
+    "h": 225
+  },
+  "util-card": {
+    "w": 900,
+    "h": 225
+  },
+  "roofline": {
+    "w": 900,
+    "h": 655
+  },
+  "pipe-bars": {
+    "w": 900,
+    "h": 524
+  },
+  "pipe-detail": {
+    "w": 900,
+    "h": 315
+  },
+  "memory-topology": {
+    "w": 900,
+    "h": 900
+  },
+  "memory-remote": {
+    "w": 900,
+    "h": 944
+  },
+  "hardware-detail": {
+    "w": 900,
+    "h": 900
+  },
+  "measure-mode": {
+    "w": 900,
+    "h": 225
+  },
+  "block-scope-detail": {
+    "w": 900,
+    "h": 318
+  }
+}
