@@ -81,7 +81,7 @@ export function zoomToFitWindow(model: SwimlaneModel | null | undefined): Swimla
     return { startTime: 0, endTime: 1, scrollY: 0 };
   }
   return {
-    startTime: model.minTime,
+    startTime: 0,
     endTime: model.maxTime,
     scrollY: 0,
   };
