@@ -31,6 +31,8 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Pan.** `panBy` shifts the viewport by delta time units. Positive delta moves later times into view. With bounds, the window is clamped to stay within bounds edges.
 
+**Zoom-to-fit.** `zoomToFitWindow` spans producer **t = 0** through `model.maxTime` (not `[minTime, maxTime]`). When the first event starts well after t = 0, zoom-to-fit shows a leading empty gap and events appear inset at their absolute producer timestamps — intentional, so axis/cursor/tooltip stay consistent.
+
 **Bounds protection.** The caller adds a +1 guard when `maxTime === minTime` to prevent division by zero during zoom calculations.
 
 ## Acceptance Criteria
