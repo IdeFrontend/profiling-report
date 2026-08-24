@@ -91,6 +91,45 @@ Payloads are addressed by absolute byte offsets from the start of the container.
 4. Build a name→payload map used by all visualization sections.
 5. Missing optional payloads (e.g. `HardwareInfo.jsonl`) disable the dependent drill-down; required metric CSVs for a selected OP should be present for that OP’s views.
 
+### 1.6 Shipped `npu-rep` layout (nested operators)
+
+The product container ships as `npu-rep` (not `cann-rep`). Concrete layout confirmed against `data/example.npu.rep` (two operators):
+
+**Head (36 bytes):**
+
+| Offset | Size | Type | Field | Value |
+| --- | --- | --- | --- | --- |
+| 0 | 8 | `char[8]` | `magic` | `npu-rep` + NUL |
+| 8 | 4 | `uint32` | `version` | `0x00010000` |
+| 12 | 2 | `uint16` | `orgin` | `0` |
+| 14 | 2 | `uint16` | `repHeadLength` | `36` |
+| 16 | 4 | `uint32` | `fileInfoCount` | number of embeds |
+| 20 | 4 | `uint32` | `fileInflLength` | `164` (FileInfo stride) |
+| 24 | 4 | `uint32` | `resv` | `0` |
+| 28 | 8 | `uint64` | `npuRepLength` | total container length |
+
+**FileInfo (164 bytes):**
+
+| Offset | Size | Type | Field |
+| --- | --- | --- | --- |
+| 0 | 8 | `char[8]` | `magic` (`npu-rep` + NUL) |
+| 8 | 128 | `char[128]` | `name` (NUL-padded) |
+| 136 | 4 | `uint32` | `type` |
+| 140 | 4 | `uint32` | `resv` |
+| 144 | 4 | `uint32` | `pad` |
+| 148 | 8 | `uint64` | `length` |
+| 156 | 8 | `uint64` | `offset` |
+
+**Type enum (npu-rep):**
+
+| Value | Meaning |
+| --- | --- |
+| 1 | `csv` |
+| 2 | `json` / `jsonl` |
+| 6 | **nested operator archive** (`.npu.rep`) |
+
+**Operator nesting.** An outer `npu-rep` packs one FileInfo per operator; each payload is itself an `npu-rep` leaf archive containing `trace.json` + metric CSVs (types 1/2). The viewer lists these nested archives in the top-left OP selector and adapts each leaf independently. A container with no `type 6` embeds is treated as a flat single-operator leaf pack.
+
 ---
 
 ## 2. Payload inventory

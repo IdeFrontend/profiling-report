@@ -13,6 +13,10 @@ Interim normative description of the binary report container used by profiling-r
 
 Both use the same binary layout and magic (**Interim [I-Q2](../context/INTERIM_DECISIONS.md)** until Product defines divergence). Hosts should open either extension with the profiling-report viewer.
 
+### Product `npu-rep` container
+
+The shipping product container uses the **`npu-rep`** magic (36-byte head, **164-byte** FileInfo, `type:u32`, `type 6` = nested operator archive) — see [INPUT_FORMATS §1.6](INPUT_FORMATS.md). It can pack nested per-operator archives; `loadReportSource` detects it separately from the `cann-rep` packer below and adapts each operator. This document's `cann-rep` layout remains the local sample packer (`data/pack_rep.py`).
+
 ## Byte order and packing
 
 - Little-endian

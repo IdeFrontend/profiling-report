@@ -24,6 +24,7 @@ This directory contains behavioral specifications for all modules in the profili
 | [swimlane-renderer](./core/swimlane-renderer.spec.md) | `PR-RENDER-*` | MVP | `src/swimlane/CanvasSwimlaneRenderer.ts` | `tests/unit/canvasRenderer.spec.ts` |
 | [stress-swimlane](./core/stress-swimlane.spec.md) | `PR-STRESS-*` | Dev | `src/domain/generateStressSwimlane.ts` | `tests/unit/generateStressSwimlane.spec.ts` |
 | [load-report-source](./core/load-report-source.spec.md) | `PR-JSON-*` | MVP | `src/adapters/loadReportSource.ts` | `tests/unit/loadReportSource.spec.ts` |
+| [npu-rep](./core/npu-rep.spec.md) | `PR-NPU-*` | MVP | `src/adapters/parseNpuRep.ts`, `src/adapters/loadReportSource.ts` | `tests/unit/parseNpuRep.spec.ts`, `tests/unit/loadReportSource.spec.ts` |
 | [utilization](./core/utilization.spec.md) | `PR-UTIL-*` | MVP | `src/domain/utilization.ts` | `tests/unit/utilization.spec.ts` |
 | [integration](./core/integration.spec.md) | `PR-UI-*`, `PR-E2E-*` | MVP | — | `tests/component/ProfilingReport.feature.spec.ts`, `tests/e2e/feature.spec.ts` |
 | [scaffold](./core/scaffold.spec.md) | `PR-SCAFFOLD-*` | MVP | — | `tests/unit/scaffold.spec.ts`, `tests/e2e/playground.spec.ts` |

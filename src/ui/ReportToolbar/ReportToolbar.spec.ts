@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import ReportToolbar from './ReportToolbar.vue';
 
 describe('ReportToolbar', () => {
@@ -157,5 +157,140 @@ describe('ReportToolbar', () => {
     await field.setValue('');
     await field.trigger('change');
     expect(wrapper.emitted('update:dependencyDepth')?.at(-1)).toEqual([1]);
+  });
+
+  it('PR-TOOLBAR-013: OP selector renders for multiple operators and emits selected id', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        operators: [
+          { id: 'op1', label: 'op1' },
+          { id: 'op2', label: 'op2' },
+        ],
+        selectedOperatorId: 'op1',
+      },
+    });
+
+    expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
+    // Trigger shows the selected operator label.
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
+    expect(wrapper.find('.pr-op-select__trigger').classes()).not.toContain('pr-op-select__trigger--pill');
+
+    await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+    const items = wrapper.findAll('[data-testid="op-item"]');
+    expect(items).toHaveLength(2);
+    expect(items[0].text()).toBe('op1');
+    expect(items[1].text()).toBe('op2');
+    await items[1].trigger('click');
+    expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2']]);
+  });
+
+  it('PR-TOOLBAR-013a: trigger label follows selectedOperatorId', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        operators: [
+          { id: 'op1', label: 'op1' },
+          { id: 'op2', label: 'op2' },
+        ],
+        selectedOperatorId: 'op1',
+      },
+    });
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
+    await wrapper.setProps({ selectedOperatorId: 'op2' });
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op2');
+  });
+
+  it('PR-TOOLBAR-013b: OP listbox supports Escape / Enter / ArrowDown', async () => {
+    const wrapper = mount(ReportToolbar, {
+      attachTo: document.body,
+      props: {
+        ...defaultProps,
+        operators: [
+          { id: 'op1', label: 'op1' },
+          { id: 'op2', label: 'op2' },
+        ],
+        selectedOperatorId: 'op1',
+      },
+    });
+
+    const trigger = wrapper.find('[data-testid="op-selector"] button');
+    await trigger.trigger('keydown', { key: 'ArrowDown' });
+    const menu = wrapper.find('[role="listbox"]');
+    expect(menu.exists()).toBe(true);
+    expect(trigger.attributes('aria-controls')).toBe(menu.attributes('id'));
+    expect(menu.attributes('id')).toBeTruthy();
+
+    const items = wrapper.findAll('[data-testid="op-item"]');
+    expect(items[0].attributes('tabindex')).toBe('0');
+    await items[0].trigger('keydown', { key: 'ArrowDown' });
+    await wrapper.findAll('[data-testid="op-item"]')[1].trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+    expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2']]);
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
+
+    await trigger.trigger('click');
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(true);
+    await wrapper.findAll('[data-testid="op-item"]')[0].trigger('keydown', { key: 'Escape' });
+    await flushPromises();
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
+    wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-013c: re-selecting active operator does not emit', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        operators: [
+          { id: 'op1', label: 'op1' },
+          { id: 'op2', label: 'op2' },
+        ],
+        selectedOperatorId: 'op1',
+      },
+    });
+    await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+    await wrapper.findAll('[data-testid="op-item"]')[0].trigger('click');
+    expect(wrapper.emitted('update:selectedOperatorId')).toBeUndefined();
+  });
+
+  it('PR-TOOLBAR-013d: closing selector clears open menu state', async () => {
+    const ops = [
+      { id: 'op1', label: 'op1' },
+      { id: 'op2', label: 'op2' },
+    ];
+    const wrapper = mount(ReportToolbar, {
+      props: { ...defaultProps, operators: ops, selectedOperatorId: 'op1' },
+    });
+    await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(true);
+
+    await wrapper.setProps({ operators: [{ id: 'op1', label: 'op1' }] });
+    expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(false);
+
+    await wrapper.setProps({ operators: ops, selectedOperatorId: 'op1' });
+    expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+  });
+
+  it('PR-TOOLBAR-014: OP selector hidden for zero or one operator (brand shown)', () => {
+    const single = mount(ReportToolbar, {
+      props: { ...defaultProps, operators: [{ id: 'op1', label: 'op1' }] },
+    });
+    expect(single.find('[data-testid="op-selector"]').exists()).toBe(false);
+    expect(single.find('.pr-tabs__brand').exists()).toBe(true);
+
+    const none = mount(ReportToolbar, { props: defaultProps });
+    expect(none.find('[data-testid="op-selector"]').exists()).toBe(false);
+  });
+
+  it('PR-TOOLBAR-015: OP selector is text+chevron (no pill fill or divider)', async () => {
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?background:\s*transparent/);
+    expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?font-size:\s*18px/);
+    expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?font-weight:\s*700/);
+    expect(src).toMatch(/\.pr-op-select__trigger[\s\S]*?line-height:\s*26px/);
+    expect(src).not.toMatch(/\.pr-op-select[\s\S]*?border-right:\s*1px solid/);
   });
 });
