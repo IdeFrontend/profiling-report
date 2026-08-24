@@ -19,7 +19,7 @@ formatCursorTime(ns: number): string
 
 **Tooltip/detail formatting.** `formatTime` divides by 1e3 (µs) or 1e6 (ms), displaying 3 decimal places. NaN/Infinity → `—`. Integer display for ns. `formatTimeParts` returns the same number and its unit separately, for the detail card where the sketch labels the unit once per column (`7419` under `Start (ns)`); `formatTime` is that pair joined by a space.
 
-**Axis tick formatting.** `formatAxisTime` adapts decimal places based on `tickStepNs` to prevent zoomed axes from collapsing to identical labels. Step ≥1 → 1 decimal, ≥0.1 → 2, ≥0.01 → 3, ≥0.001 → 4, otherwise 5. Axis labels receive `t − minTime` so the left edge of the loaded trace reads compact **0**; cursor/tooltip use absolute producer `ts` via `formatTime`.
+**Axis tick formatting.** `formatAxisTime` adapts decimal places based on `tickStepNs` to prevent zoomed axes from collapsing to identical labels. Step ≥1 → 1 decimal, ≥0.1 → 2, ≥0.01 → 3, ≥0.001 → 4, otherwise 5. Axis labels use absolute producer time (origin t = **0**); viewport starts at 0 so events at `minTime` appear at their `ts` on the axis, matching cursor/tooltip `formatTime`.
 
 **Cursor formatting.** Playhead label uses `formatTime` (scalar, same as tooltip/detail). `formatCursorTime(ns, unit)` remains exported as `MM:SS.mmm` clock for legacy/tests; negative values clamped to 0.
 

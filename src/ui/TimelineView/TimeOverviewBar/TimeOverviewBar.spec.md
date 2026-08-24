@@ -18,7 +18,7 @@ A single event: **update:window** carries `{ startTime, endTime }` continuously 
 
 **Proportional mapping.** Window position and size are computed as percentages of the total span: `left = (startTime - minTime) / span`, `width = (endTime - startTime) / span`. When the window covers the full timeline, the indicator fills the entire bar.
 
-**Relative tick labels.** Overview axis labels format `t − minTime` so the leftmost tick is compact **0** in the active unit (`0ms` / `0µs` / `0ns`). Cursor and tooltip show absolute producer `ts` via `formatTime`.
+**Absolute tick labels.** Overview and viewport axes show producer `ts` from t = **0**. Cursor and tooltip use the same `formatTime` values. When `minTime > 0`, empty space precedes the first event.
 
 **Shared ruler chrome.** Overview and viewport axes share `AxisRuler`: track height **20px**; labels in an **18px** top-aligned box at **12px / 400**; major **1px** bars with labels immediately to the **right**; **9** minor ticks (**5px** tall) between each major pair. Majors use a zoom-aware nice ns grid (`1|2|5×10ⁿ`, ~100px spacing) snapped to `origin + k·interval` so tick **positions** reflow with zoom/pan. Majors/minors outside the selected window are muted. `AxisRuler` clips its own overflow so labels never paint into the right aside. The overview root/track use `overflow: visible` so left/right edge handles are not cropped (CSS cannot uncrop only the X axis without also allowing Y; handle tabs stay flush in the top 10px of the 20px track — PR-OVERVIEW-005). ReportLayout `.pr-main` is also `overflow: visible` (z-index above aside) so edge handles may slightly overlap the aside seam.
 
@@ -46,7 +46,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 
 1. **PR-OVERVIEW-001** — Renders timeline bar.
 2. **PR-OVERVIEW-002** — Indicator covers correct proportion of the timeline.
-3. **PR-OVERVIEW-003** — Leftmost tick label is relative zero (`0ms` / `0µs` / `0ns`).
+3. **PR-OVERVIEW-003** — Leftmost tick label is zero at producer origin (`0ms` / `0µs` / `0ns`).
 4. **PR-OVERVIEW-004** — Ruler renders majors on a nice grid with minors between; `AxisRuler` clips tick overflow vs aside.
 5. **PR-OVERVIEW-005** — Handle tab is exactly `width: 4px; height: 10px; top: 0` (no vertical protrusion); overview track uses `overflow: visible` so left/right edge handles are not cropped (including slight overlap past the main/aside seam).
 6. **PR-OVERVIEW-006** — Handle/window drag ends on window `pointerup` (release outside the overview does not leave a stuck drag).
@@ -74,7 +74,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 - **2026-08-07** — Axis chrome: 20px track, 5px minors, 18px / 12px/400 labels.
 - **2026-08-07** — Zoom-aware nice major grid (`calculateGridInterval`); positions reflow with zoom.
 - **2026-08-07** — Shared AxisRuler chrome (22px/10px, major bars + label-right, 9 minors).
-- **2026-08-24** — Axis left = 0 (relative to minTime); cursor/tooltip absolute producer ts.
+- **2026-08-24** — Viewport/overview span producer origin 0..maxTime; events align with axis.
 - **2026-08-07** — Relative axis origin (left = 0); edge-aligned ticks; clip overflow vs aside.
 - **2026-08-07** — Handle head 4×12 vertical pill (was horizontal flag).
 - **2026-08-07** — Flag handles (1px stem + outward top tab) per visual crops.

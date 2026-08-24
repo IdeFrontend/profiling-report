@@ -23,7 +23,7 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 | Track height | **20px** |
 | Label box | **18px** tall, aligned to the **top** of the 20px track |
 | Label font | **12px** / weight **400**, `#c8c8c8`, tabular-nums |
-| Origin | Labels are **relative to `minTime`** — left edge of the loaded trace shows compact **0** (`0ms` / `0µs` / `0ns`). Cursor/tooltip use absolute producer `ts` separately. |
+| Origin | Labels use **absolute producer time** (origin t = **0**). Left edge of the timeline is **0**; events at `minTime` appear inset at their `ts`. |
 | Leftmost total-scale label | `0ms` / `0µs` / `0ns` (compact zero — not `0.00xxx…`) |
 | Major bar | **1px** full track height (20px), `--pr-axis-tick` / fallback `rgb(52, 52, 52)` (muted: `--pr-axis-tick-muted` / `rgb(39, 39, 39)`; v930 samples — see `COLOR_TOKENS.md`) |
 | Label placement | Immediately **to the right** of its major bar (`left: pct` + ~2–3px gap; **not** centered) |
@@ -34,7 +34,7 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 ## Acceptance Criteria
 
 1. **PR-AXIS-001** — Renders majors and minors with testids.
-2. **PR-AXIS-002** — `buildAxisRulerTicks` yields 9 minors per gap and relative-zero first label.
+2. **PR-AXIS-002** — `buildAxisRulerTicks` yields 9 minors per gap and zero label at producer origin.
 3. **PR-AXIS-003** — Major bars and minor ticks use `--pr-axis-tick` (fallback `rgb(52, 52, 52)`); muted use `--pr-axis-tick-muted` (fallback `rgb(39, 39, 39)`).
 
 ## Design sketches
@@ -42,7 +42,7 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 - [viewport-ticks](./visual/viewport-ticks.png) — from `v930/entry`
 
 ## Changelog
-- **2026-08-24** — Axis labels relative to `minTime` (left = 0); cursor/tooltip stay absolute producer `ts`.
+- **2026-08-24** — Absolute producer axis (origin t = 0); viewport starts at 0.
 - **2026-08-13** — Tick/bar colors: normal `rgb(52,52,52)`, dimmed `rgb(39,39,39)`; PR-AXIS-003.
 - **2026-08-10** — Absorbed shared axis tokens from retired `docs/ui/components/VISUAL_SPEC.md`.
 - **2026-08-07** — Initial shared ruler chrome.

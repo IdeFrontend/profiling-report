@@ -21,33 +21,33 @@ const model: SwimlaneModel = {
 };
 
 describe('PR-VIEW: swimlane view window', () => {
-  it('PR-VIEW-001: zoomToFit uses model min/max', () => {
+  it('PR-VIEW-001: zoomToFit uses producer origin 0 through model max', () => {
     const w = zoomToFitWindow(model);
-    expect(w.startTime).toBe(1000);
+    expect(w.startTime).toBe(0);
     expect(w.endTime).toBe(5000);
     const state = createViewState(model);
-    expect(state.startTime).toBe(1000);
+    expect(state.startTime).toBe(0);
     expect(state.endTime).toBe(5000);
     expect(state.asideVisible).toBe(true);
   });
 
   it('PR-VIEW-002: zoomAt shrinks window around anchor', () => {
-    const view = { startTime: 1000, endTime: 5000, scrollY: 0 };
-    const next = zoomAt(view, 2, 3000, { minTime: 1000, maxTime: 5000 });
+    const view = { startTime: 0, endTime: 4000, scrollY: 0 };
+    const next = zoomAt(view, 2, 3000, { minTime: 0, maxTime: 5000 });
     expect(next.endTime - next.startTime).toBe(2000);
     expect(next.startTime).toBeLessThanOrEqual(3000);
     expect(next.endTime).toBeGreaterThanOrEqual(3000);
   });
 
   it('PR-VIEW-003: panBy shifts window within bounds', () => {
-    const view = { startTime: 1000, endTime: 3000, scrollY: 0 };
-    const next = panBy(view, 500, { minTime: 1000, maxTime: 5000 });
-    expect(next.startTime).toBe(1500);
-    expect(next.endTime).toBe(3500);
-    const clamped = panBy(view, -9999, { minTime: 1000, maxTime: 5000 });
-    expect(clamped.startTime).toBe(1000);
+    const view = { startTime: 0, endTime: 2000, scrollY: 0 };
+    const next = panBy(view, 500, { minTime: 0, maxTime: 5000 });
+    expect(next.startTime).toBe(500);
+    expect(next.endTime).toBe(2500);
+    const clamped = panBy(view, -9999, { minTime: 0, maxTime: 5000 });
+    expect(clamped.startTime).toBe(0);
     const state = applyWindow(createViewState(model), next);
-    expect(state.startTime).toBe(1500);
+    expect(state.startTime).toBe(500);
   });
 
   it('PR-VIEW-004: createViewState initializes measure fields off', () => {
@@ -69,7 +69,7 @@ describe('PR-VIEW: swimlane view window', () => {
   it('PR-VIEW-006: measureFocusWindow centers range at half viewport span', () => {
     const next = measureFocusWindow(
       { startTime: 2000, endTime: 3000 },
-      { minTime: 1000, maxTime: 5000 },
+      { minTime: 0, maxTime: 5000 },
       12,
     );
     // Duration 1000 → span 2000, centered on 2500.
@@ -81,16 +81,16 @@ describe('PR-VIEW: swimlane view window', () => {
   it('PR-VIEW-007: measureFocusWindow clamps to bounds and fits when 2× exceeds full', () => {
     const nearEdge = measureFocusWindow(
       { startTime: 1000, endTime: 1500 },
-      { minTime: 1000, maxTime: 5000 },
+      { minTime: 0, maxTime: 5000 },
     );
-    expect(nearEdge.startTime).toBe(1000);
+    expect(nearEdge.startTime).toBe(750);
     expect(nearEdge.endTime - nearEdge.startTime).toBe(1000);
 
     const tooWide = measureFocusWindow(
       { startTime: 1000, endTime: 4000 },
-      { minTime: 1000, maxTime: 5000 },
+      { minTime: 0, maxTime: 5000 },
     );
-    expect(tooWide.startTime).toBe(1000);
+    expect(tooWide.startTime).toBe(0);
     expect(tooWide.endTime).toBe(5000);
   });
 
@@ -111,12 +111,12 @@ describe('PR-VIEW: swimlane view window', () => {
   });
 
   it('PR-VIEW-010: slider max matches zoomAt floor', () => {
-    const full = 4000;
-    const view = { startTime: 1000, endTime: 5000, scrollY: 0 };
+    const full = 5000;
+    const view = { startTime: 0, endTime: 5000, scrollY: 0 };
     let cur = view;
     // Keep zooming in until floor; slider must already read 100 at that span.
     for (let i = 0; i < 40; i++) {
-      cur = zoomAt(cur, 2, 3000, { minTime: 1000, maxTime: 5000 });
+      cur = zoomAt(cur, 2, 3000, { minTime: 0, maxTime: 5000 });
     }
     const span = cur.endTime - cur.startTime;
     expect(span).toBe(MIN_VIEW_WINDOW);
