@@ -10,6 +10,8 @@ Producer **format/data specification is still forthcoming**. Product has answere
 
 **MVP unblock doc:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md)
 
+**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (DATA Q1–30, UI/UX Q31–41)
+
 ## What you can do now
 
 - Implement per [INTERIM_DECISIONS](INTERIM_DECISIONS.md) + [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)
