@@ -6,6 +6,8 @@ Answers below are annotated with a status tag and, where known, `file → field`
 
 **Sources (not all in git).** CI fixture is [`data/out.rep`](../../data/out.rep). Product dictionary is `npu-compute性能优化.docx` (外发版 0818, Ascend C Toolkit pack). `example.rep` is the same pack (`npu-tools-main-docs/docs/example.rep` when dropped locally; nested `npu-rep`; includes `HardwareInfo.jsonl`). Neither the docx nor `example.rep` is committed.
 
+Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · sources [`docs/ui/source/v930/`](../ui/source/v930/) · crops under `src/ui/**/visual/`
+
 - **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.
 - **PARTIAL** — field name known, but a value or a product decision is still missing.
 - **OPEN** — not derivable from the current docs or sample.
@@ -17,6 +19,8 @@ Resolved right-panel mappings (aic频率, Task Duration, measured I/O BW, ICache
 ## DATA QUESTIONS
 
 ### Header
+
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (meta row) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png) (Q33 更多)
 
 Sketch shows: **核数** (core count) · **aic频率** (AIC frequency) · **NPU ARCH**
 
@@ -31,12 +35,16 @@ Sketch shows: **核数** (core count) · **aic频率** (AIC frequency) · **NPU 
 
 ### 整体耗时 (Total duration)
 
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (duration card)
+
 Sketch shows: `4.06 ms`, a bar, and `8 次迭代 / 核` (8 iterations / core).
 
 4. The line **N 次迭代 / 核** (N iterations / core) — which field? (Is it `Block Dim`?)
    - **INTERIM** — [I-Q6e](INTERIM_DECISIONS.md) uses `OpBasicInfo.csv` → `Block Dim` ("Task运行切分数量，对应Task运行时核数"). Sample = 8, matching the sketch. "Iterations-per-core" vs "block count" is not explicitly equated by Product.
 
 ### 算力情况 (Compute power)
+
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (TFLOPS card)
 
 This card is hidden until we have answers. Sketch shows: `90%` and `172 / 320 TFLOPS`.
 
@@ -50,6 +58,8 @@ This card is hidden until we have answers. Sketch shows: `90%` and `172 / 320 TF
    - **OPEN** — no "score" concept documented.
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
+
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (I/O BW cards)
 
 Sketch shows a big number `81` and `0.08 / 1.6 TB/s` under it.
 
@@ -69,6 +79,8 @@ On real data, `0.08 / 1.6` is about **5%**, not 81. So the score formula is uncl
 
 ### 平均核利用率 (Average core utilization)
 
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (utilization card)
+
 This card is hidden until we have answers. Sketch shows: `82%` and **启用 24/24 核** (enabled 24/24 cores).
 
 12. **82%** — which file, which field, and the formula?
@@ -78,6 +90,8 @@ This card is hidden until we have answers. Sketch shows: `82%` and **启用 24/2
     - **OPEN** — no "enabled cores" field. Sample `ai_core_count` = 36 (not 24); `Block Dim` = 8.
 
 ### Roofline 瓶颈分析 (Roofline bottleneck analysis)
+
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`roofline.png`](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png) (chart + tabs Q37)
 
 14. The old mapping uses `aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio`. Those are pipe busy rates, not chart axes. What should we use instead?
     - **OPEN** — the doc only repeats the old mapping; real Roofline axes are not documented.
@@ -99,6 +113,8 @@ This card is hidden until we have answers. Sketch shows: `82%` and **启用 24/2
 
 ### PIPE 占用率 / 计算负载分析 (Pipe occupancy / compute load)
 
+**Design:** [`v930/compute-load`](../ui/source/v930/compute-load.jpeg) · [`pipe-bars.png`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png) (Q20) · [`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg) · [`compute-detail-tabs.png`](../../src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png) (Q21 详情)
+
 These bars are already on screen. Please confirm.
 
 20. The number **inside** the bar (for example `301001.38`) — is it time (`*_time(us)`) or cycles (`*_total_cycles`)?
@@ -108,6 +124,8 @@ These bars are already on screen. Please confirm.
     - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): summary PIPE bars = mean of non-`NA` ratios across `block_id`. [I-Q6c](INTERIM_DECISIONS.md): **详情** / memory / metrics = selected block. Overlaps Q29–30.
 
 ### 内存负载分析 (Memory load analysis)
+
+**Design:** [`v930/report-stats-scrolled`](../ui/source/v930/report-stats-scrolled.jpeg) · [`memory-topology.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) (Q22–28, Q38, Q40) · [`buffer-links.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png) (Q38 remote arrows) · [`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg) · [`block-switcher-view-all.png`](../../src/ui/StatsAside/CsvFieldListPanel/visual/block-switcher-view-all.png) (详情) · Q39: no mockup for memory-diagram right-click
 
 Bandwidth labels on arrows are already mapped. These are still open.
 
@@ -151,6 +169,8 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### Rules that apply everywhere
 
+**Design:** [`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg) · [`pipe-bars.png`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png) (summary mean, Q29) · [`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg) · [`block-switcher-view-all.png`](../../src/ui/StatsAside/CsvFieldListPanel/visual/block-switcher-view-all.png) (selected block, Q30)
+
 29. A CSV often has many `block_id` rows (the sample has 8). For summary numbers, do we use **mean**, **max**, **first block**, or **the selected block**?
     - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): mean of non-`NA` values across `block_id` for summary PIPE / I/O measured BW. Product has not confirmed mean vs max vs selected.
 
@@ -163,6 +183,8 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### Header
 
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (meta row) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png) (Q33 更多)
+
 31. Do we also show **Rated Freq**? Yes or no. If yes, which field?
     - **INTERIM** — field is `OpBasicInfo.csv` → `Rated Freq` ("AI处理器的理论频率"). Shell does **not** show it (VIEW_DATA_MAPPING). Parsed onto `summary.ratedFreq` for details fallback only.
 
@@ -174,25 +196,35 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ### 整体耗时 (Total duration)
 
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (duration card + bar)
+
 34. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
     - **INTERIM** — [I-Q6e](INTERIM_DECISIONS.md): decorative (fixed short cyan fill), not a % of peak. Product has not defined a scale.
 
 ### 算力情况 (Compute power)
+
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (TFLOPS card)
 
 35. One number for the whole op, or two columns (**aic** and **aiv**), like the bandwidth cards?
     - **OPEN** — no display rule documented.
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
 
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) (I/O BW cards)
+
 36. If the measured value is small (for example `15.8 GB/s`), show **GB/s** or **TB/s**?
     - **OPEN** — UX decision.
 
 ### Roofline 瓶颈分析 (Roofline bottleneck analysis)
 
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`roofline.png`](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png) (tabs Q37)
+
 37. Tabs **内存单元** (memory unit), **内存通路** (memory path), **搬运单元** (transfer unit) — what should each tab show?
     - **PARTIAL** — the doc's Roofline table maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`). This is exactly the "pipe busy rate" mapping Q14 flags as wrong.
 
 ### 内存负载分析 (Memory load analysis)
+
+**Design:** [`v930/report-stats-scrolled`](../ui/source/v930/report-stats-scrolled.jpeg) · [`memory-topology.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) · [`buffer-links.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png) (Q38) · Q39: no mockup for memory-diagram right-click
 
 38. Dual-Die / Remote memory — show those arrows? Yes or no. If yes, which fields?
     - **OPEN (mismatch)** — the doc mentions remote memory / close-far access, but the sample `L2Cache.csv` uses `r0`/`r1` (not close/far). No concrete remote-arrow fields.
@@ -204,6 +236,8 @@ Bandwidth labels on arrows are already mapped. These are still open.
     - **OPEN** — unit/UX decision.
 
 ### Rules that apply everywhere
+
+**Design:** [`v930/task-measure-mode`](../ui/source/v930/task-measure-mode.jpeg) · [`measure-mode.png`](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/measure-mode.png) · [`measure-active.png`](../../src/ui/ReportToolbar/visual/measure-active.png) (Q41)
 
 41. User selects a time range on the timeline (**度量模式** / measure mode). Do we recompute the right panel for that range? If yes, which parts: cards, PIPE, details, memory diagram, Roofline?
     - **OPEN** — not documented.
