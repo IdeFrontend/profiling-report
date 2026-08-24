@@ -166,7 +166,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 31. Do we also show **Rated Freq**? Yes or no. If yes, which field?
     - **INTERIM** — field is `OpBasicInfo.csv` → `Rated Freq` ("AI处理器的理论频率"). Shell does **not** show it (VIEW_DATA_MAPPING). Parsed onto `summary.ratedFreq` for details fallback only.
 
-32. Is that value a ready-made text, or a number we must format?
+32. Is the `212 teraOPs` peak-compute value from Q2 a ready-made text, or a number we must format?
     - **OPEN** — depends on the unresolved teraOPs value. `chip_info`/`arch_info` are strings; teraOPs is absent.
 
 33. If that file is missing, what happens to **更多** (More) / 硬件信息详情 (Hardware details)? Hide it, or show an empty page?

@@ -7,7 +7,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 1. **[context/PROJECT_GOALS.md](context/PROJECT_GOALS.md)** — why this project exists, consumers, MVP vs later, success criteria
 2. **[context/DOMAIN_AND_USERS.md](context/DOMAIN_AND_USERS.md)** — OP developers, pain points, glossary, link to UX scenarios
 3. **[context/MARKET_AND_COMPETITORS.md](context/MARKET_AND_COMPETITORS.md)** — NVIDIA Nsight analogues, competitors, market frame
-4. **[context/OPEN_QUESTIONS.md](context/OPEN_QUESTIONS.md)** — Product decisions and remaining blockers
+4. **[context/OPEN_QUESTIONS.md](context/OPEN_QUESTIONS.md)** — Product decisions and remaining blockers. Right-panel field/UX detail: **[context/HQ_OPEN_QUESTIONS.md](context/HQ_OPEN_QUESTIONS.md)**
 5. **[context/INTERIM_DECISIONS.md](context/INTERIM_DECISIONS.md)** — engineering defaults that unblock MVP coding (not Product-final)
 6. **[process/DEVELOPMENT.md](process/DEVELOPMENT.md)** — top-down workflow: docs → specs → tests → code
 7. **[process/roadmap/](process/roadmap/)** — delivery milestones to full UI (dates, tasks, blockers)
@@ -38,6 +38,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 | [context/DOMAIN_AND_USERS.md](context/DOMAIN_AND_USERS.md) | Domain users, pain points, glossary → UX |
 | [context/MARKET_AND_COMPETITORS.md](context/MARKET_AND_COMPETITORS.md) | NVIDIA Nsight analogues and competitor landscape |
 | [context/OPEN_QUESTIONS.md](context/OPEN_QUESTIONS.md) | P0–P2 blockers; resolution log |
+| [context/HQ_OPEN_QUESTIONS.md](context/HQ_OPEN_QUESTIONS.md) | Right-panel DATA vs UI/UX ledger (Q1–41) |
 | [context/INTERIM_DECISIONS.md](context/INTERIM_DECISIONS.md) | Interim engineering defaults for MVP coding |
 | [context/PACKAGING_SUGGESTIONS.md](context/PACKAGING_SUGGESTIONS.md) | Q16–Q19 suggestions (interim until Product confirms) |
 | [process/DEVELOPMENT.md](process/DEVELOPMENT.md) | Spec-driven TDD workflow, slice order, Definition of Done |
