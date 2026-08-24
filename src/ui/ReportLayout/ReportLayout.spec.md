@@ -16,11 +16,11 @@ Main layout shell: two-column grid with main content area and optional right asi
 
 ## Behavior
 
-The main column always renders as a vertical stack (toolbar strip, then timeline). The aside column is full height of the layout row (header flush with toolbar top). Aside width is user-resizable via a thin `ew-resize` handle on its left edge (`data-testid="aside-resize-handle"`). When `showAside` is false the column is removed from the DOM. Handles are hidden under `max-width: 900px` (single-column layout).
+The main column always renders as a vertical stack (toolbar strip, then timeline). The aside column is full height of the layout row (header flush with toolbar top). Aside width is user-resizable via a thin `ew-resize` handle on its left edge (`data-testid="aside-resize-handle"`). When `showAside` is false the column is removed from the DOM. The aside always stays in the right column; in narrow host panels the timeline shrinks to fit (gutter + track compress via CSS grid).
 
 Main column background is `--pr-bg-deep` (`#1f1f1f`). There is no full-width border across the top of the two-column grid (toolbar `border-bottom` only covers main).
 
-**Aside seam overflow.** `.pr-main` uses `overflow: visible` and `z-index: 1` (aside `z-index: 0`) so timeline top chrome — overview range handles and the axis cursor timestamp pill — can paint slightly over the aside border instead of being clipped. Swimlane body scroll containment lives on the swim body row (`overflow: hidden`), not on `.pr-main`.
+**Aside seam.** `.pr-main` uses `overflow: visible` and `z-index: 1` so timeline top chrome (overview handles, cursor pill) may paint slightly over the aside seam. The grid uses `minmax(0, 1fr)` on the main column so the aside never drops below main in narrow panels. Swimlane body scroll containment lives on the swim body row (`overflow: hidden`). The aside column stays at `z-index: 0` with `--pr-bg-panel`. `AxisRuler` clips its own tick labels so they never paint into the aside.
 
 The parent ProfilingReport owns `asideWidth` (session-only) and also resizes the left lane gutter via `--pr-gutter-width` (180–480, default 280).
 
@@ -34,7 +34,7 @@ Resizable panel chrome (gutter width owned by ProfilingReport; aside width by th
 | Aside default / clamp | **360** / **280–560** px |
 | Handle hit target | **5px** wide, `ew-resize`; hover tint `rgba(49,122,247,0.35)` |
 | Persistence | Session-only (not localStorage) |
-| Narrow layout | Handles hidden at `max-width: 900px` |
+| Narrow layout | Timeline shrinks to fit; aside stays right (`minmax(0, 1fr)` main track) |
 
 ## Acceptance Criteria
 
@@ -42,7 +42,8 @@ Resizable panel chrome (gutter width owned by ProfilingReport; aside width by th
 2. **PR-LAYOUT-002** — Shows aside panel.
 3. **PR-LAYOUT-003** — Hides aside panel.
 4. **PR-LAYOUT-004** — Exposes aside resize handle when aside is visible.
-5. **PR-LAYOUT-005** — `.pr-main` is `overflow: visible` (not `hidden`) with stacking above the aside so timeline edge chrome is not clipped at the seam.
+5. **PR-LAYOUT-005** — `.pr-main` is `overflow: visible` with `z-index: 1` so timeline edge chrome can overlap the aside seam; aside is `z-index: 0`.
+6. **PR-LAYOUT-006** — Keeps two-column grid when aside is visible (`minmax(0, 1fr)` main track; no viewport stack).
 
 ## Edge Cases
 
@@ -53,6 +54,11 @@ Resizable panel chrome (gutter width owned by ProfilingReport; aside width by th
 - [Entry overview](../../../docs/ui/source/v930/entry.jpeg) — two-column layout
 
 ## Changelog
+- **2026-08-24** — Drop timeline horizontal scroll; shrink-to-fit in narrow panels; seam overlap via `.pr-main` visible stacking.
+- **2026-08-24** — `minmax(0, 1fr)` grid so aside stays right without viewport stack.
+- **2026-08-24** — Restore `.pr-main` overflow visible for seam chrome overlap; narrow scroll via conditional `.pr-main-swim--track-locked`.
+- **2026-08-24** — Clip `.pr-main` overflow so timeline scroll does not paint over aside; inner track carries `minWidth` (reverted seam clip).
+- **2026-08-24** — Removed viewport breakpoint that stacked aside below main; timeline scrolls horizontally when narrow.
 - **2026-08-20** — `.pr-main` overflow visible above aside for timeline edge chrome; PR-LAYOUT-005.
 - **2026-08-11** — Main slot hosts toolbar + timeline; aside full height; main bg `--pr-bg-deep`.
 - **2026-08-10** — Absorbed resizable-panel tokens from retired `docs/ui/components/VISUAL_SPEC.md`.

@@ -85,9 +85,10 @@ function onAsideResizePointerUp() {
 <style scoped>
 .pr-layout {
   display: grid;
-  grid-template-columns: 1fr var(--pr-aside-width, 360px);
+  grid-template-columns: minmax(0, 1fr) var(--pr-aside-width, 360px);
   gap: 0;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -118,6 +119,7 @@ function onAsideResizePointerUp() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--pr-bg-panel);
 }
 
 .pr-layout__resize {
@@ -141,19 +143,5 @@ function onAsideResizePointerUp() {
 .pr-layout__resize:hover,
 .pr-layout__resize:active {
   background: rgba(49, 122, 247, 0.35);
-}
-
-@media (max-width: 900px) {
-  .pr-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .pr-main {
-    border-right: none;
-  }
-
-  .pr-layout__resize {
-    display: none;
-  }
 }
 </style>

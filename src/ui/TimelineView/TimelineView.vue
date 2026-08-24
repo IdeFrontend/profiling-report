@@ -484,6 +484,7 @@ defineExpose({
 <template>
   <div
     class="pr-main-swim"
+    data-testid="timeline-view"
     :style="{ '--pr-gutter-width': `${localGutterWidth}px` }"
   >
     <div class="pr-swim-row pr-swim-row--overview">
@@ -898,19 +899,5 @@ defineExpose({
   flex: 0 0 auto;
   padding: 8px 12px;
   color: #888;
-}
-
-@media (max-width: 900px) {
-  .pr-swim-row {
-    grid-template-columns: 1fr;
-  }
-
-  .pr-swim-row--head {
-    display: block;
-  }
-
-  .pr-gutter--axis-spacer {
-    display: none;
-  }
 }
 </style>

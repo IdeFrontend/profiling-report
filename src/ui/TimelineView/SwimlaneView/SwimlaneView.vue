@@ -417,14 +417,4 @@ defineExpose({
   font-size: 12px;
   font-weight: 600;
 }
-
-@media (max-width: 900px) {
-  .pr-swim-row {
-    grid-template-columns: 1fr;
-  }
-
-  .pr-gutter-resize {
-    display: none;
-  }
-}
 </style>

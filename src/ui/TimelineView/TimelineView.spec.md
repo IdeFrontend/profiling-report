@@ -18,6 +18,8 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Cursor vs measure chrome.** Hovering the **viewport time axis** keeps the cursor timestamp visible and lifts it **above** the axis (`labelAbove`) so the pill does not cover tick labels (same placement as measure-overlap lift), and keeps the **full-height swimlane playhead** in sync via the shared `cursor` prop. When a measure overlay is visible and the pill overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside / offscreen Δt label, the pill also lifts above. Otherwise (pointer over the swimlane, clear of measure chrome) it stays in-track. Hovering a measure edge bar **sticks** the cursor to that border (does not hide the timestamp); leaving the bar onto empty axis keeps the lifted axis cursor. Overview/axis rows stay `overflow: visible` with stacking above the aside so edge handles and the cursor pill are not clipped at the main/aside seam.
 
+**Narrow panels (MSTT).** No viewport breakpoint stacks overview/axis/body rows — layout stays side-by-side. The timeline shrinks to fit the available main-column width (no horizontal scroll).
+
 **Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (**other edge fixed**, including when it lies outside the current view); the dragged edge is clamped to the view window with a ~1px min span. Resize listens on `window` for move/up so releasing over Card strips (above the bars) still ends the drag. Empty-axis drag still creates a new measure range; create/resize use the swimlane event-edge magnet when the pointer is over the canvas (axis-started drags included).
 
 **Focus measure.** Clicking the Δt duration pill emits `focus-measure`. The parent animates the viewport so the measured range is centered and spans half the visible width (~400ms ease-out; instant when `prefers-reduced-motion`).
@@ -39,10 +41,14 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 13. **PR-TIMELINE-013** — Hovering the viewport time axis emits `cursor`, lifts the timestamp above the ticks, and shows the swimlane vertical playhead at the same x (default and measure mode).
 14. **PR-TIMELINE-014** — Axis-started measure drag magnetizes the moving edge when the pointer moves over the swimlane (same as canvas-started drag); emitted `cursor` uses the magnetized `time` and matching `xRatio` (not raw pointer x).
 15. **PR-TIMELINE-015** — Cursor label uses `formatDisplayTime` relative to `bounds.minTime` when `minTime ≠ 0`.
+16. **PR-TIMELINE-016** — Cursor playhead line uses time-proportional `xRatio` placement.
+17. **PR-TIMELINE-017** — No viewport breakpoint stacks swim rows (stable MSTT embedding).
 
 ## Changelog
 - **2026-08-25** — Cursor labels relative to minTime; PR-TIMELINE-015.
-- **2026-08-24** — Scalar `formatTime` cursor labels; PR-TIMELINE-015.
+- **2026-08-24** — Drop horizontal scroll; shrink-to-fit in narrow MSTT panels; PR-TIMELINE-017.
+- **2026-08-24** — Restore seam overlap via `.pr-main` overflow visible (no swim scrollport).
+- **2026-08-24** — Cursor playhead uses xRatio percentage; PR-TIMELINE-016.
 
 - **2026-08-23** — Axis magnet path emits cursor `xRatio` from swimlane magnet, not raw pointer x; PR-TIMELINE-014.
 - **2026-08-23** — Axis measure range borders use a 2px stem (not 1px / hover-only); PR-TIMELINE-010.
