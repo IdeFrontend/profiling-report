@@ -42,7 +42,7 @@ const ruler = computed(() =>
   buildAxisRulerTicks({
     rangeStart: props.minTime,
     rangeEnd: props.maxTime,
-    origin: 0,
+    origin: props.minTime,
     timeUnit: props.timeUnit,
     widthPx: trackWidth.value,
     muteOutside: { start: props.startTime, end: props.endTime },

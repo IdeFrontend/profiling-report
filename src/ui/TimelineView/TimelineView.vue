@@ -108,7 +108,7 @@ const viewportRuler = computed(() =>
   buildAxisRulerTicks({
     rangeStart: props.view.startTime,
     rangeEnd: props.view.endTime,
-    origin: 0,
+    origin: props.bounds.minTime,
     timeUnit: props.unit,
     widthPx: timeAxisWidth.value,
   }),

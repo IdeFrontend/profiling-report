@@ -35,7 +35,7 @@ describe('TimeOverviewBar', () => {
     expect(style).toContain('width');
   });
 
-  it('PR-OVERVIEW-003: leftmost tick shows producer time when minTime ≠ 0', () => {
+  it('PR-OVERVIEW-003: leftmost tick is relative zero when minTime ≠ 0', () => {
     const wrapper = mount(TimeOverviewBar, {
       props: {
         minTime: 986,
@@ -46,7 +46,7 @@ describe('TimeOverviewBar', () => {
       },
     });
     const firstLabel = wrapper.find('.pr-axis-ruler__label');
-    expect(firstLabel.text()).toBe('0.0010ms');
+    expect(firstLabel.text()).toBe('0ms');
   });
 
   it('PR-OVERVIEW-004: ruler renders majors and minors', () => {
