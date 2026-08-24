@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { adaptRep, emptyReportViewModel, parseRep, ProfilingReport } from '../../src/index';
-import { loadOutRepBuffer, loadOutRepBytes } from '../helpers/fixtures';
+import { loadOutRepBuffer, loadOutRepBytes, loadNpuRepBuffer } from '../helpers/fixtures';
 import type { SwimlaneModel } from '../../src/domain/types';
 
 describe('PR-UI: ProfilingReport feature contract', () => {
@@ -228,6 +228,24 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(
       auto.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
     ).toBe('');
+
+    // Multi-op auto-load then host handoff: operator state must not outlive source.
+    const multi = mount(ProfilingReport, { props: { source: loadNpuRepBuffer() } });
+    await flushPromises();
+    expect(multi.find('[data-testid="op-selector"]').exists()).toBe(true);
+    await multi.setProps({
+      source: undefined,
+      swimlaneModel: { processes: [], minTime: 0, maxTime: 1 },
+    } as unknown as Record<string, unknown>);
+    await flushPromises();
+    expect(multi.find('[data-testid="op-selector"]').exists()).toBe(false);
+
+    // Source-only clear: no stale OP selector on the empty shell.
+    const cleared = mount(ProfilingReport, { props: { source: loadNpuRepBuffer() } });
+    await flushPromises();
+    await cleared.setProps({ source: undefined } as unknown as Record<string, unknown>);
+    await flushPromises();
+    expect(cleared.find('[data-testid="op-selector"]').exists()).toBe(false);
   });
 
   it('PR-UI-007: time overview brush adjusts visible window', async () => {

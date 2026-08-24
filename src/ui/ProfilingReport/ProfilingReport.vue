@@ -310,6 +310,9 @@ watch(
       return;
     }
     // Source removed: drop what the adapter derived, or its flags outlive the report.
+    operators.value = [];
+    operatorReports.value = {};
+    selectedOperatorId.value = null;
     internalSwim.value = null;
     internalReport.value = null;
     internalCapabilities.value = null;
