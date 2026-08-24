@@ -5,7 +5,8 @@
  * - source/manifest.yaml files exist on disk
  * - each component visual/ crop is listed in provenance.yaml
  * - each provenance source id resolves via source/manifest.yaml
- * - markdown links to design images under src/ui and docs/ui resolve
+ * - markdown links to design images under src/ui, docs/ui, and docs/context resolve
+ * - HQ open-questions annotated crops in docs/context/visual/hq/ match manifest.yaml
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -19,6 +20,9 @@ const SOURCE_DIR = resolve(ROOT, 'docs/ui/source');
 const UI_DIR = resolve(ROOT, 'src/ui');
 const SWIM_DIR = resolve(ROOT, 'src/swimlane');
 const DOCS_UI = resolve(ROOT, 'docs/ui');
+const DOCS_CONTEXT = resolve(ROOT, 'docs/context');
+const HQ_MANIFEST = resolve(DOCS_CONTEXT, 'visual/hq/manifest.yaml');
+const HQ_OUT_DIR = resolve(DOCS_CONTEXT, 'visual/hq');
 
 const IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i;
 const MD_LINK_RE = /!\[[^\]]*\]\(([^)]+)\)|\[[^\]]*\]\(([^)]+\.(?:png|jpe?g|webp|gif)(?:#[^)]*)?)\)/gi;
@@ -271,6 +275,7 @@ function checkMarkdownLinks() {
     ...findFiles(UI_DIR, (n) => n.endsWith('.md')),
     ...findFiles(resolve(ROOT, 'src/swimlane'), (n) => n.endsWith('.md')),
     ...findFiles(DOCS_UI, (n) => n.endsWith('.md')),
+    ...findFiles(DOCS_CONTEXT, (n) => n.endsWith('.md')),
   ];
 
   for (const file of mdFiles) {
@@ -294,8 +299,38 @@ function checkMarkdownLinks() {
   }
 }
 
+function checkHqVisuals(maps) {
+  if (!existsSync(HQ_MANIFEST)) return;
+
+  const hq = parseSimpleYaml(readFileSync(HQ_MANIFEST, 'utf-8'));
+  const images = hq.images ?? {};
+  const ids = Object.keys(images);
+  if (!ids.length) {
+    fail('docs/context/visual/hq/manifest.yaml: no images defined');
+    return;
+  }
+
+  for (const id of ids) {
+    const meta = images[id] ?? {};
+    const outPath = join(HQ_OUT_DIR, `${id}.png`);
+    if (!existsSync(outPath)) {
+      fail(`hq visual missing output: ${relative(ROOT, outPath)} (run npm run render:hq-visuals)`);
+    }
+
+    const srcId = meta.source;
+    if (!srcId) {
+      fail(`hq visual ${id}: missing source id`);
+      continue;
+    }
+    const abs = resolveSourceId(srcId, maps);
+    if (!abs) fail(`hq visual ${id}: unknown source id "${srcId}"`);
+    else if (!existsSync(abs)) fail(`hq visual ${id}: source file missing for ${srcId}`);
+  }
+}
+
 const maps = loadManifest();
 checkVisualPacks(maps);
+checkHqVisuals(maps);
 checkMarkdownLinks();
 
 for (const w of warnings) console.warn(`WARN: ${w}`);
