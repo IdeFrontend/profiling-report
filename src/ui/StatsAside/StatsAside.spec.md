@@ -49,7 +49,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 
 **CSV-only fallback.** If duration, bandwidth, PIPE, roofline, and topology are all absent but compute/memory tables exist, show those CSV lists on the stack (no overlay required).
 
-**Compute / Memory overlays.** Hosts `CsvFieldListPanel` with tabs, block switcher, search, 查看全部. Overlay body fills the column under the header; the field list scrolls (no inner max-height cap).
+**Compute / Memory overlays.** Hosts `CsvFieldListPanel`. Compute (`v930/compute-load-detail`, `v930/search-highlight`): tabs + search only — no block picker, no 查看全部. Memory (`v930/memory-load-detail`): tabs, search, block switcher, 查看全部. Overlay body fills the column under the header; the field list scrolls (no inner max-height cap).
 
 ### Hardware details (M1 interim I-Q7a)
 
@@ -61,7 +61,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 2. **PR-STATS-002** — Renders PIPE bars with correct colors.
 3. **PR-STATS-003** — Cube|Vector toggle appears only for MIX; filters bars by side.
 4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides.
-5. **PR-STATS-005** — PIPE 详情 overlay shows compute CSV tabs and emit `view-full-csv`; topology 详情 shows memory CSV.
+5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
 7. **PR-STATS-007** — Meta hide-if-missing.
 8. **PR-STATS-008** — More emits open-hardware-details.
@@ -185,6 +185,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-24** — Compute overlay omits block + 查看全部 (PR-STATS-005, `v930/search-highlight`).
 - **2026-08-20** — npu-compute 0818: measured BW / HardwareInfo source / ICache / NA-hide confirmed; peak/score still open.
 - **2026-08-20** — PR-STATS-013 asserts abs is a track sibling (unit tests do not apply `min-width`). PIPE hatch tint vs card hatch is deliberate.
 - **2026-08-19** — PIPE fill width is ratio-only (`min-width: 0`; abs is a track sibling). Label column stays `72px` for ICache Miss. Panel stays `#1f1f1f` (artboard `#141414` is page, not card).

@@ -311,7 +311,8 @@ function backToReport() {
         :tables="report?.computeTables ?? []"
         :csv-texts="report?.csvTexts ?? {}"
         :locale="locale"
-        @view-full-csv="emit('view-full-csv', $event)"
+        :show-block-switcher="false"
+        :show-view-all="false"
       />
     </div>
 
@@ -547,7 +548,8 @@ function backToReport() {
             :tables="report?.computeTables ?? []"
             :csv-texts="report?.csvTexts ?? {}"
             :locale="locale"
-            @view-full-csv="emit('view-full-csv', $event)"
+            :show-block-switcher="false"
+            :show-view-all="false"
           />
         </div>
         <div
