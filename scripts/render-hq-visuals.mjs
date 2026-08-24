@@ -188,17 +188,18 @@ async function renderOne(id, meta, sourceIds) {
   if (w <= 0 || h <= 0) throw new Error(`${id}: invalid crop`);
 
   let pipeline = sharp(sourcePath).extract({ left: x, top: y, width: w, height: h });
-  const croppedMeta = await pipeline.metadata();
-  const cropW = croppedMeta.width ?? w;
-  const cropH = croppedMeta.height ?? h;
+
+  // Use manifest crop dims — sharp().metadata() after extract still reports the full source frame.
+  const cropW = w;
+  const cropH = h;
 
   const maxWidth = meta.maxWidth ?? 900;
   const scale = cropW > maxWidth ? maxWidth / cropW : 1;
   const outW = Math.round(cropW * scale);
   const outH = Math.round(cropH * scale);
 
-  if (scale < 1) {
-    pipeline = pipeline.resize(outW, outH, { fit: 'fill' });
+  if (scale !== 1) {
+    pipeline = pipeline.resize(outW, outH);
   }
 
   const baseBuf = await pipeline.png().toBuffer();
