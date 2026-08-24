@@ -4,7 +4,7 @@
 |----------------|
 | PR-CURSOR-*    |
 
-Playhead time bubble on the viewport time axis. Shows the cursor position as `MM:SS.mmm` at producer trace time (CTEF ts).
+Playhead time bubble on the viewport time axis. Shows the cursor position as a scalar producer timestamp (same `formatTime` as tooltip).
 
 ## Inputs
 
