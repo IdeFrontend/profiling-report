@@ -45,6 +45,11 @@ interface ChromeTraceDoc {
   traceEvents?: ChromeTraceEvent[];
   /** Optional producer phase bands (e.g. ProfilerStep#N); never invented by the adapter. */
   bands?: ChromeTraceBand[];
+  /**
+   * Opt-in: nest flat CoreN.Cube|Vector/PIPE lanes into Card → category → Core → pipe.
+   * Absent/false → leave CTEF flat (production default).
+   */
+  nestCardTree?: boolean;
 }
 
 /** Explicit source units for `ts`/`dur` (canonical model is always ns). */
@@ -106,6 +111,7 @@ function extractEvents(trace: unknown): {
   events: ChromeTraceEvent[];
   displayTimeUnit?: string;
   rawBands?: ChromeTraceBand[];
+  nestCardTree?: boolean;
 } {
   if (Array.isArray(trace)) {
     return { events: trace as ChromeTraceEvent[] };
@@ -115,6 +121,7 @@ function extractEvents(trace: unknown): {
     events: doc.traceEvents ?? [],
     displayTimeUnit: doc.displayTimeUnit,
     rawBands: Array.isArray(doc.bands) ? doc.bands : undefined,
+    nestCardTree: doc.nestCardTree === true,
   };
 }
 
@@ -140,7 +147,7 @@ export function chromeTraceToSwimlane(
   trace: unknown,
   options?: ChromeTraceToSwimlaneOptions,
 ): SwimlaneModel {
-  const { events, displayTimeUnit, rawBands } = extractEvents(trace);
+  const { events, displayTimeUnit, rawBands, nestCardTree } = extractEvents(trace);
   /**
    * CTEF: `ts`/`dur` are always microseconds; `displayTimeUnit` is display-only.
    * Ascend producers (`.rep` embeds and exported JSON) store genuine ns when they
@@ -274,7 +281,10 @@ export function chromeTraceToSwimlane(
     minTime,
     maxTime,
     ...(bands ? { bands } : {}),
-    metadata: { displayTimeUnit },
+    metadata: {
+      displayTimeUnit,
+      ...(nestCardTree ? { nestCardTree: true } : {}),
+    },
   };
 }
 

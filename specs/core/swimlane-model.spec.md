@@ -34,6 +34,8 @@ interface SwimEvent    {
 
 **Bands:** optional shared phase intervals painted on folder/spacer group rows when present. Chrome Trace / `.rep` adapters pass through producer `bands` (`ts`/`dur` in the same unit as X events) and never invent them when absent. Stress fixtures and `sample.rep` supply `ProfilerStep#N` bands.
 
+**Card nesting:** `adaptRep` applies `nestCardTreeFromFlatCorePipes` only when the producer sets `nestCardTree: true` on the trace doc (`sample.rep`). Real traces without the flag stay flat even if thread names look like `CoreN.*/PIPE`.
+
 ## Unit contract
 
 **All time values — `minTime`, `maxTime`, `startTime`, `duration`, `SwimlaneViewWindow`, and `SwimlaneViewState` time fields — are in nanoseconds.** Conversion to display units (ms/µs/ns) happens only at the formatting layer (`formatTime`, `formatAxisTime`, `formatCursorTime`). If a new time-carrying field is introduced, it must use nanoseconds unless explicitly documented otherwise. This contract prevents the most common class of time-related bugs: mixing units across layers.
@@ -70,6 +72,7 @@ interface SwimEvent    {
 1. **PR-SWIM-012**: A flow in a gap under an enclosing slice binds the enclosing event.
 1. **PR-SWIM-013**: Touching X intervals (`end === next.start`) are siblings, not nested.
 1. **PR-SWIM-014**: Producer `bands` in the trace doc become `SwimlaneModel.bands`; absent/malformed → omit.
+1. **PR-SWIM-015**: Producer `nestCardTree: true` is recorded in `metadata`; absent → no nest flag (adaptRep does not invent Card nesting).
 
 ## Edge Cases
 
@@ -85,6 +88,7 @@ interface SwimEvent    {
 Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-08-25** — PR-SWIM-015: `nestCardTree` producer opt-in; adaptRep no longer nests every `.rep`.
 - **2026-08-25** — PR-SWIM-014: pass through producer `bands` (sample.rep ProfilerStep labels).
 - **2026-08-19** — s/f may overlap (`pred.end > succ.start`); curves still pred-right → succ-left.
 - **2026-08-19** — Touching X intervals are siblings (`end <= next.start` pops the stack); PR-SWIM-013.

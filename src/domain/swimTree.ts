@@ -20,7 +20,8 @@ function meanUtilization(nodes: SwimThread[]): number | undefined {
 /**
  * Nest flat `CoreN.Cube|Vector/PIPE` lanes into Card → 通信|计算|储存HBM → Core → pipe
  * (design mockup / stress shape). Preserves leaf thread ids for dependency EventRefs.
- * No-op when no matching names (real AIV pipe-state traces stay flat).
+ * Callers must opt in (e.g. producer `nestCardTree: true` via adaptRep) — do not run on
+ * every `.rep`. No-op when no matching names.
  */
 export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneModel {
   let any = false;

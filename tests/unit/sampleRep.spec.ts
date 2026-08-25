@@ -52,9 +52,9 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(collectLeafEventsFromModel(op1.swimlaneModel).length).toBeLessThan(
       collectLeafEventsFromModel(op2.swimlaneModel).length,
     );
-    // op2 is the large rendering-performance fixture (~200k X events).
-    expect(collectLeafEventsFromModel(op2.swimlaneModel).length).toBeGreaterThanOrEqual(190_000);
-    expect(collectLeafEventsFromModel(op2.swimlaneModel).length).toBeLessThanOrEqual(210_000);
+    // op2 is the large rendering-performance fixture (~150k X events).
+    expect(collectLeafEventsFromModel(op2.swimlaneModel).length).toBeGreaterThanOrEqual(140_000);
+    expect(collectLeafEventsFromModel(op2.swimlaneModel).length).toBeLessThanOrEqual(160_000);
   });
 
   it('both operators expose dependency connections', () => {
@@ -64,7 +64,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(connectionRefCount(op2.swimlaneModel)).toBeGreaterThan(0);
   });
 
-  it('op1 gives every event 3–6 dependency neighbors', () => {
+  it('op1 gives every event 3–8 dependency neighbors', () => {
     const byId = threadsById(op1.swimlaneModel);
     const deg = new Map<string, number>();
     const bump = (id: string) => deg.set(id, (deg.get(id) ?? 0) + 1);
@@ -110,6 +110,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('nests Card → 计算 → Core0.Cube → pipe leaves', () => {
+    expect(op1.swimlaneModel.metadata?.nestCardTree).toBe(true);
     for (const report of [op1, op2]) {
       const card = report.swimlaneModel.processes[0]!;
       expect(card.threads.map((t) => t.name)).toEqual(['通信', '计算', '储存HBM']);

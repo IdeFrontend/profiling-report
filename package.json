@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "sync:demo-fixtures": "node scripts/sync-demo-fixtures.mjs",
+    "build:sample": "python3 data/build_sample_rep.py && npm run sync:demo-fixtures",
     "predev": "npm run sync:demo-fixtures",
     "dev": "vite --config playground/vite.config.ts --host 127.0.0.1 --port 5173",
     "playground": "npm run dev",

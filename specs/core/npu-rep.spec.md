@@ -25,7 +25,7 @@ parseNpuRep(bytes: Uint8Array): ParsedNpuRep
 3. **PR-NPU-003** — Rejects bad magic / version / length mismatch.
 4. **PR-NPU-004** — loadReportSource loads multi-op npu-rep; defaults to first operator; ids are FileInfo names.
 5. **PR-NPU-005** — Duplicate operator stems (`op1.npu.rep` + `op1.rep`) throw.
-6. **PR-NPU-006** — `sample.rep` operators have distinct traces, CSVs, connections (op1: every event 3–6 neighbors), Cube pipe occupancy, Card → 计算 → Core → pipe nesting, ProfilerStep bands (op1: 3, op2: 5), and producer Parameter args (`Code`, `Detail`, `Pc_addr`, `Process_bytes`).
+6. **PR-NPU-006** — `sample.rep` operators have distinct traces, CSVs, connections (op1: every event 3–8 neighbors), Cube pipe occupancy, Card → 计算 → Core → pipe nesting (via producer `nestCardTree` opt-in), ProfilerStep bands (op1: 3, op2: 5), and producer Parameter args (`Code`, `Detail`, `Pc_addr`, `Process_bytes`).
 
 ## Edge Cases
 
@@ -36,6 +36,7 @@ parseNpuRep(bytes: Uint8Array): ParsedNpuRep
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
+- **2026-08-25** — PR-NPU-006: `nestCardTree` opt-in nesting; trim sample.rep to ~30 MB; align neighbor AC to 3–8.
 - **2026-08-25** — PR-NPU-006: sample traces include ProfilerStep bands; nest Core.*/PIPE lanes; fixture operators stay distinct.
 - **2026-08-25** — PR-NPU-006: nest `CoreN.*/PIPE` sample lanes into Card → 计算 → Core → pipe; fixture operators stay distinct (traces + CSVs + connections).
 - **2026-08-25** — PR-NPU-006: `data/sample.rep` fixture with distinct operators (traces + CSVs + connections).

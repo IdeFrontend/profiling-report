@@ -18,7 +18,7 @@ Operators:
   op1 — machine-view style (~100 X events): a few Core/pipe lanes with bursty
         irregular occupancy and cross-pipe `args.event_id` / dependencies
         connections + baseline `add_custom` CSVs from `data/out.rep`.
-  op2 — ~200k-event Card/core/pipe stress-style trace for rendering performance
+  op2 — ~150k-event Card/core/pipe stress-style trace for rendering performance
         demos, with sparse pipeline deps + transformed CSVs (different op name,
         block range, scaled metrics, synthesized Cube aic_* values).
 
@@ -138,8 +138,8 @@ def _x(pid, tid, name, ts, dur, event_id=None, deps=None, extra=None):
     return ev
 
 
-# Sketch Parameter column fields (VIEW_DATA_MAPPING §11.2.8.1). Kept short so
-# op2 (~200k X) does not balloon sample.rep.
+# Sketch Parameter column fields (VIEW_DATA_MAPPING §11.2.8.1). op2 omits Code
+# paths so the ~150k-event fixture stays near ~30 MB.
 CODE_PATHS = [
     "/opt/ascend/tikcpp/impl/cube_op.cpp",
     "/opt/ascend/tikcpp/lib/matmul/b.h",
@@ -148,35 +148,41 @@ CODE_PATHS = [
 ]
 
 
-def producer_params(pipe, name, rand, seq, dur):
-    """Synthetic producer args for DetailParameter (not I-Q9 transport)."""
+def producer_params(pipe, name, rand, seq, dur, *, rich=True):
+    """Synthetic producer args for DetailParameter (not I-Q9 transport).
+
+    `rich=True` (op1): includes Code paths for the Parameter column.
+    `rich=False` (op2): compact fields only — keeps the large fixture near ~30 MB.
+    """
     pc = 0xF0010000 + ((seq * 0x20) & 0xFFFF) + (sum(ord(c) for c in pipe) & 0xFF)
     nbytes = max(16, int(dur) if dur > 1 else 16 + int(rand() * 480))
     lo = int(rand() * 200)
     hi = lo + max(8, int(rand() * 128))
     detail_by_pipe = {
-        "SCALAR": f"SCALAR reg[{lo}:{hi}]",
-        "FLOWCTRL": f"FC flag[{lo}]",
-        "MTE1": f"L1[{lo}:{hi}] → UB",
-        "MTE2": f"GM → L1[{lo}:{hi}]",
-        "MTE3": f"UB → GM[{lo}:{hi}]",
-        "CUBE": f"L0A×L0B → L0C[{lo}:{hi}]",
-        "FIXP": f"FIX LOC→DST[{lo}:{hi}]",
-        "ALL": f"ALL pipe[{lo}:{hi}]",
-        "CACHEMISS": f"I$ miss @0x{pc:08x}",
+        "SCALAR": f"S[{lo}:{hi}]",
+        "FLOWCTRL": f"FC[{lo}]",
+        "MTE1": f"L1[{lo}:{hi}]",
+        "MTE2": f"GM>L1[{lo}:{hi}]",
+        "MTE3": f"UB>GM[{lo}:{hi}]",
+        "CUBE": f"L0[{lo}:{hi}]",
+        "FIXP": f"FIX[{lo}:{hi}]",
+        "ALL": f"ALL[{lo}:{hi}]",
+        "CACHEMISS": f"I$@{pc:x}",
     }
-    code = [CODE_PATHS[int(rand() * len(CODE_PATHS))]]
-    if rand() < 0.35:
-        second = CODE_PATHS[int(rand() * len(CODE_PATHS))]
-        if second not in code:
-            code.append(second)
-    return {
+    out = {
         "op_type": pipe if name.startswith("marker_") else name,
         "Pc_addr": f"0x{pc:08x}",
         "Process_bytes": nbytes,
         "Detail": detail_by_pipe.get(pipe, f"{pipe}[{lo}:{hi}]"),
-        "Code": code,
     }
+    if rich:
+        code = [CODE_PATHS[int(rand() * len(CODE_PATHS))]]
+        if rand() < 0.35:
+            second = CODE_PATHS[int(rand() * len(CODE_PATHS))]
+            if second not in code:
+                code.append(second)
+        out["Code"] = code
+    return out
 
 
 def profiler_step_bands(count, time_span):
@@ -197,8 +203,11 @@ def profiler_step_bands(count, time_span):
     return bands
 
 
-def _doc(events, band_count=0, time_span=0):
+def _doc(events, band_count=0, time_span=0, nest_card_tree=False):
     doc = {"displayTimeUnit": "ns", "traceEvents": events}
+    # Opt-in Card→计算→Core→pipe nesting in adaptRep (not applied to every .rep).
+    if nest_card_tree:
+        doc["nestCardTree"] = True
     bands = profiler_step_bands(band_count, time_span)
     if bands:
         doc["bands"] = bands
@@ -260,6 +269,7 @@ def emit_count_lane(pid, tid, pipe, count, time_span, rand, id_prefix, occupancy
     """
     Fixed event count with irregular busy/idle (stress-style), for large
     performance fixtures. Returns the same (eid, start, end, ev) tuples.
+    Compact producer args (no Code) to keep sample.rep size down.
     """
     profile = PIPE_PROFILE[pipe]
     events = []
@@ -288,7 +298,7 @@ def emit_count_lane(pid, tid, pipe, count, time_span, rand, id_prefix, occupancy
         eid = f"{id_prefix}:{i}"
         ev = _x(
             pid, tid, name, t, dur, event_id=eid,
-            extra=producer_params(pipe, name, rand, i, dur),
+            extra=producer_params(pipe, name, rand, i, dur, rich=False),
         )
         events.append((eid, t, t + dur, ev))
         t += dur
@@ -448,20 +458,22 @@ def small_trace():
 
     wire_dense_deps(pipe_map, rand, min_deg=3, max_deg=6)
     # Match stress-small band count (3).
-    return _doc(evs, band_count=3, time_span=time_span)
+    return _doc(evs, band_count=3, time_span=time_span, nest_card_tree=True)
 
 
 def big_trace():
     """
-    Large Card → Core → pipe fixture (~200k X events) for swimlane rendering
+    Large Card → Core → pipe fixture (~150k X events) for swimlane rendering
     performance demos. Irregular per-lane timings; sparse cross-pipe deps
     (pipeline chain only — dense wiring would explode at this scale).
+    Compact producer args (no Code) keep sample.rep near ~30 MB.
     """
     rand = mulberry32(0xBEEF01)
-    # 2 cards × 3 cores × 9 pipes = 54 lanes; 3704 × 54 = 200_016 events.
+    # 2 cards × 3 cores × 9 pipes = 54 lanes; ~2780 × 54 ≈ 150k events.
     lane_count = 2 * len(STRESS_CORES) * len(STRESS_PIPES)
-    events_per_lane = 200_000 // lane_count  # 3703 → total 199_962; bump to hit ~200k
-    while events_per_lane * lane_count < 200_000:
+    target_events = 150_000
+    events_per_lane = target_events // lane_count
+    while events_per_lane * lane_count < target_events:
         events_per_lane += 1
     time_span = 1_000_000_000  # 1 s in ns (stress-medium span)
     evs = []
@@ -494,7 +506,7 @@ def big_trace():
         wire_pipeline_deps(pipe_map, rand)
 
     # Match stress-medium band count (5).
-    return _doc(evs, band_count=5, time_span=time_span)
+    return _doc(evs, band_count=5, time_span=time_span, nest_card_tree=True)
 
 
 # ------------------------------------------------------------------ CSV gen

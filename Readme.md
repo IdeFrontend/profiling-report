@@ -31,7 +31,7 @@ Start here: **[docs/README.md](docs/README.md)**
 - [`data/out.rep`](data/out.rep) — sample CANN report container
 - [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
 - [`data/ffn_dense.trace.json`](data/ffn_dense.trace.json) — denser CTEF fixture (async s/f pairs); `ph: 'C'` counters stripped (regenerate when a counter lane lands)
-- [`data/sample.rep`](data/sample.rep) — nested multi-operator `npu-rep` container with two distinct operators: `op1` (small machine-view trace) and `op2` (big stress trace), both with dependency connections and distinct CSV content. Regenerate with [`data/build_sample_rep.py`](data/build_sample_rep.py)
+- [`data/sample.rep`](data/sample.rep) — nested multi-operator `npu-rep` container with two distinct operators: `op1` (small machine-view trace) and `op2` (~150k-event stress trace), both with dependency connections and distinct CSV content. Regenerate with `npm run build:sample` (runs [`data/build_sample_rep.py`](data/build_sample_rep.py) then syncs playground copies)
 - [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers
 
 ```bash

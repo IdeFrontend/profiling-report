@@ -49,6 +49,29 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     ]);
   });
 
+  it('PR-SWIM-015: nestCardTree is producer opt-in metadata only', () => {
+    const withFlag = chromeTraceToSwimlane({
+      displayTimeUnit: 'ns',
+      nestCardTree: true,
+      traceEvents: [
+        { ph: 'M', name: 'thread_name', pid: 1, tid: 1, args: { name: 'Core0.Cube/SCALAR' } },
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 10 },
+      ],
+    }, { sourceTimeUnit: 'ns' });
+    expect(withFlag.metadata?.nestCardTree).toBe(true);
+    // Flat until adaptRep applies nestCardTreeFromFlatCorePipes
+    expect(withFlag.processes[0]!.threads[0]!.name).toBe('Core0.Cube/SCALAR');
+
+    const without = chromeTraceToSwimlane({
+      displayTimeUnit: 'ns',
+      traceEvents: [
+        { ph: 'M', name: 'thread_name', pid: 1, tid: 1, args: { name: 'Core0.Cube/SCALAR' } },
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 10 },
+      ],
+    }, { sourceTimeUnit: 'ns' });
+    expect(without.metadata?.nestCardTree).toBeUndefined();
+  });
+
   it('PR-SWIM-002: default CTEF µs times convert to ns', () => {
     const model = chromeTraceToSwimlane({
       traceEvents: [
