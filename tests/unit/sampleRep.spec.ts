@@ -55,4 +55,19 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(op2.reportModel.summary.opName).toBe('matmul_mock');
     expect(op1.reportModel.summary.blockDim).not.toBe(op2.reportModel.summary.blockDim);
   });
+
+  it('both operators expose Cube-side pipe occupancy (MIX Cube tab)', () => {
+    for (const report of [op1, op2]) {
+      expect(report.reportModel.summary.opType?.toLowerCase()).toBe('mix');
+      const cube = report.reportModel.pipeOccupancy.filter((p) => p.side === 'cube');
+      expect(cube.length).toBeGreaterThan(0);
+      expect(cube.some((p) => p.id === 'cube' && p.ratio > 0)).toBe(true);
+      expect(cube.some((p) => p.id === 'mte2' && p.ratio > 0)).toBe(true);
+    }
+    const cube1 = op1.reportModel.pipeOccupancy.find((p) => p.id === 'cube' && p.side === 'cube');
+    const cube2 = op2.reportModel.pipeOccupancy.find((p) => p.id === 'cube' && p.side === 'cube');
+    expect(cube1?.ratio).toBeGreaterThan(0);
+    expect(cube2?.ratio).toBeGreaterThan(0);
+    expect(cube1?.ratio).not.toBe(cube2?.ratio);
+  });
 });

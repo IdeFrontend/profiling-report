@@ -25,7 +25,7 @@ parseNpuRep(bytes: Uint8Array): ParsedNpuRep
 3. **PR-NPU-003** — Rejects bad magic / version / length mismatch.
 4. **PR-NPU-004** — loadReportSource loads multi-op npu-rep; defaults to first operator; ids are FileInfo names.
 5. **PR-NPU-005** — Duplicate operator stems (`op1.npu.rep` + `op1.rep`) throw.
-6. **PR-NPU-006** — `sample.rep` operators have distinct traces, CSVs, and connections.
+6. **PR-NPU-006** — `sample.rep` operators have distinct traces, CSVs, connections, and Cube pipe occupancy.
 
 ## Edge Cases
 

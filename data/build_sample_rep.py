@@ -323,6 +323,104 @@ def _fmt(v):
     return s if s not in ("", "-0") else "0"
 
 
+# Cube-side (aic_*) bases for PipeUtilization — out.rep leaves these as NA.
+# Ratios are the bars on the MIX Cube tab; times feed absoluteValue tooltips.
+AIC_PIPE_BASES = {
+    "aic_time(us)": 1.25,
+    "aic_total_cycles": 2100,
+    "aic_cube_time(us)": 0.72,
+    "aic_cube_ratio": 0.58,
+    "aic_mte1_time(us)": 0.35,
+    "aic_mte1_ratio": 0.28,
+    "aic_mte2_time(us)": 0.81,
+    "aic_mte2_ratio": 0.65,
+    "aic_mte3_time(us)": 0.18,
+    "aic_mte3_ratio": 0.14,
+    "aic_mte3_active_bw(GB/s)": 42.5,
+    "aic_fixpipe_time(us)": 0.22,
+    "aic_fixpipe_ratio": 0.18,
+    "aic_fixpipe_active_bw(GB/s)": 28.0,
+    "aic_icache_miss_rate": 0.012,
+    "aic_scalar_time(us)": 0.31,
+    "aic_scalar_ratio": 0.25,
+    "aic_scalar_single_time(us)": 0.12,
+    "aic_scalar_dual_time(us)": 0.19,
+    "aic_scalar_mte1_stall_time(us)": 0.04,
+    "aic_scalar_mte2_stall_time(us)": 0.06,
+    "aic_scalar_mte3_stall_time(us)": 0.02,
+    "aic_scalar_cube_stall_time(us)": 0.08,
+    "aic_scalar_wait_ib_time(us)": 0.01,
+    "aic_scalar_wait_time(us)": 0.03,
+}
+
+AIC_ARITH_BASES = {
+    "aic_time(us)": 1.25,
+    "aic_total_cycles": 2100,
+    "aic_cube_ratio": 0.58,
+    "aic_cube_fp16_ratio": 0.41,
+    "aic_cube_int8_ratio": 0.17,
+    "aic_cube_fops": 48000,
+    "aic_cube_total_instr_number": 1200,
+    "aic_cube_fp_instr_number": 850,
+    "aic_cube_int_instr_number": 350,
+}
+
+AIC_CONFLICT_BASES = {
+    "aic_time(us)": 1.25,
+    "aic_total_cycles": 2100,
+    "aic_cube_wait_ratio": 0.08,
+    "aic_mte1_wait_ratio": 0.05,
+    "aic_mte2_wait_ratio": 0.12,
+    "aic_mte3_wait_ratio": 0.03,
+}
+
+
+def fill_aic_columns(text, bases, seed, scale=1.0):
+    """Replace NA aic_* cells with jittered values so the Cube pipe tab has bars."""
+    lines = text.rstrip("\n").split("\n")
+    if not lines:
+        return text
+    headers = [h.strip() for h in lines[0].split(",")]
+    rand = mulberry32(seed)
+    out = [lines[0]]
+    for row_i, line in enumerate(lines[1:]):
+        if not line.strip():
+            continue
+        cells = line.split(",")
+        # pad / trim to header width
+        while len(cells) < len(headers):
+            cells.append("")
+        cells = cells[:len(headers)]
+        for j, h in enumerate(headers):
+            if h not in bases:
+                continue
+            if cells[j].strip() not in ("", "NA"):
+                continue
+            # Per-row / per-column jitter so bars differ across blocks.
+            jitter = 0.75 + 0.5 * rand()
+            row_bias = 0.9 + 0.2 * ((row_i * 17 + j) % 7) / 6.0
+            cells[j] = _fmt(bases[h] * scale * jitter * row_bias)
+        out.append(",".join(cells))
+    return "\n".join(out) + "\n"
+
+
+def enrich_cube_csvs(text_by_name, *, seed, scale=1.0):
+    """Fill Cube-side NA columns on the metric CSVs the aside actually reads."""
+    if "PipeUtilization.csv" in text_by_name:
+        text_by_name["PipeUtilization.csv"] = fill_aic_columns(
+            text_by_name["PipeUtilization.csv"], AIC_PIPE_BASES, seed, scale,
+        )
+    if "ArithmeticUtilization.csv" in text_by_name:
+        text_by_name["ArithmeticUtilization.csv"] = fill_aic_columns(
+            text_by_name["ArithmeticUtilization.csv"], AIC_ARITH_BASES, seed + 1, scale,
+        )
+    if "ResourceConflictRatio.csv" in text_by_name:
+        text_by_name["ResourceConflictRatio.csv"] = fill_aic_columns(
+            text_by_name["ResourceConflictRatio.csv"], AIC_CONFLICT_BASES, seed + 2, scale,
+        )
+    return text_by_name
+
+
 def transform_metric_csv(text, scale, block_offset, sub_label, n_rows):
     """Rewrite a block_id/sub_block_id CSV with a new block range + scaled values."""
     lines = text.rstrip("\n").split("\n")
@@ -346,10 +444,12 @@ def transform_metric_csv(text, scale, block_offset, sub_label, n_rows):
     return "\n".join(out) + "\n"
 
 
-def transform_op_basic_info(text):
+def transform_op_basic_info(text, *, op_name="matmul_mock", op_type="mix",
+                            duration="3.502000", block_dim="16", mix_dim="8",
+                            freq="1500"):
     """Swap the single OpBasicInfo row for a different operator identity."""
     header = text.split("\n", 1)[0]
-    row = "matmul_mock,mix,3.502000,16,8,0,3073000,1500,1500,"
+    row = f"{op_name},{op_type},{duration},{block_dim},{mix_dim},0,3073000,{freq},{freq},"
     return header + "\n" + row + "\n"
 
 
@@ -383,24 +483,37 @@ METRIC_SCALES = {
 
 
 def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
-                 ai_core_count, ai_vector_count, block_offset, n_rows):
-    payloads = []
+                 ai_core_count, ai_vector_count, block_offset, n_rows,
+                 aic_seed, aic_scale, op_basic=None):
+    texts = {}
     for name, data in out_rep.items():
         if name == "trace.json":
-            payloads.append(("trace.json", TYPE_JSON, trace))
-        elif name == "OpBasicInfo.csv":
+            continue
+        if name == "OpBasicInfo.csv":
             text = data.decode("utf-8")
-            payloads.append(("OpBasicInfo.csv", TYPE_CSV,
-                             (transform_op_basic_info(text) if transform else text).encode("utf-8")))
-        elif name in METRIC_SCALES:
+            if op_basic is not None:
+                text = transform_op_basic_info(text, **op_basic)
+            elif transform:
+                text = transform_op_basic_info(text)
+            texts[name] = text
+            continue
+        if name in METRIC_SCALES:
             text = data.decode("utf-8")
             if transform:
                 text = transform_metric_csv(
                     text, METRIC_SCALES[name], block_offset, sub_label, n_rows
                 )
-            payloads.append((name, TYPE_CSV, text.encode("utf-8")))
+            texts[name] = text
         else:
-            payloads.append((name, TYPE_CSV, data))
+            texts[name] = data.decode("utf-8")
+
+    # out.rep is vector-only (all aic_* = NA); synthesize Cube-side values for the MIX tab.
+    enrich_cube_csvs(texts, seed=aic_seed, scale=aic_scale)
+
+    payloads = [("trace.json", TYPE_JSON, trace)]
+    for name, text in texts.items():
+        typ = TYPE_CSV if name.endswith(".csv") else TYPE_JSON
+        payloads.append((name, typ, text.encode("utf-8")))
 
     payloads.append(("HardwareInfo.jsonl", TYPE_JSON,
                      hardware_info(chip_info, ai_core_count, ai_vector_count).encode("utf-8")))
@@ -425,6 +538,11 @@ def main():
         ai_vector_count=72,
         block_offset=0,
         n_rows=8,
+        aic_seed=0xC0BE01,
+        aic_scale=0.85,
+        # MIX so the Cube|Vector toggle appears; Cube bars come from synthesized aic_*.
+        op_basic={"op_name": "add_custom", "op_type": "mix", "duration": "1.800036",
+                  "block_dim": "8", "mix_dim": "4", "freq": "1650"},
     )
     op2 = leaf_entries(
         out_rep,
@@ -436,6 +554,10 @@ def main():
         ai_vector_count=48,
         block_offset=100,
         n_rows=12,
+        aic_seed=0xC0BE02,
+        aic_scale=1.15,
+        op_basic={"op_name": "matmul_mock", "op_type": "mix", "duration": "3.502000",
+                  "block_dim": "16", "mix_dim": "8", "freq": "1500"},
     )
 
     op1_bytes = pack_npu_rep(op1)
