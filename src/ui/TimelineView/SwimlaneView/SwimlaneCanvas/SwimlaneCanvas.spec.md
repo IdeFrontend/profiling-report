@@ -55,6 +55,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 23. **PR-CANVAS-023** — Ctrl/Cmd+wheel on a measure border emits `zoom` with that border’s stuck edge time.
 24. **PR-CANVAS-024** — Cursor `xRatio` and `time` share one track width.
 25. **PR-CANVAS-025** — Canvas sizes to wrap width, not HTML default 300px.
+26. **PR-CANVAS-026** — Measure overlay geometry recomputes when the wrap width changes (resizeTick).
 
 ## Edge Cases
 
@@ -88,6 +89,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 
 ## Changelog
 - **2026-08-25** — Measure-mode event click also selects the event; empty-space click also clears the selection (PR-CANVAS-013/014/015/016).
+- **2026-08-25** — `resizeTick` invalidates measure overlay geometry on width-only resize; PR-CANVAS-026.
 - **2026-08-24** — Unified track width for cursor/time; size canvas from wrap; PR-CANVAS-024/025.
 - **2026-08-21** — Ctrl+wheel zooms on magnet / measure-border stuck time; border wheel forward; PR-CANVAS-022/023.
 - **2026-08-23** — Committed exact-match edge marks are 2px (`measure-edge-exact`); live snap stem stays 1px.

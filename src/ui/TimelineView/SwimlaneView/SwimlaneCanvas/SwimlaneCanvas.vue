@@ -61,6 +61,8 @@ const overlayCanvasRef = ref<HTMLCanvasElement | null>(null);
 const fallbackCanvasRef = ref<HTMLCanvasElement | null>(null);
 const sizerHeight = ref(120);
 const useWebGl = ref(false);
+/** Bumped on size change so measure overlay computeds re-read track width. */
+const resizeTick = ref(0);
 
 type Backend = CanvasSwimlaneRenderer | WebGlSwimlaneRenderer;
 
@@ -279,6 +281,7 @@ function resize(): void {
   if (sizeChanged) {
     lastW = w;
     lastH = h;
+    resizeTick.value += 1;
     backend.resize(w, h);
     if (useWebGl.value) overlay.resize(w, h);
   }
@@ -710,6 +713,7 @@ function clearEdgeSnapHighlight() {
 
 /** Fade bands outside the visible selection (persists when range is fully off-screen). */
 const measureFadeGeometry = computed(() => {
+  void resizeTick.value;
   const range = props.measureRange;
   if (!range) return null;
   const start = Math.min(range.startTime, range.endTime);
@@ -733,6 +737,7 @@ const measureFadeGeometry = computed(() => {
 });
 
 const measureGeometry = computed(() => {
+  void resizeTick.value;
   const range = props.measureRange;
   if (!range) return null;
   const start = Math.min(range.startTime, range.endTime);
@@ -756,6 +761,7 @@ const measureGeometry = computed(() => {
 
 /** Gray event-edge preview while hovering in measure mode (no fades). */
 const measurePreviewGeometry = computed(() => {
+  void resizeTick.value;
   if (!props.measureMode || suppressMeasurePreview.value || !props.model) return null;
   const id = props.hoveredEventId;
   if (!id) return null;

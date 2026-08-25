@@ -695,9 +695,11 @@ defineExpose({
 
 .pr-swim-row {
   display: grid;
-  grid-template-columns: var(--pr-gutter-width, 280px) 1fr;
+  /* minmax(0, …) so gutter + track shrink in narrow MSTT panels instead of overflowing the aside. */
+  grid-template-columns: minmax(0, var(--pr-gutter-width, 280px)) minmax(0, 1fr);
   gap: 0;
   align-items: stretch;
+  min-width: 0;
   min-height: 0;
 }
 

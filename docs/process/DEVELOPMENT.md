@@ -117,4 +117,6 @@ Do **not** leave a **Resolved** row parked on an open-questions table. Agents: s
 
 **Delivery Milestone 1 (demo-data aside modes) — completed 2026-08-11.** All `out.rep` CSV embeds parsed and surfaced: Summary, PIPE with Cube|Vector toggle (changes.png #2), compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio, #3), memory tabs (L0 / L2Cache / L1 / UB) with block switcher and 查看全部 (#4). Full progress report: [M1_PROGRESS.md](roadmap/M1_PROGRESS.md).
 
-**Next:** [Delivery Milestone 2](roadmap/milestone-2.md) — MSTT host + selection/deps + details + memory graph + roofline + timeline time-range measure, target **2026-08-25**. Then [M3](roadmap/milestone-3.md) (remaining full UI, **2026-09-15**).
+**Delivery Milestone 2 (MSTT + selection + memory + measure) — near complete 2026-08-24.** Library exit criteria met on `master` (deps, detail dock, memory topology, interim roofline, measure mode). MSTT host **Ready** on branch [`feature/profiling-report`](https://github.com/IdeFrontend/mstt/tree/feature/profiling-report); smoke pending. Full progress report: [M2_PROGRESS.md](roadmap/M2_PROGRESS.md).
+
+**Next:** [Delivery Milestone 3](roadmap/milestone-3.md) — remaining full UI, target **2026-09-15**.

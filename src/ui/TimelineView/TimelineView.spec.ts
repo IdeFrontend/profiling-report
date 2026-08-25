@@ -691,8 +691,12 @@ describe('TimelineView', () => {
     expect(line.attributes('style')).toContain('left: 50%');
   });
 
-  it('PR-TIMELINE-017: no viewport breakpoint stacks swim rows', async () => {
+  it('PR-TIMELINE-017: no viewport breakpoint; swim rows shrink with minmax columns', async () => {
     const src = (await import('./TimelineView.vue?raw')).default as string;
     expect(src).not.toMatch(/@media\s*\(\s*max-width:\s*900px\s*\)/);
+    expect(src).toMatch(
+      /\.pr-swim-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*var\(--pr-gutter-width/s,
+    );
+    expect(src).toMatch(/\.pr-swim-row\s*\{[^}]*min-width:\s*0/s);
   });
 });

@@ -776,4 +776,13 @@ describe('SwimlaneCanvas', () => {
     expect(canvas.style.width).toBe('640px');
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-026: measure overlay geometry depends on resizeTick', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/const resizeTick = ref\(0\)/);
+    expect(src).toMatch(/resizeTick\.value \+= 1/);
+    expect(src).toMatch(/measureFadeGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+    expect(src).toMatch(/measureGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+    expect(src).toMatch(/measurePreviewGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+  });
 });
