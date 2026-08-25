@@ -44,11 +44,11 @@ Static playground demo is what Vercel deploys (`vercel.json` → `npm run build:
 
 Fixtures are synced from the repo into `playground/public/data/` via `npm run sync:demo-fixtures` (runs automatically before `dev` / `build:demo`):
 
-- `data/out.rep` → `/data/out.rep`
-- `data/out.trace.json` → `/data/out.trace.json`
-- `data/example.npu.rep` → `/data/example.rep`
 - `data/sample.rep` → `/data/sample.rep`
+- `data/out.rep` → `/data/out.rep`
+- `data/example.npu.rep` → `/data/example.rep`
 - `data/ffn_dense.trace.json` → `/data/ffn_dense.trace.json`
+- `data/out.trace.json` → `/data/out.trace.json` (synced for tests; not in the playground switcher)
 
 ```bash
 npm run playground          # local SPA (syncs fixtures first)
@@ -56,7 +56,7 @@ npm run build:demo          # production static build
 npm run preview:demo        # preview playground/dist
 ```
 
-Fixture switcher: `?fixture=rep` (default), `?fixture=trace`, `?fixture=example`, `?fixture=sample`, or `?fixture=ffn_dense`.
+Fixture switcher: `?fixture=sample` (default), `?fixture=rep`, `?fixture=example`, or `?fixture=ffn_dense`.
 
 Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
 
