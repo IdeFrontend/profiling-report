@@ -77,11 +77,12 @@ export function clearMeasure(state: SwimlaneViewState): SwimlaneViewState {
 }
 
 export function zoomToFitWindow(model: SwimlaneModel | null | undefined): SwimlaneViewWindow {
-  if (!model || !(model.maxTime > model.minTime)) {
-    return { startTime: 0, endTime: 1, scrollY: 0 };
+  if (!model) return { startTime: 0, endTime: 1, scrollY: 0 };
+  if (!(model.maxTime > model.minTime)) {
+    return { startTime: model.minTime, endTime: model.minTime + MIN_WINDOW, scrollY: 0 };
   }
   return {
-    startTime: 0,
+    startTime: model.minTime,
     endTime: model.maxTime,
     scrollY: 0,
   };

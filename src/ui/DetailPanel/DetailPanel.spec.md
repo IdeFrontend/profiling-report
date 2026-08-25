@@ -8,7 +8,7 @@ Raised bottom 「详情」 dock: titled header with a close control over a three
 
 ## Inputs
 
-**selected** (`SelectedEvent`), **unit**, optional **locale**. Optional **neighbors** (`DependencyNeighbors`), **dependencyMode** and **dependencyDepth** drive the Relevent column.
+**selected** (`SelectedEvent`), **unit**, optional **timeOrigin** / **locale**. Optional **neighbors** (`DependencyNeighbors`), **dependencyMode** and **dependencyDepth** drive the Relevent column.
 
 ## Outputs
 

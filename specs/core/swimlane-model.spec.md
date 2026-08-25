@@ -50,7 +50,7 @@ interface SwimEvent    {
 
 **Ordering.** Processes and threads ordered by first event start time. Within each thread, events sorted by `startTime` ascending, longest `duration` first on ties. Processes/threads with no events are excluded.
 
-**`minTime` vs axis origin.** `minTime` is the earliest painted event timestamp. The timeline viewport and axis rulers anchor at producer **t = 0** (`bounds.minTime = 0`, `zoomToFitWindow` → `[0, maxTime]`), so when `minTime > 0` events appear inset and a leading gap is expected. `minTime` still drives thread utilization spans and WebGL `timeBase` (float32 precision); it is not the left edge of the axis.
+**`minTime` as display origin.** `minTime` is the earliest painted event timestamp and the shared UI display origin (PyPTO / Perfetto Timecode default): viewport/zoom-to-fit span `[minTime, maxTime]`, and axis / cursor / tooltip / detail start·end labels subtract `minTime` so the left edge and earliest event read as `0`. Model timestamps stay absolute producer ns; only the formatting layer subtracts. `minTime` also drives thread utilization spans and WebGL `timeBase` (float32 precision).
 
 **Error on empty.** If the trace contains no complete X events, `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.
 
