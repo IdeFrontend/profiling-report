@@ -17,6 +17,8 @@ const props = withDefaults(
   defineProps<{
     selected: SelectedEvent;
     unit: TimeDisplayUnit;
+    /** Display origin (usually model.minTime); start/end are relative to this. */
+    timeOrigin?: number;
     locale?: string;
     /** Omitted when the report carries no dependency data — the column hides. */
     neighbors?: DependencyNeighbors;
@@ -28,6 +30,7 @@ const props = withDefaults(
     locale: undefined,
     neighbors: undefined,
     dependencyMode: 'all',
+    timeOrigin: 0,
   },
 );
 
@@ -105,6 +108,7 @@ function onResizePointerUp() {
       <DetailSummary
         :selected="selected"
         :unit="unit"
+        :time-origin="timeOrigin"
         :locale="locale"
       />
       <DetailParameter

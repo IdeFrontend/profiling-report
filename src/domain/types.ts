@@ -42,7 +42,10 @@ export interface SwimProcess {
 
 export interface SwimlaneModel {
   processes: SwimProcess[];
-  /** Earliest event `startTime` (ns). Used for utilization/WebGL precision — not the timeline axis origin (producer t=0). */
+  /**
+   * Earliest event `startTime` (ns). Display origin for axis/cursor/tooltip/detail
+   * (PyPTO / Perfetto default: left edge shows 0). Also WebGL `timeBase` / utilization.
+   */
   minTime: number;
   maxTime: number;
   /**

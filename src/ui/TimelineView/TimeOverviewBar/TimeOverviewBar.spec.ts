@@ -35,13 +35,13 @@ describe('TimeOverviewBar', () => {
     expect(style).toContain('width');
   });
 
-  it('PR-OVERVIEW-003: leftmost tick is zero at producer origin', () => {
+  it('PR-OVERVIEW-003: leftmost tick is zero at display origin (minTime)', () => {
     const wrapper = mount(TimeOverviewBar, {
       props: {
-        minTime: 0,
-        maxTime: 5260,
-        startTime: 0,
-        endTime: 5260,
+        minTime: 1000,
+        maxTime: 6260,
+        startTime: 1000,
+        endTime: 6260,
         timeUnit: 'ms',
       },
     });

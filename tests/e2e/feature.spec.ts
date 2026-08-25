@@ -1,10 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
 
-/** Viewport starts at producer t=0, so events may sit anywhere along the width. */
-const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.35, 0.5, 0.65, 0.8, 0.9, 0.95, 0.98];
-
-const FFN_DENSE_X_FRACTIONS = [0.99, 0.985, 0.98, 0.975, 0.97, 0.95];
+/** With fit = [minTime, maxTime], events fill the canvas; probe near the left first. */
+const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.35, 0.5, 0.65, 0.8];
 
 type CanvasBox = { x: number; y: number; width: number; height: number };
 
@@ -66,14 +64,15 @@ async function probeSwimlaneDepCurves(
   page: Page,
   gl: ReturnType<Page['getByTestId']>,
   box: CanvasBox,
-  opts?: { maxLanes?: number; xFractions?: number[]; paintTimeoutMs?: number },
+  opts?: { maxLanes?: number; xOffsetsPx?: number[]; paintTimeoutMs?: number },
 ): Promise<boolean> {
-  const maxLanes = opts?.maxLanes ?? 60;
-  const fractions = opts?.xFractions ?? FFN_DENSE_X_FRACTIONS;
-  const paintTimeoutMs = opts?.paintTimeoutMs ?? 500;
+  const maxLanes = opts?.maxLanes ?? 24;
+  const offsets = opts?.xOffsetsPx ?? [24, 80, 160, 280, 420];
+  const paintTimeoutMs = opts?.paintTimeoutMs ?? 400;
   for (let lane = 0; lane < maxLanes; lane++) {
     const y = box.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
-    for (const xOff of xOffsets(box, fractions)) {
+    for (const xOff of offsets) {
+      if (xOff >= box.width - 2) continue;
       await page.mouse.click(box.x + xOff, y);
       if (await waitForDepCurves(page, gl, paintTimeoutMs)) return true;
     }
@@ -171,8 +170,14 @@ test.describe('PR-E2E feature paths', () => {
     const box = await overlay.boundingBox();
     expect(box).toBeTruthy();
 
-    // ffn_dense timestamps sit at ~100% of maxTime; poll dep-curves directly (not detail-panel).
-    expect(await probeSwimlaneDepCurves(page, gl, box!)).toBe(true);
+    // Data-bounded fit: scan many lanes × x offsets until a linked event paints curves.
+    expect(
+      await probeSwimlaneDepCurves(page, gl, box!, {
+        maxLanes: 40,
+        xOffsetsPx: [8, 24, 48, 80, 120, 160, 220, 280, 360, 480, 600],
+        paintTimeoutMs: 250,
+      }),
+    ).toBe(true);
 
     const gen = await gl.getAttribute('data-dep-graph-gen');
     expect(gen).toBeTruthy();

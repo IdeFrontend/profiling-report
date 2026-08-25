@@ -4,11 +4,11 @@
 |----------------|
 | PR-CURSOR-*    |
 
-Playhead time bubble on the viewport time axis. Shows the cursor position as a scalar producer timestamp (same `formatTime` as tooltip).
+Playhead time bubble on the viewport time axis. Shows the cursor position as a scalar timestamp relative to `minTime` (same `formatDisplayTime` as tooltip Start).
 
 ## Inputs
 
-**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (scalar `formatTime`, same as tooltip). The parent formats absolute producer time via `formatTime`.
+**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (scalar, same as tooltip Start). The parent formats via `formatDisplayTime(time, minTime, unit)`.
 
 ## Outputs
 
@@ -32,7 +32,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 |-------|--------|
 | Bubble fill | `#317AF7` (align `--pr-playhead` / `#3078F0` ±) |
 | Text | `#ffffff`, 11px, weight 600, tabular-nums |
-| Format | Scalar **producer timestamp** via `formatTime` (e.g. `3.354 µs`) — matches tooltip/detail |
+| Format | Scalar via `formatDisplayTime` relative to `minTime` (e.g. `2.368 µs`) — matches tooltip/detail Start |
 | Size | ~72×19px content; `padding: 1px 8px`; `border-radius: 4px`; `min-width: 72px` |
 | Stem | 1px line same blue (`#317AF7`), continuous from axis through swimlane — **no** 1px gap at the axis/canvas border; axis + canvas segments share the same x (no horizontal jog) |
 | Behavior | Must update on pointer move; short traces use µs/ns unit so digits change |
@@ -65,9 +65,10 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 
 ## Dependencies
 
-[format-time](../../../../../specs/core/format-time.spec.md) (formatTime).
+[format-time](../../../../../specs/core/format-time.spec.md) (formatDisplayTime).
 
 ## Changelog
+- **2026-08-25** — Label relative to minTime via formatDisplayTime.
 - **2026-08-24** — Scalar `formatTime` cursor label (matches tooltip).
 - **2026-08-20** — Parent also lifts pill while hovering the viewport time axis (TimelineView).
 - **2026-08-20** — Pill may overlap aside seam when playhead is at the edge.

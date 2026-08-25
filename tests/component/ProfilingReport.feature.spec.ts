@@ -122,7 +122,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
 
     await wrapper.get('[data-testid="zoom-to-fit"]').trigger('click');
     await flushPromises();
-    expect(vm.viewState.startTime).toBe(0);
+    expect(vm.viewState.startTime).toBe(adapted.swimlaneModel.minTime);
     expect(vm.viewState.endTime).toBe(adapted.swimlaneModel.maxTime);
   });
 
@@ -274,7 +274,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
 
     await wrapper.get('[data-testid="zoom-to-fit"]').trigger('click');
     await flushPromises();
-    expect(vm.viewState.startTime).toBe(0);
+    expect(vm.viewState.startTime).toBe(adapted.swimlaneModel.minTime);
     expect(vm.viewState.endTime).toBe(adapted.swimlaneModel.maxTime);
   });
 });

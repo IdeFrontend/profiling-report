@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   formatAxisTime,
   formatCursorTime,
+  formatDisplayTime,
+  formatDisplayTimeParts,
   formatTime,
   formatTimeParts,
   resolveCursorTimeUnit,
@@ -51,5 +53,12 @@ describe('PR-TIME: display units (interim I-Q14)', () => {
     expect(formatAxisTime(0, 'ms', 474)).toBe('0ms');
     expect(formatAxisTime(0, 'us', 474)).toBe('0µs');
     expect(formatAxisTime(0, 'ns', 474)).toBe('0ns');
+  });
+
+  it('PR-TIME-006: formatDisplayTime subtracts origin', () => {
+    expect(formatDisplayTime(3_354_000, 986_000, 'us')).toBe(formatTime(2_368_000, 'us'));
+    expect(formatDisplayTimeParts(3_354_000, 986_000, 'us')).toEqual(
+      formatTimeParts(2_368_000, 'us'),
+    );
   });
 });

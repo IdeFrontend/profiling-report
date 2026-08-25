@@ -21,14 +21,22 @@ const model: SwimlaneModel = {
 };
 
 describe('PR-VIEW: swimlane view window', () => {
-  it('PR-VIEW-001: zoomToFit uses producer origin 0 through model max', () => {
+  it('PR-VIEW-001: zoomToFit uses model minTime through maxTime', () => {
     const w = zoomToFitWindow(model);
-    expect(w.startTime).toBe(0);
+    expect(w.startTime).toBe(1000);
     expect(w.endTime).toBe(5000);
     const state = createViewState(model);
-    expect(state.startTime).toBe(0);
+    expect(state.startTime).toBe(1000);
     expect(state.endTime).toBe(5000);
     expect(state.asideVisible).toBe(true);
+  });
+
+  it('PR-VIEW-011: zoomToFit keeps degenerate minTime===maxTime in minTime space', () => {
+    const point: SwimlaneModel = { processes: [], minTime: 986_000, maxTime: 986_000 };
+    const w = zoomToFitWindow(point);
+    expect(w.startTime).toBe(986_000);
+    expect(w.endTime).toBe(986_000 + MIN_VIEW_WINDOW);
+    expect(zoomToFitWindow(null)).toEqual({ startTime: 0, endTime: 1, scrollY: 0 });
   });
 
   it('PR-VIEW-002: zoomAt shrinks window around anchor', () => {

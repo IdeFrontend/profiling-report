@@ -8,19 +8,20 @@ import {
 import AxisRuler from './AxisRuler.vue';
 
 describe('PR-AXIS: shared ruler', () => {
-  it('PR-AXIS-002: nice majors snap to origin + k·interval; 9 minors per gap; zero at producer origin', () => {
+  it('PR-AXIS-002: nice majors snap to origin + k·interval; 9 minors per gap; zero at display origin', () => {
+    const origin = 1000;
     const { majors, minors, interval } = buildAxisRulerTicks({
-      rangeStart: 0,
-      rangeEnd: 10_000,
-      origin: 0,
+      rangeStart: origin,
+      rangeEnd: origin + 10_000,
+      origin,
       timeUnit: 'ms',
       widthPx: 1000,
     });
     expect(interval).toBe(1000);
-    expect(majors[0]?.t).toBe(0);
+    expect(majors[0]?.t).toBe(origin);
     expect(majors[0]?.label).toBe('0ms');
     for (const m of majors) {
-      expect(m.t % interval).toBe(0);
+      expect((m.t - origin) % interval).toBe(0);
     }
     expect(majors).toHaveLength(11);
     expect(minors.length).toBeGreaterThanOrEqual(10 * AXIS_RULER_MINORS_PER_GAP);
