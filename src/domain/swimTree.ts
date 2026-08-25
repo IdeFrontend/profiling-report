@@ -8,6 +8,88 @@ export function isFolderNode(node: SwimThread): boolean {
   return node.children !== undefined;
 }
 
+/** Flat CTEF name `Core0.Cube/SCALAR` → Core0.Cube + SCALAR (not `AIV0/PIPE_V/status`). */
+const CORE_PIPE_LEAF = /^(.+\.[^/]+)\/([^/]+)$/;
+
+function meanUtilization(nodes: SwimThread[]): number | undefined {
+  const vals = nodes.map((n) => n.utilization).filter((u): u is number => u != null);
+  if (vals.length === 0) return undefined;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+/**
+ * Nest flat `CoreN.Cube|Vector/PIPE` lanes into Card → 通信|计算|储存HBM → Core → pipe
+ * (design mockup / stress shape). Preserves leaf thread ids for dependency EventRefs.
+ * No-op when no matching names (real AIV pipe-state traces stay flat).
+ */
+export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneModel {
+  let any = false;
+  const processes: SwimProcess[] = model.processes.map((proc) => {
+    const byCore = new Map<string, SwimThread[]>();
+    const unmatched: SwimThread[] = [];
+    for (const t of proc.threads) {
+      const m = CORE_PIPE_LEAF.exec(t.name);
+      if (!m) {
+        unmatched.push(t);
+        continue;
+      }
+      any = true;
+      const core = m[1]!;
+      const pipe = m[2]!;
+      const list = byCore.get(core) ?? [];
+      list.push({ ...t, name: pipe });
+      byCore.set(core, list);
+    }
+    if (byCore.size === 0) return proc;
+
+    const coreFolders: SwimThread[] = [...byCore.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([coreName, leaves]) => ({
+        id: `${proc.id}/${coreName}`,
+        name: coreName,
+        events: [] as SwimEvent[],
+        utilization: meanUtilization(leaves),
+        children: leaves,
+      }));
+
+    const compute: SwimThread = {
+      id: `${proc.id}/compute`,
+      name: '计算',
+      events: [],
+      utilization: meanUtilization(coreFolders) ?? 1,
+      children: [...coreFolders, ...unmatched],
+    };
+    return {
+      ...proc,
+      threads: [
+        { id: `${proc.id}/comm`, name: '通信', events: [], utilization: 1 },
+        compute,
+        { id: `${proc.id}/hbm`, name: '储存HBM', events: [], utilization: 0.46 },
+      ],
+    };
+  });
+
+  if (!any) return model;
+
+  const collapsed: string[] = [];
+  for (const p of processes) {
+    const compute = p.threads.find((t) => t.name === '计算' && isFolderNode(t));
+    if (!compute?.children) continue;
+    for (const core of compute.children) {
+      if (core.name !== 'Core0.Cube' && isFolderNode(core)) collapsed.push(core.id);
+    }
+  }
+
+  return {
+    ...model,
+    processes,
+    metadata: {
+      ...model.metadata,
+      defaultCollapsedIds: collapsed,
+    },
+  };
+}
+
 /** Depth-first collect events from leaf nodes only. */
 export function collectLeafEvents(threads: SwimThread[]): SwimEvent[] {
   const out: SwimEvent[] = [];

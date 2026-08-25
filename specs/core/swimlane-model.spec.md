@@ -32,7 +32,7 @@ interface SwimEvent    {
 
 **Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). Only `SwimProcess` (Card) uses group-header chrome.
 
-**Bands:** optional shared phase intervals painted on folder/spacer group rows when present. Chrome Trace / `.rep` adapters leave `bands` undefined (never invent). Stress fixtures may supply `ProfilerStep#N` bands.
+**Bands:** optional shared phase intervals painted on folder/spacer group rows when present. Chrome Trace / `.rep` adapters pass through producer `bands` (`ts`/`dur` in the same unit as X events) and never invent them when absent. Stress fixtures and `sample.rep` supply `ProfilerStep#N` bands.
 
 ## Unit contract
 
@@ -69,6 +69,7 @@ interface SwimEvent    {
 1. **PR-SWIM-011**: Recycled flow ids and the same id in two processes each keep their pairs, including when finishes appear first in the file.
 1. **PR-SWIM-012**: A flow in a gap under an enclosing slice binds the enclosing event.
 1. **PR-SWIM-013**: Touching X intervals (`end === next.start`) are siblings, not nested.
+1. **PR-SWIM-014**: Producer `bands` in the trace doc become `SwimlaneModel.bands`; absent/malformed → omit.
 
 ## Edge Cases
 
@@ -84,6 +85,7 @@ interface SwimEvent    {
 Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-08-25** — PR-SWIM-014: pass through producer `bands` (sample.rep ProfilerStep labels).
 - **2026-08-19** — s/f may overlap (`pred.end > succ.start`); curves still pred-right → succ-left.
 - **2026-08-19** — Touching X intervals are siblings (`end <= next.start` pops the stack); PR-SWIM-013.
 - **2026-08-18** — Pair s/f by timestamp per process+id so a finish written before its start still links; PR-SWIM-011.

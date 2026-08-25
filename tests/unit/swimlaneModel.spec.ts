@@ -34,6 +34,21 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(model.bands).toBeUndefined();
   });
 
+  it('PR-SWIM-014: producer bands pass through with source-unit conversion', () => {
+    const model = chromeTraceToSwimlane({
+      displayTimeUnit: 'ns',
+      bands: [
+        { id: 'band-step-1', name: 'ProfilerStep#1', ts: 0, dur: 500 },
+        { id: 'band-step-2', name: 'ProfilerStep#2', ts: 500, dur: 500 },
+      ],
+      traceEvents: [{ ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 1000 }],
+    }, { sourceTimeUnit: 'ns' });
+    expect(model.bands).toEqual([
+      { id: 'band-step-1', name: 'ProfilerStep#1', startTime: 0, duration: 500 },
+      { id: 'band-step-2', name: 'ProfilerStep#2', startTime: 500, duration: 500 },
+    ]);
+  });
+
   it('PR-SWIM-002: default CTEF µs times convert to ns', () => {
     const model = chromeTraceToSwimlane({
       traceEvents: [

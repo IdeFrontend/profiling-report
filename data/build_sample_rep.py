@@ -138,8 +138,71 @@ def _x(pid, tid, name, ts, dur, event_id=None, deps=None, extra=None):
     return ev
 
 
-def _doc(events):
-    return {"displayTimeUnit": "ns", "traceEvents": events}
+# Sketch Parameter column fields (VIEW_DATA_MAPPING §11.2.8.1). Kept short so
+# op2 (~200k X) does not balloon sample.rep.
+CODE_PATHS = [
+    "/opt/ascend/tikcpp/impl/cube_op.cpp",
+    "/opt/ascend/tikcpp/lib/matmul/b.h",
+    "/home/ops/kernels/mte_copy.cpp",
+    "/home/ops/kernels/fixp_loc.cpp",
+]
+
+
+def producer_params(pipe, name, rand, seq, dur):
+    """Synthetic producer args for DetailParameter (not I-Q9 transport)."""
+    pc = 0xF0010000 + ((seq * 0x20) & 0xFFFF) + (sum(ord(c) for c in pipe) & 0xFF)
+    nbytes = max(16, int(dur) if dur > 1 else 16 + int(rand() * 480))
+    lo = int(rand() * 200)
+    hi = lo + max(8, int(rand() * 128))
+    detail_by_pipe = {
+        "SCALAR": f"SCALAR reg[{lo}:{hi}]",
+        "FLOWCTRL": f"FC flag[{lo}]",
+        "MTE1": f"L1[{lo}:{hi}] → UB",
+        "MTE2": f"GM → L1[{lo}:{hi}]",
+        "MTE3": f"UB → GM[{lo}:{hi}]",
+        "CUBE": f"L0A×L0B → L0C[{lo}:{hi}]",
+        "FIXP": f"FIX LOC→DST[{lo}:{hi}]",
+        "ALL": f"ALL pipe[{lo}:{hi}]",
+        "CACHEMISS": f"I$ miss @0x{pc:08x}",
+    }
+    code = [CODE_PATHS[int(rand() * len(CODE_PATHS))]]
+    if rand() < 0.35:
+        second = CODE_PATHS[int(rand() * len(CODE_PATHS))]
+        if second not in code:
+            code.append(second)
+    return {
+        "op_type": pipe if name.startswith("marker_") else name,
+        "Pc_addr": f"0x{pc:08x}",
+        "Process_bytes": nbytes,
+        "Detail": detail_by_pipe.get(pipe, f"{pipe}[{lo}:{hi}]"),
+        "Code": code,
+    }
+
+
+def profiler_step_bands(count, time_span):
+    """Contiguous ProfilerStep slabs covering [0, time_span) — same as stress presets."""
+    if count <= 0 or time_span <= 0:
+        return []
+    step = time_span // count
+    bands = []
+    for i in range(count):
+        start = i * step
+        end = time_span if i == count - 1 else (i + 1) * step
+        bands.append({
+            "id": f"band-step-{i + 1}",
+            "name": f"ProfilerStep#{i + 1}",
+            "ts": int(start),
+            "dur": int(max(1, end - start)),
+        })
+    return bands
+
+
+def _doc(events, band_count=0, time_span=0):
+    doc = {"displayTimeUnit": "ns", "traceEvents": events}
+    bands = profiler_step_bands(band_count, time_span)
+    if bands:
+        doc["bands"] = bands
+    return doc
 
 
 def _pick_name(names, rand):
@@ -178,7 +241,10 @@ def emit_bursty_lane(pid, tid, pipe, time_span, rand, id_prefix, seq_start=0):
             if t + dur > time_span:
                 dur = max(1, time_span - t)
             eid = f"{id_prefix}-{pipe}-{i}"
-            ev = _x(pid, tid, name, t, dur, event_id=eid)
+            ev = _x(
+                pid, tid, name, t, dur, event_id=eid,
+                extra=producer_params(pipe, name, rand, i, dur),
+            )
             events.append((eid, t, t + dur, ev))
             t += dur
             # Micro-gap inside a burst.
@@ -220,7 +286,10 @@ def emit_count_lane(pid, tid, pipe, count, time_span, rand, id_prefix, occupancy
         else:
             name = _pick_name(profile["names"], rand)
         eid = f"{id_prefix}:{i}"
-        ev = _x(pid, tid, name, t, dur, event_id=eid)
+        ev = _x(
+            pid, tid, name, t, dur, event_id=eid,
+            extra=producer_params(pipe, name, rand, i, dur),
+        )
         events.append((eid, t, t + dur, ev))
         t += dur
     return events
@@ -261,9 +330,10 @@ def wire_pipeline_deps(lane_events, rand):
 
 def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
     """
-    Give every event 1–5 dependency connections (outgoing successors when
-    possible; otherwise incoming via an earlier event). Prefers cross-pipe
-    links whose start is after the source ends. Mutates event dicts in place.
+    Give every event min_deg–max_deg undirected dependency neighbors.
+    Prefers cross-pipe successor links whose start is after the source ends.
+    Final pass force-links orphans so none stay at degree 0.
+    Mutates event dicts in place via args.dependencies.
     """
     flat = []  # (eid, start, end, ev, pipe)
     for pipe, items in lane_events.items():
@@ -274,10 +344,14 @@ def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
     neighbors = {eid: set() for eid, *_ in flat}
     ev_by_id = {eid: ev for eid, _s, _e, ev, _p in flat}
 
-    def add_edge(src_eid, dst_eid):
+    def add_edge(src_eid, dst_eid, *, force=False):
         if src_eid == dst_eid:
             return False
-        if len(neighbors[src_eid]) >= max_deg or len(neighbors[dst_eid]) >= max_deg:
+        if not force and (len(neighbors[src_eid]) >= max_deg or len(neighbors[dst_eid]) >= max_deg):
+            return False
+        # Even when forcing min_deg, keep a soft ceiling so one hub cannot absorb all edges.
+        hard = max_deg + 2
+        if force and (len(neighbors[src_eid]) >= hard or len(neighbors[dst_eid]) >= hard):
             return False
         src_ev = ev_by_id[src_eid]
         deps = src_ev.setdefault("args", {}).setdefault("dependencies", [])
@@ -289,7 +363,9 @@ def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
         return True
 
     for i, (eid, _start, end, _ev, pipe) in enumerate(flat):
-        target = min_deg + int(rand() * (max_deg - min_deg + 1))
+        # Bias toward denser graphs: pick in the upper half of [min_deg, max_deg].
+        span = max_deg - min_deg + 1
+        target = min_deg + (span // 2) + int(rand() * ((span + 1) // 2))
         target = max(min_deg, min(max_deg, target))
         cands = [
             (j, flat[j][0], flat[j][4])
@@ -300,43 +376,50 @@ def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
         pool = list(cross if len(cross) >= min_deg else cands)
         need = target - len(neighbors[eid])
         while need > 0 and pool and len(neighbors[eid]) < max_deg:
-            window = min(8, len(pool))
+            window = min(12, len(pool))
             pick = int(rand() * window)
             _j, dst, _p = pool.pop(pick)
             if add_edge(eid, dst):
                 need -= 1
 
-    # Top-up events still below min_deg.
-    for i, (eid, start, end, _ev, pipe) in enumerate(flat):
+    # Top-up every event to min_deg (force past soft max if needed).
+    for i, (eid, start, end, _ev, _pipe) in enumerate(flat):
         attempts = 0
-        while len(neighbors[eid]) < min_deg and attempts < 20:
+        while len(neighbors[eid]) < min_deg and attempts < 64:
             attempts += 1
             later = [
                 flat[j][0]
                 for j in range(i + 1, len(flat))
-                if flat[j][0] not in neighbors[eid]
-                and flat[j][1] >= end
-                and len(neighbors[flat[j][0]]) < max_deg
+                if flat[j][0] not in neighbors[eid] and flat[j][1] >= end
             ]
             if later:
-                add_edge(eid, later[int(rand() * min(5, len(later)))])
-                continue
+                if add_edge(eid, later[int(rand() * min(8, len(later)))], force=True):
+                    continue
             earlier = [
                 flat[j][0]
                 for j in range(0, i)
-                if flat[j][0] not in neighbors[eid]
-                and flat[j][2] <= start
-                and len(neighbors[flat[j][0]]) < max_deg
+                if flat[j][0] not in neighbors[eid] and flat[j][2] <= start
             ]
             if not earlier:
                 break
-            add_edge(earlier[int(rand() * min(5, len(earlier)))], eid)
+            add_edge(earlier[int(rand() * min(8, len(earlier)))], eid, force=True)
+
+    # Last resort: chain consecutive timeline neighbors (ignore timing) so none stay isolated.
+    for i, (eid, *_rest) in enumerate(flat):
+        if len(neighbors[eid]) >= min_deg:
+            continue
+        for j in (i - 1, i + 1):
+            if 0 <= j < len(flat) and flat[j][0] not in neighbors[eid]:
+                src, dst = (flat[j][0], eid) if j < i else (eid, flat[j][0])
+                add_edge(src, dst, force=True)
+            if len(neighbors[eid]) >= min_deg:
+                break
 
 
 def small_trace():
     """
     Machine-view style (~100 X events): a few Core/pipe lanes with bursty
-    irregular occupancy, Ascend-style op names, and dense 1–5 connections
+    irregular occupancy, Ascend-style op names, and dense 3–6 connections
     per event (cross-pipe when timing allows).
     """
     rand = mulberry32(0xA11CE)
@@ -363,8 +446,9 @@ def small_trace():
         for _eid, _s, _e, ev in emitted:
             evs.append(ev)
 
-    wire_dense_deps(pipe_map, rand, min_deg=1, max_deg=5)
-    return _doc(evs)
+    wire_dense_deps(pipe_map, rand, min_deg=3, max_deg=6)
+    # Match stress-small band count (3).
+    return _doc(evs, band_count=3, time_span=time_span)
 
 
 def big_trace():
@@ -409,7 +493,8 @@ def big_trace():
     for pipe_map in core_lanes.values():
         wire_pipeline_deps(pipe_map, rand)
 
-    return _doc(evs)
+    # Match stress-medium band count (5).
+    return _doc(evs, band_count=5, time_span=time_span)
 
 
 # ------------------------------------------------------------------ CSV gen

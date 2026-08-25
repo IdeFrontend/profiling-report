@@ -2,6 +2,7 @@ import type {
   EventDependencies,
   EventRef,
   SwimEvent,
+  SwimlaneBand,
   SwimlaneModel,
   SwimProcess,
   SwimThread,
@@ -31,9 +32,19 @@ interface LinkedFlow {
   end: AsyncEndpoint;
 }
 
+interface ChromeTraceBand {
+  id?: string;
+  name?: string;
+  /** Producer timestamps — same unit as X `ts`/`dur`. */
+  ts?: number;
+  dur?: number;
+}
+
 interface ChromeTraceDoc {
   displayTimeUnit?: string;
   traceEvents?: ChromeTraceEvent[];
+  /** Optional producer phase bands (e.g. ProfilerStep#N); never invented by the adapter. */
+  bands?: ChromeTraceBand[];
 }
 
 /** Explicit source units for `ts`/`dur` (canonical model is always ns). */
@@ -91,19 +102,45 @@ function dependencyIds(args: Record<string, unknown> | undefined): string[] {
   return Array.isArray(raw) ? raw.filter(usableId).map(String) : [];
 }
 
-function extractEvents(trace: unknown): { events: ChromeTraceEvent[]; displayTimeUnit?: string } {
+function extractEvents(trace: unknown): {
+  events: ChromeTraceEvent[];
+  displayTimeUnit?: string;
+  rawBands?: ChromeTraceBand[];
+} {
   if (Array.isArray(trace)) {
     return { events: trace as ChromeTraceEvent[] };
   }
   const doc = (trace ?? {}) as ChromeTraceDoc;
-  return { events: doc.traceEvents ?? [], displayTimeUnit: doc.displayTimeUnit };
+  return {
+    events: doc.traceEvents ?? [],
+    displayTimeUnit: doc.displayTimeUnit,
+    rawBands: Array.isArray(doc.bands) ? doc.bands : undefined,
+  };
+}
+
+/** Pass through producer bands; skip malformed entries. Times converted like X events. */
+function bandsFromTrace(raw: ChromeTraceBand[] | undefined, toNs: number): SwimlaneBand[] | undefined {
+  if (!raw?.length) return undefined;
+  const bands: SwimlaneBand[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const b = raw[i]!;
+    if (b.ts == null || b.dur == null || !Number.isFinite(b.ts) || !Number.isFinite(b.dur)) continue;
+    if (b.dur <= 0) continue;
+    bands.push({
+      id: typeof b.id === 'string' && b.id !== '' ? b.id : `band-${i}`,
+      name: typeof b.name === 'string' && b.name !== '' ? b.name : `Band#${i + 1}`,
+      startTime: b.ts * toNs,
+      duration: b.dur * toNs,
+    });
+  }
+  return bands.length > 0 ? bands : undefined;
 }
 
 export function chromeTraceToSwimlane(
   trace: unknown,
   options?: ChromeTraceToSwimlaneOptions,
 ): SwimlaneModel {
-  const { events, displayTimeUnit } = extractEvents(trace);
+  const { events, displayTimeUnit, rawBands } = extractEvents(trace);
   /**
    * CTEF: `ts`/`dur` are always microseconds; `displayTimeUnit` is display-only.
    * Ascend producers (`.rep` embeds and exported JSON) store genuine ns when they
@@ -113,6 +150,7 @@ export function chromeTraceToSwimlane(
     options?.sourceTimeUnit ??
     (String(displayTimeUnit ?? '').trim().toLowerCase() === 'ns' ? 'ns' : 'us');
   const toNs = unitToNsFactor(sourceUnit);
+  const bands = bandsFromTrace(rawBands, toNs);
 
   const threadNames = new Map<string, string>();
   const processNames = new Map<string, string>();
@@ -235,6 +273,7 @@ export function chromeTraceToSwimlane(
     processes,
     minTime,
     maxTime,
+    ...(bands ? { bands } : {}),
     metadata: { displayTimeUnit },
   };
 }

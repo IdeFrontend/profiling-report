@@ -1,25 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
-import type { AdaptedReport, SwimlaneModel } from '../../src/domain/types';
+import type { AdaptedReport, SwimlaneModel, SwimThread } from '../../src/domain/types';
+import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
 import { loadSampleRepBytes } from '../helpers/fixtures';
 
-function eventCount(model: SwimlaneModel): number {
-  return model.processes.reduce(
-    (a, p) => a + p.threads.reduce((b, t) => b + t.events.length, 0),
-    0,
-  );
+function walkThreads(threads: SwimThread[], visit: (thread: SwimThread) => void): void {
+  for (const thread of threads) {
+    visit(thread);
+    if (thread.children?.length) walkThreads(thread.children, visit);
+  }
 }
 
 function connectionRefCount(model: SwimlaneModel): number {
   let n = 0;
   for (const process of model.processes) {
-    for (const thread of process.threads) {
+    walkThreads(process.threads, (thread) => {
       for (const event of thread.events) {
         n += (event.dependencies?.successors.length ?? 0) + (event.dependencies?.predecessors.length ?? 0);
       }
-    }
+    });
   }
   return n;
+}
+
+function threadsById(model: SwimlaneModel): Map<string, SwimThread> {
+  const map = new Map<string, SwimThread>();
+  for (const process of model.processes) {
+    walkThreads(process.threads, (thread) => map.set(thread.id, thread));
+  }
+  return map;
 }
 
 function requireOperator(reports: Record<string, AdaptedReport> | undefined, id: string): AdaptedReport {
@@ -40,10 +49,12 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('op1 and op2 carry distinct traces with distinct event counts', () => {
-    expect(eventCount(op1.swimlaneModel)).toBeLessThan(eventCount(op2.swimlaneModel));
+    expect(collectLeafEventsFromModel(op1.swimlaneModel).length).toBeLessThan(
+      collectLeafEventsFromModel(op2.swimlaneModel).length,
+    );
     // op2 is the large rendering-performance fixture (~200k X events).
-    expect(eventCount(op2.swimlaneModel)).toBeGreaterThanOrEqual(190_000);
-    expect(eventCount(op2.swimlaneModel)).toBeLessThanOrEqual(210_000);
+    expect(collectLeafEventsFromModel(op2.swimlaneModel).length).toBeGreaterThanOrEqual(190_000);
+    expect(collectLeafEventsFromModel(op2.swimlaneModel).length).toBeLessThanOrEqual(210_000);
   });
 
   it('both operators expose dependency connections', () => {
@@ -53,28 +64,27 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(connectionRefCount(op2.swimlaneModel)).toBeGreaterThan(0);
   });
 
-  it('op1 gives every event 1–5 dependency neighbors', () => {
+  it('op1 gives every event 3–6 dependency neighbors', () => {
+    const byId = threadsById(op1.swimlaneModel);
     const deg = new Map<string, number>();
     const bump = (id: string) => deg.set(id, (deg.get(id) ?? 0) + 1);
     for (const process of op1.swimlaneModel.processes) {
-      for (const thread of process.threads) {
+      walkThreads(process.threads, (thread) => {
         for (const event of thread.events) {
           if (!deg.has(event.id)) deg.set(event.id, 0);
           for (const ref of event.dependencies?.successors ?? []) {
-            const target = op1.swimlaneModel.processes
-              .flatMap((p) => p.threads)
-              .find((t) => t.id === ref.tid)?.events[ref.index];
+            const target = byId.get(ref.tid)?.events[ref.index];
             if (!target) continue;
             bump(event.id);
             bump(target.id);
           }
         }
-      }
+      });
     }
     expect(deg.size).toBeGreaterThan(50);
     for (const [id, n] of deg) {
-      expect(n, id).toBeGreaterThanOrEqual(1);
-      expect(n, id).toBeLessThanOrEqual(5);
+      expect(n, id).toBeGreaterThanOrEqual(3);
+      expect(n, id).toBeLessThanOrEqual(8); // soft ceiling in generator top-up
     }
   });
 
@@ -97,5 +107,46 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(cube1?.ratio).toBeGreaterThan(0);
     expect(cube2?.ratio).toBeGreaterThan(0);
     expect(cube1?.ratio).not.toBe(cube2?.ratio);
+  });
+
+  it('nests Card → 计算 → Core0.Cube → pipe leaves', () => {
+    for (const report of [op1, op2]) {
+      const card = report.swimlaneModel.processes[0]!;
+      expect(card.threads.map((t) => t.name)).toEqual(['通信', '计算', '储存HBM']);
+      const compute = card.threads.find((t) => t.name === '计算')!;
+      expect(isFolderNode(compute)).toBe(true);
+      const cube = compute.children!.find((c) => c.name === 'Core0.Cube');
+      expect(cube && isFolderNode(cube)).toBe(true);
+      expect(cube!.children!.some((p) => !isFolderNode(p) && p.events.length > 0)).toBe(true);
+    }
+  });
+
+  it('op1/op2 include ProfilerStep bands (stress-style group labels)', () => {
+    expect(op1.swimlaneModel.bands?.map((b) => b.name)).toEqual([
+      'ProfilerStep#1',
+      'ProfilerStep#2',
+      'ProfilerStep#3',
+    ]);
+    expect(op2.swimlaneModel.bands?.map((b) => b.name)).toEqual([
+      'ProfilerStep#1',
+      'ProfilerStep#2',
+      'ProfilerStep#3',
+      'ProfilerStep#4',
+      'ProfilerStep#5',
+    ]);
+    expect(op2.swimlaneModel.bands![0]!.startTime).toBe(0);
+    const last = op2.swimlaneModel.bands![op2.swimlaneModel.bands!.length - 1]!;
+    expect(last.startTime + last.duration).toBe(1_000_000_000);
+  });
+
+  it('events carry producer Parameter fields (Code / Pc_addr / …)', () => {
+    const events = collectLeafEventsFromModel(op1.swimlaneModel);
+    expect(events.length).toBeGreaterThan(0);
+    const withParams = events.filter(
+      (e) => e.args?.Pc_addr != null && e.args?.Detail != null && e.args?.Code != null,
+    );
+    expect(withParams.length).toBe(events.length);
+    expect(String(withParams[0]!.args!.Pc_addr)).toMatch(/^0x[0-9a-f]+$/i);
+    expect(Array.isArray(withParams[0]!.args!.Code)).toBe(true);
   });
 });
