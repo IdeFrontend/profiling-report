@@ -29,7 +29,7 @@ flowchart LR
 
 **Still open (Product):** Q9 dep encoding in real `.rep`; Q11 roofline formulas (interim shipped); Q22 measure → aside sync.
 
-**Design frames:** M1 — Cube/Vector MIX toggle + compute/memory detail tabs (`v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail`); M2 — 度量模式 (`v930/task-measure-mode`) + topology edge values (`v930/memory-load-detail`). Index: [`DESIGN_INDEX.md`](../../ui/DESIGN_INDEX.md). Cross-view measure sync is [Q22](../../context/OPEN_QUESTIONS.md).
+**Design frames:** M1 — Cube/Vector MIX toggle + compute/memory detail tabs (`v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail`); M2 — 度量模式 (`v930/task-measure-mode`; local overlay, aside unchanged) + topology edge values (`v930/memory-load-detail`). Index: [`DESIGN_INDEX.md`](../../ui/DESIGN_INDEX.md).
 
 ## Related
 

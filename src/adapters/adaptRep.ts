@@ -122,6 +122,12 @@ function parseNumber(raw: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function optionalText(raw: string | undefined): string | undefined {
+  const v = raw?.trim();
+  if (!v || v === 'NA') return undefined;
+  return v;
+}
+
 function meanFamily(rows: Record<string, string>[], columns: readonly string[]): number | undefined {
   const vals: number[] = [];
   for (const col of columns) {
@@ -279,6 +285,7 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
     taskDurationUs: parseNumber(row['Task Duration(us)']),
     currentFreq: parseNumber(row['Current Freq']),
     ratedFreq: parseNumber(row['Rated Freq']),
+    pid: optionalText(row['Pid']) ?? optionalText(row['PID']),
     blockDim: (() => {
       const raw = row['Block Dim']?.trim();
       if (!raw || raw === 'NA') return undefined;

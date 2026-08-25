@@ -54,6 +54,10 @@ Rules:
 
 Not lazy about: understanding the problem (read it fully and trace the real flow before picking a rung, a small diff you don't understand is just laziness dressed up as efficiency), input validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs (the platform is never the spec ideal, a clock drifts, a sensor reads off), anything explicitly requested. Lazy code without its check is unfinished: non-trivial logic leaves ONE runnable check behind, the smallest thing that fails if the logic breaks (an assert-based demo/self-check or one small test file; no frameworks, no fixtures). Trivial one-liners need no test.
 
+## Resolving open questions
+
+When Product answers an HQ / OPEN_QUESTIONS item: write it into the owning specs and **remove** it from the open lists in the same change. Do not leave a Resolved row on an open list. Process: [`docs/process/DEVELOPMENT.md`](docs/process/DEVELOPMENT.md) § Resolving open questions; Cursor rule `.cursor/rules/resolve-open-questions.mdc`.
+
 ## Skills (on demand)
 
 Do **not** load these into every turn. Use only when the user asks or the trigger matches. Playbooks: `.agents/skills/*/SKILL.md` (see `skills-lock.json`).

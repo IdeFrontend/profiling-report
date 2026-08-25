@@ -5,7 +5,8 @@
  * - source/manifest.yaml files exist on disk
  * - each component visual/ crop is listed in provenance.yaml
  * - each provenance source id resolves via source/manifest.yaml
- * - markdown links to design images under src/ui and docs/ui resolve
+ * - markdown links to design images under src/ui, docs/ui, and docs/context resolve
+ * - HQ open-questions annotated crops in docs/context/visual/hq/ match manifest.yaml
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -19,9 +20,13 @@ const SOURCE_DIR = resolve(ROOT, 'docs/ui/source');
 const UI_DIR = resolve(ROOT, 'src/ui');
 const SWIM_DIR = resolve(ROOT, 'src/swimlane');
 const DOCS_UI = resolve(ROOT, 'docs/ui');
+const DOCS_CONTEXT = resolve(ROOT, 'docs/context');
+const HQ_MANIFEST = resolve(DOCS_CONTEXT, 'visual/hq/manifest.yaml');
+const HQ_OUT_DIR = resolve(DOCS_CONTEXT, 'visual/hq');
 
 const IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i;
 const MD_LINK_RE = /!\[[^\]]*\]\(([^)]+)\)|\[[^\]]*\]\(([^)]+\.(?:png|jpe?g|webp|gif)(?:#[^)]*)?)\)/gi;
+const HTML_IMG_RE = /<img[^>]+src=["']([^"']+\.(?:png|jpe?g|webp|gif))["']/gi;
 
 const errors = [];
 const warnings = [];
@@ -266,11 +271,23 @@ function stripLinkTarget(raw) {
   return t.replace(/^<|>$/g, '');
 }
 
+function resolveImageLink(base, raw) {
+  const target = stripLinkTarget(raw);
+  if (!target || target.startsWith('http://') || target.startsWith('https://') || target.startsWith('data:')) {
+    return null;
+  }
+  if (!IMAGE_EXT.test(target)) return null;
+  return target.startsWith('/')
+    ? resolve(ROOT, target.replace(/^\//, ''))
+    : resolve(base, target);
+}
+
 function checkMarkdownLinks() {
   const mdFiles = [
     ...findFiles(UI_DIR, (n) => n.endsWith('.md')),
     ...findFiles(resolve(ROOT, 'src/swimlane'), (n) => n.endsWith('.md')),
     ...findFiles(DOCS_UI, (n) => n.endsWith('.md')),
+    ...findFiles(DOCS_CONTEXT, (n) => n.endsWith('.md')),
   ];
 
   for (const file of mdFiles) {
@@ -281,21 +298,69 @@ function checkMarkdownLinks() {
     while ((m = MD_LINK_RE.exec(content))) {
       const raw = m[1] || m[2];
       if (!raw) continue;
-      const target = stripLinkTarget(raw);
-      if (!target || target.startsWith('http://') || target.startsWith('https://') || target.startsWith('data:')) continue;
-      if (!IMAGE_EXT.test(target)) continue;
-      const abs = target.startsWith('/')
-        ? resolve(ROOT, target.replace(/^\//, ''))
-        : resolve(base, target);
-      if (!existsSync(abs)) {
-        fail(`broken image link in ${relative(ROOT, file)}: ${target}`);
+      const abs = resolveImageLink(base, raw);
+      if (abs && !existsSync(abs)) {
+        fail(`broken image link in ${relative(ROOT, file)}: ${stripLinkTarget(raw)}`);
+      }
+    }
+
+    HTML_IMG_RE.lastIndex = 0;
+    while ((m = HTML_IMG_RE.exec(content))) {
+      const raw = m[1];
+      if (!raw) continue;
+      const abs = resolveImageLink(base, raw);
+      if (abs && !existsSync(abs)) {
+        fail(`broken image link in ${relative(ROOT, file)}: ${stripLinkTarget(raw)}`);
       }
     }
   }
 }
 
+function checkHqVisuals(maps) {
+  if (!existsSync(HQ_MANIFEST)) return;
+
+  const hq = parseSimpleYaml(readFileSync(HQ_MANIFEST, 'utf-8'));
+  const images = hq.images ?? {};
+  const ids = Object.keys(images);
+  if (!ids.length) {
+    fail('docs/context/visual/hq/manifest.yaml: no images defined');
+    return;
+  }
+
+  for (const id of ids) {
+    const meta = images[id] ?? {};
+    const outPath = join(HQ_OUT_DIR, `${id}.png`);
+    if (!existsSync(outPath)) {
+      fail(`hq visual missing output: ${relative(ROOT, outPath)} (run npm run render:hq-visuals)`);
+    }
+
+    const n = (meta.highlights ?? []).length;
+    if (n !== 1) fail(`hq visual ${id}: exactly one highlight required (got ${n})`);
+
+    const srcFile = meta.source_file;
+    const srcId = meta.source;
+    if (srcFile) {
+      const abs = resolve(ROOT, srcFile);
+      if (!existsSync(abs)) fail(`hq visual ${id}: source_file missing ${srcFile}`);
+    } else if (srcId) {
+      const abs = resolveSourceId(srcId, maps);
+      if (!abs) fail(`hq visual ${id}: unknown source id "${srcId}"`);
+      else if (!existsSync(abs)) fail(`hq visual ${id}: source file missing for ${srcId}`);
+    } else {
+      fail(`hq visual ${id}: missing source or source_file`);
+    }
+  }
+
+  const listed = new Set(ids.map((id) => `${id}.png`));
+  for (const name of readdirSync(HQ_OUT_DIR)) {
+    if (!IMAGE_EXT.test(name)) continue;
+    if (!listed.has(name)) fail(`hq visual extra output: ${name} (not in manifest.yaml)`);
+  }
+}
+
 const maps = loadManifest();
 checkVisualPacks(maps);
+checkHqVisuals(maps);
 checkMarkdownLinks();
 
 for (const w of warnings) console.warn(`WARN: ${w}`);

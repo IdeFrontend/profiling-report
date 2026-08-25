@@ -1,0 +1,278 @@
+# One image per HQ question. Exactly one highlight per image.
+# crop.box: pixels on source; highlights.box: relative to cropped image
+# regenerate: npm run render:hq-visuals
+
+images:
+  q1:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q1 次迭代/核"
+        box: { x: 28, y: 298, w: 340, h: 52 }
+
+  q2:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 630, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q2 172"
+        box: { x: 28, y: 298, w: 140, h: 52 }
+
+  q3:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 630, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q3 320"
+        box: { x: 160, y: 298, w: 280, h: 52 }
+
+  q4:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 630, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q4 90%"
+        box: { x: 28, y: 130, w: 180, h: 80 }
+
+  q5:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q5 1.6 peak"
+        box: { x: 20, y: 288, w: 850, h: 58 }
+
+  q6:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q6 all peaks"
+        box: { x: 20, y: 288, w: 1730, h: 58 }
+
+  q7:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q7 81"
+        box: { x: 20, y: 100, w: 850, h: 140 }
+
+  q8:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q8 I/O cards"
+        box: { x: 8, y: 8, w: 1794, h: 384 }
+
+  q9:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 1240, y: 270, w: 590, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q9 82%"
+        box: { x: 24, y: 138, w: 200, h: 72 }
+
+  q10:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 1240, y: 270, w: 590, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q10 启用核"
+        box: { x: 24, y: 298, w: 420, h: 52 }
+
+  q11:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q11 chart (not pipe ratios)"
+        box: { x: 150, y: 470, w: 1550, h: 740 }
+
+  q12:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q12 X Ops/Byte"
+        box: { x: 80, y: 1235, w: 1780, h: 90 }
+
+  q13:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q13 Y TOps/s"
+        box: { x: 0, y: 360, w: 140, h: 840 }
+
+  q14:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q14 roof"
+        box: { x: 150, y: 470, w: 1550, h: 740 }
+
+  q15:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q15 L2"
+        box: { x: 1180, y: 410, w: 430, h: 50 }
+
+  q16:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q16 mix"
+        box: { x: 430, y: 610, w: 1000, h: 70 }
+
+  q17:
+    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
+    maxWidth: 900
+    highlights:
+      - label: "Q17 tabs"
+        box: { x: 10, y: 195, w: 1000, h: 90 }
+
+  q18:
+    source_file: src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png
+    maxWidth: 900
+    highlights:
+      - label: "Q18 in-bar"
+        box: { x: 250, y: 275, w: 280, h: 50 }
+
+  q19:
+    source_file: src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png
+    maxWidth: 900
+    highlights:
+      - label: "Q19 详情"
+        box: { x: 145, y: 188, w: 1480, h: 382 }
+
+  q20:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q20 Peak%"
+        box: { x: 470, y: 1080, w: 180, h: 160 }
+
+  q21:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q21 GM↔L2"
+        box: { x: 310, y: 1070, w: 180, h: 160 }
+
+  q22:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q22 UB → L2"
+        box: { x: 670, y: 450, w: 380, h: 95 }
+
+  q23:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q23 L2 → UB"
+        box: { x: 670, y: 545, w: 380, h: 80 }
+
+  q24:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q24 L0C → L1"
+        box: { x: 1550, y: 960, w: 300, h: 340 }
+
+  q25:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q25 L0C → L2/GM"
+        box: { x: 1550, y: 960, w: 300, h: 340 }
+
+  q26:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q26 L0C → UB"
+        box: { x: 1550, y: 960, w: 300, h: 340 }
+
+  q27:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png
+    maxWidth: 900
+    highlights:
+      - label: "Q27 leftover _XN_IMM"
+        box: { x: 0, y: 165, w: 145, h: 55 }
+
+  q28:
+    source_file: src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png
+    maxWidth: 900
+    highlights:
+      - label: "Q28 mean %"
+        box: { x: 1630, y: 270, w: 130, h: 720 }
+
+  q29:
+    source_file: src/ui/StatsAside/CsvFieldListPanel/visual/block-switcher-view-all.png
+    maxWidth: 900
+    highlights:
+      - label: "Q29 selected block"
+        box: { x: 1140, y: 370, w: 495, h: 70 }
+
+  q30:
+    source_file: src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png
+    maxWidth: 900
+    highlights:
+      - label: "Q30 overlay"
+        box: { x: 0, y: 0, w: 1850, h: 110 }
+
+  q31:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 0, y: 0, w: 1850, h: 220 }
+    maxWidth: 900
+    highlights:
+      - label: "Q31 更多"
+        box: { x: 910, y: 148, w: 170, h: 62 }
+
+  q32:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q32 bar"
+        box: { x: 28, y: 240, w: 340, h: 38 }
+
+  q33:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 630, y: 270, w: 600, h: 370 }
+    maxWidth: 900
+    highlights:
+      - label: "Q33 one number"
+        box: { x: 20, y: 90, w: 540, h: 150 }
+
+  q34:
+    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
+    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    maxWidth: 900
+    highlights:
+      - label: "Q34 TB/s"
+        box: { x: 20, y: 288, w: 850, h: 58 }
+
+  q35:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q35 diagram (no right-click UI)"
+        box: { x: 160, y: 80, w: 1780, h: 1860 }
+
+  q36:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "Q36 GB/s"
+        box: { x: 310, y: 1070, w: 180, h: 160 }
+
+  q37:
+    source: v930/search-highlight
+    crop: { x: 5480, y: 400, w: 2070, h: 2100 }
+    maxWidth: 900
+    highlights:
+      - label: "Q37 search rows"
+        box: { x: 40, y: 220, w: 1990, h: 1840 }

@@ -38,7 +38,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 | [context/DOMAIN_AND_USERS.md](context/DOMAIN_AND_USERS.md) | Domain users, pain points, glossary → UX |
 | [context/MARKET_AND_COMPETITORS.md](context/MARKET_AND_COMPETITORS.md) | NVIDIA Nsight analogues and competitor landscape |
 | [context/OPEN_QUESTIONS.md](context/OPEN_QUESTIONS.md) | P0–P2 blockers; resolution log |
-| [context/HQ_OPEN_QUESTIONS.md](context/HQ_OPEN_QUESTIONS.md) | Right-panel DATA vs UI/UX ledger (Q1–41) |
+| [context/HQ_OPEN_QUESTIONS.md](context/HQ_OPEN_QUESTIONS.md) | Right-panel DATA vs UI/UX ledger (HQ 1–37; not OPEN Q1–Q23) |
 | [context/INTERIM_DECISIONS.md](context/INTERIM_DECISIONS.md) | Interim engineering defaults for MVP coding |
 | [context/PACKAGING_SUGGESTIONS.md](context/PACKAGING_SUGGESTIONS.md) | Q16–Q19 suggestions (interim until Product confirms) |
 | [process/DEVELOPMENT.md](process/DEVELOPMENT.md) | Spec-driven TDD workflow, slice order, Definition of Done |
