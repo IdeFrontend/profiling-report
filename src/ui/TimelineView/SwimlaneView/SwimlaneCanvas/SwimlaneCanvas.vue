@@ -838,8 +838,10 @@ function onPointerUp(e: PointerEvent): void {
       const ev = eventAtPointer(x, y, mag.eventId);
       if (ev) {
         snapMeasureToEvent(ev);
+        emit('select', ev);
       } else {
         clearMeasureRange();
+        emit('select', null);
       }
     }
     return;

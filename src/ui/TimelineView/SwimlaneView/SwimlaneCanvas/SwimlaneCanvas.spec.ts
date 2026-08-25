@@ -367,7 +367,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-013: click event snaps measureRange without select; empty click clears', async () => {
+  it('PR-CANVAS-013: click event snaps measureRange and selects; empty click clears', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false }));
     const callbacks: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -389,7 +389,8 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('update:measureRange')).toBeFalsy();
     await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
 
-    expect(wrapper.emitted('select')).toBeFalsy();
+    const selected = wrapper.emitted('select')!.at(-1)![0] as { id: string } | null;
+    expect(selected?.id).toBe('e1');
     expect(callbacks.length).toBeGreaterThan(0);
     const snapCb = callbacks[0]!;
     for (let ms = 0; ms <= 180; ms += 45) {
@@ -413,7 +414,9 @@ describe('SwimlaneCanvas', () => {
     }
     const afterEmpty = wrapper.emitted('update:measureRange')!;
     expect(afterEmpty.at(-1)![0]).toBeNull();
-    expect(wrapper.emitted('select')).toBeFalsy();
+    // Empty-space click clears the range and clears the selection.
+    expect(wrapper.emitted('select')!.length).toBe(2);
+    expect(wrapper.emitted('select')!.at(-1)![0]).toBeNull();
     wrapper.unmount();
   });
 
@@ -454,7 +457,8 @@ describe('SwimlaneCanvas', () => {
     expect(mid.startTime).toBeGreaterThan(50);
     expect(mid.startTime).toBeLessThan(200);
     expect(emitted.at(-1)![0]).toEqual({ startTime: 200, endTime: 500 });
-    expect(wrapper.emitted('select')).toBeFalsy();
+    const selected = wrapper.emitted('select')!.at(-1)![0] as { id: string } | null;
+    expect(selected?.id).toBe('e1');
     const suppress = wrapper.emitted('suppress-measure-dt') ?? [];
     expect(suppress.every((e) => e[0] === false)).toBe(true);
     wrapper.unmount();
@@ -495,7 +499,8 @@ describe('SwimlaneCanvas', () => {
     // Penultimate frame is the visible window; last emit clears.
     expect(emitted.at(-2)![0]).toEqual({ startTime: 0, endTime: 1000 });
     expect(emitted.at(-1)![0]).toBeNull();
-    expect(wrapper.emitted('select')).toBeFalsy();
+    // Empty-space click clears the selection.
+    expect(wrapper.emitted('select')!.at(-1)![0]).toBeNull();
     expect(wrapper.emitted('suppress-measure-dt')?.some((e) => e[0] === true)).toBe(true);
     expect(wrapper.emitted('suppress-measure-dt')!.at(-1)![0]).toBe(false);
     wrapper.unmount();
@@ -538,7 +543,8 @@ describe('SwimlaneCanvas', () => {
     expect(mid.endTime).toBeLessThan(1000);
     expect(mid.endTime).toBeGreaterThan(500);
     expect(emitted.at(-1)![0]).toEqual({ startTime: 200, endTime: 500 });
-    expect(wrapper.emitted('select')).toBeFalsy();
+    const selected = wrapper.emitted('select')!.at(-1)![0] as { id: string } | null;
+    expect(selected?.id).toBe('e1');
     wrapper.unmount();
   });
 
