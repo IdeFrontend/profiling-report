@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { formatTimeParts } from '../../../domain/formatTime';
+import { formatDisplayTimeParts, formatTimeParts } from '../../../domain/formatTime';
 import { t } from '../../../i18n';
 import type { SelectedEvent, TimeDisplayUnit } from '../../../domain/types';
 
-const props = defineProps<{
-  selected: SelectedEvent;
-  unit: TimeDisplayUnit;
-  locale?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    selected: SelectedEvent;
+    unit: TimeDisplayUnit;
+    /** Display origin (usually model.minTime); start/end are relative to this. */
+    timeOrigin?: number;
+    locale?: string;
+  }>(),
+  { timeOrigin: 0 },
+);
 
 /**
  * Sketch shows a pill under the name holding the instruction / op type
@@ -26,13 +31,16 @@ const kind = computed(() => {
 
 /** Sketch labels the unit once per column (`Start (ns)`), so values stay bare. */
 const metrics = computed(() => {
-  const rows: [key: 'start' | 'dur' | 'end', ns: number][] = [
-    ['start', props.selected.startTime],
-    ['dur', props.selected.duration],
-    ['end', props.selected.endTime],
+  const origin = props.timeOrigin;
+  const rows: [key: 'start' | 'dur' | 'end', ns: number, relative: boolean][] = [
+    ['start', props.selected.startTime, true],
+    ['dur', props.selected.duration, false],
+    ['end', props.selected.endTime, true],
   ];
-  return rows.map(([key, ns]) => {
-    const parts = formatTimeParts(ns, props.unit);
+  return rows.map(([key, ns, relative]) => {
+    const parts = relative
+      ? formatDisplayTimeParts(ns, origin, props.unit)
+      : formatTimeParts(ns, props.unit);
     return {
       key,
       value: parts.value,

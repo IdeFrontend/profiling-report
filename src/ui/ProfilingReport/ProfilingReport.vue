@@ -160,8 +160,8 @@ const bounds = computed(() => {
   const m = swim.value;
   if (!m) return { minTime: 0, maxTime: 1 };
   return {
-    minTime: 0,
-    maxTime: m.maxTime > 0 ? m.maxTime : 1,
+    minTime: m.minTime,
+    maxTime: m.maxTime > m.minTime ? m.maxTime : m.minTime + 1,
   };
 });
 
@@ -661,6 +661,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       v-if="selected && showTimeline"
       :selected="selected"
       :unit="unit"
+      :time-origin="bounds.minTime"
       :locale="locale"
       :neighbors="dependencyNeighbors"
       :dependency-mode="localDependencyMode"
@@ -675,6 +676,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :event="hovered"
       :style-pos="tooltipStyle"
       :unit="unit"
+      :time-origin="bounds.minTime"
       :locale="locale"
     />
   </div>

@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { formatTime } from '../../domain/formatTime';
+import { formatDisplayTime, formatTime } from '../../domain/formatTime';
 import { t } from '../../i18n';
 import type { SwimEvent, TimeDisplayUnit } from '../../domain/types';
 
-defineProps<{
-  event: SwimEvent;
-  stylePos: { left: string; top: string };
-  unit: TimeDisplayUnit;
-  locale?: string;
-}>();
+withDefaults(
+  defineProps<{
+    event: SwimEvent;
+    stylePos: { left: string; top: string };
+    unit: TimeDisplayUnit;
+    /** Display origin (usually model.minTime); start/end are relative to this. */
+    timeOrigin?: number;
+    locale?: string;
+  }>(),
+  { timeOrigin: 0 },
+);
 </script>
 
 <template>
@@ -20,9 +25,12 @@ defineProps<{
     <div class="pr-tooltip__name">
       {{ event.name }}
     </div>
-    <div>{{ t('start', locale) }}: {{ formatTime(event.startTime, unit) }}</div>
+    <div>{{ t('start', locale) }}: {{ formatDisplayTime(event.startTime, timeOrigin, unit) }}</div>
     <div>{{ t('dur', locale) }}: {{ formatTime(event.duration, unit) }}</div>
-    <div>{{ t('end', locale) }}: {{ formatTime(event.startTime + event.duration, unit) }}</div>
+    <div>
+      {{ t('end', locale) }}:
+      {{ formatDisplayTime(event.startTime + event.duration, timeOrigin, unit) }}
+    </div>
   </div>
 </template>
 

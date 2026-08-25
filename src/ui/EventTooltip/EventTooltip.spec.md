@@ -8,7 +8,7 @@ Floating tooltip shown on hover over a swimlane event. Displays the event name a
 
 ## Inputs
 
-**event** is the SwimEvent being hovered. **stylePos** carries CSS `{ left, top }` values computed by the parent from the cursor's clientX/clientY. **unit** selects the time display unit. Optional **locale** localizes labels.
+**event** is the SwimEvent being hovered. **stylePos** carries CSS `{ left, top }` values computed by the parent from the cursor's clientX/clientY. **unit** selects the time display unit. **timeOrigin** (usually `model.minTime`) offsets Start/End labels; duration is absolute. Optional **locale** localizes labels.
 
 ## Outputs
 
@@ -16,7 +16,7 @@ Purely presentational — no emitted events. The parent controls visibility by c
 
 ## Behavior
 
-Displays the event's name, start time, duration, and end time. Times use **producer timestamps** (`event.startTime` absolute ns) via `formatTime` — same values as the cursor label and CTEF `ts`. Formatted in the currently selected display unit (ms/µs/ns). Positioned absolutely using inline styles computed by the parent from the cursor's clientX/clientY — the tooltip itself does not manage positioning.
+Displays the event's name, start time, duration, and end time. Start/End use `formatDisplayTime(…, timeOrigin)` so they match the cursor at the event edge (shared display origin = `minTime`, PyPTO / Perfetto default). Duration uses `formatTime` without origin. Formatted in the currently selected display unit (ms/µs/ns). Positioned absolutely using inline styles computed by the parent from the cursor's clientX/clientY — the tooltip itself does not manage positioning.
 
 The parent conditionally renders the tooltip when a hovered event exists. When the cursor moves to empty space, the parent clears the hover and the tooltip is removed from DOM.
 
@@ -26,25 +26,16 @@ The tooltip is transient (follows cursor, appears/disappears on hover). The deta
 
 1. **PR-TOOLTIP-001** — Renders event name.
 2. **PR-TOOLTIP-002** — Formats start time, duration, and end time.
-3. **PR-TOOLTIP-003** — Start time shows producer `ts` (matches cursor at event edge).
+3. **PR-TOOLTIP-003** — Start time is relative to `timeOrigin` and matches the cursor label at the event edge.
 
-## Visual
+## Edge Cases
 
-Crops: [`visual/tooltip.png`](./visual/tooltip.png), [`visual/tooltip-context.png`](./visual/tooltip-context.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
-
-## Design sketches
-
-- [tooltip](./visual/tooltip.png) — from `v930/task-hover`
-- [tooltip-context](./visual/tooltip-context.png) — hovered event + tooltip from `v930/task-hover`
-- [Task hover](../../../docs/ui/source/v930/task-hover.jpeg) — full frame
+Very long event names — truncated with ellipsis. Tooltip near viewport edges — parent clamps position to stay visible.
 
 ## Dependencies
 
 [format-time](../../../specs/core/format-time.spec.md).
 
-**Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
-
 ## Changelog
+- **2026-08-25** — Start/End relative to timeOrigin (shared with cursor).
 - **2026-08-24** — Producer timestamp start/end (matches cursor); PR-TOOLTIP-003.
-- **2026-08-10** — Recut from `v930/task-hover` (real hover tooltip dump).
-- **2026-08-05** — Initial spec. Core behaviors established.

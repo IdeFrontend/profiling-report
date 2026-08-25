@@ -36,7 +36,7 @@ export interface BuildAxisRulerTicksOptions {
   rangeStart: number;
   /** Right edge of the ruler span (ns, absolute). */
   rangeEnd: number;
-  /** Subtracted from absolute times for axis display labels (producer trace t = 0). */
+  /** Subtracted from absolute times for axis display labels (usually model.minTime). */
   origin: number;
   timeUnit: TimeDisplayUnit;
   /** Pixel width of the ruler track (drives tick density). */

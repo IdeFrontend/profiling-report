@@ -21,12 +21,12 @@ const model: SwimlaneModel = {
 };
 
 describe('PR-VIEW: swimlane view window', () => {
-  it('PR-VIEW-001: zoomToFit uses producer origin 0 through model max', () => {
+  it('PR-VIEW-001: zoomToFit uses model minTime through maxTime', () => {
     const w = zoomToFitWindow(model);
-    expect(w.startTime).toBe(0);
+    expect(w.startTime).toBe(1000);
     expect(w.endTime).toBe(5000);
     const state = createViewState(model);
-    expect(state.startTime).toBe(0);
+    expect(state.startTime).toBe(1000);
     expect(state.endTime).toBe(5000);
     expect(state.asideVisible).toBe(true);
   });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { formatTime } from '../../domain/formatTime';
+import { formatDisplayTime, formatTime } from '../../domain/formatTime';
 import { createViewState } from '../../domain/viewState';
 import SwimlaneCanvas from './SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.vue';
 import TimelineView from './TimelineView.vue';
@@ -654,7 +654,7 @@ describe('TimelineView', () => {
     wrapper.unmount();
   });
 
-  it('PR-TIMELINE-015: cursor label uses producer timestamp when minTime ≠ 0', () => {
+  it('PR-TIMELINE-015: cursor label is relative to bounds.minTime when minTime ≠ 0', () => {
     const minTime = 986_000;
     const maxTime = 5_260_000;
     const view = createViewState({ minTime, maxTime, processes: [] });
@@ -671,7 +671,7 @@ describe('TimelineView', () => {
     });
 
     expect(wrapper.find('[data-testid="cursor-label"]').text()).toBe(
-      formatTime(3_354_000, 'us'),
+      formatDisplayTime(3_354_000, minTime, 'us'),
     );
   });
 });

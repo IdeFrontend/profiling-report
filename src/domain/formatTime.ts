@@ -140,3 +140,24 @@ export function formatTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
   const parts = formatTimeParts(ns, unit);
   return `${parts.value} ${parts.unit}`;
 }
+
+/**
+ * Display an absolute model timestamp relative to a shared origin (usually
+ * `SwimlaneModel.minTime`), matching PyPTO / Perfetto Timecode defaults.
+ */
+export function formatDisplayTime(
+  ns: number,
+  origin: number,
+  unit: TimeDisplayUnit = 'ms',
+): string {
+  return formatTime(ns - origin, unit);
+}
+
+/** Like {@link formatTimeParts} but relative to `origin` (start/end columns). */
+export function formatDisplayTimeParts(
+  ns: number,
+  origin: number,
+  unit: TimeDisplayUnit = 'ms',
+): { value: string; unit: string } {
+  return formatTimeParts(ns - origin, unit);
+}

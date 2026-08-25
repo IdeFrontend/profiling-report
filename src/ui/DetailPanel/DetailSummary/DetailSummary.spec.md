@@ -8,7 +8,7 @@ Left column of the selection detail dock: selected event name and formatted time
 
 ## Inputs
 
-**selected** is a `SelectedEvent`. **unit** selects the time display unit. Optional **locale** localizes labels.
+**selected** is a `SelectedEvent`. **unit** selects the time display unit. **timeOrigin** (usually `model.minTime`) offsets Start/End; duration is absolute. Optional **locale** localizes labels.
 
 ## Outputs
 
@@ -45,6 +45,7 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 [format-time](../../../../specs/core/format-time.spec.md).
 
 ## Changelog
+- **2026-08-25** — Start/End relative to timeOrigin (shared display origin).
 - **2026-08-20** — PR-DSUM-004: hover titles on the truncating cells (metric values and the type pill); the name already had one.
 - **2026-08-20** — Glyph redrawn on a regular hexagon (r=11 about 16,16): the ring's three broken strokes and three nodes now sit on real hexagon vertices, and the cube fills it with a visible seam between faces, as in the sketch.
 - **2026-08-20** — Glyph ring 46px, matching the sketch.
