@@ -330,3 +330,12 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 36. Some labels are **KB**, some are **GB/s**. Keep both, or convert to one unit?
     - **OPEN** — unit/UX decision. This frame only has **GB/s**; KB would be L0C datas (`L0C_to_L1_datas(KB)`).
+
+### PIPE 占用率 / 计算负载分析 (Pipe occupancy / compute load)
+
+**Design:** [`v930/search-highlight`](../ui/source/v930/search-highlight.jpeg) · [`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg) · [`compute-detail-tabs.png`](../../src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png)
+
+<img src="visual/hq/q37.png" alt="Q37 CSV search highlights matches, does not filter" width="900" height="913">
+
+37. CSV **详情** (details) search currently **highlights** matching header substrings (navy chip on `aic_mte3`) and keeps every row. Should it also **filter** — hide non-matching rows? Highlight only, filter only, or both? Same rule for compute and memory overlays?
+    - **OPEN** — we shipped highlight-only ([PR #32](https://github.com/IdeFrontend/profiling-report/pull/32)) to match this sketch. [UX_SPEC](../ui/UX_SPEC.md) still says the pipe field list filters rows. Product has not picked.
