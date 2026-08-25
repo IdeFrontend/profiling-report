@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
@@ -43,6 +43,7 @@ import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_DEFAULT,
+  fitPanelsForTrackMin,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
@@ -98,10 +99,14 @@ const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
+const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). */
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const dockHeight = ref(DOCK_HEIGHT_DEFAULT);
+/** One-shot: shrink panels on first layout when the swimlane track would be too narrow. */
+const panelBudgetApplied = ref(false);
+let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
@@ -217,10 +222,47 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   selected.value = null;
   selectedEvent.value = null;
   hovered.value = null;
+  panelBudgetApplied.value = false;
   const fromMeta = model?.metadata?.defaultCollapsedIds;
   collapsedGroupIds.value = Array.isArray(fromMeta)
     ? fromMeta.filter((id): id is string => typeof id === 'string')
     : [];
+  if (showTimeline.value) void schedulePanelBudget();
+}
+
+function stopLayoutBudgetObserver(): void {
+  layoutResizeObserver?.disconnect();
+  layoutResizeObserver = null;
+}
+
+function applyPanelBudgetOnce(): boolean {
+  if (panelBudgetApplied.value) return true;
+  const el = layoutRef.value?.rootEl;
+  if (!el) return false;
+  const layoutWidth = el.clientWidth;
+  if (!(layoutWidth > 0)) return false;
+  const next = fitPanelsForTrackMin({
+    layoutWidth,
+    showAside: showAside.value,
+    gutterWidth: gutterWidth.value,
+    asideWidth: asideWidth.value,
+  });
+  gutterWidth.value = next.gutterWidth;
+  asideWidth.value = next.asideWidth;
+  panelBudgetApplied.value = true;
+  return true;
+}
+
+async function schedulePanelBudget(): Promise<void> {
+  stopLayoutBudgetObserver();
+  await nextTick();
+  if (applyPanelBudgetOnce()) return;
+  const el = layoutRef.value?.rootEl;
+  if (!el || typeof ResizeObserver === 'undefined') return;
+  layoutResizeObserver = new ResizeObserver(() => {
+    if (applyPanelBudgetOnce()) stopLayoutBudgetObserver();
+  });
+  layoutResizeObserver.observe(el);
 }
 
 function onToggleGroup(groupId: string): void {
@@ -329,6 +371,14 @@ watch(
   },
 );
 
+watch(
+  showTimeline,
+  (show) => {
+    if (show) void schedulePanelBudget();
+    else stopLayoutBudgetObserver();
+  },
+);
+
 onMounted(() => {
   window.addEventListener('keydown', onMeasureKeydown);
   if (props.source) return;
@@ -340,6 +390,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
+  stopLayoutBudgetObserver();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
 
@@ -587,6 +638,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 
     <ReportLayout
       v-else
+      ref="layoutRef"
       :show-aside="showAside"
       :aside-width="asideWidth"
       @update:aside-width="asideWidth = $event"

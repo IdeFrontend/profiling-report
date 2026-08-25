@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   ASIDE_WIDTH_MAX,
@@ -52,10 +52,14 @@ function onAsideResizePointerUp() {
   session?.end();
   session = null;
 }
+
+const rootEl = ref<HTMLElement | null>(null);
+defineExpose({ rootEl });
 </script>
 
 <template>
   <div
+    ref="rootEl"
     class="pr-layout"
     :class="{ 'pr-layout--no-aside': !showAside }"
     :style="layoutStyle"
