@@ -94,7 +94,6 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 
 ## Explicitly out of MVP (still may be later)
 
-- Product-final 核数 / NPU ARCH meta mapping (HardwareInfo fields exist; header mapping still open)
 - PyPTO AICPU E2E mode, Mix/wrap, three-column compute-graph jumps
 - MindStudio system/cluster/serving modes
 - Replacing Insight for `.bin`

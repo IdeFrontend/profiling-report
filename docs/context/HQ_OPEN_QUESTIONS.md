@@ -12,7 +12,7 @@ Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · one annotated crop
 - **PARTIAL** — field name known, but a value or a product decision is still missing.
 - **OPEN** — not derivable from the current docs or sample.
 
-Resolved right-panel mappings (aic频率, Task Duration, measured I/O BW, ICache Miss, L2↔L1, NA handling) live in [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
+Resolved right-panel mappings (进程 / 算子类型 / Blocks, Task Duration, measured I/O BW, ICache Miss, L2↔L1, NA handling) live in [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
 
 ---
 
@@ -20,34 +20,20 @@ Resolved right-panel mappings (aic频率, Task Duration, measured I/O BW, ICache
 
 ### Header
 
-**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png)
+**Design:** [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png)
 
-<img src="visual/hq/q1.png" alt="Q1 header meta — 核数 is not in this row" width="900" height="225">
+<img src="visual/hq/q1.png" alt="Q1 hardware-details overlay from HardwareInfo.jsonl" width="900" height="900">
 
-1. **核数** (core count) — which file and field?
-   - **PARTIAL** — two candidates; Product has not picked the header slot. `HardwareInfo.jsonl` → `AI Core Information.ai_core_count` is the hardware-details field (sample = 36; also `ai_cube_count`=36, `ai_vector_count`=72). `OpBasicInfo.csv` → `Block Dim` is the per-op split (sample = 8, matches sketch **8 次迭代 / 核**). Meta row still unset ([OPEN_QUESTIONS](OPEN_QUESTIONS.md) Q7). v930 shows **进程** / **算子类型** / **Blocks**, not 核数.
-
----
-
-<img src="visual/hq/q2.png" alt="Q2 v930 header — no NPU ARCH" width="900" height="225">
-
-2. **NPU ARCH** — which file and field?
-   - **PARTIAL** — v930 header is **进程** / **算子类型** / **Blocks**, not NPU ARCH. `npuArchLabel` stays unset. Overlay Device Info `chip_info` / `arch_info` are names (`Ascend 950PR_9599 V100`, `3510`), not a header ARCH value. No peak-compute string exists in the sample or committed sketch.
-
----
-
-<img src="visual/hq/q3.png" alt="Q3 hardware-details overlay from HardwareInfo.jsonl" width="900" height="900">
-
-3. Must every report include `HardwareInfo.jsonl`? Yes or no.
+1. Must every report include `HardwareInfo.jsonl`? Yes or no.
    - **OPEN** — the doc shows it is collected during 基础信息采集, but gives no availability guarantee. This overlay is what that file fills.
 
 ### 整体耗时 (Total duration)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q4.png" alt="Q4 8 次迭代 / 核" width="600" height="370">
+<img src="visual/hq/q2.png" alt="Q2 8 次迭代 / 核" width="600" height="370">
 
-4. The line **N 次迭代 / 核** (N iterations / core) — which field? (Is it `Block Dim`?)
+2. The line **N 次迭代 / 核** (N iterations / core) — which field? (Is it `Block Dim`?)
    - **INTERIM** — [I-Q6e](INTERIM_DECISIONS.md) uses `OpBasicInfo.csv` → `Block Dim` ("Task运行切分数量，对应Task运行时核数"). Sample = 8, matching the sketch. "Iterations-per-core" vs "block count" is not explicitly equated by Product.
 
 ### 算力情况 (Compute power)
@@ -56,23 +42,23 @@ Resolved right-panel mappings (aic频率, Task Duration, measured I/O BW, ICache
 
 This card is hidden until we have answers.
 
-<img src="visual/hq/q5.png" alt="Q5 172 measured TFLOPS" width="600" height="370">
+<img src="visual/hq/q3.png" alt="Q3 172 measured TFLOPS" width="600" height="370">
 
-5. **172** (measured TFLOPS) — which file, which field(s), and the formula?
+3. **172** (measured TFLOPS) — which file, which field(s), and the formula?
    - **OPEN** — the doc's 算力情况 table is blank. Only raw FLOPS *counts* exist (`ArithmeticUtilization.csv` → `aic_cube_fops`, `aiv_vec_fops`); no TFLOPS formula.
 
 ---
 
-<img src="visual/hq/q6.png" alt="Q6 320 peak TFLOPS" width="600" height="370">
+<img src="visual/hq/q4.png" alt="Q4 320 peak TFLOPS" width="600" height="370">
 
-6. **320** (peak TFLOPS) — which file and field? Or a fixed number per chip?
+4. **320** (peak TFLOPS) — which file and field? Or a fixed number per chip?
    - **OPEN** — no peak-compute field in any file; not documented.
 
 ---
 
-<img src="visual/hq/q7.png" alt="Q7 90% score" width="600" height="370">
+<img src="visual/hq/q5.png" alt="Q5 90% score" width="600" height="370">
 
-7. **90** (score) — what is the formula? Is it `measured / peak × 100`?
+5. **90** (score) — what is the formula? Is it `measured / peak × 100`?
    - **OPEN** — no "score" concept documented.
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
@@ -81,30 +67,30 @@ This card is hidden until we have answers.
 
 On real data, `0.08 / 1.6` is about **5%**, not 81. So the score formula is unclear.
 
-<img src="visual/hq/q8.png" alt="Q8 1.6 TB/s peak" width="900" height="225">
+<img src="visual/hq/q6.png" alt="Q6 1.6 TB/s peak" width="900" height="225">
 
-8. **1.6 TB/s** (peak) — which file and field?
+6. **1.6 TB/s** (peak) — which file and field?
    - **OPEN** — no peak-bandwidth field in any file; the doc's 内存负载 "理论值" column is empty for every row.
 
 ---
 
-<img src="visual/hq/q9.png" alt="Q9 peak on aic, aiv, input, and output" width="900" height="225">
+<img src="visual/hq/q7.png" alt="Q7 peak on aic, aiv, input, and output" width="900" height="225">
 
-9. Is the peak the same for aic, aiv, input, and output? Yes or no. If no, give each peak.
-   - **OPEN** — depends on Q8.
+7. Is the peak the same for aic, aiv, input, and output? Yes or no. If no, give each peak.
+   - **OPEN** — depends on Q6.
 
 ---
 
-<img src="visual/hq/q10.png" alt="Q10 score 81" width="900" height="225">
+<img src="visual/hq/q8.png" alt="Q8 score 81" width="900" height="225">
 
-10. **81** (score) — what is the formula? It is not `0.08 / 1.6`.
+8. **81** (score) — what is the formula? It is not `0.08 / 1.6`.
     - **OPEN** — no "score" concept; the doc maps raw bandwidth values only.
 
 ---
 
-<img src="visual/hq/q11.png" alt="Q11 I/O bandwidth cards" width="900" height="225">
+<img src="visual/hq/q9.png" alt="Q9 I/O bandwidth cards" width="900" height="225">
 
-11. Do these cards come from `Report.csv` instead? If yes, list the column names.
+9. Do these cards come from `Report.csv` instead? If yes, list the column names.
     - **OPEN** — the doc names `Report.csv` once ("SOL / 平均带宽") but never lists columns, and it is absent from `example.rep`. Interim I-Q6g uses `Memory.csv`, not `Report.csv`.
 
 ### 平均核利用率 (Average core utilization)
@@ -113,60 +99,60 @@ On real data, `0.08 / 1.6` is about **5%**, not 81. So the score formula is uncl
 
 This card is hidden until we have answers.
 
-<img src="visual/hq/q12.png" alt="Q12 82% utilization" width="590" height="370">
+<img src="visual/hq/q10.png" alt="Q10 82% utilization" width="590" height="370">
 
-12. **82%** — which file, which field, and the formula?
+10. **82%** — which file, which field, and the formula?
     - **OPEN** — the doc's 平均核利用率 table is blank; no field or formula.
 
 ---
 
-<img src="visual/hq/q13.png" alt="Q13 启用 24/24 核" width="590" height="370">
+<img src="visual/hq/q11.png" alt="Q11 启用 24/24 核" width="590" height="370">
 
-13. **24/24** in **启用 n/m 核** (enabled n/m cores) — which field is *n*? Which field is *m*?
+11. **24/24** in **启用 n/m 核** (enabled n/m cores) — which field is *n*? Which field is *m*?
     - **OPEN** — no "enabled cores" field. Sample `ai_core_count` = 36 (not 24); `Block Dim` = 8.
 
 ### Roofline 瓶颈分析 (Roofline bottleneck analysis)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`roofline.png`](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png)
 
-<img src="visual/hq/q14.png" alt="Q14 Roofline chart — not pipe busy rates" width="900" height="655">
+<img src="visual/hq/q12.png" alt="Q12 Roofline chart — not pipe busy rates" width="900" height="655">
 
-14. The old mapping uses `aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio`. Those are pipe busy rates, not chart axes. What should we use instead?
+12. The old mapping uses `aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio`. Those are pipe busy rates, not chart axes. What should we use instead?
     - **OPEN** — the doc only repeats the old mapping; real Roofline axes are not documented.
 
 ---
 
-<img src="visual/hq/q15.png" alt="Q15 X axis Ops/Byte" width="900" height="655">
+<img src="visual/hq/q13.png" alt="Q13 X axis Ops/Byte" width="900" height="655">
 
-15. **X axis** (Ops/Byte) — which file, fields, and formula? Is GM and L2 the same formula?
+13. **X axis** (Ops/Byte) — which file, fields, and formula? Is GM and L2 the same formula?
     - **OPEN** — no fields/formula.
 
 ---
 
-<img src="visual/hq/q16.png" alt="Q16 Y axis TOps/s" width="900" height="655">
+<img src="visual/hq/q14.png" alt="Q14 Y axis TOps/s" width="900" height="655">
 
-16. **Y axis** (TOps/s) — which file, fields, and formula?
+14. **Y axis** (TOps/s) — which file, fields, and formula?
     - **OPEN** — no formula (raw FLOPS counts `aic_cube_fops` / `aiv_vec_fops` exist but are not a TOps/s formula).
 
 ---
 
-<img src="visual/hq/q17.png" alt="Q17 roof lines" width="900" height="655">
+<img src="visual/hq/q15.png" alt="Q15 roof lines" width="900" height="655">
 
-17. The **roof** lines (peak bandwidth and peak compute) — which file and fields?
+15. The **roof** lines (peak bandwidth and peak compute) — which file and fields?
     - **OPEN** — peak compute and peak bandwidth are documented nowhere.
 
 ---
 
-<img src="visual/hq/q18.png" alt="Q18 L2 legend series" width="900" height="655">
+<img src="visual/hq/q16.png" alt="Q16 L2 legend series" width="900" height="655">
 
-18. The **L2** point on the chart needs bytes moved. Which field has L2 bytes? (`L2Cache.csv` only has hit counts.)
+16. The **L2** point on the chart needs bytes moved. Which field has L2 bytes? (`L2Cache.csv` only has hit counts.)
     - **OPEN (premise incomplete)** — correct that there is no *bytes* field in `L2Cache.csv`. But "only has hit counts" is incomplete: the sample also has hit **rates** — `aic_read_hit_rate(%)`, `aic_write_hit_rate(%)`, `aic_total_hit_rate(%)` (+ aiv). Note the doc's L2Cache dictionary (close/far hit/miss/victim) does **not** match the sample (r0/r1 read + write hit/miss + rates).
 
 ---
 
-<img src="visual/hq/q19.png" alt="Q19 Vec_FP32 / Vec_MISC mix" width="900" height="655">
+<img src="visual/hq/q17.png" alt="Q17 Vec_FP32 / Vec_MISC mix" width="900" height="655">
 
-19. Labels like `Vec_FP32` / `Vec_MISC` — which file and fields? Which labels do we show if many are non-zero?
+17. Labels like `Vec_FP32` / `Vec_MISC` — which file and fields? Which labels do we show if many are non-zero?
     - **PARTIAL** — fields exist in `ArithmeticUtilization.csv`: `aiv_vec_fp32_ratio`, `aiv_vec_fp16_ratio`, `aiv_vec_int32_ratio`, `aiv_vec_int16_ratio`, `aiv_vec_misc_ratio`. The doc's dictionary uses *different* names (`aiv_vec_vf_ratio`, `aiv_vec_sfu_ratio`, `aiv_vec_simt_vf_ratio`). The "which to show when many are non-zero" rule is undocumented.
 
 ### PIPE 占用率 / 计算负载分析 (Pipe occupancy / compute load)
@@ -175,17 +161,17 @@ This card is hidden until we have answers.
 
 These bars are already on screen. Please confirm.
 
-<img src="visual/hq/q20.png" alt="Q20 number inside the bar" width="900" height="524">
+<img src="visual/hq/q18.png" alt="Q18 number inside the bar" width="900" height="524">
 
-20. The number **inside** the bar (for example `301001.38`) — is it time (`*_time(us)`) or cycles (`*_total_cycles`)?
+18. The number **inside** the bar (for example `301001.38`) — is it time (`*_time(us)`) or cycles (`*_total_cycles`)?
     - **INTERIM** — [I-Q6f](INTERIM_DECISIONS.md): mean of non-`NA` `*_time(us)` for the same family/side as the ratio; omit when all NA. Not cycles. Sketch `301001.38` does not match `example.rep` magnitudes (fixture mismatch, not a missing mapping). Product can still pick cycles.
 
 ---
 
-<img src="visual/hq/q21.png" alt="Q21 详情 overlay (selected block)" width="900" height="315">
+<img src="visual/hq/q19.png" alt="Q19 详情 overlay (selected block)" width="900" height="315">
 
-21. On the summary bars, do we average all blocks? On **详情** (Details), do we show only the selected block?
-    - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): summary PIPE bars = mean of non-`NA` ratios across `block_id`. [I-Q6c](INTERIM_DECISIONS.md): **详情** / memory / metrics = selected block. Overlaps Q29–30. This crop is **详情**; summary mean is Q29.
+19. On the summary bars, do we average all blocks? On **详情** (Details), do we show only the selected block?
+    - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): summary PIPE bars = mean of non-`NA` ratios across `block_id`. [I-Q6c](INTERIM_DECISIONS.md): **详情** / memory / metrics = selected block. Overlaps Q27–28. This crop is **详情**; summary mean is Q27.
 
 ### 内存负载分析 (Memory load analysis)
 
@@ -193,9 +179,9 @@ These bars are already on screen. Please confirm.
 
 Bandwidth labels on arrows are already mapped. These are still open.
 
-<img src="visual/hq/q22.png" alt="Q22 Peak(%) on the L2 box" width="900" height="900">
+<img src="visual/hq/q20.png" alt="Q20 Peak(%) on the L2 box" width="900" height="900">
 
-22. **Peak (%)** color on each box — which file and field for each box?
+20. **Peak (%)** color on each box — which file and field for each box?
 
     | Box | File | Field |
     |-----|------|-------|
@@ -213,63 +199,63 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 ---
 
-<img src="visual/hq/q23.png" alt="Q23 L2Cache Hit Rate belongs on the GM↔L2 arrows" width="900" height="900">
+<img src="visual/hq/q21.png" alt="Q21 L2Cache Hit Rate belongs on the GM↔L2 arrows" width="900" height="900">
 
-23. **L2Cache Hit Rate** on the GM↔L2 arrow — which field: read, write, or total? Use AIC, AIV, or both?
+21. **L2Cache Hit Rate** on the GM↔L2 arrow — which field: read, write, or total? Use AIC, AIV, or both?
     - **INTERIM** — adapter uses the first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, `aic_read_hit_rate(%)`, `aiv_read_hit_rate(%)`. Product has not picked read/write/total × AIC/AIV. This jpeg prints **GB/s** on those arrows, not a hit %.
 
 ---
 
-<img src="visual/hq/q24.png" alt="Q24 UB to L2/GM arrow" width="900" height="900">
+<img src="visual/hq/q22.png" alt="Q22 UB to L2/GM arrow" width="900" height="900">
 
-24. **UB → L2/GM** — which file and field? Two names exist:
+22. **UB → L2/GM** — which file and field? Two names exist:
     - `MemoryUB.csv`: `aiv_ub_read_bw_gm`
     - `Memory.csv`: `aiv_ub_to_gm_bw`
     - **INTERIM** — adapter tries `MemoryUB.csv` → `aiv_ub_read_bw_gm(GB/s)` first, then `Memory.csv` → `aiv_ub_to_gm_bw(GB/s)`. Sample MemoryUB has **no `*_gm` fields** (only `aiv_ub_read/write_bw_vector` and `_scalar`). Product has not unified the names.
 
 ---
 
-<img src="visual/hq/q25.png" alt="Q25 L2/GM to UB arrow" width="900" height="900">
+<img src="visual/hq/q23.png" alt="Q23 L2/GM to UB arrow" width="900" height="900">
 
-25. **L2/GM → UB** — which file and field?
+23. **L2/GM → UB** — which file and field?
     - `MemoryUB.csv`: `aiv_ub_write_bw_gm`
     - `Memory.csv`: `aiv_gm_to_ub_bw`
     - **INTERIM** — adapter tries `MemoryUB.csv` → `aiv_ub_write_bw_gm(GB/s)` first, then `Memory.csv` → `aiv_gm_to_ub_bw(GB/s)`. Same sample gap: no gm fields on MemoryUB.
 
 ---
 
-<img src="visual/hq/q26.png" alt="Q26 L0C to L1" width="900" height="900">
+<img src="visual/hq/q24.png" alt="Q24 L0C to L1" width="900" height="900">
 
-26. **L0C → L1** — show it? If yes, which field? (`L0C_to_L1_datas(KB)`?)
+24. **L0C → L1** — show it? If yes, which field? (`L0C_to_L1_datas(KB)`?)
     - **INTERIM** — we show `Memory.csv` → `L0C_to_L1_datas(KB)` when present (`L0C_to_L1_bw_usage_rate(%)` is unused). Product 理论值 is still 待确定. Sketch node is **LOC**.
 
 ---
 
-<img src="visual/hq/q27.png" alt="Q27 L0C to L2/GM" width="900" height="900">
+<img src="visual/hq/q25.png" alt="Q25 L0C to L2/GM" width="900" height="900">
 
-27. **L0C → L2/GM** — show it? If yes, which field? (`L0C_to_GM_datas(KB)`?)
-    - **INTERIM** — we show `Memory.csv` → `L0C_to_GM_datas(KB)` when present. Product 理论值 is still 待确定. Same **LOC** node as Q26; this jpeg does not label the three L0C edges separately.
+25. **L0C → L2/GM** — show it? If yes, which field? (`L0C_to_GM_datas(KB)`?)
+    - **INTERIM** — we show `Memory.csv` → `L0C_to_GM_datas(KB)` when present. Product 理论值 is still 待确定. Same **LOC** node as Q24; this jpeg does not label the three L0C edges separately.
 
 ---
 
-<img src="visual/hq/q28.png" alt="Q28 L0C to UB" width="900" height="900">
+<img src="visual/hq/q26.png" alt="Q26 L0C to UB" width="900" height="900">
 
-28. **L0C → UB** — show it? If yes, which field? (none in the sample)
-    - **OPEN** — the doc leaves this blank (待确定); no field exists in sample or doc. Same **LOC** node as Q26–27; no L0C→UB edge is drawn.
+26. **L0C → UB** — show it? If yes, which field? (none in the sample)
+    - **OPEN** — the doc leaves this blank (待确定); no field exists in sample or doc. Same **LOC** node as Q24–25; no L0C→UB edge is drawn.
 
 ### Rules that apply everywhere
 
-<img src="visual/hq/q29.png" alt="Q29 summary mean percent column" width="900" height="524">
+<img src="visual/hq/q27.png" alt="Q27 summary mean percent column" width="900" height="524">
 
-29. A CSV often has many `block_id` rows (the sample has 8). For summary numbers, do we use **mean**, **max**, **first block**, or **the selected block**?
+27. A CSV often has many `block_id` rows (the sample has 8). For summary numbers, do we use **mean**, **max**, **first block**, or **the selected block**?
     - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): mean of non-`NA` values across `block_id` for summary PIPE / I/O measured BW. Product has not confirmed mean vs max vs selected.
 
 ---
 
-<img src="visual/hq/q30.png" alt="Q30 selected block switcher" width="900" height="318">
+<img src="visual/hq/q28.png" alt="Q28 selected block switcher" width="900" height="318">
 
-30. Same rule for every widget (cards, PIPE, Roofline, memory diagram)? Yes or no. If no, list the exceptions.
-    - **INTERIM** — [I-Q6c](INTERIM_DECISIONS.md): summary PIPE (and I-Q6g measured BW) stay I-Q6b mean-across-blocks; **详情** / memory diagram / metrics lists are the selected block. Roofline interim aggregates like I-Q6b ([I-Q11a](INTERIM_DECISIONS.md)). This crop is the **详情** block switcher (the exception). Summary mean is Q29.
+28. Same rule for every widget (cards, PIPE, Roofline, memory diagram)? Yes or no. If no, list the exceptions.
+    - **INTERIM** — [I-Q6c](INTERIM_DECISIONS.md): summary PIPE (and I-Q6g measured BW) stay I-Q6b mean-across-blocks; **详情** / memory diagram / metrics lists are the selected block. Roofline interim aggregates like I-Q6b ([I-Q11a](INTERIM_DECISIONS.md)). This crop is the **详情** block switcher (the exception). Summary mean is Q27.
 
 ---
 
@@ -279,89 +265,75 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png)
 
-<img src="visual/hq/q31.png" alt="Q31 Rated Freq is not on the v930 header" width="900" height="225">
+<img src="visual/hq/q29.png" alt="Q29 更多" width="900" height="225">
 
-31. Do we also show **Rated Freq**? Yes or no. If yes, which field?
-    - **INTERIM** — field is `OpBasicInfo.csv` → `Rated Freq` ("AI处理器的理论频率"). Shell does **not** show it (VIEW_DATA_MAPPING). Parsed onto `summary.ratedFreq` for details fallback only.
-
----
-
-<img src="visual/hq/q32.png" alt="Q32 Chip Info / Arch Info are ready-made names, not NPU ARCH" width="900" height="900">
-
-32. Overlay **Chip Info** / **Arch Info** are ready-made strings. If header **NPU ARCH** is a compute-peak number instead, is that ready-made text, or a number we format?
-    - **OPEN** — no NPU ARCH value in the v930 header or sample. These overlay fields are `chip_info` / `arch_info`. `npuArchLabel` is unset.
-
----
-
-<img src="visual/hq/q33.png" alt="Q33 更多" width="900" height="225">
-
-33. If `HardwareInfo.jsonl` is missing, what happens to **更多** (More) / 硬件信息详情 (Hardware details)? Hide it, or show an empty page?
+29. If `HardwareInfo.jsonl` is missing, what happens to **更多** (More) / 硬件信息详情 (Hardware details)? Hide it, or show an empty page?
     - **INTERIM** — [I-Q7a](INTERIM_DECISIONS.md): prefer `HardwareInfo.jsonl`; fall back to non-empty `OpBasicInfo.csv` columns; hide the overlay when both are empty. Product can still override.
 
 ### 整体耗时 (Total duration)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q34.png" alt="Q34 duration bar" width="600" height="370">
+<img src="visual/hq/q30.png" alt="Q30 duration bar" width="600" height="370">
 
-34. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
+30. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
     - **INTERIM** — [I-Q6e](INTERIM_DECISIONS.md): decorative (fixed short cyan fill), not a % of peak. Product has not defined a scale.
 
 ### 算力情况 (Compute power)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q35.png" alt="Q35 one number, not aic|aiv columns" width="600" height="370">
+<img src="visual/hq/q31.png" alt="Q31 one number, not aic|aiv columns" width="600" height="370">
 
-35. One number for the whole op, or two columns (**aic** and **aiv**), like the bandwidth cards?
+31. One number for the whole op, or two columns (**aic** and **aiv**), like the bandwidth cards?
     - **OPEN** — no display rule documented.
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q36.png" alt="Q36 TB/s unit on the I/O footer" width="900" height="225">
+<img src="visual/hq/q32.png" alt="Q32 TB/s unit on the I/O footer" width="900" height="225">
 
-36. If the measured value is small (for example `15.8 GB/s`), show **GB/s** or **TB/s**?
+32. If the measured value is small (for example `15.8 GB/s`), show **GB/s** or **TB/s**?
     - **OPEN** — UX decision.
 
 ### Roofline 瓶颈分析 (Roofline bottleneck analysis)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`roofline.png`](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png)
 
-<img src="visual/hq/q37.png" alt="Q37 Roofline tabs" width="900" height="655">
+<img src="visual/hq/q33.png" alt="Q33 Roofline tabs" width="900" height="655">
 
-37. Tabs **内存单元** (memory unit), **内存通路** (memory path), **搬运单元** (transfer unit) — what should each tab show?
-    - **PARTIAL** — the doc's Roofline table maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`). This is exactly the "pipe busy rate" mapping Q14 flags as wrong.
+33. Tabs **内存单元** (memory unit), **内存通路** (memory path), **搬运单元** (transfer unit) — what should each tab show?
+    - **PARTIAL** — the doc's Roofline table maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`). This is exactly the "pipe busy rate" mapping Q12 flags as wrong.
 
 ### 内存负载分析 (Memory load analysis)
 
 **Design:** [`v930/report-stats-scrolled`](../ui/source/v930/report-stats-scrolled.jpeg) · [`memory-topology.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) · [`buffer-links.png`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png)
 
-<img src="visual/hq/q38.png" alt="Q38 leftover _XN_IMM — no Dual-Die arrows" width="900" height="944">
+<img src="visual/hq/q34.png" alt="Q34 leftover _XN_IMM — no Dual-Die arrows" width="900" height="944">
 
-38. Dual-Die / Remote memory — show those arrows? Yes or no. If yes, which fields?
+34. Dual-Die / Remote memory — show those arrows? Yes or no. If yes, which fields?
     - **OPEN (mismatch)** — the doc mentions remote memory / close-far access, but the sample `L2Cache.csv` uses `r0`/`r1` (not close/far). No concrete remote-arrow fields. Leftover `_XN_IMM` on the timeline strip is not a topology remote edge.
 
 ---
 
-<img src="visual/hq/q39.png" alt="Q39 memory diagram — no right-click UI in the mockup" width="900" height="900">
+<img src="visual/hq/q35.png" alt="Q35 memory diagram — no right-click UI in the mockup" width="900" height="900">
 
-39. Right-click on the memory diagram — extra details? Yes or no. If yes, which fields?
+35. Right-click on the memory diagram — extra details? Yes or no. If yes, which fields?
     - **OPEN** — the doc only asks "是否有右击的详情" without specifying fields. No right-click UI in this mockup.
 
 ---
 
-<img src="visual/hq/q40.png" alt="Q40 GB/s on GM↔L2 arrows" width="900" height="900">
+<img src="visual/hq/q36.png" alt="Q36 GB/s on GM↔L2 arrows" width="900" height="900">
 
-40. Some labels are **KB**, some are **GB/s**. Keep both, or convert to one unit?
+36. Some labels are **KB**, some are **GB/s**. Keep both, or convert to one unit?
     - **OPEN** — unit/UX decision. This frame only has **GB/s**; KB would be L0C datas (`L0C_to_L1_datas(KB)`).
 
 ### Rules that apply everywhere
 
 **Design:** [`v930/task-measure-mode`](../ui/source/v930/task-measure-mode.jpeg) · [`measure-mode.png`](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/measure-mode.png) · [`measure-active.png`](../../src/ui/ReportToolbar/visual/measure-active.png)
 
-<img src="visual/hq/q41.png" alt="Q41 measure-mode time range" width="900" height="225">
+<img src="visual/hq/q37.png" alt="Q37 measure-mode time range" width="900" height="225">
 
-41. User selects a time range on the timeline (**度量模式** / measure mode). Do we recompute the right panel for that range? If yes, which parts: cards, PIPE, details, memory diagram, Roofline?
+37. User selects a time range on the timeline (**度量模式** / measure mode). Do we recompute the right panel for that range? If yes, which parts: cards, PIPE, details, memory diagram, Roofline?
     - **OPEN** — not documented.

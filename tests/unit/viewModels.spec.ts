@@ -12,6 +12,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.opName).toBe('add_custom');
     expect(summary.opType).toBe('vector');
     expect(summary.taskDurationUs).toBeCloseTo(1.800036, 5);
+    expect(summary.pid).toBe('3072984');
     expect(summary.currentFreq).toBe(1650);
     expect(summary.ratedFreq).toBe(1650);
     expect(summary.blockDim).toBe(8);
@@ -218,8 +219,7 @@ describe('PR-VM: report view-models (interim)', () => {
       fromJsonl.reportModel.hardwareDetails!.sections[0]!.fields.map((f) => [f.key, f.value]),
     );
     expect(cores.ai_core_count).toBe('36');
-    expect(fromJsonl.reportModel.summary.coreCount).toBeUndefined();
-    expect(fromJsonl.reportModel.summary.npuArchLabel).toBeUndefined();
+    expect(fromJsonl.reportModel.summary.pid).toBe('3072984');
 
     const fallback = adaptRep(parseRep(loadOutRepBytes()));
     expect(fallback.reportModel.hardwareDetails).toBeDefined();

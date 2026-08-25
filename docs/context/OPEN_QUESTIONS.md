@@ -10,7 +10,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 
 **MVP unblock doc:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md)
 
-**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (DATA Q1–30, UI/UX Q31–41)
+**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (DATA Q1–28, UI/UX Q29–37)
 
 ## What you can do now
 
@@ -42,7 +42,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
 | **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
 | **Q6** | Report summary formulas | **Interim** | **Confirmed (npu-compute 0818):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read\|write}_bw`. **Still hide** compute TFLOPS and avg core util (empty in product table). PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score** (I-Q6g guess 1.6 TB/s; sketch 81 ≠ ratio), `block_id` mean vs max vs selected block, **GB/s vs TB/s** when measured ≪ 1 TB/s. |
-| **Q7** | Hardware details sidebar | **Resolved (source)** | **`HardwareInfo.jsonl`** is the details source (npu-compute 0818). Not required to open Timeline; hide **更多** overlay when jsonl and OpBasicInfo fallback are empty ([I-Q7a](INTERIM_DECISIONS.md)). Meta **核数** / **NPU ARCH** still unmapped. |
+| **Q7** | Hardware details sidebar | **Resolved (source)** | **`HardwareInfo.jsonl`** is the details source (npu-compute 0818). Not required to open Timeline; hide **更多** overlay when jsonl and OpBasicInfo fallback are empty ([I-Q7a](INTERIM_DECISIONS.md)). Aside meta is **进程** / **算子类型** / **Blocks** (`Pid` / `Op Type` / `Block Dim`). |
 | **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children` (sketch Card tree). |
 
 ---

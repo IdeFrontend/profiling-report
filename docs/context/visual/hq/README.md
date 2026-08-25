@@ -8,6 +8,6 @@ Generated from component crops under `src/ui/**/visual/` plus callouts in [`mani
 npm run render:hq-visuals
 ```
 
-This rewrites `q1.png`–`q41.png`, `dimensions.json`, and `<img width height>` tags in [`HQ_OPEN_QUESTIONS.md`](../../HQ_OPEN_QUESTIONS.md). GitHub markdown stretches bare `![]()` on wide crops; explicit HTML dimensions plus letterboxing (max 4:1) avoids distortion.
+This rewrites `q1.png`–`q37.png`, `dimensions.json`, and `<img width height>` tags in [`HQ_OPEN_QUESTIONS.md`](../../HQ_OPEN_QUESTIONS.md). GitHub markdown stretches bare `![]()` on wide crops; explicit HTML dimensions plus letterboxing (max 4:1) avoids distortion.
 
 Commit the PNGs; CI validates links via `npm run check:design` (does not re-render).
