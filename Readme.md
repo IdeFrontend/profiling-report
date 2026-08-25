@@ -31,7 +31,8 @@ Start here: **[docs/README.md](docs/README.md)**
 - [`data/out.rep`](data/out.rep) — sample CANN report container
 - [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
 - [`data/ffn_dense.trace.json`](data/ffn_dense.trace.json) — denser CTEF fixture (async s/f pairs); `ph: 'C'` counters stripped (regenerate when a counter lane lands)
-- [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers
+- [`data/sample.rep`](data/sample.rep) — nested multi-operator `npu-rep` container with two distinct operators: `op1` (small machine-view trace) and `op2` (~150k-event stress trace), both with dependency connections and distinct CSV content. Regenerate with `npm run build:sample` (requires **Python 3** as `python3` on PATH — on Windows install Python and ensure the `python3` shim exists, or run `python data/build_sample_rep.py` then refresh `data/sample.rep.sha256`). Writes [`data/sample.rep.sha256`](data/sample.rep.sha256); CI verifies it via `npm run check:sample`.
+- [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers (Python 3)
 
 ```bash
 python3 data/unpack_rep.py data/out.rep /tmp/out-rep
@@ -43,9 +44,11 @@ Static playground demo is what Vercel deploys (`vercel.json` → `npm run build:
 
 Fixtures are synced from the repo into `playground/public/data/` via `npm run sync:demo-fixtures` (runs automatically before `dev` / `build:demo`):
 
+- `data/sample.rep` → `/data/sample.rep`
 - `data/out.rep` → `/data/out.rep`
-- `data/out.trace.json` → `/data/out.trace.json`
+- `data/example.npu.rep` → `/data/example.rep`
 - `data/ffn_dense.trace.json` → `/data/ffn_dense.trace.json`
+- `data/out.trace.json` → `/data/out.trace.json` (synced for tests; not in the playground switcher)
 
 ```bash
 npm run playground          # local SPA (syncs fixtures first)
@@ -53,7 +56,7 @@ npm run build:demo          # production static build
 npm run preview:demo        # preview playground/dist
 ```
 
-Fixture switcher: `?fixture=rep` (default), `?fixture=trace`, or `?fixture=ffn_dense`.
+Fixture switcher: `?fixture=sample` (default), `?fixture=rep`, `?fixture=example`, or `?fixture=ffn_dense`.
 
 Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
 

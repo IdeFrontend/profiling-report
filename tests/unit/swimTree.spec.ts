@@ -4,6 +4,7 @@ import {
   countLeafThreads,
   filterCollapsedTree,
   isFolderNode,
+  nestCardTreeFromFlatCorePipes,
   walkVisibleRows,
 } from '../../src/domain/swimTree';
 import type { SwimlaneModel } from '../../src/domain/types';
@@ -132,5 +133,67 @@ describe('swimTree + nested layout', () => {
     expect(spacer && showsProfilerStepBands(spacer)).toBe(true);
     const pipe = layout.lanes.find((l) => l.thread.id === 'mte1');
     expect(pipe && showsProfilerStepBands(pipe)).toBe(false);
+  });
+
+  it('nestCardTreeFromFlatCorePipes builds Card → 计算 → Core → pipe', () => {
+    const flat: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: '1',
+          name: 'Card0',
+          threads: [
+            {
+              id: 't-1-1',
+              name: 'Core0.Cube/SCALAR',
+              utilization: 0.8,
+              events: [{ id: 'e1', name: 'op', startTime: 0, duration: 10 }],
+            },
+            {
+              id: 't-1-2',
+              name: 'Core0.Cube/MTE1',
+              utilization: 0.4,
+              events: [{ id: 'e2', name: 'op', startTime: 0, duration: 5 }],
+            },
+            {
+              id: 't-1-3',
+              name: 'Core0.Vec0/ALL',
+              events: [{ id: 'e3', name: 'op', startTime: 0, duration: 5 }],
+            },
+          ],
+        },
+      ],
+    };
+    const nested = nestCardTreeFromFlatCorePipes(flat);
+    expect(nested.processes[0]!.threads.map((t) => t.name)).toEqual(['通信', '计算', '储存HBM']);
+    const compute = nested.processes[0]!.threads[1]!;
+    expect(compute.children!.map((c) => c.name)).toEqual(['Core0.Cube', 'Core0.Vec0']);
+    const cube = compute.children!.find((c) => c.name === 'Core0.Cube')!;
+    expect(cube.children!.map((c) => c.name)).toEqual(['SCALAR', 'MTE1']);
+    expect(cube.children!.map((c) => c.id)).toEqual(['t-1-1', 't-1-2']);
+    expect(collectLeafEventsFromModel(nested).map((e) => e.id).sort()).toEqual(['e1', 'e2', 'e3']);
+    expect(nested.metadata?.defaultCollapsedIds).toEqual(['1/Core0.Vec0']);
+  });
+
+  it('nestCardTreeFromFlatCorePipes no-ops on AIV pipe-state names', () => {
+    const flat: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 10,
+      processes: [
+        {
+          id: '1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1-1',
+              name: 'AIV0/PIPE_V/status',
+              events: [{ id: 'e1', name: 'op', startTime: 0, duration: 1 }],
+            },
+          ],
+        },
+      ],
+    };
+    expect(nestCardTreeFromFlatCorePipes(flat)).toBe(flat);
   });
 });
