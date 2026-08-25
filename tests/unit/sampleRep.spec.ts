@@ -130,6 +130,23 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(m.processes[0]!.threads.map((t) => t.name)).not.toContain('计算');
   });
 
+  it('nested Vec0/MTE3 gutter util uses mte3 ratio, not vector', () => {
+    const compute = op1.swimlaneModel.processes[0]!.threads.find((t) => t.name === '计算')!;
+    const vec0 = compute.children!.find((c) => c.name === 'Core0.Vec0')!;
+    const mte3 = vec0.children!.find((c) => c.name === 'MTE3')!;
+    const all = vec0.children!.find((c) => c.name === 'ALL');
+    const mte3Items = op1.reportModel.pipeOccupancy.filter((p) => p.colorKey === 'mte3');
+    const vecItems = op1.reportModel.pipeOccupancy.filter((p) => p.colorKey === 'vector');
+    expect(mte3Items.length).toBeGreaterThan(0);
+    expect(vecItems.length).toBeGreaterThan(0);
+    const mte3Mean = mte3Items.reduce((a, p) => a + p.ratio, 0) / mte3Items.length;
+    const vecMean = vecItems.reduce((a, p) => a + p.ratio, 0) / vecItems.length;
+    expect(mte3.utilization).toBeCloseTo(mte3Mean);
+    expect(mte3.utilization).not.toBeCloseTo(vecMean);
+    // ALL has no PipeUtilization colorKey — util must stay unset (not vector).
+    expect(all?.utilization).toBeUndefined();
+  });
+
   it('op1/op2 include ProfilerStep bands (stress-style group labels)', () => {
     expect(op1.swimlaneModel.bands?.map((b) => b.name)).toEqual([
       'ProfilerStep#1',

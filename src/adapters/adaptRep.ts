@@ -552,7 +552,7 @@ function swimlaneFromPayloads(payloads: Record<string, Uint8Array>, pipes: PipeO
   }
   // Ascend `.rep` embeds store ts/dur in nanoseconds (producer convention, not CTEF).
   const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: 'ns' });
-  // Util on flat `Core0.Cube/PIPE` names first; nest keeps leaf utilization.
+  // Util on flat names first (`laneColorKey` uses Core.*/PIPE suffix); nest keeps leaf util.
   // Nesting is producer opt-in (`nestCardTree` in trace.json) — never invent for arbitrary .rep.
   const withUtil = withPipeLaneUtilizations(model, pipes);
   return model.metadata?.nestCardTree === true
