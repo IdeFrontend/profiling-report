@@ -32,10 +32,24 @@ The tooltip is transient (follows cursor, appears/disappears on hover). The deta
 
 Very long event names — truncated with ellipsis. Tooltip near viewport edges — parent clamps position to stay visible.
 
+## Visual
+
+Crops: [`visual/tooltip.png`](./visual/tooltip.png), [`visual/tooltip-context.png`](./visual/tooltip-context.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+
+## Design sketches
+
+- [tooltip](./visual/tooltip.png) — from `v930/task-hover`
+- [tooltip-context](./visual/tooltip-context.png) — hovered event + tooltip from `v930/task-hover`
+- [Task hover](../../../docs/ui/source/v930/task-hover.jpeg) — full frame
+
 ## Dependencies
 
 [format-time](../../../specs/core/format-time.spec.md).
 
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
+
 ## Changelog
 - **2026-08-25** — Start/End relative to timeOrigin (shared with cursor).
 - **2026-08-24** — Producer timestamp start/end (matches cursor); PR-TOOLTIP-003.
+- **2026-08-10** — Recut from `v930/task-hover` (real hover tooltip dump).
+- **2026-08-05** — Initial spec. Core behaviors established.
