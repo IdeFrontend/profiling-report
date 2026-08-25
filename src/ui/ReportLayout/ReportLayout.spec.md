@@ -20,7 +20,7 @@ The main column always renders as a vertical stack (toolbar strip, then timeline
 
 Main column background is `--pr-bg-deep` (`#1f1f1f`). There is no full-width border across the top of the two-column grid (toolbar `border-bottom` only covers main).
 
-**Aside seam.** `.pr-main` uses `overflow: visible` and `z-index: 1` so timeline top chrome (overview handles, cursor pill) may paint slightly over the aside seam. The grid uses `minmax(0, 1fr)` on the main column so the aside never drops below main in narrow panels. Inner swim rows use `minmax(0, var(--pr-gutter-width)) minmax(0, 1fr)` with `min-width: 0` so gutter and track both shrink instead of overflowing the aside. Swimlane body scroll containment lives on the swim body row (`overflow: hidden`). The aside column stays at `z-index: 0` with `--pr-bg-panel`. `AxisRuler` clips its own tick labels so they never paint into the aside.
+**Aside seam.** `.pr-main` uses `overflow: visible` and `z-index: 1` so timeline top chrome (overview handles, cursor pill) may paint slightly over the aside seam. The grid uses `minmax(0, 1fr)` on the main column so the aside never drops below main in narrow panels. Inner swim rows use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` with `min-width: 0` so the gutter caps at the token while the track keeps a non-zero floor. Swimlane body scroll containment lives on the swim body row (`overflow: hidden`). The aside column stays at `z-index: 0` with `--pr-bg-panel`. `AxisRuler` clips its own tick labels so they never paint into the aside.
 
 **Initial track budget.** ProfilingReport owns session gutter/aside widths. On first layout after a report opens, if the estimated swimlane track would be narrower than **200px** (`TIMELINE_TRACK_MIN`), it sets gutter to **180** and (when the aside is visible) aside to **280** once — then stops so later host resizes and user drags win.
 
@@ -56,6 +56,7 @@ Resizable panel chrome (gutter width owned by ProfilingReport; aside width by th
 - [Entry overview](../../../docs/ui/source/v930/entry.jpeg) — two-column layout
 
 ## Changelog
+- **2026-08-25** — Swim-row track floor `minmax(80px, 1fr)`; overlays pin to used columns.
 - **2026-08-25** — Initial open may clamp gutter/aside to mins when track would be &lt; 200px.
 - **2026-08-25** — Inner swim rows use `minmax(0, …)` so gutter + track shrink in narrow panels.
 - **2026-08-24** — Drop timeline horizontal scroll; shrink-to-fit; seam overlap via `.pr-main` visible stacking; `minmax(0, 1fr)` outer grid; remove 900px stack.
