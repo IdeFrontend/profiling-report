@@ -16,6 +16,7 @@ import type {
 } from '../domain/types';
 import { laneColorKey } from '../domain/laneColors';
 import { hasDependencies } from '../domain/dependencies';
+import { nestCardTreeFromFlatCorePipes } from '../domain/swimTree';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { firstLabelledMemoryTopology } from './memoryTopology';
 
@@ -551,7 +552,12 @@ function swimlaneFromPayloads(payloads: Record<string, Uint8Array>, pipes: PipeO
   }
   // Ascend `.rep` embeds store ts/dur in nanoseconds (producer convention, not CTEF).
   const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: 'ns' });
-  return withPipeLaneUtilizations(model, pipes);
+  // Util on flat names first (`laneColorKey` uses Core.*/PIPE suffix); nest keeps leaf util.
+  // Nesting is producer opt-in (`nestCardTree` in trace.json) — never invent for arbitrary .rep.
+  const withUtil = withPipeLaneUtilizations(model, pipes);
+  return model.metadata?.nestCardTree === true
+    ? nestCardTreeFromFlatCorePipes(withUtil)
+    : withUtil;
 }
 
 /** Map parsed `.rep` embeds → swimlane + report view-models. */
