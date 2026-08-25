@@ -4,6 +4,7 @@ const messages = {
   'zh-CN': {
     searchPlaceholder: '搜索',
     searchLabel: '搜索',
+    searchClear: '清除搜索',
     zoomIn: '放大',
     zoomOut: '缩小',
     zoomFit: '适应窗口',
@@ -80,6 +81,7 @@ const messages = {
   en: {
     searchPlaceholder: 'Search',
     searchLabel: 'Search',
+    searchClear: 'Clear search',
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     zoomFit: 'Fit',

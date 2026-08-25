@@ -109,7 +109,7 @@ describe('StatsAside', () => {
     }
   });
 
-  it('PR-STATS-005: compute/memory modes show CSV tabs and emit view-full-csv', async () => {
+  it('PR-STATS-005: compute overlay is search-only; memory keeps 查看全部', async () => {
     const computeTables = [
       {
         fileName: 'PipeUtilization.csv',
@@ -149,17 +149,19 @@ describe('StatsAside', () => {
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('aiv_vec_ratio');
-
-    await wrapper.get('[data-testid="csv-view-all"]').trigger('click');
-    expect(wrapper.emitted('view-full-csv')?.[0]?.[0]).toEqual({
-      fileName: 'PipeUtilization.csv',
-      text: csvTexts['PipeUtilization.csv'],
-    });
+    expect(wrapper.find('[data-testid="csv-search"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="csv-block"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="csv-view-all"]').exists()).toBe(false);
 
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     await wrapper.get('[data-testid="topology-details"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('MemoryL1');
+    await wrapper.get('[data-testid="csv-view-all"]').trigger('click');
+    expect(wrapper.emitted('view-full-csv')?.[0]?.[0]).toEqual({
+      fileName: 'Memory.csv',
+      text: csvTexts['Memory.csv'],
+    });
   });
 
   it('PR-STATS-006: header title and close emit', async () => {
