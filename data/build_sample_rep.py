@@ -18,9 +18,9 @@ Operators:
   op1 — machine-view style (~100 X events): a few Core/pipe lanes with bursty
         irregular occupancy and cross-pipe `args.event_id` / dependencies
         connections + baseline `add_custom` CSVs from `data/out.rep`.
-  op2 — denser pipe-busy style: Card/core/pipe lanes with bursty occupancy,
-        variable durations, idle gaps, and cross-pipe dependency chains +
-        transformed CSVs (different op name, block range, scaled metrics).
+  op2 — ~200k-event Card/core/pipe stress-style trace for rendering performance
+        demos, with sparse pipeline deps + transformed CSVs (different op name,
+        block range, scaled metrics, synthesized Cube aic_* values).
 
 Both keep the full 11-leaf payload set so the right sidebar stays available.
 Traces deliberately avoid uniform grids — timings mimic real Ascend pipe-state /
@@ -190,6 +190,42 @@ def emit_bursty_lane(pid, tid, pipe, time_span, rand, id_prefix, seq_start=0):
     return events
 
 
+def emit_count_lane(pid, tid, pipe, count, time_span, rand, id_prefix, occupancy=0.65):
+    """
+    Fixed event count with irregular busy/idle (stress-style), for large
+    performance fixtures. Returns the same (eid, start, end, ev) tuples.
+    """
+    profile = PIPE_PROFILE[pipe]
+    events = []
+    if count <= 0 or time_span <= 0:
+        return events
+    occ = min(1.0, max(0.0, occupancy))
+    busy_budget = time_span * occ
+    avg_busy = max(1.0, busy_budget / count)
+    avg_gap = max(0.0, (time_span - busy_budget) / count)
+    t = int(rand() * avg_gap * 0.5)
+    for i in range(count):
+        t += int(avg_gap * (0.2 + 1.6 * rand()))
+        scale = rand() * rand()
+        dur = max(1, int(avg_busy * (0.15 + 1.7 * scale)))
+        if t >= time_span:
+            t = int(rand() * max(1, time_span - 2))
+            dur = max(1, int(1 + rand() * min(avg_busy, time_span - t)))
+        elif t + dur > time_span:
+            dur = max(1, time_span - t)
+        is_marker = pipe in ("SCALAR", "CACHEMISS") and rand() < 0.2
+        if is_marker:
+            dur = 1
+            name = f"marker_{i}"
+        else:
+            name = _pick_name(profile["names"], rand)
+        eid = f"{id_prefix}:{i}"
+        ev = _x(pid, tid, name, t, dur, event_id=eid)
+        events.append((eid, t, t + dur, ev))
+        t += dur
+    return events
+
+
 def wire_pipeline_deps(lane_events, rand):
     """
     For each core's PIPELINE_ORDER chain, link a later event on pipe[k+1]
@@ -333,15 +369,18 @@ def small_trace():
 
 def big_trace():
     """
-    Denser Card → Core → pipe lanes with bursty occupancy. Each pipe has its
-    own occupancy / duration profile; events cluster into bursts with idle
-    gaps, so the swimlane does not look like a uniform grid.
+    Large Card → Core → pipe fixture (~200k X events) for swimlane rendering
+    performance demos. Irregular per-lane timings; sparse cross-pipe deps
+    (pipeline chain only — dense wiring would explode at this scale).
     """
     rand = mulberry32(0xBEEF01)
-    # ~0.08 ms window — enough for irregular bursts without packing every lane solid.
-    time_span = 80_000
+    # 2 cards × 3 cores × 9 pipes = 54 lanes; 3704 × 54 = 200_016 events.
+    lane_count = 2 * len(STRESS_CORES) * len(STRESS_PIPES)
+    events_per_lane = 200_000 // lane_count  # 3703 → total 199_962; bump to hit ~200k
+    while events_per_lane * lane_count < 200_000:
+        events_per_lane += 1
+    time_span = 1_000_000_000  # 1 s in ns (stress-medium span)
     evs = []
-    # Collect per-(pid,core) pipe events for dependency wiring.
     core_lanes = {}  # (pid, core) -> {pipe: [(eid, start, end, ev), ...]}
 
     for card in range(2):
@@ -352,14 +391,14 @@ def big_trace():
             pipe_map = {}
             for pipe in STRESS_PIPES:
                 evs.append(_m_thread(pid, tid, f"{core}/{pipe}"))
-                # Per-lane seed so neighbouring pipes don't sync up.
                 lane_seed = (pid * 10_000 + tid * 17 + sum(ord(c) for c in pipe)) & 0xFFFFFFFF
                 lane_rand = mulberry32(lane_seed)
-                # Slightly different time spans per card so Card1 doesn't mirror Card0.
-                span = time_span if card == 0 else int(time_span * 0.85)
-                emitted = emit_bursty_lane(
-                    pid, tid, pipe, span, lane_rand,
-                    id_prefix=f"c{card}-{core}",
+                # Slight occupancy bias per pipe family so lanes look different.
+                occ = 0.45 + 0.4 * PIPE_PROFILE[pipe]["occupancy"]
+                emitted = emit_count_lane(
+                    pid, tid, pipe, events_per_lane, time_span, lane_rand,
+                    id_prefix=f"{tid}",  # tid unique per lane
+                    occupancy=min(0.9, occ),
                 )
                 pipe_map[pipe] = emitted
                 for _eid, _s, _e, ev in emitted:

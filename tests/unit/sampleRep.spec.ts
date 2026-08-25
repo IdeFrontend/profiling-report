@@ -41,6 +41,9 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
 
   it('op1 and op2 carry distinct traces with distinct event counts', () => {
     expect(eventCount(op1.swimlaneModel)).toBeLessThan(eventCount(op2.swimlaneModel));
+    // op2 is the large rendering-performance fixture (~200k X events).
+    expect(eventCount(op2.swimlaneModel)).toBeGreaterThanOrEqual(190_000);
+    expect(eventCount(op2.swimlaneModel)).toBeLessThanOrEqual(210_000);
   });
 
   it('both operators expose dependency connections', () => {
