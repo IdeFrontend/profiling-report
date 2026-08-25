@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { formatDisplayTime, formatTime } from '../../domain/formatTime';
+import { formatDisplayTime } from '../../domain/formatTime';
 import { createViewState } from '../../domain/viewState';
 import SwimlaneCanvas from './SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.vue';
 import TimelineView from './TimelineView.vue';
