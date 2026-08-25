@@ -15,9 +15,9 @@ Layout (little-endian), matches `src/adapters/parseNpuRep.ts`:
   type 6 = nested operator archive (.npu.rep); type 1 = csv; type 2 = json/jsonl.
 
 Operators:
-  op1 — small machine-view style: sparse irregular ops (matmul/cast/mov) with
-        `args.event_id` + `args.dependencies` connections + baseline
-        `add_custom` CSVs reused verbatim from `data/out.rep`.
+  op1 — machine-view style (~100 X events): a few Core/pipe lanes with bursty
+        irregular occupancy and cross-pipe `args.event_id` / dependencies
+        connections + baseline `add_custom` CSVs from `data/out.rep`.
   op2 — denser pipe-busy style: Card/core/pipe lanes with bursty occupancy,
         variable durations, idle gaps, and cross-pipe dependency chains +
         transformed CSVs (different op name, block range, scaled metrics).
@@ -225,47 +225,35 @@ def wire_pipeline_deps(lane_events, rand):
 
 def small_trace():
     """
-    Sparse machine-view style (like ffn_dense / depsFixture): a handful of
-    named ops with irregular durations and a short dependency chain.
+    Machine-view style (~100 X events): a few Core/pipe lanes with bursty
+    irregular occupancy, Ascend-style op names, and a cross-pipe dependency
+    chain (MTE2 → MTE1 → CUBE → FIXP → MTE3).
     """
     rand = mulberry32(0xA11CE)
+    # Calibrated so emit_bursty_lane yields ~100 X events across 7 lanes.
+    time_span = 30_000
     evs = [_m_process(1, "Card0")]
     lanes = [
-        (1, "Core0.Cube/SCALAR"),
-        (2, "Core0.Cube/MTE2"),
-        (3, "Core0.Cube/CUBE"),
-        (4, "Core0.Vec0/ALL"),
-        (5, "Core0.Vec0/MTE3"),
+        (1, "SCALAR", "Core0.Cube/SCALAR"),
+        (2, "MTE2",   "Core0.Cube/MTE2"),
+        (3, "MTE1",   "Core0.Cube/MTE1"),
+        (4, "CUBE",   "Core0.Cube/CUBE"),
+        (5, "FIXP",   "Core0.Cube/FIXP"),
+        (6, "MTE3",   "Core0.Vec0/MTE3"),
+        (7, "ALL",    "Core0.Vec0/ALL"),
     ]
-    for tid, name in lanes:
-        evs.append(_m_thread(1, tid, name))
+    pipe_map = {}
+    for tid, pipe, label in lanes:
+        evs.append(_m_thread(1, tid, label))
+        lane_rand = mulberry32((0xA11CE + tid * 97) & 0xFFFFFFFF)
+        emitted = emit_bursty_lane(
+            1, tid, pipe, time_span, lane_rand, id_prefix=f"op1-{pipe}",
+        )
+        pipe_map[pipe] = emitted
+        for _eid, _s, _e, ev in emitted:
+            evs.append(ev)
 
-    # Hand-authored irregular ops — times in ns, deliberately non-grid.
-    # Format: (tid, name, ts, dur, event_id, deps)
-    ops = [
-        (1, "ProfilerStep#1",            0,     1_200, "step-1",   ["mov-in"]),
-        (1, "ProfilerStep#2",            1_800,   640, "step-2",   ["mov-in"]),
-        (2, "MOV_OUT_TO_L1_MULTI_ND2NZ", 2_100, 2_740, "mov-in",   ["matmul-0"]),
-        (2, "MOV_OUT_TO_L1_MULTI_ND2NZ", 5_900, 1_120, "mov-in-2", ["matmul-1"]),
-        (3, "matmul",                    4_950, 3_860, "matmul-0", ["fix-0", "cast-0"]),
-        (3, "matmul",                    9_400, 2_210, "matmul-1", ["fix-1"]),
-        (3, "CUBE_busy",                12_800,   480, "cube-gap", None),
-        (5, "FIX_LOC_TO_DST",            8_900,   740, "fix-0",    ["step-17"]),
-        (5, "MOV_OUT",                  11_700, 1_540, "fix-1",    ["step-18"]),
-        (4, "cast",                      9_800,   620, "cast-0",   ["step-17"]),
-        (4, "ProfilerStep#17",          12_100, 1_900, "step-17",  None),
-        (4, "ProfilerStep#18",          14_800, 1_100, "step-18",  None),
-        # Sparse markers on SCALAR — clustered, not periodic.
-        (1, "marker_3",                  7_240,     1, "m3",       None),
-        (1, "marker_7",                  7_290,     1, "m7",       None),
-        (1, "marker_9",                  7_410,     1, "m9",       None),
-        (1, "marker_12",                10_050,     1, "m12",      None),
-    ]
-    for tid, name, ts, dur, eid, deps in ops:
-        # Jitter durations slightly so they aren't round numbers.
-        jitter = int((rand() - 0.5) * dur * 0.08)
-        d = max(1, dur + jitter)
-        evs.append(_x(1, tid, name, ts, d, event_id=eid, deps=deps or None))
+    wire_pipeline_deps(pipe_map, rand)
     return _doc(evs)
 
 
