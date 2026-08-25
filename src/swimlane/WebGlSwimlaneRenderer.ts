@@ -23,6 +23,7 @@ import {
   hexToRgb,
   hitTestLayout,
   rebuildLayout,
+  snapEventRect,
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
@@ -38,6 +39,7 @@ interface GlProgram {
   uResolution: WebGLUniformLocation | null;
   uColor: WebGLUniformLocation;
   uYBounds: WebGLUniformLocation | null;
+  uDpr: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -111,6 +113,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uResolution: gl.getUniformLocation(program, 'uResolution'),
     uColor,
     uYBounds: gl.getUniformLocation(program, 'uYBounds'),
+    uDpr: gl.getUniformLocation(program, 'uDpr'),
   };
 }
 
@@ -290,9 +293,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const gl = this.gl;
     const canvas = this.canvas;
     if (!gl || !canvas) return;
-    this.dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    canvas.width = Math.floor(this.width * this.dpr);
-    canvas.height = Math.floor(this.height * this.dpr);
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    canvas.width = Math.floor(this.width * dpr);
+    canvas.height = Math.floor(this.height * dpr);
+    // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
+    this.dpr = canvas.width / this.width;
     canvas.style.width = `${this.width}px`;
     canvas.style.height = `${this.height}px`;
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -426,6 +431,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, resX, resY);
+    if (swim.uDpr) gl.uniform1f(swim.uDpr, this.dpr);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).
@@ -437,7 +443,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const meshes = this.laneMeshes[i];
       if (!lane || !meshes) continue;
 
-      const { y: top, h: bandH } = eventBlockMetrics(lane.y, this.view.scrollY);
+      const { y: topRaw, h: bandHRaw } = eventBlockMetrics(lane.y, this.view.scrollY);
+      const snapped = snapEventRect(0, topRaw, 1, bandHRaw, this.dpr);
+      const top = snapped.y;
+      const bandH = snapped.h;
       if (top + bandH < 0 || top > cssH) continue;
 
       const sy = bandH / cssH;

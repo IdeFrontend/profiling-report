@@ -5,6 +5,8 @@ import {
   eventLabelAnchor,
   hitTestLayout,
   rebuildLayout,
+  snapCssPx,
+  snapEventRect,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
@@ -101,6 +103,16 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(clippedLeft).toEqual({ cx: 25, maxWidth: 42 });
     const tooNarrow = eventLabelAnchor(-30, 50, 400);
     expect(tooNarrow).toBeNull();
+  });
+
+  it('snapEventRect aligns edges to the device-pixel grid at fractional dpr', () => {
+    const dpr = 1.25;
+    expect(snapCssPx(2.5, dpr)).toBe(2.4);
+    const r = snapEventRect(10.4, 2.5, 20.3, 16, dpr);
+    expect(r.x * dpr).toBeCloseTo(Math.round(10.4 * dpr));
+    expect(r.y * dpr).toBeCloseTo(Math.round(2.5 * dpr));
+    expect((r.x + r.w) * dpr).toBeCloseTo(Math.round((10.4 + 20.3) * dpr));
+    expect((r.y + r.h) * dpr).toBeCloseTo(Math.round((2.5 + 16) * dpr));
   });
 });
 

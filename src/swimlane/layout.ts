@@ -17,6 +17,27 @@ export const BAND_RADIUS = 5;
 export function eventRadius(w: number): number {
   return w < 4 ? 1 : 2;
 }
+
+/** Snap a CSS px value onto the device-pixel grid (crisp edges at fractional browser zoom). */
+export function snapCssPx(v: number, dpr: number): number {
+  return Math.round(v * dpr) / dpr;
+}
+
+/** Snap a CSS rect so all four edges land on device pixels. Min size = 1 device px. */
+export function snapEventRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  dpr: number,
+): { x: number; y: number; w: number; h: number } {
+  const x0 = snapCssPx(x, dpr);
+  const y0 = snapCssPx(y, dpr);
+  const x1 = snapCssPx(x + w, dpr);
+  const y1 = snapCssPx(y + h, dpr);
+  const min = 1 / dpr;
+  return { x: x0, y: y0, w: Math.max(min, x1 - x0), h: Math.max(min, y1 - y0) };
+}
 /** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */
 export const BAND_FILL = '#2c2c2c';
 
