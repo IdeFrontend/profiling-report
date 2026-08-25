@@ -31,6 +31,7 @@ Start here: **[docs/README.md](docs/README.md)**
 - [`data/out.rep`](data/out.rep) — sample CANN report container
 - [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
 - [`data/ffn_dense.trace.json`](data/ffn_dense.trace.json) — denser CTEF fixture (async s/f pairs); `ph: 'C'` counters stripped (regenerate when a counter lane lands)
+- [`data/sample.rep`](data/sample.rep) — nested multi-operator `npu-rep` container with two distinct operators: `op1` (small machine-view trace) and `op2` (big stress trace), both with dependency connections and distinct CSV content. Regenerate with [`data/build_sample_rep.py`](data/build_sample_rep.py)
 - [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers
 
 ```bash
@@ -45,6 +46,8 @@ Fixtures are synced from the repo into `playground/public/data/` via `npm run sy
 
 - `data/out.rep` → `/data/out.rep`
 - `data/out.trace.json` → `/data/out.trace.json`
+- `data/example.npu.rep` → `/data/example.rep`
+- `data/sample.rep` → `/data/sample.rep`
 - `data/ffn_dense.trace.json` → `/data/ffn_dense.trace.json`
 
 ```bash
@@ -53,7 +56,7 @@ npm run build:demo          # production static build
 npm run preview:demo        # preview playground/dist
 ```
 
-Fixture switcher: `?fixture=rep` (default), `?fixture=trace`, or `?fixture=ffn_dense`.
+Fixture switcher: `?fixture=rep` (default), `?fixture=trace`, `?fixture=example`, `?fixture=sample`, or `?fixture=ffn_dense`.
 
 Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
 
