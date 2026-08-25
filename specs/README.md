@@ -54,6 +54,7 @@ Specs are co-located with their components.
 | HardwareDetailsPanel | `PR-HW-*` | M1 | `src/ui/StatsAside/HardwareDetailsPanel/HardwareDetailsPanel.spec.md` |
 | SwimlaneCanvas | `PR-CANVAS-*` | MVP | `src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md` |
 | MultiSelectSummary | `PR-MSEL-*` | P2 | `src/ui/MultiSelectSummary/MultiSelectSummary.spec.md` |
+| ContextMenu | `PR-CTXM-*` | P2 | `src/ui/ContextMenu/ContextMenu.spec.md` |
 
 ### Architecture
 
