@@ -10,6 +10,8 @@ When a question is answered: write it into the owning specs and **remove** it fr
 
 Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · one annotated crop per question below · sources [`docs/ui/source/v930/`](../ui/source/v930/) · component crops under `src/ui/**/visual/` ([regenerate](visual/hq/README.md))
 
+**Numbering.** This ledger is **HQ 1–37** (`q1.png`…`q37.png`). It is not the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
+
 - **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.
 - **PARTIAL** — field name known, but a value or a product decision is still missing.
 - **OPEN** — not derivable from the current docs or sample.
