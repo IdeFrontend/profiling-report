@@ -22,6 +22,9 @@ function meanUtilization(nodes: SwimThread[]): number | undefined {
  * (design mockup / stress shape). Preserves leaf thread ids for dependency EventRefs.
  * Callers must opt in (e.g. producer `nestCardTree: true` via adaptRep) — do not run on
  * every `.rep`. No-op when no matching names.
+ *
+ * Category util bars (通信=1, 储存HBM=0.46) are mockup presentation constants for the
+ * sample fixture — not measured from the trace. A second opt-in producer inherits them.
  */
 export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneModel {
   let any = false;
@@ -57,12 +60,15 @@ export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneMod
       id: `${proc.id}/compute`,
       name: '计算',
       events: [],
+      // Mockup default when no pipe util yet — not a measured aggregate.
       utilization: meanUtilization(coreFolders) ?? 1,
+      // Unmatched (non-Core.*/PIPE) lanes stay visible under 计算 rather than dropped.
       children: [...coreFolders, ...unmatched],
     };
     return {
       ...proc,
       threads: [
+        // Synthetic category spacers (mockup util, not from CSV).
         { id: `${proc.id}/comm`, name: '通信', events: [], utilization: 1 },
         compute,
         { id: `${proc.id}/hbm`, name: '储存HBM', events: [], utilization: 0.46 },

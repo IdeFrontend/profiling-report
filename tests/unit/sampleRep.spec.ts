@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
 import type { AdaptedReport, SwimlaneModel, SwimThread } from '../../src/domain/types';
 import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
-import { loadSampleRepBytes } from '../helpers/fixtures';
+import { loadOutRepBytes, loadSampleRepBytes } from '../helpers/fixtures';
 
 function walkThreads(threads: SwimThread[], visit: (thread: SwimThread) => void): void {
   for (const thread of threads) {
@@ -120,6 +120,14 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
       expect(cube && isFolderNode(cube)).toBe(true);
       expect(cube!.children!.some((p) => !isFolderNode(p) && p.events.length > 0)).toBe(true);
     }
+  });
+
+  it('ordinary .rep stays flat (no invented nesting)', () => {
+    const flat = loadReportSource(loadOutRepBytes());
+    const m = flat.swimlaneModel!;
+    expect(m.metadata?.nestCardTree).toBeUndefined();
+    expect(m.metadata?.defaultCollapsedIds).toBeUndefined();
+    expect(m.processes[0]!.threads.map((t) => t.name)).not.toContain('计算');
   });
 
   it('op1/op2 include ProfilerStep bands (stress-style group labels)', () => {
