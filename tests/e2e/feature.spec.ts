@@ -173,7 +173,7 @@ test.describe('PR-E2E feature paths', () => {
     // Data-bounded fit: scan many lanes × x offsets until a linked event paints curves.
     expect(
       await probeSwimlaneDepCurves(page, gl, box!, {
-        maxLanes: 80,
+        maxLanes: 40,
         xOffsetsPx: [8, 24, 48, 80, 120, 160, 220, 280, 360, 480, 600],
         paintTimeoutMs: 250,
       }),

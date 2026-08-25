@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { formatDisplayTimeParts, formatTimeParts } from '../../../domain/formatTime';
 import DetailSummary from './DetailSummary.vue';
 
 describe('DetailSummary', () => {
@@ -88,5 +89,26 @@ describe('DetailSummary', () => {
       '0-0-103-13-2(matmul)',
     );
     expect(wrapper.find('[data-testid="detail-summary-kind"]').attributes('title')).toBe('event');
+  });
+
+  it('PR-DSUM-005: Start/End relative to timeOrigin; Duration absolute', () => {
+    const startTime = 3_354_000;
+    const duration = 60_000;
+    const endTime = startTime + duration;
+    const timeOrigin = 986_000;
+    const unit = 'us' as const;
+    const wrapper = mount(DetailSummary, {
+      props: {
+        selected: { id: '1', name: 'op', startTime, duration, endTime },
+        unit,
+        timeOrigin,
+      },
+    });
+
+    expect(wrapper.findAll('.pr-detail-summary__value').map((n) => n.text())).toEqual([
+      formatDisplayTimeParts(startTime, timeOrigin, unit).value,
+      formatTimeParts(duration, unit).value,
+      formatDisplayTimeParts(endTime, timeOrigin, unit).value,
+    ]);
   });
 });

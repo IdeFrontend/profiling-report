@@ -22,7 +22,7 @@ The pill under the name carries the instruction or op type (the sketch shows `MO
 
 Every cell that truncates carries its full text in `title`, so a hover recovers what the ellipsis ate — a nanosecond-resolution Ascend timestamp is the common case, and it is exactly the digits that matter. The value's hover includes the unit, since the caption holding it is a separate cell.
 
-Values come from `formatTimeParts`: the number stands alone and the unit rides in the caption below it (`Start (ns)`), as in the sketch, so the three columns stay aligned on the digits.
+Start/End values come from `formatDisplayTimeParts(…, timeOrigin)`; Duration from `formatTimeParts` (absolute). The number stands alone and the unit rides in the caption below it (`Start (ns)`), as in the sketch, so the three columns stay aligned on the digits.
 
 ## Acceptance Criteria
 
@@ -30,6 +30,7 @@ Values come from `formatTimeParts`: the number stands alone and the unit rides i
 2. **PR-DSUM-002** — Renders bare start / duration / end values with the unit in each caption.
 3. **PR-DSUM-003** — Shows the type pill from `args` when present and hides it otherwise.
 4. **PR-DSUM-004** — Every truncating cell carries its full text as a hover title.
+5. **PR-DSUM-005** — With non-zero `timeOrigin`, Start/End are relative to it and Duration stays absolute.
 
 ## Visual
 
@@ -45,7 +46,7 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 [format-time](../../../../specs/core/format-time.spec.md).
 
 ## Changelog
-- **2026-08-25** — Start/End relative to timeOrigin (shared display origin).
+- **2026-08-25** — Start/End relative to timeOrigin (shared display origin); PR-DSUM-005.
 - **2026-08-20** — PR-DSUM-004: hover titles on the truncating cells (metric values and the type pill); the name already had one.
 - **2026-08-20** — Glyph redrawn on a regular hexagon (r=11 about 16,16): the ring's three broken strokes and three nodes now sit on real hexagon vertices, and the cube fills it with a visible seam between faces, as in the sketch.
 - **2026-08-20** — Glyph ring 46px, matching the sketch.
