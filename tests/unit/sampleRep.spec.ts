@@ -50,6 +50,31 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(connectionRefCount(op2.swimlaneModel)).toBeGreaterThan(0);
   });
 
+  it('op1 gives every event 1–5 dependency neighbors', () => {
+    const deg = new Map<string, number>();
+    const bump = (id: string) => deg.set(id, (deg.get(id) ?? 0) + 1);
+    for (const process of op1.swimlaneModel.processes) {
+      for (const thread of process.threads) {
+        for (const event of thread.events) {
+          if (!deg.has(event.id)) deg.set(event.id, 0);
+          for (const ref of event.dependencies?.successors ?? []) {
+            const target = op1.swimlaneModel.processes
+              .flatMap((p) => p.threads)
+              .find((t) => t.id === ref.tid)?.events[ref.index];
+            if (!target) continue;
+            bump(event.id);
+            bump(target.id);
+          }
+        }
+      }
+    }
+    expect(deg.size).toBeGreaterThan(50);
+    for (const [id, n] of deg) {
+      expect(n, id).toBeGreaterThanOrEqual(1);
+      expect(n, id).toBeLessThanOrEqual(5);
+    }
+  });
+
   it('op1 and op2 carry different CSV content', () => {
     expect(op1.reportModel.summary.opName).toBe('add_custom');
     expect(op2.reportModel.summary.opName).toBe('matmul_mock');

@@ -223,11 +223,85 @@ def wire_pipeline_deps(lane_events, rand):
                 deps.append(succ_eid)
 
 
+def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
+    """
+    Give every event 1–5 dependency connections (outgoing successors when
+    possible; otherwise incoming via an earlier event). Prefers cross-pipe
+    links whose start is after the source ends. Mutates event dicts in place.
+    """
+    flat = []  # (eid, start, end, ev, pipe)
+    for pipe, items in lane_events.items():
+        for eid, start, end, ev in items:
+            flat.append((eid, start, end, ev, pipe))
+    flat.sort(key=lambda x: (x[1], x[2], x[0]))
+
+    neighbors = {eid: set() for eid, *_ in flat}
+    ev_by_id = {eid: ev for eid, _s, _e, ev, _p in flat}
+
+    def add_edge(src_eid, dst_eid):
+        if src_eid == dst_eid:
+            return False
+        if len(neighbors[src_eid]) >= max_deg or len(neighbors[dst_eid]) >= max_deg:
+            return False
+        src_ev = ev_by_id[src_eid]
+        deps = src_ev.setdefault("args", {}).setdefault("dependencies", [])
+        if dst_eid in deps:
+            return False
+        deps.append(dst_eid)
+        neighbors[src_eid].add(dst_eid)
+        neighbors[dst_eid].add(src_eid)
+        return True
+
+    for i, (eid, _start, end, _ev, pipe) in enumerate(flat):
+        target = min_deg + int(rand() * (max_deg - min_deg + 1))
+        target = max(min_deg, min(max_deg, target))
+        cands = [
+            (j, flat[j][0], flat[j][4])
+            for j in range(i + 1, len(flat))
+            if flat[j][1] >= end and len(neighbors[flat[j][0]]) < max_deg
+        ]
+        cross = [c for c in cands if c[2] != pipe]
+        pool = list(cross if len(cross) >= min_deg else cands)
+        need = target - len(neighbors[eid])
+        while need > 0 and pool and len(neighbors[eid]) < max_deg:
+            window = min(8, len(pool))
+            pick = int(rand() * window)
+            _j, dst, _p = pool.pop(pick)
+            if add_edge(eid, dst):
+                need -= 1
+
+    # Top-up events still below min_deg.
+    for i, (eid, start, end, _ev, pipe) in enumerate(flat):
+        attempts = 0
+        while len(neighbors[eid]) < min_deg and attempts < 20:
+            attempts += 1
+            later = [
+                flat[j][0]
+                for j in range(i + 1, len(flat))
+                if flat[j][0] not in neighbors[eid]
+                and flat[j][1] >= end
+                and len(neighbors[flat[j][0]]) < max_deg
+            ]
+            if later:
+                add_edge(eid, later[int(rand() * min(5, len(later)))])
+                continue
+            earlier = [
+                flat[j][0]
+                for j in range(0, i)
+                if flat[j][0] not in neighbors[eid]
+                and flat[j][2] <= start
+                and len(neighbors[flat[j][0]]) < max_deg
+            ]
+            if not earlier:
+                break
+            add_edge(earlier[int(rand() * min(5, len(earlier)))], eid)
+
+
 def small_trace():
     """
     Machine-view style (~100 X events): a few Core/pipe lanes with bursty
-    irregular occupancy, Ascend-style op names, and a cross-pipe dependency
-    chain (MTE2 → MTE1 → CUBE → FIXP → MTE3).
+    irregular occupancy, Ascend-style op names, and dense 1–5 connections
+    per event (cross-pipe when timing allows).
     """
     rand = mulberry32(0xA11CE)
     # Calibrated so emit_bursty_lane yields ~100 X events across 7 lanes.
@@ -253,7 +327,7 @@ def small_trace():
         for _eid, _s, _e, ev in emitted:
             evs.append(ev)
 
-    wire_pipeline_deps(pipe_map, rand)
+    wire_dense_deps(pipe_map, rand, min_deg=1, max_deg=5)
     return _doc(evs)
 
 
