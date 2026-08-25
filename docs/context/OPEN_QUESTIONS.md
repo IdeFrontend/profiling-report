@@ -12,7 +12,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 
 **MVP unblock doc:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md)
 
-**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (DATA Q1–28, UI/UX Q29–36)
+**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (DATA Q1–29, UI/UX Q30–36)
 
 ## What you can do now
 
