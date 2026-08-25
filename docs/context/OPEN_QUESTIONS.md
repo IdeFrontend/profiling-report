@@ -4,13 +4,15 @@ Status values: **Open** | **Proposed** | **Resolved** | **Interim** (engineering
 
 Answers must update the relevant specs ([REP_FORMAT](../formats/REP_FORMAT.md), [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md), [UX_SPEC](../ui/UX_SPEC.md), [COMPONENTS](../architecture/COMPONENTS.md), etc.). Do not leave permanent TBDs only in code.
 
+**When resolved:** remove the row from the tables below and write the decision into those specs in the **same change**. Optional one-line entry in the resolution log. Process: [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions).
+
 ## Why Product-complete specs are still incomplete
 
 Producer **format/data specification is still forthcoming**. Product has answered many P0 items; remaining Product gaps (especially **Q6 formulas** and a **sketch-faithful golden**) are covered by **Interim** defaults so MVP coding can start.
 
 **MVP unblock doc:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md)
 
-**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (DATA Q1–30, UI/UX Q31–41)
+**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (HQ DATA 1–29, HQ UI/UX 30–37). Those HQ numbers are not the Q1–Q23 ids in the tables below.
 
 ## What you can do now
 
@@ -28,7 +30,6 @@ Producer **format/data specification is still forthcoming**. Product has answere
 - Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
 - Overview chart producer — interim keeps charts hidden
 - Phase 2 contracts Q9–Q11, Q10
-- Measure-range cross-view sync (Q22)
 
 ---
 
@@ -42,7 +43,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
 | **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
 | **Q6** | Report summary formulas | **Interim** | **Confirmed (npu-compute 0818):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read\|write}_bw`. **Still hide** compute TFLOPS and avg core util (empty in product table). PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score** (I-Q6g guess 1.6 TB/s; sketch 81 ≠ ratio), `block_id` mean vs max vs selected block, **GB/s vs TB/s** when measured ≪ 1 TB/s. |
-| **Q7** | Hardware details sidebar | **Resolved (source)** | **`HardwareInfo.jsonl`** is the details source (npu-compute 0818). Not required to open Timeline; hide **更多** overlay when jsonl and OpBasicInfo fallback are empty ([I-Q7a](INTERIM_DECISIONS.md)). Meta **核数** / **NPU ARCH** still unmapped. |
+| **Q7** | Hardware details sidebar | **Resolved (source)** | **`HardwareInfo.jsonl`** is the details source (npu-compute 0818). Not required to open Timeline; hide **更多** overlay when jsonl and OpBasicInfo fallback are empty ([I-Q7a](INTERIM_DECISIONS.md)). Aside meta is **进程** / **算子类型** / **Blocks** (`Pid` / `Op Type` / `Block Dim`). |
 | **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children` (sketch Card tree). |
 
 ---
@@ -58,7 +59,6 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q13** | Color / category legend | **Resolved** | [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
 | **Q14** | Time units UX | **Resolved (partial)** + **Interim (MVP units)** | Configurable; MVP = ms/µs/ns only, default ms; no cycles — [I-Q14](INTERIM_DECISIONS.md). |
 | **Q15** | MSTT `.json` policy | **Resolved** | Chrome Trace `.json` → profiling-report. |
-| **Q22** | Time-range measure → which views? | **Open** | When timeline **度量模式** sets `measureRange [t0,t1]` ([`v930/task-measure-mode`](../ui/source/v930/task-measure-mode.jpeg)), which views must update? Candidates: PIPE / Cube·Vector bars; compute-load detail tabs; memory detail tabs + topology; report summary; detail strip; overview charts (if present). Distinct from overview brush (`timeWindow`) and event selection. Until answered: measure UI is **local overlay only** (band + Δt; no aside recompute). Specs when answered: UX_SPEC sync, INTERACTIONS, FEATURE_MATRIX, COMPONENTS, view-state / StatsAside. |
 
 ---
 
@@ -92,3 +92,4 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q16–Q19 | 2026-07-31 | Engineering proposals filed | PACKAGING_SUGGESTIONS |
 | Interim set | 2026-07-31 | I-Q2, I-Q4, I-Q6a/b, I-Q5+, I-Q14, I-Q16–19 for MVP code | INTERIM_DECISIONS |
 | Q20 | 2026-08-12 | Shared agent rules in AGENTS.md (+ nested spec guides); Cursor-only review auto-post; skills in `.agents/skills/` | AGENTS.md, CLAUDE.md |
+| OPEN Q22 | 2026-08-25 | Measure mode does **not** recompute right panel / other views (local overlay only). Not HQ 22. | [INTERACTIONS](../ui/INTERACTIONS.md), [UX_SPEC](../ui/UX_SPEC.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |

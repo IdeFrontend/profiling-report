@@ -99,14 +99,14 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Metric (sketch) | Likely embeds | Requirement |
 |-----------------|---------------|-------------|
 | Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Chrome still I-Q6e. Op type is not a separate card. `opName` / `blockDim` may feed duration secondary only |
-| Current / rated frequency (raw) | `OpBasicInfo.csv` | **aic频率 confirmed:** `Current Freq`. **`Rated Freq` not shown** on the aside shell. |
+| Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Hide** until Q6 / data spec |
 | I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Peak 1.6 TB/s still I-Q6g guess |
 | Avg core util % | PipeUtilization / OpBasicInfo TBD | **Hide** until Q6 / data spec |
-| Hardware one-liner (cores, freq, NPU ARCH) | OpBasicInfo / `HardwareInfo` / host | **Optional** meta row: `coreCount`, `currentFreq` (aic频率), `npuArchLabel`. **核数 / NPU ARCH still unset.** Never invent |
+| Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
 
-If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card group (PIPE may still show). Meta row is independent of summary cards (may show freq alone).
+If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card group (PIPE may still show). Meta row is independent of summary cards (may show pid / type / blocks without cards).
 
 ---
 
@@ -182,7 +182,7 @@ Hide tab when CSV missing.
 | Input | Requirement |
 |-------|-------------|
 | `measureMode` / `measureRange` | Toolbar + canvas overlay |
-| Aside sync | **Blocked on [Q22](../context/OPEN_QUESTIONS.md)** — local overlay only until answered |
+| Aside sync | **No** — local overlay only; right panel unchanged for `measureRange` |
 
 ---
 

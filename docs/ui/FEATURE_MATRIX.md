@@ -23,7 +23,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Zoom slider / zoom to fit | M | |
 | Keyboard shortcut help | P2 | |
 | Toggle stats / report panel | M | |
-| Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; local overlay until [Q22](../context/OPEN_QUESTIONS.md). Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
+| Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
 | Task display unit (ms/µs/ns) | M | Via toolbar **layers** → **显示控制** popover ([`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg)); not an inline toolbar select. Cycle mode deferred ([I-Q14](../context/INTERIM_DECISIONS.md)) |
@@ -55,7 +55,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Single select → detail | M | |
 | Multi-select | P2 | |
 | Context menu | P2 | |
-| Timeline time-range measure (度量模式) | M2 | Replaces prior “Measure / cross-lane rulers” row. See Toolbar + [INTERACTIONS](INTERACTIONS.md). Aside sync → [Q22](../context/OPEN_QUESTIONS.md) |
+| Timeline time-range measure (度量模式) | M2 | Replaces prior “Measure / cross-lane rulers” row. See Toolbar + [INTERACTIONS](INTERACTIONS.md). Aside is not recomputed for the measured range. |
 
 ## Right panel
 
@@ -94,7 +94,6 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 
 ## Explicitly out of MVP (still may be later)
 
-- Product-final 核数 / NPU ARCH meta mapping (HardwareInfo fields exist; header mapping still open)
 - PyPTO AICPU E2E mode, Mix/wrap, three-column compute-graph jumps
 - MindStudio system/cluster/serving modes
 - Replacing Insight for `.bin`

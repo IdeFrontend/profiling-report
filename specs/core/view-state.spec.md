@@ -23,7 +23,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
 
-**Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only until Q22. `measureFocusWindow` centers a measured range so it spans half the visible width (25% padding each side), clamps to bounds, and fits the full bounds when 2× duration exceeds the trace.
+**Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only — does not drive aside recompute. `measureFocusWindow` centers a measured range so it spans half the visible width (25% padding each side), clamps to bounds, and fits the full bounds when 2× duration exceeds the trace.
 
 **Zoom.** `zoomAt` zooms around an anchor time point. Factor >1 zooms in, <1 zooms out. Span is clamped to a minimum of 1 (`MIN_WINDOW`). With bounds, the zoomed window never exceeds the bounds edges — if the zoomed span exceeds the full bounds, returns the full bounds.
 

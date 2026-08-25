@@ -49,11 +49,11 @@ Sample row (abridged):
 | Op Name | `add_custom` | Title / breadcrumb |
 | Op Type | `vector` | Badge / filter |
 | Task Duration(us) | `1.800036` | Total time |
-| Block Dim | `8` | Core count hint |
+| Block Dim | `8` | Aside **Blocks**; I-Q6e iterations/core |
 | Mix Block Dim | `NA` | Mix mode (later) |
 | Device Id | `0` | Device label |
-| Pid | process id | Debug |
-| Current Freq / Rated Freq | e.g. `1650` | Freq in summary / hardware panel |
+| Pid | process id | Aside **进程** |
+| Current Freq / Rated Freq | e.g. `1650` | Hardware overlay; not on the v930 header |
 
 ---
 

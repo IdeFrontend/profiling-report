@@ -5,11 +5,11 @@
 | Rule | Detail |
 |------|--------|
 | Status label | **Interim** — never write as **Resolved** product truth |
-| Supersede | When Product or the format/data spec answers the linked Q*, update that Q to Resolved/Proposed, delete or strike the row here, and fix dependent specs in the **same PR** |
+| Supersede | When Product or the format/data spec answers the linked Q*: write the decision into owning specs, **remove** the Q from open lists ([OPEN_QUESTIONS](OPEN_QUESTIONS.md) / [HQ_OPEN_QUESTIONS](HQ_OPEN_QUESTIONS.md)), delete or strike this interim row, and scrub “until Q*” wording — all in the **same change**. See [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions). |
 | Tests | Assert interim behavior; titles may note `(interim)` |
 | Code comments | Prefer linking this file / Q id over inventing silent TBDs |
 
-Canonical Product answers stay in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md). Packaging proposals that Product has not confirmed: [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md) (also interim until accepted).
+Canonical Product answers live in the owning **specs** after resolution (see [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions)). Open lists hold unanswered items only: [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md). Packaging proposals that Product has not confirmed: [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md) (also interim until accepted).
 
 ---
 
@@ -34,7 +34,7 @@ Canonical Product answers stay in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md). Packag
 | **I-Q11e** | Roofline op-mix | Normalize non-zero Vector `aiv_vec_{fp32,fp16,int32,int16,misc}_ratio` (or Cube `aic_cube_*`) to %; show top contributors | Mix labels on chart | Product mix definition |
 | **I-Q11f** | Roofline tabs | **Hide** 内存单元 / 通路 / 搬运 until Q11 defines distinct series | Single chart chrome | Product tab semantics |
 | **I-Q9** | Dependency encoding | Chrome Trace `args` convention: `args.event_id` makes an X event addressable (else the adapter's own `e-<seq>` id stands) and `args.dependencies` lists **successor** ids. Predecessors come from a reverse index, never from the producer. Ids that no event carries are dropped. `dependencies` capability + every dependency surface hide when the model has no edges | `buildDependencyGraph` / `neighborsOf` (`PR-DEPGRAPH-*`), `DetailRelevant` (`PR-DREL-*`), playground `deps` fixture | Product defines the real producer encoding (Q9) |
-| **I-Q7a** | Hardware details panel | **Source confirmed:** `HardwareInfo.jsonl` category sections. Fallback: flat **OpBasicInfo** non-empty columns when jsonl absent. Never invent cores/HBM/peaks. Omit model when both absent | `HardwareDetailsPanel`, adapter tests | Product maps 核数 / NPU ARCH onto the meta row |
+| **I-Q7a** | Hardware details panel | **Source confirmed:** `HardwareInfo.jsonl` category sections. Fallback: flat **OpBasicInfo** non-empty columns when jsonl absent. Never invent cores/HBM/peaks. Omit model when both absent. Aside meta is **进程** / **算子类型** / **Blocks**, not 核数 / NPU ARCH | `HardwareDetailsPanel`, adapter tests | Product changes HardwareInfo overlay source |
 | **I-Q14** | Time units | Configurable display: **ms / µs / ns** only. Default **ms**. **No** clock-cycle mode in MVP | Formatter + host/locale pref prop | Product specifies cycle mode + frequency source |
 | **I-Q16–19** | Packaging / UX chrome | Follow [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md) as if accepted for scaffold | Repo-root `src/`, Ant Design + custom swimlane CSS, zh-CN default + EN keys, wheel/slider MVP gestures | Product confirm/change each Q16–Q19 |
 

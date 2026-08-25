@@ -97,14 +97,14 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 - Does **not** change `timeWindow` (unlike overview brush). Does **not** multi-select events.
 - Clear: toggle off, Esc, or clear control — clears `measureRange` and exits measure mode.
 - **M2 minimum:** create range + clear + band + Δt label + edge resize.
-- **Aside / other-view sync:** **Open [Q22](../context/OPEN_QUESTIONS.md)** — until answered, measure is a **local overlay only** (no PIPE/memory/summary recompute).
+- **Aside / other-view sync:** Measure does **not** recompute the right panel or other views. Local overlay only (shaded band + Δt). Cards, PIPE, details, memory diagram, Roofline, detail strip, and overview stay unchanged. Distinct from overview brush (`timeWindow`) and event selection.
 
 ## Right panel coordination
 
 - Aside **close (X)** clears `asideVisible` (equivalent to toolbar stats toggle off). See [StatsAside.spec.md](../../src/ui/StatsAside/StatsAside.spec.md).
 - **更多** / More opens interim `HardwareDetailsPanel` (I-Q7a) when data exists and emits `open-hardware-details`.
 - Stacked 报告统计 (M2): duration, roofline, PIPE, topology — no mode-tab switcher. PIPE **详情** opens compute CSV overlay; topology **详情** opens memory CSV overlay; **←** returns to the stack.
-- PIPE bars remain global mean aggregates ([I-Q6b](../context/INTERIM_DECISIONS.md)) unless Product later ties them to selection or measure (Q22).
+- PIPE bars remain global mean aggregates ([I-Q6b](../context/INTERIM_DECISIONS.md)); measure range does not change them.
 - Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../context/INTERIM_DECISIONS.md)); topology labels use the same `selectedBlockId`.
 - Cube \| Vector toggle on PIPE for MIX ops only.
 - PIPE section **详情** navigates to compute CSV overlay + emits `open-pipe-details`.

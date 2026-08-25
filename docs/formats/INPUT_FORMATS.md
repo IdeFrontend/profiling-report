@@ -191,9 +191,9 @@ Operator-level (one row per profiled OP in the sample).
 | `Block Dim` | yes | Blocks |
 | `Mix Block Dim` | yes | — |
 | `Device Id` | yes | — |
-| `Pid` | yes | 进程ID |
-| `Current Freq` | yes | Related to frequency display in stats header |
-| `Rated Freq` | yes | — |
+| `Pid` | yes | 进程ID (aside meta **进程**) |
+| `Current Freq` | yes | Hardware overlay / OpBasicInfo dump; **not** on the v930 header |
+| `Rated Freq` | yes | Same as Current Freq — not on the aside shell |
 
 ### 3.2 `HardwareInfo.jsonl`
 

@@ -121,7 +121,7 @@ const durationSecondary = computed(() => {
 
 const hasMeta = computed(() => {
   const s = summary.value;
-  return Boolean(s && (s.coreCount != null || s.currentFreq != null || s.npuArchLabel));
+  return Boolean(s && (s.pid || s.opType || (s.blockDim != null && s.blockDim !== '')));
 });
 
 const showMore = computed(
@@ -268,17 +268,17 @@ function backToReport() {
         :data-testid="hasMeta ? 'stats-aside-meta' : undefined"
       >
         <span
-          v-if="summary?.coreCount != null"
+          v-if="summary?.pid"
           class="pr-aside__meta-seg"
-        >{{ t('coreCount', locale) }}: {{ summary.coreCount }}{{ t('coreUnit', locale) }}</span>
+        >{{ t('process', locale) }}: {{ summary.pid }}</span>
         <span
-          v-if="summary?.currentFreq != null"
+          v-if="summary?.opType"
           class="pr-aside__meta-seg"
-        >{{ t('aicFreq', locale) }}: {{ summary.currentFreq }}</span>
+        >{{ t('opTypeLabel', locale) }}: {{ summary.opType }}</span>
         <span
-          v-if="summary?.npuArchLabel"
+          v-if="summary?.blockDim != null && summary.blockDim !== ''"
           class="pr-aside__meta-seg"
-        >{{ t('npuArch', locale) }}: {{ summary.npuArchLabel }}</span>
+        >{{ t('blocks', locale) }}: {{ summary.blockDim }}</span>
         <button
           v-if="showMore"
           type="button"

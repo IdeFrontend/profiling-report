@@ -66,17 +66,16 @@ export interface SummaryMetrics {
   opType?: string;
   /** Task duration in microseconds as in OpBasicInfo, or converted — adapter documents unit. */
   taskDurationUs?: number;
+  /** OpBasicInfo `Current Freq`. Parsed; not shown on the aside shell. */
   currentFreq?: number;
   /**
-   * Rated frequency from OpBasicInfo. Populated by the adapter when present;
-   * intentionally **not** shown on StatsAside shell meta (sketch: aic频率 = currentFreq only).
+   * Rated frequency from OpBasicInfo. Populated when present;
+   * not shown on the StatsAside shell (v930 header is 进程 / 算子类型 / Blocks).
    */
   ratedFreq?: number;
-  /** Aside meta shell: core count (核数). Leave unset until HardwareInfo / Product mapping. */
-  coreCount?: number;
-  /** Aside meta shell: NPU ARCH peak label (e.g. `212 teraOPs`). */
-  npuArchLabel?: string;
-  /** OpBasicInfo `Block Dim` pass-through (I-Q6e secondary). */
+  /** OpBasicInfo `Pid` / `PID` — aside meta **进程**. */
+  pid?: string;
+  /** OpBasicInfo `Block Dim` — aside meta **Blocks** and I-Q6e duration secondary. */
   blockDim?: string | number;
   /** Interim I-Q6a: leave unset until Product formulas exist */
   computeTflops?: number;
@@ -311,7 +310,7 @@ export interface SwimlaneViewState {
   searchQuery: string;
   asideVisible: boolean;
   playheadTime: number | null;
-  /** M2 度量模式 — local overlay until Q22 */
+  /** M2 度量模式 — local overlay only; does not recompute the aside */
   measureMode: boolean;
   measureRange: MeasureRange | null;
 }

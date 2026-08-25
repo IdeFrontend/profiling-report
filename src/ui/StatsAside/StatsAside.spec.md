@@ -21,7 +21,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 ### Shell (header chrome)
 
-Localized **summary** title with decorative chart icon. Close emits **close**. Meta row shows **核数** / **aic频率** / **NPU ARCH** only when set; hides when none. **`ratedFreq` omitted** from shell. **更多** when meta visible or `hardwareDetails` capability.
+Localized **summary** title with decorative chart icon. Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; hides a segment when unset; hides the row when none. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** when meta visible or `hardwareDetails` capability.
 
 Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; **←** returns to the stack. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
 
@@ -63,7 +63,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides.
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
-7. **PR-STATS-007** — Meta hide-if-missing.
+7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing.
 8. **PR-STATS-008** — More emits open-hardware-details.
 9. **PR-STATS-009** — Duration card sketch chrome.
 10. **PR-STATS-010** — No type card; secondary hide-if-missing.
@@ -94,8 +94,9 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 | `summary.ioBandwidth` only | No BW cards (need `bandwidthCards`) |
 | Bandwidth side all NA | That aic/aiv column omitted; card omitted if both sides NA |
 | Duration without blockDim or opName | Duration card; no secondary line |
-| No meta fields and no `hardwareDetails` | Meta row and 更多 hidden |
-| Meta fields present, no capability | Meta + 更多 shown; emit only |
+| No pid / opType / blockDim and no `hardwareDetails` | Meta row and 更多 hidden |
+| Freq-only summary (`currentFreq` / `ratedFreq`) | Meta row hidden (not shell fields) |
+| pid / opType / blockDim present, no capability | Meta + 更多 shown; emit only |
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
 | No roofline / empty points | Roofline section omitted |
 | No memoryTopology | Topology section omitted |
@@ -185,6 +186,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-25** — Shell meta is 进程 / 算子类型 / Blocks (PR-STATS-007); drop 核数 / aic频率 / NPU ARCH.
 - **2026-08-24** — Compute overlay omits block + 查看全部 (PR-STATS-005, `v930/search-highlight`).
 - **2026-08-20** — npu-compute 0818: measured BW / HardwareInfo source / ICache / NA-hide confirmed; peak/score still open.
 - **2026-08-20** — PR-STATS-013 asserts abs is a track sibling (unit tests do not apply `min-width`). PIPE hatch tint vs card hatch is deliberate.
@@ -209,4 +211,4 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Open
 
-Q22 — measureRange aside sync. Q6 — compute / avg-util / bandwidth peak+score still Product-open (measured BW columns confirmed).
+Q6 — compute / avg-util / bandwidth peak+score still Product-open (measured BW columns confirmed). Measure range does not recompute this aside.

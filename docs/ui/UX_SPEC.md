@@ -220,7 +220,7 @@ flowchart TB
   Selection --> DepsLayer
   Hover["hoveredEvent"] --> EventTooltip
   Search["searchQuery"] --> SwimlaneHighlight
-  Measure["measureRange"] -->|"local overlay until Q22"| SwimlaneCanvas
+  Measure["measureRange"] -->|"local overlay only"| SwimlaneCanvas
 ```
 
 ### Sync rules
@@ -234,7 +234,7 @@ flowchart TB
 7. **Lane expand/collapse** — Changes visible row set only; does not reset `timeWindow`.
 8. **Playhead** — Visual marker; MVP may track click position or view center. Does not by itself change selection.
 9. **Tab switch (P2)** — Leaving Timeline keeps serialized view state for restore when returning.
-10. **Time-range measure (M2)** — `measureMode` / `measureRange` drive the swimlane overlay only. **Does not** change `timeWindow`. Aside / other-view recompute is **[Q22](../context/OPEN_QUESTIONS.md)** — until answered, no sync.
+10. **Time-range measure (M2)** — `measureMode` / `measureRange` drive the swimlane overlay only. **Does not** change `timeWindow`. **Does not** recompute the aside or other views (cards, PIPE, details, memory, Roofline).
 
 ---
 

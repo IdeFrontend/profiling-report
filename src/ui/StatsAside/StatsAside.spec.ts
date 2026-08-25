@@ -179,38 +179,41 @@ describe('StatsAside', () => {
   it('PR-STATS-007: meta segments only when fields present', () => {
     const empty = mount(StatsAside, {
       props: {
-        report: report({ summary: { opName: 'x' } }),
+        report: report({ summary: { opName: 'x', currentFreq: 1280 } }),
       },
     });
     expect(empty.find('[data-testid="stats-aside-meta"]').exists()).toBe(false);
     expect(empty.find('[data-testid="stats-aside-more"]').exists()).toBe(false);
 
-    const withFreq = mount(StatsAside, {
+    const withPid = mount(StatsAside, {
       props: {
-        report: report({ summary: { currentFreq: 1280 } }),
+        report: report({ summary: { pid: '1234' } }),
       },
     });
-    const meta = withFreq.get('[data-testid="stats-aside-meta"]');
-    expect(meta.text()).toMatch(/1280/);
-    expect(meta.text()).not.toMatch(/核数|cores/i);
-    expect(meta.text()).not.toMatch(/NPU ARCH/i);
-    expect(withFreq.find('[data-testid="stats-aside-more"]').exists()).toBe(true);
+    const meta = withPid.get('[data-testid="stats-aside-meta"]');
+    expect(meta.text()).toMatch(/进程|Process/);
+    expect(meta.text()).toContain('1234');
+    expect(meta.text()).not.toMatch(/核数|NPU ARCH|aic频率/i);
+    expect(withPid.find('[data-testid="stats-aside-more"]').exists()).toBe(true);
 
     const full = mount(StatsAside, {
       props: {
         report: report({
           summary: {
-            coreCount: 8,
-            currentFreq: 1280,
-            npuArchLabel: '212 teraOPs',
+            pid: '1234',
+            opType: 'mix',
+            blockDim: 10,
           },
         }),
       },
     });
     const fullMeta = full.get('[data-testid="stats-aside-meta"]').text();
-    expect(fullMeta).toMatch(/8/);
-    expect(fullMeta).toMatch(/1280/);
-    expect(fullMeta).toMatch(/212 teraOPs/);
+    expect(fullMeta).toMatch(/进程|Process/);
+    expect(fullMeta).toContain('1234');
+    expect(fullMeta).toMatch(/算子类型|Op type/);
+    expect(fullMeta).toMatch(/mix/i);
+    expect(fullMeta).toMatch(/Blocks/);
+    expect(fullMeta).toContain('10');
   });
 
   it('PR-STATS-008: 更多 visible with capability or meta; emits open-hardware-details', async () => {
@@ -226,7 +229,7 @@ describe('StatsAside', () => {
 
     const viaMeta = mount(StatsAside, {
       props: {
-        report: report({ summary: { currentFreq: 100 } }),
+        report: report({ summary: { pid: '100' } }),
       },
     });
     await viaMeta.get('[data-testid="stats-aside-more"]').trigger('click');
@@ -255,7 +258,7 @@ describe('StatsAside', () => {
     });
     expect(withType.find('[data-testid="stats-type-card"]').exists()).toBe(false);
     expect(withType.get('[data-testid="stats-duration-card"]').text()).toContain('relu');
-    expect(withType.text()).not.toMatch(/类型|Type/);
+    expect(withType.get('[data-testid="stats-aside-meta"]').text()).toMatch(/算子类型|Op type/);
 
     const withDim = mount(StatsAside, {
       props: {
@@ -506,8 +509,8 @@ describe('StatsAside', () => {
   it('PR-STATS-018: 更多 navigates to hardware when hardwareDetails present', async () => {
     const wrapper = mount(StatsAside, {
       props: {
+        capabilities: ['hardwareDetails'],
         report: report({
-          summary: { currentFreq: 1650 },
           hardwareDetails: {
             sections: [
               {
