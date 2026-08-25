@@ -15,9 +15,11 @@ async function waitForDepCurves(
   gl: ReturnType<Page['getByTestId']>,
   timeoutMs: number,
 ): Promise<boolean> {
+  const before = Number((await gl.getAttribute('data-dep-curves')) ?? 0);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (Number((await gl.getAttribute('data-dep-curves')) ?? 0) > 0) return true;
+    const now = Number((await gl.getAttribute('data-dep-curves')) ?? 0);
+    if (now > 0 && now !== before) return true;
     await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
   }
   return false;

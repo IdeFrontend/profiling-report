@@ -47,10 +47,12 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 8. **PR-VIEW-008** — zoomPercent extremes: 0 ↔ full, 100 ↔ MIN_VIEW_WINDOW.
 9. **PR-VIEW-009** — zoomPercent ↔ span round-trip.
 10. **PR-VIEW-010** — slider max matches zoomAt floor.
+11. **PR-VIEW-011** — zoomToFitWindow for `minTime === maxTime` uses `[minTime, minTime + MIN_WINDOW]` (aligned with bounds).
 
 ## Edge Cases
 
 - null/undefined model → zoomToFitWindow returns {startTime:0, endTime:1, scrollY:0}.
+- Degenerate `minTime === maxTime` → zoomToFitWindow returns `{startTime: minTime, endTime: minTime + MIN_WINDOW}` (aligned with ProfilingReport bounds `minTime + 1`).
 - Zoom factor ≤0 → span clamped to MIN_WINDOW=1.
 - Pan beyond bounds → clamped to edges.
 
@@ -63,6 +65,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-08-25** — Degenerate minTime===maxTime fit stays in minTime space (PR-VIEW-011).
 - **2026-08-25** — zoomToFit restored to `[minTime, maxTime]`; display origin is minTime (PyPTO/Perfetto default).
 - **2026-08-24** — zoomToFit starts at producer t=0 (events align with absolute axis/tooltip).
 - **2026-08-21** — Document measureFocusWindow; PR-VIEW-006/007.

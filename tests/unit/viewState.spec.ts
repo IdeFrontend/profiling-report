@@ -31,6 +31,14 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(state.asideVisible).toBe(true);
   });
 
+  it('PR-VIEW-011: zoomToFit keeps degenerate minTime===maxTime in minTime space', () => {
+    const point: SwimlaneModel = { processes: [], minTime: 986_000, maxTime: 986_000 };
+    const w = zoomToFitWindow(point);
+    expect(w.startTime).toBe(986_000);
+    expect(w.endTime).toBe(986_000 + MIN_VIEW_WINDOW);
+    expect(zoomToFitWindow(null)).toEqual({ startTime: 0, endTime: 1, scrollY: 0 });
+  });
+
   it('PR-VIEW-002: zoomAt shrinks window around anchor', () => {
     const view = { startTime: 0, endTime: 4000, scrollY: 0 };
     const next = zoomAt(view, 2, 3000, { minTime: 0, maxTime: 5000 });
