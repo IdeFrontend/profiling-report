@@ -15,13 +15,16 @@ Layout (little-endian), matches `src/adapters/parseNpuRep.ts`:
   type 6 = nested operator archive (.npu.rep); type 1 = csv; type 2 = json/jsonl.
 
 Operators:
-  op1 — small "machine view" trace (async s/f flow connections) + baseline
+  op1 — small machine-view style: sparse irregular ops (matmul/cast/mov) with
+        `args.event_id` + `args.dependencies` connections + baseline
         `add_custom` CSVs reused verbatim from `data/out.rep`.
-  op2 — big "stress medium" trace (Card -> core -> pipe lanes, async flow
-        connections) + transformed CSVs (different op name, block range and
-        scaled metric values).
+  op2 — denser pipe-busy style: Card/core/pipe lanes with bursty occupancy,
+        variable durations, idle gaps, and cross-pipe dependency chains +
+        transformed CSVs (different op name, block range, scaled metrics).
 
 Both keep the full 11-leaf payload set so the right sidebar stays available.
+Traces deliberately avoid uniform grids — timings mimic real Ascend pipe-state /
+machine-view samples (`out.trace.json`, `ffn_dense.trace.json`).
 """
 
 import json
@@ -37,11 +40,23 @@ TYPE_CSV = 1
 TYPE_JSON = 2
 TYPE_NESTED = 6
 
-# Stress "medium" preset lane shape (generateStressSwimlane: 2 cards x 3 cores x 9 pipes).
 STRESS_PIPES = ["ALL", "SCALAR", "FLOWCTRL", "MTE1", "CUBE", "FIXP", "MTE2", "MTE3", "CACHEMISS"]
-STRESS_CORES = ["core0.cube", "core0.vec0", "core0.vec1"]
-# Pipeline chain used to wire cross-pipe connections (MTE1 -> CUBE -> ... -> CACHEMISS).
-PIPELINE_ORDER = ["MTE1", "CUBE", "MTE2", "MTE3", "SCALAR", "FLOWCTRL", "FIXP", "ALL", "CACHEMISS"]
+STRESS_CORES = ["Core0.Cube", "Core0.Vec0", "Core0.Vec1"]
+# Typical Ascend data-path chain used for cross-pipe dependencies.
+PIPELINE_ORDER = ["MTE2", "MTE1", "CUBE", "FIXP", "MTE3"]
+
+# Per-pipe occupancy / duration profile (busy fraction of the timeline).
+PIPE_PROFILE = {
+    "ALL":       {"occupancy": 0.15, "avg_busy": 800,  "avg_gap": 4000, "names": ["ALL_busy"]},
+    "SCALAR":    {"occupancy": 0.25, "avg_busy": 400,  "avg_gap": 1200, "names": ["SCALAR_busy"]},
+    "FLOWCTRL":  {"occupancy": 0.08, "avg_busy": 200,  "avg_gap": 6000, "names": ["FLOWCTRL_busy"]},
+    "MTE1":      {"occupancy": 0.45, "avg_busy": 2200, "avg_gap": 1800, "names": ["MOV_IN_L1", "MTE1_busy"]},
+    "CUBE":      {"occupancy": 0.55, "avg_busy": 3500, "avg_gap": 1500, "names": ["matmul", "CUBE_busy"]},
+    "FIXP":      {"occupancy": 0.30, "avg_busy": 900,  "avg_gap": 2200, "names": ["FIX_LOC_TO_DST", "FIXP_busy"]},
+    "MTE2":      {"occupancy": 0.70, "avg_busy": 5000, "avg_gap": 800,  "names": ["MOV_OUT_TO_L1", "MTE2_busy"]},
+    "MTE3":      {"occupancy": 0.40, "avg_busy": 1800, "avg_gap": 2000, "names": ["MOV_OUT", "MTE3_busy"]},
+    "CACHEMISS": {"occupancy": 0.12, "avg_busy": 60,   "avg_gap": 3500, "names": ["CACHEMISS"]},
+}
 
 
 def pack_npu_rep(entries):
@@ -84,7 +99,22 @@ def pack_npu_rep(entries):
     return bytes(out)
 
 
-# ---------------------------------------------------------------- trace gen
+# ---------------------------------------------------------------- PRNG / helpers
+
+def mulberry32(seed):
+    """Deterministic PRNG (same family as generateStressSwimlane)."""
+    a = seed & 0xFFFFFFFF
+
+    def rand():
+        nonlocal a
+        a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+        t = a
+        t = (t ^ (t >> 15)) * (t | 1) & 0xFFFFFFFF
+        t ^= (t + ((t ^ (t >> 7)) * (t | 61) & 0xFFFFFFFF)) & 0xFFFFFFFF
+        return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296.0
+
+    return rand
+
 
 def _m_process(pid, name):
     return {"ph": "M", "name": "process_name", "pid": pid, "tid": 0, "args": {"name": name}}
@@ -94,82 +124,190 @@ def _m_thread(pid, tid, name):
     return {"ph": "M", "name": "thread_name", "pid": pid, "tid": tid, "args": {"name": name}}
 
 
-def _x(pid, tid, name, ts, dur):
-    return {"ph": "X", "pid": pid, "tid": tid, "name": name, "ts": ts, "dur": dur}
-
-
-def _flow(ph, pid, tid, flow_id, ts):
-    return {"ph": ph, "pid": pid, "tid": tid, "id": flow_id, "ts": ts, "name": "flow"}
+def _x(pid, tid, name, ts, dur, event_id=None, deps=None, extra=None):
+    args = {}
+    if event_id is not None:
+        args["event_id"] = event_id
+    if deps:
+        args["dependencies"] = deps
+    if extra:
+        args.update(extra)
+    ev = {"ph": "X", "pid": pid, "tid": tid, "name": name, "ts": int(ts), "dur": int(dur)}
+    if args:
+        ev["args"] = args
+    return ev
 
 
 def _doc(events):
     return {"displayTimeUnit": "ns", "traceEvents": events}
 
 
+def _pick_name(names, rand):
+    if len(names) == 1:
+        return names[0]
+    # Prefer the first (concrete op) name ~70% of the time.
+    return names[0] if rand() < 0.7 else names[1]
+
+
+def emit_bursty_lane(pid, tid, pipe, time_span, rand, id_prefix, seq_start=0):
+    """
+    Emit irregular busy intervals for one pipe lane.
+    Mixes short markers, medium bursts, and occasional long transfers —
+    same silhouette as out.trace.json (PIPE_*_busy + markers).
+    """
+    profile = PIPE_PROFILE[pipe]
+    events = []  # (event_id, start, end, event_dict)
+    t = int(rand() * profile["avg_gap"] * 0.4)  # staggered lane start
+    i = seq_start
+    while t < time_span:
+        # Burst phase: 1–4 clustered events, then a longer idle.
+        burst = 1 + int(rand() * 3.5)
+        for _ in range(burst):
+            if t >= time_span:
+                break
+            # Duration: log-ish skew — mostly short, occasional long.
+            scale = rand() * rand()
+            dur = max(1, int(profile["avg_busy"] * (0.15 + 2.4 * scale)))
+            # Sparse marker sprinkles on SCALAR / CACHEMISS.
+            is_marker = pipe in ("SCALAR", "CACHEMISS") and rand() < 0.35
+            if is_marker:
+                dur = 1
+                name = f"marker_{i}"
+            else:
+                name = _pick_name(profile["names"], rand)
+            if t + dur > time_span:
+                dur = max(1, time_span - t)
+            eid = f"{id_prefix}-{pipe}-{i}"
+            ev = _x(pid, tid, name, t, dur, event_id=eid)
+            events.append((eid, t, t + dur, ev))
+            t += dur
+            # Micro-gap inside a burst.
+            t += max(0, int(profile["avg_gap"] * 0.05 * (0.2 + rand())))
+            i += 1
+        # Idle gap between bursts — heavy skew so lanes don't line up.
+        gap = int(profile["avg_gap"] * (0.4 + 2.5 * rand() * rand()))
+        t += gap
+    return events
+
+
+def wire_pipeline_deps(lane_events, rand):
+    """
+    For each core's PIPELINE_ORDER chain, link a later event on pipe[k+1]
+    as a successor of an earlier-finished event on pipe[k] (when timing allows).
+    Mutates the event dicts in place via args.dependencies.
+    """
+    # lane_events: {pipe: [(eid, start, end, ev), ...]} sorted by start
+    for k in range(len(PIPELINE_ORDER) - 1):
+        up = PIPELINE_ORDER[k]
+        dn = PIPELINE_ORDER[k + 1]
+        if up not in lane_events or dn not in lane_events:
+            continue
+        ups = lane_events[up]
+        dns = lane_events[dn]
+        di = 0
+        for eid, _start, end, ev in ups:
+            # Skip markers / very short events as dependency sources.
+            if end - _start <= 1:
+                continue
+            if rand() > 0.55:
+                continue
+            while di < len(dns) and dns[di][1] < end:
+                di += 1
+            if di >= len(dns):
+                break
+            # Prefer the first successor that starts after we finish.
+            succ_eid = dns[di][0]
+            args = ev.setdefault("args", {})
+            deps = args.setdefault("dependencies", [])
+            if succ_eid not in deps:
+                deps.append(succ_eid)
+
+
 def small_trace():
-    """Machine-view style: a few lanes + async s/f flows across them (connections)."""
-    evs = [_m_process(1, "Machine View")]
+    """
+    Sparse machine-view style (like ffn_dense / depsFixture): a handful of
+    named ops with irregular durations and a short dependency chain.
+    """
+    rand = mulberry32(0xA11CE)
+    evs = [_m_process(1, "Card0")]
     lanes = [
-        (1000, "comm"),
-        (1002, "core0.cube"),
-        (1004, "core0.vec"),
-        (1006, "core1.cube"),
+        (1, "Core0.Cube/SCALAR"),
+        (2, "Core0.Cube/MTE2"),
+        (3, "Core0.Cube/CUBE"),
+        (4, "Core0.Vec0/ALL"),
+        (5, "Core0.Vec0/MTE3"),
     ]
     for tid, name in lanes:
         evs.append(_m_thread(1, tid, name))
 
-    n = 10
-    period = 10_000
-    dur = 6_000
-    for tid, _name in lanes:
-        for i in range(n):
-            evs.append(_x(1, tid, f"task_{tid}_{i}", i * period, dur))
-
-    flow_id = 0
-    for i in range(n):
-        mid = i * period + dur // 2
-        for k in range(len(lanes) - 1):
-            evs.append(_flow("s", 1, lanes[k][0], flow_id, mid))
-            evs.append(_flow("f", 1, lanes[k + 1][0], flow_id, mid))
-            flow_id += 1
+    # Hand-authored irregular ops — times in ns, deliberately non-grid.
+    # Format: (tid, name, ts, dur, event_id, deps)
+    ops = [
+        (1, "ProfilerStep#1",            0,     1_200, "step-1",   ["mov-in"]),
+        (1, "ProfilerStep#2",            1_800,   640, "step-2",   ["mov-in"]),
+        (2, "MOV_OUT_TO_L1_MULTI_ND2NZ", 2_100, 2_740, "mov-in",   ["matmul-0"]),
+        (2, "MOV_OUT_TO_L1_MULTI_ND2NZ", 5_900, 1_120, "mov-in-2", ["matmul-1"]),
+        (3, "matmul",                    4_950, 3_860, "matmul-0", ["fix-0", "cast-0"]),
+        (3, "matmul",                    9_400, 2_210, "matmul-1", ["fix-1"]),
+        (3, "CUBE_busy",                12_800,   480, "cube-gap", None),
+        (5, "FIX_LOC_TO_DST",            8_900,   740, "fix-0",    ["step-17"]),
+        (5, "MOV_OUT",                  11_700, 1_540, "fix-1",    ["step-18"]),
+        (4, "cast",                      9_800,   620, "cast-0",   ["step-17"]),
+        (4, "ProfilerStep#17",          12_100, 1_900, "step-17",  None),
+        (4, "ProfilerStep#18",          14_800, 1_100, "step-18",  None),
+        # Sparse markers on SCALAR — clustered, not periodic.
+        (1, "marker_3",                  7_240,     1, "m3",       None),
+        (1, "marker_7",                  7_290,     1, "m7",       None),
+        (1, "marker_9",                  7_410,     1, "m9",       None),
+        (1, "marker_12",                10_050,     1, "m12",      None),
+    ]
+    for tid, name, ts, dur, eid, deps in ops:
+        # Jitter durations slightly so they aren't round numbers.
+        jitter = int((rand() - 0.5) * dur * 0.08)
+        d = max(1, dur + jitter)
+        evs.append(_x(1, tid, name, ts, d, event_id=eid, deps=deps or None))
     return _doc(evs)
 
 
 def big_trace():
-    """Stress-medium style: 2 cards x 3 cores x 9 pipes, async flows across pipes."""
+    """
+    Denser Card → Core → pipe lanes with bursty occupancy. Each pipe has its
+    own occupancy / duration profile; events cluster into bursts with idle
+    gaps, so the swimlane does not look like a uniform grid.
+    """
+    rand = mulberry32(0xBEEF01)
+    # ~0.08 ms window — enough for irregular bursts without packing every lane solid.
+    time_span = 80_000
     evs = []
-    lanes = []  # (pid, tid, core, pipe)
-    events_per_lane = 60
-    period = 20_000
-    dur = 13_000
+    # Collect per-(pid,core) pipe events for dependency wiring.
+    core_lanes = {}  # (pid, core) -> {pipe: [(eid, start, end, ev), ...]}
 
     for card in range(2):
         pid = card + 1
         evs.append(_m_process(pid, f"Card{card}"))
         tid = 1000 + card * 100
         for core in STRESS_CORES:
+            pipe_map = {}
             for pipe in STRESS_PIPES:
                 evs.append(_m_thread(pid, tid, f"{core}/{pipe}"))
-                lanes.append((pid, tid, core, pipe))
-                for i in range(events_per_lane):
-                    evs.append(_x(pid, tid, f"{pipe}_{i}", i * period, dur))
+                # Per-lane seed so neighbouring pipes don't sync up.
+                lane_seed = (pid * 10_000 + tid * 17 + sum(ord(c) for c in pipe)) & 0xFFFFFFFF
+                lane_rand = mulberry32(lane_seed)
+                # Slightly different time spans per card so Card1 doesn't mirror Card0.
+                span = time_span if card == 0 else int(time_span * 0.85)
+                emitted = emit_bursty_lane(
+                    pid, tid, pipe, span, lane_rand,
+                    id_prefix=f"c{card}-{core}",
+                )
+                pipe_map[pipe] = emitted
+                for _eid, _s, _e, ev in emitted:
+                    evs.append(ev)
                 tid += 1
+            core_lanes[(pid, core)] = pipe_map
 
-    tid_of = {(pid, core, pipe): tid for pid, tid, core, pipe in lanes}
+    for pipe_map in core_lanes.values():
+        wire_pipeline_deps(pipe_map, rand)
 
-    flow_id = 0
-    step = 8
-    for card in range(2):
-        pid = card + 1
-        for core in STRESS_CORES:
-            for i in range(0, events_per_lane, step):
-                mid = i * period + dur // 2
-                for k in range(len(PIPELINE_ORDER) - 1):
-                    up = tid_of[(pid, core, PIPELINE_ORDER[k])]
-                    dn = tid_of[(pid, core, PIPELINE_ORDER[k + 1])]
-                    evs.append(_flow("s", pid, up, flow_id, mid))
-                    evs.append(_flow("f", pid, dn, flow_id, mid))
-                    flow_id += 1
     return _doc(evs)
 
 
