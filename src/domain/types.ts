@@ -310,7 +310,7 @@ export interface SwimlaneViewState {
   searchQuery: string;
   asideVisible: boolean;
   playheadTime: number | null;
-  /** M2 度量模式 — local overlay until Q22 */
+  /** M2 度量模式 — local overlay only; does not recompute the aside */
   measureMode: boolean;
   measureRange: MeasureRange | null;
 }

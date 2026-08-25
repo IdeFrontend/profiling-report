@@ -4,6 +4,8 @@ Please answer each **DATA** question with: **file name**, **field name**, and **
 
 Answers below are annotated with a status tag and, where known, `file → field` / formula.
 
+When a question is answered: write it into the owning specs and **remove** it from this ledger (same change). Process: [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions).
+
 **Sources (not all in git).** CI fixture is [`data/out.rep`](../../data/out.rep). Product dictionary is `npu-compute性能优化.docx` (外发版 0818, Ascend C Toolkit pack). `example.rep` is the same pack (`npu-tools-main-docs/docs/example.rep` when dropped locally; nested `npu-rep`; includes `HardwareInfo.jsonl`). Neither the docx nor `example.rep` is committed.
 
 Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · one annotated crop per question below · sources [`docs/ui/source/v930/`](../ui/source/v930/) · component crops under `src/ui/**/visual/` ([regenerate](visual/hq/README.md))
@@ -328,12 +330,3 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 36. Some labels are **KB**, some are **GB/s**. Keep both, or convert to one unit?
     - **OPEN** — unit/UX decision. This frame only has **GB/s**; KB would be L0C datas (`L0C_to_L1_datas(KB)`).
-
-### Rules that apply everywhere
-
-**Design:** [`v930/task-measure-mode`](../ui/source/v930/task-measure-mode.jpeg) · [`measure-mode.png`](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/measure-mode.png) · [`measure-active.png`](../../src/ui/ReportToolbar/visual/measure-active.png)
-
-<img src="visual/hq/q37.png" alt="Q37 measure-mode time range" width="900" height="225">
-
-37. User selects a time range on the timeline (**度量模式** / measure mode). Do we recompute the right panel for that range? If yes, which parts: cards, PIPE, details, memory diagram, Roofline?
-    - **OPEN** — not documented.

@@ -109,7 +109,7 @@ Op name/type, task duration, optional raw frequency fields. Compute / avg util r
 
 Visible `[startTime, endTime]`, `scrollY`, `selectedEventId`, `hoveredEventId`, `searchQuery`, aside visibility. **M2:** `measureMode: boolean`, `measureRange: { startUs: number, endUs: number } | null`.
 
-**Why:** Interaction state is not part of the immutable report model; unit-testable; host may persist zoom/selection. Measure range is local until [Q22](../context/OPEN_QUESTIONS.md).
+**Why:** Interaction state is not part of the immutable report model; unit-testable; host may persist zoom/selection. Measure range is a local overlay; it does not drive aside recompute.
 
 ### `SelectedEvent` (M)
 

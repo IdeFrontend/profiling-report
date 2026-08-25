@@ -268,10 +268,3 @@ images:
     highlights:
       - label: "Q36 GB/s"
         box: { x: 310, y: 1070, w: 180, h: 160 }
-
-  q37:
-    source_file: src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/measure-mode.png
-    maxWidth: 900
-    highlights:
-      - label: "Q37 range"
-        box: { x: 175, y: 138, w: 650, h: 95 }

@@ -64,7 +64,7 @@ I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q6g, I-Q5+, I-Q7a, I-Q11a–f. [rep-format]
 
 ## Open
 
-Q6 — Product-final summary formulas (compute / avg util still open; bandwidth I-Q6g). Q11 — Product-final roofline. Q22 — measureRange aside sync.
+Q6 — Product-final summary formulas (compute / avg util still open; bandwidth I-Q6g). Q11 — Product-final roofline.
 
 ## Changelog
 - **2026-08-25** — Aside meta is 进程 / 算子类型 / Blocks (`pid` / `opType` / `blockDim`); drop `coreCount` / `npuArchLabel`.

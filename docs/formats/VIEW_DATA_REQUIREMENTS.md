@@ -182,7 +182,7 @@ Hide tab when CSV missing.
 | Input | Requirement |
 |-------|-------------|
 | `measureMode` / `measureRange` | Toolbar + canvas overlay |
-| Aside sync | **Blocked on [Q22](../context/OPEN_QUESTIONS.md)** — local overlay only until answered |
+| Aside sync | **No** — local overlay only; right panel unchanged for `measureRange` |
 
 ---
 

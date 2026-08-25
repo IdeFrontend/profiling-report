@@ -1,0 +1,25 @@
+---
+description: Resolved open questions leave the open lists and become spec requirements
+alwaysApply: true
+---
+
+# Resolve open questions → specs
+
+When Product (or the user) **answers** an open question — HQ ledger or [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) — do **not** leave it as Resolved on an open list.
+
+## Same-turn checklist
+
+1. **Write the decision into the owning specs** as product truth (e.g. INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, VIEW_DATA_REQUIREMENTS, co-located `*.spec.md`, format docs). Prefer normative wording (“does / does not”), not “until Q*”.
+2. **Remove** the question from the open list(s):
+   - [HQ_OPEN_QUESTIONS.md](docs/context/HQ_OPEN_QUESTIONS.md) — delete the Q block, crop embed, and `docs/context/visual/hq` manifest/`qN.png` if that id was HQ-only; renumber only when mid-list gaps remain.
+   - [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) — delete the P0/P1/P2 table row; optional one-line **resolution log** entry pointing at the specs (not at HQ).
+3. **Clear dependents** in the same change: strike matching [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md) rows; drop “until Q*” / “blocked on Q*” wording in docs, specs, and code comments.
+4. **Tests** — if behavior is already implemented, assert the decided rule; if not, leave the spec as the requirement for the next slice.
+
+## Do not
+
+- Leave a **Resolved** row sitting in an open-questions table
+- Answer only in chat or only in the HQ ledger
+- Keep interim “guess until Product answers” text after Product answered
+
+Canonical process: [DEVELOPMENT.md](docs/process/DEVELOPMENT.md) § Resolving open questions.

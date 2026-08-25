@@ -80,8 +80,22 @@ Update specs **in the same PR** as code when you:
 - Discover sample data cannot support a documented MVP claim (narrow the matrix or note a fixture gap)
 - Change public props/emits or the `.rep` contract
 - Add or defer a feature (move M ↔ P2 in FEATURE_MATRIX with a one-line reason)
+- **Resolve an open question** (see below)
 
 Do not leave “temporary” undocumented behavior in main.
+
+## Resolving open questions
+
+Open lists are for **unanswered** items only: [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md), [HQ_OPEN_QUESTIONS.md](../context/HQ_OPEN_QUESTIONS.md).
+
+When Product answers a question:
+
+1. **Convert to a spec requirement** in the owning docs/specs (INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, VIEW_DATA_REQUIREMENTS, format docs, co-located `*.spec.md`, etc.). Write normative product truth — not “open until Q*” / “blocked on Q*”.
+2. **Remove** the item from the open list(s) in the **same change**. For HQ crops, drop the matching `docs/context/visual/hq` manifest entry and PNG. Optional: one line in the OPEN_QUESTIONS **resolution log** that points at the specs (not at HQ).
+3. **Supersede interim guesses** — delete or strike the matching [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md) row and scrub “until Q*” wording elsewhere.
+4. **Tests** assert the decided behavior when the feature already exists; otherwise the new spec text is the DoR input for the next slice.
+
+Do **not** leave a **Resolved** row parked on an open-questions table. Agents: see `.cursor/rules/resolve-open-questions.mdc`.
 
 ## Copy-paste policy
 

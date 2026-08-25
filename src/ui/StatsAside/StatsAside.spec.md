@@ -211,4 +211,4 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Open
 
-Q22 — measureRange aside sync. Q6 — compute / avg-util / bandwidth peak+score still Product-open (measured BW columns confirmed).
+Q6 — compute / avg-util / bandwidth peak+score still Product-open (measured BW columns confirmed). Measure range does not recompute this aside.
