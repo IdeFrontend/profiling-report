@@ -48,6 +48,7 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     scrollY: 0,
     selectedEventId: null,
     hoveredEventId: null,
+    multiSelectedIds: [],
     searchQuery: '',
     asideVisible: true,
     playheadTime: null,
@@ -55,6 +56,31 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     measureRange: null,
     pinnedLaneIds: [],
   };
+}
+
+/**
+ * Single-select. Mutually exclusive with the marquee multi-selection: only one of
+ * DetailPanel / MultiSelectSummary mounts, so setting either side clears the other here
+ * rather than in every caller.
+ */
+export function setSelectedEvent(
+  state: SwimlaneViewState,
+  eventId: string | null,
+): SwimlaneViewState {
+  return { ...state, selectedEventId: eventId, multiSelectedIds: [] };
+}
+
+/** Marquee multi-select (see `setSelectedEvent` for the exclusivity rule). */
+export function setMultiSelection(
+  state: SwimlaneViewState,
+  eventIds: string[],
+): SwimlaneViewState {
+  return { ...state, multiSelectedIds: [...eventIds], selectedEventId: null };
+}
+
+/** Empty-space click / Escape: drop both selections at once. */
+export function clearSelection(state: SwimlaneViewState): SwimlaneViewState {
+  return { ...state, selectedEventId: null, multiSelectedIds: [] };
 }
 
 /** Append leaf lane id in pin order; idempotent when already present. */

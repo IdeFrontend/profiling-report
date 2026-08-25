@@ -70,6 +70,7 @@ const emit = defineEmits<{
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
   select: [event: SwimEvent | null];
+  'multi-select': [events: SwimEvent[]];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
@@ -586,6 +587,7 @@ defineExpose({
       :view="view"
       :selected-event-id="view.selectedEventId"
       :hovered-event-id="view.hoveredEventId"
+      :multi-selected-ids="view.multiSelectedIds"
       :search-query="view.searchQuery"
       :measure-mode="view.measureMode"
       :measure-range="view.measureRange"
@@ -602,6 +604,7 @@ defineExpose({
       @pin-lane="emit('pin-lane', $event)"
       @unpin-lane="emit('unpin-lane', $event)"
       @select="emit('select', $event)"
+      @multi-select="emit('multi-select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
       @cursor="emit('cursor', $event)"
       @set-playhead="emit('set-playhead', $event)"

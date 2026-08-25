@@ -51,6 +51,7 @@ const props = withDefaults(
     view: SwimlaneViewState;
     selectedEventId: string | null;
     hoveredEventId: string | null;
+    multiSelectedIds?: string[];
     searchQuery: string;
     measureMode?: boolean;
     measureRange?: MeasureRange | null;
@@ -69,6 +70,7 @@ const props = withDefaults(
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
     cursorXRatio: null,
     cursorSnapped: false,
+    multiSelectedIds: () => [],
   },
 );
 
@@ -79,6 +81,7 @@ const emit = defineEmits<{
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
   select: [event: SwimEvent | null];
+  'multi-select': [events: SwimEvent[]];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
@@ -381,6 +384,51 @@ defineExpose({
         top: `${altMeasureCrossBridge.top}px`,
         height: `${altMeasureCrossBridge.height}px`,
       }"
+    />
+    <button
+      type="button"
+      class="pr-gutter-resize"
+      data-testid="gutter-resize-handle"
+      aria-label="Resize lane gutter"
+      @pointerdown="onGutterResizePointerDown"
+      @pointermove="onGutterResizePointerMove"
+      @pointerup="onGutterResizePointerUp"
+      @pointercancel="onGutterResizePointerUp"
+    />
+
+    <LaneGutter
+      ref="gutterRef"
+      :groups="groups"
+      :collapsed-ids="collapsedIds"
+      @scroll="onGutterScroll"
+      @toggle-group="emit('toggle-group', $event)"
+    />
+    <SwimlaneCanvas
+      ref="canvasRef"
+      :model="model"
+      :view="view"
+      :selected-event-id="selectedEventId"
+      :hovered-event-id="hoveredEventId"
+      :multi-selected-ids="multiSelectedIds"
+      :search-query="searchQuery"
+      :measure-mode="measureMode"
+      :measure-range="measureRange"
+      :dependency-mode="dependencyMode"
+      :dependency-depth="dependencyDepth"
+      :prefer-renderer="preferRenderer ?? 'auto'"
+      :cursor-x-ratio="cursorXRatio"
+      :cursor-snapped="cursorSnapped"
+      @select="emit('select', $event)"
+      @multi-select="emit('multi-select', $event)"
+      @hover="(ev, x, y) => emit('hover', ev, x, y)"
+      @cursor="onCursor"
+      @set-playhead="emit('set-playhead', $event)"
+      @pan="emit('pan', $event)"
+      @zoom="(f, a) => emit('zoom', f, a)"
+      @scroll-y="onScrollY"
+      @update:measure-range="emit('update:measure-range', $event)"
+      @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+>>>>>>> 04d6057 (feat: implement MultiSelectSummary marquee multi-select)
     />
     <div
       v-if="pinnedRows.length"

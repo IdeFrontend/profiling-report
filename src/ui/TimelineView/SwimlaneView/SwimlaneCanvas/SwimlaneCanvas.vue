@@ -16,6 +16,7 @@ import {
   computeAltMeasureGap,
   contentHeightFromModel,
   eventMeasureTargetTime,
+  eventsIntersectingRect,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
@@ -25,6 +26,7 @@ import {
   projectExactEdgeMarks,
   type ExactEdgeMatch,
   type HoverGap,
+  type MarqueeRect,
 } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
@@ -53,6 +55,8 @@ const props = withDefaults(
     view: SwimlaneViewWindow;
     selectedEventId: string | null;
     hoveredEventId: string | null;
+    /** Marquee multi-selection; dims everything else in the renderer. */
+    multiSelectedIds?: string[];
     searchQuery: string;
     measureMode?: boolean;
     measureRange?: MeasureRange | null;
@@ -90,11 +94,14 @@ const props = withDefaults(
     cursorSnapped: false,
     altMeasureRole: 'solo',
     pinnedLaneIds: () => [],
+    multiSelectedIds: () => [],
   },
 );
 
 const emit = defineEmits<{
   select: [event: SwimEvent | null];
+  /** Marquee commit — every leaf event intersecting the rect. */
+  'multi-select': [events: SwimEvent[]];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   /** Leaf lane under pointer Y — gutter header highlight only (not pin). */
   'lane-hover': [laneId: string | null];
@@ -172,6 +179,15 @@ let measureDragOccurred = false;
  */
 let measurePressActive = false;
 const MEASURE_DRAG_THRESHOLD_PX = 4;
+/** Marquee (Shift+drag) multi-select — same 4px click-vs-drag gate as measure create. */
+const marqueeRect = ref<MarqueeRect | null>(null);
+/** Local anchor for the marquee; set on the shift-pointerdown. */
+let marqueeAnchor: { x: number; y: number } | null = null;
+/** Shift press waiting for the 4px threshold. */
+let marqueePending = false;
+/** True from marquee pointerdown until pointerup — suppresses pan / select / tooltip. */
+let marqueePressActive = false;
+let unbindMarqueeDrag: (() => void) | null = null;
 /** Magnet snap to nearest in-lane event start/end. */
 const EVENT_EDGE_MAGNET_PX = 10;
 /** Fast snap when clicking an event while a prior measure range exists. */
@@ -469,6 +485,7 @@ function applyViewState(forceModel = false): void {
   backend.setPaintDependencies?.(props.showDependencies !== false);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
+  backend.setMultiSelection?.(props.multiSelectedIds);
   if (useWebGl.value) {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
@@ -477,6 +494,7 @@ function applyViewState(forceModel = false): void {
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSelectionDim(props.showDependencies !== false);
     overlay.setSearchQuery(props.searchQuery);
+    overlay.setMultiSelection(props.multiSelectedIds);
   }
   refreshMeasureExactEdgeMarks(modelChanged);
   refreshSnapExactEdgeMarks();
@@ -703,6 +721,7 @@ onMounted(async () => {
     window.addEventListener('keydown', onWindowKeyDown);
     window.addEventListener('keyup', onWindowKeyUp);
   }
+  window.addEventListener('keydown', onMarqueeKeydown);
   bindResizeObserver();
 });
 
@@ -714,6 +733,8 @@ onBeforeUnmount(() => {
   cancelMeasureSnapAnim();
   endMeasureCreate();
   endMeasureResize();
+  endMarquee();
+  window.removeEventListener('keydown', onMarqueeKeydown);
   resizeObserver?.disconnect();
   if (raf) cancelAnimationFrame(raf);
   backend.dispose();
@@ -736,7 +757,7 @@ watch(
 );
 
 watch(
-  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
+  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies, props.multiSelectedIds],
   () => {
     localScrollY = props.view.scrollY;
     sync();
@@ -817,6 +838,80 @@ function endMeasureCreate(): void {
   dragging = false;
   clearPanHoverCapture();
   suppressMeasurePreview.value = false;
+}
+
+/** Drop the marquee gesture without committing (Escape, unmount, pointerup). */
+function endMarquee(): void {
+  unbindMarqueeDrag?.();
+  unbindMarqueeDrag = null;
+  marqueeAnchor = null;
+  marqueePending = false;
+  marqueePressActive = false;
+  marqueeRect.value = null;
+}
+
+function onMarqueeDragMove(clientX: number, clientY: number): void {
+  const local = localFromClient(clientX, clientY);
+  if (!local || !marqueeAnchor) return;
+  if (marqueePending) {
+    if (
+      Math.abs(local.x - marqueeAnchor.x) <= MEASURE_DRAG_THRESHOLD_PX &&
+      Math.abs(local.y - marqueeAnchor.y) <= MEASURE_DRAG_THRESHOLD_PX
+    ) {
+      return;
+    }
+    marqueePending = false;
+  }
+  marqueeRect.value = {
+    x0: marqueeAnchor.x,
+    y0: marqueeAnchor.y,
+    x1: local.x,
+    y1: local.y,
+  };
+  schedulePaint();
+}
+
+/** Commit on pointerup: every leaf event intersecting the rect. A cancelled rect commits nothing. */
+function onMarqueeDragEnd(): void {
+  unbindMarqueeDrag?.();
+  unbindMarqueeDrag = null;
+  const rect = marqueeRect.value;
+  marqueeAnchor = null;
+  marqueePending = false;
+  // Canvas `pointerup` bubbles to window first, so the flag is still set when it
+  // decides whether to select — clear it only here, once the gesture is truly over.
+  marqueePressActive = false;
+  marqueeRect.value = null;
+  if (!rect) return;
+  const w = wrapRef.value?.clientWidth ?? 0;
+  const events = eventsIntersectingRect(backend.getLayout(), props.view, w, rect).map(
+    (item) => item.event,
+  );
+  emit('multi-select', events);
+}
+
+function beginMarquee(localX: number, localY: number): void {
+  endMeasureCreate();
+  endMeasureResize();
+  endMarquee();
+  marqueeAnchor = { x: localX, y: localY };
+  marqueePending = true;
+  marqueePressActive = true;
+  unbindMarqueeDrag = bindWindowPointerDrag({
+    onMove: onMarqueeDragMove,
+    onEnd: onMarqueeDragEnd,
+  });
+}
+
+/** Escape during the drag cancels without committing; the press flag survives until pointerup. */
+function onMarqueeKeydown(e: KeyboardEvent): void {
+  if (e.key !== 'Escape' || !marqueePressActive) return;
+  unbindMarqueeDrag?.();
+  unbindMarqueeDrag = null;
+  marqueeAnchor = null;
+  marqueePending = false;
+  marqueeRect.value = null;
+  schedulePaint();
 }
 
 function beginMeasureCreateFromDown(): void {
@@ -1296,6 +1391,18 @@ function eventScreenRectCss(eventId: string): { x: number; y: number; w: number;
   return { x: rect.x / dpr, y: rect.y / dpr, w: rect.w / dpr, h: rect.h / dpr };
 }
 
+/** Normalized marquee rect in canvas px (null until the 4px threshold is crossed). */
+const marqueeGeometry = computed(() => {
+  const r = marqueeRect.value;
+  if (!r) return null;
+  return {
+    left: Math.min(r.x0, r.x1),
+    top: Math.min(r.y0, r.y1),
+    width: Math.abs(r.x1 - r.x0),
+    height: Math.abs(r.y1 - r.y0),
+  };
+});
+
 /** Alt-measure anchor highlight while session active. */
 const altMeasureAnchorHighlight = computed(() => {
   void resizeTick.value;
@@ -1525,6 +1632,13 @@ function onPointerDown(e: PointerEvent): void {
   downX = e.clientX;
   lastPointerClientY = e.clientY;
   measureDragOccurred = false;
+  // Shift+drag marquees regardless of measure mode; it owns the press outright.
+  const local = e.shiftKey ? localFromClient(e.clientX, e.clientY) : null;
+  if (local) {
+    beginMarquee(local.x, local.y);
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    return;
+  }
   if (props.measureMode && activeCanvas()) {
     endMeasureCreate();
     endMeasureResize();
@@ -1561,6 +1675,12 @@ function onPointerMove(e: PointerEvent): void {
   const y = e.clientY - rect.top;
   const w = syncTrackWidth();
   lastPointerClientY = e.clientY;
+
+  // Marquee owns the press: no magnet, no cursor move, no tooltip (spec: suppress hover).
+  if (marqueePressActive) {
+    emit('hover', null, e.clientX, e.clientY);
+    return;
+  }
 
   schedulePaint();
   const mag = magnetizeLocal(x, y);
@@ -1626,6 +1746,8 @@ function onPointerMove(e: PointerEvent): void {
 }
 
 function onPointerUp(e: PointerEvent): void {
+  // Window pointerup commits/clears the marquee; this press never selects or sets a playhead.
+  if (marqueePressActive) return;
   const didFreeform = measureDragOccurred;
   const wasPending = measureCreatePending && !didFreeform;
   const wasMeasurePress = measurePressActive;
@@ -1715,6 +1837,15 @@ function onPointerUp(e: PointerEvent): void {
 }
 
 function onPointerLeave(e: PointerEvent): void {
+  // Marquee is window-bound (like measure create): leaving the canvas keeps the rect alive.
+  if (marqueePressActive) {
+    schedulePaint();
+    snapExactEdgeMatches = [];
+    snapExactEdgeMarks.value = [];
+    emit('cursor', null);
+    emit('hover', null, 0, 0);
+    return;
+  }
   // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
   if (measureGestureActive || measureCreatePending || measurePressActive) {
     schedulePaint();
@@ -2147,6 +2278,17 @@ defineExpose({
         </div>
       </div>
     </template>
+    <div
+      v-if="marqueeGeometry"
+      class="pr-marquee"
+      data-testid="marquee-rect"
+      :style="{
+        left: `${marqueeGeometry.left}px`,
+        top: `${marqueeGeometry.top}px`,
+        width: `${marqueeGeometry.width}px`,
+        height: `${marqueeGeometry.height}px`,
+      }"
+    />
   </div>
 </template>
 
@@ -2386,5 +2528,15 @@ defineExpose({
 .pr-alt-measure--cursor .pr-gap-measure__stick {
   top: auto;
   bottom: auto;
+}
+
+/* Marquee multi-select rect (v930/task-marquee): thin accent border over a wash. */
+.pr-marquee {
+  position: absolute;
+  border: 1px solid rgba(66, 133, 244, 0.8);
+  background: rgba(66, 133, 244, 0.15);
+  pointer-events: none;
+  /* Above the measure chrome, below the Card strips owned by SwimlaneView. */
+  z-index: 6;
 }
 </style>

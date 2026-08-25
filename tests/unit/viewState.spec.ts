@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   applyWindow,
   clearMeasure,
+  clearSelection,
   createViewState,
   measureFocusWindow,
   MIN_VIEW_WINDOW,
   panBy,
   pinLane,
   setMeasureRange,
+  setMultiSelection,
+  setSelectedEvent,
   spanFromZoomPercent,
   unpinLane,
   zoomAt,
@@ -64,6 +67,7 @@ describe('PR-VIEW: swimlane view window', () => {
     const state = createViewState(model);
     expect(state.measureMode).toBe(false);
     expect(state.measureRange).toBeNull();
+    expect(state.multiSelectedIds).toEqual([]);
   });
 
   it('PR-VIEW-005: setMeasureRange normalizes; clearMeasure resets', () => {
@@ -155,5 +159,32 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(dropped.pinnedLaneIds).toEqual(['b']);
     expect(unpinLane(dropped, 'missing').pinnedLaneIds).toEqual(['b']);
     expect(pinned.pinnedLaneIds).toEqual(['a', 'b']);
+  it('PR-VIEW-012: single-select and multi-select are mutually exclusive; clearSelection drops both', () => {
+    const base = createViewState(model);
+
+    const multi = setMultiSelection(base, ['a', 'b']);
+    expect(multi.multiSelectedIds).toEqual(['a', 'b']);
+    expect(multi.selectedEventId).toBeNull();
+
+    // Selecting one event replaces the marquee, not adds to it.
+    const single = setSelectedEvent(multi, 'c');
+    expect(single.selectedEventId).toBe('c');
+    expect(single.multiSelectedIds).toEqual([]);
+
+    // ...and back the other way.
+    const backToMulti = setMultiSelection(single, ['d']);
+    expect(backToMulti.selectedEventId).toBeNull();
+    expect(backToMulti.multiSelectedIds).toEqual(['d']);
+
+    const cleared = clearSelection(backToMulti);
+    expect(cleared.selectedEventId).toBeNull();
+    expect(cleared.multiSelectedIds).toEqual([]);
+
+    // Immutable, and the id array is copied (callers cannot mutate state through it).
+    const ids = ['x'];
+    const copied = setMultiSelection(base, ids);
+    ids.push('y');
+    expect(copied.multiSelectedIds).toEqual(['x']);
+    expect(base.multiSelectedIds).toEqual([]);
   });
 });

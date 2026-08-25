@@ -43,15 +43,15 @@ Every cell that truncates carries its full text in `title` (same convention as D
 
 ### Marquee interaction (owned by SwimlaneCanvas)
 
-**Shift+drag** (>4px threshold) on the canvas draws the marquee rectangle: 1px border `rgba(66,133,244,0.8)`, fill `rgba(66,133,244,0.15)`. The rect tracks the pointer on both axes (time × lane Y). The marquee passes through Card header strips — only rendered leaf events whose rects **intersect** the marquee bounds are collected.
+**Shift+drag** (>4px threshold on either axis) on the canvas draws the marquee rectangle: 1px border `rgba(66,133,244,0.8)`, fill `rgba(66,133,244,0.15)`. The rect tracks the pointer on both axes (time × lane Y). The marquee passes through Card header strips — only rendered leaf events whose rects **intersect** the marquee bounds are collected. Shift wins over measure mode: the same press cannot both marquee and measure.
 
-**Commit (pointerup):** emit **`multi-select(SwimEvent[])`** with every intersecting event. Clear the rect.
+**Commit (pointerup):** emit **`multi-select(SwimEvent[])`** with every intersecting event, then clear the rect. A rect that hits nothing commits an empty array, which the root reads as "clear the selection" — so `select(null)` stays the one signal a host listens to for "nothing is selected".
 
-**Cancel:** Escape during drag cancels without committing. `pointerleave` does **not** cancel (bound on `window`, same pattern as measure-border resize).
+**Cancel:** Escape during drag cancels without committing. `pointerleave` does **not** cancel (bound on `window`, same pattern as measure-border resize); the press still owns pointerup, so a cancelled marquee never falls through to `select` or `set-playhead`.
 
 **Post-commit rendering:** selected events at full opacity; everything else dims to 25% alpha (same dim level as single-click selection). No dependency curves for multi-select.
 
-**Tooltip:** suppressed during marquee drag (no `hover` emit).
+**Tooltip:** suppressed during marquee drag (`hover` emits `null`); pan is suppressed for the same press.
 
 ### Multi-select vs single-select
 
@@ -101,30 +101,31 @@ Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../docs/ui/DESIGN_INDEX.md).
 
 ### Cross-spec changes required
 
-#### SwimlaneCanvas — marquee interaction (PR-CANVAS-024…)
+#### SwimlaneCanvas — marquee interaction (PR-CANVAS-027…031)
 
-- **Shift+drag** (>4px): draw marquee rect; collect intersecting leaf events; emit **`multi-select(SwimEvent[])`** on pointerup.
-- Cancel with Escape; `pointerleave` does not cancel (window-bound).
+- **Shift+drag** (>4px): draw marquee rect; collect intersecting leaf events; emit **`multi-select(SwimEvent[])`** on pointerup (empty array when nothing intersects).
+- Cancel with Escape; `pointerleave` does not cancel (window-bound). A plain drag still pans.
 - Post-commit: full opacity on selected, 25% dim on rest, no dependency curves.
-- Renderer gains **`setMultiSelection(ids: string[])`** (empty clears dim).
+- Renderer gains optional **`setMultiSelection(ids: string[])`** (empty clears dim); `layout` gains `eventsIntersectingRect`.
 
-#### ProfilingReport — state ownership (PR-ROOT-007…)
+#### ProfilingReport — state ownership (PR-ROOT-007)
 
-Root adds `multiSelectedIds: string[]`. Handles `multi-select`, `close`, `select-single` from MultiSelectSummary, empty-space click, Escape.
+Root holds the captured `SwimEvent[]` and handles `multi-select`, `close`, `select-single`, empty-space click, and Escape. Exclusivity lives in **view-state** (`setSelectedEvent` / `setMultiSelection` / `clearSelection`), not in each caller.
 
 #### view-state — new field
 
-`SwimlaneViewState.multiSelectedIds: string[]` (default `[]`).
+`SwimlaneViewState.multiSelectedIds: string[]` (default `[]`), plus `setSelectedEvent` / `setMultiSelection` / `clearSelection` (PR-VIEW-012).
 
 #### SwimlaneRenderer interface
 
-`setMultiSelection(ids: string[]): void`.
+`setMultiSelection?(ids: string[]): void` — optional, like `setDependencyMode` / `setDependencyDepth`, so existing implementers stay valid (PR-RENDER-015/016).
 
 ## Open
 
 - **Q23** — Self time data source. See [OPEN_QUESTIONS Q23](../../../docs/context/OPEN_QUESTIONS.md). Interim: Self time = duration (events are flat).
-- **Q22 extension** — Multi-select aside sync (do selected events drive aside recomputation?). Interim: no sync — local panel only, like measure overlay.
+- **Q22 (resolved)** — Multi-select does **not** drive aside recomputation: local panel only, like the measure overlay. See [OPEN_QUESTIONS resolution log](../../../docs/context/OPEN_QUESTIONS.md).
 
 ## Changelog
 
+- **2026-08-25** — Implemented. Marquee lives on SwimlaneCanvas (PR-CANVAS-027…031); dim parity + rect collection in the renderers (PR-RENDER-015/016); exclusivity helpers in view-state (PR-VIEW-012); root ownership (PR-ROOT-007). Empty commit = clear.
 - **2026-08-24** — Initial spec. Q22/Q23 escalated to OPEN_QUESTIONS.

@@ -38,7 +38,6 @@ const DELEGATED_SPECS = new Set([
   resolve(ROOT, 'specs', 'architecture', 'public-api.spec.md'),
   resolve(ROOT, 'specs', 'architecture', 'mstt-integration.spec.md'),
   resolve(ROOT, 'specs', 'core', 'input-formats.spec.md'),
-  resolve(ROOT, 'src', 'ui', 'MultiSelectSummary', 'MultiSelectSummary.spec.md'),
 ]);
 
 // ---- gather ----

@@ -42,6 +42,10 @@ Hover and selected sit on the same lightness. Earlier passes kept them `0.13` ap
 
 Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts as the pointer crosses its block**. That is accepted, not overlooked. An earlier revision held hover below the flip precisely to keep labels steady, and what it bought — a lift clipped to `≈ +0.09` — was too weak to notice, which is the defect that replaced it. Deriving the label from the painted fill rather than from the state is what makes the trade safe: however the lifts are retuned, a fill and its label cannot end up disagreeing about which side of the threshold they are on.
 
+**Marquee multi-selection.** `setMultiSelection(ids)` is the same emphasis machinery with a set instead of one id: a non-empty set counts as "there is a selection", the ids in it stay bright, and everything else takes the same 0.45 factor. An empty set clears the dim. No white stroke and no dependency curves — marquee is a bulk highlight, not a focus. The method is **optional** on `SwimlaneRenderer` (like `setDependencyMode` / `setDependencyDepth`); `SwimlaneCanvas` calls it with `?.`.
+
+**Marquee hit collection.** `eventsIntersectingRect(layout, view, width, rect)` returns the laid-out leaf events whose drawn block intersects a screen-space rect, in layout order. Rect corners are order-normalized, so a drag in any direction collects the same set. Folder rows carry no events, so a rect crossing Card header strips contributes none.
+
 **Lane chrome.** Every event-sequence lane shares the same background fill (`LANE_FILL`, `#1f1f1f`); alternating zebra stripes are not used. The one leaf lane under the pointer fills `LANE_HOVER_FILL` (`#363636`) instead — AC-07's track half, matching the gutter row highlight so the two read as one continuous row. It is painted **in the background pass, behind events**, deliberately: composited over the lanes it would tint every event it crossed, and a lifted event fill already means hover on *that event* (AC-08). Both backends take it through `setHoveredLane`; folders never match, since the hit test returns leaves only. **Card / root group headers** paint a full-width band `rgb(42, 42, 42)` (`#2a2a2a`) under the DOM Card strips in `SwimlaneView`. Horizontal dividers (`#3a3a3a`) are drawn at the bottom of each group header and each lane (1 device px), aligned with the LaneGutter borders. WebGL draws the same uniform fill and divider rects; Canvas uses strokes at the same edges.
 
 **Cursor.** Vertical cursor stroke uses `#317AF7` to match axis `.pr-cursor`. Swimlane paints the follow-bar as a DOM overlay in `SwimlaneView` (under Card strips); Canvas/WebGL renderers no longer stroke the cursor.
@@ -68,6 +72,8 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-012**: Canvas and WebGL Card/group header bands use `LANE_GROUP_HEADER_FILL` (`#2a2a2a` / `rgb(42, 42, 42)`).
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep full fill and label brightness.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` / `setHoveredLane` are optional (existing implementers stay valid).
+1. **PR-RENDER-015**: `setMultiSelection` keeps selected ids bright and dims the rest with the single-click factor; empty clears it (Canvas + WebGL; `skipIf` when WebGL2 is missing).
+1. **PR-RENDER-016**: `eventsIntersectingRect` collects intersecting leaf events, normalizes rect order, and returns `[]` on a miss.
 1. **PR-RENDER-017**: `eventRadius` applies the CSS-px corner policy (1 below 4 CSS-px width, else 2) × `dpr` → device px; Canvas and WebGL share the same `shaders.ts` constants via one `uRR` vec3 uniform / `eventRadius`.
 1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
 1. **PR-RENDER-018**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
@@ -113,6 +119,7 @@ WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Can
 - **2026-08-28** — `resize(devicePixelWidth, devicePixelHeight, dpr)`; paint/hit-test/shaders in integer device pixels; no `uDpr` / no `setTransform(dpr)`; CSS layout scaled by `dpr` at the paint boundary; 1 device-px gap; host RO drives buffer size.
 - **2026-08-28** — Canvas backing-store sizing contract: device-pixel size from `ResizeObserver` `devicePixelContentBoxSize`; no `style` sizing.
 - **2026-08-27** — Snap event rect edges to the device-pixel grid; WebGL coverage AA in device pixels (crisp borders at fractional browser zoom).
+- **2026-08-25** — Optional `setMultiSelection` + `eventsIntersectingRect` for marquee multi-select; PR-RENDER-015/016.
 - **2026-08-19** — Dependency curve stroke 2px.
 - **2026-08-19** — WebGL attach/curve paint in Chromium is PR-E2E-007; jsdom unit tests `skipIf` when `webgl2` is missing.
 - **2026-08-18** — Canvas fallback reuses the fill-pass visible list for strokes/labels (no second full-event cull).

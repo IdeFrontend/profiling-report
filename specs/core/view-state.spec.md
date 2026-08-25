@@ -8,6 +8,9 @@ Pure functions managing swimlane viewport — zoom, pan, window boundaries, zoom
 
 ```ts
 createViewState(model: SwimlaneModel | null | undefined): SwimlaneViewState
+setSelectedEvent(state: SwimlaneViewState, eventId: string | null): SwimlaneViewState
+setMultiSelection(state: SwimlaneViewState, eventIds: string[]): SwimlaneViewState
+clearSelection(state: SwimlaneViewState): SwimlaneViewState
 pinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState
 unpinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState
 zoomAt(view: SwimlaneViewWindow, factor: number, anchorTime: number, bounds?: Bounds): SwimlaneViewWindow
@@ -23,7 +26,9 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Immutability.** All functions return new objects. The parent ProfilingReport uses `{ ...viewState.value, ...patch }` to trigger Vue reactivity — mutating in place would prevent the deep watcher in SwimlaneCanvas from detecting changes.
 
-**Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty **pinnedLaneIds**, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
+**Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty `multiSelectedIds` and **pinnedLaneIds**, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
+
+**Selection exclusivity.** Single-select (`selectedEventId`) and marquee multi-select (`multiSelectedIds`) are mutually exclusive — only one dock mounts. `setSelectedEvent` and `setMultiSelection` each clear the other side, so callers never have to remember to; `clearSelection` drops both (empty-space click, Escape, empty marquee commit). `setMultiSelection` copies the id array, so a caller's later mutation cannot reach state.
 
 **Pinned lanes.** **pinnedLaneIds** holds globally unique leaf lane ids in pin order (session-local). No Card/process grouping in state — pins may span multiple Cards or groups; cross-card pin order is preserved in the array. Gutter pushpin and context-menu **Pin row** (Ctrl+P) are alternate affordances for the same list — not separate pin state. `pinLane` appends an id when absent (idempotent). `unpinLane` removes an id when present. Neither mutates the swim tree — duplicates are a view concern ([`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)).
 
@@ -52,9 +57,10 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 9. **PR-VIEW-009** — zoomPercent ↔ span round-trip.
 10. **PR-VIEW-010** — slider max matches zoomAt floor.
 11. **PR-VIEW-011** — zoomToFitWindow for `minTime === maxTime` uses `[minTime, minTime + MIN_WINDOW]` (aligned with bounds).
-12. **PR-VIEW-013** — createViewState initializes empty **pinnedLaneIds**.
-13. **PR-VIEW-014** — pinLane appends id when absent.
-14. **PR-VIEW-015** — unpinLane removes id when present.
+12. **PR-VIEW-012** — single/multi select are exclusive; clearSelection drops both.
+13. **PR-VIEW-013** — createViewState initializes empty **pinnedLaneIds**.
+14. **PR-VIEW-014** — pinLane appends id when absent.
+15. **PR-VIEW-015** — unpinLane removes id when present.
 
 ## Edge Cases
 
@@ -80,9 +86,11 @@ Multi-touch pinch zoom (P2). M2 measure fields.
 - **2026-08-27** — Gutter pushpin and context-menu Pin row share **pinnedLaneIds**.
 - **2026-08-27** — Cross-card **pinnedLaneIds**; pin persists while row hidden by collapse.
 - **2026-08-27** — **pinnedLaneIds** + pinLane/unpinLane helpers (`PR-VIEW-013`…`015`). Tests deferred until implementation.
+- **2026-08-25** — `multiSelectedIds` + exclusivity helpers for marquee multi-select (PR-VIEW-012).
 - **2026-08-25** — Degenerate minTime===maxTime fit stays in minTime space (PR-VIEW-011).
 - **2026-08-25** — zoomToFit restored to `[minTime, maxTime]`; display origin is minTime (PyPTO/Perfetto default).
 - **2026-08-24** — zoomToFit starts at producer t=0 (events align with absolute axis/tooltip).
+- **2026-08-21** — Shared zoomPercent ↔ span helpers; slider 100 = MIN_WINDOW (PR-VIEW-008…010).
 - **2026-08-21** — Document measureFocusWindow; PR-VIEW-006/007.
 - **2026-08-07** — Note M2 measure as planned; no AC until coded.
 - **2026-08-05** — Initial spec. Core behaviors established.

@@ -312,4 +312,92 @@ test.describe('PR-E2E feature paths', () => {
     expect(dock1 - body1).toBeCloseTo(dock0 - body0, 0);
     expect(card1).toBeGreaterThan(body1 - 40);
   });
+
+  test('PR-E2E-011: Shift+drag marquees real events into the multi-select dock', async ({
+    page,
+  }) => {
+    // Real pointer + layout: jsdom fakes both, so only Chromium proves the rect the user
+    // drags matches the blocks the renderer actually painted.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+
+    await page.keyboard.down('Shift');
+    await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
+    await page.mouse.down();
+    // Mid-drag the rect must be visible; the tooltip must not.
+    await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
+    await expect(page.getByTestId('marquee-rect')).toBeVisible();
+    await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+
+    const dock = page.getByTestId('multi-select-summary');
+    await expect(dock).toBeVisible();
+    await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
+    // Mutually exclusive with the single-select dock.
+    await expect(page.getByTestId('detail-panel')).toHaveCount(0);
+
+    const rows = page.locator('[data-testid^="multi-select-row-"]');
+    const count = await rows.count();
+    expect(count).toBeGreaterThan(0);
+    await expect(page.getByTestId('multi-select-tab')).toHaveText(`Slices (${count})`);
+
+    // Bars are laid out by the real engine: the longest row fills its track.
+    const widths = await page.evaluate(() =>
+      [...document.querySelectorAll('.pr-multi-select__bar-fill')].map((el) => {
+        const fill = el.getBoundingClientRect().width;
+        const track = el.parentElement!.getBoundingClientRect().width;
+        return track > 0 ? fill / track : -1;
+      }),
+    );
+    expect(widths.length).toBeGreaterThan(0);
+    expect(Math.max(...widths)).toBeCloseTo(1, 1);
+    for (const w of widths) expect(w).toBeGreaterThanOrEqual(0);
+
+    // Name click hands off to single-select.
+    await page.locator('.pr-multi-select__name').first().click();
+    await expect(page.getByTestId('detail-panel')).toBeVisible();
+    await expect(dock).toHaveCount(0);
+  });
+
+  test('PR-E2E-012: Escape cancels a marquee mid-drag and clears a committed one', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+
+    const marquee = async () => {
+      await page.keyboard.down('Shift');
+      await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
+    };
+
+    // Cancelled mid-drag: nothing commits, and the release does not select either.
+    await marquee();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+    await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
+    await expect(page.getByTestId('detail-panel')).toHaveCount(0);
+
+    // Committed, then cleared by Escape.
+    await marquee();
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+    await expect(page.getByTestId('multi-select-summary')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
+  });
 });
