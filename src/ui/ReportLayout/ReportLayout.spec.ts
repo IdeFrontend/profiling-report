@@ -56,7 +56,9 @@ describe('ReportLayout', () => {
 
   it('PR-LAYOUT-006: keeps two-column grid when aside is visible (no viewport stack)', async () => {
     const src = (await import('./ReportLayout.vue?raw')).default as string;
-    expect(src).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(src).toMatch(
+      /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*var\(--pr-aside-width/,
+    );
     const wrapper = mount(ReportLayout, {
       props: { showAside: true, asideWidth: 360 },
       slots: {

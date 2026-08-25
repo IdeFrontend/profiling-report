@@ -7,8 +7,8 @@ export const ASIDE_WIDTH_DEFAULT = 360;
 export const ASIDE_WIDTH_MIN = 280;
 export const ASIDE_WIDTH_MAX = 560;
 
-/** Minimum swimlane track column width (px) before initial layout shrinks gutter/aside. */
-export const TIMELINE_TRACK_MIN = 200;
+/** Minimum swimlane track column width (px) the layout budget tries to protect. */
+export const TIMELINE_TRACK_MIN = 320;
 
 /** Detail dock height (px). Default is the v930 sketch proportion at 1920 wide. */
 export const DOCK_HEIGHT_DEFAULT = 247;
@@ -23,31 +23,47 @@ export function clampPanelWidth(value: number, min: number, max: number): number
 }
 
 /**
- * One-shot initial-layout helper: if the swimlane track would be narrower than
- * `trackMin`, shrink gutter (and aside when shown) to their clamp floors so
- * events get more horizontal space. Returns inputs unchanged when already OK.
+ * Fit gutter/aside to a host width while protecting a minimum swimlane track.
+ * Starts from preferred sizes; shrinks aside toward its min first, then gutter.
+ * Expanding host restores toward preferred (caller passes preferred each time).
  */
-export function fitPanelsForTrackMin(opts: {
-  layoutWidth: number;
-  showAside: boolean;
-  gutterWidth: number;
-  asideWidth: number;
-  trackMin?: number;
-}): { gutterWidth: number; asideWidth: number } {
-  const trackMin = opts.trackMin ?? TIMELINE_TRACK_MIN;
-  const { layoutWidth, showAside, gutterWidth, asideWidth } = opts;
-  if (!Number.isFinite(layoutWidth) || layoutWidth <= 0) {
-    return { gutterWidth, asideWidth };
+export function fitPanelWidths(
+  hostWidth: number,
+  opts: {
+    asideVisible: boolean;
+    preferredGutter: number;
+    preferredAside: number;
+    minTrack?: number;
+  },
+): { gutterWidth: number; asideWidth: number } {
+  const minTrack = opts.minTrack ?? TIMELINE_TRACK_MIN;
+  let gutter = clampPanelWidth(opts.preferredGutter, GUTTER_WIDTH_MIN, GUTTER_WIDTH_MAX);
+  let aside = clampPanelWidth(opts.preferredAside, ASIDE_WIDTH_MIN, ASIDE_WIDTH_MAX);
+
+  if (!Number.isFinite(hostWidth) || hostWidth <= 0) {
+    return { gutterWidth: gutter, asideWidth: aside };
   }
-  const aside = showAside ? asideWidth : 0;
-  const track = layoutWidth - aside - gutterWidth;
-  if (track >= trackMin) {
-    return { gutterWidth, asideWidth };
+
+  const asideBudget = opts.asideVisible ? aside : 0;
+  const ideal = gutter + minTrack + asideBudget;
+  if (hostWidth >= ideal) {
+    return { gutterWidth: gutter, asideWidth: aside };
   }
-  return {
-    gutterWidth: GUTTER_WIDTH_MIN,
-    asideWidth: showAside ? ASIDE_WIDTH_MIN : asideWidth,
-  };
+
+  let deficit = ideal - hostWidth;
+
+  if (opts.asideVisible && deficit > 0) {
+    const shrink = Math.min(deficit, aside - ASIDE_WIDTH_MIN);
+    aside -= shrink;
+    deficit -= shrink;
+  }
+
+  if (deficit > 0) {
+    const shrink = Math.min(deficit, gutter - GUTTER_WIDTH_MIN);
+    gutter -= shrink;
+  }
+
+  return { gutterWidth: gutter, asideWidth: aside };
 }
 
 export interface HorizontalResizeSession {

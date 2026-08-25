@@ -89,7 +89,7 @@ defineExpose({ rootEl });
 <style scoped>
 .pr-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--pr-aside-width, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--pr-aside-width, 360px));
   gap: 0;
   flex: 1 1 auto;
   min-width: 0;

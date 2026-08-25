@@ -43,7 +43,7 @@ import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_DEFAULT,
-  fitPanelsForTrackMin,
+  fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
@@ -100,12 +100,12 @@ const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth)
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
-/** Session-only panel sizes (not persisted). */
+/** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
+const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
+const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const dockHeight = ref(DOCK_HEIGHT_DEFAULT);
-/** One-shot: shrink panels on first layout when the swimlane track would be too narrow. */
-const panelBudgetApplied = ref(false);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
@@ -214,6 +214,13 @@ function onFocusMeasure() {
   animateToWindow(target);
 }
 
+function resetPanelWidthsToDefaults(): void {
+  preferredGutterWidth.value = GUTTER_WIDTH_DEFAULT;
+  preferredAsideWidth.value = ASIDE_WIDTH_DEFAULT;
+  gutterWidth.value = GUTTER_WIDTH_DEFAULT;
+  asideWidth.value = ASIDE_WIDTH_DEFAULT;
+}
+
 function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean): void {
   stopViewWindowAnim();
   const next = createViewState(model);
@@ -222,47 +229,54 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   selected.value = null;
   selectedEvent.value = null;
   hovered.value = null;
-  panelBudgetApplied.value = false;
+  resetPanelWidthsToDefaults();
   const fromMeta = model?.metadata?.defaultCollapsedIds;
   collapsedGroupIds.value = Array.isArray(fromMeta)
     ? fromMeta.filter((id): id is string => typeof id === 'string')
     : [];
-  if (showTimeline.value) void schedulePanelBudget();
+  if (showTimeline.value) void bindLayoutFit();
 }
 
-function stopLayoutBudgetObserver(): void {
+function stopLayoutFitObserver(): void {
   layoutResizeObserver?.disconnect();
   layoutResizeObserver = null;
 }
 
-function applyPanelBudgetOnce(): boolean {
-  if (panelBudgetApplied.value) return true;
+function applyLayoutFit(): void {
   const el = layoutRef.value?.rootEl;
-  if (!el) return false;
-  const layoutWidth = el.clientWidth;
-  if (!(layoutWidth > 0)) return false;
-  const next = fitPanelsForTrackMin({
-    layoutWidth,
-    showAside: showAside.value,
-    gutterWidth: gutterWidth.value,
-    asideWidth: asideWidth.value,
+  if (!el) return;
+  const hostWidth = el.clientWidth;
+  if (!(hostWidth > 0)) return;
+  const next = fitPanelWidths(hostWidth, {
+    asideVisible: showAside.value,
+    preferredGutter: preferredGutterWidth.value,
+    preferredAside: preferredAsideWidth.value,
   });
-  gutterWidth.value = next.gutterWidth;
-  asideWidth.value = next.asideWidth;
-  panelBudgetApplied.value = true;
-  return true;
+  if (next.gutterWidth !== gutterWidth.value) gutterWidth.value = next.gutterWidth;
+  if (next.asideWidth !== asideWidth.value) asideWidth.value = next.asideWidth;
 }
 
-async function schedulePanelBudget(): Promise<void> {
-  stopLayoutBudgetObserver();
+async function bindLayoutFit(): Promise<void> {
+  stopLayoutFitObserver();
   await nextTick();
-  if (applyPanelBudgetOnce()) return;
   const el = layoutRef.value?.rootEl;
-  if (!el || typeof ResizeObserver === 'undefined') return;
+  if (!el) return;
+  applyLayoutFit();
+  if (typeof ResizeObserver === 'undefined') return;
   layoutResizeObserver = new ResizeObserver(() => {
-    if (applyPanelBudgetOnce()) stopLayoutBudgetObserver();
+    applyLayoutFit();
   });
   layoutResizeObserver.observe(el);
+}
+
+function onGutterWidth(w: number): void {
+  preferredGutterWidth.value = w;
+  gutterWidth.value = w;
+}
+
+function onAsideWidth(w: number): void {
+  preferredAsideWidth.value = w;
+  asideWidth.value = w;
 }
 
 function onToggleGroup(groupId: string): void {
@@ -374,10 +388,14 @@ watch(
 watch(
   showTimeline,
   (show) => {
-    if (show) void schedulePanelBudget();
-    else stopLayoutBudgetObserver();
+    if (show) void bindLayoutFit();
+    else stopLayoutFitObserver();
   },
 );
+
+watch(showAside, () => {
+  applyLayoutFit();
+});
 
 onMounted(() => {
   window.addEventListener('keydown', onMeasureKeydown);
@@ -390,7 +408,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
-  stopLayoutBudgetObserver();
+  stopLayoutFitObserver();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
 
@@ -641,7 +659,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       ref="layoutRef"
       :show-aside="showAside"
       :aside-width="asideWidth"
-      @update:aside-width="asideWidth = $event"
+      @update:aside-width="onAsideWidth"
     >
       <template #main>
         <ReportToolbar
@@ -681,7 +699,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"
           :prefer-renderer="preferRenderer ?? 'auto'"
-          @update:gutter-width="gutterWidth = $event"
+          @update:gutter-width="onGutterWidth"
           @update:scroll-y="onScrollY"
           @update:window="onOverviewWindow"
           @toggle-group="onToggleGroup"

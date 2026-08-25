@@ -18,7 +18,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Cursor vs measure chrome.** Hovering the **viewport time axis** keeps the cursor timestamp visible and lifts it **above** the axis (`labelAbove`) so the pill does not cover tick labels (same placement as measure-overlap lift), and keeps the **full-height swimlane playhead** in sync via the shared `cursor` prop. When a measure overlay is visible and the pill overlaps the selected range (playhead inside, or playhead just outside with the pill crossing a border) or covers an outside / offscreen Δt label, the pill also lifts above. Otherwise (pointer over the swimlane, clear of measure chrome) it stays in-track. Hovering a measure edge bar **sticks** the cursor to that border (does not hide the timestamp); leaving the bar onto empty axis keeps the lifted axis cursor. Overview/axis rows stay `overflow: visible` with stacking above the aside so edge handles and the cursor pill are not clipped at the main/aside seam.
 
-**Narrow panels (MSTT).** No viewport breakpoint stacks overview/axis/body rows — layout stays side-by-side. Swim rows use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` so the gutter caps at the token while the track keeps a non-zero floor (no horizontal scroll).
+**Narrow panels (MSTT).** No viewport breakpoint stacks overview/axis/body rows — layout stays side-by-side. Swim rows use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` so the gutter caps at the token while the track keeps a non-zero floor (no horizontal scroll). ProfilingReport also runs a continuous panel-width budget (`fitPanelWidths`, 320px track floor) so gutter/aside refs shrink before the chart is starved.
 
 **Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (**other edge fixed**, including when it lies outside the current view); the dragged edge is clamped to the view window with a ~1px min span. Resize listens on `window` for move/up so releasing over Card strips (above the bars) still ends the drag. Empty-axis drag still creates a new measure range; create/resize use the swimlane event-edge magnet when the pointer is over the canvas (axis-started drags included).
 
@@ -46,6 +46,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 ## Changelog
 - **2026-08-25** — Cursor labels relative to minTime; PR-TIMELINE-015.
+- **2026-08-25** — Note continuous `fitPanelWidths` track budget (owned by ProfilingReport).
 - **2026-08-25** — Track column `minmax(80px, 1fr)` so chart cannot collapse under a wide gutter token; PR-TIMELINE-017.
 - **2026-08-25** — Swim-row `minmax(0, …)` columns so gutter + track shrink; PR-TIMELINE-017.
 - **2026-08-24** — Drop horizontal scroll; shrink-to-fit in narrow MSTT panels; PR-TIMELINE-017.
