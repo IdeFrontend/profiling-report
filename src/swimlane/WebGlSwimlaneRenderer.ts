@@ -25,6 +25,7 @@ import {
   hitTestLayout,
   rebuildLayout,
   snapEventRect,
+  eventPaintRect,
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
@@ -673,7 +674,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const x = ((ev.startTime - this.view.startTime) / span) * cssW;
       const w = Math.max(2, (ev.duration / span) * cssW);
       const { y: topRaw, h: bandHRaw } = eventBlockMetrics(item.y, this.view.scrollY);
-      const snapped = snapEventRect(x, topRaw, w, bandHRaw, dpr);
+      // Match fill inset (1 device-px right gap) so labels clip to the painted strip.
+      const snapped = eventPaintRect(x, topRaw, w, bandHRaw, dpr);
       if (snapped.y + snapped.h < 0 || snapped.y > cssH) continue;
 
       const anchor = eventLabelAnchor(snapped.x, snapped.w, cssW);

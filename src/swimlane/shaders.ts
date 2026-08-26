@@ -23,23 +23,21 @@ float glToPixelX(float x) { return (x + 1.0) * 0.5 * uResolution.x; }
 float glToPixelY(float y) { return (1.0 - y) * 0.5 * uResolution.y; }
 float pixelToGlX(float x) { return x * 2.0 / uResolution.x - 1.0; }
 
-// Snap CSS px onto the device-pixel grid (fractional browser zoom stays crisp).
-float snapDevLeft(float css) { return floor(css * uDpr) / uDpr; }
-float snapDevRight(float css) { return ceil(css * uDpr) / uDpr; }
+// Snap CSS px onto the device-pixel grid (matches snapCssPx in layout.ts).
+float snapDev(float css) { return floor(css * uDpr + 0.5) / uDpr; }
 
 void main() {
   float lX = mix(aPos.x, aTex.x, aTex.y);
   float rX = mix(aTex.x, aPos.x, aTex.y);
 
   vec2 pos = vec2(translateScaleX(aPos.x), translateScaleY(aPos.y));
-  float lPx = snapDevLeft(glToPixelX(translateScaleX(lX)));
-  float rPx = snapDevRight(glToPixelX(translateScaleX(rX)));
+  float lPx = snapDev(glToPixelX(translateScaleX(lX)));
+  float rPx = snapDev(glToPixelX(translateScaleX(rX)));
+  // 1 device-px gap after the right edge so abutting intervals do not fuse visually.
+  rPx = max(lPx + 1.0 / uDpr, rPx - 1.0 / uDpr);
 
-  float screenX = glToPixelX(pos.x);
   float screenY = glToPixelY(pos.y);
-
-  // Extend left/right edge to device-pixel bounds for AA fringe
-  screenX = mix(snapDevLeft(screenX), snapDevRight(screenX), aTex.y);
+  float screenX = mix(lPx, rPx, aTex.y);
   pos.x = pixelToGlX(screenX);
 
   vScreenPos = vec2(screenX, screenY);

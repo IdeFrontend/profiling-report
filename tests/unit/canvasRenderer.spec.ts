@@ -7,6 +7,7 @@ import {
   rebuildLayout,
   snapCssPx,
   snapEventRect,
+  eventPaintRect,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
@@ -113,6 +114,16 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(r.y * dpr).toBeCloseTo(Math.round(2.5 * dpr));
     expect((r.x + r.w) * dpr).toBeCloseTo(Math.round((10.4 + 20.3) * dpr));
     expect((r.y + r.h) * dpr).toBeCloseTo(Math.round((2.5 + 16) * dpr));
+  });
+
+  it('eventPaintRect insets the right edge by one device pixel', () => {
+    const dpr = 1.25;
+    const full = snapEventRect(10, 2, 20, 16, dpr);
+    const paint = eventPaintRect(10, 2, 20, 16, dpr);
+    expect(paint.x).toBe(full.x);
+    expect(paint.y).toBe(full.y);
+    expect(paint.h).toBe(full.h);
+    expect(paint.w).toBeCloseTo(full.w - 1 / dpr);
   });
 });
 

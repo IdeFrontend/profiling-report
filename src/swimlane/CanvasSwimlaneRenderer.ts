@@ -27,6 +27,7 @@ import {
   rebuildLayout,
   showsProfilerStepBands,
   snapEventRect,
+  eventPaintRect,
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
@@ -218,7 +219,7 @@ export class SwimlaneOverlayPainter {
       const w = Math.max(2, (ev.duration / span) * this.width);
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
-      const r = snapEventRect(x, y, w, h, dpr);
+      const r = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
@@ -413,7 +414,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const w = Math.max(2, (ev.duration / span) * this.width);
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
-      const r = snapEventRect(x, y, w, h, dpr);
+      const r = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);

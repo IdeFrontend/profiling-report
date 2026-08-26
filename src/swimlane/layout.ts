@@ -38,6 +38,23 @@ export function snapEventRect(
   const min = 1 / dpr;
   return { x: x0, y: y0, w: Math.max(min, x1 - x0), h: Math.max(min, y1 - y0) };
 }
+
+/**
+ * Paint rect for event fills/strokes: snapped, then right edge inset by 1 device px
+ * so abutting same-color blocks show a lane-bg gap instead of looking fused.
+ * Hit-testing keeps the full (uninset) geometry.
+ */
+export function eventPaintRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  dpr: number,
+): { x: number; y: number; w: number; h: number } {
+  const r = snapEventRect(x, y, w, h, dpr);
+  const gap = 1 / dpr;
+  return { x: r.x, y: r.y, w: Math.max(gap, r.w - gap), h: r.h };
+}
 /** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */
 export const BAND_FILL = '#2c2c2c';
 
