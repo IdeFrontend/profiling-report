@@ -49,6 +49,18 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="report-tabs"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="tab-timeline"]').text()).toMatch(/时间线|Timeline/);
+    expect(wrapper.get('[data-testid="profiling-report"]').attributes('data-font-family')).toBe(
+      'system',
+    );
+  });
+
+  it('PR-ROOT-007: fontFamily=harmony is exposed on the root for host A/B', () => {
+    const wrapper = mount(ProfilingReport, {
+      props: { title: 'harmony', fontFamily: 'harmony' },
+    });
+    expect(wrapper.get('[data-testid="profiling-report"]').attributes('data-font-family')).toBe(
+      'harmony',
+    );
   });
 
   it('PR-ROOT-006: top-left corner wash is 208×60 with blue fade gradient', async () => {

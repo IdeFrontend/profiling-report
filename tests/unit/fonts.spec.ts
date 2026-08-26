@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CANVAS_LABEL_FONT, HARMONYOS_FONT_FAMILY } from '../../src/ui/fontStack';
+import {
+  CANVAS_LABEL_FONT,
+  HARMONYOS_CANVAS_LABEL_FONT,
+  HARMONYOS_FONT_FAMILY,
+  SYSTEM_CANVAS_LABEL_FONT,
+  canvasLabelFont,
+} from '../../src/ui/fontStack';
 
 describe('HarmonyOS Sans SC 2025 embed', () => {
   it('declares faces and points at vendored woff2 files', () => {
@@ -23,8 +29,16 @@ describe('HarmonyOS Sans SC 2025 embed', () => {
     expect(css).not.toContain('@font-face');
   });
 
-  it('exports a canvas label font stack matching the Harmony family name', () => {
+  it('library entry does not force-load fonts.css', () => {
+    const entry = readFileSync(resolve(__dirname, '../../src/index.ts'), 'utf8');
+    expect(entry).toContain("import './ui/tokens.css'");
+    expect(entry).not.toMatch(/import\s+['"]\.\/ui\/fonts\.css['"]/);
+  });
+
+  it('picks canvas label fonts by ReportFontFamily mode', () => {
     expect(HARMONYOS_FONT_FAMILY).toContain('HarmonyOS Sans SC 2025');
-    expect(CANVAS_LABEL_FONT).toBe(`10px ${HARMONYOS_FONT_FAMILY}`);
+    expect(canvasLabelFont('system')).toBe(SYSTEM_CANVAS_LABEL_FONT);
+    expect(canvasLabelFont('harmony')).toBe(HARMONYOS_CANVAS_LABEL_FONT);
+    expect(CANVAS_LABEL_FONT).toBe(HARMONYOS_CANVAS_LABEL_FONT);
   });
 });

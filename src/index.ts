@@ -7,7 +7,6 @@
  */
 
 import './ui/tokens.css';
-import './ui/fonts.css';
 
 export const LIBRARY_NAME = 'profiling-report' as const;
 
@@ -34,3 +33,10 @@ export {
 } from './domain/types';
 
 export { default as ProfilingReport } from './ui/ProfilingReport/ProfilingReport.vue';
+
+export type { ReportFontFamily } from './ui/fontStack';
+export {
+  HARMONYOS_FONT_FAMILY,
+  SYSTEM_UI_FONT_STACK,
+  canvasLabelFont,
+} from './ui/fontStack';

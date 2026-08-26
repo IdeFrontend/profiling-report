@@ -51,6 +51,20 @@ If the panel HTML is thin and the library runs entirely in the webview:
 
 Prefer feeding the library via Vue props inside the webview when possible; use postMessage only for host capabilities (save dialog, open external, theme push).
 
+### Fonts
+
+Default typeface is **system UI** (`fontFamily="system"`): no HarmonyOS woff2 download. To enable HarmonyOS Sans SC:
+
+```vue
+<ProfilingReport :source="…" font-family="harmony" />
+```
+
+That lazy-loads `@font-face` rules and switches canvas event labels to the Harmony stack. Keep the library `style.css` (tokens + components) always; faces are not bundled into the default CSS entry.
+
+Hosts that prefer a static import can also load faces via the package export `@huawei/profiling-report/fonts.css` (still pass `font-family="harmony"` so canvas matches).
+
+Playground A/B: `?fonts=harmony` (default) or `?fonts=system`.
+
 **查看全部 (I-Q6d):** when the library emits `view-full-csv` with `{ fileName, text }`, the host should open the CSV in a **new editor tab** (or equivalent). Playground may use a blob URL in a new browser tab.
 
 ## Capabilities

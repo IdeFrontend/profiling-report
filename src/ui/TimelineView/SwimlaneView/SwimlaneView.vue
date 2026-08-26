@@ -24,6 +24,7 @@ import {
 import Chevron from '../../Chevron.vue';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import type { ReportFontFamily } from '../../fontStack';
 
 const props = withDefaults(
   defineProps<{
@@ -43,11 +44,13 @@ const props = withDefaults(
     gutterWidth?: number;
     /** Shared playhead x from parent (axis hover + canvas); drives the swim vertical bar. */
     cursorXRatio?: number | null;
+    fontFamily?: ReportFontFamily;
   }>(),
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
     cursorXRatio: null,
+    fontFamily: 'system',
   },
 );
 
@@ -264,6 +267,7 @@ defineExpose({
       :dependency-mode="dependencyMode"
       :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"
+      :font-family="fontFamily"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
       @cursor="onCursor"

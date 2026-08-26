@@ -5,7 +5,7 @@ import type {
   SwimlaneRenderer,
   SwimlaneViewWindow,
 } from '../domain/types';
-import { CANVAS_LABEL_FONT } from '../ui/fontStack';
+import { SYSTEM_CANVAS_LABEL_FONT } from '../ui/fontStack';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
 import { dependencyGraph, paintDependencyLinks, type DependencyLink } from './dependencyLinks';
 import {
@@ -39,13 +39,14 @@ function drawEventLabel(
   viewW: number,
   alpha = 1,
   color = '#ffffff',
+  font: string = SYSTEM_CANVAS_LABEL_FONT,
 ): void {
   const anchor = eventLabelAnchor(x, w, viewW);
   if (!anchor) return;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.font = CANVAS_LABEL_FONT;
+  ctx.font = font;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
@@ -80,6 +81,7 @@ export function paintGroupBands(
   view: SwimlaneViewWindow,
   width: number,
   height: number,
+  labelFont: string = SYSTEM_CANVAS_LABEL_FONT,
 ): void {
   const bands = layout.bands;
   if (!bands.length) return;
@@ -97,7 +99,7 @@ export function paintGroupBands(
       ctx.fillStyle = BAND_FILL;
       roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
       ctx.fill();
-      drawEventLabel(ctx, band.name, x, y, w, h, width, 1, '#555555');
+      drawEventLabel(ctx, band.name, x, y, w, h, width, 1, '#555555', labelFont);
     }
   }
 }
@@ -117,6 +119,7 @@ export class SwimlaneOverlayPainter {
   private searchQuery = '';
   private width = 0;
   private height = 0;
+  private labelFont: string = SYSTEM_CANVAS_LABEL_FONT;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -159,6 +162,9 @@ export class SwimlaneOverlayPainter {
     this.searchQuery = query.trim().toLowerCase();
   }
 
+  setLabelFont(font: string): void {
+    this.labelFont = font;
+  }
 
   render(): void {
     const ctx = this.ctx;
@@ -166,7 +172,7 @@ export class SwimlaneOverlayPainter {
     ctx.clearRect(0, 0, this.width, this.height);
 
     // WebGL draws lane chrome + event fills; overlay adds band fills/labels + event strokes/labels.
-    paintGroupBands(ctx, this.layout, this.view, this.width, this.height);
+    paintGroupBands(ctx, this.layout, this.view, this.width, this.height, this.labelFont);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
@@ -200,7 +206,9 @@ export class SwimlaneOverlayPainter {
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
-      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
+      if (matches) {
+        drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim, '#ffffff', this.labelFont);
+      }
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
@@ -229,6 +237,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private searchQuery = '';
   private width = 0;
   private height = 0;
+  private labelFont: string = SYSTEM_CANVAS_LABEL_FONT;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -268,6 +277,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   setSearchQuery(query: string): void {
     this.searchQuery = query.trim().toLowerCase();
+  }
+
+  setLabelFont(font: string): void {
+    this.labelFont = font;
   }
 
   setDependencyMode(mode: DependencyMode): void {
@@ -348,7 +361,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.stroke();
     }
 
-    paintGroupBands(ctx, this.layout, this.view, this.width, this.height);
+    paintGroupBands(ctx, this.layout, this.view, this.width, this.height, this.labelFont);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
@@ -400,7 +413,20 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         ctx.stroke();
       }
 
-      if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim);
+      if (matches) {
+        drawEventLabel(
+          ctx,
+          item.event.name,
+          x,
+          y,
+          w,
+          h,
+          this.width,
+          dim,
+          '#ffffff',
+          this.labelFont,
+        );
+      }
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.

@@ -18,6 +18,7 @@ import AxisRuler from './TimeAxis/AxisRuler/AxisRuler.vue';
 import CursorTimestamp from './TimeAxis/CursorTimestamp/CursorTimestamp.vue';
 import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
+import type { ReportFontFamily } from '../fontStack';
 import {
   CURSOR_LABEL_MIN_WIDTH_PX,
   MEASURE_ARROW_HEAD_PX,
@@ -46,10 +47,12 @@ const props = withDefaults(
     showOverviewCharts?: boolean;
     gutterWidth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
+    fontFamily?: ReportFontFamily;
   }>(),
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    fontFamily: 'system',
   },
 );
 
@@ -658,6 +661,7 @@ defineExpose({
       :dependency-mode="dependencyMode"
       :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"
+      :font-family="fontFamily"
       :gutter-width="localGutterWidth"
       :cursor-x-ratio="cursor?.xRatio ?? null"
       @update:scroll-y="emit('update:scrollY', $event)"

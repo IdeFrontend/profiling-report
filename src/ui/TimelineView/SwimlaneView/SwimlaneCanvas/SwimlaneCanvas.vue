@@ -10,6 +10,7 @@ import {
   type TimeDisplayUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
+import { canvasLabelFont, type ReportFontFamily } from '../../../../ui/fontStack';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import { contentHeightFromModel, findExactEdgeMatches, LANE_HEIGHT, nearestEventEdgeAtPoint, projectExactEdgeMarks, type ExactEdgeMatch } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
@@ -35,10 +36,12 @@ const props = withDefaults(
     dependencyDepth?: number;
     /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
+    fontFamily?: ReportFontFamily;
   }>(),
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    fontFamily: 'system',
   },
 );
 
@@ -168,12 +171,17 @@ function applyViewState(forceModel = false): void {
   backend.setDependencyDepth?.(props.dependencyDepth);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
+  const labelFont = canvasLabelFont(props.fontFamily);
+  if (backend instanceof CanvasSwimlaneRenderer) {
+    backend.setLabelFont(labelFont);
+  }
   if (useWebGl.value) {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSearchQuery(props.searchQuery);
+    overlay.setLabelFont(labelFont);
   }
   refreshMeasureExactEdgeMarks(modelChanged);
 }

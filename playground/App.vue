@@ -271,19 +271,21 @@ onMounted(async () => {
     <div class="playground__report">
       <ProfilingReport
         v-if="source"
-        :key="`src-${loadToken}-${preferRenderer}`"
+        :key="`src-${loadToken}-${preferRenderer}-${fontMode}`"
         :title="title"
         :source="source"
         :prefer-renderer="preferRenderer"
+        :font-family="fontMode"
         locale="zh-CN"
         @view-full-csv="onViewFullCsv"
       />
       <ProfilingReport
         v-else-if="stressModel"
-        :key="`stress-${loadToken}-${preferRenderer}`"
+        :key="`stress-${loadToken}-${preferRenderer}-${fontMode}`"
         :title="title"
         :swimlane-model="stressModel"
         :prefer-renderer="preferRenderer"
+        :font-family="fontMode"
         locale="zh-CN"
         @view-full-csv="onViewFullCsv"
       />

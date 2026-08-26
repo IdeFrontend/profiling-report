@@ -52,7 +52,16 @@ import StatsAside from '../StatsAside/StatsAside.vue';
 import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
 import { animateViewWindow } from '../TimelineView/animateViewWindow';
 import TimelineView from '../TimelineView/TimelineView.vue';
+import type { ReportFontFamily } from '../fontStack';
 import '../tokens.css';
+
+let harmonyFontsLoaded = false;
+
+async function ensureHarmonyFonts(): Promise<void> {
+  if (harmonyFontsLoaded) return;
+  await import('../fonts.css');
+  harmonyFontsLoaded = true;
+}
 
 const props = withDefaults(defineProps<{
   title?: string;
@@ -66,6 +75,11 @@ const props = withDefaults(defineProps<{
   dependencyDepth?: number;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
+  /**
+   * Report typeface. `system` (default) uses UI sans — no HarmonyOS woff2 fetch.
+   * `harmony` lazy-loads HarmonyOS Sans SC faces for DOM + canvas labels.
+   */
+  fontFamily?: ReportFontFamily;
   /** Feature gate. Omit and the adapter's own capabilities (derived from the loaded
    *  source) apply; pass an array to override them. Exposed as a data attribute for
    *  CSS/test hooking and read by the aside. */
@@ -73,6 +87,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   dependencyMode: 'all',
   dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+  fontFamily: 'system',
 });
 
 const emit = defineEmits<{
@@ -399,6 +414,9 @@ watch(showAside, () => {
 
 onMounted(() => {
   window.addEventListener('keydown', onMeasureKeydown);
+  if (props.fontFamily === 'harmony') {
+    void ensureHarmonyFonts();
+  }
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
@@ -411,6 +429,13 @@ onBeforeUnmount(() => {
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
+
+watch(
+  () => props.fontFamily,
+  (mode) => {
+    if (mode === 'harmony') void ensureHarmonyFonts();
+  },
+);
 
 function onMeasureKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
@@ -604,6 +629,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     class="pr-root"
     data-testid="profiling-report"
     :data-theme="theme ?? 'dark'"
+    :data-font-family="fontFamily"
     :data-capabilities="caps.join(',')"
   >
     <div
@@ -699,6 +725,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"
           :prefer-renderer="preferRenderer ?? 'auto'"
+          :font-family="fontFamily"
           @update:gutter-width="onGutterWidth"
           @update:scroll-y="onScrollY"
           @update:window="onOverviewWindow"
