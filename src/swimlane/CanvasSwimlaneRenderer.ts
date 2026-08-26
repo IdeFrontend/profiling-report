@@ -120,7 +120,6 @@ export class SwimlaneOverlayPainter {
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.resize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
   }
 
   resize(width: number, height: number): void {
@@ -233,7 +232,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.resize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
   }
 
   resize(width: number, height: number): void {

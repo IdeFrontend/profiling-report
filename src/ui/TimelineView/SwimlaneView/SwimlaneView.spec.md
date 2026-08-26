@@ -14,7 +14,9 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 
 **Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. The mouse-following cursor bar is a DOM overlay **under** Card strips (`z-index: 7`, `pointer-events: none`) so it does not paint over header chrome. Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
 
-**Gutter resize.** The `ew-resize` handle (`data-testid="gutter-resize-handle"`) lives on the swim body seam (`z-index: 5`), under Card strips (`z-index: 8`), so it is inactive across Card bands. Overview/axis rows do not host the handle.
+**Gutter resize.** The `ew-resize` handle (`data-testid="gutter-resize-handle"`) lives on the swim body seam (`z-index: 5`), under Card strips (`z-index: 8`), so it is inactive across Card bands. Overview/axis rows do not host the handle. The handle and swim cursor layer are pinned to the **used** grid columns (`grid-column: 1` / `2`), not `left: var(--pr-gutter-width)`, so they stay aligned when the gutter column shrinks below the token. Card-strip labels use the same column formula as the swim row.
+
+**Narrow track.** Body/overview/axis rows use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` so the chart column cannot collapse to 0 when main is narrower than the gutter token.
 
 ## Acceptance Criteria
 
@@ -25,8 +27,10 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 5. **PR-SWIMVIEW-005** — `pointerenter` on a Card strip clears the swim cursor and emits `cursor` `null` immediately.
 6. **PR-SWIMVIEW-006** — Card strip fill/hover use `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` CSS vars (no hardcoded `rgb(42…)` / `rgb(50…)`).
 7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar (axis hover / shared playhead).
+8. **PR-SWIMVIEW-008** — Gutter resize handle and swim cursor layer are pinned to used grid columns; track column uses `minmax(80px, 1fr)`.
 
 ## Changelog
+- **2026-08-25** — Pin overlays to used grid columns; track `minmax(80px, 1fr)`; PR-SWIMVIEW-008.
 - **2026-08-20** — Swim cursor follows parent `cursorXRatio`; PR-SWIMVIEW-007.
 - **2026-08-20** — Body `overflow: hidden` while main column stays visible for aside-seam chrome.
 - **2026-08-20** — Card strip colors from layout tokens; PR-SWIMVIEW-006.

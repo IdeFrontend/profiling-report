@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -61,6 +61,8 @@ const overlayCanvasRef = ref<HTMLCanvasElement | null>(null);
 const fallbackCanvasRef = ref<HTMLCanvasElement | null>(null);
 const sizerHeight = ref(120);
 const useWebGl = ref(false);
+/** Bumped on size change so measure overlay computeds re-read track width. */
+const resizeTick = ref(0);
 
 type Backend = CanvasSwimlaneRenderer | WebGlSwimlaneRenderer;
 
@@ -109,6 +111,8 @@ let unbindResizeDrag: (() => void) | null = null;
 let unbindCreateDrag: (() => void) | null = null;
 let lastW = 0;
 let lastH = 0;
+/** Single CSS-pixel width for pointer→time, xRatio, and renderer layout. */
+let trackWidth = 1;
 let resizeObserver: ResizeObserver | null = null;
 let raf = 0;
 /** Local scroll accumulator so rapid wheel events do not drop deltas waiting on props. */
@@ -200,7 +204,7 @@ function refreshMeasureExactEdgeMarks(forceRescan = false): void {
     measureExactEdgeMarks.value = [];
     return;
   }
-  const w = wrapRef.value?.clientWidth || 0;
+  const w = syncTrackWidth();
   if (w <= 0) {
     measureExactEdgeMarks.value = [];
     return;
@@ -233,7 +237,7 @@ function resize(): void {
   if (!wrap) return;
 
   const contentH = modelContentHeight();
-  const w = Math.max(1, wrap.clientWidth);
+  const w = syncTrackWidth();
   const viewH = wrap.clientHeight || 0;
   // Sizer tracks full content for layout; drawing surface is the visible viewport only.
   sizerHeight.value = Math.max(contentH, viewH);
@@ -277,6 +281,7 @@ function resize(): void {
   if (sizeChanged) {
     lastW = w;
     lastH = h;
+    resizeTick.value += 1;
     backend.resize(w, h);
     if (useWebGl.value) overlay.resize(w, h);
   }
@@ -291,7 +296,8 @@ function resize(): void {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await nextTick();
   resize();
   if (wrapRef.value && typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => resize());
@@ -448,7 +454,7 @@ function emitResizedRange(clientX: number, clientY: number) {
         const t = timeAtX(clientX - rect.left);
         return { time: t, xPx: clientX - rect.left, xRatio: 0, eventId: null };
       })();
-  const w = Math.max(1, wrapRef.value.clientWidth);
+  const w = syncTrackWidth();
   const next = resizeMeasureEdge({
     edge: resizeEdge,
     time: mag.time,
@@ -535,7 +541,7 @@ function emitCursorAtMeasureEdge(edge: MeasureResizeEdge) {
   const geo = measureGeometry.value;
   const range = props.measureRange;
   if (!geo || !range || !wrapRef.value) return;
-  const w = Math.max(1, wrapRef.value.clientWidth);
+  const w = syncTrackWidth();
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   const x = edge === 'left' ? geo.left : geo.right;
@@ -619,15 +625,33 @@ watch(
   },
 );
 
+function readTrackWidth(): number {
+  const wrap = wrapRef.value;
+  if (wrap) {
+    const wrapW = wrap.getBoundingClientRect().width || wrap.clientWidth;
+    if (wrapW > 0) return Math.max(1, wrapW);
+  }
+  const canvas = activeCanvas();
+  if (canvas) {
+    return Math.max(1, canvas.getBoundingClientRect().width);
+  }
+  return Math.max(1, trackWidth);
+}
+
+function syncTrackWidth(): number {
+  trackWidth = readTrackWidth();
+  return trackWidth;
+}
+
 function timeAtX(x: number): number {
   const span = Math.max(1, props.view.endTime - props.view.startTime);
-  const w = wrapRef.value?.clientWidth || 1;
+  const w = syncTrackWidth();
   return props.view.startTime + (x / w) * span;
 }
 
 function xAtTime(t: number): number {
   const span = Math.max(1, props.view.endTime - props.view.startTime);
-  const w = wrapRef.value?.clientWidth || 1;
+  const w = syncTrackWidth();
   return ((t - props.view.startTime) / span) * w;
 }
 
@@ -636,7 +660,7 @@ function magnetizeLocal(
   localX: number,
   localY: number,
 ): { time: number; xPx: number; xRatio: number; eventId: string | null } {
-  const w = Math.max(1, wrapRef.value?.clientWidth || 1);
+  const w = syncTrackWidth();
   const hit = nearestEventEdgeAtPoint(
     backend.getLayout(),
     props.view,
@@ -689,6 +713,7 @@ function clearEdgeSnapHighlight() {
 
 /** Fade bands outside the visible selection (persists when range is fully off-screen). */
 const measureFadeGeometry = computed(() => {
+  void resizeTick.value;
   const range = props.measureRange;
   if (!range) return null;
   const start = Math.min(range.startTime, range.endTime);
@@ -696,7 +721,7 @@ const measureFadeGeometry = computed(() => {
   if (!(end > start)) return null;
   const viewStart = props.view.startTime;
   const viewEnd = props.view.endTime;
-  const w = wrapRef.value?.clientWidth || 1;
+  const w = syncTrackWidth();
   if (end <= viewStart) {
     return { leftWidth: w, rightLeft: w };
   }
@@ -712,6 +737,7 @@ const measureFadeGeometry = computed(() => {
 });
 
 const measureGeometry = computed(() => {
+  void resizeTick.value;
   const range = props.measureRange;
   if (!range) return null;
   const start = Math.min(range.startTime, range.endTime);
@@ -735,6 +761,7 @@ const measureGeometry = computed(() => {
 
 /** Gray event-edge preview while hovering in measure mode (no fades). */
 const measurePreviewGeometry = computed(() => {
+  void resizeTick.value;
   if (!props.measureMode || suppressMeasurePreview.value || !props.model) return null;
   const id = props.hoveredEventId;
   if (!id) return null;
@@ -791,7 +818,7 @@ function onPointerMove(e: PointerEvent): void {
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  const w = Math.max(1, rect.width);
+  const w = syncTrackWidth();
   lastPointerClientY = e.clientY;
 
   schedulePaint();

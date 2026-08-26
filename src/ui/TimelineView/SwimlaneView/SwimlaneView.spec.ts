@@ -241,4 +241,16 @@ describe('SwimlaneView', () => {
     expect(src).not.toMatch(/background:\s*rgb\(42,\s*42,\s*42\)/);
     expect(src).not.toMatch(/background:\s*rgb\(50,\s*50,\s*50\)/);
   });
+
+  it('PR-SWIMVIEW-008: overlays pin to used grid columns; track has non-zero floor', async () => {
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-swim-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*var\(--pr-gutter-width[^)]*\)\)\s*minmax\(80px,\s*1fr\)/s,
+    );
+    expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*grid-column:\s*1/s);
+    expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*right:\s*0/s);
+    expect(src).not.toMatch(/\.pr-gutter-resize\s*\{[^}]*left:\s*var\(--pr-gutter-width/s);
+    expect(src).toMatch(/\.pr-swim-cursor-layer\s*\{[^}]*grid-column:\s*2/s);
+    expect(src).not.toMatch(/\.pr-swim-cursor-layer\s*\{[^}]*left:\s*var\(--pr-gutter-width/s);
+  });
 });

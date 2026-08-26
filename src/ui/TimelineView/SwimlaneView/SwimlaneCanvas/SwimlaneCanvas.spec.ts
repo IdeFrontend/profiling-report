@@ -700,4 +700,89 @@ describe('SwimlaneCanvas', () => {
     expect(zoom[1]).toBe(500);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-024: cursor xRatio and time share one track width', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: { processes: [], minTime: 0, maxTime: 1000 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    const trackW = 200.6;
+    Object.defineProperty(wrap, 'clientWidth', { value: trackW, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({
+        left: 0,
+        top: 0,
+        width: trackW,
+        height: 100,
+        right: trackW,
+        bottom: 100,
+      }),
+      configurable: true,
+    });
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({
+        left: 0,
+        top: 0,
+        width: trackW,
+        height: 100,
+        right: trackW,
+        bottom: 100,
+      }),
+      configurable: true,
+    });
+
+    const x = 100.3;
+    await canvas.trigger('pointermove', { clientX: x, clientY: 10, pointerId: 1 });
+
+    const cursor = wrapper.emitted('cursor')?.at(-1)?.[0] as { time: number; xRatio: number };
+    expect(cursor).toBeDefined();
+    expect(cursor.xRatio).toBeCloseTo(x / trackW, 5);
+    expect(cursor.time).toBeCloseTo((x / trackW) * 1000, 5);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-025: sizes canvas to wrap width, not the HTML default 300px', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: { processes: [], minTime: 0, maxTime: 1000 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 640, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 240, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({
+        left: 0,
+        top: 0,
+        width: 640,
+        height: 240,
+        right: 640,
+        bottom: 240,
+      }),
+      configurable: true,
+    });
+    await wrapper.setProps({
+      model: { processes: [], minTime: 0, maxTime: 1000 },
+    });
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+    expect(canvas.style.width).toBe('640px');
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-026: measure overlay geometry depends on resizeTick', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/const resizeTick = ref\(0\)/);
+    expect(src).toMatch(/resizeTick\.value \+= 1/);
+    expect(src).toMatch(/measureFadeGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+    expect(src).toMatch(/measureGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+    expect(src).toMatch(/measurePreviewGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+  });
 });

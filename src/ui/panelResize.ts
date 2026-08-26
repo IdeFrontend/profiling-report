@@ -7,6 +7,9 @@ export const ASIDE_WIDTH_DEFAULT = 360;
 export const ASIDE_WIDTH_MIN = 280;
 export const ASIDE_WIDTH_MAX = 560;
 
+/** Minimum swimlane track column width (px) the layout budget tries to protect. */
+export const TIMELINE_TRACK_MIN = 320;
+
 /** Detail dock height (px). Default is the v930 sketch proportion at 1920 wide. */
 export const DOCK_HEIGHT_DEFAULT = 247;
 export const DOCK_HEIGHT_MIN = 140;
@@ -17,6 +20,50 @@ export const DOCK_HEIGHT_MAX = 720;
 export function clampPanelWidth(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+/**
+ * Fit gutter/aside to a host width while protecting a minimum swimlane track.
+ * Starts from preferred sizes; shrinks aside toward its min first, then gutter.
+ * Expanding host restores toward preferred (caller passes preferred each time).
+ */
+export function fitPanelWidths(
+  hostWidth: number,
+  opts: {
+    asideVisible: boolean;
+    preferredGutter: number;
+    preferredAside: number;
+    minTrack?: number;
+  },
+): { gutterWidth: number; asideWidth: number } {
+  const minTrack = opts.minTrack ?? TIMELINE_TRACK_MIN;
+  let gutter = clampPanelWidth(opts.preferredGutter, GUTTER_WIDTH_MIN, GUTTER_WIDTH_MAX);
+  let aside = clampPanelWidth(opts.preferredAside, ASIDE_WIDTH_MIN, ASIDE_WIDTH_MAX);
+
+  if (!Number.isFinite(hostWidth) || hostWidth <= 0) {
+    return { gutterWidth: gutter, asideWidth: aside };
+  }
+
+  const asideBudget = opts.asideVisible ? aside : 0;
+  const ideal = gutter + minTrack + asideBudget;
+  if (hostWidth >= ideal) {
+    return { gutterWidth: gutter, asideWidth: aside };
+  }
+
+  let deficit = ideal - hostWidth;
+
+  if (opts.asideVisible && deficit > 0) {
+    const shrink = Math.min(deficit, aside - ASIDE_WIDTH_MIN);
+    aside -= shrink;
+    deficit -= shrink;
+  }
+
+  if (deficit > 0) {
+    const shrink = Math.min(deficit, gutter - GUTTER_WIDTH_MIN);
+    gutter -= shrink;
+  }
+
+  return { gutterWidth: gutter, asideWidth: aside };
 }
 
 export interface HorizontalResizeSession {

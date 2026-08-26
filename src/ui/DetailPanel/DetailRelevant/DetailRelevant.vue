@@ -442,18 +442,4 @@ function sideHeight(count: number): number {
   background: #d5bcff;
   color: #241a33;
 }
-
-@media (max-width: 900px) {
-  .pr-detail-relevant__graph {
-    grid-template-columns: 1fr;
-  }
-
-  .pr-detail-relevant__links {
-    display: none;
-  }
-
-  .pr-detail-relevant__column--out {
-    text-align: left;
-  }
-}
 </style>

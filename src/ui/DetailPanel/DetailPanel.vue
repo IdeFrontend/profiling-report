@@ -209,11 +209,4 @@ function onResizePointerUp() {
 .pr-detail-panel__body--no-relevant {
   grid-template-columns: minmax(200px, 0.8fr) minmax(240px, 1fr);
 }
-
-@media (max-width: 900px) {
-  .pr-detail-panel__body {
-    grid-template-columns: 1fr;
-    overflow: auto;
-  }
-}
 </style>
