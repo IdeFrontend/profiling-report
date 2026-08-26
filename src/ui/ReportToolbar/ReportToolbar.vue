@@ -9,6 +9,7 @@ import {
   normalizeDependencyDepth,
 } from '../../domain/types';
 import { t } from '../../i18n';
+import CloseButton from '../CloseButton.vue';
 
 const props = defineProps<{
   searchQuery: string;
@@ -477,11 +478,9 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         >
           <div class="pr-toolbar__display-head">
             <span class="pr-toolbar__display-title">{{ t('displayControl', locale) }}</span>
-            <button
-              type="button"
-              class="pr-toolbar__display-close"
+            <CloseButton
               data-testid="display-control-close"
-              :title="t('closePanel', locale)"
+              :label="t('closePanel', locale)"
               @click="closeDisplayControl"
             >
               <PrIcon name="close" />

@@ -138,6 +138,7 @@ Root holds the captured `SwimEvent[]` and handles `multi-select`, `multi-select-
 
 ## Changelog
 
+- **2026-08-26** — Header × is the shared [CloseButton](../CloseButton.spec.md): the typographic `×` sits on the font's math axis and never centered in its button.
 - **2026-08-26** — Product gesture rules: unmodified drag marquees (measure mode wins), pan moves to Shift+wheel / trackpad horizontal scroll, and the axis Δt chrome persists over the multi-select span (live extent → committed hull). Post-commit dim corrected to the shared `eventEmphasisDim` 0.45, not 25%. Empty-commit behavior spelled out.
 - **2026-08-25** — Implemented. Marquee lives on SwimlaneCanvas (PR-CANVAS-027…031); dim parity + rect collection in the renderers (PR-RENDER-015/016); exclusivity helpers in view-state (PR-VIEW-012); root ownership (PR-ROOT-007). Empty commit = clear.
 - **2026-08-24** — Initial spec. Q22/Q23 escalated to OPEN_QUESTIONS.

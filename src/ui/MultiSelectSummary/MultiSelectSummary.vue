@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import CloseButton from '../CloseButton.vue';
 import { formatTimePartsAuto } from '../../domain/formatTime';
 import { collectLeafEventsFromModel } from '../../domain/swimTree';
 import type { SwimEvent, SwimlaneModel } from '../../domain/types';
@@ -184,16 +185,12 @@ function onResizePointerUp() {
         class="pr-multi-select__tab"
         data-testid="multi-select-tab"
       >{{ t('slices', locale) }} ({{ rows.length }})</span>
-      <button
-        type="button"
+      <CloseButton
         class="pr-multi-select__close"
         data-testid="multi-select-close"
-        :aria-label="t('closePanel', locale)"
-        :title="t('closePanel', locale)"
+        :label="t('closePanel', locale)"
         @click="emit('close')"
-      >
-        ×
-      </button>
+      />
     </header>
 
     <div class="pr-multi-select__body">
@@ -338,16 +335,10 @@ function onResizePointerUp() {
 
 .pr-multi-select__close {
   margin-left: auto;
-  border: 0;
-  background: transparent;
-  color: #b0b0b0;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.pr-multi-select__close:hover {
-  color: #f0f0f0;
+  /* The head's 8px top / 0 bottom padding belongs to the tab (its underline has to
+     meet the bottom border). Cancel it here so the ✕ centers on the band, not the
+     padding box — flex centers the margin box. Same in DetailPanel's head. */
+  margin-bottom: 8px;
 }
 
 .pr-multi-select__body {
