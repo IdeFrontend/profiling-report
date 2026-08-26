@@ -256,6 +256,7 @@ function resize(): void {
       if (glBackend.attach(glCanvasRef.value)) {
         backend = glBackend;
         overlay.attach(overlayCanvasRef.value);
+        overlay.setDrawEventLabels(false);
         useWebGl.value = true;
         attached = true;
       }

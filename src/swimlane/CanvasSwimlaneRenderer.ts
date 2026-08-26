@@ -7,6 +7,7 @@ import type {
 } from '../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
 import { dependencyGraph, paintDependencyLinks, type DependencyLink } from './dependencyLinks';
+import { blitEventLabelGray } from './labelAtlas';
 import {
   BAND_FILL,
   BAND_RADIUS,
@@ -63,19 +64,13 @@ function drawEventLabel(
   w: number,
   h: number,
   viewW: number,
+  dpr: number,
   alpha = 1,
   color = '#ffffff',
 ): void {
   const anchor = eventLabelAnchor(x, w, viewW);
   if (!anchor) return;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = color;
-  ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
-  ctx.restore();
+  blitEventLabelGray(ctx, name, anchor.cx, y + h / 2, anchor.maxWidth, dpr, alpha, color);
 }
 
 function roundRectPath(
@@ -125,7 +120,7 @@ export function paintGroupBands(
       ctx.fillStyle = BAND_FILL;
       roundRectPath(ctx, r.x, r.y, r.w, r.h, BAND_RADIUS);
       ctx.fill();
-      drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, width, 1, '#555555');
+      drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, width, dpr, 1, '#555555');
     }
   }
 }
@@ -146,10 +141,13 @@ export class SwimlaneOverlayPainter {
   private width = 0;
   private height = 0;
   private dpr = 1;
+  /** False when WebGL draws ClearType labels into the GL canvas. */
+  private drawEventLabels = true;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.resize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
   }
 
   resize(width: number, height: number): void {
@@ -188,6 +186,11 @@ export class SwimlaneOverlayPainter {
 
   setSearchQuery(query: string): void {
     this.searchQuery = query.trim().toLowerCase();
+  }
+
+  /** When false, event titles are left to the WebGL ClearType pass. */
+  setDrawEventLabels(on: boolean): void {
+    this.drawEventLabels = on;
   }
 
 
@@ -229,7 +232,9 @@ export class SwimlaneOverlayPainter {
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
-      if (matches) drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim);
+      if (this.drawEventLabels && matches) {
+        drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dpr, dim);
+      }
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
@@ -263,6 +268,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.resize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
   }
 
   resize(width: number, height: number): void {
@@ -430,7 +436,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         strokeRoundedEvent(ctx, { x, y, w, h }, 1.5, dpr);
       }
 
-      if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim);
+      if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dpr, dim);
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.

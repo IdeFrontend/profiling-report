@@ -17,6 +17,7 @@ import {
   encodeIntervalPair,
   eventBlockMetrics,
   eventEmphasisDim,
+  eventLabelAnchor,
   eventScreenRect,
   findEvent,
   findLaidOutEvent,
@@ -28,8 +29,22 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
+import {
+  CLEARTYPE_TEXT_POW,
+  eventLabelBlitDest,
+  rasterizeEventLabel,
+} from './labelAtlas';
 import { dependencyGraph, DEP_STROKE_WIDTH, glLinkTime, type DependencyLink } from './dependencyLinks';
-import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS } from './shaders';
+import {
+  CURVE_FS,
+  CURVE_VS,
+  SOLID_FS,
+  SOLID_VS,
+  SWIMLANE_FS,
+  SWIMLANE_VS,
+  TEXT_CT_FS,
+  TEXT_VS,
+} from './shaders';
 
 interface GlProgram {
   program: WebGLProgram;
@@ -40,6 +55,20 @@ interface GlProgram {
   uColor: WebGLUniformLocation;
   uYBounds: WebGLUniformLocation | null;
   uDpr: WebGLUniformLocation | null;
+}
+
+interface TextProgram {
+  program: WebGLProgram;
+  uSizePos: WebGLUniformLocation;
+  uColor: WebGLUniformLocation;
+  uBgColor: WebGLUniformLocation;
+  uTextPow: WebGLUniformLocation;
+}
+
+interface LabelTex {
+  tex: WebGLTexture;
+  w: number;
+  h: number;
 }
 
 interface MeshChunk {
@@ -229,18 +258,73 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
   return { vao, vbo, ibo, indexCount: 6 };
 }
 
+/** Unit quad with UVs — canvas top-left is UV (0,0); aPos.y=+1 is CSS top. */
+function createTexturedUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
+  // aPos.xy, aTex.uv
+  const vb = new Float32Array([
+    -1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0,
+  ]);
+  const ib = new Uint16Array([0, 1, 2, 1, 2, 3]);
+  const vao = gl.createVertexArray()!;
+  const vbo = gl.createBuffer()!;
+  const ibo = gl.createBuffer()!;
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, vb, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 16, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 16, 8);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  return { vao, vbo, ibo, indexCount: 6 };
+}
+
+function linkTextProgram(gl: WebGL2RenderingContext, fsSrc: string): TextProgram {
+  const vs = compileShader(gl, gl.VERTEX_SHADER, TEXT_VS);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSrc);
+  const program = gl.createProgram();
+  if (!program) throw new Error('createProgram failed');
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.bindAttribLocation(program, 0, 'aPos');
+  gl.bindAttribLocation(program, 1, 'aTex');
+  gl.linkProgram(program);
+  gl.deleteShader(vs);
+  gl.deleteShader(fs);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const log = gl.getProgramInfoLog(program) ?? 'link error';
+    gl.deleteProgram(program);
+    throw new Error(log);
+  }
+  const uSizePos = gl.getUniformLocation(program, 'uSizePos');
+  const uColor = gl.getUniformLocation(program, 'uColor');
+  const uBgColor = gl.getUniformLocation(program, 'uBgColor');
+  const uTextPow = gl.getUniformLocation(program, 'uTextPow');
+  const sDiffuse = gl.getUniformLocation(program, 'sDiffuse');
+  if (!uSizePos || !uColor || !uBgColor || !uTextPow || !sDiffuse) {
+    throw new Error('missing text uniforms');
+  }
+  gl.useProgram(program);
+  gl.uniform1i(sDiffuse, 0);
+  return { program, uSizePos, uColor, uBgColor, uTextPow };
+}
+
 /**
  * WebGL2 coverage-AA interval backend (Sudu-inspired; no sudu-editor dependency).
- * Draws uniform lane backgrounds, row dividers, rounded interval fills, and instanced
- * dependency polylines. Labels/selection use overlay.
+ * Draws uniform lane backgrounds, row dividers, rounded interval fills, ClearType
+ * event labels, and instanced dependency polylines. Selection strokes use overlay.
  */
 export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private gl: WebGL2RenderingContext | null = null;
   private swimProg: GlProgram | null = null;
   private solidProg: GlProgram | null = null;
+  private textCtProg: TextProgram | null = null;
   private curveProg: CurveProgram | null = null;
   private unitQuad: MeshChunk | null = null;
+  private textQuad: MeshChunk | null = null;
   private curveVao: WebGLVertexArrayObject | null = null;
   private curveStripBuf: WebGLBuffer | null = null;
   private curveInstanceBuf: WebGLBuffer | null = null;
@@ -248,6 +332,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   /** Bumped in `refreshDepCache`; Playwright reads `data-dep-graph-gen` on the canvas. */
   private depGraphGen = 0;
   private laneMeshes: LaneMeshes[] = [];
+  private labelTexCache = new Map<string, LabelTex>();
+  private labelTexDpr = 0;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   /** Subtracted from event times before float32 upload (model.minTime). */
@@ -281,9 +367,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.gl = gl;
     this.swimProg = linkProgram(gl, SWIMLANE_VS, SWIMLANE_FS);
     this.solidProg = linkProgram(gl, SOLID_VS, SOLID_FS);
+    this.textCtProg = linkTextProgram(gl, TEXT_CT_FS);
     this.curveProg = linkCurveProgram(gl);
     this.unitQuad = createUnitQuad(gl);
+    this.textQuad = createTexturedUnitQuad(gl);
     this.initCurveBuffers(gl);
+    this.resize(canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
     return true;
   }
 
@@ -475,9 +564,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     }
 
     this.drawDependencyCurves(gl);
+    this.drawClearTypeLabels(gl);
 
     gl.bindVertexArray(null);
     gl.disable(gl.BLEND);
+    gl.disable(gl.SCISSOR_TEST);
 
     // Playwright PR-E2E-007: jsdom never reaches render(), so unit tests cannot assert this.
     const out = this.canvas;
@@ -489,23 +580,28 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   dispose(): void {
     this.disposeMeshes();
+    this.disposeLabelTextures();
     const gl = this.gl;
     if (gl) {
       if (this.unitQuad) this.deleteChunk(this.unitQuad);
+      if (this.textQuad) this.deleteChunk(this.textQuad);
       if (this.curveVao) gl.deleteVertexArray(this.curveVao);
       if (this.curveStripBuf) gl.deleteBuffer(this.curveStripBuf);
       if (this.curveInstanceBuf) gl.deleteBuffer(this.curveInstanceBuf);
       if (this.swimProg) gl.deleteProgram(this.swimProg.program);
       if (this.solidProg) gl.deleteProgram(this.solidProg.program);
+      if (this.textCtProg) gl.deleteProgram(this.textCtProg.program);
       if (this.curveProg) gl.deleteProgram(this.curveProg.program);
     }
     this.unitQuad = null;
+    this.textQuad = null;
     this.curveVao = null;
     this.curveStripBuf = null;
     this.curveInstanceBuf = null;
     this.curveCount = 0;
     this.swimProg = null;
     this.solidProg = null;
+    this.textCtProg = null;
     this.curveProg = null;
     this.gl = null;
     this.canvas = null;
@@ -535,6 +631,131 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.uniform4f(prog.uColor, rgb[0], rgb[1], rgb[2], 1);
     gl.bindVertexArray(unit.vao);
     gl.drawElements(gl.TRIANGLES, unit.indexCount, gl.UNSIGNED_SHORT, 0);
+  }
+
+  /**
+   * Sudu ClearType labels: opaque RGB coverage atlas × pow, mix(eventBg, white).
+   * Drawn without blending so LCD fringes composite against the exact fill color.
+   */
+  private drawClearTypeLabels(gl: WebGL2RenderingContext): void {
+    const prog = this.textCtProg;
+    const quad = this.textQuad;
+    if (!prog || !quad) return;
+
+    const dpr = this.dpr;
+    if (dpr !== this.labelTexDpr) {
+      this.disposeLabelTextures();
+      this.labelTexDpr = dpr;
+    }
+
+    const cssW = this.width;
+    const cssH = this.height;
+    const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const q = this.searchQuery;
+    const hasSearch = q.length > 0;
+    const hasSelection = this.selectedId != null;
+    const bright = this.neighborIds;
+    const fbH = gl.canvas.height;
+
+    gl.disable(gl.BLEND);
+    gl.useProgram(prog.program);
+    gl.uniform1f(prog.uTextPow, CLEARTYPE_TEXT_POW);
+    gl.activeTexture(gl.TEXTURE0);
+
+    for (const item of this.layout.events) {
+      const ev = item.event;
+      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+        continue;
+      }
+      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      if (!matches) continue;
+
+      const x = ((ev.startTime - this.view.startTime) / span) * cssW;
+      const w = Math.max(2, (ev.duration / span) * cssW);
+      const { y: topRaw, h: bandHRaw } = eventBlockMetrics(item.y, this.view.scrollY);
+      const snapped = snapEventRect(x, topRaw, w, bandHRaw, dpr);
+      if (snapped.y + snapped.h < 0 || snapped.y > cssH) continue;
+
+      const anchor = eventLabelAnchor(snapped.x, snapped.w, cssW);
+      if (!anchor) continue;
+
+      const labelTex = this.getLabelTexture(ev.name, dpr);
+      if (!labelTex) continue;
+
+      const dest = eventLabelBlitDest(
+        anchor.cx,
+        snapped.y + snapped.h / 2,
+        labelTex.w,
+        labelTex.h,
+        anchor.maxWidth,
+        dpr,
+      );
+      const dxCss = dest.dx / dpr;
+      const dyCss = dest.dy / dpr;
+      const dwCss = labelTex.w / dpr;
+      const dhCss = labelTex.h / dpr;
+
+      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
+      const [br, bg, bb] = hexToRgb(item.color);
+      // Dimmed fill already in the framebuffer; CT must mix against the same bg.
+      gl.uniform4f(prog.uBgColor, br * dim, bg * dim, bb * dim, 1);
+      gl.uniform4f(prog.uColor, dim, dim, dim, 1);
+
+      const sx = dwCss / cssW;
+      const sy = dhCss / cssH;
+      const px = -1 + (2 * dxCss + dwCss) / cssW;
+      const py = 1 - (2 * dyCss + dhCss) / cssH;
+      gl.uniform4f(prog.uSizePos, sx, sy, px, py);
+
+      // Clip to visible event strip (device pixels; scissor origin = FB bottom-left).
+      const clipTop = dest.dy;
+      const clipH = labelTex.h;
+      const clipX = Math.max(0, dest.clipX);
+      const clipRight = Math.min(Math.floor(cssW * dpr), dest.clipX + dest.clipW);
+      const clipW = clipRight - clipX;
+      if (clipW <= 0) continue;
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(clipX, fbH - clipTop - clipH, clipW, clipH);
+
+      gl.bindTexture(gl.TEXTURE_2D, labelTex.tex);
+      gl.bindVertexArray(quad.vao);
+      gl.drawElements(gl.TRIANGLES, quad.indexCount, gl.UNSIGNED_SHORT, 0);
+    }
+
+    gl.disable(gl.SCISSOR_TEST);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
+  private getLabelTexture(name: string, dpr: number): LabelTex | null {
+    const gl = this.gl;
+    if (!gl) return null;
+    const hit = this.labelTexCache.get(name);
+    if (hit) return hit;
+    const sprite = rasterizeEventLabel(name, dpr, 'cleartype');
+    if (!sprite) return null;
+    const tex = gl.createTexture();
+    if (!tex) return null;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sprite.canvas);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    const entry: LabelTex = { tex, w: sprite.width, h: sprite.height };
+    this.labelTexCache.set(name, entry);
+    return entry;
+  }
+
+  private disposeLabelTextures(): void {
+    const gl = this.gl;
+    if (gl) {
+      for (const entry of this.labelTexCache.values()) {
+        gl.deleteTexture(entry.tex);
+      }
+    }
+    this.labelTexCache.clear();
   }
 
   private rebuildMeshes(): void {

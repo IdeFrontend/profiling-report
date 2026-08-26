@@ -108,6 +108,55 @@ void main() {
 }
 `;
 
+/** Textured quad for label sprites (Sudu Text0 / TextClearType). */
+export const TEXT_VS = `#version 300 es
+precision highp float;
+uniform vec4 uSizePos;
+in vec2 aPos;
+in vec2 aTex;
+out vec2 vUV;
+void main() {
+  vec2 pos = vec2(aPos.x * uSizePos.x + uSizePos.z, aPos.y * uSizePos.y + uSizePos.w);
+  vUV = aTex;
+  gl_Position = vec4(pos, 0.0, 1.0);
+}
+`;
+
+/** Sudu psCodeTextClearType — RGB LCD coverage × pow, mix(bg, fg). Opaque out. */
+export const TEXT_CT_FS = `#version 300 es
+precision highp float;
+uniform vec4 uColor;
+uniform vec4 uBgColor;
+uniform float uTextPow;
+uniform sampler2D sDiffuse;
+in vec2 vUV;
+out vec4 outColor;
+void main() {
+  vec3 textRGB = texture(sDiffuse, vUV).rgb;
+  vec3 textRGBp = vec3(
+    pow(textRGB.x, uTextPow),
+    pow(textRGB.y, uTextPow),
+    pow(textRGB.z, uTextPow));
+  outColor = vec4(mix(uBgColor.rgb, uColor.rgb, textRGBp), 1.0);
+}
+`;
+
+/** Sudu psCodeText — grayscale/alpha coverage × pow, mix(bg, fg). */
+export const TEXT_GRAY_FS = `#version 300 es
+precision highp float;
+uniform vec4 uColor;
+uniform vec4 uBgColor;
+uniform float uTextPow;
+uniform sampler2D sDiffuse;
+in vec2 vUV;
+out vec4 outColor;
+void main() {
+  float t = texture(sDiffuse, vUV).a;
+  float text = pow(t, uTextPow);
+  outColor = mix(uBgColor, uColor, text);
+}
+`;
+
 /** Instanced cubic stroke: VS evaluates the same S-curve as cubicControlPull, extrudes a 2px strip. */
 export const CURVE_VS = `#version 300 es
 precision highp float;
