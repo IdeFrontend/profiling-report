@@ -93,6 +93,19 @@ describe('MultiSelectSummary', () => {
     );
   });
 
+  it('PR-MSEL-003b: every header carries the drawn sort arrows, sorted column is highlighted', async () => {
+    const wrapper = mountPanel();
+    // The sketch draws the same pair of arrows on all four columns.
+    expect(wrapper.findAll('thead th .pr-sort-arrows')).toHaveLength(4);
+    expect(wrapper.find('thead th').text()).not.toContain('◇');
+
+    // Since the glyph never changes, aria-sort is the only handle the sorted
+    // column highlight has — it must reach the button that owns the state.
+    const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-multi-select__sort\[aria-sort='ascending'\]/);
+    expect(src).toMatch(/\.pr-multi-select__sort\[aria-sort='descending'\]/);
+  });
+
   it('PR-MSEL-004: numeric cells carry a bar proportional to the column max', () => {
     const wrapper = mountPanel();
     const bars = wrapper

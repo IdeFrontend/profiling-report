@@ -35,7 +35,7 @@ A scrollable table body under the header. Four columns:
 
 Each numeric column shows the formatted value and a small inline horizontal bar proportional to the column maximum (`value / columnMax`). The bar sits inline right of the value, with a muted fill on a darker track.
 
-Column headers carry a **sort toggle** (◇ diamond icon). Clicking cycles ascending → descending → unsorted. Default sort: Wall Duration descending.
+Column headers carry a **sort toggle** — the opposed-triangle mark drawn by [SortArrows](../SortArrows.spec.md), identical on every column. Clicking cycles ascending → descending → unsorted. Default sort: Wall Duration descending. The sorted column is marked by its label brightening, not by a changed glyph.
 
 **Name click** emits **select-single** with the full `SwimEvent`, transitioning to single-select + DetailPanel.
 
@@ -72,6 +72,7 @@ Setting a multi-selection clears any single selection (and vice versa). Clicking
 1. **PR-MSEL-001** — header with "{count} items selected." and "Slices ({count})" tab label.
 2. **PR-MSEL-002** — table lists all selected events with four columns.
 3. **PR-MSEL-003** — column sort toggles; default Wall Duration descending.
+4. **PR-MSEL-003b** — headers carry [SortArrows](../SortArrows.spec.md); sorted column highlighted.
 4. **PR-MSEL-004** — inline proportional bars in each numeric cell.
 5. **PR-MSEL-005** — Name click emits `select-single`.
 6. **PR-MSEL-006** — header × emits `close`.
@@ -138,6 +139,7 @@ Root holds the captured `SwimEvent[]` and handles `multi-select`, `multi-select-
 
 ## Changelog
 
+- **2026-08-26** — Sort mark is the drawn [SortArrows](../SortArrows.spec.md) pair, not a `◇` text span; header color corrected to `#999999` and the label gap to 9px against the sketch.
 - **2026-08-26** — Header × is the shared [CloseButton](../CloseButton.spec.md): the typographic `×` sits on the font's math axis and never centered in its button.
 - **2026-08-26** — Product gesture rules: unmodified drag marquees (measure mode wins), pan moves to Shift+wheel / trackpad horizontal scroll, and the axis Δt chrome persists over the multi-select span (live extent → committed hull). Post-commit dim corrected to the shared `eventEmphasisDim` 0.45, not 25%. Empty-commit behavior spelled out.
 - **2026-08-25** — Implemented. Marquee lives on SwimlaneCanvas (PR-CANVAS-027…031); dim parity + rect collection in the renderers (PR-RENDER-015/016); exclusivity helpers in view-state (PR-VIEW-012); root ownership (PR-ROOT-007). Empty commit = clear.
