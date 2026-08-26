@@ -9,6 +9,7 @@ import {
 } from '../src/domain/generateStressSwimlane';
 import type { SwimlaneModel } from '../src/domain/types';
 import { depsTraceFixture } from './depsFixture';
+import { hydrateSampleRep } from './hydrateSampleRep';
 
 const FILE_FIXTURES = {
   sample: { name: 'sample.rep', url: '/data/sample.rep' },
@@ -68,7 +69,7 @@ const statusLine = computed(() => {
   return `${status.value} · ${title.value} · renderer=${renderer}`;
 });
 
-async function loadUrl(url: string): Promise<void> {
+async function loadUrl(url: string, opts?: { hydrateSample?: boolean }): Promise<void> {
   status.value = 'loading';
   error.value = null;
   source.value = undefined;
@@ -77,7 +78,13 @@ async function loadUrl(url: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status}`);
   }
-  source.value = await res.arrayBuffer();
+  let bytes = new Uint8Array(await res.arrayBuffer());
+  if (opts?.hydrateSample) {
+    status.value = 'generating op2 trace…';
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    bytes = hydrateSampleRep(bytes);
+  }
+  source.value = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   loadToken.value += 1;
   status.value = 'ready';
 }
@@ -122,7 +129,7 @@ async function loadFixture(kind: FixtureKind): Promise<void> {
     loadDeps();
     return;
   }
-  await loadUrl(FILE_FIXTURES[kind].url);
+  await loadUrl(FILE_FIXTURES[kind].url, kind === 'sample' ? { hydrateSample: true } : undefined);
 }
 
 function onOpenFileClick(e: MouseEvent): void {

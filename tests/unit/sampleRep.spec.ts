@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
 import type { AdaptedReport, SwimlaneModel, SwimThread } from '../../src/domain/types';
 import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
-import { loadOutRepBytes, loadSampleRepBytes } from '../helpers/fixtures';
+import { loadOutRepBytes, loadSampleRepBytes, liteSampleRepByteLength } from '../helpers/fixtures';
 
 function walkThreads(threads: SwimThread[], visit: (thread: SwimThread) => void): void {
   for (const thread of threads) {
@@ -38,6 +38,10 @@ function requireOperator(reports: Record<string, AdaptedReport> | undefined, id:
 }
 
 describe('PR-NPU-006: sample.rep distinct operators', () => {
+  it('committed sample.rep is lite (op2 trace generated at hydrate time)', () => {
+    expect(liteSampleRepByteLength()).toBeLessThan(500_000);
+  });
+
   const adapted = loadReportSource(loadSampleRepBytes());
   const op1 = requireOperator(adapted.operatorReports, 'op1.npu.rep');
   const op2 = requireOperator(adapted.operatorReports, 'op2.npu.rep');

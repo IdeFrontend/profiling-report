@@ -31,7 +31,7 @@ Start here: **[docs/README.md](docs/README.md)**
 - [`data/out.rep`](data/out.rep) — sample CANN report container
 - [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
 - [`data/ffn_dense.trace.json`](data/ffn_dense.trace.json) — denser CTEF fixture (async s/f pairs); `ph: 'C'` counters stripped (regenerate when a counter lane lands)
-- [`data/sample.rep`](data/sample.rep) — nested multi-operator `npu-rep` container with two distinct operators: `op1` (small machine-view trace) and `op2` (~150k-event stress trace), both with dependency connections and distinct CSV content. Regenerate with `npm run build:sample` (requires **Python 3** as `python3` on PATH — on Windows install Python and ensure the `python3` shim exists, or run `python data/build_sample_rep.py` then refresh `data/sample.rep.sha256`). Writes [`data/sample.rep.sha256`](data/sample.rep.sha256); CI verifies it via `npm run check:sample`.
+- [`data/sample.rep`](data/sample.rep) — nested multi-operator `npu-rep` container with two distinct operators: `op1` (small machine-view trace) and `op2` (CSVs + metrics only; ~150k-event trace omitted from git). The playground hydrates op2’s trace at load time via [`generateSampleOp2Trace`](src/domain/generateSampleOp2Trace.ts); unit tests use the same [`hydrateSampleRep`](playground/hydrateSampleRep.ts) helper. Regenerate the lite fixture with `npm run build:sample` (requires **Python 3** as `python3` on PATH). Writes [`data/sample.rep.sha256`](data/sample.rep.sha256); CI verifies it via `npm run check:sample`. Raw `loadReportSource(liteBytes)` fails on op2 — hydrate first.
 - [`data/pack_rep.py`](data/pack_rep.py) / [`data/unpack_rep.py`](data/unpack_rep.py) — pack / unpack helpers (Python 3)
 
 ```bash

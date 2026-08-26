@@ -4,6 +4,8 @@
 Generate `data/sample.rep`: a nested multi-operator `npu-rep` container with
 two *distinct* operators (leaves `data/example.npu.rep` untouched).
 
+op2 omits trace.json (~30 MB); playground/tests hydrate via generateSampleOp2Trace().
+
 Layout (little-endian), matches `src/adapters/parseNpuRep.ts`:
 
   Head (36 bytes): magic[8]="npu-rep\\0", version:u32=0x00010000, orgin:u16,
@@ -694,7 +696,7 @@ METRIC_SCALES = {
 
 def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
                  ai_core_count, ai_vector_count, block_offset, n_rows,
-                 aic_seed, aic_scale, op_basic=None):
+                 aic_seed, aic_scale, op_basic=None, include_trace=True):
     texts = {}
     for name, data in out_rep.items():
         if name == "trace.json":
@@ -720,7 +722,9 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
     # out.rep is vector-only (all aic_* = NA); synthesize Cube-side values for the MIX tab.
     enrich_cube_csvs(texts, seed=aic_seed, scale=aic_scale)
 
-    payloads = [("trace.json", TYPE_JSON, trace)]
+    payloads = []
+    if include_trace and trace is not None:
+        payloads.append(("trace.json", TYPE_JSON, trace))
     for name, text in texts.items():
         typ = TYPE_CSV if name.endswith(".csv") else TYPE_JSON
         payloads.append((name, typ, text.encode("utf-8")))
@@ -756,7 +760,7 @@ def main():
     )
     op2 = leaf_entries(
         out_rep,
-        trace=json.dumps(big_trace(), separators=(",", ":")).encode("utf-8"),
+        trace=None,
         transform=True,
         sub_label="vector1",
         chip_info="Ascend 910B",
@@ -768,6 +772,7 @@ def main():
         aic_scale=1.15,
         op_basic={"op_name": "matmul_mock", "op_type": "mix", "duration": "3.502000",
                   "block_dim": "16", "mix_dim": "8", "freq": "1500"},
+        include_trace=False,
     )
 
     op1_bytes = pack_npu_rep(op1)
