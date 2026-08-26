@@ -240,7 +240,7 @@ function wireDenseDeps(
       }
     }
     const cross = cands.filter((c) => c[2] !== pipe);
-    let pool = [...(cross.length >= minDeg ? cross : cands)];
+    const pool = [...(cross.length >= minDeg ? cross : cands)];
     let need = target - neighbors.get(eid)!.size;
     while (need > 0 && pool.length > 0 && neighbors.get(eid)!.size < maxDeg) {
       const window = Math.min(12, pool.length);
