@@ -9,9 +9,10 @@ import {
 } from '../src/domain/generateStressSwimlane';
 import type { SwimlaneModel } from '../src/domain/types';
 import { depsTraceFixture } from './depsFixture';
+import { hydrateSampleRep } from './hydrateSampleRep';
 
 const FILE_FIXTURES = {
-  sample: { name: 'sample.rep', url: '/data/sample.rep' },
+  sample: { name: 'sample.lite.rep', url: '/data/sample.lite.rep' },
   rep: { name: 'out.rep', url: '/data/out.rep' },
   example: { name: 'example.rep', url: '/data/example.rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
@@ -68,7 +69,13 @@ const statusLine = computed(() => {
   return `${status.value} · ${title.value} · renderer=${renderer}`;
 });
 
-async function loadUrl(url: string): Promise<void> {
+async function hydrateRepBytes(bytes: Uint8Array): Promise<Uint8Array> {
+  status.value = 'generating op2 trace…';
+  await new Promise<void>((r) => requestAnimationFrame(() => r()));
+  return hydrateSampleRep(bytes);
+}
+
+async function loadUrl(url: string, opts?: { hydrateSample?: boolean }): Promise<void> {
   status.value = 'loading';
   error.value = null;
   source.value = undefined;
@@ -77,7 +84,11 @@ async function loadUrl(url: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status}`);
   }
-  source.value = await res.arrayBuffer();
+  let bytes = new Uint8Array(await res.arrayBuffer());
+  if (opts?.hydrateSample) {
+    bytes = await hydrateRepBytes(bytes);
+  }
+  source.value = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   loadToken.value += 1;
   status.value = 'ready';
 }
@@ -122,7 +133,7 @@ async function loadFixture(kind: FixtureKind): Promise<void> {
     loadDeps();
     return;
   }
-  await loadUrl(FILE_FIXTURES[kind].url);
+  await loadUrl(FILE_FIXTURES[kind].url, kind === 'sample' ? { hydrateSample: true } : undefined);
 }
 
 function onOpenFileClick(e: MouseEvent): void {
@@ -141,7 +152,11 @@ async function onFileChosen(e: Event): Promise<void> {
   source.value = undefined;
   stressModel.value = null;
   try {
-    source.value = await file.arrayBuffer();
+    let bytes = new Uint8Array(await file.arrayBuffer());
+    if (/\.(rep|npu-rep|ncrep)$/i.test(file.name)) {
+      bytes = await hydrateRepBytes(bytes);
+    }
+    source.value = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
     openedName.value = file.name;
     loadToken.value += 1;
     status.value = 'ready';
@@ -192,7 +207,7 @@ onMounted(async () => {
         <a
           href="/?fixture=sample"
           data-testid="fixture-sample"
-        >sample.rep</a>
+        >sample.lite.rep</a>
         <a
           href="/?fixture=rep"
           data-testid="fixture-rep"

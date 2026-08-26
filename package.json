@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "sync:demo-fixtures": "node scripts/sync-demo-fixtures.mjs",
-    "build:sample": "python3 data/build_sample_rep.py && node -e \"const {createHash}=require('crypto');const {readFileSync,writeFileSync}=require('fs');const h=createHash('sha256').update(readFileSync('data/sample.rep')).digest('hex');writeFileSync('data/sample.rep.sha256',h+'\\n');console.log('[build:sample] sha256',h)\" && npm run sync:demo-fixtures",
+    "build:sample": "python3 data/build_sample_rep.py && node -e \"const {createHash}=require('crypto');const {readFileSync,writeFileSync}=require('fs');const h=createHash('sha256').update(readFileSync('data/sample.lite.rep')).digest('hex');writeFileSync('data/sample.lite.rep.sha256',h+'\\n');console.log('[build:sample] sha256',h)\" && npm run sync:demo-fixtures",
     "predev": "npm run sync:demo-fixtures",
     "dev": "vite --config playground/vite.config.ts --host 127.0.0.1 --port 5173",
     "playground": "npm run dev",

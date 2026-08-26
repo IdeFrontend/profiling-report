@@ -1,10 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { hydrateSampleRep } from '../../playground/hydrateSampleRep';
 
 const OUT_REP = resolve(__dirname, '../../data/out.rep');
 const OUT_TRACE = resolve(__dirname, '../../data/out.trace.json');
 const NPU_REP = resolve(__dirname, '../../data/example.npu.rep');
-const SAMPLE_REP = resolve(__dirname, '../../data/sample.rep');
+const SAMPLE_LITE_REP = resolve(__dirname, '../../data/sample.lite.rep');
 
 export const EXPECTED_OUT_REP_EMBEDS = [
   'ArithmeticUtilization.csv',
@@ -45,8 +46,13 @@ export function loadNpuRepBuffer(): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
+/** Lite sample.lite.rep on disk → full bytes with op2 trace hydrated in memory. */
 export function loadSampleRepBytes(): Uint8Array {
-  return new Uint8Array(readFileSync(SAMPLE_REP));
+  return hydrateSampleRep(readFileSync(SAMPLE_LITE_REP));
+}
+
+export function liteSampleRepByteLength(): number {
+  return statSync(SAMPLE_LITE_REP).size;
 }
 
 export function loadSampleRepBuffer(): ArrayBuffer {

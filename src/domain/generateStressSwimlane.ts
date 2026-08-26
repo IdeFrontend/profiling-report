@@ -90,7 +90,7 @@ const PRESETS: Record<StressSwimlanePreset, ShapeSpec & { bandCount: number }> =
 };
 
 /** Mulberry32 — fast deterministic PRNG. */
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;

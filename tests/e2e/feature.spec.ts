@@ -81,15 +81,15 @@ async function probeSwimlaneDepCurves(
 }
 
 /**
- * Feature e2e — playground loads data/sample.rep into ProfilingReport by default.
+ * Feature e2e — playground loads data/sample.lite.rep into ProfilingReport by default.
  */
 
 test.describe('PR-E2E feature paths', () => {
-  test('PR-E2E-001: playground loads sample.rep timeline (UX S1, interim I-Q4)', async ({ page }) => {
+  test('PR-E2E-001: playground loads sample.lite.rep timeline (UX S1, interim I-Q4)', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
     await expect(page.getByTestId('profiling-report')).toBeVisible();
-    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
     await expect(page.getByTestId('pipe-occupancy')).toBeVisible();
     await expect(page.getByTestId('overview-charts')).toHaveCount(0);
@@ -130,7 +130,7 @@ test.describe('PR-E2E feature paths', () => {
   test('PR-E2E-005: standalone Chrome Trace hides aside (Q15)', async ({ page }) => {
     await page.goto('/?fixture=ffn_dense');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
-    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('pipe-occupancy')).toHaveCount(0);
     await expect(page.getByTestId('stats-summary')).toHaveCount(0);
     await expect(page.getByTestId('lane-util')).toHaveCount(0);

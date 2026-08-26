@@ -12,7 +12,7 @@ const copies = [
   ['data/out.rep', 'out.rep'],
   ['data/out.trace.json', 'out.trace.json'],
   ['data/example.npu.rep', 'example.rep'],
-  ['data/sample.rep', 'sample.rep'],
+  ['data/sample.lite.rep', 'sample.lite.rep'],
   ['data/ffn_dense.trace.json', 'ffn_dense.trace.json'],
 ]
 
