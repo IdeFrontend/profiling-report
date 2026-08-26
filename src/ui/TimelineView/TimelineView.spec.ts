@@ -543,6 +543,49 @@ describe('TimelineView', () => {
     expect(wrapper.emitted('focus-measure')).toHaveLength(1);
   });
 
+  it('PR-TIMELINE-019: multiSelectSpan draws the same axis Δt chrome with static bars', async () => {
+    stubAxisWidth(400);
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    // Measure mode off — the span comes from a marquee selection instead.
+    const wrapper = mount(TimelineView, {
+      props: {
+        bounds: { minTime: 0, maxTime: 1000 },
+        view,
+        timeScaleUnit: 'ms' as const,
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+        cursor: null,
+        multiSelectSpan: { startTime: 200, endTime: 500 },
+      },
+    });
+
+    const left = wrapper.get('[data-testid="measure-axis-bar-left"]');
+    expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
+    // Δt labels auto-scale from the span magnitude (I-Q14): 300 reads as ns, not ms.
+    expect(wrapper.get('[data-testid="measure-label"]').text()).toMatch(/ns/);
+
+    // The span belongs to the selection: bars are inert, but the pill still focuses it.
+    expect(left.classes()).toContain('pr-measure-axis-bar--static');
+    await left.trigger('pointerdown', { button: 0, clientX: 80, clientY: 10 });
+    expect(wrapper.emitted('update:measure-range')).toBeFalsy();
+
+    await wrapper.get('[data-testid="measure-label"]').trigger('click');
+    expect(wrapper.emitted('focus-measure')!.at(-1)![0]).toEqual({
+      startTime: 200,
+      endTime: 500,
+    });
+
+    // Clearing the selection clears the chrome.
+    await wrapper.setProps({ multiSelectSpan: null });
+    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(false);
+  });
+
   it('PR-TIMELINE-013: hovering viewport axis emits cursor and lifts the timestamp', async () => {
     stubAxisWidth(400);
     const view = createViewState({

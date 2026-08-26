@@ -51,6 +51,8 @@ const props = withDefaults(
     /** From view.pinnedLaneIds — sticky strip. */
     pinnedLaneIds?: string[];
     cursor: { time: number; xRatio: number; snapped?: boolean } | null;
+    /** Marquee Δt span: live drag extent, then the committed selection hull. */
+    multiSelectSpan?: MeasureRange | null;
     showOverviewCharts?: boolean;
     gutterWidth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
@@ -59,6 +61,7 @@ const props = withDefaults(
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    multiSelectSpan: null,
   },
 );
 
@@ -71,13 +74,14 @@ const emit = defineEmits<{
   'unpin-lane': [laneId: string];
   select: [event: SwimEvent | null];
   'multi-select': [events: SwimEvent[]];
+  'multi-select-span': [span: MeasureRange | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
-  'focus-measure': [];
+  'focus-measure': [range: MeasureRange];
 }>();
 
 const timeAxisRef = ref<HTMLElement | null>(null);
@@ -126,10 +130,18 @@ const viewportRuler = computed(() =>
   }),
 );
 
-/** Measure range as % of the viewport span — clamped; true edges only when in view. */
+/**
+ * Span the axis Δt chrome describes. Measure mode owns the axis while it is on;
+ * otherwise a marquee multi-selection shows the same bars + arrow + duration.
+ */
+const dtSpan = computed<MeasureRange | null>(() =>
+  props.view.measureMode ? props.view.measureRange : props.multiSelectSpan,
+);
+
+/** Δt range as % of the viewport span — clamped; true edges only when in view. */
 const measureAxis = computed(() => {
-  const range = props.view.measureRange;
-  if (!props.view.measureMode || !range) return null;
+  const range = dtSpan.value;
+  if (!range) return null;
   const viewStart = props.view.startTime;
   const viewEnd = props.view.endTime;
   const span = Math.max(1, viewEnd - viewStart);
@@ -376,10 +388,13 @@ function isMeasureAxisBarEl(t: EventTarget | null): boolean {
   return !!(t as HTMLElement | null)?.closest?.('.pr-measure-axis-bar');
 }
 
-/** Click Δt pill → parent animates viewport to center the measure range. */
-function onMeasureLabelActivate() {
-  if (!props.view.measureRange) return;
-  emit('focus-measure');
+/** Click Δt pill → parent animates the viewport to center that span (measure or marquee). */
+function onMeasureLabelActivate(e?: Event) {
+  e?.stopPropagation();
+  e?.preventDefault();
+  const range = dtSpan.value;
+  if (!range) return;
+  emit('focus-measure', range);
 }
 
 function onMeasureBarPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
@@ -546,6 +561,7 @@ defineExpose({
           <div
             v-if="measureAxis.showLeft"
             class="pr-measure-axis-bar pr-measure-axis-bar--left"
+            :class="{ 'pr-measure-axis-bar--static': !view.measureMode }"
             data-testid="measure-axis-bar-left"
             :style="{ left: `${measureAxis.left}%` }"
             @pointerdown="onMeasureBarPointerDown($event, 'left')"
@@ -555,6 +571,7 @@ defineExpose({
           <div
             v-if="measureAxis.showRight"
             class="pr-measure-axis-bar pr-measure-axis-bar--right"
+            :class="{ 'pr-measure-axis-bar--static': !view.measureMode }"
             data-testid="measure-axis-bar-right"
             :style="{ left: `${measureAxis.right}%` }"
             @pointerdown="onMeasureBarPointerDown($event, 'right')"
@@ -605,6 +622,7 @@ defineExpose({
       @unpin-lane="emit('unpin-lane', $event)"
       @select="emit('select', $event)"
       @multi-select="emit('multi-select', $event)"
+      @multi-select-span="emit('multi-select-span', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
       @cursor="emit('cursor', $event)"
       @set-playhead="emit('set-playhead', $event)"
@@ -703,6 +721,12 @@ defineExpose({
   width: 2px;
   transform: translateX(-50%);
   background: var(--pr-playhead, #3078f0);
+}
+
+/* Marquee Δt: same bars, but the span is owned by the selection — not draggable. */
+.pr-measure-axis-bar--static {
+  cursor: default;
+  pointer-events: none;
 }
 
 .pr-gutter--axis-spacer {

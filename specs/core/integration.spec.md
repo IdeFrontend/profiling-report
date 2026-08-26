@@ -37,7 +37,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-008**: Active measure toggle has `aria-pressed="true"` and renders the `measure` design icon as a 16px `currentColor` mask, so toggling retints the one glyph instead of swapping artwork.
 1. **PR-E2E-009**: Relevent connector curves meet their chips flush, at any name length.
 1. **PR-E2E-010**: Dragging the dock taller grows its columns with it.
-1. **PR-E2E-011**: Shift+drag marquees real events into the multi-select dock; bars fill against the widest row; a Name click hands off to DetailPanel.
+1. **PR-E2E-011**: Drag marquees real events into the multi-select dock; bars fill against the widest row; a Name click hands off to DetailPanel.
 1. **PR-E2E-012**: Escape cancels a marquee mid-drag and clears a committed one.
 
 ## Dependencies

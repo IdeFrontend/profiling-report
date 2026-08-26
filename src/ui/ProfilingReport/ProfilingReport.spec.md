@@ -45,7 +45,7 @@ sequenceDiagram
 
 Ctrl+wheel zooms around cursor position. Toolbar buttons zoom around viewport center. Zoom-to-fit eases both view edges to the full trace span (same animation as Δt measure focus). All zoom operations are clamped to timeline bounds. The toolbar `zoomPercent` slider shares the same range: 0 = fit, 100 = `MIN_WINDOW` (same floor as `zoomAt` / Ctrl+wheel), not a hard 100× cap.
 
-### Drag-pan
+### Wheel-pan
 
 ```mermaid
 sequenceDiagram
@@ -54,8 +54,7 @@ sequenceDiagram
     participant Root as ProfilingReport
     participant State as viewState
 
-    User->>Canvas: pointerdown
-    User->>Canvas: pointermove (while dragging)
+    User->>Canvas: Shift+wheel / trackpad deltaX
     Canvas->>Root: emit('pan', deltaTime)
     Root->>State: panBy(view, deltaTime, bounds)
     State-->>Root: new SwimlaneViewWindow
@@ -63,7 +62,7 @@ sequenceDiagram
     Root->>TimeOverviewBar: update startTime/endTime
 ```
 
-Drag-to-pan emits delta time continuously on every pointermove. Pan is clamped to timeline bounds. A 4px threshold on pointer-up suppresses the click-to-select when movement exceeded 4px.
+Time panning is **Shift+wheel** or a two-finger horizontal trackpad scroll — an unmodified drag marquees instead (see [MultiSelectSummary](../MultiSelectSummary/MultiSelectSummary.spec.md)). Pan is clamped to timeline bounds. A 4px threshold on pointer-up still separates click-to-select from a marquee drag.
 
 ### Hover, selection, tooltip
 
@@ -87,7 +86,7 @@ sequenceDiagram
     Root->>Root: clear hover, hide tooltip
 ```
 
-Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear. A 4px threshold on pointer-up gates selection: movement >4px between pointerdown and pointerup suppresses the click-to-select. Pan emits continuously on every move while dragging.
+Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear. A 4px threshold on pointer-up gates selection: movement >4px between pointerdown and pointerup starts a marquee instead, so that press never selects.
 
 ### Search
 
@@ -144,7 +143,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection (single and marquee), hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
 
-**Selection and the docks.** Single-select and marquee multi-select are mutually exclusive and drive mutually exclusive docks: `multiSelectedIds` non-empty mounts [MultiSelectSummary](../MultiSelectSummary/MultiSelectSummary.spec.md), else a `selectedEventId` mounts DetailPanel, else neither. The exclusivity itself lives in [view-state](../../../specs/core/view-state.spec.md) (`setSelectedEvent` / `setMultiSelection` / `clearSelection`), so the root just routes: canvas `multi-select` sets the marquee, the dock's `select-single` and `close` and an empty-space click and **Escape** go back through the single-select path. An empty marquee commit is a clear, so `select(null)` stays the only "nothing is selected" emit a host sees. Both docks share the one session-only `dockHeight`. Marquee aside sync is out of scope until Q22.
+**Selection and the docks.** Single-select and marquee multi-select are mutually exclusive and drive mutually exclusive docks: `multiSelectedIds` non-empty mounts [MultiSelectSummary](../MultiSelectSummary/MultiSelectSummary.spec.md), else a `selectedEventId` mounts DetailPanel, else neither. The exclusivity itself lives in [view-state](../../../specs/core/view-state.spec.md) (`setSelectedEvent` / `setMultiSelection` / `clearSelection`), so the root just routes: canvas `multi-select` sets the marquee, the dock's `select-single` and `close` and an empty-space click and **Escape** go back through the single-select path. An empty marquee commit is a clear, so `select(null)` stays the only "nothing is selected" emit a host sees. The root also owns the Δt span the axis draws for a multi-selection — the live marquee extent during the drag, then the committed selection hull — and drops it whenever the selection goes. Both docks share the one session-only `dockHeight`. Marquee aside sync is out of scope until Q22.
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
@@ -207,6 +206,7 @@ Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 - **2026-09-03** — Operator switch preserves `asideVisible` and session gutter/aside widths (closing or resizing the sidebar then changing OP no longer reopens it or snaps width back to 480; PR-ROOT-005).
 - **2026-08-27** — **Breaking:** removed `timeUnit` host prop; wall-time labels auto-scale (`TimeScaleUnit`) from viewport span and overview density per I-Q14.
 - **2026-08-26** — reportMeta prop + cannbot-request payload emit (PR-ROOT-008).
+- **2026-08-26** — Gesture flip per Product: drag marquees instead of panning (pan is Shift+wheel / trackpad horizontal), and the root owns the multi-select Δt span (live extent → committed hull).
 - **2026-08-25** — Owns the marquee multi-selection: mutually exclusive docks, Escape clears it, empty commit = clear; PR-ROOT-007.
 - **2026-08-20** — Top-left 208×60 blue fade corner wash (PR-ROOT-006).
 - **2026-08-20** — Multi-operator npu-rep packs: OP selector + operator switch (PR-ROOT-005).

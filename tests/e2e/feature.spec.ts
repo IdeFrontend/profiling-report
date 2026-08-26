@@ -313,7 +313,7 @@ test.describe('PR-E2E feature paths', () => {
     expect(card1).toBeGreaterThan(body1 - 40);
   });
 
-  test('PR-E2E-011: Shift+drag marquees real events into the multi-select dock', async ({
+  test('PR-E2E-011: drag marquees real events into the multi-select dock', async ({
     page,
   }) => {
     // Real pointer + layout: jsdom fakes both, so only Chromium proves the rect the user
@@ -326,19 +326,22 @@ test.describe('PR-E2E feature paths', () => {
     const box = (await overlay.boundingBox())!;
     const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
 
-    await page.keyboard.down('Shift');
     await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
     await page.mouse.down();
     // Mid-drag the rect must be visible; the tooltip must not.
     await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
     await expect(page.getByTestId('marquee-rect')).toBeVisible();
     await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
+    // Δt chrome tracks the live rect (measure parity), with measure mode off.
+    await expect(page.getByTestId('measure-arrow')).toBeVisible();
     await page.mouse.up();
-    await page.keyboard.up('Shift');
 
     const dock = page.getByTestId('multi-select-summary');
     await expect(dock).toBeVisible();
     await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
+    // Δt persists over the committed selection hull.
+    await expect(page.getByTestId('measure-arrow')).toBeVisible();
+    await expect(page.getByTestId('measure-label')).toHaveText(/\d/);
     // Mutually exclusive with the single-select dock.
     await expect(page.getByTestId('detail-panel')).toHaveCount(0);
 
@@ -377,7 +380,6 @@ test.describe('PR-E2E feature paths', () => {
     const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
 
     const marquee = async () => {
-      await page.keyboard.down('Shift');
       await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
       await page.mouse.down();
       await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
@@ -388,16 +390,16 @@ test.describe('PR-E2E feature paths', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
     await page.mouse.up();
-    await page.keyboard.up('Shift');
     await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
     await expect(page.getByTestId('detail-panel')).toHaveCount(0);
+    await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
 
-    // Committed, then cleared by Escape.
+    // Committed, then cleared by Escape — the axis Δt goes with it.
     await marquee();
     await page.mouse.up();
-    await page.keyboard.up('Shift');
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
+    await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
   });
 });

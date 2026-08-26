@@ -287,7 +287,7 @@ Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRendere
 
 ### `ContextMenu` / `MultiSelectSummary` (P2)
 
-Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is implemented: Shift+drag on `SwimlaneCanvas` commits a marquee, and the dock replaces `DetailPanel` (mutually exclusive) with a sortable Slices table. `ContextMenu` is still a stub.
+Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is implemented: an unmodified drag on `SwimlaneCanvas` commits a marquee (measure mode wins the gesture; pan moved to Shift+wheel / trackpad horizontal scroll), the dock replaces `DetailPanel` (mutually exclusive) with a sortable Slices table, and the axis keeps measure-parity Δt chrome over the selection span. `ContextMenu` is still a stub.
 
 **Why:** Listed in FEATURE_MATRIX; not MVP.
 

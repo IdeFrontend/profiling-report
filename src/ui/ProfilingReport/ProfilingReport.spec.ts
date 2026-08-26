@@ -124,7 +124,8 @@ describe('ProfilingReport scaffold', () => {
 
     const model = depsModel();
     const events = model.processes[0]!.threads[0]!.events;
-    wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', events);
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    timeline().vm.$emit('multi-select', events);
     await nextTick();
 
     // Multi-select wins: the two docks are mutually exclusive.
@@ -133,6 +134,8 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (2)');
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     expect(vm.viewState.selectedEventId).toBeNull();
+    // Axis Δt now describes the committed selection hull, not the drag rect.
+    expect(timeline().props('multiSelectSpan')).toEqual({ startTime: 0, endTime: 30 });
 
     // Name click transitions to single-select + DetailPanel.
     await wrapper.get('[data-testid="multi-select-name-b"]').trigger('click');
@@ -141,16 +144,42 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(vm.viewState.selectedEventId).toBe('b');
+    expect(timeline().props('multiSelectSpan')).toBeNull();
 
     // Escape clears the marquee selection (and mounts neither dock).
-    wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', events);
+    timeline().vm.$emit('multi-select', events);
     await nextTick();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
     expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(timeline().props('multiSelectSpan')).toBeNull();
 
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-007: the live marquee span reaches the axis before the commit', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'multi-select-span',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select-span', { startTime: 5, endTime: 25 });
+    await nextTick();
+    expect(timeline().props('multiSelectSpan')).toEqual({ startTime: 5, endTime: 25 });
+    // No dock yet — the rect has not committed.
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+
+    // The canvas nulls the drag span on pointerup; the commit supplies the hull.
+    timeline().vm.$emit('multi-select-span', null);
+    timeline().vm.$emit('multi-select', depsModel().processes[0]!.threads[0]!.events);
+    await nextTick();
+    expect(timeline().props('multiSelectSpan')).toEqual({ startTime: 0, endTime: 30 });
     wrapper.unmount();
   });
 

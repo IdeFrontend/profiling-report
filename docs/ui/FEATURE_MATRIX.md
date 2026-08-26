@@ -42,13 +42,13 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Event labels when wide enough | M | Vertically centered in block; horizontally centered in visible (clipped) event rect |
 | Adjacent-event gap measure (hover) | M | Default-mode hover in the free gap between adjacent events shows a transient, non-interactive Δt overlay (border sticks + arrow); does not change selection or window |
 | Alt event measure (Alt+click + hover) | M | Default-mode Alt+click anchor + Alt+hover Δt to an event edge or free cursor (same-lane reuse, cross-lane dashed connector, or full-height cursor line); ephemeral, does not change selection or window |
-| Zoom / pan (wheel, drag, slider) | M | See [INTERACTIONS](INTERACTIONS.md); W/S/A/D → P2 ([PACKAGING_SUGGESTIONS](../context/PACKAGING_SUGGESTIONS.md)) |
+| Zoom / pan (wheel, Shift+wheel, slider) | M | See [INTERACTIONS](INTERACTIONS.md); W/S/A/D → P2 ([PACKAGING_SUGGESTIONS](../context/PACKAGING_SUGGESTIONS.md)) |
 
 | ProfilerStep background bands | P2 | Needs data |
 | Dependency bezier links | P2 | `source/v930/entry.jpeg` |
 | Pin lane (gutter pushpin) | P2 | `source/v930/hardware-more-detail.jpeg` |
 | Pin lane / context menu | P2 | `source/v930/task-context-menu.jpeg` (Pin row + Ctrl+P; separate from gutter icon) |
-| Multi-select time slice summary | P2 | `source/v930/entry.jpeg` |
+| Multi-select time slice summary | P2 | Marquee drag; `source/v930/task-marquee.jpeg` |
 
 ## Interactions (see also INTERACTIONS.md)
 
@@ -56,7 +56,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 |---------|------:|------------------|
 | Hover tooltip (name, start, dur, end) | M | `source/v930/task-hover.jpeg` |
 | Single select → detail | M | |
-| Multi-select | P2 | |
+| Multi-select | P2 | Unmodified drag marquee + Slices dock + axis Δt — [INTERACTIONS](INTERACTIONS.md) |
 | Context menu | P2 | |
 | Timeline time-range measure (度量模式) | M2 | Replaces prior “Measure / cross-lane rulers” row. See Toolbar + [INTERACTIONS](INTERACTIONS.md). Aside is not recomputed for the measured range. |
 

@@ -71,7 +71,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q16** | Package identity | **Interim** | [PACKAGING_SUGGESTIONS](PACKAGING_SUGGESTIONS.md) / [I-Q16–19](INTERIM_DECISIONS.md) |
 | **Q17** | Design system / i18n | **Interim** | same |
 | **Q18** | PyPTO copy-paste license | **Interim** | same — Legal before verbatim paste |
-| **Q19** | Gesture parity | **Interim** | Wheel/slider/drag MVP; W/S/A/D P2 |
+| **Q19** | Gesture parity | **Interim** | Wheel zoom / slider MVP; **pan = Shift+wheel + two-finger horizontal trackpad scroll** (unmodified swimlane drag is marquee multi-select, per Product 2026-08-26); W/S/A/D P2 |
 | **Q20** | Cursor skills / agent rules | **Resolved** | Shared: [`AGENTS.md`](../../AGENTS.md), nested `specs/AGENTS.md` (Claude: `specs/CLAUDE.md` → `@./AGENTS.md`), skills in `.agents/skills/`. Cursor-only: `.cursor/rules/code-review-post-github.mdc`. Root Claude: [`CLAUDE.md`](../../CLAUDE.md) → `@AGENTS.md`. |
 | **Q21** | Acceptance owner | Open | PROJECT_GOALS, this file |
 
