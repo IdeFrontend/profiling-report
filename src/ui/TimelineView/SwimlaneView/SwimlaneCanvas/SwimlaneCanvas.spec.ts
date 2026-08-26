@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
+import { CanvasSwimlaneRenderer } from '../../../../swimlane/CanvasSwimlaneRenderer';
+import { HARMONYOS_CANVAS_LABEL_FONT, SYSTEM_CANVAS_LABEL_FONT } from '../../../../ui/fontStack';
 
 describe('SwimlaneCanvas', () => {
   afterEach(() => {
@@ -26,6 +29,23 @@ describe('SwimlaneCanvas', () => {
       model: { processes: [], minTime: 0, maxTime: 1000 },
     });
     expect(wrapper.find('canvas').exists()).toBe(true);
+  });
+
+  it('fontFamily selects the canvas label font stack', async () => {
+    const setLabelFont = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setLabelFont');
+    const model = { processes: [], minTime: 0, maxTime: 1000 };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: { ...nullProps, model, fontFamily: 'harmony' },
+      attachTo: document.body,
+    });
+    await nextTick();
+    expect(setLabelFont).toHaveBeenCalledWith(HARMONYOS_CANVAS_LABEL_FONT);
+
+    setLabelFont.mockClear();
+    await wrapper.setProps({ fontFamily: 'system' });
+    await nextTick();
+    expect(setLabelFont).toHaveBeenCalledWith(SYSTEM_CANVAS_LABEL_FONT);
+    wrapper.unmount();
   });
 
   it('PR-CANVAS-003: in measureMode drag emits measureRange and not pan', async () => {

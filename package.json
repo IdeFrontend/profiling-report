@@ -41,6 +41,7 @@
     "check:specs": "node scripts/check-spec-coverage.mjs",
     "check:design": "node scripts/check-design-assets.mjs",
     "check:sample": "node scripts/check-sample-rep.mjs",
+    "check:dist-fonts": "node scripts/check-dist-fonts.mjs",
     "render:hq-visuals": "node scripts/render-hq-visuals.mjs",
     "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run check:design && npm run check:sample && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
     "ci:tdd": "npm run ci && npm run test:e2e:feature"

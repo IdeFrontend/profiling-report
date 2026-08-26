@@ -58,7 +58,7 @@ npm run preview:demo        # preview playground/dist
 
 Fixture switcher: `?fixture=sample` (default), `?fixture=rep`, `?fixture=example`, or `?fixture=ffn_dense`.
 
-Font switcher (playground only): `?fonts=harmony` (default in the demo) or `?fonts=system` (system UI only, no woff2 fetch). The library component defaults to `fontFamily="system"`; pass `font-family="harmony"` to embed HarmonyOS Sans SC.
+Font switcher (playground only): `?fonts=harmony` (default in the demo) or `?fonts=system` (system UI only, no woff2 fetch). The library component defaults to `fontFamily="system"`; pass `font-family="harmony"` to use HarmonyOS Sans SC (`style.css` ships `@font-face` rules; woff2 downloads only when the family is referenced).
 
 Production URL: [https://profiling-report.vercel.app](https://profiling-report.vercel.app)
 

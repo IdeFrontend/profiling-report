@@ -13,9 +13,6 @@ export const HARMONYOS_CANVAS_LABEL_FONT = `10px ${HARMONYOS_FONT_FAMILY}` as co
 /** Canvas 2D label font using system UI only. */
 export const SYSTEM_CANVAS_LABEL_FONT = `10px ${SYSTEM_UI_FONT_STACK}` as const;
 
-/** @deprecated Prefer canvasLabelFont(mode); kept as Harmony alias for older call sites. */
-export const CANVAS_LABEL_FONT = HARMONYOS_CANVAS_LABEL_FONT;
-
 export function canvasLabelFont(mode: ReportFontFamily = 'system'): string {
   return mode === 'harmony' ? HARMONYOS_CANVAS_LABEL_FONT : SYSTEM_CANVAS_LABEL_FONT;
 }

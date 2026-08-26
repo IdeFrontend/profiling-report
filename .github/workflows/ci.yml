@@ -33,6 +33,12 @@ jobs:
       - name: Check spec coverage
         run: npm run check:specs
 
+      - name: Build library
+        run: npm run build
+
+      - name: Check dist font artifacts
+        run: npm run check:dist-fonts
+
       - name: Scaffold unit/component tests (must pass)
         run: npm run test:scaffold
 

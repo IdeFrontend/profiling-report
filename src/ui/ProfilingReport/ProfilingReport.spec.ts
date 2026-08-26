@@ -54,12 +54,19 @@ describe('ProfilingReport scaffold', () => {
     );
   });
 
-  it('PR-ROOT-007: fontFamily=harmony is exposed on the root for host A/B', () => {
-    const wrapper = mount(ProfilingReport, {
+  it('PR-ROOT-007: fontFamily selects per-instance typeface for DOM and canvas', () => {
+    const harmony = mount(ProfilingReport, {
       props: { title: 'harmony', fontFamily: 'harmony' },
     });
-    expect(wrapper.get('[data-testid="profiling-report"]').attributes('data-font-family')).toBe(
+    expect(harmony.get('[data-testid="profiling-report"]').attributes('data-font-family')).toBe(
       'harmony',
+    );
+
+    const system = mount(ProfilingReport, {
+      props: { title: 'system', fontFamily: 'system' },
+    });
+    expect(system.get('[data-testid="profiling-report"]').attributes('data-font-family')).toBe(
+      'system',
     );
   });
 

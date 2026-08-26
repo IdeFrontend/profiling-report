@@ -10,6 +10,13 @@ const FONT_FILES = [
   'HarmonyOS_Sans_SC_Semibold.woff2',
 ] as const;
 
+const FONT_URL_RE =
+  /url\(\s*['"]?\.\.\/assets\/fonts\/([^'?]+)(?:\?[^'"]*)?['"]?\s*\)/g;
+
+function rewriteFontUrls(css: string): string {
+  return css.replace(FONT_URL_RE, "url('./fonts/$1')");
+}
+
 /** Ship HarmonyOS Sans license + stable CSS filenames next to dist. */
 function copyFontArtifacts() {
   return {
@@ -17,13 +24,15 @@ function copyFontArtifacts() {
     closeBundle() {
       const dist = resolve(__dirname, 'dist');
       const srcFonts = resolve(__dirname, 'src/assets/fonts');
-      mkdirSync(resolve(dist, 'fonts'), { recursive: true });
+      const fontsDir = resolve(dist, 'fonts');
+      mkdirSync(fontsDir, { recursive: true });
       copyFileSync(
         resolve(srcFonts, 'LICENSE.txt'),
         resolve(dist, 'LICENSE-HarmonyOS-Sans.txt'),
       );
+      copyFileSync(resolve(srcFonts, 'LICENSE.txt'), resolve(fontsDir, 'LICENSE.txt'));
       for (const file of FONT_FILES) {
-        copyFileSync(resolve(srcFonts, file), resolve(dist, 'fonts', file));
+        copyFileSync(resolve(srcFonts, file), resolve(fontsDir, file));
       }
       // With cssCodeSplit, Vite may emit index.css for the lib entry — keep package export path.
       const indexCss = resolve(dist, 'index.css');
@@ -34,9 +43,8 @@ function copyFontArtifacts() {
         /* already named profiling-report.css */
       }
       // Stable host import path; urls match dist layout (./fonts/*.woff2).
-      const css = readFileSync(resolve(__dirname, 'src/ui/fonts.css'), 'utf8').replace(
-        /\.\.\/assets\/fonts\/([^'?]+)(?:\?[^']*)?/g,
-        './fonts/$1',
+      const css = rewriteFontUrls(
+        readFileSync(resolve(__dirname, 'src/ui/fonts.css'), 'utf8'),
       );
       writeFileSync(resolve(dist, 'fonts.css'), css);
     },
@@ -55,8 +63,7 @@ export default defineConfig({
     copyFontArtifacts(),
   ],
   build: {
-    assetsInlineLimit: 0,
-    cssCodeSplit: true,
+    cssCodeSplit: false,
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'ProfilingReport',

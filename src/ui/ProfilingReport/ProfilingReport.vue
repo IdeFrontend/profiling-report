@@ -53,20 +53,7 @@ import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterT
 import { animateViewWindow } from '../TimelineView/animateViewWindow';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import type { ReportFontFamily } from '../fontStack';
-import { HARMONYOS_CANVAS_LABEL_FONT } from '../fontStack';
 import '../tokens.css';
-
-let harmonyFontsLoaded = false;
-
-async function ensureHarmonyFonts(): Promise<void> {
-  if (harmonyFontsLoaded) return;
-  await import('../fonts.css');
-  if (typeof document !== 'undefined' && document.fonts) {
-    await document.fonts.load(HARMONYOS_CANVAS_LABEL_FONT);
-  }
-  harmonyFontsLoaded = true;
-}
-
 const props = withDefaults(defineProps<{
   title?: string;
   source?: ArrayBuffer | Uint8Array;
@@ -81,7 +68,7 @@ const props = withDefaults(defineProps<{
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
   /**
    * Report typeface. `system` (default) uses UI sans — no HarmonyOS woff2 fetch.
-   * `harmony` lazy-loads HarmonyOS Sans SC faces for DOM + canvas labels.
+   * `harmony` sets `--pr-font-family` via `data-font-family` and canvas labels.
    */
   fontFamily?: ReportFontFamily;
   /** Feature gate. Omit and the adapter's own capabilities (derived from the loaded
@@ -418,9 +405,6 @@ watch(showAside, () => {
 
 onMounted(() => {
   window.addEventListener('keydown', onMeasureKeydown);
-  if (props.fontFamily === 'harmony') {
-    void ensureHarmonyFonts();
-  }
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
@@ -433,13 +417,6 @@ onBeforeUnmount(() => {
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
-
-watch(
-  () => props.fontFamily,
-  (mode) => {
-    if (mode === 'harmony') void ensureHarmonyFonts();
-  },
-);
 
 function onMeasureKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {

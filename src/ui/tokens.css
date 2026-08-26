@@ -2,6 +2,8 @@
  * Normative color / surface tokens — COLOR_TOKENS.md
  */
 
+@import './fonts.css';
+
 :root,
 .pr-root {
   --pr-font-family: ui-sans-serif, system-ui, sans-serif;
@@ -64,4 +66,8 @@
   --pr-bg-panel: #f4f4f4;
   --pr-bg-deep: #e8ecf0;
   color-scheme: light;
+}
+
+.pr-root[data-font-family='harmony'] {
+  --pr-font-family: 'HarmonyOS Sans SC 2025', ui-sans-serif, system-ui, sans-serif;
 }
