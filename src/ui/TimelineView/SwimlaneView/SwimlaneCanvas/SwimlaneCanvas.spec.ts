@@ -31,7 +31,7 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('canvas').exists()).toBe(true);
   });
 
-  it('fontFamily selects the canvas label font stack', async () => {
+  it('PR-ROOT-007: fontFamily selects canvas label font stack', async () => {
     const setLabelFont = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setLabelFont');
     const model = { processes: [], minTime: 0, maxTime: 1000 };
     const wrapper = mount(SwimlaneCanvas, {

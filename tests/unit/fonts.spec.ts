@@ -14,7 +14,7 @@ describe('HarmonyOS Sans SC 2025 embed', () => {
     expect(css).toContain("font-family: 'HarmonyOS Sans SC 2025'");
     expect(css).toContain('HarmonyOS Sans Fonts');
     expect(css).not.toContain('--pr-font-family');
-    expect(css).toMatch(/local\('HarmonyOS Sans SC'\)/);
+    expect(css).not.toMatch(/local\s*\(/);
     expect(css).toMatch(/HarmonyOS_Sans_SC_Light\.woff2\?no-inline/);
     expect(css).toMatch(/HarmonyOS_Sans_SC_Regular\.woff2\?no-inline/);
     expect(css).toMatch(/HarmonyOS_Sans_SC_Semibold\.woff2\?no-inline/);

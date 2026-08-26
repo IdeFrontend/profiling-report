@@ -34,6 +34,9 @@ if (!/data-font-family=['"]?harmony['"]?/.test(reportCss)) {
 if (!reportCss.includes('./fonts/HarmonyOS_Sans_SC_Regular.woff2')) {
   fail('profiling-report.css must reference ./fonts/*.woff2');
 }
+if (/local\s*\(/.test(reportCss)) {
+  fail('profiling-report.css must not use local() font fallbacks — vendored woff2 only');
+}
 
 if (!existsSync(fontsCssPath)) {
   fail('missing dist/fonts.css');
@@ -41,6 +44,9 @@ if (!existsSync(fontsCssPath)) {
 const fontsCss = readFileSync(fontsCssPath, 'utf8');
 if ((fontsCss.match(/@font-face/g) ?? []).length < 3) {
   fail('dist/fonts.css must declare all three HarmonyOS faces');
+}
+if (/local\s*\(/.test(fontsCss)) {
+  fail('dist/fonts.css must not use local() font fallbacks — vendored woff2 only');
 }
 
 if (!existsSync(fontsLicensePath)) {
