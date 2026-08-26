@@ -268,79 +268,6 @@ def emit_bursty_lane(pid, tid, pipe, time_span, rand, id_prefix, seq_start=0):
     return events
 
 
-def emit_count_lane(pid, tid, pipe, count, time_span, rand, id_prefix, occupancy=0.65):
-    """
-    Fixed event count with irregular busy/idle (stress-style), for large
-    performance fixtures. Returns the same (eid, start, end, ev) tuples.
-    Compact producer args (no Code) to keep sample.rep size down.
-    """
-    profile = PIPE_PROFILE[pipe]
-    events = []
-    if count <= 0 or time_span <= 0:
-        return events
-    occ = min(1.0, max(0.0, occupancy))
-    busy_budget = time_span * occ
-    avg_busy = max(1.0, busy_budget / count)
-    avg_gap = max(0.0, (time_span - busy_budget) / count)
-    t = int(rand() * avg_gap * 0.5)
-    for i in range(count):
-        t += int(avg_gap * (0.2 + 1.6 * rand()))
-        scale = rand() * rand()
-        dur = max(1, int(avg_busy * (0.15 + 1.7 * scale)))
-        if t >= time_span:
-            t = int(rand() * max(1, time_span - 2))
-            dur = max(1, int(1 + rand() * min(avg_busy, time_span - t)))
-        elif t + dur > time_span:
-            dur = max(1, time_span - t)
-        is_marker = pipe in ("SCALAR", "CACHEMISS") and rand() < 0.2
-        if is_marker:
-            dur = 1
-            name = f"marker_{i}"
-        else:
-            name = _pick_name(profile["names"], rand)
-        eid = f"{id_prefix}:{i}"
-        ev = _x(
-            pid, tid, name, t, dur, event_id=eid,
-            extra=producer_params(pipe, name, rand, i, dur, rich=False),
-        )
-        events.append((eid, t, t + dur, ev))
-        t += dur
-    return events
-
-
-def wire_pipeline_deps(lane_events, rand):
-    """
-    For each core's PIPELINE_ORDER chain, link a later event on pipe[k+1]
-    as a successor of an earlier-finished event on pipe[k] (when timing allows).
-    Mutates the event dicts in place via args.dependencies.
-    """
-    # lane_events: {pipe: [(eid, start, end, ev), ...]} sorted by start
-    for k in range(len(PIPELINE_ORDER) - 1):
-        up = PIPELINE_ORDER[k]
-        dn = PIPELINE_ORDER[k + 1]
-        if up not in lane_events or dn not in lane_events:
-            continue
-        ups = lane_events[up]
-        dns = lane_events[dn]
-        di = 0
-        for eid, _start, end, ev in ups:
-            # Skip markers / very short events as dependency sources.
-            if end - _start <= 1:
-                continue
-            if rand() > 0.55:
-                continue
-            while di < len(dns) and dns[di][1] < end:
-                di += 1
-            if di >= len(dns):
-                break
-            # Prefer the first successor that starts after we finish.
-            succ_eid = dns[di][0]
-            args = ev.setdefault("args", {})
-            deps = args.setdefault("dependencies", [])
-            if succ_eid not in deps:
-                deps.append(succ_eid)
-
-
 def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
     """
     Give every event min_deg–max_deg undirected dependency neighbors.
@@ -462,54 +389,6 @@ def small_trace():
     wire_dense_deps(pipe_map, rand, min_deg=3, max_deg=6)
     # Match stress-small band count (3).
     return _doc(evs, band_count=3, time_span=time_span, nest_card_tree=True)
-
-
-def big_trace():
-    """
-    Large Card → Core → pipe fixture (~150k X events) for swimlane rendering
-    performance demos. Irregular per-lane timings; 1–4 dependency neighbors
-    per event (bounded window — dense wiring would explode at this scale).
-    Compact producer args (no Code) keep sample.rep near ~30 MB.
-    """
-    rand = mulberry32(0xBEEF01)
-    # 2 cards × 3 cores × 9 pipes = 54 lanes; ~2780 × 54 ≈ 150k events.
-    lane_count = 2 * len(STRESS_CORES) * len(STRESS_PIPES)
-    target_events = 150_000
-    events_per_lane = target_events // lane_count
-    while events_per_lane * lane_count < target_events:
-        events_per_lane += 1
-    time_span = 1_000_000_000  # 1 s in ns (stress-medium span)
-    evs = []
-    core_lanes = {}  # (pid, core) -> {pipe: [(eid, start, end, ev), ...]}
-
-    for card in range(2):
-        pid = card + 1
-        evs.append(_m_process(pid, f"Card{card}"))
-        tid = 1000 + card * 100
-        for core in STRESS_CORES:
-            pipe_map = {}
-            for pipe in STRESS_PIPES:
-                evs.append(_m_thread(pid, tid, f"{core}/{pipe}"))
-                lane_seed = (pid * 10_000 + tid * 17 + sum(ord(c) for c in pipe)) & 0xFFFFFFFF
-                lane_rand = mulberry32(lane_seed)
-                # Slight occupancy bias per pipe family so lanes look different.
-                occ = 0.45 + 0.4 * PIPE_PROFILE[pipe]["occupancy"]
-                emitted = emit_count_lane(
-                    pid, tid, pipe, events_per_lane, time_span, lane_rand,
-                    id_prefix=f"{tid}",  # tid unique per lane
-                    occupancy=min(0.9, occ),
-                )
-                pipe_map[pipe] = emitted
-                for _eid, _s, _e, ev in emitted:
-                    evs.append(ev)
-                tid += 1
-            core_lanes[(pid, core)] = pipe_map
-
-    for pipe_map in core_lanes.values():
-        wire_dense_deps(pipe_map, rand, min_deg=1, max_deg=4)
-
-    # Match stress-medium band count (5).
-    return _doc(evs, band_count=5, time_span=time_span, nest_card_tree=True)
 
 
 # ------------------------------------------------------------------ CSV gen

@@ -2,6 +2,7 @@
 /**
  * Ensure committed `data/sample.lite.rep` matches `data/sample.lite.rep.sha256`.
  * Refresh the hash after `npm run build:sample`.
+ * Runtime op2 trace.json is pinned separately in tests/unit/generateSampleOp2Trace.spec.ts.
  */
 
 import { createHash } from 'node:crypto';

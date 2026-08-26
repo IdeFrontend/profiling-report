@@ -1,8 +1,9 @@
 /**
- * Deterministic op2 trace for sample.lite.rep (ported from data/build_sample_rep.py big_trace).
+ * Deterministic op2 trace for sample.lite.rep (canonical op2 generator; Python big_trace removed).
  * Playground/test fixture only — not library product logic.
  * Committed sample.lite.rep omits this blob; hydrate before loadReportSource.
  */
+import { mulberry32 } from '../src/domain/generateStressSwimlane';
 
 const STRESS_PIPES = [
   'ALL',
@@ -48,17 +49,6 @@ interface TraceEvent {
   ts?: number;
   dur?: number;
   args?: Record<string, unknown>;
-}
-
-function mulberry32(seed: number): Rand {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1) >>> 0;
-    t = (t + Math.imul(t ^ (t >>> 7), t | 61)) >>> 0;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 function mProcess(pid: number, name: string): TraceEvent {
@@ -287,7 +277,7 @@ function wireDenseDeps(
   }
 }
 
-/** ~150k X events, 5 ProfilerStep bands, nestCardTree — matches build_sample_rep.py big_trace(). */
+/** ~150k X events, 5 ProfilerStep bands, nestCardTree — pinned by generateSampleOp2Trace.spec.ts sha256. */
 export function generateSampleOp2Trace(): Record<string, unknown> {
   const rand = mulberry32(0xbeef01);
   const laneCount = 2 * STRESS_CORES.length * STRESS_PIPES.length;
