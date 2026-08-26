@@ -17,7 +17,8 @@ const STRESS_PIPES = [
 
 const STRESS_CORES = ['Core0.Cube', 'Core0.Vec0', 'Core0.Vec1'] as const;
 
-const PIPELINE_ORDER = ['MTE2', 'MTE1', 'CUBE', 'FIXP', 'MTE3'] as const;
+/** ponytail: cap successor scan — O(n×window) not O(n²) at ~25k events/core */
+const DEP_CAND_WINDOW = 48;
 
 const PIPE_PROFILE: Record<
   (typeof STRESS_PIPES)[number],
@@ -187,24 +188,100 @@ function emitCountLane(
   return events;
 }
 
-function wirePipelineDeps(laneEvents: Record<string, LaneEvent[]>, rand: Rand): void {
-  for (let k = 0; k < PIPELINE_ORDER.length - 1; k++) {
-    const up = PIPELINE_ORDER[k]!;
-    const dn = PIPELINE_ORDER[k + 1]!;
-    const ups = laneEvents[up];
-    const dns = laneEvents[dn];
-    if (!ups || !dns) continue;
+function wireDenseDeps(
+  laneEvents: Record<string, LaneEvent[]>,
+  rand: Rand,
+  minDeg = 1,
+  maxDeg = 4,
+): void {
+  type FlatRow = [string, number, number, TraceEvent, string];
+  const flat: FlatRow[] = [];
+  for (const [pipe, items] of Object.entries(laneEvents)) {
+    for (const row of items) flat.push([row[0], row[1], row[2], row[3], pipe]);
+  }
+  flat.sort((a, b) => a[1] - b[1] || a[2] - b[2] || a[0].localeCompare(b[0]));
 
-    let di = 0;
-    for (const [, start, end, ev] of ups) {
-      if (end - start <= 1) continue;
-      if (rand() > 0.55) continue;
-      while (di < dns.length && dns[di]![1] < end) di += 1;
-      if (di >= dns.length) break;
-      const succEid = dns[di]![0];
-      const args = (ev.args ??= {}) as Record<string, unknown>;
-      const deps = (args.dependencies ??= []) as string[];
-      if (!deps.includes(succEid)) deps.push(succEid);
+  const neighbors = new Map<string, Set<string>>();
+  const evById = new Map<string, TraceEvent>();
+  for (const [eid, , , ev] of flat) {
+    neighbors.set(eid, new Set());
+    evById.set(eid, ev);
+  }
+
+  const addEdge = (srcEid: string, dstEid: string, force = false): boolean => {
+    if (srcEid === dstEid) return false;
+    const srcN = neighbors.get(srcEid)!;
+    const dstN = neighbors.get(dstEid)!;
+    if (!force && (srcN.size >= maxDeg || dstN.size >= maxDeg)) return false;
+    const hard = maxDeg + 2;
+    if (force && (srcN.size >= hard || dstN.size >= hard)) return false;
+    const srcEv = evById.get(srcEid)!;
+    const args = (srcEv.args ??= {}) as Record<string, unknown>;
+    const deps = (args.dependencies ??= []) as string[];
+    if (deps.includes(dstEid)) return false;
+    deps.push(dstEid);
+    srcN.add(dstEid);
+    dstN.add(srcEid);
+    return true;
+  };
+
+  for (let i = 0; i < flat.length; i++) {
+    const [eid, , end, , pipe] = flat[i]!;
+    const span = maxDeg - minDeg + 1;
+    let target = minDeg + Math.trunc(span / 2) + Math.trunc(rand() * ((span + 1) / 2));
+    target = Math.max(minDeg, Math.min(maxDeg, target));
+
+    const cands: Array<[number, string, string]> = [];
+    for (let j = i + 1; j < flat.length && j <= i + DEP_CAND_WINDOW; j++) {
+      const row = flat[j]!;
+      if (row[1] >= end && neighbors.get(row[0])!.size < maxDeg) {
+        cands.push([j, row[0], row[4]]);
+      }
+    }
+    const cross = cands.filter((c) => c[2] !== pipe);
+    let pool = [...(cross.length >= minDeg ? cross : cands)];
+    let need = target - neighbors.get(eid)!.size;
+    while (need > 0 && pool.length > 0 && neighbors.get(eid)!.size < maxDeg) {
+      const window = Math.min(12, pool.length);
+      const pick = Math.trunc(rand() * window);
+      const [, dst] = pool.splice(pick, 1)[0]!;
+      if (addEdge(eid, dst)) need -= 1;
+    }
+  }
+
+  for (let i = 0; i < flat.length; i++) {
+    const [eid, start, end] = flat[i]!;
+    let attempts = 0;
+    while (neighbors.get(eid)!.size < minDeg && attempts < 64) {
+      attempts += 1;
+      const later: string[] = [];
+      for (let j = i + 1; j < flat.length && j <= i + DEP_CAND_WINDOW; j++) {
+        const row = flat[j]!;
+        if (!neighbors.get(eid)!.has(row[0]) && row[1] >= end) later.push(row[0]);
+      }
+      if (later.length > 0) {
+        if (addEdge(eid, later[Math.trunc(rand() * Math.min(8, later.length))]!, true)) continue;
+      }
+      const earlier: string[] = [];
+      for (let j = Math.max(0, i - DEP_CAND_WINDOW); j < i; j++) {
+        const row = flat[j]!;
+        if (!neighbors.get(eid)!.has(row[0]) && row[2] <= start) earlier.push(row[0]);
+      }
+      if (earlier.length === 0) break;
+      addEdge(earlier[Math.trunc(rand() * Math.min(8, earlier.length))]!, eid, true);
+    }
+  }
+
+  for (let i = 0; i < flat.length; i++) {
+    const [eid] = flat[i]!;
+    if (neighbors.get(eid)!.size >= minDeg) continue;
+    for (const j of [i - 1, i + 1]) {
+      if (j < 0 || j >= flat.length) continue;
+      const other = flat[j]![0];
+      if (!neighbors.get(eid)!.has(other)) {
+        addEdge(j < i ? other : eid, j < i ? eid : other, true);
+      }
+      if (neighbors.get(eid)!.size >= minDeg) break;
     }
   }
 }
@@ -251,7 +328,7 @@ export function generateSampleOp2Trace(): Record<string, unknown> {
     }
   }
 
-  for (const pipeMap of coreLanes.values()) wirePipelineDeps(pipeMap, rand);
+  for (const pipeMap of coreLanes.values()) wireDenseDeps(pipeMap, rand, 1, 4);
 
   return {
     displayTimeUnit: 'ns',

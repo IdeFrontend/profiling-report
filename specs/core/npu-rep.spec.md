@@ -25,7 +25,7 @@ parseNpuRep(bytes: Uint8Array): ParsedNpuRep
 3. **PR-NPU-003** — Rejects bad magic / version / length mismatch.
 4. **PR-NPU-004** — loadReportSource loads multi-op npu-rep; defaults to first operator; ids are FileInfo names.
 5. **PR-NPU-005** — Duplicate operator stems (`op1.npu.rep` + `op1.rep`) throw.
-6. **PR-NPU-006** — `sample.rep` operators have distinct traces, CSVs, connections (op1: every event 3–8 neighbors), Cube pipe occupancy, Card → 计算 → Core → pipe nesting (via producer `nestCardTree` opt-in), ProfilerStep bands (op1: 3, op2: 5), and producer Parameter args (`Code`, `Detail`, `Pc_addr`, `Process_bytes`). Committed `sample.rep` is **lite** (op2 omits `trace.json`); playground/tests hydrate op2 via `generateSampleOp2Trace` before `loadReportSource`.
+6. **PR-NPU-006** — `sample.rep` operators have distinct traces, CSVs, connections (op1: every event 3–8 neighbors; op2: 1–4), Cube pipe occupancy, Card → 计算 → Core → pipe nesting (via producer `nestCardTree` opt-in), ProfilerStep bands (op1: 3, op2: 5), and producer Parameter args (`Code`, `Detail`, `Pc_addr`, `Process_bytes`). Committed `sample.rep` is **lite** (op2 omits `trace.json`); playground/tests hydrate op2 via `generateSampleOp2Trace` before `loadReportSource`.
 
 ## Edge Cases
 

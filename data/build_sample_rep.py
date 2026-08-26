@@ -466,8 +466,8 @@ def small_trace():
 def big_trace():
     """
     Large Card → Core → pipe fixture (~150k X events) for swimlane rendering
-    performance demos. Irregular per-lane timings; sparse cross-pipe deps
-    (pipeline chain only — dense wiring would explode at this scale).
+    performance demos. Irregular per-lane timings; 1–4 dependency neighbors
+    per event (bounded window — dense wiring would explode at this scale).
     Compact producer args (no Code) keep sample.rep near ~30 MB.
     """
     rand = mulberry32(0xBEEF01)
@@ -505,7 +505,7 @@ def big_trace():
             core_lanes[(pid, core)] = pipe_map
 
     for pipe_map in core_lanes.values():
-        wire_pipeline_deps(pipe_map, rand)
+        wire_dense_deps(pipe_map, rand, min_deg=1, max_deg=4)
 
     # Match stress-medium band count (5).
     return _doc(evs, band_count=5, time_span=time_span, nest_card_tree=True)

@@ -31,6 +31,26 @@ function threadsById(model: SwimlaneModel): Map<string, SwimThread> {
   return map;
 }
 
+function dependencyDegrees(model: SwimlaneModel): Map<string, number> {
+  const byId = threadsById(model);
+  const deg = new Map<string, number>();
+  const bump = (id: string) => deg.set(id, (deg.get(id) ?? 0) + 1);
+  for (const process of model.processes) {
+    walkThreads(process.threads, (thread) => {
+      for (const event of thread.events) {
+        if (!deg.has(event.id)) deg.set(event.id, 0);
+        for (const ref of event.dependencies?.successors ?? []) {
+          const target = byId.get(ref.tid)?.events[ref.index];
+          if (!target) continue;
+          bump(event.id);
+          bump(target.id);
+        }
+      }
+    });
+  }
+  return deg;
+}
+
 function requireOperator(reports: Record<string, AdaptedReport> | undefined, id: string): AdaptedReport {
   const report = reports?.[id];
   if (!report) throw new Error(`missing operator report ${id}`);
@@ -69,26 +89,20 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('op1 gives every event 3–8 dependency neighbors', () => {
-    const byId = threadsById(op1.swimlaneModel);
-    const deg = new Map<string, number>();
-    const bump = (id: string) => deg.set(id, (deg.get(id) ?? 0) + 1);
-    for (const process of op1.swimlaneModel.processes) {
-      walkThreads(process.threads, (thread) => {
-        for (const event of thread.events) {
-          if (!deg.has(event.id)) deg.set(event.id, 0);
-          for (const ref of event.dependencies?.successors ?? []) {
-            const target = byId.get(ref.tid)?.events[ref.index];
-            if (!target) continue;
-            bump(event.id);
-            bump(target.id);
-          }
-        }
-      });
-    }
+    const deg = dependencyDegrees(op1.swimlaneModel);
     expect(deg.size).toBeGreaterThan(50);
     for (const [id, n] of deg) {
       expect(n, id).toBeGreaterThanOrEqual(3);
-      expect(n, id).toBeLessThanOrEqual(8); // soft ceiling in generator top-up
+      expect(n, id).toBeLessThanOrEqual(8);
+    }
+  });
+
+  it('op2 gives every event 1–4 dependency neighbors', () => {
+    const deg = dependencyDegrees(op2.swimlaneModel);
+    expect(deg.size).toBeGreaterThanOrEqual(140_000);
+    for (const [id, n] of deg) {
+      expect(n, id).toBeGreaterThanOrEqual(1);
+      expect(n, id).toBeLessThanOrEqual(4);
     }
   });
 
