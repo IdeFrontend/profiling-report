@@ -53,15 +53,20 @@ Prefer feeding the library via Vue props inside the webview when possible; use p
 
 ### Fonts
 
-Default typeface is **system UI** (`fontFamily="system"`): hosts still load `@huawei/profiling-report/style.css` (includes `@font-face` rules), but woff2 bytes are fetched only when an instance uses `font-family="harmony"`. To enable HarmonyOS Sans SC:
+Default typeface is **system UI** (`fontFamily="system"`). Always load `@huawei/profiling-report/style.css` (tokens + components). It does **not** bundle HarmonyOS woff2 files.
+
+To enable HarmonyOS Sans SC, also import the opt-in faces entry and pass `font-family="harmony"`:
+
+```ts
+import '@huawei/profiling-report/style.css';
+import '@huawei/profiling-report/fonts.css';
+```
 
 ```vue
 <ProfilingReport :source="…" font-family="harmony" />
 ```
 
-That sets `data-font-family="harmony"`, which scopes `--pr-font-family` to that instance and switches canvas event labels to the Harmony stack.
-
-Hosts may import `@huawei/profiling-report/fonts.css` instead when they want faces without the full component stylesheet (still pass `font-family="harmony"` so canvas matches).
+That sets `data-font-family="harmony"`, which scopes `--pr-font-family` to that instance and switches canvas event labels to the Harmony stack. Bundlers copy woff2 only when `fonts.css` is imported; at runtime, bytes are fetched only when the Harmony family is referenced.
 
 Playground A/B: `?fonts=harmony` (demo default) or `?fonts=system`. Library default remains `fontFamily="system"` for hosts such as MSTT.
 

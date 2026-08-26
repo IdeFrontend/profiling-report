@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Assert lib build ships HarmonyOS @font-face rules and per-instance token scoping.
+ * Assert lib build keeps HarmonyOS faces opt-in and ships fonts.css separately.
  * Run after `npm run build`.
  */
 
@@ -24,26 +24,32 @@ if (!existsSync(reportCssPath)) {
 }
 
 const reportCss = readFileSync(reportCssPath, 'utf8');
-const faceCount = (reportCss.match(/@font-face/g) ?? []).length;
-if (faceCount < 3) {
-  fail(`expected >=3 @font-face rules in profiling-report.css, got ${faceCount}`);
+if (reportCss.includes('@font-face')) {
+  fail('profiling-report.css must not declare @font-face — import fonts.css for harmony');
 }
 if (!/data-font-family=['"]?harmony['"]?/.test(reportCss)) {
   fail("profiling-report.css must scope --pr-font-family to .pr-root[data-font-family=harmony]");
 }
-if (!reportCss.includes('./fonts/HarmonyOS_Sans_SC_Regular.woff2')) {
-  fail('profiling-report.css must reference ./fonts/*.woff2');
-}
-if (/local\s*\(/.test(reportCss)) {
-  fail('profiling-report.css must not use local() font fallbacks — vendored woff2 only');
+if (reportCss.includes('./fonts/') || reportCss.includes('.woff2')) {
+  fail('profiling-report.css must not reference vendored woff2 files');
 }
 
 if (!existsSync(fontsCssPath)) {
   fail('missing dist/fonts.css');
 }
 const fontsCss = readFileSync(fontsCssPath, 'utf8');
-if ((fontsCss.match(/@font-face/g) ?? []).length < 3) {
-  fail('dist/fonts.css must declare all three HarmonyOS faces');
+const faceCount = (fontsCss.match(/@font-face/g) ?? []).length;
+if (faceCount !== 2) {
+  fail(`dist/fonts.css must declare exactly 2 HarmonyOS faces (Regular + Semibold), got ${faceCount}`);
+}
+if (!fontsCss.includes('./fonts/HarmonyOS_Sans_SC_Regular.woff2')) {
+  fail('dist/fonts.css must reference ./fonts/HarmonyOS_Sans_SC_Regular.woff2');
+}
+if (!fontsCss.includes('./fonts/HarmonyOS_Sans_SC_Semibold.woff2')) {
+  fail('dist/fonts.css must reference ./fonts/HarmonyOS_Sans_SC_Semibold.woff2');
+}
+if (fontsCss.includes('HarmonyOS_Sans_SC_Light')) {
+  fail('dist/fonts.css must not ship the unused Light face');
 }
 if (/local\s*\(/.test(fontsCss)) {
   fail('dist/fonts.css must not use local() font fallbacks — vendored woff2 only');
@@ -52,15 +58,12 @@ if (/local\s*\(/.test(fontsCss)) {
 if (!existsSync(fontsLicensePath)) {
   fail('missing dist/fonts/LICENSE.txt');
 }
-if (fontsCss.includes('LICENSE.txt') && !fontsCss.includes('dist/LICENSE-HarmonyOS-Sans.txt')) {
-  fail('dist/fonts.css license notice should reference dist/LICENSE-HarmonyOS-Sans.txt');
-}
 
 const umdPath = resolve(dist, 'profiling-report.umd.cjs');
 if (existsSync(umdPath)) {
   const umd = readFileSync(umdPath, 'utf8');
   if (umd.includes('@font-face')) {
-    fail('UMD bundle must not inline @font-face rules — faces belong in profiling-report.css');
+    fail('UMD bundle must not inline @font-face rules — faces belong in fonts.css');
   }
 }
 

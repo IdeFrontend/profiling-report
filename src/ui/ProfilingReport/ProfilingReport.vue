@@ -67,8 +67,8 @@ const props = withDefaults(defineProps<{
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
   preferRenderer?: 'auto' | 'webgl' | 'canvas';
   /**
-   * Report typeface. `system` (default) uses UI sans — no HarmonyOS woff2 fetch.
-   * `harmony` sets `--pr-font-family` via `data-font-family` and canvas labels.
+   * Report typeface. `system` (default) uses UI sans. `harmony` sets
+   * `data-font-family` and canvas labels; host must also import `fonts.css`.
    */
   fontFamily?: ReportFontFamily;
   /** Feature gate. Omit and the adapter's own capabilities (derived from the loaded

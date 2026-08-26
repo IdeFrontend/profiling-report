@@ -192,7 +192,7 @@ const metrics = computed(() => {
 
 .pr-detail-summary__name {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   color: #f2f2f2;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -230,7 +230,7 @@ const metrics = computed(() => {
 .pr-detail-summary__value {
   margin: 0;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 600;
   color: #f2f2f2;
   font-variant-numeric: tabular-nums;
   overflow: hidden;

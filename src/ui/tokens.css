@@ -2,8 +2,6 @@
  * Normative color / surface tokens — COLOR_TOKENS.md
  */
 
-@import './fonts.css';
-
 :root,
 .pr-root {
   --pr-font-family: ui-sans-serif, system-ui, sans-serif;

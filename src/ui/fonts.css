@@ -3,17 +3,11 @@
  * See src/assets/fonts/LICENSE.txt (shipped as dist/LICENSE-HarmonyOS-Sans.txt
  * and dist/fonts/LICENSE.txt).
  * Copyright Huawei Device Co., Ltd. — HarmonyOS Sans Fonts License Agreement.
+ *
+ * Opt-in entry: import via @huawei/profiling-report/fonts.css (not style.css).
  */
 
 /* ?no-inline: Vite lib mode otherwise base64-inlines every CSS url() asset. */
-@font-face {
-  font-family: 'HarmonyOS Sans SC 2025';
-  src: url('../assets/fonts/HarmonyOS_Sans_SC_Light.woff2?no-inline') format('woff2');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
 @font-face {
   font-family: 'HarmonyOS Sans SC 2025';
   src: url('../assets/fonts/HarmonyOS_Sans_SC_Regular.woff2?no-inline') format('woff2');

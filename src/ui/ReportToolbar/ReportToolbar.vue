@@ -648,7 +648,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   background: transparent;
   color: #ffffff;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 26px;
   letter-spacing: 0;
   cursor: pointer;
@@ -932,7 +932,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   background: transparent;
   color: #e6e6e6;
   font-size: 18px;
-  font-weight: 300;
+  font-weight: 400;
   line-height: 1;
   cursor: pointer;
 }

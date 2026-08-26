@@ -8,7 +8,7 @@ Root component and single owner of all interaction state. Orchestrates data load
 
 ## Inputs
 
-The component works in two modes. In **auto-loading mode**, provide **source** — a binary buffer containing a `.rep` file or standalone CTEF JSON. The component detects, parses, and renders automatically. In **host-managed mode**, provide pre-parsed **swimlaneModel** and **reportModel** to skip the internal pipeline. **title** sets the panel header. **theme** and **locale** control presentation. **fontFamily** (`system` | `harmony`, default `system`) selects the report typeface per instance via `data-font-family`: `system` keeps the UI sans stack (no HarmonyOS woff2 fetch); `harmony` applies HarmonyOS Sans SC for DOM and canvas labels. **timeUnit** (ms/µs/ns) selects the display unit. **dependencyMode** (`all` / `predecessors` / `successors`) and **dependencyDepth** (hops; default `1`, `-1` no hop cap, 10 000 links per side) filter selection curves, undimmed neighbors, and the detail dock's Relevent column alike; the dock's Relevent toolbar updates them in place (no page reload). **capabilities** gates Phase 2 features — an array of feature flag strings such as `'roofline'`, `'memoryDiagram'`, or `'dependencies'`. It is optional in auto-loading mode: the adapter derives capabilities from the source it just parsed and those apply on their own, so a host that passes only `source` still gets the panels its report can fill. A supplied array overrides them wholesale (host-managed mode has no adapter to ask). Adapter-derived flags never outlive their report: they are dropped when `source` is cleared, and they are ignored entirely once the host drives `swimlaneModel` / `reportModel`, which publish an empty capability set unless the host passes its own array.
+The component works in two modes. In **auto-loading mode**, provide **source** — a binary buffer containing a `.rep` file or standalone CTEF JSON. The component detects, parses, and renders automatically. In **host-managed mode**, provide pre-parsed **swimlaneModel** and **reportModel** to skip the internal pipeline. **title** sets the panel header. **theme** and **locale** control presentation. **fontFamily** (`system` | `harmony`, default `system`) selects the report typeface per instance via `data-font-family`: `system` keeps the UI sans stack; `harmony` applies HarmonyOS Sans SC for DOM and canvas labels when the host also imports `@huawei/profiling-report/fonts.css`. **timeUnit** (ms/µs/ns) selects the display unit. **dependencyMode** (`all` / `predecessors` / `successors`) and **dependencyDepth** (hops; default `1`, `-1` no hop cap, 10 000 links per side) filter selection curves, undimmed neighbors, and the detail dock's Relevent column alike; the dock's Relevent toolbar updates them in place (no page reload). **capabilities** gates Phase 2 features — an array of feature flag strings such as `'roofline'`, `'memoryDiagram'`, or `'dependencies'`. It is optional in auto-loading mode: the adapter derives capabilities from the source it just parsed and those apply on their own, so a host that passes only `source` still gets the panels its report can fill. A supplied array overrides them wholesale (host-managed mode has no adapter to ask). Adapter-derived flags never outlive their report: they are dropped when `source` is cleared, and they are ignored entirely once the host drives `swimlaneModel` / `reportModel`, which publish an empty capability set unless the host passes its own array.
 
 ## Outputs
 
@@ -172,7 +172,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 4. **PR-ROOT-004** — Auto-loaded sources apply the adapter's capabilities; the prop overrides them; host-managed models and a removed `source` publish none and clear operator state (no stale OP selector).
 5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models and capabilities; re-select is a no-op.
 6. **PR-ROOT-006** — Top-left corner wash is 208×60 with blue fade gradient.
-7. **PR-ROOT-007** — `fontFamily` (`system` | `harmony`, default `system`) selects the report typeface per instance via `data-font-family` and `--pr-font-family`; `harmony` applies HarmonyOS Sans SC for DOM and canvas labels (woff2 fetched only when used).
+7. **PR-ROOT-007** — `fontFamily` (`system` | `harmony`, default `system`) selects the report typeface per instance via `data-font-family` and `--pr-font-family`; `harmony` applies HarmonyOS Sans SC for DOM and canvas labels when the host imports `fonts.css`.
 
 ## Edge Cases
 
@@ -201,7 +201,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
-- **2026-08-26** — `fontFamily` prop with lazy HarmonyOS faces; `data-font-family` on root (PR-ROOT-007).
+- **2026-08-26** — `fontFamily` prop with opt-in `fonts.css`; `data-font-family` on root (PR-ROOT-007).
 - **2026-08-20** — Top-left 208×60 blue fade corner wash (PR-ROOT-006).
 - **2026-08-20** — Multi-operator npu-rep packs: OP selector + operator switch (PR-ROOT-005).
 - **2026-08-20** — Owns the detail dock's height alongside the gutter and aside widths; session-only, like the other two.

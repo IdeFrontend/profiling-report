@@ -286,7 +286,7 @@ function sideHeight(count: number): number {
 .pr-detail-relevant__title {
   margin: 0;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: #e0e0e0;
 }
 

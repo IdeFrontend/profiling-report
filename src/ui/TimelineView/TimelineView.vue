@@ -814,7 +814,7 @@ defineExpose({
   background: rgba(49, 122, 247, 1);
   color: #ffffff;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   position: relative;
