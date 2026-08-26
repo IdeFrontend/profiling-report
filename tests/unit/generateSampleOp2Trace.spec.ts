@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { generateSampleOp2Trace } from '../../playground/generateSampleOp2Trace';
 
+function xEventDegrees(trace: Record<string, unknown>): Map<string, number> {
+  const deg = new Map<string, number>();
+  for (const raw of trace.traceEvents as Array<{
+    ph?: string;
+    args?: { event_id?: string; dependencies?: string[] };
+  }>) {
+    if (raw.ph !== 'X') continue;
+    const id = raw.args?.event_id;
+    if (!id) continue;
+    if (!deg.has(id)) deg.set(id, 0);
+    for (const dep of raw.args?.dependencies ?? []) {
+      deg.set(id, (deg.get(id) ?? 0) + 1);
+      deg.set(dep, (deg.get(dep) ?? 0) + 1);
+    }
+  }
+  return deg;
+}
+
 describe('generateSampleOp2Trace', () => {
   it('is deterministic and yields ~150k X events', () => {
     const a = generateSampleOp2Trace();
@@ -14,5 +32,14 @@ describe('generateSampleOp2Trace', () => {
     expect(events.length).toBeLessThanOrEqual(160_000);
     expect(a.nestCardTree).toBe(true);
     expect((a.bands as unknown[]).length).toBe(5);
+  });
+
+  it('gives every X event 1–4 dependency neighbors', { timeout: 30_000 }, () => {
+    const deg = xEventDegrees(generateSampleOp2Trace());
+    expect(deg.size).toBeGreaterThanOrEqual(140_000);
+    for (const [id, n] of deg) {
+      expect(n, id).toBeGreaterThanOrEqual(1);
+      expect(n, id).toBeLessThanOrEqual(4);
+    }
   });
 });

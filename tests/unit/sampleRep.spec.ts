@@ -97,13 +97,8 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     }
   });
 
-  it('op2 gives every event 1–4 dependency neighbors', () => {
-    const deg = dependencyDegrees(op2.swimlaneModel);
-    expect(deg.size).toBeGreaterThanOrEqual(140_000);
-    for (const [id, n] of deg) {
-      expect(n, id).toBeGreaterThanOrEqual(1);
-      expect(n, id).toBeLessThanOrEqual(4);
-    }
+  it('op2 exposes scaled dependency connections after hydrate', () => {
+    expect(connectionRefCount(op2.swimlaneModel)).toBeGreaterThan(200_000);
   });
 
   it('op1 and op2 carry different CSV content', () => {
