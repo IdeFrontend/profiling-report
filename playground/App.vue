@@ -69,6 +69,12 @@ const statusLine = computed(() => {
   return `${status.value} · ${title.value} · renderer=${renderer}`;
 });
 
+async function hydrateRepBytes(bytes: Uint8Array): Promise<Uint8Array> {
+  status.value = 'generating op2 trace…';
+  await new Promise<void>((r) => requestAnimationFrame(() => r()));
+  return hydrateSampleRep(bytes);
+}
+
 async function loadUrl(url: string, opts?: { hydrateSample?: boolean }): Promise<void> {
   status.value = 'loading';
   error.value = null;
@@ -80,9 +86,7 @@ async function loadUrl(url: string, opts?: { hydrateSample?: boolean }): Promise
   }
   let bytes = new Uint8Array(await res.arrayBuffer());
   if (opts?.hydrateSample) {
-    status.value = 'generating op2 trace…';
-    await new Promise<void>((r) => requestAnimationFrame(() => r()));
-    bytes = hydrateSampleRep(bytes);
+    bytes = await hydrateRepBytes(bytes);
   }
   source.value = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   loadToken.value += 1;
@@ -135,12 +139,6 @@ async function loadFixture(kind: FixtureKind): Promise<void> {
 function onOpenFileClick(e: MouseEvent): void {
   e.preventDefault();
   fileInputRef.value?.click();
-}
-
-async function hydrateRepBytes(bytes: Uint8Array): Promise<Uint8Array> {
-  status.value = 'generating op2 trace…';
-  await new Promise<void>((r) => requestAnimationFrame(() => r()));
-  return hydrateSampleRep(bytes);
 }
 
 async function onFileChosen(e: Event): Promise<void> {
