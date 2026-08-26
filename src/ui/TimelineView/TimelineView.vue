@@ -484,6 +484,7 @@ defineExpose({
 <template>
   <div
     class="pr-main-swim"
+    data-testid="timeline-view"
     :style="{ '--pr-gutter-width': `${localGutterWidth}px` }"
   >
     <div class="pr-swim-row pr-swim-row--overview">
@@ -694,9 +695,14 @@ defineExpose({
 
 .pr-swim-row {
   display: grid;
-  grid-template-columns: var(--pr-gutter-width, 280px) 1fr;
+  /*
+   * Gutter caps at --pr-gutter-width; track keeps a non-zero floor so the chart
+   * cannot collapse when main is narrower than the gutter token.
+   */
+  grid-template-columns: minmax(0, var(--pr-gutter-width, 280px)) minmax(80px, 1fr);
   gap: 0;
   align-items: stretch;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -898,19 +904,5 @@ defineExpose({
   flex: 0 0 auto;
   padding: 8px 12px;
   color: #888;
-}
-
-@media (max-width: 900px) {
-  .pr-swim-row {
-    grid-template-columns: 1fr;
-  }
-
-  .pr-swim-row--head {
-    display: block;
-  }
-
-  .pr-gutter--axis-spacer {
-    display: none;
-  }
 }
 </style>

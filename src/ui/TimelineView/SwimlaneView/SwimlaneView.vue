@@ -296,10 +296,7 @@ defineExpose({
         @click="emit('toggle-group', strip.id)"
         @wheel="onStripWheel"
       >
-        <span
-          class="pr-card-strip__label"
-          :style="{ width: `var(--pr-gutter-width, ${localGutterWidth}px)` }"
-        >
+        <span class="pr-card-strip__label">
           <Chevron
             class="pr-card-strip__chevron"
             :expanded="strip.expanded"
@@ -314,24 +311,34 @@ defineExpose({
 <style scoped>
 .pr-swim-row {
   display: grid;
-  grid-template-columns: var(--pr-gutter-width, 280px) 1fr;
+  /*
+   * Gutter caps at --pr-gutter-width; track keeps a non-zero floor so the chart
+   * cannot collapse when main is narrower than the gutter token.
+   */
+  grid-template-columns: minmax(0, var(--pr-gutter-width, 280px)) minmax(80px, 1fr);
   gap: 0;
   align-items: stretch;
+  min-width: 0;
   min-height: 0;
 }
 
 .pr-swim-row--body {
   position: relative;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
+/* Pin to used gutter column so the handle stays on the seam when the column shrinks. */
 .pr-gutter-resize {
+  grid-column: 1;
+  grid-row: 1;
   position: absolute;
   top: 0;
   bottom: 0;
-  left: var(--pr-gutter-width, 280px);
+  left: auto;
+  right: 0;
   width: 5px;
   margin: 0;
   padding: 0;
@@ -339,7 +346,7 @@ defineExpose({
   background: transparent;
   cursor: ew-resize;
   z-index: 5;
-  transform: translateX(-50%);
+  transform: translateX(50%);
 }
 
 .pr-gutter-resize:hover,
@@ -348,6 +355,8 @@ defineExpose({
 }
 
 .pr-card-strips {
+  grid-column: 1 / -1;
+  grid-row: 1;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -355,12 +364,12 @@ defineExpose({
   overflow: hidden;
 }
 
+/* Fill the used track column (not left: var(--pr-gutter-width)). */
 .pr-swim-cursor-layer {
+  grid-column: 2;
+  grid-row: 1;
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: var(--pr-gutter-width, 280px);
+  inset: 0;
   pointer-events: none;
   /* Under Card strips (z-index 8) so the bar does not paint over header chrome. */
   z-index: 7;
@@ -391,7 +400,9 @@ defineExpose({
   font: inherit;
   cursor: pointer;
   pointer-events: auto;
-  display: flex;
+  /* Same column formula as the swim row so the label tracks the used gutter. */
+  display: grid;
+  grid-template-columns: minmax(0, var(--pr-gutter-width, 280px)) minmax(80px, 1fr);
   align-items: stretch;
   text-align: left;
 }
@@ -402,12 +413,11 @@ defineExpose({
 
 .pr-card-strip__label {
   box-sizing: border-box;
-  flex: 0 0 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 0 8px;
-  min-width: 0;
 }
 
 .pr-card-strip__name {
@@ -416,15 +426,5 @@ defineExpose({
   white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
-}
-
-@media (max-width: 900px) {
-  .pr-swim-row {
-    grid-template-columns: 1fr;
-  }
-
-  .pr-gutter-resize {
-    display: none;
-  }
 }
 </style>

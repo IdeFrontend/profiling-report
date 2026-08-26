@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
@@ -43,6 +43,7 @@ import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_DEFAULT,
+  fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
@@ -98,10 +99,14 @@ const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
-/** Session-only panel sizes (not persisted). */
+const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
+/** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
+const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
+const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const dockHeight = ref(DOCK_HEIGHT_DEFAULT);
+let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
@@ -209,6 +214,13 @@ function onFocusMeasure() {
   animateToWindow(target);
 }
 
+function resetPanelWidthsToDefaults(): void {
+  preferredGutterWidth.value = GUTTER_WIDTH_DEFAULT;
+  preferredAsideWidth.value = ASIDE_WIDTH_DEFAULT;
+  gutterWidth.value = GUTTER_WIDTH_DEFAULT;
+  asideWidth.value = ASIDE_WIDTH_DEFAULT;
+}
+
 function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean): void {
   stopViewWindowAnim();
   const next = createViewState(model);
@@ -217,10 +229,54 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   selected.value = null;
   selectedEvent.value = null;
   hovered.value = null;
+  resetPanelWidthsToDefaults();
   const fromMeta = model?.metadata?.defaultCollapsedIds;
   collapsedGroupIds.value = Array.isArray(fromMeta)
     ? fromMeta.filter((id): id is string => typeof id === 'string')
     : [];
+  if (showTimeline.value) void bindLayoutFit();
+}
+
+function stopLayoutFitObserver(): void {
+  layoutResizeObserver?.disconnect();
+  layoutResizeObserver = null;
+}
+
+function applyLayoutFit(): void {
+  const el = layoutRef.value?.rootEl;
+  if (!el) return;
+  const hostWidth = el.clientWidth;
+  if (!(hostWidth > 0)) return;
+  const next = fitPanelWidths(hostWidth, {
+    asideVisible: showAside.value,
+    preferredGutter: preferredGutterWidth.value,
+    preferredAside: preferredAsideWidth.value,
+  });
+  if (next.gutterWidth !== gutterWidth.value) gutterWidth.value = next.gutterWidth;
+  if (next.asideWidth !== asideWidth.value) asideWidth.value = next.asideWidth;
+}
+
+async function bindLayoutFit(): Promise<void> {
+  stopLayoutFitObserver();
+  await nextTick();
+  const el = layoutRef.value?.rootEl;
+  if (!el) return;
+  applyLayoutFit();
+  if (typeof ResizeObserver === 'undefined') return;
+  layoutResizeObserver = new ResizeObserver(() => {
+    applyLayoutFit();
+  });
+  layoutResizeObserver.observe(el);
+}
+
+function onGutterWidth(w: number): void {
+  preferredGutterWidth.value = w;
+  gutterWidth.value = w;
+}
+
+function onAsideWidth(w: number): void {
+  preferredAsideWidth.value = w;
+  asideWidth.value = w;
 }
 
 function onToggleGroup(groupId: string): void {
@@ -329,6 +385,18 @@ watch(
   },
 );
 
+watch(
+  showTimeline,
+  (show) => {
+    if (show) void bindLayoutFit();
+    else stopLayoutFitObserver();
+  },
+);
+
+watch(showAside, () => {
+  applyLayoutFit();
+});
+
 onMounted(() => {
   window.addEventListener('keydown', onMeasureKeydown);
   if (props.source) return;
@@ -340,6 +408,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
+  stopLayoutFitObserver();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
 
@@ -587,9 +656,10 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 
     <ReportLayout
       v-else
+      ref="layoutRef"
       :show-aside="showAside"
       :aside-width="asideWidth"
-      @update:aside-width="asideWidth = $event"
+      @update:aside-width="onAsideWidth"
     >
       <template #main>
         <ReportToolbar
@@ -629,7 +699,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"
           :prefer-renderer="preferRenderer ?? 'auto'"
-          @update:gutter-width="gutterWidth = $event"
+          @update:gutter-width="onGutterWidth"
           @update:scroll-y="onScrollY"
           @update:window="onOverviewWindow"
           @toggle-group="onToggleGroup"

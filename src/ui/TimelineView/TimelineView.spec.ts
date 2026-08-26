@@ -26,26 +26,29 @@ afterEach(() => {
 });
 
 describe('TimelineView', () => {
-  it('PR-TIMELINE-001: renders overview, axis, and body', async () => {
+  const baseProps = () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
       processes: [],
     });
-    const wrapper = mount(TimelineView, {
-      props: {
-        bounds: { minTime: 0, maxTime: 1000 },
-        view,
-        unit: 'ms',
-        groups: [],
-        collapsedIds: [],
-        displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
-        cursor: null,
-      },
-    });
+    return {
+      bounds: { minTime: 0, maxTime: 1000 },
+      view,
+      unit: 'ms' as const,
+      groups: [],
+      collapsedIds: [] as string[],
+      displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
+      cursor: null,
+    };
+  };
+
+  it('PR-TIMELINE-001: renders overview, axis, and body', async () => {
+    const wrapper = mount(TimelineView, { props: baseProps() });
 
     expect(wrapper.find('[data-testid="time-axis"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="gutter-resize-handle"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="lane-gutter"]').exists()).toBe(true);
     const src = (await import('./TimelineView.vue?raw')).default as string;
     expect(src).toMatch(
       /\.pr-swim-row\.pr-swim-row--head,\s*\.pr-swim-row\.pr-swim-row--overview\s*\{[^}]*z-index:\s*7/s,
@@ -673,5 +676,27 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="cursor-label"]').text()).toBe(
       formatDisplayTime(3_354_000, minTime, 'us'),
     );
+  });
+
+  it('PR-TIMELINE-016: cursor timestamp aligns with time-proportional xRatio', () => {
+    const props = baseProps();
+    props.view = { ...props.view, startTime: 0, endTime: 1000 };
+    const wrapper = mount(TimelineView, {
+      props: {
+        ...props,
+        cursor: { time: 500, xRatio: 0.5 },
+      },
+    });
+    const line = wrapper.get('[data-testid="cursor-line"]');
+    expect(line.attributes('style')).toContain('left: 50%');
+  });
+
+  it('PR-TIMELINE-017: no viewport breakpoint; swim rows keep a non-zero track floor', async () => {
+    const src = (await import('./TimelineView.vue?raw')).default as string;
+    expect(src).not.toMatch(/@media\s*\(\s*max-width:\s*900px\s*\)/);
+    expect(src).toMatch(
+      /\.pr-swim-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*var\(--pr-gutter-width[^)]*\)\)\s*minmax\(80px,\s*1fr\)/s,
+    );
+    expect(src).toMatch(/\.pr-swim-row\s*\{[^}]*min-width:\s*0/s);
   });
 });
