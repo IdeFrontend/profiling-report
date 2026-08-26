@@ -1,5 +1,5 @@
 import { parseNpuRep } from '../src/adapters/parseNpuRep';
-import { generateSampleOp2Trace } from '../src/domain/generateSampleOp2Trace';
+import { generateSampleOp2Trace } from './generateSampleOp2Trace';
 import { NPU_TYPE_JSON, packNpuRep } from './packNpuRep';
 
 const OP2_NAME = 'op2.npu.rep';
@@ -12,7 +12,7 @@ function entriesFromParsed(parsed: ReturnType<typeof parseNpuRep>) {
   }));
 }
 
-/** Inject op2 trace.json when the committed lite sample.rep omits it. */
+/** Inject op2 trace.json when the committed lite sample.lite.rep omits it. */
 export function hydrateSampleRep(source: ArrayBuffer | Uint8Array): Uint8Array {
   const bytes = source instanceof Uint8Array ? source : new Uint8Array(source);
   const parsed = parseNpuRep(bytes);

@@ -81,11 +81,11 @@ async function probeSwimlaneDepCurves(
 }
 
 /**
- * Feature e2e — playground loads data/sample.rep into ProfilingReport by default.
+ * Feature e2e — playground loads data/sample.lite.rep into ProfilingReport by default.
  */
 
 test.describe('PR-E2E feature paths', () => {
-  test('PR-E2E-001: playground loads sample.rep timeline (UX S1, interim I-Q4)', async ({ page }) => {
+  test('PR-E2E-001: playground loads sample.lite.rep timeline (UX S1, interim I-Q4)', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
     await expect(page.getByTestId('profiling-report')).toBeVisible();

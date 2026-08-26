@@ -1,4 +1,6 @@
-/** Pack npu-rep bytes — mirrors data/build_sample_rep.py pack_npu_rep(). */
+/** Pack npu-rep bytes — mirror of data/build_sample_rep.py pack_npu_rep().
+ *  Keep head (36B) + FileInfo (164B) layout in sync; parity: tests/unit/packNpuRep.spec.ts
+ *  runs `python3 data/build_sample_rep.py --pack-parity` and compares bytes. */
 
 const MAGIC = new TextEncoder().encode('npu-rep\x00');
 const VERSION = 0x00010000;

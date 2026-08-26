@@ -1,6 +1,7 @@
 /**
- * Deterministic op2 trace for sample.rep (ported from data/build_sample_rep.py big_trace).
- * Committed sample.rep omits this blob; playground/tests hydrate before loadReportSource.
+ * Deterministic op2 trace for sample.lite.rep (ported from data/build_sample_rep.py big_trace).
+ * Playground/test fixture only — not library product logic.
+ * Committed sample.lite.rep omits this blob; hydrate before loadReportSource.
  */
 
 const STRESS_PIPES = [

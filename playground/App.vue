@@ -12,7 +12,7 @@ import { depsTraceFixture } from './depsFixture';
 import { hydrateSampleRep } from './hydrateSampleRep';
 
 const FILE_FIXTURES = {
-  sample: { name: 'sample.rep', url: '/data/sample.rep' },
+  sample: { name: 'sample.lite.rep', url: '/data/sample.lite.rep' },
   rep: { name: 'out.rep', url: '/data/out.rep' },
   example: { name: 'example.rep', url: '/data/example.rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
@@ -148,7 +148,11 @@ async function onFileChosen(e: Event): Promise<void> {
   source.value = undefined;
   stressModel.value = null;
   try {
-    source.value = await file.arrayBuffer();
+    let bytes = new Uint8Array(await file.arrayBuffer());
+    if (/\.(rep|npu-rep|ncrep)$/i.test(file.name)) {
+      bytes = hydrateSampleRep(bytes);
+    }
+    source.value = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
     openedName.value = file.name;
     loadToken.value += 1;
     status.value = 'ready';
@@ -199,7 +203,7 @@ onMounted(async () => {
         <a
           href="/?fixture=sample"
           data-testid="fixture-sample"
-        >sample.rep</a>
+        >sample.lite.rep</a>
         <a
           href="/?fixture=rep"
           data-testid="fixture-rep"

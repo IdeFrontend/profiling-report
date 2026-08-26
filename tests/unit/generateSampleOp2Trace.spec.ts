@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateSampleOp2Trace } from '../../src/domain/generateSampleOp2Trace';
+import { generateSampleOp2Trace } from '../../playground/generateSampleOp2Trace';
 
 describe('generateSampleOp2Trace', () => {
   it('is deterministic and yields ~150k X events', () => {

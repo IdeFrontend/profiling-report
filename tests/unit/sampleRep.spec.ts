@@ -58,7 +58,7 @@ function requireOperator(reports: Record<string, AdaptedReport> | undefined, id:
 }
 
 describe('PR-NPU-006: sample.rep distinct operators', () => {
-  it('committed sample.rep is lite (op2 trace generated at hydrate time)', () => {
+  it('committed sample.lite.rep is lite (op2 trace generated at hydrate time)', () => {
     expect(liteSampleRepByteLength()).toBeLessThan(500_000);
   });
 

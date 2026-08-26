@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Generate `data/sample.rep`: a nested multi-operator `npu-rep` container with
+Generate `data/sample.lite.rep`: a nested multi-operator `npu-rep` container with
 two *distinct* operators (leaves `data/example.npu.rep` untouched).
 
 op2 omits trace.json (~30 MB); playground/tests hydrate via generateSampleOp2Trace().
+Not standalone-valid — hydrate before loadReportSource.
 
 Layout (little-endian), matches `src/adapters/parseNpuRep.ts`:
 
@@ -782,7 +783,7 @@ def main():
         ("op2.npu.rep", TYPE_NESTED, op2_bytes),
     ])
 
-    out_path = os.path.join(here, "sample.rep")
+    out_path = os.path.join(here, "sample.lite.rep")
     with open(out_path, "wb") as fp:
         fp.write(container)
 
@@ -792,4 +793,15 @@ def main():
 
 
 if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--pack-parity":
+        # Fixed entry set for tests/unit/packNpuRep.spec.ts ↔ packNpuRep.ts parity.
+        parity = pack_npu_rep([
+            ("OpBasicInfo.csv", TYPE_CSV, b"a,b\n1,2"),
+            ("trace.json", TYPE_JSON, b"{}"),
+        ])
+        sys.stdout.buffer.write(parity)
+        sys.exit(0)
+
     main()
