@@ -904,11 +904,12 @@ const measurePreviewGeometry = computed(() => {
 
 /** Default-mode hover gap measure: sticks + Δt arrow between two adjacent events. */
 const gapMeasureGeometry = computed(() => {
+  void resizeTick.value;
   const gap = hoverGap.value;
   if (props.measureMode || !gap || !props.model) return null;
   const viewStart = props.view.startTime;
   const viewEnd = props.view.endTime;
-  const w = wrapRef.value?.clientWidth || 1;
+  const w = syncTrackWidth();
 
   const leftEnd = gap.leftEnd;
   const rightStart = gap.rightStart;

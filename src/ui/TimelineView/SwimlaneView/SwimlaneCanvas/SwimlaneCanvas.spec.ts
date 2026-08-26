@@ -785,6 +785,7 @@ describe('SwimlaneCanvas', () => {
     expect(src).toMatch(/measureFadeGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
     expect(src).toMatch(/measureGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
     expect(src).toMatch(/measurePreviewGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+    expect(src).toMatch(/gapMeasureGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
   });
 
   const gapModel = {
