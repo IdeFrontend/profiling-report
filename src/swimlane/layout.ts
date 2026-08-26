@@ -296,6 +296,63 @@ export interface ExactEdgeMatch {
   laneY: number;
 }
 
+/** Idle gap between two adjacent events on a leaf lane (left end → right start). */
+export interface HoverGap {
+  leftEnd: number;
+  rightStart: number;
+  /** Content-space lane Y (pre-scroll); project with `view.scrollY` each frame. */
+  laneY: number;
+}
+
+/**
+ * Adjacent-event gap under the pointer (default mode hover measure).
+ * Returns null when the pointer is over an event block, within the magnet edge band
+ * of either neighbouring edge (magnet/tooltip wins when the gap is wide enough),
+ * on a folder/header, or when no left-and-right pair brackets the pointer on this lane.
+ * When the gap is narrower than 2×thresholdPx the edge band shrinks so a Δt overlay
+ * can still appear in the middle of sub-pixel gaps at high zoom.
+ */
+export function findHoverGap(
+  layout: SwimlaneLayout,
+  view: SwimlaneViewWindow,
+  width: number,
+  x: number,
+  y: number,
+  thresholdPx: number,
+): HoverGap | null {
+  const contentY = y + view.scrollY;
+  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
+  if (!lane || lane.folder) return null;
+  // Tooltip wins when a visible block is under the pointer (same rule as hitTest).
+  if (hitTestLayout(layout, view, width, x, y)) return null;
+  const laneIndex = layout.lanes.indexOf(lane);
+  const span = Math.max(1, view.endTime - view.startTime);
+  const w = Math.max(1, width);
+  const t = view.startTime + (x / w) * span;
+
+  let leftEnd: number | null = null;
+  let rightStart: number | null = null;
+  for (const item of layout.eventsByLane[laneIndex] ?? []) {
+    const ev = item.event;
+    const end = ev.startTime + ev.duration;
+    if (end <= t && (leftEnd == null || end > leftEnd)) leftEnd = end;
+    if (ev.startTime >= t && (rightStart == null || ev.startTime < rightStart)) {
+      rightStart = ev.startTime;
+    }
+  }
+  if (leftEnd == null || rightStart == null) return null;
+  if (!(leftEnd < rightStart)) return null;
+
+  // Free zone for the event-edge magnet; shrink the band when the gap is narrower than 2×threshold.
+  const xLeft = ((leftEnd - view.startTime) / span) * w;
+  const xRight = ((rightStart - view.startTime) / span) * w;
+  const gapPx = xRight - xLeft;
+  const edgeBand = Math.min(thresholdPx, Math.max(0, gapPx / 2 - 0.5));
+  if (Math.abs(xLeft - x) < edgeBand || Math.abs(xRight - x) < edgeBand) return null;
+
+  return { leftEnd, rightStart, laneY: lane.y };
+}
+
 /** View-invariant: which event edges exactly equal a range bound (scan once per range/model). */
 export function findExactEdgeMatches(
   layout: SwimlaneLayout,
