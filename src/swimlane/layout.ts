@@ -308,7 +308,8 @@ export interface HoverGap {
  * Adjacent-event gap under the pointer (default mode hover measure).
  * Returns null when the pointer is over an event block, within the magnet edge band
  * of either neighbouring edge (magnet/tooltip wins when the gap is wide enough),
- * on a folder/header, or when no left-and-right pair brackets the pointer on this lane.
+ * in the lane vertical padding above/below event blocks, on a folder/header, or when
+ * no left-and-right pair brackets the pointer on this lane.
  * When the gap is narrower than 2×thresholdPx the edge band shrinks so a Δt overlay
  * can still appear in the middle of sub-pixel gaps at high zoom.
  */
@@ -323,6 +324,8 @@ export function findHoverGap(
   const contentY = y + view.scrollY;
   const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
   if (!lane || lane.folder) return null;
+  const { y: blockY, h: blockH } = eventBlockMetrics(lane.y, view.scrollY);
+  if (y < blockY || y > blockY + blockH) return null;
   // Tooltip wins when a visible block is under the pointer (same rule as hitTest).
   if (hitTestLayout(layout, view, width, x, y)) return null;
   const laneIndex = layout.lanes.indexOf(lane);

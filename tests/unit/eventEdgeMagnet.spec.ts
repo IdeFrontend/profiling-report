@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  eventBlockMetrics,
   findExactEdgeMatches,
   findHoverGap,
   measureRangeExactEdgeMarks,
@@ -151,6 +152,19 @@ describe('findHoverGap', () => {
   it('returns null over an event block', () => {
     const layout = rebuildLayout(twoEventModel());
     expect(findHoverGap(layout, view, width, 150, yLane, 10)).toBeNull();
+  });
+
+  it('returns null in lane vertical padding above/below event blocks', () => {
+    const layout = rebuildLayout(twoEventModel());
+    const laneY = LANE_GROUP_HEADER_HEIGHT;
+    const { y: blockY, h: blockH } = eventBlockMetrics(laneY, view.scrollY);
+    const yAbove = blockY - 0.5;
+    const yBelow = blockY + blockH + 0.5;
+    // Horizontal gap between eA and eB — valid at block Y, not in lane padding.
+    expect(findHoverGap(layout, view, width, 300, yAbove, 10)).toBeNull();
+    expect(findHoverGap(layout, view, width, 300, yBelow, 10)).toBeNull();
+    // Over an event in X but still in vertical padding.
+    expect(findHoverGap(layout, view, width, 150, yAbove, 10)).toBeNull();
   });
 
   it('returns null within threshold of the left edge (magnet zone)', () => {
