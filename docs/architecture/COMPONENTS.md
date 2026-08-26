@@ -221,7 +221,7 @@ Renders `OverviewSeries` (Cube/Vector); **hidden** when empty.
 
 ### `SwimlaneCanvas` (M / M2)
 
-Mounts `SwimlaneRenderer`, maps pointer events to `hitTest` (CSS local × `devicePixelRatio`), updates hover/selection in view state. Chooses WebGL+overlay or Canvas fallback once and mounts **only** that canvas set. Sizes via `ResizeObserver` `devicePixelContentBoxSize` → `resize(deviceW, deviceH, dpr)`; CSS canvases stay `width/height: 100%`; paint waits until device buffer size is ≥ 1×1. **M2:** when `measureMode`, drag sets `measureRange`; draws shaded band + Δt; pan-drag suppressed.
+Mounts `SwimlaneRenderer`, maps pointer events to `hitTest` (CSS local × `devicePixelRatio`), updates hover/selection in view state. Chooses WebGL+overlay or Canvas fallback once and mounts **only** that canvas set. Sizes via `ResizeObserver` `devicePixelContentBoxSize` → `resize(deviceW, deviceH, dpr)`; CSS canvases stay `width/height: 100%`; paint waits until device buffer size is ≥ 1×1. Unmodified drag marquees a multi-selection; pan is Shift+wheel / horizontal trackpad scroll. **M2:** when `measureMode`, drag sets `measureRange` instead of marqueeing; draws shaded band + Δt.
 
 **Why:** Thin Vue wrapper over imperative rendering — keeps LOD/WebGL out of the Vue reactivity graph.
 

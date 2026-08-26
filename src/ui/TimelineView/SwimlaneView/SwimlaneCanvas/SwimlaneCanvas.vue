@@ -1888,8 +1888,10 @@ function onWheel(e: WheelEvent): void {
     emit('zoom', e.deltaY > 0 ? 1 / 1.15 : 1.15, anchor);
     return;
   }
-  // Trackpads report horizontal intent as deltaX; a mouse wheel needs Shift.
-  const panPx = e.deltaX !== 0 ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+  // Trackpads report horizontal intent as deltaX; a mouse wheel needs Shift. Take the
+  // dominant axis so the incidental deltaX on a vertical two-finger scroll still scrolls lanes.
+  const panPx =
+    Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
   if (panPx !== 0) {
     const span = Math.max(1, props.view.endTime - props.view.startTime);
     const w = Math.max(1, rect.width);

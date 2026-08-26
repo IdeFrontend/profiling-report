@@ -11,7 +11,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 | Mouse wheel over swimlane | Vertical scroll of lanes | MVP |
 | Ctrl/Cmd + wheel | Zoom time axis around cursor | MVP |
 | **Shift + wheel**, two-finger horizontal trackpad scroll | Pan time | MVP |
-| Drag on time axis | Pan time (measure mode: create range) | MVP |
+| Drag on time axis | Measure mode: create range (no pan) | MVP |
 | Zoom slider / + / − | Zoom | MVP |
 | Zoom to fit | Fit full `[minTime, maxTime]` in view (animated, same easing as Δt focus) | MVP |
 | Click lane header expand/collapse | Toggle children | MVP |

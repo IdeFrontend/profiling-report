@@ -1755,6 +1755,12 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('wheel', { clientX: 100, clientY: 30, deltaY: 120 });
     expect(wrapper.emitted('pan')!.length).toBe(panCount);
     expect(wrapper.emitted('scroll-y')?.length).toBeGreaterThan(0);
+
+    // A vertical two-finger scroll with incidental deltaX still scrolls lanes.
+    const scrollCount = wrapper.emitted('scroll-y')!.length;
+    await canvas.trigger('wheel', { clientX: 100, clientY: 30, deltaX: -4, deltaY: 120 });
+    expect(wrapper.emitted('pan')!.length).toBe(panCount);
+    expect(wrapper.emitted('scroll-y')!.length).toBe(scrollCount + 1);
     wrapper.unmount();
   });
 
