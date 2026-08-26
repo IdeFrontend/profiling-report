@@ -10,7 +10,11 @@ import {
   type TimeDisplayUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
-import { canvasLabelFont, type ReportFontFamily } from '../../../../ui/fontStack';
+import {
+  canvasLabelFont,
+  HARMONYOS_CANVAS_LABEL_FONT,
+  type ReportFontFamily,
+} from '../../../../ui/fontStack';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import { contentHeightFromModel, findExactEdgeMatches, LANE_HEIGHT, nearestEventEdgeAtPoint, projectExactEdgeMarks, type ExactEdgeMatch } from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
@@ -240,6 +244,12 @@ function sync(forceModel = false): void {
   schedulePaint();
 }
 
+/** Repaint after HarmonyOS woff2 faces arrive (DOM reflows via CSS; canvas does not). */
+function scheduleHarmonyFontRepaint(): void {
+  if (props.fontFamily !== 'harmony' || typeof document === 'undefined' || !document.fonts) return;
+  void document.fonts.load(HARMONYOS_CANVAS_LABEL_FONT).then(() => sync());
+}
+
 function resize(): void {
   const wrap = wrapRef.value;
   if (!wrap) return;
@@ -307,6 +317,7 @@ function resize(): void {
 onMounted(async () => {
   await nextTick();
   resize();
+  scheduleHarmonyFontRepaint();
   if (wrapRef.value && typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => resize());
     resizeObserver.observe(wrapRef.value);
@@ -338,6 +349,14 @@ watch(
     sync();
   },
   { deep: true },
+);
+
+watch(
+  () => props.fontFamily,
+  () => {
+    sync();
+    scheduleHarmonyFontRepaint();
+  },
 );
 
 /** Drop live magnet stem when the time window moves (zoom / pan / Δt focus anim). */

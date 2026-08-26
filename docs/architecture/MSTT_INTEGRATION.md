@@ -63,7 +63,7 @@ That lazy-loads `@font-face` rules and switches canvas event labels to the Harmo
 
 Hosts that prefer a static import can also load faces via the package export `@huawei/profiling-report/fonts.css` (still pass `font-family="harmony"` so canvas matches).
 
-Playground A/B: `?fonts=harmony` (default) or `?fonts=system`.
+Playground A/B: `?fonts=harmony` (demo default) or `?fonts=system`. Library default remains `fontFamily="system"` for hosts such as MSTT.
 
 **查看全部 (I-Q6d):** when the library emits `view-full-csv` with `{ fileName, text }`, the host should open the CSV in a **new editor tab** (or equivalent). Playground may use a blob URL in a new browser tab.
 

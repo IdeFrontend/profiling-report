@@ -53,6 +53,7 @@ import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterT
 import { animateViewWindow } from '../TimelineView/animateViewWindow';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import type { ReportFontFamily } from '../fontStack';
+import { HARMONYOS_CANVAS_LABEL_FONT } from '../fontStack';
 import '../tokens.css';
 
 let harmonyFontsLoaded = false;
@@ -60,6 +61,9 @@ let harmonyFontsLoaded = false;
 async function ensureHarmonyFonts(): Promise<void> {
   if (harmonyFontsLoaded) return;
   await import('../fonts.css');
+  if (typeof document !== 'undefined' && document.fonts) {
+    await document.fonts.load(HARMONYOS_CANVAS_LABEL_FONT);
+  }
   harmonyFontsLoaded = true;
 }
 

@@ -172,6 +172,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 4. **PR-ROOT-004** — Auto-loaded sources apply the adapter's capabilities; the prop overrides them; host-managed models and a removed `source` publish none and clear operator state (no stale OP selector).
 5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models and capabilities; re-select is a no-op.
 6. **PR-ROOT-006** — Top-left corner wash is 208×60 with blue fade gradient.
+7. **PR-ROOT-007** — `fontFamily` (`system` | `harmony`, default `system`) selects the report typeface; root exposes `data-font-family` for host A/B. `harmony` lazy-loads HarmonyOS Sans SC faces for DOM and canvas labels.
 
 ## Edge Cases
 
@@ -200,6 +201,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-08-26** — `fontFamily` prop with lazy HarmonyOS faces; `data-font-family` on root (PR-ROOT-007).
 - **2026-08-20** — Top-left 208×60 blue fade corner wash (PR-ROOT-006).
 - **2026-08-20** — Multi-operator npu-rep packs: OP selector + operator switch (PR-ROOT-005).
 - **2026-08-20** — Owns the detail dock's height alongside the gutter and aside widths; session-only, like the other two.
