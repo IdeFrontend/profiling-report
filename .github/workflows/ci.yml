@@ -33,6 +33,12 @@ jobs:
       - name: Check spec coverage
         run: npm run check:specs
 
+      - name: Check design assets
+        run: npm run check:design
+
+      - name: Check sample rep fixture
+        run: npm run check:sample
+
       - name: Build library
         run: npm run build
 
