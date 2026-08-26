@@ -137,6 +137,12 @@ function onOpenFileClick(e: MouseEvent): void {
   fileInputRef.value?.click();
 }
 
+async function hydrateRepBytes(bytes: Uint8Array): Promise<Uint8Array> {
+  status.value = 'generating op2 trace…';
+  await new Promise<void>((r) => requestAnimationFrame(() => r()));
+  return hydrateSampleRep(bytes);
+}
+
 async function onFileChosen(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -150,7 +156,7 @@ async function onFileChosen(e: Event): Promise<void> {
   try {
     let bytes = new Uint8Array(await file.arrayBuffer());
     if (/\.(rep|npu-rep|ncrep)$/i.test(file.name)) {
-      bytes = hydrateSampleRep(bytes);
+      bytes = await hydrateRepBytes(bytes);
     }
     source.value = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
     openedName.value = file.name;

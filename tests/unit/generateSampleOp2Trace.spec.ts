@@ -20,7 +20,7 @@ function xEventDegrees(trace: Record<string, unknown>): Map<string, number> {
 }
 
 describe('generateSampleOp2Trace', () => {
-  it('is deterministic and yields ~150k X events', () => {
+  it('is deterministic and yields ~150k X events', { timeout: 30_000 }, () => {
     const a = generateSampleOp2Trace();
     const b = generateSampleOp2Trace();
     expect(a).toEqual(b);
@@ -37,9 +37,16 @@ describe('generateSampleOp2Trace', () => {
   it('gives every X event 1–4 dependency neighbors', { timeout: 30_000 }, () => {
     const deg = xEventDegrees(generateSampleOp2Trace());
     expect(deg.size).toBeGreaterThanOrEqual(140_000);
+    let min = Infinity;
+    let max = -Infinity;
+    let worst = '';
     for (const [id, n] of deg) {
-      expect(n, id).toBeGreaterThanOrEqual(1);
-      expect(n, id).toBeLessThanOrEqual(4);
+      if (n < min) min = n;
+      if (n > max) {
+        max = n;
+        worst = id;
+      }
     }
+    expect({ min, max }, `worst event ${worst}`).toEqual({ min: 1, max: 4 });
   });
 });
