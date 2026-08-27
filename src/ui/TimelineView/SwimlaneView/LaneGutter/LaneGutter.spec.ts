@@ -360,6 +360,31 @@ describe('LaneGutter', () => {
     expect(wrapper.emitted('unpin-lane')?.[0]).toEqual(['l1']);
   });
 
+  it('PR-GUTTER-009: bar payload drives width and label', () => {
+    const wrapper = mount(LaneGutter, {
+      props: {
+        groups: [
+          {
+            id: 'p1',
+            name: 'Process 1',
+            lanes: [
+              {
+                id: 'l1',
+                name: 'Thread A',
+                color: '#f00',
+                bar: { barWidth: 80, label: '12345', thresholdColor: false },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const util = wrapper.get('[data-testid="lane-util"]');
+    expect(util.find('.pr-gutter__util-fill').attributes('style')).toContain('width: 80%');
+    expect(util.text()).toContain('12345');
+    expect(util.text()).not.toContain('%');
+  });
+
   it('PR-GUTTER-015: row hover fills the raised surface and lifts the label to white', async () => {
     const src = (await import('./LaneGutterNode.vue?raw')).default as string;
 
