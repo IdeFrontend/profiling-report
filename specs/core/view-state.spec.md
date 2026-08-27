@@ -25,7 +25,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty **pinnedLaneIds**, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
 
-**Pinned lanes.** **pinnedLaneIds** holds leaf lane ids in pin order (session-local). `pinLane` appends an id when absent (idempotent). `unpinLane` removes an id when present. Neither mutates the swim tree — duplicates are a view concern ([`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)).
+**Pinned lanes.** **pinnedLaneIds** holds globally unique leaf lane ids in pin order (session-local). No Card/process grouping in state — pins may span multiple Cards or groups; cross-card pin order is preserved in the array. Gutter pushpin and context-menu **Pin row** (Ctrl+P) are alternate affordances for the same list — not separate pin state. `pinLane` appends an id when absent (idempotent). `unpinLane` removes an id when present. Neither mutates the swim tree — duplicates are a view concern ([`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)).
 
 **Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only — does not drive aside recompute. `measureFocusWindow` centers a measured range so it spans half the visible width (25% padding each side), clamps to bounds, and fits the full bounds when 2× duration exceeds the trace.
 
@@ -64,6 +64,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 - Pan beyond bounds → clamped to edges.
 - pinLane on already-pinned id → unchanged order (idempotent).
 - unpinLane on absent id → no-op.
+- Pin id persists in **pinnedLaneIds** while its row is hidden (collapsed ancestor); strip duplicate reappears when the leaf becomes visible again.
 
 ## Dependencies
 
@@ -74,6 +75,8 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-08-27** — Gutter pushpin and context-menu Pin row share **pinnedLaneIds**.
+- **2026-08-27** — Cross-card **pinnedLaneIds**; pin persists while row hidden by collapse.
 - **2026-08-27** — **pinnedLaneIds** + pinLane/unpinLane helpers (`PR-VIEW-012`…`014`). Tests deferred until implementation.
 - **2026-08-25** — Degenerate minTime===maxTime fit stays in minTime space (PR-VIEW-011).
 - **2026-08-25** — zoomToFit restored to `[minTime, maxTime]`; display origin is minTime (PyPTO/Perfetto default).

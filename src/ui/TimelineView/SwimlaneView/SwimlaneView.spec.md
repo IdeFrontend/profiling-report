@@ -29,6 +29,8 @@ When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim bo
 | Card headers | Full-width Card strips remain in the scrolling body only — pinned strip is **lane-height rows** (`22px`) without Card spacers |
 | Scroll | Main body `scrollY` does not move the pinned strip; pinned strip height reduces the scroll viewport (`bodyViewportH − pinnedHeight`) |
 | Unpin | Click filled pushpin on duplicate or original → parent removes id from **pinnedLaneIds**; strip row removed |
+| Dependencies | Pinned-strip canvas pass draws events/labels only — no `dependencyGraph` / `paintDependencyLinks` in strip Y space (no beziers, dimming, or neighbor highlighting there). Main scroll canvas unchanged. |
+| Cross-card | Any leaf id may be pinned regardless of Card/process; strip lists duplicates in **pin order** (may interleave Cards). |
 
 Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
 
@@ -46,8 +48,12 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 10. **PR-SWIMVIEW-010** — Non-empty **pinnedLaneIds** renders sticky pinned strip above scroll body.
 11. **PR-SWIMVIEW-011** — Pinned strip duplicates preserve lane ids and pin order.
 12. **PR-SWIMVIEW-012** — Original leaf rows remain in tree order below; unpin removes duplicate only.
+13. **PR-SWIMVIEW-013** — Pinned-strip canvas omits dependency link rendering.
+14. **PR-SWIMVIEW-014** — `pinnedLaneIds` may span multiple Cards/groups; strip order follows pin order.
 
 ## Changelog
+- **2026-08-27** — After rebase onto master (`PR-SWIMVIEW-009` = cursor magnet): pin ACs are `010`…`014`. Gutter pin ACs `010`…`013` reserve `009` for #45 metrics.
+- **2026-08-27** — Pinned strip: no dependency links; cross-card pin order (`PR-SWIMVIEW-013`…`014`). Tests deferred until implementation.
 - **2026-08-27** — Sticky pinned-lane strip spec (`PR-SWIMVIEW-010`…`012`). Tests deferred until implementation.
 - **2026-08-26** — Swim cursor moved into `SwimlaneCanvas` below blue edge marks; PR-SWIMVIEW-004.
 - **2026-08-26** — `cursorSnapped` grays the swim vertical bar when the cursor is magnetized to an event edge; PR-SWIMVIEW-009.

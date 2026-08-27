@@ -210,8 +210,8 @@ describe('LaneGutter', () => {
     expect(spacer.find('button').exists()).toBe(false);
   });
 
-  it.todo('PR-GUTTER-009: leaf rows show pushpin left of label');
-  it.todo('PR-GUTTER-010: pushpin outline when unpinned, solid blue when pinned or hovered');
-  it.todo('PR-GUTTER-011: pushpin hover/focus shows 置顶 tooltip');
-  it.todo('PR-GUTTER-012: folder and Card rows omit pushpin column');
+  it.todo('PR-GUTTER-010: leaf rows show pushpin; folder and Card rows omit pin');
+  it.todo('PR-GUTTER-011: pushpin outline when unpinned, solid blue when pinned or hovered');
+  it.todo('PR-GUTTER-012: pushpin hover/focus shows 置顶 tooltip');
+  it.todo('PR-GUTTER-013: click unpinned pin emits pin-lane; pinned emits unpin-lane');
 });
