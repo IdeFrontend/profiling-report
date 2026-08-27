@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { nextTick } from 'vue';
+import { markRaw, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
+import { CANNBOT_PROMPT } from '../../domain/cannbot';
+import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
 
 /** Two linked events, so the dock mounts its Relevent column. */
@@ -276,5 +278,52 @@ describe('ProfilingReport scaffold', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('PR-ROOT-007: cannbot buttons emit cannbot-request with scoped payload', async () => {
+    const reportModel = {
+      summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },
+      pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const }],
+      overviewSeries: [],
+      computeTables: [{ fileName: 'PipeUtilization.csv', headers: ['block_id', 'aiv_vec_ratio'], rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }], blockIds: ['0'] }],
+      memoryTables: [{ fileName: 'Memory.csv', headers: ['block_id'], rows: [{ block_id: '0' }], blockIds: ['0'] }],
+      csvTexts: { 'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.5\n', 'Memory.csv': 'block_id\n0\n' },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'cannbot',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        // markRaw: VTU stores mount props in a deep reactive() — keep the fixture
+        // unproxied so the payload's by-reference data matches the host's object.
+        reportModel: markRaw(reportModel),
+        reportMeta: { name: 'matmul_v3.r3', path: 'C:/reports/matmul_v3.r3', id: 'report-42', collectedAt: '2026-08-13T09:41:00Z' },
+      },
+    });
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
+    const evt = wrapper.emitted('cannbot-request');
+    expect(evt).toHaveLength(1);
+    const payload = evt![0]![0] as CannbotPayload;
+    expect(payload.version).toBe('1.0');
+    expect(payload.scope).toBe('compute');
+    expect(payload.report_name).toBe('matmul_v3.r3');
+    expect(payload.report_id).toBe('report-42');
+    expect(payload.report_path).toBe('C:/reports/matmul_v3.r3');
+    expect(payload.collected_at).toBe('2026-08-13T09:41:00Z');
+    expect(payload.op_name).toBe('matmul_v3');
+    expect(payload.prompt).toBe(CANNBOT_PROMPT);
+    expect(payload.data.pipeOccupancy).toBe(reportModel.pipeOccupancy);
+    expect(payload.data.computeTables).toBe(reportModel.computeTables);
+    expect(Object.keys(payload.data.csvTexts as Record<string, string>)).toEqual([
+      'PipeUtilization.csv',
+    ]);
+
+    await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
+    const all = wrapper.emitted('cannbot-request')!;
+    expect(all).toHaveLength(2);
+    const summaryPayload = all[1]![0] as CannbotPayload;
+    expect(summaryPayload.scope).toBe('summary');
+    expect((summaryPayload.data.summary as { opName?: string }).opName).toBe('matmul_v3');
   });
 });

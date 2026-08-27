@@ -31,6 +31,8 @@ import {
   type TimeScaleUnit,
   type ViewFullCsvPayload,
 } from '../../domain/types';
+import { buildCannbotPayload } from '../../domain/cannbot';
+import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../domain/cannbot';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { resolveTimeUnitFromVisibleRange } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
@@ -60,6 +62,8 @@ const props = withDefaults(defineProps<{
   source?: ArrayBuffer | Uint8Array;
   swimlaneModel?: SwimlaneModel;
   reportModel?: ReportViewModel;
+  /** cannbot payload 元信息（.rep 文件名 / 绝对路径 / id / 采集时间），宿主提供。 */
+  reportMeta?: CannbotReportMeta;
   theme?: 'light' | 'dark';
   locale?: string;
   dependencyMode?: DependencyMode;
@@ -82,6 +86,7 @@ const emit = defineEmits<{
   'view-full-csv': [payload: ViewFullCsvPayload];
   'open-hardware-details': [];
   'open-pipe-details': [];
+  'cannbot-request': [payload: CannbotPayload];
 }>();
 
 const internalSwim = ref<SwimlaneModel | null>(null);
@@ -546,6 +551,13 @@ function onAside(visible: boolean) {
   viewState.value = { ...viewState.value, asideVisible: visible };
 }
 
+function onCannbot(scope: CannbotScope) {
+  const payload = buildCannbotPayload(scope, report.value, props.reportMeta);
+  // 调试打印：输出拼装后的完整 cannbot payload（含 data 与 prompt）。
+  console.log(`[cannbot] payload (scope: ${scope})`, payload);
+  emit('cannbot-request', payload);
+}
+
 function onMeasureMode(enabled: boolean) {
   viewState.value = setMeasureMode(viewState.value, enabled);
 }
@@ -709,6 +721,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
           @open-pipe-details="emit('open-pipe-details')"
+          @open-cannbot="onCannbot"
         />
       </template>
     </ReportLayout>

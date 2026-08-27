@@ -12,6 +12,8 @@ import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
+import CannbotIcon from './CannbotIcon.vue';
+import type { CannbotScope } from '../../domain/cannbot';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
@@ -24,6 +26,7 @@ const emit = defineEmits<{
   'open-hardware-details': [];
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-pipe-details': [];
+  'open-cannbot': [scope: CannbotScope];
 }>();
 
 type PipeSide = 'cube' | 'vector';
@@ -342,6 +345,16 @@ function backToReport() {
         >
           {{ t('more', locale) }}
         </button>
+        <button
+          type="button"
+          class="pr-cannbot"
+          data-testid="cannbot-summary"
+          :aria-label="t('cannbotAsk', locale)"
+          :title="t('cannbotAsk', locale)"
+          @click="emit('open-cannbot', 'summary')"
+        >
+          <CannbotIcon />
+        </button>
       </p>
     </header>
 
@@ -516,14 +529,26 @@ function backToReport() {
       >
         <div class="pr-pipe-head">
           <h4>{{ t('computeAnalysis', locale) }}</h4>
-          <button
-            type="button"
-            class="pr-pipe-details"
-            data-testid="pipe-details"
-            @click="openPipeDetails"
-          >
-            {{ t('details', locale) }}
-          </button>
+          <div class="pr-pipe-head__actions">
+            <button
+              type="button"
+              class="pr-cannbot"
+              data-testid="cannbot-compute"
+              :aria-label="t('cannbotAsk', locale)"
+              :title="t('cannbotAsk', locale)"
+              @click="emit('open-cannbot', 'compute')"
+            >
+              <CannbotIcon />
+            </button>
+            <button
+              type="button"
+              class="pr-pipe-details"
+              data-testid="pipe-details"
+              @click="openPipeDetails"
+            >
+              {{ t('details', locale) }}
+            </button>
+          </div>
         </div>
         <div
           v-if="isMix"
@@ -605,15 +630,27 @@ function backToReport() {
       >
         <div class="pr-pipe-head">
           <h4>{{ t('memoryAnalysis', locale) }}</h4>
-          <button
-            v-if="showMemory"
-            type="button"
-            class="pr-pipe-details"
-            data-testid="topology-details"
-            @click="openMemoryDetails"
-          >
-            {{ t('details', locale) }}
-          </button>
+          <div class="pr-pipe-head__actions">
+            <button
+              type="button"
+              class="pr-cannbot"
+              data-testid="cannbot-memory"
+              :aria-label="t('cannbotAsk', locale)"
+              :title="t('cannbotAsk', locale)"
+              @click="emit('open-cannbot', 'memory')"
+            >
+              <CannbotIcon />
+            </button>
+            <button
+              v-if="showMemory"
+              type="button"
+              class="pr-pipe-details"
+              data-testid="topology-details"
+              @click="openMemoryDetails"
+            >
+              {{ t('details', locale) }}
+            </button>
+          </div>
         </div>
         <MemoryTopologyPanel
           v-if="showTopology"
@@ -788,6 +825,31 @@ function backToReport() {
 .pr-pipe-details:hover {
   color: #ffffff;
   text-decoration: underline;
+}
+
+.pr-pipe-head__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-cannbot {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.85;
+}
+
+.pr-cannbot:hover {
+  opacity: 1;
+}
+
+.pr-aside__meta .pr-cannbot {
+  margin-left: auto;
 }
 
 .pr-aside__detail {

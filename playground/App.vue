@@ -69,6 +69,23 @@ const statusLine = computed(() => {
   return `${status.value} · ${title.value} · renderer=${renderer}`;
 });
 
+/**
+ * cannbot meta 演示值：报告文件名/路径/采集时间只有宿主知道，组件本身只拿到
+ * ArrayBuffer。真实宿主接入时应传实际的 reportMeta（文件名、磁盘绝对路径、
+ * 报告 id、采集时间）；此处用 fixture 名 / 打开的文件名 / 加载时间演示。
+ */
+const reportMeta = computed(() => {
+  const kind = queryFixture.value;
+  const fixture = kind !== 'stress' && kind !== 'deps' ? FILE_FIXTURES[kind] : null;
+  const name = openedName.value ?? fixture?.name ?? title.value;
+  return {
+    name,
+    id: name,
+    path: fixture && !openedName.value ? fixture.url : name,
+    collectedAt: new Date().toISOString(),
+  };
+});
+
 async function hydrateRepBytes(bytes: Uint8Array): Promise<Uint8Array> {
   status.value = 'generating op2 trace…';
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -284,6 +301,7 @@ onMounted(async () => {
         :key="`src-${loadToken}-${preferRenderer}`"
         :title="title"
         :source="source"
+        :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
         locale="zh-CN"
         @view-full-csv="onViewFullCsv"
@@ -293,6 +311,7 @@ onMounted(async () => {
         :key="`stress-${loadToken}-${preferRenderer}`"
         :title="title"
         :swimlane-model="stressModel"
+        :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
         locale="zh-CN"
         @view-full-csv="onViewFullCsv"

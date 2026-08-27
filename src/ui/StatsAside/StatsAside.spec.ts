@@ -10,6 +10,18 @@ function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
   return { ...emptyReportViewModel(), ...partial };
 }
 
+function cannbotEntryReport(): ReportViewModel {
+  return report({
+    summary: { pid: '3073000', opType: 'mix', blockDim: 8, taskDurationUs: 1 },
+    pipeOccupancy: [
+      { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+    ],
+    memoryTables: [
+      { fileName: 'Memory.csv', headers: ['block_id'], rows: [{ block_id: '0' }], blockIds: ['0'] },
+    ],
+  });
+}
+
 describe('StatsAside', () => {
   it('PR-STATS-001: renders summary stats when a valid ReportViewModel is provided', () => {
     const wrapper = mount(StatsAside, {
@@ -811,5 +823,43 @@ describe('StatsAside', () => {
     expect(src).toMatch(
       /\.pr-panel--pipe,\s*\.pr-panel--topo,\s*\.pr-panel--roofline\s*\{[^}]*background:\s*var\(--pr-bg-panel\)/s,
     );
+  });
+
+  it('PR-STATS-025: cannbot icon entries render in summary, compute and memory sections', () => {
+    const wrapper = mount(StatsAside, { props: { report: cannbotEntryReport() } });
+
+    const summaryBtn = wrapper.get('[data-testid="cannbot-summary"]');
+    expect(summaryBtn.find('svg').exists()).toBe(true);
+    expect(summaryBtn.element.parentElement).toBe(
+      wrapper.get('[data-testid="stats-aside-meta"]').element,
+    );
+
+    const computeBtn = wrapper.get('[data-testid="cannbot-compute"]');
+    expect(computeBtn.find('svg').exists()).toBe(true);
+    const computeActions = computeBtn.element.parentElement!;
+    expect(computeActions).toBe(wrapper.get('[data-testid="pipe-details"]').element.parentElement);
+    expect(computeActions.classList.contains('pr-pipe-head__actions')).toBe(true);
+    expect(computeActions.children[0]).toBe(computeBtn.element);
+
+    const memoryBtn = wrapper.get('[data-testid="cannbot-memory"]');
+    expect(memoryBtn.find('svg').exists()).toBe(true);
+    const memoryActions = memoryBtn.element.parentElement!;
+    expect(memoryActions).toBe(
+      wrapper.get('[data-testid="topology-details"]').element.parentElement,
+    );
+    expect(memoryActions.classList.contains('pr-pipe-head__actions')).toBe(true);
+    expect(memoryActions.children[0]).toBe(memoryBtn.element);
+
+    const empty = mount(StatsAside, { props: { report: report({}) } });
+    expect(empty.find('[data-testid="cannbot-summary"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-026: cannbot icons emit open-cannbot with the section scope', async () => {
+    const wrapper = mount(StatsAside, { props: { report: cannbotEntryReport() } });
+
+    await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
+    await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
+    await wrapper.get('[data-testid="cannbot-memory"]').trigger('click');
+    expect(wrapper.emitted('open-cannbot')).toEqual([['summary'], ['compute'], ['memory']]);
   });
 });

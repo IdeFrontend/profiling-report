@@ -16,6 +16,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 - **open-hardware-details** — **更多** / More (emit intent).
 - **view-full-csv** — re-emitted from `CsvFieldListPanel` (I-Q6d).
 - **open-pipe-details** — **详情** / Details on the PIPE section; opens compute CSV overlay when compute tables exist, and always emits.
+- **open-cannbot** — cannbot icon click (right end of the meta row; left of **详情** on the compute and memory section heads) carries the section scope (summary/compute/memory).
 
 ## Behavior
 
@@ -24,6 +25,8 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset; hides the row when none. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** when meta visible or `hardwareDetails` capability.
 
 Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
+
+**cannbot entries.** Three question shortcuts (CANNBot 分析 / CANNBot Analysis): right end of the meta row (summary), left of **详情** on the compute and memory section heads. Each follows its host — summary with the meta row, compute with the PIPE panel, memory with the memory panel; the memory icon stays even when that head has no **详情**. 16×16 agent icon, localized title / aria-label (`cannbotAsk`), hover highlight; clicking only emits **open-cannbot** — no overlay, no request.
 
 ### Stacked report
 
@@ -85,6 +88,8 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 25. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
 26. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, TB/s, bar = score%; `out.rep` uses 1.6 TB/s peak (~1% score).
 27. **PR-STATS-025** — Black aside shell; grey section islands.
+27. **PR-STATS-025** — cannbot icons render at the three section anchors.
+28. **PR-STATS-026** — Icon click emits open-cannbot with scope.
 
 ## Edge Cases
 
@@ -99,6 +104,7 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 | Bandwidth side all NA | That aic/aiv column omitted; card omitted if both sides NA |
 | Duration without blockDim or opName | Duration card; no secondary line |
 | No pid / opType / blockDim and no `hardwareDetails` | Meta row and 更多 hidden |
+| No meta row (no pid/opType/blockDim, no capability) | cannbot summary icon hidden; compute/memory icons follow their panels |
 | Freq-only summary (`currentFreq` / `ratedFreq`) | Meta row hidden (not shell fields) |
 | pid / opType / blockDim present, no capability | Meta + 更多 shown; emit only |
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
@@ -213,6 +219,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 - **2026-08-27** — Restore card gradient + well `padding: 8px` (bottom band); prior flat/`padding:0` pass broke sketch chrome.
 - **2026-08-27** — 算力情况 / 平均核利用率 shown as title + `N/A` placeholders when duration is present (PR-STATS-011); still ignore summary compute/util fields until Q6.
 - **2026-08-26** — Summary cards use sketch 3+2 grid and raised tile chrome (dark well, pill 8px bars, split duration unit); drop full-width stack interim.
+- **2026-08-26** — cannbot icon entries on meta row / compute / memory section heads (PR-STATS-025/026).
 - **2026-08-25** — Shell meta is 进程 / 算子类型 / Blocks (PR-STATS-007); drop 核数 / aic频率 / NPU ARCH.
 - **2026-08-24** — Compute overlay omits block + 查看全部 (PR-STATS-005, `v930/search-highlight`).
 - **2026-08-20** — npu-compute 0818: measured BW / HardwareInfo source / ICache / NA-hide confirmed; peak/score still open.
