@@ -16,6 +16,7 @@ in vec2 aTex;
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
+out float vRawW;
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -31,6 +32,8 @@ void main() {
   float rX = mix(aTex.x, aPos.x, aTex.y);
 
   vec2 pos = vec2(translateScaleX(aPos.x), translateScaleY(aPos.y));
+  // Raw (pre-margin, pre-snap) CSS width — must match Canvas eventRadius(rawW).
+  vRawW = glToPixelX(translateScaleX(rX)) - glToPixelX(translateScaleX(lX));
   // EVENT_MARGIN 0.5px per side, then snap so the gap stays on the device grid.
   float lPx = snapDev(glToPixelX(translateScaleX(lX)) + 0.5);
   float rPx = snapDev(glToPixelX(translateScaleX(rX)) - 0.5);
@@ -55,6 +58,7 @@ uniform float uDpr;
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
+in float vRawW;
 out vec4 outColor;
 
 // Rounded-box SDF (Inigo Quilez). Negative = inside.
@@ -70,8 +74,8 @@ void main() {
   float b = uYBounds.y;
   float w = max(r - l, 0.0);
   float h = max(b - t, 0.0);
-  // Corner radius: 1px for narrow blocks (<4px raw ≈ paintW+1), else 2px.
-  float rad = min(min(w, h) * 0.5, (w + 1.0) < 4.0 ? 1.0 : 2.0);
+  // Corner radius matches Canvas eventRadius: 1px when the raw width < 4px, else 2px.
+  float rad = min(min(w, h) * 0.5, vRawW < 4.0 ? 1.0 : 2.0);
 
   vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
   vec2 halfSize = vec2(w * 0.5, h * 0.5);

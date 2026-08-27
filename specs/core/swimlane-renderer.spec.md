@@ -24,7 +24,7 @@ class CanvasSwimlaneRenderer {
 
 **HiDPI rendering.** `resize` multiplies canvas backing store by `window.devicePixelRatio` to ensure crisp rendering on Retina displays. Logical dimensions stored separately for layout calculations.
 
-**Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y` and are vertically centered in the lane between gutter-aligned row dividers (`(LANE_HEIGHT - h) / 2` inset, then −0.5px optical nudge). Rounded rectangles use a width-based corner radius — 1px when the on-screen block is narrower than 4px, otherwise 2px (`ctx.roundRect()` where available) — and are inset 0.5px per side so adjacent blocks keep a ≥1px gap instead of touching. Event rect edges are snapped to the device-pixel grid (and WebGL coverage AA is computed in device pixels) so borders stay crisp at fractional browser zoom / `devicePixelRatio`. Only events overlapping the current time viewport are drawn.
+**Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y` and are vertically centered in the lane between gutter-aligned row dividers (`(LANE_HEIGHT - h) / 2` inset, then −0.5px optical nudge). Rounded rectangles use a width-based corner radius — 1px when the on-screen block is narrower than 4px, otherwise 2px (`ctx.roundRect()` where available) — and are inset 0.5px per side so adjacent blocks keep a ≥1 device px gap instead of touching. Event rect edges are snapped to the device-pixel grid (and WebGL coverage AA is computed in device pixels) so borders stay crisp at fractional browser zoom / `devicePixelRatio`. Only events overlapping the current time viewport are drawn.
 
 **Event labels.** When the on-screen (clipped) event width is wide enough (>40px), the title is drawn centered: vertically at the event block mid-line (`textBaseline: middle`), horizontally at the center of the visible intersection of the event rect with the canvas (fully on-screen → center of the event; clipped left/right → center of the remaining visible strip). Canvas fallback and the WebGL overlay share this layout.
 
@@ -57,6 +57,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep full fill and label brightness.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional (existing implementers stay valid).
 1. **PR-RENDER-015**: `eventRadius` returns 1px below 4px width and 2px otherwise.
+1. **PR-RENDER-016**: `snapEventRect` aligns all four edges to the device-pixel grid.
 
 ## Edge Cases
 

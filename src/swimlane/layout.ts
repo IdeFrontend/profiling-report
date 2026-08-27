@@ -10,7 +10,7 @@ export const LANE_GROUP_HEADER_HEIGHT = 28;
 export const LANE_GROUP_HEADER_FILL = '#2a2a2a';
 /** Card strip hover fill (`rgb(50, 50, 50)`); DOM only — canvas headers stay static. */
 export const LANE_GROUP_HEADER_HOVER = '#323232';
-/** Horizontal inset per side so adjacent event blocks keep a ≥1px visual gap. */
+/** Horizontal inset per side so adjacent event blocks keep a ≥1 device px visual gap. */
 export const EVENT_MARGIN = 0.5;
 /** Corner radius for an event block: 1px when narrow (<4px), else 2px. */
 export function eventRadius(width: number): number {

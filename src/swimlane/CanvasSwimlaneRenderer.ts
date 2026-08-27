@@ -100,17 +100,6 @@ function roundRectPath(
   ctx.closePath();
 }
 
-/** Event block draw rect with the ≥1px margin applied and a width-based radius. */
-function eventRect(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  dpr = 1,
-): { x: number; y: number; w: number; h: number; r: number } {
-  return eventPaintRect(x, y, w, h, dpr);
-}
-
 export function paintGroupBands(
   ctx: CanvasRenderingContext2D,
   layout: SwimlaneLayout,
@@ -134,7 +123,7 @@ export function paintGroupBands(
       if (y + h < 0 || y > height) continue;
       const r = snapEventRect(x, y, w, h, dpr);
       ctx.fillStyle = BAND_FILL;
-      roundRectPath(ctx, r.x, r.y, r.w, r.h, eventRadius(r.w));
+      roundRectPath(ctx, r.x, r.y, r.w, r.h, eventRadius(w));
       ctx.fill();
       drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, width, 1, '#555555');
     }
@@ -171,7 +160,7 @@ export class SwimlaneOverlayPainter {
       this.canvas.width = Math.floor(this.width * dpr);
       this.canvas.height = Math.floor(this.height * dpr);
       // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
-      this.dpr = this.canvas.width / this.width;
+      this.dpr = this.canvas.width / this.width || 1;
       this.canvas.style.width = `${this.width}px`;
       this.canvas.style.height = `${this.height}px`;
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -226,7 +215,7 @@ export class SwimlaneOverlayPainter {
       const w = Math.max(2, (ev.duration / span) * this.width);
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
-      const r = eventRect(x, y, w, h, dpr);
+      const r = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
@@ -284,7 +273,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       this.canvas.width = Math.floor(this.width * dpr);
       this.canvas.height = Math.floor(this.height * dpr);
       // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
-      this.dpr = this.canvas.width / this.width;
+      this.dpr = this.canvas.width / this.width || 1;
       this.canvas.style.width = `${this.width}px`;
       this.canvas.style.height = `${this.height}px`;
       if (this.ctx) {
@@ -419,7 +408,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const w = Math.max(2, (ev.duration / span) * this.width);
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
-      const fr = eventRect(x, y, w, h, dpr);
+      const fr = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);

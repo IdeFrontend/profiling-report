@@ -297,7 +297,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     canvas.width = Math.floor(this.width * dpr);
     canvas.height = Math.floor(this.height * dpr);
     // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
-    this.dpr = canvas.width / this.width;
+    this.dpr = canvas.width / this.width || 1;
     canvas.style.width = `${this.width}px`;
     canvas.style.height = `${this.height}px`;
     gl.viewport(0, 0, canvas.width, canvas.height);
