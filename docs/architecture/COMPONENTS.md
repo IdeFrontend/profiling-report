@@ -236,7 +236,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close (X) → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** → open interim `HardwareDetailsPanel` when data exists (I-Q7a) and emit `open-hardware-details`. **Stacked report:** duration card, I/O bandwidth cards (I-Q6g) when `bandwidthCards` non-empty, Roofline (M2 interim I-Q11*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay. No mode-tab switcher. Overlay header **←** returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** → open interim `HardwareDetailsPanel` when data exists (I-Q7a) and emit `open-hardware-details`. **Stacked report:** duration card, I/O bandwidth cards (I-Q6g) when `bandwidthCards` non-empty, Roofline (M2 interim I-Q11*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
