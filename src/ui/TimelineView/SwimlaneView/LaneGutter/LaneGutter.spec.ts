@@ -209,4 +209,9 @@ describe('LaneGutter', () => {
     expect(spacer.attributes('aria-hidden')).toBe('true');
     expect(spacer.find('button').exists()).toBe(false);
   });
+
+  it.todo('PR-GUTTER-009: leaf rows show pushpin left of label');
+  it.todo('PR-GUTTER-010: pushpin outline when unpinned, solid blue when pinned or hovered');
+  it.todo('PR-GUTTER-011: pushpin hover/focus shows 置顶 tooltip');
+  it.todo('PR-GUTTER-012: folder and Card rows omit pushpin column');
 });

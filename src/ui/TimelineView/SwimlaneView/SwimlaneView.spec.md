@@ -18,6 +18,20 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 
 **Narrow track.** Body/overview/axis rows use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` so the chart column cannot collapse to 0 when main is narrower than the gutter token.
 
+### Pinned lanes (sticky strip)
+
+When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim body (below overview/axis chrome, above the scrolling lane body) renders **duplicate** leaf rows for each pinned id, in pin order. Original rows stay in the main scroll model at their tree positions.
+
+| Concern | Behavior |
+|---------|----------|
+| Gutter | Pinned strip shows duplicate lane labels + util for each pinned leaf (same chrome as originals; pushpin shown **filled** `#4a90e2`) |
+| Canvas | Pinned strip paints duplicate event rows at the same Y stack as the gutter duplicates; shares `timeWindow`, zoom, and horizontal scroll with the main canvas |
+| Card headers | Full-width Card strips remain in the scrolling body only — pinned strip is **lane-height rows** (`22px`) without Card spacers |
+| Scroll | Main body `scrollY` does not move the pinned strip; pinned strip height reduces the scroll viewport (`bodyViewportH − pinnedHeight`) |
+| Unpin | Click filled pushpin on duplicate or original → parent removes id from **pinnedLaneIds**; strip row removed |
+
+Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
+
 ## Acceptance Criteria
 
 1. **PR-SWIMVIEW-001** — Renders gutter and canvas side by side.
@@ -29,9 +43,13 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar (axis hover / shared playhead).
 8. **PR-SWIMVIEW-008** — Gutter resize handle pins to used grid column (`grid-column: 1 / 2`); track column uses `minmax(80px, 1fr)`.
 9. **PR-SWIMVIEW-009** — When the cursor is magnetized (`cursorSnapped`), the swim vertical bar renders gray (`.pr-swim-cursor--snapped`).
+10. **PR-SWIMVIEW-010** — Non-empty **pinnedLaneIds** renders sticky pinned strip above scroll body.
+11. **PR-SWIMVIEW-011** — Pinned strip duplicates preserve lane ids and pin order.
+12. **PR-SWIMVIEW-012** — Original leaf rows remain in tree order below; unpin removes duplicate only.
 
 ## Changelog
 - **2026-08-28** — Abspos gutter handle uses explicit `grid-column: 1 / 2` so `right: 0` is the gutter seam, not the track’s far edge.
+- **2026-08-27** — Sticky pinned-lane strip spec (`PR-SWIMVIEW-010`…`012`). Tests deferred until implementation.
 - **2026-08-26** — Swim cursor moved into `SwimlaneCanvas` below blue edge marks; PR-SWIMVIEW-004.
 - **2026-08-26** — `cursorSnapped` grays the swim vertical bar when the cursor is magnetized to an event edge; PR-SWIMVIEW-009.
 - **2026-08-25** — Pin overlays to used grid columns; track `minmax(80px, 1fr)`; PR-SWIMVIEW-008.

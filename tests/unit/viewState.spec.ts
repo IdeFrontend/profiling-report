@@ -131,4 +131,8 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(zoomPercentFromSpan(span, full)).toBe(100);
     expect(spanFromZoomPercent(100, full)).toBe(span);
   });
+
+  it.todo('PR-VIEW-012: createViewState initializes pinnedLaneIds empty');
+  it.todo('PR-VIEW-013: pinLane appends id in pin order without duplicates');
+  it.todo('PR-VIEW-014: unpinLane removes id and leaves other pins unchanged');
 });

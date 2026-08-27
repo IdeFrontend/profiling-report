@@ -282,4 +282,8 @@ describe('SwimlaneView', () => {
     expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*right:\s*0/s);
     expect(src).not.toMatch(/\.pr-gutter-resize\s*\{[^}]*left:\s*var\(--pr-gutter-width/s);
   });
+
+  it.todo('PR-SWIMVIEW-010: pinned lanes render in a sticky strip above the scroll body');
+  it.todo('PR-SWIMVIEW-011: pinned duplicates keep the same lane ids as originals');
+  it.todo('PR-SWIMVIEW-012: unpinned originals remain in tree order below the pinned strip');
 });
