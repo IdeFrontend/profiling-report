@@ -100,9 +100,9 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-----------------|---------------|-------------|
 | Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Chrome still I-Q6e. Op type is not a separate card. `opName` / `blockDim` may feed duration secondary only |
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
-| Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Hide** until Q6 / data spec |
+| Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Placeholder** until Q6 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [I-Q6a](../context/INTERIM_DECISIONS.md) |
 | I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Peak 1.6 TB/s still I-Q6g guess |
-| Avg core util % | PipeUtilization / OpBasicInfo TBD | **Hide** until Q6 / data spec |
+| Avg core util % | PipeUtilization / OpBasicInfo TBD | **Placeholder** until Q6 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [I-Q6a](../context/INTERIM_DECISIONS.md) |
 | Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
 

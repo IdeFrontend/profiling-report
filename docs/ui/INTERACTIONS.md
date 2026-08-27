@@ -103,7 +103,7 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 
 - Aside **close** clears `asideVisible` (equivalent to toolbar stats toggle off). See [StatsAside.spec.md](../../src/ui/StatsAside/StatsAside.spec.md).
 - **更多** / More opens interim `HardwareDetailsPanel` (I-Q7a) when data exists and emits `open-hardware-details`.
-- Stacked 报告统计 (M2): duration, roofline, PIPE, topology — no mode-tab switcher. PIPE **详情** opens compute CSV overlay; topology **详情** opens memory CSV overlay; back control returns to the stack.
+- Stacked 报告统计 (M2): summary cards (duration + compute/util `N/A` placeholders + I/O BW), roofline, PIPE, topology — no mode-tab switcher. PIPE **详情** opens compute CSV overlay; topology **详情** opens memory CSV overlay; back control returns to the stack.
 - PIPE bars remain global mean aggregates ([I-Q6b](../context/INTERIM_DECISIONS.md)); measure range does not change them.
 - Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../context/INTERIM_DECISIONS.md)); topology labels use the same `selectedBlockId`.
 - Cube \| Vector toggle on PIPE for MIX ops only.
