@@ -158,7 +158,8 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="toggle-display-control"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
     await wrapper.get('[data-testid="toggle-display-control"]').trigger('click');
-    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dependency-depth"]').exists()).toBe(true);
   });
 
   it('PR-UI-008: CSV-only report (compute/memory, no summary/pipe) auto-opens aside', async () => {

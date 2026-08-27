@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { formatDisplayTime, formatTime } from '../../domain/formatTime';
 import { t } from '../../i18n';
-import type { SwimEvent, TimeDisplayUnit } from '../../domain/types';
+import type { SwimEvent, TimeScaleUnit } from '../../domain/types';
 
 withDefaults(
   defineProps<{
     event: SwimEvent;
     stylePos: { left: string; top: string };
-    unit: TimeDisplayUnit;
+    timeScaleUnit: TimeScaleUnit;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
@@ -25,11 +25,11 @@ withDefaults(
     <div class="pr-tooltip__name">
       {{ event.name }}
     </div>
-    <div>{{ t('start', locale) }}: {{ formatDisplayTime(event.startTime, timeOrigin, unit) }}</div>
-    <div>{{ t('dur', locale) }}: {{ formatTime(event.duration, unit) }}</div>
+    <div>{{ t('start', locale) }}: {{ formatDisplayTime(event.startTime, timeOrigin, timeScaleUnit) }}</div>
+    <div>{{ t('dur', locale) }}: {{ formatTime(event.duration, timeScaleUnit) }}</div>
     <div>
       {{ t('end', locale) }}:
-      {{ formatDisplayTime(event.startTime + event.duration, timeOrigin, unit) }}
+      {{ formatDisplayTime(event.startTime + event.duration, timeOrigin, timeScaleUnit) }}
     </div>
   </div>
 </template>

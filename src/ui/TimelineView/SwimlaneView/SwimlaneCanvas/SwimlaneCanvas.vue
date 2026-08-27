@@ -7,7 +7,7 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewWindow,
-  type TimeDisplayUnit,
+  type TimeScaleUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { formatTime } from '../../../../domain/formatTime';
@@ -45,7 +45,7 @@ const props = withDefaults(
     searchQuery: string;
     measureMode?: boolean;
     measureRange?: MeasureRange | null;
-    timeUnit?: TimeDisplayUnit;
+    timeScaleUnit?: TimeScaleUnit;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */

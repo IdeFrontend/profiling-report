@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { t } from '../../i18n';
 import type { DependencyNeighbors } from '../../domain/dependencies';
-import type { DependencyMode, SelectedEvent, TimeDisplayUnit } from '../../domain/types';
+import type { DependencyMode, SelectedEvent, TimeScaleUnit } from '../../domain/types';
 import {
   DOCK_HEIGHT_DEFAULT,
   DOCK_HEIGHT_MAX,
@@ -16,7 +16,7 @@ import DetailRelevant from './DetailRelevant/DetailRelevant.vue';
 const props = withDefaults(
   defineProps<{
     selected: SelectedEvent;
-    unit: TimeDisplayUnit;
+    timeScaleUnit: TimeScaleUnit;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
@@ -107,7 +107,7 @@ function onResizePointerUp() {
     >
       <DetailSummary
         :selected="selected"
-        :unit="unit"
+        :time-scale-unit="timeScaleUnit"
         :time-origin="timeOrigin"
         :locale="locale"
       />

@@ -4,11 +4,11 @@
 |----------------|
 | PR-CURSOR-*    |
 
-Playhead time bubble on the viewport time axis. Shows the cursor position as a scalar timestamp relative to `minTime` (same `formatDisplayTime` as tooltip Start).
+Playhead time bubble on the viewport time axis. Shows the cursor position as `MM:SS.mmm` relative to the viewport origin.
 
 ## Inputs
 
-**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (scalar, same as tooltip Start). The parent formats via `formatDisplayTime(time, minTime, unit)`.
+**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (`MM:SS.mmm` in the active display unit). The parent (ProfilingReport) computes the relative time and formats it via `formatCursorTime`.
 
 ## Outputs
 
@@ -34,13 +34,13 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 |-------|--------|
 | Bubble fill | `#317AF7` (align `--pr-playhead` / `#3078F0` ±) |
 | Text | `#ffffff`, 11px, weight 600, tabular-nums |
-| Format | Scalar via `formatDisplayTime` relative to `minTime` (e.g. `2.368 µs`) — matches tooltip/detail Start |
+| Format | `MM:SS.mmm` from time **relative to `minTime`** in **active display unit** (see `formatCursorTime`) |
 | Size | ~72×19px content; `padding: 1px 8px`; `border-radius: 4px`; `min-width: 72px` |
 | Stem | 1px line same blue (`#317AF7`), continuous from axis through swimlane — **no** 1px gap at the axis/canvas border; axis + canvas segments share the same x (no horizontal jog) |
 | Behavior | Must update on pointer move; short traces use µs/ns unit so digits change |
 | Above | `labelAbove` → pill above axis; 180ms transform transition |
 
-**Example:** producer `4.456ms` → label `4.456 ms` when unit is `ms`.
+**Example:** axis `4.456ms` (relative) → label `00:04.456` when unit is `ms`.
 
 ## Acceptance Criteria
 
@@ -68,7 +68,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 
 ## Dependencies
 
-[format-time](../../../../../specs/core/format-time.spec.md) (formatDisplayTime).
+[format-time](../../../../../specs/core/format-time.spec.md) (formatCursorTime).
 
 ## Changelog
 - **2026-08-26** — `snapped` prop grays the stem (`#4c4c4c`) while the cursor is magnetized to an event edge; PR-CURSOR-006.

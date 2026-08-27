@@ -9,7 +9,7 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
-  type TimeDisplayUnit,
+  type TimeScaleUnit,
 } from '../../domain/types';
 import { GUTTER_WIDTH_DEFAULT } from '../panelResize';
 import { normalizeMeasureRange } from '../../domain/viewState';
@@ -37,7 +37,7 @@ const props = withDefaults(
   defineProps<{
     bounds: { minTime: number; maxTime: number };
     view: SwimlaneViewState;
-    unit: TimeDisplayUnit;
+    timeScaleUnit: TimeScaleUnit;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     groups: GutterGroup[];
@@ -109,7 +109,7 @@ const viewportRuler = computed(() =>
     rangeStart: props.view.startTime,
     rangeEnd: props.view.endTime,
     origin: props.bounds.minTime,
-    timeUnit: props.unit,
+    timeScaleUnit: props.timeScaleUnit,
     widthPx: timeAxisWidth.value,
   }),
 );
@@ -124,7 +124,7 @@ const measureAxis = computed(() => {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
-  const label = formatTime(end - start, props.unit);
+  const label = formatTime(end - start, props.timeScaleUnit);
   const visStart = Math.max(viewStart, start);
   const visEnd = Math.min(viewEnd, end);
   if (!(visEnd > visStart)) {
@@ -213,7 +213,7 @@ const cursorLabelAbove = computed(() => {
   const cursor = props.cursor;
   const axisW = timeAxisWidth.value;
   if (!axis || !layout || !cursor || axisW <= 0) return false;
-  const cursorLabel = formatDisplayTime(cursor.time, props.bounds.minTime, props.unit);
+  const cursorLabel = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit);
   const cursorLabelW = estimateAxisLabelWidth(cursorLabel, CURSOR_LABEL_MIN_WIDTH_PX);
   const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
   const dtPlacement =
@@ -496,7 +496,6 @@ defineExpose({
         :max-time="bounds.maxTime"
         :start-time="view.startTime"
         :end-time="view.endTime"
-        :time-unit="unit"
         @update:window="emit('update:window', $event)"
       />
     </div>
@@ -525,7 +524,7 @@ defineExpose({
         <CursorTimestamp
           v-if="cursor"
           :x-ratio="cursor.xRatio"
-          :label="formatDisplayTime(cursor.time, bounds.minTime, unit)"
+          :label="formatDisplayTime(cursor.time, bounds.minTime, timeScaleUnit)"
           :label-above="cursorLabelAbove"
           :snapped="cursor.snapped ?? false"
         />
@@ -574,7 +573,7 @@ defineExpose({
       :search-query="view.searchQuery"
       :measure-mode="view.measureMode"
       :measure-range="view.measureRange"
-      :time-unit="unit"
+      :time-scale-unit="timeScaleUnit"
       :dependency-mode="dependencyMode"
       :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"

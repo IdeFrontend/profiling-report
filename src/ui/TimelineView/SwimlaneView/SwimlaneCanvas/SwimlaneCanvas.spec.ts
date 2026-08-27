@@ -112,7 +112,7 @@ describe('SwimlaneCanvas', () => {
         model: { processes: [], minTime: 0, maxTime: 1000 },
         measureMode: true,
         measureRange: null,
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
@@ -151,7 +151,7 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         measureMode: true,
         measureRange: { startTime: 200, endTime: 500 },
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
     });
     expect(wrapper.find('[data-testid="measure-fade-left"]').exists()).toBe(true);
@@ -166,7 +166,7 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         measureMode: true,
         measureRange: { startTime: 300, endTime: 300 },
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
     });
     expect(wrapper.find('[data-testid="measure-fade-left"]').exists()).toBe(false);
@@ -180,7 +180,7 @@ describe('SwimlaneCanvas', () => {
         view: { startTime: 200, endTime: 600, scrollY: 0 },
         measureMode: true,
         measureRange: { startTime: 150, endTime: 750 },
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
@@ -208,7 +208,7 @@ describe('SwimlaneCanvas', () => {
         view: { startTime: 400, endTime: 600, scrollY: 0 },
         measureMode: true,
         measureRange: { startTime: 0, endTime: 100 },
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
@@ -232,7 +232,7 @@ describe('SwimlaneCanvas', () => {
         view: { startTime: 0, endTime: 200, scrollY: 0 },
         measureMode: true,
         measureRange: { startTime: 500, endTime: 800 },
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
@@ -256,7 +256,7 @@ describe('SwimlaneCanvas', () => {
         model: { processes: [], minTime: 0, maxTime: 1000 },
         measureMode: true,
         measureRange: null,
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
@@ -291,7 +291,7 @@ describe('SwimlaneCanvas', () => {
         model: { processes: [], minTime: 0, maxTime: 1000 },
         measureMode: true,
         measureRange: null,
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
@@ -320,7 +320,7 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         measureMode: true,
         measureRange: { startTime: 200, endTime: 500 },
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
@@ -361,7 +361,7 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         measureMode: true,
         measureRange: { startTime: 200, endTime: 500 },
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
@@ -406,7 +406,7 @@ describe('SwimlaneCanvas', () => {
         preferRenderer: 'canvas' as const,
         measureMode: true,
         measureRange: null,
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
         ...extra,
       },
       attachTo: document.body,

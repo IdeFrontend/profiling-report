@@ -2,12 +2,12 @@
 import { computed } from 'vue';
 import { formatDisplayTimeParts, formatTimeParts } from '../../../domain/formatTime';
 import { t } from '../../../i18n';
-import type { SelectedEvent, TimeDisplayUnit } from '../../../domain/types';
+import type { SelectedEvent, TimeScaleUnit } from '../../../domain/types';
 
 const props = withDefaults(
   defineProps<{
     selected: SelectedEvent;
-    unit: TimeDisplayUnit;
+    timeScaleUnit: TimeScaleUnit;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
@@ -39,8 +39,8 @@ const metrics = computed(() => {
   ];
   return rows.map(([key, ns, relative]) => {
     const parts = relative
-      ? formatDisplayTimeParts(ns, origin, props.unit)
-      : formatTimeParts(ns, props.unit);
+      ? formatDisplayTimeParts(ns, origin, props.timeScaleUnit)
+      : formatTimeParts(ns, props.timeScaleUnit);
     return {
       key,
       value: parts.value,

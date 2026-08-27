@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from 'vue';
-import type { TimeDisplayUnit, ReportOperator } from '../../domain/types';
+import type { ReportOperator } from '../../domain/types';
 import { MAX_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../../domain/types';
 import { t } from '../../i18n';
 
@@ -9,7 +9,6 @@ const props = defineProps<{
   asideVisible: boolean;
   asideAvailable: boolean;
   zoomPercent: number;
-  timeUnit: TimeDisplayUnit;
   dependencyDepth: number;
   locale?: string;
   title?: string;
@@ -21,7 +20,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:asideVisible': [value: boolean];
-  'update:timeUnit': [value: TimeDisplayUnit];
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
   'update:selectedOperatorId': [id: string];
@@ -530,18 +528,6 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
               ×
             </button>
           </div>
-          <label class="pr-toolbar__display-field">
-            <span class="pr-toolbar__display-label">{{ t('taskDisplayUnit', locale) }}</span>
-            <select
-              data-testid="time-unit"
-              :value="timeUnit"
-              @change="emit('update:timeUnit', ($event.target as HTMLSelectElement).value as TimeDisplayUnit)"
-            >
-              <option value="ms">ms</option>
-              <option value="us">µs</option>
-              <option value="ns">ns</option>
-            </select>
-          </label>
           <label class="pr-toolbar__display-field">
             <span class="pr-toolbar__display-label">
               {{ t('connectionLevel', locale) }}
