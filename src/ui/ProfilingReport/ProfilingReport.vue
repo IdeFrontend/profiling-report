@@ -97,7 +97,7 @@ const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
-const cursor = ref<{ time: number; xRatio: number } | null>(null);
+const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
@@ -472,7 +472,7 @@ function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
   }
 }
 
-function onCursor(payload: { time: number; xRatio: number } | null) {
+function onCursor(payload: { time: number; xRatio: number; snapped?: boolean } | null) {
   cursor.value = payload;
 }
 
