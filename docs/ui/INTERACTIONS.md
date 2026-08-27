@@ -53,8 +53,8 @@ Sketch: `source/v930/entry.jpeg`
 Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (Core2.Cube expanded gutter)
 
 - **Leaf lanes only:** pushpin icon leftmost in gutter row (`#a8a8a8` outline unpinned; `#4a90e2` solid when pinned/hover). Tooltip **置顶**.
-- Click unpinned pushpin → parent appends lane id to **pinnedLaneIds**; click pinned → remove.
-- **Sticky strip:** pinned leaf rows duplicate at the top of the swim body (gutter + canvas); originals remain in tree order below. See [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
+- Click unpinned pushpin → parent appends lane id to **pinnedLaneIds**; click pinned → remove. Context-menu **Pin row** (Ctrl+P) toggles the same **pinnedLaneIds** — one pin state, two affordances.
+- **Sticky strip:** pinned leaf rows duplicate at the top of the swim body (gutter + canvas); originals remain in tree order below. Strip shows **events only** — no dependency beziers. Pins may span multiple Cards/groups; strip order = pin order. See [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
 **Phase 2+** (spec + crops landed; implementation follows).
 
@@ -62,7 +62,7 @@ Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (
 
 Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
 
-- Right-click lane or event → menu (e.g. **Pin row** + Ctrl+P, copy name, reveal in details). Gutter pushpin is the primary pin affordance; context-menu pin is a separate P2 surface.
+- Right-click lane or event → menu (e.g. **Pin row** + Ctrl+P, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
 
 **Phase 2+.**
 

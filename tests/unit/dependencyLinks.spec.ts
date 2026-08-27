@@ -425,4 +425,6 @@ describe('PR-DEPS: dependency links', () => {
     expect(linkIntersectsTimeView(inView, { startTime: 50, endTime: 100, scrollY: 0 })).toBe(false);
     expect(linkIntersectsTimeView(inView, { startTime: 15, endTime: 18, scrollY: 0 })).toBe(true);
   });
+
+  it.todo('PR-DEPS-012: no dependency curves painted in the pinned-lane strip pass');
 });
