@@ -35,7 +35,7 @@ I-Q6a duration + I-Q6g bandwidth. Card group renders when `taskDurationUs` **or*
 
 **Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.06` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Thin decorative pill progress track with a fixed short cyan fill (`--pr-color-duration-bar`) and hatched remainder — visual chrome only, **not** a utilization scale (I-Q6e). Secondary line (I-Q6e): if `blockDim` is set, show iterations/core style text; else fall back to `opName`; omit secondary if neither.
 
-Do **not** render a standalone op-type card. **算力情况** / **平均核利用率** always mount as top-row placeholders (title + `N/A`) until Product Q6 defines formulas — do **not** bind `summary.computeTflops` / `summary.avgCoreUtil`.
+Do **not** render a standalone op-type card. When duration is present, **算力情况** / **平均核利用率** mount as top-row placeholders (title + `N/A`) until Product Q6 defines formulas — do **not** bind `summary.computeTflops` / `summary.avgCoreUtil`. When the summary grid is BW-only (no `taskDurationUs`), omit the placeholders so the BW row stays a full 2×`span 3` without a gapped top row.
 
 **I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-bandwidth-bar`, same 8px pill hatched track; **`min-width: 0`** so a 0% score is an empty track, not a 2px sliver), subtitle `measured / peak TB/s` (GB/s ÷ 1000, magnitude rounding). Peak is the sketch 1600 GB/s HW guess. Hide a side when all-NA; hide the card when both sides NA. Cards share the sketch **3+2 grid** with duration (six CSS columns: duration span 2, each BW card span 3). Do not show cards from `summary.ioBandwidth` alone.
 
@@ -69,7 +69,8 @@ Do **not** render a standalone op-type card. **算力情况** / **平均核利�
 10. **PR-STATS-009b** — Summary cards use the sketch 3+2 grid spans (top-row `pr-card--top`, BW `pr-card--bw`).
 11. **PR-STATS-009c** — Duration display rounds to 2 decimal places; `title` tooltip carries the full value.
 12. **PR-STATS-010** — No type card; secondary hide-if-missing.
-13. **PR-STATS-011** — Compute/util cards are title + `N/A` placeholders (ignore summary compute/util fields); BW not from `summary.ioBandwidth`.
+13. **PR-STATS-011** — When duration is present, compute/util cards are title + `N/A` placeholders (ignore summary compute/util fields); BW not from `summary.ioBandwidth`.
+13b. **PR-STATS-011b** — BW-only summary (no duration) omits compute/util placeholders.
 14. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent.
 15. **PR-STATS-013** — Absolute time is a track sibling.
 16. **PR-STATS-014** — Details emit open-pipe-details.
@@ -92,7 +93,7 @@ Do **not** render a standalone op-type card. **算力情况** / **平均核利�
 | Empty pipeOccupancy | No bars; summary still visible if present |
 | Non-MIX known opType | No Cube|Vector toggle; side-filtered bars |
 | Blank/unrecognized opType | Show all PIPE bars |
-| Missing compute/util formulas (I-Q6a) | Cards still shown as title + `N/A` |
+| Missing compute/util formulas (I-Q6a) | With duration: title + `N/A`; BW-only: placeholders omitted |
 | `summary.ioBandwidth` only | No BW cards (need `bandwidthCards`) |
 | Bandwidth side all NA | That aic/aiv column omitted; card omitted if both sides NA |
 | Duration without blockDim or opName | Duration card; no secondary line |
@@ -157,6 +158,8 @@ Same raised card chrome as duration. Outer **3+2 grid** as in the sketch (comput
 
 ### Compute / avg-util placeholders (until Q6)
 
+Mount only when duration is present (keeps the top row a full 3×`span 2` with the duration card). Omit when the summary is BW-only.
+
 | Token | Value |
 |-------|--------|
 | Chrome | same raised top-row tile (`pr-card--top`) |
@@ -200,10 +203,11 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-27** — Gate compute/util N/A placeholders on duration (PR-STATS-011b) so BW-only summaries stay rectangular.
 - **2026-08-27** — Review fixes: truncation `title` on duration secondary + BW subtitles; N/A cards flex-center the value in the stretched top-row tile; docs aligned on N/A placeholders (not hide).
 - **2026-08-27** — Duration display always 2 dp; full value in `title` tooltip (PR-STATS-009c). Gradient stops re-sampled from detail-strip-raised (`#272f31` → `#252525`).
 - **2026-08-27** — Restore card gradient + well `padding: 8px` (bottom band); prior flat/`padding:0` pass broke sketch chrome.
-- **2026-08-27** — 算力情况 / 平均核利用率 always shown as title + `N/A` placeholders (PR-STATS-011); still ignore summary compute/util fields until Q6.
+- **2026-08-27** — 算力情况 / 平均核利用率 shown as title + `N/A` placeholders when duration is present (PR-STATS-011); still ignore summary compute/util fields until Q6.
 - **2026-08-26** — Summary cards use sketch 3+2 grid and raised tile chrome (dark well, pill 8px bars, split duration unit); drop full-width stack interim.
 - **2026-08-25** — Shell meta is 进程 / 算子类型 / Blocks (PR-STATS-007); drop 核数 / aic频率 / NPU ARCH.
 - **2026-08-24** — Compute overlay omits block + 查看全部 (PR-STATS-005, `v930/search-highlight`).

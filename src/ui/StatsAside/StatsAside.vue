@@ -385,6 +385,7 @@ function backToReport() {
           </div>
         </div>
         <div
+          v-if="hasDuration"
           class="pr-card pr-card--top pr-card--na"
           data-testid="stats-compute-card"
         >
@@ -396,6 +397,7 @@ function backToReport() {
           </div>
         </div>
         <div
+          v-if="hasDuration"
           class="pr-card pr-card--top pr-card--na"
           data-testid="stats-core-util-card"
         >

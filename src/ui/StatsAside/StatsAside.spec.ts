@@ -347,6 +347,32 @@ describe('StatsAside', () => {
     expect(wrapper.text()).not.toMatch(/输入带宽|Input bandwidth/);
   });
 
+  it('PR-STATS-011b: BW-only summary hides compute/util placeholders', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {},
+          bandwidthCards: [
+            {
+              id: 'input',
+              sides: [{ side: 'aic', measuredGBs: 80, peakGBs: 1600 }],
+            },
+            {
+              id: 'output',
+              sides: [{ side: 'aiv', measuredGBs: 90, peakGBs: 1600 }],
+            },
+          ],
+        }),
+      },
+    });
+    expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-duration-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-compute-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-core-util-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-bandwidth-input"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-bandwidth-output"]').exists()).toBe(true);
+  });
+
   it('PR-STATS-024: I/O bandwidth cards with aic|aiv columns, duration chrome, TB/s, bar = score%', () => {
     const wrapper = mount(StatsAside, {
       props: {
