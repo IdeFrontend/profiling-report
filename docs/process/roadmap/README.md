@@ -25,7 +25,7 @@ flowchart LR
 
 **Other views (M1–M2):** stacked 报告统计 aside — duration, interim roofline, PIPE bars (Cube|Vector toggle for MIX), memory topology graph with CSV edge labels, compute/memory CSV detail overlays (block switcher, 查看全部). Progress: [M1_PROGRESS.md](M1_PROGRESS.md), [M2_PROGRESS.md](M2_PROGRESS.md).
 
-**MSTT host:** Ready on [`mstt` branch `feature/profiling-report`](https://github.com/IdeFrontend/mstt/tree/feature/profiling-report); library open PRs [#29](https://github.com/IdeFrontend/profiling-report/pull/29) (layout), [#24](https://github.com/IdeFrontend/profiling-report/pull/24) (fonts).
+**MSTT host:** Ready on [`mstt` branch `feature/profiling-report`](https://github.com/IdeFrontend/mstt/tree/feature/profiling-report); library open PR [#29](https://github.com/IdeFrontend/profiling-report/pull/29) (layout).
 
 **Still open (Product):** Q9 dep encoding in real `.rep`; Q11 roofline formulas (interim shipped); Q22 measure → aside sync.
 
