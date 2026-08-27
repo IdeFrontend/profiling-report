@@ -728,6 +728,36 @@ describe('TimelineView', () => {
     expect(line.attributes('style')).toContain('left: 50%');
   });
 
+  it('PR-TIMELINE-018: viewport axis shows coarse base deep in trace, not near origin', () => {
+    stubAxisWidth(800);
+    const near = mount(TimelineView, { props: baseProps() });
+    expect(near.get('[data-testid="time-axis"]').find('[data-testid="axis-ruler-base"]').exists()).toBe(
+      false,
+    );
+    near.unmount();
+
+    const minTime = 0;
+    const maxTime = 300_000_000_000;
+    const view = createViewState({ minTime, maxTime, processes: [] });
+    view.startTime = 236_256_145_000;
+    view.endTime = 236_256_146_000;
+    const deep = mount(TimelineView, {
+      props: {
+        bounds: { minTime, maxTime },
+        view,
+        timeScaleUnit: 'ns',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime, maxTime, processes: [] },
+        cursor: null,
+      },
+    });
+    expect(deep.get('[data-testid="time-axis"]').find('[data-testid="axis-ruler-base"]').exists()).toBe(
+      true,
+    );
+    deep.unmount();
+  });
+
   it('PR-TIMELINE-017: no viewport breakpoint; swim rows keep a non-zero track floor', async () => {
     const src = (await import('./TimelineView.vue?raw')).default as string;
     expect(src).not.toMatch(/@media\s*\(\s*max-width:\s*900px\s*\)/);

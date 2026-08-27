@@ -111,6 +111,7 @@ const viewportRuler = computed(() =>
     origin: props.bounds.minTime,
     timeScaleUnit: props.timeScaleUnit,
     widthPx: timeAxisWidth.value,
+    useViewportBase: true,
   }),
 );
 
@@ -520,6 +521,7 @@ defineExpose({
         <AxisRuler
           :majors="viewportRuler.majors"
           :minors="viewportRuler.minors"
+          :base-label="viewportRuler.baseLabel"
         />
         <CursorTimestamp
           v-if="cursor"

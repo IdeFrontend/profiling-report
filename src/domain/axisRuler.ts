@@ -1,5 +1,64 @@
-import { formatAxisTime, timeScaleUnitFromNsQuantum } from './formatTime';
+import { formatAxisTime, formatTime, timeScaleUnitFromNsQuantum } from './formatTime';
 import type { TimeScaleUnit } from './types';
+
+const AXIS_BASE_GROUP_MIN = 1000;
+
+function unitQuantumNs(unit: TimeScaleUnit): number {
+  switch (unit) {
+    case 'ns':
+      return 1;
+    case 'us':
+      return 1e3;
+    case 'ms':
+      return 1e6;
+    case 's':
+      return 1e9;
+  }
+}
+
+function coarserTimeScaleUnit(unit: TimeScaleUnit): TimeScaleUnit | null {
+  switch (unit) {
+    case 'ns':
+      return 'us';
+    case 'us':
+      return 'ms';
+    case 'ms':
+      return 's';
+    case 's':
+      return null;
+  }
+}
+
+export interface AxisBaseOffset {
+  offsetNs: number;
+  baseLabel: string;
+}
+
+/**
+ * Viewport axis: coarse base snapped to a unit one step above tick scale.
+ * Returns null when the offset is too small to shorten tick labels.
+ */
+export function resolveAxisBaseOffset(
+  rangeStart: number,
+  origin: number,
+  tickUnit: TimeScaleUnit,
+): AxisBaseOffset | null {
+  const relStart = rangeStart - origin;
+  const tickQuantum = unitQuantumNs(tickUnit);
+  if (!(relStart >= AXIS_BASE_GROUP_MIN * tickQuantum)) return null;
+
+  const baseUnit = coarserTimeScaleUnit(tickUnit);
+  if (!baseUnit) return null;
+
+  const baseQuantum = unitQuantumNs(baseUnit);
+  const offsetNs = Math.floor(relStart / baseQuantum) * baseQuantum;
+  if (!(offsetNs > 0)) return null;
+
+  return {
+    offsetNs,
+    baseLabel: formatTime(offsetNs, baseUnit),
+  };
+}
 
 /** Minor ticks between each adjacent major pair (10 subdivisions). */
 export const AXIS_RULER_MINORS_PER_GAP = 9;
@@ -29,6 +88,8 @@ export interface AxisRulerTicks {
   minors: AxisRulerMinor[];
   /** Nice major step in ns. */
   interval: number;
+  /** Coarse viewport offset pinned at the axis left; null for overview / near-origin. */
+  baseLabel: string | null;
 }
 
 export interface BuildAxisRulerTicksOptions {
@@ -47,6 +108,8 @@ export interface BuildAxisRulerTicksOptions {
    * (overview). When omitted, nothing is muted.
    */
   muteOutside?: { start: number; end: number };
+  /** Viewport axis only: show coarse base + remainder tick labels. */
+  useViewportBase?: boolean;
 }
 
 function isOutside(t: number, window?: { start: number; end: number }): boolean {
@@ -150,6 +213,11 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
   const mute = opts.muteOutside;
   const origin = opts.origin;
   const unit = opts.timeScaleUnit;
+  const base =
+    opts.useViewportBase === true
+      ? resolveAxisBaseOffset(opts.rangeStart, origin, unit)
+      : null;
+  const labelOffsetNs = base?.offsetNs ?? 0;
 
   // Snap to origin + k·interval (integral relative timestamps).
   let t0 = origin + Math.ceil((opts.rangeStart - origin) / interval) * interval;
@@ -168,7 +236,7 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
     majors.push({
       t,
       pct: Math.min(100, Math.max(0, pct)),
-      label: formatAxisTime(t - origin, unit, interval),
+      label: formatAxisTime(t - origin - labelOffsetNs, unit, interval),
       muted: isOutside(t, mute),
     });
   }
@@ -206,5 +274,5 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
     }
   }
 
-  return { majors, minors, interval };
+  return { majors, minors, interval, baseLabel: base?.baseLabel ?? null };
 }

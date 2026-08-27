@@ -10,7 +10,7 @@ import AxisRuler from './AxisRuler.vue';
 describe('PR-AXIS: shared ruler', () => {
   it('PR-AXIS-002: nice majors snap to origin + k·interval; 9 minors per gap; relative zero', () => {
     // span 10_000 ns, width 1000 → timePerPixel=10 → minInterval=1000 → picks 1µs
-    const { majors, minors, interval } = buildAxisRulerTicks({
+    const { majors, minors, interval, baseLabel } = buildAxisRulerTicks({
       rangeStart: 986,
       rangeEnd: 986 + 10_000,
       origin: 986,
@@ -18,6 +18,7 @@ describe('PR-AXIS: shared ruler', () => {
       widthPx: 1000,
     });
     expect(interval).toBe(1000);
+    expect(baseLabel).toBeNull();
     expect(majors[0]?.t).toBe(986);
     expect(majors[0]?.label).toBe('0ms');
     for (const m of majors) {
@@ -53,6 +54,27 @@ describe('PR-AXIS: shared ruler', () => {
       ticks.minors.length,
     );
     expect(wrapper.find('.pr-axis-ruler__label').text()).toBe('0ms');
+  });
+
+  it('PR-AXIS-004: renders viewport base label with left inset when provided', () => {
+    const wrapper = mount(AxisRuler, {
+      props: {
+        majors: [{ t: 0, pct: 0, label: '0ns' }],
+        minors: [],
+        baseLabel: '236 256 145.000 µs',
+      },
+    });
+    expect(wrapper.find('[data-testid="axis-ruler-base"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="axis-ruler-base"]').text()).toBe('236 256 145.000 µs');
+    expect(wrapper.get('[data-testid="axis-ruler"]').attributes('style')).toMatch(/padding-left/);
+
+    const plain = mount(AxisRuler, {
+      props: {
+        majors: [{ t: 0, pct: 0, label: '0ms' }],
+        minors: [],
+      },
+    });
+    expect(plain.find('[data-testid="axis-ruler-base"]').exists()).toBe(false);
   });
 
   it('PR-AXIS-003: major/minor bars use --pr-axis-tick; muted use --pr-axis-tick-muted', async () => {

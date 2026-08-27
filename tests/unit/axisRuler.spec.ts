@@ -3,6 +3,7 @@ import {
   AXIS_RULER_MIN_PIXEL_INTERVAL,
   buildAxisRulerTicks,
   calculateGridInterval,
+  resolveAxisBaseOffset,
   resolveTimeUnitFromAxisDensity,
 } from '../../src/domain/axisRuler';
 
@@ -45,5 +46,35 @@ describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
     expect(resolveTimeUnitFromAxisDensity(8000, 800)).toBe('us');
     // very long span → coarser unit
     expect(resolveTimeUnitFromAxisDensity(2e12, 800)).toBe('s');
+  });
+
+  it('resolveAxisBaseOffset snaps coarse base one unit above tick scale', () => {
+    const base = resolveAxisBaseOffset(236_256_145_000, 0, 'ns');
+    expect(base).not.toBeNull();
+    expect(base!.offsetNs).toBe(236_256_145_000);
+    expect(base!.baseLabel).toContain('µs');
+    expect(resolveAxisBaseOffset(500, 0, 'ns')).toBeNull();
+  });
+
+  it('buildAxisRulerTicks viewport base shortens deep tick labels', () => {
+    const deep = buildAxisRulerTicks({
+      rangeStart: 236_256_145_000,
+      rangeEnd: 236_256_146_000,
+      origin: 0,
+      timeScaleUnit: 'ns',
+      widthPx: 800,
+      useViewportBase: true,
+    });
+    expect(deep.baseLabel).toBeTruthy();
+    expect(deep.majors[0]?.label).not.toMatch(/236/);
+
+    const overview = buildAxisRulerTicks({
+      rangeStart: 0,
+      rangeEnd: 10_000,
+      origin: 0,
+      timeScaleUnit: 'us',
+      widthPx: 1000,
+    });
+    expect(overview.baseLabel).toBeNull();
   });
 });

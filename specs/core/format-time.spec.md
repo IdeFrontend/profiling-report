@@ -25,7 +25,7 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 
 **Tooltip/detail formatting.** `formatTime` shows 3 decimal places (integer ns). Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part so ms / µs / ns magnitudes stay distinguishable. `formatTimeParts` returns value and unit separately for the detail card (`7419` under `Start (ns)`); `formatTime` joins them. `formatDisplayTime` / `formatDisplayTimeParts` subtract a shared origin (usually `minTime`) for start/end columns.
 
-**Axis tick formatting.** `formatAxisTime` adapts decimals from `tickStepNs` and applies the same ≥1000 grouping. Origin → compact zero (`0ms` / `0s`).
+**Axis tick formatting.** `formatAxisTime` adapts decimals from `tickStepNs` and applies the same ≥1000 grouping. Origin → compact zero (`0ms` / `0s`). Viewport axis may subtract a coarse base (`resolveAxisBaseOffset` in axisRuler) and show remainders on ticks; cursor/tooltip keep full `formatDisplayTime`.
 
 **Cursor formatting.** `MM:SS.mmm` in the resolved scale (sketch: 4.456ms → `00:04.456`).
 

@@ -1,17 +1,32 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { AxisRulerMajor, AxisRulerMinor } from '../../../../domain/axisRuler';
 
-defineProps<{
+const props = defineProps<{
   majors: AxisRulerMajor[];
   minors: AxisRulerMinor[];
+  baseLabel?: string | null;
 }>();
+
+/** Reserve left inset so the first tick label does not overlap the base. */
+const baseInsetCh = computed(() => {
+  const label = props.baseLabel?.trim();
+  if (!label) return 0;
+  return Math.max(7, label.length + 1);
+});
 </script>
 
 <template>
   <div
     class="pr-axis-ruler"
     data-testid="axis-ruler"
+    :style="baseInsetCh > 0 ? { paddingLeft: `calc(${baseInsetCh}ch + 4px)` } : undefined"
   >
+    <span
+      v-if="baseLabel"
+      class="pr-axis-ruler__base"
+      data-testid="axis-ruler-base"
+    >{{ baseLabel }}</span>
     <span
       v-for="(m, i) in minors"
       :key="`min-${i}-${m.pct}`"
@@ -99,5 +114,23 @@ defineProps<{
 
 .pr-axis-ruler__major--muted .pr-axis-ruler__label {
   color: #666;
+}
+
+.pr-axis-ruler__base {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  color: #c8c8c8;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  z-index: 2;
 }
 </style>

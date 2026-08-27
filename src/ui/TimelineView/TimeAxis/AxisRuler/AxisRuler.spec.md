@@ -8,11 +8,11 @@ Shared dual time-axis chrome used by `TimeOverviewBar` and the viewport `.pr-tim
 
 ## Inputs
 
-**majors** — `{ t, pct, label, muted? }[]` positioned 0–100%. **minors** — `{ pct, muted? }[]` (9 per major gap from `buildAxisRulerTicks`).
+**majors** — `{ t, pct, label, muted? }[]` positioned 0–100%. **minors** — `{ pct, muted? }[]` (9 per major gap from `buildAxisRulerTicks`). Optional **baseLabel** — coarse viewport offset pinned at the track left; tick majors show remainders only (overview omits this).
 
 ## Behavior
 
-Renders major **1px** bars with labels immediately to the **right**, plus short minor ticks along the bottom. Parent supplies a **20px** track and tick data from `buildAxisRulerTicks` (nice zoom-aware ns grid). Labels sit in an **18px** top-aligned box (**12px / 400**). Minors are **5px**. This component fills `inset: 0` and clips overflow.
+Renders major **1px** bars with labels immediately to the **right**, plus short minor ticks along the bottom. When **baseLabel** is set (viewport axis only), it is pinned at the track left with `padding-left` inset so the first major label does not overlap; overview passes `null`. Parent supplies a **20px** track and tick data from `buildAxisRulerTicks` (nice zoom-aware ns grid). Labels sit in an **18px** top-aligned box (**12px / 400**). Minors are **5px**. This component fills `inset: 0` and clips overflow.
 
 ## Visual
 
@@ -30,18 +30,21 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 | Minor ticks | **9** between each adjacent major pair (10 subdivisions); **5px** tall from bottom; same tick tokens as majors |
 | Major placement | **Nice ns steps** (`1\|2\|5×10ⁿ`) targeting ~**100px** spacing; majors at `origin + k·interval` (positions move with zoom/pan — not fixed percentages) |
 | Containment | Tick text must stay inside the timeline column — **never** paint over the right aside. Track/axis `overflow: hidden` |
+| Viewport base | Optional **baseLabel** at track left (coarse offset); remainder ticks only; overview has no base |
 
 ## Acceptance Criteria
 
 1. **PR-AXIS-001** — Renders majors and minors with testids.
 2. **PR-AXIS-002** — `buildAxisRulerTicks` yields 9 minors per gap and relative-zero first label.
 3. **PR-AXIS-003** — Major bars and minor ticks use `--pr-axis-tick` (fallback `rgb(52, 52, 52)`); muted use `--pr-axis-tick-muted` (fallback `rgb(39, 39, 39)`).
+4. **PR-AXIS-004** — Optional `baseLabel` renders `axis-ruler-base` with left inset; absent when null.
 
 ## Design sketches
 
 - [viewport-ticks](./visual/viewport-ticks.png) — from `v930/entry`
 
 ## Changelog
+- **2026-08-27** — Viewport base + remainder tick labels (PR-AXIS-004); overview unchanged.
 - **2026-08-13** — Tick/bar colors: normal `rgb(52,52,52)`, dimmed `rgb(39,39,39)`; PR-AXIS-003.
 - **2026-08-10** — Absorbed shared axis tokens from retired `docs/ui/components/VISUAL_SPEC.md`.
 - **2026-08-07** — Initial shared ruler chrome.
