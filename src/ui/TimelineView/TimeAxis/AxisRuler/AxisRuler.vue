@@ -1,53 +1,58 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { AxisRulerMajor, AxisRulerMinor } from '../../../../domain/axisRuler';
 
-const props = defineProps<{
+defineProps<{
   majors: AxisRulerMajor[];
   minors: AxisRulerMinor[];
   baseLabel?: string | null;
 }>();
-
-/** Reserve left inset so the first tick label does not overlap the base. */
-const baseInsetCh = computed(() => {
-  const label = props.baseLabel?.trim();
-  if (!label) return 0;
-  return Math.max(7, label.length + 1);
-});
 </script>
 
 <template>
   <div
     class="pr-axis-ruler"
+    :class="{ 'pr-axis-ruler--has-base': baseLabel }"
     data-testid="axis-ruler"
-    :style="baseInsetCh > 0 ? { paddingLeft: `calc(${baseInsetCh}ch + 4px)` } : undefined"
   >
-    <span
-      v-if="baseLabel"
-      class="pr-axis-ruler__base"
-      data-testid="axis-ruler-base"
-    >{{ baseLabel }}</span>
-    <span
-      v-for="(m, i) in minors"
-      :key="`min-${i}-${m.pct}`"
-      class="pr-axis-ruler__minor"
-      :class="{ 'pr-axis-ruler__minor--muted': m.muted }"
-      data-testid="axis-ruler-minor"
-      :style="{ left: `${m.pct}%` }"
-    />
     <div
-      v-for="(maj, i) in majors"
-      :key="`maj-${i}-${maj.t}`"
-      class="pr-axis-ruler__major"
-      :class="{ 'pr-axis-ruler__major--muted': maj.muted }"
-      data-testid="axis-ruler-major"
-      :style="{ left: `${maj.pct}%` }"
+      v-if="baseLabel"
+      class="pr-axis-ruler__base-col"
     >
       <span
-        class="pr-axis-ruler__bar"
+        class="pr-axis-ruler__base"
+        data-testid="axis-ruler-base"
+      >{{ baseLabel }}</span>
+      <span
+        class="pr-axis-ruler__base-sep"
         aria-hidden="true"
+      >+</span>
+    </div>
+    <div
+      class="pr-axis-ruler__track"
+      data-testid="axis-ruler-track"
+    >
+      <span
+        v-for="(m, i) in minors"
+        :key="`min-${i}-${m.pct}`"
+        class="pr-axis-ruler__minor"
+        :class="{ 'pr-axis-ruler__minor--muted': m.muted }"
+        data-testid="axis-ruler-minor"
+        :style="{ left: `${m.pct}%` }"
       />
-      <span class="pr-axis-ruler__label">{{ maj.label }}</span>
+      <div
+        v-for="(maj, i) in majors"
+        :key="`maj-${i}-${maj.t}`"
+        class="pr-axis-ruler__major"
+        :class="{ 'pr-axis-ruler__major--muted': maj.muted }"
+        data-testid="axis-ruler-major"
+        :style="{ left: `${maj.pct}%` }"
+      >
+        <span
+          class="pr-axis-ruler__bar"
+          aria-hidden="true"
+        />
+        <span class="pr-axis-ruler__label">{{ maj.label }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -56,9 +61,54 @@ const baseInsetCh = computed(() => {
 .pr-axis-ruler {
   position: absolute;
   inset: 0;
+  display: flex;
   pointer-events: none;
   z-index: 1;
   overflow: hidden;
+}
+
+.pr-axis-ruler__base-col {
+  flex: 0 1 auto;
+  max-width: 42%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 2px;
+  min-width: 0;
+}
+
+.pr-axis-ruler__base {
+  box-sizing: border-box;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  color: #c8c8c8;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pr-axis-ruler__base-sep {
+  flex: 0 0 auto;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  color: #666;
+}
+
+.pr-axis-ruler__track {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
 }
 
 .pr-axis-ruler__minor {
@@ -114,23 +164,5 @@ const baseInsetCh = computed(() => {
 
 .pr-axis-ruler__major--muted .pr-axis-ruler__label {
   color: #666;
-}
-
-.pr-axis-ruler__base {
-  position: absolute;
-  left: 0;
-  top: 0;
-  box-sizing: border-box;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  padding: 0;
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1;
-  color: #c8c8c8;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  z-index: 2;
 }
 </style>

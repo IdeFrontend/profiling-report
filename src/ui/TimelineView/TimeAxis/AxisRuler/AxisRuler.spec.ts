@@ -56,7 +56,7 @@ describe('PR-AXIS: shared ruler', () => {
     expect(wrapper.find('.pr-axis-ruler__label').text()).toBe('0ms');
   });
 
-  it('PR-AXIS-004: renders viewport base label with left inset when provided', () => {
+  it('PR-AXIS-004: renders viewport base in separate column with + separator', () => {
     const wrapper = mount(AxisRuler, {
       props: {
         majors: [{ t: 0, pct: 0, label: '0ns' }],
@@ -66,7 +66,12 @@ describe('PR-AXIS: shared ruler', () => {
     });
     expect(wrapper.find('[data-testid="axis-ruler-base"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="axis-ruler-base"]').text()).toBe('236 256 145.000 µs');
-    expect(wrapper.get('[data-testid="axis-ruler"]').attributes('style')).toMatch(/padding-left/);
+    expect(wrapper.find('[data-testid="axis-ruler-track"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-axis-ruler__base-sep').text()).toBe('+');
+    expect(wrapper.find('[data-testid="axis-ruler-track"] .pr-axis-ruler__label').text()).toBe('0ns');
+    expect(wrapper.find('[data-testid="axis-ruler-base"]').element.parentElement).not.toBe(
+      wrapper.find('[data-testid="axis-ruler-track"]').element,
+    );
 
     const plain = mount(AxisRuler, {
       props: {
@@ -75,6 +80,7 @@ describe('PR-AXIS: shared ruler', () => {
       },
     });
     expect(plain.find('[data-testid="axis-ruler-base"]').exists()).toBe(false);
+    expect(plain.find('.pr-axis-ruler__base-sep').exists()).toBe(false);
   });
 
   it('PR-AXIS-003: major/minor bars use --pr-axis-tick; muted use --pr-axis-tick-muted', async () => {
