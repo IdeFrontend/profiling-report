@@ -166,7 +166,7 @@ describe('TimelineView', () => {
 
     expect(wrapper.findAll('[data-testid="measure-arrow-shaft"]')).toHaveLength(2);
 
-    return import('./TimelineView.vue?raw').then((mod) => {
+    return import('./MeasureDtArrow.vue?raw').then((mod) => {
       const src = mod.default as string;
       expect(src).toMatch(/\.pr-measure-arrow\s*\{[^}]*padding:\s*0 1px/);
       expect(src).toMatch(/\.pr-measure-arrow__shaft--left\s*\{[^}]*margin-right:\s*4px/);
@@ -239,7 +239,7 @@ describe('TimelineView', () => {
     expect(arrow.classes()).toContain('pr-measure-arrow--outside-right');
     expect(wrapper.findAll('[data-testid="measure-arrow-head"]')).toHaveLength(2);
     expect(wrapper.findAll('[data-testid="measure-arrow-shaft"]')).toHaveLength(2);
-    const src = (await import('./TimelineView.vue?raw')).default as string;
+    const src = (await import('./MeasureDtArrow.vue?raw')).default as string;
     expect(src).toMatch(
       /\.pr-measure-arrow--shaft\s+\.pr-measure-arrow__head[\s\S]*?\.pr-measure-arrow--shaft\s+\.pr-measure-arrow__shaft\s*\{[^}]*display:\s*none/,
     );

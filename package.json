@@ -36,7 +36,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:scaffold": "playwright test tests/e2e/playground.spec.ts",
-    "test:e2e:feature": "playwright test tests/e2e/feature.spec.ts",
+    "test:e2e:feature": "playwright test tests/e2e/feature.spec.ts tests/e2e/hover-gap-measure.spec.ts",
     "check:specs": "node scripts/check-spec-coverage.mjs",
     "check:design": "node scripts/check-design-assets.mjs",
     "check:sample": "node scripts/check-sample-rep.mjs",

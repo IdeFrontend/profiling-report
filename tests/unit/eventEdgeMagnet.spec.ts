@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  eventBlockMetrics,
   findExactEdgeMatches,
+  findHoverGap,
   measureRangeExactEdgeMarks,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
@@ -107,5 +109,155 @@ describe('nearestEventEdgeAtPoint / measureRangeExactEdgeMarks', () => {
     );
     expect(wide.find((m) => m.eventId === 'e-long' && m.edge === 'start')!.x).toBe(100);
     expect(zoomed.find((m) => m.eventId === 'e-long' && m.edge === 'start')!.x).toBe(200);
+  });
+});
+
+describe('findHoverGap', () => {
+  const view = { startTime: 0, endTime: 1000, scrollY: 0 };
+  const width = 1000; // 1px = 1 time unit
+  const yLane = LANE_GROUP_HEADER_HEIGHT + 11;
+
+  function twoEventModel(): SwimlaneModel {
+    return {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'eA', name: 'a', startTime: 100, duration: 100 }, // ends 200
+                { id: 'eB', name: 'b', startTime: 400, duration: 100 }, // ends 500
+              ],
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  it('returns the gap between adjacent events in the free middle', () => {
+    const layout = rebuildLayout(twoEventModel());
+    expect(findHoverGap(layout, view, width, 300, yLane, 10)).toEqual({
+      leftEnd: 200,
+      rightStart: 400,
+      laneY: LANE_GROUP_HEADER_HEIGHT,
+    });
+  });
+
+  it('returns null over an event block', () => {
+    const layout = rebuildLayout(twoEventModel());
+    expect(findHoverGap(layout, view, width, 150, yLane, 10)).toBeNull();
+  });
+
+  it('returns null in lane vertical padding above/below event blocks', () => {
+    const layout = rebuildLayout(twoEventModel());
+    const laneY = LANE_GROUP_HEADER_HEIGHT;
+    const { y: blockY, h: blockH } = eventBlockMetrics(laneY, view.scrollY);
+    const yAbove = blockY - 0.5;
+    const yBelow = blockY + blockH + 0.5;
+    // Horizontal gap between eA and eB — valid at block Y, not in lane padding.
+    expect(findHoverGap(layout, view, width, 300, yAbove, 10)).toBeNull();
+    expect(findHoverGap(layout, view, width, 300, yBelow, 10)).toBeNull();
+    // Over an event in X but still in vertical padding.
+    expect(findHoverGap(layout, view, width, 150, yAbove, 10)).toBeNull();
+  });
+
+  it('returns null within threshold of the left edge (magnet zone)', () => {
+    const layout = rebuildLayout(twoEventModel());
+    expect(findHoverGap(layout, view, width, 205, yLane, 10)).toBeNull();
+  });
+
+  it('returns null within threshold of the right edge (magnet zone)', () => {
+    const layout = rebuildLayout(twoEventModel());
+    expect(findHoverGap(layout, view, width, 395, yLane, 10)).toBeNull();
+  });
+
+  it('returns null on a group header / folder', () => {
+    const layout = rebuildLayout(twoEventModel());
+    expect(findHoverGap(layout, view, width, 300, 5, 10)).toBeNull();
+  });
+
+  it('returns null when no left neighbour brackets the pointer', () => {
+    const layout = rebuildLayout(twoEventModel());
+    expect(findHoverGap(layout, view, width, 50, yLane, 10)).toBeNull();
+  });
+
+  it('returns null when no right neighbour brackets the pointer', () => {
+    const layout = rebuildLayout(twoEventModel());
+    expect(findHoverGap(layout, view, width, 600, yLane, 10)).toBeNull();
+  });
+
+  it('returns null inside overlapping event intervals', () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'eA', name: 'a', startTime: 100, duration: 300 }, // 100..400
+                { id: 'eB', name: 'b', startTime: 200, duration: 300 }, // 200..500
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(m);
+    // 300 sits inside both blocks — tooltip wins, not a gap.
+    expect(findHoverGap(layout, view, width, 300, yLane, 10)).toBeNull();
+  });
+
+  it('finds a gap before the first event with a large threshold does not shrink', () => {
+    const layout = rebuildLayout(twoEventModel());
+    // Free middle is unaffected by a larger magnet threshold beyond the band.
+    expect(findHoverGap(layout, view, width, 300, yLane, 10)).toEqual({
+      leftEnd: 200,
+      rightStart: 400,
+      laneY: LANE_GROUP_HEADER_HEIGHT,
+    });
+  });
+
+  it('shows overlay in the middle of a sub-20px gap at high zoom', () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 10000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'eA', name: 'a', startTime: 6700, duration: 72 }, // ends 6772
+                { id: 'eB', name: 'b', startTime: 6802, duration: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(m);
+    // 10 µs window → 30 ns gap ≈ 3.6 px at 1200 px width (matmul-like zoom).
+    const zoomed = { startTime: 5000, endTime: 15000, scrollY: 0 };
+    const w = 1200;
+    const xMid = ((6787 - zoomed.startTime) / (zoomed.endTime - zoomed.startTime)) * w;
+    expect(findHoverGap(layout, zoomed, w, xMid, yLane, 10)).toEqual({
+      leftEnd: 6772,
+      rightStart: 6802,
+      laneY: LANE_GROUP_HEADER_HEIGHT,
+    });
   });
 });

@@ -6,6 +6,9 @@ export const MEASURE_CHROME_HIT_PAD_PX = 4;
 export const MEASURE_OUTSIDE_LABEL_GAP_PX = 4;
 /** Open-stroke Δt arrowhead width (SVG viewBox / width). */
 export const MEASURE_ARROW_HEAD_PX = 9;
+/** Inline Δt chrome: tip pads + both heads + label gaps (excludes label width). */
+export const MEASURE_ARROW_CHROME_PX =
+  2 + 2 * MEASURE_ARROW_HEAD_PX + 2 * MEASURE_OUTSIDE_LABEL_GAP_PX;
 
 export type MeasureDtPlacement =
   | { mode: 'inline' }
@@ -31,6 +34,13 @@ function intervalsOverlap(a0: number, a1: number, b0: number, b1: number): boole
 export function estimateAxisLabelWidth(label: string, minWidth = 0): number {
   // padding 1+8*2 ≈ 17; ~6.5px tabular glyph at 11px.
   return Math.max(minWidth, 17 + Math.ceil(label.length * 6.5));
+}
+
+/** True when a Δt label and double arrow fit entirely inside a range span (px). */
+export function measureLabelFitsInlineSpan(rangePx: number, label: string, labelW?: number): boolean {
+  if (!(rangePx > 0)) return false;
+  const w = labelW ?? estimateAxisLabelWidth(label);
+  return rangePx >= MEASURE_ARROW_CHROME_PX + w;
 }
 
 /**

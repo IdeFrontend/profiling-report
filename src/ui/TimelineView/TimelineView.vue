@@ -16,6 +16,7 @@ import { normalizeMeasureRange } from '../../domain/viewState';
 import TimeOverviewBar from './TimeOverviewBar/TimeOverviewBar.vue';
 import AxisRuler from './TimeAxis/AxisRuler/AxisRuler.vue';
 import CursorTimestamp from './TimeAxis/CursorTimestamp/CursorTimestamp.vue';
+import MeasureDtArrow from './MeasureDtArrow.vue';
 import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
 import {
@@ -70,7 +71,6 @@ const emit = defineEmits<{
 
 const timeAxisRef = ref<HTMLElement | null>(null);
 const timeAxisWidth = ref(0);
-const measureLabelRef = ref<HTMLElement | null>(null);
 const measureLabelWidth = ref(0);
 const swimlaneRef = ref<{
   gutterRoot: HTMLElement | null;
@@ -235,7 +235,7 @@ watch(
   () => [measureAxis.value?.label, measureArrowLayout.value?.mode] as const,
   async () => {
     await nextTick();
-    const el = measureLabelRef.value;
+    const el = timeAxisRef.value?.querySelector<HTMLElement>('[data-testid="measure-label"]');
     measureLabelWidth.value = el ? el.offsetWidth : 0;
   },
   { flush: 'post' },
@@ -359,16 +359,9 @@ function isMeasureAxisBarEl(t: EventTarget | null): boolean {
 }
 
 /** Click Δt pill → parent animates viewport to center the measure range. */
-function onMeasureLabelActivate(e?: Event) {
-  e?.stopPropagation();
-  e?.preventDefault();
+function onMeasureLabelActivate() {
   if (!props.view.measureRange) return;
   emit('focus-measure');
-}
-
-function onMeasureLabelPointerDown(e: PointerEvent) {
-  // Keep axis create-drag from starting when pressing the pill.
-  e.stopPropagation();
 }
 
 function onMeasureBarPointerDown(e: PointerEvent, edge: MeasureResizeEdge) {
@@ -548,97 +541,17 @@ defineExpose({
             @pointerenter="onMeasureBarPointerEnter($event, 'right')"
             @pointerleave="onMeasureBarPointerLeave"
           />
-          <div
+          <MeasureDtArrow
             v-if="measureArrowLayout"
-            class="pr-measure-arrow"
-            data-testid="measure-arrow"
-            :class="{
-              'pr-measure-arrow--outside':
-                measureArrowLayout.mode === 'outside' || measureArrowLayout.mode === 'shaft',
-              'pr-measure-arrow--shaft': measureArrowLayout.mode === 'shaft',
-              'pr-measure-arrow--outside-right':
-                (measureArrowLayout.mode === 'outside' || measureArrowLayout.mode === 'shaft') &&
-                measureArrowLayout.side === 'right',
-              'pr-measure-arrow--outside-left':
-                (measureArrowLayout.mode === 'outside' || measureArrowLayout.mode === 'shaft') &&
-                measureArrowLayout.side === 'left',
-              'pr-measure-arrow--offscreen': measureArrowLayout.mode === 'offscreen',
-              'pr-measure-arrow--offscreen-left':
-                measureArrowLayout.mode === 'offscreen' && measureArrowLayout.side === 'left',
-              'pr-measure-arrow--offscreen-right':
-                measureArrowLayout.mode === 'offscreen' && measureArrowLayout.side === 'right',
-              'pr-measure-arrow--no-left-head': !measureAxis.showLeft,
-              'pr-measure-arrow--no-right-head': !measureAxis.showRight,
-            }"
+            :label="measureAxis.label"
             :style="measureArrowLayout.style"
-          >
-            <!--
-              Flex: tip pad 1px | head | shaft | 4px | label | 4px | shaft | head
-              Shaft negative margin pulls into chevron so the line meets the arms.
-              Outside: label parked outside; arrow spans the bars (or no connector when too narrow).
-              Offscreen: one head pointing off-view + Δt just inside the near edge (no edge bar).
-            -->
-            <svg
-              v-if="measureAxis.showLeft || measureAxis.placement === 'offscreen-left'"
-              class="pr-measure-arrow__head"
-              data-testid="measure-arrow-head"
-              :viewBox="`0 0 ${MEASURE_ARROW_HEAD_PX} 10`"
-              :width="MEASURE_ARROW_HEAD_PX"
-              height="10"
-              aria-hidden="true"
-            >
-              <path
-                d="M8 1.5 L2 5 L8 8.5"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="butt"
-                stroke-linejoin="miter"
-                stroke-miterlimit="8"
-              />
-            </svg>
-            <div
-              v-if="measureArrowLayout.mode !== 'offscreen'"
-              class="pr-measure-arrow__shaft pr-measure-arrow__shaft--left"
-              data-testid="measure-arrow-shaft"
-            />
-            <span
-              ref="measureLabelRef"
-              class="pr-measure-arrow__label"
-              data-testid="measure-label"
-              role="button"
-              tabindex="0"
-              title="Focus measure range"
-              @pointerdown="onMeasureLabelPointerDown"
-              @click="onMeasureLabelActivate"
-              @keydown.enter.prevent="onMeasureLabelActivate"
-              @keydown.space.prevent="onMeasureLabelActivate"
-            >{{ measureAxis.label }}</span>
-            <div
-              v-if="measureArrowLayout.mode !== 'offscreen'"
-              class="pr-measure-arrow__shaft pr-measure-arrow__shaft--right"
-              data-testid="measure-arrow-shaft"
-            />
-            <svg
-              v-if="measureAxis.showRight || measureAxis.placement === 'offscreen-right'"
-              class="pr-measure-arrow__head"
-              data-testid="measure-arrow-head"
-              :viewBox="`0 0 ${MEASURE_ARROW_HEAD_PX} 10`"
-              :width="MEASURE_ARROW_HEAD_PX"
-              height="10"
-              aria-hidden="true"
-            >
-              <path
-                d="M1 1.5 L7 5 L1 8.5"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="butt"
-                stroke-linejoin="miter"
-                stroke-miterlimit="8"
-              />
-            </svg>
-          </div>
+            :mode="measureArrowLayout.mode"
+            :side="measureArrowLayout.side"
+            :show-left-head="measureAxis.showLeft"
+            :show-right-head="measureAxis.showRight"
+            interactive
+            @activate="onMeasureLabelActivate"
+          />
         </template>
       </div>
     </div>
@@ -760,134 +673,6 @@ defineExpose({
   width: 2px;
   transform: translateX(-50%);
   background: var(--pr-playhead, #3078f0);
-}
-
-.pr-measure-arrow {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  padding: 0 1px;
-  pointer-events: none;
-  z-index: 4;
-  color: rgba(49, 122, 247, 1);
-}
-
-.pr-measure-arrow__shaft {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 1.5px;
-  background: currentColor;
-  position: relative;
-  z-index: 0;
-}
-
-.pr-measure-arrow__shaft--left {
-  /* Pull into left chevron toward tip; 4px clear before label. */
-  margin-left: -6px;
-  margin-right: 4px;
-}
-
-.pr-measure-arrow__shaft--right {
-  margin-left: 4px;
-  margin-right: -6px;
-}
-
-.pr-measure-arrow__head {
-  flex: 0 0 auto;
-  display: block;
-  overflow: visible;
-  position: relative;
-  z-index: 1;
-}
-
-.pr-measure-arrow__label {
-  flex: 0 0 auto;
-  padding: 1px 8px;
-  border-radius: 3px;
-  background: rgba(49, 122, 247, 1);
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  position: relative;
-  z-index: 2;
-  pointer-events: auto;
-  cursor: pointer;
-  transition: background-color 120ms ease;
-}
-
-.pr-measure-arrow__label:hover,
-.pr-measure-arrow__label:focus-visible {
-  background: rgba(77, 148, 255, 1);
-  outline: none;
-}
-
-/* Label outside the range; arrow still spans the bars. */
-.pr-measure-arrow--outside {
-  overflow: visible;
-}
-
-.pr-measure-arrow--outside .pr-measure-arrow__shaft--left {
-  margin-right: 0;
-}
-
-.pr-measure-arrow--outside .pr-measure-arrow__shaft--right {
-  margin-left: 0;
-}
-
-.pr-measure-arrow--outside .pr-measure-arrow__label {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.pr-measure-arrow--outside-right .pr-measure-arrow__label {
-  left: 100%;
-  margin-left: 4px;
-}
-
-.pr-measure-arrow--outside-left .pr-measure-arrow__label {
-  right: 100%;
-  margin-right: 4px;
-  transform: translateY(-50%);
-}
-
-/* Too narrow for heads: hide chevrons and shaft; outside Δt label only. */
-.pr-measure-arrow--shaft .pr-measure-arrow__head,
-.pr-measure-arrow--shaft .pr-measure-arrow__shaft {
-  display: none;
-}
-
-/* Clipped true edge: no arrowhead; shaft meets the view edge cleanly. */
-.pr-measure-arrow--no-left-head .pr-measure-arrow__shaft--left {
-  margin-left: 0;
-}
-
-.pr-measure-arrow--no-right-head .pr-measure-arrow__shaft--right {
-  margin-right: 0;
-}
-
-/* Fully off-screen: one chevron + Δt parked just inside the near view edge. */
-.pr-measure-arrow--offscreen {
-  overflow: visible;
-  width: auto;
-  padding: 0 1px;
-}
-
-.pr-measure-arrow--offscreen-left .pr-measure-arrow__label {
-  margin-left: 4px;
-}
-
-.pr-measure-arrow--offscreen-right {
-  transform: translateX(-100%);
-}
-
-.pr-measure-arrow--offscreen-right .pr-measure-arrow__label {
-  margin-right: 4px;
 }
 
 .pr-gutter--axis-spacer {

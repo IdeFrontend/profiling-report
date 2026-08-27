@@ -52,7 +52,7 @@ describe('CursorTimestamp', () => {
     const src = (await import('./CursorTimestamp.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-cursor__stem\s*\{[^}]*z-index:\s*3/);
     expect(src).toMatch(/\.pr-cursor__label\s*\{[^}]*z-index:\s*6/);
-    const timelineSrc = (await import('../../TimelineView.vue?raw')).default as string;
+    const timelineSrc = (await import('../../MeasureDtArrow.vue?raw')).default as string;
     expect(timelineSrc).toMatch(/\.pr-measure-arrow\s*\{[^}]*z-index:\s*4/);
   });
 });

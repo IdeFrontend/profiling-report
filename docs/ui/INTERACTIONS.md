@@ -24,6 +24,7 @@ Sketch: `source/v930/task-hover.jpeg`
 - Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Display time **unit is configurable** ([Q14](../context/OPEN_QUESTIONS.md)); default formatting uses ms-style labels unless host sets µs/ns/cycles.
 - Highlight the hovered rectangle (outline or brightness).
 - No selection change on hover alone.
+- **Default-mode gap measure:** hovering the **free middle** between two adjacent events on a lane (outside the ~10px event-edge magnet zone when the gap is wide enough, not over a block) may show a transient, non-interactive Δt overlay — two blue border sticks plus the shared double-sided Δt arrow/label — **only when the label and arrow fit entirely inside the visible gap span**. The overlay **persists during zoom/pan/scroll and left-button pan drag** while the pointer stays over the canvas. When both neighbouring events are off-screen but the gap still spans the window, sticks are omitted and the arrow spans the viewport (Δt shows the true gap duration). **Pan capture:** on button down, the active gap measure and event hover **freeze** until button up — lane and hovered event do not change while dragging. At high zoom, when the gap is narrower than ~20px, the magnet band shrinks so a fit check can still succeed. If the label does not fit, nothing is drawn. It does not capture the pointer, change selection or the time window, and is hidden in measure mode.
 
 **MVP:** required.
 

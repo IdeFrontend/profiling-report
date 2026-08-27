@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { mount, type VueWrapper } from '@vue/test-utils';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
 
 describe('SwimlaneCanvas', () => {
@@ -701,6 +701,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+
   it('PR-CANVAS-024: cursor xRatio and time share one track width', async () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {
@@ -784,5 +785,360 @@ describe('SwimlaneCanvas', () => {
     expect(src).toMatch(/measureFadeGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
     expect(src).toMatch(/measureGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
     expect(src).toMatch(/measurePreviewGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+    expect(src).toMatch(/gapMeasureGeometry = computed\(\(\) => \{\s*void resizeTick\.value/s);
+  });
+
+  const gapModel = {
+    minTime: 0,
+    maxTime: 1000,
+    processes: [
+      {
+        id: 'p-1',
+        name: 'P',
+        threads: [
+          {
+            id: 't-1',
+            name: 'T',
+            events: [
+              { id: 'eA', name: 'a', startTime: 100, duration: 100 }, // 100..200 → px 40..80
+              { id: 'eB', name: 'b', startTime: 500, duration: 100 }, // 500..600 → px 200..240
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  async function mountWithGapModel(extra: Record<string, unknown> = {}) {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: gapModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        timeUnit: 'ns',
+        ...extra,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...gapModel } });
+    return { wrapper, canvas };
+  }
+
+  async function gapLaneY(wrapper: VueWrapper) {
+    const vm = wrapper.vm as unknown as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('eA')!;
+    return rect.y + rect.h / 2;
+  }
+
+  it('PR-CANVAS-027: default-mode hover in a gap renders sticks + arrow + Δt label', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    // Gap 200..500 → px 80..200; free middle at x=140 (far from both edges).
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="gap-measure-stick-left"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="gap-measure-stick-right"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="measure-arrow"]').classes()).not.toContain('pr-measure-arrow--interactive');
+    expect(wrapper.get('[data-testid="measure-label"]').text()).toBe('300 ns');
+    const leftStick = wrapper.get('[data-testid="gap-measure-stick-left"]');
+    expect(leftStick.attributes('style')).toMatch(/left:\s*80px/);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-028: hovering an event block renders no gap overlay', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    // eA spans px 40..80; x=60 is over the block.
+    await canvas.trigger('pointermove', { clientX: 60, clientY: y, pointerId: 1 });
+
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-029: hovering within magnet threshold of an edge renders no gap overlay', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    // x=85 is 5px from eA end (80px) — magnet/tooltip wins over the gap.
+    await canvas.trigger('pointermove', { clientX: 85, clientY: y, pointerId: 1 });
+
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-030: measureMode suppresses the hover gap overlay', async () => {
+    const { wrapper, canvas } = await mountWithGapModel({ measureMode: true });
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-031: pan drag keeps the hover gap overlay and refreshes on view change', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+
+    // Parent applies pan delta — overlay recomputes at last pointer.
+    await wrapper.setProps({
+      view: { startTime: 25, endTime: 1025, scrollY: 0 },
+    });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+    await canvas.trigger('pointerup', { clientX: 150, clientY: y, pointerId: 1 });
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-032: pointerleave clears the hover gap overlay', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+
+    await canvas.trigger('pointerleave', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-033: hover gap overlay survives hoveredEventId-only view updates', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+
+    // Parent hover emit replaces view object without changing the time window.
+    await wrapper.setProps({
+      hoveredEventId: 'some-other-id',
+      view: { startTime: 0, endTime: 1000, scrollY: 0 },
+    });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-034: no gap overlay when Δt label does not fit inside the gap span', async () => {
+    const narrowGapModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'eA', name: 'a', startTime: 100, duration: 100 }, // ends 200
+                { id: 'eB', name: 'b', startTime: 205, duration: 100 }, // 5-unit gap
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: narrowGapModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        timeUnit: 'ns',
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...narrowGapModel } });
+    const vm = wrapper.vm as unknown as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('eA')!;
+    const y = rect.y + rect.h / 2;
+    // Gap mid ≈ px 82 — ~2px span; label "5 ns" cannot fit inline.
+    await canvas.trigger('pointermove', { clientX: 82, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-035: zoom view update refreshes hover gap at last pointer', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+
+    // Simulate cmd+wheel zoom: narrower window still containing the gap at x=140.
+    await wrapper.setProps({
+      view: { startTime: 180, endTime: 520, scrollY: 0 },
+    });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+
+    // Zoom until both gap edges fall outside the view but the gap still spans it.
+    await wrapper.setProps({
+      view: { startTime: 250, endTime: 260, scrollY: 0 },
+    });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="gap-measure-stick-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="gap-measure-stick-right"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-036: hover gap hides when the entire gap is outside the view', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+
+    // Gap 200..500 is entirely before the view.
+    await wrapper.setProps({
+      view: { startTime: 600, endTime: 900, scrollY: 0 },
+    });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  const dualLaneGapModel = {
+    minTime: 0,
+    maxTime: 1000,
+    processes: [
+      {
+        id: 'p-1',
+        name: 'P',
+        threads: [
+          {
+            id: 't-1',
+            name: 'T1',
+            events: [
+              { id: 'eA1', name: 'a', startTime: 100, duration: 100 },
+              { id: 'eB1', name: 'b', startTime: 500, duration: 100 },
+            ],
+          },
+          {
+            id: 't-2',
+            name: 'T2',
+            events: [
+              { id: 'eA2', name: 'c', startTime: 100, duration: 100 },
+              { id: 'eB2', name: 'd', startTime: 500, duration: 100 },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  async function mountWithDualLaneGapModel() {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: dualLaneGapModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        timeUnit: 'ns',
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 240, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 240, right: 400, bottom: 240 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 240, right: 400, bottom: 240 }),
+    });
+    await wrapper.setProps({ model: { ...dualLaneGapModel } });
+    return { wrapper, canvas };
+  }
+
+  it('PR-CANVAS-037: pan drag freezes hover gap on the original lane', async () => {
+    const { wrapper, canvas } = await mountWithDualLaneGapModel();
+    const vm = wrapper.vm as unknown as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const lane1Y = vm.eventScreenRect('eA1')!.y + vm.eventScreenRect('eA1')!.h / 2;
+    const lane2Y = vm.eventScreenRect('eA2')!.y + vm.eventScreenRect('eA2')!.h / 2;
+
+    await canvas.trigger('pointermove', { clientX: 140, clientY: lane1Y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+    const topBefore = wrapper.get('[data-testid="gap-measure"]').attributes('style');
+
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: lane1Y, pointerId: 1 });
+    await canvas.trigger('pointermove', { clientX: 150, clientY: lane2Y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="gap-measure"]').attributes('style')).toBe(topBefore);
+
+    await canvas.trigger('pointerup', { clientX: 150, clientY: lane2Y, pointerId: 1 });
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-038: pan drag freezes event hover until pointerup', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: eventModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        timeUnit: 'ms',
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...eventModel }, measureMode: false });
+
+    const vm = wrapper.vm as unknown as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const x = rect.x + rect.w / 2;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointermove', { clientX: x, clientY: y, pointerId: 1 });
+    expect((wrapper.emitted('hover')!.at(-1)![0] as { id: string } | null)?.id).toBe('e1');
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointermove', { clientX: 10, clientY: 5, pointerId: 1 });
+    expect((wrapper.emitted('hover')!.at(-1)![0] as { id: string } | null)?.id).toBe('e1');
+
+    await canvas.trigger('pointerup', { clientX: 10, clientY: 5, pointerId: 1 });
+    expect(wrapper.emitted('hover')!.at(-1)![0]).toBeNull();
+    wrapper.unmount();
   });
 });

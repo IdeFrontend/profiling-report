@@ -3,6 +3,8 @@ import {
   CURSOR_LABEL_MIN_WIDTH_PX,
   cursorLabelOverlapsMeasureChrome,
   estimateAxisLabelWidth,
+  measureLabelFitsInlineSpan,
+  MEASURE_ARROW_CHROME_PX,
 } from './cursorMeasureOverlap';
 
 describe('cursorMeasureOverlap', () => {
@@ -154,5 +156,12 @@ describe('cursorMeasureOverlap', () => {
     expect(estimateAxisLabelWidth('00:12.345', CURSOR_LABEL_MIN_WIDTH_PX)).toBeGreaterThanOrEqual(
       CURSOR_LABEL_MIN_WIDTH_PX,
     );
+  });
+
+  it('measureLabelFitsInlineSpan requires label + arrow chrome inside the span', () => {
+    const label = '300 ns';
+    const labelW = estimateAxisLabelWidth(label);
+    expect(measureLabelFitsInlineSpan(MEASURE_ARROW_CHROME_PX + labelW, label)).toBe(true);
+    expect(measureLabelFitsInlineSpan(MEASURE_ARROW_CHROME_PX + labelW - 1, label)).toBe(false);
   });
 });
