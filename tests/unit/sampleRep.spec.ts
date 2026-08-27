@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
 import type { AdaptedReport, SwimlaneModel, SwimThread } from '../../src/domain/types';
 import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
-import { loadOutRepBytes, loadSampleRepBytes } from '../helpers/fixtures';
+import { loadOutRepBytes, loadSampleRepBytes, liteSampleRepByteLength } from '../helpers/fixtures';
 
 function walkThreads(threads: SwimThread[], visit: (thread: SwimThread) => void): void {
   for (const thread of threads) {
@@ -31,6 +31,26 @@ function threadsById(model: SwimlaneModel): Map<string, SwimThread> {
   return map;
 }
 
+function dependencyDegrees(model: SwimlaneModel): Map<string, number> {
+  const byId = threadsById(model);
+  const deg = new Map<string, number>();
+  const bump = (id: string) => deg.set(id, (deg.get(id) ?? 0) + 1);
+  for (const process of model.processes) {
+    walkThreads(process.threads, (thread) => {
+      for (const event of thread.events) {
+        if (!deg.has(event.id)) deg.set(event.id, 0);
+        for (const ref of event.dependencies?.successors ?? []) {
+          const target = byId.get(ref.tid)?.events[ref.index];
+          if (!target) continue;
+          bump(event.id);
+          bump(target.id);
+        }
+      }
+    });
+  }
+  return deg;
+}
+
 function requireOperator(reports: Record<string, AdaptedReport> | undefined, id: string): AdaptedReport {
   const report = reports?.[id];
   if (!report) throw new Error(`missing operator report ${id}`);
@@ -38,6 +58,10 @@ function requireOperator(reports: Record<string, AdaptedReport> | undefined, id:
 }
 
 describe('PR-NPU-006: sample.rep distinct operators', () => {
+  it('committed sample.lite.rep is lite (op2 trace generated at hydrate time)', () => {
+    expect(liteSampleRepByteLength()).toBeLessThan(500_000);
+  });
+
   const adapted = loadReportSource(loadSampleRepBytes());
   const op1 = requireOperator(adapted.operatorReports, 'op1.npu.rep');
   const op2 = requireOperator(adapted.operatorReports, 'op2.npu.rep');
@@ -65,27 +89,16 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('op1 gives every event 3–8 dependency neighbors', () => {
-    const byId = threadsById(op1.swimlaneModel);
-    const deg = new Map<string, number>();
-    const bump = (id: string) => deg.set(id, (deg.get(id) ?? 0) + 1);
-    for (const process of op1.swimlaneModel.processes) {
-      walkThreads(process.threads, (thread) => {
-        for (const event of thread.events) {
-          if (!deg.has(event.id)) deg.set(event.id, 0);
-          for (const ref of event.dependencies?.successors ?? []) {
-            const target = byId.get(ref.tid)?.events[ref.index];
-            if (!target) continue;
-            bump(event.id);
-            bump(target.id);
-          }
-        }
-      });
-    }
+    const deg = dependencyDegrees(op1.swimlaneModel);
     expect(deg.size).toBeGreaterThan(50);
     for (const [id, n] of deg) {
       expect(n, id).toBeGreaterThanOrEqual(3);
-      expect(n, id).toBeLessThanOrEqual(8); // soft ceiling in generator top-up
+      expect(n, id).toBeLessThanOrEqual(8);
     }
+  });
+
+  it('op2 exposes scaled dependency connections after hydrate', () => {
+    expect(connectionRefCount(op2.swimlaneModel)).toBeGreaterThan(200_000);
   });
 
   it('op1 and op2 carry different CSV content', () => {
