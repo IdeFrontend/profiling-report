@@ -7,7 +7,10 @@ export type GutterMetric = 'clockCycle' | 'cacheHit' | 'task' | 'utilization';
 export type GutterBarDisplay = {
   barWidth: number;
   label: string;
+  /** Util / legacy pipe ratio: red when barWidth ≤ 50. */
   thresholdColor?: boolean;
+  /** Relative metrics: red fill when this lane is the Card max (false when all lanes tie). */
+  relativeMax?: boolean;
 };
 
 const PIPE_TIME_COLUMNS: { colorKey: string; columns: string[] }[] = [
@@ -153,19 +156,16 @@ function toBars(
 
   const max = Math.max(...entries.values());
   if (!(max > 0)) return out;
-  const allEqual = [...entries.values()].every((v) => v === max);
+  const values = [...entries.values()];
+  const allEqual = values.length > 1 && values.every((v) => v === max);
   for (const [id, raw] of entries) {
     const barWidth = (raw / max) * 100;
     out.set(id, {
       barWidth,
       label: formatLabel(metric, raw, barWidth),
       thresholdColor: false,
+      relativeMax: !allEqual && raw === max,
     });
-  }
-  if (allEqual && entries.size > 1) {
-    for (const [id, bar] of out) {
-      out.set(id, { ...bar, barWidth: bar.barWidth }); // uniform gray in UI when all equal
-    }
   }
   return out;
 }
@@ -283,6 +283,17 @@ export function gutterBarsForCard(
   const cacheByKey = cacheHitByColorKey(pipeUtilRows);
   const raw = collectRawForProcess(proc, metric, model, cycleByKey, cacheByKey);
   return toBars(raw, metric);
+}
+
+/** PyPTO average-line position (% of 110px track). Util = 50; relative metrics = mean barWidth. */
+export function averageBarWidthForCard(
+  bars: Map<string, GutterBarDisplay>,
+  metric: GutterMetric,
+): number | undefined {
+  if (metric === 'utilization') return 50;
+  const widths = [...bars.values()].map((b) => b.barWidth).filter((w) => w > 0);
+  if (widths.length < 2) return undefined;
+  return widths.reduce((a, b) => a + b, 0) / widths.length;
 }
 
 export const GUTTER_METRIC_LABELS: Record<GutterMetric, string> = {

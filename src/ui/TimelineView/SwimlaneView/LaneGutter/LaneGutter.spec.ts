@@ -197,6 +197,7 @@ describe('LaneGutter', () => {
           {
             id: 'p1',
             name: 'Process 1',
+            utilMidlinePercent: 50,
             lanes: [
               { id: 'a', name: 'A', color: '#f00', utilization: 0.46 },
               { id: 'b', name: 'B', color: '#0f0' },
@@ -205,13 +206,58 @@ describe('LaneGutter', () => {
         ],
       },
     });
-    expect(
-      wrapper.get('[data-testid="gutter-lane-a"] [data-testid="lane-util"]').find('.pr-gutter__util-mid')
-        .exists(),
-    ).toBe(true);
+    const mid = wrapper.get('[data-testid="gutter-lane-a"] [data-testid="lane-util"]').find('.pr-gutter__util-mid');
+    expect(mid.exists()).toBe(true);
+    expect(mid.attributes('style')).toContain('left: 50%');
     expect(wrapper.get('[data-testid="gutter-lane-b"] .pr-gutter__util--empty').find('.pr-gutter__util-mid').exists()).toBe(
       false,
     );
+  });
+
+  it('PR-GUTTER-007b: relative metric midline uses averageBarWidth', () => {
+    const wrapper = mount(LaneGutter, {
+      props: {
+        groups: [
+          {
+            id: 'p1',
+            name: 'Process 1',
+            utilMidlinePercent: 75,
+            lanes: [
+              {
+                id: 'l1',
+                name: 'Thread A',
+                color: '#f00',
+                bar: { barWidth: 100, label: '10', relativeMax: true },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const mid = wrapper.get('.pr-gutter__util-mid');
+    expect(mid.attributes('style')).toContain('left: 75%');
+  });
+
+  it('PR-GUTTER-006b: relativeMax drives red fill; tied bars stay gray', () => {
+    const wrapper = mount(LaneGutter, {
+      props: {
+        groups: [
+          {
+            id: 'p1',
+            name: 'Process 1',
+            lanes: [
+              { id: 'max', name: 'Max', color: '#f00', bar: { barWidth: 100, label: '10', relativeMax: true } },
+              { id: 'other', name: 'Other', color: '#0f0', bar: { barWidth: 50, label: '5', relativeMax: false } },
+              { id: 'tie', name: 'Tie', color: '#00f', bar: { barWidth: 100, label: '10', relativeMax: false } },
+            ],
+          },
+        ],
+      },
+    });
+    const fills = wrapper.findAll('.pr-gutter__util-fill');
+    expect(fills[0]!.attributes('style')).toContain('background: #733234');
+    expect(fills[1]!.attributes('style')).toContain('background: #5c5c5c');
+    expect(fills[2]!.attributes('style')).toContain('background: #5c5c5c');
   });
 
   it('PR-GUTTER-008: Card row is a non-interactive spacer', () => {

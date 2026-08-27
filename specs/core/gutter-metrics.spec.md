@@ -43,11 +43,24 @@ Mirror PyPTO conditional options **per Card**:
 
 When **clockCycle** is unavailable, default to **task** if events exist, else **utilization**.
 
+### PyPTO reference (`swimGraphThreadLabels.vue`)
+
+Parity target: PyPTO gutter util bars (`getBackground`, `threadFillWidth`, `averageValue` in `SwimGraphProcessItem.vue` metric dropdown). **Resolved:** no absolute “&gt; N tasks → red” threshold for **task** (or clockCycle / cacheHit). Red is **relative** within the Card.
+
+| Metric | Red fill (PyPTO) | Dashed average-line position |
+|--------|------------------|------------------------------|
+| **utilization** | util ≤ 50% (low util flagged) | fixed **50%** |
+| **clockCycle** | lane(s) at max (`fillWidth === 100`); all gray when all lanes tie | `(mean ÷ max) × 100` |
+| **cacheHit** | same — max lane(s) | `(mean ÷ max) × 100` |
+| **task** | same — max lane(s) | `(mean ÷ max) × 100` |
+
+Dash position and red boundary are **different concepts** for the three relative metrics: the line marks the Card average; red marks the max lane only.
+
 ### barWidth and label
 
-**clockCycle, cacheHit, task (relative modes).** Among visible lanes in the Card subtree, find the maximum raw value `max`. Each lane: `barWidth = (value / max) × 100` (0 when `max === 0`). **label** = formatted raw value (integer for cycles/tasks; two decimal places for hit rate). **thresholdColor** = false. When all lanes share the same value, all fills use gray (`#5c5c5c`).
+**clockCycle, cacheHit, task (relative modes).** Among visible lanes in the Card subtree, find the maximum raw value `max`. Each lane: `barWidth = (value / max) × 100` (0 when `max === 0`). **label** = formatted raw value (integer for cycles/tasks; two decimal places for hit rate). **thresholdColor** = false. **relativeMax** = true when `raw === max` and not all lanes tie; otherwise false (all gray when tied). Never use an absolute raw-value threshold for red on these metrics.
 
-**utilization.** `barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0 (PyPTO floor). **label** = `` `${barWidth}%` ``. **thresholdColor** = true (red when ≤ 50%).
+**utilization.** `barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0 (PyPTO floor). **label** = `` `${barWidth}%` ``. **thresholdColor** = true (red when **≤ 50%**, gray when &gt; 50%). **relativeMax** omitted.
 
 **Folder rollups.** Non-leaf nodes: **barWidth** and numeric backing value = **mean of child values** (same as `meanUtilization()` in swim tree). **label** follows the active metric format applied to the rolled-up value. **task** folders sum child event counts instead of mean.
 
@@ -55,8 +68,10 @@ When **clockCycle** is unavailable, default to **task** if events exist, else **
 
 ### Midline (average marker)
 
-- **utilization:** fixed at 50% of track width.
-- **Other metrics:** `averageBarWidth = (mean of lane barWidth values)` when at least two lanes have bars; omit midline when fewer than two.
+- **utilization:** fixed at **50%** of track width (PyPTO `averageValue` for util mode).
+- **Other metrics:** `averageBarWidth = mean(lane barWidth)` (= `(mean raw ÷ max raw) × 100`) when at least two lanes have bars; omit midline when fewer than two.
+
+Export `averageBarWidthForCard(bars, metric)` for the UI layer.
 
 ## Acceptance Criteria
 
@@ -66,6 +81,7 @@ When **clockCycle** is unavailable, default to **task** if events exist, else **
 4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring.
 5. **PR-GMET-005** — Folder rollups: mean for ratio-like metrics; sum for task counts.
 6. **PR-GMET-006** — Ignores `NA` CSV cells; uses mean across `block_id` rows (I-Q6b).
+7. **PR-GMET-007** — `averageBarWidthForCard`: 50 for utilization; mean barWidth for relative metrics when ≥2 lanes.
 
 ## Edge Cases
 
@@ -86,4 +102,5 @@ When **clockCycle** is unavailable, default to **task** if events exist, else **
 Cycle-column precedence for MIX ops when Cube and Vector both map to the same lane key — interim uses existing `laneColorKey` mean (same as PR-VM-002 pipe attach).
 
 ## Changelog
+- **2026-08-27** — PyPTO parity locked: max-lane red, mean midline, no absolute task threshold; `relativeMax` + `averageBarWidthForCard`.
 - **2026-08-27** — Initial spec: PyPTO parity metrics, .rep mapping, hide rules.
