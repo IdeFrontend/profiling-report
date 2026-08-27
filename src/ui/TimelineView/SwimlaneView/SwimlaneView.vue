@@ -30,6 +30,8 @@ import {
   startHorizontalResize,
 } from '../../panelResize';
 import Chevron from '../../Chevron.vue';
+import type { GutterMetric } from '../../../domain/gutterMetrics';
+import { GUTTER_METRIC_LABELS } from '../../../domain/gutterMetrics';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
@@ -58,6 +60,10 @@ const props = withDefaults(
     dependencyDepth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
     gutterWidth?: number;
+    /** Per-Card selected gutter metric (parent-owned). */
+    gutterMetricByCard?: Record<string, GutterMetric>;
+    /** Per-Card available metrics; omit or empty → hide selector on that Card. */
+    gutterMetricOptionsByCard?: Record<string, GutterMetric[]>;
     /** Shared playhead x from parent (axis hover + canvas); drives the swim vertical bar. */
     cursorXRatio?: number | null;
     /** True when the cursor is magnetized to an event edge (gray the swim vertical bar). */
@@ -86,6 +92,7 @@ const emit = defineEmits<{
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
   'suppress-measure-dt': [suppress: boolean];
+  'update:gutter-metric': [payload: { cardId: string; metric: GutterMetric }];
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
@@ -355,6 +362,20 @@ function clearEdgeSnapHighlight() {
   pinnedCanvasRef.value?.clearEdgeSnapHighlight();
 }
 
+
+function metricOptionsForCard(cardId: string): GutterMetric[] {
+  return props.gutterMetricOptionsByCard?.[cardId] ?? [];
+}
+
+function selectedMetricForCard(cardId: string): GutterMetric | undefined {
+  return props.gutterMetricByCard?.[cardId];
+}
+
+function onMetricChange(cardId: string, event: Event) {
+  const metric = (event.target as HTMLSelectElement).value as GutterMetric;
+  emit('update:gutter-metric', { cardId, metric });
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
@@ -519,6 +540,24 @@ defineExpose({
               :expanded="strip.expanded"
             />
             <span class="pr-card-strip__name">{{ strip.name }}</span>
+            <select
+              v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"
+              class="pr-card-strip__metric"
+              data-testid="card-metric-select"
+              :aria-label="`Gutter metric for ${strip.name}`"
+              :value="selectedMetricForCard(strip.id) ?? metricOptionsForCard(strip.id)[0]"
+              @click.stop
+              @pointerdown.stop
+              @change="onMetricChange(strip.id, $event)"
+            >
+              <option
+                v-for="opt in metricOptionsForCard(strip.id)"
+                :key="opt"
+                :value="opt"
+              >
+                {{ GUTTER_METRIC_LABELS[opt] }}
+              </option>
+            </select>
           </span>
         </button>
       </div>
@@ -671,6 +710,28 @@ defineExpose({
   align-items: center;
   gap: 6px;
   padding: 0 8px;
+}
+
+
+.pr-card-strip__metric {
+  margin-left: auto;
+  max-width: 118px;
+  min-width: 0;
+  flex: 0 1 118px;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: #e8e8e8;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: right;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.pr-card-strip__metric:focus-visible {
+  outline: 1px solid rgba(49, 122, 247, 0.6);
+  outline-offset: 1px;
 }
 
 .pr-card-strip__name {

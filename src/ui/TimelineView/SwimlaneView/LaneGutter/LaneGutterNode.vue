@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { laneCategoryLabel, t } from '../../../../i18n';
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
-import type { GutterLane } from './gutterTypes';
+import type { GutterBarDisplay, GutterLane } from './gutterTypes';
 
 const props = defineProps<{
   lane: GutterLane;
@@ -46,13 +46,24 @@ const utilSizeClass = computed(() =>
 const UTIL_RED = 'rgba(231, 67, 74, 0.4)';
 const UTIL_GRAY = 'rgba(255, 255, 255, 0.08)';
 
-function pctLabel(util: number): string {
-  return `${Math.round(util * 100)}%`;
-}
+const displayBar = computed((): GutterBarDisplay | null => {
+  if (props.lane.bar) return props.lane.bar;
+  if (props.lane.utilization != null) {
+    const barWidth = Math.round(props.lane.utilization * 100);
+    return {
+      barWidth,
+      label: `${barWidth}%`,
+      thresholdColor: true,
+    };
+  }
+  return null;
+});
 
-/** Sketch: only red (&lt;50%) or gray (≥50%) — no pipe-category tint. */
-function fillColor(util: number): string {
-  return util < 0.5 ? UTIL_RED : UTIL_GRAY;
+function fillColor(bar: GutterBarDisplay): string {
+  if (bar.thresholdColor) {
+    return bar.barWidth < 50 ? UTIL_RED : UTIL_GRAY;
+  }
+  return bar.barWidth >= 100 ? UTIL_RED : UTIL_GRAY;
 }
 
 function onPinClick(e: MouseEvent) {
@@ -83,7 +94,7 @@ function onPinClick(e: MouseEvent) {
       >{{ displayName }}</span>
     </span>
     <span
-      v-if="lane.utilization != null"
+      v-if="displayBar"
       class="pr-gutter__util"
       :class="utilSizeClass"
       data-testid="lane-util"
@@ -91,8 +102,8 @@ function onPinClick(e: MouseEvent) {
       <span
         class="pr-gutter__util-fill"
         :style="{
-          width: `${Math.min(100, Math.max(0, lane.utilization * 100))}%`,
-          '--pr-util-fill': fillColor(lane.utilization),
+          width: `${Math.min(100, Math.max(0, displayBar.barWidth))}%`,
+          '--pr-util-fill': fillColor(displayBar),
         }"
       />
       <span
@@ -102,7 +113,7 @@ function onPinClick(e: MouseEvent) {
       <span
         v-if="utilSizeClass === 'pr-gutter__util--thick'"
         class="pr-gutter__util-pct"
-      >{{ pctLabel(lane.utilization) }}</span>
+      >{{ displayBar.label }}</span>
     </span>
     <span
       v-else
@@ -162,7 +173,7 @@ function onPinClick(e: MouseEvent) {
       >{{ displayName }}</span>
     </span>
     <span
-      v-if="lane.utilization != null"
+      v-if="displayBar"
       class="pr-gutter__util"
       :class="utilSizeClass"
       data-testid="lane-util"
@@ -170,8 +181,8 @@ function onPinClick(e: MouseEvent) {
       <span
         class="pr-gutter__util-fill"
         :style="{
-          width: `${Math.min(100, Math.max(0, lane.utilization * 100))}%`,
-          '--pr-util-fill': fillColor(lane.utilization),
+          width: `${Math.min(100, Math.max(0, displayBar.barWidth))}%`,
+          '--pr-util-fill': fillColor(displayBar),
         }"
       />
       <span
@@ -181,7 +192,7 @@ function onPinClick(e: MouseEvent) {
       <span
         v-if="utilSizeClass === 'pr-gutter__util--thick'"
         class="pr-gutter__util-pct"
-      >{{ pctLabel(lane.utilization) }}</span>
+      >{{ displayBar.label }}</span>
     </span>
     <span
       v-else

@@ -1,14 +1,10 @@
 import type { LaneCategoryKey } from '../../../../domain/types';
 
 /** Display payload for a gutter util bar (metric-aware). */
-export type GutterBarDisplay = {
-  /** Fill width 0–100 (percent of track). */
-  barWidth: number;
-  /** Text inside thick bar (right-aligned); omit display when empty. */
-  label: string;
-  /** When true, apply red/gray threshold coloring (利用率 mode). */
-  thresholdColor?: boolean;
-};
+export type { GutterBarDisplay, GutterMetric } from '../../../../domain/gutterMetrics';
+export { GUTTER_METRIC_LABELS } from '../../../../domain/gutterMetrics';
+
+import type { GutterBarDisplay } from '../../../../domain/gutterMetrics';
 
 export type GutterLane = {
   id: string;
