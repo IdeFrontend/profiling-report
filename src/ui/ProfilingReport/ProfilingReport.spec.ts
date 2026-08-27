@@ -136,6 +136,9 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.selectedEventId).toBeNull();
     // Axis Δt now describes the committed selection hull, not the drag rect.
     expect(timeline().props('multiSelectSpan')).toEqual({ startTime: 0, endTime: 30 });
+    // The documented overload: a non-empty commit dismisses the single selection, so the
+    // host hears select(null) even though the multi-select dock is up.
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
 
     // Name click transitions to single-select + DetailPanel.
     await wrapper.get('[data-testid="multi-select-name-b"]').trigger('click');

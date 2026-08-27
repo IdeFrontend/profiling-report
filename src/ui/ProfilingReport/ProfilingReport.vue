@@ -502,9 +502,11 @@ function onSelect(ev: SwimEvent | null) {
 }
 
 /**
- * Marquee commit. An empty rect is a clear, which keeps `select(null)` the single
- * "nothing is selected" signal hosts listen for. The axis Δt switches from the live drag
- * extent to the committed selection hull and persists until the selection clears.
+ * Marquee commit. Both branches emit `select(null)`: an empty rect clears everything,
+ * a non-empty one dismisses the single selection in favor of the multi-selection — so
+ * hosts read `select(null)` as "no single selection", not "nothing is selected"
+ * (contract in ProfilingReport.spec.md Outputs). The axis Δt switches from the live
+ * drag extent to the committed selection hull and persists until the selection clears.
  */
 function onMultiSelect(events: SwimEvent[]) {
   if (events.length === 0) {

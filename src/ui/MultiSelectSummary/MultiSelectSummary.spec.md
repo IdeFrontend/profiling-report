@@ -47,7 +47,7 @@ An **unmodified drag** (>4px threshold on either axis) on the canvas draws the m
 
 **Gesture precedence:** `measureMode` wins. While the caliper is on, an unmodified drag creates / resizes `measureRange` as before and never marquees; the marquee is only available with measure mode off. Time-axis panning is **Shift+wheel** or a two-finger horizontal trackpad scroll — drag no longer pans, so the marquee does not have to fight it.
 
-**Commit (pointerup):** emit **`multi-select(SwimEvent[])`** with every intersecting event, then clear the rect. A rect that hits nothing commits an empty array, which the root reads as "clear the selection" — it drops both the multi-selection and any single selection, and `select(null)` stays the one signal a host listens to for "nothing is selected".
+**Commit (pointerup):** emit **`multi-select(SwimEvent[])`** with every intersecting event, then clear the rect. A rect that hits nothing commits an empty array, which the root reads as "clear the selection" — it drops both the multi-selection and any single selection. Either way the root emits `select(null)` upstream: the single selection is gone whether the commit emptied everything or swapped it for a multi-selection, so hosts read `select(null)` as "no single selection" (contract: [ProfilingReport Outputs](../ProfilingReport/ProfilingReport.spec.md)).
 
 **Cancel:** Escape during drag cancels without committing. `pointerleave` does **not** cancel (bound on `window`, same pattern as measure-border resize); the press still owns pointerup, so a cancelled marquee never falls through to `select` or `set-playhead`.
 
@@ -139,6 +139,7 @@ Root holds the captured `SwimEvent[]` and handles `multi-select`, `multi-select-
 
 ## Changelog
 
+- **2026-08-27** — Commit wording aligned with the root's `select` contract: `select(null)` fires on every commit and means "no single selection", not "nothing is selected".
 - **2026-08-26** — Sort mark is the drawn [SortArrows](../SortArrows.spec.md) pair, not a `◇` text span; header color corrected to `#999999` and the label gap to 9px against the sketch.
 - **2026-08-26** — Header × is the shared [CloseButton](../CloseButton.spec.md): the typographic `×` sits on the font's math axis and never centered in its button.
 - **2026-08-26** — Product gesture rules: unmodified drag marquees (measure mode wins), pan moves to Shift+wheel / trackpad horizontal scroll, and the axis Δt chrome persists over the multi-select span (live extent → committed hull). Post-commit dim corrected to the shared `eventEmphasisDim` 0.45, not 25%. Empty-commit behavior spelled out.
