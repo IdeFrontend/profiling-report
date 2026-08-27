@@ -184,6 +184,8 @@ let marqueeAnchor: { x: number; y: number } | null = null;
 let marqueePending = false;
 /** True from marquee pointerdown until pointerup — suppresses tooltip / select. */
 let marqueePressActive = false;
+/** Ids the live rect covers; overrides `multiSelectedIds` so the drag previews its own commit. */
+let marqueePreviewIds: string[] | null = null;
 let unbindMarqueeDrag: (() => void) | null = null;
 /** Magnet snap to nearest in-lane event start/end. */
 const EVENT_EDGE_MAGNET_PX = 10;
@@ -478,7 +480,7 @@ function applyViewState(forceModel = false): void {
   backend.setPaintDependencies?.(props.showDependencies !== false);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
-  backend.setMultiSelection?.(props.multiSelectedIds);
+  backend.setMultiSelection?.(marqueePreviewIds ?? props.multiSelectedIds);
   if (useWebGl.value) {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
@@ -487,7 +489,7 @@ function applyViewState(forceModel = false): void {
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSelectionDim(props.showDependencies !== false);
     overlay.setSearchQuery(props.searchQuery);
-    overlay.setMultiSelection(props.multiSelectedIds);
+    overlay.setMultiSelection(marqueePreviewIds ?? props.multiSelectedIds);
   }
   refreshMeasureExactEdgeMarks(modelChanged);
   refreshSnapExactEdgeMarks();
@@ -836,6 +838,7 @@ function endMarquee(): void {
   marqueeAnchor = null;
   marqueePending = false;
   marqueePressActive = false;
+  marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
 }
@@ -843,6 +846,13 @@ function endMarquee(): void {
 /** Marquee time extent — the live Δt the axis chrome shows while dragging. */
 function marqueeSpan(rect: MarqueeRect): MeasureRange {
   return normalizeMeasureRange(timeAtX(rect.x0), timeAtX(rect.x1));
+}
+
+/** Leaf events the rect currently covers — the preview during the drag, the commit on release. */
+function eventsInMarquee(rect: MarqueeRect): SwimEvent[] {
+  return eventsIntersectingRect(backend.getLayout(), props.view, syncTrackWidth(), rect).map(
+    (item) => item.event,
+  );
 }
 
 function onMarqueeDragMove(clientX: number, clientY: number): void {
@@ -865,7 +875,10 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
   };
   marqueeRect.value = rect;
   emit('multi-select-span', marqueeSpan(rect));
-  schedulePaint();
+  // Preview the commit: covered events stay bright, the rest dim through the shared path.
+  // ponytail: rescans + re-splits every move; batch by rect-delta if a dense trace janks.
+  marqueePreviewIds = eventsInMarquee(rect).map((ev) => ev.id);
+  sync();
 }
 
 /**
@@ -882,11 +895,14 @@ function onMarqueeDragEnd(): void {
   // decides whether to select — clear it only here, once the gesture is truly over.
   marqueePressActive = false;
   marqueeRect.value = null;
-  if (!rect) return;
-  const w = wrapRef.value?.clientWidth ?? 0;
-  const events = eventsIntersectingRect(backend.getLayout(), props.view, w, rect).map(
-    (item) => item.event,
-  );
+  // Preview hands the dim back to `multiSelectedIds`, which the commit below sets.
+  marqueePreviewIds = null;
+  if (!rect) {
+    sync();
+    return;
+  }
+  const events = eventsInMarquee(rect);
+  sync();
   // The root swaps the live drag span for the committed hull (or clears it on an empty commit).
   emit('multi-select-span', null);
   emit('multi-select', events);
@@ -913,9 +929,10 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueeAnchor = null;
   // Stay non-pending so the release is not mistaken for a click-select.
   marqueePending = false;
+  marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
-  schedulePaint();
+  sync();
 }
 
 function beginMeasureCreateFromDown(): void {
