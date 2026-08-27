@@ -7,6 +7,7 @@
     <!-- Stem under axis Δt (z-index 4); axis bars are 5 — stem stays below both. -->
     <div
       class="pr-cursor__stem"
+      :class="{ 'pr-cursor__stem--snapped': snapped }"
       aria-hidden="true"
     />
     <span
@@ -24,8 +25,10 @@ withDefaults(
     label: string;
     /** Park the time pill above the axis (e.g. when it would cover measure chrome). */
     labelAbove?: boolean;
+    /** Gray the stem when the cursor is magnetized to an event edge. */
+    snapped?: boolean;
   }>(),
-  { labelAbove: false },
+  { labelAbove: false, snapped: false },
 );
 </script>
 
@@ -53,6 +56,10 @@ withDefaults(
   background: #317af7;
   /* Under axis Δt (4) and axis bars (5); swimlane borders share 3. */
   z-index: 3;
+}
+
+.pr-cursor__stem--snapped {
+  background: #4c4c4c;
 }
 
 .pr-cursor__label {
