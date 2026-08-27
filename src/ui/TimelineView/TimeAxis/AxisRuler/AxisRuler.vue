@@ -84,9 +84,9 @@ defineProps<{
   align-items: center;
   padding: 0;
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1;
-  color: #c8c8c8;
+  color: #e0e0e0;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;

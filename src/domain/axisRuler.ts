@@ -1,4 +1,4 @@
-import { formatAxisTime, formatTime, timeScaleUnitFromNsQuantum } from './formatTime';
+import { formatAxisTime, formatAxisBaseTime, timeScaleUnitFromNsQuantum } from './formatTime';
 import type { TimeScaleUnit } from './types';
 
 const AXIS_BASE_GROUP_MIN = 1000;
@@ -56,7 +56,7 @@ export function resolveAxisBaseOffset(
 
   return {
     offsetNs,
-    baseLabel: formatTime(offsetNs, baseUnit),
+    baseLabel: formatAxisBaseTime(offsetNs, baseUnit),
   };
 }
 

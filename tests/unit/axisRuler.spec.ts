@@ -52,7 +52,7 @@ describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
     const base = resolveAxisBaseOffset(236_256_145_000, 0, 'ns');
     expect(base).not.toBeNull();
     expect(base!.offsetNs).toBe(236_256_145_000);
-    expect(base!.baseLabel).toContain('µs');
+    expect(base!.baseLabel).toBe('236 256 145 µs');
     expect(resolveAxisBaseOffset(500, 0, 'ns')).toBeNull();
   });
 

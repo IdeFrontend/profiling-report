@@ -61,11 +61,11 @@ describe('PR-AXIS: shared ruler', () => {
       props: {
         majors: [{ t: 0, pct: 0, label: '0ns' }],
         minors: [],
-        baseLabel: '236 256 145.000 µs',
+        baseLabel: '236 256 145 µs',
       },
     });
     expect(wrapper.find('[data-testid="axis-ruler-base"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="axis-ruler-base"]').text()).toBe('236 256 145.000 µs');
+    expect(wrapper.find('[data-testid="axis-ruler-base"]').text()).toBe('236 256 145 µs');
     expect(wrapper.find('[data-testid="axis-ruler-track"]').exists()).toBe(true);
     expect(wrapper.find('.pr-axis-ruler__base-sep').text()).toBe('+');
     expect(wrapper.find('[data-testid="axis-ruler-track"] .pr-axis-ruler__label').text()).toBe('0ns');
@@ -97,5 +97,7 @@ describe('PR-AXIS: shared ruler', () => {
     expect(src).toMatch(
       /\.pr-axis-ruler__minor--muted\s*\{[^}]*background:\s*var\(--pr-axis-tick-muted,\s*rgb\(39,\s*39,\s*39\)\)/,
     );
+    expect(src).toMatch(/\.pr-axis-ruler__base\s*\{[^}]*font-weight:\s*600/);
+    expect(src).toMatch(/\.pr-axis-ruler__label\s*\{[^}]*font-weight:\s*400/);
   });
 });

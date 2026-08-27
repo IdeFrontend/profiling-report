@@ -177,6 +177,15 @@ export function formatTime(ns: number, unit: TimeScaleUnit = 'ms'): string {
   return `${parts.value} ${parts.unit}`;
 }
 
+/** Viewport axis coarse base — integral value only (no decimal point). */
+export function formatAxisBaseTime(ns: number, unit: TimeScaleUnit): string {
+  if (!Number.isFinite(ns)) return '—';
+  const quantum =
+    unit === 'ns' ? 1 : unit === 'us' ? 1e3 : unit === 'ms' ? 1e6 : 1e9;
+  const intValue = Math.round(ns / quantum);
+  return `${formatMagnitude(intValue)} ${unitSuffix(unit)}`;
+}
+
 /**
  * Display an absolute model timestamp relative to a shared origin (usually
  * `SwimlaneModel.minTime`), matching PyPTO / Perfetto Timecode defaults.

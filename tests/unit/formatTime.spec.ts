@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatAxisTime,
+  formatAxisBaseTime,
   formatCursorTime,
   formatTime,
   formatTimeParts,
@@ -57,5 +58,11 @@ describe('PR-TIME: auto-scale time labels', () => {
     expect(formatTime(1_000_000, 'ms')).toBe('1.000 ms');
     expect(formatTimeParts(2_500_000, 'ns')).toEqual({ value: '2 500 000', unit: 'ns' });
     expect(formatAxisTime(2_500_000, 'ns')).toBe('2 500 000ns');
+  });
+
+  it('PR-TIME-006: axis base uses integral values only', () => {
+    expect(formatAxisBaseTime(15_000, 'us')).toBe('15 µs');
+    expect(formatAxisBaseTime(236_256_145_000, 'us')).toBe('236 256 145 µs');
+    expect(formatAxisBaseTime(15_000, 'us')).not.toContain('.');
   });
 });
