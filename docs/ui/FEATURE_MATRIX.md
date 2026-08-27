@@ -26,7 +26,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
-| Task display unit (ms/µs/ns) | M | Via toolbar **layers** → **显示控制** popover ([`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg)); not an inline toolbar select. Cycle mode deferred ([I-Q14](../context/INTERIM_DECISIONS.md)) |
+| Task display unit (auto s/ms/µs/ns) | M | Auto from viewport / overview density ([I-Q14](../context/INTERIM_DECISIONS.md)); no manual dropdown. Cycle mode deferred |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
 | Settings | P2 | |
 
@@ -34,7 +34,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Time axis + playhead | M | Times in **ns**; display unit **configurable** ([Q14](../context/OPEN_QUESTIONS.md)); axis default **ms** |
+| Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([Q14](../context/OPEN_QUESTIONS.md)) |
 | Cube / Vector overview charts | M | **Hide** until `OverviewSeries` ([Q5](../context/OPEN_QUESTIONS.md)) |
 | Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([Q8](../context/OPEN_QUESTIONS.md)); flat CTEF still valid |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |
