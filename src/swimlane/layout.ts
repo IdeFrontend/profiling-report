@@ -427,6 +427,67 @@ export function findHoverGap(
   return { leftEnd, rightStart, laneY: lane.y };
 }
 
+/** Δt between non-overlapping anchor/target events; null when overlapping or same id. */
+export function eventMeasureDeltaUs(anchor: SwimEvent, target: SwimEvent): number | null {
+  if (anchor.id === target.id) return null;
+  const aStart = anchor.startTime;
+  const aEnd = anchor.startTime + anchor.duration;
+  const tStart = target.startTime;
+  const tEnd = target.startTime + target.duration;
+  if (aStart < tEnd && tStart < aEnd) return null;
+  if (tStart >= aEnd) return tStart - aEnd;
+  if (tEnd <= aStart) return aStart - tEnd;
+  return null;
+}
+
+export interface EventMeasureGap {
+  deltaUs: number;
+  gapStartTime: number;
+  gapEndTime: number;
+  leftLaneY: number;
+  rightLaneY: number;
+  sameLane: boolean;
+}
+
+/** Gap geometry between anchor and target for alt-measure overlay; null when invalid. */
+export function computeEventMeasureGap(
+  layout: SwimlaneLayout,
+  anchorId: string,
+  targetId: string,
+): EventMeasureGap | null {
+  const anchorItem = layout.eventsById.get(anchorId);
+  const targetItem = layout.eventsById.get(targetId);
+  if (!anchorItem || !targetItem) return null;
+
+  const anchor = anchorItem.event;
+  const target = targetItem.event;
+  const deltaUs = eventMeasureDeltaUs(anchor, target);
+  if (deltaUs == null) return null;
+
+  const aEnd = anchor.startTime + anchor.duration;
+  const tEnd = target.startTime + target.duration;
+
+  if (target.startTime >= aEnd) {
+    return {
+      deltaUs,
+      gapStartTime: aEnd,
+      gapEndTime: target.startTime,
+      leftLaneY: anchorItem.y,
+      rightLaneY: targetItem.y,
+      sameLane: anchorItem.laneIndex === targetItem.laneIndex,
+    };
+  }
+
+  return {
+    deltaUs,
+    gapStartTime: tEnd,
+    gapEndTime: anchor.startTime,
+    leftLaneY: targetItem.y,
+    rightLaneY: anchorItem.y,
+    sameLane: anchorItem.laneIndex === targetItem.laneIndex,
+  };
+}
+
 /** View-invariant: which event edges exactly equal a range bound (scan once per range/model). */
 export function findExactEdgeMatches(
   layout: SwimlaneLayout,

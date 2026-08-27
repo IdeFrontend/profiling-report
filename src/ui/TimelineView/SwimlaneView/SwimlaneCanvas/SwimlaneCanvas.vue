@@ -13,6 +13,7 @@ import { formatTimeAuto } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
   contentHeightFromModel,
+  computeEventMeasureGap,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
@@ -157,6 +158,12 @@ const snapExactEdgeMarks = shallowRef<
 >([]);
 /** Default-mode hover gap between adjacent events (measure overlay). */
 const hoverGap = ref<HoverGap | null>(null);
+/** Alt+click anchor for ephemeral event-to-event measure (default mode). */
+const altMeasureAnchorId = ref<string | null>(null);
+/** Tracks Alt modifier for live preview after anchor click. */
+const altKeyHeld = ref(false);
+/** Hovered target event id while alt measure session is active. */
+const altMeasureHoverTargetId = ref<string | null>(null);
 /** Committed exact-match marks; projected each frame from a cached match set. */
 const measureExactEdgeMarks = shallowRef<
   { eventId: string; edge: 'start' | 'end'; time: number; x: number; y: number; h: number }[]
@@ -311,19 +318,50 @@ function restoreHoverAfterPanCapture(
   emit('hover', eventAtPointer(localX, localY, magEventId), clientX, clientY);
 }
 
+function altMeasureSessionActive(): boolean {
+  return altMeasureAnchorId.value != null && altKeyHeld.value && !props.measureMode;
+}
+
+function clearAltMeasure(): void {
+  altMeasureAnchorId.value = null;
+  altMeasureHoverTargetId.value = null;
+}
+
+function onWindowKeyDown(e: KeyboardEvent): void {
+  if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') altKeyHeld.value = true;
+  if (e.key === 'Escape' && altMeasureAnchorId.value) clearAltMeasure();
+}
+
+function onWindowKeyUp(e: KeyboardEvent): void {
+  if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
+    altKeyHeld.value = false;
+    clearAltMeasure();
+  }
+}
+
 /** Default-mode hover gap at canvas-local coords; stores position for view refresh. */
 function updateHoverGap(localX: number, localY: number, w: number): void {
   lastHoverLocalX = localX;
   lastHoverLocalY = localY;
-  hoverGap.value = props.measureMode
-    ? null
-    : findHoverGap(backend.getLayout(), props.view, w, localX, localY, EVENT_EDGE_MAGNET_PX);
+  if (props.measureMode || altMeasureSessionActive()) {
+    hoverGap.value = null;
+    return;
+  }
+  hoverGap.value = findHoverGap(
+    backend.getLayout(),
+    props.view,
+    w,
+    localX,
+    localY,
+    EVENT_EDGE_MAGNET_PX,
+  );
 }
 
 /** Recompute hover gap after zoom/pan/scroll when the pointer is still over the canvas. */
 function refreshHoverGapAtLastPointer(): void {
   if (
     props.measureMode ||
+    altMeasureSessionActive() ||
     measureGestureActive ||
     measureCreatePending ||
     measurePressActive ||
@@ -621,10 +659,14 @@ onMounted(async () => {
     await nextTick();
     ensureAttach();
   }
+  window.addEventListener('keydown', onWindowKeyDown);
+  window.addEventListener('keyup', onWindowKeyUp);
   bindResizeObserver();
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onWindowKeyDown);
+  window.removeEventListener('keyup', onWindowKeyUp);
   cancelMeasureSnapAnim();
   endMeasureCreate();
   endMeasureResize();
@@ -643,7 +685,18 @@ watch(
 );
 
 watch(
+<<<<<<< HEAD
   () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
+=======
+  () => props.measureMode,
+  (on) => {
+    if (on) clearAltMeasure();
+  },
+);
+
+watch(
+  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth],
+>>>>>>> 9a650ef (feat: Alt+hover ephemeral event distance measure in default mode)
   () => {
     localScrollY = props.view.scrollY;
     sync();
@@ -1193,6 +1246,97 @@ const gapMeasureGeometry = computed(() => {
   };
 });
 
+/** Alt-measure anchor highlight while session active. */
+const altMeasureAnchorHighlight = computed(() => {
+  void resizeTick.value;
+  if (!altMeasureAnchorId.value || !altKeyHeld.value || props.measureMode) return null;
+  return backend.eventScreenRect(altMeasureAnchorId.value);
+});
+
+/** Alt+hover event-to-event measure (default mode, ephemeral while Alt held). */
+const altEventMeasureGeometry = computed(() => {
+  void resizeTick.value;
+  if (!altMeasureSessionActive() || !props.model) return null;
+  const anchorId = altMeasureAnchorId.value;
+  const targetId = altMeasureHoverTargetId.value;
+  if (!anchorId || !targetId || anchorId === targetId) return null;
+
+  const gap = computeEventMeasureGap(backend.getLayout(), anchorId, targetId);
+  if (!gap) return null;
+
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const w = syncTrackWidth();
+  const { gapStartTime, gapEndTime, leftLaneY, rightLaneY, sameLane } = gap;
+
+  if (gapEndTime <= viewStart || gapStartTime >= viewEnd) return null;
+
+  const showLeft = gapStartTime >= viewStart && gapStartTime <= viewEnd;
+  const showRight = gapEndTime >= viewStart && gapEndTime <= viewEnd;
+  const visStart = Math.max(viewStart, gapStartTime);
+  const visEnd = Math.min(viewEnd, gapEndTime);
+  if (!(visEnd > visStart)) return null;
+
+  const left = xAtTime(gapStartTime);
+  const right = xAtTime(gapEndTime);
+  const arrowLeft = xAtTime(visStart);
+  const arrowRight = xAtTime(visEnd);
+  const label = formatTime(gap.deltaUs, props.timeUnit ?? 'ms');
+  const rangePx = arrowRight - arrowLeft;
+
+  if (sameLane) {
+    const top = leftLaneY - props.view.scrollY;
+    const leftPct = (arrowLeft / w) * 100;
+    const widthPct = ((arrowRight - arrowLeft) / w) * 100;
+    const style = { left: `${leftPct}%`, width: `${widthPct}%` };
+    if (!measureLabelFitsInlineSpan(rangePx, label)) return null;
+    return {
+      sameLane: true as const,
+      top,
+      height: LANE_HEIGHT,
+      left,
+      right,
+      label,
+      showLeft,
+      showRight,
+      arrowLayout: { mode: 'inline' as const, side: 'right' as const, style },
+    };
+  }
+
+  const leftLaneTop = leftLaneY - props.view.scrollY;
+  const rightLaneTop = rightLaneY - props.view.scrollY;
+  const laneCenterY = (y: number) => y + LANE_HEIGHT / 2;
+  const vertX = right;
+  const leftPct = (arrowLeft / w) * 100;
+  const widthPct = ((arrowRight - arrowLeft) / w) * 100;
+  const style = { left: `${leftPct}%`, width: `${widthPct}%` };
+  const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
+  if (arrowMode === 'outside' && rangePx < 8) return null;
+
+  return {
+    sameLane: false as const,
+    top: Math.min(leftLaneTop, rightLaneTop),
+    height: Math.abs(rightLaneTop - leftLaneTop) + LANE_HEIGHT,
+    left,
+    right,
+    label,
+    showLeft,
+    showRight,
+    arrowLayout: { mode: arrowMode, side: 'right' as const, style },
+    crossLane: {
+      leftLaneTop,
+      rightLaneTop,
+      vertX,
+      leftCenterY: laneCenterY(leftLaneTop),
+      rightCenterY: laneCenterY(rightLaneTop),
+      horizLeftStart: left,
+      horizLeftEnd: vertX,
+      horizRightStart: vertX,
+      horizRightEnd: right,
+    },
+  };
+});
+
 function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
@@ -1261,6 +1405,16 @@ function onPointerMove(e: PointerEvent): void {
     return;
   }
 
+  if (e.altKey) altKeyHeld.value = true;
+
+  if (altMeasureAnchorId.value && (e.altKey || altKeyHeld.value) && !props.measureMode) {
+    hoverGap.value = null;
+    const target = eventAtPointer(x, y, mag.eventId);
+    altMeasureHoverTargetId.value = target?.id ?? null;
+    emit('hover', null, e.clientX, e.clientY);
+    return;
+  }
+
   // Default-mode hover gap measure: free middle between adjacent events on the lane.
   updateHoverGap(x, y, w);
 
@@ -1303,6 +1457,19 @@ function onPointerUp(e: PointerEvent): void {
   dragging = false;
   restoreHoverAfterPanCapture(x, y, w, mag.eventId, e.clientX, e.clientY);
   if (Math.abs(e.clientX - downX) > MEASURE_DRAG_THRESHOLD_PX) return;
+
+  if (e.altKey && !props.measureMode) {
+    altKeyHeld.value = true;
+    const ev = eventAtPointer(x, y, mag.eventId);
+    if (ev) {
+      altMeasureAnchorId.value = altMeasureAnchorId.value === ev.id ? null : ev.id;
+      altMeasureHoverTargetId.value = null;
+    } else {
+      clearAltMeasure();
+    }
+    return;
+  }
+
   emit('select', eventAtPointer(x, y, mag.eventId));
 }
 
@@ -1338,6 +1505,7 @@ function onPointerLeave(e: PointerEvent): void {
   lastHoverLocalX = null;
   lastHoverLocalY = null;
   hoverGap.value = null;
+  altMeasureHoverTargetId.value = null;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
@@ -1374,6 +1542,7 @@ defineExpose({
   magnetizeAtClient,
   magnetizeAtClientLocal,
   clearEdgeSnapHighlight,
+  clearAltMeasure,
 });
 </script>
 
@@ -1537,6 +1706,115 @@ defineExpose({
         :show-right-head="gapMeasureGeometry.showRight"
       />
     </div>
+    <div
+      v-if="altMeasureAnchorHighlight"
+      class="pr-alt-measure-anchor"
+      data-testid="alt-measure-anchor"
+      :style="{
+        left: `${altMeasureAnchorHighlight.x}px`,
+        top: `${altMeasureAnchorHighlight.y}px`,
+        width: `${altMeasureAnchorHighlight.w}px`,
+        height: `${altMeasureAnchorHighlight.h}px`,
+      }"
+    />
+    <template v-if="altEventMeasureGeometry">
+      <div
+        v-if="altEventMeasureGeometry.sameLane"
+        class="pr-gap-measure pr-alt-measure"
+        data-testid="alt-event-measure"
+        :style="{
+          top: `${altEventMeasureGeometry.top}px`,
+          height: `${altEventMeasureGeometry.height}px`,
+        }"
+      >
+        <div
+          v-if="altEventMeasureGeometry.showLeft"
+          class="pr-gap-measure__stick pr-gap-measure__stick--left"
+          data-testid="alt-measure-stick-left"
+          :style="{ left: `${altEventMeasureGeometry.left}px` }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showRight"
+          class="pr-gap-measure__stick pr-gap-measure__stick--right"
+          data-testid="alt-measure-stick-right"
+          :style="{ left: `${altEventMeasureGeometry.right}px` }"
+        />
+        <MeasureDtArrow
+          :label="altEventMeasureGeometry.label"
+          :style="altEventMeasureGeometry.arrowLayout.style"
+          :mode="altEventMeasureGeometry.arrowLayout.mode"
+          :side="altEventMeasureGeometry.arrowLayout.side"
+          :show-left-head="altEventMeasureGeometry.showLeft"
+          :show-right-head="altEventMeasureGeometry.showRight"
+        />
+      </div>
+      <div
+        v-else
+        class="pr-alt-measure pr-alt-measure--cross-lane"
+        data-testid="alt-event-measure"
+      >
+        <div
+          v-if="altEventMeasureGeometry.showLeft"
+          class="pr-gap-measure__stick"
+          data-testid="alt-measure-stick-left"
+          :style="{
+            left: `${altEventMeasureGeometry.left}px`,
+            top: `${altEventMeasureGeometry.crossLane!.leftLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showRight"
+          class="pr-gap-measure__stick"
+          data-testid="alt-measure-stick-right"
+          :style="{
+            left: `${altEventMeasureGeometry.right}px`,
+            top: `${altEventMeasureGeometry.crossLane!.rightLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__horiz"
+          :style="{
+            left: `${Math.min(altEventMeasureGeometry.crossLane!.horizLeftStart, altEventMeasureGeometry.crossLane!.horizLeftEnd)}px`,
+            top: `${altEventMeasureGeometry.crossLane!.leftCenterY}px`,
+            width: `${Math.abs(altEventMeasureGeometry.crossLane!.horizLeftEnd - altEventMeasureGeometry.crossLane!.horizLeftStart)}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__horiz"
+          :style="{
+            left: `${Math.min(altEventMeasureGeometry.crossLane!.horizRightStart, altEventMeasureGeometry.crossLane!.horizRightEnd)}px`,
+            top: `${altEventMeasureGeometry.crossLane!.rightCenterY}px`,
+            width: `${Math.abs(altEventMeasureGeometry.crossLane!.horizRightEnd - altEventMeasureGeometry.crossLane!.horizRightStart)}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__vertical"
+          :style="{
+            left: `${altEventMeasureGeometry.crossLane!.vertX}px`,
+            top: `${Math.min(altEventMeasureGeometry.crossLane!.leftCenterY, altEventMeasureGeometry.crossLane!.rightCenterY)}px`,
+            height: `${Math.abs(altEventMeasureGeometry.crossLane!.rightCenterY - altEventMeasureGeometry.crossLane!.leftCenterY)}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__arrow-row"
+          :style="{
+            top: `${altEventMeasureGeometry.crossLane!.leftLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        >
+          <MeasureDtArrow
+            :label="altEventMeasureGeometry.label"
+            :style="altEventMeasureGeometry.arrowLayout.style"
+            :mode="altEventMeasureGeometry.arrowLayout.mode"
+            :side="altEventMeasureGeometry.arrowLayout.side"
+            :show-left-head="altEventMeasureGeometry.showLeft"
+            :show-right-head="altEventMeasureGeometry.showRight"
+          />
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -1691,5 +1969,55 @@ defineExpose({
   width: 2px;
   transform: translateX(-50%);
   background: rgba(49, 122, 247, 1);
+}
+
+/* Alt+hover event-to-event measure (default mode). */
+.pr-alt-measure {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.pr-alt-measure--cross-lane {
+  top: 0;
+  bottom: 0;
+}
+
+.pr-alt-measure-anchor {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 180, 196, 0.95);
+  border-radius: 5px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.pr-alt-measure__horiz {
+  position: absolute;
+  height: 1.5px;
+  transform: translateY(-50%);
+  background: rgba(49, 122, 247, 1);
+}
+
+.pr-alt-measure__vertical {
+  position: absolute;
+  width: 0;
+  border-left: 2px dashed rgba(49, 122, 247, 1);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.pr-alt-measure__arrow-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.pr-alt-measure--cross-lane .pr-gap-measure__stick {
+  top: auto;
+  bottom: auto;
 }
 </style>

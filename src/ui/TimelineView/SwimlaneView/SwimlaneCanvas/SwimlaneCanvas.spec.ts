@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
 
 /** ResizeObservers created during a test — call `fireAllDeviceRo()` after setting wrap client size. */
@@ -1294,6 +1295,58 @@ describe('SwimlaneCanvas', () => {
     const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number; snapped?: boolean };
     expect(last.time).toBe(200);
     expect(last.snapped).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-044: Alt+click anchor + Alt+hover target shows event measure without selecting', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.emitted('select')).toBeFalsy();
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+
+    await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('300 ns');
+
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft' }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-045: Alt measure hidden when anchor and target overlap in time', async () => {
+    const overlapModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'eA', name: 'a', startTime: 100, duration: 200 },
+                { id: 'eB', name: 'b', startTime: 150, duration: 50 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithGapModel({ model: overlapModel });
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointermove', { clientX: 70, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
     wrapper.unmount();
   });
 });
