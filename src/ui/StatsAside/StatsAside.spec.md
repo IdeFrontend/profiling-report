@@ -27,17 +27,17 @@ Overlay surfaces replace the stacked report: header title becomes **计算负载
 
 ### Stacked report
 
-Default surface stacks, hide-if-missing, in order: duration card, I/O bandwidth cards (I-Q6g), Roofline, PIPE (计算负载分析), memory topology (内存负载分析). No Summary | PIPE | Compute | Memory tabs.
+Default surface stacks, hide-if-missing, in order: summary card grid (duration, compute/util `N/A` placeholders, I/O bandwidth), Roofline, PIPE (计算负载分析), memory topology (内存负载分析). No Summary | PIPE | Compute | Memory tabs.
 
 ### Summary cards
 
 I-Q6a duration + I-Q6g bandwidth. Card group renders when `taskDurationUs` **or** `bandwidthCards` is present (name/type alone do not open an empty grid).
 
-**Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs`; thin decorative progress track with a fixed short cyan fill (`--pr-color-duration-bar`) and hatched remainder — visual chrome only, **not** a utilization scale (I-Q6e). Secondary line (I-Q6e): if `blockDim` is set, show iterations/core style text; else fall back to `opName`; omit secondary if neither.
+**Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.06` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Thin decorative pill progress track with a fixed short cyan fill (`--pr-color-duration-bar`) and hatched remainder — visual chrome only, **not** a utilization scale (I-Q6e). Secondary line (I-Q6e): if `blockDim` is set, show iterations/core style text; else fall back to `opName`; omit secondary if neither.
 
-Do **not** render a standalone op-type card. Do **not** render compute / avg core util cards until Product Q6.
+Do **not** render a standalone op-type card. **算力情况** / **平均核利用率** always mount as top-row placeholders (title + `N/A`) until Product Q6 defines formulas — do **not** bind `summary.computeTflops` / `summary.avgCoreUtil`.
 
-**I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-bandwidth-bar`, same 6px hatched track; **`min-width: 0`** so a 0% score is an empty track, not a 2px sliver), subtitle `measured / peak TB/s` (GB/s ÷ 1000, magnitude rounding). Peak is the sketch 1600 GB/s HW guess. Hide a side when all-NA; hide the card when both sides NA. Cards stack full-width under duration (aside is ~360px; sketch 3+2 outer grid would squeeze inner columns). Do not show cards from `summary.ioBandwidth` alone.
+**I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-bandwidth-bar`, same 8px pill hatched track; **`min-width: 0`** so a 0% score is an empty track, not a 2px sliver), subtitle `measured / peak TB/s` (GB/s ÷ 1000, magnitude rounding). Peak is the sketch 1600 GB/s HW guess. Hide a side when all-NA; hide the card when both sides NA. Cards share the sketch **3+2 grid** with duration (six CSS columns: duration span 2, each BW card span 3). Do not show cards from `summary.ioBandwidth` alone.
 
 **PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS. Section title **计算负载分析**. **详情** opens the compute CSV overlay when tables exist and emits **open-pipe-details**. A 0%–100% scale with 20/40/60/80 grid overlays sits above the rows — 0% left-aligned to the track start, 100% right-aligned to the end, 20/40/60/80 centered on those marks. Each row: label (ellipsis if wider than the column), track with solid fill for ratio and a `colorKey`-tinted hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f) that may paint over the hatch when the fill is narrower than the digits, and a right-aligned percent inside the track.
 
@@ -65,22 +65,24 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 6. **PR-STATS-006** — Header title and close emit.
 7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing.
 8. **PR-STATS-008** — More emits open-hardware-details.
-9. **PR-STATS-009** — Duration card sketch chrome.
-10. **PR-STATS-010** — No type card; secondary hide-if-missing.
-11. **PR-STATS-011** — Compute/util cards absent; BW not from `summary.ioBandwidth`.
-12. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent.
-13. **PR-STATS-013** — Absolute time is a track sibling.
-14. **PR-STATS-014** — Details emit open-pipe-details.
-15. **PR-STATS-015** — Roofline section when `roofline.points` present; hidden when absent.
-16. **PR-STATS-016** — PIPE 详情 opens compute overlay when compute tables exist and emits open-pipe-details.
-17. **PR-STATS-017** — Topology 详情 shows memory CSV overlay when tables present.
-18. **PR-STATS-018** — 更多 navigates to hardware overlay when hardwareDetails present; back returns.
-19. **PR-STATS-019** — Topology section when `memoryTopology` has labelled edges; hidden when absent.
-20. **PR-STATS-020** — No mode-tab switcher on the stacked report.
-21. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first labelled block of the new report.
-22. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
-23. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
-24. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, TB/s, bar = score%; `out.rep` uses 1.6 TB/s peak (~1% score).
+9. **PR-STATS-009** — Duration card sketch chrome (raised tile, split value/unit, pill bar).
+10. **PR-STATS-009b** — Summary cards use the sketch 3+2 grid spans (top-row `pr-card--top`, BW `pr-card--bw`).
+11. **PR-STATS-009c** — Duration display rounds to 2 decimal places; `title` tooltip carries the full value.
+12. **PR-STATS-010** — No type card; secondary hide-if-missing.
+13. **PR-STATS-011** — Compute/util cards are title + `N/A` placeholders (ignore summary compute/util fields); BW not from `summary.ioBandwidth`.
+14. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent.
+15. **PR-STATS-013** — Absolute time is a track sibling.
+16. **PR-STATS-014** — Details emit open-pipe-details.
+17. **PR-STATS-015** — Roofline section when `roofline.points` present; hidden when absent.
+18. **PR-STATS-016** — PIPE 详情 opens compute overlay when compute tables exist and emits open-pipe-details.
+19. **PR-STATS-017** — Topology 详情 shows memory CSV overlay when tables present.
+20. **PR-STATS-018** — 更多 navigates to hardware overlay when hardwareDetails present; back returns.
+21. **PR-STATS-019** — Topology section when `memoryTopology` has labelled edges; hidden when absent.
+22. **PR-STATS-020** — No mode-tab switcher on the stacked report.
+23. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first labelled block of the new report.
+24. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
+25. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
+26. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, TB/s, bar = score%; `out.rep` uses 1.6 TB/s peak (~1% score).
 
 ## Edge Cases
 
@@ -90,7 +92,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 | Empty pipeOccupancy | No bars; summary still visible if present |
 | Non-MIX known opType | No Cube|Vector toggle; side-filtered bars |
 | Blank/unrecognized opType | Show all PIPE bars |
-| Missing compute/util (I-Q6a) | Those cards absent |
+| Missing compute/util formulas (I-Q6a) | Cards still shown as title + `N/A` |
 | `summary.ioBandwidth` only | No BW cards (need `bandwidthCards`) |
 | Bandwidth side all NA | That aic/aiv column omitted; card omitted if both sides NA |
 | Duration without blockDim or opName | Duration card; no secondary line |
@@ -124,29 +126,41 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | PIPE / topology 详情 | `12px` / `#e6e6e6` |
 | Header | pinned (`flex-shrink: 0`); body / overlay `flex: 1; min-height: 0; overflow` |
 
-### Duration card (`summary-cards.png` cell)
+### Summary card grid (`summary-cards.png`, also `v930/detail-strip-raised` aside)
 
 | Token | Value |
 |-------|--------|
-| Radius | `4px` |
-| Border | `1px solid #3a3a3a` |
-| Padding | `10px 12px` |
-| Label | `11px` / `#9a9a9a` |
-| Value | `20px` / `600` / `#ffffff` |
-| Bar height | `6px`; fill `--pr-color-duration-bar` ~12%; hatched remainder `#2a2a2a` / `#1f1f1f` |
-| Sub | `11px` / `#8a8a8a` |
+| Well | `#1a1a1a`; padding `8px` (keeps bottom band before the next stack section); radius `8px`; gap `8px` |
+| Columns | `repeat(6, minmax(0, 1fr))` — top-row tiles (duration + compute/util placeholders) `span 2`; BW `span 3` |
+
+### Duration card (`summary-cards.png` / `detail-strip-raised` cell)
+
+| Token | Value |
+|-------|--------|
+| Surface | `linear-gradient(225deg, #272f31 0%, #262b2c 35%, #252525 72%)` (detail-strip-raised TR→BL samples) + inset `1px` highlight `rgba(255,255,255,0.04)`; radius `8px`; pad `12px 14px` |
+| Label | `11px` / `#999999`; margin-bottom `6px` |
+| Value | number `20px` / `600` / `#ececec`; unit sibling `12px` / `500` / `#868686` |
+| Bar | height `8px`; pill; fill `--pr-color-duration-bar` ~15% of track; hatch `#2a2a2a` / `#1f1f1f` on `#1a1a1a` track |
+| Sub | `11px` / `#8a8a8a`; ellipsis if the tile is narrow |
 
 ### I/O bandwidth cards (`summary-cards.png`)
 
-Same card chrome as duration. Cards stack in one column (aside width). Sketch 3+2 outer grid is not used — compute/util hidden and ~360px aside cannot fit aic\|aiv plus `measured / peak TB/s` in a half-width card.
+Same raised card chrome as duration. Outer **3+2 grid** as in the sketch (compute/util placeholders keep the top row filled).
 
 | Token | Value |
 |-------|--------|
 | Inner | `aic` \| `aiv` columns (`display: flex; gap: 8px`; `.pr-bw-col { flex: 1 1 0 }`) |
-| Score | same Value token; no `%` |
-| Side label | `11px` / `#9a9a9a`, baseline-aligned to the right of the score |
-| Bar | same 6px hatched track; fill `--pr-color-bandwidth-bar` = score % of track; 0% fill `min-width: 0` (no 2px sliver) |
+| Score | same Value number token; no `%` |
+| Side label | `11px` / `#999999`, baseline-aligned to the right of the score |
+| Bar | same 8px pill hatched track (`#1a1a1a` + `#2a2a2a`/`#1f1f1f`); fill `--pr-color-bandwidth-bar` = score % of track; 0% fill `min-width: 0` (no 2px sliver) |
 | Sub | same Sub token: `measured / peak TB/s` |
+
+### Compute / avg-util placeholders (until Q6)
+
+| Token | Value |
+|-------|--------|
+| Chrome | same raised top-row tile (`pr-card--top`) |
+| Body | label + `N/A` value (`#8a8a8a`); no bar / secondary |
 
 ### PIPE (`pipe-bars.png`, `mode-tabs.png`)
 
@@ -186,6 +200,11 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-27** — Review fixes: truncation `title` on duration secondary + BW subtitles; N/A cards flex-center the value in the stretched top-row tile; docs aligned on N/A placeholders (not hide).
+- **2026-08-27** — Duration display always 2 dp; full value in `title` tooltip (PR-STATS-009c). Gradient stops re-sampled from detail-strip-raised (`#272f31` → `#252525`).
+- **2026-08-27** — Restore card gradient + well `padding: 8px` (bottom band); prior flat/`padding:0` pass broke sketch chrome.
+- **2026-08-27** — 算力情况 / 平均核利用率 always shown as title + `N/A` placeholders (PR-STATS-011); still ignore summary compute/util fields until Q6.
+- **2026-08-26** — Summary cards use sketch 3+2 grid and raised tile chrome (dark well, pill 8px bars, split duration unit); drop full-width stack interim.
 - **2026-08-25** — Shell meta is 进程 / 算子类型 / Blocks (PR-STATS-007); drop 核数 / aic频率 / NPU ARCH.
 - **2026-08-24** — Compute overlay omits block + 查看全部 (PR-STATS-005, `v930/search-highlight`).
 - **2026-08-20** — npu-compute 0818: measured BW / HardwareInfo source / ICache / NA-hide confirmed; peak/score still open.

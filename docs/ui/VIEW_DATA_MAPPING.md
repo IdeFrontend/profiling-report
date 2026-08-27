@@ -71,10 +71,10 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
 | Meta row | **进程** / **算子类型** / **Blocks** / **更多**. `OpBasicInfo.csv` → `Pid` (also `PID`) / `Op Type` / `Block Dim`. Hide a segment when unset; hide the row if all empty. Not 核数, aic频率, or NPU ARCH. `Current Freq` / `Rated Freq` stay off this shell (hardware overlay / OpBasicInfo dump). Overlay `chip_info` / `arch_info` are Device Info names, not a header ARCH value. |
 | 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Opens `HardwareDetailsPanel` from **`HardwareInfo.jsonl`** when present (OpBasicInfo fallback if jsonl missing) and emits `open-hardware-details`. Hide the overlay when neither source has fields. |
-| 整体耗时 card | Large duration + **decorative** short cyan progress bar (I-Q6e, not a util %). Secondary: `blockDim` → iterations/core text; else `opName`; else omit. No standalone op-type card. |
-| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — **hidden until Q6** |
+| 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + **decorative** short cyan progress bar (I-Q6e, not a util %). Secondary: `blockDim` → iterations/core text; else `opName`; else omit. No standalone op-type card. |
+| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — until Q6: **title + `N/A`** placeholder (no invented values) |
 | 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak TB/s` — **I-Q6g** (hide side/card when NA). Same card chrome as 整体耗时. |
-| 平均核利用率 card | Percentage bar + enabled cores fraction — **hidden until Q6** |
+| 平均核利用率 card | Percentage bar + enabled cores fraction — until Q6: **title + `N/A`** placeholder (no invented values) |
 
 Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [I-Q6g](../context/INTERIM_DECISIONS.md).
 
@@ -86,8 +86,8 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 | Peak | 1600 GB/s (1.6 TB/s) for every aic/aiv × in/out slot — sketch HW guess, **not** max of measured columns |
 | Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
 | Display | TB/s = GB/s ÷ 1000; ≥1 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 |
-| Layout | Same card chrome as 整体耗时. Inner aic \| aiv columns; `aic`/`aiv` to the right of the score (no `%`). Cards stack full-width |
-| Bar | Fill width = score % of track (`--pr-color-bandwidth-bar`); same 6px hatched track as duration; 0% fill has no 2px sliver |
+| Layout | Same raised card chrome as 整体耗时. Inner aic \| aiv columns; `aic`/`aiv` to the right of the score (no `%`). Outer sketch **3+2 grid** with duration (six columns: duration span 2, each BW span 3) |
+| Bar | Fill width = score % of track (`--pr-color-bandwidth-bar`); same 8px pill hatched track as duration; 0% fill has no 2px sliver |
 | NA | Omit that aic/aiv column; omit the card if both sides NA |
 | `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused |
 
