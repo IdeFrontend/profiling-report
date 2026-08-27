@@ -1,6 +1,7 @@
 /**
  * Sudu-inspired coverage-AA swimlane shaders (reimplemented in TS; no sudu-editor dep).
- * VS snaps interval edges to pixel bounds; FS uses a rounded-rect SDF for coverage.
+ * VS snaps interval edges to the device-pixel grid; FS uses a rounded-rect SDF with
+ * device-pixel coverage so fractional browser zoom stays crisp.
  */
 
 export const SWIMLANE_VS = `#version 300 es
@@ -8,6 +9,7 @@ precision highp float;
 
 uniform vec4 uSizePos;
 uniform vec2 uResolution;
+uniform float uDpr;
 
 in vec2 aPos;
 in vec2 aTex;
@@ -21,19 +23,21 @@ float glToPixelX(float x) { return (x + 1.0) * 0.5 * uResolution.x; }
 float glToPixelY(float y) { return (1.0 - y) * 0.5 * uResolution.y; }
 float pixelToGlX(float x) { return x * 2.0 / uResolution.x - 1.0; }
 
+// Snap CSS px onto the device-pixel grid (matches snapCssPx in layout.ts).
+float snapDev(float css) { return floor(css * uDpr + 0.5) / uDpr; }
+
 void main() {
   float lX = mix(aPos.x, aTex.x, aTex.y);
   float rX = mix(aTex.x, aPos.x, aTex.y);
 
   vec2 pos = vec2(translateScaleX(aPos.x), translateScaleY(aPos.y));
-  float lPx = glToPixelX(translateScaleX(lX));
-  float rPx = glToPixelX(translateScaleX(rX));
+  // EVENT_MARGIN 0.5px per side, then snap so the gap stays on the device grid.
+  float lPx = snapDev(glToPixelX(translateScaleX(lX)) + 0.5);
+  float rPx = snapDev(glToPixelX(translateScaleX(rX)) - 0.5);
+  rPx = max(lPx + 1.0 / uDpr, rPx);
 
-  float screenX = glToPixelX(pos.x);
   float screenY = glToPixelY(pos.y);
-
-  // Extend left/right edge to pixel bounds for AA fringe
-  screenX = mix(floor(screenX), ceil(screenX), aTex.y);
+  float screenX = mix(lPx, rPx, aTex.y);
   pos.x = pixelToGlX(screenX);
 
   vScreenPos = vec2(screenX, screenY);
@@ -46,7 +50,8 @@ export const SWIMLANE_FS = `#version 300 es
 precision highp float;
 
 uniform vec4 uColor;
-uniform vec2 uYBounds; // top, bottom in CSS pixels
+uniform vec2 uYBounds; // top, bottom in CSS pixels (device-snapped)
+uniform float uDpr;
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
@@ -59,23 +64,21 @@ float sdRoundBox(vec2 p, vec2 halfSize, float r) {
 }
 
 void main() {
-  // 1px margin: inset 0.5px each side so adjacent event blocks don't touch.
-  float rawW = max(vLrScreen.y - vLrScreen.x, 0.0);
-  float l = vLrScreen.x + 0.5;
-  float r = vLrScreen.y - 0.5;
+  float l = vLrScreen.x;
+  float r = vLrScreen.y;
   float t = uYBounds.x;
   float b = uYBounds.y;
   float w = max(r - l, 0.0);
   float h = max(b - t, 0.0);
-  // Corner radius: 1px for narrow blocks (<4px), else 2px.
-  float rad = min(min(w, h) * 0.5, rawW < 4.0 ? 1.0 : 2.0);
+  // Corner radius: 1px for narrow blocks (<4px raw ≈ paintW+1), else 2px.
+  float rad = min(min(w, h) * 0.5, (w + 1.0) < 4.0 ? 1.0 : 2.0);
 
   vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
 
-  // Approximate pixel coverage from signed distance
-  float coverage = clamp(0.5 - dist, 0.0, 1.0);
+  // Coverage in device pixels (~0.5 device px fringe) so fractional dpr stays sharp.
+  float coverage = clamp(0.5 - dist * uDpr, 0.0, 1.0);
   // Premultiplied RGB + alpha: uColor.xyz is already RGB*emphasis, uColor.w is
   // Canvas-equivalent globalAlpha (search/selection dim). Coverage AA on top.
   float a = uColor.w * coverage;

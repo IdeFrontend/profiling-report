@@ -10,7 +10,7 @@ import { dependencyGraph, paintDependencyLinks, type DependencyLink } from './de
 import {
   BAND_FILL,
   EMPTY_LAYOUT,
-  EVENT_MARGIN,
+  eventPaintRect,
   eventRadius,
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
@@ -25,9 +25,35 @@ import {
   hitTestLayout,
   rebuildLayout,
   showsProfilerStepBands,
+  snapEventRect,
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
+
+function minCssPx(dpr: number): number {
+  return 1 / dpr;
+}
+
+/** Device-pixel-snapped stroke path inset by half the (snapped) line width. */
+function strokeRoundedEvent(
+  ctx: CanvasRenderingContext2D,
+  r: { x: number; y: number; w: number; h: number; r: number },
+  lineWidthCss: number,
+  dpr: number,
+): void {
+  const lw = Math.max(minCssPx(dpr), Math.round(lineWidthCss * dpr) / dpr);
+  ctx.lineWidth = lw;
+  const min = minCssPx(dpr);
+  roundRectPath(
+    ctx,
+    r.x + lw / 2,
+    r.y + lw / 2,
+    Math.max(min, r.w - lw),
+    Math.max(min, r.h - lw),
+    r.r,
+  );
+  ctx.stroke();
+}
 
 function drawEventLabel(
   ctx: CanvasRenderingContext2D,
@@ -80,8 +106,9 @@ function eventRect(
   y: number,
   w: number,
   h: number,
+  dpr = 1,
 ): { x: number; y: number; w: number; h: number; r: number } {
-  return { x: x + EVENT_MARGIN, y, w: w - EVENT_MARGIN * 2, h, r: eventRadius(w) };
+  return eventPaintRect(x, y, w, h, dpr);
 }
 
 export function paintGroupBands(
@@ -90,6 +117,7 @@ export function paintGroupBands(
   view: SwimlaneViewWindow,
   width: number,
   height: number,
+  dpr = 1,
 ): void {
   const bands = layout.bands;
   if (!bands.length) return;
@@ -104,10 +132,11 @@ export function paintGroupBands(
       const w = Math.max(2, (band.duration / span) * width);
       const { y, h } = eventBlockMetrics(lane.y, view.scrollY);
       if (y + h < 0 || y > height) continue;
+      const r = snapEventRect(x, y, w, h, dpr);
       ctx.fillStyle = BAND_FILL;
-      roundRectPath(ctx, x, y, w, h, eventRadius(w));
+      roundRectPath(ctx, r.x, r.y, r.w, r.h, eventRadius(r.w));
       ctx.fill();
-      drawEventLabel(ctx, band.name, x, y, w, h, width, 1, '#555555');
+      drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, width, 1, '#555555');
     }
   }
 }
@@ -127,6 +156,7 @@ export class SwimlaneOverlayPainter {
   private searchQuery = '';
   private width = 0;
   private height = 0;
+  private dpr = 1;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -140,9 +170,11 @@ export class SwimlaneOverlayPainter {
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
       this.canvas.width = Math.floor(this.width * dpr);
       this.canvas.height = Math.floor(this.height * dpr);
+      // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
+      this.dpr = this.canvas.width / this.width;
       this.canvas.style.width = `${this.width}px`;
       this.canvas.style.height = `${this.height}px`;
-      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     }
   }
 
@@ -176,13 +208,14 @@ export class SwimlaneOverlayPainter {
     ctx.clearRect(0, 0, this.width, this.height);
 
     // WebGL draws lane chrome + event fills; overlay adds band fills/labels + event strokes/labels.
-    paintGroupBands(ctx, this.layout, this.view, this.width, this.height);
+    paintGroupBands(ctx, this.layout, this.view, this.width, this.height, this.dpr);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
     const bright = this.neighborIds;
+    const dpr = this.dpr;
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -193,26 +226,21 @@ export class SwimlaneOverlayPainter {
       const w = Math.max(2, (ev.duration / span) * this.width);
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
+      const r = eventRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
 
       if (item.id === this.selectedId) {
-        const r = eventRect(x, y, w, h);
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        roundRectPath(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, r.r);
-        ctx.stroke();
+        strokeRoundedEvent(ctx, r, 2, dpr);
       } else if (item.id === this.hoveredId) {
-        const r = eventRect(x, y, w, h);
         ctx.strokeStyle = '#c8e0ff';
-        ctx.lineWidth = 1.5;
-        roundRectPath(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, r.r);
-        ctx.stroke();
+        strokeRoundedEvent(ctx, r, 1.5, dpr);
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
-      if (matches) drawEventLabel(ctx, ev.name, x, y, w, h, this.width, dim);
+      if (matches) drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim);
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
@@ -241,6 +269,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private searchQuery = '';
   private width = 0;
   private height = 0;
+  private dpr = 1;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -254,10 +283,12 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
       this.canvas.width = Math.floor(this.width * dpr);
       this.canvas.height = Math.floor(this.height * dpr);
+      // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
+      this.dpr = this.canvas.width / this.width;
       this.canvas.style.width = `${this.width}px`;
       this.canvas.style.height = `${this.height}px`;
       if (this.ctx) {
-        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       }
     }
   }
@@ -360,19 +391,21 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.stroke();
     }
 
-    paintGroupBands(ctx, this.layout, this.view, this.width, this.height);
+    paintGroupBands(ctx, this.layout, this.view, this.width, this.height, this.dpr);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
     const bright = this.neighborIds;
+    const dpr = this.dpr;
     const visible: {
       item: LaidOutEvent;
       x: number;
       y: number;
       w: number;
       h: number;
+      r: number;
       matches: boolean;
       dim: number;
     }[] = [];
@@ -386,33 +419,27 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const w = Math.max(2, (ev.duration / span) * this.width);
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
+      const fr = eventRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
       ctx.globalAlpha = dim;
       ctx.fillStyle = item.color;
-      const fr = eventRect(x, y, w, h);
       roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
       ctx.fill();
       ctx.globalAlpha = 1;
-      visible.push({ item, x, y, w, h, matches, dim });
+      visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, r: fr.r, matches, dim });
     }
 
     paintDependencyLinks(ctx, this.depLinks, this.view, this.width);
 
-    for (const { item, x, y, w, h, matches, dim } of visible) {
+    for (const { item, x, y, w, h, r, matches, dim } of visible) {
       if (item.id === this.selectedId) {
-        const r = eventRect(x, y, w, h);
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        roundRectPath(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, r.r);
-        ctx.stroke();
+        strokeRoundedEvent(ctx, { x, y, w, h, r }, 2, dpr);
       } else if (item.id === this.hoveredId) {
-        const r = eventRect(x, y, w, h);
         ctx.strokeStyle = '#c8e0ff';
-        ctx.lineWidth = 1.5;
-        roundRectPath(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, r.r);
-        ctx.stroke();
+        strokeRoundedEvent(ctx, { x, y, w, h, r }, 1.5, dpr);
       }
 
       if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim);
