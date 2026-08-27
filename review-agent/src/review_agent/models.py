@@ -1,4 +1,7 @@
-"""Data models for the review-agent service."""
+"""Data models shared across the review-agent service.
+
+Matches the architecture spec (architecture.md §Components).
+"""
 
 from __future__ import annotations
 
@@ -12,7 +15,7 @@ class FileChange:
     patch: str  # per-file diff hunk
     additions: int = 0
     deletions: int = 0
-    previous_path: str | None = None
+    previous_path: str | None = None  # for renames
 
 
 @dataclass
@@ -29,12 +32,12 @@ class PRContext:
     repo: str  # "owner/repo"
     pr_number: int
     title: str
-    description: str
+    description: str  # PR body markdown
     author: str
     base_branch: str
     head_branch: str
     head_sha: str
-    diff: str
+    diff: str  # full unified diff
     files: list[FileChange] = field(default_factory=list)
     existing_comments: list[Comment] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
@@ -43,14 +46,14 @@ class PRContext:
 
 @dataclass
 class InlineComment:
-    path: str
+    path: str  # file path relative to repo root
     line: int  # line number in the diff (new-file side)
     body: str
-    side: str = "RIGHT"
+    side: str = "RIGHT"  # "RIGHT" (default) or "LEFT"
 
 
 @dataclass
 class ReviewResult:
     verdict: str  # "APPROVE" | "REQUEST_CHANGES" | "COMMENT"
-    body: str
+    body: str  # overall review summary
     comments: list[InlineComment] = field(default_factory=list)
