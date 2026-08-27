@@ -56,8 +56,8 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-012**: Canvas and WebGL Card/group header bands use `LANE_GROUP_HEADER_FILL` (`#2a2a2a` / `rgb(42, 42, 42)`).
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep full fill and label brightness.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional (existing implementers stay valid).
-1. **PR-RENDER-015**: `eventRadius` returns 1px below 4px width and 2px otherwise.
-1. **PR-RENDER-016**: `snapEventRect` aligns all four edges to the device-pixel grid.
+1. **PR-RENDER-017**: `eventRadius` returns 1px below 4px width and 2px otherwise.
+1. **PR-RENDER-018**: `snapEventRect` aligns all four edges to the device-pixel grid.
 
 ## Edge Cases
 

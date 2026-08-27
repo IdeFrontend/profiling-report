@@ -99,7 +99,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(id).toBe('e-short');
   });
 
-  it('PR-RENDER-015: eventRadius narrow vs normal and 1px margin', () => {
+  it('PR-RENDER-017: eventRadius narrow vs normal and 1px margin', () => {
     expect(eventRadius(2)).toBe(1);
     expect(eventRadius(3.9)).toBe(1);
     expect(eventRadius(4)).toBe(2);
@@ -107,7 +107,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(EVENT_MARGIN).toBe(0.5);
   });
 
-  it('PR-RENDER-016: snapEventRect aligns edges to the device-pixel grid at fractional dpr', () => {
+  it('PR-RENDER-018: snapEventRect aligns edges to the device-pixel grid at fractional dpr', () => {
     const dpr = 1.25;
     expect(snapCssPx(2.5, dpr)).toBe(2.4);
     const r = snapEventRect(10.4, 2.5, 20.3, 16, dpr);
