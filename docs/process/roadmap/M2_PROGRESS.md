@@ -92,11 +92,10 @@ Key modules: `src/adapters/memoryTopology.ts`, `src/ui/StatsAside/MemoryTopology
 | PR | Author | M2 relevance | Status |
 |----|--------|--------------|--------|
 | [#29](https://github.com/IdeFrontend/profiling-report/pull/29) — stable narrow-panel layout for MSTT embedding | Anatoly Nikitin | **Critical for MSTT UX** — aside/gutter layout, canvas track width, timeline scroll | Open |
-| [#24](https://github.com/IdeFrontend/profiling-report/pull/24) — HarmonyOS Sans SC 2025 | Anatoly Nikitin | MSTT/i18n polish — consistent zh-CN in webview + canvas labels | Open |
 | [#23](https://github.com/IdeFrontend/profiling-report/pull/23) — Time vs CPU clocks | Anatoly Nikitin | **Stretch** — replaces ms/µs/ns dropdown; not in M2 exit criteria | Open |
 | [#30](https://github.com/IdeFrontend/profiling-report/pull/30) — HQ mockup links + annotated crops | Anatoly Nikitin | Product/docs support; not blocking code exit | Open |
 
-**Recommended merge order:** #29 → #24 → #23 / #30 (optional polish).
+**Recommended merge order:** #29 → #23 / #30 (optional polish).
 
 ---
 
@@ -117,7 +116,7 @@ Checklist from [MSTT_INTEGRATION.md § Required MSTT changes](../../architecture
 
 Notable host commits: `feat: integrate profiling-report submodule for .rep/.ncrep viewer`, `feat: open any .rep/.ncrep file via command and context menu`, `fix: full-height profiling-report panel layout`, `docs: document profiling-report integration`.
 
-Library-side enablers already merged: #26 (API contract), #20 (multi-OP). Still open and recommended before/with host merge: #29 (narrow-panel layout), #24 (fonts).
+Library-side enablers already merged: #26 (API contract), #20 (multi-OP). Still open and recommended before/with host merge: #29 (narrow-panel layout).
 
 ---
 
@@ -144,7 +143,7 @@ From [milestone-2.md § Exit criteria](milestone-2.md):
 2. **Q11 interim** — roofline uses fallback peak constants (`ROOFLINE_PEAK_*`); Product-final formulas deferred to M3.
 3. **Q22 blocked** — measure overlay is local only; aside panels do not recompute for the measured range.
 4. **`USAGE.md` regression** — consumer guide from #26 removed in #20; `public-api.spec.md` remains canonical.
-5. **M2 closure path** — merge library #29/#24, open/merge MSTT host PR, run smoke on real OP + `out.rep`.
+5. **M2 closure path** — merge library #29, open/merge MSTT host PR, run smoke on real OP + `out.rep`.
 
 ---
 
@@ -152,7 +151,7 @@ From [milestone-2.md § Exit criteria](milestone-2.md):
 
 | Person | GitHub | Primary M2 contributions |
 |--------|--------|----------------------------|
-| **Anatoly Nikitin** | nikitinas | Measure mode, MSTT library prep + host branch, npu-rep, cursor fix, gutter hierarchy; open PRs #29, #23, #24, #30 |
+| **Anatoly Nikitin** | nikitinas | Measure mode, MSTT library prep + host branch, npu-rep, cursor fix, gutter hierarchy; open PRs #29, #23, #30 |
 | **Mikhail Protasov** | mprotasov | Memory topology + stacked aside, roofline wiring, bandwidth/PIPE polish, HQ docs |
 | **Pavel Pertsev** | pertsevpv | Swimlane dependency links + WebGL foundation |
 | **Kirill Aleshin** | ll1r1k-1337 | Detail dock rebuild with Relevent dependency mini-graph |
