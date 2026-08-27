@@ -47,7 +47,6 @@ precision highp float;
 
 uniform vec4 uColor;
 uniform vec2 uYBounds; // top, bottom in CSS pixels
-uniform float uRadius;
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
@@ -60,13 +59,16 @@ float sdRoundBox(vec2 p, vec2 halfSize, float r) {
 }
 
 void main() {
-  float l = vLrScreen.x;
-  float r = vLrScreen.y;
+  // 1px margin: inset 0.5px each side so adjacent event blocks don't touch.
+  float rawW = max(vLrScreen.y - vLrScreen.x, 0.0);
+  float l = vLrScreen.x + 0.5;
+  float r = vLrScreen.y - 0.5;
   float t = uYBounds.x;
   float b = uYBounds.y;
   float w = max(r - l, 0.0);
   float h = max(b - t, 0.0);
-  float rad = min(uRadius, min(w, h) * 0.5);
+  // Corner radius: 1px for narrow blocks (<4px), else 2px.
+  float rad = min(min(w, h) * 0.5, rawW < 4.0 ? 1.0 : 2.0);
 
   vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
   vec2 halfSize = vec2(w * 0.5, h * 0.5);

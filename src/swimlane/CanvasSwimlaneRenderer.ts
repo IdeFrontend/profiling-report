@@ -10,7 +10,8 @@ import { dependencyGraph, paintDependencyLinks, type DependencyLink } from './de
 import {
   BAND_FILL,
   EMPTY_LAYOUT,
-  EVENT_RADIUS,
+  EVENT_MARGIN,
+  eventRadius,
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
@@ -73,6 +74,16 @@ function roundRectPath(
   ctx.closePath();
 }
 
+/** Event block draw rect with the ≥1px margin applied and a width-based radius. */
+function eventRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): { x: number; y: number; w: number; h: number; r: number } {
+  return { x: x + EVENT_MARGIN, y, w: w - EVENT_MARGIN * 2, h, r: eventRadius(w) };
+}
+
 export function paintGroupBands(
   ctx: CanvasRenderingContext2D,
   layout: SwimlaneLayout,
@@ -94,7 +105,7 @@ export function paintGroupBands(
       const { y, h } = eventBlockMetrics(lane.y, view.scrollY);
       if (y + h < 0 || y > height) continue;
       ctx.fillStyle = BAND_FILL;
-      roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
+      roundRectPath(ctx, x, y, w, h, eventRadius(w));
       ctx.fill();
       drawEventLabel(ctx, band.name, x, y, w, h, width, 1, '#555555');
     }
@@ -187,14 +198,16 @@ export class SwimlaneOverlayPainter {
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
 
       if (item.id === this.selectedId) {
+        const r = eventRect(x, y, w, h);
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
-        roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, EVENT_RADIUS);
+        roundRectPath(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, r.r);
         ctx.stroke();
       } else if (item.id === this.hoveredId) {
+        const r = eventRect(x, y, w, h);
         ctx.strokeStyle = '#c8e0ff';
         ctx.lineWidth = 1.5;
-        roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, EVENT_RADIUS);
+        roundRectPath(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, r.r);
         ctx.stroke();
       }
 
@@ -378,7 +391,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
       ctx.globalAlpha = dim;
       ctx.fillStyle = item.color;
-      roundRectPath(ctx, x, y, w, h, EVENT_RADIUS);
+      const fr = eventRect(x, y, w, h);
+      roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
       ctx.fill();
       ctx.globalAlpha = 1;
       visible.push({ item, x, y, w, h, matches, dim });
@@ -388,14 +402,16 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     for (const { item, x, y, w, h, matches, dim } of visible) {
       if (item.id === this.selectedId) {
+        const r = eventRect(x, y, w, h);
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
-        roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, EVENT_RADIUS);
+        roundRectPath(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, r.r);
         ctx.stroke();
       } else if (item.id === this.hoveredId) {
+        const r = eventRect(x, y, w, h);
         ctx.strokeStyle = '#c8e0ff';
         ctx.lineWidth = 1.5;
-        roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, EVENT_RADIUS);
+        roundRectPath(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, r.r);
         ctx.stroke();
       }
 
@@ -419,7 +435,8 @@ export {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   LANE_PAD_Y,
-  EVENT_RADIUS,
+  EVENT_MARGIN,
+  eventRadius,
   eventBlockMetrics,
   eventLabelAnchor,
 } from './layout';

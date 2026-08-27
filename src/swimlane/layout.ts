@@ -10,8 +10,12 @@ export const LANE_GROUP_HEADER_HEIGHT = 28;
 export const LANE_GROUP_HEADER_FILL = '#2a2a2a';
 /** Card strip hover fill (`rgb(50, 50, 50)`); DOM only — canvas headers stay static. */
 export const LANE_GROUP_HEADER_HOVER = '#323232';
-/** Corner radius for event blocks (Canvas fills/strokes + WebGL SDF fills). */
-export const EVENT_RADIUS = 5;
+/** Horizontal inset per side so adjacent event blocks keep a ≥1px visual gap. */
+export const EVENT_MARGIN = 0.5;
+/** Corner radius for an event block: 1px when narrow (<4px), else 2px. */
+export function eventRadius(width: number): number {
+  return width < 4 ? 1 : 2;
+}
 /** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */
 export const BAND_FILL = '#2c2c2c';
 
