@@ -24,4 +24,6 @@ export type GutterGroup = {
   id: string;
   name: string;
   lanes: GutterLane[];
+  /** Dashed midline position (% of util track); omit when not applicable. */
+  utilMidlinePercent?: number;
 };

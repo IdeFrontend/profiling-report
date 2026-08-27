@@ -150,8 +150,8 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="swimlane"]').exists()).toBe(true);
-    // Standalone CTEF has no PipeUtilization → no invented gutter util bars
-    expect(wrapper.find('[data-testid="lane-util"]').exists()).toBe(false);
+    // Trace-only: no pipe CSV aside, but gutter shows task/util bars from trace events
+    expect(wrapper.find('[data-testid="lane-util"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(false);
@@ -277,5 +277,33 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     await flushPromises();
     expect(vm.viewState.startTime).toBe(adapted.swimlaneModel.minTime);
     expect(vm.viewState.endTime).toBe(adapted.swimlaneModel.maxTime);
+  });
+
+  it('PR-UI-008: Card metric selector swaps gutter bar labels', async () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    const cardId = adapted.swimlaneModel.processes[0]!.id;
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: adapted.swimlaneModel,
+        reportModel: adapted.reportModel,
+      },
+    });
+    await flushPromises();
+
+    const select = wrapper.find('[data-testid="card-metric-select"]');
+    expect(select.exists()).toBe(true);
+    expect((select.element as HTMLSelectElement).value).toBe('clockCycle');
+
+    const utilBefore = wrapper.find('[data-testid="lane-util"]');
+    const labelBefore = utilBefore.text();
+    expect(labelBefore).not.toMatch(/%$/);
+
+    await select.setValue('utilization');
+    await flushPromises();
+
+    const utilAfter = wrapper.find('[data-testid="lane-util"]');
+    expect(utilAfter.text()).toMatch(/%$/);
+    expect(utilAfter.text()).not.toBe(labelBefore);
+    expect((select.element as HTMLSelectElement).value).toBe('utilization');
   });
 });

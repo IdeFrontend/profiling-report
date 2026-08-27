@@ -92,6 +92,8 @@ Per-Card dropdown on swimlane Card strips ([gutter-metrics.spec.md](../../specs/
 
 Default: **时钟周期** when available, else **任务**, else **利用率**. Aside PIPE bars remain pipe-ratio means regardless of gutter metric selection.
 
+**Fill / midline (PyPTO parity, resolved):** utilization — red when ≤ 50%, dash at 50%. clockCycle / cacheHit / task — red on max lane(s) only (all gray when tied); dash at mean bar width `(mean ÷ max) × 100`. No absolute task-count threshold. See [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
+
 ---
 
 ## ArithmeticUtilization.csv

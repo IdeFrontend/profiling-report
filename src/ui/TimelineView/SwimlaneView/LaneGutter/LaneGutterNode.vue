@@ -13,6 +13,8 @@ const props = defineProps<{
   /** Leaf id under canvas hover — gutter row highlight only (not pushpin). */
   hoveredLaneId?: string | null;
   locale?: string;
+  /** Average marker position (%); omit to hide midline on this row. */
+  utilMidlinePercent?: number;
 }>();
 
 const emit = defineEmits<{
@@ -61,9 +63,9 @@ const displayBar = computed((): GutterBarDisplay | null => {
 
 function fillColor(bar: GutterBarDisplay): string {
   if (bar.thresholdColor) {
-    return bar.barWidth < 50 ? UTIL_RED : UTIL_GRAY;
+    return bar.barWidth <= 50 ? UTIL_RED : UTIL_GRAY;
   }
-  return bar.barWidth >= 100 ? UTIL_RED : UTIL_GRAY;
+  return bar.relativeMax ? UTIL_RED : UTIL_GRAY;
 }
 
 function onPinClick(e: MouseEvent) {
@@ -71,6 +73,10 @@ function onPinClick(e: MouseEvent) {
   if (isPinned.value) emit('unpin-lane', props.lane.id);
   else emit('pin-lane', props.lane.id);
 }
+
+const midlineStyle = computed(() =>
+  props.utilMidlinePercent != null ? { left: `${props.utilMidlinePercent}%` } : { display: 'none' },
+);
 </script>
 
 <template>
@@ -107,7 +113,9 @@ function onPinClick(e: MouseEvent) {
         }"
       />
       <span
+        v-if="utilMidlinePercent != null"
         class="pr-gutter__util-mid"
+        :style="midlineStyle"
         aria-hidden="true"
       />
       <span
@@ -132,6 +140,7 @@ function onPinClick(e: MouseEvent) {
       :pinned-lane-ids="pinnedLaneIds"
       :hovered-lane-id="hoveredLaneId"
       :locale="locale"
+      :util-midline-percent="utilMidlinePercent"
       @toggle="(id) => emit('toggle', id)"
       @pin-lane="(id) => emit('pin-lane', id)"
       @unpin-lane="(id) => emit('unpin-lane', id)"
@@ -186,7 +195,9 @@ function onPinClick(e: MouseEvent) {
         }"
       />
       <span
+        v-if="utilMidlinePercent != null"
         class="pr-gutter__util-mid"
+        :style="midlineStyle"
         aria-hidden="true"
       />
       <span
@@ -332,7 +343,6 @@ function onPinClick(e: MouseEvent) {
 
 .pr-gutter__util-mid {
   position: absolute;
-  left: 50%;
   top: 0;
   bottom: 0;
   border-left: 1px dashed rgba(255, 255, 255, 0.1);
