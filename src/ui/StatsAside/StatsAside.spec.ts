@@ -172,6 +172,9 @@ describe('StatsAside', () => {
     });
     expect(wrapper.text()).toMatch(/报告统计|Report statistics/);
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+    const icon = wrapper.get('[data-testid="stats-aside-icon"]');
+    expect(icon.find('path').exists()).toBe(true);
+    expect(icon.find('polyline').exists()).toBe(true);
     await wrapper.get('[data-testid="stats-aside-close"]').trigger('click');
     expect(wrapper.emitted('close')).toBeTruthy();
   });

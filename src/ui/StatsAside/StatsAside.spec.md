@@ -21,9 +21,9 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 ### Shell (header chrome)
 
-Localized **summary** title with decorative chart icon. Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; hides a segment when unset; hides the row when none. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** when meta visible or `hardwareDetails` capability.
+Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset; hides the row when none. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** when meta visible or `hardwareDetails` capability.
 
-Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; **←** returns to the stack. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
+Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
 
 ### Stacked report
 
@@ -53,7 +53,7 @@ Do **not** render a standalone op-type card. Do **not** render compute / avg cor
 
 ### Hardware details (M1 interim I-Q7a)
 
-**更多** opens an overlay with `HardwareDetailsPanel` when `hardwareDetails` is present (and emits `open-hardware-details`). Header **←** returns to the stacked report.
+**更多** opens an overlay with `HardwareDetailsPanel` when `hardwareDetails` is present (and emits `open-hardware-details`). Header back control returns to the stacked report.
 
 ## Acceptance Criteria
 
@@ -116,11 +116,11 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 |-------|--------|
 | Background | `#262626` (`--pr-bg-panel`) |
 | Padding | `10px 12px` |
-| Title | `13px` / `600` / `#ffffff` |
-| Chart icon | `14×14` stroke polyline, `#c8c8c8` |
-| Close / back | `16px` / `#e6e6e6` |
-| Meta | `11px` / `#a8a8a8` |
-| 更多 | `11px` / `#9a9a9a` (not playhead blue) |
+| Title | `16px` / `600` / `#ffffff` / line-height `22px` |
+| Chart icon | `16×16` L-axis + sparkline stroke, `#e6e6e6` |
+| Close / back | stroke SVG `14×14`, `#e6e6e6` (rounded caps; not `×` / `←` glyphs) |
+| Meta | `12px` / line-height `16px`; label `#8a8a8a`, value `#d0d0d0`; item gap `12px`; title→meta `12px` |
+| 更多 | `12px` / `#8a8a8a` (not playhead blue) |
 | PIPE / topology 详情 | `12px` / `#e6e6e6` |
 | Header | pinned (`flex-shrink: 0`); body / overlay `flex: 1; min-height: 0; overflow` |
 

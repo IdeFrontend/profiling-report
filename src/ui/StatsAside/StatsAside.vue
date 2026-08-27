@@ -231,26 +231,58 @@ function backToReport() {
           :title="t('back', locale)"
           @click="backToReport"
         >
-          ←
+          <svg
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            aria-hidden="true"
+          >
+            <path
+              d="M10 3.5L4.5 8 10 12.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M5 8h8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </svg>
         </button>
         <svg
           v-else
           class="pr-aside__icon"
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
+          data-testid="stats-aside-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
           aria-hidden="true"
         >
-          <polyline
-            points="1,10 4,6 7,8 13,3"
+          <path
+            d="M2.5 2.5v11h11"
             fill="none"
             stroke="currentColor"
-            stroke-width="1.4"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <polyline
+            points="4.5,10.5 7,6.5 9,8.5 13.5,4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
             stroke-linejoin="round"
             stroke-linecap="round"
           />
         </svg>
-        <h3>{{ headerTitle }}</h3>
+        <h3 :title="headerTitle">
+          {{ headerTitle }}
+        </h3>
         <button
           type="button"
           class="pr-aside__close"
@@ -259,7 +291,20 @@ function backToReport() {
           :title="t('closePanel', locale)"
           @click="emit('close')"
         >
-          ×
+          <svg
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 4l8 8M12 4l-8 8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </svg>
         </button>
       </div>
       <p
@@ -270,15 +315,15 @@ function backToReport() {
         <span
           v-if="summary?.pid"
           class="pr-aside__meta-seg"
-        >{{ t('process', locale) }}: {{ summary.pid }}</span>
+        ><span class="pr-aside__meta-k">{{ t('process', locale) }}:</span><span class="pr-aside__meta-v">{{ summary.pid }}</span></span>
         <span
           v-if="summary?.opType"
           class="pr-aside__meta-seg"
-        >{{ t('opTypeLabel', locale) }}: {{ summary.opType }}</span>
+        ><span class="pr-aside__meta-k">{{ t('opTypeLabel', locale) }}:</span><span class="pr-aside__meta-v">{{ summary.opType }}</span></span>
         <span
           v-if="summary?.blockDim != null && summary.blockDim !== ''"
           class="pr-aside__meta-seg"
-        >{{ t('blocks', locale) }}: {{ summary.blockDim }}</span>
+        ><span class="pr-aside__meta-k">{{ t('blocks', locale) }}:</span><span class="pr-aside__meta-v">{{ summary.blockDim }}</span></span>
         <button
           v-if="showMore"
           type="button"
@@ -605,61 +650,74 @@ function backToReport() {
 
 .pr-aside__head h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 22px;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #ffffff;
 }
 
 .pr-aside__title-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .pr-aside__icon {
   flex-shrink: 0;
-  color: #c8c8c8;
-}
-
-.pr-aside__back {
-  appearance: none;
-  border: 0;
-  background: transparent;
   color: #e6e6e6;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 4px 0 0;
-  cursor: pointer;
 }
 
-.pr-aside__back:hover {
-  color: #ffffff;
-}
-
+.pr-aside__back,
 .pr-aside__close {
   appearance: none;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
   border: 0;
   background: transparent;
   color: #e6e6e6;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 2px;
+  line-height: 0;
   cursor: pointer;
 }
 
+.pr-aside__back:hover,
 .pr-aside__close:hover {
   color: #ffffff;
 }
 
 .pr-aside__meta {
-  margin: 4px 0 0;
-  font-size: 11px;
-  color: #a8a8a8;
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: #999999;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: 4px 12px;
+}
+
+.pr-aside__meta-seg {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.pr-aside__meta-k {
+  color: #8a8a8a;
+}
+
+.pr-aside__meta-v {
+  color: #d0d0d0;
 }
 
 .pr-aside__more,
@@ -672,8 +730,8 @@ function backToReport() {
 }
 
 .pr-aside__more {
-  color: #9a9a9a;
-  font-size: 11px;
+  color: #8a8a8a;
+  font-size: 12px;
 }
 
 .pr-pipe-details {
