@@ -62,6 +62,7 @@ defineProps<{
   position: absolute;
   inset: 0;
   display: flex;
+  align-items: flex-start;
   pointer-events: none;
   z-index: 1;
   overflow: hidden;
@@ -71,8 +72,9 @@ defineProps<{
   flex: 0 1 auto;
   max-width: 42%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
+  padding-left: 4px;
   padding-right: 2px;
   min-width: 0;
 }

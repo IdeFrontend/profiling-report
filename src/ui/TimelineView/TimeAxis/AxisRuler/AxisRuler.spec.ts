@@ -99,5 +99,7 @@ describe('PR-AXIS: shared ruler', () => {
     );
     expect(src).toMatch(/\.pr-axis-ruler__base\s*\{[^}]*font-weight:\s*600/);
     expect(src).toMatch(/\.pr-axis-ruler__label\s*\{[^}]*font-weight:\s*400/);
+    expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*align-items:\s*flex-start/);
+    expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-left:\s*4px/);
   });
 });

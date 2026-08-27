@@ -30,7 +30,7 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 | Minor ticks | **9** between each adjacent major pair (10 subdivisions); **5px** tall from bottom; same tick tokens as majors |
 | Major placement | **Nice ns steps** (`1\|2\|5×10ⁿ`) targeting ~**100px** spacing; majors at `origin + k·interval` (positions move with zoom/pan — not fixed percentages) |
 | Containment | Tick text must stay inside the timeline column — **never** paint over the right aside. Track/axis `overflow: hidden` |
-| Viewport base | Optional **baseLabel** in left flex column + muted `+`; **600** weight / `#e0e0e0` (tick labels stay **400** / `#c8c8c8`); remainder ticks in `axis-ruler-track`; overview has no base |
+| Viewport base | Optional **baseLabel** in left flex column + muted `+`; **600** weight / `#e0e0e0` (tick labels stay **400** / `#c8c8c8`); **4px** left inset; top-aligned **18px** label box (same as tick labels); remainder ticks in `axis-ruler-track`; overview has no base |
 
 ## Acceptance Criteria
 
@@ -44,6 +44,7 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 - [viewport-ticks](./visual/viewport-ticks.png) — from `v930/entry`
 
 ## Changelog
+- **2026-08-27** — Viewport base: **4px** left inset; top-align with tick labels.
 - **2026-08-27** — Viewport base label weight **600** / `#e0e0e0` to distinguish from tick labels.
 - **2026-08-27** — Fix base/tick overlap: flex base column + track (replaces padding-left inset).
 - **2026-08-27** — Viewport base + remainder tick labels (PR-AXIS-004); overview unchanged.
