@@ -162,10 +162,19 @@ const visiblePipes = computed(() => {
   return all.filter((p) => matchesSide(p, knownSide.value!));
 });
 
-function formatDurationUs(us: number): string {
-  if (us >= 1000) return `${(us / 1000).toFixed(2)} ms`;
-  return `${us.toFixed(us >= 10 ? 2 : 5)} µs`;
+/** Sketch splits the number from a muted unit (`4.06` + `ms`). Display is 2 dp; title keeps full precision. */
+function formatDurationParts(us: number): { value: string; unit: string; title: string } {
+  if (us >= 1000) {
+    const ms = us / 1000;
+    return { value: ms.toFixed(2), unit: 'ms', title: `${ms} ms` };
+  }
+  return { value: us.toFixed(2), unit: 'µs', title: `${us} µs` };
 }
+
+const durationParts = computed(() => {
+  const us = props.report?.summary.taskDurationUs;
+  return us == null ? null : formatDurationParts(us);
+});
 
 function formatPipeAbsolute(v: number): string {
   if (Math.abs(v) >= 100) return v.toFixed(2);
@@ -386,15 +395,20 @@ function backToReport() {
         data-testid="stats-summary"
       >
         <div
-          v-if="hasDuration"
-          class="pr-card"
+          v-if="hasDuration && durationParts"
+          class="pr-card pr-card--top"
           data-testid="stats-duration-card"
         >
           <div class="pr-card__label">
             {{ t('duration', locale) }}
           </div>
-          <div class="pr-card__value">
-            {{ formatDurationUs(report!.summary.taskDurationUs!) }}
+          <div
+            class="pr-card__value"
+            :title="durationParts.title"
+            data-testid="stats-duration-value"
+          >
+            <span class="pr-card__num">{{ durationParts.value }}</span>
+            <span class="pr-card__unit">{{ durationParts.unit }}</span>
           </div>
           <div
             class="pr-card__bar-track"
@@ -410,8 +424,33 @@ function backToReport() {
             v-if="durationSecondary"
             class="pr-card__sub"
             data-testid="stats-duration-secondary"
+            :title="durationSecondary"
           >
             {{ durationSecondary }}
+          </div>
+        </div>
+        <div
+          v-if="hasDuration"
+          class="pr-card pr-card--top pr-card--na"
+          data-testid="stats-compute-card"
+        >
+          <div class="pr-card__label">
+            {{ t('computePower', locale) }}
+          </div>
+          <div class="pr-card__value">
+            {{ t('notAvailable', locale) }}
+          </div>
+        </div>
+        <div
+          v-if="hasDuration"
+          class="pr-card pr-card--top pr-card--na"
+          data-testid="stats-core-util-card"
+        >
+          <div class="pr-card__label">
+            {{ t('avgCoreUtil', locale) }}
+          </div>
+          <div class="pr-card__value">
+            {{ t('notAvailable', locale) }}
           </div>
         </div>
         <div
@@ -448,7 +487,10 @@ function backToReport() {
                   :data-testid="`stats-bandwidth-${card.id}-${row.side}-bar`"
                 />
               </div>
-              <div class="pr-card__sub">
+              <div
+                class="pr-card__sub"
+                :title="row.sub"
+              >
                 {{ row.sub }}
               </div>
             </div>
@@ -768,51 +810,96 @@ function backToReport() {
   color: #ffffff;
 }
 
+/*
+ * Sketch: 3+2 grid on six columns; `#1a1a1a` well with 8px pad (bottom band before
+ * the next stack section). Cards: cool diagonal gradient from detail-strip-raised.
+ */
 .pr-cards {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #1a1a1a;
 }
 
 .pr-card {
-  background: #2a2a2a;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
-  padding: 10px 12px;
+  min-width: 0;
+  /* detail-strip-raised samples: TR ≈ #272f31 → BL #252525 */
+  background: linear-gradient(225deg, #272f31 0%, #262b2c 35%, #252525 72%);
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.04);
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.pr-card--top {
+  grid-column: span 2;
+}
+
+.pr-card--bw {
+  grid-column: span 3;
+}
+
+.pr-card--na {
+  display: flex;
+  flex-direction: column;
+}
+
+.pr-card--na .pr-card__value {
+  flex: 1 1 auto;
+  align-items: center;
+  color: #8a8a8a;
 }
 
 .pr-card__label {
   font-size: 11px;
-  color: #9a9a9a;
-  margin-bottom: 4px;
+  color: #999999;
+  margin-bottom: 6px;
 }
 
 .pr-card__value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   font-size: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
-  color: #ffffff;
+  color: #ececec;
+}
+
+.pr-card__num {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-card__unit {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: #868686;
 }
 
 .pr-card__bar-track {
   position: relative;
   margin-top: 8px;
-  height: 6px;
+  height: 8px;
   background: #1a1a1a;
-  border-radius: 2px;
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .pr-card__bar-hatch {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background: repeating-linear-gradient(
     -45deg,
-    #2a2a2a,
-    #2a2a2a 2px,
-    #1f1f1f 2px,
-    #1f1f1f 4px
+    #2a2a2a 0 2px,
+    #1f1f1f 2px 4px
   );
 }
 
@@ -821,12 +908,13 @@ function backToReport() {
   z-index: 1;
   display: block;
   height: 100%;
-  border-radius: 2px;
+  border-radius: inherit;
   min-width: 2px;
 }
 
 .pr-card__bar-fill--duration {
-  width: 12%;
+  /* Sketch decorative fill ≈ 18px on ~120px track. */
+  width: 15%;
   background: var(--pr-color-duration-bar);
 }
 
@@ -853,13 +941,16 @@ function backToReport() {
 
 .pr-bw-col__side {
   font-size: 11px;
-  color: #9a9a9a;
+  color: #999999;
 }
 
 .pr-card__sub {
   margin-top: 6px;
   font-size: 11px;
   color: #8a8a8a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pr-panel--pipe,
