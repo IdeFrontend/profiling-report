@@ -27,7 +27,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | Embedded file | Feeds (MVP) | Feeds (Phase 2+) |
 |---------------|-------------|------------------|
 | `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
-| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
+| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter (pipe-ratio legacy default); **时钟周期** / **缓存命中率** gutter modes | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
 | `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
 | `Memory.csv` | Optional summary I/O bandwidth tiles (DATA-33g) | Memory topology diagram + field drill-down |
 | `MemoryL0.csv` | — | L0 path details on memory diagram |
@@ -78,6 +78,19 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 **Overview Cube/Vector charts:** Product decision ([DATA-32](../context/decisions/DATA.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
 
 **Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
+
+### Gutter metric modes (Card-header selector)
+
+Per-Card dropdown on swimlane Card strips ([gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)). PyPTO parity — four modes:
+
+| Mode | Primary embed | Notes |
+|------|---------------|-------|
+| 时钟周期 (`clockCycle`) | `PipeUtilization.csv` cycle / `*_time(us)` columns | Hide when no mappable cycle data |
+| 缓存命中率 (`cacheHit`) | `*_icache_miss_rate` → `1 − rate` | Hide when icache columns all `NA` |
+| 任务 (`task`) | `trace.json` event counts per lane | Always when events exist |
+| 利用率 (`utilization`) | `trace.json` event coverage over model time span | Always when trace exists |
+
+Default: **时钟周期** when available, else **任务**, else **利用率**. Aside PIPE bars remain pipe-ratio means regardless of gutter metric selection.
 
 ---
 
