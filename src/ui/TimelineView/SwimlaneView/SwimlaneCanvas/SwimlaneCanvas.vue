@@ -10,8 +10,18 @@ import {
   type TimeDisplayUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
+import { formatTime } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
-import { contentHeightFromModel, findExactEdgeMatches, LANE_HEIGHT, nearestEventEdgeAtPoint, projectExactEdgeMarks, type ExactEdgeMatch } from '../../../../swimlane/layout';
+import {
+  contentHeightFromModel,
+  findExactEdgeMatches,
+  findHoverGap,
+  LANE_HEIGHT,
+  nearestEventEdgeAtPoint,
+  projectExactEdgeMarks,
+  type ExactEdgeMatch,
+  type HoverGap,
+} from '../../../../swimlane/layout';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -19,6 +29,10 @@ import {
   resizeMeasureEdge,
   type MeasureResizeEdge,
 } from '../../measureEdgeResize';
+import {
+  measureLabelFitsInlineSpan,
+} from '../../cursorMeasureOverlap';
+import MeasureDtArrow from '../../MeasureDtArrow.vue';
 import { animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
 
 const props = withDefaults(
@@ -75,6 +89,12 @@ let lastX = 0;
 let downX = 0;
 /** Client Y for magnet during window-level measure create/resize. */
 let lastPointerClientY = 0;
+/** Last canvas-local pointer for hover-gap refresh on zoom/pan/scroll. */
+let lastHoverLocalX: number | null = null;
+let lastHoverLocalY: number | null = null;
+/** Pan-drag capture: freeze hover gap + event hover from pointerdown until pointerup. */
+let panCaptureHoverGap: HoverGap | null = null;
+let panCaptureHoverEvent: SwimEvent | null = null;
 let measureAnchorTime: number | null = null;
 /** True once freeform create has crossed the 4px threshold (until pointerup). */
 let measureGestureActive = false;
@@ -95,6 +115,8 @@ const MEASURE_SNAP_DURATION_MS = 180;
 const suppressMeasurePreview = ref(false);
 /** Live magnet highlight on the snapped event edge (block-height blue stem). */
 const edgeSnapHighlight = ref<{ x: number; y: number; h: number } | null>(null);
+/** Default-mode hover gap between adjacent events (measure overlay). */
+const hoverGap = ref<HoverGap | null>(null);
 /** Committed exact-match marks; projected each frame from a cached match set. */
 const measureExactEdgeMarks = shallowRef<
   { eventId: string; edge: 'start' | 'end'; time: number; x: number; y: number; h: number }[]
@@ -129,6 +151,97 @@ function maxScrollY(): number {
 
 function clampScrollY(y: number): number {
   return Math.min(maxScrollY(), Math.max(0, y));
+}
+
+function panHoverCaptureActive(): boolean {
+  return (
+    dragging &&
+    !props.measureMode &&
+    !measureGestureActive &&
+    !measureCreatePending &&
+    !measurePressActive
+  );
+}
+
+function clearPanHoverCapture(): void {
+  panCaptureHoverGap = null;
+  panCaptureHoverEvent = null;
+}
+
+/** Snapshot hover gap + event hover at pointerdown; held until pointerup (pan capture). */
+function capturePanHover(
+  localX: number,
+  localY: number,
+  w: number,
+  magEventId: string | null,
+): void {
+  if (props.measureMode) {
+    clearPanHoverCapture();
+    return;
+  }
+  lastHoverLocalX = localX;
+  lastHoverLocalY = localY;
+  panCaptureHoverGap = findHoverGap(
+    backend.getLayout(),
+    props.view,
+    w,
+    localX,
+    localY,
+    EVENT_EDGE_MAGNET_PX,
+  );
+  panCaptureHoverEvent = eventAtPointer(localX, localY, magEventId);
+  hoverGap.value = panCaptureHoverGap;
+}
+
+/** Restore live hover after pan capture ends. */
+function restoreHoverAfterPanCapture(
+  localX: number,
+  localY: number,
+  w: number,
+  magEventId: string | null,
+  clientX: number,
+  clientY: number,
+): void {
+  clearPanHoverCapture();
+  updateHoverGap(localX, localY, w);
+  emit('hover', eventAtPointer(localX, localY, magEventId), clientX, clientY);
+}
+
+/** Default-mode hover gap at canvas-local coords; stores position for view refresh. */
+function updateHoverGap(localX: number, localY: number, w: number): void {
+  lastHoverLocalX = localX;
+  lastHoverLocalY = localY;
+  hoverGap.value = props.measureMode
+    ? null
+    : findHoverGap(backend.getLayout(), props.view, w, localX, localY, EVENT_EDGE_MAGNET_PX);
+}
+
+/** Recompute hover gap after zoom/pan/scroll when the pointer is still over the canvas. */
+function refreshHoverGapAtLastPointer(): void {
+  if (
+    props.measureMode ||
+    measureGestureActive ||
+    measureCreatePending ||
+    measurePressActive ||
+    lastHoverLocalX == null ||
+    lastHoverLocalY == null
+  ) {
+    hoverGap.value = null;
+    return;
+  }
+  if (panHoverCaptureActive()) {
+    hoverGap.value = panCaptureHoverGap;
+    return;
+  }
+  const w = Math.max(1, wrapRef.value?.clientWidth || 1);
+  hoverGap.value = findHoverGap(
+    backend.getLayout(),
+    props.view,
+    w,
+    lastHoverLocalX,
+    lastHoverLocalY,
+    EVENT_EDGE_MAGNET_PX,
+  );
 }
 
 function schedulePaint(): void {
@@ -332,11 +445,12 @@ watch(
   { deep: true },
 );
 
-/** Drop live magnet stem when the time window moves (zoom / pan / Δt focus anim). */
+/** Refresh live magnet stem + hover gap when the window moves (zoom / pan / scroll). */
 watch(
-  () => [props.view.startTime, props.view.endTime] as const,
+  [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY],
   () => {
     edgeSnapHighlight.value = null;
+    refreshHoverGapAtLastPointer();
   },
 );
 
@@ -378,6 +492,7 @@ function abortMeasureDrag(): void {
   measureAnchorTime = null;
   measureCreatePending = false;
   dragging = false;
+  clearPanHoverCapture();
   suppressMeasurePreview.value = false;
   hoveredMeasureEdge = null;
   endMeasureResize();
@@ -398,6 +513,7 @@ function endMeasureCreate(): void {
   measureCreatePending = false;
   measurePressActive = false;
   dragging = false;
+  clearPanHoverCapture();
   suppressMeasurePreview.value = false;
 }
 
@@ -786,6 +902,53 @@ const measurePreviewGeometry = computed(() => {
   };
 });
 
+/** Default-mode hover gap measure: sticks + Δt arrow between two adjacent events. */
+const gapMeasureGeometry = computed(() => {
+  void resizeTick.value;
+  const gap = hoverGap.value;
+  if (props.measureMode || !gap || !props.model) return null;
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const w = syncTrackWidth();
+
+  const leftEnd = gap.leftEnd;
+  const rightStart = gap.rightStart;
+  if (!(rightStart > leftEnd)) return null;
+  // Gap fully outside the view on one side — nothing to show.
+  if (rightStart <= viewStart || leftEnd >= viewEnd) return null;
+
+  const showLeft = leftEnd >= viewStart && leftEnd <= viewEnd;
+  const showRight = rightStart >= viewStart && rightStart <= viewEnd;
+  const visStart = Math.max(viewStart, leftEnd);
+  const visEnd = Math.min(viewEnd, rightStart);
+  if (!(visEnd > visStart)) return null;
+
+  const left = xAtTime(leftEnd);
+  const right = xAtTime(rightStart);
+  const arrowLeft = xAtTime(visStart);
+  const arrowRight = xAtTime(visEnd);
+
+  const label = formatTime(rightStart - leftEnd, props.timeUnit ?? 'ms');
+  const top = gap.laneY - props.view.scrollY;
+
+  const leftPct = (arrowLeft / w) * 100;
+  const widthPct = ((arrowRight - arrowLeft) / w) * 100;
+  const style = { left: `${leftPct}%`, width: `${widthPct}%` };
+  const rangePx = arrowRight - arrowLeft;
+  if (!measureLabelFitsInlineSpan(rangePx, label)) return null;
+
+  return {
+    left,
+    right,
+    top,
+    height: LANE_HEIGHT,
+    label,
+    showLeft,
+    showRight,
+    arrowLayout: { mode: 'inline' as const, side: 'right' as const, style },
+  };
+});
+
 function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
@@ -810,6 +973,17 @@ function onPointerDown(e: PointerEvent): void {
   }
   dragging = true;
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  if (!props.measureMode) {
+    const target = activeCanvas();
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const w = Math.max(1, rect.width);
+      const mag = magnetizeLocal(x, y);
+      capturePanHover(x, y, w, mag.eventId);
+    }
+  }
 }
 
 function onPointerMove(e: PointerEvent): void {
@@ -828,6 +1002,7 @@ function onPointerMove(e: PointerEvent): void {
   if (dragging) {
     // Measure create is driven by window listeners (release over Card strips still ends).
     if (measureGestureActive || measureCreatePending || measurePressActive) {
+      hoverGap.value = null;
       emit('hover', null, e.clientX, e.clientY);
       return;
     }
@@ -835,9 +1010,13 @@ function onPointerMove(e: PointerEvent): void {
     const dx = e.clientX - lastX;
     lastX = e.clientX;
     emit('pan', -(dx / w) * span);
-    emit('hover', null, e.clientX, e.clientY);
+    hoverGap.value = panCaptureHoverGap;
+    emit('hover', panCaptureHoverEvent, e.clientX, e.clientY);
     return;
   }
+
+  // Default-mode hover gap measure: free middle between adjacent events on the lane.
+  updateHoverGap(x, y, w);
 
   emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
 }
@@ -853,6 +1032,7 @@ function onPointerUp(e: PointerEvent): void {
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
+  const w = Math.max(1, rect.width);
   const mag = magnetizeLocal(x, y);
   emit('set-playhead', mag.time);
   if (wasMeasurePress || props.measureMode) {
@@ -873,6 +1053,8 @@ function onPointerUp(e: PointerEvent): void {
     }
     return;
   }
+  dragging = false;
+  restoreHoverAfterPanCapture(x, y, w, mag.eventId, e.clientX, e.clientY);
   if (Math.abs(e.clientX - downX) > MEASURE_DRAG_THRESHOLD_PX) return;
   emit('select', eventAtPointer(x, y, mag.eventId));
 }
@@ -886,6 +1068,11 @@ function onPointerLeave(e: PointerEvent): void {
     emit('hover', null, 0, 0);
     return;
   }
+  if (panHoverCaptureActive()) {
+    schedulePaint();
+    emit('hover', panCaptureHoverEvent, e.clientX, e.clientY);
+    return;
+  }
   // Measure borders sit above the canvas; they stick the cursor — do not clear on the way there.
   if (isMeasureBorderEl(e.relatedTarget)) {
     schedulePaint();
@@ -895,6 +1082,10 @@ function onPointerLeave(e: PointerEvent): void {
   dragging = false;
   measureAnchorTime = null;
   edgeSnapHighlight.value = null;
+  clearPanHoverCapture();
+  lastHoverLocalX = null;
+  lastHoverLocalY = null;
+  hoverGap.value = null;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
@@ -907,6 +1098,10 @@ function onWheel(e: WheelEvent): void {
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
+  if (!dragging && !props.measureMode) {
+    lastHoverLocalX = x;
+    lastHoverLocalY = y;
+  }
   if (e.ctrlKey || e.metaKey) {
     const mag = magnetizeLocal(x, y);
     const anchor = stuckMeasureEdgeTime() ?? mag.time;
@@ -1036,6 +1231,36 @@ defineExpose({
         height: `${mark.h}px`,
       }"
     />
+    <div
+      v-if="gapMeasureGeometry"
+      class="pr-gap-measure"
+      data-testid="gap-measure"
+      :style="{
+        top: `${gapMeasureGeometry.top}px`,
+        height: `${gapMeasureGeometry.height}px`,
+      }"
+    >
+      <div
+        v-if="gapMeasureGeometry.showLeft"
+        class="pr-gap-measure__stick pr-gap-measure__stick--left"
+        data-testid="gap-measure-stick-left"
+        :style="{ left: `${gapMeasureGeometry.left}px` }"
+      />
+      <div
+        v-if="gapMeasureGeometry.showRight"
+        class="pr-gap-measure__stick pr-gap-measure__stick--right"
+        data-testid="gap-measure-stick-right"
+        :style="{ left: `${gapMeasureGeometry.right}px` }"
+      />
+      <MeasureDtArrow
+        :label="gapMeasureGeometry.label"
+        :style="gapMeasureGeometry.arrowLayout.style"
+        :mode="gapMeasureGeometry.arrowLayout.mode"
+        :side="gapMeasureGeometry.arrowLayout.side"
+        :show-left-head="gapMeasureGeometry.showLeft"
+        :show-right-head="gapMeasureGeometry.showRight"
+      />
+    </div>
   </div>
 </template>
 
@@ -1154,5 +1379,23 @@ defineExpose({
 
 .pr-measure-edge-mark--snap {
   z-index: 5;
+}
+
+/* Default-mode hover gap measure: lane-height overlay, non-interactive. */
+.pr-gap-measure {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.pr-gap-measure__stick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: rgba(49, 122, 247, 1);
 }
 </style>
