@@ -26,7 +26,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
-| Task display unit (auto s/ms/µs/ns) | M | Two-tier ([UI-40a](../context/decisions/interim/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Cycle mode deferred |
+| Task display unit (auto s/ms/µs/ns or CPU clocks) | M | Two-tier auto ([UI-40a](../context/decisions/interim/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Optional **CPU clocks** when OpBasicInfo freq present (tooltip + detail only). Open: true vs derived cycles — [UI-45](../context/questions/UI.md) |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
 | Settings | P2 | |
 
