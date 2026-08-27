@@ -23,7 +23,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930/compute-load` | [`compute-load.jpeg`](./source/v930/compute-load.jpeg) | PIPE occupancy |
 | `v930/compute-load-detail` | [`compute-load-detail.jpeg`](./source/v930/compute-load-detail.jpeg) | Compute CSV fields |
 | `v930/memory-load-detail` | [`memory-load-detail.jpeg`](./source/v930/memory-load-detail.jpeg) | Memory CSV field-list (详情) |
-| `v930/hardware-more-detail` | [`hardware-more-detail.jpeg`](./source/v930/hardware-more-detail.jpeg) | Hardware details |
+| `v930/hardware-more-detail` | [`hardware-more-detail.jpeg`](./source/v930/hardware-more-detail.jpeg) | Hardware details; lane pin pushpin (Core2.Cube gutter) |
 | `v930/task-hover` | [`task-hover.jpeg`](./source/v930/task-hover.jpeg) | Event tooltip |
 | `v930/task-context-menu` | [`task-context-menu.jpeg`](./source/v930/task-context-menu.jpeg) | Context menu |
 | `v930/task-marquee` | [`task-marquee.jpeg`](./source/v930/task-marquee.jpeg) | Marquee / multi-select |
@@ -41,7 +41,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`AxisRuler`](../../src/ui/TimelineView/TimeAxis/AxisRuler/visual/) | viewport ticks | `v930/entry` |
 | [`CursorTimestamp`](../../src/ui/TimelineView/TimeAxis/CursorTimestamp/visual/) | cursor timestamp | `v930/search-highlight` |
 | [`OverviewCharts`](../../src/ui/TimelineView/OverviewCharts/visual/) | 统计分析 tracks | `v930/entry` |
-| [`LaneGutter`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/visual/) | expanders, util bars | `v930/entry` |
+| [`LaneGutter`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/visual/) | expanders, util bars | `v930/entry`; **pin** crops → `v930/hardware-more-detail` |
 | [`SwimlaneCanvas`](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/) | events, search, measure, multi-height, marquee, selection-dim | `v930/entry`, `task-*` |
 | [`DependencyLinksLayer`](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/visual/) | spec + visual pack; curves drawn by swimlane renderer (not a Vue overlay) | `v930/task-click-detail` |
 | [`StatsAside`](../../src/ui/StatsAside/visual/) | aside shell scrolled | `v930/report-stats-scrolled` |
