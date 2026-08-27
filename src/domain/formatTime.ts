@@ -2,13 +2,47 @@ import type { TimeScaleUnit } from './types';
 
 const GROUP_MIN = 1000;
 
-function decimalsForStep(step: number): number {
-  if (!(step > 0) || !Number.isFinite(step)) return 3;
-  if (step >= 1) return 1;
-  if (step >= 0.1) return 2;
-  if (step >= 0.01) return 3;
-  if (step >= 0.001) return 4;
-  return 5;
+/** Uniform axis fraction digits from tick step in display units (0 when step is integral). */
+function axisFractionDigitsFromStep(stepInUnit: number): number {
+  if (!(stepInUnit > 0) || !Number.isFinite(stepInUnit)) return 0;
+  const eps = 1e-9 * Math.max(1, Math.abs(stepInUnit));
+  if (Math.abs(stepInUnit - Math.round(stepInUnit)) < eps) return 0;
+  for (let d = 1; d <= 9; d++) {
+    const scaled = stepInUnit * 10 ** d;
+    if (Math.abs(scaled - Math.round(scaled)) < eps * 10 ** d) return d;
+  }
+  return 9;
+}
+
+function unitQuantumNs(unit: TimeScaleUnit): number {
+  switch (unit) {
+    case 'ns':
+      return 1;
+    case 'us':
+      return 1e3;
+    case 'ms':
+      return 1e6;
+    case 's':
+      return 1e9;
+  }
+}
+
+function axisFractionDigits(tickStepNs: number | undefined, unit: TimeScaleUnit): number {
+  if (tickStepNs == null) return 0;
+  return axisFractionDigitsFromStep(Math.abs(tickStepNs) / unitQuantumNs(unit));
+}
+
+function formatAxisValue(value: number, fractionDigits: number): string {
+  return fractionDigits === 0
+    ? formatMagnitude(value)
+    : formatMagnitude(value, fractionDigits);
+}
+
+/** Compact axis zero — always `0` + suffix, never `0.0…`. */
+function isAxisCompactZero(value: number, fractionDigits: number): boolean {
+  if (!Number.isFinite(value) || value === 0) return value === 0;
+  if (fractionDigits === 0) return false;
+  return Math.round(value * 10 ** fractionDigits) === 0;
 }
 
 /** Map a time quantum (span or major tick step, ns) to a display scale. */
@@ -87,48 +121,14 @@ export function formatAxisTime(
   tickStepNs?: number,
 ): string {
   if (!Number.isFinite(ns)) return '—';
-  if (Math.abs(ns) < 1e-9) return `0${unitSuffix(unit)}`;
 
-  switch (unit) {
-    case 'ns': {
-      const step = tickStepNs != null ? Math.abs(tickStepNs) : 1;
-      if (step >= 1) return `${formatMagnitude(ns)}ns`;
-      return `${formatMagnitude(ns, decimalsForStep(step))}ns`;
-    }
-    case 'us': {
-      const v = ns / 1e3;
-      const step = tickStepNs != null ? Math.abs(tickStepNs) / 1e3 : undefined;
-      const d = step != null ? decimalsForStep(step) : Math.abs(v) >= 10 ? 1 : 2;
-      return `${formatMagnitude(v, d)}µs`;
-    }
-    case 's': {
-      const v = ns / 1e9;
-      const step = tickStepNs != null ? Math.abs(tickStepNs) / 1e9 : undefined;
-      const d =
-        step != null
-          ? decimalsForStep(step)
-          : Math.abs(v) >= 1
-            ? 1
-            : Math.abs(v) >= 0.01
-              ? 3
-              : 4;
-      return `${formatMagnitude(v, d)}s`;
-    }
-    case 'ms':
-    default: {
-      const v = ns / 1e6;
-      const step = tickStepNs != null ? Math.abs(tickStepNs) / 1e6 : undefined;
-      const d =
-        step != null
-          ? decimalsForStep(step)
-          : Math.abs(v) >= 1
-            ? 1
-            : Math.abs(v) >= 0.01
-              ? 3
-              : 4;
-      return `${formatMagnitude(v, d)}ms`;
-    }
-  }
+  const suffix = unitSuffix(unit);
+  const v = nsToUnitValue(ns, unit);
+  const fractionDigits = axisFractionDigits(tickStepNs, unit);
+
+  if (isAxisCompactZero(v, fractionDigits)) return `0${suffix}`;
+
+  return `${formatAxisValue(v, fractionDigits)}${suffix}`;
 }
 
 /**

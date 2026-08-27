@@ -26,7 +26,7 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 
 **Tooltip/detail formatting.** `formatTime` shows 3 decimal places (integer ns). Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part so ms / µs / ns magnitudes stay distinguishable. `formatTimeParts` returns value and unit separately for the detail card (`7419` under `Start (ns)`); `formatTime` joins them. `formatDisplayTime` / `formatDisplayTimeParts` subtract a shared origin (usually `minTime`) for start/end columns.
 
-**Axis tick formatting.** `formatAxisTime` adapts decimals from `tickStepNs` and applies the same ≥1000 grouping. Origin → compact zero (`0ms` / `0s`). Viewport axis may subtract a coarse base (`resolveAxisBaseOffset` in axisRuler) and show remainders on ticks; the base label uses `formatAxisBaseTime` (integral only, no decimal point). Cursor/tooltip keep full `formatDisplayTime`.
+**Axis tick formatting.** `formatAxisTime` derives one fraction-digit count from `tickStepNs` in the display unit (0 when the step is integral; otherwise the minimum digits that represent the step). Every tick on the same axis uses that precision — integral steps omit `.0` (e.g. `100ms`); fractional steps keep trailing zeros on whole ticks (e.g. `25.0ms` beside `12.5ms`). **Zero is always compact** (`0ms` / `0µs` / `0ns` / `0s`, never `0.0…`). Applies the same ≥1000 grouping. Viewport axis may subtract a coarse base (`resolveAxisBaseOffset` in axisRuler) and show remainders on ticks; the base label uses `formatAxisBaseTime` (integral only, no decimal point). Cursor/tooltip keep full `formatDisplayTime`.
 
 **Cursor formatting.** `MM:SS.mmm` in the resolved scale (sketch: 4.456ms → `00:04.456`).
 
@@ -39,6 +39,7 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 1. **PR-TIME-004** — compact axis zero.
 1. **PR-TIME-005** — `formatTimeParts` and joined `formatTime`.
 1. **PR-TIME-006** — `formatAxisBaseTime` integral only (no decimal point).
+1. **PR-TIME-007** — axis ticks share one fraction-digit count from tick step (no mixed `146ms` / `146.1ms`).
 
 ## Edge Cases
 
@@ -49,6 +50,7 @@ Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTime(0)` stil
 I-Q14 — Time (auto scale); see [INTERIM_DECISIONS I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale).
 
 ## Changelog
+- **2026-08-27** — PR-TIME-007 uniform axis fraction digits from tick step.
 - **2026-08-27** — PR-TIME-006 `formatAxisBaseTime` integral-only viewport base labels.
 - **2026-08-27** — Group thousands with spaces when |value| ≥ 1000.
 - **2026-08-27** — Auto-scale units; remove manual dropdown; cycles mode deferred to follow-up PR.

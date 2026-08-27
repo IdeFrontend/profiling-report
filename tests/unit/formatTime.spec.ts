@@ -65,4 +65,19 @@ describe('PR-TIME: auto-scale time labels', () => {
     expect(formatAxisBaseTime(236_256_145_000, 'us')).toBe('236 256 145 µs');
     expect(formatAxisBaseTime(15_000, 'us')).not.toContain('.');
   });
+
+  it('PR-TIME-007: axis ticks share precision from tick step', () => {
+    const stepMs = 100_000_000; // 100 ms major step — integral in display units
+    expect(formatAxisTime(100_000_000, 'ms', stepMs)).toBe('100ms');
+    expect(formatAxisTime(200_000_000, 'ms', stepMs)).toBe('200ms');
+    expect(formatAxisTime(50_000_000, 'ms', 50_000_000)).toBe('50ms');
+
+    const stepHalfMs = 12_500_000; // 12.5 ms — fractional step → one decimal for all ticks
+    expect(formatAxisTime(0, 'ms', stepHalfMs)).toBe('0ms');
+    expect(formatAxisTime(12_500_000, 'ms', stepHalfMs)).toBe('12.5ms');
+    expect(formatAxisTime(25_000_000, 'ms', stepHalfMs)).toBe('25.0ms');
+    expect(formatAxisTime(37_500_000, 'ms', stepHalfMs)).toBe('37.5ms');
+
+    expect(formatAxisTime(441_004_000, 'ms', 1_000)).toBe('441.004ms');
+  });
 });
