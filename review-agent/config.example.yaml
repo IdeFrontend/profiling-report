@@ -1,0 +1,47 @@
+# review-agent configuration
+# Copy to ~/.config/review-agent/config.yaml
+
+# GitHub credentials
+github:
+  token: ""                             # or set GITHUB_TOKEN env var
+  # Optional: only review PRs in these repos (empty = all)
+  repos: []
+  #   - "owner/repo-a"
+  #   - "owner/repo-b"
+  reviewer: "@me"
+
+# Webhook mode (requires tunnel: ngrok/cloudflared/smee)
+webhook:
+  enabled: false
+  port: 8080
+  host: "0.0.0.0"
+  secret: ""                            # or set WEBHOOK_SECRET env var
+
+# Polling mode (uses gh CLI)
+polling:
+  enabled: true
+  interval_seconds: 120                 # min: 30
+
+# AI agent for review
+agent:
+  name: "claude-code"                   # claude-code | hermes | opencode | generic
+  timeout_seconds: 300
+
+# Review behavior
+review:
+  auto_approve: false
+  max_diff_size: 100000                 # skip PRs with diffs larger than this
+  skip_drafts: true
+  prompt_prefix: ""
+
+# Dedup state
+state:
+  path: "~/.config/review-agent/seen.json"
+  prune_days: 30
+
+# Logging
+logging:
+  level: "INFO"
+  file: "~/.config/review-agent/logs/review-agent.log"
+  max_bytes: 10485760                   # 10 MB
+  backup_count: 5
