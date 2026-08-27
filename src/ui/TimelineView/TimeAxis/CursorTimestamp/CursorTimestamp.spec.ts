@@ -55,4 +55,14 @@ describe('CursorTimestamp', () => {
     const timelineSrc = (await import('../../MeasureDtArrow.vue?raw')).default as string;
     expect(timelineSrc).toMatch(/\.pr-measure-arrow\s*\{[^}]*z-index:\s*4/);
   });
+
+  it('PR-CURSOR-006: snapped prop grays the stem', async () => {
+    const wrapper = mount(CursorTimestamp, {
+      props: { xRatio: 0.5, label: '00:01.000', snapped: true },
+    });
+    const stem = wrapper.get('.pr-cursor__stem');
+    expect(stem.classes()).toContain('pr-cursor__stem--snapped');
+    const src = (await import('./CursorTimestamp.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-cursor__stem--snapped\s*\{[^}]*background:\s*#4c4c4c/);
+  });
 });

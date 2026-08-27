@@ -601,11 +601,15 @@ describe('SwimlaneCanvas', () => {
       clientY: y,
       pointerId: 1,
     });
-    const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number; xRatio: number };
+    const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number; xRatio: number; snapped?: boolean };
     expect(last.time).toBe(200);
+    expect(last.snapped).toBe(true);
     expect(wrapper.find('[data-testid="measure-edge-snap"]').exists()).toBe(true);
     const hover = wrapper.emitted('hover')!.at(-1)![0] as { id: string } | null;
     expect(hover?.id).toBe('e1');
+
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-measure-edge-mark--snap\s*\{[^}]*width:\s*2px/);
 
     await canvas.trigger('pointerdown', { clientX: rect.x - 5, clientY: y, pointerId: 1 });
     await canvas.trigger('pointerup', { clientX: rect.x - 5, clientY: y, pointerId: 1 });
@@ -621,8 +625,9 @@ describe('SwimlaneCanvas', () => {
     const y = rect.y + rect.h / 2;
     const x = rect.x + rect.w / 2; // mid-block, far from both edges on 400px view
     await canvas.trigger('pointermove', { clientX: x, clientY: y, pointerId: 1 });
-    const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number };
+    const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number; snapped?: boolean };
     expect(last.time).toBeCloseTo((x / 400) * 1000, 5);
+    expect(last.snapped).toBe(false);
     expect(wrapper.find('[data-testid="measure-edge-snap"]').exists()).toBe(false);
     wrapper.unmount();
   });
@@ -1139,6 +1144,88 @@ describe('SwimlaneCanvas', () => {
 
     await canvas.trigger('pointerup', { clientX: 10, clientY: 5, pointerId: 1 });
     expect(wrapper.emitted('hover')!.at(-1)![0]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-039: freeform create keeps the anchor border marker during drag', async () => {
+    const { wrapper, canvas } = await mountWithEventModel();
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    // Press on the event start edge → the anchor magnetizes to 200.
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1 });
+    // Drag right past the threshold; the moving edge is free (inside the block).
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: rect.x + 60, clientY: y, buttons: 1 }),
+    );
+    // Reflect the in-flight range as the parent would, driving the measureRange watcher.
+    await wrapper.setProps({ measureRange: { startTime: 200, endTime: 350 } });
+
+    // The anchor (start) border marker must stay visible while the drag is active.
+    const marks = wrapper.findAll('[data-testid="measure-edge-exact"]');
+    expect(marks.length).toBeGreaterThan(0);
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: rect.x + 60, clientY: y }));
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-040: blue edge marks stack above the swim playhead stem', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-swim-cursor\s*\{[^}]*z-index:\s*3/);
+    expect(src).toMatch(/\.pr-measure-edge-mark\s*\{[^}]*z-index:\s*4/);
+    expect(src).toMatch(/\.pr-measure-edge-mark--snap\s*\{[^}]*z-index:\s*5/);
+  });
+
+  it('PR-CANVAS-041: resize drag off an event emits unsnapped cursor', async () => {
+    const { wrapper } = await mountWithEventModel({
+      measureRange: { startTime: 200, endTime: 500 },
+    });
+    const right = wrapper.get('[data-testid="measure-border-right"]');
+    await right.trigger('pointerdown', { clientX: 200, clientY: 60, pointerId: 1, button: 0 });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 320, clientY: 60, buttons: 1 }),
+    );
+
+    const last = wrapper.emitted('cursor')!.at(-1)![0] as { snapped?: boolean };
+    expect(last.snapped).toBe(false);
+    expect(right.classes()).toContain('pr-measure-border--dragging');
+
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-measure-border--dragging::before\s*\{[^}]*display:\s*none/);
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 320, clientY: 60 }));
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-042: repeated snap at the same time scans exact edges once', async () => {
+    const layout = await import('../../../../swimlane/layout');
+    const spy = vi.spyOn(layout, 'findExactEdgeMatchesAt');
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    spy.mockClear();
+
+    for (let i = 0; i < 5; i++) {
+      await canvas.trigger('pointermove', { clientX: rect.x - 5, clientY: y, pointerId: 1 });
+    }
+
+    expect(spy.mock.calls.length).toBe(1);
+    expect(wrapper.find('[data-testid="measure-edge-snap"]').exists()).toBe(true);
+    spy.mockRestore();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-043: measure border hover emits snapped on event edges', async () => {
+    const { wrapper } = await mountWithEventModel({
+      measureRange: { startTime: 200, endTime: 500 },
+    });
+    const left = wrapper.get('[data-testid="measure-border-left"]');
+    await left.trigger('pointerenter', { clientX: 80, clientY: 60 });
+
+    const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number; snapped?: boolean };
+    expect(last.time).toBe(200);
+    expect(last.snapped).toBe(true);
     wrapper.unmount();
   });
 });

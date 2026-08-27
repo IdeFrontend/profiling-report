@@ -92,7 +92,7 @@ describe('SwimlaneView', () => {
     expect(src).toMatch(/\.pr-swim-row--body\s*\{[^}]*overflow:\s*hidden/s);
   });
 
-  it('PR-SWIMVIEW-004: swim cursor layer stacks under card strips', async () => {
+  it('PR-SWIMVIEW-004: swim cursor stacks under card strips and below edge marks', async () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -110,11 +110,13 @@ describe('SwimlaneView', () => {
       },
     });
 
-    expect(wrapper.find('[data-testid="swim-cursor-layer"]').exists()).toBe(true);
-    const src = (await import('./SwimlaneView.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-card-strips\s*\{[^}]*z-index:\s*8/);
-    expect(src).toMatch(/\.pr-swim-cursor-layer\s*\{[^}]*z-index:\s*7/);
+    expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(false);
+    const viewSrc = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(viewSrc).toMatch(/\.pr-card-strips\s*\{[^}]*z-index:\s*8/);
     const canvasSrc = (await import('./SwimlaneCanvas/SwimlaneCanvas.vue?raw')).default as string;
+    expect(canvasSrc).toMatch(/\.pr-swim-cursor\s*\{[^}]*z-index:\s*3/);
+    expect(canvasSrc).toMatch(/\.pr-measure-edge-mark\s*\{[^}]*z-index:\s*4/);
+    expect(canvasSrc).toMatch(/\.pr-measure-edge-mark--snap\s*\{[^}]*z-index:\s*5/);
     expect(canvasSrc).toMatch(/\.pr-measure-border\s*\{[^}]*z-index:\s*3/);
   });
 
@@ -189,6 +191,34 @@ describe('SwimlaneView', () => {
     expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(false);
   });
 
+  it('PR-SWIMVIEW-009: snapped cursor grays the swim vertical bar', async () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        cursorXRatio: 0.3,
+        cursorSnapped: true,
+      },
+    });
+    await wrapper.vm.$nextTick();
+    const cursor = wrapper.get('[data-testid="swim-cursor"]');
+    expect(cursor.classes()).toContain('pr-swim-cursor--snapped');
+    await wrapper.setProps({ cursorSnapped: false });
+    expect(wrapper.get('[data-testid="swim-cursor"]').classes()).not.toContain(
+      'pr-swim-cursor--snapped',
+    );
+  });
+
   it('PR-SWIMVIEW-006: card strip fill/hover bind to LANE_GROUP_HEADER tokens', async () => {
     const { LANE_GROUP_HEADER_FILL, LANE_GROUP_HEADER_HOVER } = await import(
       '../../../swimlane/layout'
@@ -250,7 +280,5 @@ describe('SwimlaneView', () => {
     expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*grid-column:\s*1/s);
     expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*right:\s*0/s);
     expect(src).not.toMatch(/\.pr-gutter-resize\s*\{[^}]*left:\s*var\(--pr-gutter-width/s);
-    expect(src).toMatch(/\.pr-swim-cursor-layer\s*\{[^}]*grid-column:\s*2/s);
-    expect(src).not.toMatch(/\.pr-swim-cursor-layer\s*\{[^}]*left:\s*var\(--pr-gutter-width/s);
   });
 });

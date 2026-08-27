@@ -378,6 +378,25 @@ export function findExactEdgeMatches(
   return out;
 }
 
+/** View-invariant: which event edges exactly equal a single time point (magnet snap). */
+export function findExactEdgeMatchesAt(
+  layout: SwimlaneLayout,
+  time: number,
+): ExactEdgeMatch[] {
+  const out: ExactEdgeMatch[] = [];
+  for (const item of layout.events) {
+    const ev = item.event;
+    if (ev.startTime === time) {
+      out.push({ eventId: item.id, edge: 'start', time, laneY: item.y });
+    }
+    const end = ev.startTime + ev.duration;
+    if (end === time) {
+      out.push({ eventId: item.id, edge: 'end', time, laneY: item.y });
+    }
+  }
+  return out;
+}
+
 /** Project cached matches into screen marks; optional viewportH culls off-screen rows. */
 export function projectExactEdgeMarks(
   matches: ExactEdgeMatch[],

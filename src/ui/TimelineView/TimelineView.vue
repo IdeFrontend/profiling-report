@@ -43,7 +43,7 @@ const props = withDefaults(
     groups: GutterGroup[];
     collapsedIds: string[];
     displaySwim: SwimlaneModel | null;
-    cursor: { time: number; xRatio: number } | null;
+    cursor: { time: number; xRatio: number; snapped?: boolean } | null;
     showOverviewCharts?: boolean;
     gutterWidth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
@@ -61,7 +61,7 @@ const emit = defineEmits<{
   'toggle-group': [groupId: string];
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
-  cursor: [payload: { time: number; xRatio: number } | null];
+  cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
   'set-playhead': [time: number];
@@ -281,14 +281,19 @@ function xRatioAtViewTime(time: number): number {
   return Math.min(1, Math.max(0, (time - props.view.startTime) / span));
 }
 
-function pointerTimeAtClient(clientX: number, clientY: number): { time: number; xRatio: number } {
+function pointerTimeAtClient(
+  clientX: number,
+  clientY: number,
+): { time: number; xRatio: number; eventId: string | null } {
   const mag = swimlaneRef.value?.magnetizeAtClient?.(clientX, clientY);
-  if (mag?.eventId) return { time: mag.time, xRatio: xRatioAtViewTime(mag.time) };
+  if (mag?.eventId) {
+    return { time: mag.time, xRatio: xRatioAtViewTime(mag.time), eventId: mag.eventId };
+  }
   const el = timeAxisRef.value;
-  if (!el) return { time: timeAtAxisX(clientX), xRatio: 0 };
+  if (!el) return { time: timeAtAxisX(clientX), xRatio: 0, eventId: null };
   const rect = el.getBoundingClientRect();
   const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
-  return { time: timeAtAxisX(clientX), xRatio };
+  return { time: timeAtAxisX(clientX), xRatio, eventId: null };
 }
 
 function emitCursorAtAxisX(clientX: number) {
@@ -320,7 +325,7 @@ function endMeasureCreate() {
 function emitResizedRange(clientX: number, clientY: number) {
   if (!resizeEdge) return;
   const axisW = timeAxisWidth.value || timeAxisRef.value?.clientWidth || 1;
-  const { time } = pointerTimeAtClient(clientX, clientY);
+  const { time, eventId } = pointerTimeAtClient(clientX, clientY);
   const next = resizeMeasureEdge({
     edge: resizeEdge,
     time,
@@ -336,6 +341,7 @@ function emitResizedRange(clientX: number, clientY: number) {
   emit('cursor', {
     time: edgeTime,
     xRatio: Math.min(1, Math.max(0, xRatio)),
+    snapped: eventId != null,
   });
 }
 
@@ -521,6 +527,7 @@ defineExpose({
           :x-ratio="cursor.xRatio"
           :label="formatDisplayTime(cursor.time, bounds.minTime, unit)"
           :label-above="cursorLabelAbove"
+          :snapped="cursor.snapped ?? false"
         />
         <template v-if="measureAxis">
           <div
@@ -573,6 +580,7 @@ defineExpose({
       :prefer-renderer="preferRenderer ?? 'auto'"
       :gutter-width="localGutterWidth"
       :cursor-x-ratio="cursor?.xRatio ?? null"
+      :cursor-snapped="cursor?.snapped ?? false"
       @update:scroll-y="emit('update:scrollY', $event)"
       @update:gutter-width="onGutterWidth"
       @toggle-group="emit('toggle-group', $event)"

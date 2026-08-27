@@ -22,6 +22,8 @@ The bubble is centered on the stem by default: `left: 50%; transform: translate(
 
 **Stacking.** Stem (`z-index: 3`) paints under axis Δt (`4`) and axis measure bars (`5`); the timestamp pill (`z-index: 6`) paints above Δt so the vertical line never crosses the duration label when the pill is raised. Swimlane measure borders also use `3` (same band as the stem).
 
+**Magnet snap.** When `snapped` is true (the cursor magnetized to an event edge), the stem renders gray (`#4c4c4c`, the measure-border gray) instead of blue, matching the swimlane body bar; the blue 2px per-lane event-edge bars (`measure-edge-snap`) carry the "matched event" emphasis instead.
+
 **Aside seam.** The pill is centered on the stem and may extend past the timeline column when the playhead is near the right (or left) edge. ReportLayout keeps `.pr-main` `overflow: visible` with stacking above the aside so the full pill stays painted (slight overlap over the sidebar is OK). The stem stays in-track.
 
 ## Visual
@@ -47,6 +49,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 3. **PR-CURSOR-003** — Stem extends `bottom: -1px` to bridge the axis/canvas border (no gap).
 4. **PR-CURSOR-004** — `labelAbove` applies `pr-cursor__label--above` with above-axis transform; CSS declares a transform transition; `prefers-reduced-motion` disables it.
 5. **PR-CURSOR-005** — Stem `z-index` is below measure Δt; label `z-index` is above measure Δt (stem does not cross the duration pill).
+6. **PR-CURSOR-006** — `snapped` prop grays the stem (`#4c4c4c`) while the cursor is magnetized to an event edge.
 
 ## Edge Cases
 
@@ -68,6 +71,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 [format-time](../../../../../specs/core/format-time.spec.md) (formatDisplayTime).
 
 ## Changelog
+- **2026-08-26** — `snapped` prop grays the stem (`#4c4c4c`) while the cursor is magnetized to an event edge; PR-CURSOR-006.
 - **2026-08-25** — Label relative to minTime via formatDisplayTime.
 - **2026-08-24** — Scalar `formatTime` cursor label (matches tooltip).
 - **2026-08-20** — Parent also lifts pill while hovering the viewport time axis (TimelineView).
