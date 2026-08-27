@@ -281,7 +281,6 @@ describe('PR-UI: ProfilingReport feature contract', () => {
 
   it('PR-UI-008: Card metric selector swaps gutter bar labels', async () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
-    const cardId = adapted.swimlaneModel.processes[0]!.id;
     const wrapper = mount(ProfilingReport, {
       props: {
         swimlaneModel: adapted.swimlaneModel,
