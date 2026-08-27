@@ -1,5 +1,7 @@
 import type { TimeScaleUnit } from './types';
 
+const GROUP_MIN = 1000;
+
 function decimalsForStep(step: number): number {
   if (!(step > 0) || !Number.isFinite(step)) return 3;
   if (step >= 1) return 1;
@@ -49,6 +51,31 @@ function unitSuffix(unit: TimeScaleUnit): string {
   }
 }
 
+/** Space-group thousands when |value| ≥ 1000 (e.g. `1 800 000`). */
+function groupIntegerDigits(intPart: string): string {
+  const neg = intPart.startsWith('-');
+  const digits = neg ? intPart.slice(1) : intPart;
+  const groups: string[] = [];
+  for (let i = digits.length; i > 0; i -= 3) {
+    groups.unshift(digits.slice(Math.max(0, i - 3), i));
+  }
+  return (neg ? '-' : '') + groups.join(' ');
+}
+
+function formatMagnitude(value: number, fractionDigits?: number): string {
+  if (!Number.isFinite(value)) return '—';
+  if (fractionDigits != null) {
+    if (Math.abs(value) < GROUP_MIN) return value.toFixed(fractionDigits);
+    const fixed = value.toFixed(fractionDigits);
+    const dot = fixed.indexOf('.');
+    if (dot < 0) return groupIntegerDigits(fixed);
+    return groupIntegerDigits(fixed.slice(0, dot)) + fixed.slice(dot);
+  }
+  const rounded = Math.round(value);
+  if (Math.abs(rounded) < GROUP_MIN) return String(rounded);
+  return groupIntegerDigits(String(rounded));
+}
+
 /**
  * Format axis tick labels.
  * When `tickStepNs` is provided, decimal places follow tick spacing so zoomed
@@ -65,14 +92,14 @@ export function formatAxisTime(
   switch (unit) {
     case 'ns': {
       const step = tickStepNs != null ? Math.abs(tickStepNs) : 1;
-      if (step >= 1) return `${Math.round(ns)}ns`;
-      return `${ns.toFixed(decimalsForStep(step))}ns`;
+      if (step >= 1) return `${formatMagnitude(ns)}ns`;
+      return `${formatMagnitude(ns, decimalsForStep(step))}ns`;
     }
     case 'us': {
       const v = ns / 1e3;
       const step = tickStepNs != null ? Math.abs(tickStepNs) / 1e3 : undefined;
       const d = step != null ? decimalsForStep(step) : Math.abs(v) >= 10 ? 1 : 2;
-      return `${v.toFixed(d)}µs`;
+      return `${formatMagnitude(v, d)}µs`;
     }
     case 's': {
       const v = ns / 1e9;
@@ -85,7 +112,7 @@ export function formatAxisTime(
             : Math.abs(v) >= 0.01
               ? 3
               : 4;
-      return `${v.toFixed(d)}s`;
+      return `${formatMagnitude(v, d)}s`;
     }
     case 'ms':
     default: {
@@ -99,7 +126,7 @@ export function formatAxisTime(
             : Math.abs(v) >= 0.01
               ? 3
               : 4;
-      return `${v.toFixed(d)}ms`;
+      return `${formatMagnitude(v, d)}ms`;
     }
   }
 }
@@ -132,14 +159,14 @@ export function formatTimeParts(
   if (!Number.isFinite(ns)) return { value: '—', unit: label };
   switch (unit) {
     case 'ns':
-      return { value: `${Math.round(ns)}`, unit: label };
+      return { value: formatMagnitude(ns), unit: label };
     case 'us':
-      return { value: (ns / 1e3).toFixed(3), unit: label };
+      return { value: formatMagnitude(ns / 1e3, 3), unit: label };
     case 's':
-      return { value: (ns / 1e9).toFixed(3), unit: label };
+      return { value: formatMagnitude(ns / 1e9, 3), unit: label };
     case 'ms':
     default:
-      return { value: (ns / 1e6).toFixed(3), unit: label };
+      return { value: formatMagnitude(ns / 1e6, 3), unit: label };
   }
 }
 

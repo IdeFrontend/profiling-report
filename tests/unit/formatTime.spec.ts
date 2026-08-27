@@ -11,10 +11,13 @@ import {
 describe('PR-TIME: auto-scale time labels', () => {
   it('PR-TIME-001: formats ns by scale unit', () => {
     expect(formatTime(1_800_000, 'ms')).toBe('1.800 ms');
-    expect(formatTime(1_800_000, 'us')).toBe('1800.000 µs');
-    expect(formatTime(1_800_000, 'ns')).toBe('1800000 ns');
+    expect(formatTime(1_800_000, 'us')).toBe('1 800.000 µs');
+    expect(formatTime(1_800_000, 'ns')).toBe('1 800 000 ns');
     expect(formatTime(1_800_000_000, 's')).toBe('1.800 s');
     expect(formatTime(986, 'ms')).toBe('0.001 ms');
+    expect(formatTime(999, 'ns')).toBe('999 ns');
+    expect(formatTime(1_000, 'ns')).toBe('1 000 ns');
+    expect(formatTime(1_000_000_000, 'ns')).toBe('1 000 000 000 ns');
   });
 
   it('PR-TIME-002: cursor label is MM:SS.mmm in resolved scale', () => {
@@ -52,5 +55,7 @@ describe('PR-TIME: auto-scale time labels', () => {
     const parts = formatTimeParts(1_000_000, 'ms');
     expect(parts).toEqual({ value: '1.000', unit: 'ms' });
     expect(formatTime(1_000_000, 'ms')).toBe('1.000 ms');
+    expect(formatTimeParts(2_500_000, 'ns')).toEqual({ value: '2 500 000', unit: 'ns' });
+    expect(formatAxisTime(2_500_000, 'ns')).toBe('2 500 000ns');
   });
 });

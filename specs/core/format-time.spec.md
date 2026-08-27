@@ -23,9 +23,9 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 
 **Auto scale.** Wall-time labels use `TimeScaleUnit` (`s` / `ms` / `us` / `ns`). Viewport chrome uses `resolveTimeUnitFromVisibleRange(end − start)`. Overview / total axis uses major-tick step from span×width (`resolveTimeUnitFromAxisDensity` in axisRuler) — brush window must not change overview unit. **No** manual ms/µs/ns dropdown and **no** CPU clock-cycle mode in this PR (cycles deferred — see [I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale)).
 
-**Tooltip/detail formatting.** `formatTime` shows 3 decimal places (integer ns). `formatTimeParts` returns value and unit separately for the detail card (`7419` under `Start (ns)`); `formatTime` joins them. `formatDisplayTime` / `formatDisplayTimeParts` subtract a shared origin (usually `minTime`) for start/end columns.
+**Tooltip/detail formatting.** `formatTime` shows 3 decimal places (integer ns). Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part so ms / µs / ns magnitudes stay distinguishable. `formatTimeParts` returns value and unit separately for the detail card (`7419` under `Start (ns)`); `formatTime` joins them. `formatDisplayTime` / `formatDisplayTimeParts` subtract a shared origin (usually `minTime`) for start/end columns.
 
-**Axis tick formatting.** `formatAxisTime` adapts decimals from `tickStepNs`. Origin → compact zero (`0ms` / `0s`).
+**Axis tick formatting.** `formatAxisTime` adapts decimals from `tickStepNs` and applies the same ≥1000 grouping. Origin → compact zero (`0ms` / `0s`).
 
 **Cursor formatting.** `MM:SS.mmm` in the resolved scale (sketch: 4.456ms → `00:04.456`).
 
@@ -47,6 +47,7 @@ Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTime(0)` stil
 I-Q14 — Time (auto scale); see [INTERIM_DECISIONS I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale).
 
 ## Changelog
+- **2026-08-27** — Group thousands with spaces when |value| ≥ 1000.
 - **2026-08-27** — Auto-scale units; remove manual dropdown; cycles mode deferred to follow-up PR.
 - **2026-08-21** — Seconds support in scale unit.
 - **2026-08-13** — PR-TIME-005 `formatTimeParts` for the detail card's unit-in-label layout.

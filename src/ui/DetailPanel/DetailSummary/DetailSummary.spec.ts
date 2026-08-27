@@ -24,9 +24,9 @@ describe('DetailSummary', () => {
     });
 
     expect(wrapper.findAll('.pr-detail-summary__value').map((n) => n.text())).toEqual([
-      '1000.000',
+      '1 000.000',
       '500.000',
-      '1500.000',
+      '1 500.000',
     ]);
     expect(wrapper.findAll('.pr-detail-summary__label').map((n) => n.text())).toEqual([
       'Start (µs)',
@@ -80,9 +80,9 @@ describe('DetailSummary', () => {
 
     const titles = wrapper.findAll('.pr-detail-summary__value').map((n) => n.attributes('title'));
     expect(titles).toEqual([
-      '708421242.123 ms',
+      '708 421 242.123 ms',
       '0.041 ms',
-      '708421242.164 ms',
+      '708 421 242.164 ms',
     ]);
     expect(wrapper.find('.pr-detail-summary__name').attributes('title')).toBe(
       '0-0-103-13-2(matmul)',
