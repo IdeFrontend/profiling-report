@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import PrIcon from '../PrIcon.vue';
-import type { ReportOperator } from '../../domain/types';
+import type { ReportOperator, TimeDisplayMode } from '../../domain/types';
 import Chevron from '../Chevron.vue';
 import {
   MAX_DEPENDENCY_DEPTH,
@@ -15,6 +15,9 @@ const props = defineProps<{
   asideVisible: boolean;
   asideAvailable: boolean;
   zoomPercent: number;
+  timeDisplayMode: TimeDisplayMode;
+  /** When set, CPU clocks option is shown. */
+  clockFreqMHz?: number;
   dependencyDepth: number;
   locale?: string;
   title?: string;
@@ -26,6 +29,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:asideVisible': [value: boolean];
+  'update:timeDisplayMode': [value: TimeDisplayMode];
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
   'update:selectedOperatorId': [id: string];
@@ -487,6 +491,22 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
               <PrIcon name="close" />
             </button>
           </div>
+          <label class="pr-toolbar__display-field">
+            <span class="pr-toolbar__display-label">{{ t('taskDisplayUnit', locale) }}</span>
+            <select
+              data-testid="time-display-mode"
+              :value="timeDisplayMode"
+              @change="emit('update:timeDisplayMode', ($event.target as HTMLSelectElement).value as TimeDisplayMode)"
+            >
+              <option value="time">{{ t('displayModeTime', locale) }}</option>
+              <option
+                v-if="clockFreqMHz != null"
+                value="cycles"
+              >
+                {{ t('displayModeCycles', locale) }}
+              </option>
+            </select>
+          </label>
           <label class="pr-toolbar__display-field">
             <span class="pr-toolbar__display-label">
               {{ t('connectionLevel', locale) }}

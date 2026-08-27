@@ -7,6 +7,8 @@ import {
   formatTimeAuto,
   formatTimeParts,
   formatTimePartsAuto,
+  nsToCycles,
+  resolveClockFreqMHz,
   resolveTimeUnitFromVisibleRange,
   timeScaleUnitFromMagnitude,
   timeScaleUnitFromNsQuantum,
@@ -107,5 +109,27 @@ describe('PR-TIME: auto-scale time labels', () => {
     });
     // Full precision remains the default (detail hover titles).
     expect(formatTimePartsAuto(500_000)).toEqual({ value: '500.000', unit: 'µs' });
+  });
+
+  it('PR-TIME-010: cycles conversion, freq resolve, and cycle formatting', () => {
+    expect(nsToCycles(1000, 1000)).toBe(1000);
+    expect(formatTime(1000, 'ms', { mode: 'cycles', clockFreqMHz: 1000 })).toBe('1000 cycles');
+    expect(
+      formatAxisTime(1000, 'ms', undefined, { mode: 'cycles', clockFreqMHz: 1000 }),
+    ).toBe('1000cyc');
+    expect(formatAxisTime(0, 'ms', undefined, { mode: 'cycles', clockFreqMHz: 1000 })).toBe('0cyc');
+    expect(formatCursorTime(1000, 'ms', { mode: 'cycles', clockFreqMHz: 1000 })).toBe(
+      '1000 cycles',
+    );
+    expect(formatTime(1000, 'ms', { mode: 'cycles' })).toBe('—');
+    expect(formatTimeParts(1000, 'ms', { mode: 'cycles', clockFreqMHz: 1000 })).toEqual({
+      value: '1000',
+      unit: 'cycles',
+    });
+    expect(resolveClockFreqMHz({ currentFreq: 1800 })).toBe(1800);
+    expect(resolveClockFreqMHz({ ratedFreq: 1500 })).toBe(1500);
+    expect(resolveClockFreqMHz({ currentFreq: 1800, ratedFreq: 1500 })).toBe(1800);
+    expect(resolveClockFreqMHz({})).toBeUndefined();
+    expect(resolveClockFreqMHz({ currentFreq: 0 })).toBeUndefined();
   });
 });

@@ -31,12 +31,13 @@ import {
   type SwimlaneViewState,
   type SwimThread,
   type TimeScaleUnit,
+  type TimeDisplayMode,
   type ViewFullCsvPayload,
 } from '../../domain/types';
 import { buildCannbotPayload } from '../../domain/cannbot';
 import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../domain/cannbot';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
-import { resolveTimeUnitFromVisibleRange } from '../../domain/formatTime';
+import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   collectLeafEventsFromModel,
@@ -67,6 +68,7 @@ const props = withDefaults(defineProps<{
   reportMeta?: CannbotReportMeta;
   theme?: 'light' | 'dark';
   locale?: string;
+  timeDisplayMode?: TimeDisplayMode;
   dependencyMode?: DependencyMode;
   dependencyDepth?: number;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
@@ -100,6 +102,7 @@ const selected = ref<SelectedEvent | null>(null);
 /** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
 const selectedEvent = ref<SwimEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
+const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
@@ -133,6 +136,7 @@ const caps = computed<ReportCapability[]>(() => {
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );
+const clockFreqMHz = computed(() => resolveClockFreqMHz(report.value?.summary));
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
@@ -445,6 +449,19 @@ function onMeasureKeydown(e: KeyboardEvent) {
 }
 
 watch(
+  () => props.timeDisplayMode,
+  (m) => {
+    if (m) localTimeDisplayMode.value = m;
+  },
+);
+
+watch(clockFreqMHz, (freq) => {
+  if (freq == null && localTimeDisplayMode.value === 'cycles') {
+    localTimeDisplayMode.value = 'time';
+  }
+});
+
+watch(
   () => props.dependencyMode,
   (m) => {
     if (m) localDependencyMode.value = m;
@@ -583,6 +600,10 @@ function onMeasureRange(range: MeasureRange | null) {
   viewState.value = setMeasureRange(viewState.value, range);
 }
 
+function onTimeDisplayMode(mode: TimeDisplayMode) {
+  localTimeDisplayMode.value = mode;
+}
+
 function onDependencyMode(mode: DependencyMode) {
   localDependencyMode.value = mode;
 }
@@ -632,6 +653,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :aside-visible="viewState.asideVisible"
       :aside-available="asideAvailable"
       :zoom-percent="zoomPercent"
+      :time-display-mode="localTimeDisplayMode"
+      :clock-freq-m-hz="clockFreqMHz"
       :dependency-mode="localDependencyMode"
       :dependency-depth="localDependencyDepth"
       :locale="locale"
@@ -641,6 +664,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
+      @update:time-display-mode="onTimeDisplayMode"
       @update:dependency-mode="onDependencyMode"
       @update:dependency-depth="onDependencyDepth"
       @update:zoom-percent="onZoomPercent"
@@ -681,6 +705,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :aside-visible="viewState.asideVisible"
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
+          :time-display-mode="localTimeDisplayMode"
+          :clock-freq-m-hz="clockFreqMHz"
           :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
@@ -689,6 +715,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
+          @update:time-display-mode="onTimeDisplayMode"
           @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
@@ -701,6 +728,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :bounds="bounds"
           :view="viewState"
           :time-scale-unit="viewportTimeScaleUnit"
+          :time-display-mode="localTimeDisplayMode"
+          :clock-freq-m-hz="clockFreqMHz"
           :dependency-mode="localDependencyMode"
           :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
@@ -748,6 +777,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       <DetailPanel
         v-if="selected && showTimeline"
         :selected="selected"
+        :time-display-mode="localTimeDisplayMode"
+        :clock-freq-m-hz="clockFreqMHz"
         :time-origin="bounds.minTime"
         :locale="locale"
         :neighbors="dependencyNeighbors"
@@ -763,6 +794,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       v-if="hovered && showTimeline"
       :event="hovered"
       :style-pos="tooltipStyle"
+      :time-display-mode="localTimeDisplayMode"
+      :clock-freq-m-hz="clockFreqMHz"
       :time-origin="bounds.minTime"
       :locale="locale"
     />

@@ -1,4 +1,4 @@
-import type { TimeScaleUnit } from './types';
+import type { SummaryMetrics, TimeDisplayMode, TimeScaleUnit } from './types';
 
 const GROUP_MIN = 1000;
 
@@ -66,6 +66,57 @@ export function resolveTimeUnitFromVisibleRange(spanNs: number): TimeScaleUnit {
 export function timeScaleUnitFromMagnitude(ns: number): TimeScaleUnit {
   if (!Number.isFinite(ns)) return 'ns';
   return timeScaleUnitFromNsQuantum(Math.abs(ns));
+}
+
+/**
+ * Interim I-Q14 — OpBasicInfo MHz for ns→cycles display.
+ * Prefer Current Freq over Rated Freq; see INTERIM_DECISIONS I-Q14.
+ * Returns undefined when missing/invalid so clocks UI can hide.
+ */
+export function resolveClockFreqMHz(summary?: SummaryMetrics | null): number | undefined {
+  const raw = summary?.currentFreq ?? summary?.ratedFreq;
+  if (raw == null || !Number.isFinite(raw) || raw <= 0) return undefined;
+  return raw;
+}
+
+/**
+ * Display cycles from wall time (I-Q14): `ns × freqMHz / 1000`.
+ * Not per-event `*_total_cycles`; assumes timeline ns shares the AIC clock domain.
+ */
+export function nsToCycles(ns: number, clockFreqMHz: number): number {
+  return (ns * clockFreqMHz) / 1000;
+}
+
+function hasClockFreq(
+  opts: FormatTimeOpts | undefined,
+): opts is FormatTimeOpts & { clockFreqMHz: number } {
+  const f = opts?.clockFreqMHz;
+  return f != null && f > 0 && Number.isFinite(f);
+}
+
+function cyclesBody(c: number): string {
+  const abs = Math.abs(c);
+  if (abs >= 100 || Number.isInteger(c)) return String(Math.round(c));
+  if (abs >= 10) return c.toFixed(1);
+  return c.toFixed(2);
+}
+
+/** Axis / compact cycle label (`1234cyc`) or tooltip / cursor (`1234 cycles`). */
+function formatCycles(ns: number, opts: FormatTimeOpts | undefined, compact: boolean): string {
+  if (!Number.isFinite(ns) || !hasClockFreq(opts)) return '—';
+  const c = nsToCycles(ns, opts.clockFreqMHz);
+  if (!Number.isFinite(c)) return '—';
+  const body = cyclesBody(c);
+  return compact ? `${body}cyc` : `${body} cycles`;
+}
+
+/** Value and unit apart for the detail card's cycles column (`cycles` unit). */
+function formatCyclesParts(ns: number, opts: FormatTimeOpts | undefined): { value: string; unit: string } {
+  const unit = 'cycles';
+  if (!Number.isFinite(ns) || !hasClockFreq(opts)) return { value: '—', unit };
+  const c = nsToCycles(ns, opts.clockFreqMHz);
+  if (!Number.isFinite(c)) return { value: '—', unit };
+  return { value: cyclesBody(c), unit };
 }
 
 function nsToUnitValue(ns: number, unit: TimeScaleUnit): number {
@@ -147,6 +198,10 @@ export const EVENT_TIME_SIGNIFICANT_DIGITS = 4;
 export type FormatTimeOpts = {
   /** When set, format the unit magnitude with this many significant digits. */
   significantDigits?: number;
+  /** `cycles` renders CPU clocks instead of wall time (I-Q14). */
+  mode?: TimeDisplayMode;
+  /** AIC frequency in MHz — required when `mode` is `cycles`. */
+  clockFreqMHz?: number;
 };
 
 /**
@@ -158,7 +213,9 @@ export function formatAxisTime(
   ns: number,
   unit: TimeScaleUnit = 'ms',
   tickStepNs?: number,
+  opts?: FormatTimeOpts,
 ): string {
+  if (opts?.mode === 'cycles') return formatCycles(ns, opts, true);
   if (!Number.isFinite(ns)) return '—';
 
   const suffix = unitSuffix(unit);
@@ -172,9 +229,14 @@ export function formatAxisTime(
 
 /**
  * Cursor / playhead label as `MM:SS.mmm` in the resolved time scale
- * (sketch: 4.456ms → `00:04.456`).
+ * (sketch: 4.456ms → `00:04.456`). Cycles mode uses a plain cycle count.
  */
-export function formatCursorTime(ns: number, unit: TimeScaleUnit = 'ms'): string {
+export function formatCursorTime(
+  ns: number,
+  unit: TimeScaleUnit = 'ms',
+  opts?: FormatTimeOpts,
+): string {
+  if (opts?.mode === 'cycles') return formatCycles(Math.max(0, ns), opts, false);
   if (!Number.isFinite(ns)) return '00:00.000';
   const value = Math.max(0, nsToUnitValue(ns, unit));
   const totalThousandths = Math.round(value * 1000);
@@ -195,6 +257,7 @@ export function formatTimeParts(
   unit: TimeScaleUnit = 'ms',
   opts?: FormatTimeOpts,
 ): { value: string; unit: string } {
+  if (opts?.mode === 'cycles') return formatCyclesParts(ns, opts);
   const label = unitSuffix(unit);
   if (!Number.isFinite(ns)) return { value: '—', unit: label };
   const sig = opts?.significantDigits;
@@ -215,6 +278,7 @@ export function formatTimeParts(
 
 /** Format times in an explicit scale unit (axis / cursor chrome). */
 export function formatTime(ns: number, unit: TimeScaleUnit = 'ms', opts?: FormatTimeOpts): string {
+  if (opts?.mode === 'cycles') return formatCycles(ns, opts, false);
   if (!Number.isFinite(ns)) return '—';
   const parts = formatTimeParts(ns, unit, opts);
   return `${parts.value} ${parts.unit}`;
@@ -222,11 +286,13 @@ export function formatTime(ns: number, unit: TimeScaleUnit = 'ms', opts?: Format
 
 /** Tooltip / detail / Δt — unit from this value's magnitude, not viewport zoom. */
 export function formatTimePartsAuto(ns: number, opts?: FormatTimeOpts): { value: string; unit: string } {
+  if (opts?.mode === 'cycles') return formatCyclesParts(ns, opts);
   return formatTimeParts(ns, timeScaleUnitFromMagnitude(ns), opts);
 }
 
 /** Joined {@link formatTimePartsAuto}. */
 export function formatTimeAuto(ns: number, opts?: FormatTimeOpts): string {
+  if (opts?.mode === 'cycles') return formatCycles(ns, opts, false);
   if (!Number.isFinite(ns)) return '—';
   const parts = formatTimePartsAuto(ns, opts);
   return `${parts.value} ${parts.unit}`;
@@ -249,8 +315,9 @@ export function formatDisplayTime(
   ns: number,
   origin: number,
   unit: TimeScaleUnit = 'ms',
+  opts?: FormatTimeOpts,
 ): string {
-  return formatTime(ns - origin, unit);
+  return formatTime(ns - origin, unit, opts);
 }
 
 /** Like {@link formatTimeParts} but relative to `origin` (start/end columns). */
@@ -258,8 +325,9 @@ export function formatDisplayTimeParts(
   ns: number,
   origin: number,
   unit: TimeScaleUnit = 'ms',
+  opts?: FormatTimeOpts,
 ): { value: string; unit: string } {
-  return formatTimeParts(ns - origin, unit);
+  return formatTimeParts(ns - origin, unit, opts);
 }
 
 /** Per-value display time (tooltip / detail start·end). */

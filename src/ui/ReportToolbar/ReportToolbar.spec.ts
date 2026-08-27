@@ -10,6 +10,7 @@ describe('ReportToolbar', () => {
     asideVisible: false,
     asideAvailable: true,
     zoomPercent: 100,
+    timeDisplayMode: 'time' as const,
     dependencyDepth: 1,
   } as const;
 
@@ -38,15 +39,17 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('zoom-to-fit')).toBeTruthy();
   });
 
-  it('PR-TOOLBAR-005: layers opens display control with dependency depth', async () => {
+  it('PR-TOOLBAR-005: layers opens display control with time mode select', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
-    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="time-display-mode"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
 
     await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="dependency-depth"]').exists()).toBe(true);
+    const select = wrapper.find('[data-testid="time-display-mode"]');
+    expect(select.exists()).toBe(true);
+    await select.setValue('time');
+    expect(wrapper.emitted('update:timeDisplayMode')).toEqual([['time']]);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
   });
 

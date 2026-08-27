@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { t } from '../../i18n';
 import type { DependencyNeighbors } from '../../domain/dependencies';
-import type { DependencyMode, SelectedEvent } from '../../domain/types';
+import type { DependencyMode, SelectedEvent, TimeDisplayMode } from '../../domain/types';
 import PrIcon from '../PrIcon.vue';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 import DetailSummary from './DetailSummary/DetailSummary.vue';
@@ -12,6 +12,8 @@ import DetailRelevant from './DetailRelevant/DetailRelevant.vue';
 const props = withDefaults(
   defineProps<{
     selected: SelectedEvent;
+    timeDisplayMode: TimeDisplayMode;
+    clockFreqMHz?: number;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
@@ -86,6 +88,8 @@ const dockStyle = computed(() => ({
     >
       <DetailSummary
         :selected="selected"
+        :time-display-mode="timeDisplayMode"
+        :clock-freq-m-hz="clockFreqMHz"
         :time-origin="timeOrigin"
         :locale="locale"
       />

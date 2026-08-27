@@ -5,6 +5,7 @@ import {
   resolveTimeUnitFromAxisDensity,
 } from '../../../domain/axisRuler';
 import { t } from '../../../i18n';
+import type { TimeDisplayMode } from '../../../domain/types';
 import { bindWindowPointerDrag } from '../measureEdgeResize';
 import AxisRuler from '../TimeAxis/AxisRuler/AxisRuler.vue';
 
@@ -14,6 +15,8 @@ const props = defineProps<{
   startTime: number;
   endTime: number;
   locale?: string;
+  timeDisplayMode: TimeDisplayMode;
+  clockFreqMHz?: number;
 }>();
 
 const emit = defineEmits<{
@@ -51,7 +54,9 @@ const ruler = computed(() =>
     rangeStart: props.minTime,
     rangeEnd: props.maxTime,
     origin: props.minTime,
+    timeDisplayMode: props.timeDisplayMode,
     timeScaleUnit: overviewTimeScaleUnit.value,
+    clockFreqMHz: props.clockFreqMHz,
     widthPx: trackWidth.value,
     muteOutside: { start: props.startTime, end: props.endTime },
   }),

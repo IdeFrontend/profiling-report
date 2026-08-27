@@ -293,7 +293,13 @@ export interface SelectedEvent {
 /** Auto wall-time scale (UI-40a interim): s / ms / µs / ns from viewport or axis density. */
 export type TimeScaleUnit = 's' | 'ms' | 'us' | 'ns';
 
-/** Which selection dependency curves (and unmuted neighbors) to show. */
+/**
+ * User preference (I-Q14): wall time with auto s/ms/µs/ns, or CPU clocks.
+ * Clocks require OpBasicInfo currentFreq/ratedFreq (MHz).
+ */
+export type TimeDisplayMode = 'time' | 'cycles';
+
+/** Which selection dependency curves (and undimmed neighbors) to show. */
 export type DependencyMode = 'all' | 'predecessors' | 'successors';
 
 /** Hop count from the selection. `1` = immediate neighbors; `-1` = no hop cap (link count still budgeted). */

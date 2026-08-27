@@ -9,6 +9,7 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
+  type TimeDisplayMode,
   type TimeScaleUnit,
 } from '../../domain/types';
 import { GUTTER_WIDTH_DEFAULT } from '../panelResize';
@@ -38,6 +39,8 @@ const props = withDefaults(
     bounds: { minTime: number; maxTime: number };
     view: SwimlaneViewState;
     timeScaleUnit: TimeScaleUnit;
+    timeDisplayMode: TimeDisplayMode;
+    clockFreqMHz?: number;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     groups: GutterGroup[];
@@ -114,12 +117,22 @@ function onGutterWidth(w: number) {
   emit('update:gutterWidth', w);
 }
 
+const cursorLabel = computed(() => {
+  if (!props.cursor) return '';
+  return formatDisplayTime(props.cursor.time, props.bounds.minTime, props.timeScaleUnit, {
+    mode: props.timeDisplayMode,
+    clockFreqMHz: props.clockFreqMHz,
+  });
+});
+
 const viewportRuler = computed(() =>
   buildAxisRulerTicks({
     rangeStart: props.view.startTime,
     rangeEnd: props.view.endTime,
     origin: props.bounds.minTime,
+    timeDisplayMode: props.timeDisplayMode,
     timeScaleUnit: props.timeScaleUnit,
+    clockFreqMHz: props.clockFreqMHz,
     widthPx: timeAxisWidth.value,
     useViewportBase: true,
   }),
@@ -135,7 +148,10 @@ const measureAxis = computed(() => {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
-  const label = formatTimeAuto(end - start);
+  const label = formatTimeAuto(end - start, {
+    mode: props.timeDisplayMode,
+    clockFreqMHz: props.clockFreqMHz,
+  });
   const visStart = Math.max(viewStart, start);
   const visEnd = Math.min(viewEnd, end);
   if (!(visEnd > visStart)) {
@@ -224,8 +240,11 @@ const cursorLabelAbove = computed(() => {
   const cursor = props.cursor;
   const axisW = timeAxisWidth.value;
   if (!axis || !layout || !cursor || axisW <= 0) return false;
-  const cursorLabel = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit);
-  const cursorLabelW = estimateAxisLabelWidth(cursorLabel, CURSOR_LABEL_MIN_WIDTH_PX);
+  const cursorLabelText = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit, {
+    mode: props.timeDisplayMode,
+    clockFreqMHz: props.clockFreqMHz,
+  });
+  const cursorLabelW = estimateAxisLabelWidth(cursorLabelText, CURSOR_LABEL_MIN_WIDTH_PX);
   const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
   const dtPlacement =
     layout.mode === 'inline'
@@ -508,6 +527,8 @@ defineExpose({
         :start-time="view.startTime"
         :end-time="view.endTime"
         :locale="locale"
+        :time-display-mode="timeDisplayMode"
+        :clock-freq-m-hz="clockFreqMHz"
         @update:window="emit('update:window', $event)"
       />
     </div>
@@ -537,7 +558,7 @@ defineExpose({
         <CursorTimestamp
           v-if="cursor"
           :x-ratio="cursor.xRatio"
-          :label="formatDisplayTime(cursor.time, bounds.minTime, timeScaleUnit)"
+          :label="cursorLabel"
           :label-above="cursorLabelAbove"
           :snapped="cursor.snapped ?? false"
         />

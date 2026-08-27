@@ -72,7 +72,7 @@ describe('TimelineView', () => {
     return {
       bounds: { minTime: 0, maxTime: 1000 },
       view,
-      timeScaleUnit: 'ms' as const,
+      timeDisplayMode: 'time' as const, timeScaleUnit: 'ms' as const,
       groups: [],
       collapsedIds: [] as string[],
       displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -108,7 +108,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -134,7 +134,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -180,7 +180,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -227,7 +227,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -261,7 +261,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -300,7 +300,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -331,7 +331,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -360,7 +360,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -382,7 +382,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -410,7 +410,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -451,7 +451,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -500,7 +500,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -532,7 +532,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -554,7 +554,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -614,7 +614,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        timeScaleUnit: 'ms',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
         groups: [
           {
             id: 'p-1',
@@ -702,7 +702,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime, maxTime },
         view,
-        timeScaleUnit: 'us',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'us',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime, maxTime, processes: [] },
@@ -745,7 +745,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime, maxTime },
         view,
-        timeScaleUnit: 'ns',
+        timeDisplayMode: 'time' as const, timeScaleUnit: 'ns',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime, maxTime, processes: [] },

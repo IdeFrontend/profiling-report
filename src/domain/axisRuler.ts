@@ -1,5 +1,5 @@
 import { formatAxisTime, formatAxisBaseTime, timeScaleUnitFromNsQuantum } from './formatTime';
-import type { TimeScaleUnit } from './types';
+import type { TimeDisplayMode, TimeScaleUnit } from './types';
 
 const AXIS_BASE_GROUP_MIN = 1000;
 
@@ -127,6 +127,10 @@ export interface BuildAxisRulerTicksOptions {
   origin: number;
   /** Wall-time scale (viewport or overview auto unit). */
   timeScaleUnit: TimeScaleUnit;
+  /** `cycles` renders CPU clocks instead of wall time (I-Q14). */
+  timeDisplayMode?: TimeDisplayMode;
+  /** AIC frequency in MHz when `timeDisplayMode` is `cycles`. */
+  clockFreqMHz?: number;
   /** Pixel width of the ruler track (drives tick density). */
   widthPx?: number;
   /**
@@ -254,13 +258,16 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
   const mute = opts.muteOutside;
   const origin = opts.origin;
   const unit = opts.timeScaleUnit;
+  const mode = opts.timeDisplayMode ?? 'time';
+  // Coarse base + remainder chrome is a wall-time concept — disable in cycles.
   const base =
-    opts.useViewportBase === true
+    opts.useViewportBase === true && mode === 'time'
       ? resolveAxisBaseOffset(opts.rangeStart, origin, unit)
       : null;
   const labelOffsetNs = base?.offsetNs ?? 0;
   const baseChromePx = base ? estimateAxisBaseChromePx(base.baseLabel) : 0;
   const minMajorPct = base ? viewportBaseMinMajorPct(widthPx) : -0.01;
+  const axisOpts = { mode, clockFreqMHz: opts.clockFreqMHz };
 
   // Snap to origin + k·interval (integral relative timestamps).
   let t0 = origin + Math.ceil((opts.rangeStart - origin) / interval) * interval;
@@ -289,7 +296,7 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
     majors.push({
       t,
       pct: clampedPct,
-      label: formatAxisTime(t - origin - labelOffsetNs, unit, interval),
+      label: formatAxisTime(t - origin - labelOffsetNs, unit, interval, axisOpts),
       muted: isOutside(t, mute),
       hideLabel: base ? viewportBaseLabelHidden(clampedPct, widthPx, baseChromePx) : false,
     });

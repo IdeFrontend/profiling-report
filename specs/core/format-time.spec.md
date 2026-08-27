@@ -7,21 +7,25 @@
 Format internal nanosecond time values to human-readable strings for axis ticks, cursor labels, tooltips, and the detail strip.
 
 ```ts
-formatTime(ns, unit?: TimeScaleUnit): string
-formatTimeParts(ns, unit?): { value: string; unit: string }
-formatTimeAuto(ns): string
-formatTimePartsAuto(ns): { value: string; unit: string }
-formatAxisTime(ns, unit?, tickStepNs?): string
+formatTime(ns, unit?: TimeScaleUnit, opts?): string
+formatTimeParts(ns, unit?, opts?): { value: string; unit: string }
+formatTimeAuto(ns, opts?): string
+formatTimePartsAuto(ns, opts?): { value: string; unit: string }
+formatAxisTime(ns, unit?, tickStepNs?, opts?): string
 formatAxisBaseTime(ns, unit): string
-formatCursorTime(ns, unit?): string
-formatDisplayTime(ns, origin, unit?): string
-formatDisplayTimeParts(ns, origin, unit?): { value: string; unit: string }
-formatDisplayTimeAuto(ns, origin): string
-formatDisplayTimePartsAuto(ns, origin): { value: string; unit: string }
+formatCursorTime(ns, unit?, opts?): string
+formatDisplayTime(ns, origin, unit?, opts?): string
+formatDisplayTimeParts(ns, origin, unit?, opts?): { value: string; unit: string }
+formatDisplayTimeAuto(ns, origin, opts?): string
+formatDisplayTimePartsAuto(ns, origin, opts?): { value: string; unit: string }
 timeScaleUnitFromNsQuantum(quantumNs): TimeScaleUnit
 timeScaleUnitFromMagnitude(ns): TimeScaleUnit
 resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
+resolveClockFreqMHz(summary?): number | undefined
+nsToCycles(ns, clockFreqMHz): number
 ```
+
+`opts = { significantDigits?, mode?, clockFreqMHz? }` — `mode: 'cycles'` renders CPU clocks instead of wall time.
 
 ## Behavior
 
@@ -32,7 +36,7 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 - **Spatial chrome** (viewport axis, cursor timestamp, overview axis): share a viewport / density unit — `resolveTimeUnitFromVisibleRange(end − start)` for viewport chrome; overview / total axis uses major-tick step from span×width (`resolveTimeUnitFromAxisDensity` in axisRuler) — brush window must not change overview unit.
 - **Absolute event times** (tooltip / detail Start·End·Duration) and **measure / gap Δt**: each value picks its own unit via `timeScaleUnitFromMagnitude` / `formatTimeAuto` (PyPTO-like) — **independent of zoom**. Start and Duration may use different units.
 
-**No** manual ms/µs/ns dropdown and **no** CPU clock-cycle mode in this PR (cycles deferred).
+**Cycles mode (I-Q14).** When `mode: 'cycles'` and a valid `clockFreqMHz`, every formatter renders derived CPU clocks `cycles = ns × freqMHz / 1000` — axis compact suffix `cyc` (`1000cyc`), cursor/tooltip/detail as `1000 cycles`. Missing / invalid `clockFreqMHz` → `—`. `clockFreqMHz` comes from `resolveClockFreqMHz` (`currentFreq ?? ratedFreq` from `OpBasicInfo`, MHz). **Not** per-event `*_total_cycles`; the viewport coarse base + remainder chrome is disabled in cycles. Open: true vs derived — [Q23](../../docs/context/OPEN_QUESTIONS.md) / [HQ 38](../../docs/context/HQ_OPEN_QUESTIONS.md).
 
 **Tooltip/detail formatting.** `formatTime` / `formatTimeParts` take an explicit unit (chrome callers). Surfaces that must not follow zoom use `formatTimeAuto` / `formatTimePartsAuto` / `formatDisplayTimeAuto` / `formatDisplayTimePartsAuto`. Event tooltip and detail **value cells** pass `significantDigits: 4` (`EVENT_TIME_SIGNIFICANT_DIGITS`); detail **hover titles** omit that option and keep full fixed-decimal precision. Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part. `formatTimeParts*` returns value and unit separately for the detail card; joined helpers add a space. **Presentation chrome** (detail / tooltip) keeps one digit size/weight across scales; unit identity is the suffix string — formatting does not encode unit via size or color.
 
@@ -52,16 +56,18 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 1. **PR-TIME-007** — axis ticks share one fraction-digit count from tick step (no mixed `146ms` / `146.1ms`).
 1. **PR-TIME-008** — `formatTimeAuto` / magnitude unit: tooltip/detail/Δt independent of viewport unit.
 1. **PR-TIME-009** — Event tooltip / detail value cells use **4** significant digits; detail hover titles keep full precision.
+1. **PR-TIME-010** — cycles conversion, freq resolve, and cycle formatting (`cyc` axis / `cycles` otherwise; `—` without freq).
 
 ## Edge Cases
 
-Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTimeAuto(0)` → `'0 ns'`. NaN/Infinity → `'—'`. Negative cursor → clamped to 0.
+Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTimeAuto(0)` → `'0 ns'`. NaN/Infinity → `'—'`. Negative cursor → clamped to 0. Cycles without freq → `'—'`.
 
 ## Dependencies
 
-UI-40a — Time (auto scale); see [UI-40a](../../docs/context/decisions/interim/UI.md).
+UI-40a — Time (auto) vs CPU clocks; freq from OpBasicInfo (`currentFreq`, else `ratedFreq`); see [UI-40a](../../docs/context/decisions/interim/UI.md). Cycle source still open: [UI-40](../../docs/context/questions/UI.md).
 
 ## Changelog
+- **2026-09-02** — PR-TIME-010 cycles mode (I-Q14 derived cycles); `opts.mode` / `opts.clockFreqMHz` on all formatters.
 - **2026-08-28** — Document uniform digit chrome for event times (no size/tint-by-unit); unit via suffix.
 - **2026-08-28** — PR-TIME-009 event start/end/duration display: 4 significant digits; detail titles stay full precision.
 - **2026-08-28** — PR-TIME-008 two-tier auto: chrome from viewport/density; tooltip/detail/Δt per-value.
