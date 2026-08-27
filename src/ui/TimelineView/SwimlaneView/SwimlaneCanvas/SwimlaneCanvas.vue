@@ -1139,7 +1139,7 @@ const gapMeasureGeometry = computed(() => {
   const arrowLeft = xAtTime(visStart);
   const arrowRight = xAtTime(visEnd);
 
-  const label = formatTime(rightStart - leftEnd, props.timeUnit ?? 'ms');
+  const label = formatTime(rightStart - leftEnd, props.timeScaleUnit ?? 'ms');
   const top = gap.laneY - props.view.scrollY;
 
   const leftPct = (arrowLeft / w) * 100;

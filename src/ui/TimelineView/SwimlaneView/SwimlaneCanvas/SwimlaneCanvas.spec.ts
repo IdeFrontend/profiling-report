@@ -903,7 +903,7 @@ describe('SwimlaneCanvas', () => {
         preferRenderer: 'canvas' as const,
         measureMode: false,
         measureRange: null,
-        timeUnit: 'ns',
+        timeScaleUnit: 'ns',
         ...extra,
       },
       attachTo: document.body,
@@ -1050,7 +1050,7 @@ describe('SwimlaneCanvas', () => {
         preferRenderer: 'canvas' as const,
         measureMode: false,
         measureRange: null,
-        timeUnit: 'ns',
+        timeScaleUnit: 'ns',
       },
       attachTo: document.body,
     });
@@ -1147,7 +1147,7 @@ describe('SwimlaneCanvas', () => {
         preferRenderer: 'canvas' as const,
         measureMode: false,
         measureRange: null,
-        timeUnit: 'ns',
+        timeScaleUnit: 'ns',
       },
       attachTo: document.body,
     });
@@ -1195,7 +1195,7 @@ describe('SwimlaneCanvas', () => {
         preferRenderer: 'canvas' as const,
         measureMode: false,
         measureRange: null,
-        timeUnit: 'ms',
+        timeScaleUnit: 'ms',
       },
       attachTo: document.body,
     });
