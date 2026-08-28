@@ -807,6 +807,7 @@ describe('StatsAside', () => {
     const src = (await import('./StatsAside.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-aside\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
     expect(src).toMatch(/\.pr-cards\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
+    expect(src).toMatch(/\.pr-card__bar-track\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
     expect(src).toMatch(
       /\.pr-panel--pipe,\s*\.pr-panel--topo,\s*\.pr-panel--roofline\s*\{[^}]*background:\s*var\(--pr-bg-panel\)/s,
     );

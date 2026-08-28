@@ -143,7 +143,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Surface | `linear-gradient(225deg, #272f31 0%, #262b2c 35%, #252525 72%)` (detail-strip-raised TR→BL samples) + inset `1px` highlight `rgba(255,255,255,0.04)`; radius `8px`; pad `12px 14px` |
 | Label | `11px` / `#999999`; margin-bottom `6px` |
 | Value | number `20px` / `600` / `#ececec`; unit sibling `12px` / `500` / `#868686` |
-| Bar | height `8px`; pill; fill `--pr-color-duration-bar` ~15% of track; hatch `#2a2a2a` / `#1f1f1f` on `#1a1a1a` track |
+| Bar | height `8px`; pill; fill `--pr-color-duration-bar` ~15% of track; hatch `#2a2a2a` / `#1f1f1f` on `--pr-bg-aside` track |
 | Sub | `11px` / `#8a8a8a`; ellipsis if the tile is narrow |
 
 ### I/O bandwidth cards (`summary-cards.png`)
@@ -155,7 +155,7 @@ Same raised card chrome as duration. Outer **3+2 grid** as in the sketch (comput
 | Inner | `aic` \| `aiv` columns (`display: flex; gap: 8px`; `.pr-bw-col { flex: 1 1 0 }`) |
 | Score | same Value number token; no `%` |
 | Side label | `11px` / `#999999`, baseline-aligned to the right of the score |
-| Bar | same 8px pill hatched track (`#1a1a1a` + `#2a2a2a`/`#1f1f1f`); fill `--pr-color-bandwidth-bar` = score % of track; 0% fill `min-width: 0` (no 2px sliver) |
+| Bar | same 8px pill hatched track (`--pr-bg-aside` + `#2a2a2a`/`#1f1f1f`); fill `--pr-color-bandwidth-bar` = score % of track; 0% fill `min-width: 0` (no 2px sliver) |
 | Sub | same Sub token: `measured / peak TB/s` |
 
 ### Compute / avg-util placeholders (until Q6)
@@ -205,6 +205,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-28** — Card bar tracks use `--pr-bg-aside` so light theme matches the shell.
 - **2026-08-28** — Aside shell `#1a1a1a` (`--pr-bg-aside`); islands `#262626` (`--pr-bg-panel`) from `v930/detail-strip-raised` (PR-STATS-025).
 - **2026-08-27** — Gate compute/util N/A placeholders on duration (PR-STATS-011b) so BW-only summaries stay rectangular.
 - **2026-08-27** — Review fixes: truncation `title` on duration secondary + BW subtitles; N/A cards flex-center the value in the stretched top-row tile; docs aligned on N/A placeholders (not hide).

@@ -886,7 +886,7 @@ function backToReport() {
   position: relative;
   margin-top: 8px;
   height: 8px;
-  background: #1a1a1a;
+  background: var(--pr-bg-aside);
   border-radius: 999px;
   overflow: hidden;
 }
