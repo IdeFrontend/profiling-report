@@ -126,13 +126,6 @@ const pinnedView = computed(() => ({
   scrollY: 0,
 }));
 
-/** Leaf under canvas pointer — drives gutter pin visibility + row highlight. */
-const hoveredLaneId = ref<string | null>(null);
-
-function onLaneHover(id: string | null): void {
-  hoveredLaneId.value = id;
-}
-
 /** Card header Y from the same row walk as the canvas, without an event-layout rebuild. */
 const cardHeaders = computed(() =>
   layoutHeaders(props.model).map((h) => ({
@@ -273,7 +266,6 @@ defineExpose({
           :lane="row.lane"
           :depth="row.depth"
           :pinned-lane-ids="pinnedLaneIds"
-          :hovered-lane-id="hoveredLaneId"
           :locale="locale"
           @pin-lane="emit('pin-lane', $event)"
           @unpin-lane="emit('unpin-lane', $event)"
@@ -297,7 +289,6 @@ defineExpose({
         :cursor-snapped="cursorSnapped"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
-        @lane-hover="onLaneHover"
         @cursor="onCursor"
         @set-playhead="emit('set-playhead', $event)"
         @pan="emit('pan', $event)"
@@ -327,7 +318,6 @@ defineExpose({
         :groups="groups"
         :collapsed-ids="collapsedIds"
         :pinned-lane-ids="pinnedLaneIds"
-        :hovered-lane-id="hoveredLaneId"
         :locale="locale"
         @scroll="onGutterScroll"
         @toggle-group="emit('toggle-group', $event)"
@@ -351,7 +341,6 @@ defineExpose({
         :cursor-snapped="cursorSnapped"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
-        @lane-hover="onLaneHover"
         @cursor="onCursor"
         @set-playhead="emit('set-playhead', $event)"
         @pan="emit('pan', $event)"

@@ -17,7 +17,6 @@ import {
   findExactEdgeMatchesAt,
   findHoverGap,
   LANE_HEIGHT,
-  leafLaneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
   type ExactEdgeMatch,
@@ -68,8 +67,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
-  /** Leaf lane under pointer Y (gutter pin / row highlight sync). */
-  'lane-hover': [laneId: string | null];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
@@ -79,14 +76,6 @@ const emit = defineEmits<{
   /** Hide axis Δt arrow/label during appear/clear (view↔range) tweens only. */
   'suppress-measure-dt': [suppress: boolean];
 }>();
-
-function emitLaneHover(localY: number | null): void {
-  if (localY == null) {
-    emit('lane-hover', null);
-    return;
-  }
-  emit('lane-hover', leafLaneIdAtPoint(backend.getLayout(), props.view, localY));
-}
 
 const wrapRef = ref<HTMLDivElement | null>(null);
 const glCanvasRef = ref<HTMLCanvasElement | null>(null);
@@ -1229,7 +1218,6 @@ function onPointerMove(e: PointerEvent): void {
     if (measureGestureActive || measureCreatePending || measurePressActive) {
       hoverGap.value = null;
       emit('hover', null, e.clientX, e.clientY);
-      emitLaneHover(null);
       return;
     }
     const span = Math.max(1, props.view.endTime - props.view.startTime);
@@ -1238,7 +1226,6 @@ function onPointerMove(e: PointerEvent): void {
     emit('pan', -(dx / w) * span);
     hoverGap.value = panCaptureHoverGap;
     emit('hover', panCaptureHoverEvent, e.clientX, e.clientY);
-    emitLaneHover(y);
     return;
   }
 
@@ -1246,7 +1233,6 @@ function onPointerMove(e: PointerEvent): void {
   updateHoverGap(x, y, w);
 
   emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
-  emitLaneHover(y);
 }
 
 function onPointerUp(e: PointerEvent): void {
@@ -1295,7 +1281,6 @@ function onPointerLeave(e: PointerEvent): void {
     snapExactEdgeMarks.value = [];
     emit('cursor', null);
     emit('hover', null, 0, 0);
-    emitLaneHover(null);
     return;
   }
   if (panHoverCaptureActive()) {
@@ -1307,7 +1292,6 @@ function onPointerLeave(e: PointerEvent): void {
   if (isMeasureBorderEl(e.relatedTarget)) {
     schedulePaint();
     emit('hover', null, 0, 0);
-    emitLaneHover(null);
     return;
   }
   dragging = false;
@@ -1322,7 +1306,6 @@ function onPointerLeave(e: PointerEvent): void {
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
-  emitLaneHover(null);
 }
 
 function onWheel(e: WheelEvent): void {

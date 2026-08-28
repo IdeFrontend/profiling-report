@@ -234,9 +234,6 @@ describe('LaneGutter', () => {
     wrapper.get('[data-testid="gutter-lane-leaf"] [data-testid="lane-pin"]');
     wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-pin"]');
     expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).not.toContain(
-      'pr-gutter__lane--lane-hover',
-    );
-    expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).not.toContain(
       'pr-gutter__lane--pinned',
     );
     expect(wrapper.get('[data-testid="gutter-lane-mte1"]').classes()).toContain(
@@ -247,11 +244,6 @@ describe('LaneGutter', () => {
     );
     expect(wrapper.get('[data-testid="gutter-group-card0"]').find('[data-testid="lane-pin"]').exists()).toBe(
       false,
-    );
-
-    await wrapper.setProps({ hoveredLaneId: 'leaf' });
-    expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).toContain(
-      'pr-gutter__lane--lane-hover',
     );
     wrapper.unmount();
   });
@@ -276,7 +268,7 @@ describe('LaneGutter', () => {
       },
     ];
     const wrapper = mount(LaneGutter, {
-      props: { groups: nested, pinnedLaneIds: ['mte1'], hoveredLaneId: 'mte2' },
+      props: { groups: nested, pinnedLaneIds: ['mte1'] },
       attachTo: document.body,
     });
     const gutter = wrapper.get('[data-testid="lane-gutter"]').element.getBoundingClientRect();

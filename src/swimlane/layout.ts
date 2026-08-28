@@ -262,18 +262,6 @@ export function eventScreenRect(
   return { x, y: m.y * dpr, w, h: m.h * dpr };
 }
 
-/** Leaf lane id under canvas-local Y, or null on folders / empty. */
-export function leafLaneIdAtPoint(
-  layout: SwimlaneLayout,
-  view: SwimlaneViewWindow,
-  y: number,
-): string | null {
-  const contentY = y + view.scrollY;
-  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
-  if (!lane || lane.folder) return null;
-  return lane.thread.id;
-}
-
 /** Prefer shorter nested events (same as Canvas MVP). `width`/`x`/`y` are device pixels. */
 export function hitTestLayout(
   layout: SwimlaneLayout,
