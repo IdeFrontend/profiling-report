@@ -52,7 +52,7 @@ Sketch: `source/v930/entry.jpeg`
 
 Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (Core2.Cube expanded gutter)
 
-- **Leaf lanes only:** pushpin appears on **lane hover** (gutter row or that leaf’s canvas band), flush to the **left edge** of the gutter (not depth-indented). Outline `#a8a8a8` unpinned; solid `#4a90e2` when pinned or when hovering the pin. Full gutter row highlight `#252525`. Tooltip **置顶**.
+- **Leaf lanes only:** unpinned pushpin appears on **lane hover** (gutter row or that leaf’s canvas band); **pinned pushpin stays visible** on the original row and sticky-strip duplicate. Flush to the **left edge** of the gutter (not depth-indented). Outline `#a8a8a8` unpinned; solid `#4a90e2` when pinned or when hovering the pin. Full gutter row highlight `#252525`. Tooltip **置顶**.
 - Click unpinned pushpin → parent appends lane id to **pinnedLaneIds**; click pinned → remove. Context-menu **Pin row** (Ctrl+P) toggles the same **pinnedLaneIds** — one pin state, two affordances.
 - **Sticky strip:** pinned leaf rows duplicate at the top of the swim body (gutter + canvas); originals remain in tree order below. Strip shows **events only** — no dependency beziers. Pins may span multiple Cards/groups; strip order = pin order. See [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 

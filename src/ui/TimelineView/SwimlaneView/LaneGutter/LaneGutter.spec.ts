@@ -210,7 +210,7 @@ describe('LaneGutter', () => {
     expect(spacer.find('button').exists()).toBe(false);
   });
 
-  it('PR-GUTTER-010: leaf rows include pushpin (hover-only); folder and Card omit pin', async () => {
+  it('PR-GUTTER-010: leaf rows include pushpin; unpinned hover-only; pinned always visible', async () => {
     const nested = [
       {
         id: 'card0',
@@ -228,13 +228,19 @@ describe('LaneGutter', () => {
       },
     ];
     const wrapper = mount(LaneGutter, {
-      props: { groups: nested },
+      props: { groups: nested, pinnedLaneIds: ['mte1'] },
       attachTo: document.body,
     });
     wrapper.get('[data-testid="gutter-lane-leaf"] [data-testid="lane-pin"]');
     wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-pin"]');
     expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).not.toContain(
       'pr-gutter__lane--lane-hover',
+    );
+    expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).not.toContain(
+      'pr-gutter__lane--pinned',
+    );
+    expect(wrapper.get('[data-testid="gutter-lane-mte1"]').classes()).toContain(
+      'pr-gutter__lane--pinned',
     );
     expect(wrapper.find('[data-testid="gutter-folder-compute"] [data-testid="lane-pin"]').exists()).toBe(
       false,
@@ -243,8 +249,8 @@ describe('LaneGutter', () => {
       false,
     );
 
-    await wrapper.setProps({ hoveredLaneId: 'mte1' });
-    expect(wrapper.get('[data-testid="gutter-lane-mte1"]').classes()).toContain(
+    await wrapper.setProps({ hoveredLaneId: 'leaf' });
+    expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).toContain(
       'pr-gutter__lane--lane-hover',
     );
     wrapper.unmount();

@@ -124,7 +124,10 @@ function onPinClick(e: MouseEvent) {
   <div
     v-else-if="!isFolder"
     class="pr-gutter__lane"
-    :class="{ 'pr-gutter__lane--lane-hover': laneExternallyHovered }"
+    :class="{
+      'pr-gutter__lane--lane-hover': laneExternallyHovered,
+      'pr-gutter__lane--pinned': isPinned,
+    }"
     :style="{ paddingLeft: pad }"
     :data-testid="`gutter-lane-${lane.id}`"
   >
@@ -250,6 +253,7 @@ function onPinClick(e: MouseEvent) {
 
 .pr-gutter__lane:hover .pr-gutter__pin,
 .pr-gutter__lane--lane-hover .pr-gutter__pin,
+.pr-gutter__lane--pinned .pr-gutter__pin,
 .pr-gutter__pin:focus-visible {
   visibility: visible;
   opacity: 1;
