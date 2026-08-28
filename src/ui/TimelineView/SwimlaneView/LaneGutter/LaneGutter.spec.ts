@@ -231,10 +231,8 @@ describe('LaneGutter', () => {
       props: { groups: nested },
       attachTo: document.body,
     });
-    const leafPin = wrapper.get('[data-testid="gutter-lane-leaf"] [data-testid="lane-pin"]');
-    const deepPin = wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-pin"]');
-    expect(leafPin.exists()).toBe(true);
-    expect(deepPin.exists()).toBe(true);
+    wrapper.get('[data-testid="gutter-lane-leaf"] [data-testid="lane-pin"]');
+    wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-pin"]');
     expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).not.toContain(
       'pr-gutter__lane--lane-hover',
     );
