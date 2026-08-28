@@ -413,6 +413,7 @@ describe('SwimlaneView', () => {
       maxTime: 1000,
       processes: [],
     });
+    const measureRange = { startTime: 100, endTime: 400 };
     const wrapper = mount(SwimlaneView, {
       props: {
         groups: [
@@ -439,12 +440,16 @@ describe('SwimlaneView', () => {
         selectedEventId: null,
         hoveredEventId: null,
         searchQuery: '',
+        measureMode: true,
+        measureRange,
       },
     });
     const canvases = wrapper.findAllComponents(SwimlaneCanvas);
     const pinned = canvases.find((c) => c.attributes('data-testid') === 'pinned-canvas');
     expect(pinned).toBeTruthy();
     expect(pinned!.props('showDependencies')).toBe(false);
+    expect(pinned!.props('measureMode')).toBe(true);
+    expect(pinned!.props('measureRange')).toEqual(measureRange);
   });
 
   it('PR-SWIMVIEW-014: pinnedLaneIds may span multiple Cards; strip follows pin order', () => {

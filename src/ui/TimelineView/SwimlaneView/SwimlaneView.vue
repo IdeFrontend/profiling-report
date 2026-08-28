@@ -288,8 +288,8 @@ defineExpose({
         :selected-event-id="selectedEventId"
         :hovered-event-id="hoveredEventId"
         :search-query="searchQuery"
-        :measure-mode="false"
-        :measure-range="null"
+        :measure-mode="measureMode"
+        :measure-range="measureRange"
         :time-unit="timeUnit"
         :show-dependencies="false"
         :prefer-renderer="preferRenderer ?? 'auto'"
@@ -302,6 +302,8 @@ defineExpose({
         @set-playhead="emit('set-playhead', $event)"
         @pan="emit('pan', $event)"
         @zoom="(f, a) => emit('zoom', f, a)"
+        @update:measure-range="emit('update:measure-range', $event)"
+        @suppress-measure-dt="emit('suppress-measure-dt', $event)"
       />
     </div>
 

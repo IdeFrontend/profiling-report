@@ -26,6 +26,7 @@ When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim bo
 |---------|----------|
 | Gutter | Pinned strip shows duplicate lane labels + util for each pinned leaf (same chrome as originals; pushpin shown **filled** `#4a90e2`) |
 | Canvas | Pinned strip paints duplicate event rows at the same Y stack as the gutter duplicates; shares `timeWindow`, zoom, and horizontal scroll with the main canvas |
+| Measure | Pinned-strip canvas uses the same `measureMode` / `measureRange` as the body (create, resize, overlay) — not pan while measure is active |
 | Card headers | Full-width Card strips remain in the scrolling body only — pinned strip is **lane-height rows** (`22px`) without Card spacers |
 | Scroll | Main body `scrollY` does not move the pinned strip; pinned strip height reduces the scroll viewport (`bodyViewportH − pinnedHeight`) |
 | Unpin | Click filled pushpin on duplicate or original → parent removes id from **pinnedLaneIds**; strip row removed |
@@ -53,6 +54,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 
 ## Changelog
 - **2026-08-28** — Abspos gutter handle uses explicit `grid-column: 1 / 2` so `right: 0` is the gutter seam, not the track’s far edge.
+- **2026-08-28** — Pinned-strip canvas shares measure mode/range with the body canvas.
 - **2026-08-27** — After rebase onto master (`PR-SWIMVIEW-009` = cursor magnet): pin ACs are `010`…`014`. Gutter pin ACs `010`…`013` reserve `009` for #45 metrics.
 - **2026-08-27** — Pinned strip: no dependency links; cross-card pin order (`PR-SWIMVIEW-013`…`014`). Tests deferred until implementation.
 - **2026-08-27** — Sticky pinned-lane strip spec (`PR-SWIMVIEW-010`…`012`). Tests deferred until implementation.
