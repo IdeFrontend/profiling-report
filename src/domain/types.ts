@@ -327,7 +327,7 @@ export interface SwimlaneViewWindow {
 /** Imperative timeline backend — Canvas MVP; WebGL later (COMPONENTS). */
 export interface SwimlaneRenderer {
   attach(canvas: HTMLCanvasElement): void;
-  resize(width: number, height: number): void;
+  resize(devicePixelWidth: number, devicePixelHeight: number, dpr: number): void;
   setModel(model: SwimlaneModel): void;
   setView(view: SwimlaneViewWindow): void;
   setSelection(selectedId: string | null, hoveredId: string | null): void;

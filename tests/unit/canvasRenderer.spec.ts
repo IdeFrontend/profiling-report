@@ -8,7 +8,7 @@ import {
   eventRadius,
   hitTestLayout,
   rebuildLayout,
-  snapCssPx,
+  
   snapEventRect,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
@@ -46,7 +46,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
 
@@ -60,7 +60,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
 
@@ -72,7 +72,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
     expect(() => renderer.render()).not.toThrow();
@@ -82,7 +82,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
 
@@ -99,7 +99,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(id).toBe('e-short');
   });
 
-  it('PR-RENDER-017: eventRadius narrow vs normal and 1px margin', () => {
+  it('PR-RENDER-017: eventRadius narrow vs normal and 1 device-px margin', () => {
     expect(eventRadius(2)).toBe(1);
     expect(eventRadius(3.9)).toBe(1);
     expect(eventRadius(4)).toBe(2);
@@ -107,25 +107,35 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(EVENT_MARGIN).toBe(0.5);
   });
 
-  it('PR-RENDER-018: snapEventRect aligns edges to the device-pixel grid at fractional dpr', () => {
-    const dpr = 1.25;
-    expect(snapCssPx(2.5, dpr)).toBe(2.4);
-    const r = snapEventRect(10.4, 2.5, 20.3, 16, dpr);
-    expect(r.x * dpr).toBeCloseTo(Math.round(10.4 * dpr));
-    expect(r.y * dpr).toBeCloseTo(Math.round(2.5 * dpr));
-    expect((r.x + r.w) * dpr).toBeCloseTo(Math.round((10.4 + 20.3) * dpr));
-    expect((r.y + r.h) * dpr).toBeCloseTo(Math.round((2.5 + 16) * dpr));
+  it('PR-RENDER-018: snapEventRect aligns edges to integer device pixels', () => {
+    const r = snapEventRect(10.4, 2.5, 20.3, 16);
+    expect(r.x).toBe(10);
+    expect(r.y).toBe(3);
+    expect(r.x + r.w).toBe(Math.round(10.4 + 20.3));
+    expect(r.y + r.h).toBe(Math.round(2.5 + 16));
+    expect(r.w).toBeGreaterThanOrEqual(1);
+    expect(r.h).toBeGreaterThanOrEqual(1);
   });
 
-  it('eventPaintRect applies margin then snaps to the device grid', () => {
-    const dpr = 1.25;
-    const paint = eventPaintRect(10, 2, 20, 16, dpr);
-    const expected = snapEventRect(10 + EVENT_MARGIN, 2, 20 - EVENT_MARGIN * 2, 16, dpr);
+  it('eventPaintRect applies 1 device-px gap then snaps', () => {
+    const paint = eventPaintRect(10, 2, 20, 16);
+    const expected = snapEventRect(10 + EVENT_MARGIN, 2, 20 - EVENT_MARGIN * 2, 16);
     expect(paint.x).toBe(expected.x);
     expect(paint.y).toBe(expected.y);
     expect(paint.w).toBe(expected.w);
     expect(paint.h).toBe(expected.h);
     expect(paint.r).toBe(2);
+  });
+
+  it('PR-RENDER-019: resize sets buffer without style sizing', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(800, 240, 2);
+    expect(canvas.width).toBe(800);
+    expect(canvas.height).toBe(240);
+    expect(canvas.style.width).toBe('');
+    expect(canvas.style.height).toBe('');
   });
 
   it('PR-RENDER-007: eventLabelAnchor centers in full and clipped visible rects', () => {
@@ -146,7 +156,7 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     const canvas = document.createElement('canvas');
     const renderer = new WebGlSwimlaneRenderer();
     expect(renderer.attach(canvas)).toBe(true);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
     expect(() => renderer.render()).not.toThrow();
@@ -160,7 +170,7 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     const canvas = document.createElement('canvas');
     const renderer = new WebGlSwimlaneRenderer();
     expect(renderer.attach(canvas)).toBe(true);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
     renderer.setSearchQuery('PIPE');
@@ -181,7 +191,7 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     const canvas = document.createElement('canvas');
     const renderer = new WebGlSwimlaneRenderer();
     expect(renderer.attach(canvas)).toBe(true);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
     renderer.setSelection('e-long', null);
@@ -272,7 +282,7 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
   it('PR-RENDER-014: setDependencyMode and setDependencyDepth are optional', () => {
     const stub: SwimlaneRenderer = {
       attach() {},
-      resize() {},
+      resize(_w: number, _h: number, _dpr: number) {},
       setModel() {},
       setView() {},
       setSelection() {},

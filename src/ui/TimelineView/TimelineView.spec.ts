@@ -1,24 +1,61 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import { formatDisplayTime } from '../../domain/formatTime';
 import { createViewState } from '../../domain/viewState';
 import SwimlaneCanvas from './SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.vue';
 import TimelineView from './TimelineView.vue';
 
+/** ResizeObservers created by `stubAxisWidth` — re-fire after setting swimlane wrap size. */
+const roHandles: { fire: () => void }[] = [];
+
 function stubAxisWidth(widthPx: number) {
+  roHandles.length = 0;
   class RO {
-    constructor(private cb: ResizeObserverCallback) {}
+    private el: Element | null = null;
+    constructor(private cb: ResizeObserverCallback) {
+      roHandles.push(this);
+    }
     observe(el: Element) {
+      this.el = el;
       Object.defineProperty(el, 'clientWidth', {
         configurable: true,
-        get: () => widthPx,
+        get: () => {
+          const wrap = el.closest?.('[data-testid="swimlane"]') as HTMLElement | null;
+          return wrap?.clientWidth || widthPx;
+        },
       });
-      this.cb([], this as unknown as ResizeObserver);
+      this.fire();
+    }
+    fire() {
+      if (!this.el) return;
+      const wrap = this.el.closest?.('[data-testid="swimlane"]') as HTMLElement | null;
+      const w = wrap?.clientWidth || widthPx;
+      const h = wrap?.clientHeight || (this.el as HTMLElement).clientHeight || 1;
+      // Axis/overview sync from clientWidth; canvas needs a positive device-pixel box.
+      this.cb(
+        [
+          {
+            target: this.el,
+            devicePixelContentBoxSize: [{ inlineSize: w, blockSize: Math.max(1, h) }],
+            contentBoxSize: [{ inlineSize: w, blockSize: Math.max(1, h) }],
+            borderBoxSize: [],
+            contentRect: this.el.getBoundingClientRect(),
+          } as unknown as ResizeObserverEntry,
+        ],
+        this as unknown as ResizeObserver,
+      );
     }
     unobserve() {}
     disconnect() {}
   }
   vi.stubGlobal('ResizeObserver', RO);
+}
+
+async function fireAllResizeObservers(): Promise<void> {
+  await nextTick();
+  for (const ro of roHandles) ro.fire();
+  await nextTick();
 }
 
 afterEach(() => {
@@ -626,7 +663,7 @@ describe('TimelineView', () => {
     });
 
     await wrapper.setProps({ displaySwim: { ...eventModel } });
-    await canvas.vm.$nextTick();
+    await fireAllResizeObservers();
 
     const rect = (
       canvas.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }

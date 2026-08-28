@@ -1,8 +1,61 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
 
+/** ResizeObservers created during a test — call `fireAllDeviceRo()` after setting wrap client size. */
+const roHandles: { fire: () => void }[] = [];
+
+function stubDeviceResizeObserver(): void {
+  roHandles.length = 0;
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      private el: Element | null = null;
+      constructor(private cb: ResizeObserverCallback) {
+        roHandles.push(this);
+      }
+      observe(el: Element) {
+        this.el = el;
+        this.fire();
+      }
+      fire() {
+        if (!this.el) return;
+        const wrap = this.el.closest('[data-testid="swimlane"]') as HTMLElement | null;
+        const w = wrap?.clientWidth ?? 0;
+        const h = wrap?.clientHeight ?? 0;
+        if (w <= 0 || h <= 0) return;
+        const dpr = typeof window !== 'undefined' && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+        this.cb(
+          [
+            {
+              target: this.el,
+              devicePixelContentBoxSize: [{ inlineSize: Math.round(w * dpr), blockSize: Math.round(h * dpr) }],
+              contentBoxSize: [{ inlineSize: w, blockSize: h }],
+              borderBoxSize: [],
+              contentRect: this.el.getBoundingClientRect(),
+            } as unknown as ResizeObserverEntry,
+          ],
+          this as unknown as ResizeObserver,
+        );
+      }
+      disconnect() {}
+      unobserve() {}
+    },
+  );
+}
+
+async function fireAllDeviceRo(): Promise<void> {
+  await nextTick();
+  for (const ro of roHandles) ro.fire();
+  await nextTick();
+}
+
 describe('SwimlaneCanvas', () => {
+  beforeEach(() => {
+    stubDeviceResizeObserver();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -18,6 +71,30 @@ describe('SwimlaneCanvas', () => {
   it('PR-CANVAS-001: creates canvas element on mount', () => {
     const wrapper = mount(SwimlaneCanvas, { props: nullProps });
     expect(wrapper.find('canvas').exists()).toBe(true);
+  });
+
+  it('PR-CANVAS-044: mounts only the active renderer canvases', async () => {
+    const canvasOnly = mount(SwimlaneCanvas, {
+      props: { ...nullProps, preferRenderer: 'canvas' as const },
+    });
+    await nextTick();
+    expect(canvasOnly.findAll('canvas')).toHaveLength(1);
+    expect(canvasOnly.find('[data-testid="swimlane-canvas"]').exists()).toBe(true);
+    expect(canvasOnly.find('[data-testid="swimlane-webgl"]').exists()).toBe(false);
+    canvasOnly.unmount();
+
+    const auto = mount(SwimlaneCanvas, { props: nullProps });
+    await nextTick();
+    const canvases = auto.findAll('canvas');
+    const webgl = auto.find('[data-testid="swimlane-webgl"]');
+    if (webgl.exists()) {
+      expect(canvases).toHaveLength(2);
+      expect(auto.find('[data-testid="swimlane-canvas"]').exists()).toBe(true);
+    } else {
+      expect(canvases).toHaveLength(1);
+      expect(auto.find('[data-testid="swimlane-canvas"]').exists()).toBe(true);
+    }
+    auto.unmount();
   });
 
   it('PR-CANVAS-002: canvas persists after model change', async () => {
@@ -753,7 +830,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-025: sizes canvas to wrap width, not the HTML default 300px', async () => {
+  it('PR-CANVAS-025: sizes canvas backing store from RO device box; no style sizing; stays 0 until RO', async () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
@@ -761,6 +838,10 @@ describe('SwimlaneCanvas', () => {
       },
       attachTo: document.body,
     });
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+    expect(canvas.width).toBe(0);
+    expect(canvas.height).toBe(0);
+
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 640, configurable: true });
     Object.defineProperty(wrap, 'clientHeight', { value: 240, configurable: true });
@@ -775,11 +856,11 @@ describe('SwimlaneCanvas', () => {
       }),
       configurable: true,
     });
-    await wrapper.setProps({
-      model: { processes: [], minTime: 0, maxTime: 1000 },
-    });
-    const canvas = wrapper.get('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
-    expect(canvas.style.width).toBe('640px');
+    await fireAllDeviceRo();
+    expect(canvas.width).toBe(640);
+    expect(canvas.height).toBe(240);
+    expect(canvas.style.width).toBe('');
+    expect(canvas.style.height).toBe('');
     wrapper.unmount();
   });
 

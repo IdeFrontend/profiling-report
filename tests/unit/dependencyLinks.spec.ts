@@ -172,7 +172,7 @@ describe('PR-DEPS: dependency links', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(model);
     renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
     renderer.setSelection('e-parent', null);
@@ -185,7 +185,7 @@ describe('PR-DEPS: dependency links', () => {
     const glCanvas = document.createElement('canvas');
     const gl = new WebGlSwimlaneRenderer();
     expect(gl.attach(glCanvas)).toBe(true);
-    gl.resize(400, 120);
+    gl.resize(400, 120, 1);
     gl.setModel(linkedModel());
     gl.setView({ startTime: 0, endTime: 100, scrollY: 0 });
     gl.setSelection('e-parent', null);
@@ -279,7 +279,7 @@ describe('PR-DEPS: dependency links', () => {
     const glGraph = vi.spyOn(depLinks, 'dependencyGraph');
     const gl = new WebGlSwimlaneRenderer();
     expect(gl.attach(glCanvas)).toBe(true);
-    gl.resize(400, 120);
+    gl.resize(400, 120, 1);
     gl.setModel(linkedModel());
     gl.setSelection('e-parent', null);
     overlay.setLayout(gl.getLayout());
@@ -304,7 +304,7 @@ describe('PR-DEPS: dependency links', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
-    renderer.resize(400, 120);
+    renderer.resize(400, 120, 1);
     renderer.setModel(linkedModel());
     renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
     renderer.setSelection('e-parent', null);
@@ -325,7 +325,7 @@ describe('PR-DEPS: dependency links', () => {
     const graphSpy = vi.spyOn(depLinks, 'dependencyGraph');
     const gl = new WebGlSwimlaneRenderer();
     expect(gl.attach(document.createElement('canvas'))).toBe(true);
-    gl.resize(400, 120);
+    gl.resize(400, 120, 1);
     gl.setModel(linkedModel());
     gl.setSelection('e-parent', null);
     graphSpy.mockClear();
