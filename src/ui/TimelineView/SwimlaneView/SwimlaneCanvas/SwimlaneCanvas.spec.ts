@@ -1381,4 +1381,25 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-054: anchor highlight follows the anchored event across view changes', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+
+    const anchor = () => wrapper.find('[data-testid="alt-measure-anchor"]');
+    expect(anchor().exists()).toBe(true);
+    const leftPx = (el: ReturnType<typeof anchor>) =>
+      Number(/left:\s*(-?[\d.]+)px/.exec(el.attributes('style') ?? '')?.[1] ?? NaN);
+    const before = leftPx(anchor());
+
+    // Shift the view window right so the anchored event (100..200) moves left on screen.
+    await wrapper.setProps({ view: { startTime: 50, endTime: 1050, scrollY: 0 } });
+    expect(anchor().exists()).toBe(true);
+    const after = leftPx(anchor());
+
+    expect(after).toBeLessThan(before);
+    wrapper.unmount();
+  });
 });

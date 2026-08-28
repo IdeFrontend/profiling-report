@@ -1245,6 +1245,10 @@ const gapMeasureGeometry = computed(() => {
 /** Alt-measure anchor highlight while session active. */
 const altMeasureAnchorHighlight = computed(() => {
   void resizeTick.value;
+  // Track the view window so the highlight stays glued to the anchored event on scroll/pan/zoom.
+  void props.view.startTime;
+  void props.view.endTime;
+  void props.view.scrollY;
   if (!altMeasureAnchorId.value || !altKeyHeld.value || props.measureMode) return null;
   return backend.eventScreenRect(altMeasureAnchorId.value);
 });
