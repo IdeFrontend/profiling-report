@@ -4,11 +4,11 @@
 |----------------|
 | PR-CURSOR-*    |
 
-Playhead time bubble on the viewport time axis. Shows the cursor position as a scalar timestamp relative to `minTime` (same `formatDisplayTime` as tooltip Start).
+Playhead time bubble on the viewport time axis. Shows the cursor position as a scalar timestamp relative to `minTime` via `formatDisplayTime` in the **viewport** `timeScaleUnit` (spatial chrome). May **differ** from tooltip/detail Start, which use per-value magnitude units ([I-Q14](../../../../../docs/context/INTERIM_DECISIONS.md) two-tier).
 
 ## Inputs
 
-**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (scalar, same as tooltip Start). The parent formats via `formatDisplayTime(time, minTime, timeScaleUnit)`.
+**xRatio** — fractional position 0–1 along the axis. **label** — pre-formatted cursor time string (scalar). The parent formats via `formatDisplayTime(time, minTime, timeScaleUnit)` — viewport unit, not `formatDisplayTimeAuto`.
 
 ## Outputs
 
@@ -34,13 +34,13 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 |-------|--------|
 | Bubble fill | `#317AF7` (align `--pr-playhead` / `#3078F0` ±) |
 | Text | `#ffffff`, 11px, weight 600, tabular-nums |
-| Format | Scalar via `formatDisplayTime` relative to `minTime` (e.g. `2.368 µs`) — matches tooltip/detail Start; unit auto-scales (`TimeScaleUnit`) |
+| Format | Scalar via `formatDisplayTime` in the **viewport** unit (e.g. `0.500 ms`); **may differ** from tooltip Start (`formatDisplayTimeAuto`, e.g. `500.0 µs`) |
 | Size | ~72×19px content; `padding: 1px 8px`; `border-radius: 4px`; `min-width: 72px` |
 | Stem | 1px line same blue (`#317AF7`), continuous from axis through swimlane — **no** 1px gap at the axis/canvas border; axis + canvas segments share the same x (no horizontal jog) |
-| Behavior | Must update on pointer move; short traces use µs/ns unit so digits change |
+| Behavior | Must update on pointer move; short traces use µs/ns viewport unit so digits change |
 | Above | `labelAbove` → pill above axis; 180ms transform transition |
 
-**Example:** producer `4.456ms` → label `4.456 ms` when unit is `ms`.
+**Example:** at a 10 ms viewport over a 500 µs-relative playhead → cursor `0.500 ms` while tooltip Start may show `500.0 µs`.
 
 ## Acceptance Criteria
 
@@ -57,7 +57,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 |---|---|
 | xRatio = 0 | Stem at left edge; bubble centered; may slightly overlap past the left column edge |
 | xRatio = 1 | Stem at right edge; bubble centered; may slightly overlap the aside seam (not clipped) |
-| Short trace (<1ms span) | Parent auto-selects µs/ns unit; bubble digits change on move |
+| Short trace (<1ms span) | Parent auto-selects µs/ns viewport unit; bubble digits change on move |
 | labelAbove toggles | Pill animates up/down unless reduced motion |
 | labelAbove + Δt under stem x | Stem under Δt; raised pill still readable |
 
@@ -68,13 +68,14 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 
 ## Dependencies
 
-[format-time](../../../../../specs/core/format-time.spec.md) (formatDisplayTime).
+[format-time](../../../../../specs/core/format-time.spec.md) (formatDisplayTime — viewport chrome).
 
 ## Changelog
+- **2026-08-28** — Two-tier: cursor stays viewport `formatDisplayTime`; may differ from tooltip/detail Start (per-value auto).
 - **2026-08-27** — Unit auto-scales via `TimeScaleUnit` (manual dropdown removed); format stays scalar `formatDisplayTime`.
 - **2026-08-26** — `snapped` prop grays the stem (`#4c4c4c`) while the cursor is magnetized to an event edge; PR-CURSOR-006.
 - **2026-08-25** — Label relative to minTime via formatDisplayTime.
-- **2026-08-24** — Scalar `formatTime` cursor label (matches tooltip).
+- **2026-08-24** — Scalar `formatTime` cursor label (viewport chrome).
 - **2026-08-20** — Parent also lifts pill while hovering the viewport time axis (TimelineView).
 - **2026-08-20** — Pill may overlap aside seam when playhead is at the edge.
 - **2026-08-20** — Stem under Δt, pill above; PR-CURSOR-005.

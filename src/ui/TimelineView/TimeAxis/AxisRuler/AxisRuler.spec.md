@@ -12,7 +12,7 @@ Shared dual time-axis chrome used by `TimeOverviewBar` and the viewport `.pr-tim
 
 ## Behavior
 
-Renders major **1px** bars with labels immediately to the **right**, plus short minor ticks along the bottom. When **baseLabel** is set (viewport axis only), a flex **base column** (`axis-ruler-base` + muted `+` separator) sits left of a dedicated **tick track** (`axis-ruler-track`); majors/minors position as 0–100% of the track only so labels never overlap the base. Overview passes `null` and the track spans full width. Parent supplies a **20px** track and tick data from `buildAxisRulerTicks` (nice zoom-aware ns grid). Labels sit in an **18px** top-aligned box (**12px / 400**). Minors are **5px**. This component fills `inset: 0` and clips overflow.
+Renders major **1px** bars with labels immediately to the **right**, plus short minor ticks along the bottom. When **baseLabel** is set (viewport axis only), a flex **base column** (`axis-ruler-base` + muted `+` separator) sits left of a dedicated **tick track** (`axis-ruler-track`); majors/minors position as 0–100% of the track only so labels never overlap the base. Overview passes `null` and the track spans full width. Parent supplies a **20px** track and tick data from `buildAxisRulerTicks` (nice zoom-aware ns grid). For viewport density, `widthPx` must be the **tick track** width after the base column — not the full axis (TimelineView observes `axis-ruler-track`). Labels sit in an **18px** top-aligned box (**12px / 400**). Minors are **5px**. This component fills `inset: 0` and clips overflow.
 
 ## Visual
 
@@ -44,6 +44,7 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 - [viewport-ticks](./visual/viewport-ticks.png) — from `v930/entry`
 
 ## Changelog
+- **2026-08-28** — Parent `widthPx` for viewport density is tick-track width after base column.
 - **2026-08-28** — Track `align-self: stretch` so tick labels are not clipped when ruler uses `align-items: flex-start`.
 - **2026-08-27** — Symmetric **4px** gaps around `+`; defer tick-label hide until **4px** from `+`.
 - **2026-08-27** — Viewport base: **4px** left inset; top-align with tick labels.

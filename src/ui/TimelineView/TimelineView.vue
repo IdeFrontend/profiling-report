@@ -70,7 +70,10 @@ const emit = defineEmits<{
 }>();
 
 const timeAxisRef = ref<HTMLElement | null>(null);
+/** Full `.pr-time-axis` width — measure chrome / cursor overlap. */
 const timeAxisWidth = ref(0);
+/** Tick track only (`axis-ruler-track`) — density for `buildAxisRulerTicks` when base column is present. */
+const axisTrackWidth = ref(0);
 const measureLabelWidth = ref(0);
 const swimlaneRef = ref<{
   gutterRoot: HTMLElement | null;
@@ -110,10 +113,16 @@ const viewportRuler = computed(() =>
     rangeEnd: props.view.endTime,
     origin: props.bounds.minTime,
     timeScaleUnit: props.timeScaleUnit,
-    widthPx: timeAxisWidth.value,
+    widthPx: axisTrackWidth.value || timeAxisWidth.value,
     useViewportBase: true,
   }),
 );
+
+function syncAxisWidths(el: HTMLElement) {
+  timeAxisWidth.value = el.clientWidth || 0;
+  const track = el.querySelector<HTMLElement>('[data-testid="axis-ruler-track"]');
+  axisTrackWidth.value = track?.clientWidth || timeAxisWidth.value;
+}
 
 /** Measure range as % of the viewport span — clamped; true edges only when in view. */
 const measureAxis = computed(() => {
@@ -246,16 +255,34 @@ watch(
   timeAxisRef,
   (el, _prev, onCleanup) => {
     if (!el || typeof ResizeObserver === 'undefined') {
-      if (el) timeAxisWidth.value = el.clientWidth || 0;
+      if (el) syncAxisWidths(el);
       return;
     }
+    let observedTrack: HTMLElement | null = null;
     const sync = () => {
-      timeAxisWidth.value = el.clientWidth || 0;
+      syncAxisWidths(el);
+      const track = el.querySelector<HTMLElement>('[data-testid="axis-ruler-track"]');
+      if (track && track !== observedTrack) {
+        if (observedTrack) ro.unobserve(observedTrack);
+        observedTrack = track;
+        ro.observe(track);
+      }
     };
-    sync();
     const ro = new ResizeObserver(sync);
     ro.observe(el);
+    sync();
     onCleanup(() => ro.disconnect());
+  },
+  { flush: 'post' },
+);
+
+/** Re-measure tick track after base column appears/disappears (flex layout). */
+watch(
+  () => viewportRuler.value.baseLabel,
+  async () => {
+    await nextTick();
+    const el = timeAxisRef.value;
+    if (el) syncAxisWidths(el);
   },
   { flush: 'post' },
 );

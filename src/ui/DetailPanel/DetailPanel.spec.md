@@ -8,7 +8,7 @@ Raised bottom 「详情」 dock: titled header with a close control over a three
 
 ## Inputs
 
-**selected** (`SelectedEvent`), **unit**, optional **timeOrigin** / **locale**. Optional **neighbors** (`DependencyNeighbors`), **dependencyMode** and **dependencyDepth** drive the Relevent column.
+**selected** (`SelectedEvent`), optional **timeOrigin** / **locale**. Start / duration / end formatting lives in `DetailSummary` (per-value auto units — no `timeScaleUnit` / `unit` prop on this dock). Optional **neighbors** (`DependencyNeighbors`), **dependencyMode** and **dependencyDepth** drive the Relevent column.
 
 ## Outputs
 
@@ -45,6 +45,7 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 [dependencies](../../../specs/core/dependencies.spec.md) for the neighbour model.
 
 ## Changelog
+- **2026-08-28** — Drop phantom `unit` input; summary times are per-value auto (two-tier I-Q14).
 - **2026-08-20** — PR-DPANEL-005: the dock's top edge is a drag handle. **height** is a prop and **update:height** an emit, so the root owns the size the way it owns the gutter and aside widths; the drag reuses `panelResize` on the vertical axis and clamps against the viewport so the dock can never swallow the timeline.
 - **2026-08-20** — Dock height 247px, the sketch's proportion at 1920 wide.
 - **2026-08-20** — Relays `dependencyMode` / `dependencyDepth` instead of `level`: the dock's direction and depth controls now drive the swimlane curves too.

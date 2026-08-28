@@ -8,7 +8,7 @@ Full timeline preview bar with a draggable/resizable window indicator representi
 
 ## Inputs
 
-The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). **timeDisplayMode** and optional **clockFreqMHz** control label formatting; overview wall-time unit is derived from total span × track width (not the brush window).
+The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). Overview wall-time unit is derived internally from total span × track width via `resolveTimeUnitFromAxisDensity` (brush window must not change it). No host unit / display-mode props.
 
 ## Outputs
 
@@ -67,6 +67,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 - [Statistical analysis (overview charts)](../../../../docs/ui/source/v930/entry.jpeg)
 
 ## Changelog
+- **2026-08-28** — Drop phantom `timeDisplayMode` / `clockFreqMHz`; overview unit from total span × track width only.
 - **2026-08-20** — Window-level move/up for handle drag; PR-OVERVIEW-006.
 - **2026-08-20** — Edge handles may overlap aside seam via `.pr-main` overflow; PR-OVERVIEW-005.
 - **2026-08-13** — Handle head 4×10 flush vertically; horizontal edge uncrop via track `overflow: visible`; PR-OVERVIEW-005.
