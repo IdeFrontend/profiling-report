@@ -56,7 +56,7 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 
 | Element | Visual (normative) |
 |---------|-------------------|
-| Pin control | Absolute at gutter **left edge** (`left ≈ 6px`); **not** depth-indented. Layout box **10×10** |
+| Pin control | Absolute at gutter **left edge** (`left ≈ 6px`); **not** depth-indented. Layout box **16×16** |
 | Visibility | **Pinned:** always visible (filled). **Unpinned:** hover only — leaf gutter row, canvas band (`hoveredLaneId`), or pin `:focus-visible` |
 | Unpinned (lane hover) | **Outline** pushpin; stroke `#a8a8a8` (chevron family) |
 | Pinned / pin hover | **Solid fill** accent blue `#4a90e2` (match toolbar measure-active) |
@@ -103,7 +103,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 | Token | Value |
 |-------|--------|
 | Icon | PyPTO / DevUI pushpin thumbtack (`src/ui/icons/pushpin.svg` outline, `pushpin-fill.svg` solid) |
-| Layout box | `10×10` (match chevron scale) |
+| Layout box | `16×16` (PyPTO DevUI pushpin native size) |
 | Position | Flush **left** of gutter row (absolute); same x at every nest depth |
 | Visibility | Unpinned: only while leaf row / canvas band hovered (or pin focused). **Pinned: always visible** (original + sticky strip) |
 | Unpinned | Outline stroke `#a8a8a8` |

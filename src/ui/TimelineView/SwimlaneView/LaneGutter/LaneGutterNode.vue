@@ -235,9 +235,9 @@ function onPinClick(e: MouseEvent) {
   top: 50%;
   transform: translateY(-50%);
   z-index: 1;
-  flex: 0 0 10px;
-  width: 10px;
-  height: 10px;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   margin: 0;
   border: 0;

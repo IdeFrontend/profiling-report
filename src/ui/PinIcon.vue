@@ -17,12 +17,12 @@ withDefaults(
 </script>
 
 <style scoped>
-/* 10×10 box matching Chevron; glyph from src/ui/icons/pushpin*.svg (PyPTO/DevUI). */
+/* 16×16 display; glyph from src/ui/icons/pushpin*.svg (PyPTO/DevUI). */
 .pr-pin {
   box-sizing: border-box;
-  flex: 0 0 10px;
-  width: 10px;
-  height: 10px;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
   display: inline-block;
   color: #a8a8a8;
   background-color: currentColor;
