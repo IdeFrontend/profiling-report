@@ -38,6 +38,7 @@ interface GlProgram {
   uSizePos: WebGLUniformLocation;
   uResolution: WebGLUniformLocation | null;
   uColor: WebGLUniformLocation;
+  uYBounds: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -110,6 +111,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uSizePos,
     uResolution: gl.getUniformLocation(program, 'uResolution'),
     uColor,
+    uYBounds: gl.getUniformLocation(program, 'uYBounds'),
   };
 }
 
@@ -227,7 +229,7 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
 
 /**
  * WebGL2 coverage-AA interval backend (Sudu-inspired; no sudu-editor dependency).
- * Draws uniform lane backgrounds, row dividers, coverage-AA interval fills, and instanced
+ * Draws uniform lane backgrounds, row dividers, rounded coverage-AA interval fills, and instanced
  * dependency polylines. Labels/selection use overlay.
  */
 export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
@@ -447,6 +449,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const [r, g, b] = meshes.color;
 
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
+      if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
       const drawChunks = (chunks: MeshChunk[], dim: number): void => {
         // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
