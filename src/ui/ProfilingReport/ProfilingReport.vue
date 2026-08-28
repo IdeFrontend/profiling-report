@@ -716,7 +716,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     <DetailPanel
       v-if="selected && showTimeline"
       :selected="selected"
-      :time-scale-unit="viewportTimeScaleUnit"
       :time-origin="bounds.minTime"
       :locale="locale"
       :neighbors="dependencyNeighbors"
@@ -731,7 +730,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       v-if="hovered && showTimeline"
       :event="hovered"
       :style-pos="tooltipStyle"
-      :time-scale-unit="viewportTimeScaleUnit"
       :time-origin="bounds.minTime"
       :locale="locale"
     />

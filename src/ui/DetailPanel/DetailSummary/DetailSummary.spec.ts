@@ -7,7 +7,6 @@ describe('DetailSummary', () => {
     const wrapper = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'test_op', startTime: 100, duration: 100, endTime: 200 },
-        timeScaleUnit: 'ms',
       },
     });
 
@@ -15,23 +14,22 @@ describe('DetailSummary', () => {
     expect(wrapper.text()).toContain('test_op');
   });
 
-  it('PR-DSUM-002: shows bare values with the unit in the column label', () => {
+  it('PR-DSUM-002: shows bare values with per-value unit in each caption', () => {
     const wrapper = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'op', startTime: 1_000_000, duration: 500_000, endTime: 1_500_000 },
-        timeScaleUnit: 'us',
       },
     });
 
     expect(wrapper.findAll('.pr-detail-summary__value').map((n) => n.text())).toEqual([
-      '1 000.000',
+      '1.000',
       '500.000',
-      '1 500.000',
+      '1.500',
     ]);
     expect(wrapper.findAll('.pr-detail-summary__label').map((n) => n.text())).toEqual([
-      'Start (µs)',
+      'Start (ms)',
       'Duration (µs)',
-      'End (µs)',
+      'End (ms)',
     ]);
   });
 
@@ -46,7 +44,6 @@ describe('DetailSummary', () => {
           endTime: 10,
           args: { op_type: 'MOV_OUT_TO_L1_MULTI_ND2NZ' },
         },
-        timeScaleUnit: 'ns',
       },
     });
     expect(withType.find('[data-testid="detail-summary-kind"]').text()).toBe(
@@ -56,7 +53,6 @@ describe('DetailSummary', () => {
     const without = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'FIX_LOC_TO_DST', startTime: 0, duration: 10, endTime: 10 },
-        timeScaleUnit: 'ns',
       },
     });
     expect(without.find('[data-testid="detail-summary-kind"]').exists()).toBe(false);
@@ -74,15 +70,14 @@ describe('DetailSummary', () => {
           endTime: 708_421_242_164_456,
           args: { op_type: 'event' },
         },
-        timeScaleUnit: 'ms',
       },
     });
 
     const titles = wrapper.findAll('.pr-detail-summary__value').map((n) => n.attributes('title'));
     expect(titles).toEqual([
-      '708 421 242.123 ms',
-      '0.041 ms',
-      '708 421 242.164 ms',
+      '708 421.242 s',
+      '41.000 µs',
+      '708 421.242 s',
     ]);
     expect(wrapper.find('.pr-detail-summary__name').attributes('title')).toBe(
       '0-0-103-13-2(matmul)',

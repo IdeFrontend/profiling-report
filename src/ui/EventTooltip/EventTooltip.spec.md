@@ -8,7 +8,7 @@ Floating tooltip shown on hover over a swimlane event. Displays the event name a
 
 ## Inputs
 
-**event** is the SwimEvent being hovered. **stylePos** carries CSS `{ left, top }` values computed by the parent from the cursor's clientX/clientY. **unit** selects the time display unit. Optional **locale** localizes labels.
+**event** is the SwimEvent being hovered. **stylePos** carries CSS `{ left, top }` values computed by the parent from the cursor's clientX/clientY. Optional **locale** localizes labels. Times use **per-value** auto units (`formatTimeAuto` / `formatDisplayTimeAuto`) — not the viewport zoom unit.
 
 ## Outputs
 
@@ -16,7 +16,7 @@ Purely presentational — no emitted events. The parent controls visibility by c
 
 ## Behavior
 
-Displays the event's name, start time, duration, and end time. Times are formatted in the currently selected display unit (ms/µs/ns). Positioned absolutely using inline styles computed by the parent from the cursor's clientX/clientY — the tooltip itself does not manage positioning.
+Displays the event's name, start time, duration, and end time. Each time field picks its unit from that value's magnitude (Start and Duration may differ). Positioned absolutely using inline styles computed by the parent from the cursor's clientX/clientY — the tooltip itself does not manage positioning.
 
 The parent conditionally renders the tooltip when a hovered event exists. When the cursor moves to empty space, the parent clears the hover and the tooltip is removed from DOM.
 
@@ -44,5 +44,6 @@ Crops: [`visual/tooltip.png`](./visual/tooltip.png), [`visual/tooltip-context.pn
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
 
 ## Changelog
+- **2026-08-28** — Per-value auto units for Start/Dur/End (independent of viewport zoom); drop `timeScaleUnit` prop.
 - **2026-08-10** — Recut from `v930/task-hover` (real hover tooltip dump).
 - **2026-08-05** — Initial spec. Core behaviors established.

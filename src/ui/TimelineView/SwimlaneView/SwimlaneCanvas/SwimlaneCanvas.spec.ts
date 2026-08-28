@@ -65,7 +65,7 @@ describe('SwimlaneCanvas', () => {
     view: { startTime: 0, endTime: 1000, scrollY: 0 },
     selectedEventId: null,
     hoveredEventId: null,
-    searchQuery: '',
+    searchQuery: ''
   };
 
   it('PR-CANVAS-001: creates canvas element on mount', () => {
@@ -100,7 +100,7 @@ describe('SwimlaneCanvas', () => {
   it('PR-CANVAS-002: canvas persists after model change', async () => {
     const wrapper = mount(SwimlaneCanvas, { props: nullProps });
     await wrapper.setProps({
-      model: { processes: [], minTime: 0, maxTime: 1000 },
+      model: { processes: [], minTime: 0, maxTime: 1000 }
     });
     expect(wrapper.find('canvas').exists()).toBe(true);
   });
@@ -111,20 +111,19 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         model: { processes: [], minTime: 0, maxTime: 1000 },
         measureMode: true,
-        measureRange: null,
-        timeScaleUnit: 'ms',
+        measureRange: null
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
     const el = canvas.element as HTMLCanvasElement;
     Object.defineProperty(el, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 }),
+      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 })
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 200, configurable: true });
     Object.defineProperty(wrap, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 }),
+      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 })
     });
 
     await canvas.trigger('pointerdown', { clientX: 20, clientY: 10, pointerId: 1 });
@@ -150,9 +149,8 @@ describe('SwimlaneCanvas', () => {
       props: {
         ...nullProps,
         measureMode: true,
-        measureRange: { startTime: 200, endTime: 500 },
-        timeScaleUnit: 'ms',
-      },
+        measureRange: { startTime: 200, endTime: 500 }
+      }
     });
     expect(wrapper.find('[data-testid="measure-fade-left"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-fade-right"]').exists()).toBe(true);
@@ -165,9 +163,8 @@ describe('SwimlaneCanvas', () => {
       props: {
         ...nullProps,
         measureMode: true,
-        measureRange: { startTime: 300, endTime: 300 },
-        timeScaleUnit: 'ms',
-      },
+        measureRange: { startTime: 300, endTime: 300 }
+      }
     });
     expect(wrapper.find('[data-testid="measure-fade-left"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="measure-border-left"]').exists()).toBe(false);
@@ -179,10 +176,9 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         view: { startTime: 200, endTime: 600, scrollY: 0 },
         measureMode: true,
-        measureRange: { startTime: 150, endTime: 750 },
-        timeScaleUnit: 'ms',
+        measureRange: { startTime: 150, endTime: 750 }
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
@@ -207,10 +203,9 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         view: { startTime: 400, endTime: 600, scrollY: 0 },
         measureMode: true,
-        measureRange: { startTime: 0, endTime: 100 },
-        timeScaleUnit: 'ms',
+        measureRange: { startTime: 0, endTime: 100 }
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
@@ -231,10 +226,9 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         view: { startTime: 0, endTime: 200, scrollY: 0 },
         measureMode: true,
-        measureRange: { startTime: 500, endTime: 800 },
-        timeScaleUnit: 'ms',
+        measureRange: { startTime: 500, endTime: 800 }
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
@@ -255,20 +249,19 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         model: { processes: [], minTime: 0, maxTime: 1000 },
         measureMode: true,
-        measureRange: null,
-        timeScaleUnit: 'ms',
+        measureRange: null
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
     const el = canvas.element as HTMLCanvasElement;
     Object.defineProperty(el, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 }),
+      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 })
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 200, configurable: true });
     Object.defineProperty(wrap, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 }),
+      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 })
     });
 
     await canvas.trigger('pointerdown', { clientX: 20, clientY: 10, pointerId: 1 });
@@ -290,15 +283,14 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         model: { processes: [], minTime: 0, maxTime: 1000 },
         measureMode: true,
-        measureRange: null,
-        timeScaleUnit: 'ms',
+        measureRange: null
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
     const el = canvas.element as HTMLCanvasElement;
     Object.defineProperty(el, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 }),
+      value: () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100 })
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 200, configurable: true });
@@ -319,15 +311,14 @@ describe('SwimlaneCanvas', () => {
       props: {
         ...nullProps,
         measureMode: true,
-        measureRange: { startTime: 200, endTime: 500 },
-        timeScaleUnit: 'ms',
+        measureRange: { startTime: 200, endTime: 500 }
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
     Object.defineProperty(wrap, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 100, right: 400, bottom: 100 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 100, right: 400, bottom: 100 })
     });
     await wrapper.setProps({ measureRange: { startTime: 200, endTime: 500 } });
 
@@ -360,10 +351,9 @@ describe('SwimlaneCanvas', () => {
       props: {
         ...nullProps,
         measureMode: true,
-        measureRange: { startTime: 200, endTime: 500 },
-        timeScaleUnit: 'ms',
+        measureRange: { startTime: 200, endTime: 500 }
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
@@ -391,11 +381,11 @@ describe('SwimlaneCanvas', () => {
           {
             id: 't-1',
             name: 'T',
-            events: [{ id: 'e1', name: 'busy', startTime: 200, duration: 300 }],
+            events: [{ id: 'e1', name: 'busy', startTime: 200, duration: 300 }]
           },
-        ],
+        ]
       },
-    ],
+    ]
   };
 
   async function mountWithEventModel(extra: Record<string, unknown> = {}) {
@@ -406,26 +396,26 @@ describe('SwimlaneCanvas', () => {
         preferRenderer: 'canvas' as const,
         measureMode: true,
         measureRange: null,
-        timeScaleUnit: 'ms',
-        ...extra,
+
+        ...extra
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
     Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
     Object.defineProperty(wrap, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 })
     });
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
     const el = canvas.element as HTMLCanvasElement;
     Object.defineProperty(el, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 })
     });
     // Model watch → resize with real dimensions so hitTest/eventScreenRect match.
     await wrapper.setProps({
       model: { ...eventModel },
-      hoveredEventId: (extra.hoveredEventId as string | null | undefined) ?? null,
+      hoveredEventId: (extra.hoveredEventId as string | null | undefined) ?? null
     });
     return { wrapper, canvas };
   }
@@ -508,7 +498,7 @@ describe('SwimlaneCanvas', () => {
     vi.spyOn(performance, 'now').mockReturnValue(0);
 
     const { wrapper, canvas } = await mountWithEventModel({
-      measureRange: { startTime: 50, endTime: 100 },
+      measureRange: { startTime: 50, endTime: 100 }
     });
     await wrapper.setProps({ measureRange: { startTime: 50, endTime: 100 } });
     callbacks.length = 0;
@@ -552,7 +542,7 @@ describe('SwimlaneCanvas', () => {
     vi.spyOn(performance, 'now').mockReturnValue(0);
 
     const { wrapper, canvas } = await mountWithEventModel({
-      measureRange: { startTime: 200, endTime: 500 },
+      measureRange: { startTime: 200, endTime: 500 }
     });
     await wrapper.setProps({ measureRange: { startTime: 200, endTime: 500 } });
     callbacks.length = 0;
@@ -676,7 +666,7 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('pointermove', {
       clientX: rect.x - 5,
       clientY: y,
-      pointerId: 1,
+      pointerId: 1
     });
     const last = wrapper.emitted('cursor')!.at(-1)![0] as { time: number; xRatio: number; snapped?: boolean };
     expect(last.time).toBe(200);
@@ -729,7 +719,7 @@ describe('SwimlaneCanvas', () => {
 
   it('PR-CANVAS-021: committed range shows exact-match blue edge marks', async () => {
     const { wrapper } = await mountWithEventModel({
-      measureRange: { startTime: 200, endTime: 500 },
+      measureRange: { startTime: 200, endTime: 500 }
     });
     const marks = wrapper.findAll('[data-testid="measure-edge-exact"]');
     expect(marks.length).toBeGreaterThanOrEqual(2);
@@ -755,7 +745,7 @@ describe('SwimlaneCanvas', () => {
       clientX: pointerX,
       clientY: y,
       deltaY: -100,
-      ctrlKey: true,
+      ctrlKey: true
     });
     const zoom = wrapper.emitted('zoom')!.at(-1)!;
     expect(zoom[0]).toBe(1.15);
@@ -767,7 +757,7 @@ describe('SwimlaneCanvas', () => {
 
   it('PR-CANVAS-023: Ctrl+wheel on measure border zooms on stuck edge time', async () => {
     const { wrapper } = await mountWithEventModel({
-      measureRange: { startTime: 200, endTime: 500 },
+      measureRange: { startTime: 200, endTime: 500 }
     });
     const border = wrapper.get('[data-testid="measure-border-right"]');
     await border.trigger('pointerenter', { clientX: 200, clientY: 10 });
@@ -775,7 +765,7 @@ describe('SwimlaneCanvas', () => {
       clientX: 205,
       clientY: 10,
       deltaY: -100,
-      ctrlKey: true,
+      ctrlKey: true
     });
     const zoom = wrapper.emitted('zoom')!.at(-1)!;
     expect(zoom[0]).toBe(1.15);
@@ -788,9 +778,9 @@ describe('SwimlaneCanvas', () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
-        model: { processes: [], minTime: 0, maxTime: 1000 },
+        model: { processes: [], minTime: 0, maxTime: 1000 }
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
@@ -804,9 +794,9 @@ describe('SwimlaneCanvas', () => {
         width: trackW,
         height: 100,
         right: trackW,
-        bottom: 100,
+        bottom: 100
       }),
-      configurable: true,
+      configurable: true
     });
     Object.defineProperty(el, 'getBoundingClientRect', {
       value: () => ({
@@ -815,9 +805,9 @@ describe('SwimlaneCanvas', () => {
         width: trackW,
         height: 100,
         right: trackW,
-        bottom: 100,
+        bottom: 100
       }),
-      configurable: true,
+      configurable: true
     });
 
     const x = 100.3;
@@ -834,9 +824,9 @@ describe('SwimlaneCanvas', () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
-        model: { processes: [], minTime: 0, maxTime: 1000 },
+        model: { processes: [], minTime: 0, maxTime: 1000 }
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const canvas = wrapper.get('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
     expect(canvas.width).toBe(0);
@@ -852,15 +842,23 @@ describe('SwimlaneCanvas', () => {
         width: 640,
         height: 240,
         right: 640,
-        bottom: 240,
+        bottom: 240
       }),
-      configurable: true,
+      configurable: true
     });
+<<<<<<< HEAD
     await fireAllDeviceRo();
     expect(canvas.width).toBe(640);
     expect(canvas.height).toBe(240);
     expect(canvas.style.width).toBe('');
     expect(canvas.style.height).toBe('');
+=======
+    await wrapper.setProps({
+      model: { processes: [], minTime: 0, maxTime: 1000 }
+    });
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+    expect(canvas.style.width).toBe('640px');
+>>>>>>> 6049726 (feat: two-tier auto time units for chrome vs absolute times)
     wrapper.unmount();
   });
 
@@ -888,11 +886,11 @@ describe('SwimlaneCanvas', () => {
             events: [
               { id: 'eA', name: 'a', startTime: 100, duration: 100 }, // 100..200 → px 40..80
               { id: 'eB', name: 'b', startTime: 500, duration: 100 }, // 500..600 → px 200..240
-            ],
+            ]
           },
-        ],
+        ]
       },
-    ],
+    ]
   };
 
   async function mountWithGapModel(extra: Record<string, unknown> = {}) {
@@ -903,21 +901,21 @@ describe('SwimlaneCanvas', () => {
         preferRenderer: 'canvas' as const,
         measureMode: false,
         measureRange: null,
-        timeScaleUnit: 'ns',
-        ...extra,
+
+        ...extra
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
     Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
     Object.defineProperty(wrap, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 })
     });
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
     const el = canvas.element as HTMLCanvasElement;
     Object.defineProperty(el, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 })
     });
     await wrapper.setProps({ model: { ...gapModel } });
     return { wrapper, canvas };
@@ -989,7 +987,7 @@ describe('SwimlaneCanvas', () => {
 
     // Parent applies pan delta — overlay recomputes at last pointer.
     await wrapper.setProps({
-      view: { startTime: 25, endTime: 1025, scrollY: 0 },
+      view: { startTime: 25, endTime: 1025, scrollY: 0 }
     });
     expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
     await canvas.trigger('pointerup', { clientX: 150, clientY: y, pointerId: 1 });
@@ -1016,7 +1014,7 @@ describe('SwimlaneCanvas', () => {
     // Parent hover emit replaces view object without changing the time window.
     await wrapper.setProps({
       hoveredEventId: 'some-other-id',
-      view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      view: { startTime: 0, endTime: 1000, scrollY: 0 }
     });
     expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
     wrapper.unmount();
@@ -1037,11 +1035,11 @@ describe('SwimlaneCanvas', () => {
               events: [
                 { id: 'eA', name: 'a', startTime: 100, duration: 100 }, // ends 200
                 { id: 'eB', name: 'b', startTime: 205, duration: 100 }, // 5-unit gap
-              ],
+              ]
             },
-          ],
+          ]
         },
-      ],
+      ]
     };
     const wrapper = mount(SwimlaneCanvas, {
       props: {
@@ -1049,10 +1047,9 @@ describe('SwimlaneCanvas', () => {
         model: narrowGapModel,
         preferRenderer: 'canvas' as const,
         measureMode: false,
-        measureRange: null,
-        timeScaleUnit: 'ns',
+        measureRange: null
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
@@ -1060,7 +1057,7 @@ describe('SwimlaneCanvas', () => {
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
     const el = canvas.element as HTMLCanvasElement;
     Object.defineProperty(el, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 })
     });
     await wrapper.setProps({ model: { ...narrowGapModel } });
     const vm = wrapper.vm as unknown as {
@@ -1082,13 +1079,13 @@ describe('SwimlaneCanvas', () => {
 
     // Simulate cmd+wheel zoom: narrower window still containing the gap at x=140.
     await wrapper.setProps({
-      view: { startTime: 180, endTime: 520, scrollY: 0 },
+      view: { startTime: 180, endTime: 520, scrollY: 0 }
     });
     expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
 
     // Zoom until both gap edges fall outside the view but the gap still spans it.
     await wrapper.setProps({
-      view: { startTime: 250, endTime: 260, scrollY: 0 },
+      view: { startTime: 250, endTime: 260, scrollY: 0 }
     });
     expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="gap-measure-stick-left"]').exists()).toBe(false);
@@ -1104,7 +1101,7 @@ describe('SwimlaneCanvas', () => {
 
     // Gap 200..500 is entirely before the view.
     await wrapper.setProps({
-      view: { startTime: 600, endTime: 900, scrollY: 0 },
+      view: { startTime: 600, endTime: 900, scrollY: 0 }
     });
     expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
     wrapper.unmount();
@@ -1124,7 +1121,7 @@ describe('SwimlaneCanvas', () => {
             events: [
               { id: 'eA1', name: 'a', startTime: 100, duration: 100 },
               { id: 'eB1', name: 'b', startTime: 500, duration: 100 },
-            ],
+            ]
           },
           {
             id: 't-2',
@@ -1132,11 +1129,11 @@ describe('SwimlaneCanvas', () => {
             events: [
               { id: 'eA2', name: 'c', startTime: 100, duration: 100 },
               { id: 'eB2', name: 'd', startTime: 500, duration: 100 },
-            ],
+            ]
           },
-        ],
+        ]
       },
-    ],
+    ]
   };
 
   async function mountWithDualLaneGapModel() {
@@ -1146,21 +1143,20 @@ describe('SwimlaneCanvas', () => {
         model: dualLaneGapModel,
         preferRenderer: 'canvas' as const,
         measureMode: false,
-        measureRange: null,
-        timeScaleUnit: 'ns',
+        measureRange: null
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
     Object.defineProperty(wrap, 'clientHeight', { value: 240, configurable: true });
     Object.defineProperty(wrap, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 240, right: 400, bottom: 240 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 240, right: 400, bottom: 240 })
     });
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
     const el = canvas.element as HTMLCanvasElement;
     Object.defineProperty(el, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 240, right: 400, bottom: 240 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 240, right: 400, bottom: 240 })
     });
     await wrapper.setProps({ model: { ...dualLaneGapModel } });
     return { wrapper, canvas };
@@ -1194,10 +1190,9 @@ describe('SwimlaneCanvas', () => {
         model: eventModel,
         preferRenderer: 'canvas' as const,
         measureMode: false,
-        measureRange: null,
-        timeScaleUnit: 'ms',
+        measureRange: null
       },
-      attachTo: document.body,
+      attachTo: document.body
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
@@ -1205,7 +1200,7 @@ describe('SwimlaneCanvas', () => {
     const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
     const el = canvas.element as HTMLCanvasElement;
     Object.defineProperty(el, 'getBoundingClientRect', {
-      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 })
     });
     await wrapper.setProps({ model: { ...eventModel }, measureMode: false });
 
@@ -1259,7 +1254,7 @@ describe('SwimlaneCanvas', () => {
 
   it('PR-CANVAS-041: resize drag off an event emits unsnapped cursor', async () => {
     const { wrapper } = await mountWithEventModel({
-      measureRange: { startTime: 200, endTime: 500 },
+      measureRange: { startTime: 200, endTime: 500 }
     });
     const right = wrapper.get('[data-testid="measure-border-right"]');
     await right.trigger('pointerdown', { clientX: 200, clientY: 60, pointerId: 1, button: 0 });
@@ -1299,7 +1294,7 @@ describe('SwimlaneCanvas', () => {
 
   it('PR-CANVAS-043: measure border hover emits snapped on event edges', async () => {
     const { wrapper } = await mountWithEventModel({
-      measureRange: { startTime: 200, endTime: 500 },
+      measureRange: { startTime: 200, endTime: 500 }
     });
     const left = wrapper.get('[data-testid="measure-border-left"]');
     await left.trigger('pointerenter', { clientX: 80, clientY: 60 });

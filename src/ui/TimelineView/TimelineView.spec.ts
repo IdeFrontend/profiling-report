@@ -120,7 +120,7 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ms/);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ns/);
   });
 
   it('PR-TIMELINE-003: measure drag on time axis emits update:measure-range', async () => {
@@ -312,7 +312,7 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="measure-arrow-head"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ms/);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ns/);
     expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
   });
 

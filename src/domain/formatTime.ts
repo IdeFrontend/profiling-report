@@ -59,6 +59,15 @@ export function resolveTimeUnitFromVisibleRange(spanNs: number): TimeScaleUnit {
   return timeScaleUnitFromNsQuantum(spanNs);
 }
 
+/**
+ * Per-value unit from the magnitude of a single timestamp / duration (PyPTO-like).
+ * Used by tooltip, detail Start/End/Duration, and measure/gap Δt — not by axis/cursor.
+ */
+export function timeScaleUnitFromMagnitude(ns: number): TimeScaleUnit {
+  if (!Number.isFinite(ns)) return 'ns';
+  return timeScaleUnitFromNsQuantum(Math.abs(ns));
+}
+
 function nsToUnitValue(ns: number, unit: TimeScaleUnit): number {
   switch (unit) {
     case 'ns':
@@ -170,10 +179,22 @@ export function formatTimeParts(
   }
 }
 
-/** Format tooltip / detail times. */
+/** Format times in an explicit scale unit (axis / cursor chrome). */
 export function formatTime(ns: number, unit: TimeScaleUnit = 'ms'): string {
   if (!Number.isFinite(ns)) return '—';
   const parts = formatTimeParts(ns, unit);
+  return `${parts.value} ${parts.unit}`;
+}
+
+/** Tooltip / detail / Δt — unit from this value's magnitude, not viewport zoom. */
+export function formatTimePartsAuto(ns: number): { value: string; unit: string } {
+  return formatTimeParts(ns, timeScaleUnitFromMagnitude(ns));
+}
+
+/** Joined {@link formatTimePartsAuto}. */
+export function formatTimeAuto(ns: number): string {
+  if (!Number.isFinite(ns)) return '—';
+  const parts = formatTimePartsAuto(ns);
   return `${parts.value} ${parts.unit}`;
 }
 
@@ -205,4 +226,17 @@ export function formatDisplayTimeParts(
   unit: TimeScaleUnit = 'ms',
 ): { value: string; unit: string } {
   return formatTimeParts(ns - origin, unit);
+}
+
+/** Per-value display time (tooltip / detail start·end). */
+export function formatDisplayTimeAuto(ns: number, origin: number): string {
+  return formatTimeAuto(ns - origin);
+}
+
+/** Per-value display parts (detail start·end columns). */
+export function formatDisplayTimePartsAuto(
+  ns: number,
+  origin: number,
+): { value: string; unit: string } {
+  return formatTimePartsAuto(ns - origin);
 }

@@ -17,7 +17,6 @@ describe('EventTooltip', () => {
       props: {
         event: makeEvent(),
         stylePos: { left: '10px', top: '20px' },
-        timeScaleUnit: 'ms',
       },
     });
 
@@ -25,15 +24,21 @@ describe('EventTooltip', () => {
     expect(wrapper.text()).toContain('test_op');
   });
 
-  it('PR-TOOLTIP-002: renders with different time units', () => {
+  it('PR-TOOLTIP-002: formats start/duration/end with per-value units', () => {
     const wrapper = mount(EventTooltip, {
       props: {
-        event: makeEvent(),
+        event: makeEvent({
+          startTime: 2_000_000,
+          duration: 500,
+        }),
         stylePos: { left: '0px', top: '0px' },
-        timeScaleUnit: 'us',
+        timeOrigin: 0,
       },
     });
 
-    expect(wrapper.find('[data-testid="event-tooltip"]').exists()).toBe(true);
+    const text = wrapper.text();
+    expect(text).toContain('2.000 ms'); // start → ms
+    expect(text).toContain('500 ns'); // duration → ns
+    expect(text).toContain('2.001 ms'); // end 2_000_500 → ms
   });
 });

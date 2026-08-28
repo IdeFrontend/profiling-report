@@ -14,7 +14,7 @@ const neighbors: DependencyNeighbors = {
 describe('DetailPanel', () => {
   it('PR-DPANEL-001: renders shell with summary', () => {
     const wrapper = mount(DetailPanel, {
-      props: { selected, timeScaleUnit: 'ms' },
+      props: { selected },
     });
 
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
@@ -25,7 +25,7 @@ describe('DetailPanel', () => {
 
   it('PR-DPANEL-002: close button emits close', async () => {
     const wrapper = mount(DetailPanel, {
-      props: { selected, timeScaleUnit: 'ms' },
+      props: { selected },
     });
 
     await wrapper.find('[data-testid="detail-panel-close"]').trigger('click');
@@ -33,14 +33,14 @@ describe('DetailPanel', () => {
   });
 
   it('PR-DPANEL-003: Relevent column renders only with neighbors', () => {
-    const without = mount(DetailPanel, { props: { selected, timeScaleUnit: 'ms' } });
+    const without = mount(DetailPanel, { props: { selected } });
     expect(without.find('[data-testid="detail-relevant"]').exists()).toBe(false);
     expect(without.find('.pr-detail-panel__body').classes()).toContain(
       'pr-detail-panel__body--no-relevant',
     );
 
     const withDeps = mount(DetailPanel, {
-      props: { selected, timeScaleUnit: 'ms', neighbors },
+      props: { selected, neighbors },
     });
     expect(withDeps.find('[data-testid="detail-relevant"]').exists()).toBe(true);
     expect(withDeps.find('.pr-detail-panel__body').classes()).not.toContain(
@@ -51,7 +51,7 @@ describe('DetailPanel', () => {
 
   it('PR-DPANEL-004: forwards dependency mode updates', async () => {
     const wrapper = mount(DetailPanel, {
-      props: { selected, timeScaleUnit: 'ms', neighbors, dependencyMode: 'all' },
+      props: { selected, neighbors, dependencyMode: 'all' },
     });
 
     // Depth lives in 显示控制 and drives the swimlane graph, not this column.
@@ -64,7 +64,7 @@ describe('DetailPanel', () => {
   });
 
   it('PR-DPANEL-005: dragging the top edge up grows the dock', async () => {
-    const wrapper = mount(DetailPanel, { props: { selected, timeScaleUnit: 'ms', height: 247 } });
+    const wrapper = mount(DetailPanel, { props: { selected, height: 247 } });
     const handle = wrapper.find('[data-testid="detail-panel-resize-handle"]');
     expect(handle.exists()).toBe(true);
     expect(wrapper.find('[data-testid="detail-panel"]').attributes('style')).toContain('247px');

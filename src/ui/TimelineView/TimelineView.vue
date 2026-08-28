@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { buildAxisRulerTicks } from '../../domain/axisRuler';
-import { formatDisplayTime, formatTime } from '../../domain/formatTime';
+import { formatDisplayTime, formatTimeAuto } from '../../domain/formatTime';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -125,7 +125,7 @@ const measureAxis = computed(() => {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
-  const label = formatTime(end - start, props.timeScaleUnit);
+  const label = formatTimeAuto(end - start);
   const visStart = Math.max(viewStart, start);
   const visEnd = Math.min(viewEnd, end);
   if (!(visEnd > visStart)) {
@@ -575,7 +575,6 @@ defineExpose({
       :search-query="view.searchQuery"
       :measure-mode="view.measureMode"
       :measure-range="view.measureRange"
-      :time-scale-unit="timeScaleUnit"
       :dependency-mode="dependencyMode"
       :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"

@@ -9,12 +9,17 @@ Format internal nanosecond time values to human-readable strings for axis ticks,
 ```ts
 formatTime(ns, unit?: TimeScaleUnit): string
 formatTimeParts(ns, unit?): { value: string; unit: string }
+formatTimeAuto(ns): string
+formatTimePartsAuto(ns): { value: string; unit: string }
 formatAxisTime(ns, unit?, tickStepNs?): string
 formatAxisBaseTime(ns, unit): string
 formatCursorTime(ns, unit?): string
 formatDisplayTime(ns, origin, unit?): string
 formatDisplayTimeParts(ns, origin, unit?): { value: string; unit: string }
+formatDisplayTimeAuto(ns, origin): string
+formatDisplayTimePartsAuto(ns, origin): { value: string; unit: string }
 timeScaleUnitFromNsQuantum(quantumNs): TimeScaleUnit
+timeScaleUnitFromMagnitude(ns): TimeScaleUnit
 resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 ```
 
@@ -22,13 +27,18 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 
 **Internal representation.** All time values throughout the system use nanoseconds internally. Conversion to display units happens only at the formatting layer.
 
-**Auto scale.** Wall-time labels use `TimeScaleUnit` (`s` / `ms` / `us` / `ns`). Viewport chrome uses `resolveTimeUnitFromVisibleRange(end − start)`. Overview / total axis uses major-tick step from span×width (`resolveTimeUnitFromAxisDensity` in axisRuler) — brush window must not change overview unit. **No** manual ms/µs/ns dropdown and **no** CPU clock-cycle mode in this PR (cycles deferred — see [I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale)).
+**Two-tier auto scale** ([I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale)). Wall-time labels use `TimeScaleUnit` (`s` / `ms` / `us` / `ns`).
 
-**Tooltip/detail formatting.** `formatTime` shows 3 decimal places (integer ns). Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part so ms / µs / ns magnitudes stay distinguishable. `formatTimeParts` returns value and unit separately for the detail card (`7419` under `Start (ns)`); `formatTime` joins them. `formatDisplayTime` / `formatDisplayTimeParts` subtract a shared origin (usually `minTime`) for start/end columns.
+- **Spatial chrome** (viewport axis, cursor timestamp, overview axis): share a viewport / density unit — `resolveTimeUnitFromVisibleRange(end − start)` for viewport chrome; overview / total axis uses major-tick step from span×width (`resolveTimeUnitFromAxisDensity` in axisRuler) — brush window must not change overview unit.
+- **Absolute event times** (tooltip / detail Start·End·Duration) and **measure / gap Δt**: each value picks its own unit via `timeScaleUnitFromMagnitude` / `formatTimeAuto` (PyPTO-like) — **independent of zoom**. Start and Duration may use different units.
 
-**Axis tick formatting.** `formatAxisTime` derives one fraction-digit count from `tickStepNs` in the display unit (0 when the step is integral; otherwise the minimum digits that represent the step). Every tick on the same axis uses that precision — integral steps omit `.0` (e.g. `100ms`); fractional steps keep trailing zeros on whole ticks (e.g. `25.0ms` beside `12.5ms`). **Zero is always compact** (`0ms` / `0µs` / `0ns` / `0s`, never `0.0…`). Applies the same ≥1000 grouping. Viewport axis may subtract a coarse base (`resolveAxisBaseOffset` in axisRuler) and show remainders on ticks; the base label uses `formatAxisBaseTime` (integral only, no decimal point). Cursor/tooltip keep full `formatDisplayTime`.
+**No** manual ms/µs/ns dropdown and **no** CPU clock-cycle mode in this PR (cycles deferred).
 
-**Cursor formatting.** `MM:SS.mmm` in the resolved scale (sketch: 4.456ms → `00:04.456`).
+**Tooltip/detail formatting.** `formatTime` / `formatTimeParts` take an explicit unit (chrome callers). Surfaces that must not follow zoom use `formatTimeAuto` / `formatTimePartsAuto` / `formatDisplayTimeAuto` / `formatDisplayTimePartsAuto`. Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part. `formatTimeParts*` returns value and unit separately for the detail card (`7419` under `Start (ns)`); joined helpers add a space.
+
+**Axis tick formatting.** `formatAxisTime` derives one fraction-digit count from `tickStepNs` in the display unit (0 when the step is integral; otherwise the minimum digits that represent the step). Every tick on the same axis uses that precision — integral steps omit `.0` (e.g. `100ms`); fractional steps keep trailing zeros on whole ticks (e.g. `25.0ms` beside `12.5ms`). **Zero is always compact** (`0ms` / `0µs` / `0ns` / `0s`, never `0.0…`). Applies the same ≥1000 grouping. Viewport axis may subtract a coarse base (`resolveAxisBaseOffset` in axisRuler) and show remainders on ticks; the base label uses `formatAxisBaseTime` (integral only, no decimal point). Cursor keeps full `formatDisplayTime` in the viewport unit.
+
+**Cursor formatting.** `MM:SS.mmm` in the resolved scale (sketch: 4.456ms → `00:04.456`) — API helper; UI cursor pill uses scalar `formatDisplayTime` in the viewport unit.
 
 ## Acceptance Criteria
 
@@ -40,16 +50,18 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 1. **PR-TIME-005** — `formatTimeParts` and joined `formatTime`.
 1. **PR-TIME-006** — `formatAxisBaseTime` integral only (no decimal point).
 1. **PR-TIME-007** — axis ticks share one fraction-digit count from tick step (no mixed `146ms` / `146.1ms`).
+1. **PR-TIME-008** — `formatTimeAuto` / magnitude unit: tooltip/detail/Δt independent of viewport unit.
 
 ## Edge Cases
 
-Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTime(0)` still `'0.000 ms'`. NaN/Infinity → `'—'`. Negative cursor → clamped to 0.
+Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTimeAuto(0)` → `'0 ns'`. NaN/Infinity → `'—'`. Negative cursor → clamped to 0.
 
 ## Dependencies
 
 I-Q14 — Time (auto scale); see [INTERIM_DECISIONS I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale).
 
 ## Changelog
+- **2026-08-28** — PR-TIME-008 two-tier auto: chrome from viewport/density; tooltip/detail/Δt per-value.
 - **2026-08-27** — PR-TIME-007 uniform axis fraction digits from tick step.
 - **2026-08-27** — PR-TIME-006 `formatAxisBaseTime` integral-only viewport base labels.
 - **2026-08-27** — Group thousands with spaces when |value| ≥ 1000.

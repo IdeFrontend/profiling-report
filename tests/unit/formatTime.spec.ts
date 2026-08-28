@@ -4,8 +4,11 @@ import {
   formatAxisBaseTime,
   formatCursorTime,
   formatTime,
+  formatTimeAuto,
   formatTimeParts,
+  formatTimePartsAuto,
   resolveTimeUnitFromVisibleRange,
+  timeScaleUnitFromMagnitude,
   timeScaleUnitFromNsQuantum,
 } from '../../src/domain/formatTime';
 
@@ -79,5 +82,19 @@ describe('PR-TIME: auto-scale time labels', () => {
     expect(formatAxisTime(37_500_000, 'ms', stepHalfMs)).toBe('37.5ms');
 
     expect(formatAxisTime(441_004_000, 'ms', 1_000)).toBe('441.004ms');
+  });
+
+  it('PR-TIME-008: per-value auto unit independent of viewport scale', () => {
+    expect(timeScaleUnitFromMagnitude(500)).toBe('ns');
+    expect(timeScaleUnitFromMagnitude(1_500)).toBe('us');
+    expect(timeScaleUnitFromMagnitude(1_500_000)).toBe('ms');
+    expect(timeScaleUnitFromMagnitude(2e9)).toBe('s');
+
+    expect(formatTimeAuto(500)).toBe('500 ns');
+    expect(formatTimeAuto(1_800_000)).toBe('1.800 ms');
+    expect(formatTimePartsAuto(41_000)).toEqual({ value: '41.000', unit: 'µs' });
+    // Same absolute duration stays µs even though a wide viewport would be ms.
+    expect(formatTime(41_000, 'ms')).toBe('0.041 ms');
+    expect(formatTimeAuto(41_000)).toBe('41.000 µs');
   });
 });
