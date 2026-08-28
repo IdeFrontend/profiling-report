@@ -6,7 +6,13 @@ import type {
   SwimlaneViewWindow,
 } from '../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
-import { dependencyGraph, paintDependencyLinks, type DependencyLink } from './dependencyLinks';
+import {
+  cubicControlPull,
+  dependencyGraph,
+  linkIntersectsTimeView,
+  linkToScreen,
+  type DependencyLink,
+} from './dependencyLinks';
 import {
   BAND_FILL,
   EMPTY_LAYOUT,
@@ -30,26 +36,20 @@ import {
   type SwimlaneLayout,
 } from './layout';
 
-function minCssPx(dpr: number): number {
-  return 1 / dpr;
-}
-
 /** Device-pixel-snapped stroke path inset by half the (snapped) line width. */
 function strokeRoundedEvent(
   ctx: CanvasRenderingContext2D,
   r: { x: number; y: number; w: number; h: number; r: number },
-  lineWidthCss: number,
-  dpr: number,
+  lineWidthDevice: number,
 ): void {
-  const lw = Math.max(minCssPx(dpr), Math.round(lineWidthCss * dpr) / dpr);
+  const lw = Math.max(1, Math.round(lineWidthDevice));
   ctx.lineWidth = lw;
-  const min = minCssPx(dpr);
   roundRectPath(
     ctx,
     r.x + lw / 2,
     r.y + lw / 2,
-    Math.max(min, r.w - lw),
-    Math.max(min, r.h - lw),
+    Math.max(1, r.w - lw),
+    Math.max(1, r.h - lw),
     r.r,
   );
   ctx.stroke();
@@ -65,17 +65,47 @@ function drawEventLabel(
   viewW: number,
   alpha = 1,
   color = '#ffffff',
+  dpr = 1,
 ): void {
   const anchor = eventLabelAnchor(x, w, viewW);
   if (!anchor) return;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+  ctx.font = `${Math.max(8, Math.round(10 * dpr))}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
   ctx.restore();
+}
+
+/** Canvas 2D dependency curves in device pixels (Y scaled from layout CSS space). */
+function paintDependencyLinksDevice(
+  ctx: CanvasRenderingContext2D,
+  links: readonly DependencyLink[],
+  view: SwimlaneViewWindow,
+  widthDevice: number,
+  dpr: number,
+): void {
+  if (links.length === 0) return;
+  ctx.lineWidth = Math.max(1, Math.round(2));
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const link of links) {
+    if (!linkIntersectsTimeView(link, view)) continue;
+    const { x0, y0, x1, y1 } = linkToScreen(link, view, widthDevice);
+    const y0d = y0 * dpr;
+    const y1d = y1 * dpr;
+    const pull = cubicControlPull(x0, x1);
+    const g = ctx.createLinearGradient(x0, y0d, x1, y1d);
+    g.addColorStop(0, link.fromColor);
+    g.addColorStop(1, link.toColor);
+    ctx.strokeStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0d);
+    ctx.bezierCurveTo(x0 + pull, y0d, x1 - pull, y1d, x1, y1d);
+    ctx.stroke();
+  }
 }
 
 function roundRectPath(
@@ -104,8 +134,8 @@ export function paintGroupBands(
   ctx: CanvasRenderingContext2D,
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
-  width: number,
-  height: number,
+  widthDevice: number,
+  heightDevice: number,
   dpr = 1,
 ): void {
   const bands = layout.bands;
@@ -117,15 +147,17 @@ export function paintGroupBands(
       if (band.startTime + band.duration < view.startTime || band.startTime > view.endTime) {
         continue;
       }
-      const x = ((band.startTime - view.startTime) / span) * width;
-      const w = Math.max(2, (band.duration / span) * width);
-      const { y, h } = eventBlockMetrics(lane.y, view.scrollY);
-      if (y + h < 0 || y > height) continue;
-      const r = snapEventRect(x, y, w, h, dpr);
+      const x = ((band.startTime - view.startTime) / span) * widthDevice;
+      const w = Math.max(2, (band.duration / span) * widthDevice);
+      const metrics = eventBlockMetrics(lane.y, view.scrollY);
+      const y = metrics.y * dpr;
+      const h = metrics.h * dpr;
+      if (y + h < 0 || y > heightDevice) continue;
+      const r = snapEventRect(x, y, w, h);
       ctx.fillStyle = BAND_FILL;
       roundRectPath(ctx, r.x, r.y, r.w, r.h, eventRadius(w));
       ctx.fill();
-      drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, width, 1, '#555555');
+      drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, widthDevice, 1, '#555555', dpr);
     }
   }
 }
@@ -152,18 +184,14 @@ export class SwimlaneOverlayPainter {
     this.ctx = canvas.getContext('2d');
   }
 
-  resize(width: number, height: number): void {
-    this.width = Math.max(1, Math.floor(width));
-    this.height = Math.max(1, Math.floor(height));
+  resize(devicePixelWidth: number, devicePixelHeight: number, dpr: number): void {
+    this.width = Math.max(1, Math.floor(devicePixelWidth));
+    this.height = Math.max(1, Math.floor(devicePixelHeight));
+    this.dpr = dpr > 0 ? dpr : 1;
     if (this.canvas && this.ctx) {
-      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-      this.canvas.width = Math.floor(this.width * dpr);
-      this.canvas.height = Math.floor(this.height * dpr);
-      // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
-      this.dpr = this.canvas.width / this.width || 1;
-      this.canvas.style.width = `${this.width}px`;
-      this.canvas.style.height = `${this.height}px`;
-      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
   }
 
@@ -213,23 +241,25 @@ export class SwimlaneOverlayPainter {
       }
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
+      const metrics = eventBlockMetrics(item.y, this.view.scrollY);
+      const y = metrics.y * dpr;
+      const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
-      const r = eventPaintRect(x, y, w, h, dpr);
+      const r = eventPaintRect(x, y, w, h);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
 
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
-        strokeRoundedEvent(ctx, r, 2, dpr);
+        strokeRoundedEvent(ctx, r, 2);
       } else if (item.id === this.hoveredId) {
         ctx.strokeStyle = '#c8e0ff';
-        strokeRoundedEvent(ctx, r, 1.5, dpr);
+        strokeRoundedEvent(ctx, r, Math.max(1, Math.round(1.5)));
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
-      if (matches) drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim);
+      if (matches) drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim, '#ffffff', dpr);
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
@@ -265,19 +295,15 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.ctx = canvas.getContext('2d');
   }
 
-  resize(width: number, height: number): void {
-    this.width = Math.max(1, Math.floor(width));
-    this.height = Math.max(1, Math.floor(height));
+  resize(devicePixelWidth: number, devicePixelHeight: number, dpr: number): void {
+    this.width = Math.max(1, Math.floor(devicePixelWidth));
+    this.height = Math.max(1, Math.floor(devicePixelHeight));
+    this.dpr = dpr > 0 ? dpr : 1;
     if (this.canvas) {
-      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-      this.canvas.width = Math.floor(this.width * dpr);
-      this.canvas.height = Math.floor(this.height * dpr);
-      // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
-      this.dpr = this.canvas.width / this.width || 1;
-      this.canvas.style.width = `${this.width}px`;
-      this.canvas.style.height = `${this.height}px`;
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
       if (this.ctx) {
-        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       }
     }
   }
@@ -331,11 +357,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
     const item = findLaidOutEvent(this.layout, eventId);
     if (!item) return null;
-    return eventScreenRect(item, this.view, this.width);
+    return eventScreenRect(item, this.view, this.width, this.dpr);
   }
 
   hitTest(x: number, y: number): string | null {
-    return hitTestLayout(this.layout, this.view, this.width, x, y);
+    return hitTestLayout(this.layout, this.view, this.width, x, y, this.dpr);
   }
 
   findEvent(id: string): SwimEvent | null {
@@ -355,28 +381,32 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     ctx.fillStyle = '#1f1f1f';
     ctx.fillRect(0, 0, this.width, this.height);
 
+    const dpr = this.dpr;
+
     for (const header of this.layout.headers) {
-      const headerTop = header.y - this.view.scrollY;
-      if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < this.height) {
+      const headerTop = (header.y - this.view.scrollY) * dpr;
+      const headerH = LANE_GROUP_HEADER_HEIGHT * dpr;
+      if (headerTop + headerH > 0 && headerTop < this.height) {
         ctx.fillStyle = LANE_GROUP_HEADER_FILL;
-        ctx.fillRect(0, headerTop, this.width, LANE_GROUP_HEADER_HEIGHT);
+        ctx.fillRect(0, headerTop, this.width, headerH);
         ctx.strokeStyle = '#3a3a3a';
         ctx.beginPath();
-        ctx.moveTo(0, headerTop + LANE_GROUP_HEADER_HEIGHT - 0.5);
-        ctx.lineTo(this.width, headerTop + LANE_GROUP_HEADER_HEIGHT - 0.5);
+        ctx.moveTo(0, headerTop + headerH - 0.5);
+        ctx.lineTo(this.width, headerTop + headerH - 0.5);
         ctx.stroke();
       }
     }
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
-      const y = this.layout.lanes[i]!.y - this.view.scrollY;
-      if (y + LANE_HEIGHT < 0 || y > this.height) continue;
+      const y = (this.layout.lanes[i]!.y - this.view.scrollY) * dpr;
+      const laneH = LANE_HEIGHT * dpr;
+      if (y + laneH < 0 || y > this.height) continue;
       ctx.fillStyle = '#1f1f1f';
-      ctx.fillRect(0, y, this.width, LANE_HEIGHT);
+      ctx.fillRect(0, y, this.width, laneH);
       ctx.strokeStyle = '#3a3a3a';
       ctx.beginPath();
-      ctx.moveTo(0, y + LANE_HEIGHT - 0.5);
-      ctx.lineTo(this.width, y + LANE_HEIGHT - 0.5);
+      ctx.moveTo(0, y + laneH - 0.5);
+      ctx.lineTo(this.width, y + laneH - 0.5);
       ctx.stroke();
     }
 
@@ -387,7 +417,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
     const bright = this.neighborIds;
-    const dpr = this.dpr;
     const visible: {
       item: LaidOutEvent;
       x: number;
@@ -406,9 +435,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
+      const metrics = eventBlockMetrics(item.y, this.view.scrollY);
+      const y = metrics.y * dpr;
+      const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
-      const fr = eventPaintRect(x, y, w, h, dpr);
+      const fr = eventPaintRect(x, y, w, h);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
@@ -420,18 +451,18 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, r: fr.r, matches, dim });
     }
 
-    paintDependencyLinks(ctx, this.depLinks, this.view, this.width);
+    paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
 
     for (const { item, x, y, w, h, r, matches, dim } of visible) {
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
-        strokeRoundedEvent(ctx, { x, y, w, h, r }, 2, dpr);
+        strokeRoundedEvent(ctx, { x, y, w, h, r }, 2);
       } else if (item.id === this.hoveredId) {
         ctx.strokeStyle = '#c8e0ff';
-        strokeRoundedEvent(ctx, { x, y, w, h, r }, 1.5, dpr);
+        strokeRoundedEvent(ctx, { x, y, w, h, r }, Math.max(1, Math.round(1.5)));
       }
 
-      if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim);
+      if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim, '#ffffff', dpr);
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.

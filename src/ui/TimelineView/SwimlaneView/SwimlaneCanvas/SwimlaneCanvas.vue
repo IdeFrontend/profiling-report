@@ -149,12 +149,75 @@ let unbindResizeDrag: (() => void) | null = null;
 let unbindCreateDrag: (() => void) | null = null;
 let lastW = 0;
 let lastH = 0;
-/** Single CSS-pixel width for pointer→time, xRatio, and renderer layout. */
+let lastDeviceW = 0;
+let lastDeviceH = 0;
+let lastDpr = 0;
+/** True after ResizeObserver delivered a positive device-pixel box — no paint/buffer until then. */
+let deviceSized = false;
+/** Single CSS-pixel width for pointer→time, xRatio, and CSS-space layout helpers. */
 let trackWidth = 1;
 let resizeObserver: ResizeObserver | null = null;
 let raf = 0;
 /** Local scroll accumulator so rapid wheel events do not drop deltas waiting on props. */
 let localScrollY = 0;
+
+function currentDpr(): number {
+  return typeof window !== 'undefined' && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+}
+
+/** Main canvas used for ResizeObserver device-pixel box (GL when active, else fallback). */
+function mainCanvasEl(): HTMLCanvasElement | null {
+  if (useWebGl.value) return glCanvasRef.value;
+  return fallbackCanvasRef.value ?? glCanvasRef.value;
+}
+
+/**
+ * Device-pixel buffer size from a ResizeObserver callback only.
+ * Returns null when `entries` is missing/empty so callers do not invent a default size.
+ */
+function readDeviceBoxFromRo(
+  entries: ResizeObserverEntry[],
+  cssW: number,
+  cssH: number,
+  dpr: number,
+): { deviceW: number; deviceH: number } | null {
+  const main = mainCanvasEl();
+  if (!main || entries.length === 0) return null;
+  const entry = entries.find((e) => e.target === main) ?? entries[0];
+  if (!entry) return null;
+
+  const box = entry.devicePixelContentBoxSize?.[0];
+  if (box && box.inlineSize > 0 && box.blockSize > 0) {
+    const roW = Math.round(box.inlineSize);
+    const roH = Math.round(box.blockSize);
+    // Some test / headless envs report CSS px as devicePixelContentBoxSize.
+    if (dpr > 1.05 && Math.abs(roW - cssW) <= 1 && Math.abs(roH - cssH) <= 1) {
+      return {
+        deviceW: Math.max(1, Math.round(cssW * dpr)),
+        deviceH: Math.max(1, Math.round(cssH * dpr)),
+      };
+    }
+    return { deviceW: Math.max(1, roW), deviceH: Math.max(1, roH) };
+  }
+
+  // RO fired but no devicePixelContentBoxSize (older engines): content box × dpr.
+  const content = entry.contentBoxSize?.[0];
+  if (content && content.inlineSize > 0 && content.blockSize > 0) {
+    return {
+      deviceW: Math.max(1, Math.round(content.inlineSize * dpr)),
+      deviceH: Math.max(1, Math.round(content.blockSize * dpr)),
+    };
+  }
+  return null;
+}
+
+function zeroBackingStores(): void {
+  for (const c of [glCanvasRef.value, overlayCanvasRef.value, fallbackCanvasRef.value]) {
+    if (!c) continue;
+    if (c.width !== 0) c.width = 0;
+    if (c.height !== 0) c.height = 0;
+  }
+}
 
 function modelContentHeight(): number {
   return contentHeightFromModel(props.model);
@@ -261,6 +324,7 @@ function refreshHoverGapAtLastPointer(): void {
 }
 
 function schedulePaint(): void {
+  if (!deviceSized || lastDeviceW < 1 || lastDeviceH < 1) return;
   if (raf) return;
   raf = requestAnimationFrame(() => {
     raf = 0;
@@ -271,6 +335,7 @@ function schedulePaint(): void {
 
 /** Paint in the same turn (after buffer resize) so the canvas never shows a cleared frame. */
 function flushPaint(): void {
+  if (!deviceSized || lastDeviceW < 1 || lastDeviceH < 1) return;
   if (raf) {
     cancelAnimationFrame(raf);
     raf = 0;
@@ -426,61 +491,87 @@ function exactMatchesAt(time: number): ExactEdgeMatch[] {
   return lastExactScanMatches;
 }
 
-function resize(): void {
+function ensureAttach(): void {
+  if (attached) return;
+  const prefer = props.preferRenderer ?? 'auto';
+  const tryWebGl = prefer !== 'canvas';
+  if (
+    tryWebGl &&
+    glCanvasRef.value &&
+    overlayCanvasRef.value &&
+    WebGlSwimlaneRenderer.isSupported(glCanvasRef.value)
+  ) {
+    const glBackend = new WebGlSwimlaneRenderer();
+    if (glBackend.attach(glCanvasRef.value)) {
+      backend = glBackend;
+      overlay.attach(overlayCanvasRef.value);
+      useWebGl.value = true;
+      attached = true;
+    }
+  }
+  if (!attached && prefer !== 'webgl' && fallbackCanvasRef.value) {
+    backend = new CanvasSwimlaneRenderer();
+    backend.attach(fallbackCanvasRef.value);
+    useWebGl.value = false;
+    attached = true;
+  }
+  if (!attached && fallbackCanvasRef.value) {
+    backend = new CanvasSwimlaneRenderer();
+    backend.attach(fallbackCanvasRef.value);
+    useWebGl.value = false;
+    attached = true;
+  }
+  zeroBackingStores();
+}
+
+/**
+ * Apply CSS layout bookkeeping always; apply device buffer + paint only after
+ * ResizeObserver delivers a positive device-pixel box (no HTML 300×150 / css×dpr default).
+ */
+function resize(entries: ResizeObserverEntry[] | null = null): void {
   const wrap = wrapRef.value;
   if (!wrap) return;
 
   const contentH = modelContentHeight();
   const w = syncTrackWidth();
   const viewH = wrap.clientHeight || 0;
-  // Sizer tracks full content for layout; drawing surface is the visible viewport only.
   sizerHeight.value = Math.max(contentH, viewH);
   const h = Math.max(1, viewH || lastH || contentH);
+  const dpr = currentDpr();
 
-  if (!attached) {
-    const prefer = props.preferRenderer ?? 'auto';
-    const tryWebGl = prefer !== 'canvas';
-    if (
-      tryWebGl &&
-      glCanvasRef.value &&
-      overlayCanvasRef.value &&
-      WebGlSwimlaneRenderer.isSupported(glCanvasRef.value)
-    ) {
-      const glBackend = new WebGlSwimlaneRenderer();
-      if (glBackend.attach(glCanvasRef.value)) {
-        backend = glBackend;
-        overlay.attach(overlayCanvasRef.value);
-        useWebGl.value = true;
-        attached = true;
-      }
-    }
-    if (!attached && prefer !== 'webgl' && fallbackCanvasRef.value) {
-      backend = new CanvasSwimlaneRenderer();
-      backend.attach(fallbackCanvasRef.value);
-      useWebGl.value = false;
-      attached = true;
-    }
-    // prefer=webgl but attach failed → canvas fallback
-    if (!attached && fallbackCanvasRef.value) {
-      backend = new CanvasSwimlaneRenderer();
-      backend.attach(fallbackCanvasRef.value);
-      useWebGl.value = false;
-      attached = true;
-    }
-  }
-
+  ensureAttach();
   if (!attached) return;
 
-  const sizeChanged = w !== lastW || h !== lastH;
+  let deviceW = lastDeviceW;
+  let deviceH = lastDeviceH;
+  if (entries && entries.length > 0) {
+    const box = readDeviceBoxFromRo(entries, w, h, dpr);
+    if (!box) return;
+    deviceW = box.deviceW;
+    deviceH = box.deviceH;
+    deviceSized = true;
+  } else if (!deviceSized) {
+    // Wait for ResizeObserver — do not invent a buffer size.
+    return;
+  }
+
+  const sizeChanged =
+    w !== lastW ||
+    h !== lastH ||
+    deviceW !== lastDeviceW ||
+    deviceH !== lastDeviceH ||
+    dpr !== lastDpr;
   if (sizeChanged) {
     lastW = w;
     lastH = h;
+    lastDeviceW = deviceW;
+    lastDeviceH = deviceH;
+    lastDpr = dpr;
     resizeTick.value += 1;
-    backend.resize(w, h);
-    if (useWebGl.value) overlay.resize(w, h);
+    backend.resize(deviceW, deviceH, dpr);
+    if (useWebGl.value) overlay.resize(deviceW, deviceH, dpr);
   }
   applyViewState();
-  // Buffer resize clears pixels; paint before the browser paints this frame (no blink).
   if (sizeChanged) flushPaint();
   else schedulePaint();
   const maxY = maxScrollY();
@@ -490,13 +581,24 @@ function resize(): void {
   }
 }
 
+function bindResizeObserver(): void {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  const main = mainCanvasEl();
+  if (!main || typeof ResizeObserver === 'undefined') return;
+  resizeObserver = new ResizeObserver((entries) => resize(entries));
+  try {
+    resizeObserver.observe(main, { box: 'device-pixel-content-box' });
+  } catch {
+    resizeObserver.observe(main);
+  }
+}
+
 onMounted(async () => {
   await nextTick();
-  resize();
-  if (wrapRef.value && typeof ResizeObserver !== 'undefined') {
-    resizeObserver = new ResizeObserver(() => resize());
-    resizeObserver.observe(wrapRef.value);
-  }
+  ensureAttach();
+  zeroBackingStores();
+  bindResizeObserver();
 });
 
 onBeforeUnmount(() => {
@@ -899,13 +1001,14 @@ function magnetizeLocal(
   return { time: hit.time, xPx: hit.xPx, xRatio: hit.xPx / w, eventId: hit.eventId };
 }
 
-/** Hover/select target: magnetized edge event wins, else spatial hitTest. */
+/** Hover/select target: magnetized edge event wins, else spatial hitTest (device px). */
 function eventAtPointer(localX: number, localY: number, magnetEventId: string | null) {
   if (magnetEventId) {
     const ev = backend.findEvent(magnetEventId);
     if (ev) return ev;
   }
-  const id = backend.hitTest(localX, localY);
+  const dpr = currentDpr();
+  const id = backend.hitTest(localX * dpr, localY * dpr);
   return id ? backend.findEvent(id) : null;
 }
 
@@ -1250,11 +1353,15 @@ defineExpose({
       ref="glCanvasRef"
       class="pr-swim-canvas pr-swim-canvas--gl"
       data-testid="swimlane-webgl"
+      width="0"
+      height="0"
     />
     <canvas
       ref="overlayCanvasRef"
       class="pr-swim-canvas pr-swim-canvas--overlay"
       :data-testid="useWebGl ? 'swimlane-canvas' : 'swimlane-overlay'"
+      width="0"
+      height="0"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
@@ -1266,6 +1373,8 @@ defineExpose({
       ref="fallbackCanvasRef"
       class="pr-swim-canvas"
       :data-testid="useWebGl ? 'swimlane-fallback' : 'swimlane-canvas'"
+      width="0"
+      height="0"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
@@ -1411,6 +1520,8 @@ defineExpose({
   position: absolute;
   left: 0;
   top: 0;
+  width: 100%;
+  height: 100%;
   display: block;
   cursor: crosshair;
   touch-action: none;
