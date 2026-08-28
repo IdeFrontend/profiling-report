@@ -1,22 +1,32 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import Chevron from '../../../Chevron.vue';
+import PinIcon from '../../../PinIcon.vue';
 import type { GutterLane } from './gutterTypes';
 
 const props = defineProps<{
   lane: GutterLane;
   depth: number;
   collapsedIds?: string[];
+  pinnedLaneIds?: string[];
 }>();
 
 const emit = defineEmits<{
   toggle: [id: string];
+  'pin-lane': [id: string];
+  'unpin-lane': [id: string];
 }>();
 
 const collapsed = computed(() => new Set(props.collapsedIds ?? []));
+const pinned = computed(() => new Set(props.pinnedLaneIds ?? []));
 const isFolder = computed(() => props.lane.children !== undefined);
 const isCollapsed = computed(() => collapsed.value.has(props.lane.id));
-const pad = computed(() => `${24 + props.depth * 14}px`);
+const isPinned = computed(() => pinned.value.has(props.lane.id));
+const pinHover = ref(false);
+/** Leaf rows reserve a pin column (~10px + gap) before the label. */
+const pad = computed(() =>
+  isFolder.value ? `${24 + props.depth * 14}px` : `${38 + props.depth * 14}px`,
+);
 /** Thick: folders or depth-0 leaves (通信/储存HBM); thin: pipe leaves under Core. */
 const utilSizeClass = computed(() =>
   isFolder.value || props.depth === 0 ? 'pr-gutter__util--thick' : 'pr-gutter__util--thin',
@@ -32,6 +42,12 @@ function pctLabel(util: number): string {
 /** Sketch: only red (&lt;50%) or gray (≥50%) — no pipe-category tint. */
 function fillColor(util: number): string {
   return util < 0.5 ? UTIL_RED : UTIL_GRAY;
+}
+
+function onPinClick(e: MouseEvent) {
+  e.stopPropagation();
+  if (isPinned.value) emit('unpin-lane', props.lane.id);
+  else emit('pin-lane', props.lane.id);
 }
 </script>
 
@@ -91,19 +107,40 @@ function fillColor(util: number): string {
       :lane="child"
       :depth="depth + 1"
       :collapsed-ids="collapsedIds"
+      :pinned-lane-ids="pinnedLaneIds"
       @toggle="(id) => emit('toggle', id)"
+      @pin-lane="(id) => emit('pin-lane', id)"
+      @unpin-lane="(id) => emit('unpin-lane', id)"
     />
   </template>
   <div
     v-else-if="!isFolder"
     class="pr-gutter__lane"
+    :class="{ 'pr-gutter__lane--pin-hover': pinHover }"
     :style="{ paddingLeft: pad }"
     :data-testid="`gutter-lane-${lane.id}`"
   >
-    <span
-      class="pr-gutter__name"
-      :title="lane.name"
-    >{{ lane.name }}</span>
+    <span class="pr-gutter__lane-main">
+      <button
+        type="button"
+        class="pr-gutter__pin"
+        data-testid="lane-pin"
+        :aria-label="'置顶'"
+        :title="'置顶'"
+        :aria-pressed="isPinned"
+        @click="onPinClick"
+        @pointerenter="pinHover = true"
+        @pointerleave="pinHover = false"
+        @focus="pinHover = true"
+        @blur="pinHover = false"
+      >
+        <PinIcon :filled="isPinned || pinHover" />
+      </button>
+      <span
+        class="pr-gutter__name"
+        :title="lane.name"
+      >{{ lane.name }}</span>
+    </span>
     <span
       v-if="lane.utilization != null"
       class="pr-gutter__util"
@@ -163,7 +200,8 @@ function fillColor(util: number): string {
   cursor: pointer;
 }
 
-.pr-gutter__lane--folder:hover {
+.pr-gutter__lane--folder:hover,
+.pr-gutter__lane--pin-hover {
   background: #252525;
 }
 
@@ -172,6 +210,22 @@ function fillColor(util: number): string {
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.pr-gutter__pin {
+  box-sizing: border-box;
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pr-gutter__name {

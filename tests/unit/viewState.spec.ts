@@ -6,8 +6,10 @@ import {
   measureFocusWindow,
   MIN_VIEW_WINDOW,
   panBy,
+  pinLane,
   setMeasureRange,
   spanFromZoomPercent,
+  unpinLane,
   zoomAt,
   zoomPercentFromSpan,
   zoomToFitWindow,
@@ -132,7 +134,26 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(spanFromZoomPercent(100, full)).toBe(span);
   });
 
-  it.todo('PR-VIEW-012: createViewState initializes pinnedLaneIds empty');
-  it.todo('PR-VIEW-013: pinLane appends id in pin order without duplicates');
-  it.todo('PR-VIEW-014: unpinLane removes id and leaves other pins unchanged');
+  it('PR-VIEW-012: createViewState initializes pinnedLaneIds empty', () => {
+    expect(createViewState(model).pinnedLaneIds).toEqual([]);
+    expect(createViewState(null).pinnedLaneIds).toEqual([]);
+  });
+
+  it('PR-VIEW-013: pinLane appends id in pin order without duplicates', () => {
+    const base = createViewState(model);
+    const one = pinLane(base, 'a');
+    expect(one.pinnedLaneIds).toEqual(['a']);
+    expect(base.pinnedLaneIds).toEqual([]);
+    const two = pinLane(one, 'b');
+    expect(two.pinnedLaneIds).toEqual(['a', 'b']);
+    expect(pinLane(two, 'a').pinnedLaneIds).toEqual(['a', 'b']);
+  });
+
+  it('PR-VIEW-014: unpinLane removes id and leaves other pins unchanged', () => {
+    const pinned = pinLane(pinLane(createViewState(model), 'a'), 'b');
+    const dropped = unpinLane(pinned, 'a');
+    expect(dropped.pinnedLaneIds).toEqual(['b']);
+    expect(unpinLane(dropped, 'missing').pinnedLaneIds).toEqual(['b']);
+    expect(pinned.pinnedLaneIds).toEqual(['a', 'b']);
+  });
 });

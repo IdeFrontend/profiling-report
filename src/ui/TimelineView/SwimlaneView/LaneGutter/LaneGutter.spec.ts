@@ -210,8 +210,68 @@ describe('LaneGutter', () => {
     expect(spacer.find('button').exists()).toBe(false);
   });
 
-  it.todo('PR-GUTTER-010: leaf rows show pushpin; folder and Card rows omit pin');
-  it.todo('PR-GUTTER-011: pushpin outline when unpinned, solid blue when pinned or hovered');
-  it.todo('PR-GUTTER-012: pushpin hover/focus shows 置顶 tooltip');
-  it.todo('PR-GUTTER-013: click unpinned pin emits pin-lane; pinned emits unpin-lane');
+  it('PR-GUTTER-010: leaf rows show pushpin; folder and Card rows omit pin', () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          {
+            id: 'compute',
+            name: '计算',
+            color: '#007084',
+            utilization: 0.9,
+            children: [{ id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 }],
+          },
+          { id: 'leaf', name: '通信', color: '#888', utilization: 1 },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested },
+    });
+    expect(wrapper.get('[data-testid="gutter-lane-leaf"]').find('[data-testid="lane-pin"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.get('[data-testid="gutter-lane-mte1"]').find('[data-testid="lane-pin"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-testid="gutter-folder-compute"] [data-testid="lane-pin"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.get('[data-testid="gutter-group-card0"]').find('[data-testid="lane-pin"]').exists()).toBe(
+      false,
+    );
+  });
+
+  it('PR-GUTTER-011: pushpin outline when unpinned, solid blue when pinned or hovered', async () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups, pinnedLaneIds: ['l1'] },
+    });
+    const pinnedPin = wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]');
+    expect(pinnedPin.find('.pr-pin--filled').exists()).toBe(true);
+    const unpinned = wrapper.get('[data-testid="gutter-lane-l2"] [data-testid="lane-pin"]');
+    expect(unpinned.find('.pr-pin--filled').exists()).toBe(false);
+    await unpinned.trigger('pointerenter');
+    expect(unpinned.find('.pr-pin--filled').exists()).toBe(true);
+  });
+
+  it('PR-GUTTER-012: pushpin hover/focus shows 置顶 tooltip', () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups },
+    });
+    const pin = wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]');
+    expect(pin.attributes('title')).toBe('置顶');
+    expect(pin.attributes('aria-label')).toBe('置顶');
+  });
+
+  it('PR-GUTTER-013: click unpinned pin emits pin-lane; pinned emits unpin-lane', async () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups, pinnedLaneIds: ['l1'] },
+    });
+    await wrapper.get('[data-testid="gutter-lane-l2"] [data-testid="lane-pin"]').trigger('click');
+    expect(wrapper.emitted('pin-lane')?.[0]).toEqual(['l2']);
+    await wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]').trigger('click');
+    expect(wrapper.emitted('unpin-lane')?.[0]).toEqual(['l1']);
+  });
 });

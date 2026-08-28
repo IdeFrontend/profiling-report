@@ -131,12 +131,17 @@ export function contentHeightFromLayout(layout: SwimlaneLayout): number {
 
 export function contentHeightFromModel(model: SwimlaneModel | null): number {
   if (!model) return 120;
+  const skipHeaders = model.processes.length === 1 && model.processes[0].id === '__pinned__';
   const rows = walkVisibleRows(model);
   let h = 0;
   for (const row of rows) {
-    h += row.kind === 'header' ? LANE_GROUP_HEADER_HEIGHT : LANE_HEIGHT;
+    if (row.kind === 'header') {
+      if (!skipHeaders) h += LANE_GROUP_HEADER_HEIGHT;
+      continue;
+    }
+    h += LANE_HEIGHT;
   }
-  return Math.max(120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
+  return Math.max(skipHeaders ? LANE_HEIGHT : 120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
 
 /**
@@ -179,8 +184,11 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   const bands = model.bands ?? [];
 
   let y = 0;
+  /** Sticky pin strip: flat leaf rows only — no Card header chrome. */
+  const skipHeaders = model.processes.length === 1 && model.processes[0].id === '__pinned__';
   for (const row of walkVisibleRows(model)) {
     if (row.kind === 'header') {
+      if (skipHeaders) continue;
       headers.push({ id: row.process.id, name: row.process.name, y });
       y += LANE_GROUP_HEADER_HEIGHT;
       continue;

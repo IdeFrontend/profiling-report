@@ -46,6 +46,8 @@ const props = withDefaults(
     measureRange?: MeasureRange | null;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
+    /** When false, skip dependency curves and selection dimming (pinned strip). */
+    showDependencies?: boolean;
     /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
     /** Shared playhead x from parent (axis hover + canvas); drives the swim vertical bar. */
@@ -56,6 +58,7 @@ const props = withDefaults(
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    showDependencies: true,
     cursorXRatio: null,
     cursorSnapped: false,
   },
@@ -368,6 +371,7 @@ function applyViewState(forceModel = false): void {
   backend.setView(props.view);
   backend.setDependencyMode?.(props.dependencyMode);
   backend.setDependencyDepth?.(props.dependencyDepth);
+  backend.setPaintDependencies?.(props.showDependencies !== false);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   if (useWebGl.value) {
@@ -375,6 +379,7 @@ function applyViewState(forceModel = false): void {
     overlay.setView(props.view);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setNeighborIds(backend.getNeighborIds());
+    overlay.setSelectionDim(props.showDependencies !== false);
     overlay.setSearchQuery(props.searchQuery);
   }
   refreshMeasureExactEdgeMarks(modelChanged);
@@ -619,7 +624,7 @@ watch(
 );
 
 watch(
-  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth],
+  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
   () => {
     localScrollY = props.view.scrollY;
     sync();

@@ -43,6 +43,8 @@ const props = withDefaults(
     groups: GutterGroup[];
     collapsedIds: string[];
     displaySwim: SwimlaneModel | null;
+    /** From view.pinnedLaneIds — sticky strip. */
+    pinnedLaneIds?: string[];
     cursor: { time: number; xRatio: number; snapped?: boolean } | null;
     showOverviewCharts?: boolean;
     gutterWidth?: number;
@@ -59,6 +61,8 @@ const emit = defineEmits<{
   'update:scrollY': [scrollY: number];
   'update:window': [window: { startTime: number; endTime: number }];
   'toggle-group': [groupId: string];
+  'pin-lane': [laneId: string];
+  'unpin-lane': [laneId: string];
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -568,6 +572,7 @@ defineExpose({
       ref="swimlaneRef"
       :groups="groups"
       :collapsed-ids="collapsedIds"
+      :pinned-lane-ids="pinnedLaneIds ?? view.pinnedLaneIds"
       :model="displaySwim"
       :view="view"
       :selected-event-id="view.selectedEventId"
@@ -584,6 +589,8 @@ defineExpose({
       @update:scroll-y="emit('update:scrollY', $event)"
       @update:gutter-width="onGutterWidth"
       @toggle-group="emit('toggle-group', $event)"
+      @pin-lane="emit('pin-lane', $event)"
+      @unpin-lane="emit('unpin-lane', $event)"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
       @cursor="emit('cursor', $event)"

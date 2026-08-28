@@ -283,9 +283,220 @@ describe('SwimlaneView', () => {
     expect(src).not.toMatch(/\.pr-gutter-resize\s*\{[^}]*left:\s*var\(--pr-gutter-width/s);
   });
 
-  it.todo('PR-SWIMVIEW-010: pinned lanes render in a sticky strip above the scroll body');
-  it.todo('PR-SWIMVIEW-011: pinned duplicates keep the same lane ids as originals');
-  it.todo('PR-SWIMVIEW-012: unpinned originals remain in tree order below the pinned strip');
-  it.todo('PR-SWIMVIEW-013: pinned strip canvas omits dependency link rendering');
-  it.todo('PR-SWIMVIEW-014: pinnedLaneIds may span multiple Cards; strip follows pin order');
+  it('PR-SWIMVIEW-010: pinned lanes render in a sticky strip above the scroll body', () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.pinnedLaneIds = ['l1'];
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l1'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l1', name: 'Lane', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    expect(wrapper.find('[data-testid="pinned-strip"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-swim-row--body').exists()).toBe(true);
+  });
+
+  it('PR-SWIMVIEW-011: pinned duplicates keep the same lane ids as originals', () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l1'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l1', name: 'Lane', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    expect(wrapper.findAll('[data-testid="gutter-lane-l1"]')).toHaveLength(2);
+  });
+
+  it('PR-SWIMVIEW-012: unpinned originals remain in tree order below the pinned strip', () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [
+              { id: 'l1', name: 'A', color: '#f00', utilization: 0.5 },
+              { id: 'l2', name: 'B', color: '#0f0', utilization: 0.5 },
+            ],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l2'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [
+                { id: 'l1', name: 'A', events: [] },
+                { id: 'l2', name: 'B', events: [] },
+              ],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const body = wrapper.get('.pr-swim-row--body');
+    expect(body.find('[data-testid="gutter-lane-l1"]').exists()).toBe(true);
+    expect(body.find('[data-testid="gutter-lane-l2"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="pinned-gutter"]').find('[data-testid="gutter-lane-l2"]').exists()).toBe(
+      true,
+    );
+  });
+
+  it('PR-SWIMVIEW-013: pinned strip canvas omits dependency link rendering', async () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l1'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l1', name: 'Lane', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const canvases = wrapper.findAllComponents(SwimlaneCanvas);
+    const pinned = canvases.find((c) => c.attributes('data-testid') === 'pinned-canvas');
+    expect(pinned).toBeTruthy();
+    expect(pinned!.props('showDependencies')).toBe(false);
+  });
+
+  it('PR-SWIMVIEW-014: pinnedLaneIds may span multiple Cards; strip follows pin order', () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'A', color: '#f00', utilization: 0.5 }],
+          },
+          {
+            id: 'card1',
+            name: 'Card1',
+            lanes: [{ id: 'l2', name: 'B', color: '#0f0', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l2', 'l1'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l1', name: 'A', events: [] }],
+            },
+            {
+              id: 'card1',
+              name: 'Card1',
+              threads: [{ id: 'l2', name: 'B', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const pinnedLanes = wrapper
+      .get('[data-testid="pinned-gutter"]')
+      .findAll('[data-testid^="gutter-lane-"]');
+    expect(pinnedLanes.map((n) => n.attributes('data-testid'))).toEqual([
+      'gutter-lane-l2',
+      'gutter-lane-l1',
+    ]);
+  });
 });

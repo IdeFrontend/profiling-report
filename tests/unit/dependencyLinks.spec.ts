@@ -426,5 +426,19 @@ describe('PR-DEPS: dependency links', () => {
     expect(linkIntersectsTimeView(inView, { startTime: 15, endTime: 18, scrollY: 0 })).toBe(true);
   });
 
-  it.todo('PR-DEPS-012: no dependency curves painted in the pinned-lane strip pass');
+  it('PR-DEPS-012: no dependency curves painted in the pinned-lane strip pass', () => {
+    const model = linkedModel();
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(document.createElement('canvas'));
+    renderer.resize(200, 100);
+    renderer.setModel(model);
+    renderer.setSelection('e-parent', null);
+    expect(renderer.getNeighborIds().size).toBeGreaterThan(0);
+    renderer.setPaintDependencies(false);
+    expect(renderer.getNeighborIds().size).toBe(0);
+    renderer.render();
+    // Re-enable restores graph for the main canvas pass.
+    renderer.setPaintDependencies(true);
+    expect(renderer.getNeighborIds().has('e-parent')).toBe(true);
+  });
 });

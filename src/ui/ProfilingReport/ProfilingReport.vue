@@ -7,9 +7,11 @@ import {
   createViewState,
   measureFocusWindow,
   panBy,
+  pinLane,
   setMeasureMode,
   setMeasureRange,
   spanFromZoomPercent,
+  unpinLane,
   zoomAt,
   zoomPercentFromSpan,
   zoomToFitWindow,
@@ -297,6 +299,15 @@ function onToggleGroup(groupId: string): void {
  * pipe occupancy, compute/memory CSV tables, roofline points, or hardware details are present.
  * Name/type alone do not open the aside (I-Q6a). Must stay in sync with StatsAside.
  */
+function onPinLane(laneId: string): void {
+  viewState.value = pinLane(viewState.value, laneId);
+}
+
+function onUnpinLane(laneId: string): void {
+  viewState.value = unpinLane(viewState.value, laneId);
+}
+
+
 function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
   if (!rm) return false;
   const hasDuration = rm.summary.taskDurationUs != null;
@@ -680,6 +691,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
           :collapsed-ids="collapsedGroupIds"
+          :pinned-lane-ids="viewState.pinnedLaneIds"
           :display-swim="displaySwim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
@@ -689,6 +701,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:scroll-y="onScrollY"
           @update:window="onOverviewWindow"
           @toggle-group="onToggleGroup"
+          @pin-lane="onPinLane"
+          @unpin-lane="onUnpinLane"
           @select="onSelect"
           @hover="onHover"
           @cursor="onCursor"
