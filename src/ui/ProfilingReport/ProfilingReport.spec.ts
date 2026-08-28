@@ -280,7 +280,7 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
-  it('PR-ROOT-007: cannbot buttons emit cannbot-request with scoped payload', async () => {
+  it('PR-ROOT-008: cannbot buttons emit cannbot-request with scoped payload', async () => {
     const reportModel = {
       summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },
       pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const }],

@@ -1,5 +1,12 @@
 import type { CsvTableModel, ReportViewModel } from './types';
 
+/**
+ * Designed scope enum (cannbot contract): `roofline | sol | pipeline | compute | memory | communication | summary`.
+ * The 930 release implements only `summary / compute / memory` (the three report-section
+ * entries with data mappings in the view model); the remaining values are reserved for
+ * future releases — enabling one requires a new UI entry, a data mapping, and a spec
+ * update (specs/core/cannbot-payload.spec.md).
+ */
 export type CannbotScope = 'summary' | 'compute' | 'memory';
 
 export interface CannbotReportMeta {

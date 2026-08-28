@@ -552,10 +552,7 @@ function onAside(visible: boolean) {
 }
 
 function onCannbot(scope: CannbotScope) {
-  const payload = buildCannbotPayload(scope, report.value, props.reportMeta);
-  // 调试打印：输出拼装后的完整 cannbot payload（含 data 与 prompt）。
-  console.log(`[cannbot] payload (scope: ${scope})`, payload);
-  emit('cannbot-request', payload);
+  emit('cannbot-request', buildCannbotPayload(scope, report.value, props.reportMeta));
 }
 
 function onMeasureMode(enabled: boolean) {

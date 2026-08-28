@@ -11,10 +11,10 @@
            "version": "1.0",
            "scope": "roofline | sol | pipeline| compute | memory | communication",
            "report_name": "matmul_v3.r3",
-           "report_id": “XXXX",
+           "report_id": "XXXX",
            "collected_at": "2026-08-13T09:41:00Z",
            "data": { /* scope 对应字段 */ }
-           “prompt”: “XXXX”，
+           "prompt": "XXXX",
        }
    - 数据说明：
      - version：固定为“1.0”

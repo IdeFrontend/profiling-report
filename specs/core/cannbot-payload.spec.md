@@ -21,6 +21,8 @@ CANNBOT_PROMPT: string
 - **compute** — `pipeOccupancy`, `computeTables`, plus `csvTexts` filtered to the compute tables' file names.
 - **memory** — `memoryTables`, `memoryTopology`, `bandwidthCards`, plus `csvTexts` filtered to the memory tables' file names.
 
+**Scope enum: designed set vs 930 release.** The cannbot payload contract's designed enum is the full set `roofline | sol | pipeline | compute | memory | communication | summary`. The 930 release implements only `summary`（章节1）/ `compute`（章节2）/ `memory`（章节3）: exactly the three report sections that carry cannbot icon entries in the UI and have data mappings in the view model. The remaining values — `roofline`, `sol`, `pipeline`, `communication` — are reserved for future releases and unused for now; each activates only when its section gains a UI entry and a data mapping, together with a spec update here. Until then the library's `CannbotScope` emit type stays narrowed to the implemented three, so passing a reserved value is a compile-time type error rather than a silent runtime fallback.
+
 The payload reuses the already-parsed view model — same section references, never a re-parse of `.rep` / CSV and never recomputed view state. Optional sections (`bandwidthCards`, `roofline`, `memoryTopology`, `hardwareDetails`, a filtered `csvTexts`) are omitted when absent or without a matching file; always-present sections (`summary`, `pipeOccupancy`, the table lists) keep their keys even when empty. Without a report, `data` is `{}`.
 
 ## Acceptance Criteria
@@ -43,3 +45,4 @@ The payload reuses the already-parsed view model — same section references, ne
 
 ## Changelog
 - **2026-08-26** — Initial spec (cannbot payload builder).
+- **2026-08-27** — Document the designed scope enum (full 7-value set) vs the 930 release's implemented three; remaining values reserved for future releases (review follow-up).
