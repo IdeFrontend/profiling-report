@@ -229,7 +229,7 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
 
 /**
  * WebGL2 coverage-AA interval backend (Sudu-inspired; no sudu-editor dependency).
- * Draws uniform lane backgrounds, row dividers, rounded interval fills, and instanced
+ * Draws uniform lane backgrounds, row dividers, hard-rect interval fills, and instanced
  * dependency polylines. Labels/selection use overlay.
  */
 export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
