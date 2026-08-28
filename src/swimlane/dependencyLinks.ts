@@ -145,29 +145,3 @@ export function linkIntersectsTimeView(link: DependencyLink, view: SwimlaneViewW
   const hi = Math.max(link.t0, link.t1);
   return hi >= view.startTime && lo <= view.endTime;
 }
-
-/** Canvas 2D fallback: same cubic + pred→succ gradient as the WebGL instance pass. */
-export function paintDependencyLinks(
-  ctx: CanvasRenderingContext2D,
-  links: readonly DependencyLink[],
-  view: SwimlaneViewWindow,
-  width: number,
-): void {
-  if (links.length === 0) return;
-  ctx.lineWidth = DEP_STROKE_WIDTH;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  for (const link of links) {
-    if (!linkIntersectsTimeView(link, view)) continue;
-    const { x0, y0, x1, y1 } = linkToScreen(link, view, width);
-    const pull = cubicControlPull(x0, x1);
-    const g = ctx.createLinearGradient(x0, y0, x1, y1);
-    g.addColorStop(0, link.fromColor);
-    g.addColorStop(1, link.toColor);
-    ctx.strokeStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.bezierCurveTo(x0 + pull, y0, x1 - pull, y1, x1, y1);
-    ctx.stroke();
-  }
-}

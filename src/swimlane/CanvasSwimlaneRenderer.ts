@@ -8,6 +8,7 @@ import type {
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
 import {
   cubicControlPull,
+  DEP_STROKE_WIDTH,
   dependencyGraph,
   linkIntersectsTimeView,
   linkToScreen,
@@ -88,7 +89,7 @@ function paintDependencyLinksDevice(
   dpr: number,
 ): void {
   if (links.length === 0) return;
-  ctx.lineWidth = Math.max(1, Math.round(2));
+  ctx.lineWidth = Math.max(1, Math.round(DEP_STROKE_WIDTH));
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   for (const link of links) {
@@ -252,10 +253,10 @@ export class SwimlaneOverlayPainter {
 
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
-        strokeRoundedEvent(ctx, r, 2);
+        strokeRoundedEvent(ctx, r, Math.round(2 * dpr));
       } else if (item.id === this.hoveredId) {
         ctx.strokeStyle = '#c8e0ff';
-        strokeRoundedEvent(ctx, r, Math.max(1, Math.round(1.5)));
+        strokeRoundedEvent(ctx, r, Math.round(1.5 * dpr));
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
@@ -456,10 +457,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     for (const { item, x, y, w, h, r, matches, dim } of visible) {
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
-        strokeRoundedEvent(ctx, { x, y, w, h, r }, 2);
+        strokeRoundedEvent(ctx, { x, y, w, h, r }, Math.round(2 * dpr));
       } else if (item.id === this.hoveredId) {
         ctx.strokeStyle = '#c8e0ff';
-        strokeRoundedEvent(ctx, { x, y, w, h, r }, Math.max(1, Math.round(1.5)));
+        strokeRoundedEvent(ctx, { x, y, w, h, r }, Math.round(1.5 * dpr));
       }
 
       if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim, '#ffffff', dpr);
