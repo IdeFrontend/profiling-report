@@ -1,8 +1,8 @@
 /**
  * Sudu-inspired coverage-AA swimlane shaders (reimplemented in TS; no sudu-editor dep).
- * All coordinates are integer device pixels; uResolution is the framebuffer size.
+ * Coordinates in device pixels; uResolution is the framebuffer size.
  * No uDpr — CSS↔device conversion happens in JS before uniforms.
- * Interim: WebGL event fills are hard axis-aligned rects (round-rect removed for coverage restore).
+ * Interim: hard-rect Y bounds (no round-rect); analytical horizontal coverage from sudu.
  */
 
 export const SWIMLANE_VS = `#version 300 es
@@ -23,20 +23,24 @@ float glToPixelX(float x) { return (x + 1.0) * 0.5 * uResolution.x; }
 float glToPixelY(float y) { return (1.0 - y) * 0.5 * uResolution.y; }
 float pixelToGlX(float x) { return x * 2.0 / uResolution.x - 1.0; }
 
-float snapDev(float px) { return floor(px + 0.5); }
-
 void main() {
   float lX = mix(aPos.x, aTex.x, aTex.y);
   float rX = mix(aTex.x, aPos.x, aTex.y);
 
   vec2 pos = vec2(translateScaleX(aPos.x), translateScaleY(aPos.y));
-  // 0.5 device px inset per side → 1 device-px gap; then integer snap.
-  float lPx = snapDev(glToPixelX(translateScaleX(lX)) + 0.5);
-  float rPx = snapDev(glToPixelX(translateScaleX(rX)) - 0.5);
-  rPx = max(lPx + 1.0, rPx);
+  float rawL = glToPixelX(translateScaleX(lX));
+  float rawR = glToPixelX(translateScaleX(rX));
+  // True fractional edges with 0.5 device-px inset per side → 1 device-px gap.
+  float lPx = rawL + 0.5;
+  float rPx = rawR - 0.5;
+  if (rPx <= lPx) {
+    lPx = rawL;
+    rPx = max(rawR, rawL + 1.0e-4);
+  }
 
   float screenY = glToPixelY(pos.y);
-  float screenX = mix(lPx, rPx, aTex.y);
+  // Expand to pixel bounds that overlap the (possibly inset) interval — sudu floor/ceil.
+  float screenX = mix(floor(lPx), ceil(rPx), aTex.y);
   pos.x = pixelToGlX(screenX);
 
   vScreenPos = vec2(screenX, screenY);
@@ -56,15 +60,16 @@ in vec2 vLrScreen;
 out vec4 outColor;
 
 void main() {
-  // Hard axis-aligned rect (WebGL round-rect temporarily removed).
-  float l = vLrScreen.x;
-  float r = vLrScreen.y;
+  // Sudu: lPx/rPx = event left/right inside the current device pixel.
+  float lPx = max(vLrScreen.x, vScreenPos.x - 0.5);
+  float rPx = min(vLrScreen.y, vScreenPos.x + 0.5);
+  float inside = rPx - lPx;
+  // Hard Y clip (round-rect deferred); premul source-over (not sudu additive a=1).
   float t = uYBounds.x;
   float b = uYBounds.y;
-  float inside =
-    step(l, vScreenPos.x) * step(vScreenPos.x, r) *
-    step(t, vScreenPos.y) * step(vScreenPos.y, b);
-  outColor = vec4(uColor.xyz * inside, uColor.w * inside);
+  float yOk = step(t, vScreenPos.y) * step(vScreenPos.y, b);
+  float cov = inside * yOk;
+  outColor = vec4(uColor.xyz * cov, uColor.w * cov);
 }
 `;
 
