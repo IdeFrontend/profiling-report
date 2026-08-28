@@ -69,9 +69,16 @@ describe('PR-AXIS: shared ruler', () => {
     expect(wrapper.find('[data-testid="axis-ruler-track"]').exists()).toBe(true);
     expect(wrapper.find('.pr-axis-ruler__base-sep').text()).toBe('+');
     expect(wrapper.find('[data-testid="axis-ruler-track"] .pr-axis-ruler__label').text()).toBe('0ns');
-    expect(wrapper.find('[data-testid="axis-ruler-base"]').element.parentElement).not.toBe(
-      wrapper.find('[data-testid="axis-ruler-track"]').element,
-    );
+    expect(wrapper.find('[data-testid="axis-ruler-track"] .pr-axis-ruler__label').isVisible()).toBe(true);
+
+    const hidden = mount(AxisRuler, {
+      props: {
+        majors: [{ t: 0, pct: -0.5, label: '50ns', hideLabel: true }],
+        minors: [],
+        baseLabel: '9 µs',
+      },
+    });
+    expect(hidden.find('.pr-axis-ruler__label').attributes('style')).toContain('display: none');
 
     const plain = mount(AxisRuler, {
       props: {
@@ -101,5 +108,7 @@ describe('PR-AXIS: shared ruler', () => {
     expect(src).toMatch(/\.pr-axis-ruler__label\s*\{[^}]*font-weight:\s*400/);
     expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*align-items:\s*flex-start/);
     expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-left:\s*4px/);
+    expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*gap:\s*4px/);
+    expect(src).not.toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-right/);
   });
 });

@@ -51,7 +51,10 @@ defineProps<{
           class="pr-axis-ruler__bar"
           aria-hidden="true"
         />
-        <span class="pr-axis-ruler__label">{{ maj.label }}</span>
+        <span
+          v-show="!maj.hideLabel"
+          class="pr-axis-ruler__label"
+        >{{ maj.label }}</span>
       </div>
     </div>
   </div>
@@ -75,7 +78,6 @@ defineProps<{
   align-items: flex-start;
   gap: 4px;
   padding-left: 4px;
-  padding-right: 2px;
   min-width: 0;
 }
 
@@ -111,6 +113,7 @@ defineProps<{
   flex: 1 1 0;
   min-width: 0;
   position: relative;
+  overflow: hidden;
 }
 
 .pr-axis-ruler__minor {

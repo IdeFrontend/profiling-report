@@ -77,4 +77,22 @@ describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
     });
     expect(overview.baseLabel).toBeNull();
   });
+
+  it('viewport base defers tick-label hide until 4px from +', () => {
+    const ticks = buildAxisRulerTicks({
+      rangeStart: 1_000.1,
+      rangeEnd: 1_500.1,
+      origin: 0,
+      timeScaleUnit: 'ns',
+      widthPx: 400,
+      useViewportBase: true,
+    });
+    expect(ticks.baseLabel).toBeTruthy();
+    const leading = ticks.majors.find((m) => m.pct < 0);
+    expect(leading).toBeTruthy();
+    expect(leading!.hideLabel).toBe(true);
+
+    const atOrigin = ticks.majors.find((m) => m.pct >= 0);
+    expect(atOrigin?.hideLabel).toBe(false);
+  });
 });

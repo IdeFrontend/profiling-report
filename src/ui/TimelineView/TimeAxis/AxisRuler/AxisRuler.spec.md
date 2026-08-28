@@ -30,20 +30,21 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 | Minor ticks | **9** between each adjacent major pair (10 subdivisions); **5px** tall from bottom; same tick tokens as majors |
 | Major placement | **Nice ns steps** (`1\|2\|5×10ⁿ`) targeting ~**100px** spacing; majors at `origin + k·interval` (positions move with zoom/pan — not fixed percentages) |
 | Containment | Tick text must stay inside the timeline column — **never** paint over the right aside. Track/axis `overflow: hidden` |
-| Viewport base | Optional **baseLabel** in left flex column + muted `+`; **600** weight / `#e0e0e0` (tick labels stay **400** / `#c8c8c8`); **4px** left inset; top-aligned **18px** label box (same as tick labels); remainder ticks in `axis-ruler-track`; overview has no base |
+| Viewport base | Optional **baseLabel** in left flex column + muted `+`; **4px** gap on each side of `+` (base↔`+`↔tick label); **600** weight / `#e0e0e0` (tick labels stay **400** / `#c8c8c8`); top-aligned **18px** label box; remainder tick labels hide only when closer than **4px** to `+`; remainder ticks in `axis-ruler-track`; overview has no base |
 
 ## Acceptance Criteria
 
 1. **PR-AXIS-001** — Renders majors and minors with testids.
 2. **PR-AXIS-002** — `buildAxisRulerTicks` yields 9 minors per gap and relative-zero first label.
 3. **PR-AXIS-003** — Major bars and minor ticks use `--pr-axis-tick` (fallback `rgb(52, 52, 52)`); muted use `--pr-axis-tick-muted` (fallback `rgb(39, 39, 39)`).
-4. **PR-AXIS-004** — Optional `baseLabel` renders `axis-ruler-base` in a left column with `+` separator (weight **600**, `#e0e0e0`; tick labels stay **400**); ticks in `axis-ruler-track`; absent when null.
+4. **PR-AXIS-004** — Optional `baseLabel` renders `axis-ruler-base` in a left column with `+` separator (weight **600**, `#e0e0e0`; tick labels stay **400**); symmetric **4px** gaps around `+`; tick labels hide via `hideLabel` only when closer than **4px** to `+`; ticks in `axis-ruler-track`; absent when null.
 
 ## Design sketches
 
 - [viewport-ticks](./visual/viewport-ticks.png) — from `v930/entry`
 
 ## Changelog
+- **2026-08-27** — Symmetric **4px** gaps around `+`; defer tick-label hide until **4px** from `+`.
 - **2026-08-27** — Viewport base: **4px** left inset; top-align with tick labels.
 - **2026-08-27** — Viewport base label weight **600** / `#e0e0e0` to distinguish from tick labels.
 - **2026-08-27** — Fix base/tick overlap: flex base column + track (replaces padding-left inset).

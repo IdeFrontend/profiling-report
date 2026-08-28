@@ -69,6 +69,11 @@ export const AXIS_RULER_MIN_PIXEL_INTERVAL = 100;
 /** Fallback track width when ResizeObserver has not fired yet. */
 export const AXIS_RULER_DEFAULT_WIDTH_PX = 800;
 
+/** Symmetric gap: base unit ↔ '+', and '+' ↔ first tick label (AxisRuler chrome). */
+export const AXIS_RULER_BASE_SEP_GAP_PX = 4;
+/** Major bar (1px) + gap before label — equals {@link AXIS_RULER_BASE_SEP_GAP_PX} at track origin. */
+export const AXIS_RULER_MAJOR_LABEL_INSET_PX = 4;
+
 export interface AxisRulerMajor {
   /** Absolute time (ns) at this major. */
   t: number;
@@ -76,6 +81,8 @@ export interface AxisRulerMajor {
   pct: number;
   label: string;
   muted?: boolean;
+  /** Viewport base: hide when label would sit closer than {@link AXIS_RULER_BASE_SEP_GAP_PX} to '+'. */
+  hideLabel?: boolean;
 }
 
 export interface AxisRulerMinor {
@@ -201,6 +208,17 @@ export function resolveTimeUnitFromAxisDensity(spanNs: number, widthPx: number):
   return timeScaleUnitFromNsQuantum(interval);
 }
 
+function viewportBaseMinMajorPct(trackWidthPx: number): number {
+  if (!(trackWidthPx > 0)) return -0.01;
+  return (-AXIS_RULER_MAJOR_LABEL_INSET_PX / trackWidthPx) * 100;
+}
+
+function viewportBaseLabelHidden(pct: number, trackWidthPx: number): boolean {
+  if (!(trackWidthPx > 0)) return pct < 0;
+  const labelLeftPx = (pct / 100) * trackWidthPx + AXIS_RULER_MAJOR_LABEL_INSET_PX;
+  return labelLeftPx < AXIS_RULER_BASE_SEP_GAP_PX;
+}
+
 /**
  * Build major bars + labels on a nice ns grid, plus 9 minors per major gap.
  * Labels are relative to `origin` (trace start = 0). Major positions move with
@@ -218,6 +236,7 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
       ? resolveAxisBaseOffset(opts.rangeStart, origin, unit)
       : null;
   const labelOffsetNs = base?.offsetNs ?? 0;
+  const minMajorPct = base ? viewportBaseMinMajorPct(widthPx) : -0.01;
 
   // Snap to origin + k·interval (integral relative timestamps).
   let t0 = origin + Math.ceil((opts.rangeStart - origin) / interval) * interval;
@@ -229,15 +248,26 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
     t0 += interval;
   }
 
+  let loopT0 = t0;
+  if (base) {
+    const leadT = t0 - interval;
+    const leadPct = ((leadT - opts.rangeStart) / span) * 100;
+    if (leadT >= origin - 1e-9 && leadPct >= minMajorPct) {
+      loopT0 = leadT;
+    }
+  }
+
   const majors: AxisRulerMajor[] = [];
-  for (let t = t0; t <= opts.rangeEnd + 1e-9; t += interval) {
+  for (let t = loopT0; t <= opts.rangeEnd + 1e-9; t += interval) {
     const pct = ((t - opts.rangeStart) / span) * 100;
-    if (pct < -0.01 || pct > 100.01) continue;
+    if (pct < minMajorPct || pct > 100.01) continue;
+    const clampedPct = Math.min(100, Math.max(base ? minMajorPct : 0, pct));
     majors.push({
       t,
-      pct: Math.min(100, Math.max(0, pct)),
+      pct: clampedPct,
       label: formatAxisTime(t - origin - labelOffsetNs, unit, interval),
       muted: isOutside(t, mute),
+      hideLabel: base ? viewportBaseLabelHidden(clampedPct, widthPx) : false,
     });
   }
 
