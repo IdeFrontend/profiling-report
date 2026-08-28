@@ -1737,6 +1737,7 @@ describe('SwimlaneView', () => {
     // Collapsed Card spacer only in body — no original leaf row.
     expect(wrapper.get('.pr-swim-row--body').find('[data-testid="gutter-lane-l1"]').exists()).toBe(false);
   });
+
   it('PR-SWIMVIEW-010: expanded Card shows metric select; collapsed hides it', () => {
     const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
     const baseProps = {
