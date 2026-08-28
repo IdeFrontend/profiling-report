@@ -28,7 +28,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
-import { dependencyGraph, DEP_STROKE_WIDTH, glLinkTime, type DependencyLink } from './dependencyLinks';
+import { dependencyGraph, glLinkTime, type DependencyLink } from './dependencyLinks';
 import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS } from './shaders';
 
 interface GlProgram {
@@ -39,7 +39,6 @@ interface GlProgram {
   uResolution: WebGLUniformLocation | null;
   uColor: WebGLUniformLocation;
   uYBounds: WebGLUniformLocation | null;
-  uDpr: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -113,7 +112,6 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uResolution: gl.getUniformLocation(program, 'uResolution'),
     uColor,
     uYBounds: gl.getUniformLocation(program, 'uYBounds'),
-    uDpr: gl.getUniformLocation(program, 'uDpr'),
   };
 }
 
@@ -287,20 +285,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     return true;
   }
 
-  resize(width: number, height: number): void {
-    this.width = Math.max(1, Math.floor(width));
-    this.height = Math.max(1, Math.floor(height));
+  resize(devicePixelWidth: number, devicePixelHeight: number, dpr: number): void {
+    this.width = Math.max(1, Math.floor(devicePixelWidth));
+    this.height = Math.max(1, Math.floor(devicePixelHeight));
+    this.dpr = dpr > 0 ? dpr : 1;
     const gl = this.gl;
     const canvas = this.canvas;
     if (!gl || !canvas) return;
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    canvas.width = Math.floor(this.width * dpr);
-    canvas.height = Math.floor(this.height * dpr);
-    // Effective ratio after integer buffer sizing (keeps snaps on real FB pixels).
-    this.dpr = canvas.width / this.width || 1;
-    canvas.style.width = `${this.width}px`;
-    canvas.style.height = `${this.height}px`;
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    canvas.width = this.width;
+    canvas.height = this.height;
+    gl.viewport(0, 0, this.width, this.height);
   }
 
   setModel(model: SwimlaneModel): void {
@@ -354,11 +348,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
     const item = findLaidOutEvent(this.layout, eventId);
     if (!item) return null;
-    return eventScreenRect(item, this.view, this.width);
+    return eventScreenRect(item, this.view, this.width, this.dpr);
   }
 
   hitTest(x: number, y: number): string | null {
-    return hitTestLayout(this.layout, this.view, this.width, x, y);
+    return hitTestLayout(this.layout, this.view, this.width, x, y, this.dpr);
   }
 
   findEvent(id: string): SwimEvent | null {
@@ -387,13 +381,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const unit = this.unitQuad;
     if (!gl || !swim || !solid || !unit) return;
 
-    const cssW = this.width;
-    const cssH = this.height;
-    // Shaders use CSS-pixel resolution for coverage math (Sudu clientRect).
-    const resX = cssW;
-    const resY = cssH;
+    const devW = this.width;
+    const devH = this.height;
+    const dpr = this.dpr;
 
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.viewport(0, 0, devW, devH);
     gl.disable(gl.DEPTH_TEST);
     gl.clearColor(0x25 / 255, 0x25 / 255, 0x25 / 255, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -406,10 +398,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const divider = 0x3a / 255;
 
     for (const header of this.layout.headers) {
-      const headerTop = header.y - this.view.scrollY;
-      if (headerTop + LANE_GROUP_HEADER_HEIGHT > 0 && headerTop < cssH) {
-        this.drawSolidRect(solid, unit, 0, headerTop, cssW, LANE_GROUP_HEADER_HEIGHT, headerBg);
-        this.drawSolidRect(solid, unit, 0, headerTop + LANE_GROUP_HEADER_HEIGHT - 1, cssW, 1, [
+      const headerTop = (header.y - this.view.scrollY) * dpr;
+      const headerH = LANE_GROUP_HEADER_HEIGHT * dpr;
+      if (headerTop + headerH > 0 && headerTop < devH) {
+        this.drawSolidRect(solid, unit, 0, headerTop, devW, headerH, headerBg);
+        this.drawSolidRect(solid, unit, 0, headerTop + headerH - 1, devW, 1, [
           divider,
           divider,
           divider,
@@ -419,10 +412,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
-      const y = lane.y - this.view.scrollY;
-      if (y + LANE_HEIGHT < 0 || y > cssH) continue;
-      this.drawSolidRect(solid, unit, 0, y, cssW, LANE_HEIGHT, [laneBg, laneBg, laneBg]);
-      this.drawSolidRect(solid, unit, 0, y + LANE_HEIGHT - 1, cssW, 1, [divider, divider, divider]);
+      const y = (lane.y - this.view.scrollY) * dpr;
+      const laneH = LANE_HEIGHT * dpr;
+      if (y + laneH < 0 || y > devH) continue;
+      this.drawSolidRect(solid, unit, 0, y, devW, laneH, [laneBg, laneBg, laneBg]);
+      this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider]);
     }
 
     // Coverage-AA intervals — source-over (matches Canvas). Not additive: additive
@@ -430,8 +424,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);
-    if (swim.uResolution) gl.uniform2f(swim.uResolution, resX, resY);
-    if (swim.uDpr) gl.uniform1f(swim.uDpr, this.dpr);
+    if (swim.uResolution) gl.uniform2f(swim.uResolution, devW, devH);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).
@@ -444,17 +437,19 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       if (!lane || !meshes) continue;
 
       const { y: topRaw, h: bandHRaw } = eventBlockMetrics(lane.y, this.view.scrollY);
-      const snapped = snapEventRect(0, topRaw, 1, bandHRaw, this.dpr);
-      const top = snapped.y;
-      const bandH = snapped.h;
-      if (top + bandH < 0 || top > cssH) continue;
+      const top = topRaw * dpr;
+      const bandH = bandHRaw * dpr;
+      const snapped = snapEventRect(0, top, 1, bandH);
+      const topSnapped = snapped.y;
+      const bandHSnapped = snapped.h;
+      if (topSnapped + bandHSnapped < 0 || topSnapped > devH) continue;
 
-      const sy = bandH / cssH;
-      const py = 1 - (top * 2 + bandH) / cssH;
+      const sy = bandHSnapped / devH;
+      const py = 1 - (topSnapped * 2 + bandHSnapped) / devH;
       const [r, g, b] = meshes.color;
 
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
-      if (swim.uYBounds) gl.uniform2f(swim.uYBounds, top, top + bandH);
+      if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
       const drawChunks = (chunks: MeshChunk[], dim: number): void => {
         // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
@@ -524,13 +519,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     rgb: [number, number, number],
   ): void {
     const gl = this.gl!;
-    const cssH = this.height;
-    const cssW = this.width;
-    // Map local x,y ∈ [-1,1] to CSS pixel rect
-    const sx = w / cssW;
-    const sy = h / cssH;
-    const px = -1 + (2 * x + w) / cssW;
-    const py = 1 - (2 * y + h) / cssH;
+    const devW = this.width;
+    const devH = this.height;
+    const sx = w / devW;
+    const sy = h / devH;
+    const px = -1 + (2 * x + w) / devW;
+    const py = 1 - (2 * y + h) / devH;
     gl.uniform4f(prog.uSizePos, sx, sy, px, py);
     gl.uniform4f(prog.uColor, rgb[0], rgb[1], rgb[2], 1);
     gl.bindVertexArray(unit.vao);
@@ -670,6 +664,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     if (!gl || !buf) return;
     const links = this.depLinks;
     this.curveCount = links.length;
+    const dpr = this.dpr;
     const data = new Float32Array(links.length * CURVE_INSTANCE_FLOATS);
     for (let i = 0; i < links.length; i++) {
       const link = links[i]!;
@@ -677,9 +672,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const c1 = hexToRgb(link.toColor);
       const o = i * CURVE_INSTANCE_FLOATS;
       data[o] = glLinkTime(link.t0, this.timeBase);
-      data[o + 1] = link.y0;
+      data[o + 1] = link.y0 * dpr;
       data[o + 2] = glLinkTime(link.t1, this.timeBase);
-      data[o + 3] = link.y1;
+      data[o + 3] = link.y1 * dpr;
       data[o + 4] = c0[0];
       data[o + 5] = c0[1];
       data[o + 6] = c0[2];
@@ -701,9 +696,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       prog.uView,
       this.view.startTime - this.timeBase,
       this.view.endTime - this.timeBase,
-      this.view.scrollY,
+      this.view.scrollY * this.dpr,
     );
-    gl.uniform1f(prog.uHalfWidth, DEP_STROKE_WIDTH / 2);
+    gl.uniform1f(prog.uHalfWidth, 1.0);
     gl.bindVertexArray(vao);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, CURVE_STRIP_VERTS, this.curveCount);
   }

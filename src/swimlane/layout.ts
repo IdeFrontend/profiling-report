@@ -10,49 +10,54 @@ export const LANE_GROUP_HEADER_HEIGHT = 28;
 export const LANE_GROUP_HEADER_FILL = '#2a2a2a';
 /** Card strip hover fill (`rgb(50, 50, 50)`); DOM only — canvas headers stay static. */
 export const LANE_GROUP_HEADER_HOVER = '#323232';
-/** Horizontal inset per side so adjacent event blocks keep a ≥1 device px visual gap. */
-export const EVENT_MARGIN = 0.5;
-/** Corner radius for an event block: 1px when narrow (<4px), else 2px. */
-export function eventRadius(width: number): number {
-  return width < 4 ? 1 : 2;
+/** Half of 1 device-px gap between abutting event fills (inset per side after CSS→device scale). */
+export const EVENT_MARGIN_DEVICE = 0.5;
+
+/** Corner radius in device px: 1 when narrow (<4 device px wide), else 2. */
+export function eventRadius(widthDevicePx: number): number {
+  return widthDevicePx < 4 ? 1 : 2;
 }
 
-/** Snap a CSS px value onto the device-pixel grid (crisp edges at fractional browser zoom). */
-export function snapCssPx(v: number, dpr: number): number {
-  return Math.round(v * dpr) / dpr;
+/** Snap a value onto the integer device-pixel grid. */
+export function snapDevicePx(v: number): number {
+  return Math.round(v);
 }
 
-/** Snap a CSS rect so all four edges land on device pixels. Min size = 1 device px. */
+/** Snap a device-pixel rect so all four edges are integers. Min size = 1 device px. */
 export function snapEventRect(
   x: number,
   y: number,
   w: number,
   h: number,
-  dpr: number,
 ): { x: number; y: number; w: number; h: number } {
-  const x0 = snapCssPx(x, dpr);
-  const y0 = snapCssPx(y, dpr);
-  const x1 = snapCssPx(x + w, dpr);
-  const y1 = snapCssPx(y + h, dpr);
-  const min = 1 / dpr;
-  return { x: x0, y: y0, w: Math.max(min, x1 - x0), h: Math.max(min, y1 - y0) };
+  const x0 = snapDevicePx(x);
+  const y0 = snapDevicePx(y);
+  const x1 = snapDevicePx(x + w);
+  const y1 = snapDevicePx(y + h);
+  return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
 }
 
 /**
- * Paint rect for event fills/strokes: apply EVENT_MARGIN, then snap to the device grid
- * so fractional `devicePixelRatio` (90%/110%/125% zoom) does not blur edges.
- * Hit-testing keeps the full (uninset) time interval.
+ * Paint rect for event fills/strokes in device pixels: 1 device-px gap, then integer snap.
+ * `x,y,w,h` must already be in device pixels. Hit-testing keeps the full (uninset) interval.
  */
 export function eventPaintRect(
   x: number,
   y: number,
   w: number,
   h: number,
-  dpr: number,
 ): { x: number; y: number; w: number; h: number; r: number } {
-  const snapped = snapEventRect(x + EVENT_MARGIN, y, Math.max(0, w - EVENT_MARGIN * 2), h, dpr);
+  const snapped = snapEventRect(
+    x + EVENT_MARGIN_DEVICE,
+    y,
+    Math.max(0, w - EVENT_MARGIN_DEVICE * 2),
+    h,
+  );
   return { ...snapped, r: eventRadius(w) };
 }
+
+/** @deprecated Use EVENT_MARGIN_DEVICE — kept as alias for older call sites during migration. */
+export const EVENT_MARGIN = EVENT_MARGIN_DEVICE;
 
 /** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */
 export const BAND_FILL = '#2c2c2c';
@@ -239,25 +244,27 @@ export function eventLabelAnchor(
 export function eventScreenRect(
   item: LaidOutEvent,
   view: SwimlaneViewWindow,
-  width: number,
+  widthDevice: number,
+  dpr = 1,
 ): { x: number; y: number; w: number; h: number } {
   const span = Math.max(1, view.endTime - view.startTime);
-  const x = ((item.event.startTime - view.startTime) / span) * width;
-  const w = Math.max(2, (item.event.duration / span) * width);
-  const { y, h } = eventBlockMetrics(item.y, view.scrollY);
-  return { x, y, w, h };
+  const x = ((item.event.startTime - view.startTime) / span) * widthDevice;
+  const w = Math.max(2 * dpr, (item.event.duration / span) * widthDevice);
+  const m = eventBlockMetrics(item.y, view.scrollY);
+  return { x, y: m.y * dpr, w, h: m.h * dpr };
 }
 
-/** Prefer shorter nested events (same as Canvas MVP). */
+/** Prefer shorter nested events (same as Canvas MVP). `width`/`x`/`y` are device pixels. */
 export function hitTestLayout(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
-  width: number,
+  widthDevice: number,
   x: number,
   y: number,
+  dpr = 1,
 ): string | null {
-  const contentY = y + view.scrollY;
-  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
+  const contentYCss = y / dpr + view.scrollY;
+  const lane = layout.lanes.find((l) => contentYCss >= l.y && contentYCss < l.y + LANE_HEIGHT);
   if (!lane || lane.folder) return null;
   const laneIndex = layout.lanes.indexOf(lane);
   const span = Math.max(1, view.endTime - view.startTime);
@@ -265,9 +272,11 @@ export function hitTestLayout(
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
     const ev = item.event;
     if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
-    const ex = ((ev.startTime - view.startTime) / span) * width;
-    const ew = Math.max(2, (ev.duration / span) * width);
-    const { y: ey, h: eh } = eventBlockMetrics(item.y, view.scrollY);
+    const ex = ((ev.startTime - view.startTime) / span) * widthDevice;
+    const ew = Math.max(2 * dpr, (ev.duration / span) * widthDevice);
+    const m = eventBlockMetrics(item.y, view.scrollY);
+    const ey = m.y * dpr;
+    const eh = m.h * dpr;
     if (x >= ex && x <= ex + ew && y >= ey && y <= ey + eh) {
       candidates.push({ id: item.id, duration: ev.duration });
     }

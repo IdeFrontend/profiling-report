@@ -1,7 +1,7 @@
 /**
  * Sudu-inspired coverage-AA swimlane shaders (reimplemented in TS; no sudu-editor dep).
- * VS snaps interval edges to the device-pixel grid; FS uses a rounded-rect SDF with
- * device-pixel coverage so fractional browser zoom stays crisp.
+ * All coordinates are integer device pixels; uResolution is the framebuffer size.
+ * No uDpr — CSS↔device conversion happens in JS before uniforms.
  */
 
 export const SWIMLANE_VS = `#version 300 es
@@ -9,7 +9,6 @@ precision highp float;
 
 uniform vec4 uSizePos;
 uniform vec2 uResolution;
-uniform float uDpr;
 
 in vec2 aPos;
 in vec2 aTex;
@@ -24,20 +23,19 @@ float glToPixelX(float x) { return (x + 1.0) * 0.5 * uResolution.x; }
 float glToPixelY(float y) { return (1.0 - y) * 0.5 * uResolution.y; }
 float pixelToGlX(float x) { return x * 2.0 / uResolution.x - 1.0; }
 
-// Snap CSS px onto the device-pixel grid (matches snapCssPx in layout.ts).
-float snapDev(float css) { return floor(css * uDpr + 0.5) / uDpr; }
+float snapDev(float px) { return floor(px + 0.5); }
 
 void main() {
   float lX = mix(aPos.x, aTex.x, aTex.y);
   float rX = mix(aTex.x, aPos.x, aTex.y);
 
   vec2 pos = vec2(translateScaleX(aPos.x), translateScaleY(aPos.y));
-  // Raw (pre-margin, pre-snap) CSS width — must match Canvas eventRadius(rawW).
+  // Raw (pre-margin, pre-snap) device-pixel width — matches Canvas eventRadius(rawW).
   vRawW = glToPixelX(translateScaleX(rX)) - glToPixelX(translateScaleX(lX));
-  // EVENT_MARGIN 0.5px per side, then snap so the gap stays on the device grid.
+  // 0.5 device px inset per side → 1 device-px gap; then integer snap.
   float lPx = snapDev(glToPixelX(translateScaleX(lX)) + 0.5);
   float rPx = snapDev(glToPixelX(translateScaleX(rX)) - 0.5);
-  rPx = max(lPx + 1.0 / uDpr, rPx);
+  rPx = max(lPx + 1.0, rPx);
 
   float screenY = glToPixelY(pos.y);
   float screenX = mix(lPx, rPx, aTex.y);
@@ -53,15 +51,13 @@ export const SWIMLANE_FS = `#version 300 es
 precision highp float;
 
 uniform vec4 uColor;
-uniform vec2 uYBounds; // top, bottom in CSS pixels (device-snapped)
-uniform float uDpr;
+uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
 in float vRawW;
 out vec4 outColor;
 
-// Rounded-box SDF (Inigo Quilez). Negative = inside.
 float sdRoundBox(vec2 p, vec2 halfSize, float r) {
   vec2 q = abs(p) - halfSize + r;
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
@@ -74,17 +70,13 @@ void main() {
   float b = uYBounds.y;
   float w = max(r - l, 0.0);
   float h = max(b - t, 0.0);
-  // Corner radius matches Canvas eventRadius: 1px when the raw width < 4px, else 2px.
   float rad = min(min(w, h) * 0.5, vRawW < 4.0 ? 1.0 : 2.0);
 
   vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
 
-  // Coverage in device pixels (~0.5 device px fringe) so fractional dpr stays sharp.
-  float coverage = clamp(0.5 - dist * uDpr, 0.0, 1.0);
-  // Premultiplied RGB + alpha: uColor.xyz is already RGB*emphasis, uColor.w is
-  // Canvas-equivalent globalAlpha (search/selection dim). Coverage AA on top.
+  float coverage = clamp(0.5 - dist, 0.0, 1.0);
   float a = uColor.w * coverage;
   outColor = vec4(uColor.xyz * coverage, a);
 }
@@ -110,12 +102,12 @@ void main() {
 }
 `;
 
-/** Instanced cubic stroke: VS evaluates the same S-curve as cubicControlPull, extrudes a 2px strip. */
+/** Instanced cubic stroke in device pixels; uHalfWidth is device px. */
 export const CURVE_VS = `#version 300 es
 precision highp float;
 
 uniform vec2 uResolution;
-uniform vec3 uView; // start/end relative to model.minTime, scrollY
+uniform vec3 uView; // start/end relative to model.minTime, scrollY in device px
 uniform float uHalfWidth;
 
 layout(location = 0) in vec2 aStrip;
