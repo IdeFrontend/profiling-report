@@ -61,7 +61,7 @@ flowchart LR
 |------------|--------------------|------------------|------------|
 | Opaque total cost | How long did the op take? What’s compute vs I/O BW? | Report summary tiles from OpBasicInfo + aggregates | **S1** · M |
 | Boundedness unclear | Am I compute-bound or memory-bound? | Summary tiles when formulas known; later **roofline** | **S1**, **S6** · compute tiles blocked on [Q6](OPEN_QUESTIONS.md); roofline P2 |
-| Pipe imbalance | Which pipes dominate or sit idle? | PIPE occupancy bars; gutter util % | **S4**, **S5** · M (field list P2); hide if no CSV |
+| Pipe imbalance | Which pipes dominate or sit idle? | PIPE occupancy bars; gutter util % | **S4**, **S5** · M (field list M1); hide if no CSV |
 | Timeline blindness | Where is wall time spent across lanes? | Swimlane zoom / pan / hover / select | **S2**, **S3** · M |
 | Core imbalance | Do some `block_id`s lag? | Gutter hierarchy + per-lane util; CSV keyed by block | **S4** · M |
 | Memory path pressure | Is L1 / UB / GM / HBM the limiter? | Static SVG + data-driven labels | **S6** · P2 ([Q12](OPEN_QUESTIONS.md)) |
@@ -108,7 +108,7 @@ Sketches under [`docs/ui/`](../ui/) encode this composition: dense dark timeline
 | As an OP dev, I zoom into a busy region and spot idle gaps | **S2** Find busy / idle regions | M | UX_SPEC, [INTERACTIONS](../ui/INTERACTIONS.md) |
 | As an OP dev, I inspect one interval’s name and timing | **S3** Inspect one event | M | UX_SPEC, INTERACTIONS |
 | As an OP dev, I compare util across cores / pipes | **S4** Compare utilization | M | UX_SPEC, gutter + PIPE |
-| As an OP dev, I rank pipes (and later search raw counters) | **S5** Drill into PIPE metrics | M / P2 | UX_SPEC, [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md) |
+| As an OP dev, I rank pipes and search raw counters | **S5** Drill into PIPE metrics | M1 | UX_SPEC, [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md) |
 | As an OP dev, I check whether memory paths limit the op | **S6** Analyze memory paths | P2 | UX_SPEC, FEATURE_MATRIX |
 | As an OP dev, I confirm NPU / HBM context for the run | **S7** Review hardware context | P2 | UX_SPEC, [Q7](OPEN_QUESTIONS.md) |
 | As an OP dev, I follow deps or aggregate a time slice | **S8** Dependencies / multi-select | P2 | UX_SPEC, [Q9](OPEN_QUESTIONS.md) |

@@ -311,7 +311,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 | S2 navigate | Zoom/pan, time axis | `ReportToolbar`, `TimeAxis`, `SwimlaneCanvas` | `swimlane`, `general` |
 | S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailPanel` | `v930/task-hover`, `v930/detail-strip-raised` |
 | S4 util compare | Lane gutter util bars, PIPE | `LaneGutter`, `PipeOccupancyPanel` | overview sketches |
-| S5 pipe drill | PIPE bars; pipe field list P2 | `PipeOccupancyPanel`, pipe details P2 | `pipe_*` |
+| S5 pipe drill | PIPE bars M; compute/memory field lists M1 | `PipeOccupancyPanel`, `CsvFieldListPanel` | `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` |
 | S6 memory | Memory topology P2 | `MemoryTopologyPanel` | `memory_*` |
 | S7 hardware | Hardware details P2 | `HardwareDetailsPanel` | `sidebar_details` |
 | S8 deps / multi | Deps, multiselect, context menu P2 | `SwimlaneCanvas` (dep curves in renderer), etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |
