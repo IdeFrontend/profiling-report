@@ -102,7 +102,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 
 | Token | Value |
 |-------|--------|
-| Icon | Pushpin / thumbtack — flat head, tapered body, point |
+| Icon | PyPTO / DevUI pushpin thumbtack (`src/ui/icons/pushpin.svg` outline, `pushpin-fill.svg` solid) |
 | Layout box | `10×10` (match chevron scale) |
 | Position | Flush **left** of gutter row (absolute); same x at every nest depth |
 | Visibility | Unpinned: only while leaf row / canvas band hovered (or pin focused). **Pinned: always visible** (original + sticky strip) |
@@ -155,6 +155,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
 
 ## Changelog
+- **2026-08-28** — Pin glyph: PyPTO/DevUI `pushpin` / `pushpin-fill` SVG assets under `src/ui/icons/`.
 - **2026-08-28** — Pinned pushpin stays visible on original + sticky strip; unpinned remains hover-only.
 - **2026-08-28** — Pin hover-only, flush-left (no depth indent); row `#252525` on lane/canvas hover; leaf indent unchanged (`24 + depth×14`).
 - **2026-08-27** — Renumber pin ACs to `PR-GUTTER-010`…`013` (reserve `009` for #45 gutter-metrics).
