@@ -84,6 +84,7 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 24. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
 25. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
 26. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, TB/s, bar = score%; `out.rep` uses 1.6 TB/s peak (~1% score).
+27. **PR-STATS-025** — Black aside shell; grey section islands.
 
 ## Edge Cases
 
@@ -117,7 +118,8 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 
 | Token | Value |
 |-------|--------|
-| Background | `#262626` (`--pr-bg-panel`) |
+| Background | `#1a1a1a` (`--pr-bg-aside`) — shell / gutter between islands (`v930/detail-strip-raised`) |
+| Islands | `#262626` (`--pr-bg-panel`) — Roofline, PIPE, topology; summary cards keep the raised gradient on the same well |
 | Padding | `10px 12px` |
 | Title | `16px` / `600` / `#ffffff` / line-height `22px` |
 | Chart icon | `16×16` L-axis + sparkline stroke, `#e6e6e6` |
@@ -131,7 +133,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 
 | Token | Value |
 |-------|--------|
-| Well | `#1a1a1a`; padding `8px` (keeps bottom band before the next stack section); radius `8px`; gap `8px` |
+| Well | `#1a1a1a` (`--pr-bg-aside`); padding `8px` (keeps bottom band before the next stack section); radius `8px`; gap `8px` |
 | Columns | `repeat(6, minmax(0, 1fr))` — top-row tiles (duration + compute/util placeholders) `span 2`; BW `span 3` |
 
 ### Duration card (`summary-cards.png` / `detail-strip-raised` cell)
@@ -171,7 +173,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 | Token | Value |
 |-------|--------|
-| Panel | `#1f1f1f`, radius `4px`, padding `12px 10px 10px` |
+| Panel | `#262626` (`--pr-bg-panel`), radius `4px`, padding `12px 10px 10px` |
 | Title | `14px` / `600` / `#ffffff` — **计算负载分析** |
 | 详情 | `12px` / `#e6e6e6` |
 | Cube\|Vector | pill `#111111`; active `#343434` / `#ffffff`; inactive `#b3b3b3`; radius `4px`; label `12px` |
@@ -203,6 +205,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-28** — Aside shell `#1a1a1a` (`--pr-bg-aside`); islands `#262626` (`--pr-bg-panel`) from `v930/detail-strip-raised` (PR-STATS-025).
 - **2026-08-27** — Gate compute/util N/A placeholders on duration (PR-STATS-011b) so BW-only summaries stay rectangular.
 - **2026-08-27** — Review fixes: truncation `title` on duration secondary + BW subtitles; N/A cards flex-center the value in the stretched top-row tile; docs aligned on N/A placeholders (not hide).
 - **2026-08-27** — Duration display always 2 dp; full value in `title` tooltip (PR-STATS-009c). Gradient stops re-sampled from detail-strip-raised (`#272f31` → `#252525`).

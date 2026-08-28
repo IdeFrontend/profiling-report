@@ -672,13 +672,12 @@ function backToReport() {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--pr-bg-panel);
+  background: var(--pr-bg-aside);
   padding: 10px 12px;
 }
 
 .pr-aside__head {
   flex-shrink: 0;
-  background: var(--pr-bg-panel);
 }
 
 .pr-aside__body {
@@ -811,7 +810,7 @@ function backToReport() {
 }
 
 /*
- * Sketch: 3+2 grid on six columns; `#1a1a1a` well with 8px pad (bottom band before
+ * Sketch: 3+2 grid on six columns; `--pr-bg-aside` well with 8px pad (bottom band before
  * the next stack section). Cards: cool diagonal gradient from detail-strip-raised.
  */
 .pr-cards {
@@ -820,7 +819,7 @@ function backToReport() {
   gap: 8px;
   padding: 8px;
   border-radius: 8px;
-  background: #1a1a1a;
+  background: var(--pr-bg-aside);
 }
 
 .pr-card {
@@ -954,8 +953,9 @@ function backToReport() {
 }
 
 .pr-panel--pipe,
-.pr-panel--topo {
-  background: #1f1f1f;
+.pr-panel--topo,
+.pr-panel--roofline {
+  background: var(--pr-bg-panel);
   border-radius: 4px;
   padding: 10px;
 }

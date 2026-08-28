@@ -802,4 +802,13 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('MemoryL1');
   });
+
+  it('PR-STATS-025: aside shell is black; roofline / PIPE / topology islands are grey', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-aside\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
+    expect(src).toMatch(/\.pr-cards\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
+    expect(src).toMatch(
+      /\.pr-panel--pipe,\s*\.pr-panel--topo,\s*\.pr-panel--roofline\s*\{[^}]*background:\s*var\(--pr-bg-panel\)/s,
+    );
+  });
 });
