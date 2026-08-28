@@ -81,7 +81,13 @@ const glCanvasRef = ref<HTMLCanvasElement | null>(null);
 const overlayCanvasRef = ref<HTMLCanvasElement | null>(null);
 const fallbackCanvasRef = ref<HTMLCanvasElement | null>(null);
 const sizerHeight = ref(120);
-const useWebGl = ref(false);
+/** Pick backend before first paint so only that canvas set is mounted (no hidden siblings). */
+function chooseWebGl(): boolean {
+  const prefer = props.preferRenderer ?? 'auto';
+  if (prefer === 'canvas') return false;
+  return WebGlSwimlaneRenderer.isSupported();
+}
+const useWebGl = ref(chooseWebGl());
 /** Bumped on size change so measure overlay computeds re-read track width. */
 const resizeTick = ref(0);
 
@@ -149,11 +155,10 @@ let unbindResizeDrag: (() => void) | null = null;
 let unbindCreateDrag: (() => void) | null = null;
 let lastW = 0;
 let lastH = 0;
+/** Device-pixel buffer size from RO; stay 0 until a positive box arrives — no paint until then. */
 let lastDeviceW = 0;
 let lastDeviceH = 0;
 let lastDpr = 0;
-/** True after ResizeObserver delivered a positive device-pixel box — no paint/buffer until then. */
-let deviceSized = false;
 /** Single CSS-pixel width for pointer→time, xRatio, and CSS-space layout helpers. */
 let trackWidth = 1;
 let resizeObserver: ResizeObserver | null = null;
@@ -324,7 +329,7 @@ function refreshHoverGapAtLastPointer(): void {
 }
 
 function schedulePaint(): void {
-  if (!deviceSized || lastDeviceW < 1 || lastDeviceH < 1) return;
+  if (lastDeviceW < 1 || lastDeviceH < 1) return;
   if (raf) return;
   raf = requestAnimationFrame(() => {
     raf = 0;
@@ -335,7 +340,7 @@ function schedulePaint(): void {
 
 /** Paint in the same turn (after buffer resize) so the canvas never shows a cleared frame. */
 function flushPaint(): void {
-  if (!deviceSized || lastDeviceW < 1 || lastDeviceH < 1) return;
+  if (lastDeviceW < 1 || lastDeviceH < 1) return;
   if (raf) {
     cancelAnimationFrame(raf);
     raf = 0;
@@ -493,34 +498,27 @@ function exactMatchesAt(time: number): ExactEdgeMatch[] {
 
 function ensureAttach(): void {
   if (attached) return;
-  const prefer = props.preferRenderer ?? 'auto';
-  const tryWebGl = prefer !== 'canvas';
-  if (
-    tryWebGl &&
-    glCanvasRef.value &&
-    overlayCanvasRef.value &&
-    WebGlSwimlaneRenderer.isSupported(glCanvasRef.value)
-  ) {
+  if (useWebGl.value) {
+    const gl = glCanvasRef.value;
+    const ov = overlayCanvasRef.value;
+    if (!gl || !ov) return;
     const glBackend = new WebGlSwimlaneRenderer();
-    if (glBackend.attach(glCanvasRef.value)) {
+    if (glBackend.attach(gl)) {
       backend = glBackend;
-      overlay.attach(overlayCanvasRef.value);
-      useWebGl.value = true;
+      overlay.attach(ov);
       attached = true;
+      zeroBackingStores();
+      return;
     }
-  }
-  if (!attached && prefer !== 'webgl' && fallbackCanvasRef.value) {
-    backend = new CanvasSwimlaneRenderer();
-    backend.attach(fallbackCanvasRef.value);
+    // Probe passed but real attach failed — remount Canvas fallback next tick.
     useWebGl.value = false;
-    attached = true;
+    return;
   }
-  if (!attached && fallbackCanvasRef.value) {
-    backend = new CanvasSwimlaneRenderer();
-    backend.attach(fallbackCanvasRef.value);
-    useWebGl.value = false;
-    attached = true;
-  }
+  const fb = fallbackCanvasRef.value;
+  if (!fb) return;
+  backend = new CanvasSwimlaneRenderer();
+  backend.attach(fb);
+  attached = true;
   zeroBackingStores();
 }
 
@@ -549,8 +547,7 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
     if (!box) return;
     deviceW = box.deviceW;
     deviceH = box.deviceH;
-    deviceSized = true;
-  } else if (!deviceSized) {
+  } else if (lastDeviceW < 1 || lastDeviceH < 1) {
     // Wait for ResizeObserver — do not invent a buffer size.
     return;
   }
@@ -597,7 +594,11 @@ function bindResizeObserver(): void {
 onMounted(async () => {
   await nextTick();
   ensureAttach();
-  zeroBackingStores();
+  if (!attached) {
+    useWebGl.value = false;
+    await nextTick();
+    ensureAttach();
+  }
   bindResizeObserver();
 });
 
@@ -1349,30 +1350,32 @@ defineExpose({
       aria-hidden="true"
       :style="{ height: `${sizerHeight}px` }"
     />
+    <template v-if="useWebGl">
+      <canvas
+        ref="glCanvasRef"
+        class="pr-swim-canvas pr-swim-canvas--gl"
+        data-testid="swimlane-webgl"
+        width="0"
+        height="0"
+      />
+      <canvas
+        ref="overlayCanvasRef"
+        class="pr-swim-canvas pr-swim-canvas--overlay"
+        data-testid="swimlane-canvas"
+        width="0"
+        height="0"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointerleave="onPointerLeave"
+        @wheel="onWheel"
+      />
+    </template>
     <canvas
-      ref="glCanvasRef"
-      class="pr-swim-canvas pr-swim-canvas--gl"
-      data-testid="swimlane-webgl"
-      width="0"
-      height="0"
-    />
-    <canvas
-      ref="overlayCanvasRef"
-      class="pr-swim-canvas pr-swim-canvas--overlay"
-      :data-testid="useWebGl ? 'swimlane-canvas' : 'swimlane-overlay'"
-      width="0"
-      height="0"
-      @pointerdown="onPointerDown"
-      @pointermove="onPointerMove"
-      @pointerup="onPointerUp"
-      @pointerleave="onPointerLeave"
-      @wheel="onWheel"
-    />
-    <canvas
-      v-show="!useWebGl"
+      v-else
       ref="fallbackCanvasRef"
       class="pr-swim-canvas"
-      :data-testid="useWebGl ? 'swimlane-fallback' : 'swimlane-canvas'"
+      data-testid="swimlane-canvas"
       width="0"
       height="0"
       @pointerdown="onPointerDown"
@@ -1536,12 +1539,6 @@ defineExpose({
 .pr-swim-canvas--overlay {
   z-index: 2;
   background: transparent;
-}
-
-.pr-swim-canvas-wrap[data-renderer='canvas'] .pr-swim-canvas--gl,
-.pr-swim-canvas-wrap[data-renderer='canvas'] .pr-swim-canvas--overlay {
-  display: none;
-  pointer-events: none;
 }
 
 /* Measure mode (M2): fade outside the selection + gray swimlane borders.

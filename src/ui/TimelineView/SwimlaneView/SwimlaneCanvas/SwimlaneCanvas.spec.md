@@ -16,7 +16,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Behavior
 
-**Canvas lifecycle.** On mount the renderer attaches but backing stores stay **0×0** until `ResizeObserver` delivers a size — no HTML default 300×150 and no speculative `css × devicePixelRatio` buffer. Observe the **main** canvas with `{ box: 'device-pixel-content-box' }`; on each callback read `devicePixelContentBoxSize` (`inlineSize` / `blockSize`) and call `resize(deviceW, deviceH, window.devicePixelRatio)` on each active renderer. `.pr-swim-canvas` CSS is constant `position: absolute; left/top: 0; width/height: 100%` of the wrap — JS never sets `canvas.style` width/height. If the entry lacks `devicePixelContentBoxSize`, derive from `contentBoxSize × dpr` in that same RO callback only. Paint is skipped until a positive device box has been received. After a buffer resize (which clears pixels), paint runs in the same turn — not deferred to the next animation frame — so gutter/aside drag does not flash a blank swimlane.
+**Canvas lifecycle.** On mount, probe WebGL once (off-DOM) and mount **only** the active canvas set: WebGL fill + Canvas2D overlay, or a single Canvas2D fallback — unused backends are not kept hidden in the DOM. The renderer attaches but backing stores stay **0×0** until `ResizeObserver` delivers a size — no HTML default 300×150 and no speculative `css × devicePixelRatio` buffer. Observe the **main** canvas with `{ box: 'device-pixel-content-box' }`; on each callback read `devicePixelContentBoxSize` (`inlineSize` / `blockSize`) and call `resize(deviceW, deviceH, window.devicePixelRatio)` on each active renderer. Until `lastDeviceW` / `lastDeviceH` are both ≥ 1, paint is skipped. `.pr-swim-canvas` CSS is constant `position: absolute; left/top: 0; width/height: 100%` of the wrap — JS never sets `canvas.style` width/height. If the entry lacks `devicePixelContentBoxSize`, derive from `contentBoxSize × dpr` in that same RO callback only. After a buffer resize (which clears pixels), paint runs in the same turn — not deferred to the next animation frame — so gutter/aside drag does not flash a blank swimlane.
 
 **Track width.** `cursor` `xRatio` and `time` derive from CSS wrap `clientWidth` / bounding rect. Hit-testing uses device pixels: `hitTest(localX * dpr, localY * dpr)`.
 
@@ -75,6 +75,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 41. **PR-CANVAS-041** — While resizing a measure border, the gray border stem hides and the full-height playhead is **blue** when the edge is not magnetized to an event (`snapped: false`); gray when magnetized.
 42. **PR-CANVAS-042** — `findExactEdgeMatchesAt` is memoized per snapped time — repeated `pointermove` at the same magnet edge rescans once.
 43. **PR-CANVAS-043** — Hovering a measure border on an event edge emits `snapped: true` (consistent with press).
+44. **PR-CANVAS-044** — Mounts only the active renderer canvases (no hidden unused siblings).
 
 ## Edge Cases
 
@@ -107,6 +108,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-08-28** — Mount only active WebGL+overlay or Canvas fallback; paint gated on lastDeviceW/H; PR-CANVAS-044.
 - **2026-08-27** — Memoize exact-edge scans per snapped time; border hover emits `snapped`; PR-CANVAS-042/043.
 - **2026-08-27** — Integrate hover-gap measure (#36) with magnet snap cursor; renumber snap ACs to PR-CANVAS-039–043.
 - **2026-08-26** — Pan capture freezes hover gap lane and event hover during drag; PR-CANVAS-037/038.

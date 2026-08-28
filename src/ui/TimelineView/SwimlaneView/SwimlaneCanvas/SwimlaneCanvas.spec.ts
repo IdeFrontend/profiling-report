@@ -73,6 +73,30 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('canvas').exists()).toBe(true);
   });
 
+  it('PR-CANVAS-044: mounts only the active renderer canvases', async () => {
+    const canvasOnly = mount(SwimlaneCanvas, {
+      props: { ...nullProps, preferRenderer: 'canvas' as const },
+    });
+    await nextTick();
+    expect(canvasOnly.findAll('canvas')).toHaveLength(1);
+    expect(canvasOnly.find('[data-testid="swimlane-canvas"]').exists()).toBe(true);
+    expect(canvasOnly.find('[data-testid="swimlane-webgl"]').exists()).toBe(false);
+    canvasOnly.unmount();
+
+    const auto = mount(SwimlaneCanvas, { props: nullProps });
+    await nextTick();
+    const canvases = auto.findAll('canvas');
+    const webgl = auto.find('[data-testid="swimlane-webgl"]');
+    if (webgl.exists()) {
+      expect(canvases).toHaveLength(2);
+      expect(auto.find('[data-testid="swimlane-canvas"]').exists()).toBe(true);
+    } else {
+      expect(canvases).toHaveLength(1);
+      expect(auto.find('[data-testid="swimlane-canvas"]').exists()).toBe(true);
+    }
+    auto.unmount();
+  });
+
   it('PR-CANVAS-002: canvas persists after model change', async () => {
     const wrapper = mount(SwimlaneCanvas, { props: nullProps });
     await wrapper.setProps({
