@@ -1,50 +1,52 @@
 /**
- * Sudu-inspired coverage-AA swimlane shaders (reimplemented in TS; no sudu-editor dep).
- * VS snaps interval edges to the device-pixel grid; FS uses a rounded-rect SDF with
- * device-pixel coverage so fractional browser zoom stays crisp.
+ * Swimlane interval shaders from sudu-editor
+ * (`demo-test-scenes/.../swimlane/SwimlaneShader.java`).
+ *
+ * VS matches sudu (floor/ceil horizontal edge snap). FS is hardened: sudu's
+ * `rgb × inside` coverage with alpha=1 reads as two dim semi-tone edge lines under
+ * source-over blend; geometry already snaps to pixels so FS outputs solid fill.
  */
 
 export const SWIMLANE_VS = `#version 300 es
 precision highp float;
+vec2 pixelPos(vec2 pos, vec2 resolution) { return vec2((pos.x + 1.0) * 0.5 * resolution.x, (1.0 - pos.y) * 0.5 * resolution.y); }
 
 uniform vec4 uSizePos;
 uniform vec2 uResolution;
-uniform float uDpr;
-
-in vec2 aPos;
-in vec2 aTex;
-
-out vec2 vScreenPos;
-out vec2 vLrScreen;
-out float vRawW;
+uniform vec2 uParameters;
+in vec2 vPos, vTex;
+out vec2 screenPos;
+out vec2 lrScreen;
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
+
 float glToPixelX(float x) { return (x + 1.0) * 0.5 * uResolution.x; }
 float glToPixelY(float y) { return (1.0 - y) * 0.5 * uResolution.y; }
 float pixelToGlX(float x) { return x * 2.0 / uResolution.x - 1.0; }
+float pixelToGlY(float y) { return 1.0 - y * 2.0 / uResolution.y; }
 
-// Snap CSS px onto the device-pixel grid (matches snapCssPx in layout.ts).
-float snapDev(float css) { return floor(css * uDpr + 0.5) / uDpr; }
+vec2 glToPixel(vec2 gl) { return vec2(glToPixelX(gl.x), glToPixelY(gl.y)); }
+vec2 pixelToGl(vec2 px) { return vec2(pixelToGlX(px.x), pixelToGlY(px.y)); }
 
 void main() {
-  float lX = mix(aPos.x, aTex.x, aTex.y);
-  float rX = mix(aTex.x, aPos.x, aTex.y);
+  float lX = mix(vPos.x, vTex.x, vTex.y);
+  float rX = mix(vTex.x, vPos.x, vTex.y);
 
-  vec2 pos = vec2(translateScaleX(aPos.x), translateScaleY(aPos.y));
-  // Raw (pre-margin, pre-snap) CSS width — must match Canvas eventRadius(rawW).
-  vRawW = glToPixelX(translateScaleX(rX)) - glToPixelX(translateScaleX(lX));
-  // EVENT_MARGIN 0.5px per side, then snap so the gap stays on the device grid.
-  float lPx = snapDev(glToPixelX(translateScaleX(lX)) + 0.5);
-  float rPx = snapDev(glToPixelX(translateScaleX(rX)) - 0.5);
-  rPx = max(lPx + 1.0 / uDpr, rPx);
+  vec2 pos = vec2(translateScaleX(vPos.x), translateScaleY(vPos.y));
+  float lPx = glToPixelX(translateScaleX(lX));
+  float rPx = glToPixelX(translateScaleX(rX));
 
+  float screenX = glToPixelX(pos.x);
   float screenY = glToPixelY(pos.y);
-  float screenX = mix(lPx, rPx, aTex.y);
+
+  // extend left/right edge to left/right pixel bound
+  screenX = mix(floor(screenX), ceil(screenX), vTex.y);
+  // convert back to gl space
   pos.x = pixelToGlX(screenX);
 
-  vScreenPos = vec2(screenX, screenY);
-  vLrScreen = vec2(lPx, rPx);
+  screenPos = vec2(screenX, screenY);
+  lrScreen = vec2(floor(lPx + 0.5), ceil(rPx - 0.5));
   gl_Position = vec4(pos, 0.0, 1.0);
 }
 `;
@@ -52,109 +54,14 @@ void main() {
 export const SWIMLANE_FS = `#version 300 es
 precision highp float;
 
+layout(location = 0) out vec4 outColor;
 uniform vec4 uColor;
-uniform vec2 uYBounds; // top, bottom in CSS pixels (device-snapped)
-uniform float uDpr;
-
-in vec2 vScreenPos;
-in vec2 vLrScreen;
-in float vRawW;
-out vec4 outColor;
-
-// Rounded-box SDF (Inigo Quilez). Negative = inside.
-float sdRoundBox(vec2 p, vec2 halfSize, float r) {
-  vec2 q = abs(p) - halfSize + r;
-  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
-
+in vec2 screenPos;
+in vec2 lrScreen;
 void main() {
-  float l = vLrScreen.x;
-  float r = vLrScreen.y;
-  float t = uYBounds.x;
-  float b = uYBounds.y;
-  float w = max(r - l, 0.0);
-  float h = max(b - t, 0.0);
-  // Corner radius matches Canvas eventRadius: 1px when the raw width < 4px, else 2px.
-  float rad = min(min(w, h) * 0.5, vRawW < 4.0 ? 1.0 : 2.0);
-
-  vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
-  vec2 halfSize = vec2(w * 0.5, h * 0.5);
-  float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
-
-  // Coverage in device pixels (~0.5 device px fringe) so fractional dpr stays sharp.
-  float coverage = clamp(0.5 - dist * uDpr, 0.0, 1.0);
-  // Premultiplied RGB + alpha: uColor.xyz is already RGB*emphasis, uColor.w is
-  // Canvas-equivalent globalAlpha (search/selection dim). Coverage AA on top.
-  float a = uColor.w * coverage;
-  outColor = vec4(uColor.xyz * coverage, a);
-}
-`;
-
-/** Simple solid fill for lane backgrounds / header (no coverage). */
-export const SOLID_VS = `#version 300 es
-precision highp float;
-uniform vec4 uSizePos;
-in vec2 aPos;
-void main() {
-  vec2 pos = vec2(aPos.x * uSizePos.x + uSizePos.z, aPos.y * uSizePos.y + uSizePos.w);
-  gl_Position = vec4(pos, 0.0, 1.0);
-}
-`;
-
-export const SOLID_FS = `#version 300 es
-precision highp float;
-uniform vec4 uColor;
-out vec4 outColor;
-void main() {
-  outColor = uColor;
-}
-`;
-
-/** Instanced cubic stroke: VS evaluates the same S-curve as cubicControlPull, extrudes a 2px strip. */
-export const CURVE_VS = `#version 300 es
-precision highp float;
-
-uniform vec2 uResolution;
-uniform vec3 uView; // start/end relative to model.minTime, scrollY
-uniform float uHalfWidth;
-
-layout(location = 0) in vec2 aStrip;
-layout(location = 1) in vec2 aEnd0;
-layout(location = 2) in vec2 aEnd1;
-layout(location = 3) in vec3 aC0;
-layout(location = 4) in vec3 aC1;
-
-out vec3 vColor;
-out float vSide;
-
-void main() {
-  float span = max(uView.y - uView.x, 1.0);
-  vec2 p0 = vec2((aEnd0.x - uView.x) / span * uResolution.x, aEnd0.y - uView.z);
-  vec2 p1 = vec2((aEnd1.x - uView.x) / span * uResolution.x, aEnd1.y - uView.z);
-  float mag = max(24.0, abs(p1.x - p0.x) * 0.4);
-  float pull = p1.x >= p0.x ? mag : -mag;
-  vec2 c0 = vec2(p0.x + pull, p0.y);
-  vec2 c1 = vec2(p1.x - pull, p1.y);
-  float t = aStrip.x;
-  float u = 1.0 - t;
-  vec2 p = u * u * u * p0 + 3.0 * u * u * t * c0 + 3.0 * u * t * t * c1 + t * t * t * p1;
-  vec2 dp = 3.0 * u * u * (c0 - p0) + 6.0 * u * t * (c1 - c0) + 3.0 * t * t * (p1 - c1);
-  float dpLen = length(dp);
-  vec2 n = dpLen > 1e-4 ? vec2(-dp.y, dp.x) / dpLen : vec2(0.0, 1.0);
-  vec2 pos = p + n * aStrip.y * uHalfWidth;
-  gl_Position = vec4(pos.x / uResolution.x * 2.0 - 1.0, 1.0 - pos.y / uResolution.y * 2.0, 0.0, 1.0);
-  vColor = mix(aC0, aC1, t);
-  vSide = aStrip.y;
-}
-`;
-
-export const CURVE_FS = `#version 300 es
-precision highp float;
-in vec3 vColor;
-in float vSide;
-out vec4 outColor;
-void main() {
-  float a = 1.0 - smoothstep(0.55, 1.0, abs(vSide));
-  outColor = vec4(vColor * a, a);
+  // VS snaps geometry to pixel bounds; solid fill avoids sudu FS coverage dimming
+  // (rgb*inside, a=1) which shows as two semi-tone edge lines with source-over.
+  if (screenPos.x < lrScreen.x || screenPos.x >= lrScreen.y) discard;
+  outColor = vec4(uColor.xyz, 1.0);
 }
 `;

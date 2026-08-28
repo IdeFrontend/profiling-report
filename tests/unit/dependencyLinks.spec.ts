@@ -12,7 +12,7 @@ import {
   MAX_DEPENDENCY_LINKS,
 } from '../../src/swimlane/dependencyLinks';
 import { eventBlockMetrics, eventLinkContentY, rebuildLayout } from '../../src/swimlane/layout';
-import { CURVE_VS } from '../../src/swimlane/shaders';
+import { CURVE_VS } from '../../src/swimlane/auxShaders';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 
 const hasWebGl2 = WebGlSwimlaneRenderer.isSupported();

@@ -10,13 +10,6 @@ export const LANE_GROUP_HEADER_HEIGHT = 28;
 export const LANE_GROUP_HEADER_FILL = '#2a2a2a';
 /** Card strip hover fill (`rgb(50, 50, 50)`); DOM only — canvas headers stay static. */
 export const LANE_GROUP_HEADER_HOVER = '#323232';
-/** Horizontal inset per side so adjacent event blocks keep a ≥1 device px visual gap. */
-export const EVENT_MARGIN = 0.5;
-/** Corner radius for an event block: 1px when narrow (<4px), else 2px. */
-export function eventRadius(width: number): number {
-  return width < 4 ? 1 : 2;
-}
-
 /** Snap a CSS px value onto the device-pixel grid (crisp edges at fractional browser zoom). */
 export function snapCssPx(v: number, dpr: number): number {
   return Math.round(v * dpr) / dpr;
@@ -36,22 +29,6 @@ export function snapEventRect(
   const y1 = snapCssPx(y + h, dpr);
   const min = 1 / dpr;
   return { x: x0, y: y0, w: Math.max(min, x1 - x0), h: Math.max(min, y1 - y0) };
-}
-
-/**
- * Paint rect for event fills/strokes: apply EVENT_MARGIN, then snap to the device grid
- * so fractional `devicePixelRatio` (90%/110%/125% zoom) does not blur edges.
- * Hit-testing keeps the full (uninset) time interval.
- */
-export function eventPaintRect(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  dpr: number,
-): { x: number; y: number; w: number; h: number; r: number } {
-  const snapped = snapEventRect(x + EVENT_MARGIN, y, Math.max(0, w - EVENT_MARGIN * 2), h, dpr);
-  return { ...snapped, r: eventRadius(w) };
 }
 
 /** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */

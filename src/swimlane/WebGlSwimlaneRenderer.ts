@@ -29,7 +29,8 @@ import {
   type SwimlaneLayout,
 } from './layout';
 import { dependencyGraph, DEP_STROKE_WIDTH, glLinkTime, type DependencyLink } from './dependencyLinks';
-import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS } from './shaders';
+import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS } from './auxShaders';
+import { SWIMLANE_FS, SWIMLANE_VS } from './shaders';
 
 interface GlProgram {
   program: WebGLProgram;
@@ -38,8 +39,6 @@ interface GlProgram {
   uSizePos: WebGLUniformLocation;
   uResolution: WebGLUniformLocation | null;
   uColor: WebGLUniformLocation;
-  uYBounds: WebGLUniformLocation | null;
-  uDpr: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -92,8 +91,10 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
   if (!program) throw new Error('createProgram failed');
   gl.attachShader(program, vs);
   gl.attachShader(program, fs);
-  gl.bindAttribLocation(program, 0, 'aPos');
-  if (vsSrc.includes('aTex')) gl.bindAttribLocation(program, 1, 'aTex');
+  const posName = vsSrc.includes('vPos') ? 'vPos' : 'aPos';
+  const texName = vsSrc.includes('vTex') ? 'vTex' : 'aTex';
+  gl.bindAttribLocation(program, 0, posName);
+  if (vsSrc.includes(texName)) gl.bindAttribLocation(program, 1, texName);
   gl.linkProgram(program);
   gl.deleteShader(vs);
   gl.deleteShader(fs);
@@ -107,13 +108,11 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
   if (!uSizePos || !uColor) throw new Error('missing uniforms');
   return {
     program,
-    aPos: gl.getAttribLocation(program, 'aPos'),
-    aTex: gl.getAttribLocation(program, 'aTex'),
+    aPos: gl.getAttribLocation(program, posName),
+    aTex: gl.getAttribLocation(program, texName),
     uSizePos,
     uResolution: gl.getUniformLocation(program, 'uResolution'),
     uColor,
-    uYBounds: gl.getUniformLocation(program, 'uYBounds'),
-    uDpr: gl.getUniformLocation(program, 'uDpr'),
   };
 }
 
@@ -230,8 +229,8 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
 }
 
 /**
- * WebGL2 coverage-AA interval backend (Sudu-inspired; no sudu-editor dependency).
- * Draws uniform lane backgrounds, row dividers, rounded interval fills, and instanced
+ * WebGL2 Sudu swimlane interval backend (`SwimlaneShader` GLSL).
+ * Draws uniform lane backgrounds, row dividers, coverage-AA interval fills, and instanced
  * dependency polylines. Labels/selection use overlay.
  */
 export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
@@ -389,9 +388,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     const cssW = this.width;
     const cssH = this.height;
-    // Shaders use CSS-pixel resolution for coverage math (Sudu clientRect).
-    const resX = cssW;
-    const resY = cssH;
+    const fbW = gl.canvas.width;
+    const fbH = gl.canvas.height;
 
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.disable(gl.DEPTH_TEST);
@@ -425,13 +423,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       this.drawSolidRect(solid, unit, 0, y + LANE_HEIGHT - 1, cssW, 1, [divider, divider, divider]);
     }
 
-    // Coverage-AA intervals — source-over (matches Canvas). Not additive: additive
-    // overdraw of nested/overlapping same-color events looked like a bright block-in-block.
+    // Coverage-AA intervals — source-over. FS is solid (see shaders.ts).
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);
-    if (swim.uResolution) gl.uniform2f(swim.uResolution, resX, resY);
-    if (swim.uDpr) gl.uniform1f(swim.uDpr, this.dpr);
+    // Snap VS floor/ceil in framebuffer pixels (HiDPI crisp edges).
+    if (swim.uResolution) gl.uniform2f(swim.uResolution, fbW, fbH);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).
@@ -454,11 +451,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const [r, g, b] = meshes.color;
 
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
-      if (swim.uYBounds) gl.uniform2f(swim.uYBounds, top, top + bandH);
 
       const drawChunks = (chunks: MeshChunk[], dim: number): void => {
-        // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
-        gl.uniform4f(swim.uColor, r * dim, g * dim, b * dim, dim);
+        // Sudu FS: rgb × horizontal coverage; dim scales rgb (alpha stays 1).
+        gl.uniform4f(swim.uColor, r * dim, g * dim, b * dim, 1);
         for (const chunk of chunks) {
           gl.bindVertexArray(chunk.vao);
           gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);

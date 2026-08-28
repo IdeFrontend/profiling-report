@@ -24,7 +24,7 @@ class CanvasSwimlaneRenderer {
 
 **HiDPI rendering.** `resize` multiplies canvas backing store by `window.devicePixelRatio` to ensure crisp rendering on Retina displays. Logical dimensions stored separately for layout calculations.
 
-**Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y` and are vertically centered in the lane between gutter-aligned row dividers (`(LANE_HEIGHT - h) / 2` inset, then −0.5px optical nudge). Rounded rectangles use a width-based corner radius — 1px when the on-screen block is narrower than 4px, otherwise 2px (`ctx.roundRect()` where available) — and are inset 0.5px per side so adjacent blocks keep a ≥1 device px gap instead of touching. Event rect edges are snapped to the device-pixel grid (and WebGL coverage AA is computed in device pixels) so borders stay crisp at fractional browser zoom / `devicePixelRatio`. Only events overlapping the current time viewport are drawn.
+**Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y` and are vertically centered in the lane between gutter-aligned row dividers (`(LANE_HEIGHT - h) / 2` inset, then −0.5px optical nudge). Event rects are axis-aligned (`fillRect` / Sudu interval shader) with edges snapped to the device-pixel grid so borders stay crisp at fractional browser zoom / `devicePixelRatio`. WebGL interval fills use the sudu-editor `SwimlaneShader` horizontal coverage AA (`floor`/`ceil` edge snap in the VS; FS `inside = rPx - lPx`). Only events overlapping the current time viewport are drawn.
 
 **Event labels.** When the on-screen (clipped) event width is wide enough (>40px), the title is drawn centered: vertically at the event block mid-line (`textBaseline: middle`), horizontally at the center of the visible intersection of the event rect with the canvas (fully on-screen → center of the event; clipped left/right → center of the remaining visible strip). Canvas fallback and the WebGL overlay share this layout.
 
@@ -34,7 +34,7 @@ class CanvasSwimlaneRenderer {
 
 **Cursor.** Vertical cursor stroke uses `#317AF7` to match axis `.pr-cursor`. Swimlane paints the follow-bar as a DOM overlay in `SwimlaneView` (under Card strips); Canvas/WebGL renderers no longer stroke the cursor.
 
-**WebGL intervals.** Coverage-AA rounded fills use **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend, which lit up overlaps as a bright “block inside block”. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
+**WebGL intervals.** Sudu-editor `SwimlaneShader` VS (floor/ceil edge snap) with a hardened FS: sudu's horizontal `rgb × inside` coverage at alpha=1 reads as two dim semi-tone edge lines under source-over, so FS discards outside snapped `[lrScreen.x, lrScreen.y)` and outputs solid `uColor`. `uResolution` is the framebuffer size so snap lands on device pixels. Search/selection dim scales `uColor` RGB. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
 
 **Dependency curves.** On selection, WebGL draws an instanced 2px cubic strip (one instance per link; pan/zoom via uniforms). Canvas fallback strokes the same cubic with a pred→succ linear gradient. See [DependencyLinksLayer](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/DependencyLinksLayer.spec.md). `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional; Canvas and WebGL implement them, and `SwimlaneCanvas` calls them with `?.`.
 
@@ -56,7 +56,6 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-012**: Canvas and WebGL Card/group header bands use `LANE_GROUP_HEADER_FILL` (`#2a2a2a` / `rgb(42, 42, 42)`).
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep full fill and label brightness.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional (existing implementers stay valid).
-1. **PR-RENDER-017**: `eventRadius` returns 1px below 4px width and 2px otherwise.
 1. **PR-RENDER-018**: `snapEventRect` aligns all four edges to the device-pixel grid.
 
 ## Edge Cases

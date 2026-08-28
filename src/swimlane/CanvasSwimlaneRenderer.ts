@@ -10,8 +10,6 @@ import { dependencyGraph, paintDependencyLinks, type DependencyLink } from './de
 import {
   BAND_FILL,
   EMPTY_LAYOUT,
-  eventPaintRect,
-  eventRadius,
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
@@ -34,25 +32,17 @@ function minCssPx(dpr: number): number {
   return 1 / dpr;
 }
 
-/** Device-pixel-snapped stroke path inset by half the (snapped) line width. */
-function strokeRoundedEvent(
+/** Device-pixel-snapped stroke inset by half the (snapped) line width. */
+function strokeEventRect(
   ctx: CanvasRenderingContext2D,
-  r: { x: number; y: number; w: number; h: number; r: number },
+  r: { x: number; y: number; w: number; h: number },
   lineWidthCss: number,
   dpr: number,
 ): void {
   const lw = Math.max(minCssPx(dpr), Math.round(lineWidthCss * dpr) / dpr);
   ctx.lineWidth = lw;
   const min = minCssPx(dpr);
-  roundRectPath(
-    ctx,
-    r.x + lw / 2,
-    r.y + lw / 2,
-    Math.max(min, r.w - lw),
-    Math.max(min, r.h - lw),
-    r.r,
-  );
-  ctx.stroke();
+  ctx.strokeRect(r.x + lw / 2, r.y + lw / 2, Math.max(min, r.w - lw), Math.max(min, r.h - lw));
 }
 
 function drawEventLabel(
@@ -78,28 +68,6 @@ function drawEventLabel(
   ctx.restore();
 }
 
-function roundRectPath(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): void {
-  const radius = Math.max(0, Math.min(r, w / 2, h / 2));
-  ctx.beginPath();
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(x, y, w, h, radius);
-    return;
-  }
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + w, y, x + w, y + h, radius);
-  ctx.arcTo(x + w, y + h, x, y + h, radius);
-  ctx.arcTo(x, y + h, x, y, radius);
-  ctx.arcTo(x, y, x + w, y, radius);
-  ctx.closePath();
-}
-
 export function paintGroupBands(
   ctx: CanvasRenderingContext2D,
   layout: SwimlaneLayout,
@@ -123,8 +91,7 @@ export function paintGroupBands(
       if (y + h < 0 || y > height) continue;
       const r = snapEventRect(x, y, w, h, dpr);
       ctx.fillStyle = BAND_FILL;
-      roundRectPath(ctx, r.x, r.y, r.w, r.h, eventRadius(w));
-      ctx.fill();
+      ctx.fillRect(r.x, r.y, r.w, r.h);
       drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, width, 1, '#555555');
     }
   }
@@ -215,17 +182,17 @@ export class SwimlaneOverlayPainter {
       const w = Math.max(2, (ev.duration / span) * this.width);
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
-      const r = eventPaintRect(x, y, w, h, dpr);
+      const r = snapEventRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
 
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
-        strokeRoundedEvent(ctx, r, 2, dpr);
+        strokeEventRect(ctx, r, 2, dpr);
       } else if (item.id === this.hoveredId) {
         ctx.strokeStyle = '#c8e0ff';
-        strokeRoundedEvent(ctx, r, 1.5, dpr);
+        strokeEventRect(ctx, r, 1.5, dpr);
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
@@ -394,7 +361,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       y: number;
       w: number;
       h: number;
-      r: number;
       matches: boolean;
       dim: number;
     }[] = [];
@@ -408,27 +374,26 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const w = Math.max(2, (ev.duration / span) * this.width);
       const { y, h } = eventBlockMetrics(item.y, this.view.scrollY);
       if (y + h < 0 || y > this.height) continue;
-      const fr = eventPaintRect(x, y, w, h, dpr);
+      const fr = snapEventRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
       ctx.globalAlpha = dim;
       ctx.fillStyle = item.color;
-      roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
-      ctx.fill();
+      ctx.fillRect(fr.x, fr.y, fr.w, fr.h);
       ctx.globalAlpha = 1;
-      visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, r: fr.r, matches, dim });
+      visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, matches, dim });
     }
 
     paintDependencyLinks(ctx, this.depLinks, this.view, this.width);
 
-    for (const { item, x, y, w, h, r, matches, dim } of visible) {
+    for (const { item, x, y, w, h, matches, dim } of visible) {
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
-        strokeRoundedEvent(ctx, { x, y, w, h, r }, 2, dpr);
+        strokeEventRect(ctx, { x, y, w, h }, 2, dpr);
       } else if (item.id === this.hoveredId) {
         ctx.strokeStyle = '#c8e0ff';
-        strokeRoundedEvent(ctx, { x, y, w, h, r }, 1.5, dpr);
+        strokeEventRect(ctx, { x, y, w, h }, 1.5, dpr);
       }
 
       if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim);
@@ -451,8 +416,6 @@ export {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   LANE_PAD_Y,
-  EVENT_MARGIN,
-  eventRadius,
   eventBlockMetrics,
   eventLabelAnchor,
 } from './layout';
