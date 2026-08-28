@@ -332,9 +332,14 @@ defineExpose({
   overflow: hidden;
 }
 
-/* Pin to used gutter column so the handle stays on the seam when the column shrinks. */
+/*
+ * Pin to the used gutter column so the handle stays on the seam when the column
+ * shrinks below --pr-gutter-width. Abspos grid children treat a lone
+ * `grid-column: 1` end line as `auto` (= container padding edge), so the line
+ * pair must be explicit (`1 / 2`) or `right: 0` parks on the far track edge.
+ */
 .pr-gutter-resize {
-  grid-column: 1;
+  grid-column: 1 / 2;
   grid-row: 1;
   position: absolute;
   top: 0;
