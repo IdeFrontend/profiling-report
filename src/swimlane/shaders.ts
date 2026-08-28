@@ -58,10 +58,7 @@ void main() {
   float lPx = max(vLrScreen.x, vScreenPos.x - 0.5);
   float rPx = min(vLrScreen.y, vScreenPos.x + 0.5);
   float inside = rPx - lPx;
-<<<<<<< HEAD
-=======
   // Premul source-over (not sudu additive a=1). Y is bounded by vertex geometry.
->>>>>>> e1add9b (fix: remove dead uYBounds from WebGL coverage path)
   outColor = vec4(uColor.xyz * inside, uColor.w * inside);
 }
 `;
