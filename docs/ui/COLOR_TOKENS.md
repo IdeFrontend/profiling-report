@@ -9,7 +9,8 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | Token | Hex | Notes |
 |-------|-----|-------|
 | `--pr-bg-deep` | `#1F1F1F` | Main report / timeline / gutter lanes / toolbar strip / canvas |
-| `--pr-bg-panel` | `#262626` | Elevated chrome: aside, detail dock (Card strips use `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` → `#2a2a2a` / `#323232`) |
+| `--pr-bg-aside` | `#1A1A1A` | Right-aside shell / gutter between islands (`v930/detail-strip-raised` sample `rgb(26,26,26)`) |
+| `--pr-bg-panel` | `#262626` | Elevated chrome: PIPE / Roofline / topology aside sections, detail dock (Card strips use `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` → `#2a2a2a` / `#323232`) |
 | `--pr-axis-tick` | `#343434` | Viewport/overview axis major bars + minor ticks (v930 sample ≈ `rgb(52,52,52)`) |
 | `--pr-axis-tick-muted` | `#272727` | Axis ticks outside the selected overview window (v930 sample ≈ `rgb(39,39,39)`) |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
@@ -70,6 +71,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
   --pr-color-duration-bar: #5ec8d8;
   --pr-color-playhead: #3078f0;
   --pr-bg-deep: #1f1f1f;
+  --pr-bg-aside: #1a1a1a;
   --pr-bg-panel: #262626;
   --pr-axis-tick: #343434;
   --pr-axis-tick-muted: #272727;
