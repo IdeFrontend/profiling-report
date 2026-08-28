@@ -1,7 +1,8 @@
 /**
  * Sudu-inspired coverage-AA swimlane shaders (reimplemented in TS; no sudu-editor dep).
- * All coordinates are integer device pixels; uResolution is the framebuffer size.
+ * Coordinates in device pixels; uResolution is the framebuffer size.
  * No uDpr — CSS↔device conversion happens in JS before uniforms.
+ * Interim: square corners (no round-rect); analytical horizontal coverage from sudu.
  */
 
 export const SWIMLANE_VS = `#version 300 es
@@ -15,7 +16,6 @@ in vec2 aTex;
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
-out float vRawW;
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -23,22 +23,19 @@ float glToPixelX(float x) { return (x + 1.0) * 0.5 * uResolution.x; }
 float glToPixelY(float y) { return (1.0 - y) * 0.5 * uResolution.y; }
 float pixelToGlX(float x) { return x * 2.0 / uResolution.x - 1.0; }
 
-float snapDev(float px) { return floor(px + 0.5); }
-
 void main() {
   float lX = mix(aPos.x, aTex.x, aTex.y);
   float rX = mix(aTex.x, aPos.x, aTex.y);
 
   vec2 pos = vec2(translateScaleX(aPos.x), translateScaleY(aPos.y));
-  // Raw (pre-margin, pre-snap) device-pixel width — matches Canvas eventRadius(rawW).
-  vRawW = glToPixelX(translateScaleX(rX)) - glToPixelX(translateScaleX(lX));
-  // 0.5 device px inset per side → 1 device-px gap; then integer snap.
-  float lPx = snapDev(glToPixelX(translateScaleX(lX)) + 0.5);
-  float rPx = snapDev(glToPixelX(translateScaleX(rX)) - 0.5);
-  rPx = max(lPx + 1.0, rPx);
+  // Exact event edges in device pixels — must reach every fragment via vLrScreen.
+  float lPx = glToPixelX(translateScaleX(lX));
+  float rPx = glToPixelX(translateScaleX(rX));
 
+  float screenX = glToPixelX(pos.x);
   float screenY = glToPixelY(pos.y);
-  float screenX = mix(lPx, rPx, aTex.y);
+  // Extend this vertex's edge to the left/right pixel bound (sudu).
+  screenX = mix(floor(screenX), ceil(screenX), aTex.y);
   pos.x = pixelToGlX(screenX);
 
   vScreenPos = vec2(screenX, screenY);
@@ -51,34 +48,18 @@ export const SWIMLANE_FS = `#version 300 es
 precision highp float;
 
 uniform vec4 uColor;
-uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
-in float vRawW;
 out vec4 outColor;
 
-float sdRoundBox(vec2 p, vec2 halfSize, float r) {
-  vec2 q = abs(p) - halfSize + r;
-  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
-
 void main() {
-  float l = vLrScreen.x;
-  float r = vLrScreen.y;
-  float t = uYBounds.x;
-  float b = uYBounds.y;
-  float w = max(r - l, 0.0);
-  float h = max(b - t, 0.0);
-  float rad = min(min(w, h) * 0.5, vRawW < 4.0 ? 1.0 : 2.0);
-
-  vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
-  vec2 halfSize = vec2(w * 0.5, h * 0.5);
-  float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
-
-  float coverage = clamp(0.5 - dist, 0.0, 1.0);
-  float a = uColor.w * coverage;
-  outColor = vec4(uColor.xyz * coverage, a);
+  // Sudu: lPx/rPx = event left/right inside the current device pixel.
+  float lPx = max(vLrScreen.x, vScreenPos.x - 0.5);
+  float rPx = min(vLrScreen.y, vScreenPos.x + 0.5);
+  float inside = rPx - lPx;
+  // Premul source-over (not sudu additive a=1). Y is bounded by vertex geometry.
+  outColor = vec4(uColor.xyz * inside, uColor.w * inside);
 }
 `;
 
