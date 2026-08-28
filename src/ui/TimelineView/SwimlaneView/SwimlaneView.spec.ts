@@ -1794,7 +1794,10 @@ describe('SwimlaneView', () => {
       },
     });
 
-    await wrapper.get('[data-testid="card-metric-select"]').setValue('utilization');
+    await wrapper.get('[data-testid="card-metric-select"] .pr-metric-select__trigger').trigger('click');
+    const opt = document.querySelector('[data-testid="card-metric-option-utilization"]') as HTMLElement | null;
+    expect(opt).toBeTruthy();
+    opt!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(wrapper.emitted('update:gutter-metric')).toEqual([[{ cardId: 'card0', metric: 'utilization' }]]);
     expect(wrapper.emitted('toggle-group')).toBeUndefined();
   });
@@ -1830,7 +1833,7 @@ describe('SwimlaneView', () => {
 
     const selects = wrapper.findAll('[data-testid="card-metric-select"]');
     expect(selects).toHaveLength(2);
-    expect((selects[0]!.element as HTMLSelectElement).value).toBe('task');
-    expect((selects[1]!.element as HTMLSelectElement).value).toBe('clockCycle');
+    expect(selects[0]!.attributes('data-value')).toBe('task');
+    expect(selects[1]!.attributes('data-value')).toBe('clockCycle');
   });
 });
