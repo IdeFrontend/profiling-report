@@ -28,19 +28,14 @@ void main() {
   float rX = mix(aTex.x, aPos.x, aTex.y);
 
   vec2 pos = vec2(translateScaleX(aPos.x), translateScaleY(aPos.y));
-  float rawL = glToPixelX(translateScaleX(lX));
-  float rawR = glToPixelX(translateScaleX(rX));
-  // True fractional edges with 0.5 device-px inset per side → 1 device-px gap.
-  float lPx = rawL + 0.5;
-  float rPx = rawR - 0.5;
-  if (rPx <= lPx) {
-    lPx = rawL;
-    rPx = max(rawR, rawL + 1.0e-4);
-  }
+  // Exact event edges in device pixels — must reach every fragment via vLrScreen.
+  float lPx = glToPixelX(translateScaleX(lX));
+  float rPx = glToPixelX(translateScaleX(rX));
 
+  float screenX = glToPixelX(pos.x);
   float screenY = glToPixelY(pos.y);
-  // Expand to pixel bounds that overlap the (possibly inset) interval — sudu floor/ceil.
-  float screenX = mix(floor(lPx), ceil(rPx), aTex.y);
+  // Extend this vertex's edge to the left/right pixel bound (sudu).
+  screenX = mix(floor(screenX), ceil(screenX), aTex.y);
   pos.x = pixelToGlX(screenX);
 
   vScreenPos = vec2(screenX, screenY);
