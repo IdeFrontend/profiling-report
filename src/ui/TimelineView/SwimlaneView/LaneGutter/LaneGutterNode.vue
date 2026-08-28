@@ -261,9 +261,9 @@ function onPinClick(e: MouseEvent) {
 
 .pr-gutter__pin-tip {
   position: absolute;
-  left: 50%;
+  /* Pin sits flush-left; center would clip past the gutter edge. */
+  left: 0;
   bottom: calc(100% + 6px);
-  transform: translateX(-50%);
   z-index: 2;
   padding: 4px 8px;
   background: #2a2a2a;
