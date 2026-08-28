@@ -38,7 +38,7 @@ describe('EventTooltip', () => {
 
     const text = wrapper.text();
     expect(text).toContain('2.000 ms'); // start → ms
-    expect(text).toContain('500 ns'); // duration → ns
+    expect(text).toContain('500.0 ns'); // duration → ns (4 sig digits)
     expect(text).toContain('2.001 ms'); // end 2_000_500 → ms
   });
 });

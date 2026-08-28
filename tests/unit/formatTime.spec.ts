@@ -97,4 +97,15 @@ describe('PR-TIME: auto-scale time labels', () => {
     expect(formatTime(41_000, 'ms')).toBe('0.041 ms');
     expect(formatTimeAuto(41_000)).toBe('41.000 µs');
   });
+
+  it('PR-TIME-009: event surfaces use 4 significant digits; detail keeps full title', () => {
+    expect(formatTimeAuto(479_611_000, { significantDigits: 4 })).toBe('479.6 ms');
+    expect(formatTimeAuto(109_283, { significantDigits: 4 })).toBe('109.3 µs');
+    expect(formatTimePartsAuto(500_000, { significantDigits: 4 })).toEqual({
+      value: '500.0',
+      unit: 'µs',
+    });
+    // Full precision remains the default (detail hover titles).
+    expect(formatTimePartsAuto(500_000)).toEqual({ value: '500.000', unit: 'µs' });
+  });
 });

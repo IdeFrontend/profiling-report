@@ -21,15 +21,25 @@ describe('DetailSummary', () => {
       },
     });
 
-    expect(wrapper.findAll('.pr-detail-summary__value').map((n) => n.text())).toEqual([
+    expect(wrapper.findAll('.pr-detail-summary__number').map((n) => n.text())).toEqual([
       '1.000',
-      '500.000',
+      '500.0',
       '1.500',
     ]);
+    expect(wrapper.findAll('.pr-detail-summary__unit').map((n) => n.text())).toEqual([
+      'ms',
+      'µs',
+      'ms',
+    ]);
     expect(wrapper.findAll('.pr-detail-summary__label').map((n) => n.text())).toEqual([
-      'Start (ms)',
-      'Duration (µs)',
-      'End (ms)',
+      'Start',
+      'Duration',
+      'End',
+    ]);
+    expect(wrapper.findAll('.pr-detail-summary__value').map((n) => n.attributes('title'))).toEqual([
+      '1.000 ms',
+      '500.000 µs',
+      '1.500 ms',
     ]);
   });
 
@@ -73,7 +83,18 @@ describe('DetailSummary', () => {
       },
     });
 
-    const titles = wrapper.findAll('.pr-detail-summary__value').map((n) => n.attributes('title'));
+    const values = wrapper.findAll('.pr-detail-summary__value');
+    expect(wrapper.findAll('.pr-detail-summary__number').map((n) => n.text())).toEqual([
+      '708 400',
+      '41.00',
+      '708 400',
+    ]);
+    expect(wrapper.findAll('.pr-detail-summary__unit').map((n) => n.text())).toEqual([
+      's',
+      'µs',
+      's',
+    ]);
+    const titles = values.map((n) => n.attributes('title'));
     expect(titles).toEqual([
       '708 421.242 s',
       '41.000 µs',

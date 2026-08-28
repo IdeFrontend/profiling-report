@@ -119,6 +119,36 @@ function formatMagnitude(value: number, fractionDigits?: number): string {
   return groupIntegerDigits(String(rounded));
 }
 
+/** Significant-digit magnitude for event start/end/duration display (not hover detail). */
+function formatSignificantMagnitude(value: number, digits: number): string {
+  if (!Number.isFinite(value)) return '—';
+  if (value === 0) return '0';
+  const neg = value < 0;
+  const abs = Math.abs(value);
+  let body = abs.toPrecision(digits);
+  if (/e/i.test(body)) {
+    const n = Number(body);
+    if (!Number.isFinite(n)) return '—';
+    body = Math.abs(n) >= 1 ? String(Math.round(n)) : n.toString();
+    if (/e/i.test(body)) {
+      const order = Math.floor(Math.log10(Math.abs(n)));
+      body = n.toFixed(Math.max(0, digits - 1 - order));
+    }
+  }
+  const sign = neg ? '-' : '';
+  const dot = body.indexOf('.');
+  if (dot < 0) return sign + groupIntegerDigits(body);
+  return sign + groupIntegerDigits(body.slice(0, dot)) + body.slice(dot);
+}
+
+/** Digits shown on event tooltip + detail value cells (hover title keeps full precision). */
+export const EVENT_TIME_SIGNIFICANT_DIGITS = 4;
+
+export type FormatTimeOpts = {
+  /** When set, format the unit magnitude with this many significant digits. */
+  significantDigits?: number;
+};
+
 /**
  * Format axis tick labels.
  * When `tickStepNs` is provided, decimal places follow tick spacing so zoomed
@@ -163,38 +193,42 @@ export function formatCursorTime(ns: number, unit: TimeScaleUnit = 'ms'): string
 export function formatTimeParts(
   ns: number,
   unit: TimeScaleUnit = 'ms',
+  opts?: FormatTimeOpts,
 ): { value: string; unit: string } {
   const label = unitSuffix(unit);
   if (!Number.isFinite(ns)) return { value: '—', unit: label };
+  const sig = opts?.significantDigits;
+  const mag = (v: number, fractionDigits?: number) =>
+    sig != null ? formatSignificantMagnitude(v, sig) : formatMagnitude(v, fractionDigits);
   switch (unit) {
     case 'ns':
-      return { value: formatMagnitude(ns), unit: label };
+      return { value: mag(ns), unit: label };
     case 'us':
-      return { value: formatMagnitude(ns / 1e3, 3), unit: label };
+      return { value: mag(ns / 1e3, 3), unit: label };
     case 's':
-      return { value: formatMagnitude(ns / 1e9, 3), unit: label };
+      return { value: mag(ns / 1e9, 3), unit: label };
     case 'ms':
     default:
-      return { value: formatMagnitude(ns / 1e6, 3), unit: label };
+      return { value: mag(ns / 1e6, 3), unit: label };
   }
 }
 
 /** Format times in an explicit scale unit (axis / cursor chrome). */
-export function formatTime(ns: number, unit: TimeScaleUnit = 'ms'): string {
+export function formatTime(ns: number, unit: TimeScaleUnit = 'ms', opts?: FormatTimeOpts): string {
   if (!Number.isFinite(ns)) return '—';
-  const parts = formatTimeParts(ns, unit);
+  const parts = formatTimeParts(ns, unit, opts);
   return `${parts.value} ${parts.unit}`;
 }
 
 /** Tooltip / detail / Δt — unit from this value's magnitude, not viewport zoom. */
-export function formatTimePartsAuto(ns: number): { value: string; unit: string } {
-  return formatTimeParts(ns, timeScaleUnitFromMagnitude(ns));
+export function formatTimePartsAuto(ns: number, opts?: FormatTimeOpts): { value: string; unit: string } {
+  return formatTimeParts(ns, timeScaleUnitFromMagnitude(ns), opts);
 }
 
 /** Joined {@link formatTimePartsAuto}. */
-export function formatTimeAuto(ns: number): string {
+export function formatTimeAuto(ns: number, opts?: FormatTimeOpts): string {
   if (!Number.isFinite(ns)) return '—';
-  const parts = formatTimePartsAuto(ns);
+  const parts = formatTimePartsAuto(ns, opts);
   return `${parts.value} ${parts.unit}`;
 }
 
@@ -229,14 +263,19 @@ export function formatDisplayTimeParts(
 }
 
 /** Per-value display time (tooltip / detail start·end). */
-export function formatDisplayTimeAuto(ns: number, origin: number): string {
-  return formatTimeAuto(ns - origin);
+export function formatDisplayTimeAuto(
+  ns: number,
+  origin: number,
+  opts?: FormatTimeOpts,
+): string {
+  return formatTimeAuto(ns - origin, opts);
 }
 
 /** Per-value display parts (detail start·end columns). */
 export function formatDisplayTimePartsAuto(
   ns: number,
   origin: number,
+  opts?: FormatTimeOpts,
 ): { value: string; unit: string } {
-  return formatTimePartsAuto(ns - origin);
+  return formatTimePartsAuto(ns - origin, opts);
 }

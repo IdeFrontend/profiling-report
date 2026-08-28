@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { formatDisplayTimePartsAuto, formatTimePartsAuto } from '../../../domain/formatTime';
+import {
+  EVENT_TIME_SIGNIFICANT_DIGITS,
+  formatDisplayTimePartsAuto,
+  formatTimePartsAuto,
+} from '../../../domain/formatTime';
 import { t } from '../../../i18n';
 import type { SelectedEvent } from '../../../domain/types';
 
@@ -28,7 +32,9 @@ const kind = computed(() => {
   return null;
 });
 
-/** Sketch labels the unit once per column (`Start (ns)`), so values stay bare. */
+const displayOpts = { significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS };
+
+/** Value+unit on one line; caption below is Start / Duration / End only. */
 const metrics = computed(() => {
   const origin = props.timeOrigin;
   const rows: [key: 'start' | 'dur' | 'end', ns: number, relative: boolean][] = [
@@ -37,16 +43,19 @@ const metrics = computed(() => {
     ['end', props.selected.endTime, true],
   ];
   return rows.map(([key, ns, relative]) => {
-    const parts = relative
+    const compact = relative
+      ? formatDisplayTimePartsAuto(ns, origin, displayOpts)
+      : formatTimePartsAuto(ns, displayOpts);
+    const detailed = relative
       ? formatDisplayTimePartsAuto(ns, origin)
       : formatTimePartsAuto(ns);
     return {
       key,
-      value: parts.value,
-      label: `${t(key, props.locale)} (${parts.unit})`,
-      // The value cell truncates — a long timestamp is exactly the case where the
-      // digits matter — so the hover carries the number and its unit in full.
-      title: `${parts.value} ${parts.unit}`,
+      value: compact.value,
+      unit: compact.unit,
+      label: t(key, props.locale),
+      // Cell shows 4 significant digits; hover title keeps full precision + unit.
+      title: `${detailed.value} ${detailed.unit}`,
     };
   });
 });
@@ -143,7 +152,8 @@ const metrics = computed(() => {
           class="pr-detail-summary__value"
           :title="metric.title"
         >
-          {{ metric.value }}
+          <span class="pr-detail-summary__number">{{ metric.value }}</span>
+          <span class="pr-detail-summary__unit">{{ metric.unit }}</span>
         </dt>
         <dd
           class="pr-detail-summary__label"
@@ -235,6 +245,12 @@ const metrics = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pr-detail-summary__unit {
+  margin-left: 4px;
+  font-weight: 600;
+  color: #c8c8c8;
 }
 
 .pr-detail-summary__label {
