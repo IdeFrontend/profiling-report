@@ -9,7 +9,7 @@ Imperative Canvas 2D renderer drawing swimlane lanes, event blocks, group header
 ```ts
 class CanvasSwimlaneRenderer {
   attach(canvas: HTMLCanvasElement): void;         // bind canvas, init 2D context
-  resize(width: number, height: number): void;      // resize, account for devicePixelRatio
+  resize(width: number, height: number): void;      // resize backing store to observed device-pixel box
   setModel(model: SwimlaneModel): void;             // store data, rebuild lane layout
   setView(view: SwimlaneViewWindow): void;          // update visible viewport
   render(): void;                                    // draw everything
@@ -22,7 +22,7 @@ class CanvasSwimlaneRenderer {
 
 **Lifecycle.** Created as a plain class instance. `attach` binds the canvas and acquires a 2D context. `dispose` nulls internal refs — subsequent calls are no-ops.
 
-**HiDPI rendering.** `resize` multiplies canvas backing store by `window.devicePixelRatio` to ensure crisp rendering on Retina displays. Logical dimensions stored separately for layout calculations.
+**Canvas backing-store sizing (device pixels).** The owning `SwimlaneCanvas` observes its main canvas with a `ResizeObserver`. On each callback it inspects the `ResizeObserverEntry[]` and, for the entry whose `target` is that main canvas (`entry.target === mainCanvas`), reads `devicePixelContentBoxSize` — `blockSize` (height) and `inlineSize` (width) are the canvas's true device-pixel extent. Those device-pixel values are the only authority for canvas size. Every canvas in the stack — WebGL interval fills, the Canvas overlay (labels/strokes), and the Canvas fallback — sets its own backing-store **`width`** / **`height`** element properties from those values. The size is **never** derived by multiplying a CSS size by `window.devicePixelRatio`, and **never** applied via `canvas.style.width` / `style.height` (the shared `.pr-swim-canvas` rules size all three canvases to the wrapping track). The resulting device-pixel `width` / `height` drive `gl.viewport`, shader resolution uniforms (`uResolution`), `ctx.setTransform`, hit-test layout, and label placement — one size shared by all three canvases.
 
 **Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y` and are vertically centered in the lane between gutter-aligned row dividers (`(LANE_HEIGHT - h) / 2` inset, then −0.5px optical nudge). Rounded rectangles use a width-based corner radius — 1px when the on-screen block is narrower than 4px, otherwise 2px (`ctx.roundRect()` where available) — and are inset 0.5px per side so adjacent blocks keep a ≥1 device px gap instead of touching. Event rect edges are snapped to the device-pixel grid (and WebGL coverage AA is computed in device pixels) so borders stay crisp at fractional browser zoom / `devicePixelRatio`. Only events overlapping the current time viewport are drawn.
 
@@ -62,6 +62,7 @@ class CanvasSwimlaneRenderer {
 ## Edge Cases
 
 - hitTest on empty space → null. Very narrow viewport → sub-pixel events draw anyway.
+- Backing-store size comes only from the `ResizeObserver` entry whose `target` is the main canvas (`devicePixelContentBoxSize` `blockSize` / `inlineSize`); it is never recomputed from `window.devicePixelRatio` × CSS size, so fractional DPRs and mixed-density displays stay exact.
 
 ## Dependencies
 
@@ -72,6 +73,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-28** — Canvas backing-store sizing contract: device-pixel size comes from a `ResizeObserver` on the main canvas (`entry.target === mainCanvas`, `devicePixelContentBoxSize` `inlineSize` / `blockSize`), set once on all three canvases' backing-store `width` / `height`; no `devicePixelRatio` multiplication, no `style` sizing.
 - **2026-08-27** — Snap event rect edges to the device-pixel grid; WebGL coverage AA in device pixels (crisp borders at fractional browser zoom).
 - **2026-08-19** — Dependency curve stroke 2px.
 - **2026-08-19** — WebGL attach/curve paint in Chromium is PR-E2E-007; jsdom unit tests `skipIf` when `webgl2` is missing.
