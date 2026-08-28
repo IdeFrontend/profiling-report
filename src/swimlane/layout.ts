@@ -427,64 +427,82 @@ export function findHoverGap(
   return { leftEnd, rightStart, laneY: lane.y };
 }
 
-/** Δt between non-overlapping anchor/target events; null when overlapping or same id. */
-export function eventMeasureDeltaUs(anchor: SwimEvent, target: SwimEvent): number | null {
+/**
+ * Auto-selected target edge time for a hovered target event (directional): the target's
+ * start when it follows the anchor, its end when it precedes it. Null when overlapping or same id.
+ */
+export function eventMeasureTargetTime(anchor: SwimEvent, target: SwimEvent): number | null {
   if (anchor.id === target.id) return null;
   const aStart = anchor.startTime;
   const aEnd = anchor.startTime + anchor.duration;
   const tStart = target.startTime;
   const tEnd = target.startTime + target.duration;
   if (aStart < tEnd && tStart < aEnd) return null;
-  if (tStart >= aEnd) return tStart - aEnd;
-  if (tEnd <= aStart) return aStart - tEnd;
+  if (tStart >= aEnd) return tStart;
+  if (tEnd <= aStart) return tEnd;
   return null;
 }
 
-export interface EventMeasureGap {
+export interface AltMeasureGap {
   deltaUs: number;
+  /** Anchor edge (start or end) used as the measurement origin. */
+  anchorRefTime: number;
+  targetTime: number;
   gapStartTime: number;
   gapEndTime: number;
+  /** Lane Y of the earlier (gapStart) side. */
   leftLaneY: number;
+  /** Lane Y of the later (gapEnd) side. */
   rightLaneY: number;
   sameLane: boolean;
+  targetEventId: string | null;
 }
 
-/** Gap geometry between anchor and target for alt-measure overlay; null when invalid. */
-export function computeEventMeasureGap(
+/**
+ * Measurement gap between an anchored event and a target point (an event edge or a free cursor).
+ * Null when the anchor is missing or the target lies inside/touching the anchor span.
+ */
+export function computeAltMeasureGap(
   layout: SwimlaneLayout,
   anchorId: string,
-  targetId: string,
-): EventMeasureGap | null {
+  targetTime: number,
+  targetEventId: string | null,
+): AltMeasureGap | null {
   const anchorItem = layout.eventsById.get(anchorId);
-  const targetItem = layout.eventsById.get(targetId);
-  if (!anchorItem || !targetItem) return null;
-
+  if (!anchorItem) return null;
   const anchor = anchorItem.event;
-  const target = targetItem.event;
-  const deltaUs = eventMeasureDeltaUs(anchor, target);
-  if (deltaUs == null) return null;
-
+  const aStart = anchor.startTime;
   const aEnd = anchor.startTime + anchor.duration;
-  const tEnd = target.startTime + target.duration;
 
-  if (target.startTime >= aEnd) {
-    return {
-      deltaUs,
-      gapStartTime: aEnd,
-      gapEndTime: target.startTime,
-      leftLaneY: anchorItem.y,
-      rightLaneY: targetItem.y,
-      sameLane: anchorItem.laneIndex === targetItem.laneIndex,
-    };
+  let anchorRefTime: number;
+  let deltaUs: number;
+  if (targetTime > aEnd) {
+    anchorRefTime = aEnd;
+    deltaUs = targetTime - aEnd;
+  } else if (targetTime < aStart) {
+    anchorRefTime = aStart;
+    deltaUs = aStart - targetTime;
+  } else {
+    return null; // target inside the anchor span (or touching) → hide
   }
+
+  const targetItem = targetEventId ? layout.eventsById.get(targetEventId) : undefined;
+  const gapStartTime = Math.min(anchorRefTime, targetTime);
+  const gapEndTime = Math.max(anchorRefTime, targetTime);
+  const anchorIsLeft = anchorRefTime <= targetTime;
+  const leftLaneY = anchorIsLeft ? anchorItem.y : (targetItem?.y ?? anchorItem.y);
+  const rightLaneY = anchorIsLeft ? (targetItem?.y ?? anchorItem.y) : anchorItem.y;
 
   return {
     deltaUs,
-    gapStartTime: tEnd,
-    gapEndTime: anchor.startTime,
-    leftLaneY: targetItem.y,
-    rightLaneY: anchorItem.y,
-    sameLane: anchorItem.laneIndex === targetItem.laneIndex,
+    anchorRefTime,
+    targetTime,
+    gapStartTime,
+    gapEndTime,
+    leftLaneY,
+    rightLaneY,
+    sameLane: targetItem ? targetItem.laneIndex === anchorItem.laneIndex : true,
+    targetEventId: targetEventId ?? null,
   };
 }
 

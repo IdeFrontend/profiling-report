@@ -12,8 +12,9 @@ import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { formatTimeAuto } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
+  computeAltMeasureGap,
   contentHeightFromModel,
-  computeEventMeasureGap,
+  eventMeasureTargetTime,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
@@ -162,8 +163,11 @@ const hoverGap = ref<HoverGap | null>(null);
 const altMeasureAnchorId = ref<string | null>(null);
 /** Tracks Alt modifier for live preview after anchor click. */
 const altKeyHeld = ref(false);
-/** Hovered target event id while alt measure session is active. */
-const altMeasureHoverTargetId = ref<string | null>(null);
+/** Hovered/edge/cursor target while an Alt-measure session is active. */
+type AltMeasureTarget =
+  | { eventId: string; time: number }
+  | { eventId: null; time: number };
+const altMeasureTarget = ref<AltMeasureTarget | null>(null);
 /** Committed exact-match marks; projected each frame from a cached match set. */
 const measureExactEdgeMarks = shallowRef<
   { eventId: string; edge: 'start' | 'end'; time: number; x: number; y: number; h: number }[]
@@ -324,7 +328,7 @@ function altMeasureSessionActive(): boolean {
 
 function clearAltMeasure(): void {
   altMeasureAnchorId.value = null;
-  altMeasureHoverTargetId.value = null;
+  altMeasureTarget.value = null;
 }
 
 function onWindowKeyDown(e: KeyboardEvent): void {
@@ -1253,21 +1257,33 @@ const altMeasureAnchorHighlight = computed(() => {
   return backend.eventScreenRect(altMeasureAnchorId.value);
 });
 
-/** Alt+hover event-to-event measure (default mode, ephemeral while Alt held). */
+/** Alt-measure target highlight (blue border) while a non-anchor event is captured as target. */
+const altMeasureTargetHighlight = computed(() => {
+  void resizeTick.value;
+  void props.view.startTime;
+  void props.view.endTime;
+  void props.view.scrollY;
+  if (!altMeasureSessionActive()) return null;
+  const target = altMeasureTarget.value;
+  if (!target || target.eventId === null || target.eventId === altMeasureAnchorId.value) return null;
+  return backend.eventScreenRect(target.eventId);
+});
+
+/** Alt measure overlay (default mode): anchor → event edge or free cursor, ephemeral while Alt held. */
 const altEventMeasureGeometry = computed(() => {
   void resizeTick.value;
   if (!altMeasureSessionActive() || !props.model) return null;
   const anchorId = altMeasureAnchorId.value;
-  const targetId = altMeasureHoverTargetId.value;
-  if (!anchorId || !targetId || anchorId === targetId) return null;
+  const target = altMeasureTarget.value;
+  if (!anchorId || !target) return null;
 
-  const gap = computeEventMeasureGap(backend.getLayout(), anchorId, targetId);
+  const gap = computeAltMeasureGap(backend.getLayout(), anchorId, target.time, target.eventId);
   if (!gap) return null;
 
   const viewStart = props.view.startTime;
   const viewEnd = props.view.endTime;
   const w = syncTrackWidth();
-  const { gapStartTime, gapEndTime, leftLaneY, rightLaneY, sameLane } = gap;
+  const { gapStartTime, gapEndTime } = gap;
 
   if (gapEndTime <= viewStart || gapStartTime >= viewEnd) return null;
 
@@ -1283,15 +1299,32 @@ const altEventMeasureGeometry = computed(() => {
   const arrowRight = xAtTime(visEnd);
   const label = formatTime(gap.deltaUs, props.timeUnit ?? 'ms');
   const rangePx = arrowRight - arrowLeft;
+  const leftPct = (arrowLeft / w) * 100;
+  const widthPct = ((arrowRight - arrowLeft) / w) * 100;
+  const style = { left: `${leftPct}%`, width: `${widthPct}%` };
 
-  if (sameLane) {
-    const top = leftLaneY - props.view.scrollY;
-    const leftPct = (arrowLeft / w) * 100;
-    const widthPct = ((arrowRight - arrowLeft) / w) * 100;
-    const style = { left: `${leftPct}%`, width: `${widthPct}%` };
+  // Free cursor target: full-height blue line + anchor edge stick + Δt arrow on the anchor lane.
+  if (target.eventId === null) {
+    const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
+    if (arrowMode === 'outside' && rangePx < 8) return null;
+    return {
+      mode: 'cursor' as const,
+      anchorLaneTop: gap.leftLaneY - props.view.scrollY,
+      anchorX: xAtTime(gap.anchorRefTime),
+      cursorX: xAtTime(gap.targetTime),
+      showAnchor: gap.anchorRefTime >= viewStart && gap.anchorRefTime <= viewEnd,
+      label,
+      showLeft,
+      showRight,
+      arrowLayout: { mode: arrowMode, side: 'right' as const, style },
+    };
+  }
+
+  if (gap.sameLane) {
+    const top = gap.leftLaneY - props.view.scrollY;
     if (!measureLabelFitsInlineSpan(rangePx, label)) return null;
     return {
-      sameLane: true as const,
+      mode: 'same' as const,
       top,
       height: LANE_HEIGHT,
       left,
@@ -1303,18 +1336,15 @@ const altEventMeasureGeometry = computed(() => {
     };
   }
 
-  const leftLaneTop = leftLaneY - props.view.scrollY;
-  const rightLaneTop = rightLaneY - props.view.scrollY;
+  const leftLaneTop = gap.leftLaneY - props.view.scrollY;
+  const rightLaneTop = gap.rightLaneY - props.view.scrollY;
   const laneCenterY = (y: number) => y + LANE_HEIGHT / 2;
   const vertX = right;
-  const leftPct = (arrowLeft / w) * 100;
-  const widthPct = ((arrowRight - arrowLeft) / w) * 100;
-  const style = { left: `${leftPct}%`, width: `${widthPct}%` };
   const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
   if (arrowMode === 'outside' && rangePx < 8) return null;
 
   return {
-    sameLane: false as const,
+    mode: 'cross' as const,
     top: Math.min(leftLaneTop, rightLaneTop),
     height: Math.abs(rightLaneTop - leftLaneTop) + LANE_HEIGHT,
     left,
@@ -1409,8 +1439,21 @@ function onPointerMove(e: PointerEvent): void {
 
   if (altMeasureAnchorId.value && (e.altKey || altKeyHeld.value) && !props.measureMode) {
     hoverGap.value = null;
-    const target = eventAtPointer(x, y, mag.eventId);
-    altMeasureHoverTargetId.value = target?.id ?? null;
+    const anchorEvent = backend.findEvent(altMeasureAnchorId.value);
+    if (mag.eventId && mag.eventId !== altMeasureAnchorId.value) {
+      // Stuck to a border → explicit target edge.
+      altMeasureTarget.value = { eventId: mag.eventId, time: mag.time };
+    } else {
+      const ev = eventAtPointer(x, y, null);
+      if (ev && ev.id !== altMeasureAnchorId.value && anchorEvent) {
+        // Hovering another event → auto edge by relation.
+        const t = eventMeasureTargetTime(anchorEvent, ev);
+        altMeasureTarget.value = t != null ? { eventId: ev.id, time: t } : null;
+      } else {
+        // Otherwise → free cursor target.
+        altMeasureTarget.value = { eventId: null, time: timeAtX(x) };
+      }
+    }
     emit('hover', null, e.clientX, e.clientY);
     return;
   }
@@ -1463,7 +1506,7 @@ function onPointerUp(e: PointerEvent): void {
     const ev = eventAtPointer(x, y, mag.eventId);
     if (ev) {
       altMeasureAnchorId.value = altMeasureAnchorId.value === ev.id ? null : ev.id;
-      altMeasureHoverTargetId.value = null;
+      altMeasureTarget.value = null;
     } else {
       clearAltMeasure();
     }
@@ -1505,7 +1548,7 @@ function onPointerLeave(e: PointerEvent): void {
   lastHoverLocalX = null;
   lastHoverLocalY = null;
   hoverGap.value = null;
-  altMeasureHoverTargetId.value = null;
+  altMeasureTarget.value = null;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
@@ -1717,9 +1760,20 @@ defineExpose({
         height: `${altMeasureAnchorHighlight.h}px`,
       }"
     />
+    <div
+      v-if="altMeasureTargetHighlight"
+      class="pr-alt-measure-anchor pr-alt-measure-anchor--target"
+      data-testid="alt-measure-target"
+      :style="{
+        left: `${altMeasureTargetHighlight.x}px`,
+        top: `${altMeasureTargetHighlight.y}px`,
+        width: `${altMeasureTargetHighlight.w}px`,
+        height: `${altMeasureTargetHighlight.h}px`,
+      }"
+    />
     <template v-if="altEventMeasureGeometry">
       <div
-        v-if="altEventMeasureGeometry.sameLane"
+        v-if="altEventMeasureGeometry.mode === 'same'"
         class="pr-gap-measure pr-alt-measure"
         data-testid="alt-event-measure"
         :style="{
@@ -1749,7 +1803,7 @@ defineExpose({
         />
       </div>
       <div
-        v-else
+        v-else-if="altEventMeasureGeometry.mode === 'cross'"
         class="pr-alt-measure pr-alt-measure--cross-lane"
         data-testid="alt-event-measure"
       >
@@ -1801,6 +1855,43 @@ defineExpose({
           class="pr-alt-measure__arrow-row"
           :style="{
             top: `${altEventMeasureGeometry.crossLane!.leftLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        >
+          <MeasureDtArrow
+            :label="altEventMeasureGeometry.label"
+            :style="altEventMeasureGeometry.arrowLayout.style"
+            :mode="altEventMeasureGeometry.arrowLayout.mode"
+            :side="altEventMeasureGeometry.arrowLayout.side"
+            :show-left-head="altEventMeasureGeometry.showLeft"
+            :show-right-head="altEventMeasureGeometry.showRight"
+          />
+        </div>
+      </div>
+      <div
+        v-else
+        class="pr-alt-measure pr-alt-measure--cursor"
+        data-testid="alt-event-measure"
+      >
+        <div
+          class="pr-alt-measure__cursor-line"
+          data-testid="alt-measure-cursor-line"
+          :style="{ left: `${altEventMeasureGeometry.cursorX}px` }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showAnchor"
+          class="pr-gap-measure__stick"
+          data-testid="alt-measure-stick-anchor"
+          :style="{
+            left: `${altEventMeasureGeometry.anchorX}px`,
+            top: `${altEventMeasureGeometry.anchorLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__arrow-row"
+          :style="{
+            top: `${altEventMeasureGeometry.anchorLaneTop}px`,
             height: `${LANE_HEIGHT}px`,
           }"
         >
@@ -1994,6 +2085,25 @@ defineExpose({
   z-index: 4;
 }
 
+.pr-alt-measure-anchor--target {
+  border-color: rgba(49, 122, 247, 0.95);
+}
+
+.pr-alt-measure--cursor {
+  top: 0;
+  bottom: 0;
+}
+
+.pr-alt-measure__cursor-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: rgba(49, 122, 247, 1);
+  pointer-events: none;
+}
+
 .pr-alt-measure__horiz {
   position: absolute;
   height: 1.5px;
@@ -2016,7 +2126,8 @@ defineExpose({
   pointer-events: none;
 }
 
-.pr-alt-measure--cross-lane .pr-gap-measure__stick {
+.pr-alt-measure--cross-lane .pr-gap-measure__stick,
+.pr-alt-measure--cursor .pr-gap-measure__stick {
   top: auto;
   bottom: auto;
 }

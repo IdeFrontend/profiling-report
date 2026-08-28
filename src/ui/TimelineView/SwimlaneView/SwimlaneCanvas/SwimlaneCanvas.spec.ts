@@ -887,10 +887,11 @@ describe('SwimlaneCanvas', () => {
   };
 
   async function mountWithGapModel(extra: Record<string, unknown> = {}) {
+    const effectiveModel = (extra.model ?? gapModel) as typeof gapModel;
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
-        model: gapModel,
+        model: effectiveModel,
         preferRenderer: 'canvas' as const,
         measureMode: false,
         measureRange: null,
@@ -910,7 +911,7 @@ describe('SwimlaneCanvas', () => {
     Object.defineProperty(el, 'getBoundingClientRect', {
       value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 })
     });
-    await wrapper.setProps({ model: { ...gapModel } });
+    await wrapper.setProps({ model: { ...effectiveModel } });
     return { wrapper, canvas };
   }
 
@@ -1400,6 +1401,46 @@ describe('SwimlaneCanvas', () => {
     const after = leftPx(anchor());
 
     expect(after).toBeLessThan(before);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-055: hovering a target event highlights it as the captured target', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-056: sticking to a target border measures to that explicit edge', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    // eB = 500..600 → px 200..240; hover near its end edge (240) to capture the end, not the auto start.
+    await canvas.trigger('pointermove', { clientX: 239, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('400 ns');
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-057: free cursor target renders a full-height blue line', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    // Empty space after eB (px 240) → free cursor at time 750 (px 300).
+    await canvas.trigger('pointermove', { clientX: 300, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-measure-cursor-line"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('550 ns');
     wrapper.unmount();
   });
 });

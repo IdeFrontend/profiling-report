@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  computeEventMeasureGap,
-  eventMeasureDeltaUs,
+  computeAltMeasureGap,
+  eventMeasureTargetTime,
   rebuildLayout,
 } from '../../src/swimlane/layout';
 import type { SwimEvent, SwimlaneModel } from '../../src/domain/types';
@@ -35,31 +35,31 @@ function twoLaneModel(): SwimlaneModel {
   };
 }
 
-describe('eventMeasureDeltaUs', () => {
-  it('returns gap when target is after anchor', () => {
-    expect(eventMeasureDeltaUs(ev('a', 100, 100), ev('b', 250, 50))).toBe(50);
+describe('eventMeasureTargetTime', () => {
+  it('returns target start when target is after anchor', () => {
+    expect(eventMeasureTargetTime(ev('a', 100, 100), ev('b', 250, 50))).toBe(250);
   });
 
-  it('returns gap when target is before anchor', () => {
-    expect(eventMeasureDeltaUs(ev('b', 250, 50), ev('a', 100, 100))).toBe(50);
+  it('returns target end when target is before anchor', () => {
+    expect(eventMeasureTargetTime(ev('b', 250, 50), ev('a', 100, 100))).toBe(200);
   });
 
   it('returns null when intervals overlap', () => {
-    expect(eventMeasureDeltaUs(ev('a', 100, 200), ev('b', 150, 50))).toBeNull();
+    expect(eventMeasureTargetTime(ev('a', 100, 200), ev('b', 150, 50))).toBeNull();
   });
 
   it('returns null for same event', () => {
     const e = ev('a', 100, 100);
-    expect(eventMeasureDeltaUs(e, e)).toBeNull();
+    expect(eventMeasureTargetTime(e, e)).toBeNull();
   });
 
-  it('returns 0 for touching (adjacent) events', () => {
-    expect(eventMeasureDeltaUs(ev('a', 100, 100), ev('b', 200, 50))).toBe(0);
-    expect(eventMeasureDeltaUs(ev('b', 200, 50), ev('a', 100, 100))).toBe(0);
+  it('returns the touching edge time for adjacent events', () => {
+    expect(eventMeasureTargetTime(ev('a', 100, 100), ev('b', 200, 50))).toBe(200);
+    expect(eventMeasureTargetTime(ev('b', 200, 50), ev('a', 100, 100))).toBe(200);
   });
 });
 
-describe('computeEventMeasureGap', () => {
+describe('computeAltMeasureGap', () => {
   it('computes same-lane gap when target follows anchor', () => {
     const layout = rebuildLayout({
       minTime: 0,
@@ -78,18 +78,21 @@ describe('computeEventMeasureGap', () => {
         },
       ],
     });
-    const gap = computeEventMeasureGap(layout, 'a', 'b');
+    const gap = computeAltMeasureGap(layout, 'a', 250, 'b');
     expect(gap).toMatchObject({
       deltaUs: 50,
+      anchorRefTime: 200,
+      targetTime: 250,
       gapStartTime: 200,
       gapEndTime: 250,
       sameLane: true,
+      targetEventId: 'b',
     });
   });
 
   it('computes cross-lane gap', () => {
     const layout = rebuildLayout(twoLaneModel());
-    const gap = computeEventMeasureGap(layout, 'a', 'b');
+    const gap = computeAltMeasureGap(layout, 'a', 300, 'b');
     expect(gap).toMatchObject({
       deltaUs: 100,
       gapStartTime: 200,
@@ -99,7 +102,7 @@ describe('computeEventMeasureGap', () => {
     expect(gap!.leftLaneY).not.toBe(gap!.rightLaneY);
   });
 
-  it('returns null when overlapping', () => {
+  it('returns null when target is inside the anchor span', () => {
     const layout = rebuildLayout({
       minTime: 0,
       maxTime: 1000,
@@ -107,10 +110,37 @@ describe('computeEventMeasureGap', () => {
         {
           id: 'p',
           name: 'P',
-          threads: [{ id: 't', name: 'T', events: [ev('a', 100, 200), ev('b', 150, 50)] }],
+          threads: [{ id: 't', name: 'T', events: [ev('a', 100, 200)] }],
         },
       ],
     });
-    expect(computeEventMeasureGap(layout, 'a', 'b')).toBeNull();
+    expect(computeAltMeasureGap(layout, 'a', 150, null)).toBeNull();
+  });
+
+  it('returns null when touching (Δt = 0)', () => {
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [{ id: 't', name: 'T', events: [ev('a', 100, 100)] }],
+        },
+      ],
+    });
+    expect(computeAltMeasureGap(layout, 'a', 200, null)).toBeNull();
+  });
+
+  it('computes a cursor gap on the anchor lane when target has no event', () => {
+    const layout = rebuildLayout(twoLaneModel());
+    const gap = computeAltMeasureGap(layout, 'a', 350, null);
+    expect(gap).toMatchObject({
+      deltaUs: 150,
+      anchorRefTime: 200,
+      targetTime: 350,
+      targetEventId: null,
+    });
+    expect(gap!.leftLaneY).toBe(gap!.rightLaneY);
   });
 });
