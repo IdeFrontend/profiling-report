@@ -195,7 +195,7 @@ Interactivity classes:
 | Detail strip / bottom dock | interactive (selection-driven) | Cleared by empty click | Bound to selection | M / richer P2 |
 | Pipe field list + search | interactive | Type filter, scroll | Filtered rows + flush substring highlight | M1 |
 | Memory topology | semi / interactive | Pan/zoom diagram optional; click nodes P2 | Field highlight | P2 |
-| Memory/pipe raw details | interactive | Scroll, search | — | P2 |
+| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows + flush substring highlight | M1 |
 | Hardware details | static / semi | Scroll | — | P2 |
 | Dependency link curves | interactive | Toggle visibility; click link | Selection / detail | P2 |
 | Context menu | interactive | Right-click | Pin / actions | P2 |
