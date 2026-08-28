@@ -119,10 +119,10 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 6. **PR-GUTTER-006** — Util fills are red (`#733234`) when util &lt; 0.5 and gray (`#5c5c5c`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the % label.
 7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width; empty util slots do not.
 8. **PR-GUTTER-008** — Card row is a non-interactive 28px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
-10. **PR-GUTTER-010** — Leaf rows show pushpin column; folder/Card rows omit pin.
-11. **PR-GUTTER-011** — Unpinned outline `#a8a8a8`; pinned/hover solid `#4a90e2`.
-12. **PR-GUTTER-012** — Pushpin hover/focus shows **置顶** tooltip.
-13. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
+9. **PR-GUTTER-010** — Leaf rows show pushpin column; folder/Card rows omit pin.
+10. **PR-GUTTER-011** — Unpinned outline `#a8a8a8`; pinned/hover solid `#4a90e2`.
+11. **PR-GUTTER-012** — Pushpin hover/focus shows **置顶** tooltip.
+12. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 
 ## Edge Cases
 
