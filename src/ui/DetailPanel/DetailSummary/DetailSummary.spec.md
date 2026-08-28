@@ -24,16 +24,18 @@ Every cell that truncates carries its full text in `title`, so a hover recovers 
 
 The metric **value line** shows number + unit (`479.6 ms`); the caption below is the field name only (`Start` / `Duration` / `End`). Units may differ across columns when magnitudes differ.
 
+**Unit chrome (intentional).** Digits use **one** font size and weight for every scale (`s` / `ms` / `µs` / `ns`). Distinction is the **suffix text**, not size- or hue-per-unit. The unit beside the value is slightly muted vs the number; do **not** tint value or unit by unit family.
+
 ## Acceptance Criteria
 
 1. **PR-DSUM-001** — Renders event name.
-2. **PR-DSUM-002** — Renders start / duration / end with unit beside the value (per-value auto unit, **4** significant digits); captions are field names only.
+2. **PR-DSUM-002** — Renders start / duration / end with unit beside the value (per-value auto unit, **4** significant digits); captions are field names only; digit chrome is uniform across units (no size/tint-by-unit).
 3. **PR-DSUM-003** — Shows the type pill from `args` when present and hides it otherwise.
 4. **PR-DSUM-004** — Every truncating cell carries its full-precision text as a hover title.
 
 ## Visual
 
-Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Digits share one size; unit suffix is muted text beside the value (not color-coded by unit).
 
 ## Design sketches
 
@@ -45,6 +47,7 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 [format-time](../../../../specs/core/format-time.spec.md).
 
 ## Changelog
+- **2026-08-28** — Intentional: uniform digit chrome; unit via suffix text (no size/tint-by-unit).
 - **2026-08-28** — Unit beside the value (`479.6 ms`); caption is Start/Duration/End only.
 - **2026-08-28** — Value cells: 4 significant digits; hover titles keep full precision.
 - **2026-08-28** — Per-value auto units for Start/Dur/End; drop `timeScaleUnit` prop.

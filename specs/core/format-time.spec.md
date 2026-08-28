@@ -34,7 +34,7 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 
 **No** manual ms/µs/ns dropdown and **no** CPU clock-cycle mode in this PR (cycles deferred).
 
-**Tooltip/detail formatting.** `formatTime` / `formatTimeParts` take an explicit unit (chrome callers). Surfaces that must not follow zoom use `formatTimeAuto` / `formatTimePartsAuto` / `formatDisplayTimeAuto` / `formatDisplayTimePartsAuto`. Event tooltip and detail **value cells** pass `significantDigits: 4` (`EVENT_TIME_SIGNIFICANT_DIGITS`); detail **hover titles** omit that option and keep full fixed-decimal precision. Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part. `formatTimeParts*` returns value and unit separately for the detail card (`7419` under `Start (ns)`); joined helpers add a space.
+**Tooltip/detail formatting.** `formatTime` / `formatTimeParts` take an explicit unit (chrome callers). Surfaces that must not follow zoom use `formatTimeAuto` / `formatTimePartsAuto` / `formatDisplayTimeAuto` / `formatDisplayTimePartsAuto`. Event tooltip and detail **value cells** pass `significantDigits: 4` (`EVENT_TIME_SIGNIFICANT_DIGITS`); detail **hover titles** omit that option and keep full fixed-decimal precision. Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part. `formatTimeParts*` returns value and unit separately for the detail card; joined helpers add a space. **Presentation chrome** (detail / tooltip) keeps one digit size/weight across scales; unit identity is the suffix string — formatting does not encode unit via size or color.
 
 **Axis tick formatting.** `formatAxisTime` derives one fraction-digit count from `tickStepNs` in the display unit (0 when the step is integral; otherwise the minimum digits that represent the step). Every tick on the same axis uses that precision — integral steps omit `.0` (e.g. `100ms`); fractional steps keep trailing zeros on whole ticks (e.g. `25.0ms` beside `12.5ms`). **Zero is always compact** (`0ms` / `0µs` / `0ns` / `0s`, never `0.0…`). Applies the same ≥1000 grouping. Viewport axis may subtract a coarse base (`resolveAxisBaseOffset` in axisRuler) and show remainders on ticks; the base label uses `formatAxisBaseTime` (integral only, no decimal point). Cursor keeps full `formatDisplayTime` in the viewport unit.
 
@@ -62,6 +62,7 @@ Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTimeAuto(0)` 
 I-Q14 — Time (auto scale); see [INTERIM_DECISIONS I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale).
 
 ## Changelog
+- **2026-08-28** — Document uniform digit chrome for event times (no size/tint-by-unit); unit via suffix.
 - **2026-08-28** — PR-TIME-009 event start/end/duration display: 4 significant digits; detail titles stay full precision.
 - **2026-08-28** — PR-TIME-008 two-tier auto: chrome from viewport/density; tooltip/detail/Δt per-value.
 - **2026-08-27** — PR-TIME-007 uniform axis fraction digits from tick step.
