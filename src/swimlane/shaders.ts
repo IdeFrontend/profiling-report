@@ -2,7 +2,7 @@
  * Sudu-inspired coverage-AA swimlane shaders (reimplemented in TS; no sudu-editor dep).
  * Coordinates in device pixels; uResolution is the framebuffer size.
  * No uDpr — CSS↔device conversion happens in JS before uniforms.
- * Interim: hard-rect Y bounds (no round-rect); analytical horizontal coverage from sudu.
+ * Interim: square corners (no round-rect); analytical horizontal coverage from sudu.
  */
 
 export const SWIMLANE_VS = `#version 300 es
@@ -48,7 +48,6 @@ export const SWIMLANE_FS = `#version 300 es
 precision highp float;
 
 uniform vec4 uColor;
-uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
@@ -59,6 +58,10 @@ void main() {
   float lPx = max(vLrScreen.x, vScreenPos.x - 0.5);
   float rPx = min(vLrScreen.y, vScreenPos.x + 0.5);
   float inside = rPx - lPx;
+<<<<<<< HEAD
+=======
+  // Premul source-over (not sudu additive a=1). Y is bounded by vertex geometry.
+>>>>>>> e1add9b (fix: remove dead uYBounds from WebGL coverage path)
   outColor = vec4(uColor.xyz * inside, uColor.w * inside);
 }
 `;

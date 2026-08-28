@@ -38,7 +38,6 @@ interface GlProgram {
   uSizePos: WebGLUniformLocation;
   uResolution: WebGLUniformLocation | null;
   uColor: WebGLUniformLocation;
-  uYBounds: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -111,7 +110,6 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uSizePos,
     uResolution: gl.getUniformLocation(program, 'uResolution'),
     uColor,
-    uYBounds: gl.getUniformLocation(program, 'uYBounds'),
   };
 }
 
@@ -449,7 +447,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const [r, g, b] = meshes.color;
 
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
-      if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
       const drawChunks = (chunks: MeshChunk[], dim: number): void => {
         // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
