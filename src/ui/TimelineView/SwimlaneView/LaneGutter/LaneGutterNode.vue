@@ -9,6 +9,8 @@ const props = defineProps<{
   depth: number;
   collapsedIds?: string[];
   pinnedLaneIds?: string[];
+  /** Leaf id under canvas (or external) hover — shows pin + row highlight. */
+  hoveredLaneId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -22,11 +24,12 @@ const pinned = computed(() => new Set(props.pinnedLaneIds ?? []));
 const isFolder = computed(() => props.lane.children !== undefined);
 const isCollapsed = computed(() => collapsed.value.has(props.lane.id));
 const isPinned = computed(() => pinned.value.has(props.lane.id));
-const pinHover = ref(false);
-/** Leaf rows reserve a pin column (~10px + gap) before the label. */
-const pad = computed(() =>
-  isFolder.value ? `${24 + props.depth * 14}px` : `${38 + props.depth * 14}px`,
+const pinPointerHover = ref(false);
+const laneExternallyHovered = computed(
+  () => !isFolder.value && props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
 );
+/** Leaf/folder share the same indent; pin is absolute at gutter left. */
+const pad = computed(() => `${24 + props.depth * 14}px`);
 /** Thick: folders or depth-0 leaves (通信/储存HBM); thin: pipe leaves under Core. */
 const utilSizeClass = computed(() =>
   isFolder.value || props.depth === 0 ? 'pr-gutter__util--thick' : 'pr-gutter__util--thin',
@@ -108,6 +111,7 @@ function onPinClick(e: MouseEvent) {
       :depth="depth + 1"
       :collapsed-ids="collapsedIds"
       :pinned-lane-ids="pinnedLaneIds"
+      :hovered-lane-id="hoveredLaneId"
       @toggle="(id) => emit('toggle', id)"
       @pin-lane="(id) => emit('pin-lane', id)"
       @unpin-lane="(id) => emit('unpin-lane', id)"
@@ -116,26 +120,30 @@ function onPinClick(e: MouseEvent) {
   <div
     v-else-if="!isFolder"
     class="pr-gutter__lane"
-    :class="{ 'pr-gutter__lane--pin-hover': pinHover }"
+    :class="{ 'pr-gutter__lane--lane-hover': laneExternallyHovered }"
     :style="{ paddingLeft: pad }"
     :data-testid="`gutter-lane-${lane.id}`"
   >
+    <button
+      type="button"
+      class="pr-gutter__pin"
+      data-testid="lane-pin"
+      :aria-label="'置顶'"
+      :aria-pressed="isPinned"
+      @click="onPinClick"
+      @pointerenter="pinPointerHover = true"
+      @pointerleave="pinPointerHover = false"
+      @focus="pinPointerHover = true"
+      @blur="pinPointerHover = false"
+    >
+      <PinIcon :filled="isPinned || pinPointerHover" />
+      <span
+        v-if="pinPointerHover"
+        class="pr-gutter__pin-tip"
+        role="tooltip"
+      >置顶</span>
+    </button>
     <span class="pr-gutter__lane-main">
-      <button
-        type="button"
-        class="pr-gutter__pin"
-        data-testid="lane-pin"
-        :aria-label="'置顶'"
-        :title="'置顶'"
-        :aria-pressed="isPinned"
-        @click="onPinClick"
-        @pointerenter="pinHover = true"
-        @pointerleave="pinHover = false"
-        @focus="pinHover = true"
-        @blur="pinHover = false"
-      >
-        <PinIcon :filled="isPinned || pinHover" />
-      </button>
       <span
         class="pr-gutter__name"
         :title="lane.name"
@@ -194,14 +202,15 @@ function onPinClick(e: MouseEvent) {
   color: inherit;
   text-align: left;
   cursor: default;
+  position: relative;
 }
 
 .pr-gutter__lane--folder {
   cursor: pointer;
 }
 
-.pr-gutter__lane--folder:hover,
-.pr-gutter__lane--pin-hover {
+.pr-gutter__lane:hover,
+.pr-gutter__lane--lane-hover {
   background: #252525;
 }
 
@@ -214,6 +223,11 @@ function onPinClick(e: MouseEvent) {
 
 .pr-gutter__pin {
   box-sizing: border-box;
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
   flex: 0 0 10px;
   width: 10px;
   height: 10px;
@@ -226,6 +240,33 @@ function onPinClick(e: MouseEvent) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.pr-gutter__lane:hover .pr-gutter__pin,
+.pr-gutter__lane--lane-hover .pr-gutter__pin,
+.pr-gutter__pin:focus-visible {
+  visibility: visible;
+  opacity: 1;
+}
+
+.pr-gutter__pin-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 4px 8px;
+  background: #2a2a2a;
+  border: 1px solid #555;
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  line-height: 1.2;
+  color: #e8e8e8;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .pr-gutter__name {

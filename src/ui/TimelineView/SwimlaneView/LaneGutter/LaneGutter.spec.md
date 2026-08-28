@@ -56,14 +56,15 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 
 | Element | Visual (normative) |
 |---------|-------------------|
-| Pin column | Leftmost in row; layout box **10×10**; **4px** gap before chevron (folders) or name (leaves) |
-| Unpinned | **Outline** pushpin (flat head, tapered body, point); stroke `#a8a8a8` (chevron family) |
-| Pinned / hover | **Solid fill** accent blue `#4a90e2` (match toolbar measure-active) |
-| Tooltip | **置顶** on hover/focus over pushpin; dark rounded bubble (reuse `EventTooltip` chrome tokens) |
-| Row hover | Subtle row highlight (`#252525`) when pointer over pushpin |
-| Accessibility | Focusable `button`; `aria-label` / `title` **置顶**; pinned state reflected in `aria-pressed` |
+| Pin control | Absolute at gutter **left edge** (`left ≈ 6px`); **not** depth-indented. Layout box **10×10** |
+| Visibility | **Hover only** — hidden until pointer is over the leaf gutter row, that leaf’s canvas band (`hoveredLaneId`), or the pin has `:focus-visible` |
+| Unpinned (lane hover) | **Outline** pushpin; stroke `#a8a8a8` (chevron family) |
+| Pinned / pin hover | **Solid fill** accent blue `#4a90e2` (match toolbar measure-active) |
+| Tooltip | **置顶** on hover/focus over pushpin; dark rounded bubble (EventTooltip chrome: `#2a2a2a` / `#555`) |
+| Row hover | Full gutter row highlight `#252525` when pointer over the leaf row (gutter or via canvas `hoveredLaneId`) |
+| Accessibility | Focusable `button`; `aria-label` **置顶**; pinned state reflected in `aria-pressed` |
 
-**Indent with pin:** leaf pad-left becomes `8px` (group pad) + `10px` (pin) + `4px` (gap) + `10px` (reserved chevron gap on leaves — no chevron drawn) + `6px` + depth×`14px` → **`38px + depth×14px`** at depth 0 under Card (was `24px`). Folder rows omit the pin column and keep existing indent.
+**Indent:** leaf and folder pad-left stay **`24px + depth×14px`** (pin does not add a column). Pin sits in the left margin to the left of chevrons/names at every depth.
 
 ## Visual
 
@@ -103,11 +104,12 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 |-------|--------|
 | Icon | Pushpin / thumbtack — flat head, tapered body, point |
 | Layout box | `10×10` (match chevron scale) |
-| Column order | `[pin] [chevron if folder] [name] [util 110px]` — pin **leftmost on leaves only** |
+| Position | Flush **left** of gutter row (absolute); same x at every nest depth |
+| Visibility | Only while leaf row / canvas band hovered (or pin focused) |
 | Unpinned | Outline stroke `#a8a8a8` |
-| Pinned / hover | Solid fill `#4a90e2` |
+| Pinned / pin hover | Solid fill `#4a90e2` |
 | Tooltip | **置顶** |
-| Row hover | `#252525` when pointer over pushpin |
+| Row hover | `#252525` on full gutter leaf row |
 
 ## Acceptance Criteria
 
@@ -119,8 +121,8 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 6. **PR-GUTTER-006** — Util fills are red (`#733234`) when util &lt; 0.5 and gray (`#5c5c5c`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the % label.
 7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width; empty util slots do not.
 8. **PR-GUTTER-008** — Card row is a non-interactive 28px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
-9. **PR-GUTTER-010** — Leaf rows show pushpin column; folder/Card rows omit pin.
-10. **PR-GUTTER-011** — Unpinned outline `#a8a8a8`; pinned/hover solid `#4a90e2`.
+9. **PR-GUTTER-010** — Leaf rows include a pushpin control (DOM); folder/Card rows omit pin. Pin is hidden until leaf/canvas hover (or focus).
+10. **PR-GUTTER-011** — Unpinned outline `#a8a8a8` on lane hover; pinned/pin-hover solid `#4a90e2`. Pin stays flush-left (not depth-indented).
 11. **PR-GUTTER-012** — Pushpin hover/focus shows **置顶** tooltip.
 12. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 
@@ -137,6 +139,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 | Pin leaf inside collapsed folder | Pin control hidden while ancestor folder collapsed; id may remain in **pinnedLaneIds** |
 | Pin across Cards | Pushpin on any visible leaf regardless of Card/process ancestry |
 | Duplicate pin click | Idempotent — no duplicate entries in `pinnedLaneIds` |
+| Canvas leaf hover | `hoveredLaneId` from body canvas shows pin + `#252525` on matching gutter row |
 
 ## Design sketches
 
@@ -152,6 +155,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
 
 ## Changelog
+- **2026-08-28** — Pin hover-only, flush-left (no depth indent); row `#252525` on lane/canvas hover; leaf indent unchanged (`24 + depth×14`).
 - **2026-08-27** — Renumber pin ACs to `PR-GUTTER-010`…`013` (reserve `009` for #45 gutter-metrics).
 - **2026-08-27** — Pin pushpin on leaf rows; crops + visual tokens from `v930/hardware-more-detail` (`PR-GUTTER-010`…`013`). Tests deferred until implementation.
 - **2026-08-21** — Util bars: 50% dashed midline (`PR-GUTTER-007`); tight midline crops. Card spacer renumbered to `PR-GUTTER-008`.

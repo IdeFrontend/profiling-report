@@ -11,6 +11,8 @@ const props = defineProps<{
   collapsedIds?: string[];
   /** Leaf lane ids currently pinned (filled pushpin). */
   pinnedLaneIds?: string[];
+  /** Leaf under canvas hover — shows pin + row highlight. */
+  hoveredLaneId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -56,6 +58,7 @@ defineExpose({ root });
           :depth="0"
           :collapsed-ids="collapsedIds"
           :pinned-lane-ids="pinnedLaneIds"
+          :hovered-lane-id="hoveredLaneId"
           @toggle="(id) => emit('toggle-group', id)"
           @pin-lane="(id) => emit('pin-lane', id)"
           @unpin-lane="(id) => emit('unpin-lane', id)"
