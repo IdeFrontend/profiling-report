@@ -52,6 +52,11 @@ describe('eventMeasureDeltaUs', () => {
     const e = ev('a', 100, 100);
     expect(eventMeasureDeltaUs(e, e)).toBeNull();
   });
+
+  it('returns 0 for touching (adjacent) events', () => {
+    expect(eventMeasureDeltaUs(ev('a', 100, 100), ev('b', 200, 50))).toBe(0);
+    expect(eventMeasureDeltaUs(ev('b', 200, 50), ev('a', 100, 100))).toBe(0);
+  });
 });
 
 describe('computeEventMeasureGap', () => {

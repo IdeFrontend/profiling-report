@@ -236,6 +236,7 @@ flowchart TB
 9. **Tab switch (P2)** — Leaving Timeline keeps serialized view state for restore when returning.
 10. **Time-range measure (M2)** — `measureMode` / `measureRange` drive the swimlane overlay only. **Does not** change `timeWindow`. **Does not** recompute the aside or other views (cards, PIPE, details, memory, Roofline).
 11. **Hover gap measure (default mode)** — hovering the free gap between adjacent events renders a transient, non-interactive Δt overlay only. **Does not** change `timeWindow`, selection, hover, or any other view; frozen (pan-captured) while panning; hidden in measure mode.
+12. **Alt event measure (default mode)** — Alt+click anchor + Alt+hover Δt is a local, ephemeral overlay only. **Does not** change `timeWindow`, selection, hover, or any other view; clears on Alt release / Esc / toggle; hidden in measure mode.
 
 ---
 

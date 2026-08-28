@@ -28,6 +28,8 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 **Hover gap measure (default mode).** When `measureMode` is false and the pointer sits in the **free middle** of a gap between two adjacent events on a leaf lane — within the event block vertical band (not the lane padding above/below blocks), outside the ~10px event-edge magnet band when the gap is wide enough (~20px+), not over any event block — `SwimlaneCanvas` may render a non-interactive `gap-measure` overlay: two blue border sticks at the neighbouring edges plus the shared `MeasureDtArrow` Δt label showing `rightStart − leftEnd`, **only when the label and double arrow fit entirely inside the visible gap span** (inline layout; no outside/shaft fallback). When the gap is narrower than ~20px (common at high zoom), the magnet band shrinks so a fit check can still succeed in the middle. If the Δt label does not fit within the visible span, the overlay is omitted entirely. When both neighbouring events fall outside the view but the gap still spans the window, sticks are hidden and the arrow spans the full viewport width (Δt still shows the true gap duration). The overlay persists across **zoom / pan / scroll** while the pointer remains over the canvas — including during left-button pan drag: the view-window watcher **recomputes** (not clears) the gap from the last pointer position and `gapMeasureGeometry` re-projects sticks/Δt. **Pan capture:** on `pointerdown` the active hover gap and event hover are **frozen** (pointer capture) until `pointerup`; vertical lane changes during pan do not move the gap overlay, and `hover` emits keep the captured event. It hides when the entire gap is outside the view or the label no longer fits inline. The overlay is `pointer-events: none`, cleared on `pointerleave` (except during an active pan capture), and recomputed when the view window or scroll changes.
 
+**Default-mode Alt event measure.** When `measureMode` is false, **Alt+click** an event sets an ephemeral anchor (`altMeasureAnchorId`) — it does **not** emit `select` or open details, only the normal click playhead cue. The anchored event is drawn with a non-interactive pink rounded border (`pr-alt-measure-anchor`, `rgba(255,180,196)`, 2px). While **Alt** is held and the pointer moves, hovering a different, non-overlapping event renders an `alt-event-measure` overlay: on the same lane it reuses the gap-measure border sticks plus the `MeasureDtArrow` Δt label; across lanes it draws sticks plus a vertical blue dashed connector (`pr-alt-measure__vertical`) with horizontal stubs, and the Δt label/arrow sits on the earlier event's lane (inline-or-outside label fallback; same-lane is inline-or-nothing). Δt is directional: `target.start − anchor.end` when the target is later, otherwise `anchor.start − target.end`. Overlapping (in time) anchor/target — including hovering the anchor event itself — and touching events (Δt = 0) render no overlay, leaving only the anchor highlight. While the session is active, the default hover-gap measure is suppressed. Clearing: **Alt keyup**, **Esc**, Alt+click empty space, or Alt+click the same anchor again (toggle); entering `measureMode` also clears it. The overlay is `pointer-events: none`, never pins after Alt release, and is recomputed against the current view window.
+
 **Reactivity.** A deep watcher on the viewport prop calls `renderer.setView()` and `renderer.render()` on every change. Model changes call `renderer.setModel()`. Selection/hover/`dependencyMode`/`dependencyDepth` changes trigger render only (layout unchanged; no page reload).
 
 ## Acceptance Criteria
@@ -76,6 +78,15 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 42. **PR-CANVAS-042** — `findExactEdgeMatchesAt` is memoized per snapped time — repeated `pointermove` at the same magnet edge rescans once.
 43. **PR-CANVAS-043** — Hovering a measure border on an event edge emits `snapped: true` (consistent with press).
 44. **PR-CANVAS-044** — Mounts only the active renderer canvases (no hidden unused siblings).
+45. **PR-CANVAS-045** — Alt+click an event sets an ephemeral anchor (pink highlight) without emitting `select`; Alt+hover a later non-overlapping target renders the event-measure overlay with the directional Δt label.
+46. **PR-CANVAS-046** — When the anchor and target overlap in time, only the anchor highlight is shown (no Δt overlay).
+47. **PR-CANVAS-047** — Hovering the anchor event itself shows only the anchor highlight (no Δt overlay).
+48. **PR-CANVAS-048** — Δt is directional: `target.start − anchor.end` when the target is later, otherwise `anchor.start − target.end`.
+49. **PR-CANVAS-049** — Touching events (Δt = 0) render no event-measure overlay.
+50. **PR-CANVAS-050** — Same-lane measurement reuses the gap-measure border sticks + `MeasureDtArrow`; cross-lane measurement draws sticks plus a vertical blue dashed connector with the Δt label on the earlier lane (inline-or-outside fallback).
+51. **PR-CANVAS-051** — The session clears on **Alt keyup**, **Esc**, Alt+click empty space, or Alt+click the same anchor again (toggle).
+52. **PR-CANVAS-052** — Entering `measureMode` clears the session; the overlay is hidden while `measureMode` is true.
+53. **PR-CANVAS-053** — While the session is active, the default hover-gap measure is suppressed.
 
 ## Edge Cases
 
@@ -109,6 +120,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 
 ## Changelog
 - **2026-08-28** — Mount only active WebGL+overlay or Canvas fallback; paint gated on lastDeviceW/H; PR-CANVAS-044.
+- **2026-08-27** — Default-mode Alt event measure (Alt+click anchor + Alt+hover Δt; same-lane reuse + cross-lane dashed connector; clears on Alt keyup / Esc / toggle / measure mode); PR-CANVAS-045–053.
 - **2026-08-27** — Memoize exact-edge scans per snapped time; border hover emits `snapped`; PR-CANVAS-042/043.
 - **2026-08-27** — Integrate hover-gap measure (#36) with magnet snap cursor; renumber snap ACs to PR-CANVAS-039–043.
 - **2026-08-26** — Pan capture freezes hover gap lane and event hover during drag; PR-CANVAS-037/038.

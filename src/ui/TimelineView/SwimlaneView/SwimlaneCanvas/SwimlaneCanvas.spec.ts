@@ -1298,7 +1298,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-044: Alt+click anchor + Alt+hover target shows event measure without selecting', async () => {
+  it('PR-CANVAS-045: Alt+click anchor + Alt+hover target shows event measure without selecting', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
@@ -1318,7 +1318,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-045: Alt measure hidden when anchor and target overlap in time', async () => {
+  it('PR-CANVAS-046: Alt measure hidden when anchor and target overlap in time', async () => {
     const overlapModel = {
       minTime: 0,
       maxTime: 1000,
@@ -1344,6 +1344,38 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     await canvas.trigger('pointermove', { clientX: 70, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-049: touching events (Δt = 0) render no event-measure overlay', async () => {
+    const touchingModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'eA', name: 'a', startTime: 100, duration: 100 }, // 100..200 → px 40..80
+                { id: 'eB', name: 'b', startTime: 200, duration: 100 }, // 200..300 → px 80..120
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithGapModel({ model: touchingModel });
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointermove', { clientX: 100, clientY: y, pointerId: 1, altKey: true });
 
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);

@@ -685,9 +685,6 @@ watch(
 );
 
 watch(
-<<<<<<< HEAD
-  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
-=======
   () => props.measureMode,
   (on) => {
     if (on) clearAltMeasure();
@@ -695,8 +692,7 @@ watch(
 );
 
 watch(
-  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth],
->>>>>>> 9a650ef (feat: Alt+hover ephemeral event distance measure in default mode)
+  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
   () => {
     localScrollY = props.view.scrollY;
     sync();
