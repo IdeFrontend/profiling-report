@@ -291,18 +291,24 @@ describe('PR-UI: ProfilingReport feature contract', () => {
 
     const select = wrapper.find('[data-testid="card-metric-select"]');
     expect(select.exists()).toBe(true);
-    expect((select.element as HTMLSelectElement).value).toBe('clockCycle');
+    expect(select.attributes('data-value')).toBe('clockCycle');
 
     const utilBefore = wrapper.find('[data-testid="lane-util"]');
     const labelBefore = utilBefore.text();
     expect(labelBefore).not.toMatch(/%$/);
 
-    await select.setValue('utilization');
+    await select.find('.pr-metric-select__trigger').trigger('click');
+    await flushPromises();
+    const opt = document.querySelector('[data-testid="card-metric-option-utilization"]') as HTMLElement | null;
+    expect(opt).toBeTruthy();
+    opt!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flushPromises();
 
     const utilAfter = wrapper.find('[data-testid="lane-util"]');
     expect(utilAfter.text()).toMatch(/%$/);
     expect(utilAfter.text()).not.toBe(labelBefore);
-    expect((select.element as HTMLSelectElement).value).toBe('utilization');
+    expect(wrapper.find('[data-testid="card-metric-select"]').attributes('data-value')).toBe(
+      'utilization',
+    );
   });
 });

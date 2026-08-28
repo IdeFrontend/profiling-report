@@ -31,9 +31,9 @@ import {
 } from '../../panelResize';
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
-import { GUTTER_METRIC_LABELS } from '../../../domain/gutterMetrics';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
+import CardMetricSelect from './CardMetricSelect.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import { t } from '../../../i18n';
 
@@ -371,8 +371,7 @@ function selectedMetricForCard(cardId: string): GutterMetric | undefined {
   return props.gutterMetricByCard?.[cardId];
 }
 
-function onMetricChange(cardId: string, event: Event) {
-  const metric = (event.target as HTMLSelectElement).value as GutterMetric;
+function onMetricChange(cardId: string, metric: GutterMetric) {
   emit('update:gutter-metric', { cardId, metric });
 }
 
@@ -540,24 +539,13 @@ defineExpose({
               :expanded="strip.expanded"
             />
             <span class="pr-card-strip__name">{{ strip.name }}</span>
-            <select
+            <CardMetricSelect
               v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"
-              class="pr-card-strip__metric"
-              data-testid="card-metric-select"
-              :aria-label="`Gutter metric for ${strip.name}`"
-              :value="selectedMetricForCard(strip.id) ?? metricOptionsForCard(strip.id)[0]"
-              @click.stop
-              @pointerdown.stop
-              @change="onMetricChange(strip.id, $event)"
-            >
-              <option
-                v-for="opt in metricOptionsForCard(strip.id)"
-                :key="opt"
-                :value="opt"
-              >
-                {{ GUTTER_METRIC_LABELS[opt] }}
-              </option>
-            </select>
+              :model-value="selectedMetricForCard(strip.id) ?? metricOptionsForCard(strip.id)[0]!"
+              :options="metricOptionsForCard(strip.id)"
+              :ariaLabel="`Gutter metric for ${strip.name}`"
+              @update:model-value="onMetricChange(strip.id, $event)"
+            />
           </span>
         </button>
       </div>
@@ -710,28 +698,6 @@ defineExpose({
   align-items: center;
   gap: 6px;
   padding: 0 8px;
-}
-
-
-.pr-card-strip__metric {
-  margin-left: auto;
-  max-width: 118px;
-  min-width: 0;
-  flex: 0 1 118px;
-  padding: 2px 4px;
-  border: 0;
-  background: transparent;
-  color: #e8e8e8;
-  font-size: 12px;
-  font-weight: 400;
-  text-align: right;
-  cursor: pointer;
-  appearance: auto;
-}
-
-.pr-card-strip__metric:focus-visible {
-  outline: 1px solid rgba(49, 122, 247, 0.6);
-  outline-offset: 1px;
 }
 
 .pr-card-strip__name {

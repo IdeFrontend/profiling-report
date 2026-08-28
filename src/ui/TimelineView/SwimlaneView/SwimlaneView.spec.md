@@ -85,9 +85,11 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 | Control width | ~118px max; shrinks with narrow gutter |
 | Label alignment | Right-aligned inside control |
 | Background | Transparent on strip (inherits `#2a2a2a` / hover `#323232`) |
+| Border | `1px solid transparent`; hover / open → `#3078f0` (PyPTO parity) |
 | Font | 12px / weight 400 / `#e8e8e8` (matches Card name weight tier) |
-| Chevron | Native select affordance or 10×10 dropdown icon on trailing edge |
-| Interaction | `pointer-events: auto` on select only; strip click elsewhere still toggles |
+| Chevron | 8×8 open-angle caret on trailing edge |
+| Menu | Teleported panel; same width + left edge as trigger; fill `#2a2a2a`, border `#3a3a3a`, selected row `#3078f0` / `#fff` |
+| Interaction | `pointer-events: auto` on control only; strip click elsewhere still toggles |
 
 ## Design sketches
 
@@ -108,6 +110,7 @@ Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.m
 - **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
 - **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
 - **2026-08-31** — Renumber pin ACs to `PR-SWIMVIEW-013`…`017` (avoid collision with #45 `010`…`012`).
+- **2026-08-28** — Custom dark metric dropdown: hover/open blue border; menu aligned to trigger (PyPTO parity).
 - **2026-08-28** — Abspos gutter handle uses explicit `grid-column: 1 / 2` so `right: 0` is the gutter seam, not the track’s far edge.
 - **2026-08-28** — Pinned-strip canvas shares measure mode/range with the body canvas.
 - **2026-08-27** — After rebase onto master (`PR-SWIMVIEW-009` = cursor magnet): pin ACs are `013`…`017` (leave `010`…`012` for #45 Card metric selector). Gutter pin ACs `010`…`013` reserve `009` for #45 metrics.
