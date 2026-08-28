@@ -59,12 +59,7 @@ void main() {
   float lPx = max(vLrScreen.x, vScreenPos.x - 0.5);
   float rPx = min(vLrScreen.y, vScreenPos.x + 0.5);
   float inside = rPx - lPx;
-  // Hard Y clip (round-rect deferred); premul source-over (not sudu additive a=1).
-  float t = uYBounds.x;
-  float b = uYBounds.y;
-  float yOk = step(t, vScreenPos.y) * step(vScreenPos.y, b);
-  float cov = inside * yOk;
-  outColor = vec4(uColor.xyz * cov, uColor.w * cov);
+  outColor = vec4(uColor.xyz * inside, uColor.w * inside);
 }
 `;
 
