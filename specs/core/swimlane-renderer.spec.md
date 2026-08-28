@@ -24,7 +24,7 @@ class CanvasSwimlaneRenderer {
 
 **HiDPI rendering.** `resize` multiplies canvas backing store by `window.devicePixelRatio` to ensure crisp rendering on Retina displays. Logical dimensions stored separately for layout calculations.
 
-**Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y` and are vertically centered in the lane between gutter-aligned row dividers (`(LANE_HEIGHT - h) / 2` inset, then −0.5px optical nudge). Rounded rectangles use corner radius 5px (`ctx.roundRect()` where available). Only events overlapping the current time viewport are drawn.
+**Lane layout.** `setModel` iterates processes and threads, computes Y positions, assigns colors via `colorForThread`. Group headers at 28px, lanes at 22px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y` and are vertically centered in the lane between gutter-aligned row dividers (`(LANE_HEIGHT - h) / 2` inset, then −0.5px optical nudge). Rounded rectangles use a width-based corner radius — 1px when the on-screen block is narrower than 4px, otherwise 2px (`ctx.roundRect()` where available) — and are inset 0.5px per side so adjacent blocks keep a ≥1 device px gap instead of touching. Event rect edges are snapped to the device-pixel grid (and WebGL coverage AA is computed in device pixels) so borders stay crisp at fractional browser zoom / `devicePixelRatio`. Only events overlapping the current time viewport are drawn.
 
 **Event labels.** When the on-screen (clipped) event width is wide enough (>40px), the title is drawn centered: vertically at the event block mid-line (`textBaseline: middle`), horizontally at the center of the visible intersection of the event rect with the canvas (fully on-screen → center of the event; clipped left/right → center of the remaining visible strip). Canvas fallback and the WebGL overlay share this layout.
 
@@ -56,6 +56,8 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-012**: Canvas and WebGL Card/group header bands use `LANE_GROUP_HEADER_FILL` (`#2a2a2a` / `rgb(42, 42, 42)`).
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep full fill and label brightness.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional (existing implementers stay valid).
+1. **PR-RENDER-017**: `eventRadius` returns 1px below 4px width and 2px otherwise.
+1. **PR-RENDER-018**: `snapEventRect` aligns all four edges to the device-pixel grid.
 
 ## Edge Cases
 
@@ -70,6 +72,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-27** — Snap event rect edges to the device-pixel grid; WebGL coverage AA in device pixels (crisp borders at fractional browser zoom).
 - **2026-08-19** — Dependency curve stroke 2px.
 - **2026-08-19** — WebGL attach/curve paint in Chromium is PR-E2E-007; jsdom unit tests `skipIf` when `webgl2` is missing.
 - **2026-08-18** — Canvas fallback reuses the fill-pass visible list for strokes/labels (no second full-event cull).

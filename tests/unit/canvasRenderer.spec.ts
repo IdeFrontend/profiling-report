@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   encodeIntervalPair,
+  EVENT_MARGIN,
   eventEmphasisDim,
   eventLabelAnchor,
+  eventPaintRect,
+  eventRadius,
   hitTestLayout,
   rebuildLayout,
+  snapCssPx,
+  snapEventRect,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
@@ -92,6 +97,35 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     const view = { startTime: 0, endTime: 1000, scrollY: 0 };
     const id = hitTestLayout(layout, view, 400, 1, LANE_GROUP_HEADER_HEIGHT + 11);
     expect(id).toBe('e-short');
+  });
+
+  it('PR-RENDER-017: eventRadius narrow vs normal and 1px margin', () => {
+    expect(eventRadius(2)).toBe(1);
+    expect(eventRadius(3.9)).toBe(1);
+    expect(eventRadius(4)).toBe(2);
+    expect(eventRadius(40)).toBe(2);
+    expect(EVENT_MARGIN).toBe(0.5);
+  });
+
+  it('PR-RENDER-018: snapEventRect aligns edges to the device-pixel grid at fractional dpr', () => {
+    const dpr = 1.25;
+    expect(snapCssPx(2.5, dpr)).toBe(2.4);
+    const r = snapEventRect(10.4, 2.5, 20.3, 16, dpr);
+    expect(r.x * dpr).toBeCloseTo(Math.round(10.4 * dpr));
+    expect(r.y * dpr).toBeCloseTo(Math.round(2.5 * dpr));
+    expect((r.x + r.w) * dpr).toBeCloseTo(Math.round((10.4 + 20.3) * dpr));
+    expect((r.y + r.h) * dpr).toBeCloseTo(Math.round((2.5 + 16) * dpr));
+  });
+
+  it('eventPaintRect applies margin then snaps to the device grid', () => {
+    const dpr = 1.25;
+    const paint = eventPaintRect(10, 2, 20, 16, dpr);
+    const expected = snapEventRect(10 + EVENT_MARGIN, 2, 20 - EVENT_MARGIN * 2, 16, dpr);
+    expect(paint.x).toBe(expected.x);
+    expect(paint.y).toBe(expected.y);
+    expect(paint.w).toBe(expected.w);
+    expect(paint.h).toBe(expected.h);
+    expect(paint.r).toBe(2);
   });
 
   it('PR-RENDER-007: eventLabelAnchor centers in full and clipped visible rects', () => {
