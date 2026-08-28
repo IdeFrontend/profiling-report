@@ -277,7 +277,8 @@ describe('SwimlaneView', () => {
     expect(src).toMatch(
       /\.pr-swim-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*var\(--pr-gutter-width[^)]*\)\)\s*minmax\(80px,\s*1fr\)/s,
     );
-    expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*grid-column:\s*1/s);
+    // Abspos: end line must be explicit (`1 / 2`); bare `1` → auto → container edge.
+    expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*grid-column:\s*1\s*\/\s*2/s);
     expect(src).toMatch(/\.pr-gutter-resize\s*\{[^}]*right:\s*0/s);
     expect(src).not.toMatch(/\.pr-gutter-resize\s*\{[^}]*left:\s*var\(--pr-gutter-width/s);
   });
