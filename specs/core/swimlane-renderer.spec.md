@@ -26,7 +26,7 @@ class CanvasSwimlaneRenderer {
 
 **Canvas backing-store sizing (device pixels).** The owning `SwimlaneCanvas` observes its **main** canvas with `ResizeObserver` (`{ box: 'device-pixel-content-box' }`). Until that observer delivers a positive device-pixel box (`lastDeviceW` / `lastDeviceH` both ≥ 1), canvas backing stores stay **0×0** and the renderer does not paint (no HTML default 300×150, no speculative `css × devicePixelRatio` size). On each callback, for the entry whose `target` is that main canvas, it reads `devicePixelContentBoxSize` — `inlineSize` (width) and `blockSize` (height). Those values are the only authority for the framebuffer size. `SwimlaneCanvas` calls `resize(deviceW, deviceH, window.devicePixelRatio)` on each active renderer (WebGL fills, Canvas overlay, or Canvas fallback). Each `resize` sets that canvas element's backing-store **`width`** / **`height`** attributes to those device-pixel values. The size is **never** derived by multiplying a CSS size by `window.devicePixelRatio` for the buffer outside an RO callback, and **never** applied via `canvas.style.width` / `style.height` (shared `.pr-swim-canvas` rules use constant `width`/`height: 100%` of the wrap). If an RO entry lacks `devicePixelContentBoxSize`, `contentBoxSize × dpr` from that same entry may be used. `dpr` is stored only to scale CSS layout constants into device pixels for paint and hit-testing. Device-pixel `width` / `height` drive `gl.viewport`, shader `uResolution`, Canvas 2D drawing in identity CTM, hit-test, and labels — one size shared across the stack via identical `resize` arguments.
 
-**Paint / shader space (integer device pixels).** Lane metrics (`LANE_HEIGHT`, etc.) remain defined in CSS. The renderer scales them by `dpr` into device pixels, then paints entirely in that space. Canvas 2D uses an **identity** CTM (no `setTransform(dpr, …)`). WebGL maps clip space with `uResolution = (deviceW, deviceH)` and **does not** use a `uDpr` uniform — snap, gap, radius, and coverage AA are integer / device-pixel only: edges `floor(x + 0.5)`; abutting fills keep a **1 device-pixel** gap; corner radius is **1** device px when event width (device px) `< 4`, else **2**; coverage `clamp(0.5 - dist, 0, 1)` with `dist` in device pixels. Optical −0.5 CSS nudge becomes `round((-0.5) * dpr)` after scale.
+**Paint / shader space (integer device pixels).** Lane metrics (`LANE_HEIGHT`, etc.) remain defined in CSS. The renderer scales them by `dpr` into device pixels, then paints entirely in that space. Canvas 2D uses an **identity** CTM (no `setTransform(dpr, …)`). WebGL maps clip space with `uResolution = (deviceW, deviceH)` and **does not** use a `uDpr` uniform. The interval vertex shader passes **exact** device-pixel event edges in `vLrScreen` (`glToPixelX(translateScaleX(lX/rX))` — no gap inset, no snap) and expands each vertex’s own `screenX` with `mix(floor(screenX), ceil(screenX), aTex.y)`. The fragment shader computes analytical horizontal coverage (`lPx`/`rPx` = event∩current device pixel, `inside = rPx - lPx`) and emits premul source-over. Y is bounded by vertex geometry (`uSizePos`), not a fragment uniform. **Interim:** WebGL fills are square (no round-rect / SDF). Canvas 2D may still inset for gaps and uses `eventRadius` (**1** device px when width `< 4`, else **2**). Optical −0.5 CSS nudge becomes `round((-0.5) * dpr)` after scale.
 
 **Lane layout.** `setModel` iterates processes and threads, computes Y positions (CSS), assigns colors via `colorForThread`. Group headers at 28 CSS px, lanes at 22 CSS px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y`, vertically centered, then scaled to device px for paint. Only events overlapping the current time viewport are drawn.
 
@@ -38,7 +38,7 @@ class CanvasSwimlaneRenderer {
 
 **Cursor.** Vertical cursor stroke uses `#317AF7` to match axis `.pr-cursor`. Swimlane paints the follow-bar as a DOM overlay in `SwimlaneView` (under Card strips); Canvas/WebGL renderers no longer stroke the cursor.
 
-**WebGL intervals.** Coverage-AA rounded fills use **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
+**WebGL intervals.** Analytical horizontal coverage-AA fills (sudu-style event∩pixel) use **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend. Corners are square until round-rect is restored. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
 
 **Dependency curves.** On selection, WebGL draws an instanced cubic strip **2 device pixels** wide (one instance per link; pan/zoom via uniforms). Canvas fallback strokes the same cubic with a pred→succ linear gradient. See [DependencyLinksLayer](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/DependencyLinksLayer.spec.md). `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional; Canvas and WebGL implement them, and `SwimlaneCanvas` calls them with `?.`.
 
@@ -60,7 +60,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-012**: Canvas and WebGL Card/group header bands use `LANE_GROUP_HEADER_FILL` (`#2a2a2a` / `rgb(42, 42, 42)`).
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep full fill and label brightness.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional (existing implementers stay valid).
-1. **PR-RENDER-017**: `eventRadius` returns 1 device px below 4 device-px width and 2 device px otherwise.
+1. **PR-RENDER-017**: `eventRadius` returns 1 device px below 4 device-px width and 2 device px otherwise (Canvas paint; WebGL fills are square until round-rect is restored).
 1. **PR-RENDER-018**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
 1. **PR-RENDER-019**: `resize(deviceW, deviceH, dpr)` sets `canvas.width/height` to device args without writing `canvas.style`; WebGL has no `uDpr` uniform.
 
@@ -78,6 +78,10 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-28** — WebGL: drop dead `uYBounds` (Y from vertex geometry only; FS coverage is `inside` alone).
+- **2026-08-28** — WebGL VS: pass exact event edges in `vLrScreen`; per-vertex `floor`/`ceil` expand only (no +0.5/−0.5 gap inset).
+- **2026-08-28** — WebGL: restore sudu analytical horizontal coverage AA (`floor`/`ceil` expand + event∩pixel `inside`); still source-over premul; round-rect still deferred.
+- **2026-08-28** — WebGL: temporary hard-rect event fills (SDF round-rect removed) ahead of sudu coverage restore.
 - **2026-08-28** — `resize(devicePixelWidth, devicePixelHeight, dpr)`; paint/hit-test/shaders in integer device pixels; no `uDpr` / no `setTransform(dpr)`; CSS layout scaled by `dpr` at the paint boundary; 1 device-px gap; host RO drives buffer size.
 - **2026-08-28** — Canvas backing-store sizing contract: device-pixel size from `ResizeObserver` `devicePixelContentBoxSize`; no `style` sizing.
 - **2026-08-27** — Snap event rect edges to the device-pixel grid; WebGL coverage AA in device pixels (crisp borders at fractional browser zoom).
