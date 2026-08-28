@@ -111,6 +111,9 @@ defineProps<{
 
 .pr-axis-ruler__track {
   flex: 1 1 0;
+  /* Stretch: absolute majors/minors do not give the track height; without this,
+   * align-items:flex-start + overflow:hidden collapses the track to 0px and clips all labels. */
+  align-self: stretch;
   min-width: 0;
   position: relative;
   overflow: hidden;

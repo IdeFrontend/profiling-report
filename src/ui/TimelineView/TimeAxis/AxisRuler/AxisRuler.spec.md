@@ -44,6 +44,7 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 - [viewport-ticks](./visual/viewport-ticks.png) — from `v930/entry`
 
 ## Changelog
+- **2026-08-28** — Track `align-self: stretch` so tick labels are not clipped when ruler uses `align-items: flex-start`.
 - **2026-08-27** — Symmetric **4px** gaps around `+`; defer tick-label hide until **4px** from `+`.
 - **2026-08-27** — Viewport base: **4px** left inset; top-align with tick labels.
 - **2026-08-27** — Viewport base label weight **600** / `#e0e0e0` to distinguish from tick labels.

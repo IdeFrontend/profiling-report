@@ -110,5 +110,6 @@ describe('PR-AXIS: shared ruler', () => {
     expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-left:\s*4px/);
     expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*gap:\s*4px/);
     expect(src).not.toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-right/);
+    expect(src).toMatch(/\.pr-axis-ruler__track\s*\{[^}]*align-self:\s*stretch/);
   });
 });
