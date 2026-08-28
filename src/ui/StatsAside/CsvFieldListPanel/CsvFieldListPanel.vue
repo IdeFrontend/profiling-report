@@ -111,7 +111,10 @@ const fields = computed(() => {
   const row = activeRow.value;
   if (!table || !row) return [];
   const q = search.value.trim();
-  return table.headers.map((h) => ({
+  const headers = q
+    ? table.headers.filter((h) => h.toLowerCase().includes(q.toLowerCase()))
+    : table.headers;
+  return headers.map((h) => ({
     header: h,
     value: row[h] ?? '',
     parts: highlightParts(h, q),
@@ -442,14 +445,11 @@ function onViewAll() {
 }
 
 .pr-csv__field-match {
-  display: inline-block;
   color: #688aec;
   background: #1d283c;
   border-radius: 3px;
-  padding: 0 4px;
+  padding: 0;
   font-weight: 600;
-  line-height: 1.35;
-  vertical-align: baseline;
 }
 
 .pr-csv__field-value {

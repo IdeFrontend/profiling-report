@@ -95,7 +95,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Rank pipes and inspect raw CSV counters for a selected block |
 | **Trigger** | After S1; user needs more than bar chart |
-| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); open memory tabs + block switcher; optionally 查看全部 |
+| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter + highlight field labels; open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
 | **Sketches** | Bars: [`v930/compute-load`](./source/v930/compute-load.jpeg). Details: [`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg) |
 | **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
@@ -193,7 +193,7 @@ Interactivity classes:
 | Lane gutter | interactive | Expand/collapse; wheel scroll sync | Row set + `scrollY` | M |
 | Event tooltip | interactive (transient) | Hover | Shows timing | M |
 | Detail strip / bottom dock | interactive (selection-driven) | Cleared by empty click | Bound to selection | M / richer P2 |
-| Pipe field list + search | interactive | Type filter, scroll | Filtered rows | P2 (sketch shows search) |
+| Pipe field list + search | interactive | Type filter, scroll | Filtered rows + flush substring highlight | M1 |
 | Memory topology | semi / interactive | Pan/zoom diagram optional; click nodes P2 | Field highlight | P2 |
 | Memory/pipe raw details | interactive | Scroll, search | — | P2 |
 | Hardware details | static / semi | Scroll | — | P2 |
@@ -266,10 +266,10 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 1. User scans gutter % bars and PIPE aside ranking.
 2. Optionally expands hottest core for pipe children.
 
-### Flow S5 (M/P2)
+### Flow S5 (M1)
 
 1. MVP: read PIPE bars in aside.
-2. P2: open pipe details list; type filter (e.g. `aic_mte3`); inspect values (`source/v930/compute-load.jpeg`).
+2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the substring; inspect values (`source/v930/compute-load-detail.jpeg`).
 
 ### Flow S6–S9 (P2)
 
