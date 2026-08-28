@@ -3,8 +3,9 @@
  */
 :root,
 .pr-root {
-  --pr-bg-panel: #262626;
   --pr-bg-deep: #1f1f1f;
+  --pr-bg-aside: #1a1a1a;
+  --pr-bg-panel: #262626;
   --pr-axis-tick: #343434;
   --pr-axis-tick-muted: #272727;
   --pr-playhead: #3078f0;
@@ -59,7 +60,8 @@
 }
 
 .pr-root[data-theme='light'] {
-  --pr-bg-panel: #f4f4f4;
   --pr-bg-deep: #e8ecf0;
+  --pr-bg-aside: #e8ecf0;
+  --pr-bg-panel: #f4f4f4;
   color-scheme: light;
 }

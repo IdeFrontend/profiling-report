@@ -52,6 +52,7 @@ describe('ReportLayout', () => {
     expect(src).toMatch(/\.pr-main\s*\{[^}]*overflow:\s*visible/s);
     expect(src).toMatch(/\.pr-main\s*\{[^}]*z-index:\s*1/s);
     expect(src).toMatch(/\.pr-layout__aside\s*\{[^}]*z-index:\s*0/s);
+    expect(src).toMatch(/\.pr-layout__aside\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
   });
 
   it('PR-LAYOUT-006: keeps two-column grid when aside is visible (no viewport stack)', async () => {

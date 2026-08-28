@@ -123,7 +123,7 @@ defineExpose({ rootEl });
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--pr-bg-panel);
+  background: var(--pr-bg-aside);
 }
 
 .pr-layout__resize {
