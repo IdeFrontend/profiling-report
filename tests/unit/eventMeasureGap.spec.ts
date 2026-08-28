@@ -80,7 +80,7 @@ describe('computeAltMeasureGap', () => {
     });
     const gap = computeAltMeasureGap(layout, 'a', 250, 'b');
     expect(gap).toMatchObject({
-      deltaUs: 50,
+      deltaNs: 50,
       anchorRefTime: 200,
       targetTime: 250,
       gapStartTime: 200,
@@ -94,7 +94,7 @@ describe('computeAltMeasureGap', () => {
     const layout = rebuildLayout(twoLaneModel());
     const gap = computeAltMeasureGap(layout, 'a', 300, 'b');
     expect(gap).toMatchObject({
-      deltaUs: 100,
+      deltaNs: 100,
       gapStartTime: 200,
       gapEndTime: 300,
       sameLane: false,
@@ -136,7 +136,7 @@ describe('computeAltMeasureGap', () => {
     const layout = rebuildLayout(twoLaneModel());
     const gap = computeAltMeasureGap(layout, 'a', 350, null);
     expect(gap).toMatchObject({
-      deltaUs: 150,
+      deltaNs: 150,
       anchorRefTime: 200,
       targetTime: 350,
       targetEventId: null,

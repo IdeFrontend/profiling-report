@@ -1443,4 +1443,109 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('550 ns');
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-046: hovering the anchor event shows only the anchor highlight', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointermove', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-047: Δt is directional — measures to the earlier target\'s end edge', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    // Anchor eB (500..600); hover eA (100..200), which precedes → target = eA.end (200).
+    await canvas.trigger('pointerdown', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointermove', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    // 500 − 200 = 300 (using the earlier event's end; its start would give 400).
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('300 ns');
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-049: cross-lane measure draws the dashed connector and Δt label', async () => {
+    const crossModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-1', name: 'Lane A', events: [{ id: 'eA', name: 'a', startTime: 100, duration: 100 }] },
+            { id: 't-2', name: 'Lane B', events: [{ id: 'eB', name: 'b', startTime: 400, duration: 100 }] },
+          ],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithGapModel({ model: crossModel });
+    const vm = wrapper.vm as unknown as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rectA = vm.eventScreenRect('eA')!;
+    const rectB = vm.eventScreenRect('eB')!;
+    const yA = rectA.y + rectA.h / 2;
+    const yB = rectB.y + rectB.h / 2;
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: yA, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: yA, pointerId: 1, altKey: true });
+    await canvas.trigger('pointermove', { clientX: 180, clientY: yB, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-alt-measure__vertical').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('200 ns');
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-050: session clears on Escape and on toggling the same anchor', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
+
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-051: entering measureMode clears the session', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+
+    await wrapper.setProps({ measureMode: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-052: hover gap measure is suppressed while an Alt session is active', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    // Free middle of the gap (px 140) with Alt held → alt cursor overlay, not the hover gap.
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
 });

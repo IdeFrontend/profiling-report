@@ -444,7 +444,7 @@ export function eventMeasureTargetTime(anchor: SwimEvent, target: SwimEvent): nu
 }
 
 export interface AltMeasureGap {
-  deltaUs: number;
+  deltaNs: number;
   /** Anchor edge (start or end) used as the measurement origin. */
   anchorRefTime: number;
   targetTime: number;
@@ -475,13 +475,13 @@ export function computeAltMeasureGap(
   const aEnd = anchor.startTime + anchor.duration;
 
   let anchorRefTime: number;
-  let deltaUs: number;
+  let deltaNs: number;
   if (targetTime > aEnd) {
     anchorRefTime = aEnd;
-    deltaUs = targetTime - aEnd;
+    deltaNs = targetTime - aEnd;
   } else if (targetTime < aStart) {
     anchorRefTime = aStart;
-    deltaUs = aStart - targetTime;
+    deltaNs = aStart - targetTime;
   } else {
     return null; // target inside the anchor span (or touching) → hide
   }
@@ -494,7 +494,7 @@ export function computeAltMeasureGap(
   const rightLaneY = anchorIsLeft ? (targetItem?.y ?? anchorItem.y) : anchorItem.y;
 
   return {
-    deltaUs,
+    deltaNs,
     anchorRefTime,
     targetTime,
     gapStartTime,

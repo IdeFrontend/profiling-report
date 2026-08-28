@@ -1297,7 +1297,7 @@ const altEventMeasureGeometry = computed(() => {
   const right = xAtTime(gapEndTime);
   const arrowLeft = xAtTime(visStart);
   const arrowRight = xAtTime(visEnd);
-  const label = formatTime(gap.deltaUs, props.timeUnit ?? 'ms');
+  const label = formatTime(gap.deltaNs, props.timeUnit ?? 'ms');
   const rangePx = arrowRight - arrowLeft;
   const leftPct = (arrowLeft / w) * 100;
   const widthPct = ((arrowRight - arrowLeft) / w) * 100;
