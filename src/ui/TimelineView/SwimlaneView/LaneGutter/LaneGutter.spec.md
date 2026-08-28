@@ -60,7 +60,7 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 | Visibility | **Hover only** — hidden until pointer is over the leaf gutter row, that leaf’s canvas band (`hoveredLaneId`), or the pin has `:focus-visible` |
 | Unpinned (lane hover) | **Outline** pushpin; stroke `#a8a8a8` (chevron family) |
 | Pinned / pin hover | **Solid fill** accent blue `#4a90e2` (match toolbar measure-active) |
-| Tooltip | **置顶** on hover/focus over pushpin; dark rounded bubble (EventTooltip chrome: `#2a2a2a` / `#555`) |
+| Tooltip | Localized **置顶** / **Pin to top** (`t('pin')`) on hover/focus over pushpin; dark rounded bubble (EventTooltip chrome: `#2a2a2a` / `#555`) |
 | Row hover | Full gutter row highlight `#252525` when pointer over the leaf row (gutter or via canvas `hoveredLaneId`) |
 | Accessibility | Focusable `button`; `aria-label` **置顶**; pinned state reflected in `aria-pressed` |
 
@@ -123,7 +123,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 8. **PR-GUTTER-008** — Card row is a non-interactive 28px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
 9. **PR-GUTTER-010** — Leaf rows include a pushpin control (DOM); folder/Card rows omit pin. Pin is hidden until leaf/canvas hover (or focus).
 10. **PR-GUTTER-011** — Unpinned outline `#a8a8a8` on lane hover; pinned/pin-hover solid `#4a90e2`. Pin stays flush-left (not depth-indented).
-11. **PR-GUTTER-012** — Pushpin hover/focus shows **置顶** tooltip.
+11. **PR-GUTTER-012** — Pushpin hover/focus shows localized pin tooltip (`置顶` / `Pin to top`).
 12. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 
 ## Edge Cases

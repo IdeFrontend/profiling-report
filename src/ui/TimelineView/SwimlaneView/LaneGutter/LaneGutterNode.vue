@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { t } from '../../../../i18n';
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
 import type { GutterLane } from './gutterTypes';
@@ -11,6 +12,7 @@ const props = defineProps<{
   pinnedLaneIds?: string[];
   /** Leaf id under canvas (or external) hover — shows pin + row highlight. */
   hoveredLaneId?: string | null;
+  locale?: string;
 }>();
 
 const emit = defineEmits<{
@@ -24,6 +26,7 @@ const pinned = computed(() => new Set(props.pinnedLaneIds ?? []));
 const isFolder = computed(() => props.lane.children !== undefined);
 const isCollapsed = computed(() => collapsed.value.has(props.lane.id));
 const isPinned = computed(() => pinned.value.has(props.lane.id));
+const pinLabel = computed(() => t('pin', props.locale));
 const pinPointerHover = ref(false);
 const laneExternallyHovered = computed(
   () => !isFolder.value && props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
@@ -112,6 +115,7 @@ function onPinClick(e: MouseEvent) {
       :collapsed-ids="collapsedIds"
       :pinned-lane-ids="pinnedLaneIds"
       :hovered-lane-id="hoveredLaneId"
+      :locale="locale"
       @toggle="(id) => emit('toggle', id)"
       @pin-lane="(id) => emit('pin-lane', id)"
       @unpin-lane="(id) => emit('unpin-lane', id)"
@@ -128,7 +132,7 @@ function onPinClick(e: MouseEvent) {
       type="button"
       class="pr-gutter__pin"
       data-testid="lane-pin"
-      :aria-label="'置顶'"
+      :aria-label="pinLabel"
       :aria-pressed="isPinned"
       @click="onPinClick"
       @pointerenter="pinPointerHover = true"
@@ -141,7 +145,7 @@ function onPinClick(e: MouseEvent) {
         v-if="pinPointerHover"
         class="pr-gutter__pin-tip"
         role="tooltip"
-      >置顶</span>
+      >{{ pinLabel }}</span>
     </button>
     <span class="pr-gutter__lane-main">
       <span

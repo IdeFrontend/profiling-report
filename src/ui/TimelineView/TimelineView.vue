@@ -49,6 +49,7 @@ const props = withDefaults(
     showOverviewCharts?: boolean;
     gutterWidth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
+    locale?: string;
   }>(),
   {
     dependencyMode: 'all',
@@ -586,6 +587,7 @@ defineExpose({
       :gutter-width="localGutterWidth"
       :cursor-x-ratio="cursor?.xRatio ?? null"
       :cursor-snapped="cursor?.snapped ?? false"
+      :locale="locale"
       @update:scroll-y="emit('update:scrollY', $event)"
       @update:gutter-width="onGutterWidth"
       @toggle-group="emit('toggle-group', $event)"

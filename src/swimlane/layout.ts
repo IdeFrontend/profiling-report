@@ -131,7 +131,7 @@ export function contentHeightFromLayout(layout: SwimlaneLayout): number {
 
 export function contentHeightFromModel(model: SwimlaneModel | null): number {
   if (!model) return 120;
-  const skipHeaders = model.processes.length === 1 && model.processes[0].id === '__pinned__';
+  const skipHeaders = model.skipCardHeaders === true;
   const rows = walkVisibleRows(model);
   let h = 0;
   for (const row of rows) {
@@ -185,7 +185,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
 
   let y = 0;
   /** Sticky pin strip: flat leaf rows only — no Card header chrome. */
-  const skipHeaders = model.processes.length === 1 && model.processes[0].id === '__pinned__';
+  const skipHeaders = model.skipCardHeaders === true;
   for (const row of walkVisibleRows(model)) {
     if (row.kind === 'header') {
       if (skipHeaders) continue;

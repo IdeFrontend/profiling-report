@@ -50,6 +50,7 @@ const props = withDefaults(
     cursorXRatio?: number | null;
     /** True when the cursor is magnetized to an event edge (gray the swim vertical bar). */
     cursorSnapped?: boolean;
+    locale?: string;
   }>(),
   {
     dependencyMode: 'all',
@@ -273,6 +274,7 @@ defineExpose({
           :depth="row.depth"
           :pinned-lane-ids="pinnedLaneIds"
           :hovered-lane-id="hoveredLaneId"
+          :locale="locale"
           @pin-lane="emit('pin-lane', $event)"
           @unpin-lane="emit('unpin-lane', $event)"
         />
@@ -324,6 +326,7 @@ defineExpose({
         :collapsed-ids="collapsedIds"
         :pinned-lane-ids="pinnedLaneIds"
         :hovered-lane-id="hoveredLaneId"
+        :locale="locale"
         @scroll="onGutterScroll"
         @toggle-group="emit('toggle-group', $event)"
         @pin-lane="emit('pin-lane', $event)"

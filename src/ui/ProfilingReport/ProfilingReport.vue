@@ -697,6 +697,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"
           :prefer-renderer="preferRenderer ?? 'auto'"
+          :locale="locale"
           @update:gutter-width="onGutterWidth"
           @update:scroll-y="onScrollY"
           @update:window="onOverviewWindow"

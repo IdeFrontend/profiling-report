@@ -13,6 +13,7 @@ const props = defineProps<{
   pinnedLaneIds?: string[];
   /** Leaf under canvas hover — shows pin + row highlight. */
   hoveredLaneId?: string | null;
+  locale?: string;
 }>();
 
 const emit = defineEmits<{
@@ -59,6 +60,7 @@ defineExpose({ root });
           :collapsed-ids="collapsedIds"
           :pinned-lane-ids="pinnedLaneIds"
           :hovered-lane-id="hoveredLaneId"
+          :locale="locale"
           @toggle="(id) => emit('toggle-group', id)"
           @pin-lane="(id) => emit('pin-lane', id)"
           @unpin-lane="(id) => emit('unpin-lane', id)"

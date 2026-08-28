@@ -287,15 +287,20 @@ describe('LaneGutter', () => {
     wrapper.unmount();
   });
 
-  it('PR-GUTTER-012: pushpin hover/focus shows 置顶 tooltip', async () => {
+  it('PR-GUTTER-012: pushpin hover/focus shows localized pin tooltip', async () => {
     const wrapper = mount(LaneGutter, {
-      props: { groups },
+      props: { groups, locale: 'en' },
     });
     const pin = wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]');
-    expect(pin.attributes('aria-label')).toBe('置顶');
+    expect(pin.attributes('aria-label')).toBe('Pin to top');
     expect(pin.find('.pr-gutter__pin-tip').exists()).toBe(false);
     await pin.trigger('pointerenter');
-    expect(pin.find('.pr-gutter__pin-tip').text()).toBe('置顶');
+    expect(pin.find('.pr-gutter__pin-tip').text()).toBe('Pin to top');
+
+    await wrapper.setProps({ locale: 'zh-CN' });
+    expect(wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]').attributes('aria-label')).toBe(
+      '置顶',
+    );
   });
 
   it('PR-GUTTER-013: click unpinned pin emits pin-lane; pinned emits unpin-lane', async () => {

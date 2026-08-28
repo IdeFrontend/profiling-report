@@ -42,7 +42,7 @@ export function resolvePinnedGutterLanes(
 
 /**
  * Flat swim model of pinned leaf threads only (Card-free), pin order.
- * Process id `__pinned__` tells rebuildLayout to skip Card headers.
+ * Sets `skipCardHeaders` so layout omits Card header bands.
  */
 export function buildPinnedSwimModel(
   model: SwimlaneModel | null,
@@ -64,6 +64,7 @@ export function buildPinnedSwimModel(
   return {
     minTime: model.minTime,
     maxTime: model.maxTime,
-    processes: [{ id: '__pinned__', name: '', threads }],
+    skipCardHeaders: true,
+    processes: [{ id: 'pinned', name: '', threads }],
   };
 }
