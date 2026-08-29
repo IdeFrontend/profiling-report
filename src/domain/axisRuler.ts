@@ -73,6 +73,25 @@ export const AXIS_RULER_DEFAULT_WIDTH_PX = 800;
 export const AXIS_RULER_BASE_SEP_GAP_PX = 4;
 /** Major bar (1px) + gap before label — equals {@link AXIS_RULER_BASE_SEP_GAP_PX} at track origin. */
 export const AXIS_RULER_MAJOR_LABEL_INSET_PX = 4;
+/** Approx width of the '+' glyph at 12px (base chrome estimate). */
+export const AXIS_RULER_BASE_PLUS_PX = 8;
+/** Tabular 12px char width used to estimate overlaid base chrome. */
+export const AXIS_RULER_BASE_CHAR_PX = 7.2;
+
+/**
+ * Pixel width of overlaid viewport base chrome: pad + label + gaps + '+'.
+ * Tick labels whose left edge falls inside this band get `hideLabel`.
+ */
+export function estimateAxisBaseChromePx(baseLabel: string): number {
+  const textPx = Math.ceil(baseLabel.trim().length * AXIS_RULER_BASE_CHAR_PX);
+  return (
+    AXIS_RULER_BASE_SEP_GAP_PX +
+    textPx +
+    AXIS_RULER_BASE_SEP_GAP_PX +
+    AXIS_RULER_BASE_PLUS_PX +
+    AXIS_RULER_BASE_SEP_GAP_PX
+  );
+}
 
 export interface AxisRulerMajor {
   /** Absolute time (ns) at this major. */
@@ -81,7 +100,7 @@ export interface AxisRulerMajor {
   pct: number;
   label: string;
   muted?: boolean;
-  /** Viewport base: hide when label would sit closer than {@link AXIS_RULER_BASE_SEP_GAP_PX} to '+'. */
+  /** Viewport base: hide when label would sit under the overlaid base/`+` chrome. */
   hideLabel?: boolean;
 }
 
@@ -213,10 +232,14 @@ function viewportBaseMinMajorPct(trackWidthPx: number): number {
   return (-AXIS_RULER_MAJOR_LABEL_INSET_PX / trackWidthPx) * 100;
 }
 
-function viewportBaseLabelHidden(pct: number, trackWidthPx: number): boolean {
+function viewportBaseLabelHidden(
+  pct: number,
+  trackWidthPx: number,
+  baseChromePx: number,
+): boolean {
   if (!(trackWidthPx > 0)) return pct < 0;
   const labelLeftPx = (pct / 100) * trackWidthPx + AXIS_RULER_MAJOR_LABEL_INSET_PX;
-  return labelLeftPx < AXIS_RULER_BASE_SEP_GAP_PX;
+  return labelLeftPx < baseChromePx;
 }
 
 /**
@@ -236,6 +259,7 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
       ? resolveAxisBaseOffset(opts.rangeStart, origin, unit)
       : null;
   const labelOffsetNs = base?.offsetNs ?? 0;
+  const baseChromePx = base ? estimateAxisBaseChromePx(base.baseLabel) : 0;
   const minMajorPct = base ? viewportBaseMinMajorPct(widthPx) : -0.01;
 
   // Snap to origin + k·interval (integral relative timestamps).
@@ -267,7 +291,7 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
       pct: clampedPct,
       label: formatAxisTime(t - origin - labelOffsetNs, unit, interval),
       muted: isOutside(t, mute),
-      hideLabel: base ? viewportBaseLabelHidden(clampedPct, widthPx) : false,
+      hideLabel: base ? viewportBaseLabelHidden(clampedPct, widthPx, baseChromePx) : false,
     });
   }
 

@@ -14,19 +14,7 @@ defineProps<{
     :class="{ 'pr-axis-ruler--has-base': baseLabel }"
     data-testid="axis-ruler"
   >
-    <div
-      v-if="baseLabel"
-      class="pr-axis-ruler__base-col"
-    >
-      <span
-        class="pr-axis-ruler__base"
-        data-testid="axis-ruler-base"
-      >{{ baseLabel }}</span>
-      <span
-        class="pr-axis-ruler__base-sep"
-        aria-hidden="true"
-      >+</span>
-    </div>
+    <!-- Full-width track: tick % matches swimlane / playhead / measure (same .pr-time-axis box). -->
     <div
       class="pr-axis-ruler__track"
       data-testid="axis-ruler-track"
@@ -57,6 +45,20 @@ defineProps<{
         >{{ maj.label }}</span>
       </div>
     </div>
+    <!-- Overlay: does not inset the track, so time→x stays aligned with the canvas. -->
+    <div
+      v-if="baseLabel"
+      class="pr-axis-ruler__base-col"
+    >
+      <span
+        class="pr-axis-ruler__base"
+        data-testid="axis-ruler-base"
+      >{{ baseLabel }}</span>
+      <span
+        class="pr-axis-ruler__base-sep"
+        aria-hidden="true"
+      >+</span>
+    </div>
   </div>
 </template>
 
@@ -64,21 +66,31 @@ defineProps<{
 .pr-axis-ruler {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: flex-start;
   pointer-events: none;
   z-index: 1;
   overflow: hidden;
 }
 
+.pr-axis-ruler__track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
 .pr-axis-ruler__base-col {
-  flex: 0 1 auto;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
   max-width: 42%;
   display: flex;
   align-items: flex-start;
   gap: 4px;
   padding-left: 4px;
   min-width: 0;
+  height: 18px;
+  /* Cover remainder labels under the base; tick bars still paint in the track below. */
+  background: var(--pr-bg-deep, #1f1f1f);
 }
 
 .pr-axis-ruler__base {
@@ -107,16 +119,6 @@ defineProps<{
   font-weight: 400;
   line-height: 1;
   color: #666;
-}
-
-.pr-axis-ruler__track {
-  flex: 1 1 0;
-  /* Stretch: absolute majors/minors do not give the track height; without this,
-   * align-items:flex-start + overflow:hidden collapses the track to 0px and clips all labels. */
-  align-self: stretch;
-  min-width: 0;
-  position: relative;
-  overflow: hidden;
 }
 
 .pr-axis-ruler__minor {

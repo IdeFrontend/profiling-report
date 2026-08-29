@@ -56,7 +56,7 @@ describe('PR-AXIS: shared ruler', () => {
     expect(wrapper.find('.pr-axis-ruler__label').text()).toBe('0ms');
   });
 
-  it('PR-AXIS-004: renders viewport base in separate column with + separator', () => {
+  it('PR-AXIS-004: renders viewport base overlay with + separator on full-width track', () => {
     const wrapper = mount(AxisRuler, {
       props: {
         majors: [{ t: 0, pct: 0, label: '0ns' }],
@@ -106,10 +106,12 @@ describe('PR-AXIS: shared ruler', () => {
     );
     expect(src).toMatch(/\.pr-axis-ruler__base\s*\{[^}]*font-weight:\s*600/);
     expect(src).toMatch(/\.pr-axis-ruler__label\s*\{[^}]*font-weight:\s*400/);
+    expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*position:\s*absolute/);
     expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*align-items:\s*flex-start/);
     expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-left:\s*4px/);
     expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*gap:\s*4px/);
     expect(src).not.toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-right/);
-    expect(src).toMatch(/\.pr-axis-ruler__track\s*\{[^}]*align-self:\s*stretch/);
+    expect(src).toMatch(/\.pr-axis-ruler__track\s*\{[^}]*position:\s*absolute/);
+    expect(src).toMatch(/\.pr-axis-ruler__track\s*\{[^}]*inset:\s*0/);
   });
 });

@@ -78,21 +78,22 @@ describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
     expect(overview.baseLabel).toBeNull();
   });
 
-  it('viewport base defers tick-label hide until 4px from +', () => {
+  it('viewport base hides tick labels under overlaid base chrome', () => {
     const ticks = buildAxisRulerTicks({
-      rangeStart: 1_000.1,
-      rangeEnd: 1_500.1,
+      rangeStart: 236_256_145_000,
+      rangeEnd: 236_256_146_000,
       origin: 0,
       timeScaleUnit: 'ns',
-      widthPx: 400,
+      widthPx: 800,
       useViewportBase: true,
     });
-    expect(ticks.baseLabel).toBeTruthy();
-    const leading = ticks.majors.find((m) => m.pct < 0);
-    expect(leading).toBeTruthy();
-    expect(leading!.hideLabel).toBe(true);
+    expect(ticks.baseLabel).toBe('236 256 145 µs');
+    const underBase = ticks.majors.find((m) => m.pct >= 0 && m.pct < 5);
+    expect(underBase).toBeTruthy();
+    expect(underBase!.hideLabel).toBe(true);
 
-    const atOrigin = ticks.majors.find((m) => m.pct >= 0);
-    expect(atOrigin?.hideLabel).toBe(false);
+    const clear = ticks.majors.find((m) => m.pct > 30);
+    expect(clear).toBeTruthy();
+    expect(clear!.hideLabel).toBe(false);
   });
 });
