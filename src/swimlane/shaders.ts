@@ -2,7 +2,7 @@
  * Sudu-inspired coverage-AA swimlane shaders (reimplemented in TS; no sudu-editor dep).
  * Coordinates in device pixels; uResolution is the framebuffer size.
  * No uDpr — CSS↔device conversion happens in JS before uniforms.
- * Analytical horizontal coverage (sudu) × SDF round-rect shape (Canvas radius parity).
+ * Analytical horizontal coverage (sudu) combined with SDF round-rect shape using min (Canvas radius parity).
  */
 
 export const SWIMLANE_VS = `#version 300 es
@@ -64,10 +64,10 @@ void main() {
   float r = vLrScreen.y;
   
   // Sudu: lPx/rPx = event left/right inside the current device pixel.
-  // since round-rect coverage equals to sudu-horizontal coverage we avoid using sudu-coverage  
-  // float lPx = max(l, vScreenPos.x - 0.5);
-  // float rPx = min(r, vScreenPos.x + 0.5);
-  // float inside = rPx - lPx;
+  float lPx = max(l, vScreenPos.x - 0.5);
+  float rPx = min(r, vScreenPos.x + 0.5);
+  // compute precise event coverage
+  float hCoverage = rPx - lPx;
 
   float t = uYBounds.x;
   float b = uYBounds.y;
@@ -79,10 +79,11 @@ void main() {
   vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
-  float shape = clamp(0.5 - dist, 0.0, 1.0);
-  // Horizontal coverage == round-rect-coverage on edges, using round-rect
-  // float cov = inside;
-  float cov = shape;
+  float rrShape = clamp(0.5 - dist, 0.0, 1.0);
+  // for wide events horizontal event coverage equals to round-rect-coverage on edges 
+  // for very thin events round-rect-coverage provide brighter inaccurate results
+  // using min
+  float cov = min(hCoverage, rrShape);
   outColor = vec4(uColor.xyz * cov, uColor.w * cov);
 }
 `;
