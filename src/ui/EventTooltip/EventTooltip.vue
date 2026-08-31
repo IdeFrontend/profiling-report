@@ -1,19 +1,24 @@
 <script setup lang="ts">
-import { formatDisplayTime, formatTime } from '../../domain/formatTime';
+import {
+  EVENT_TIME_SIGNIFICANT_DIGITS,
+  formatDisplayTimeAuto,
+  formatTimeAuto,
+} from '../../domain/formatTime';
 import { t } from '../../i18n';
-import type { SwimEvent, TimeDisplayUnit } from '../../domain/types';
+import type { SwimEvent } from '../../domain/types';
 
 withDefaults(
   defineProps<{
     event: SwimEvent;
     stylePos: { left: string; top: string };
-    unit: TimeDisplayUnit;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
   }>(),
   { timeOrigin: 0 },
 );
+
+const displayOpts = { significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS };
 </script>
 
 <template>
@@ -25,11 +30,14 @@ withDefaults(
     <div class="pr-tooltip__name">
       {{ event.name }}
     </div>
-    <div>{{ t('start', locale) }}: {{ formatDisplayTime(event.startTime, timeOrigin, unit) }}</div>
-    <div>{{ t('dur', locale) }}: {{ formatTime(event.duration, unit) }}</div>
+    <div>
+      {{ t('start', locale) }}:
+      {{ formatDisplayTimeAuto(event.startTime, timeOrigin, displayOpts) }}
+    </div>
+    <div>{{ t('dur', locale) }}: {{ formatTimeAuto(event.duration, displayOpts) }}</div>
     <div>
       {{ t('end', locale) }}:
-      {{ formatDisplayTime(event.startTime + event.duration, timeOrigin, unit) }}
+      {{ formatDisplayTimeAuto(event.startTime + event.duration, timeOrigin, displayOpts) }}
     </div>
   </div>
 </template>

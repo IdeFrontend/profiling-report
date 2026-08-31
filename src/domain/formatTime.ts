@@ -1,13 +1,153 @@
-import type { TimeDisplayUnit } from './types';
+import type { TimeScaleUnit } from './types';
 
-function decimalsForStep(step: number): number {
-  if (!(step > 0) || !Number.isFinite(step)) return 3;
-  if (step >= 1) return 1;
-  if (step >= 0.1) return 2;
-  if (step >= 0.01) return 3;
-  if (step >= 0.001) return 4;
-  return 5;
+const GROUP_MIN = 1000;
+
+/** Uniform axis fraction digits from tick step in display units (0 when step is integral). */
+function axisFractionDigitsFromStep(stepInUnit: number): number {
+  if (!(stepInUnit > 0) || !Number.isFinite(stepInUnit)) return 0;
+  const eps = 1e-9 * Math.max(1, Math.abs(stepInUnit));
+  if (Math.abs(stepInUnit - Math.round(stepInUnit)) < eps) return 0;
+  for (let d = 1; d <= 9; d++) {
+    const scaled = stepInUnit * 10 ** d;
+    if (Math.abs(scaled - Math.round(scaled)) < eps * 10 ** d) return d;
+  }
+  return 9;
 }
+
+function unitQuantumNs(unit: TimeScaleUnit): number {
+  switch (unit) {
+    case 'ns':
+      return 1;
+    case 'us':
+      return 1e3;
+    case 'ms':
+      return 1e6;
+    case 's':
+      return 1e9;
+  }
+}
+
+function axisFractionDigits(tickStepNs: number | undefined, unit: TimeScaleUnit): number {
+  if (tickStepNs == null) return 0;
+  return axisFractionDigitsFromStep(Math.abs(tickStepNs) / unitQuantumNs(unit));
+}
+
+function formatAxisValue(value: number, fractionDigits: number): string {
+  return fractionDigits === 0
+    ? formatMagnitude(value)
+    : formatMagnitude(value, fractionDigits);
+}
+
+/** Compact axis zero — always `0` + suffix, never `0.0…`. */
+function isAxisCompactZero(value: number, fractionDigits: number): boolean {
+  if (!Number.isFinite(value) || value === 0) return value === 0;
+  if (fractionDigits === 0) return false;
+  return Math.round(value * 10 ** fractionDigits) === 0;
+}
+
+/** Map a time quantum (span or major tick step, ns) to a display scale. */
+export function timeScaleUnitFromNsQuantum(quantumNs: number): TimeScaleUnit {
+  if (!(quantumNs > 0) || !Number.isFinite(quantumNs)) return 'ns';
+  if (quantumNs >= 1e9) return 's';
+  if (quantumNs >= 1e6) return 'ms';
+  if (quantumNs >= 1e3) return 'us';
+  return 'ns';
+}
+
+/** Viewport / chrome: one unit from the visible window length. */
+export function resolveTimeUnitFromVisibleRange(spanNs: number): TimeScaleUnit {
+  return timeScaleUnitFromNsQuantum(spanNs);
+}
+
+/**
+ * Per-value unit from the magnitude of a single timestamp / duration (PyPTO-like).
+ * Used by tooltip, detail Start/End/Duration, and measure/gap Δt — not by axis/cursor.
+ */
+export function timeScaleUnitFromMagnitude(ns: number): TimeScaleUnit {
+  if (!Number.isFinite(ns)) return 'ns';
+  return timeScaleUnitFromNsQuantum(Math.abs(ns));
+}
+
+function nsToUnitValue(ns: number, unit: TimeScaleUnit): number {
+  switch (unit) {
+    case 'ns':
+      return ns;
+    case 'us':
+      return ns / 1e3;
+    case 'ms':
+      return ns / 1e6;
+    case 's':
+      return ns / 1e9;
+  }
+}
+
+function unitSuffix(unit: TimeScaleUnit): string {
+  switch (unit) {
+    case 'ns':
+      return 'ns';
+    case 'us':
+      return 'µs';
+    case 'ms':
+      return 'ms';
+    case 's':
+      return 's';
+  }
+}
+
+/** Space-group thousands when |value| ≥ 1000 (e.g. `1 800 000`). */
+function groupIntegerDigits(intPart: string): string {
+  const neg = intPart.startsWith('-');
+  const digits = neg ? intPart.slice(1) : intPart;
+  const groups: string[] = [];
+  for (let i = digits.length; i > 0; i -= 3) {
+    groups.unshift(digits.slice(Math.max(0, i - 3), i));
+  }
+  return (neg ? '-' : '') + groups.join(' ');
+}
+
+function formatMagnitude(value: number, fractionDigits?: number): string {
+  if (!Number.isFinite(value)) return '—';
+  if (fractionDigits != null) {
+    if (Math.abs(value) < GROUP_MIN) return value.toFixed(fractionDigits);
+    const fixed = value.toFixed(fractionDigits);
+    const dot = fixed.indexOf('.');
+    if (dot < 0) return groupIntegerDigits(fixed);
+    return groupIntegerDigits(fixed.slice(0, dot)) + fixed.slice(dot);
+  }
+  const rounded = Math.round(value);
+  if (Math.abs(rounded) < GROUP_MIN) return String(rounded);
+  return groupIntegerDigits(String(rounded));
+}
+
+/** Significant-digit magnitude for event start/end/duration display (not hover detail). */
+function formatSignificantMagnitude(value: number, digits: number): string {
+  if (!Number.isFinite(value)) return '—';
+  if (value === 0) return '0';
+  const neg = value < 0;
+  const abs = Math.abs(value);
+  let body = abs.toPrecision(digits);
+  if (/e/i.test(body)) {
+    const n = Number(body);
+    if (!Number.isFinite(n)) return '—';
+    body = Math.abs(n) >= 1 ? String(Math.round(n)) : n.toString();
+    if (/e/i.test(body)) {
+      const order = Math.floor(Math.log10(Math.abs(n)));
+      body = n.toFixed(Math.max(0, digits - 1 - order));
+    }
+  }
+  const sign = neg ? '-' : '';
+  const dot = body.indexOf('.');
+  if (dot < 0) return sign + groupIntegerDigits(body);
+  return sign + groupIntegerDigits(body.slice(0, dot)) + body.slice(dot);
+}
+
+/** Digits shown on event tooltip + detail value cells (hover title keeps full precision). */
+export const EVENT_TIME_SIGNIFICANT_DIGITS = 4;
+
+export type FormatTimeOpts = {
+  /** When set, format the unit magnitude with this many significant digits. */
+  significantDigits?: number;
+};
 
 /**
  * Format axis tick labels.
@@ -16,74 +156,25 @@ function decimalsForStep(step: number): number {
  */
 export function formatAxisTime(
   ns: number,
-  unit: TimeDisplayUnit = 'ms',
+  unit: TimeScaleUnit = 'ms',
   tickStepNs?: number,
 ): string {
   if (!Number.isFinite(ns)) return '—';
-  // Trace origin / left edge: compact zero (sketches show `0` / `0ms`, not `0.00000ms`).
-  if (Math.abs(ns) < 1e-9) {
-    switch (unit) {
-      case 'ns':
-        return '0ns';
-      case 'us':
-        return '0µs';
-      case 'ms':
-      default:
-        return '0ms';
-    }
-  }
-  switch (unit) {
-    case 'ns': {
-      const step = tickStepNs != null ? Math.abs(tickStepNs) : 1;
-      if (step >= 1) return `${Math.round(ns)}ns`;
-      return `${ns.toFixed(decimalsForStep(step))}ns`;
-    }
-    case 'us': {
-      const v = ns / 1e3;
-      const step = tickStepNs != null ? Math.abs(tickStepNs) / 1e3 : undefined;
-      const d = step != null ? decimalsForStep(step) : Math.abs(v) >= 10 ? 1 : 2;
-      return `${v.toFixed(d)}µs`;
-    }
-    case 'ms':
-    default: {
-      const v = ns / 1e6;
-      const step = tickStepNs != null ? Math.abs(tickStepNs) / 1e6 : undefined;
-      const d =
-        step != null
-          ? decimalsForStep(step)
-          : Math.abs(v) >= 1
-            ? 1
-            : Math.abs(v) >= 0.01
-              ? 3
-              : 4;
-      return `${v.toFixed(d)}ms`;
-    }
-  }
+
+  const suffix = unitSuffix(unit);
+  const v = nsToUnitValue(ns, unit);
+  const fractionDigits = axisFractionDigits(tickStepNs, unit);
+
+  if (isAxisCompactZero(v, fractionDigits)) return `0${suffix}`;
+
+  return `${formatAxisValue(v, fractionDigits)}${suffix}`;
 }
 
 /**
- * Convert ns → scalar in the given display unit.
+ * Cursor / playhead label as `MM:SS.mmm` in the resolved time scale
+ * (sketch: 4.456ms → `00:04.456`).
  */
-function nsToUnitValue(ns: number, unit: TimeDisplayUnit): number {
-  switch (unit) {
-    case 'ns':
-      return ns;
-    case 'us':
-      return ns / 1e3;
-    case 'ms':
-    default:
-      return ns / 1e6;
-  }
-}
-
-/**
- * Cursor / playhead label as `MM:SS.mmm`.
- *
- * The scalar in `unit` is formatted like a clock (matches sketch: 4.456ms →
- * `00:04.456` when unit is `ms`). Short traces should pass `us`/`ns` (or use
- * {@link resolveCursorTimeUnit}) so the label updates while moving.
- */
-export function formatCursorTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
+export function formatCursorTime(ns: number, unit: TimeScaleUnit = 'ms'): string {
   if (!Number.isFinite(ns)) return '00:00.000';
   const value = Math.max(0, nsToUnitValue(ns, unit));
   const totalThousandths = Math.round(value * 1000);
@@ -96,49 +187,58 @@ export function formatCursorTime(ns: number, unit: TimeDisplayUnit = 'ms'): stri
 }
 
 /**
- * Prefer a unit fine enough that cursor `MM:SS.mmm` digits change across the
- * visible span (kernel fixtures are often &lt; 1ms).
- */
-export function resolveCursorTimeUnit(
-  spanNs: number,
-  preferred: TimeDisplayUnit,
-): TimeDisplayUnit {
-  if (!(spanNs > 0) || !Number.isFinite(spanNs)) return preferred;
-  if (preferred === 'ns') return 'ns';
-  if (spanNs < 1e3) return 'ns';
-  if (spanNs < 1e6 && preferred === 'ms') return 'us';
-  return preferred;
-}
-
-/**
  * Value and unit apart, for surfaces that label the unit once instead of
  * repeating it per value (sketch detail card: `7419` under `Start (ns)`).
  */
 export function formatTimeParts(
   ns: number,
-  unit: TimeDisplayUnit = 'ms',
+  unit: TimeScaleUnit = 'ms',
+  opts?: FormatTimeOpts,
 ): { value: string; unit: string } {
-  // The unit label survives NaN/Infinity so the detail card keeps its column
-  // header while the number falls back to the em dash.
-  const label = unit === 'ns' ? 'ns' : unit === 'us' ? 'µs' : 'ms';
+  const label = unitSuffix(unit);
   if (!Number.isFinite(ns)) return { value: '—', unit: label };
+  const sig = opts?.significantDigits;
+  const mag = (v: number, fractionDigits?: number) =>
+    sig != null ? formatSignificantMagnitude(v, sig) : formatMagnitude(v, fractionDigits);
   switch (unit) {
     case 'ns':
-      return { value: `${Math.round(ns)}`, unit: label };
+      return { value: mag(ns), unit: label };
     case 'us':
-      return { value: (ns / 1e3).toFixed(3), unit: label };
+      return { value: mag(ns / 1e3, 3), unit: label };
+    case 's':
+      return { value: mag(ns / 1e9, 3), unit: label };
     case 'ms':
     default:
-      return { value: (ns / 1e6).toFixed(3), unit: label };
+      return { value: mag(ns / 1e6, 3), unit: label };
   }
 }
 
-/** Format tooltip / detail times. */
-export function formatTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
-  // Bare em dash, not '— ms': the tooltip has no unit column to fill.
+/** Format times in an explicit scale unit (axis / cursor chrome). */
+export function formatTime(ns: number, unit: TimeScaleUnit = 'ms', opts?: FormatTimeOpts): string {
   if (!Number.isFinite(ns)) return '—';
-  const parts = formatTimeParts(ns, unit);
+  const parts = formatTimeParts(ns, unit, opts);
   return `${parts.value} ${parts.unit}`;
+}
+
+/** Tooltip / detail / Δt — unit from this value's magnitude, not viewport zoom. */
+export function formatTimePartsAuto(ns: number, opts?: FormatTimeOpts): { value: string; unit: string } {
+  return formatTimeParts(ns, timeScaleUnitFromMagnitude(ns), opts);
+}
+
+/** Joined {@link formatTimePartsAuto}. */
+export function formatTimeAuto(ns: number, opts?: FormatTimeOpts): string {
+  if (!Number.isFinite(ns)) return '—';
+  const parts = formatTimePartsAuto(ns, opts);
+  return `${parts.value} ${parts.unit}`;
+}
+
+/** Viewport axis coarse base — integral value only (no decimal point). */
+export function formatAxisBaseTime(ns: number, unit: TimeScaleUnit): string {
+  if (!Number.isFinite(ns)) return '—';
+  const quantum =
+    unit === 'ns' ? 1 : unit === 'us' ? 1e3 : unit === 'ms' ? 1e6 : 1e9;
+  const intValue = Math.round(ns / quantum);
+  return `${formatMagnitude(intValue)} ${unitSuffix(unit)}`;
 }
 
 /**
@@ -148,7 +248,7 @@ export function formatTime(ns: number, unit: TimeDisplayUnit = 'ms'): string {
 export function formatDisplayTime(
   ns: number,
   origin: number,
-  unit: TimeDisplayUnit = 'ms',
+  unit: TimeScaleUnit = 'ms',
 ): string {
   return formatTime(ns - origin, unit);
 }
@@ -157,7 +257,25 @@ export function formatDisplayTime(
 export function formatDisplayTimeParts(
   ns: number,
   origin: number,
-  unit: TimeDisplayUnit = 'ms',
+  unit: TimeScaleUnit = 'ms',
 ): { value: string; unit: string } {
   return formatTimeParts(ns - origin, unit);
+}
+
+/** Per-value display time (tooltip / detail start·end). */
+export function formatDisplayTimeAuto(
+  ns: number,
+  origin: number,
+  opts?: FormatTimeOpts,
+): string {
+  return formatTimeAuto(ns - origin, opts);
+}
+
+/** Per-value display parts (detail start·end columns). */
+export function formatDisplayTimePartsAuto(
+  ns: number,
+  origin: number,
+  opts?: FormatTimeOpts,
+): { value: string; unit: string } {
+  return formatTimePartsAuto(ns - origin, opts);
 }

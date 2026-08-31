@@ -4,17 +4,17 @@
 |----------------|
 | PR-TOOLBAR-*   |
 
-Top toolbar with search, zoom controls, display-control popover (task display unit), measure (bars + Δt arrow) toggle, and aside panel toggle.
+Top toolbar with search, zoom controls, display-control popover (dependency depth), measure (bars + Δt arrow) toggle, and aside panel toggle.
 
 Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png), [`visual/measure-active.png`](./visual/measure-active.png), [`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **timeUnit** sets the popover dropdown selection (ms/µs/ns), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only).
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only).
 
 ## Outputs
 
-The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeUnit** carries the selected unit. **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector.
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector.
 
 ## Behavior
 
@@ -24,7 +24,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Aside toggle.** Visible only when `asideAvailable` is true. Square icon button with panel SVG.
 
-**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务显示单位** (`data-testid="time-unit"`: ms / µs / ns per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md)). Toggle the button or click **X** to close; leave open after a unit change. Sketch may show 时钟周期 — MVP does **not** offer cycle mode. Also carries **任务连接层级** (`data-testid="dependency-depth"`, `update:dependencyDepth`): how many hops the swimlane dependency graph walks, `-1` for the whole chain, normalized through `normalizeDependencyDepth` so a cleared field yields the shared default rather than `NaN`. It commits on `change`, not per keystroke — a half-typed number must not rebuild the graph. Dependency *direction* is not here: it filters what the selected event shows, so it lives in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
+**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务连接层级** (`data-testid="dependency-depth"`, `update:dependencyDepth`): how many hops the swimlane dependency graph walks, `-1` for the whole chain, normalized through `normalizeDependencyDepth` so a cleared field yields the shared default rather than `NaN`. It commits on `change`, not per keystroke — a half-typed number must not rebuild the graph. Toggle the button or click **X** to close. Time units auto-scale from viewport span and overview axis density per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md) — there is **no** manual ms/µs/ns dropdown (sketch may show 时钟周期; MVP does **not** offer cycle mode). Dependency *direction* is not here: it filters what the selected event shows, so it lives in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
 
 **Measure (M2).** A measure icon button between zoom-to-fit and display-control toggles measure mode. The button reflects the `measureMode` prop via `aria-pressed` and the `--on` class (shared with the other active action-icon states) and emits `update:measureMode` with the new boolean on click.
 
@@ -118,10 +118,9 @@ Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardwa
 | Title | `13px` / `600` / `#ffffff` |
 | Close | thin `#e6e6e6` × |
 | Section label | `12px` / `#b2b2b2` |
-| Select bg | `#404040` |
-| Select radius | `6px` |
-| Select height | `32px`; text `#ffffff`; custom chevron (no native arrow) |
-| Options (MVP) | ms / µs / ns ([I-Q14](../../../docs/context/INTERIM_DECISIONS.md); sketch may show 时钟周期) |
+| Depth input bg | `#404040` |
+| Depth input radius | `6px` |
+| Depth input height | `32px`; text `#ffffff` |
 
 ### Full strip (`visual/toolbar.png`)
 
@@ -133,7 +132,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 2. **PR-TOOLBAR-002** — Emits zoom-in on button click.
 3. **PR-TOOLBAR-003** — Emits `zoom-out` on button click.
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
-5. **PR-TOOLBAR-005** — Layers button opens 显示控制; `time-unit` select inside emits `update:timeUnit` on change; select is not visible until popover open.
+5. **PR-TOOLBAR-005** — Layers button opens 显示控制 with `dependency-depth` field; `time-unit` select is absent; popover is not visible until open.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
 7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) renders bars + open stroke Δt arrow (chevron heads, gap from bars); emits `update:measureMode` on click.
 8. **PR-TOOLBAR-007b** — Active measure toggle uses `aria-pressed="true"` and `--on`.
@@ -150,7 +149,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 
 - asideAvailable=false → toggle button hidden.
 - Search query initially empty, user types to filter.
-- Popover closed → `time-unit` not in DOM (or not visible).
+- Popover closed → `display-control` not in DOM (or not visible).
 
 ## Design sketches
 
@@ -168,6 +167,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-08-27** — Removed manual time-unit dropdown from 显示控制; wall-time labels auto-scale per I-Q14; PR-TOOLBAR-005 restated.
 - **2026-08-21** — Reset `opMenuOpen` when OP selector unmounts (single-op swap).
 - **2026-08-21** — OP menu: `useId` + menu ref for focus; restore trigger focus on Escape/select.
 - **2026-08-21** — OP selector trigger shows selected operator label (not fixed OP算子).

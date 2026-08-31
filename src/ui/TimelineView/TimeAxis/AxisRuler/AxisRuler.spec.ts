@@ -8,21 +8,23 @@ import {
 import AxisRuler from './AxisRuler.vue';
 
 describe('PR-AXIS: shared ruler', () => {
-  it('PR-AXIS-002: nice majors snap to origin + k·interval; 9 minors per gap; zero at display origin', () => {
-    const origin = 1000;
-    const { majors, minors, interval } = buildAxisRulerTicks({
-      rangeStart: origin,
-      rangeEnd: origin + 10_000,
-      origin,
-      timeUnit: 'ms',
+  it('PR-AXIS-002: nice majors snap to origin + k·interval; 9 minors per gap; relative zero', () => {
+    // span 10_000 ns, width 1000 → timePerPixel=10 → minInterval=1000 → picks 1µs
+    const { majors, minors, interval, baseLabel } = buildAxisRulerTicks({
+      rangeStart: 986,
+      rangeEnd: 986 + 10_000,
+      origin: 986,
+      timeScaleUnit: 'ms',
       widthPx: 1000,
     });
     expect(interval).toBe(1000);
-    expect(majors[0]?.t).toBe(origin);
+    expect(baseLabel).toBeNull();
+    expect(majors[0]?.t).toBe(986);
     expect(majors[0]?.label).toBe('0ms');
     for (const m of majors) {
-      expect((m.t - origin) % interval).toBe(0);
+      expect((m.t - 986) % interval).toBe(0);
     }
+    // 0..10_000 inclusive at 1µs → 11 majors; 10 gaps × 9 minors
     expect(majors).toHaveLength(11);
     expect(minors.length).toBeGreaterThanOrEqual(10 * AXIS_RULER_MINORS_PER_GAP);
   });
@@ -38,7 +40,7 @@ describe('PR-AXIS: shared ruler', () => {
       rangeStart: 0,
       rangeEnd: 10_000,
       origin: 0,
-      timeUnit: 'ms',
+      timeScaleUnit: 'ms',
       widthPx: 1000,
     });
     const wrapper = mount(AxisRuler, {
@@ -52,6 +54,40 @@ describe('PR-AXIS: shared ruler', () => {
       ticks.minors.length,
     );
     expect(wrapper.find('.pr-axis-ruler__label').text()).toBe('0ms');
+  });
+
+  it('PR-AXIS-004: renders viewport base overlay with + separator on full-width track', () => {
+    const wrapper = mount(AxisRuler, {
+      props: {
+        majors: [{ t: 0, pct: 0, label: '0ns' }],
+        minors: [],
+        baseLabel: '236 256 145 µs',
+      },
+    });
+    expect(wrapper.find('[data-testid="axis-ruler-base"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="axis-ruler-base"]').text()).toBe('236 256 145 µs');
+    expect(wrapper.find('[data-testid="axis-ruler-track"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-axis-ruler__base-sep').text()).toBe('+');
+    expect(wrapper.find('[data-testid="axis-ruler-track"] .pr-axis-ruler__label').text()).toBe('0ns');
+    expect(wrapper.find('[data-testid="axis-ruler-track"] .pr-axis-ruler__label').isVisible()).toBe(true);
+
+    const hidden = mount(AxisRuler, {
+      props: {
+        majors: [{ t: 0, pct: -0.5, label: '50ns', hideLabel: true }],
+        minors: [],
+        baseLabel: '9 µs',
+      },
+    });
+    expect(hidden.find('.pr-axis-ruler__label').attributes('style')).toContain('display: none');
+
+    const plain = mount(AxisRuler, {
+      props: {
+        majors: [{ t: 0, pct: 0, label: '0ms' }],
+        minors: [],
+      },
+    });
+    expect(plain.find('[data-testid="axis-ruler-base"]').exists()).toBe(false);
+    expect(plain.find('.pr-axis-ruler__base-sep').exists()).toBe(false);
   });
 
   it('PR-AXIS-003: major/minor bars use --pr-axis-tick; muted use --pr-axis-tick-muted', async () => {
@@ -68,5 +104,14 @@ describe('PR-AXIS: shared ruler', () => {
     expect(src).toMatch(
       /\.pr-axis-ruler__minor--muted\s*\{[^}]*background:\s*var\(--pr-axis-tick-muted,\s*rgb\(39,\s*39,\s*39\)\)/,
     );
+    expect(src).toMatch(/\.pr-axis-ruler__base\s*\{[^}]*font-weight:\s*600/);
+    expect(src).toMatch(/\.pr-axis-ruler__label\s*\{[^}]*font-weight:\s*400/);
+    expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*position:\s*absolute/);
+    expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*align-items:\s*flex-start/);
+    expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-left:\s*4px/);
+    expect(src).toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*gap:\s*4px/);
+    expect(src).not.toMatch(/\.pr-axis-ruler__base-col\s*\{[^}]*padding-right/);
+    expect(src).toMatch(/\.pr-axis-ruler__track\s*\{[^}]*position:\s*absolute/);
+    expect(src).toMatch(/\.pr-axis-ruler__track\s*\{[^}]*inset:\s*0/);
   });
 });

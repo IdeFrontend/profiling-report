@@ -209,7 +209,7 @@ Hierarchical folder/leaf labels and utilization mini-bars, scroll-synced with th
 
 ### `TimeAxis` (M)
 
-Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**; **display unit is configurable** ([Q14](../context/OPEN_QUESTIONS.md)). **Interim MVP ([I-Q14](../context/INTERIM_DECISIONS.md)):** ms / µs / ns only; default **ms**; no clock-cycle mode.
+Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**. **Two-tier auto ([I-Q14](../context/INTERIM_DECISIONS.md)):** axis/cursor chrome from viewport/density `timeScaleUnit`; tooltip/detail/Δt use per-value magnitude. No manual unit dropdown; no clock-cycle mode yet.
 
 **Why:** Shared alignment for overview charts and swimlane; playhead per INTERACTIONS.
 

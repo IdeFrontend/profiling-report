@@ -28,10 +28,11 @@ import {
   type SwimlaneModel,
   type SwimlaneViewState,
   type SwimThread,
-  type TimeDisplayUnit,
+  type TimeScaleUnit,
   type ViewFullCsvPayload,
 } from '../../domain/types';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
+import { resolveTimeUnitFromVisibleRange } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   collectLeafEventsFromModel,
@@ -61,7 +62,6 @@ const props = withDefaults(defineProps<{
   reportModel?: ReportViewModel;
   theme?: 'light' | 'dark';
   locale?: string;
-  timeUnit?: TimeDisplayUnit;
   dependencyMode?: DependencyMode;
   dependencyDepth?: number;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
@@ -94,7 +94,6 @@ const selected = ref<SelectedEvent | null>(null);
 /** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
 const selectedEvent = ref<SwimEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
-const localTimeUnit = ref<TimeDisplayUnit>(props.timeUnit ?? 'ms');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
@@ -125,7 +124,9 @@ const caps = computed<ReportCapability[]>(() => {
   if (hostManaged.value) return [];
   return internalCapabilities.value ?? [];
 });
-const unit = computed<TimeDisplayUnit>(() => localTimeUnit.value);
+const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
+  resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
+);
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
@@ -419,13 +420,6 @@ function onMeasureKeydown(e: KeyboardEvent) {
 }
 
 watch(
-  () => props.timeUnit,
-  (u) => {
-    if (u) localTimeUnit.value = u;
-  },
-);
-
-watch(
   () => props.dependencyMode,
   (m) => {
     if (m) localDependencyMode.value = m;
@@ -560,10 +554,6 @@ function onMeasureRange(range: MeasureRange | null) {
   viewState.value = setMeasureRange(viewState.value, range);
 }
 
-function onTimeUnit(u: TimeDisplayUnit) {
-  localTimeUnit.value = u;
-}
-
 function onDependencyMode(mode: DependencyMode) {
   localDependencyMode.value = mode;
 }
@@ -618,7 +608,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :aside-visible="viewState.asideVisible"
       :aside-available="asideAvailable"
       :zoom-percent="zoomPercent"
-      :time-unit="unit"
       :dependency-mode="localDependencyMode"
       :dependency-depth="localDependencyDepth"
       :locale="locale"
@@ -628,7 +617,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
-      @update:time-unit="onTimeUnit"
       @update:dependency-mode="onDependencyMode"
       @update:dependency-depth="onDependencyDepth"
       @update:zoom-percent="onZoomPercent"
@@ -668,7 +656,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :aside-visible="viewState.asideVisible"
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
-          :time-unit="unit"
           :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
@@ -677,7 +664,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
-          @update:time-unit="onTimeUnit"
           @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
@@ -689,7 +675,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           ref="timelineRef"
           :bounds="bounds"
           :view="viewState"
-          :unit="unit"
+          :time-scale-unit="viewportTimeScaleUnit"
           :dependency-mode="localDependencyMode"
           :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
@@ -730,7 +716,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     <DetailPanel
       v-if="selected && showTimeline"
       :selected="selected"
-      :unit="unit"
       :time-origin="bounds.minTime"
       :locale="locale"
       :neighbors="dependencyNeighbors"
@@ -745,7 +730,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       v-if="hovered && showTimeline"
       :event="hovered"
       :style-pos="tooltipStyle"
-      :unit="unit"
       :time-origin="bounds.minTime"
       :locale="locale"
     />

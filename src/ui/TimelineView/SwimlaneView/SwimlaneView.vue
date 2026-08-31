@@ -7,7 +7,6 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
-  type TimeDisplayUnit,
 } from '../../../domain/types';
 import {
   LANE_GROUP_HEADER_FILL,
@@ -36,7 +35,6 @@ const props = withDefaults(
     searchQuery: string;
     measureMode?: boolean;
     measureRange?: MeasureRange | null;
-    timeUnit?: TimeDisplayUnit;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
@@ -260,7 +258,6 @@ defineExpose({
       :search-query="searchQuery"
       :measure-mode="measureMode"
       :measure-range="measureRange"
-      :time-unit="timeUnit"
       :dependency-mode="dependencyMode"
       :dependency-depth="dependencyDepth"
       :prefer-renderer="preferRenderer ?? 'auto'"

@@ -8,11 +8,11 @@ Shared dual time-axis chrome used by `TimeOverviewBar` and the viewport `.pr-tim
 
 ## Inputs
 
-**majors** — `{ t, pct, label, muted? }[]` positioned 0–100%. **minors** — `{ pct, muted? }[]` (9 per major gap from `buildAxisRulerTicks`).
+**majors** — `{ t, pct, label, muted? }[]` positioned 0–100%. **minors** — `{ pct, muted? }[]` (9 per major gap from `buildAxisRulerTicks`). Optional **baseLabel** — coarse viewport offset overlaid at the track left; tick majors show remainders only (overview omits this).
 
 ## Behavior
 
-Renders major **1px** bars with labels immediately to the **right**, plus short minor ticks along the bottom. Parent supplies a **20px** track and tick data from `buildAxisRulerTicks` (nice zoom-aware ns grid). Labels sit in an **18px** top-aligned box (**12px / 400**). Minors are **5px**. This component fills `inset: 0` and clips overflow.
+Renders major **1px** bars with labels immediately to the **right**, plus short minor ticks along the bottom. The **tick track** (`axis-ruler-track`) is always **full width** of the axis so major/minor `%` share the same coordinate system as the swimlane, playhead, and measure bars. When **baseLabel** is set (viewport axis only), an absolute **base overlay** (`axis-ruler-base` + muted `+`) sits on the left; remainder tick labels that would collide use `hideLabel` (estimated base chrome width). Overview passes `null` and has no overlay. Parent supplies a **20px** track and tick data from `buildAxisRulerTicks` (nice zoom-aware ns grid); `widthPx` is the **full** axis width (same as swimlane). Labels sit in an **18px** top-aligned box (**12px / 400**). Minors are **5px**. This component fills `inset: 0` and clips overflow.
 
 ## Visual
 
@@ -23,27 +23,34 @@ Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Cro
 | Track height | **20px** |
 | Label box | **18px** tall, aligned to the **top** of the 20px track |
 | Label font | **12px** / weight **400**, `#c8c8c8`, tabular-nums |
-| Origin | Labels relative to **`minTime`** (display origin). Left edge of a fit viewport shows compact `0`. |
+| Origin | Labels are **relative to `minTime`** (trace start = **0**). Absolute CTEF `ts` must not appear on the axis. |
 | Leftmost total-scale label | `0ms` / `0µs` / `0ns` (compact zero — not `0.00xxx…`) |
 | Major bar | **1px** full track height (20px), `--pr-axis-tick` / fallback `rgb(52, 52, 52)` (muted: `--pr-axis-tick-muted` / `rgb(39, 39, 39)`; v930 samples — see `COLOR_TOKENS.md`) |
 | Label placement | Immediately **to the right** of its major bar (`left: pct` + ~2–3px gap; **not** centered) |
 | Minor ticks | **9** between each adjacent major pair (10 subdivisions); **5px** tall from bottom; same tick tokens as majors |
 | Major placement | **Nice ns steps** (`1\|2\|5×10ⁿ`) targeting ~**100px** spacing; majors at `origin + k·interval` (positions move with zoom/pan — not fixed percentages) |
 | Containment | Tick text must stay inside the timeline column — **never** paint over the right aside. Track/axis `overflow: hidden` |
+| Viewport base | Optional **baseLabel** absolute overlay at left + muted `+`; **4px** gap on each side of `+` (base↔`+`↔tick label); **600** weight / `#e0e0e0` (tick labels stay **400** / `#c8c8c8`); top-aligned **18px** label box; remainder tick labels hide via `hideLabel` under the base chrome; ticks stay on the full-width track (aligned with events); overview has no base |
 
 ## Acceptance Criteria
 
 1. **PR-AXIS-001** — Renders majors and minors with testids.
-2. **PR-AXIS-002** — `buildAxisRulerTicks` yields 9 minors per gap and zero label at display origin (`minTime`).
+2. **PR-AXIS-002** — `buildAxisRulerTicks` yields 9 minors per gap and relative-zero first label.
 3. **PR-AXIS-003** — Major bars and minor ticks use `--pr-axis-tick` (fallback `rgb(52, 52, 52)`); muted use `--pr-axis-tick-muted` (fallback `rgb(39, 39, 39)`).
+4. **PR-AXIS-004** — Optional `baseLabel` renders `axis-ruler-base` as a left overlay with `+` separator (weight **600**, `#e0e0e0`; tick labels stay **400**); symmetric **4px** gaps around `+`; tick labels hide via `hideLabel` under base chrome; ticks in full-width `axis-ruler-track` (same x as swimlane); absent when null.
 
 ## Design sketches
 
 - [viewport-ticks](./visual/viewport-ticks.png) — from `v930/entry`
 
 ## Changelog
-- **2026-08-25** — Labels relative to minTime display origin.
-- **2026-08-24** — Absolute producer axis (origin t = 0); viewport starts at 0.
+- **2026-08-29** — Overlay base on full-width track so tick `%` matches swimlane/playhead (undo flex inset).
+- **2026-08-28** — Track `align-self: stretch` so tick labels are not clipped when ruler uses `align-items: flex-start`.
+- **2026-08-27** — Symmetric **4px** gaps around `+`; defer tick-label hide until **4px** from `+`.
+- **2026-08-27** — Viewport base: **4px** left inset; top-align with tick labels.
+- **2026-08-27** — Viewport base label weight **600** / `#e0e0e0` to distinguish from tick labels.
+- **2026-08-27** — Fix base/tick overlap: flex base column + track (replaces padding-left inset).
+- **2026-08-27** — Viewport base + remainder tick labels (PR-AXIS-004); overview unchanged.
 - **2026-08-13** — Tick/bar colors: normal `rgb(52,52,52)`, dimmed `rgb(39,39,39)`; PR-AXIS-003.
 - **2026-08-10** — Absorbed shared axis tokens from retired `docs/ui/components/VISUAL_SPEC.md`.
 - **2026-08-07** — Initial shared ruler chrome.

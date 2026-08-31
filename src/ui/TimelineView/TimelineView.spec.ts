@@ -72,7 +72,7 @@ describe('TimelineView', () => {
     return {
       bounds: { minTime: 0, maxTime: 1000 },
       view,
-      unit: 'ms' as const,
+      timeScaleUnit: 'ms' as const,
       groups: [],
       collapsedIds: [] as string[],
       displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -108,7 +108,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -120,7 +120,7 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ms/);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ns/);
   });
 
   it('PR-TIMELINE-003: measure drag on time axis emits update:measure-range', async () => {
@@ -134,7 +134,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -180,7 +180,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -227,7 +227,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -261,7 +261,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -300,7 +300,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -312,7 +312,7 @@ describe('TimelineView', () => {
     expect(wrapper.find('[data-testid="measure-axis-bar-left"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="measure-axis-bar-right"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="measure-arrow-head"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ms/);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toMatch(/ns/);
     expect(wrapper.find('[data-testid="measure-arrow"]').exists()).toBe(true);
   });
 
@@ -331,7 +331,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -360,7 +360,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -382,7 +382,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -410,7 +410,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -451,7 +451,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -500,7 +500,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -532,7 +532,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -554,7 +554,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime: 0, maxTime: 1000, processes: [] },
@@ -614,7 +614,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime: 0, maxTime: 1000 },
         view,
-        unit: 'ms',
+        timeScaleUnit: 'ms',
         groups: [
           {
             id: 'p-1',
@@ -702,7 +702,7 @@ describe('TimelineView', () => {
       props: {
         bounds: { minTime, maxTime },
         view,
-        unit: 'us',
+        timeScaleUnit: 'us',
         groups: [],
         collapsedIds: [],
         displaySwim: { minTime, maxTime, processes: [] },
@@ -726,6 +726,36 @@ describe('TimelineView', () => {
     });
     const line = wrapper.get('[data-testid="cursor-line"]');
     expect(line.attributes('style')).toContain('left: 50%');
+  });
+
+  it('PR-TIMELINE-018: viewport axis shows coarse base deep in trace, not near origin', () => {
+    stubAxisWidth(800);
+    const near = mount(TimelineView, { props: baseProps() });
+    expect(near.get('[data-testid="time-axis"]').find('[data-testid="axis-ruler-base"]').exists()).toBe(
+      false,
+    );
+    near.unmount();
+
+    const minTime = 0;
+    const maxTime = 300_000_000_000;
+    const view = createViewState({ minTime, maxTime, processes: [] });
+    view.startTime = 236_256_145_000;
+    view.endTime = 236_256_146_000;
+    const deep = mount(TimelineView, {
+      props: {
+        bounds: { minTime, maxTime },
+        view,
+        timeScaleUnit: 'ns',
+        groups: [],
+        collapsedIds: [],
+        displaySwim: { minTime, maxTime, processes: [] },
+        cursor: null,
+      },
+    });
+    expect(deep.get('[data-testid="time-axis"]').find('[data-testid="axis-ruler-base"]').exists()).toBe(
+      true,
+    );
+    deep.unmount();
   });
 
   it('PR-TIMELINE-017: no viewport breakpoint; swim rows keep a non-zero track floor', async () => {
