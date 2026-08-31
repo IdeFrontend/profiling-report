@@ -15,10 +15,21 @@ const Y_MAX = 10;
 
 const W = 320;
 const H = 220;
-const PAD = { l: 48, r: 12, t: 28, b: 36 };
+/** Plot insets — calibrated from visual/roofline.png (1870×1360 crop). */
+const PAD = { l: 34, r: 10, t: 14, b: 36 };
+/** Sketch fractions: Ops/Byte ≈11.5% from right, 5px above floor. */
+const SK_OPS_RIGHT = 0.115;
+const SK_OPS_BOTTOM = 5;
+/** Mix annotation sits just inside the top of the plot frame. */
+const MIX_TOP_INSET = 10;
 
 const plotW = W - PAD.l - PAD.r;
 const plotH = H - PAD.t - PAD.b;
+
+const mixY = computed(() => PAD.t + MIX_TOP_INSET);
+const opsX = computed(() => PAD.l + plotW * (1 - SK_OPS_RIGHT));
+const opsY = computed(() => PAD.t + plotH - SK_OPS_BOTTOM);
+const topsY = computed(() => Math.max(5, PAD.t - 12));
 
 const hovered = ref<RooflinePoint | null>(null);
 
@@ -46,21 +57,48 @@ function roofPerf(intensity: number): number {
   return Math.min(props.model.peakComputeTops, bwLimited);
 }
 
-const roofPath = computed(() => {
+/** Roof polyline points in plot space (log-clamped). */
+const roofPoints = computed(() => {
   const ridge =
     (props.model.peakComputeTops * 1000) / Math.max(props.model.peakBandwidthGBs, 1e-12);
   const xs = [X_MIN, ridge, X_MAX].map((x) => clampLog(x, X_MIN, X_MAX));
   const unique = [...new Set(xs.map((x) => x.toPrecision(8)))].map(Number);
-  const pts = unique.map((x) => `${xToPx(x)},${yToPx(roofPerf(x))}`);
+  return unique.map((x) => ({ x: xToPx(x), y: yToPx(roofPerf(x)) }));
+});
+
+const roofPath = computed(() => {
+  const pts = roofPoints.value.map((p) => `${p.x},${p.y}`);
   return `M ${pts.join(' L ')}`;
 });
+
+/** Closed area under the roof for the sketch gradient wash (v930 detail-strip-raised). */
+const roofAreaPath = computed(() => {
+  const pts = roofPoints.value;
+  if (pts.length < 2) return '';
+  const bottom = PAD.t + plotH;
+  const line = pts.map((p) => `${p.x},${p.y}`).join(' L ');
+  const last = pts[pts.length - 1]!;
+  const first = pts[0]!;
+  return `M ${line} L ${last.x},${bottom} L ${first.x},${bottom} Z`;
+});
+
+/** Highest roof Y — gradient 0% must sit on the ridge, not the plot frame top. */
+const roofTopY = computed(() => {
+  const pts = roofPoints.value;
+  if (!pts.length) return PAD.t;
+  return Math.min(...pts.map((p) => p.y));
+});
+
+const plotBottomY = PAD.t + plotH;
 
 const xTicks = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100];
 const yTicks = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10];
 
 function fmtTick(v: number): string {
   if (v >= 1) return String(v);
-  return v.toExponential(0).replace('e-0', 'e-').replace('e+', 'e');
+  // Sketch uses decimals (0.0001 / 0.001 / 0.01 / 0.1), not 1e-n.
+  const digits = Math.max(0, -Math.floor(Math.log10(v)));
+  return v.toFixed(digits);
 }
 
 function fmtVal(v: number): string {
@@ -68,8 +106,13 @@ function fmtVal(v: number): string {
   return v.toPrecision(3);
 }
 
-const mixText = computed(() =>
-  props.model.mixLabels.map((m) => `${m.label} (${m.percent.toFixed(2)}%)`).join('  '),
+const mixParts = computed(() =>
+  props.model.mixLabels.map((m, i) => ({
+    id: m.id,
+    label: m.label,
+    percent: `${m.percent.toFixed(6)}%`,
+    prefix: i === 0 ? '' : ', ',
+  })),
 );
 
 const tooltipText = computed(() => {
@@ -88,113 +131,188 @@ const tooltipText = computed(() => {
     <h4 class="pr-roofline__title">
       {{ t('roofline', locale) }}
     </h4>
-    <div class="pr-roofline__legend">
-      <span
-        v-for="p in model.points"
-        :key="p.id"
-        class="pr-roofline__leg-item"
+    <div class="pr-roofline__card">
+      <div class="pr-roofline__card-head">
+        <span class="pr-roofline__chart-title">GM/L2</span>
+        <div class="pr-roofline__legend">
+          <span
+            v-for="p in model.points"
+            :key="p.id"
+            class="pr-roofline__leg-item"
+          >
+            <span
+              class="pr-roofline__leg-dot"
+              :class="{ 'pr-roofline__leg-dot--hollow': p.style === 'hollow' }"
+            />
+            {{ p.label }}
+          </span>
+        </div>
+      </div>
+      <svg
+        class="pr-roofline__svg"
+        data-testid="roofline-chart"
+        :viewBox="`0 0 ${W} ${H}`"
+        role="img"
+        :aria-label="t('roofline', locale)"
       >
-        <span
-          class="pr-roofline__leg-dot"
-          :class="{ 'pr-roofline__leg-dot--hollow': p.style === 'hollow' }"
+        <defs>
+          <!--
+            Wash under roof (sampled detail-strip-raised):
+            ~16% at ridge → slow fade → 0 at floor. y1 = ridge.
+          -->
+          <linearGradient
+            id="pr-roofline-area"
+            data-testid="roofline-area-gradient"
+            gradientUnits="userSpaceOnUse"
+            :x1="PAD.l"
+            :y1="roofTopY"
+            :x2="PAD.l"
+            :y2="plotBottomY"
+          >
+            <stop
+              offset="0%"
+              stop-color="#3078f0"
+              stop-opacity="0.16"
+            />
+            <stop
+              offset="40%"
+              stop-color="#3078f0"
+              stop-opacity="0.1"
+            />
+            <stop
+              offset="75%"
+              stop-color="#3078f0"
+              stop-opacity="0.05"
+            />
+            <stop
+              offset="100%"
+              stop-color="#3078f0"
+              stop-opacity="0"
+            />
+          </linearGradient>
+          <clipPath id="pr-roofline-plot-clip">
+            <rect
+              :x="PAD.l"
+              :y="PAD.t"
+              :width="plotW"
+              :height="plotH"
+            />
+          </clipPath>
+        </defs>
+        <rect
+          :x="PAD.l"
+          :y="PAD.t"
+          :width="plotW"
+          :height="plotH"
+          class="pr-roofline__frame"
         />
-        {{ p.label }}
-      </span>
-    </div>
-    <svg
-      class="pr-roofline__svg"
-      data-testid="roofline-chart"
-      :viewBox="`0 0 ${W} ${H}`"
-      role="img"
-      :aria-label="t('roofline', locale)"
-    >
-      <!-- plot frame -->
-      <rect
-        :x="PAD.l"
-        :y="PAD.t"
-        :width="plotW"
-        :height="plotH"
-        class="pr-roofline__frame"
-      />
-      <g class="pr-roofline__grid">
-        <line
+        <g
+          class="pr-roofline__plot"
+          clip-path="url(#pr-roofline-plot-clip)"
+        >
+          <g class="pr-roofline__grid">
+            <line
+              v-for="tick in xTicks"
+              :key="`xg-${tick}`"
+              :x1="xToPx(tick)"
+              :x2="xToPx(tick)"
+              :y1="PAD.t"
+              :y2="PAD.t + plotH"
+            />
+            <line
+              v-for="tick in yTicks"
+              :key="`yg-${tick}`"
+              :x1="PAD.l"
+              :x2="PAD.l + plotW"
+              :y1="yToPx(tick)"
+              :y2="yToPx(tick)"
+            />
+          </g>
+          <path
+            data-testid="roofline-area"
+            class="pr-roofline__area"
+            :d="roofAreaPath"
+            fill="url(#pr-roofline-area)"
+          />
+          <path
+            data-testid="roofline-roof"
+            class="pr-roofline__roof"
+            :d="roofPath"
+            fill="none"
+          />
+          <!-- Sketch draws hollow markers on roof vertices (knee / ends). -->
+          <circle
+            v-for="(rp, idx) in roofPoints"
+            :key="`rv-${idx}`"
+            class="pr-roofline__roof-vertex"
+            :cx="rp.x"
+            :cy="rp.y"
+            r="4"
+          />
+          <g
+            v-for="p in model.points"
+            :key="p.id"
+          >
+            <circle
+              data-testid="roofline-point"
+              :cx="xToPx(p.intensity)"
+              :cy="yToPx(p.performance)"
+              r="4"
+              class="pr-roofline__point"
+              :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
+              @mouseenter="hovered = p"
+              @mouseleave="hovered = null"
+            />
+          </g>
+        </g>
+        <text
+          v-if="mixParts.length"
+          class="pr-roofline__mix"
+          data-testid="roofline-mix"
+          :x="PAD.l + plotW / 2"
+          :y="mixY"
+          text-anchor="middle"
+        >
+          <template
+            v-for="part in mixParts"
+            :key="part.id"
+          >
+            <tspan class="pr-roofline__mix-name">{{ part.prefix }}{{ part.label }}</tspan>
+            <tspan class="pr-roofline__mix-pct">&nbsp;({{ part.percent }})</tspan>
+          </template>
+        </text>
+        <text
           v-for="tick in xTicks"
-          :key="`xg-${tick}`"
-          :x1="xToPx(tick)"
-          :x2="xToPx(tick)"
-          :y1="PAD.t"
-          :y2="PAD.t + plotH"
-        />
-        <line
+          :key="`xt-${tick}`"
+          class="pr-roofline__tick"
+          :x="xToPx(tick)"
+          :y="H - 6"
+          text-anchor="middle"
+        >{{ fmtTick(tick) }}</text>
+        <text
           v-for="tick in yTicks"
-          :key="`yg-${tick}`"
-          :x1="PAD.l"
-          :x2="PAD.l + plotW"
-          :y1="yToPx(tick)"
-          :y2="yToPx(tick)"
-        />
-      </g>
-      <path
-        data-testid="roofline-roof"
-        class="pr-roofline__roof"
-        :d="roofPath"
-        fill="none"
-      />
-      <text
-        v-if="mixText"
-        class="pr-roofline__mix"
-        data-testid="roofline-mix"
-        :x="PAD.l + plotW - 4"
-        :y="PAD.t + 12"
-        text-anchor="end"
-      >{{ mixText }}</text>
-      <g
-        v-for="p in model.points"
-        :key="p.id"
-      >
-        <circle
-          data-testid="roofline-point"
-          :cx="xToPx(p.intensity)"
-          :cy="yToPx(p.performance)"
-          r="5"
-          class="pr-roofline__point"
-          :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
-          @mouseenter="hovered = p"
-          @mouseleave="hovered = null"
-        />
-      </g>
-      <!-- axes labels -->
-      <text
-        v-for="tick in xTicks"
-        :key="`xt-${tick}`"
-        class="pr-roofline__tick"
-        :x="xToPx(tick)"
-        :y="H - 8"
-        text-anchor="middle"
-      >{{ fmtTick(tick) }}</text>
-      <text
-        v-for="tick in yTicks"
-        :key="`yt-${tick}`"
-        class="pr-roofline__tick"
-        :x="PAD.l - 6"
-        :y="yToPx(tick) + 3"
-        text-anchor="end"
-      >{{ fmtTick(tick) }}</text>
-      <text
-        class="pr-roofline__axis"
-        :x="PAD.l + plotW / 2"
-        :y="H - 1"
-        text-anchor="middle"
-      >Ops/Byte</text>
-      <text
-        class="pr-roofline__axis"
-        :x="12"
-        :y="PAD.t + plotH / 2"
-        text-anchor="middle"
-        transform-origin="12 center"
-        :transform="`rotate(-90 12 ${PAD.t + plotH / 2})`"
-      >TOps/s</text>
-    </svg>
+          :key="`yt-${tick}`"
+          class="pr-roofline__tick"
+          :x="PAD.l - 4"
+          :y="yToPx(tick) + 3"
+          text-anchor="end"
+        >{{ fmtTick(tick) }}</text>
+        <!-- Sketch: Ops/Byte inside bottom-right of plot (~11.5% from right edge). -->
+        <text
+          class="pr-roofline__axis pr-roofline__axis--x"
+          :x="opsX"
+          :y="opsY"
+          text-anchor="end"
+        >Ops/Byte</text>
+        <!-- Sketch: TOps/s above the top y-tick, left gutter. -->
+        <text
+          class="pr-roofline__axis pr-roofline__axis--y"
+          :x="PAD.l - 4"
+          :y="topsY"
+          text-anchor="end"
+        >TOps/s</text>
+      </svg>
+    </div>
     <div
       v-if="hovered"
       class="pr-roofline__tip"
@@ -206,10 +324,11 @@ const tooltipText = computed(() => {
 </template>
 
 <style scoped>
+/* Title sits on aside; raised chart card is one uniform grey. */
 .pr-roofline {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -217,28 +336,63 @@ const tooltipText = computed(() => {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.3;
+  color: #ffffff;
+}
+
+/* Whole card (header + plot + tick gutters) — sketch uniform #262626. */
+.pr-roofline__card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px 4px;
+  border-radius: 8px;
+  background: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.pr-roofline__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+  min-width: 0;
+}
+
+.pr-roofline__chart-title {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
 }
 
 .pr-roofline__legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
   font-size: 11px;
-  color: #b0b8c0;
+  line-height: 1.2;
+  color: #9a9a9a;
 }
 
 .pr-roofline__leg-item {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  color: #9a9a9a;
 }
 
 .pr-roofline__leg-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #3a8cff;
-  border: 1.5px solid #3a8cff;
+  background: #3078f0;
+  border: 1.5px solid #3078f0;
+  box-sizing: border-box;
 }
 
 .pr-roofline__leg-dot--hollow {
@@ -252,47 +406,66 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__frame {
-  fill: transparent;
-  stroke: #4a5560;
-  stroke-width: 1;
+  fill: #262626;
+  stroke: none;
 }
 
 .pr-roofline__grid line {
-  stroke: #3a424a;
+  stroke: #343434;
   stroke-width: 0.5;
 }
 
+.pr-roofline__area {
+  stroke: none;
+  pointer-events: none;
+}
+
 .pr-roofline__roof {
-  stroke: #3a8cff;
-  stroke-width: 2.5;
+  stroke: #3078f0;
+  stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
+.pr-roofline__roof-vertex {
+  fill: #262626;
+  stroke: #3078f0;
+  stroke-width: 1.75;
+  pointer-events: none;
+}
+
 .pr-roofline__point {
-  fill: #3a8cff;
-  stroke: #3a8cff;
+  fill: #3078f0;
+  stroke: #3078f0;
   cursor: pointer;
 }
 
 .pr-roofline__point--hollow {
-  fill: var(--pr-bg-panel, #262626);
-  stroke-width: 2;
+  fill: #262626;
+  stroke-width: 1.75;
 }
 
 .pr-roofline__tick {
-  fill: #8a929a;
-  font-size: 8px;
+  fill: #999999;
+  font-size: 9px;
 }
 
 .pr-roofline__axis {
-  fill: #a0a8b0;
+  fill: #999999;
   font-size: 9px;
 }
 
 .pr-roofline__mix {
-  fill: #c8d0d8;
-  font-size: 8px;
+  font-size: 10px;
+}
+
+/* Sketch mix is two-tone: names #999, percents #fff. */
+.pr-roofline__mix-name {
+  fill: #999999;
+}
+
+.pr-roofline__mix-pct {
+  fill: #ffffff;
 }
 
 .pr-roofline__tip {

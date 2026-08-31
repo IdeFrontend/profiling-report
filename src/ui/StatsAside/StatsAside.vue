@@ -518,7 +518,7 @@ function backToReport() {
 
       <div
         v-if="showRoofline && report?.roofline"
-        class="pr-panel pr-panel--roofline"
+        class="pr-stack-section"
         data-testid="stats-roofline"
       >
         <RooflinePanel
@@ -529,10 +529,10 @@ function backToReport() {
 
       <div
         v-if="showPipe"
-        class="pr-panel pr-panel--pipe"
+        class="pr-stack-section"
         data-testid="pipe-occupancy"
       >
-        <div class="pr-pipe-head">
+        <div class="pr-stack-section__head">
           <h4>{{ t('computeAnalysis', locale) }}</h4>
           <div class="pr-pipe-head__actions">
             <button
@@ -556,33 +556,34 @@ function backToReport() {
             </button>
           </div>
         </div>
-        <div
-          v-if="isMix"
-          class="pr-pipe-toggle"
-          data-testid="pipe-side-toggle"
-          role="group"
-          :aria-label="t('pipeSide', locale)"
-        >
-          <button
-            type="button"
-            class="pr-pipe-toggle__btn"
-            :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
-            data-testid="pipe-side-cube"
-            @click="pipeSide = 'cube'"
+        <div class="pr-panel pr-panel--pipe">
+          <div
+            v-if="isMix"
+            class="pr-pipe-toggle"
+            data-testid="pipe-side-toggle"
+            role="group"
+            :aria-label="t('pipeSide', locale)"
           >
-            Cube
-          </button>
-          <button
-            type="button"
-            class="pr-pipe-toggle__btn"
-            :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
-            data-testid="pipe-side-vector"
-            @click="pipeSide = 'vector'"
-          >
-            Vector
-          </button>
-        </div>
-        <div class="pr-pipe-chart">
+            <button
+              type="button"
+              class="pr-pipe-toggle__btn"
+              :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
+              data-testid="pipe-side-cube"
+              @click="pipeSide = 'cube'"
+            >
+              Cube
+            </button>
+            <button
+              type="button"
+              class="pr-pipe-toggle__btn"
+              :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
+              data-testid="pipe-side-vector"
+              @click="pipeSide = 'vector'"
+            >
+              Vector
+            </button>
+          </div>
+          <div class="pr-pipe-chart">
           <div
             class="pr-pipe-scale"
             data-testid="pipe-scale"
@@ -626,15 +627,16 @@ function backToReport() {
               </span>
             </li>
           </ul>
+          </div>
         </div>
       </div>
 
       <div
         v-if="showTopology || (showMemory && !csvOnly)"
-        class="pr-panel pr-panel--topo"
+        class="pr-stack-section"
         :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
       >
-        <div class="pr-pipe-head">
+        <div class="pr-stack-section__head">
           <h4>{{ t('memoryAnalysis', locale) }}</h4>
           <div class="pr-pipe-head__actions">
             <button
@@ -659,11 +661,15 @@ function backToReport() {
             </button>
           </div>
         </div>
-        <MemoryTopologyPanel
+        <div
           v-if="showTopology"
-          :model="topologyModel"
-          :locale="locale"
-        />
+          class="pr-panel pr-panel--topo"
+        >
+          <MemoryTopologyPanel
+            :model="topologyModel"
+            :locale="locale"
+          />
+        </div>
       </div>
 
       <template v-if="csvOnly">
@@ -1065,9 +1071,30 @@ function backToReport() {
   white-space: nowrap;
 }
 
+/* Section titles sit on the aside shell; grey islands wrap chart bodies only. */
+.pr-stack-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pr-stack-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pr-stack-section__head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
 .pr-panel--pipe,
-.pr-panel--topo,
-.pr-panel--roofline {
+.pr-panel--topo {
   background: var(--pr-bg-panel);
   border-radius: 4px;
   padding: 10px;
@@ -1075,30 +1102,6 @@ function backToReport() {
 
 .pr-panel--pipe {
   padding: 12px 10px 10px;
-}
-
-.pr-pipe-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.pr-panel--pipe .pr-pipe-head {
-  margin-bottom: 12px;
-}
-
-.pr-panel--pipe h4,
-.pr-panel--topo h4 {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #ffffff;
-}
-
-.pr-panel--pipe h4 {
-  font-size: 14px;
 }
 
 .pr-pipe-toggle {
