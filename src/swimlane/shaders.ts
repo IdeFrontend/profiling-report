@@ -16,7 +16,6 @@ in vec2 aTex;
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
-out float vRawW;
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -32,7 +31,6 @@ void main() {
   // Exact event edges in device pixels — must reach every fragment via vLrScreen.
   float lPx = glToPixelX(translateScaleX(lX));
   float rPx = glToPixelX(translateScaleX(rX));
-  vRawW = rPx - lPx;
 
   float screenX = glToPixelX(pos.x);
   float screenY = glToPixelY(pos.y);
@@ -63,18 +61,19 @@ float sdRoundBox(vec2 p, vec2 halfSize, float r) {
 }
 
 void main() {
-  // Sudu: lPx/rPx = event left/right inside the current device pixel.
-  float lPx = max(vLrScreen.x, vScreenPos.x - 0.5);
-  float rPx = min(vLrScreen.y, vScreenPos.x + 0.5);
-  float inside = rPx - lPx;
-
   float l = vLrScreen.x;
   float r = vLrScreen.y;
+  // Sudu: lPx/rPx = event left/right inside the current device pixel.
+  float lPx = max(l, vScreenPos.x - 0.5);
+  float rPx = min(r, vScreenPos.x + 0.5);
+  float inside = rPx - lPx;
+
   float t = uYBounds.x;
   float b = uYBounds.y;
   float w = max(r - l, 0.0);
   float h = max(b - t, 0.0);
-  float rad = min(min(w, h) * 0.5, vRawW < 4.0 ? 1.0 : 2.0);
+  float rawW = r - l;
+  float rad = min(min(w, h) * 0.5, rawW < 4.0 ? 1.0 : 2.0);
 
   vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
