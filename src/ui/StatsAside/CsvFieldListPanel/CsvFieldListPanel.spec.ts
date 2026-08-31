@@ -64,16 +64,31 @@ describe('CsvFieldListPanel', () => {
     expect(marks).toHaveLength(1);
     expect(marks[0].text()).toBe('mte2');
     const src = (await import('./CsvFieldListPanel.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-csv__field-match[\s\S]*?background:\s*#1d283c/);
-    expect(src).toMatch(/\.pr-csv__field-match[\s\S]*?color:\s*#688aec/);
-    expect(src).toMatch(/\.pr-csv__field-match[\s\S]*?font-weight:\s*600/);
-    expect(src).toMatch(/\.pr-csv__field-match[\s\S]*?padding:\s*0;/);
-    expect(src).not.toMatch(/padding:\s*0\s+4px/);
+    const rule = src.match(/\.pr-csv__field-match\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toMatch(/background:\s*#1d283c/);
+    expect(rule).toMatch(/color:\s*#688aec/);
+    expect(rule).toMatch(/font-weight:\s*600/);
+    expect(rule).toMatch(/padding:\s*0;/);
+    expect(rule).not.toMatch(/display:\s*inline-block/);
     expect(wrapper.find('[data-testid="csv-search-clear"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="csv-search-clear"]').trigger('click');
     expect(wrapper.findAll('[data-testid="csv-field-match"]')).toHaveLength(0);
     expect(wrapper.text()).toContain('aiv_vec_ratio');
+  });
+
+  it('PR-CSV-003: zero matches leave an empty list; query survives tab switch', async () => {
+    const wrapper = mount(CsvFieldListPanel, {
+      props: { tables, csvTexts },
+    });
+
+    await wrapper.get('[data-testid="csv-search"]').setValue('zzzz');
+    expect(wrapper.find('[data-testid="csv-fields"]').findAll('li')).toHaveLength(0);
+
+    await wrapper.get('[data-testid="csv-search"]').setValue('mte2');
+    await wrapper.get('[data-testid="csv-tab-ArithmeticUtilization.csv"]').trigger('click');
+    expect(wrapper.get('[data-testid="csv-search"]').element).toHaveProperty('value', 'mte2');
+    expect(wrapper.find('[data-testid="csv-fields"]').findAll('li')).toHaveLength(0);
   });
 
   it('PR-CSV-004: 查看全部 emits view-full-csv', async () => {

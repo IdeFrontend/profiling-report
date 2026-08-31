@@ -24,7 +24,7 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 
 1. Tabs list present tables; selecting a tab switches the field list.
 2. Bound **selectedBlockId** when it is in the active table’s `blockIds`; otherwise an internal fallback to that table’s first `blockId` (I-Q6c). Only the block picker emits `update:selectedBlockId` — tab switches do not write through. Rows filtered to the displayed `block_id`.
-3. Search hides fields whose headers do not contain the query (case-insensitive substring). A match paints that slice as a navy chip with light-blue text, flush to the surrounding label (no pad). Values stay unchanged. Clear (×) empties the query and restores the full list. Same rule on compute and memory overlays.
+3. Search hides fields whose headers do not contain the query (case-insensitive substring). A match paints that slice as a navy chip with light-blue text, flush to the surrounding label (no pad). Values stay unchanged. Zero matches leave the list empty (no extra copy). The query persists across tab switches. Clear (×) empties the query and restores the full list. Same rule on compute and memory overlays.
 4. Field list shows header → value for the first matching row of the selected block (or all columns from that row). Show literal `NA`.
 5. 查看全部 emits full CSV text for the active `fileName`.
 
@@ -62,6 +62,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 - [memory-load-detail](../../../../docs/ui/source/v930/memory-load-detail.jpeg) — full frame
 
 ## Changelog
+- **2026-08-31** — Zero matches show an empty list (no extra copy); search query persists across tab switches.
 - **2026-08-28** — Search filters non-matching rows and still highlights the substring; match chip is flush (pad `0`). Same on compute and memory.
 - **2026-08-24** — Search match is a navy chip + light-blue semi-bold text (`v930/search-highlight`).
 - **2026-08-24** — Compute overlay omits block + 查看全部 (`v930/search-highlight`); `showViewAll` flag.
