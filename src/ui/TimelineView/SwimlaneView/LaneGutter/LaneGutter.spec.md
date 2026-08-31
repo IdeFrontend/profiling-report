@@ -61,7 +61,7 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 | Unpinned (lane hover) | **Outline** pushpin; stroke `#a8a8a8` (chevron family) |
 | Pinned / pin hover | **Solid fill** accent blue `#4a90e2` (match toolbar measure-active) |
 | Tooltip | Localized **置顶** / **Pin to top** (`t('pin')`) on hover/focus over pushpin; dark rounded bubble (EventTooltip chrome: `#2a2a2a` / `#555`) |
-| Row hover | Full gutter row highlight `#252525` when pointer over the leaf gutter row |
+| Row hover | Full gutter row highlight `#252525` when pointer over the leaf gutter row **or** that leaf’s events-chart band (`hoveredLaneId`). Canvas band hover does **not** reveal the unpinned pushpin |
 | Accessibility | Focusable `button`; `aria-label` **置顶**; pinned state reflected in `aria-pressed` |
 
 **Indent:** leaf and folder pad-left stay **`24px + depth×14px`** (pin does not add a column). Pin sits in the left margin to the left of chevrons/names at every depth.
@@ -139,7 +139,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 | Pin leaf inside collapsed folder | Pin control hidden while ancestor folder collapsed; id may remain in **pinnedLaneIds** |
 | Pin across Cards | Pushpin on any visible leaf regardless of Card/process ancestry |
 | Duplicate pin click | Idempotent — no duplicate entries in `pinnedLaneIds` |
-| Events chart hover | Hovering the swimlane canvas does **not** show the unpinned pushpin or gutter row highlight |
+| Events chart hover | Matching gutter leaf gets `#252525` via `hoveredLaneId`; unpinned pushpin stays hidden. No hover chrome on the swimlane canvas itself |
 
 ## Design sketches
 
@@ -155,7 +155,8 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
 
 ## Changelog
-- **2026-08-28** — Unpinned pushpin / row highlight: gutter hover only (not events-chart canvas band).
+- **2026-08-31** — Events-chart leaf hover highlights matching gutter row `#252525` via `hoveredLaneId`; unpinned pushpin still gutter-only.
+- **2026-08-28** — Unpinned pushpin: gutter hover only (not events-chart). Row highlight later restored for chart→header hint.
 - **2026-08-28** — Pin glyph: PyPTO/DevUI `pushpin` / `pushpin-fill` SVG assets under `src/ui/icons/`.
 - **2026-08-28** — Pinned pushpin stays visible on original + sticky strip; unpinned remains hover-only.
 - **2026-08-28** — Pin hover-only, flush-left (no depth indent); row `#252525` on gutter hover; leaf indent unchanged (`24 + depth×14`).

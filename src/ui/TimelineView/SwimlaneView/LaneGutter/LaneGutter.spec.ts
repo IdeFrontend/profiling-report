@@ -245,6 +245,11 @@ describe('LaneGutter', () => {
     expect(wrapper.get('[data-testid="gutter-group-card0"]').find('[data-testid="lane-pin"]').exists()).toBe(
       false,
     );
+
+    await wrapper.setProps({ hoveredLaneId: 'leaf' });
+    expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).toContain(
+      'pr-gutter__lane--lane-hover',
+    );
     wrapper.unmount();
   });
 
