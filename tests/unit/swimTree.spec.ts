@@ -113,6 +113,12 @@ describe('swimTree + nested layout', () => {
     );
   });
 
+  it('skipCardHeaders omits Card header height and layout headers', () => {
+    const model = { ...nestedModel(), skipCardHeaders: true as const };
+    expect(contentHeightFromModel(model)).toBe(7 * LANE_HEIGHT);
+    expect(rebuildLayout(model).headers).toEqual([]);
+  });
+
   it('collectLeafEventsFromModel skips folders and spacers without events', () => {
     const events = collectLeafEventsFromModel(nestedModel());
     expect(events.map((e) => e.id).sort()).toEqual(['e1', 'e2']);

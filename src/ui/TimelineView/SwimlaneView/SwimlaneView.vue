@@ -12,8 +12,10 @@ import {
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_GROUP_HEADER_HOVER,
+  LANE_HEIGHT,
   layoutHeaders,
 } from '../../../swimlane/layout';
+import { buildPinnedSwimModel, resolvePinnedGutterLanes } from './pinnedLanes';
 import {
   GUTTER_WIDTH_DEFAULT,
   GUTTER_WIDTH_MAX,
@@ -22,13 +24,22 @@ import {
 } from '../../panelResize';
 import Chevron from '../../Chevron.vue';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
+import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 
 const props = withDefaults(
   defineProps<{
     groups: GutterGroup[];
     collapsedIds: string[];
+    /** Leaf lane ids in pin order; sticky strip when non-empty. */
+    pinnedLaneIds?: string[];
+    /** Visible (collapse-filtered) swim model for the scrolling body. */
     model: SwimlaneModel | null;
+    /**
+     * Unfiltered swim model for the pinned strip. Defaults to `model`.
+     * Pass the full tree so pins survive ancestor collapse.
+     */
+    pinSourceModel?: SwimlaneModel | null;
     view: SwimlaneViewState;
     selectedEventId: string | null;
     hoveredEventId: string | null;
@@ -43,6 +54,7 @@ const props = withDefaults(
     cursorXRatio?: number | null;
     /** True when the cursor is magnetized to an event edge (gray the swim vertical bar). */
     cursorSnapped?: boolean;
+    locale?: string;
   }>(),
   {
     dependencyMode: 'all',
@@ -56,6 +68,8 @@ const emit = defineEmits<{
   'update:scrollY': [scrollY: number];
   'update:gutterWidth': [width: number];
   'toggle-group': [groupId: string];
+  'pin-lane': [laneId: string];
+  'unpin-lane': [laneId: string];
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -67,14 +81,21 @@ const emit = defineEmits<{
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
-const canvasRef = ref<{
+type CanvasExpose = {
   handleWheel: (e: WheelEvent) => void;
   magnetizeAtClient: (
     clientX: number,
     clientY: number,
   ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
+  magnetizeAtClientLocal: (
+    clientX: number,
+    clientY: number,
+  ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   clearEdgeSnapHighlight: () => void;
-} | null>(null);
+};
+const canvasRef = ref<CanvasExpose | null>(null);
+const pinnedCanvasRef = ref<CanvasExpose | null>(null);
+const pinnedStripRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
@@ -105,6 +126,25 @@ watch(
 );
 
 const collapsed = computed(() => new Set(props.collapsedIds));
+
+const pinnedLaneIds = computed(() => props.pinnedLaneIds ?? []);
+const pinnedRows = computed(() => resolvePinnedGutterLanes(props.groups, pinnedLaneIds.value));
+const pinnedModel = computed(() =>
+  buildPinnedSwimModel(props.pinSourceModel ?? props.model, pinnedLaneIds.value),
+);
+const pinnedStripHeight = computed(() => pinnedRows.value.length * LANE_HEIGHT);
+const pinnedView = computed(() => ({
+  startTime: props.view.startTime,
+  endTime: props.view.endTime,
+  scrollY: 0,
+}));
+
+/** Leaf under canvas pointer — gutter header `#252525` only (not pushpin). */
+const hoveredLaneId = ref<string | null>(null);
+
+function onLaneHover(id: string | null): void {
+  hoveredLaneId.value = id;
+}
 
 /** Card header Y from the same row walk as the canvas, without an event-layout rebuild. */
 const cardHeaders = computed(() =>
@@ -215,99 +255,217 @@ function onStripWheel(e: WheelEvent) {
   canvasRef.value?.handleWheel(e);
 }
 
+/** Magnet follows the canvas under the pointer (pin strip ↔ body). */
+function magnetizeAtClient(clientX: number, clientY: number) {
+  const strip = pinnedStripRef.value;
+  if (strip) {
+    const r = strip.getBoundingClientRect();
+    if (clientY >= r.top && clientY < r.bottom) {
+      canvasRef.value?.clearEdgeSnapHighlight();
+      return pinnedCanvasRef.value?.magnetizeAtClientLocal(clientX, clientY) ?? null;
+    }
+  }
+  pinnedCanvasRef.value?.clearEdgeSnapHighlight();
+  return canvasRef.value?.magnetizeAtClientLocal(clientX, clientY) ?? null;
+}
+
+function clearEdgeSnapHighlight() {
+  canvasRef.value?.clearEdgeSnapHighlight();
+  pinnedCanvasRef.value?.clearEdgeSnapHighlight();
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
   },
-  magnetizeAtClient: (clientX: number, clientY: number) =>
-    canvasRef.value?.magnetizeAtClient(clientX, clientY) ?? null,
-  clearEdgeSnapHighlight: () => canvasRef.value?.clearEdgeSnapHighlight(),
+  magnetizeAtClient,
+  clearEdgeSnapHighlight,
 });
 </script>
 
 <template>
   <div
-    ref="bodyRef"
-    class="pr-swim-row pr-swim-row--body"
+    class="pr-swim-stack"
     :style="{ '--pr-gutter-width': `${localGutterWidth}px` }"
   >
-    <button
-      type="button"
-      class="pr-gutter-resize"
-      data-testid="gutter-resize-handle"
-      aria-label="Resize lane gutter"
-      @pointerdown="onGutterResizePointerDown"
-      @pointermove="onGutterResizePointerMove"
-      @pointerup="onGutterResizePointerUp"
-      @pointercancel="onGutterResizePointerUp"
-    />
-
-    <LaneGutter
-      ref="gutterRef"
-      :groups="groups"
-      :collapsed-ids="collapsedIds"
-      @scroll="onGutterScroll"
-      @toggle-group="emit('toggle-group', $event)"
-    />
-    <SwimlaneCanvas
-      ref="canvasRef"
-      :model="model"
-      :view="view"
-      :selected-event-id="selectedEventId"
-      :hovered-event-id="hoveredEventId"
-      :search-query="searchQuery"
-      :measure-mode="measureMode"
-      :measure-range="measureRange"
-      :dependency-mode="dependencyMode"
-      :dependency-depth="dependencyDepth"
-      :prefer-renderer="preferRenderer ?? 'auto'"
-      :cursor-x-ratio="cursorXRatio"
-      :cursor-snapped="cursorSnapped"
-      @select="emit('select', $event)"
-      @hover="(ev, x, y) => emit('hover', ev, x, y)"
-      @cursor="onCursor"
-      @set-playhead="emit('set-playhead', $event)"
-      @pan="emit('pan', $event)"
-      @zoom="(f, a) => emit('zoom', f, a)"
-      @scroll-y="onScrollY"
-      @update:measure-range="emit('update:measure-range', $event)"
-      @suppress-measure-dt="emit('suppress-measure-dt', $event)"
-    />
+    <div
+      v-if="pinnedRows.length"
+      ref="pinnedStripRef"
+      class="pr-pinned-strip"
+      data-testid="pinned-strip"
+      :style="{ height: `${pinnedStripHeight}px` }"
+    >
+      <div
+        class="pr-pinned-strip__gutter"
+        data-testid="pinned-gutter"
+      >
+        <LaneGutterNode
+          v-for="row in pinnedRows"
+          :key="`pin-${row.lane.id}`"
+          :lane="row.lane"
+          :depth="row.depth"
+          :pinned-lane-ids="pinnedLaneIds"
+          :hovered-lane-id="hoveredLaneId"
+          :locale="locale"
+          @pin-lane="emit('pin-lane', $event)"
+          @unpin-lane="emit('unpin-lane', $event)"
+        />
+      </div>
+      <SwimlaneCanvas
+        v-if="pinnedModel"
+        ref="pinnedCanvasRef"
+        class="pr-pinned-strip__canvas"
+        data-testid="pinned-canvas"
+        :model="pinnedModel"
+        :view="pinnedView"
+        :selected-event-id="selectedEventId"
+        :hovered-event-id="hoveredEventId"
+        :search-query="searchQuery"
+        :measure-mode="measureMode"
+        :measure-range="measureRange"
+        :show-dependencies="false"
+        :prefer-renderer="preferRenderer ?? 'auto'"
+        :cursor-x-ratio="cursorXRatio"
+        :cursor-snapped="cursorSnapped"
+        :resolve-magnetize="magnetizeAtClient"
+        @select="emit('select', $event)"
+        @hover="(ev, x, y) => emit('hover', ev, x, y)"
+        @lane-hover="onLaneHover"
+        @cursor="onCursor"
+        @set-playhead="emit('set-playhead', $event)"
+        @pan="emit('pan', $event)"
+        @zoom="(f, a) => emit('zoom', f, a)"
+        @update:measure-range="emit('update:measure-range', $event)"
+        @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+      />
+    </div>
 
     <div
-      class="pr-card-strips"
-      data-testid="card-strips"
-      :style="{
-        '--pr-card-header-fill': LANE_GROUP_HEADER_FILL,
-        '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
-      }"
+      ref="bodyRef"
+      class="pr-swim-row pr-swim-row--body"
     >
       <button
-        v-for="strip in visibleCardStrips"
-        :key="strip.id"
         type="button"
-        class="pr-card-strip"
-        :data-testid="`card-strip-${strip.id}`"
-        :aria-expanded="strip.expanded"
-        :aria-label="strip.name"
-        :style="{ top: `${strip.top}px` }"
-        @pointerenter="clearCursor"
-        @click="emit('toggle-group', strip.id)"
-        @wheel="onStripWheel"
+        class="pr-gutter-resize"
+        data-testid="gutter-resize-handle"
+        aria-label="Resize lane gutter"
+        @pointerdown="onGutterResizePointerDown"
+        @pointermove="onGutterResizePointerMove"
+        @pointerup="onGutterResizePointerUp"
+        @pointercancel="onGutterResizePointerUp"
+      />
+
+      <LaneGutter
+        ref="gutterRef"
+        :groups="groups"
+        :collapsed-ids="collapsedIds"
+        :pinned-lane-ids="pinnedLaneIds"
+        :hovered-lane-id="hoveredLaneId"
+        :locale="locale"
+        @scroll="onGutterScroll"
+        @toggle-group="emit('toggle-group', $event)"
+        @pin-lane="emit('pin-lane', $event)"
+        @unpin-lane="emit('unpin-lane', $event)"
+      />
+      <SwimlaneCanvas
+        ref="canvasRef"
+        :model="model"
+        :view="view"
+        :selected-event-id="selectedEventId"
+        :hovered-event-id="hoveredEventId"
+        :search-query="searchQuery"
+        :measure-mode="measureMode"
+        :measure-range="measureRange"
+        :dependency-mode="dependencyMode"
+        :dependency-depth="dependencyDepth"
+        :prefer-renderer="preferRenderer ?? 'auto'"
+        :cursor-x-ratio="cursorXRatio"
+        :cursor-snapped="cursorSnapped"
+        :resolve-magnetize="magnetizeAtClient"
+        @select="emit('select', $event)"
+        @hover="(ev, x, y) => emit('hover', ev, x, y)"
+        @lane-hover="onLaneHover"
+        @cursor="onCursor"
+        @set-playhead="emit('set-playhead', $event)"
+        @pan="emit('pan', $event)"
+        @zoom="(f, a) => emit('zoom', f, a)"
+        @scroll-y="onScrollY"
+        @update:measure-range="emit('update:measure-range', $event)"
+        @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+      />
+
+      <div
+        class="pr-card-strips"
+        data-testid="card-strips"
+        :style="{
+          '--pr-card-header-fill': LANE_GROUP_HEADER_FILL,
+          '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
+        }"
       >
-        <span class="pr-card-strip__label">
-          <Chevron
-            class="pr-card-strip__chevron"
-            :expanded="strip.expanded"
-          />
-          <span class="pr-card-strip__name">{{ strip.name }}</span>
-        </span>
-      </button>
+        <button
+          v-for="strip in visibleCardStrips"
+          :key="strip.id"
+          type="button"
+          class="pr-card-strip"
+          :data-testid="`card-strip-${strip.id}`"
+          :aria-expanded="strip.expanded"
+          :aria-label="strip.name"
+          :style="{ top: `${strip.top}px` }"
+          @pointerenter="clearCursor"
+          @click="emit('toggle-group', strip.id)"
+          @wheel="onStripWheel"
+        >
+          <span class="pr-card-strip__label">
+            <Chevron
+              class="pr-card-strip__chevron"
+              :expanded="strip.expanded"
+            />
+            <span class="pr-card-strip__name">{{ strip.name }}</span>
+          </span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.pr-swim-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pr-pinned-strip {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, var(--pr-gutter-width, 280px)) minmax(80px, 1fr);
+  gap: 0;
+  align-items: stretch;
+  min-width: 0;
+  z-index: 6;
+  border-bottom: 1px solid #555;
+  background: #1f1f1f;
+}
+
+.pr-pinned-strip__gutter {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: #1f1f1f;
+  border-right: 1px solid #3a3a3a;
+  font-size: 11px;
+  color: #b0b0b0;
+}
+
+.pr-pinned-strip__canvas {
+  min-width: 0;
+  min-height: 0;
+}
+
 .pr-swim-row {
   display: grid;
   /*
@@ -329,6 +487,7 @@ defineExpose({
   overflow: hidden;
 }
 
+/* Pin to used gutter column so the handle stays on the seam when the column shrinks. */
 /*
  * Pin to the used gutter column so the handle stays on the seam when the column
  * shrinks below --pr-gutter-width. Abspos grid children treat a lone

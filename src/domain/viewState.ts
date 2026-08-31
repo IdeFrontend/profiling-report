@@ -53,7 +53,20 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     playheadTime: null,
     measureMode: false,
     measureRange: null,
+    pinnedLaneIds: [],
   };
+}
+
+/** Append leaf lane id in pin order; idempotent when already present. */
+export function pinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
+  if (state.pinnedLaneIds.includes(laneId)) return state;
+  return { ...state, pinnedLaneIds: [...state.pinnedLaneIds, laneId] };
+}
+
+/** Remove leaf lane id; no-op when absent. */
+export function unpinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
+  if (!state.pinnedLaneIds.includes(laneId)) return state;
+  return { ...state, pinnedLaneIds: state.pinnedLaneIds.filter((id) => id !== laneId) };
 }
 
 export function normalizeMeasureRange(a: number, b: number): MeasureRange {

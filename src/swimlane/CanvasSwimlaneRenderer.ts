@@ -176,6 +176,8 @@ export class SwimlaneOverlayPainter {
   private hoveredId: string | null = null;
   private neighborIds = new Set<string>();
   private searchQuery = '';
+  /** When false, selection does not dim non-neighbors (pinned-strip pass). */
+  private selectionDim = true;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -215,6 +217,10 @@ export class SwimlaneOverlayPainter {
     this.neighborIds = ids;
   }
 
+  setSelectionDim(enabled: boolean): void {
+    this.selectionDim = enabled;
+  }
+
   setSearchQuery(query: string): void {
     this.searchQuery = query.trim().toLowerCase();
   }
@@ -231,7 +237,7 @@ export class SwimlaneOverlayPainter {
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
-    const hasSelection = this.selectedId != null;
+    const hasSelection = this.selectionDim && this.selectedId != null;
     const bright = this.neighborIds;
     const dpr = this.dpr;
 
@@ -286,6 +292,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private depLinks: DependencyLink[] = [];
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
+  private paintDependencies = true;
   private searchQuery = '';
   private width = 0;
   private height = 0;
@@ -342,6 +349,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
   }
 
+  /** When false, skip dependency curves and selection dimming (pinned-strip pass). */
+  setPaintDependencies(enabled: boolean): void {
+    if (enabled === this.paintDependencies) return;
+    this.paintDependencies = enabled;
+    this.refreshDepCache();
+  }
+
 
   contentHeight(): number {
     return contentHeightFromLayout(this.layout);
@@ -370,6 +384,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   private refreshDepCache(): void {
+    if (!this.paintDependencies) {
+      this.neighborIds = new Set();
+      this.depLinks = [];
+      return;
+    }
     const graph = dependencyGraph(this.layout, this.selectedId, this.depMode, this.depDepth);
     this.neighborIds = graph.ids;
     this.depLinks = graph.links;
@@ -416,7 +435,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
-    const hasSelection = this.selectedId != null;
+    const hasSelection = this.paintDependencies && this.selectedId != null;
     const bright = this.neighborIds;
     const visible: {
       item: LaidOutEvent;
@@ -452,7 +471,9 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, r: fr.r, matches, dim });
     }
 
-    paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
+    if (this.paintDependencies) {
+      paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
+    }
 
     for (const { item, x, y, w, h, r, matches, dim } of visible) {
       if (item.id === this.selectedId) {

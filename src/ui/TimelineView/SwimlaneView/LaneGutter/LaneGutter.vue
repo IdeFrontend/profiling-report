@@ -9,11 +9,18 @@ const props = defineProps<{
   groups: GutterGroup[];
   /** Card or nested folder ids whose descendants are hidden. */
   collapsedIds?: string[];
+  /** Leaf lane ids currently pinned (filled pushpin). */
+  pinnedLaneIds?: string[];
+  /** Leaf under canvas hover — gutter row `#252525` only (does not show pushpin). */
+  hoveredLaneId?: string | null;
+  locale?: string;
 }>();
 
 const emit = defineEmits<{
   scroll: [];
   'toggle-group': [groupId: string];
+  'pin-lane': [laneId: string];
+  'unpin-lane': [laneId: string];
 }>();
 
 const root = ref<HTMLElement | null>(null);
@@ -51,7 +58,12 @@ defineExpose({ root });
           :lane="lane"
           :depth="0"
           :collapsed-ids="collapsedIds"
+          :pinned-lane-ids="pinnedLaneIds"
+          :hovered-lane-id="hoveredLaneId"
+          :locale="locale"
           @toggle="(id) => emit('toggle-group', id)"
+          @pin-lane="(id) => emit('pin-lane', id)"
+          @unpin-lane="(id) => emit('unpin-lane', id)"
         />
       </template>
     </template>

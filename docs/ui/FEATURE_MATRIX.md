@@ -45,7 +45,8 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | ProfilerStep background bands | P2 | Needs data |
 | Dependency bezier links | P2 | `source/v930/entry.jpeg` |
-| Pin lane / context menu | P2 | `source/v930/entry.jpeg` |
+| Pin lane (gutter pushpin) | P2 | `source/v930/hardware-more-detail.jpeg` |
+| Pin lane / context menu | P2 | `source/v930/task-context-menu.jpeg` (Pin row + Ctrl+P; separate from gutter icon) |
 | Multi-select time slice summary | P2 | `source/v930/entry.jpeg` |
 
 ## Interactions (see also INTERACTIONS.md)

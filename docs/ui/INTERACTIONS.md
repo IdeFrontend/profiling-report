@@ -48,11 +48,21 @@ Sketch: `source/v930/entry.jpeg`
 
 **Phase 2+.**
 
+## Pin lane (gutter pushpin)
+
+Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (Core2.Cube expanded gutter)
+
+- **Leaf lanes only:** unpinned pushpin appears on **gutter row hover** only (not when hovering the events chart); **pinned pushpin stays visible** on the original row and sticky-strip duplicate. Flush to the **left edge** of the gutter (not depth-indented). Outline `#a8a8a8` unpinned; solid `#4a90e2` when pinned or when hovering the pin. Full gutter row highlight `#252525` on gutter hover **or** when the pointer is over that leaf’s events-chart band (header hint only — no highlight painted on the swimlane itself). Tooltip **置顶**.
+- Click unpinned pushpin → parent appends lane id to **pinnedLaneIds**; click pinned → remove. Context-menu **Pin row** (Ctrl+P) toggles the same **pinnedLaneIds** — one pin state, two affordances.
+- **Sticky strip:** pinned leaf rows duplicate at the top of the swim body (gutter + canvas); originals remain in tree order below. Strip stays when an ancestor Card/folder is collapsed (pins are built from the full swim model). Strip shows **events only** — no dependency beziers. Pins may span multiple Cards/groups; strip order = pin order. See [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
+
+**Phase 2+** (spec + crops landed; implementation follows).
+
 ## Context menu
 
-Sketch: `source/v930/entry.jpeg`
+Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
 
-- Right-click lane or event → menu (e.g. **Pin row**, copy name, reveal in details).
+- Right-click lane or event → menu (e.g. **Pin row** + Ctrl+P, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
 
 **Phase 2+.**
 
@@ -87,7 +97,7 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 
 - Toolbar **caliper** toggles `measureMode`. While active, pan-drag on the swimlane is disabled (zoom/wheel still allowed unless Product says otherwise).
 - Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized). On the swimlane, create starts only after move >4px; a click (≤4px) over an event snaps the range to that event’s borders and selects the event. Borders animate from a prior range when one exists, otherwise shrink in from the visible window; empty swimlane click expands the range to the visible window then clears it and clears the event selection. During appear/clear (view↔range) tweens, hide the axis Δt arrow and duration label (borders + fades still animate); keep Δt chrome when tweening between two non-empty ranges.
-- **Event-edge magnet (always on swimlane):** within ~10px of the nearest start/end on the leaf lane under the pointer, the cursor (and freeform create/resize edges) snap to that time; a short blue stem highlights the snapped event edge. That event is treated as hovered (tooltip) and is selectable on click even when the pointer is slightly outside the block. Outside the threshold the pointer stays free. The time axis does not magnetize. **Ctrl/Cmd+wheel** zooms around the stuck timestamp (magnet or measure-border stick), preserving the pointer↔edge pixel gap so zooming out restores the prior window. Wheel over swimlane measure borders is forwarded (borders no longer swallow zoom).
+- **Event-edge magnet (always on swimlane):** within ~10px of the nearest start/end on the leaf lane under the pointer, the cursor (and freeform create/resize edges) snap to that time; a short blue stem highlights the snapped event edge. That event is treated as hovered (tooltip) and is selectable on click even when the pointer is slightly outside the block. Outside the threshold the pointer stays free. The time axis does not magnetize. **Magnet follows the canvas under the pointer** across the pinned strip and the main swimlane (create/resize may start on one and snap-finish on the other). **Ctrl/Cmd+wheel** zooms around the stuck timestamp (magnet or measure-border stick), preserving the pointer↔edge pixel gap so zooming out restores the prior window. Wheel over swimlane measure borders is forwarded (borders no longer swallow zoom).
 - **Committed event-edge marks:** when a non-empty `measureRange` is set, short blue bars appear on every visible event whose start or end **exactly equals** either range bound (shared timestamps highlight all matches; accidental free-drag equality still highlights). Full-height gray swimlane borders are unchanged. Origins are not stored on the range.
 - Hovering an event in measure mode shows gray preview stems at the event edges (no fades; non-interactive).
 - Overlay: translucent shaded band spanning the interval + floating **Δt** label using **per-value** auto units (e.g. `3.000 ms` or `50 ns` from the gap magnitude, not viewport zoom).
