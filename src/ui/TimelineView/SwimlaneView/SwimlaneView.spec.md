@@ -26,7 +26,7 @@ When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim bo
 |---------|----------|
 | Gutter | Pinned strip shows duplicate lane labels + util for each pinned leaf (same chrome as originals; pushpin shown **filled** `#4a90e2`) |
 | Canvas | Pinned strip paints duplicate event rows at the same Y stack as the gutter duplicates; shares `timeWindow`, zoom, and horizontal scroll with the main canvas |
-| Measure | Pinned-strip canvas uses the same `measureMode` / `measureRange` as the body (create, resize, overlay) — not pan while measure is active. Magnet follows the canvas under the pointer across pin strip ↔ body (`PR-SWIMVIEW-018`) |
+| Measure | Pinned-strip canvas uses the same `measureMode` / `measureRange` as the body (create, resize, overlay) — not pan while measure is active. Magnet follows the canvas under the pointer across pin strip ↔ body (`PR-SWIMVIEW-018`). **Alt event measure** shares one session across strip + body so users can measure between a sticky-lane event and a scroll-body event (`PR-SWIMVIEW-020`) |
 | Card headers | Full-width Card strips remain in the scrolling body only — pinned strip is **lane-height rows** (`22px`) without Card spacers |
 | Scroll | Main body `scrollY` does not move the pinned strip; pinned strip height reduces the scroll viewport (`bodyViewportH − pinnedHeight`) |
 | Unpin | Click filled pushpin on duplicate or original → parent removes id from **pinnedLaneIds**; strip row removed |
@@ -54,8 +54,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 14. **PR-SWIMVIEW-017** — `pinnedLaneIds` may span multiple Cards/groups; strip order follows pin order.
 15. **PR-SWIMVIEW-018** — Measure magnet follows the canvas under the pointer across pin strip and body (create/resize may start on one and snap on the other).
 16. **PR-SWIMVIEW-019** — Pinned strip stays populated when an ancestor of a pinned leaf is collapsed (`pinSourceModel` / full swim); scroll-body originals hide.
+17. **PR-SWIMVIEW-020** — Alt event measure shares session across pin strip and body; Alt+click anchor on one surface and target on the other renders Δt (split sticks when endpoints live on different surfaces).
 
 ## Changelog
+- **2026-08-31** — Alt-measure shared across pin strip ↔ body (`PR-SWIMVIEW-020`).
 - **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
 - **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
 - **2026-08-31** — Renumber pin ACs to `PR-SWIMVIEW-013`…`017` (avoid collision with #45 `010`…`012`).

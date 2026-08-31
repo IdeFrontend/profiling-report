@@ -1503,22 +1503,20 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-051: session clears on Escape and on toggling the same anchor', async () => {
+  it('PR-CANVAS-051: ephemeral clears on Escape; same-anchor Alt+click is a no-op', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    await nextTick();
-    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
-
+    // Same anchor again while ephemeral → no-op (still anchored).
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
-    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
-    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
     wrapper.unmount();
   });
@@ -1603,6 +1601,91 @@ describe('SwimlaneCanvas', () => {
 
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('10 ns');
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-060: Alt+click target pins; Alt keyup keeps the overlay', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    // Pin by Alt+clicking eB (500..600 → px 200..240).
+    await canvas.trigger('pointerdown', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('300 ns');
+
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft' }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-061: pinned highlights use pink for both (no blue --target)', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerdown', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft' }));
+    await nextTick();
+
+    const target = wrapper.get('[data-testid="alt-measure-target"]');
+    expect(target.classes()).toContain('pr-alt-measure-anchor');
+    expect(target.classes()).not.toContain('pr-alt-measure-anchor--target');
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-062: pinned Alt+click event re-anchors and drops the pin', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerdown', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+
+    // Re-anchor on eB → pin dropped, overlay gone until a new target.
+    await canvas.trigger('pointerdown', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-063: pinned measure clears on empty click and on view change', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerdown', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft' }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+
+    // Empty click clears.
+    await canvas.trigger('pointerdown', { clientX: 300, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: 300, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
+
+    // Pin again, then pan the view → clears.
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerdown', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 220, clientY: y, pointerId: 1, altKey: true });
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft' }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+
+    await wrapper.setProps({ view: { startTime: 50, endTime: 1050, scrollY: 0 } });
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
     wrapper.unmount();
   });
 });

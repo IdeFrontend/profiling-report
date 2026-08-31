@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -12,6 +12,7 @@ import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { formatTimeAuto } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
+  computeAltMeasureDelta,
   computeAltMeasureGap,
   contentHeightFromModel,
   eventMeasureTargetTime,
@@ -37,6 +38,13 @@ import {
 } from '../../cursorMeasureOverlap';
 import MeasureDtArrow from '../../MeasureDtArrow.vue';
 import { animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
+import {
+  ALT_MEASURE_FIND_EVENT_KEY,
+  ALT_MEASURE_SHARED_KEY,
+  clearAltMeasureShared,
+  createAltMeasureShared,
+  type AltMeasureTarget,
+} from '../altMeasureShared';
 
 const props = withDefaults(
   defineProps<{
@@ -65,6 +73,13 @@ const props = withDefaults(
       clientX: number,
       clientY: number,
     ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
+    /**
+     * Alt-measure surface role. `body` defers overlay ownership of pinned-lane events to
+     * the sticky strip; `strip` / `solo` own every local event.
+     */
+    altMeasureRole?: 'body' | 'strip' | 'solo';
+    /** Leaf lane ids currently in the sticky strip (body defers those events). */
+    pinnedLaneIds?: string[];
   }>(),
   {
     dependencyMode: 'all',
@@ -72,6 +87,8 @@ const props = withDefaults(
     showDependencies: true,
     cursorXRatio: null,
     cursorSnapped: false,
+    altMeasureRole: 'solo',
+    pinnedLaneIds: () => [],
   },
 );
 
@@ -159,15 +176,10 @@ const snapExactEdgeMarks = shallowRef<
 >([]);
 /** Default-mode hover gap between adjacent events (measure overlay). */
 const hoverGap = ref<HoverGap | null>(null);
-/** Alt+click anchor for ephemeral event-to-event measure (default mode). */
-const altMeasureAnchorId = ref<string | null>(null);
-/** Tracks Alt modifier for live preview after anchor click. */
-const altKeyHeld = ref(false);
-/** Hovered/edge/cursor target while an Alt-measure session is active. */
-type AltMeasureTarget =
-  | { eventId: string; time: number }
-  | { eventId: null; time: number };
-const altMeasureTarget = ref<AltMeasureTarget | null>(null);
+/** Shared Alt-measure session (pin strip ↔ body) or a local fallback for standalone mounts. */
+const altMeasure = inject(ALT_MEASURE_SHARED_KEY, null) ?? createAltMeasureShared();
+const findAltMeasureEvent =
+  inject(ALT_MEASURE_FIND_EVENT_KEY, null) ?? ((id: string) => backend.findEvent(id));
 /** Committed exact-match marks; projected each frame from a cached match set. */
 const measureExactEdgeMarks = shallowRef<
   { eventId: string; edge: 'start' | 'end'; time: number; x: number; y: number; h: number }[]
@@ -323,23 +335,27 @@ function restoreHoverAfterPanCapture(
 }
 
 function altMeasureSessionActive(): boolean {
-  return altMeasureAnchorId.value != null && altKeyHeld.value && !props.measureMode;
+  return (
+    altMeasure.anchorId != null &&
+    !props.measureMode &&
+    (altMeasure.altKeyHeld || altMeasure.pinned)
+  );
 }
 
 function clearAltMeasure(): void {
-  altMeasureAnchorId.value = null;
-  altMeasureTarget.value = null;
+  clearAltMeasureShared(altMeasure);
 }
 
 function onWindowKeyDown(e: KeyboardEvent): void {
-  if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') altKeyHeld.value = true;
-  if (e.key === 'Escape' && altMeasureAnchorId.value) clearAltMeasure();
+  if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') altMeasure.altKeyHeld = true;
+  if (e.key === 'Escape' && altMeasure.anchorId) clearAltMeasure();
 }
 
 function onWindowKeyUp(e: KeyboardEvent): void {
   if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
-    altKeyHeld.value = false;
-    clearAltMeasure();
+    altMeasure.altKeyHeld = false;
+    // Pinned measure survives Alt release; ephemeral clears.
+    if (!altMeasure.pinned) clearAltMeasure();
   }
 }
 
@@ -663,14 +679,19 @@ onMounted(async () => {
     await nextTick();
     ensureAttach();
   }
-  window.addEventListener('keydown', onWindowKeyDown);
-  window.addEventListener('keyup', onWindowKeyUp);
+  // Strip shares session with body — only body/solo owns window Alt/Esc listeners.
+  if (props.altMeasureRole !== 'strip') {
+    window.addEventListener('keydown', onWindowKeyDown);
+    window.addEventListener('keyup', onWindowKeyUp);
+  }
   bindResizeObserver();
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onWindowKeyDown);
-  window.removeEventListener('keyup', onWindowKeyUp);
+  if (props.altMeasureRole !== 'strip') {
+    window.removeEventListener('keydown', onWindowKeyDown);
+    window.removeEventListener('keyup', onWindowKeyUp);
+  }
   cancelMeasureSnapAnim();
   endMeasureCreate();
   endMeasureResize();
@@ -708,6 +729,8 @@ watch(
 watch(
   [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY],
   () => {
+    // Pinned measure dismisses on any visible-range change; ephemeral keeps tracking.
+    if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();
     refreshHoverGapAtLastPointer();
   },
@@ -1261,37 +1284,62 @@ const altMeasureAnchorHighlight = computed(() => {
   void props.view.startTime;
   void props.view.endTime;
   void props.view.scrollY;
-  if (!altMeasureAnchorId.value || !altKeyHeld.value || props.measureMode) return null;
-  return eventScreenRectCss(altMeasureAnchorId.value);
+  if (!altMeasureSessionActive() || !altMeasure.anchorId) return null;
+  if (!ownsAltMeasureEvent(altMeasure.anchorId)) return null;
+  return eventScreenRectCss(altMeasure.anchorId);
 });
 
-/** Alt-measure target highlight (blue border) while a non-anchor event is captured as target. */
+/** Alt-measure target highlight while a non-anchor event is captured as target. */
 const altMeasureTargetHighlight = computed(() => {
   void resizeTick.value;
   void props.view.startTime;
   void props.view.endTime;
   void props.view.scrollY;
   if (!altMeasureSessionActive()) return null;
-  const target = altMeasureTarget.value;
-  if (!target || target.eventId === null || target.eventId === altMeasureAnchorId.value) return null;
+  const target = altMeasure.target;
+  if (!target || target.eventId === null || target.eventId === altMeasure.anchorId) return null;
+  if (!ownsAltMeasureEvent(target.eventId)) return null;
   return eventScreenRectCss(target.eventId);
 });
 
-/** Alt measure overlay (default mode): anchor → event edge or free cursor, ephemeral while Alt held. */
+/** True when this canvas should draw overlays for the event (pin strip owns pinned lanes). */
+function ownsAltMeasureEvent(eventId: string): boolean {
+  const layout = backend.getLayout();
+  const item = layout.eventsById.get(eventId);
+  if (!item) return false;
+  if (props.altMeasureRole === 'strip' || props.altMeasureRole === 'solo') return true;
+  const laneId = layout.lanes[item.laneIndex]?.thread.id;
+  if (laneId && props.pinnedLaneIds.includes(laneId)) return false;
+  return true;
+}
+
+/** Alt measure overlay (default mode): anchor → event edge or free cursor; may be pinned. */
 const altEventMeasureGeometry = computed(() => {
   void resizeTick.value;
   if (!altMeasureSessionActive() || !props.model) return null;
-  const anchorId = altMeasureAnchorId.value;
-  const target = altMeasureTarget.value;
+  const anchorId = altMeasure.anchorId;
+  const target = altMeasure.target;
   if (!anchorId || !target) return null;
 
-  const gap = computeAltMeasureGap(backend.getLayout(), anchorId, target.time, target.eventId);
-  if (!gap) return null;
+  const anchorEvent = findAltMeasureEvent(anchorId);
+  if (!anchorEvent) return null;
+  const times = computeAltMeasureDelta(anchorEvent, target.time);
+  if (!times) return null;
+
+  const layout = backend.getLayout();
+  const ownsAnchor = ownsAltMeasureEvent(anchorId);
+  const ownsTargetEv = target.eventId != null && ownsAltMeasureEvent(target.eventId);
+  const freeCursor = target.eventId === null;
+
+  // Full overlay only when every event endpoint this measure needs is owned here.
+  const canFull =
+    ownsAnchor && (freeCursor || ownsTargetEv) && layout.eventsById.has(anchorId) &&
+    (freeCursor || (target.eventId != null && layout.eventsById.has(target.eventId)));
 
   const viewStart = props.view.startTime;
   const viewEnd = props.view.endTime;
   const w = syncTrackWidth();
-  const { gapStartTime, gapEndTime } = gap;
+  const { gapStartTime, gapEndTime, anchorRefTime, deltaNs } = times;
 
   if (gapEndTime <= viewStart || gapStartTime >= viewEnd) return null;
 
@@ -1305,71 +1353,102 @@ const altEventMeasureGeometry = computed(() => {
   const right = xAtTime(gapEndTime);
   const arrowLeft = xAtTime(visStart);
   const arrowRight = xAtTime(visEnd);
-  const label = formatTimeAuto(gap.deltaNs);
+  const label = formatTimeAuto(deltaNs);
   const rangePx = arrowRight - arrowLeft;
   const leftPct = (arrowLeft / w) * 100;
   const widthPct = ((arrowRight - arrowLeft) / w) * 100;
   const style = { left: `${leftPct}%`, width: `${widthPct}%` };
-
-  // Any deltaNs > 0 shows the overlay; outside label when the span is too narrow for inline.
   const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
+  const arrowLayout = { mode: arrowMode, side: 'right' as const, style };
 
-  // Free cursor target: full-height blue line + anchor edge stick + Δt arrow on the anchor lane.
-  if (target.eventId === null) {
-    return {
-      mode: 'cursor' as const,
-      anchorLaneTop: gap.leftLaneY - props.view.scrollY,
-      anchorX: xAtTime(gap.anchorRefTime),
-      cursorX: xAtTime(gap.targetTime),
-      showAnchor: gap.anchorRefTime >= viewStart && gap.anchorRefTime <= viewEnd,
-      label,
-      showLeft,
-      showRight,
-      arrowLayout: { mode: arrowMode, side: 'right' as const, style },
-    };
-  }
+  if (canFull) {
+    const gap = computeAltMeasureGap(layout, anchorId, target.time, target.eventId);
+    if (!gap) return null;
 
-  if (gap.sameLane) {
-    const top = gap.leftLaneY - props.view.scrollY;
+    if (freeCursor) {
+      return {
+        mode: 'cursor' as const,
+        anchorLaneTop: gap.leftLaneY - props.view.scrollY,
+        anchorX: xAtTime(gap.anchorRefTime),
+        cursorX: xAtTime(gap.targetTime),
+        showAnchor: gap.anchorRefTime >= viewStart && gap.anchorRefTime <= viewEnd,
+        label,
+        showLeft,
+        showRight,
+        arrowLayout,
+      };
+    }
+
+    if (gap.sameLane) {
+      const top = gap.leftLaneY - props.view.scrollY;
+      return {
+        mode: 'same' as const,
+        top,
+        height: LANE_HEIGHT,
+        left,
+        right,
+        label,
+        showLeft,
+        showRight,
+        arrowLayout,
+      };
+    }
+
+    const leftLaneTop = gap.leftLaneY - props.view.scrollY;
+    const rightLaneTop = gap.rightLaneY - props.view.scrollY;
+    const laneCenterY = (y: number) => y + LANE_HEIGHT / 2;
+    const vertX = right;
+
     return {
-      mode: 'same' as const,
-      top,
-      height: LANE_HEIGHT,
+      mode: 'cross' as const,
+      top: Math.min(leftLaneTop, rightLaneTop),
+      height: Math.abs(rightLaneTop - leftLaneTop) + LANE_HEIGHT,
       left,
       right,
       label,
       showLeft,
       showRight,
-      arrowLayout: { mode: arrowMode, side: 'right' as const, style },
+      arrowLayout,
+      crossLane: {
+        leftLaneTop,
+        rightLaneTop,
+        vertX,
+        leftCenterY: laneCenterY(leftLaneTop),
+        rightCenterY: laneCenterY(rightLaneTop),
+        horizLeftStart: left,
+        horizLeftEnd: vertX,
+        horizRightStart: vertX,
+        horizRightEnd: right,
+        horizRightY: laneCenterY(rightLaneTop),
+      },
     };
   }
 
-  const leftLaneTop = gap.leftLaneY - props.view.scrollY;
-  const rightLaneTop = gap.rightLaneY - props.view.scrollY;
-  const laneCenterY = (y: number) => y + LANE_HEIGHT / 2;
-  const vertX = right;
+  // Split pin↔body: draw local stick (+ Δt when this surface owns the earlier edge).
+  const localEventId = ownsAnchor ? anchorId : ownsTargetEv ? target.eventId : null;
+  if (!localEventId) return null;
+  const localItem = layout.eventsById.get(localEventId);
+  if (!localItem) return null;
+
+  const stickTime = ownsAnchor ? anchorRefTime : target.time;
+  const showStick = stickTime >= viewStart && stickTime <= viewEnd;
+  const earlierIsAnchor = anchorRefTime <= target.time;
+  const showArrow =
+    (earlierIsAnchor && ownsAnchor) || (!earlierIsAnchor && ownsTargetEv);
 
   return {
-    mode: 'cross' as const,
-    top: Math.min(leftLaneTop, rightLaneTop),
-    height: Math.abs(rightLaneTop - leftLaneTop) + LANE_HEIGHT,
+    mode: 'split' as const,
+    top: localItem.y - props.view.scrollY,
+    height: LANE_HEIGHT,
     left,
     right,
+    stickX: xAtTime(stickTime),
+    showStick,
+    showArrow,
     label,
     showLeft,
     showRight,
-    arrowLayout: { mode: arrowMode, side: 'right' as const, style },
-    crossLane: {
-      leftLaneTop,
-      rightLaneTop,
-      vertX,
-      leftCenterY: laneCenterY(leftLaneTop),
-      rightCenterY: laneCenterY(rightLaneTop),
-      horizLeftStart: left,
-      horizLeftEnd: vertX,
-      horizRightStart: vertX,
-      horizRightEnd: right,
-    },
+    arrowLayout,
   };
 });
 
@@ -1441,23 +1520,29 @@ function onPointerMove(e: PointerEvent): void {
     return;
   }
 
-  if (e.altKey) altKeyHeld.value = true;
+  if (e.altKey) altMeasure.altKeyHeld = true;
 
-  if (altMeasureAnchorId.value && (e.altKey || altKeyHeld.value) && !props.measureMode) {
+  // Live target preview only while ephemeral (Alt held, not pinned).
+  if (
+    altMeasure.anchorId &&
+    altMeasure.altKeyHeld &&
+    !altMeasure.pinned &&
+    !props.measureMode
+  ) {
     hoverGap.value = null;
-    const anchorEvent = backend.findEvent(altMeasureAnchorId.value);
-    if (mag.eventId && mag.eventId !== altMeasureAnchorId.value) {
+    const anchorEvent = findAltMeasureEvent(altMeasure.anchorId);
+    if (mag.eventId && mag.eventId !== altMeasure.anchorId) {
       // Stuck to a border → explicit target edge.
-      altMeasureTarget.value = { eventId: mag.eventId, time: mag.time };
+      altMeasure.target = { eventId: mag.eventId, time: mag.time };
     } else {
       const ev = eventAtPointer(x, y, null);
-      if (ev && ev.id !== altMeasureAnchorId.value && anchorEvent) {
+      if (ev && ev.id !== altMeasure.anchorId && anchorEvent) {
         // Hovering another event → auto edge by relation.
         const t = eventMeasureTargetTime(anchorEvent, ev);
-        altMeasureTarget.value = t != null ? { eventId: ev.id, time: t } : null;
+        altMeasure.target = t != null ? { eventId: ev.id, time: t } : null;
       } else {
         // Otherwise → free cursor target.
-        altMeasureTarget.value = { eventId: null, time: timeAtX(x) };
+        altMeasure.target = { eventId: null, time: timeAtX(x) };
       }
     }
     emit('hover', null, e.clientX, e.clientY);
@@ -1508,17 +1593,44 @@ function onPointerUp(e: PointerEvent): void {
   if (Math.abs(e.clientX - downX) > MEASURE_DRAG_THRESHOLD_PX) return;
 
   if (e.altKey && !props.measureMode) {
-    altKeyHeld.value = true;
+    altMeasure.altKeyHeld = true;
     const ev = eventAtPointer(x, y, mag.eventId);
-    if (ev) {
-      altMeasureAnchorId.value = altMeasureAnchorId.value === ev.id ? null : ev.id;
-      altMeasureTarget.value = null;
-    } else {
+    if (!ev) {
       clearAltMeasure();
+      return;
     }
+    // Pinned: any Alt+click event becomes the new ephemeral anchor.
+    if (altMeasure.pinned) {
+      altMeasure.anchorId = ev.id;
+      altMeasure.target = null;
+      altMeasure.pinned = false;
+      return;
+    }
+    // Ephemeral, no anchor yet → set anchor.
+    if (!altMeasure.anchorId) {
+      altMeasure.anchorId = ev.id;
+      altMeasure.target = null;
+      return;
+    }
+    // Ephemeral + same anchor → no-op (do not toggle off).
+    if (altMeasure.anchorId === ev.id) return;
+    // Ephemeral + different event → pin with click-time target resolution.
+    const anchorEvent = findAltMeasureEvent(altMeasure.anchorId);
+    let nextTarget: AltMeasureTarget | null = null;
+    if (mag.eventId === ev.id) {
+      nextTarget = { eventId: ev.id, time: mag.time };
+    } else if (anchorEvent) {
+      const t = eventMeasureTargetTime(anchorEvent, ev);
+      nextTarget = t != null ? { eventId: ev.id, time: t } : null;
+    }
+    if (!nextTarget) return;
+    altMeasure.target = nextTarget;
+    altMeasure.pinned = true;
     return;
   }
 
+  // Non-Alt click elsewhere clears a pinned (or lingering) Alt measure.
+  if (altMeasure.pinned || altMeasure.anchorId) clearAltMeasure();
   emit('select', eventAtPointer(x, y, mag.eventId));
 }
 
@@ -1554,7 +1666,8 @@ function onPointerLeave(e: PointerEvent): void {
   lastHoverLocalX = null;
   lastHoverLocalY = null;
   hoverGap.value = null;
-  altMeasureTarget.value = null;
+  // Keep pinned target; ephemeral live preview clears on leave.
+  if (!altMeasure.pinned) altMeasure.target = null;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
@@ -1768,7 +1881,8 @@ defineExpose({
     />
     <div
       v-if="altMeasureTargetHighlight"
-      class="pr-alt-measure-anchor pr-alt-measure-anchor--target"
+      class="pr-alt-measure-anchor"
+      :class="{ 'pr-alt-measure-anchor--target': !altMeasure.pinned }"
       data-testid="alt-measure-target"
       :style="{
         left: `${altMeasureTargetHighlight.x}px`,
@@ -1875,7 +1989,32 @@ defineExpose({
         </div>
       </div>
       <div
-        v-else
+        v-else-if="altEventMeasureGeometry.mode === 'split'"
+        class="pr-gap-measure pr-alt-measure"
+        data-testid="alt-event-measure"
+        :style="{
+          top: `${altEventMeasureGeometry.top}px`,
+          height: `${altEventMeasureGeometry.height}px`,
+        }"
+      >
+        <div
+          v-if="altEventMeasureGeometry.showStick"
+          class="pr-gap-measure__stick"
+          data-testid="alt-measure-stick-split"
+          :style="{ left: `${altEventMeasureGeometry.stickX}px` }"
+        />
+        <MeasureDtArrow
+          v-if="altEventMeasureGeometry.showArrow"
+          :label="altEventMeasureGeometry.label"
+          :style="altEventMeasureGeometry.arrowLayout.style"
+          :mode="altEventMeasureGeometry.arrowLayout.mode"
+          :side="altEventMeasureGeometry.arrowLayout.side"
+          :show-left-head="altEventMeasureGeometry.showLeft"
+          :show-right-head="altEventMeasureGeometry.showRight"
+        />
+      </div>
+      <div
+        v-else-if="altEventMeasureGeometry.mode === 'cursor'"
         class="pr-alt-measure pr-alt-measure--cursor"
         data-testid="alt-event-measure"
       >

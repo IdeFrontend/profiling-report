@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -7,6 +7,7 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
+  type SwimThread,
 } from '../../../domain/types';
 import {
   LANE_GROUP_HEADER_FILL,
@@ -15,6 +16,11 @@ import {
   LANE_HEIGHT,
   layoutHeaders,
 } from '../../../swimlane/layout';
+import {
+  ALT_MEASURE_FIND_EVENT_KEY,
+  ALT_MEASURE_SHARED_KEY,
+  createAltMeasureShared,
+} from './altMeasureShared';
 import { buildPinnedSwimModel, resolvePinnedGutterLanes } from './pinnedLanes';
 import {
   GUTTER_WIDTH_DEFAULT,
@@ -132,6 +138,39 @@ const pinnedRows = computed(() => resolvePinnedGutterLanes(props.groups, pinnedL
 const pinnedModel = computed(() =>
   buildPinnedSwimModel(props.pinSourceModel ?? props.model, pinnedLaneIds.value),
 );
+
+/** Shared Alt-measure session so pin-strip ↔ body can measure across sticky and scroll lanes. */
+const altMeasureShared = createAltMeasureShared();
+provide(ALT_MEASURE_SHARED_KEY, altMeasureShared);
+
+function walkThreads(threads: SwimThread[], visit: (t: SwimThread) => void): void {
+  for (const t of threads) {
+    visit(t);
+    if (t.children?.length) walkThreads(t.children, visit);
+  }
+}
+
+function findEventInModel(model: SwimlaneModel | null | undefined, id: string): SwimEvent | null {
+  if (!model) return null;
+  for (const p of model.processes) {
+    let found: SwimEvent | null = null;
+    walkThreads(p.threads, (t) => {
+      if (found) return;
+      const ev = t.events.find((e) => e.id === id);
+      if (ev) found = ev;
+    });
+    if (found) return found;
+  }
+  return null;
+}
+
+provide(ALT_MEASURE_FIND_EVENT_KEY, (id: string) => {
+  return (
+    findEventInModel(props.pinSourceModel ?? props.model, id) ??
+    findEventInModel(props.model, id) ??
+    findEventInModel(pinnedModel.value, id)
+  );
+});
 const pinnedStripHeight = computed(() => pinnedRows.value.length * LANE_HEIGHT);
 const pinnedView = computed(() => ({
   startTime: props.view.startTime,
@@ -328,6 +367,8 @@ defineExpose({
         :cursor-x-ratio="cursorXRatio"
         :cursor-snapped="cursorSnapped"
         :resolve-magnetize="magnetizeAtClient"
+        alt-measure-role="strip"
+        :pinned-lane-ids="pinnedLaneIds"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"
@@ -382,6 +423,8 @@ defineExpose({
         :cursor-x-ratio="cursorXRatio"
         :cursor-snapped="cursorSnapped"
         :resolve-magnetize="magnetizeAtClient"
+        alt-measure-role="body"
+        :pinned-lane-ids="pinnedLaneIds"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"
