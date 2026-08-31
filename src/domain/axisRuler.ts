@@ -1,5 +1,64 @@
-import { formatAxisTime } from './formatTime';
-import type { TimeDisplayUnit } from './types';
+import { formatAxisTime, formatAxisBaseTime, timeScaleUnitFromNsQuantum } from './formatTime';
+import type { TimeScaleUnit } from './types';
+
+const AXIS_BASE_GROUP_MIN = 1000;
+
+function unitQuantumNs(unit: TimeScaleUnit): number {
+  switch (unit) {
+    case 'ns':
+      return 1;
+    case 'us':
+      return 1e3;
+    case 'ms':
+      return 1e6;
+    case 's':
+      return 1e9;
+  }
+}
+
+function coarserTimeScaleUnit(unit: TimeScaleUnit): TimeScaleUnit | null {
+  switch (unit) {
+    case 'ns':
+      return 'us';
+    case 'us':
+      return 'ms';
+    case 'ms':
+      return 's';
+    case 's':
+      return null;
+  }
+}
+
+export interface AxisBaseOffset {
+  offsetNs: number;
+  baseLabel: string;
+}
+
+/**
+ * Viewport axis: coarse base snapped to a unit one step above tick scale.
+ * Returns null when the offset is too small to shorten tick labels.
+ */
+export function resolveAxisBaseOffset(
+  rangeStart: number,
+  origin: number,
+  tickUnit: TimeScaleUnit,
+): AxisBaseOffset | null {
+  const relStart = rangeStart - origin;
+  const tickQuantum = unitQuantumNs(tickUnit);
+  if (!(relStart >= AXIS_BASE_GROUP_MIN * tickQuantum)) return null;
+
+  const baseUnit = coarserTimeScaleUnit(tickUnit);
+  if (!baseUnit) return null;
+
+  const baseQuantum = unitQuantumNs(baseUnit);
+  const offsetNs = Math.floor(relStart / baseQuantum) * baseQuantum;
+  if (!(offsetNs > 0)) return null;
+
+  return {
+    offsetNs,
+    baseLabel: formatAxisBaseTime(offsetNs, baseUnit),
+  };
+}
 
 /** Minor ticks between each adjacent major pair (10 subdivisions). */
 export const AXIS_RULER_MINORS_PER_GAP = 9;
@@ -10,6 +69,30 @@ export const AXIS_RULER_MIN_PIXEL_INTERVAL = 100;
 /** Fallback track width when ResizeObserver has not fired yet. */
 export const AXIS_RULER_DEFAULT_WIDTH_PX = 800;
 
+/** Symmetric gap: base unit ↔ '+', and '+' ↔ first tick label (AxisRuler chrome). */
+export const AXIS_RULER_BASE_SEP_GAP_PX = 4;
+/** Major bar (1px) + gap before label — equals {@link AXIS_RULER_BASE_SEP_GAP_PX} at track origin. */
+export const AXIS_RULER_MAJOR_LABEL_INSET_PX = 4;
+/** Approx width of the '+' glyph at 12px (base chrome estimate). */
+export const AXIS_RULER_BASE_PLUS_PX = 8;
+/** Tabular 12px char width used to estimate overlaid base chrome. */
+export const AXIS_RULER_BASE_CHAR_PX = 7.2;
+
+/**
+ * Pixel width of overlaid viewport base chrome: pad + label + gaps + '+'.
+ * Tick labels whose left edge falls inside this band get `hideLabel`.
+ */
+export function estimateAxisBaseChromePx(baseLabel: string): number {
+  const textPx = Math.ceil(baseLabel.trim().length * AXIS_RULER_BASE_CHAR_PX);
+  return (
+    AXIS_RULER_BASE_SEP_GAP_PX +
+    textPx +
+    AXIS_RULER_BASE_SEP_GAP_PX +
+    AXIS_RULER_BASE_PLUS_PX +
+    AXIS_RULER_BASE_SEP_GAP_PX
+  );
+}
+
 export interface AxisRulerMajor {
   /** Absolute time (ns) at this major. */
   t: number;
@@ -17,6 +100,8 @@ export interface AxisRulerMajor {
   pct: number;
   label: string;
   muted?: boolean;
+  /** Viewport base: hide when label would sit under the overlaid base/`+` chrome. */
+  hideLabel?: boolean;
 }
 
 export interface AxisRulerMinor {
@@ -29,6 +114,8 @@ export interface AxisRulerTicks {
   minors: AxisRulerMinor[];
   /** Nice major step in ns. */
   interval: number;
+  /** Coarse viewport offset pinned at the axis left; null for overview / near-origin. */
+  baseLabel: string | null;
 }
 
 export interface BuildAxisRulerTicksOptions {
@@ -38,7 +125,8 @@ export interface BuildAxisRulerTicksOptions {
   rangeEnd: number;
   /** Subtracted from absolute times for axis display labels (usually model.minTime). */
   origin: number;
-  timeUnit: TimeDisplayUnit;
+  /** Wall-time scale (viewport or overview auto unit). */
+  timeScaleUnit: TimeScaleUnit;
   /** Pixel width of the ruler track (drives tick density). */
   widthPx?: number;
   /**
@@ -46,6 +134,8 @@ export interface BuildAxisRulerTicksOptions {
    * (overview). When omitted, nothing is muted.
    */
   muteOutside?: { start: number; end: number };
+  /** Viewport axis only: show coarse base + remainder tick labels. */
+  useViewportBase?: boolean;
 }
 
 function isOutside(t: number, window?: { start: number; end: number }): boolean {
@@ -128,6 +218,31 @@ export function calculateGridInterval(timePerPixel: number): number {
 }
 
 /**
+ * Overview / total-axis unit from full span × track width (not the brush window).
+ * Uses the same major-step picker as tick layout, then maps that step to a scale.
+ */
+export function resolveTimeUnitFromAxisDensity(spanNs: number, widthPx: number): TimeScaleUnit {
+  const w = widthPx > 0 ? widthPx : AXIS_RULER_DEFAULT_WIDTH_PX;
+  const interval = calculateGridInterval(Math.max(1, spanNs) / w);
+  return timeScaleUnitFromNsQuantum(interval);
+}
+
+function viewportBaseMinMajorPct(trackWidthPx: number): number {
+  if (!(trackWidthPx > 0)) return -0.01;
+  return (-AXIS_RULER_MAJOR_LABEL_INSET_PX / trackWidthPx) * 100;
+}
+
+function viewportBaseLabelHidden(
+  pct: number,
+  trackWidthPx: number,
+  baseChromePx: number,
+): boolean {
+  if (!(trackWidthPx > 0)) return pct < 0;
+  const labelLeftPx = (pct / 100) * trackWidthPx + AXIS_RULER_MAJOR_LABEL_INSET_PX;
+  return labelLeftPx < baseChromePx;
+}
+
+/**
  * Build major bars + labels on a nice ns grid, plus 9 minors per major gap.
  * Labels are relative to `origin` (trace start = 0). Major positions move with
  * zoom because the interval depends on `span / widthPx`.
@@ -138,6 +253,14 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
   const interval = calculateGridInterval(span / widthPx);
   const mute = opts.muteOutside;
   const origin = opts.origin;
+  const unit = opts.timeScaleUnit;
+  const base =
+    opts.useViewportBase === true
+      ? resolveAxisBaseOffset(opts.rangeStart, origin, unit)
+      : null;
+  const labelOffsetNs = base?.offsetNs ?? 0;
+  const baseChromePx = base ? estimateAxisBaseChromePx(base.baseLabel) : 0;
+  const minMajorPct = base ? viewportBaseMinMajorPct(widthPx) : -0.01;
 
   // Snap to origin + k·interval (integral relative timestamps).
   let t0 = origin + Math.ceil((opts.rangeStart - origin) / interval) * interval;
@@ -149,15 +272,26 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
     t0 += interval;
   }
 
+  let loopT0 = t0;
+  if (base) {
+    const leadT = t0 - interval;
+    const leadPct = ((leadT - opts.rangeStart) / span) * 100;
+    if (leadT >= origin - 1e-9 && leadPct >= minMajorPct) {
+      loopT0 = leadT;
+    }
+  }
+
   const majors: AxisRulerMajor[] = [];
-  for (let t = t0; t <= opts.rangeEnd + 1e-9; t += interval) {
+  for (let t = loopT0; t <= opts.rangeEnd + 1e-9; t += interval) {
     const pct = ((t - opts.rangeStart) / span) * 100;
-    if (pct < -0.01 || pct > 100.01) continue;
+    if (pct < minMajorPct || pct > 100.01) continue;
+    const clampedPct = Math.min(100, Math.max(base ? minMajorPct : 0, pct));
     majors.push({
       t,
-      pct: Math.min(100, Math.max(0, pct)),
-      label: formatAxisTime(t - origin, opts.timeUnit, interval),
+      pct: clampedPct,
+      label: formatAxisTime(t - origin - labelOffsetNs, unit, interval),
       muted: isOutside(t, mute),
+      hideLabel: base ? viewportBaseLabelHidden(clampedPct, widthPx, baseChromePx) : false,
     });
   }
 
@@ -194,5 +328,5 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
     }
   }
 
-  return { majors, minors, interval };
+  return { majors, minors, interval, baseLabel: base?.baseLabel ?? null };
 }

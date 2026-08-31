@@ -150,7 +150,7 @@ test.describe('PR-E2E feature paths', () => {
     await page.mouse.move(box!.x + 40, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
     await expect(page.getByTestId('cursor-line')).toBeVisible();
     await expect(page.getByTestId('cursor-label')).toBeVisible();
-    await expect(page.getByTestId('cursor-label')).toHaveText(/^[\d.]+\s+(ms|µs|ns)$/);
+    await expect(page.getByTestId('cursor-label')).toHaveText(/^[\d][\d. ]*\s+(ms|µs|ns|s)$/);
   });
 
   test('PR-E2E-007: Chromium WebGL paints ffn_dense dependency curves', async ({ page }) => {

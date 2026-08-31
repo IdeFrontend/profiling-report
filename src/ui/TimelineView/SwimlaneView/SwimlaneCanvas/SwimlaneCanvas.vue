@@ -7,10 +7,9 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewWindow,
-  type TimeDisplayUnit,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
-import { formatTime } from '../../../../domain/formatTime';
+import { formatTimeAuto } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
   contentHeightFromModel,
@@ -45,7 +44,6 @@ const props = withDefaults(
     searchQuery: string;
     measureMode?: boolean;
     measureRange?: MeasureRange | null;
-    timeUnit?: TimeDisplayUnit;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
@@ -1139,7 +1137,7 @@ const gapMeasureGeometry = computed(() => {
   const arrowLeft = xAtTime(visStart);
   const arrowRight = xAtTime(visEnd);
 
-  const label = formatTime(rightStart - leftEnd, props.timeUnit ?? 'ms');
+  const label = formatTimeAuto(rightStart - leftEnd);
   const top = gap.laneY - props.view.scrollY;
 
   const leftPct = (arrowLeft / w) * 100;

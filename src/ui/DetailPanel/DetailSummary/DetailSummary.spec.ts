@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { formatDisplayTimeParts, formatTimeParts } from '../../../domain/formatTime';
 import DetailSummary from './DetailSummary.vue';
 
 describe('DetailSummary', () => {
@@ -8,7 +7,6 @@ describe('DetailSummary', () => {
     const wrapper = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'test_op', startTime: 100, duration: 100, endTime: 200 },
-        unit: 'ms',
       },
     });
 
@@ -16,23 +14,32 @@ describe('DetailSummary', () => {
     expect(wrapper.text()).toContain('test_op');
   });
 
-  it('PR-DSUM-002: shows bare values with the unit in the column label', () => {
+  it('PR-DSUM-002: shows bare values with per-value unit in each caption', () => {
     const wrapper = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'op', startTime: 1_000_000, duration: 500_000, endTime: 1_500_000 },
-        unit: 'us',
       },
     });
 
-    expect(wrapper.findAll('.pr-detail-summary__value').map((n) => n.text())).toEqual([
-      '1000.000',
-      '500.000',
-      '1500.000',
+    expect(wrapper.findAll('.pr-detail-summary__number').map((n) => n.text())).toEqual([
+      '1.000',
+      '500.0',
+      '1.500',
+    ]);
+    expect(wrapper.findAll('.pr-detail-summary__unit').map((n) => n.text())).toEqual([
+      'ms',
+      'µs',
+      'ms',
     ]);
     expect(wrapper.findAll('.pr-detail-summary__label').map((n) => n.text())).toEqual([
-      'Start (µs)',
-      'Duration (µs)',
-      'End (µs)',
+      'Start',
+      'Duration',
+      'End',
+    ]);
+    expect(wrapper.findAll('.pr-detail-summary__value').map((n) => n.attributes('title'))).toEqual([
+      '1.000 ms',
+      '500.000 µs',
+      '1.500 ms',
     ]);
   });
 
@@ -47,7 +54,6 @@ describe('DetailSummary', () => {
           endTime: 10,
           args: { op_type: 'MOV_OUT_TO_L1_MULTI_ND2NZ' },
         },
-        unit: 'ns',
       },
     });
     expect(withType.find('[data-testid="detail-summary-kind"]').text()).toBe(
@@ -57,7 +63,6 @@ describe('DetailSummary', () => {
     const without = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'FIX_LOC_TO_DST', startTime: 0, duration: 10, endTime: 10 },
-        unit: 'ns',
       },
     });
     expect(without.find('[data-testid="detail-summary-kind"]').exists()).toBe(false);
@@ -75,40 +80,29 @@ describe('DetailSummary', () => {
           endTime: 708_421_242_164_456,
           args: { op_type: 'event' },
         },
-        unit: 'ms',
       },
     });
 
-    const titles = wrapper.findAll('.pr-detail-summary__value').map((n) => n.attributes('title'));
+    const values = wrapper.findAll('.pr-detail-summary__value');
+    expect(wrapper.findAll('.pr-detail-summary__number').map((n) => n.text())).toEqual([
+      '708 400',
+      '41.00',
+      '708 400',
+    ]);
+    expect(wrapper.findAll('.pr-detail-summary__unit').map((n) => n.text())).toEqual([
+      's',
+      'µs',
+      's',
+    ]);
+    const titles = values.map((n) => n.attributes('title'));
     expect(titles).toEqual([
-      '708421242.123 ms',
-      '0.041 ms',
-      '708421242.164 ms',
+      '708 421.242 s',
+      '41.000 µs',
+      '708 421.242 s',
     ]);
     expect(wrapper.find('.pr-detail-summary__name').attributes('title')).toBe(
       '0-0-103-13-2(matmul)',
     );
     expect(wrapper.find('[data-testid="detail-summary-kind"]').attributes('title')).toBe('event');
-  });
-
-  it('PR-DSUM-005: Start/End relative to timeOrigin; Duration absolute', () => {
-    const startTime = 3_354_000;
-    const duration = 60_000;
-    const endTime = startTime + duration;
-    const timeOrigin = 986_000;
-    const unit = 'us' as const;
-    const wrapper = mount(DetailSummary, {
-      props: {
-        selected: { id: '1', name: 'op', startTime, duration, endTime },
-        unit,
-        timeOrigin,
-      },
-    });
-
-    expect(wrapper.findAll('.pr-detail-summary__value').map((n) => n.text())).toEqual([
-      formatDisplayTimeParts(startTime, timeOrigin, unit).value,
-      formatTimeParts(duration, unit).value,
-      formatDisplayTimeParts(endTime, timeOrigin, unit).value,
-    ]);
   });
 });

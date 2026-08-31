@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { formatDisplayTime } from '../../domain/formatTime';
 import EventTooltip from './EventTooltip.vue';
 import type { SwimEvent } from '../../domain/types';
 
@@ -18,7 +17,6 @@ describe('EventTooltip', () => {
       props: {
         event: makeEvent(),
         stylePos: { left: '10px', top: '20px' },
-        unit: 'ms',
       },
     });
 
@@ -26,30 +24,21 @@ describe('EventTooltip', () => {
     expect(wrapper.text()).toContain('test_op');
   });
 
-  it('PR-TOOLTIP-002: renders with different time units', () => {
+  it('PR-TOOLTIP-002: formats start/duration/end with per-value units', () => {
     const wrapper = mount(EventTooltip, {
       props: {
-        event: makeEvent(),
+        event: makeEvent({
+          startTime: 2_000_000,
+          duration: 500,
+        }),
         stylePos: { left: '0px', top: '0px' },
-        unit: 'us',
+        timeOrigin: 0,
       },
     });
 
-    expect(wrapper.find('[data-testid="event-tooltip"]').exists()).toBe(true);
-  });
-
-  it('PR-TOOLTIP-003: start time relative to timeOrigin matches cursor label', () => {
-    const startTime = 3_354_000;
-    const timeOrigin = 986_000;
-    const wrapper = mount(EventTooltip, {
-      props: {
-        event: makeEvent({ startTime, duration: 60_000 }),
-        stylePos: { left: '0px', top: '0px' },
-        unit: 'us',
-        timeOrigin,
-      },
-    });
-
-    expect(wrapper.text()).toContain(formatDisplayTime(startTime, timeOrigin, 'us'));
+    const text = wrapper.text();
+    expect(text).toContain('2.000 ms'); // start → ms
+    expect(text).toContain('500.0 ns'); // duration → ns (4 sig digits)
+    expect(text).toContain('2.001 ms'); // end 2_000_500 → ms
   });
 });

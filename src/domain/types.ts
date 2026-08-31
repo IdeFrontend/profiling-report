@@ -278,8 +278,8 @@ export interface SelectedEvent {
   args?: Record<string, unknown>;
 }
 
-/** Interim I-Q14: ms / µs / ns only (no clock-cycle mode). */
-export type TimeDisplayUnit = 'ms' | 'us' | 'ns';
+/** Auto wall-time scale (I-Q14 interim): s / ms / µs / ns from viewport or axis density. */
+export type TimeScaleUnit = 's' | 'ms' | 'us' | 'ns';
 
 /** Which selection dependency curves (and undimmed neighbors) to show. */
 export type DependencyMode = 'all' | 'predecessors' | 'successors';

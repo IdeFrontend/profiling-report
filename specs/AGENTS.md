@@ -17,7 +17,7 @@ A spec describes **what a module does and why** — not how it's implemented. It
 
 - **Bold key names** on first mention: **source**, **swimlaneModel**, **select**.
 - **Backtick types** inline: `SelectedEvent`, `{ startTime, endTime }`.
-- **Parenthetical values**: "timeUnit" (ms/µs/ns).
+- **Parenthetical values**: "dependencyDepth" (−1 = no hop cap).
 - **Reference style**: "per I-Q6a", "per Q15".
 
 ## Acceptance criteria

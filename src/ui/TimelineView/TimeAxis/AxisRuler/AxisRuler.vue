@@ -4,35 +4,60 @@ import type { AxisRulerMajor, AxisRulerMinor } from '../../../../domain/axisRule
 defineProps<{
   majors: AxisRulerMajor[];
   minors: AxisRulerMinor[];
+  baseLabel?: string | null;
 }>();
 </script>
 
 <template>
   <div
     class="pr-axis-ruler"
+    :class="{ 'pr-axis-ruler--has-base': baseLabel }"
     data-testid="axis-ruler"
   >
-    <span
-      v-for="(m, i) in minors"
-      :key="`min-${i}-${m.pct}`"
-      class="pr-axis-ruler__minor"
-      :class="{ 'pr-axis-ruler__minor--muted': m.muted }"
-      data-testid="axis-ruler-minor"
-      :style="{ left: `${m.pct}%` }"
-    />
+    <!-- Full-width track: tick % matches swimlane / playhead / measure (same .pr-time-axis box). -->
     <div
-      v-for="(maj, i) in majors"
-      :key="`maj-${i}-${maj.t}`"
-      class="pr-axis-ruler__major"
-      :class="{ 'pr-axis-ruler__major--muted': maj.muted }"
-      data-testid="axis-ruler-major"
-      :style="{ left: `${maj.pct}%` }"
+      class="pr-axis-ruler__track"
+      data-testid="axis-ruler-track"
     >
       <span
-        class="pr-axis-ruler__bar"
-        aria-hidden="true"
+        v-for="(m, i) in minors"
+        :key="`min-${i}-${m.pct}`"
+        class="pr-axis-ruler__minor"
+        :class="{ 'pr-axis-ruler__minor--muted': m.muted }"
+        data-testid="axis-ruler-minor"
+        :style="{ left: `${m.pct}%` }"
       />
-      <span class="pr-axis-ruler__label">{{ maj.label }}</span>
+      <div
+        v-for="(maj, i) in majors"
+        :key="`maj-${i}-${maj.t}`"
+        class="pr-axis-ruler__major"
+        :class="{ 'pr-axis-ruler__major--muted': maj.muted }"
+        data-testid="axis-ruler-major"
+        :style="{ left: `${maj.pct}%` }"
+      >
+        <span
+          class="pr-axis-ruler__bar"
+          aria-hidden="true"
+        />
+        <span
+          v-show="!maj.hideLabel"
+          class="pr-axis-ruler__label"
+        >{{ maj.label }}</span>
+      </div>
+    </div>
+    <!-- Overlay: does not inset the track, so time→x stays aligned with the canvas. -->
+    <div
+      v-if="baseLabel"
+      class="pr-axis-ruler__base-col"
+    >
+      <span
+        class="pr-axis-ruler__base"
+        data-testid="axis-ruler-base"
+      >{{ baseLabel }}</span>
+      <span
+        class="pr-axis-ruler__base-sep"
+        aria-hidden="true"
+      >+</span>
     </div>
   </div>
 </template>
@@ -44,6 +69,56 @@ defineProps<{
   pointer-events: none;
   z-index: 1;
   overflow: hidden;
+}
+
+.pr-axis-ruler__track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.pr-axis-ruler__base-col {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  max-width: 42%;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding-left: 4px;
+  min-width: 0;
+  height: 18px;
+  /* Cover remainder labels under the base; tick bars still paint in the track below. */
+  background: var(--pr-bg-deep, #1f1f1f);
+}
+
+.pr-axis-ruler__base {
+  box-sizing: border-box;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: #e0e0e0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pr-axis-ruler__base-sep {
+  flex: 0 0 auto;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  color: #666;
 }
 
 .pr-axis-ruler__minor {
