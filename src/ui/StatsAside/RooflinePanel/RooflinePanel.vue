@@ -17,9 +17,6 @@ const W = 320;
 const H = 220;
 /** Plot insets — calibrated from visual/roofline.png (1870×1360 crop). */
 const PAD = { l: 34, r: 10, t: 14, b: 36 };
-/** Sketch fractions: Ops/Byte ≈11.5% from right, 5px above floor. */
-const SK_OPS_RIGHT = 0.115;
-const SK_OPS_BOTTOM = 5;
 /** Mix annotation sits just inside the top of the plot frame. */
 const MIX_TOP_INSET = 10;
 
@@ -27,9 +24,10 @@ const plotW = W - PAD.l - PAD.r;
 const plotH = H - PAD.t - PAD.b;
 
 const mixY = PAD.t + MIX_TOP_INSET;
-const opsX = PAD.l + plotW * (1 - SK_OPS_RIGHT);
-const opsY = PAD.t + plotH - SK_OPS_BOTTOM;
-const topsY = Math.max(5, PAD.t - 12);
+/** Sketch: Ops/Byte in right gutter below plot; TOps/s above top y-tick in left gutter. */
+const opsX = W - 4;
+const opsY = H - 6;
+const topsY = 10;
 
 const hovered = ref<RooflinePoint | null>(null);
 
@@ -240,7 +238,9 @@ const tooltipText = computed(() => {
             :d="roofPath"
             fill="none"
           />
-          <!-- Sketch draws hollow markers on roof vertices (knee / ends). -->
+        </g>
+        <!-- Markers sit outside plot clip so edge circles are not cropped. -->
+        <g class="pr-roofline__markers">
           <circle
             v-for="(rp, idx) in roofPoints"
             :key="`rv-${idx}`"
@@ -297,19 +297,20 @@ const tooltipText = computed(() => {
           :y="yToPx(tick) + 3"
           text-anchor="end"
         >{{ fmtTick(tick) }}</text>
-        <!-- Sketch: Ops/Byte inside bottom-right of plot (~11.5% from right edge). -->
+        <!-- Sketch: Ops/Byte end-anchored in right gutter below plot (outside well). -->
         <text
           class="pr-roofline__axis pr-roofline__axis--x"
           :x="opsX"
           :y="opsY"
           text-anchor="end"
         >Ops/Byte</text>
-        <!-- Sketch: TOps/s above the top y-tick, left gutter. -->
+        <!-- Sketch: TOps/s above top y-tick, left gutter (hanging baseline avoids crop). -->
         <text
           class="pr-roofline__axis pr-roofline__axis--y"
           :x="PAD.l - 4"
           :y="topsY"
           text-anchor="end"
+          dominant-baseline="hanging"
         >TOps/s</text>
       </svg>
     </div>
@@ -403,6 +404,7 @@ const tooltipText = computed(() => {
   width: 100%;
   height: auto;
   display: block;
+  overflow: visible;
 }
 
 .pr-roofline__frame {
@@ -411,7 +413,7 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__grid line {
-  stroke: #343434;
+  stroke: #4a5568;
   stroke-width: 0.5;
 }
 

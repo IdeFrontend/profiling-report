@@ -63,9 +63,6 @@ describe('RooflinePanel', () => {
     const frame = wrapper.get('.pr-roofline__frame');
     const plotTop = Number(frame.attributes('y'));
     const plotLeft = Number(frame.attributes('x'));
-    const plotW = Number(frame.attributes('width'));
-    const plotH = Number(frame.attributes('height'));
-    const plotBottom = plotTop + plotH;
 
     expect(plotTop).toBe(14);
     expect(plotLeft).toBe(34);
@@ -74,14 +71,18 @@ describe('RooflinePanel', () => {
     expect(Number(mix.attributes('y'))).toBe(plotTop + 10);
 
     const ops = wrapper.get('.pr-roofline__axis--x');
-    expect(Number(ops.attributes('y'))).toBe(plotBottom - 5);
-    expect(Number(ops.attributes('x'))).toBeCloseTo(plotLeft + plotW * (1 - 0.115), 0);
+    expect(Number(ops.attributes('y'))).toBe(220 - 6);
+    expect(Number(ops.attributes('x'))).toBe(320 - 4);
     expect(ops.attributes('text-anchor')).toBe('end');
 
     const tops = wrapper.get('.pr-roofline__axis--y');
-    expect(Number(tops.attributes('y'))).toBeLessThan(plotTop);
+    expect(Number(tops.attributes('y'))).toBe(10);
+    expect(tops.attributes('dominant-baseline')).toBe('hanging');
     expect(Number(tops.attributes('x'))).toBe(plotLeft - 4);
     expect(tops.attributes('text-anchor')).toBe('end');
+
+    expect(wrapper.find('.pr-roofline__markers [data-testid="roofline-point"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-roofline__plot [data-testid="roofline-point"]').exists()).toBe(false);
   });
 
   it('PR-ROOF-003: empty points → no chart', () => {
