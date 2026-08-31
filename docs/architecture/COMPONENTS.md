@@ -175,7 +175,7 @@ Canvas 2D implementation of `SwimlaneRenderer`. Uniform `#1f1f1f` event-sequence
 
 ### `WebGlSwimlaneRenderer` (P2 → implemented)
 
-WebGL2 interval backend with sudu-style analytical horizontal coverage AA (source-over premul). Interim: square corners (round-rect deferred). Same uniform lane fill and 1px dividers as Canvas. Used by default from `SwimlaneCanvas` with a Canvas2D overlay for labels/selection; falls back to `CanvasSwimlaneRenderer` when WebGL2 is unavailable. The mouse-follow cursor bar is a DOM overlay in `SwimlaneView` (under Card strips), not stroked by the renderers.
+WebGL2 interval backend with sudu-style analytical horizontal coverage AA combined with SDF round-rect via `min(hCoverage, rrShape)` (source-over premul). Same uniform lane fill and 1px dividers as Canvas. Used by default from `SwimlaneCanvas` with a Canvas2D overlay for labels/selection; falls back to `CanvasSwimlaneRenderer` when WebGL2 is unavailable. The mouse-follow cursor bar is a DOM overlay in `SwimlaneView` (under Card strips), not stroked by the renderers.
 
 **Why:** Named interface stays stable; WebGL path ships for dense traces.
 
