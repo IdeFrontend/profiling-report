@@ -26,10 +26,10 @@ const MIX_TOP_INSET = 10;
 const plotW = W - PAD.l - PAD.r;
 const plotH = H - PAD.t - PAD.b;
 
-const mixY = computed(() => PAD.t + MIX_TOP_INSET);
-const opsX = computed(() => PAD.l + plotW * (1 - SK_OPS_RIGHT));
-const opsY = computed(() => PAD.t + plotH - SK_OPS_BOTTOM);
-const topsY = computed(() => Math.max(5, PAD.t - 12));
+const mixY = PAD.t + MIX_TOP_INSET;
+const opsX = PAD.l + plotW * (1 - SK_OPS_RIGHT);
+const opsY = PAD.t + plotH - SK_OPS_BOTTOM;
+const topsY = Math.max(5, PAD.t - 12);
 
 const hovered = ref<RooflinePoint | null>(null);
 

@@ -21,8 +21,9 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (I-Q11f).
 1. **PR-ROOF-001** — Renders chart with at least one point and roof path.
 2. **PR-ROOF-001b** — Raised chart card includes under-roof `#3078f0` gradient wash.
 3. **PR-ROOF-002** — Shows mix labels when present.
-4. **PR-ROOF-003** — Empty points → no chart SVG.
-5. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance.
+4. **PR-ROOF-002b** — Sketch-calibrated label positions and left inset (`PAD.l` 34; mix at plot top; Ops/Byte bottom-right; TOps/s above top tick).
+5. **PR-ROOF-003** — Empty points → no chart SVG.
+6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance.
 
 ## Visual
 
@@ -50,7 +51,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 ## Changelog
 
 - **2026-08-31** — Mix labels anchored to plot top (`PAD.t + 10`), not mid-plot sketch band.
-- **2026-08-31** — Sketch layout pass: plot `PAD.l` 38; TOps/s higher; mix labels higher; Ops/Byte bottom-right of frame.
+- **2026-08-31** — Sketch pixel pass: `PAD.l` 34; Ops/Byte 11.5% from right; frame stroke off.
 - **2026-08-27** — TOps/s above top y-tick (left gutter), mirroring Ops/Byte on `100`.
 - **2026-08-27** — Layout: tighter GM/L2→plot gap (`PAD.t` 14, card gap 2); Ops/Byte centered on `100` tick.
 - **2026-08-27** — Whole raised card uniform `#262626` (header + plot + gutters); title outside on aside.
