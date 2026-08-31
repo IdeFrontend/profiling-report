@@ -55,6 +55,14 @@ const props = withDefaults(
     cursorXRatio?: number | null;
     /** Gray the swim vertical bar while magnetized to an event edge. */
     cursorSnapped?: boolean;
+    /**
+     * Parent override for client-space magnet (pin strip ↔ body). When set, measure
+     * create/resize and expose use this instead of this canvas’s local layout.
+     */
+    magnetizeAtClient?: (
+      clientX: number,
+      clientY: number,
+    ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   }>(),
   {
     dependencyMode: 'all',
@@ -724,11 +732,13 @@ function beginMeasureCreateFromDown(): void {
   measureGestureActive = true;
   measureDragOccurred = true;
   suppressMeasurePreview.value = true;
-  // Use last known Y from pointer; downX is client X — magnetize at down.
-  const local = localFromClient(downX, lastPointerClientY);
-  const mag = local
-    ? magnetizeLocal(local.x, local.y)
-    : { time: timeAtX(downX - rect.left), xPx: downX - rect.left, xRatio: 0, eventId: null };
+  const mag =
+    magnetizeAtClient(downX, lastPointerClientY) ?? {
+      time: timeAtX(downX - rect.left),
+      xPx: downX - rect.left,
+      xRatio: 0,
+      eventId: null,
+    };
   measureAnchorTime = mag.time;
   emit(
     'update:measureRange',
@@ -761,14 +771,14 @@ function onCreateDragEnd(): void {
 function emitResizedRange(clientX: number, clientY: number) {
   if (!resizeEdge || !wrapRef.value) return;
   lastPointerClientY = clientY;
-  const local = localFromClient(clientX, clientY);
-  const mag = local
-    ? magnetizeLocal(local.x, local.y)
-    : (() => {
-        const rect = wrapRef.value!.getBoundingClientRect();
-        const t = timeAtX(clientX - rect.left);
-        return { time: t, xPx: clientX - rect.left, xRatio: 0, eventId: null };
-      })();
+  const rect = wrapRef.value.getBoundingClientRect();
+  const mag =
+    magnetizeAtClient(clientX, clientY) ?? {
+      time: timeAtX(clientX - rect.left),
+      xPx: clientX - rect.left,
+      xRatio: 0,
+      eventId: null,
+    };
   const w = syncTrackWidth();
   const next = resizeMeasureEdge({
     edge: resizeEdge,
@@ -793,10 +803,13 @@ function emitResizedRange(clientX: number, clientY: number) {
 function emitCreateRange(clientX: number, clientY: number) {
   if (!measureGestureActive || measureAnchorTime == null || !wrapRef.value) return;
   lastPointerClientY = clientY;
-  const local = localFromClient(clientX, clientY);
-  const mag = local
-    ? magnetizeLocal(local.x, local.y)
-    : { time: timeAtX(clientX - wrapRef.value.getBoundingClientRect().left), xPx: 0, xRatio: 0, eventId: null };
+  const mag =
+    magnetizeAtClient(clientX, clientY) ?? {
+      time: timeAtX(clientX - wrapRef.value.getBoundingClientRect().left),
+      xPx: 0,
+      xRatio: 0,
+      eventId: null,
+    };
   emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, mag.time));
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
 }
@@ -1034,8 +1047,8 @@ function localFromClient(clientX: number, clientY: number): { x: number; y: numb
   return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
-/** Window-level measure drag from the axis — magnetize when pointer is over the canvas. */
-function magnetizeAtClient(clientX: number, clientY: number) {
+/** Local magnet only — used by SwimlaneView router (avoids override recursion). */
+function magnetizeAtClientLocal(clientX: number, clientY: number) {
   const local = localFromClient(clientX, clientY);
   if (!local) {
     invalidateExactMatchCache();
@@ -1044,6 +1057,12 @@ function magnetizeAtClient(clientX: number, clientY: number) {
     return null;
   }
   return magnetizeLocal(local.x, local.y);
+}
+
+/** Window-level measure drag / axis — optional parent override for cross-canvas magnet. */
+function magnetizeAtClient(clientX: number, clientY: number) {
+  if (props.magnetizeAtClient) return props.magnetizeAtClient(clientX, clientY);
+  return magnetizeAtClientLocal(clientX, clientY);
 }
 
 function clearEdgeSnapHighlight() {
@@ -1353,6 +1372,7 @@ defineExpose({
   /** Card strips sit above the canvas; SwimlaneView forwards wheel here. */
   handleWheel: onWheel,
   magnetizeAtClient,
+  magnetizeAtClientLocal,
   clearEdgeSnapHighlight,
 });
 </script>

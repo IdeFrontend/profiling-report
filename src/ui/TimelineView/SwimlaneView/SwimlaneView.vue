@@ -75,14 +75,21 @@ const emit = defineEmits<{
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
-const canvasRef = ref<{
+type CanvasExpose = {
   handleWheel: (e: WheelEvent) => void;
   magnetizeAtClient: (
     clientX: number,
     clientY: number,
   ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
+  magnetizeAtClientLocal: (
+    clientX: number,
+    clientY: number,
+  ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   clearEdgeSnapHighlight: () => void;
-} | null>(null);
+};
+const canvasRef = ref<CanvasExpose | null>(null);
+const pinnedCanvasRef = ref<CanvasExpose | null>(null);
+const pinnedStripRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
@@ -240,13 +247,31 @@ function onStripWheel(e: WheelEvent) {
   canvasRef.value?.handleWheel(e);
 }
 
+/** Magnet follows the canvas under the pointer (pin strip ↔ body). */
+function magnetizeAtClient(clientX: number, clientY: number) {
+  const strip = pinnedStripRef.value;
+  if (strip) {
+    const r = strip.getBoundingClientRect();
+    if (clientY >= r.top && clientY < r.bottom) {
+      canvasRef.value?.clearEdgeSnapHighlight();
+      return pinnedCanvasRef.value?.magnetizeAtClientLocal(clientX, clientY) ?? null;
+    }
+  }
+  pinnedCanvasRef.value?.clearEdgeSnapHighlight();
+  return canvasRef.value?.magnetizeAtClientLocal(clientX, clientY) ?? null;
+}
+
+function clearEdgeSnapHighlight() {
+  canvasRef.value?.clearEdgeSnapHighlight();
+  pinnedCanvasRef.value?.clearEdgeSnapHighlight();
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
   },
-  magnetizeAtClient: (clientX: number, clientY: number) =>
-    canvasRef.value?.magnetizeAtClient(clientX, clientY) ?? null,
-  clearEdgeSnapHighlight: () => canvasRef.value?.clearEdgeSnapHighlight(),
+  magnetizeAtClient,
+  clearEdgeSnapHighlight,
 });
 </script>
 
@@ -257,6 +282,7 @@ defineExpose({
   >
     <div
       v-if="pinnedRows.length"
+      ref="pinnedStripRef"
       class="pr-pinned-strip"
       data-testid="pinned-strip"
       :style="{ height: `${pinnedStripHeight}px` }"
@@ -279,6 +305,7 @@ defineExpose({
       </div>
       <SwimlaneCanvas
         v-if="pinnedModel"
+        ref="pinnedCanvasRef"
         class="pr-pinned-strip__canvas"
         data-testid="pinned-canvas"
         :model="pinnedModel"
@@ -292,6 +319,7 @@ defineExpose({
         :prefer-renderer="preferRenderer ?? 'auto'"
         :cursor-x-ratio="cursorXRatio"
         :cursor-snapped="cursorSnapped"
+        :magnetize-at-client="magnetizeAtClient"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"
@@ -345,6 +373,7 @@ defineExpose({
         :prefer-renderer="preferRenderer ?? 'auto'"
         :cursor-x-ratio="cursorXRatio"
         :cursor-snapped="cursorSnapped"
+        :magnetize-at-client="magnetizeAtClient"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"

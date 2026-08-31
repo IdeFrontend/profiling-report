@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createViewState } from '../../../domain/viewState';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
@@ -503,5 +503,95 @@ describe('SwimlaneView', () => {
       'gutter-lane-l2',
       'gutter-lane-l1',
     ]);
+  });
+
+  it('PR-SWIMVIEW-018: measure magnet routes by pointer Y across pin strip and body', () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l1'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l1', name: 'Lane', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+
+    const stripEl = wrapper.get('[data-testid="pinned-strip"]').element as HTMLElement;
+    vi.spyOn(stripEl, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      bottom: 40,
+      left: 0,
+      right: 200,
+      width: 200,
+      height: 40,
+      toJSON() {
+        return {};
+      },
+    });
+
+    const canvases = wrapper.findAllComponents(SwimlaneCanvas);
+    const pinned = canvases.find((c) => c.attributes('data-testid') === 'pinned-canvas');
+    const body = canvases.find((c) => c.attributes('data-testid') !== 'pinned-canvas');
+    expect(pinned).toBeTruthy();
+    expect(body).toBeTruthy();
+
+    type Mag = { time: number; xPx: number; xRatio: number; eventId: string | null };
+    type CanvasExposed = {
+      magnetizeAtClientLocal: (clientX: number, clientY: number) => Mag | null;
+      clearEdgeSnapHighlight: () => void;
+    };
+    const pinnedExposed = (pinned!.vm as unknown as { $: { exposed: CanvasExposed } }).$.exposed;
+    const bodyExposed = (body!.vm as unknown as { $: { exposed: CanvasExposed } }).$.exposed;
+
+    const pinnedLocal = vi
+      .spyOn(pinnedExposed, 'magnetizeAtClientLocal')
+      .mockReturnValue({ time: 10, xPx: 1, xRatio: 0.1, eventId: 'pin-ev' });
+    const bodyLocal = vi
+      .spyOn(bodyExposed, 'magnetizeAtClientLocal')
+      .mockReturnValue({ time: 20, xPx: 2, xRatio: 0.2, eventId: 'body-ev' });
+
+    const viewVm = wrapper.vm as {
+      magnetizeAtClient: (x: number, y: number) => Mag | null;
+    };
+
+    expect(viewVm.magnetizeAtClient(10, 20)).toMatchObject({ eventId: 'pin-ev' });
+    expect(pinnedLocal).toHaveBeenCalled();
+    expect(bodyLocal).not.toHaveBeenCalled();
+
+    pinnedLocal.mockClear();
+    bodyLocal.mockClear();
+
+    expect(viewVm.magnetizeAtClient(10, 60)).toMatchObject({ eventId: 'body-ev' });
+    expect(bodyLocal).toHaveBeenCalled();
+    expect(pinnedLocal).not.toHaveBeenCalled();
+
+    wrapper.unmount();
   });
 });
