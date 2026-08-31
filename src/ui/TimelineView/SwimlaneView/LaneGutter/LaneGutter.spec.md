@@ -6,7 +6,7 @@
 
 Left-side vertical gutter showing Card / nested lane hierarchy, lane names, and utilization percentages. Scroll-synced with the swimlane canvas so lane labels align with event rows.
 
-Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detail.png`](./visual/expander-detail.png), [`visual/gutter-util.png`](./visual/gutter-util.png), [`visual/util-bars.png`](./visual/util-bars.png), [`visual/util-midline.png`](./visual/util-midline.png), [`visual/util-midline-detail.png`](./visual/util-midline-detail.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detail.png`](./visual/expander-detail.png), [`visual/gutter-util.png`](./visual/gutter-util.png), [`visual/util-bars.png`](./visual/util-bars.png), [`visual/util-midline.png`](./visual/util-midline.png), [`visual/util-midline-detail.png`](./visual/util-midline-detail.png), [`visual/pin-lanes.png`](./visual/pin-lanes.png), [`visual/pin-icon-detail.png`](./visual/pin-icon-detail.png), [`visual/pin-hover-tooltip.png`](./visual/pin-hover-tooltip.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
@@ -20,11 +20,15 @@ Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneNa
 
 **collapsedIds** (optional `string[]`) — ids of Cards or nested folders whose **descendants** are hidden (the collapsed node row itself stays visible for nested folders; collapsing a Card hides all its lanes). Parent owns collapse so the canvas mirrors the visible row set (`displaySwim`).
 
+**pinnedLaneIds** (optional `string[]`, read-only) — ids of **leaf** lanes currently pinned. Parent owns pin order; gutter uses this to render filled vs outline pushpin state on originals. Pinned duplicates render in `SwimlaneView`'s sticky strip (see [`SwimlaneView.spec.md`](../SwimlaneView.spec.md)).
+
 ## Outputs
 
 **scroll** fires when the user scrolls the gutter. The parent reads the gutter's `scrollTop` and propagates it as `scrollY` to the swimlane canvas. The element is exposed via `defineExpose` for imperative scroll sync in the reverse direction.
 
 **toggle-group** fires with a **folder** node `id` when the user clicks a folder row. **Card** expand/collapse is emitted by `SwimlaneView` Card strips (not this gutter). Parent toggles that id in `collapsedIds`.
+
+**pin-lane** fires with a **leaf** lane `id` when the user clicks an unpinned pushpin. **unpin-lane** fires with the same shape when the user clicks a pinned pushpin on an original row. Parent updates `pinnedLaneIds` immutably (see [`view-state.spec.md`](../../../../../specs/core/view-state.spec.md)).
 
 ## Behavior
 
@@ -45,6 +49,22 @@ Clicking a **folder** lane toggles expand/collapse (`aria-expanded`). Card toggl
 ### Utilization
 
 Each lane **and folder** row optionally shows a utilization bar with the percentage **inside, right-aligned**. See **Visual** below.
+
+### Pin (leaf lanes only)
+
+Pushpin control on **leaf** rows only — not on nested folders or Card spacers. Click toggles pin state via `pin-lane` / `unpin-lane`. Duplicates render in the sticky pinned strip owned by `SwimlaneView`; originals stay in tree order below.
+
+| Element | Visual (normative) |
+|---------|-------------------|
+| Pin control | Absolute at gutter **left edge** (`left ≈ 6px`); **not** depth-indented. Layout box **16×16** |
+| Visibility | **Pinned:** always visible (filled). **Unpinned:** hover only — leaf gutter row, or pin `:focus-visible` (not events-chart hover) |
+| Unpinned (lane hover) | **Outline** pushpin; stroke `#a8a8a8` (chevron family) |
+| Pinned / pin hover | **Solid fill** accent blue `#4a90e2` (match toolbar measure-active) |
+| Tooltip | Localized **置顶** / **Pin to top** (`t('pin')`) on hover/focus over pushpin; dark rounded bubble (EventTooltip chrome: `#2a2a2a` / `#555`) |
+| Row hover | Full gutter row highlight `#252525` when pointer over the leaf gutter row **or** that leaf’s events-chart band (`hoveredLaneId`). Canvas band hover does **not** reveal the unpinned pushpin |
+| Accessibility | Focusable `button`; `aria-label` **置顶**; pinned state reflected in `aria-pressed` |
+
+**Indent:** leaf and folder pad-left stay **`24px + depth×14px`** (pin does not add a column). Pin sits in the left margin to the left of chevrons/names at every depth.
 
 ## Visual
 
@@ -76,6 +96,21 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 | Leaf lanes | No expander chevron |
 | Interaction | Folder row click → `toggle-group`. **Card** expand/collapse is owned by `SwimlaneView` Card strips (not the gutter spacer). |
 
+### Pin pushpin (`visual/pin-lanes.png`, `visual/pin-icon-detail.png`, `visual/pin-hover-tooltip.png`)
+
+Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/provenance.yaml`](./visual/provenance.yaml).
+
+| Token | Value |
+|-------|--------|
+| Icon | PyPTO / DevUI pushpin thumbtack (`src/ui/icons/pushpin.svg` outline, `pushpin-fill.svg` solid) |
+| Layout box | `16×16` (PyPTO DevUI pushpin native size) |
+| Position | Flush **left** of gutter row (absolute); same x at every nest depth |
+| Visibility | Unpinned: only while leaf gutter row hovered (or pin focused). **Pinned: always visible** (original + sticky strip) |
+| Unpinned | Outline stroke `#a8a8a8` |
+| Pinned / pin hover | Solid fill `#4a90e2` |
+| Tooltip | **置顶** |
+| Row hover | `#252525` on full gutter leaf row |
+
 ## Acceptance Criteria
 
 1. **PR-GUTTER-001** — Renders lane names for each group (including nested when expanded).
@@ -86,6 +121,10 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 6. **PR-GUTTER-006** — Util fills are red (`#733234`) when util &lt; 0.5 and gray (`#5c5c5c`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the % label.
 7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width; empty util slots do not.
 8. **PR-GUTTER-008** — Card row is a non-interactive 28px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
+9. **PR-GUTTER-010** — Leaf rows include a pushpin control (DOM); folder/Card rows omit pin. Unpinned pin hidden until leaf gutter hover (or focus); **pinned pin always visible**. Does **not** appear from events-chart hover.
+10. **PR-GUTTER-011** — Unpinned outline `#a8a8a8` on lane hover; pinned/pin-hover solid `#4a90e2`. Pin stays flush-left (not depth-indented).
+11. **PR-GUTTER-012** — Pushpin hover/focus shows localized pin tooltip (`置顶` / `Pin to top`).
+12. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 
 ## Edge Cases
 
@@ -97,6 +136,10 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 | Flat CTEF (no `children`) | Card → leaf lanes only (MVP-compatible) |
 | Very long thread names | CSS text-overflow truncation |
 | Scroll position mismatch | Bidirectional sync corrects |
+| Pin leaf inside collapsed folder | Original pin control hidden while ancestor collapsed; **pinned strip duplicate stays** (id remains in **pinnedLaneIds**) |
+| Pin across Cards | Pushpin on any visible leaf regardless of Card/process ancestry |
+| Duplicate pin click | Idempotent — no duplicate entries in `pinnedLaneIds` |
+| Events chart hover | Matching gutter leaf gets `#252525` via `hoveredLaneId`; unpinned pushpin stays hidden. No hover chrome on the swimlane canvas itself |
 
 ## Design sketches
 
@@ -106,8 +149,19 @@ Each lane **and folder** row optionally shows a utilization bar with the percent
 - [util-bars](./visual/util-bars.png) — from `v930/entry`
 - [util-midline](./visual/util-midline.png) — from `v930/entry`
 - [util-midline-detail](./visual/util-midline-detail.png) — from `v930/entry`
+- [pin-lanes](./visual/pin-lanes.png) — from `v930/hardware-more-detail`
+- [pin-icon-detail](./visual/pin-icon-detail.png) — from `v930/hardware-more-detail`
+- [pin-hover-tooltip](./visual/pin-hover-tooltip.png) — from `v930/hardware-more-detail`
+- [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
 
 ## Changelog
+- **2026-08-31** — Events-chart leaf hover highlights matching gutter row `#252525` via `hoveredLaneId`; unpinned pushpin still gutter-only.
+- **2026-08-28** — Unpinned pushpin: gutter hover only (not events-chart). Row highlight later restored for chart→header hint.
+- **2026-08-28** — Pin glyph: PyPTO/DevUI `pushpin` / `pushpin-fill` SVG assets under `src/ui/icons/`.
+- **2026-08-28** — Pinned pushpin stays visible on original + sticky strip; unpinned remains hover-only.
+- **2026-08-28** — Pin hover-only, flush-left (no depth indent); row `#252525` on gutter hover; leaf indent unchanged (`24 + depth×14`).
+- **2026-08-27** — Renumber pin ACs to `PR-GUTTER-010`…`013` (reserve `009` for #45 gutter-metrics).
+- **2026-08-27** — Pin pushpin on leaf rows; crops + visual tokens from `v930/hardware-more-detail` (`PR-GUTTER-010`…`013`). Tests deferred until implementation.
 - **2026-08-21** — Util bars: 50% dashed midline (`PR-GUTTER-007`); tight midline crops. Card spacer renumbered to `PR-GUTTER-008`.
 - **2026-08-13** — Card chrome moved to SwimlaneView full-width strips; gutter Card is spacer.
 - **2026-08-11** — Util bars: thick/thin by depth; red/gray threshold fills only.

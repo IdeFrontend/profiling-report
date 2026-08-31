@@ -17,6 +17,7 @@ import {
   findExactEdgeMatchesAt,
   findHoverGap,
   LANE_HEIGHT,
+  leafLaneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
   type ExactEdgeMatch,
@@ -46,16 +47,27 @@ const props = withDefaults(
     measureRange?: MeasureRange | null;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
+    /** When false, skip dependency curves and selection dimming (pinned strip). */
+    showDependencies?: boolean;
     /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
     /** Shared playhead x from parent (axis hover + canvas); drives the swim vertical bar. */
     cursorXRatio?: number | null;
     /** Gray the swim vertical bar while magnetized to an event edge. */
     cursorSnapped?: boolean;
+    /**
+     * Parent override for client-space magnet (pin strip ↔ body). When set, measure
+     * create/resize and expose use this instead of this canvas’s local layout.
+     */
+    resolveMagnetize?: (
+      clientX: number,
+      clientY: number,
+    ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   }>(),
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    showDependencies: true,
     cursorXRatio: null,
     cursorSnapped: false,
   },
@@ -64,6 +76,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
+  /** Leaf lane under pointer Y — gutter header highlight only (not pin). */
+  'lane-hover': [laneId: string | null];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
@@ -73,6 +87,14 @@ const emit = defineEmits<{
   /** Hide axis Δt arrow/label during appear/clear (view↔range) tweens only. */
   'suppress-measure-dt': [suppress: boolean];
 }>();
+
+function emitLaneHover(localY: number | null): void {
+  if (localY == null) {
+    emit('lane-hover', null);
+    return;
+  }
+  emit('lane-hover', leafLaneIdAtPoint(backend.getLayout(), props.view, localY));
+}
 
 const wrapRef = ref<HTMLDivElement | null>(null);
 const glCanvasRef = ref<HTMLCanvasElement | null>(null);
@@ -368,6 +390,7 @@ function applyViewState(forceModel = false): void {
   backend.setView(props.view);
   backend.setDependencyMode?.(props.dependencyMode);
   backend.setDependencyDepth?.(props.dependencyDepth);
+  backend.setPaintDependencies?.(props.showDependencies !== false);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   if (useWebGl.value) {
@@ -375,6 +398,7 @@ function applyViewState(forceModel = false): void {
     overlay.setView(props.view);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setNeighborIds(backend.getNeighborIds());
+    overlay.setSelectionDim(props.showDependencies !== false);
     overlay.setSearchQuery(props.searchQuery);
   }
   refreshMeasureExactEdgeMarks(modelChanged);
@@ -619,7 +643,7 @@ watch(
 );
 
 watch(
-  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth],
+  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
   () => {
     localScrollY = props.view.scrollY;
     sync();
@@ -708,11 +732,13 @@ function beginMeasureCreateFromDown(): void {
   measureGestureActive = true;
   measureDragOccurred = true;
   suppressMeasurePreview.value = true;
-  // Use last known Y from pointer; downX is client X — magnetize at down.
-  const local = localFromClient(downX, lastPointerClientY);
-  const mag = local
-    ? magnetizeLocal(local.x, local.y)
-    : { time: timeAtX(downX - rect.left), xPx: downX - rect.left, xRatio: 0, eventId: null };
+  const mag =
+    magnetizeAtClient(downX, lastPointerClientY) ?? {
+      time: timeAtX(downX - rect.left),
+      xPx: downX - rect.left,
+      xRatio: 0,
+      eventId: null,
+    };
   measureAnchorTime = mag.time;
   emit(
     'update:measureRange',
@@ -745,14 +771,14 @@ function onCreateDragEnd(): void {
 function emitResizedRange(clientX: number, clientY: number) {
   if (!resizeEdge || !wrapRef.value) return;
   lastPointerClientY = clientY;
-  const local = localFromClient(clientX, clientY);
-  const mag = local
-    ? magnetizeLocal(local.x, local.y)
-    : (() => {
-        const rect = wrapRef.value!.getBoundingClientRect();
-        const t = timeAtX(clientX - rect.left);
-        return { time: t, xPx: clientX - rect.left, xRatio: 0, eventId: null };
-      })();
+  const rect = wrapRef.value.getBoundingClientRect();
+  const mag =
+    magnetizeAtClient(clientX, clientY) ?? {
+      time: timeAtX(clientX - rect.left),
+      xPx: clientX - rect.left,
+      xRatio: 0,
+      eventId: null,
+    };
   const w = syncTrackWidth();
   const next = resizeMeasureEdge({
     edge: resizeEdge,
@@ -777,10 +803,13 @@ function emitResizedRange(clientX: number, clientY: number) {
 function emitCreateRange(clientX: number, clientY: number) {
   if (!measureGestureActive || measureAnchorTime == null || !wrapRef.value) return;
   lastPointerClientY = clientY;
-  const local = localFromClient(clientX, clientY);
-  const mag = local
-    ? magnetizeLocal(local.x, local.y)
-    : { time: timeAtX(clientX - wrapRef.value.getBoundingClientRect().left), xPx: 0, xRatio: 0, eventId: null };
+  const mag =
+    magnetizeAtClient(clientX, clientY) ?? {
+      time: timeAtX(clientX - wrapRef.value.getBoundingClientRect().left),
+      xPx: 0,
+      xRatio: 0,
+      eventId: null,
+    };
   emit('update:measureRange', normalizeMeasureRange(measureAnchorTime, mag.time));
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
 }
@@ -1018,8 +1047,8 @@ function localFromClient(clientX: number, clientY: number): { x: number; y: numb
   return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
-/** Window-level measure drag from the axis — magnetize when pointer is over the canvas. */
-function magnetizeAtClient(clientX: number, clientY: number) {
+/** Local magnet only — used by SwimlaneView router (avoids override recursion). */
+function magnetizeAtClientLocal(clientX: number, clientY: number) {
   const local = localFromClient(clientX, clientY);
   if (!local) {
     invalidateExactMatchCache();
@@ -1028,6 +1057,12 @@ function magnetizeAtClient(clientX: number, clientY: number) {
     return null;
   }
   return magnetizeLocal(local.x, local.y);
+}
+
+/** Window-level measure drag / axis — optional parent override for cross-canvas magnet. */
+function magnetizeAtClient(clientX: number, clientY: number) {
+  if (props.resolveMagnetize) return props.resolveMagnetize(clientX, clientY);
+  return magnetizeAtClientLocal(clientX, clientY);
 }
 
 function clearEdgeSnapHighlight() {
@@ -1213,6 +1248,7 @@ function onPointerMove(e: PointerEvent): void {
     if (measureGestureActive || measureCreatePending || measurePressActive) {
       hoverGap.value = null;
       emit('hover', null, e.clientX, e.clientY);
+      emitLaneHover(null);
       return;
     }
     const span = Math.max(1, props.view.endTime - props.view.startTime);
@@ -1221,6 +1257,7 @@ function onPointerMove(e: PointerEvent): void {
     emit('pan', -(dx / w) * span);
     hoverGap.value = panCaptureHoverGap;
     emit('hover', panCaptureHoverEvent, e.clientX, e.clientY);
+    emitLaneHover(y);
     return;
   }
 
@@ -1228,6 +1265,7 @@ function onPointerMove(e: PointerEvent): void {
   updateHoverGap(x, y, w);
 
   emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
+  emitLaneHover(y);
 }
 
 function onPointerUp(e: PointerEvent): void {
@@ -1276,6 +1314,7 @@ function onPointerLeave(e: PointerEvent): void {
     snapExactEdgeMarks.value = [];
     emit('cursor', null);
     emit('hover', null, 0, 0);
+    emitLaneHover(null);
     return;
   }
   if (panHoverCaptureActive()) {
@@ -1287,6 +1326,7 @@ function onPointerLeave(e: PointerEvent): void {
   if (isMeasureBorderEl(e.relatedTarget)) {
     schedulePaint();
     emit('hover', null, 0, 0);
+    emitLaneHover(null);
     return;
   }
   dragging = false;
@@ -1301,6 +1341,7 @@ function onPointerLeave(e: PointerEvent): void {
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
+  emitLaneHover(null);
 }
 
 function onWheel(e: WheelEvent): void {
@@ -1331,6 +1372,7 @@ defineExpose({
   /** Card strips sit above the canvas; SwimlaneView forwards wheel here. */
   handleWheel: onWheel,
   magnetizeAtClient,
+  magnetizeAtClientLocal,
   clearEdgeSnapHighlight,
 });
 </script>

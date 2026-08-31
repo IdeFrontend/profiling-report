@@ -18,6 +18,24 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 
 **Narrow track.** Body/overview/axis rows use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` so the chart column cannot collapse to 0 when main is narrower than the gutter token.
 
+### Pinned lanes (sticky strip)
+
+When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim body (below overview/axis chrome, above the scrolling lane body) renders **duplicate** leaf rows for each pinned id, in pin order. Original rows stay in the main scroll model at their tree positions.
+
+| Concern | Behavior |
+|---------|----------|
+| Gutter | Pinned strip shows duplicate lane labels + util for each pinned leaf (same chrome as originals; pushpin shown **filled** `#4a90e2`) |
+| Canvas | Pinned strip paints duplicate event rows at the same Y stack as the gutter duplicates; shares `timeWindow`, zoom, and horizontal scroll with the main canvas |
+| Measure | Pinned-strip canvas uses the same `measureMode` / `measureRange` as the body (create, resize, overlay) — not pan while measure is active. Magnet follows the canvas under the pointer across pin strip ↔ body (`PR-SWIMVIEW-018`) |
+| Card headers | Full-width Card strips remain in the scrolling body only — pinned strip is **lane-height rows** (`22px`) without Card spacers |
+| Scroll | Main body `scrollY` does not move the pinned strip; pinned strip height reduces the scroll viewport (`bodyViewportH − pinnedHeight`) |
+| Unpin | Click filled pushpin on duplicate or original → parent removes id from **pinnedLaneIds**; strip row removed |
+| Collapse | Pinned strip **keeps** duplicates when an ancestor Card/folder is collapsed; originals hide in the scroll body. Requires unfiltered `pinSourceModel` (not `displaySwim`). |
+| Dependencies | Pinned-strip canvas pass draws events/labels only — no `dependencyGraph` / `paintDependencyLinks` in strip Y space (no beziers, dimming, or neighbor highlighting there). Main scroll canvas unchanged. |
+| Cross-card | Any leaf id may be pinned regardless of Card/process; strip lists duplicates in **pin order** (may interleave Cards). |
+
+Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
+
 ## Acceptance Criteria
 
 1. **PR-SWIMVIEW-001** — Renders gutter and canvas side by side.
@@ -29,9 +47,23 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar (axis hover / shared playhead).
 8. **PR-SWIMVIEW-008** — Gutter resize handle pins to used grid column (`grid-column: 1 / 2`); track column uses `minmax(80px, 1fr)`.
 9. **PR-SWIMVIEW-009** — When the cursor is magnetized (`cursorSnapped`), the swim vertical bar renders gray (`.pr-swim-cursor--snapped`).
+10. **PR-SWIMVIEW-013** — Non-empty **pinnedLaneIds** renders sticky pinned strip above scroll body.
+11. **PR-SWIMVIEW-014** — Pinned strip duplicates preserve lane ids and pin order.
+12. **PR-SWIMVIEW-015** — Original leaf rows remain in tree order below; unpin removes duplicate only.
+13. **PR-SWIMVIEW-016** — Pinned-strip canvas omits dependency link rendering.
+14. **PR-SWIMVIEW-017** — `pinnedLaneIds` may span multiple Cards/groups; strip order follows pin order.
+15. **PR-SWIMVIEW-018** — Measure magnet follows the canvas under the pointer across pin strip and body (create/resize may start on one and snap on the other).
+16. **PR-SWIMVIEW-019** — Pinned strip stays populated when an ancestor of a pinned leaf is collapsed (`pinSourceModel` / full swim); scroll-body originals hide.
 
 ## Changelog
+- **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
+- **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
+- **2026-08-31** — Renumber pin ACs to `PR-SWIMVIEW-013`…`017` (avoid collision with #45 `010`…`012`).
 - **2026-08-28** — Abspos gutter handle uses explicit `grid-column: 1 / 2` so `right: 0` is the gutter seam, not the track’s far edge.
+- **2026-08-28** — Pinned-strip canvas shares measure mode/range with the body canvas.
+- **2026-08-27** — After rebase onto master (`PR-SWIMVIEW-009` = cursor magnet): pin ACs are `013`…`017` (leave `010`…`012` for #45 Card metric selector). Gutter pin ACs `010`…`013` reserve `009` for #45 metrics.
+- **2026-08-27** — Pinned strip: no dependency links; cross-card pin order (`PR-SWIMVIEW-016`…`017`). Tests deferred until implementation.
+- **2026-08-27** — Sticky pinned-lane strip spec (`PR-SWIMVIEW-013`…`015`). Tests deferred until implementation.
 - **2026-08-26** — Swim cursor moved into `SwimlaneCanvas` below blue edge marks; PR-SWIMVIEW-004.
 - **2026-08-26** — `cursorSnapped` grays the swim vertical bar when the cursor is magnetized to an event edge; PR-SWIMVIEW-009.
 - **2026-08-25** — Pin overlays to used grid columns; track `minmax(80px, 1fr)`; PR-SWIMVIEW-008.

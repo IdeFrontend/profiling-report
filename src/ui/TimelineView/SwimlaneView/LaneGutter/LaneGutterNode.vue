@@ -1,21 +1,37 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { t } from '../../../../i18n';
 import Chevron from '../../../Chevron.vue';
+import PinIcon from '../../../PinIcon.vue';
 import type { GutterLane } from './gutterTypes';
 
 const props = defineProps<{
   lane: GutterLane;
   depth: number;
   collapsedIds?: string[];
+  pinnedLaneIds?: string[];
+  /** Leaf id under canvas hover — gutter row highlight only (not pushpin). */
+  hoveredLaneId?: string | null;
+  locale?: string;
 }>();
 
 const emit = defineEmits<{
   toggle: [id: string];
+  'pin-lane': [id: string];
+  'unpin-lane': [id: string];
 }>();
 
 const collapsed = computed(() => new Set(props.collapsedIds ?? []));
+const pinned = computed(() => new Set(props.pinnedLaneIds ?? []));
 const isFolder = computed(() => props.lane.children !== undefined);
 const isCollapsed = computed(() => collapsed.value.has(props.lane.id));
+const isPinned = computed(() => pinned.value.has(props.lane.id));
+const pinLabel = computed(() => t('pin', props.locale));
+const pinPointerHover = ref(false);
+const laneExternallyHovered = computed(
+  () => !isFolder.value && props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
+);
+/** Leaf/folder share the same indent; pin is absolute at gutter left. */
 const pad = computed(() => `${24 + props.depth * 14}px`);
 /** Thick: folders or depth-0 leaves (通信/储存HBM); thin: pipe leaves under Core. */
 const utilSizeClass = computed(() =>
@@ -32,6 +48,12 @@ function pctLabel(util: number): string {
 /** Sketch: only red (&lt;50%) or gray (≥50%) — no pipe-category tint. */
 function fillColor(util: number): string {
   return util < 0.5 ? UTIL_RED : UTIL_GRAY;
+}
+
+function onPinClick(e: MouseEvent) {
+  e.stopPropagation();
+  if (isPinned.value) emit('unpin-lane', props.lane.id);
+  else emit('pin-lane', props.lane.id);
 }
 </script>
 
@@ -91,19 +113,49 @@ function fillColor(util: number): string {
       :lane="child"
       :depth="depth + 1"
       :collapsed-ids="collapsedIds"
+      :pinned-lane-ids="pinnedLaneIds"
+      :hovered-lane-id="hoveredLaneId"
+      :locale="locale"
       @toggle="(id) => emit('toggle', id)"
+      @pin-lane="(id) => emit('pin-lane', id)"
+      @unpin-lane="(id) => emit('unpin-lane', id)"
     />
   </template>
   <div
     v-else-if="!isFolder"
     class="pr-gutter__lane"
+    :class="{
+      'pr-gutter__lane--lane-hover': laneExternallyHovered,
+      'pr-gutter__lane--pinned': isPinned,
+    }"
     :style="{ paddingLeft: pad }"
     :data-testid="`gutter-lane-${lane.id}`"
   >
-    <span
-      class="pr-gutter__name"
-      :title="lane.name"
-    >{{ lane.name }}</span>
+    <button
+      type="button"
+      class="pr-gutter__pin"
+      data-testid="lane-pin"
+      :aria-label="pinLabel"
+      :aria-pressed="isPinned"
+      @click="onPinClick"
+      @pointerenter="pinPointerHover = true"
+      @pointerleave="pinPointerHover = false"
+      @focus="pinPointerHover = true"
+      @blur="pinPointerHover = false"
+    >
+      <PinIcon :filled="isPinned || pinPointerHover" />
+      <span
+        v-if="pinPointerHover"
+        class="pr-gutter__pin-tip"
+        role="tooltip"
+      >{{ pinLabel }}</span>
+    </button>
+    <span class="pr-gutter__lane-main">
+      <span
+        class="pr-gutter__name"
+        :title="lane.name"
+      >{{ lane.name }}</span>
+    </span>
     <span
       v-if="lane.utilization != null"
       class="pr-gutter__util"
@@ -157,13 +209,15 @@ function fillColor(util: number): string {
   color: inherit;
   text-align: left;
   cursor: default;
+  position: relative;
 }
 
 .pr-gutter__lane--folder {
   cursor: pointer;
 }
 
-.pr-gutter__lane--folder:hover {
+.pr-gutter__lane:hover,
+.pr-gutter__lane--lane-hover {
   background: #252525;
 }
 
@@ -172,6 +226,54 @@ function fillColor(util: number): string {
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.pr-gutter__pin {
+  box-sizing: border-box;
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.pr-gutter__lane:hover .pr-gutter__pin,
+.pr-gutter__lane--pinned .pr-gutter__pin,
+.pr-gutter__pin:focus-visible {
+  visibility: visible;
+  opacity: 1;
+}
+
+.pr-gutter__pin-tip {
+  position: absolute;
+  /* Pin sits flush-left; center would clip past the gutter edge. */
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 2;
+  padding: 4px 8px;
+  background: #2a2a2a;
+  border: 1px solid #555;
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  line-height: 1.2;
+  color: #e8e8e8;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .pr-gutter__name {

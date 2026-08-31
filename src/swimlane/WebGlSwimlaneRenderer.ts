@@ -254,6 +254,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private selectedId: string | null = null;
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
+  private paintDependencies = true;
   private neighborIds = new Set<string>();
   private depLinks: DependencyLink[] = [];
   private width = 0;
@@ -341,6 +342,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.rebuildCurveInstances();
   }
 
+  setPaintDependencies(enabled: boolean): void {
+    if (enabled === this.paintDependencies) return;
+    this.paintDependencies = enabled;
+    this.refreshDepCache();
+    this.rebuildEmphasisSplit();
+    this.rebuildCurveInstances();
+  }
+
   contentHeight(): number {
     return contentHeightFromLayout(this.layout);
   }
@@ -361,6 +370,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   private refreshDepCache(): void {
     this.depGraphGen += 1;
+    if (!this.paintDependencies) {
+      this.neighborIds = new Set();
+      this.depLinks = [];
+      return;
+    }
     const graph = dependencyGraph(this.layout, this.selectedId, this.depMode, this.depDepth);
     this.neighborIds = graph.ids;
     this.depLinks = graph.links;
@@ -469,7 +483,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    this.drawDependencyCurves(gl);
+    if (this.paintDependencies) this.drawDependencyCurves(gl);
 
     gl.bindVertexArray(null);
     gl.disable(gl.BLEND);
@@ -568,7 +582,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     if (!gl || (!q && !sel)) return;
 
     const hasSearch = q.length > 0;
-    const hasSelection = sel != null;
+    const hasSelection = this.paintDependencies && sel != null;
     const bright = this.neighborIds;
     const byLane = new Map<number, LaidOutEvent[]>();
     for (const ev of this.layout.events) {

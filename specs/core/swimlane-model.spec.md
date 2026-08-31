@@ -12,6 +12,8 @@ interface SwimlaneModel {
   minTime: number;
   maxTime: number;
   bands?: SwimlaneBand[]; // optional ProfilerStep-style phase bands; omit when absent
+  /** Viewer-only: omit Card header bands (sticky pinned strip). Adapters must not set. */
+  skipCardHeaders?: boolean;
 }
 interface SwimlaneBand { id: string; name: string; startTime: number; duration: number }
 interface SwimProcess  { id: string; name: string; utilization?: number; threads: SwimThread[]; }
@@ -31,6 +33,8 @@ interface SwimEvent    {
 ```
 
 **Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). Only `SwimProcess` (Card) uses group-header chrome.
+
+**`skipCardHeaders`:** when `true`, `rebuildLayout` / `contentHeightFromModel` skip Card header rows. Used only for the viewer-built pinned sticky-strip model — never on adapter/producer models.
 
 **Bands:** optional shared phase intervals painted on folder/spacer group rows when present. Chrome Trace / `.rep` adapters pass through producer `bands` (`ts`/`dur` in the same unit as X events) and never invent them when absent. Stress fixtures and `sample.rep` supply `ProfilerStep#N` bands.
 
@@ -88,6 +92,7 @@ interface SwimEvent    {
 Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-08-28** — Document viewer-only `skipCardHeaders` for pinned sticky strip (no process-id sentinel).
 - **2026-08-25** — PR-SWIM-015: `nestCardTree` producer opt-in; adaptRep no longer nests every `.rep`.
 - **2026-08-25** — PR-SWIM-014: pass through producer `bands` (sample.rep ProfilerStep labels).
 - **2026-08-19** — s/f may overlap (`pred.end > succ.start`); curves still pred-right → succ-left.

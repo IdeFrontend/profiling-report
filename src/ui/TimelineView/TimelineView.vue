@@ -43,10 +43,18 @@ const props = withDefaults(
     groups: GutterGroup[];
     collapsedIds: string[];
     displaySwim: SwimlaneModel | null;
+    /**
+     * Full (unfiltered) swim model for pinned-strip events. When omitted, pins use
+     * `displaySwim` and disappear if an ancestor Card/folder is collapsed.
+     */
+    pinSourceModel?: SwimlaneModel | null;
+    /** From view.pinnedLaneIds — sticky strip. */
+    pinnedLaneIds?: string[];
     cursor: { time: number; xRatio: number; snapped?: boolean } | null;
     showOverviewCharts?: boolean;
     gutterWidth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
+    locale?: string;
   }>(),
   {
     dependencyMode: 'all',
@@ -59,6 +67,8 @@ const emit = defineEmits<{
   'update:scrollY': [scrollY: number];
   'update:window': [window: { startTime: number; endTime: number }];
   'toggle-group': [groupId: string];
+  'pin-lane': [laneId: string];
+  'unpin-lane': [laneId: string];
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -568,7 +578,9 @@ defineExpose({
       ref="swimlaneRef"
       :groups="groups"
       :collapsed-ids="collapsedIds"
+      :pinned-lane-ids="pinnedLaneIds ?? view.pinnedLaneIds"
       :model="displaySwim"
+      :pin-source-model="pinSourceModel"
       :view="view"
       :selected-event-id="view.selectedEventId"
       :hovered-event-id="view.hoveredEventId"
@@ -581,9 +593,12 @@ defineExpose({
       :gutter-width="localGutterWidth"
       :cursor-x-ratio="cursor?.xRatio ?? null"
       :cursor-snapped="cursor?.snapped ?? false"
+      :locale="locale"
       @update:scroll-y="emit('update:scrollY', $event)"
       @update:gutter-width="onGutterWidth"
       @toggle-group="emit('toggle-group', $event)"
+      @pin-lane="emit('pin-lane', $event)"
+      @unpin-lane="emit('unpin-lane', $event)"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
       @cursor="emit('cursor', $event)"

@@ -78,6 +78,7 @@ const messages = {
     depsDownstream: '仅展示后向依赖',
     noDependencies: '无依赖数据',
     noParameters: '无参数',
+    pin: '置顶',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -154,6 +155,7 @@ const messages = {
     depsDownstream: 'Downstream dependencies only',
     noDependencies: 'No dependency data',
     noParameters: 'No parameters',
+    pin: 'Pin to top',
   },
 } as const;
 

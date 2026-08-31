@@ -131,12 +131,17 @@ export function contentHeightFromLayout(layout: SwimlaneLayout): number {
 
 export function contentHeightFromModel(model: SwimlaneModel | null): number {
   if (!model) return 120;
+  const skipHeaders = model.skipCardHeaders === true;
   const rows = walkVisibleRows(model);
   let h = 0;
   for (const row of rows) {
-    h += row.kind === 'header' ? LANE_GROUP_HEADER_HEIGHT : LANE_HEIGHT;
+    if (row.kind === 'header') {
+      if (!skipHeaders) h += LANE_GROUP_HEADER_HEIGHT;
+      continue;
+    }
+    h += LANE_HEIGHT;
   }
-  return Math.max(120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
+  return Math.max(skipHeaders ? LANE_HEIGHT : 120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
 
 /**
@@ -179,8 +184,11 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   const bands = model.bands ?? [];
 
   let y = 0;
+  /** Sticky pin strip: flat leaf rows only — no Card header chrome. */
+  const skipHeaders = model.skipCardHeaders === true;
   for (const row of walkVisibleRows(model)) {
     if (row.kind === 'header') {
+      if (skipHeaders) continue;
       headers.push({ id: row.process.id, name: row.process.name, y });
       y += LANE_GROUP_HEADER_HEIGHT;
       continue;
@@ -252,6 +260,18 @@ export function eventScreenRect(
   const w = Math.max(2 * dpr, (item.event.duration / span) * widthDevice);
   const m = eventBlockMetrics(item.y, view.scrollY);
   return { x, y: m.y * dpr, w, h: m.h * dpr };
+}
+
+/** Leaf lane id under canvas-local CSS Y, or null on folders / empty. */
+export function leafLaneIdAtPoint(
+  layout: SwimlaneLayout,
+  view: SwimlaneViewWindow,
+  y: number,
+): string | null {
+  const contentY = y + view.scrollY;
+  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
+  if (!lane || lane.folder) return null;
+  return lane.thread.id;
 }
 
 /** Prefer shorter nested events (same as Canvas MVP). `width`/`x`/`y` are device pixels. */

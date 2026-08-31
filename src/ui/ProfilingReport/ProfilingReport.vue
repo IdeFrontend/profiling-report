@@ -7,9 +7,11 @@ import {
   createViewState,
   measureFocusWindow,
   panBy,
+  pinLane,
   setMeasureMode,
   setMeasureRange,
   spanFromZoomPercent,
+  unpinLane,
   zoomAt,
   zoomPercentFromSpan,
   zoomToFitWindow,
@@ -295,6 +297,14 @@ function onToggleGroup(groupId: string): void {
   if (el) {
     viewState.value = { ...viewState.value, scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) };
   }
+}
+
+function onPinLane(laneId: string): void {
+  viewState.value = pinLane(viewState.value, laneId);
+}
+
+function onUnpinLane(laneId: string): void {
+  viewState.value = unpinLane(viewState.value, laneId);
 }
 
 /**
@@ -689,15 +699,20 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
           :collapsed-ids="collapsedGroupIds"
+          :pinned-lane-ids="viewState.pinnedLaneIds"
           :display-swim="displaySwim"
+          :pin-source-model="swim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"
           :prefer-renderer="preferRenderer ?? 'auto'"
+          :locale="locale"
           @update:gutter-width="onGutterWidth"
           @update:scroll-y="onScrollY"
           @update:window="onOverviewWindow"
           @toggle-group="onToggleGroup"
+          @pin-lane="onPinLane"
+          @unpin-lane="onUnpinLane"
           @select="onSelect"
           @hover="onHover"
           @cursor="onCursor"

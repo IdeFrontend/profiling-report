@@ -1,5 +1,6 @@
 component: LaneGutter
 source_primary: v930/entry
+source_secondary: v930/hardware-more-detail
 crops:
   expanders.png:
     source: v930/entry
@@ -25,3 +26,15 @@ crops:
     source: v930/entry
     region: "Close-up of <50% util bar: red fill, hatch, 50% dash"
     box: { x: 1805, y: 1530, w: 480, h: 75 }
+  pin-lanes.png:
+    source: v930/hardware-more-detail
+    region: "Core2.Cube expanded gutter — Core1/Core2 leaf stack with pushpin column"
+    box: { x: 5050, y: 1780, w: 382, h: 200 }
+  pin-icon-detail.png:
+    source: v930/hardware-more-detail
+    region: "Pushpin column close-up — outline (unpinned) vs solid blue (pinned/hover)"
+    box: { x: 5050, y: 1780, w: 95, h: 130 }
+  pin-hover-tooltip.png:
+    source: v930/hardware-more-detail
+    region: "Core2.Vec1 row — blue pin hover + 置顶 tooltip"
+    box: { x: 5050, y: 1875, w: 382, h: 105 }

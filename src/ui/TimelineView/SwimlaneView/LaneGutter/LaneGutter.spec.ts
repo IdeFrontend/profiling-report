@@ -209,4 +209,107 @@ describe('LaneGutter', () => {
     expect(spacer.attributes('aria-hidden')).toBe('true');
     expect(spacer.find('button').exists()).toBe(false);
   });
+
+  it('PR-GUTTER-010: leaf rows include pushpin; unpinned hover-only; pinned always visible', async () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          {
+            id: 'compute',
+            name: '计算',
+            color: '#007084',
+            utilization: 0.9,
+            children: [{ id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 }],
+          },
+          { id: 'leaf', name: '通信', color: '#888', utilization: 1 },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested, pinnedLaneIds: ['mte1'] },
+      attachTo: document.body,
+    });
+    wrapper.get('[data-testid="gutter-lane-leaf"] [data-testid="lane-pin"]');
+    wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-pin"]');
+    expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).not.toContain(
+      'pr-gutter__lane--pinned',
+    );
+    expect(wrapper.get('[data-testid="gutter-lane-mte1"]').classes()).toContain(
+      'pr-gutter__lane--pinned',
+    );
+    expect(wrapper.find('[data-testid="gutter-folder-compute"] [data-testid="lane-pin"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.get('[data-testid="gutter-group-card0"]').find('[data-testid="lane-pin"]').exists()).toBe(
+      false,
+    );
+
+    await wrapper.setProps({ hoveredLaneId: 'leaf' });
+    expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).toContain(
+      'pr-gutter__lane--lane-hover',
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-GUTTER-011: flush-left pin; outline when unpinned, solid when pinned or pin-hovered', async () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          {
+            id: 'compute',
+            name: '计算',
+            color: '#007084',
+            utilization: 0.9,
+            children: [
+              { id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 },
+              { id: 'mte2', name: 'MTE2', color: '#885C00', utilization: 0.5 },
+            ],
+          },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested, pinnedLaneIds: ['mte1'] },
+      attachTo: document.body,
+    });
+    // Flush-left geometry is CSS (`left: 6px`); assert fill state here — layout in Playwright e2e.
+    const deepPin = wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-pin"]');
+    expect(deepPin.find('.pr-pin--filled').exists()).toBe(true);
+
+    const unpinned = wrapper.get('[data-testid="gutter-lane-mte2"] [data-testid="lane-pin"]');
+    expect(unpinned.find('.pr-pin--filled').exists()).toBe(false);
+    await unpinned.trigger('pointerenter');
+    expect(unpinned.find('.pr-pin--filled').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-GUTTER-012: pushpin hover/focus shows localized pin tooltip', async () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups, locale: 'en' },
+    });
+    const pin = wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]');
+    expect(pin.attributes('aria-label')).toBe('Pin to top');
+    expect(pin.find('.pr-gutter__pin-tip').exists()).toBe(false);
+    await pin.trigger('pointerenter');
+    expect(pin.find('.pr-gutter__pin-tip').text()).toBe('Pin to top');
+
+    await wrapper.setProps({ locale: 'zh-CN' });
+    expect(wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]').attributes('aria-label')).toBe(
+      '置顶',
+    );
+  });
+
+  it('PR-GUTTER-013: click unpinned pin emits pin-lane; pinned emits unpin-lane', async () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups, pinnedLaneIds: ['l1'] },
+    });
+    await wrapper.get('[data-testid="gutter-lane-l2"] [data-testid="lane-pin"]').trigger('click');
+    expect(wrapper.emitted('pin-lane')?.[0]).toEqual(['l2']);
+    await wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]').trigger('click');
+    expect(wrapper.emitted('unpin-lane')?.[0]).toEqual(['l1']);
+  });
 });

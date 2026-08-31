@@ -73,6 +73,7 @@ Reference: `source/v930/entry.jpeg`, `source/v930/hardware-more-detail.jpeg` (ex
 - Color-coded duration rectangles on each lane, vertically centered between gutter-aligned row dividers
 - Labels on blocks when width allows (`DC_PRELOAD_XN_IMM`, Aten ops, …): vertically centered in the block; horizontally centered in the on-screen (clipped) event rect
 - Uniform lane background for all event-sequence rows (no zebra striping); horizontal dividers continue from the left gutter across each lane
+- **Pin lane (P2):** leaf-row pushpin in gutter (`source/v930/hardware-more-detail.jpeg`); pinned duplicates in sticky strip at top (events only, no dep links; cross-card pin order) — see [`INTERACTIONS.md`](INTERACTIONS.md)
 - Optional faint background bands (`ProfilerStep#N`) — Phase 2 / when data exists
 - Dependency curves between blocks — Phase 2 (`source/v930/entry.jpeg`)
 

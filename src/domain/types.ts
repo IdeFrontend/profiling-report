@@ -53,6 +53,11 @@ export interface SwimlaneModel {
    * Omit when absent — adapters must not invent these.
    */
   bands?: SwimlaneBand[];
+  /**
+   * When true, layout skips Card header bands (sticky pinned-lane strip).
+   * Viewer-built only — adapters must not set this on producer models.
+   */
+  skipCardHeaders?: boolean;
   metadata?: Record<string, unknown>;
 }
 
@@ -316,6 +321,8 @@ export interface SwimlaneViewState {
   /** M2 度量模式 — local overlay only; does not recompute the aside */
   measureMode: boolean;
   measureRange: MeasureRange | null;
+  /** Leaf lane ids in pin order (session-local); sticky strip duplicates. */
+  pinnedLaneIds: string[];
 }
 
 export interface SwimlaneViewWindow {
@@ -336,6 +343,8 @@ export interface SwimlaneRenderer {
   setDependencyMode?(mode: DependencyMode): void;
   /** Optional: hosts that omit this keep default hop depth. */
   setDependencyDepth?(depth: number): void;
+  /** Optional: when false, skip dependency curves / selection dimming. */
+  setPaintDependencies?(enabled: boolean): void;
   contentHeight(): number;
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;
   findEvent(id: string): SwimEvent | null;
