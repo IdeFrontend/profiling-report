@@ -52,7 +52,6 @@ uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
-in float vRawW;
 out vec4 outColor;
 
 float sdRoundBox(vec2 p, vec2 halfSize, float r) {
