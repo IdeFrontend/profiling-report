@@ -846,19 +846,11 @@ describe('SwimlaneCanvas', () => {
       }),
       configurable: true
     });
-<<<<<<< HEAD
     await fireAllDeviceRo();
     expect(canvas.width).toBe(640);
     expect(canvas.height).toBe(240);
     expect(canvas.style.width).toBe('');
     expect(canvas.style.height).toBe('');
-=======
-    await wrapper.setProps({
-      model: { processes: [], minTime: 0, maxTime: 1000 }
-    });
-    const canvas = wrapper.get('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
-    expect(canvas.style.width).toBe('640px');
->>>>>>> 6049726 (feat: two-tier auto time units for chrome vs absolute times)
     wrapper.unmount();
   });
 
