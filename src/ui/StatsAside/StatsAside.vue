@@ -584,49 +584,49 @@ function backToReport() {
             </button>
           </div>
           <div class="pr-pipe-chart">
-          <div
-            class="pr-pipe-scale"
-            data-testid="pipe-scale"
-          >
-            <span class="pr-pipe-scale__spacer" />
-            <div class="pr-pipe-scale__axis">
-              <span
-                v-for="tick in PIPE_SCALE"
-                :key="tick"
-                class="pr-pipe-scale__tick"
-              >{{ tick }}%</span>
-            </div>
-          </div>
-          <ul class="pr-pipe-list">
-            <li
-              v-for="pipe in visiblePipes"
-              :key="`${pipe.id}-${pipe.side ?? 'x'}`"
-              class="pr-pipe-row"
-              :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
+            <div
+              class="pr-pipe-scale"
+              data-testid="pipe-scale"
             >
-              <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-              <span class="pr-pipe-row__track">
+              <span class="pr-pipe-scale__spacer" />
+              <div class="pr-pipe-scale__axis">
                 <span
-                  class="pr-pipe-row__hatch"
-                  aria-hidden="true"
-                />
-                <span
-                  class="pr-pipe-row__bar"
-                  :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
-                />
-                <span
-                  class="pr-pipe-row__grid"
-                  aria-hidden="true"
-                />
-                <span
-                  v-if="pipe.absoluteValue != null"
-                  class="pr-pipe-row__abs"
-                  data-testid="pipe-absolute"
-                >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
-                <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
-              </span>
-            </li>
-          </ul>
+                  v-for="tick in PIPE_SCALE"
+                  :key="tick"
+                  class="pr-pipe-scale__tick"
+                >{{ tick }}%</span>
+              </div>
+            </div>
+            <ul class="pr-pipe-list">
+              <li
+                v-for="pipe in visiblePipes"
+                :key="`${pipe.id}-${pipe.side ?? 'x'}`"
+                class="pr-pipe-row"
+                :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
+              >
+                <span class="pr-pipe-row__label">{{ pipe.label }}</span>
+                <span class="pr-pipe-row__track">
+                  <span
+                    class="pr-pipe-row__hatch"
+                    aria-hidden="true"
+                  />
+                  <span
+                    class="pr-pipe-row__bar"
+                    :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
+                  />
+                  <span
+                    class="pr-pipe-row__grid"
+                    aria-hidden="true"
+                  />
+                  <span
+                    v-if="pipe.absoluteValue != null"
+                    class="pr-pipe-row__abs"
+                    data-testid="pipe-absolute"
+                  >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+                  <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+                </span>
+              </li>
+            </ul>
           </div>
         </div>
       </div>

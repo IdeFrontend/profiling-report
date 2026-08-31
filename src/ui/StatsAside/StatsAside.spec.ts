@@ -876,7 +876,7 @@ describe('StatsAside', () => {
           summary: { taskDurationUs: 1, opType: 'cube' },
           pipeOccupancy: pipes,
           roofline: {
-            points: [{ intensity: 1, performance: 1, onRoof: true, mixLabel: 'x' }],
+            points: [{ id: 'p1', label: 'x', intensity: 1, performance: 1, style: 'solid' }],
             mixLabels: [],
             peakComputeTops: 10,
             peakBandwidthGBs: 1000,
