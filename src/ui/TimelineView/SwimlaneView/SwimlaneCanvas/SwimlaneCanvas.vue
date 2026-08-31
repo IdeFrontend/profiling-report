@@ -1311,10 +1311,11 @@ const altEventMeasureGeometry = computed(() => {
   const widthPct = ((arrowRight - arrowLeft) / w) * 100;
   const style = { left: `${leftPct}%`, width: `${widthPct}%` };
 
+  // Any deltaNs > 0 shows the overlay; outside label when the span is too narrow for inline.
+  const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
+
   // Free cursor target: full-height blue line + anchor edge stick + Δt arrow on the anchor lane.
   if (target.eventId === null) {
-    const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
-    if (arrowMode === 'outside' && rangePx < 8) return null;
     return {
       mode: 'cursor' as const,
       anchorLaneTop: gap.leftLaneY - props.view.scrollY,
@@ -1330,7 +1331,6 @@ const altEventMeasureGeometry = computed(() => {
 
   if (gap.sameLane) {
     const top = gap.leftLaneY - props.view.scrollY;
-    if (!measureLabelFitsInlineSpan(rangePx, label)) return null;
     return {
       mode: 'same' as const,
       top,
@@ -1340,7 +1340,7 @@ const altEventMeasureGeometry = computed(() => {
       label,
       showLeft,
       showRight,
-      arrowLayout: { mode: 'inline' as const, side: 'right' as const, style },
+      arrowLayout: { mode: arrowMode, side: 'right' as const, style },
     };
   }
 
@@ -1348,8 +1348,6 @@ const altEventMeasureGeometry = computed(() => {
   const rightLaneTop = gap.rightLaneY - props.view.scrollY;
   const laneCenterY = (y: number) => y + LANE_HEIGHT / 2;
   const vertX = right;
-  const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
-  if (arrowMode === 'outside' && rangePx < 8) return null;
 
   return {
     mode: 'cross' as const,

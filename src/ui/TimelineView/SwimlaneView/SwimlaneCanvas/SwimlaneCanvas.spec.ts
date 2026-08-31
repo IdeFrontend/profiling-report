@@ -1569,5 +1569,40 @@ describe('SwimlaneCanvas', () => {
     expect(left).toBe(40);
     expect(width).toBe(40);
     wrapper.unmount();
+    Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true });
+  });
+
+  it('PR-CANVAS-059: narrow cross-lane gap (< 8px) still shows Alt-measure + Δt', async () => {
+    // 10 ns gap at 400 CSS px / 1000 ns → 4px visible span (under the old rangePx < 8 hide gate).
+    const narrowCrossModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-1', name: 'Lane A', events: [{ id: 'eA', name: 'a', startTime: 100, duration: 100 }] },
+            { id: 't-2', name: 'Lane B', events: [{ id: 'eB', name: 'b', startTime: 210, duration: 100 }] },
+          ],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithGapModel({ model: narrowCrossModel });
+    const vm = wrapper.vm as unknown as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rectA = vm.eventScreenRect('eA')!;
+    const rectB = vm.eventScreenRect('eB')!;
+    const yA = rectA.y + rectA.h / 2;
+    const yB = rectB.y + rectB.h / 2;
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: yA, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: yA, pointerId: 1, altKey: true });
+    // eB = 210..310 → px 84..124; hover mid-block.
+    await canvas.trigger('pointermove', { clientX: 100, clientY: yB, pointerId: 1, altKey: true });
+
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="measure-label"]').text()).toBe('10 ns');
+    wrapper.unmount();
   });
 });
