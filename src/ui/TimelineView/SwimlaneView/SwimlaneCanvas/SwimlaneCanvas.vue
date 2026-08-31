@@ -59,7 +59,7 @@ const props = withDefaults(
      * Parent override for client-space magnet (pin strip ↔ body). When set, measure
      * create/resize and expose use this instead of this canvas’s local layout.
      */
-    magnetizeAtClient?: (
+    resolveMagnetize?: (
       clientX: number,
       clientY: number,
     ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
@@ -1061,7 +1061,7 @@ function magnetizeAtClientLocal(clientX: number, clientY: number) {
 
 /** Window-level measure drag / axis — optional parent override for cross-canvas magnet. */
 function magnetizeAtClient(clientX: number, clientY: number) {
-  if (props.magnetizeAtClient) return props.magnetizeAtClient(clientX, clientY);
+  if (props.resolveMagnetize) return props.resolveMagnetize(clientX, clientY);
   return magnetizeAtClientLocal(clientX, clientY);
 }
 
