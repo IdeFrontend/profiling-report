@@ -143,7 +143,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 
 | Token | Value |
 |-------|--------|
-| Well | `#1a1a1a` (`--pr-bg-aside`); padding `8px` (keeps bottom band before the next stack section); radius `8px`; gap `8px` |
+| Well | `#1a1a1a` (`--pr-bg-aside`); **bottom** padding `8px` only (band before next stack section); tile left/right edges align with grey islands below |
 | Columns | `repeat(6, minmax(0, 1fr))` — top-row tiles (duration + compute/util placeholders) `span 2`; BW `span 3` |
 
 ### Duration card (`summary-cards.png` / `detail-strip-raised` cell)

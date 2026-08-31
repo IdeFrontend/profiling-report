@@ -861,6 +861,11 @@ describe('StatsAside', () => {
     );
   });
 
+  it('PR-STATS-025c: summary grid aligns with stack islands (no horizontal well inset)', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-cards\s*\{[^}]*padding:\s*0\s+0\s+8px/s);
+  });
+
   it('PR-STATS-025b: section titles sit outside grey islands', () => {
     const pipes = [
       { id: 'cube', label: 'Cube', ratio: 0.8, colorKey: 'cube', side: 'cube' as const },

@@ -929,15 +929,15 @@ function backToReport() {
 }
 
 /*
- * Sketch: 3+2 grid on six columns; `--pr-bg-aside` well with 8px pad (bottom band before
- * the next stack section). Cards: cool diagonal gradient from detail-strip-raised.
+ * Sketch: 3+2 grid on six columns; bottom pad only so tile edges align with
+ * stack islands below (horizontal edges share the aside body column).
  */
 .pr-cards {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 0 0 8px;
+  border-radius: 0;
   background: var(--pr-bg-aside);
 }
 
