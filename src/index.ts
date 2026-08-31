@@ -32,4 +32,7 @@ export {
   normalizeDependencyDepth,
 } from './domain/types';
 
+export { buildCannbotPayload, CANNBOT_PROMPT } from './domain/cannbot';
+export type { CannbotPayload, CannbotReportMeta, CannbotScope } from './domain/cannbot';
+
 export { default as ProfilingReport } from './ui/ProfilingReport/ProfilingReport.vue';

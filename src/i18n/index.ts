@@ -63,6 +63,7 @@ const messages = {
     hardwareDetails: '硬件信息详情',
     pipeDetails: 'PIPE 占用率',
     back: '返回',
+    cannbotAsk: 'CANNBot 分析',
     // The sketch keeps these six column/toolbar labels in English in the zh-CN UI —
     // `Relevent` included, misspelling and all. Identical to the `en` block on purpose.
     parameter: 'Parameter',
@@ -140,6 +141,7 @@ const messages = {
     hardwareDetails: 'Hardware information details',
     pipeDetails: 'PIPE occupancy',
     back: 'Back',
+    cannbotAsk: 'CANNBot Analysis',
     parameter: 'Parameter',
     relevant: 'Relevent',
     incoming: 'Incoming',
