@@ -68,8 +68,8 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 | Aside shell (title, close, meta, 更多) | M | Close hides aside; meta hide-if-missing; 更多 opens hardware overlay (I-Q7a) — [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md), [INTERACTIONS](INTERACTIONS.md) |
 | PIPE occupancy bars | M | From PipeUtilization.csv; mean non-`NA` ([I-Q6b](../context/INTERIM_DECISIONS.md)); **hide** if missing |
 | Cube \| Vector PIPE toggle (MIX only) | M1 | [`v930/compute-load`](./source/v930/compute-load.jpeg); non-MIX shows relevant side only |
-| Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists |
-| Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [I-Q6c](../context/INTERIM_DECISIONS.md); 查看全部 [I-Q6d](../context/INTERIM_DECISIONS.md) (#4) |
+| Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists (filter + highlight) |
+| Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [I-Q6c](../context/INTERIM_DECISIONS.md); 查看全部 [I-Q6d](../context/INTERIM_DECISIONS.md) (#4); searchable field lists (filter + highlight) |
 | Roofline bottleneck chart | M2 | `source/v930/report-stats-open.jpeg` / [milestone-2](../process/roadmap/milestone-2.md) |
 | Hardware info details | M1 | **Source confirmed:** `HardwareInfo.jsonl`; OpBasicInfo fallback ([I-Q7a](../context/INTERIM_DECISIONS.md)). Hide overlay if both absent |
 | Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([Q12](../context/OPEN_QUESTIONS.md), changelog #5) |
