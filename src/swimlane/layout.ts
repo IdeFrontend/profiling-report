@@ -1,6 +1,7 @@
 import type { SwimEvent, SwimlaneBand, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
 import { walkVisibleRows } from '../domain/swimTree';
+import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
@@ -13,9 +14,11 @@ export const LANE_GROUP_HEADER_HOVER = '#323232';
 /** Half of 1 device-px gap between abutting event fills (inset per side after CSS→device scale). */
 export const EVENT_MARGIN_DEVICE = 0.5;
 
-/** Corner radius in device px: 1 when narrow (<4 device px wide), else 2. */
-export function eventRadius(widthDevicePx: number): number {
-  return widthDevicePx < 4 ? 1 : 2;
+/** Corner policy is CSS px (shared with the WebGL shader): minRR below rrSwitchThreshold CSS-px
+ * raw width, else maxRR, then ×dpr and rounded to integer device px. */
+export function eventRadius(widthCssPx: number, dpr = 1): number {
+  const rCss = widthCssPx < rrSwitchThreshold ? minRR : maxRR;
+  return rrToDevicePx(rCss, dpr);
 }
 
 /** Snap a value onto the integer device-pixel grid. */
@@ -46,6 +49,7 @@ export function eventPaintRect(
   y: number,
   w: number,
   h: number,
+  dpr = 1,
 ): { x: number; y: number; w: number; h: number; r: number } {
   const snapped = snapEventRect(
     x + EVENT_MARGIN_DEVICE,
@@ -53,7 +57,8 @@ export function eventPaintRect(
     Math.max(0, w - EVENT_MARGIN_DEVICE * 2),
     h,
   );
-  return { ...snapped, r: eventRadius(w) };
+  // `w` is device px; convert to CSS px (÷ dpr) for the corner decision.
+  return { ...snapped, r: eventRadius(w / dpr, dpr) };
 }
 
 /** @deprecated Use EVENT_MARGIN_DEVICE — kept as alias for older call sites during migration. */

@@ -99,11 +99,14 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(id).toBe('e-short');
   });
 
-  it('PR-RENDER-017: eventRadius narrow vs normal and 1 device-px margin', () => {
-    expect(eventRadius(2)).toBe(1);
-    expect(eventRadius(3.9)).toBe(1);
-    expect(eventRadius(4)).toBe(2);
-    expect(eventRadius(40)).toBe(2);
+  it('PR-RENDER-017: eventRadius is CSS-px policy × dpr (device-px radius)', () => {
+    // CSS-px raw width decides the corner radius, then it scales by dpr (rounded).
+    expect(eventRadius(2, 1)).toBe(1); // narrow
+    expect(eventRadius(3.9, 1)).toBe(1);
+    expect(eventRadius(4, 1)).toBe(2); // wide
+    expect(eventRadius(40, 1)).toBe(2);
+    expect(eventRadius(2, 2)).toBe(2); // 1 CSS px × 2 dpr
+    expect(eventRadius(40, 2)).toBe(4); // 2 CSS px × 2 dpr
     expect(EVENT_MARGIN).toBe(0.5);
   });
 

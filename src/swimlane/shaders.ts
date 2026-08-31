@@ -5,6 +5,21 @@
  * Analytical horizontal coverage (sudu) combined with SDF round-rect shape using min (Canvas radius parity).
  */
 
+/**
+ * Rounded-rect corner policy, in CSS px (single source of truth shared with the Canvas renderer):
+ * an event gets minRR corner radius when its raw width (CSS px) is < rrSwitchThreshold, else maxRR.
+ * Host code multiplies these by dpr (then rounds `((x+0.5)|0)`) and uploads the device-px trio to
+ * the swim fragment shader's single `uRR` vec3 uniform.
+ */
+export const minRR = 1;
+export const maxRR = 2;
+export const rrSwitchThreshold = 4;
+
+/** Scale a CSS-px corner/width value to integer device px: `* dpr`, then round `((x+0.5)|0)`. */
+export function rrToDevicePx(cssPx: number, dpr: number): number {
+  return (cssPx * dpr + 0.5) | 0;
+}
+
 export const SWIMLANE_VS = `#version 300 es
 precision highp float;
 
@@ -49,6 +64,7 @@ precision highp float;
 
 uniform vec4 uColor;
 uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
+uniform vec3 uRR; // (minRadius, maxRadius, switchThreshold) in device px — CSS px × dpr, rounded in JS
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
@@ -74,7 +90,8 @@ void main() {
   float w = max(r - l, 0.0);
   float h = max(b - t, 0.0);
   float rawW = r - l;
-  float rad = min(min(w, h) * 0.5, rawW < 4.0 ? 1.0 : 2.0);
+  // Corner policy is CSS-px; uRR carries the device-px threshold so the comparison holds at any dpr.
+  float rad = min(min(w, h) * 0.5, rawW < uRR.z ? uRR.x : uRR.y);
 
   vec2 center = vec2((l + r) * 0.5, (t + b) * 0.5);
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
