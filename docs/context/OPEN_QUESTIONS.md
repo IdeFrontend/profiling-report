@@ -12,7 +12,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 
 **MVP unblock doc:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md)
 
-**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (HQ DATA 1–29, HQ UI/UX 30–37). Those HQ numbers are not the Q1–Q23 ids in the tables below.
+**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (HQ DATA 1–29, HQ UI/UX 30–36). Those HQ numbers are not the Q1–Q23 ids in the tables below.
 
 ## What you can do now
 
@@ -93,3 +93,4 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Interim set | 2026-07-31 | I-Q2, I-Q4, I-Q6a/b, I-Q5+, I-Q14, I-Q16–19 for MVP code | INTERIM_DECISIONS |
 | Q20 | 2026-08-12 | Shared agent rules in AGENTS.md (+ nested spec guides); Cursor-only review auto-post; skills in `.agents/skills/` | AGENTS.md, CLAUDE.md |
 | OPEN Q22 | 2026-08-25 | Measure mode does **not** recompute right panel / other views (local overlay only). Not HQ 22. | [INTERACTIONS](../ui/INTERACTIONS.md), [UX_SPEC](../ui/UX_SPEC.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
+| HQ 37 | 2026-08-28 | CSV 详情 search filters non-matching rows and highlights the matching substring (flush chip). Same on compute and memory. | [CsvFieldListPanel](../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md), [UX_SPEC](../ui/UX_SPEC.md) |

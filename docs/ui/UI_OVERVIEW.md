@@ -88,7 +88,7 @@ Modes observed in sketches:
 | Roofline (within stats aside or sibling) | `source/v930/entry.jpeg`, `source/v930/entry.jpeg` | Log-log bottleneck chart | M2 |
 | Memory topology | `source/v930/memory-load-detail.jpeg`, changelog #5 | Static SVG + data-driven edge labels | M2 |
 | Hardware details | `source/v930/hardware-more-detail.jpeg` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([Q7](../context/OPEN_QUESTIONS.md)) |
-| Pipe field list | `source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg` | Searchable PipeUtilization columns | P2 |
+| Pipe field list | `source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg` | Searchable PipeUtilization columns (filter + highlight) | M1 |
 | Memory analysis | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` | **Static SVG** + **data-driven edge labels** ([Q12](../context/OPEN_QUESTIONS.md)) | P2 |
 
 **MVP:** Summary tiles that have clear data + PIPE bars when CSV present; **hide** anything without inputs ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)). Overview charts hidden until series exist. Colors: [COLOR_TOKENS.md](COLOR_TOKENS.md).

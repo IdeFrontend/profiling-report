@@ -268,11 +268,3 @@ images:
     highlights:
       - label: "Q36 GB/s"
         box: { x: 310, y: 1070, w: 180, h: 160 }
-
-  q37:
-    source: v930/search-highlight
-    crop: { x: 5480, y: 400, w: 2070, h: 2100 }
-    maxWidth: 900
-    highlights:
-      - label: "Q37 search rows"
-        box: { x: 40, y: 220, w: 1990, h: 1840 }

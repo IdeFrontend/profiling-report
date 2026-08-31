@@ -10,7 +10,7 @@ When a question is answered: write it into the owning specs and **remove** it fr
 
 Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · one annotated crop per question below · sources [`docs/ui/source/v930/`](../ui/source/v930/) · component crops under `src/ui/**/visual/` ([regenerate](visual/hq/README.md))
 
-**Numbering.** This ledger is **HQ 1–37** (`q1.png`…`q37.png`). It is not the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
+**Numbering.** This ledger is **HQ 1–36** (`q1.png`…`q36.png`). It is not the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
 
 - **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.
 - **PARTIAL** — field name known, but a value or a product decision is still missing.
@@ -332,12 +332,3 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 36. Some labels are **KB**, some are **GB/s**. Keep both, or convert to one unit?
     - **OPEN** — unit/UX decision. This frame only has **GB/s**; KB would be L0C datas (`L0C_to_L1_datas(KB)`).
-
-### PIPE 占用率 / 计算负载分析 (Pipe occupancy / compute load)
-
-**Design:** [`v930/search-highlight`](../ui/source/v930/search-highlight.jpeg) · [`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg) · [`compute-detail-tabs.png`](../../src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png)
-
-<img src="visual/hq/q37.png" alt="Q37 CSV search highlights matches, does not filter" width="900" height="913">
-
-37. CSV **详情** (details) search currently **highlights** matching header substrings (navy chip on `aic_mte3`) and keeps every row. Should it also **filter** — hide non-matching rows? Highlight only, filter only, or both? Same rule for compute and memory overlays?
-    - **OPEN** — we shipped highlight-only ([PR #32](https://github.com/IdeFrontend/profiling-report/pull/32)) to match this sketch. [UX_SPEC](../ui/UX_SPEC.md) still says the pipe field list filters rows. Product has not picked.
