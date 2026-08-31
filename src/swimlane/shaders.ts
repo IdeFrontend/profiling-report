@@ -62,10 +62,12 @@ float sdRoundBox(vec2 p, vec2 halfSize, float r) {
 void main() {
   float l = vLrScreen.x;
   float r = vLrScreen.y;
+  
   // Sudu: lPx/rPx = event left/right inside the current device pixel.
-  float lPx = max(l, vScreenPos.x - 0.5);
-  float rPx = min(r, vScreenPos.x + 0.5);
-  float inside = rPx - lPx;
+  // since round-rect coverage equals to sudu-horizontal coverage we avoid using sudu-coverage  
+  // float lPx = max(l, vScreenPos.x - 0.5);
+  // float rPx = min(r, vScreenPos.x + 0.5);
+  // float inside = rPx - lPx;
 
   float t = uYBounds.x;
   float b = uYBounds.y;
@@ -78,9 +80,9 @@ void main() {
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
   float shape = clamp(0.5 - dist, 0.0, 1.0);
-
-  // Horizontal coverage × round-rect shape; premul source-over (not sudu additive).
-  float cov = inside * shape;
+  // Horizontal coverage == round-rect-coverage on edges, using round-rect
+  // float cov = inside;
+  float cov = shape;
   outColor = vec4(uColor.xyz * cov, uColor.w * cov);
 }
 `;
