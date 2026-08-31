@@ -61,6 +61,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep full fill and label brightness.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional (existing implementers stay valid).
 1. **PR-RENDER-017**: `eventRadius` applies the CSS-px corner policy (1 below 4 CSS-px width, else 2) × `dpr` → device px; Canvas and WebGL share the same `shaders.ts` constants via one `uRR` vec3 uniform / `eventRadius`.
+1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
 1. **PR-RENDER-018**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
 1. **PR-RENDER-019**: `resize(deviceW, deviceH, dpr)` sets `canvas.width/height` to device args without writing `canvas.style`; WebGL has no `uDpr` uniform.
 
