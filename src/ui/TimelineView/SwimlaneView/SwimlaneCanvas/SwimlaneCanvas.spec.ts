@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { nextTick } from 'vue';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
 
 /** ResizeObservers created during a test — call `fireAllDeviceRo()` after setting wrap client size. */
@@ -1444,7 +1443,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-046: hovering the anchor event shows only the anchor highlight', async () => {
+  it('PR-CANVAS-047: hovering the anchor event shows only the anchor highlight', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
@@ -1457,7 +1456,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-047: Δt is directional — measures to the earlier target\'s end edge', async () => {
+  it('PR-CANVAS-048: Δt is directional — measures to the earlier target\'s end edge', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     // Anchor eB (500..600); hover eA (100..200), which precedes → target = eA.end (200).
@@ -1471,7 +1470,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-049: cross-lane measure draws the dashed connector and Δt label', async () => {
+  it('PR-CANVAS-050: cross-lane measure draws the dashed connector and Δt label', async () => {
     const crossModel = {
       minTime: 0,
       maxTime: 1000,
@@ -1504,7 +1503,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-050: session clears on Escape and on toggling the same anchor', async () => {
+  it('PR-CANVAS-051: session clears on Escape and on toggling the same anchor', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
@@ -1524,7 +1523,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-051: entering measureMode clears the session', async () => {
+  it('PR-CANVAS-052: entering measureMode clears the session', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
@@ -1536,7 +1535,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-052: hover gap measure is suppressed while an Alt session is active', async () => {
+  it('PR-CANVAS-053: hover gap measure is suppressed while an Alt session is active', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
