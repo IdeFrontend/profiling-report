@@ -531,6 +531,7 @@ function backToReport() {
           <h4>{{ t('computeAnalysis', locale) }}</h4>
           <div class="pr-pipe-head__actions">
             <button
+              v-if="showCompute"
               type="button"
               class="pr-cannbot"
               data-testid="cannbot-compute"
@@ -632,6 +633,7 @@ function backToReport() {
           <h4>{{ t('memoryAnalysis', locale) }}</h4>
           <div class="pr-pipe-head__actions">
             <button
+              v-if="showMemory"
               type="button"
               class="pr-cannbot"
               data-testid="cannbot-memory"
@@ -665,9 +667,21 @@ function backToReport() {
           data-testid="stats-compute"
           class="pr-aside__detail"
         >
-          <h4 class="pr-aside__detail-title">
-            {{ t('computeAnalysis', locale) }}
-          </h4>
+          <div class="pr-aside__detail-head">
+            <h4 class="pr-aside__detail-title">
+              {{ t('computeAnalysis', locale) }}
+            </h4>
+            <button
+              type="button"
+              class="pr-cannbot"
+              data-testid="cannbot-compute"
+              :aria-label="t('cannbotAsk', locale)"
+              :title="t('cannbotAsk', locale)"
+              @click="emit('open-cannbot', 'compute')"
+            >
+              <CannbotIcon />
+            </button>
+          </div>
           <CsvFieldListPanel
             :tables="report?.computeTables ?? []"
             :csv-texts="report?.csvTexts ?? {}"
@@ -681,9 +695,21 @@ function backToReport() {
           data-testid="stats-memory"
           class="pr-aside__detail"
         >
-          <h4 class="pr-aside__detail-title">
-            {{ t('memoryAnalysis', locale) }}
-          </h4>
+          <div class="pr-aside__detail-head">
+            <h4 class="pr-aside__detail-title">
+              {{ t('memoryAnalysis', locale) }}
+            </h4>
+            <button
+              type="button"
+              class="pr-cannbot"
+              data-testid="cannbot-memory"
+              :aria-label="t('cannbotAsk', locale)"
+              :title="t('cannbotAsk', locale)"
+              @click="emit('open-cannbot', 'memory')"
+            >
+              <CannbotIcon />
+            </button>
+          </div>
           <CsvFieldListPanel
             :tables="report?.memoryTables ?? []"
             :csv-texts="report?.csvTexts ?? {}"
@@ -869,6 +895,18 @@ function backToReport() {
   font-size: 12px;
   font-weight: 600;
   color: #ffffff;
+}
+
+.pr-aside__detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.pr-aside__detail-head .pr-aside__detail-title {
+  margin: 0;
 }
 
 /*

@@ -16,6 +16,20 @@ function cannbotEntryReport(): ReportViewModel {
     pipeOccupancy: [
       { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
     ],
+    computeTables: [
+      { fileName: 'PipeUtilization.csv', headers: ['item'], rows: [{ item: 'Vector' }], blockIds: ['0'] },
+    ],
+    memoryTables: [
+      { fileName: 'Memory.csv', headers: ['block_id'], rows: [{ block_id: '0' }], blockIds: ['0'] },
+    ],
+  });
+}
+
+function csvOnlyEntryReport(): ReportViewModel {
+  return report({
+    computeTables: [
+      { fileName: 'PipeUtilization.csv', headers: ['item'], rows: [{ item: 'Vector' }], blockIds: ['0'] },
+    ],
     memoryTables: [
       { fileName: 'Memory.csv', headers: ['block_id'], rows: [{ block_id: '0' }], blockIds: ['0'] },
     ],
@@ -825,7 +839,7 @@ describe('StatsAside', () => {
     );
   });
 
-  it('PR-STATS-025: cannbot icon entries render in summary, compute and memory sections', () => {
+  it('PR-STATS-026: cannbot icon entries render in summary, compute and memory sections', () => {
     const wrapper = mount(StatsAside, { props: { report: cannbotEntryReport() } });
 
     const summaryBtn = wrapper.get('[data-testid="cannbot-summary"]');
@@ -852,14 +866,43 @@ describe('StatsAside', () => {
 
     const empty = mount(StatsAside, { props: { report: report({}) } });
     expect(empty.find('[data-testid="cannbot-summary"]').exists()).toBe(false);
+
+    // Icon gating tracks payload data, not section visibility: pipe bars without
+    // compute tables carry no compute payload, so the compute icon stays hidden.
+    const pipeOnly = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+        }),
+      },
+    });
+    expect(pipeOnly.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
+    expect(pipeOnly.find('[data-testid="cannbot-compute"]').exists()).toBe(false);
+
+    // CSV-only fallback (PR-UI-008): icons render on the compute/memory list titles.
+    const csvOnly = mount(StatsAside, { props: { report: csvOnlyEntryReport() } });
+    expect(csvOnly.find('[data-testid="stats-compute"]').exists()).toBe(true);
+    expect(csvOnly.find('[data-testid="stats-memory"]').exists()).toBe(true);
+    const csvComputeBtn = csvOnly.get('[data-testid="cannbot-compute"]');
+    expect(csvComputeBtn.element.parentElement!.classList.contains('pr-aside__detail-head')).toBe(true);
+    const csvMemoryBtn = csvOnly.get('[data-testid="cannbot-memory"]');
+    expect(csvMemoryBtn.element.parentElement!.classList.contains('pr-aside__detail-head')).toBe(true);
   });
 
-  it('PR-STATS-026: cannbot icons emit open-cannbot with the section scope', async () => {
+  it('PR-STATS-027: cannbot icons emit open-cannbot with the section scope', async () => {
     const wrapper = mount(StatsAside, { props: { report: cannbotEntryReport() } });
 
     await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
     await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
     await wrapper.get('[data-testid="cannbot-memory"]').trigger('click');
     expect(wrapper.emitted('open-cannbot')).toEqual([['summary'], ['compute'], ['memory']]);
+
+    const csvOnly = mount(StatsAside, { props: { report: csvOnlyEntryReport() } });
+    await csvOnly.get('[data-testid="cannbot-compute"]').trigger('click');
+    await csvOnly.get('[data-testid="cannbot-memory"]').trigger('click');
+    expect(csvOnly.emitted('open-cannbot')).toEqual([['compute'], ['memory']]);
   });
 });

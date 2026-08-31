@@ -88,8 +88,8 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 25. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
 26. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, TB/s, bar = score%; `out.rep` uses 1.6 TB/s peak (~1% score).
 27. **PR-STATS-025** — Black aside shell; grey section islands.
-27. **PR-STATS-025** — cannbot icons render at the three section anchors.
-28. **PR-STATS-026** — Icon click emits open-cannbot with scope.
+28. **PR-STATS-026** — cannbot icons render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility.
+29. **PR-STATS-027** — Icon click emits open-cannbot with scope.
 
 ## Edge Cases
 
@@ -219,7 +219,8 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 - **2026-08-27** — Restore card gradient + well `padding: 8px` (bottom band); prior flat/`padding:0` pass broke sketch chrome.
 - **2026-08-27** — 算力情况 / 平均核利用率 shown as title + `N/A` placeholders when duration is present (PR-STATS-011); still ignore summary compute/util fields until Q6.
 - **2026-08-26** — Summary cards use sketch 3+2 grid and raised tile chrome (dark well, pill 8px bars, split duration unit); drop full-width stack interim.
-- **2026-08-26** — cannbot icon entries on meta row / compute / memory section heads (PR-STATS-025/026).
+- **2026-08-31** — CSV-only fallback renders cannbot icons on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` so the entry tracks the payload data (PR-STATS-026).
+- **2026-08-26** — cannbot icon entries on meta row / compute / memory section heads (PR-STATS-026/027).
 - **2026-08-25** — Shell meta is 进程 / 算子类型 / Blocks (PR-STATS-007); drop 核数 / aic频率 / NPU ARCH.
 - **2026-08-24** — Compute overlay omits block + 查看全部 (PR-STATS-005, `v930/search-highlight`).
 - **2026-08-20** — npu-compute 0818: measured BW / HardwareInfo source / ICache / NA-hide confirmed; peak/score still open.
