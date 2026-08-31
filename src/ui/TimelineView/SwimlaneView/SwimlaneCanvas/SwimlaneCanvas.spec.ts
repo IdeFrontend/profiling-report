@@ -1836,4 +1836,63 @@ describe('SwimlaneCanvas', () => {
     ).toEqual(['e1']);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-XXX: Ctrl+left-click on event toggles multi-selection (add)', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    // Ctrl+pointerdown
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    // No drag (within threshold)
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    await wrapper.vm.$nextTick();
+    // Should have emitted update-multi-selected with [['e1']]
+    const emitted = wrapper.emitted('update-multi-selected') as unknown[][];
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]).toEqual([['e1']]);
+    // Should not have emitted select or multi-select (marquee)
+    expect(wrapper.emitted('select')).toBeFalsy();
+    expect(wrapper.emitted('multi-select')).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-XXX: Ctrl+left-click on selected event removes from multi-selection', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    // First Ctrl+click to add
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    await wrapper.vm.$nextTick();
+    const emitted2 = wrapper.emitted('update-multi-selected') as unknown[][];
+    expect(emitted2).toHaveLength(1);
+    expect(emitted2[0]).toEqual([['e1']]);
+    // Second Ctrl+click to remove — simulate parent updating the prop
+    await wrapper.setProps({ multiSelectedIds: ['e1'] });
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 2, ctrlKey: true });
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 2, ctrlKey: true });
+    await wrapper.vm.$nextTick();
+    const emitted3 = wrapper.emitted('update-multi-selected') as unknown[][];
+    expect(emitted3).toHaveLength(2);
+    // Second call: [] (removed)
+    expect(emitted3[1]).toEqual([[]]);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-XXX: Ctrl+left-click on empty space does nothing', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    // Click somewhere with no event (assuming top-left corner is empty)
+    await canvas.trigger('pointerdown', { clientX: 0, clientY: 0, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointerup', { clientX: 0, clientY: 0, pointerId: 1, ctrlKey: true });
+    await wrapper.vm.$nextTick();
+    const emitted = wrapper.emitted('update-multi-selected');
+    expect(emitted).toBeFalsy();
+    wrapper.unmount();
+  });
 });

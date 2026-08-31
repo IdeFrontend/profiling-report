@@ -104,9 +104,11 @@ const emit = defineEmits<{
   'multi-select': [events: SwimEvent[]];
   /** Live marquee time extent for the axis Δt chrome; null when the drag ends or cancels. */
   'multi-select-span': [span: MeasureRange | null];
-  hover: [event: SwimEvent | null, clientX: number, clientY: number];
-  /** Leaf lane under pointer Y — gutter header highlight only (not pin). */
-  'lane-hover': [laneId: string | null];
+    /** Ctrl+left-click toggled a single event in/out of multi-selection. */
+    'update-multi-selected': [ids: string[]];
+    hover: [event: SwimEvent | null, clientX: number, clientY: number];
+    /** Leaf lane under pointer Y — gutter header highlight only (not pin). */
+    'lane-hover': [laneId: string | null];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
@@ -175,6 +177,8 @@ let measureDragOccurred = false;
  * the same press cannot pan or select.
  */
 let measurePressActive = false;
+/** True from Ctrl+pointerdown until pointerup — suppresses marquee and single select. */
+let ctrlClickPending = false;
 const MEASURE_DRAG_THRESHOLD_PX = 4;
 /** Marquee (unmodified drag) multi-select — same 4px click-vs-drag gate as measure create. */
 const marqueeRect = ref<MarqueeRect | null>(null);
@@ -1651,6 +1655,8 @@ function onPointerDown(e: PointerEvent): void {
   downX = e.clientX;
   lastPointerClientY = e.clientY;
   measureDragOccurred = false;
+  // Store Ctrl state — Ctrl suppresses marquee and single select in onPointerUp.
+  ctrlClickPending = e.ctrlKey && e.button === 0;
   // Measure mode owns the unmodified drag; otherwise it starts a marquee.
   if (props.measureMode && activeCanvas()) {
     endMarquee();
@@ -1785,6 +1791,26 @@ function onPointerUp(e: PointerEvent): void {
     return;
   }
   updateHoverGap(x, y, w);
+
+  // Ctrl+left-click within threshold: toggle event in multi-selection.
+  if (ctrlClickPending && Math.abs(e.clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX) {
+    const target = activeCanvas();
+    if (target) {
+      const localX = e.clientX - target.getBoundingClientRect().left;
+      const localY = e.clientY - target.getBoundingClientRect().top;
+      const irect = { x0: localX, x1: localX + 1, y0: localY, y1: localY + 1 };
+      const events = eventsIntersectingRect(backend.getLayout(), props.view, syncTrackWidth(), irect);
+      if (events.length > 0) {
+        const eventId = events[0].id;
+        const ids = new Set(props.multiSelectedIds ?? []);
+        if (ids.has(eventId)) ids.delete(eventId); else ids.add(eventId);
+        emit('update-multi-selected', [...ids]);
+      }
+    }
+    ctrlClickPending = false;
+    return;
+  }
+
   emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
   if (Math.abs(e.clientX - downX) > MEASURE_DRAG_THRESHOLD_PX) return;
 

@@ -113,6 +113,7 @@ const stackRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
+const localMultiSelectedIds = ref<string[]>(props.multiSelectedIds ?? []);
 /** Swimlane mouse-follow bar; synced from canvas emits and parent `cursorXRatio` (axis hover). */
 const cursorXRatio = ref<number | null>(props.cursorXRatio ?? null);
 /** Gray the swim vertical bar while the cursor is magnetized to an event edge. */
@@ -285,6 +286,10 @@ function onScrollY(scrollY: number) {
   emit('update:scrollY', Math.max(0, scrollY));
 }
 
+function onUpdateMultiSelected(newIds: string[]) {
+  localMultiSelectedIds.value = newIds;
+}
+
 function onGutterScroll(): void {
   const el = gutterRef.value?.root;
   if (!el) return;
@@ -410,7 +415,7 @@ defineExpose({
       :view="view"
       :selected-event-id="selectedEventId"
       :hovered-event-id="hoveredEventId"
-      :multi-selected-ids="multiSelectedIds"
+      :multi-selected-ids="localMultiSelectedIds"
       :search-query="searchQuery"
       :measure-mode="measureMode"
       :measure-range="measureRange"
@@ -430,7 +435,7 @@ defineExpose({
       @scroll-y="onScrollY"
       @update:measure-range="emit('update:measure-range', $event)"
       @suppress-measure-dt="emit('suppress-measure-dt', $event)"
->>>>>>> 04d6057 (feat: implement MultiSelectSummary marquee multi-select)
+      @update-multi-selected="onUpdateMultiSelected"
     />
     <div
       v-if="pinnedRows.length"
