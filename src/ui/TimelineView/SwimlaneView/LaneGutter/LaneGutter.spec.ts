@@ -271,11 +271,8 @@ describe('LaneGutter', () => {
       props: { groups: nested, pinnedLaneIds: ['mte1'] },
       attachTo: document.body,
     });
-    const gutter = wrapper.get('[data-testid="lane-gutter"]').element.getBoundingClientRect();
+    // Flush-left geometry is CSS (`left: 6px`); assert fill state here — layout in Playwright e2e.
     const deepPin = wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-pin"]');
-    const deepPinRect = deepPin.element.getBoundingClientRect();
-    // Absolute left — not indented with depth (name pad is much farther right).
-    expect(deepPinRect.left - gutter.left).toBeLessThan(12);
     expect(deepPin.find('.pr-pin--filled').exists()).toBe(true);
 
     const unpinned = wrapper.get('[data-testid="gutter-lane-mte2"] [data-testid="lane-pin"]');

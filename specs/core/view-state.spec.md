@@ -52,9 +52,9 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 9. **PR-VIEW-009** — zoomPercent ↔ span round-trip.
 10. **PR-VIEW-010** — slider max matches zoomAt floor.
 11. **PR-VIEW-011** — zoomToFitWindow for `minTime === maxTime` uses `[minTime, minTime + MIN_WINDOW]` (aligned with bounds).
-12. **PR-VIEW-012** — createViewState initializes empty **pinnedLaneIds**.
-13. **PR-VIEW-013** — pinLane appends id when absent.
-14. **PR-VIEW-014** — unpinLane removes id when present.
+12. **PR-VIEW-013** — createViewState initializes empty **pinnedLaneIds**.
+13. **PR-VIEW-014** — pinLane appends id when absent.
+14. **PR-VIEW-015** — unpinLane removes id when present.
 
 ## Edge Cases
 
@@ -75,9 +75,10 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-08-31** — Renumber pin ACs to `PR-VIEW-013`…`015` (avoid collision with #31 `PR-VIEW-012`).
 - **2026-08-27** — Gutter pushpin and context-menu Pin row share **pinnedLaneIds**.
 - **2026-08-27** — Cross-card **pinnedLaneIds**; pin persists while row hidden by collapse.
-- **2026-08-27** — **pinnedLaneIds** + pinLane/unpinLane helpers (`PR-VIEW-012`…`014`). Tests deferred until implementation.
+- **2026-08-27** — **pinnedLaneIds** + pinLane/unpinLane helpers (`PR-VIEW-013`…`015`). Tests deferred until implementation.
 - **2026-08-25** — Degenerate minTime===maxTime fit stays in minTime space (PR-VIEW-011).
 - **2026-08-25** — zoomToFit restored to `[minTime, maxTime]`; display origin is minTime (PyPTO/Perfetto default).
 - **2026-08-24** — zoomToFit starts at producer t=0 (events align with absolute axis/tooltip).

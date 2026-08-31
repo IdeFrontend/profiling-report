@@ -283,7 +283,7 @@ describe('SwimlaneView', () => {
     expect(src).not.toMatch(/\.pr-gutter-resize\s*\{[^}]*left:\s*var\(--pr-gutter-width/s);
   });
 
-  it('PR-SWIMVIEW-010: pinned lanes render in a sticky strip above the scroll body', () => {
+  it('PR-SWIMVIEW-013: pinned lanes render in a sticky strip above the scroll body', () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -322,7 +322,7 @@ describe('SwimlaneView', () => {
     expect(wrapper.find('.pr-swim-row--body').exists()).toBe(true);
   });
 
-  it('PR-SWIMVIEW-011: pinned duplicates keep the same lane ids as originals', () => {
+  it('PR-SWIMVIEW-014: pinned duplicates keep the same lane ids as originals', () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -359,7 +359,7 @@ describe('SwimlaneView', () => {
     expect(wrapper.findAll('[data-testid="gutter-lane-l1"]')).toHaveLength(2);
   });
 
-  it('PR-SWIMVIEW-012: unpinned originals remain in tree order below the pinned strip', () => {
+  it('PR-SWIMVIEW-015: unpinned originals remain in tree order below the pinned strip', () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -407,7 +407,7 @@ describe('SwimlaneView', () => {
     );
   });
 
-  it('PR-SWIMVIEW-013: pinned strip canvas omits dependency link rendering', async () => {
+  it('PR-SWIMVIEW-016: pinned strip canvas omits dependency link rendering', async () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -452,7 +452,7 @@ describe('SwimlaneView', () => {
     expect(pinned!.props('measureRange')).toEqual(measureRange);
   });
 
-  it('PR-SWIMVIEW-014: pinnedLaneIds may span multiple Cards; strip follows pin order', () => {
+  it('PR-SWIMVIEW-017: pinnedLaneIds may span multiple Cards; strip follows pin order', () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,

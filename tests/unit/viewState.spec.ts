@@ -134,12 +134,12 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(spanFromZoomPercent(100, full)).toBe(span);
   });
 
-  it('PR-VIEW-012: createViewState initializes pinnedLaneIds empty', () => {
+  it('PR-VIEW-013: createViewState initializes pinnedLaneIds empty', () => {
     expect(createViewState(model).pinnedLaneIds).toEqual([]);
     expect(createViewState(null).pinnedLaneIds).toEqual([]);
   });
 
-  it('PR-VIEW-013: pinLane appends id in pin order without duplicates', () => {
+  it('PR-VIEW-014: pinLane appends id in pin order without duplicates', () => {
     const base = createViewState(model);
     const one = pinLane(base, 'a');
     expect(one.pinnedLaneIds).toEqual(['a']);
@@ -149,7 +149,7 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(pinLane(two, 'a').pinnedLaneIds).toEqual(['a', 'b']);
   });
 
-  it('PR-VIEW-014: unpinLane removes id and leaves other pins unchanged', () => {
+  it('PR-VIEW-015: unpinLane removes id and leaves other pins unchanged', () => {
     const pinned = pinLane(pinLane(createViewState(model), 'a'), 'b');
     const dropped = unpinLane(pinned, 'a');
     expect(dropped.pinnedLaneIds).toEqual(['b']);

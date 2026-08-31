@@ -430,7 +430,7 @@ describe('PR-DEPS: dependency links', () => {
     const model = linkedModel();
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(document.createElement('canvas'));
-    renderer.resize(200, 100);
+    renderer.resize(200, 100, 1);
     renderer.setModel(model);
     renderer.setSelection('e-parent', null);
     expect(renderer.getNeighborIds().size).toBeGreaterThan(0);
