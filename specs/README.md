@@ -28,6 +28,7 @@ This directory contains behavioral specifications for all modules in the profili
 | [utilization](./core/utilization.spec.md) | `PR-UTIL-*` | MVP | `src/domain/utilization.ts` | `tests/unit/utilization.spec.ts` |
 | [integration](./core/integration.spec.md) | `PR-UI-*`, `PR-E2E-*` | MVP | — | `tests/component/ProfilingReport.feature.spec.ts`, `tests/e2e/feature.spec.ts` |
 | [scaffold](./core/scaffold.spec.md) | `PR-SCAFFOLD-*` | MVP | — | `tests/unit/scaffold.spec.ts`, `tests/e2e/playground.spec.ts` |
+| [cannbot-payload](./core/cannbot-payload.spec.md) | `PR-CANNBOT-*` | M2 | `src/domain/cannbot.ts` | `tests/unit/cannbot.spec.ts` |
 
 ### UI components (Vue SFCs)
 

@@ -12,6 +12,8 @@ import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
+import CannbotIcon from './CannbotIcon.vue';
+import type { CannbotScope } from '../../domain/cannbot';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
@@ -24,6 +26,7 @@ const emit = defineEmits<{
   'open-hardware-details': [];
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-pipe-details': [];
+  'open-cannbot': [scope: CannbotScope];
 }>();
 
 type PipeSide = 'cube' | 'vector';
@@ -342,6 +345,16 @@ function backToReport() {
         >
           {{ t('more', locale) }}
         </button>
+        <button
+          type="button"
+          class="pr-cannbot"
+          data-testid="cannbot-summary"
+          :aria-label="t('cannbotAsk', locale)"
+          :title="t('cannbotAsk', locale)"
+          @click="emit('open-cannbot', 'summary')"
+        >
+          <CannbotIcon />
+        </button>
       </p>
     </header>
 
@@ -516,14 +529,27 @@ function backToReport() {
       >
         <div class="pr-pipe-head">
           <h4>{{ t('computeAnalysis', locale) }}</h4>
-          <button
-            type="button"
-            class="pr-pipe-details"
-            data-testid="pipe-details"
-            @click="openPipeDetails"
-          >
-            {{ t('details', locale) }}
-          </button>
+          <div class="pr-pipe-head__actions">
+            <button
+              v-if="showCompute"
+              type="button"
+              class="pr-cannbot"
+              data-testid="cannbot-compute"
+              :aria-label="t('cannbotAsk', locale)"
+              :title="t('cannbotAsk', locale)"
+              @click="emit('open-cannbot', 'compute')"
+            >
+              <CannbotIcon />
+            </button>
+            <button
+              type="button"
+              class="pr-pipe-details"
+              data-testid="pipe-details"
+              @click="openPipeDetails"
+            >
+              {{ t('details', locale) }}
+            </button>
+          </div>
         </div>
         <div
           v-if="isMix"
@@ -605,15 +631,28 @@ function backToReport() {
       >
         <div class="pr-pipe-head">
           <h4>{{ t('memoryAnalysis', locale) }}</h4>
-          <button
-            v-if="showMemory"
-            type="button"
-            class="pr-pipe-details"
-            data-testid="topology-details"
-            @click="openMemoryDetails"
-          >
-            {{ t('details', locale) }}
-          </button>
+          <div class="pr-pipe-head__actions">
+            <button
+              v-if="showMemory"
+              type="button"
+              class="pr-cannbot"
+              data-testid="cannbot-memory"
+              :aria-label="t('cannbotAsk', locale)"
+              :title="t('cannbotAsk', locale)"
+              @click="emit('open-cannbot', 'memory')"
+            >
+              <CannbotIcon />
+            </button>
+            <button
+              v-if="showMemory"
+              type="button"
+              class="pr-pipe-details"
+              data-testid="topology-details"
+              @click="openMemoryDetails"
+            >
+              {{ t('details', locale) }}
+            </button>
+          </div>
         </div>
         <MemoryTopologyPanel
           v-if="showTopology"
@@ -628,9 +667,21 @@ function backToReport() {
           data-testid="stats-compute"
           class="pr-aside__detail"
         >
-          <h4 class="pr-aside__detail-title">
-            {{ t('computeAnalysis', locale) }}
-          </h4>
+          <div class="pr-aside__detail-head">
+            <h4 class="pr-aside__detail-title">
+              {{ t('computeAnalysis', locale) }}
+            </h4>
+            <button
+              type="button"
+              class="pr-cannbot"
+              data-testid="cannbot-compute"
+              :aria-label="t('cannbotAsk', locale)"
+              :title="t('cannbotAsk', locale)"
+              @click="emit('open-cannbot', 'compute')"
+            >
+              <CannbotIcon />
+            </button>
+          </div>
           <CsvFieldListPanel
             :tables="report?.computeTables ?? []"
             :csv-texts="report?.csvTexts ?? {}"
@@ -644,9 +695,21 @@ function backToReport() {
           data-testid="stats-memory"
           class="pr-aside__detail"
         >
-          <h4 class="pr-aside__detail-title">
-            {{ t('memoryAnalysis', locale) }}
-          </h4>
+          <div class="pr-aside__detail-head">
+            <h4 class="pr-aside__detail-title">
+              {{ t('memoryAnalysis', locale) }}
+            </h4>
+            <button
+              type="button"
+              class="pr-cannbot"
+              data-testid="cannbot-memory"
+              :aria-label="t('cannbotAsk', locale)"
+              :title="t('cannbotAsk', locale)"
+              @click="emit('open-cannbot', 'memory')"
+            >
+              <CannbotIcon />
+            </button>
+          </div>
           <CsvFieldListPanel
             :tables="report?.memoryTables ?? []"
             :csv-texts="report?.csvTexts ?? {}"
@@ -790,6 +853,31 @@ function backToReport() {
   text-decoration: underline;
 }
 
+.pr-pipe-head__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-cannbot {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.85;
+}
+
+.pr-cannbot:hover {
+  opacity: 1;
+}
+
+.pr-aside__meta .pr-cannbot {
+  margin-left: auto;
+}
+
 .pr-aside__detail {
   display: flex;
   flex-direction: column;
@@ -807,6 +895,18 @@ function backToReport() {
   font-size: 12px;
   font-weight: 600;
   color: #ffffff;
+}
+
+.pr-aside__detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.pr-aside__detail-head .pr-aside__detail-title {
+  margin: 0;
 }
 
 /*
