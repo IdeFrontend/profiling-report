@@ -1246,6 +1246,14 @@ const gapMeasureGeometry = computed(() => {
   };
 });
 
+/** CSS-pixel screen rect for an event (renderers report device-pixel rects scaled by dpr). */
+function eventScreenRectCss(eventId: string): { x: number; y: number; w: number; h: number } | null {
+  const rect = backend.eventScreenRect(eventId);
+  if (!rect) return null;
+  const dpr = currentDpr();
+  return { x: rect.x / dpr, y: rect.y / dpr, w: rect.w / dpr, h: rect.h / dpr };
+}
+
 /** Alt-measure anchor highlight while session active. */
 const altMeasureAnchorHighlight = computed(() => {
   void resizeTick.value;
@@ -1254,7 +1262,7 @@ const altMeasureAnchorHighlight = computed(() => {
   void props.view.endTime;
   void props.view.scrollY;
   if (!altMeasureAnchorId.value || !altKeyHeld.value || props.measureMode) return null;
-  return backend.eventScreenRect(altMeasureAnchorId.value);
+  return eventScreenRectCss(altMeasureAnchorId.value);
 });
 
 /** Alt-measure target highlight (blue border) while a non-anchor event is captured as target. */
@@ -1266,7 +1274,7 @@ const altMeasureTargetHighlight = computed(() => {
   if (!altMeasureSessionActive()) return null;
   const target = altMeasureTarget.value;
   if (!target || target.eventId === null || target.eventId === altMeasureAnchorId.value) return null;
-  return backend.eventScreenRect(target.eventId);
+  return eventScreenRectCss(target.eventId);
 });
 
 /** Alt measure overlay (default mode): anchor → event edge or free cursor, ephemeral while Alt held. */

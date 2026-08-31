@@ -91,6 +91,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 55. **PR-CANVAS-055** — A hovered target event is highlighted with a blue border (`alt-measure-target`), distinct from the pink anchor.
 56. **PR-CANVAS-056** — Sticking to a target event's border (edge magnet) measures to that explicit border rather than the relation-chosen edge.
 57. **PR-CANVAS-057** — With no hovered event and no magnetized border, the target is the free cursor, rendered as a full-height blue vertical line with the Δt label.
+58. **PR-CANVAS-058** — The anchor/target highlight overlays are positioned in CSS pixels (renderer device-pixel rects are divided by `devicePixelRatio`), so they align with the event on hi-dpi displays.
 
 ## Edge Cases
 
@@ -123,6 +124,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-08-31** — Anchor/target highlights convert device-pixel renderer rects to CSS px (`/dpr`), fixing misaligned highlight on hi-dpi after the device-pixel resize change; PR-CANVAS-058.
 - **2026-08-28** — Alt measure targets any point: relation-chosen edge, explicit magnetized border, or free cursor (full-height blue line); blue target-event highlight; PR-CANVAS-048/055/056/057.
 - **2026-08-28** — Anchor highlight tracks the anchored event across scroll/pan/zoom (was stale on view change); PR-CANVAS-054.
 - **2026-08-28** — Mount only active WebGL+overlay or Canvas fallback; paint gated on lastDeviceW/H; PR-CANVAS-044.

@@ -1547,4 +1547,27 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-058: anchor highlight uses CSS px (not device px) on hi-dpi', async () => {
+    Object.defineProperty(window, 'devicePixelRatio', { value: 2, configurable: true });
+    const { wrapper, canvas } = await mountWithGapModel();
+    await fireAllDeviceRo();
+    const vm = wrapper.vm as unknown as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const dev = vm.eventScreenRect('eA')!;
+    const y = (dev.y + dev.h / 2) / 2; // device → CSS midpoint
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+
+    const anchor = wrapper.find('[data-testid="alt-measure-anchor"]');
+    expect(anchor.exists()).toBe(true);
+    const style = anchor.attributes('style') ?? '';
+    const left = Number(/left:\s*(-?[\d.]+)px/.exec(style)?.[1] ?? NaN);
+    const width = Number(/width:\s*(-?[\d.]+)px/.exec(style)?.[1] ?? NaN);
+    // eA = 100..200 in a 0..1000 view at 400 CSS px → x=40, w=40 (device px would be 80).
+    expect(left).toBe(40);
+    expect(width).toBe(40);
+    wrapper.unmount();
+  });
 });
