@@ -136,7 +136,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 | Flat CTEF (no `children`) | Card → leaf lanes only (MVP-compatible) |
 | Very long thread names | CSS text-overflow truncation |
 | Scroll position mismatch | Bidirectional sync corrects |
-| Pin leaf inside collapsed folder | Pin control hidden while ancestor folder collapsed; id may remain in **pinnedLaneIds** |
+| Pin leaf inside collapsed folder | Original pin control hidden while ancestor collapsed; **pinned strip duplicate stays** (id remains in **pinnedLaneIds**) |
 | Pin across Cards | Pushpin on any visible leaf regardless of Card/process ancestry |
 | Duplicate pin click | Idempotent — no duplicate entries in `pinnedLaneIds` |
 | Events chart hover | Matching gutter leaf gets `#252525` via `hoveredLaneId`; unpinned pushpin stays hidden. No hover chrome on the swimlane canvas itself |

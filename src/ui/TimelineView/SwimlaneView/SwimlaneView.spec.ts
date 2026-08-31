@@ -594,4 +594,59 @@ describe('SwimlaneView', () => {
 
     wrapper.unmount();
   });
+
+  it('PR-SWIMVIEW-019: pinned strip stays when ancestor Card is collapsed', () => {
+    const fullModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'l1',
+              name: 'Lane',
+              events: [{ id: 'e1', name: 'op', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+    };
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: ['card0'],
+        pinnedLaneIds: ['l1'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'card0', name: 'Card0', threads: [] }],
+        },
+        pinSourceModel: fullModel,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    expect(wrapper.find('[data-testid="pinned-strip"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="pinned-canvas"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="pinned-gutter"]').find('[data-testid="gutter-lane-l1"]').exists()).toBe(
+      true,
+    );
+    // Collapsed Card spacer only in body — no original leaf row.
+    expect(wrapper.get('.pr-swim-row--body').find('[data-testid="gutter-lane-l1"]').exists()).toBe(false);
+  });
 });

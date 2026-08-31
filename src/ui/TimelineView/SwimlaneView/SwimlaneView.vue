@@ -33,7 +33,13 @@ const props = withDefaults(
     collapsedIds: string[];
     /** Leaf lane ids in pin order; sticky strip when non-empty. */
     pinnedLaneIds?: string[];
+    /** Visible (collapse-filtered) swim model for the scrolling body. */
     model: SwimlaneModel | null;
+    /**
+     * Unfiltered swim model for the pinned strip. Defaults to `model`.
+     * Pass the full tree so pins survive ancestor collapse.
+     */
+    pinSourceModel?: SwimlaneModel | null;
     view: SwimlaneViewState;
     selectedEventId: string | null;
     hoveredEventId: string | null;
@@ -123,7 +129,9 @@ const collapsed = computed(() => new Set(props.collapsedIds));
 
 const pinnedLaneIds = computed(() => props.pinnedLaneIds ?? []);
 const pinnedRows = computed(() => resolvePinnedGutterLanes(props.groups, pinnedLaneIds.value));
-const pinnedModel = computed(() => buildPinnedSwimModel(props.model, pinnedLaneIds.value));
+const pinnedModel = computed(() =>
+  buildPinnedSwimModel(props.pinSourceModel ?? props.model, pinnedLaneIds.value),
+);
 const pinnedStripHeight = computed(() => pinnedRows.value.length * LANE_HEIGHT);
 const pinnedView = computed(() => ({
   startTime: props.view.startTime,

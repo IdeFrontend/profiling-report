@@ -64,7 +64,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 - Pan beyond bounds → clamped to edges.
 - pinLane on already-pinned id → unchanged order (idempotent).
 - unpinLane on absent id → no-op.
-- Pin id persists in **pinnedLaneIds** while its row is hidden (collapsed ancestor); strip duplicate reappears when the leaf becomes visible again.
+- Pin id persists in **pinnedLaneIds** while its row is hidden (collapsed ancestor); **pinned strip stays visible** (built from the full swim model, not collapse-filtered `displaySwim`).
 
 ## Dependencies
 
@@ -75,6 +75,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-08-31** — Pinned strip stays visible under ancestor collapse (full swim as pin source).
 - **2026-08-31** — Renumber pin ACs to `PR-VIEW-013`…`015` (avoid collision with #31 `PR-VIEW-012`).
 - **2026-08-27** — Gutter pushpin and context-menu Pin row share **pinnedLaneIds**.
 - **2026-08-27** — Cross-card **pinnedLaneIds**; pin persists while row hidden by collapse.

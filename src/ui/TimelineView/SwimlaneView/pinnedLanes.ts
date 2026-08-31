@@ -43,6 +43,7 @@ export function resolvePinnedGutterLanes(
 /**
  * Flat swim model of pinned leaf threads only (Card-free), pin order.
  * Sets `skipCardHeaders` so layout omits Card header bands.
+ * Pass the **unfiltered** swim model so pins survive ancestor Card/folder collapse.
  */
 export function buildPinnedSwimModel(
   model: SwimlaneModel | null,

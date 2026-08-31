@@ -692,6 +692,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :collapsed-ids="collapsedGroupIds"
           :pinned-lane-ids="viewState.pinnedLaneIds"
           :display-swim="displaySwim"
+          :pin-source-model="swim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"

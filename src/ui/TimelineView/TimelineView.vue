@@ -43,6 +43,11 @@ const props = withDefaults(
     groups: GutterGroup[];
     collapsedIds: string[];
     displaySwim: SwimlaneModel | null;
+    /**
+     * Full (unfiltered) swim model for pinned-strip events. When omitted, pins use
+     * `displaySwim` and disappear if an ancestor Card/folder is collapsed.
+     */
+    pinSourceModel?: SwimlaneModel | null;
     /** From view.pinnedLaneIds — sticky strip. */
     pinnedLaneIds?: string[];
     cursor: { time: number; xRatio: number; snapped?: boolean } | null;
@@ -575,6 +580,7 @@ defineExpose({
       :collapsed-ids="collapsedIds"
       :pinned-lane-ids="pinnedLaneIds ?? view.pinnedLaneIds"
       :model="displaySwim"
+      :pin-source-model="pinSourceModel"
       :view="view"
       :selected-event-id="view.selectedEventId"
       :hovered-event-id="view.hoveredEventId"
