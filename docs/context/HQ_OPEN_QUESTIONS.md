@@ -289,18 +289,6 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png)
 
-<img src="visual/hq/q30.png" alt="Q30 hardware-details overlay from HardwareInfo.jsonl" width="900" height="900">
-
-30. Must every report include `HardwareInfo.jsonl`? Yes or no.
-   - **ANSWERED** — **Yes** — every report is expected to include `HardwareInfo.jsonl`. If absent, **更多** still opens and shows **缺少 hardware info** (missing hardware info). **Implemented** in `StatsAside.vue`.
-
----
-
-<img src="visual/hq/q31.png" alt="Q31 更多" width="900" height="225">
-
-31. If `HardwareInfo.jsonl` is missing, what happens to **更多** (More) / 硬件信息详情 (Hardware details)? Hide it, or show an empty page?
-    - **ANSWERED** — Do **not** hide **更多**. Open overlay and show **缺少 hardware info**. **Implemented** in `StatsAside.vue` (overrides [I-Q7a](INTERIM_DECISIONS.md) hide-when-empty).
-
 ### 整体耗时 (Total duration)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
@@ -318,15 +306,6 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 33. One number for the whole op, or two columns (**aic** and **aiv**), like the bandwidth cards?
     - **ANSWERED** — **Separate columns** (cube \| vector / aic \| aiv), same layout as bandwidth cards.
-
-### 输入带宽 / 输出带宽 (Input / output bandwidth)
-
-**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
-
-<img src="visual/hq/q34.png" alt="Q34 TB/s unit on the I/O footer" width="900" height="225">
-
-34. If the measured value is small (for example `15.8 GB/s`), show **GB/s** or **TB/s**?
-    - **ANSWERED** — Always **GB/s** (not TB/s). **Implemented** — `formatGBs()` in `StatsAside.vue`; subtitle `measured / peak GB/s`.
 
 ### 内存负载分析 (Memory load analysis)
 

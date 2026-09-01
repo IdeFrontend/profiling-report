@@ -83,7 +83,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q3 | 2026-07-31 | Minimal open; hide missing panels | VIEW_DATA_REQUIREMENTS |
 | Q4 | 2026-07-31 | Target = sketch-like multi-core Gantt (A) | UI_OVERVIEW, METRICS gap |
 | Q5 | 2026-07-31 | Hide overview until OverviewSeries (C) | VIEW_DATA_REQUIREMENTS |
-| Q7 | 2026-08-20 | Hardware details source = `HardwareInfo.jsonl`; hide overlay if missing | VIEW_DATA_MAPPING, I-Q7a |
+| Q7 | 2026-08-20 | Hardware details source = `HardwareInfo.jsonl`; **更多** always opens — show `hardwareDetails` or **缺少 hardware info** (HQ 30–31) | VIEW_DATA_MAPPING, I-Q7a |
 | Q8 | 2026-07-31 | Producer fixed naming for now (A) | METRICS_AND_TRACE |
 | Q12 | 2026-07-31 | Static SVG + data-driven labels | VIEW_DATA_REQUIREMENTS |
 | Q13 | 2026-07-31 | Sketch colors normative | COLOR_TOKENS |

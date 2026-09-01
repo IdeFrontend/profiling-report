@@ -186,7 +186,6 @@ function formatPipeAbsolute(v: number): string {
 /** HQ 34: display measured/peak in GB/s (magnitude rounding). */
 function formatGBs(gbs: number): string {
   if (gbs >= 10) return gbs.toFixed(1);
-  if (gbs >= 1) return gbs.toFixed(2);
   if (gbs >= 0.01) return gbs.toFixed(2);
   if (gbs >= 0.001) return gbs.toFixed(3);
   return gbs.toFixed(4);

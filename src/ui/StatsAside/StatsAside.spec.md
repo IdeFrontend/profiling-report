@@ -82,15 +82,15 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 19. **PR-STATS-017** — Topology 详情 shows memory CSV overlay when tables present.
 20. **PR-STATS-018** — 更多 navigates to hardware overlay when hardwareDetails present; back returns.
 21. **PR-STATS-018b** — OpBasicInfo fallback still renders `HardwareDetailsPanel` (not missing copy).
-21. **PR-STATS-019** — Topology section when `memoryTopology` has labelled edges; hidden when absent.
-22. **PR-STATS-020** — No mode-tab switcher on the stacked report.
-23. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first labelled block of the new report.
-24. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
-25. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
-26. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, GB/s, bar = score%; `out.rep` uses 1600 GB/s peak (~1% score).
-27. **PR-STATS-025** — Black aside shell; grey section islands.
-28. **PR-STATS-026** — cannbot icons render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility.
-29. **PR-STATS-027** — Icon click emits open-cannbot with scope.
+22. **PR-STATS-019** — Topology section when `memoryTopology` has labelled edges; hidden when absent.
+23. **PR-STATS-020** — No mode-tab switcher on the stacked report.
+24. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first labelled block of the new report.
+25. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
+26. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
+27. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, GB/s, bar = score%; `out.rep` uses 1600 GB/s peak (~1% score).
+28. **PR-STATS-025** — Black aside shell; grey section islands.
+29. **PR-STATS-026** — CANNBot icons render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility.
+30. **PR-STATS-027** — Icon click emits open-cannbot with scope.
 
 ## Edge Cases
 
