@@ -1503,7 +1503,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-051: ephemeral clears on Escape; same-anchor Alt+click is a no-op', async () => {
+  it('PR-CANVAS-051: ephemeral clears on Escape / pointermove without Alt; same-anchor Alt+click is a no-op', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
@@ -1511,6 +1511,15 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
 
     // Same anchor again while ephemeral → no-op (still anchored).
+    await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+
+    // Missed Alt keyup (e.g. Alt+Tab): next pointermove with altKey false clears ephemeral.
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1, altKey: false });
+    await nextTick();
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
+
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);

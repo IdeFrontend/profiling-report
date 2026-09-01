@@ -1338,14 +1338,6 @@ const altEventMeasureGeometry = computed(() => {
   const ownsTargetEv =
     target.eventId != null && ownsAltMeasureEndpoint(target.eventId, target.surface);
   const freeCursor = target.eventId === null;
-  const ownsFreeCursor = freeCursor && target.surface === thisAltMeasureSurface();
-
-  // Full overlay only when every event endpoint this measure needs is owned here.
-  const canFull =
-    ownsAnchor &&
-    (ownsFreeCursor || ownsTargetEv) &&
-    layout.eventsById.has(anchorId) &&
-    (freeCursor || (target.eventId != null && layout.eventsById.has(target.eventId)));
 
   const viewStart = props.view.startTime;
   const viewEnd = props.view.endTime;
@@ -1372,23 +1364,44 @@ const altEventMeasureGeometry = computed(() => {
   const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
   const arrowLayout = { mode: arrowMode, side: 'right' as const, style };
 
+  // Free cursor: every surface paints the full-height line; stick + Δt stay on the anchor owner.
+  if (freeCursor) {
+    let showAnchor = false;
+    let anchorLaneTop = 0;
+    let showDt = false;
+    if (ownsAnchor && layout.eventsById.has(anchorId)) {
+      const gap = computeAltMeasureGap(layout, anchorId, target.time, null);
+      if (gap) {
+        showDt = true;
+        anchorLaneTop = gap.leftLaneY - props.view.scrollY;
+        showAnchor = gap.anchorRefTime >= viewStart && gap.anchorRefTime <= viewEnd;
+      }
+    }
+    return {
+      mode: 'cursor' as const,
+      anchorLaneTop,
+      anchorX: xAtTime(anchorRefTime),
+      cursorX: xAtTime(target.time),
+      showAnchor,
+      showDt,
+      label,
+      showLeft,
+      showRight,
+      arrowLayout,
+    };
+  }
+
+  // Full overlay only when every event endpoint this measure needs is owned here.
+  const canFull =
+    ownsAnchor &&
+    ownsTargetEv &&
+    layout.eventsById.has(anchorId) &&
+    target.eventId != null &&
+    layout.eventsById.has(target.eventId);
+
   if (canFull) {
     const gap = computeAltMeasureGap(layout, anchorId, target.time, target.eventId);
     if (!gap) return null;
-
-    if (freeCursor) {
-      return {
-        mode: 'cursor' as const,
-        anchorLaneTop: gap.leftLaneY - props.view.scrollY,
-        anchorX: xAtTime(gap.anchorRefTime),
-        cursorX: xAtTime(gap.targetTime),
-        showAnchor: gap.anchorRefTime >= viewStart && gap.anchorRefTime <= viewEnd,
-        label,
-        showLeft,
-        showRight,
-        arrowLayout,
-      };
-    }
 
     if (gap.sameLane) {
       const top = gap.leftLaneY - props.view.scrollY;
@@ -1438,30 +1451,10 @@ const altEventMeasureGeometry = computed(() => {
   // Split across surfaces: draw local stick (+ Δt when this surface owns the earlier edge).
   const ownsEarlier =
     (anchorRefTime <= target.time && ownsAnchor) ||
-    (anchorRefTime > target.time && (ownsTargetEv || ownsFreeCursor));
-  const localEventId = ownsAnchor
-    ? anchorId
-    : ownsTargetEv
-      ? target.eventId
-      : null;
-  if (!localEventId && !ownsFreeCursor) return null;
-
-  if (ownsFreeCursor && !ownsAnchor) {
-    // Free cursor only on this surface — full-height line, no local stick.
-    return {
-      mode: 'cursor' as const,
-      anchorLaneTop: 0,
-      anchorX: xAtTime(anchorRefTime),
-      cursorX: xAtTime(target.time),
-      showAnchor: false,
-      label,
-      showLeft,
-      showRight,
-      arrowLayout,
-    };
-  }
-
-  const localItem = localEventId ? layout.eventsById.get(localEventId) : null;
+    (anchorRefTime > target.time && ownsTargetEv);
+  const localEventId = ownsAnchor ? anchorId : ownsTargetEv ? target.eventId : null;
+  if (!localEventId) return null;
+  const localItem = layout.eventsById.get(localEventId);
   if (!localItem) return null;
 
   const stickTime = ownsAnchor ? anchorRefTime : target.time;
@@ -1569,7 +1562,9 @@ function onPointerMove(e: PointerEvent): void {
     return;
   }
 
-  if (e.altKey) altMeasure.altKeyHeld = true;
+  // Sync modifier every move: missed Alt keyup (Alt+Tab / blur) must not leave ephemeral retargeting active.
+  altMeasure.altKeyHeld = e.altKey;
+  if (!e.altKey && !altMeasure.pinned && altMeasure.anchorId) clearAltMeasure();
 
   // Live target preview only while ephemeral (Alt held, not pinned).
   if (
@@ -2104,6 +2099,7 @@ defineExpose({
           }"
         />
         <div
+          v-if="altEventMeasureGeometry.showDt"
           class="pr-alt-measure__arrow-row"
           :style="{
             top: `${altEventMeasureGeometry.anchorLaneTop}px`,
