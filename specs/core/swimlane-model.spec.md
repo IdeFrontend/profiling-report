@@ -54,6 +54,8 @@ interface SwimEvent    {
 
 **Ordering.** Processes and threads ordered by first event start time. Within each thread, events sorted by `startTime` ascending, longest `duration` first on ties. Processes/threads with no events are excluded.
 
+**Intra-lane exclusivity (producer contract).** Within one leaf lane, event horizontal spans are mutually exclusive: no event nests inside or intersects another, and touching endpoints (`end === next.start`) are siblings. This is a producer guarantee for `.rep` / CTEF input and a precondition of the WebGL additive interval fill ([`swimlane-renderer.spec.md`](swimlane-renderer.spec.md)). Standalone Chrome-trace JSON (`chromeTraceToSwimlane`) does **not** enforce it — call-stack X events nest on one thread — so such lanes may overlap; the renderer must degrade gracefully (additive overdraw saturates, never wraps or crashes), and `rebuildLayout`'s longest-first sort keeps the shorter child on top for hit-testing.
+
 **`minTime` as display origin.** `minTime` is the earliest painted event timestamp and the shared UI display origin (PyPTO / Perfetto Timecode default): viewport/zoom-to-fit span `[minTime, maxTime]`, and axis / cursor / tooltip / detail start·end labels subtract `minTime` so the left edge and earliest event read as `0`. Model timestamps stay absolute producer ns; only the formatting layer subtracts. `minTime` also drives thread utilization spans and WebGL `timeBase` (float32 precision).
 
 **Error on empty.** If the trace contains no complete X events, `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.

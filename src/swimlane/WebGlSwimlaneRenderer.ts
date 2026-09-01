@@ -435,10 +435,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider]);
     }
 
-    // Coverage-AA intervals (analytical X) — source-over (matches Canvas). Not additive: additive
-    // overdraw of nested/overlapping same-color events looked like a bright block-in-block.
+    // Coverage-AA intervals (analytical X) — additive (ONE, ONE, ONE, ONE): the FS emits straight
+    // RGB × cov with alpha constant 1.0, so SRC_ALPHA ≡ ONE and each event adds full cov·dim·rgb.
+    // Safe because events within one lane never nest/intersect (mutually exclusive spans); each
+    // device pixel accumulates the coverage of all events across lanes.
     gl.enable(gl.BLEND);
-    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, devW, devH);
     // Corner policy is CSS px (shaders.minRR/maxRR/rrSwitchThreshold). Painted radii (uRR.xy)
@@ -716,6 +718,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const prog = this.curveProg;
     const vao = this.curveVao;
     if (!prog || !vao || this.curveCount === 0) return;
+    // CURVE_FS emits premultiplied color ({vColor*a, a}), so curves need premultiplied
+    // source-over (ONE, ONE_MINUS_SRC_ALPHA, ONE, ONE_MINUS_SRC_ALPHA).
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(prog.program);
     gl.uniform2f(prog.uResolution, this.width, this.height);
     gl.uniform3f(
