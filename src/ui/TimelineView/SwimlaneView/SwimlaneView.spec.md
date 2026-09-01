@@ -58,9 +58,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 18. **PR-SWIMVIEW-021** — When Alt-measure endpoints span pin strip and body, a dashed vertical bridge connects the two lane centers at the later edge (still drawn when either edge is outside the current time window).
 19. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
 20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
-21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt); solo canvas still clears live preview on leave.
+21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
 
 ## Changelog
+- **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview (`PR-SWIMVIEW-024`).
 - **2026-09-01** — Strip/body `pointerleave` keeps ephemeral Alt target; bridge survives time-clipped edges (`PR-SWIMVIEW-021`/`024`).
 - **2026-09-01** — Collapse / pin-set changes clear Alt-measure (`PR-SWIMVIEW-023`).
 - **2026-09-01** — Free-cursor Alt target paints on every shared surface (`PR-SWIMVIEW-022`).

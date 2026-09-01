@@ -1245,6 +1245,85 @@ describe('SwimlaneView', () => {
     vi.unstubAllGlobals();
   });
 
+  it('PR-SWIMVIEW-024: no-pin SwimlaneView clears ephemeral Alt target on leave', async () => {
+    const { nextTick } = await import('vue');
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'l1',
+              name: 'Lane',
+              events: [
+                { id: 'eA', name: 'a', startTime: 100, duration: 100 },
+                { id: 'eB', name: 'b', startTime: 400, duration: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const view = createViewState(model);
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: [],
+        model,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+
+    expect(wrapper.find('[data-testid="pinned-canvas"]').exists()).toBe(false);
+    const canvases = wrapper.findAllComponents(SwimlaneCanvas);
+    expect(canvases.length).toBe(1);
+    expect(canvases[0]!.props('altMeasureRole')).toBe('solo');
+
+    const shared = (
+      wrapper.vm as unknown as {
+        altMeasureShared: {
+          anchorId: string | null;
+          anchorSurface: 'strip' | 'body' | 'solo' | null;
+          target: { eventId: string; time: number; surface: 'strip' | 'body' | 'solo' } | null;
+          pinned: boolean;
+          altKeyHeld: boolean;
+        };
+      }
+    ).altMeasureShared;
+    shared.anchorId = 'eA';
+    shared.anchorSurface = 'solo';
+    shared.target = { eventId: 'eB', time: 400, surface: 'solo' };
+    shared.pinned = false;
+    shared.altKeyHeld = true;
+    await nextTick();
+
+    await wrapper.find('[data-testid="swimlane-canvas"]').trigger('pointerleave', {
+      clientX: 10,
+      clientY: -5,
+      pointerId: 1,
+    });
+    await nextTick();
+    expect(shared.anchorId).toBe('eA');
+    expect(shared.target).toBeNull();
+
+    wrapper.unmount();
+  });
+
   it('PR-SWIMVIEW-022: free-cursor Alt target paints cursor line on strip and body', async () => {
     const { nextTick } = await import('vue');
     const {

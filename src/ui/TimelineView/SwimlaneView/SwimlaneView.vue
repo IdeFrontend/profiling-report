@@ -474,7 +474,7 @@ defineExpose({
         :cursor-x-ratio="cursorXRatio"
         :cursor-snapped="cursorSnapped"
         :resolve-magnetize="magnetizeAtClient"
-        alt-measure-role="body"
+        :alt-measure-role="pinnedLaneIds.length ? 'body' : 'solo'"
         :pinned-lane-ids="pinnedLaneIds"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
