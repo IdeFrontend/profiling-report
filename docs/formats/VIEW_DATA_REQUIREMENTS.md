@@ -101,7 +101,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Chrome still I-Q6e. Op type is not a separate card. `opName` / `blockDim` may feed duration secondary only |
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Placeholder** until Q6 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [I-Q6a](../context/INTERIM_DECISIONS.md) |
-| I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Peak 1.6 TB/s still I-Q6g guess |
+| I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Display **GB/s** (HQ 34). Peak 1600 GB/s still I-Q6g guess |
 | Avg core util % | PipeUtilization / OpBasicInfo TBD | **Placeholder** until Q6 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [I-Q6a](../context/INTERIM_DECISIONS.md) |
 | Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
@@ -116,7 +116,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
 | Aggregation | **Interim ([I-Q6b](../context/INTERIM_DECISIONS.md)):** mean of non-`NA` ratios per pipe family |
-| Absolute in-bar | **Optional ([I-Q6f](../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)`; omit when NA |
+| Absolute in-bar | **Confirmed (HQ 18, [I-Q6f](../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)` for the family/side; omit when all NA |
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
 | ICache Miss | **Confirmed:** `aic_icache_miss_rate` / `aiv_icache_miss_rate` when the mean is present |

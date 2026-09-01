@@ -91,7 +91,7 @@ export interface SummaryMetrics {
   avgCoreUtil?: number;
 }
 
-/** I-Q6g: one AIC/AIV row on an I/O bandwidth card. Values in GB/s; UI shows TB/s. */
+/** I-Q6g: one AIC/AIV row on an I/O bandwidth card. Values in GB/s; UI shows GB/s (HQ 34). */
 export interface BandwidthSideRow {
   side: 'aic' | 'aiv';
   measuredGBs: number;
