@@ -518,7 +518,7 @@ function backToReport() {
 
       <div
         v-if="showRoofline && report?.roofline"
-        class="pr-panel pr-panel--roofline"
+        class="pr-stack-section"
         data-testid="stats-roofline"
       >
         <RooflinePanel
@@ -529,10 +529,10 @@ function backToReport() {
 
       <div
         v-if="showPipe"
-        class="pr-panel pr-panel--pipe"
+        class="pr-stack-section"
         data-testid="pipe-occupancy"
       >
-        <div class="pr-pipe-head">
+        <div class="pr-stack-section__head">
           <h4>{{ t('computeAnalysis', locale) }}</h4>
           <div class="pr-pipe-head__actions">
             <button
@@ -556,85 +556,87 @@ function backToReport() {
             </button>
           </div>
         </div>
-        <div
-          v-if="isMix"
-          class="pr-pipe-toggle"
-          data-testid="pipe-side-toggle"
-          role="group"
-          :aria-label="t('pipeSide', locale)"
-        >
-          <button
-            type="button"
-            class="pr-pipe-toggle__btn"
-            :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
-            data-testid="pipe-side-cube"
-            @click="pipeSide = 'cube'"
-          >
-            Cube
-          </button>
-          <button
-            type="button"
-            class="pr-pipe-toggle__btn"
-            :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
-            data-testid="pipe-side-vector"
-            @click="pipeSide = 'vector'"
-          >
-            Vector
-          </button>
-        </div>
-        <div class="pr-pipe-chart">
+        <div class="pr-panel pr-panel--pipe">
           <div
-            class="pr-pipe-scale"
-            data-testid="pipe-scale"
+            v-if="isMix"
+            class="pr-pipe-toggle"
+            data-testid="pipe-side-toggle"
+            role="group"
+            :aria-label="t('pipeSide', locale)"
           >
-            <span class="pr-pipe-scale__spacer" />
-            <div class="pr-pipe-scale__axis">
-              <span
-                v-for="tick in PIPE_SCALE"
-                :key="tick"
-                class="pr-pipe-scale__tick"
-              >{{ tick }}%</span>
-            </div>
-          </div>
-          <ul class="pr-pipe-list">
-            <li
-              v-for="pipe in visiblePipes"
-              :key="`${pipe.id}-${pipe.side ?? 'x'}`"
-              class="pr-pipe-row"
-              :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
+            <button
+              type="button"
+              class="pr-pipe-toggle__btn"
+              :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
+              data-testid="pipe-side-cube"
+              @click="pipeSide = 'cube'"
             >
-              <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-              <span class="pr-pipe-row__track">
+              Cube
+            </button>
+            <button
+              type="button"
+              class="pr-pipe-toggle__btn"
+              :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
+              data-testid="pipe-side-vector"
+              @click="pipeSide = 'vector'"
+            >
+              Vector
+            </button>
+          </div>
+          <div class="pr-pipe-chart">
+            <div
+              class="pr-pipe-scale"
+              data-testid="pipe-scale"
+            >
+              <span class="pr-pipe-scale__spacer" />
+              <div class="pr-pipe-scale__axis">
                 <span
-                  class="pr-pipe-row__hatch"
-                  aria-hidden="true"
-                />
-                <span
-                  class="pr-pipe-row__bar"
-                  :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
-                />
-                <span
-                  class="pr-pipe-row__grid"
-                  aria-hidden="true"
-                />
-                <span
-                  v-if="pipe.absoluteValue != null"
-                  class="pr-pipe-row__abs"
-                  data-testid="pipe-absolute"
-                >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
-                <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
-              </span>
-            </li>
-          </ul>
+                  v-for="tick in PIPE_SCALE"
+                  :key="tick"
+                  class="pr-pipe-scale__tick"
+                >{{ tick }}%</span>
+              </div>
+            </div>
+            <ul class="pr-pipe-list">
+              <li
+                v-for="pipe in visiblePipes"
+                :key="`${pipe.id}-${pipe.side ?? 'x'}`"
+                class="pr-pipe-row"
+                :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
+              >
+                <span class="pr-pipe-row__label">{{ pipe.label }}</span>
+                <span class="pr-pipe-row__track">
+                  <span
+                    class="pr-pipe-row__hatch"
+                    aria-hidden="true"
+                  />
+                  <span
+                    class="pr-pipe-row__bar"
+                    :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
+                  />
+                  <span
+                    class="pr-pipe-row__grid"
+                    aria-hidden="true"
+                  />
+                  <span
+                    v-if="pipe.absoluteValue != null"
+                    class="pr-pipe-row__abs"
+                    data-testid="pipe-absolute"
+                  >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+                  <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+                </span>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 
       <div
         v-if="showTopology || (showMemory && !csvOnly)"
-        class="pr-panel pr-panel--topo"
+        class="pr-stack-section"
         :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
       >
-        <div class="pr-pipe-head">
+        <div class="pr-stack-section__head">
           <h4>{{ t('memoryAnalysis', locale) }}</h4>
           <div class="pr-pipe-head__actions">
             <button
@@ -659,11 +661,15 @@ function backToReport() {
             </button>
           </div>
         </div>
-        <MemoryTopologyPanel
+        <div
           v-if="showTopology"
-          :model="topologyModel"
-          :locale="locale"
-        />
+          class="pr-panel pr-panel--topo"
+        >
+          <MemoryTopologyPanel
+            :model="topologyModel"
+            :locale="locale"
+          />
+        </div>
       </div>
 
       <template v-if="csvOnly">
@@ -923,15 +929,15 @@ function backToReport() {
 }
 
 /*
- * Sketch: 3+2 grid on six columns; `--pr-bg-aside` well with 8px pad (bottom band before
- * the next stack section). Cards: cool diagonal gradient from detail-strip-raised.
+ * Sketch: 3+2 grid on six columns; bottom pad only so tile edges align with
+ * stack islands below (horizontal edges share the aside body column).
  */
 .pr-cards {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 0 0 8px;
+  border-radius: 0;
   background: var(--pr-bg-aside);
 }
 
@@ -1065,9 +1071,30 @@ function backToReport() {
   white-space: nowrap;
 }
 
+/* Section titles sit on the aside shell; grey islands wrap chart bodies only. */
+.pr-stack-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pr-stack-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pr-stack-section__head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
 .pr-panel--pipe,
-.pr-panel--topo,
-.pr-panel--roofline {
+.pr-panel--topo {
   background: var(--pr-bg-panel);
   border-radius: 4px;
   padding: 10px;
@@ -1075,30 +1102,6 @@ function backToReport() {
 
 .pr-panel--pipe {
   padding: 12px 10px 10px;
-}
-
-.pr-pipe-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.pr-panel--pipe .pr-pipe-head {
-  margin-bottom: 12px;
-}
-
-.pr-panel--pipe h4,
-.pr-panel--topo h4 {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #ffffff;
-}
-
-.pr-panel--pipe h4 {
-  font-size: 14px;
 }
 
 .pr-pipe-toggle {

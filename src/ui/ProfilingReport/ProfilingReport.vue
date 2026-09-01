@@ -108,9 +108,8 @@ const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
-const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
-const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
+const asideWidth = ASIDE_WIDTH_DEFAULT;
 const dockHeight = ref(DOCK_HEIGHT_DEFAULT);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
@@ -224,9 +223,7 @@ function onFocusMeasure() {
 
 function resetPanelWidthsToDefaults(): void {
   preferredGutterWidth.value = GUTTER_WIDTH_DEFAULT;
-  preferredAsideWidth.value = ASIDE_WIDTH_DEFAULT;
   gutterWidth.value = GUTTER_WIDTH_DEFAULT;
-  asideWidth.value = ASIDE_WIDTH_DEFAULT;
 }
 
 function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean): void {
@@ -258,10 +255,9 @@ function applyLayoutFit(): void {
   const next = fitPanelWidths(hostWidth, {
     asideVisible: showAside.value,
     preferredGutter: preferredGutterWidth.value,
-    preferredAside: preferredAsideWidth.value,
+    preferredAside: ASIDE_WIDTH_DEFAULT,
   });
   if (next.gutterWidth !== gutterWidth.value) gutterWidth.value = next.gutterWidth;
-  if (next.asideWidth !== asideWidth.value) asideWidth.value = next.asideWidth;
 }
 
 async function bindLayoutFit(): Promise<void> {
@@ -280,11 +276,6 @@ async function bindLayoutFit(): Promise<void> {
 function onGutterWidth(w: number): void {
   preferredGutterWidth.value = w;
   gutterWidth.value = w;
-}
-
-function onAsideWidth(w: number): void {
-  preferredAsideWidth.value = w;
-  asideWidth.value = w;
 }
 
 function onToggleGroup(groupId: string): void {
@@ -666,7 +657,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       ref="layoutRef"
       :show-aside="showAside"
       :aside-width="asideWidth"
-      @update:aside-width="onAsideWidth"
     >
       <template #main>
         <ReportToolbar

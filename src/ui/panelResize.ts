@@ -3,9 +3,16 @@ export const GUTTER_WIDTH_DEFAULT = 280;
 export const GUTTER_WIDTH_MIN = 180;
 export const GUTTER_WIDTH_MAX = 480;
 
-export const ASIDE_WIDTH_DEFAULT = 360;
-export const ASIDE_WIDTH_MIN = 280;
-export const ASIDE_WIDTH_MAX = 560;
+/** v930 aside column width at 1920-wide reference (1870px crop @ 7680 source). */
+export const V930_SOURCE_WIDTH = 7680;
+export const V930_REFERENCE_WIDTH = 1920;
+export const V930_ASIDE_CROP_WIDTH = 1870;
+export const ASIDE_WIDTH_DEFAULT = Math.round(
+  (V930_ASIDE_CROP_WIDTH / V930_SOURCE_WIDTH) * V930_REFERENCE_WIDTH,
+);
+/** Aside is fixed at sketch width (not user-resizable). */
+export const ASIDE_WIDTH_MIN = ASIDE_WIDTH_DEFAULT;
+export const ASIDE_WIDTH_MAX = ASIDE_WIDTH_DEFAULT;
 
 /** Minimum swimlane track column width (px) the layout budget tries to protect. */
 export const TIMELINE_TRACK_MIN = 320;
@@ -23,9 +30,8 @@ export function clampPanelWidth(value: number, min: number, max: number): number
 }
 
 /**
- * Fit gutter/aside to a host width while protecting a minimum swimlane track.
- * Starts from preferred sizes; shrinks aside toward its min first, then gutter.
- * Expanding host restores toward preferred (caller passes preferred each time).
+ * Fit gutter width to a host budget while protecting a minimum swimlane track.
+ * Aside stays fixed at sketch width (`ASIDE_WIDTH_DEFAULT`); only gutter shrinks.
  */
 export function fitPanelWidths(
   hostWidth: number,
@@ -38,25 +44,18 @@ export function fitPanelWidths(
 ): { gutterWidth: number; asideWidth: number } {
   const minTrack = opts.minTrack ?? TIMELINE_TRACK_MIN;
   let gutter = clampPanelWidth(opts.preferredGutter, GUTTER_WIDTH_MIN, GUTTER_WIDTH_MAX);
-  let aside = clampPanelWidth(opts.preferredAside, ASIDE_WIDTH_MIN, ASIDE_WIDTH_MAX);
+  const aside = opts.asideVisible ? ASIDE_WIDTH_DEFAULT : 0;
 
   if (!Number.isFinite(hostWidth) || hostWidth <= 0) {
     return { gutterWidth: gutter, asideWidth: aside };
   }
 
-  const asideBudget = opts.asideVisible ? aside : 0;
-  const ideal = gutter + minTrack + asideBudget;
+  const ideal = gutter + minTrack + aside;
   if (hostWidth >= ideal) {
     return { gutterWidth: gutter, asideWidth: aside };
   }
 
-  let deficit = ideal - hostWidth;
-
-  if (opts.asideVisible && deficit > 0) {
-    const shrink = Math.min(deficit, aside - ASIDE_WIDTH_MIN);
-    aside -= shrink;
-    deficit -= shrink;
-  }
+  const deficit = ideal - hostWidth;
 
   if (deficit > 0) {
     const shrink = Math.min(deficit, gutter - GUTTER_WIDTH_MIN);

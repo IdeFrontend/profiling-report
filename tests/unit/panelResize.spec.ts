@@ -21,6 +21,12 @@ describe('panelResize', () => {
     );
   });
 
+  it('aside width is fixed at v930 sketch proportion', () => {
+    expect(ASIDE_WIDTH_DEFAULT).toBe(468);
+    expect(ASIDE_WIDTH_MIN).toBe(ASIDE_WIDTH_DEFAULT);
+    expect(ASIDE_WIDTH_MAX).toBe(ASIDE_WIDTH_DEFAULT);
+  });
+
   it('startHorizontalResize applies direction for aside (left edge)', () => {
     const widths: number[] = [];
     const session = startHorizontalResize({
@@ -31,9 +37,9 @@ describe('panelResize', () => {
       direction: -1,
       onChange: (w) => widths.push(w),
     });
-    // Drag 40px left → wider aside
-    expect(session.move(960)).toBe(ASIDE_WIDTH_DEFAULT + 40);
-    expect(widths.at(-1)).toBe(ASIDE_WIDTH_DEFAULT + 40);
+    // Fixed aside: min === max, drag cannot change width
+    expect(session.move(960)).toBe(ASIDE_WIDTH_DEFAULT);
+    expect(widths.at(-1)).toBe(ASIDE_WIDTH_DEFAULT);
   });
 
   it('fitPanelWidths leaves wide layouts at preferred sizes', () => {
@@ -48,22 +54,21 @@ describe('panelResize', () => {
     });
   });
 
-  it('fitPanelWidths shrinks aside first, then gutter', () => {
-    // ideal = 280 + 320 + 360 = 960; host 900 → deficit 60 → aside 300, gutter 280
+  it('fitPanelWidths shrinks gutter only (aside stays sketch width)', () => {
+    // ideal = 280 + 320 + 468 = 1068; host 900 → gutter hits min 180; aside stays 468
     const next = fitPanelWidths(900, {
       asideVisible: true,
       preferredGutter: GUTTER_WIDTH_DEFAULT,
       preferredAside: ASIDE_WIDTH_DEFAULT,
     });
     expect(next).toEqual({
-      gutterWidth: GUTTER_WIDTH_DEFAULT,
-      asideWidth: ASIDE_WIDTH_DEFAULT - 60,
+      gutterWidth: GUTTER_WIDTH_MIN,
+      asideWidth: ASIDE_WIDTH_DEFAULT,
     });
-    expect(900 - next.asideWidth - next.gutterWidth).toBe(TIMELINE_TRACK_MIN);
+    expect(900 - next.asideWidth - next.gutterWidth).toBeLessThan(TIMELINE_TRACK_MIN);
   });
 
-  it('fitPanelWidths hits mins when host is very narrow', () => {
-    // deficit beyond aside+gutter shrink room → both floors
+  it('fitPanelWidths hits gutter min when host is very narrow', () => {
     const next = fitPanelWidths(640, {
       asideVisible: true,
       preferredGutter: GUTTER_WIDTH_DEFAULT,
@@ -71,7 +76,7 @@ describe('panelResize', () => {
     });
     expect(next).toEqual({
       gutterWidth: GUTTER_WIDTH_MIN,
-      asideWidth: ASIDE_WIDTH_MIN,
+      asideWidth: ASIDE_WIDTH_DEFAULT,
     });
   });
 
@@ -84,17 +89,18 @@ describe('panelResize', () => {
     });
     expect(next).toEqual({
       gutterWidth: GUTTER_WIDTH_MIN,
-      asideWidth: ASIDE_WIDTH_DEFAULT,
+      asideWidth: 0,
     });
   });
 
-  it('fitPanelWidths restores toward preferred when host grows', () => {
+  it('fitPanelWidths restores gutter toward preferred when host grows', () => {
     const tight = fitPanelWidths(900, {
       asideVisible: true,
       preferredGutter: GUTTER_WIDTH_DEFAULT,
       preferredAside: ASIDE_WIDTH_DEFAULT,
     });
-    expect(tight.asideWidth).toBeLessThan(ASIDE_WIDTH_DEFAULT);
+    expect(tight.asideWidth).toBe(ASIDE_WIDTH_DEFAULT);
+    expect(tight.gutterWidth).toBeLessThan(GUTTER_WIDTH_DEFAULT);
 
     const wide = fitPanelWidths(1200, {
       asideVisible: true,

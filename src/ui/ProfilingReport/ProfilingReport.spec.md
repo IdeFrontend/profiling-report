@@ -150,7 +150,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Cursor timestamp.** Playhead time bubble on the viewport — rendered by [`CursorTimestamp`](../CursorTimestamp/CursorTimestamp.spec.md).
 
-**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) and aside width (default 360, clamp 280–560) are session-only; drag handles at the gutter/timeline seam and aside left edge. Clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).
+**Resizable panels.** Lane gutter width (`--pr-gutter-width`, default 280, clamp 180–480) is session-only; drag handle at the gutter/timeline seam. Aside width is **fixed 468px** (v930 sketch). Clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — duration, bandwidth cards, PIPE, CSV tables, roofline, hardware, or labelled topology (same gate as the toolbar toggle).
 
