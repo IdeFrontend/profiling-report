@@ -102,7 +102,10 @@ void main() {
   // for very thin events round-rect-coverage provide brighter inaccurate results
   // using min
   float cov = min(hCoverage, rrShape);
-  outColor = vec4(uColor.xyz * cov, uColor.w * cov);
+  // Straight RGB × coverage with constant alpha 1.0: the additive blend (ONE, ONE, ONE, ONE)
+  // therefore adds each event's full cov·dim·rgb (SRC_ALPHA ≡ ONE), so pixels accumulate all event
+  // coverage across lanes with no quadratic dim.
+  outColor = vec4(uColor.xyz * cov, 1.0);
 }
 `;
 
