@@ -744,7 +744,8 @@ describe('SwimlaneView', () => {
     await sizeAndRefresh(body, { ...model });
 
     shared.anchorId = 'eA';
-    shared.target = { eventId: 'eB', time: 400 };
+    shared.anchorSurface = 'strip';
+    shared.target = { eventId: 'eB', time: 400, surface: 'body' };
     shared.pinned = true;
     shared.altKeyHeld = false;
     await nextTick();
@@ -755,9 +756,110 @@ describe('SwimlaneView', () => {
     expect(body.find('[data-testid="measure-label"]').exists()).toBe(false);
     expect(body.find('[data-testid="alt-measure-stick-split"]').exists()).toBe(true);
 
+    // Body-captured anchor on a pinned lane stays on the body instance (not the strip).
+    shared.anchorSurface = 'body';
+    shared.target = { eventId: 'eB', time: 400, surface: 'body' };
+    await nextTick();
+    expect(strip.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
+    expect(body.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    expect(body.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+
     strip.unmount();
     body.unmount();
     vi.unstubAllGlobals();
+  });
+
+  it('PR-SWIMVIEW-021: pin↔body Alt-measure draws a vertical cross bridge', async () => {
+    const { nextTick } = await import('vue');
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'l1',
+              name: 'Pinned',
+              events: [{ id: 'eA', name: 'a', startTime: 100, duration: 100 }],
+            },
+            {
+              id: 'l2',
+              name: 'Body',
+              events: [{ id: 'eB', name: 'b', startTime: 400, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const view = createViewState(model);
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [
+              { id: 'l1', name: 'Pinned', color: '#f00', utilization: 0.5 },
+              { id: 'l2', name: 'Body', color: '#0f0', utilization: 0.5 },
+            ],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l1'],
+        model,
+        pinSourceModel: model,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+
+    const stack = wrapper.find('.pr-swim-stack').element as HTMLElement;
+    Object.defineProperty(stack, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 0, top: 0, width: 680, height: 220, right: 680, bottom: 220 }),
+    });
+
+    const canvases = wrapper.findAllComponents(SwimlaneCanvas);
+    expect(canvases.length).toBe(2);
+    type Bridge = { clientX: number; clientY: number; time: number } | null;
+    type Exposed = { altMeasureBridgeEndpoint: () => Bridge };
+    for (const c of canvases) {
+      const exposed = (c.vm as unknown as { $: { exposed: Exposed } }).$.exposed;
+      const isPin = c.attributes('data-testid') === 'pinned-canvas';
+      vi.spyOn(exposed, 'altMeasureBridgeEndpoint').mockReturnValue({
+        clientX: 400,
+        clientY: isPin ? 30 : 150,
+        time: isPin ? 200 : 400,
+      });
+    }
+
+    const shared = (wrapper.vm as unknown as { altMeasureShared: {
+      anchorId: string | null;
+      anchorSurface: 'strip' | 'body' | 'solo' | null;
+      target: { eventId: string; time: number; surface: 'strip' | 'body' | 'solo' } | null;
+      pinned: boolean;
+      altKeyHeld: boolean;
+    } }).altMeasureShared;
+    shared.anchorId = 'eA';
+    shared.anchorSurface = 'strip';
+    shared.target = { eventId: 'eB', time: 400, surface: 'body' };
+    shared.pinned = true;
+    shared.altKeyHeld = false;
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="alt-measure-cross-bridge"]').exists()).toBe(true);
+    const bridge = wrapper.get('[data-testid="alt-measure-cross-bridge"]');
+    const style = bridge.attributes('style') ?? '';
+    const h = Number(/height:\s*([\d.]+)px/.exec(style)?.[1] ?? 0);
+    expect(h).toBe(120);
+
+    wrapper.unmount();
   });
 
   it('PR-SWIMVIEW-019: pinned strip stays when ancestor Card is collapsed', () => {

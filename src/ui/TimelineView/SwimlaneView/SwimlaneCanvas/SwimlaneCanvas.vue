@@ -43,6 +43,7 @@ import {
   ALT_MEASURE_SHARED_KEY,
   clearAltMeasureShared,
   createAltMeasureShared,
+  type AltMeasureSurface,
   type AltMeasureTarget,
 } from '../altMeasureShared';
 
@@ -74,11 +75,11 @@ const props = withDefaults(
       clientY: number,
     ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
     /**
-     * Alt-measure surface role. `body` defers overlay ownership of pinned-lane events to
-     * the sticky strip; `strip` / `solo` own every local event.
+     * Alt-measure surface role. Endpoints record which surface captured them so a
+     * body click on a pinned lane stays on the body instance (not the sticky duplicate).
      */
     altMeasureRole?: 'body' | 'strip' | 'solo';
-    /** Leaf lane ids currently in the sticky strip (body defers those events). */
+    /** Leaf lane ids currently in the sticky strip (informational; ownership uses surfaces). */
     pinnedLaneIds?: string[];
   }>(),
   {
@@ -1285,7 +1286,7 @@ const altMeasureAnchorHighlight = computed(() => {
   void props.view.endTime;
   void props.view.scrollY;
   if (!altMeasureSessionActive() || !altMeasure.anchorId) return null;
-  if (!ownsAltMeasureEvent(altMeasure.anchorId)) return null;
+  if (!ownsAltMeasureEndpoint(altMeasure.anchorId, altMeasure.anchorSurface)) return null;
   return eventScreenRectCss(altMeasure.anchorId);
 });
 
@@ -1298,18 +1299,24 @@ const altMeasureTargetHighlight = computed(() => {
   if (!altMeasureSessionActive()) return null;
   const target = altMeasure.target;
   if (!target || target.eventId === null || target.eventId === altMeasure.anchorId) return null;
-  if (!ownsAltMeasureEvent(target.eventId)) return null;
+  if (!ownsAltMeasureEndpoint(target.eventId, target.surface)) return null;
   return eventScreenRectCss(target.eventId);
 });
 
-/** True when this canvas should draw overlays for the event (pin strip owns pinned lanes). */
-function ownsAltMeasureEvent(eventId: string): boolean {
-  const layout = backend.getLayout();
-  const item = layout.eventsById.get(eventId);
-  if (!item) return false;
-  if (props.altMeasureRole === 'strip' || props.altMeasureRole === 'solo') return true;
-  const laneId = layout.lanes[item.laneIndex]?.thread.id;
-  if (laneId && props.pinnedLaneIds.includes(laneId)) return false;
+function thisAltMeasureSurface(): AltMeasureSurface {
+  return props.altMeasureRole;
+}
+
+/**
+ * True when this canvas should draw overlays for an endpoint — based on the surface
+ * recorded at capture time (pinned strip vs body), not merely whether the lane is pinned.
+ */
+function ownsAltMeasureEndpoint(
+  eventId: string | null,
+  surface: AltMeasureSurface | null,
+): boolean {
+  if (surface == null || surface !== thisAltMeasureSurface()) return false;
+  if (eventId != null && !backend.getLayout().eventsById.has(eventId)) return false;
   return true;
 }
 
@@ -1327,13 +1334,17 @@ const altEventMeasureGeometry = computed(() => {
   if (!times) return null;
 
   const layout = backend.getLayout();
-  const ownsAnchor = ownsAltMeasureEvent(anchorId);
-  const ownsTargetEv = target.eventId != null && ownsAltMeasureEvent(target.eventId);
+  const ownsAnchor = ownsAltMeasureEndpoint(anchorId, altMeasure.anchorSurface);
+  const ownsTargetEv =
+    target.eventId != null && ownsAltMeasureEndpoint(target.eventId, target.surface);
   const freeCursor = target.eventId === null;
+  const ownsFreeCursor = freeCursor && target.surface === thisAltMeasureSurface();
 
   // Full overlay only when every event endpoint this measure needs is owned here.
   const canFull =
-    ownsAnchor && (freeCursor || ownsTargetEv) && layout.eventsById.has(anchorId) &&
+    ownsAnchor &&
+    (ownsFreeCursor || ownsTargetEv) &&
+    layout.eventsById.has(anchorId) &&
     (freeCursor || (target.eventId != null && layout.eventsById.has(target.eventId)));
 
   const viewStart = props.view.startTime;
@@ -1424,17 +1435,37 @@ const altEventMeasureGeometry = computed(() => {
     };
   }
 
-  // Split pin↔body: draw local stick (+ Δt when this surface owns the earlier edge).
-  const localEventId = ownsAnchor ? anchorId : ownsTargetEv ? target.eventId : null;
-  if (!localEventId) return null;
-  const localItem = layout.eventsById.get(localEventId);
+  // Split across surfaces: draw local stick (+ Δt when this surface owns the earlier edge).
+  const ownsEarlier =
+    (anchorRefTime <= target.time && ownsAnchor) ||
+    (anchorRefTime > target.time && (ownsTargetEv || ownsFreeCursor));
+  const localEventId = ownsAnchor
+    ? anchorId
+    : ownsTargetEv
+      ? target.eventId
+      : null;
+  if (!localEventId && !ownsFreeCursor) return null;
+
+  if (ownsFreeCursor && !ownsAnchor) {
+    // Free cursor only on this surface — full-height line, no local stick.
+    return {
+      mode: 'cursor' as const,
+      anchorLaneTop: 0,
+      anchorX: xAtTime(anchorRefTime),
+      cursorX: xAtTime(target.time),
+      showAnchor: false,
+      label,
+      showLeft,
+      showRight,
+      arrowLayout,
+    };
+  }
+
+  const localItem = localEventId ? layout.eventsById.get(localEventId) : null;
   if (!localItem) return null;
 
   const stickTime = ownsAnchor ? anchorRefTime : target.time;
   const showStick = stickTime >= viewStart && stickTime <= viewEnd;
-  const earlierIsAnchor = anchorRefTime <= target.time;
-  const showArrow =
-    (earlierIsAnchor && ownsAnchor) || (!earlierIsAnchor && ownsTargetEv);
 
   return {
     mode: 'split' as const,
@@ -1443,14 +1474,32 @@ const altEventMeasureGeometry = computed(() => {
     left,
     right,
     stickX: xAtTime(stickTime),
+    vertX: right,
+    stickTime,
     showStick,
-    showArrow,
+    showArrow: ownsEarlier,
+    showHoriz:
+      showStick && ownsEarlier && Math.abs(xAtTime(stickTime) - right) > 0.5,
     label,
     showLeft,
     showRight,
     arrowLayout,
   };
 });
+
+/** Client-space endpoint for SwimlaneView's pin↔body vertical bridge. */
+function altMeasureBridgeEndpoint(): { clientX: number; clientY: number; time: number } | null {
+  const g = altEventMeasureGeometry.value;
+  if (!g || g.mode !== 'split' || !('stickX' in g) || !g.showStick) return null;
+  const wrap = wrapRef.value;
+  if (!wrap) return null;
+  const r = wrap.getBoundingClientRect();
+  return {
+    clientX: r.left + g.vertX,
+    clientY: r.top + g.top + g.height / 2,
+    time: g.stickTime,
+  };
+}
 
 function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
@@ -1530,19 +1579,20 @@ function onPointerMove(e: PointerEvent): void {
     !props.measureMode
   ) {
     hoverGap.value = null;
+    const surface = thisAltMeasureSurface();
     const anchorEvent = findAltMeasureEvent(altMeasure.anchorId);
     if (mag.eventId && mag.eventId !== altMeasure.anchorId) {
       // Stuck to a border → explicit target edge.
-      altMeasure.target = { eventId: mag.eventId, time: mag.time };
+      altMeasure.target = { eventId: mag.eventId, time: mag.time, surface };
     } else {
       const ev = eventAtPointer(x, y, null);
       if (ev && ev.id !== altMeasure.anchorId && anchorEvent) {
         // Hovering another event → auto edge by relation.
         const t = eventMeasureTargetTime(anchorEvent, ev);
-        altMeasure.target = t != null ? { eventId: ev.id, time: t } : null;
+        altMeasure.target = t != null ? { eventId: ev.id, time: t, surface } : null;
       } else {
         // Otherwise → free cursor target.
-        altMeasure.target = { eventId: null, time: timeAtX(x) };
+        altMeasure.target = { eventId: null, time: timeAtX(x), surface };
       }
     }
     emit('hover', null, e.clientX, e.clientY);
@@ -1595,33 +1645,42 @@ function onPointerUp(e: PointerEvent): void {
   if (e.altKey && !props.measureMode) {
     altMeasure.altKeyHeld = true;
     const ev = eventAtPointer(x, y, mag.eventId);
+    const surface = thisAltMeasureSurface();
     if (!ev) {
       clearAltMeasure();
       return;
     }
-    // Pinned: any Alt+click event becomes the new ephemeral anchor.
+    // Pinned: any Alt+click event becomes the new ephemeral anchor on this surface.
     if (altMeasure.pinned) {
       altMeasure.anchorId = ev.id;
+      altMeasure.anchorSurface = surface;
       altMeasure.target = null;
       altMeasure.pinned = false;
       return;
     }
-    // Ephemeral, no anchor yet → set anchor.
+    // Ephemeral, no anchor yet → set anchor on this surface.
     if (!altMeasure.anchorId) {
       altMeasure.anchorId = ev.id;
+      altMeasure.anchorSurface = surface;
       altMeasure.target = null;
       return;
     }
-    // Ephemeral + same anchor → no-op (do not toggle off).
-    if (altMeasure.anchorId === ev.id) return;
+    // Ephemeral + same event on the same surface → no-op.
+    if (altMeasure.anchorId === ev.id && altMeasure.anchorSurface === surface) return;
+    // Same event id on the other surface → move the anchor here (instance switch).
+    if (altMeasure.anchorId === ev.id) {
+      altMeasure.anchorSurface = surface;
+      altMeasure.target = null;
+      return;
+    }
     // Ephemeral + different event → pin with click-time target resolution.
     const anchorEvent = findAltMeasureEvent(altMeasure.anchorId);
     let nextTarget: AltMeasureTarget | null = null;
     if (mag.eventId === ev.id) {
-      nextTarget = { eventId: ev.id, time: mag.time };
+      nextTarget = { eventId: ev.id, time: mag.time, surface };
     } else if (anchorEvent) {
       const t = eventMeasureTargetTime(anchorEvent, ev);
-      nextTarget = t != null ? { eventId: ev.id, time: t } : null;
+      nextTarget = t != null ? { eventId: ev.id, time: t, surface } : null;
     }
     if (!nextTarget) return;
     altMeasure.target = nextTarget;
@@ -1705,6 +1764,7 @@ defineExpose({
   magnetizeAtClientLocal,
   clearEdgeSnapHighlight,
   clearAltMeasure,
+  altMeasureBridgeEndpoint,
 });
 </script>
 
@@ -2002,6 +2062,16 @@ defineExpose({
           class="pr-gap-measure__stick"
           data-testid="alt-measure-stick-split"
           :style="{ left: `${altEventMeasureGeometry.stickX}px` }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showHoriz"
+          class="pr-alt-measure__horiz"
+          data-testid="alt-measure-horiz-split"
+          :style="{
+            left: `${Math.min(altEventMeasureGeometry.stickX, altEventMeasureGeometry.vertX)}px`,
+            top: `${LANE_HEIGHT / 2}px`,
+            width: `${Math.abs(altEventMeasureGeometry.vertX - altEventMeasureGeometry.stickX)}px`,
+          }"
         />
         <MeasureDtArrow
           v-if="altEventMeasureGeometry.showArrow"

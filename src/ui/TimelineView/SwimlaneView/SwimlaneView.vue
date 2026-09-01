@@ -98,10 +98,12 @@ type CanvasExpose = {
     clientY: number,
   ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   clearEdgeSnapHighlight: () => void;
+  altMeasureBridgeEndpoint?: () => { clientX: number; clientY: number; time: number } | null;
 };
 const canvasRef = ref<CanvasExpose | null>(null);
 const pinnedCanvasRef = ref<CanvasExpose | null>(null);
 const pinnedStripRef = ref<HTMLElement | null>(null);
+const stackRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
@@ -170,6 +172,33 @@ provide(ALT_MEASURE_FIND_EVENT_KEY, (id: string) => {
     findEventInModel(props.model, id) ??
     findEventInModel(pinnedModel.value, id)
   );
+});
+
+/** Dashed vertical bridging pin-strip ↔ body when Alt-measure endpoints span both surfaces. */
+const altMeasureCrossBridge = computed(() => {
+  void altMeasureShared.anchorId;
+  void altMeasureShared.target;
+  void altMeasureShared.pinned;
+  void altMeasureShared.altKeyHeld;
+  void props.view.scrollY;
+  void props.view.startTime;
+  void props.view.endTime;
+  void pinnedStripHeight.value;
+  if (!pinnedRows.value.length) return null;
+  const strip = pinnedCanvasRef.value?.altMeasureBridgeEndpoint?.() ?? null;
+  const body = canvasRef.value?.altMeasureBridgeEndpoint?.() ?? null;
+  const stack = stackRef.value;
+  if (!strip || !body || !stack) return null;
+  const sr = stack.getBoundingClientRect();
+  // Prefer later-edge X (matches same-canvas cross-lane vertX); fall back to mean if equal.
+  const vert = strip.time >= body.time ? strip : body;
+  const y1 = strip.clientY - sr.top;
+  const y2 = body.clientY - sr.top;
+  return {
+    left: vert.clientX - sr.left,
+    top: Math.min(y1, y2),
+    height: Math.abs(y2 - y1),
+  };
 });
 const pinnedStripHeight = computed(() => pinnedRows.value.length * LANE_HEIGHT);
 const pinnedView = computed(() => ({
@@ -319,14 +348,27 @@ defineExpose({
   },
   magnetizeAtClient,
   clearEdgeSnapHighlight,
+  /** Test/debug: shared Alt-measure session (pin strip ↔ body). */
+  altMeasureShared,
 });
 </script>
 
 <template>
   <div
+    ref="stackRef"
     class="pr-swim-stack"
     :style="{ '--pr-gutter-width': `${localGutterWidth}px` }"
   >
+    <div
+      v-if="altMeasureCrossBridge"
+      class="pr-alt-measure-cross-bridge"
+      data-testid="alt-measure-cross-bridge"
+      :style="{
+        left: `${altMeasureCrossBridge.left}px`,
+        top: `${altMeasureCrossBridge.top}px`,
+        height: `${altMeasureCrossBridge.height}px`,
+      }"
+    />
     <div
       v-if="pinnedRows.length"
       ref="pinnedStripRef"
@@ -473,12 +515,23 @@ defineExpose({
 
 <style scoped>
 .pr-swim-stack {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+/** Pin↔body Alt-measure vertical — spans sticky strip and scroll body. */
+.pr-alt-measure-cross-bridge {
+  position: absolute;
+  z-index: 7;
+  width: 0;
+  border-left: 2px dashed rgba(49, 122, 247, 1);
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .pr-pinned-strip {
