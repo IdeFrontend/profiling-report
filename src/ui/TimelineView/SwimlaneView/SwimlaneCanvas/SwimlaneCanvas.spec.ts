@@ -1380,6 +1380,14 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(false);
+
+    // Alt+click touching target must not pin.
+    await canvas.trigger('pointerdown', { clientX: 100, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 100, clientY: y, pointerId: 1, altKey: true });
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft' }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -1414,6 +1422,10 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+    // Alt retargeting must not clear event hover (tooltip / hoveredEventId).
+    const hoverEmits = wrapper.emitted('hover') ?? [];
+    const lastHover = hoverEmits[hoverEmits.length - 1]?.[0] as { id?: string } | null;
+    expect(lastHover?.id).toBe('eB');
     wrapper.unmount();
   });
 
@@ -1553,6 +1565,18 @@ describe('SwimlaneCanvas', () => {
 
     expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+
+    // Pan capture while Alt session active must not freeze/show a hover gap.
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 2, altKey: true });
+    await canvas.trigger('pointermove', {
+      clientX: 160,
+      clientY: y,
+      pointerId: 2,
+      buttons: 1,
+      altKey: true,
+    });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    await canvas.trigger('pointerup', { clientX: 160, clientY: y, pointerId: 2, altKey: true });
     wrapper.unmount();
   });
 

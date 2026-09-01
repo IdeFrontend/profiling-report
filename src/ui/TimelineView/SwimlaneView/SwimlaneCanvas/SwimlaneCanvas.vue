@@ -309,6 +309,13 @@ function capturePanHover(
   }
   lastHoverLocalX = localX;
   lastHoverLocalY = localY;
+  panCaptureHoverEvent = eventAtPointer(localX, localY, magEventId);
+  // Alt session owns the Δt chrome — never freeze a hover-gap under it.
+  if (altMeasureSessionActive()) {
+    panCaptureHoverGap = null;
+    hoverGap.value = null;
+    return;
+  }
   panCaptureHoverGap = findHoverGap(
     backend.getLayout(),
     props.view,
@@ -317,7 +324,6 @@ function capturePanHover(
     localY,
     EVENT_EDGE_MAGNET_PX,
   );
-  panCaptureHoverEvent = eventAtPointer(localX, localY, magEventId);
   hoverGap.value = panCaptureHoverGap;
 }
 
@@ -1560,7 +1566,7 @@ function onPointerMove(e: PointerEvent): void {
     const dx = e.clientX - lastX;
     lastX = e.clientX;
     emit('pan', -(dx / w) * span);
-    hoverGap.value = panCaptureHoverGap;
+    hoverGap.value = altMeasureSessionActive() ? null : panCaptureHoverGap;
     emit('hover', panCaptureHoverEvent, e.clientX, e.clientY);
     emitLaneHover(y);
     return;
@@ -1594,7 +1600,9 @@ function onPointerMove(e: PointerEvent): void {
         altMeasure.target = { eventId: null, time: timeAtX(x), surface };
       }
     }
-    emit('hover', null, e.clientX, e.clientY);
+    // Keep normal event hover (tooltip); only the gap overlay stays suppressed.
+    emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
+    emitLaneHover(y);
     return;
   }
 
@@ -1682,6 +1690,8 @@ function onPointerUp(e: PointerEvent): void {
       nextTarget = t != null ? { eventId: ev.id, time: t, surface } : null;
     }
     if (!nextTarget) return;
+    // Touching / inside (Δt = 0) cannot pin — leave ephemeral session unchanged.
+    if (!anchorEvent || !computeAltMeasureDelta(anchorEvent, nextTarget.time)) return;
     altMeasure.target = nextTarget;
     altMeasure.pinned = true;
     return;
