@@ -193,6 +193,9 @@ const altMeasureCrossBridge = computed(() => {
   void props.view.startTime;
   void props.view.endTime;
   void pinnedStripHeight.value;
+  // Re-read client rects after gutter / body resize (sticks re-project; bridge must follow).
+  void localGutterWidth.value;
+  void bodyViewportH.value;
   if (!pinnedRows.value.length) return null;
   const strip = pinnedCanvasRef.value?.altMeasureBridgeEndpoint?.() ?? null;
   const body = canvasRef.value?.altMeasureBridgeEndpoint?.() ?? null;

@@ -862,6 +862,104 @@ describe('SwimlaneView', () => {
     wrapper.unmount();
   });
 
+  it('PR-SWIMVIEW-021: pin↔body bridge re-projects on gutter resize', async () => {
+    const { nextTick } = await import('vue');
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'l1',
+              name: 'Pinned',
+              events: [{ id: 'eA', name: 'a', startTime: 100, duration: 100 }],
+            },
+            {
+              id: 'l2',
+              name: 'Body',
+              events: [{ id: 'eB', name: 'b', startTime: 400, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const view = createViewState(model);
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [
+              { id: 'l1', name: 'Pinned', color: '#f00', utilization: 0.5 },
+              { id: 'l2', name: 'Body', color: '#0f0', utilization: 0.5 },
+            ],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l1'],
+        gutterWidth: 240,
+        model,
+        pinSourceModel: model,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+
+    const stack = wrapper.find('.pr-swim-stack').element as HTMLElement;
+    Object.defineProperty(stack, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 0, top: 0, width: 680, height: 220, right: 680, bottom: 220 }),
+    });
+
+    const canvases = wrapper.findAllComponents(SwimlaneCanvas);
+    expect(canvases.length).toBe(2);
+    let pinClientX = 400;
+    type Bridge = { clientX: number; clientY: number; time: number } | null;
+    type Exposed = { altMeasureBridgeEndpoint: () => Bridge };
+    for (const c of canvases) {
+      const exposed = (c.vm as unknown as { $: { exposed: Exposed } }).$.exposed;
+      const isPin = c.attributes('data-testid') === 'pinned-canvas';
+      vi.spyOn(exposed, 'altMeasureBridgeEndpoint').mockImplementation(() => ({
+        clientX: isPin ? pinClientX : 480,
+        clientY: isPin ? 30 : 150,
+        time: isPin ? 400 : 200,
+      }));
+    }
+
+    const shared = (wrapper.vm as unknown as { altMeasureShared: {
+      anchorId: string | null;
+      anchorSurface: 'strip' | 'body' | 'solo' | null;
+      target: { eventId: string; time: number; surface: 'strip' | 'body' | 'solo' } | null;
+      pinned: boolean;
+      altKeyHeld: boolean;
+    } }).altMeasureShared;
+    shared.anchorId = 'eA';
+    shared.anchorSurface = 'strip';
+    shared.target = { eventId: 'eB', time: 400, surface: 'body' };
+    shared.pinned = true;
+    shared.altKeyHeld = false;
+    await nextTick();
+
+    const bridge = wrapper.get('[data-testid="alt-measure-cross-bridge"]');
+    const leftOf = () => Number(/left:\s*([\d.]+)px/.exec(bridge.attributes('style') ?? '')?.[1] ?? NaN);
+    expect(leftOf()).toBe(400);
+
+    pinClientX = 520;
+    await wrapper.setProps({ gutterWidth: 300 });
+    await nextTick();
+    expect(leftOf()).toBe(520);
+
+    wrapper.unmount();
+  });
+
   it('PR-SWIMVIEW-021: pin↔body bridge survives when one edge is time-clipped', async () => {
     const { nextTick } = await import('vue');
     const {
