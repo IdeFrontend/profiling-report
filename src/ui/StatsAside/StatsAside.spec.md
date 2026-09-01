@@ -36,7 +36,7 @@ Default surface stacks, hide-if-missing, in order: summary card grid (duration, 
 
 I-Q6a duration + I-Q6g bandwidth. Card group renders when `taskDurationUs` **or** `bandwidthCards` is present (name/type alone do not open an empty grid).
 
-**Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.06` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Thin decorative pill progress track with a fixed short cyan fill (`--pr-color-duration-bar`) and hatched remainder — visual chrome only, **not** a utilization scale (I-Q6e). Secondary line (I-Q6e): if `blockDim` is set, show iterations/core style text; else fall back to `opName`; omit secondary if neither.
+**Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.06` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Progress bar = `min(100%, Block Dim / core_count × 100%)` when `summary.coreCount` is set (HQ 32); else decorative ~15% cyan fill (I-Q6e). Secondary (HQ 1): `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`; omit if neither.
 
 Do **not** render a standalone op-type card. When duration is present, **算力情况** / **平均核利用率** mount as top-row placeholders (title + `N/A`) until Product Q6 defines formulas — do **not** bind `summary.computeTflops` / `summary.avgCoreUtil`. When the summary grid is BW-only (no `taskDurationUs`), omit the placeholders so the BW row stays a full 2×`span 3` without a gapped top row.
 
@@ -91,6 +91,7 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 28. **PR-STATS-025** — Black aside shell; grey section islands.
 29. **PR-STATS-026** — CANNBot icons render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility.
 30. **PR-STATS-027** — Icon click emits open-cannbot with scope.
+31. **PR-STATS-031** — Duration bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` set; secondary `{blockDim} / {coreCount}`; decorative 15% when `coreCount` absent.
 
 ## Edge Cases
 
@@ -150,7 +151,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Surface | `linear-gradient(225deg, #272f31 0%, #262b2c 35%, #252525 72%)` (detail-strip-raised TR→BL samples) + inset `1px` highlight `rgba(255,255,255,0.04)`; radius `8px`; pad `12px 14px` |
 | Label | `11px` / `#999999`; margin-bottom `6px` |
 | Value | number `20px` / `600` / `#ececec`; unit sibling `12px` / `500` / `#868686` |
-| Bar | height `8px`; pill; fill `--pr-color-duration-bar` ~15% of track; hatch `#2a2a2a` / `#1f1f1f` on `--pr-bg-aside` track |
+| Bar | height `8px`; pill; fill `--pr-color-duration-bar` = util % when `coreCount` set (HQ 32), else ~15%; hatch `#2a2a2a` / `#1f1f1f` on `--pr-bg-aside` track |
 | Sub | `11px` / `#8a8a8a`; ellipsis if the tile is narrow |
 
 ### I/O bandwidth cards (`summary-cards.png`)

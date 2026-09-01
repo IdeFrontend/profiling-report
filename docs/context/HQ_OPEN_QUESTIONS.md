@@ -25,18 +25,6 @@ Resolved right-panel mappings (进程 / 算子类型 / Blocks, Task Duration, me
 
 DATA = file/field/formula mapping from report data → visualized number/series/edge.
 
-### 整体耗时 (Total duration)
-
-**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
-
-<img src="visual/hq/q1.png" alt="Q1 8 次迭代 / 核" width="600" height="370">
-
-1. The line **N 次迭代 / 核** (N iterations / core) — which field? (Is it `Block Dim`?)
-   - **ANSWERED** — Label = `OpBasicInfo.csv` → `Block Dim` / *core count*, where core count depends on `OpBasicInfo.csv` → `Op Type`:
-     - **cube** → `HardwareInfo.jsonl` → `aic_cube_count`
-     - **vector** → `HardwareInfo.jsonl` → `aic_vector_count`
-     - **mix** → `HardwareInfo.jsonl` → `ai_core_count`
-
 ### 算力情况 (Compute power)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
@@ -283,15 +271,6 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 ### Header
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png)
-
-### 整体耗时 (Total duration)
-
-**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
-
-<img src="visual/hq/q32.png" alt="Q32 duration bar" width="600" height="370">
-
-32. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
-    - **ANSWERED** — Real percent: `Block Dim / core_count × 100%` (core_count per Q1 from `HardwareInfo.jsonl`). Clamp display at **100%** when ratio exceeds 1. **Next slice** — code still uses [I-Q6e](INTERIM_DECISIONS.md) decorative bar until slice 2 lands.
 
 ### 算力情况 (Compute power)
 

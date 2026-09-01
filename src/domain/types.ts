@@ -83,8 +83,10 @@ export interface SummaryMetrics {
   ratedFreq?: number;
   /** OpBasicInfo `Pid` / `PID` — aside meta **进程**. */
   pid?: string;
-  /** OpBasicInfo `Block Dim` — aside meta **Blocks** and I-Q6e duration secondary. */
+  /** OpBasicInfo `Block Dim` — aside meta **Blocks**, duration bar (HQ 32), and secondary (HQ 1). */
   blockDim?: string | number;
+  /** HQ 1: `HardwareInfo.jsonl` core count for `Op Type` (cube/vector/mix). */
+  coreCount?: number;
   /** Interim I-Q6a: leave unset until Product formulas exist */
   computeTflops?: number;
   ioBandwidth?: number;

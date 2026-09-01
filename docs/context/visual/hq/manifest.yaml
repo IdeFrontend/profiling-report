@@ -3,14 +3,6 @@
 # regenerate: npm run render:hq-visuals
 
 images:
-  q1:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 270, w: 600, h: 370 }
-    maxWidth: 900
-    highlights:
-      - label: "Q1 次迭代/核"
-        box: { x: 28, y: 298, w: 340, h: 52 }
-
   q2:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
     crop: { x: 630, y: 270, w: 600, h: 370 }
@@ -208,14 +200,6 @@ images:
     highlights:
       - label: "Q29 selected block"
         box: { x: 1140, y: 370, w: 495, h: 70 }
-
-  q32:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 270, w: 600, h: 370 }
-    maxWidth: 900
-    highlights:
-      - label: "Q32 bar"
-        box: { x: 28, y: 240, w: 340, h: 38 }
 
   q33:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
