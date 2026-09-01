@@ -82,7 +82,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 46. **PR-CANVAS-046** — When the anchor and target overlap in time, only the anchor highlight is shown (no Δt overlay).
 47. **PR-CANVAS-047** — Hovering the anchor event itself shows only the anchor highlight (no Δt overlay).
 48. **PR-CANVAS-048** — Δt is the distance from the anchor's nearest edge to the target: `target − anchor.end` when the target is later, `anchor.start − target` when earlier.
-49. **PR-CANVAS-049** — Touching (Δt = 0) targets render no event-measure overlay.
+49. **PR-CANVAS-049** — Touching (Δt = 0) targets render no event-measure overlay and no blue target highlight (anchor highlight only).
 50. **PR-CANVAS-050** — Same-lane measurement reuses the gap-measure border sticks + `MeasureDtArrow`; cross-lane measurement draws sticks plus a vertical blue dashed connector with the Δt label on the earlier lane; both modes use inline-or-outside label fallback.
 51. **PR-CANVAS-051** — Ephemeral session clears on **Alt keyup**, **pointermove with `altKey` false**, **Esc**, or Alt+click empty space; Alt+click the same anchor while ephemeral is a no-op (does not toggle off).
 52. **PR-CANVAS-052** — Entering `measureMode` clears the session; the overlay is hidden while `measureMode` is true.
@@ -129,6 +129,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-01** — Touching (Δt = 0) targets omit the blue `--target` highlight (`PR-CANVAS-049`).
 - **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview; strip/body leave keeps shared target; pin↔body bridge survives time-clipped edges.
 - **2026-09-01** — Collapse or pin/unpin clears the Alt-measure session (parent swim view).
 - **2026-09-01** — Free-cursor Alt target paints the cursor line on every shared surface; stick + Δt stay on the anchor owner; pointermove syncs `altKeyHeld` and clears ephemeral when Alt is false (`PR-CANVAS-051`/`057`).

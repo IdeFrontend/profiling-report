@@ -1300,6 +1300,9 @@ const altMeasureTargetHighlight = computed(() => {
   const target = altMeasure.target;
   if (!target || target.eventId === null || target.eventId === altMeasure.anchorId) return null;
   if (!ownsAltMeasureEndpoint(target.eventId, target.surface)) return null;
+  // Touching / inside (Δt = 0) → overlay hidden; show anchor highlight only.
+  const anchorEvent = altMeasure.anchorId ? findAltMeasureEvent(altMeasure.anchorId) : null;
+  if (!anchorEvent || !computeAltMeasureDelta(anchorEvent, target.time)) return null;
   return eventScreenRectCss(target.eventId);
 });
 

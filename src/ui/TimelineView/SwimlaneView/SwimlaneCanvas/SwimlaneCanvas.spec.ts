@@ -1379,6 +1379,7 @@ describe('SwimlaneCanvas', () => {
 
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
