@@ -42,8 +42,8 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q3** | Required embeds / missing data | **Resolved** | Minimal open; **hide** missing panels. → [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
 | **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
-| **Q6** | Report summary formulas | **Interim** | **Confirmed (npu-compute 0818):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read\|write}_bw`. Compute TFLOPS and avg core util stay in the sketch grid as **title + `N/A`** until formulas exist ([I-Q6a](INTERIM_DECISIONS.md)). PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score** (I-Q6g guess 1.6 TB/s; sketch 81 ≠ ratio), `block_id` mean vs max vs selected block, **GB/s vs TB/s** when measured ≪ 1 TB/s. |
-| **Q7** | Hardware details sidebar | **Resolved (source)** | **`HardwareInfo.jsonl`** is the details source (npu-compute 0818). Not required to open Timeline; hide **更多** overlay when jsonl and OpBasicInfo fallback are empty ([I-Q7a](INTERIM_DECISIONS.md)). Aside meta is **进程** / **算子类型** / **Blocks** (`Pid` / `Op Type` / `Block Dim`). |
+| **Q6** | Report summary formulas | **Interim** | **Confirmed (npu-compute 0818):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read\|write}_bw`; I/O display **GB/s** (HQ 34). Compute TFLOPS and avg core util stay in the sketch grid as **title + `N/A`** until formulas exist ([I-Q6a](INTERIM_DECISIONS.md)). PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score** (I-Q6g guess 1600 GB/s; sketch 81 ≠ ratio), `block_id` mean vs max vs selected block. |
+| **Q7** | Hardware details sidebar | **Resolved (source)** + **HQ 30–31** | **`HardwareInfo.jsonl`** is the details source (npu-compute 0818). Not required to open Timeline; **更多** always opens overlay — show `hardwareDetails` when present, else **缺少 hardware info** ([I-Q7a](INTERIM_DECISIONS.md)). Aside meta is **进程** / **算子类型** / **Blocks** (`Pid` / `Op Type` / `Block Dim`). |
 | **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children` (sketch Card tree). |
 
 ---
@@ -83,7 +83,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q3 | 2026-07-31 | Minimal open; hide missing panels | VIEW_DATA_REQUIREMENTS |
 | Q4 | 2026-07-31 | Target = sketch-like multi-core Gantt (A) | UI_OVERVIEW, METRICS gap |
 | Q5 | 2026-07-31 | Hide overview until OverviewSeries (C) | VIEW_DATA_REQUIREMENTS |
-| Q7 | 2026-08-20 | Hardware details source = `HardwareInfo.jsonl`; hide overlay if missing | VIEW_DATA_MAPPING, I-Q7a |
+| Q7 | 2026-08-20 | Hardware details source = `HardwareInfo.jsonl`; **更多** always opens — show `hardwareDetails` or **缺少 hardware info** (HQ 30–31) | VIEW_DATA_MAPPING, I-Q7a |
 | Q8 | 2026-07-31 | Producer fixed naming for now (A) | METRICS_AND_TRACE |
 | Q12 | 2026-07-31 | Static SVG + data-driven labels | VIEW_DATA_REQUIREMENTS |
 | Q13 | 2026-07-31 | Sketch colors normative | COLOR_TOKENS |
@@ -94,3 +94,4 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q20 | 2026-08-12 | Shared agent rules in AGENTS.md (+ nested spec guides); Cursor-only review auto-post; skills in `.agents/skills/` | AGENTS.md, CLAUDE.md |
 | OPEN Q22 | 2026-08-25 | Measure mode does **not** recompute right panel / other views (local overlay only). Not HQ 22. | [INTERACTIONS](../ui/INTERACTIONS.md), [UX_SPEC](../ui/UX_SPEC.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | HQ 37 | 2026-08-28 | CSV 详情 search filters non-matching rows and highlights the matching substring (flush chip). Same on compute and memory. | [CsvFieldListPanel](../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md), [UX_SPEC](../ui/UX_SPEC.md) |
+| HQ 18 | 2026-08-31 | PIPE in-bar absolute = mean non-`NA` `*_time(us)` per family/side (not cycles) | [INTERIM_DECISIONS](INTERIM_DECISIONS.md) I-Q6f, [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |

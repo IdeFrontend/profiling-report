@@ -46,7 +46,7 @@ const BANDWIDTH_COLUMNS = {
 
 const ALL_MAIN_MEM_BW_COLUMNS = Object.values(BANDWIDTH_COLUMNS).flatMap((d) => [...d.aic, ...d.aiv]);
 
-/** I-Q6g: sketch 1.6 TB/s hardware guess for all four aic/aiv × in/out slots. */
+/** I-Q6g: sketch 1600 GB/s hardware guess for all four aic/aiv × in/out slots. */
 const BANDWIDTH_PEAK_GBS = 1600;
 
 /** I-Q11d fallback when Memory BW columns are all NA. */

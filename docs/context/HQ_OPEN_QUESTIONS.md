@@ -10,8 +10,9 @@ When a question is answered: write it into the owning specs and **remove** it fr
 
 Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · one annotated crop per question below · sources [`docs/ui/source/v930/`](../ui/source/v930/) · component crops under `src/ui/**/visual/` ([regenerate](visual/hq/README.md))
 
-**Numbering.** This ledger is **HQ 1–36** (`q1.png`…`q36.png`). It is not the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
+**Numbering.** HQ ids stay stable for cross-references in specs (`HQ 30–31`, `HQ 34`, etc.). When Product answers, write the decision into owning specs and **remove** the Q block (and `qN.png` crop) from this ledger — gaps in `q1.png`…`q36.png` are expected. This ledger is **not** the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
 
+- **ANSWERED** — Product answered (source: [`355b2688f3684479b0b2b038a3b64513.docx`](../../355b2688f3684479b0b2b038a3b64513.docx), 2026-08-31). Write into owning specs and remove from this ledger in the same change.
 - **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.
 - **PARTIAL** — field name known, but a value or a product decision is still missing.
 - **OPEN** — not derivable from the current docs or sample.
@@ -31,7 +32,10 @@ DATA = file/field/formula mapping from report data → visualized number/series/
 <img src="visual/hq/q1.png" alt="Q1 8 次迭代 / 核" width="600" height="370">
 
 1. The line **N 次迭代 / 核** (N iterations / core) — which field? (Is it `Block Dim`?)
-   - **INTERIM** — [I-Q6e](INTERIM_DECISIONS.md) uses `OpBasicInfo.csv` → `Block Dim` ("Task运行切分数量，对应Task运行时核数"). Sample = 8, matching the sketch. "Iterations-per-core" vs "block count" is not explicitly equated by Product.
+   - **ANSWERED** — Label = `OpBasicInfo.csv` → `Block Dim` / *core count*, where core count depends on `OpBasicInfo.csv` → `Op Type`:
+     - **cube** → `HardwareInfo.jsonl` → `aic_cube_count`
+     - **vector** → `HardwareInfo.jsonl` → `aic_vector_count`
+     - **mix** → `HardwareInfo.jsonl` → `ai_core_count`
 
 ### 算力情况 (Compute power)
 
@@ -42,21 +46,26 @@ This card is hidden until we have answers.
 <img src="visual/hq/q2.png" alt="Q2 172 measured TFLOPS" width="600" height="370">
 
 2. **172** (measured TFLOPS) — which file, which field(s), and the formula?
-   - **OPEN** — the doc's 算力情况 table is blank. Only raw FLOPS *counts* exist (`ArithmeticUtilization.csv` → `aic_cube_fops`, `aiv_vec_fops`); no TFLOPS formula.
+   - **ANSWERED (PARTIAL)** — Compute **cube** and **vector** separately (two columns per Q33). Product formulas (MFU / measured TFLOPS — accuracy TBD):
+     - **Cube measured:** `MFU = (M×K×N) × 2 / aic_time(us)` (Product notes this may run high; needs confirmation). Ops basis: `Cycle × 16 × sizeof(dataType) × 16 × 2`.
+     - **Cube peak (theoretical):** `16 × sizeof(dataType) × 16 × core_count × frequency × 2 / 1000` TFLOPS (example: 16×16×16×36×1.65 GHz×2/1000 ≈ 486 TFLOPS).
+     - **Vector measured:** `MFU = M×N / aiv_time(us)` (may run high; needs confirmation). Ops basis: `Cycle × 16 × sizeof(dataType) × 16 × 2` (fp32/f16 computed separately).
+     - **Vector peak (theoretical):** `128 × core_count × frequency × 2 / 1000` TFLOPS (example: 128×72×1.65 GHz×2/1000 ≈ 30 TFLOPS).
+     - Inputs: `PipeUtilization.csv` `aic_time(us)` / `aiv_time(us)`; `HardwareInfo.jsonl` core counts and frequency; dtype from op context.
 
 ---
 
 <img src="visual/hq/q3.png" alt="Q3 320 peak TFLOPS" width="600" height="370">
 
 3. **320** (peak TFLOPS) — which file and field? Or a fixed number per chip?
-   - **OPEN** — no peak-compute field in any file; not documented.
+   - **ANSWERED (PARTIAL)** — Product will supply **fixed theoretical peak** values per chip (not in report CSV). Interim formula until constants arrive: cube and vector peaks per Q2 (`HardwareInfo.jsonl` core counts + frequency + dtype).
 
 ---
 
 <img src="visual/hq/q4.png" alt="Q4 90% score" width="600" height="370">
 
 4. **90** (score) — what is the formula? Is it `measured / peak × 100`?
-   - **OPEN** — no "score" concept documented.
+   - **ANSWERED** — Yes: `score = measured / peak × 100%` per side (cube / vector). Peak from Q3.
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
 
@@ -165,17 +174,13 @@ This card is hidden until we have answers.
 
 These bars are already on screen. Please confirm.
 
-<img src="visual/hq/q18.png" alt="Q18 number inside the bar" width="900" height="524">
-
-18. The number **inside** the bar (for example `301001.38`) — is it time (`*_time(us)`) or cycles (`*_total_cycles`)?
-    - **INTERIM** — [I-Q6f](INTERIM_DECISIONS.md): mean of non-`NA` `*_time(us)` for the same family/side as the ratio; omit when all NA. Not cycles. Sketch `301001.38` does not match `example.rep` magnitudes (fixture mismatch, not a missing mapping). Product can still pick cycles.
-
 ---
 
 <img src="visual/hq/q19.png" alt="Q19 详情 overlay (selected block)" width="900" height="315">
 
 19. On the summary bars, do we average all blocks? On **详情** (Details), do we show only the selected block?
     - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): summary PIPE bars = mean of non-`NA` ratios across `block_id`. [I-Q6c](INTERIM_DECISIONS.md): **详情** / memory / metrics = selected block. Overlaps Q28–29. This crop is **详情**; summary mean is Q28.
+    - **Product note (UI gap):** summary view is missing a **block selector** label; reference [`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg).
 
 ### 内存负载分析 (Memory load analysis)
 
@@ -199,7 +204,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
     | Vec | — | `aiv_vec_ratio` is pipe occupancy, not Peak(%) |
     | Scalar | — | `aic/aiv_scalar_ratio` is pipe occupancy, not Peak(%) |
 
-    - **PARTIAL** — VIEW_DATA_MAPPING: Peak(%) has no field mapping. The doc's 理论值 column is empty for every row, so the percentage cannot be computed. Measured arrow BW and pipe ratios are not a substitute. Sketch **0.00%** on L2 is the only Peak(%) in this frame.
+    - **ANSWERED (PARTIAL)** — **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (read/write/total × AIC/AIV still per Q21). Other boxes (GM, L1, L0*, Cube, FixP, UB, Vec, Scalar) — still no Product mapping.
 
 ---
 
@@ -260,6 +265,7 @@ Bandwidth labels on arrows are already mapped. These are still open.
 
 28. A CSV often has many `block_id` rows (the sample has 8). For summary numbers, do we use **mean**, **max**, **first block**, or **the selected block**?
     - **INTERIM** — [I-Q6b](INTERIM_DECISIONS.md): mean of non-`NA` values across `block_id` for summary PIPE / I/O measured BW. Product has not confirmed mean vs max vs selected.
+    - **Product note:** request a **general aggregation description document** (总的描述文件) covering block roll-up rules across widgets.
 
 ---
 
@@ -278,18 +284,6 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png)
 
-<img src="visual/hq/q30.png" alt="Q30 hardware-details overlay from HardwareInfo.jsonl" width="900" height="900">
-
-30. Must every report include `HardwareInfo.jsonl`? Yes or no.
-   - **OPEN** — the doc shows it is collected during 基础信息采集, but gives no availability guarantee. This overlay is what that file fills.
-
----
-
-<img src="visual/hq/q31.png" alt="Q31 更多" width="900" height="225">
-
-31. If `HardwareInfo.jsonl` is missing, what happens to **更多** (More) / 硬件信息详情 (Hardware details)? Hide it, or show an empty page?
-    - **INTERIM** — [I-Q7a](INTERIM_DECISIONS.md): prefer `HardwareInfo.jsonl`; fall back to non-empty `OpBasicInfo.csv` columns; hide the overlay when both are empty. Product can still override.
-
 ### 整体耗时 (Total duration)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
@@ -297,7 +291,7 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 <img src="visual/hq/q32.png" alt="Q32 duration bar" width="600" height="370">
 
 32. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
-    - **INTERIM** — [I-Q6e](INTERIM_DECISIONS.md): decorative (fixed short cyan fill), not a % of peak. Product has not defined a scale.
+    - **ANSWERED** — Real percent: `Block Dim / core_count × 100%` (core_count per Q1 from `HardwareInfo.jsonl`). Clamp display at **100%** when ratio exceeds 1. **Next slice** — code still uses [I-Q6e](INTERIM_DECISIONS.md) decorative bar until slice 2 lands.
 
 ### 算力情况 (Compute power)
 
@@ -306,16 +300,7 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 <img src="visual/hq/q33.png" alt="Q33 one number, not aic|aiv columns" width="600" height="370">
 
 33. One number for the whole op, or two columns (**aic** and **aiv**), like the bandwidth cards?
-    - **OPEN** — no display rule documented.
-
-### 输入带宽 / 输出带宽 (Input / output bandwidth)
-
-**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
-
-<img src="visual/hq/q34.png" alt="Q34 TB/s unit on the I/O footer" width="900" height="225">
-
-34. If the measured value is small (for example `15.8 GB/s`), show **GB/s** or **TB/s**?
-    - **OPEN** — UX decision.
+    - **ANSWERED** — **Separate columns** (cube \| vector / aic \| aiv), same layout as bandwidth cards.
 
 ### 内存负载分析 (Memory load analysis)
 
@@ -324,7 +309,7 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 <img src="visual/hq/q35.png" alt="Q35 memory diagram — no right-click UI in the mockup" width="900" height="900">
 
 35. Right-click on the memory diagram — extra details? Yes or no. If yes, which fields?
-    - **OPEN** — the doc only asks "是否有右击的详情" without specifying fields. No right-click UI in this mockup.
+    - **ANSWERED** — **Yes.** Show full CSV tables: **Memory**, **L2Cache**, **MemoryUB**, **MemoryL0** (block-scoped per I-Q6c).
 
 ---
 
@@ -332,3 +317,7 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 36. Some labels are **KB**, some are **GB/s**. Keep both, or convert to one unit?
     - **OPEN** — unit/UX decision. This frame only has **GB/s**; KB would be L0C datas (`L0C_to_L1_datas(KB)`).
+
+---
+
+**Note (former HQ 37, removed on master):** Product answer doc (2026-08-31) requested **filter only** (no highlight). Master resolved this via [PR #52](https://github.com/IdeFrontend/profiling-report/pull/52) as **filter + highlight**; HQ 37 was dropped from this ledger. Reconcile with Product before changing shipped behavior.

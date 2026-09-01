@@ -205,14 +205,15 @@ describe('StatsAside', () => {
     expect(wrapper.emitted('close')).toBeTruthy();
   });
 
-  it('PR-STATS-007: meta segments only when fields present', () => {
+  it('PR-STATS-007: meta segments only when fields present; 更多 always on report shell', () => {
     const empty = mount(StatsAside, {
       props: {
         report: report({ summary: { opName: 'x', currentFreq: 1280 } }),
       },
     });
     expect(empty.find('[data-testid="stats-aside-meta"]').exists()).toBe(false);
-    expect(empty.find('[data-testid="stats-aside-more"]').exists()).toBe(false);
+    expect(empty.find('[data-testid="stats-aside-more"]').exists()).toBe(true);
+    expect(empty.find('.pr-aside__meta').exists()).toBe(true);
 
     const withPid = mount(StatsAside, {
       props: {
@@ -245,16 +246,15 @@ describe('StatsAside', () => {
     expect(fullMeta).toContain('10');
   });
 
-  it('PR-STATS-008: 更多 visible with capability or meta; emits open-hardware-details', async () => {
-    const viaCap = mount(StatsAside, {
-      props: {
-        report: report({}),
-        capabilities: ['hardwareDetails'],
-      },
+  it('PR-STATS-008: 更多 always visible on report shell; emits open-hardware-details', async () => {
+    const bare = mount(StatsAside, {
+      props: { report: report({}) },
     });
-    expect(viaCap.find('[data-testid="stats-aside-more"]').exists()).toBe(true);
-    await viaCap.get('[data-testid="stats-aside-more"]').trigger('click');
-    expect(viaCap.emitted('open-hardware-details')).toBeTruthy();
+    expect(bare.find('[data-testid="stats-aside-more"]').exists()).toBe(true);
+    await bare.get('[data-testid="stats-aside-more"]').trigger('click');
+    expect(bare.emitted('open-hardware-details')).toBeTruthy();
+    expect(bare.find('[data-testid="hardware-info-missing"]').exists()).toBe(true);
+    expect(bare.text()).toMatch(/缺少 hardware info|Missing hardware info/);
 
     const viaMeta = mount(StatsAside, {
       props: {
@@ -402,7 +402,7 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-bandwidth-output"]').exists()).toBe(true);
   });
 
-  it('PR-STATS-024: I/O bandwidth cards with aic|aiv columns, duration chrome, TB/s, bar = score%', () => {
+  it('PR-STATS-024: I/O bandwidth cards with aic|aiv columns, duration chrome, GB/s, bar = score%', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -428,7 +428,7 @@ describe('StatsAside', () => {
     expect(input.text()).toMatch(/输入带宽|Input bandwidth/);
     expect(input.find('.pr-bw-cols').exists()).toBe(true);
     expect(input.get('[data-testid="stats-bandwidth-input-aic"]').text()).toMatch(/aic/);
-    expect(input.get('[data-testid="stats-bandwidth-input-aic"]').text()).toMatch(/0\.08 \/ 1\.6 TB\/s/);
+    expect(input.get('[data-testid="stats-bandwidth-input-aic"]').text()).toMatch(/80\.0 \/ 1600\.0 GB\/s/);
     const aicScore = input.get('[data-testid="stats-bandwidth-input-aic-score"]');
     expect(aicScore.classes()).toContain('pr-card__value');
     expect(aicScore.text()).toBe('5');
@@ -436,7 +436,7 @@ describe('StatsAside', () => {
       /width:\s*5%/,
     );
     expect(input.get('[data-testid="stats-bandwidth-input-aiv-score"]').text()).toBe('6');
-    expect(input.get('[data-testid="stats-bandwidth-input-aiv"]').text()).toMatch(/0\.09 \/ 1\.6 TB\/s/);
+    expect(input.get('[data-testid="stats-bandwidth-input-aiv"]').text()).toMatch(/90\.0 \/ 1600\.0 GB\/s/);
     expect(input.get('[data-testid="stats-bandwidth-input-aiv-bar"]').attributes('style')).toMatch(
       /width:\s*6%/,
     );
@@ -445,15 +445,16 @@ describe('StatsAside', () => {
     expect(output.classes()).toContain('pr-card');
     expect(output.text()).toMatch(/输出带宽|Output bandwidth/);
     expect(output.find('[data-testid="stats-bandwidth-output-aic"]').exists()).toBe(false);
-    expect(output.get('[data-testid="stats-bandwidth-output-aiv"]').text()).toMatch(/0\.002 \/ 1\.6 TB\/s/);
+    expect(output.get('[data-testid="stats-bandwidth-output-aiv"]').text()).toMatch(/1\.56 \/ 1600\.0 GB\/s/);
   });
 
-  it('PR-STATS-024: out.rep cards use 1.6 TB/s peak (~1% score), not max of measured', () => {
+  it('PR-STATS-024: out.rep cards use 1600 GB/s peak (~1% score), not max of measured', () => {
     const { reportModel } = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(StatsAside, { props: { report: reportModel } });
     const aiv = wrapper.get('[data-testid="stats-bandwidth-input-aiv"]');
     expect(aiv.get('[data-testid="stats-bandwidth-input-aiv-score"]').text()).toBe('1');
-    expect(aiv.text()).toMatch(/0\.02 \/ 1\.6 TB\/s/);
+    expect(aiv.text()).toMatch(/GB\/s/);
+    expect(aiv.text()).not.toMatch(/TB\/s/);
     expect(wrapper.find('[data-testid="stats-bandwidth-input-aic"]').exists()).toBe(false);
   });
 
@@ -631,6 +632,27 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('add_custom');
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-hardware-details"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-018b: OpBasicInfo fallback still renders hardware panel', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          hardwareDetails: {
+            sections: [
+              {
+                id: 'op',
+                title: 'OpBasicInfo',
+                fields: [{ key: 'Op Name', value: 'relu' }],
+              },
+            ],
+          },
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="stats-aside-more"]').trigger('click');
+    expect(wrapper.find('[data-testid="hardware-info-missing"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('relu');
   });
 
   it('PR-STATS-019: topology section when labelled edges present; hidden when absent', () => {
@@ -865,7 +887,7 @@ describe('StatsAside', () => {
     expect(memoryActions.children[0]).toBe(memoryBtn.element);
 
     const empty = mount(StatsAside, { props: { report: report({}) } });
-    expect(empty.find('[data-testid="cannbot-summary"]').exists()).toBe(false);
+    expect(empty.find('[data-testid="cannbot-summary"]').exists()).toBe(true);
 
     // Icon gating tracks payload data, not section visibility: pipe bars without
     // compute tables carry no compute payload, so the compute icon stays hidden.
