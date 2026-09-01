@@ -57,8 +57,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 17. **PR-SWIMVIEW-020** — Alt event measure shares session across pin strip and body; each endpoint records the surface it was captured on so a body click on a pinned lane draws on the body instance (not the sticky duplicate). Cross-surface pairs use split sticks + Δt.
 18. **PR-SWIMVIEW-021** — When Alt-measure endpoints span pin strip and body, a dashed vertical bridge connects the two lane centers at the later edge.
 19. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
+20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 
 ## Changelog
+- **2026-09-01** — Collapse / pin-set changes clear Alt-measure (`PR-SWIMVIEW-023`).
 - **2026-09-01** — Free-cursor Alt target paints on every shared surface (`PR-SWIMVIEW-022`).
 - **2026-09-01** — Alt-measure endpoints track strip vs body instance (no forced defer to sticky duplicate).
 - **2026-09-01** — Pin↔body Alt-measure draws a dashed vertical cross bridge (`PR-SWIMVIEW-021`).

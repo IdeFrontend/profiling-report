@@ -19,6 +19,7 @@ import {
 import {
   ALT_MEASURE_FIND_EVENT_KEY,
   ALT_MEASURE_SHARED_KEY,
+  clearAltMeasureShared,
   createAltMeasureShared,
 } from './altMeasureShared';
 import { buildPinnedSwimModel, resolvePinnedGutterLanes } from './pinnedLanes';
@@ -144,6 +145,14 @@ const pinnedModel = computed(() =>
 /** Shared Alt-measure session so pin-strip ↔ body can measure across sticky and scroll lanes. */
 const altMeasureShared = createAltMeasureShared();
 provide(ALT_MEASURE_SHARED_KEY, altMeasureShared);
+
+// Collapse / pin changes reshuffle which lanes are visible — drop the session entirely.
+watch(
+  [() => props.collapsedIds, () => props.pinnedLaneIds],
+  () => {
+    if (altMeasureShared.anchorId) clearAltMeasureShared(altMeasureShared);
+  },
+);
 
 function walkThreads(threads: SwimThread[], visit: (t: SwimThread) => void): void {
   for (const t of threads) {
