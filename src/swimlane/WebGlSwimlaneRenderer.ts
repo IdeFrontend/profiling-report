@@ -718,6 +718,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const prog = this.curveProg;
     const vao = this.curveVao;
     if (!prog || !vao || this.curveCount === 0) return;
+    // CURVE_FS emits premultiplied color ({vColor*a, a}), so curves need premultiplied
+    // source-over (ONE, ONE_MINUS_SRC_ALPHA, ONE, ONE_MINUS_SRC_ALPHA).
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(prog.program);
     gl.uniform2f(prog.uResolution, this.width, this.height);
     gl.uniform3f(
