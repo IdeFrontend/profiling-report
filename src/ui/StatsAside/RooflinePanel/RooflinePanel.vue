@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { t } from '../../../i18n';
+import {
+  ROOFLINE_CHART_H as H,
+  ROOFLINE_CHART_W as W,
+  ROOFLINE_MIX_TOP_INSET as MIX_TOP_INSET,
+  ROOFLINE_OPS_GAP_FROM_PLOT as OPS_GAP_FROM_PLOT,
+  ROOFLINE_PAD as PAD,
+  ROOFLINE_TOPS_GAP_ABOVE_PLOT as TOPS_GAP_ABOVE_PLOT,
+  ROOFLINE_X_TICK_BELOW_PLOT as X_TICK_BELOW_PLOT,
+  ROOFLINE_Y_TICK_LABEL_DY as Y_TICK_LABEL_DY,
+} from './rooflineLayout';
 import type { RooflinePoint, RooflineViewModel } from '../../../domain/types';
 
 const props = defineProps<{
@@ -13,21 +23,19 @@ const X_MAX = 100;
 const Y_MIN = 1e-4;
 const Y_MAX = 10;
 
-const W = 320;
-const H = 220;
-/** Plot insets — calibrated from visual/roofline.png (1870×1360 crop). */
-const PAD = { l: 34, r: 10, t: 14, b: 36 };
-/** Mix annotation sits just inside the top of the plot frame. */
-const MIX_TOP_INSET = 10;
-
 const plotW = W - PAD.l - PAD.r;
 const plotH = H - PAD.t - PAD.b;
+const plotBottomY = PAD.t + plotH;
 
 const mixY = PAD.t + MIX_TOP_INSET;
-/** Sketch: Ops/Byte in right gutter below plot; TOps/s above top y-tick in left gutter. */
-const opsX = W - 4;
-const opsY = H - 6;
-const topsY = 10;
+/** Screen px — SVG display size matches viewBox 1:1. */
+const AXIS_FONT_PX = 9;
+
+const xTickY = plotBottomY + X_TICK_BELOW_PLOT;
+const topsX = PAD.l;
+const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT - AXIS_FONT_PX;
+const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
+const opsY = plotBottomY;
 
 const hovered = ref<RooflinePoint | null>(null);
 
@@ -86,8 +94,6 @@ const roofTopY = computed(() => {
   if (!pts.length) return PAD.t;
   return Math.min(...pts.map((p) => p.y));
 });
-
-const plotBottomY = PAD.t + plotH;
 
 const xTicks = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100];
 const yTicks = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10];
@@ -149,6 +155,9 @@ const tooltipText = computed(() => {
       <svg
         class="pr-roofline__svg"
         data-testid="roofline-chart"
+        :width="W"
+        :height="H"
+        :style="{ width: `${W}px`, height: `${H}px` }"
         :viewBox="`0 0 ${W} ${H}`"
         role="img"
         :aria-label="t('roofline', locale)"
@@ -286,7 +295,7 @@ const tooltipText = computed(() => {
           :key="`xt-${tick}`"
           class="pr-roofline__tick"
           :x="xToPx(tick)"
-          :y="H - 6"
+          :y="xTickY"
           text-anchor="middle"
         >{{ fmtTick(tick) }}</text>
         <text
@@ -294,20 +303,21 @@ const tooltipText = computed(() => {
           :key="`yt-${tick}`"
           class="pr-roofline__tick"
           :x="PAD.l - 4"
-          :y="yToPx(tick) + 3"
+          :y="yToPx(tick) + Y_TICK_LABEL_DY"
           text-anchor="end"
         >{{ fmtTick(tick) }}</text>
-        <!-- Sketch: Ops/Byte end-anchored in right gutter below plot (outside well). -->
+        <!-- Ops/Byte: bottom grid line, 3px right of plot. -->
         <text
           class="pr-roofline__axis pr-roofline__axis--x"
           :x="opsX"
           :y="opsY"
-          text-anchor="end"
+          text-anchor="start"
+          dominant-baseline="middle"
         >Ops/Byte</text>
-        <!-- Sketch: TOps/s above top y-tick, left gutter (hanging baseline avoids crop). -->
+        <!-- TOps/s: ends at left grid line, 9px above plot top. -->
         <text
           class="pr-roofline__axis pr-roofline__axis--y"
-          :x="PAD.l - 4"
+          :x="topsX"
           :y="topsY"
           text-anchor="end"
           dominant-baseline="hanging"
@@ -345,7 +355,7 @@ const tooltipText = computed(() => {
 .pr-roofline__card {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px; /* 6px under GM/L2 before plot (was 2px) */
   min-width: 0;
   padding: 6px 8px 4px;
   border-radius: 8px;
@@ -401,8 +411,8 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__svg {
-  width: 100%;
-  height: auto;
+  /* Sketch-native W×H — fixed px so SVG text/strokes do not scale with aside width. */
+  flex-shrink: 0;
   display: block;
   overflow: visible;
 }

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import RooflinePanel from './RooflinePanel.vue';
+import {
+  ROOFLINE_CHART_H,
+  ROOFLINE_CHART_W,
+  ROOFLINE_MIX_TOP_INSET,
+  ROOFLINE_OPS_GAP_FROM_PLOT,
+  ROOFLINE_PAD,
+  ROOFLINE_TOPS_GAP_ABOVE_PLOT,
+  ROOFLINE_X_TICK_BELOW_PLOT,
+} from './rooflineLayout';
 import type { RooflineViewModel } from '../../../domain/types';
 
 const sample: RooflineViewModel = {
@@ -40,7 +49,7 @@ describe('RooflinePanel', () => {
     const grad = wrapper.find('[data-testid="roofline-area-gradient"]');
     expect(grad.exists()).toBe(true);
     // Ridge-anchored: y1 below plot top when peak is below Y_MAX.
-    expect(Number(grad.attributes('y1'))).toBeGreaterThan(14);
+    expect(Number(grad.attributes('y1'))).toBeGreaterThan(ROOFLINE_PAD.t);
     const stops = grad.findAll('stop');
     expect(stops.length).toBeGreaterThanOrEqual(3);
     expect(stops[0]!.attributes('stop-color')).toBe('#3078f0');
@@ -60,25 +69,40 @@ describe('RooflinePanel', () => {
 
   it('PR-ROOF-002b: layout — sketch-calibrated label positions and left inset', () => {
     const wrapper = mount(RooflinePanel, { props: { model: sample } });
+    const svg = wrapper.get('[data-testid="roofline-chart"]');
+    expect(Number(svg.attributes('width'))).toBe(ROOFLINE_CHART_W);
+    expect(Number(svg.attributes('height'))).toBe(ROOFLINE_CHART_H);
     const frame = wrapper.get('.pr-roofline__frame');
     const plotTop = Number(frame.attributes('y'));
     const plotLeft = Number(frame.attributes('x'));
+    const plotW = Number(frame.attributes('width'));
+    const plotH = Number(frame.attributes('height'));
+    const plotBottom = plotTop + plotH;
+    const xTickY = plotBottom + ROOFLINE_X_TICK_BELOW_PLOT;
 
-    expect(plotTop).toBe(14);
-    expect(plotLeft).toBe(34);
+    expect(ROOFLINE_CHART_W).toBe(428);
+    expect(ROOFLINE_CHART_H).toBe(294);
+    expect(plotTop).toBe(ROOFLINE_PAD.t);
+    expect(plotLeft).toBe(ROOFLINE_PAD.l);
+    expect(plotW).toBe(ROOFLINE_CHART_W - ROOFLINE_PAD.l - ROOFLINE_PAD.r);
 
     const mix = wrapper.get('[data-testid="roofline-mix"]');
-    expect(Number(mix.attributes('y'))).toBe(plotTop + 10);
+    expect(Number(mix.attributes('y'))).toBe(plotTop + ROOFLINE_MIX_TOP_INSET);
+
+    const xTick = wrapper.get('.pr-roofline__tick');
+    expect(Number(xTick.attributes('y'))).toBe(xTickY);
 
     const ops = wrapper.get('.pr-roofline__axis--x');
-    expect(Number(ops.attributes('y'))).toBe(220 - 6);
-    expect(Number(ops.attributes('x'))).toBe(320 - 4);
-    expect(ops.attributes('text-anchor')).toBe('end');
+    expect(Number(ops.attributes('y'))).toBe(plotBottom);
+    expect(Number(ops.attributes('x'))).toBe(plotLeft + plotW + ROOFLINE_OPS_GAP_FROM_PLOT);
+    expect(ops.attributes('text-anchor')).toBe('start');
+    expect(ops.attributes('dominant-baseline')).toBe('middle');
 
     const tops = wrapper.get('.pr-roofline__axis--y');
-    expect(Number(tops.attributes('y'))).toBe(10);
+    expect(Number(tops.attributes('y'))).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT - 9);
+    expect(Number(tops.attributes('y')) + 9).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT);
+    expect(Number(tops.attributes('x'))).toBe(plotLeft);
     expect(tops.attributes('dominant-baseline')).toBe('hanging');
-    expect(Number(tops.attributes('x'))).toBe(plotLeft - 4);
     expect(tops.attributes('text-anchor')).toBe('end');
 
     expect(wrapper.find('.pr-roofline__markers [data-testid="roofline-point"]').exists()).toBe(true);

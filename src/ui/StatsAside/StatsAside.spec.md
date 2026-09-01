@@ -130,7 +130,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Background | `#1a1a1a` (`--pr-bg-aside`) — shell / gutter between islands (`v930/detail-strip-raised`) |
 | Islands | `#262626` (`--pr-bg-panel`) — Roofline chart card, PIPE chart body, topology diagram; summary cards keep the raised gradient on the same well |
 | Section titles | On the aside shell **outside** grey islands — **计算负载分析**, **内存负载分析**, Roofline title (see child specs); **详情** aligns with the title row |
-| Padding | `10px 12px` |
+| Padding | `10px 12px` (content well **444px** at fixed **468px** aside column) |
 | Title | `16px` / `600` / `#ffffff` / line-height `22px` |
 | Chart icon | `16×16` L-axis + sparkline stroke, `#e6e6e6` |
 | Close / back | stroke SVG `14×14`, `#e6e6e6` (rounded caps; not `×` / `←` glyphs) |
