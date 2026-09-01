@@ -1895,4 +1895,22 @@ describe('SwimlaneCanvas', () => {
     expect(emitted).toBeFalsy();
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-XXX: Ctrl+down that leaves the canvas does not toggle on the next up', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    // Ctrl+pointerdown, then leave the canvas (no pointerup). Flag must clear.
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointerleave', { clientX: rect.x, clientY: y, pointerId: 1 });
+    // Next press is plain — must not be misread as Ctrl toggle.
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 2 });
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 2 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update-multi-selected')).toBeFalsy();
+    wrapper.unmount();
+  });
 });

@@ -1901,9 +1901,11 @@ function onPointerLeave(e: PointerEvent): void {
   lastHoverLocalX = null;
   lastHoverLocalY = null;
   hoverGap.value = null;
-  // Shared strip↔body session: leave on one canvas must not blank the sibling's target mid-crossing.
+  // Shared strip→body session: leave on one canvas must not blank the sibling's target mid-crossing.
   // Solo keeps clearing ephemeral live preview on leave.
   if (!altMeasure.pinned && props.altMeasureRole === 'solo') altMeasure.target = null;
+  // Drop any pending Ctrl+click so a press that leaves the canvas never misfires on the next enter.
+  ctrlClickPending = false;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
