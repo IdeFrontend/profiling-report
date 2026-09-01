@@ -83,7 +83,7 @@ Op name/type, task duration, optional raw frequency fields. Compute / avg util r
 
 ### `BandwidthCardModel` (M, I-Q6g)
 
-`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1.6 TB/s constant until Product supplies a field. Optional on `ReportViewModel` (omit when unused).
+`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1600 GB/s constant until Product supplies a field. UI displays GB/s (HQ 34). Optional on `ReportViewModel` (omit when unused).
 
 **Why:** Dual aic \| aiv columns match `summary-cards.png`; hide-if-NA per side. Same card chrome as duration.
 

@@ -22,7 +22,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 ### Shell (header chrome)
 
-Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset; hides the row when none. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** when meta visible or `hardwareDetails` capability.
+Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** always on the report shell (HQ 30–31).
 
 Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
 
@@ -40,7 +40,7 @@ I-Q6a duration + I-Q6g bandwidth. Card group renders when `taskDurationUs` **or*
 
 Do **not** render a standalone op-type card. When duration is present, **算力情况** / **平均核利用率** mount as top-row placeholders (title + `N/A`) until Product Q6 defines formulas — do **not** bind `summary.computeTflops` / `summary.avgCoreUtil`. When the summary grid is BW-only (no `taskDurationUs`), omit the placeholders so the BW row stays a full 2×`span 3` without a gapped top row.
 
-**I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-bandwidth-bar`, same 8px pill hatched track; **`min-width: 0`** so a 0% score is an empty track, not a 2px sliver), subtitle `measured / peak TB/s` (GB/s ÷ 1000, magnitude rounding). Peak is the sketch 1600 GB/s HW guess. Hide a side when all-NA; hide the card when both sides NA. Cards share the sketch **3+2 grid** with duration (six CSS columns: duration span 2, each BW card span 3). Do not show cards from `summary.ioBandwidth` alone.
+**I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-bandwidth-bar`, same 8px pill hatched track; **`min-width: 0`** so a 0% score is an empty track, not a 2px sliver), subtitle `measured / peak GB/s` (HQ 34; magnitude rounding). Peak is the sketch 1600 GB/s HW guess. Hide a side when all-NA; hide the card when both sides NA. Cards share the sketch **3+2 grid** with duration (six CSS columns: duration span 2, each BW card span 3). Do not show cards from `summary.ioBandwidth` alone.
 
 **PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS. Section title **计算负载分析**. **详情** opens the compute CSV overlay when tables exist and emits **open-pipe-details**. A 0%–100% scale with 20/40/60/80 grid overlays sits above the rows — 0% left-aligned to the track start, 100% right-aligned to the end, 20/40/60/80 centered on those marks. Each row: label (ellipsis if wider than the column), track with solid fill for ratio and a `colorKey`-tinted hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f) that may paint over the hatch when the fill is narrower than the digits, and a right-aligned percent inside the track.
 
@@ -56,7 +56,7 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 
 ### Hardware details (M1 interim I-Q7a)
 
-**更多** opens an overlay with `HardwareDetailsPanel` when `hardwareDetails` is present (and emits `open-hardware-details`). Header back control returns to the stacked report.
+**更多** opens the hardware overlay (HQ 30–31): always visible on the report shell; emits `open-hardware-details`. When `hardwareDetails` is present, render `HardwareDetailsPanel`; otherwise show **缺少 hardware info** / Missing hardware info. Header back control returns to the stacked report.
 
 ## Acceptance Criteria
 
@@ -66,8 +66,8 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides.
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
-7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing.
-8. **PR-STATS-008** — More emits open-hardware-details.
+7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing; **更多** always on report shell.
+8. **PR-STATS-008** — More always visible on report shell; missing hardware shows placeholder message.
 9. **PR-STATS-009** — Duration card sketch chrome (raised tile, split value/unit, pill bar).
 10. **PR-STATS-009b** — Summary cards use the sketch 3+2 grid spans (top-row `pr-card--top`, BW `pr-card--bw`).
 11. **PR-STATS-009c** — Duration display rounds to 2 decimal places; `title` tooltip carries the full value.
@@ -81,12 +81,13 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 18. **PR-STATS-016** — PIPE 详情 opens compute overlay when compute tables exist and emits open-pipe-details.
 19. **PR-STATS-017** — Topology 详情 shows memory CSV overlay when tables present.
 20. **PR-STATS-018** — 更多 navigates to hardware overlay when hardwareDetails present; back returns.
+21. **PR-STATS-018b** — OpBasicInfo fallback still renders `HardwareDetailsPanel` (not missing copy).
 21. **PR-STATS-019** — Topology section when `memoryTopology` has labelled edges; hidden when absent.
 22. **PR-STATS-020** — No mode-tab switcher on the stacked report.
 23. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first labelled block of the new report.
 24. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
 25. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
-26. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, TB/s, bar = score%; `out.rep` uses 1.6 TB/s peak (~1% score).
+26. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, GB/s, bar = score%; `out.rep` uses 1600 GB/s peak (~1% score).
 27. **PR-STATS-025** — Black aside shell; grey section islands.
 28. **PR-STATS-026** — cannbot icons render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility.
 29. **PR-STATS-027** — Icon click emits open-cannbot with scope.
@@ -103,10 +104,10 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 | `summary.ioBandwidth` only | No BW cards (need `bandwidthCards`) |
 | Bandwidth side all NA | That aic/aiv column omitted; card omitted if both sides NA |
 | Duration without blockDim or opName | Duration card; no secondary line |
-| No pid / opType / blockDim and no `hardwareDetails` | Meta row and 更多 hidden |
-| No meta row (no pid/opType/blockDim, no capability) | cannbot summary icon hidden; compute/memory icons follow their panels |
-| Freq-only summary (`currentFreq` / `ratedFreq`) | Meta row hidden (not shell fields) |
-| pid / opType / blockDim present, no capability | Meta + 更多 shown; emit only |
+| No pid / opType / blockDim | Meta segments hidden; meta row still shows **更多** + cannbot |
+| Freq-only summary (`currentFreq` / `ratedFreq`) | No meta segments; meta row still shows **更多** + cannbot |
+| No `hardwareDetails` on model | **更多** opens overlay with **缺少 hardware info** |
+| OpBasicInfo fallback only (`hardwareDetails` present, no jsonl) | **更多** opens `HardwareDetailsPanel` with fallback sections |
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
 | No roofline / empty points | Roofline section omitted |
 | No memoryTopology | Topology section omitted |
@@ -162,7 +163,7 @@ Same raised card chrome as duration. Outer **3+2 grid** as in the sketch (comput
 | Score | same Value number token; no `%` |
 | Side label | `11px` / `#999999`, baseline-aligned to the right of the score |
 | Bar | same 8px pill hatched track (`--pr-bg-aside` + `#2a2a2a`/`#1f1f1f`); fill `--pr-color-bandwidth-bar` = score % of track; 0% fill `min-width: 0` (no 2px sliver) |
-| Sub | same Sub token: `measured / peak TB/s` |
+| Sub | same Sub token: `measured / peak GB/s` |
 
 ### Compute / avg-util placeholders (until Q6)
 

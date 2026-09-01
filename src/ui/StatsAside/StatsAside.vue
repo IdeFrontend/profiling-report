@@ -52,7 +52,7 @@ const bandwidthView = computed(() =>
     sides: card.sides.map((row) => ({
       side: row.side,
       score: bandwidthScore(row),
-      sub: `${formatTBs(row.measuredGBs)} / ${formatTBs(row.peakGBs)} TB/s`,
+      sub: `${formatGBs(row.measuredGBs)} / ${formatGBs(row.peakGBs)} GB/s`,
     })),
   })),
 );
@@ -80,11 +80,10 @@ watch(
 );
 
 watch(
-  () => [showCompute.value, showMemory.value, hasHardwareDetails.value] as const,
-  ([compute, memory, hw]) => {
+  () => [showCompute.value, showMemory.value] as const,
+  ([compute, memory]) => {
     if (asideSurface.value === 'compute' && !compute) asideSurface.value = 'report';
     else if (asideSurface.value === 'memory' && !memory) asideSurface.value = 'report';
-    else if (asideSurface.value === 'hardware' && !hw) asideSurface.value = 'report';
   },
 );
 
@@ -127,9 +126,8 @@ const hasMeta = computed(() => {
   return Boolean(s && (s.pid || s.opType || (s.blockDim != null && s.blockDim !== '')));
 });
 
-const showMore = computed(
-  () => hasMeta.value || (props.capabilities ?? []).includes('hardwareDetails'),
-);
+/** HQ 30–31: 更多 is always available on the report shell. */
+const showMore = computed(() => asideSurface.value === 'report');
 
 const opType = computed(() => (props.report?.summary.opType ?? '').trim());
 const isMix = computed(() => opType.value.toUpperCase() === 'MIX');
@@ -185,13 +183,13 @@ function formatPipeAbsolute(v: number): string {
   return v.toFixed(5);
 }
 
-/** I-Q6g: GB/s → TB/s (decimal 1000). Magnitude rounding. */
-function formatTBs(gbs: number): string {
-  const tbs = gbs / 1000;
-  if (tbs >= 1) return tbs.toFixed(1);
-  if (tbs >= 0.01) return tbs.toFixed(2);
-  if (tbs >= 0.001) return tbs.toFixed(3);
-  return tbs.toFixed(4);
+/** HQ 34: display measured/peak in GB/s (magnitude rounding). */
+function formatGBs(gbs: number): string {
+  if (gbs >= 10) return gbs.toFixed(1);
+  if (gbs >= 1) return gbs.toFixed(2);
+  if (gbs >= 0.01) return gbs.toFixed(2);
+  if (gbs >= 0.001) return gbs.toFixed(3);
+  return gbs.toFixed(4);
 }
 
 function bandwidthScore(row: BandwidthSideRow): number {
@@ -209,7 +207,7 @@ const headerTitle = computed(() => {
 });
 
 function openHardware() {
-  if (hasHardwareDetails.value) asideSurface.value = 'hardware';
+  asideSurface.value = 'hardware';
   emit('open-hardware-details');
 }
 
@@ -359,14 +357,22 @@ function backToReport() {
     </header>
 
     <div
-      v-if="asideSurface === 'hardware' && report?.hardwareDetails"
+      v-if="asideSurface === 'hardware'"
       class="pr-aside__detail"
       data-testid="stats-hardware-details"
     >
       <HardwareDetailsPanel
+        v-if="hasHardwareDetails && report?.hardwareDetails"
         :model="report.hardwareDetails"
         :locale="locale"
       />
+      <p
+        v-else
+        class="pr-hw-missing"
+        data-testid="hardware-info-missing"
+      >
+        {{ t('hardwareInfoMissing', locale) }}
+      </p>
     </div>
 
     <div
@@ -888,6 +894,14 @@ function backToReport() {
 .pr-aside > .pr-aside__detail {
   flex: 1 1 auto;
   overflow: hidden;
+}
+
+.pr-hw-missing {
+  margin: 0;
+  padding: 16px 8px;
+  font-size: 12px;
+  color: #9a9a9a;
+  text-align: center;
 }
 
 .pr-aside__detail-title {

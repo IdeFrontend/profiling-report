@@ -69,11 +69,11 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | Element | Behavior |
 | --- | --- |
 | Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
-| Meta row | **进程** / **算子类型** / **Blocks** / **更多**. `OpBasicInfo.csv` → `Pid` (also `PID`) / `Op Type` / `Block Dim`. Hide a segment when unset; hide the row if all empty. Not 核数, aic频率, or NPU ARCH. `Current Freq` / `Rated Freq` stay off this shell (hardware overlay / OpBasicInfo dump). Overlay `chip_info` / `arch_info` are Device Info names, not a header ARCH value. |
-| 更多 | Visible when meta row is visible **or** capability `hardwareDetails`. Opens `HardwareDetailsPanel` from **`HardwareInfo.jsonl`** when present (OpBasicInfo fallback if jsonl missing) and emits `open-hardware-details`. Hide the overlay when neither source has fields. |
+| Meta row | **进程** / **算子类型** / **Blocks** / **更多** / cannbot. `OpBasicInfo.csv` → `Pid` (also `PID`) / `Op Type` / `Block Dim`. Hide a segment when unset. Meta row stays visible on the report shell so **更多** is always reachable (HQ 30–31). Not 核数, aic频率, or NPU ARCH. `Current Freq` / `Rated Freq` stay off this shell (hardware overlay / OpBasicInfo dump). Overlay `chip_info` / `arch_info` are Device Info names, not a header ARCH value. |
+| 更多 | **Always** on the report shell (HQ 30–31). Opens hardware overlay and emits `open-hardware-details`. Render `HardwareDetailsPanel` when `hardwareDetails` is present (`HardwareInfo.jsonl` preferred; OpBasicInfo fallback per I-Q7a); else show **缺少 hardware info** / Missing hardware info. |
 | 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + **decorative** short cyan progress bar (I-Q6e, not a util %). Secondary: `blockDim` → iterations/core text; else `opName`; else omit. No standalone op-type card. |
 | 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — until Q6: **title + `N/A`** placeholder (no invented values) |
-| 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak TB/s` — **I-Q6g** (hide side/card when NA). Same card chrome as 整体耗时. |
+| 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak GB/s` — **I-Q6g** / HQ 34 (hide side/card when NA). Same card chrome as 整体耗时. |
 | 平均核利用率 card | Percentage bar + enabled cores fraction — until Q6: **title + `N/A`** placeholder (no invented values) |
 
 Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [I-Q6g](../context/INTERIM_DECISIONS.md).
@@ -85,7 +85,7 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 | Measured | **Confirmed:** mean of non-`NA` matching Memory.csv column(s) across `block_id` (same as I-Q6b) |
 | Peak | 1600 GB/s (1.6 TB/s) for every aic/aiv × in/out slot — sketch HW guess, **not** max of measured columns |
 | Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
-| Display | TB/s = GB/s ÷ 1000; ≥1 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 |
+| Display | **GB/s** with magnitude rounding: ≥10 → 1 decimal; ≥1 → 2; ≥0.01 → 2; ≥0.001 → 3; else 4 |
 | Layout | Same raised card chrome as 整体耗时. Inner aic \| aiv columns; `aic`/`aiv` to the right of the score (no `%`). Outer sketch **3+2 grid** with duration (six columns: duration span 2, each BW span 3) |
 | Bar | Fill width = score % of track (`--pr-color-bandwidth-bar`); same 8px pill hatched track as duration; 0% fill has no 2px sliver |
 | NA | Omit that aic/aiv column; omit the card if both sides NA |
@@ -97,7 +97,7 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 
 ![Hardware details](./source/v930/hardware-more-detail.jpeg)
 
-**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. Hide **更多** overlay when jsonl and the OpBasicInfo fallback are both empty. `data/out.rep` omits jsonl; the toolkit `example.rep` pack includes it (not in git).
+**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. **更多** always opens the overlay (HQ 30–31): show sections when `hardwareDetails` is present; else **缺少 hardware info**. Adapter may still fall back to OpBasicInfo columns when jsonl is absent (I-Q7a). `data/out.rep` omits jsonl; the toolkit `example.rep` pack includes it (not in git).
 
 | Section (UI) | Typical fields |
 | --- | --- |
