@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -7,6 +7,7 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
+  type SwimThread,
 } from '../../../domain/types';
 import {
   LANE_GROUP_HEADER_FILL,
@@ -15,6 +16,12 @@ import {
   LANE_HEIGHT,
   layoutHeaders,
 } from '../../../swimlane/layout';
+import {
+  ALT_MEASURE_FIND_EVENT_KEY,
+  ALT_MEASURE_SHARED_KEY,
+  clearAltMeasureShared,
+  createAltMeasureShared,
+} from './altMeasureShared';
 import { buildPinnedSwimModel, resolvePinnedGutterLanes } from './pinnedLanes';
 import {
   GUTTER_WIDTH_DEFAULT,
@@ -92,10 +99,12 @@ type CanvasExpose = {
     clientY: number,
   ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   clearEdgeSnapHighlight: () => void;
+  altMeasureBridgeEndpoint?: () => { clientX: number; clientY: number; time: number } | null;
 };
 const canvasRef = ref<CanvasExpose | null>(null);
 const pinnedCanvasRef = ref<CanvasExpose | null>(null);
 const pinnedStripRef = ref<HTMLElement | null>(null);
+const stackRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
@@ -132,6 +141,77 @@ const pinnedRows = computed(() => resolvePinnedGutterLanes(props.groups, pinnedL
 const pinnedModel = computed(() =>
   buildPinnedSwimModel(props.pinSourceModel ?? props.model, pinnedLaneIds.value),
 );
+
+/** Shared Alt-measure session so pin-strip ↔ body can measure across sticky and scroll lanes. */
+const altMeasureShared = createAltMeasureShared();
+provide(ALT_MEASURE_SHARED_KEY, altMeasureShared);
+
+// Collapse / pin changes reshuffle which lanes are visible — drop the session entirely.
+watch(
+  [() => props.collapsedIds, () => props.pinnedLaneIds],
+  () => {
+    if (altMeasureShared.anchorId) clearAltMeasureShared(altMeasureShared);
+  },
+);
+
+function walkThreads(threads: SwimThread[], visit: (t: SwimThread) => void): void {
+  for (const t of threads) {
+    visit(t);
+    if (t.children?.length) walkThreads(t.children, visit);
+  }
+}
+
+function findEventInModel(model: SwimlaneModel | null | undefined, id: string): SwimEvent | null {
+  if (!model) return null;
+  for (const p of model.processes) {
+    let found: SwimEvent | null = null;
+    walkThreads(p.threads, (t) => {
+      if (found) return;
+      const ev = t.events.find((e) => e.id === id);
+      if (ev) found = ev;
+    });
+    if (found) return found;
+  }
+  return null;
+}
+
+provide(ALT_MEASURE_FIND_EVENT_KEY, (id: string) => {
+  return (
+    findEventInModel(props.pinSourceModel ?? props.model, id) ??
+    findEventInModel(props.model, id) ??
+    findEventInModel(pinnedModel.value, id)
+  );
+});
+
+/** Dashed vertical bridging pin-strip ↔ body when Alt-measure endpoints span both surfaces. */
+const altMeasureCrossBridge = computed(() => {
+  void altMeasureShared.anchorId;
+  void altMeasureShared.target;
+  void altMeasureShared.pinned;
+  void altMeasureShared.altKeyHeld;
+  void props.view.scrollY;
+  void props.view.startTime;
+  void props.view.endTime;
+  void pinnedStripHeight.value;
+  // Re-read client rects after gutter / body resize (sticks re-project; bridge must follow).
+  void localGutterWidth.value;
+  void bodyViewportH.value;
+  if (!pinnedRows.value.length) return null;
+  const strip = pinnedCanvasRef.value?.altMeasureBridgeEndpoint?.() ?? null;
+  const body = canvasRef.value?.altMeasureBridgeEndpoint?.() ?? null;
+  const stack = stackRef.value;
+  if (!strip || !body || !stack) return null;
+  const sr = stack.getBoundingClientRect();
+  // Prefer later-edge X (matches same-canvas cross-lane vertX); fall back to mean if equal.
+  const vert = strip.time >= body.time ? strip : body;
+  const y1 = strip.clientY - sr.top;
+  const y2 = body.clientY - sr.top;
+  return {
+    left: vert.clientX - sr.left,
+    top: Math.min(y1, y2),
+    height: Math.abs(y2 - y1),
+  };
+});
 const pinnedStripHeight = computed(() => pinnedRows.value.length * LANE_HEIGHT);
 const pinnedView = computed(() => ({
   startTime: props.view.startTime,
@@ -280,14 +360,27 @@ defineExpose({
   },
   magnetizeAtClient,
   clearEdgeSnapHighlight,
+  /** Test/debug: shared Alt-measure session (pin strip ↔ body). */
+  altMeasureShared,
 });
 </script>
 
 <template>
   <div
+    ref="stackRef"
     class="pr-swim-stack"
     :style="{ '--pr-gutter-width': `${localGutterWidth}px` }"
   >
+    <div
+      v-if="altMeasureCrossBridge"
+      class="pr-alt-measure-cross-bridge"
+      data-testid="alt-measure-cross-bridge"
+      :style="{
+        left: `${altMeasureCrossBridge.left}px`,
+        top: `${altMeasureCrossBridge.top}px`,
+        height: `${altMeasureCrossBridge.height}px`,
+      }"
+    />
     <div
       v-if="pinnedRows.length"
       ref="pinnedStripRef"
@@ -328,6 +421,8 @@ defineExpose({
         :cursor-x-ratio="cursorXRatio"
         :cursor-snapped="cursorSnapped"
         :resolve-magnetize="magnetizeAtClient"
+        alt-measure-role="strip"
+        :pinned-lane-ids="pinnedLaneIds"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"
@@ -382,6 +477,8 @@ defineExpose({
         :cursor-x-ratio="cursorXRatio"
         :cursor-snapped="cursorSnapped"
         :resolve-magnetize="magnetizeAtClient"
+        :alt-measure-role="pinnedLaneIds.length ? 'body' : 'solo'"
+        :pinned-lane-ids="pinnedLaneIds"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"
@@ -430,12 +527,23 @@ defineExpose({
 
 <style scoped>
 .pr-swim-stack {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+/** Pin↔body Alt-measure vertical — spans sticky strip and scroll body. */
+.pr-alt-measure-cross-bridge {
+  position: absolute;
+  z-index: 7;
+  width: 0;
+  border-left: 2px dashed rgba(49, 122, 247, 1);
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .pr-pinned-strip {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -12,7 +12,10 @@ import { normalizeMeasureRange } from '../../../../domain/viewState';
 import { formatTimeAuto } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
+  computeAltMeasureDelta,
+  computeAltMeasureGap,
   contentHeightFromModel,
+  eventMeasureTargetTime,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
@@ -35,6 +38,14 @@ import {
 } from '../../cursorMeasureOverlap';
 import MeasureDtArrow from '../../MeasureDtArrow.vue';
 import { animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
+import {
+  ALT_MEASURE_FIND_EVENT_KEY,
+  ALT_MEASURE_SHARED_KEY,
+  clearAltMeasureShared,
+  createAltMeasureShared,
+  type AltMeasureSurface,
+  type AltMeasureTarget,
+} from '../altMeasureShared';
 
 const props = withDefaults(
   defineProps<{
@@ -63,6 +74,13 @@ const props = withDefaults(
       clientX: number,
       clientY: number,
     ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
+    /**
+     * Alt-measure surface role. Endpoints record which surface captured them so a
+     * body click on a pinned lane stays on the body instance (not the sticky duplicate).
+     */
+    altMeasureRole?: 'body' | 'strip' | 'solo';
+    /** Leaf lane ids currently in the sticky strip (informational; ownership uses surfaces). */
+    pinnedLaneIds?: string[];
   }>(),
   {
     dependencyMode: 'all',
@@ -70,6 +88,8 @@ const props = withDefaults(
     showDependencies: true,
     cursorXRatio: null,
     cursorSnapped: false,
+    altMeasureRole: 'solo',
+    pinnedLaneIds: () => [],
   },
 );
 
@@ -157,6 +177,10 @@ const snapExactEdgeMarks = shallowRef<
 >([]);
 /** Default-mode hover gap between adjacent events (measure overlay). */
 const hoverGap = ref<HoverGap | null>(null);
+/** Shared Alt-measure session (pin strip ↔ body) or a local fallback for standalone mounts. */
+const altMeasure = inject(ALT_MEASURE_SHARED_KEY, null) ?? createAltMeasureShared();
+const findAltMeasureEvent =
+  inject(ALT_MEASURE_FIND_EVENT_KEY, null) ?? ((id: string) => backend.findEvent(id));
 /** Committed exact-match marks; projected each frame from a cached match set. */
 const measureExactEdgeMarks = shallowRef<
   { eventId: string; edge: 'start' | 'end'; time: number; x: number; y: number; h: number }[]
@@ -285,6 +309,13 @@ function capturePanHover(
   }
   lastHoverLocalX = localX;
   lastHoverLocalY = localY;
+  panCaptureHoverEvent = eventAtPointer(localX, localY, magEventId);
+  // Alt session owns the Δt chrome — never freeze a hover-gap under it.
+  if (altMeasureSessionActive()) {
+    panCaptureHoverGap = null;
+    hoverGap.value = null;
+    return;
+  }
   panCaptureHoverGap = findHoverGap(
     backend.getLayout(),
     props.view,
@@ -293,7 +324,6 @@ function capturePanHover(
     localY,
     EVENT_EDGE_MAGNET_PX,
   );
-  panCaptureHoverEvent = eventAtPointer(localX, localY, magEventId);
   hoverGap.value = panCaptureHoverGap;
 }
 
@@ -311,19 +341,54 @@ function restoreHoverAfterPanCapture(
   emit('hover', eventAtPointer(localX, localY, magEventId), clientX, clientY);
 }
 
+function altMeasureSessionActive(): boolean {
+  return (
+    altMeasure.anchorId != null &&
+    !props.measureMode &&
+    (altMeasure.altKeyHeld || altMeasure.pinned)
+  );
+}
+
+function clearAltMeasure(): void {
+  clearAltMeasureShared(altMeasure);
+}
+
+function onWindowKeyDown(e: KeyboardEvent): void {
+  if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') altMeasure.altKeyHeld = true;
+  if (e.key === 'Escape' && altMeasure.anchorId) clearAltMeasure();
+}
+
+function onWindowKeyUp(e: KeyboardEvent): void {
+  if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
+    altMeasure.altKeyHeld = false;
+    // Pinned measure survives Alt release; ephemeral clears.
+    if (!altMeasure.pinned) clearAltMeasure();
+  }
+}
+
 /** Default-mode hover gap at canvas-local coords; stores position for view refresh. */
 function updateHoverGap(localX: number, localY: number, w: number): void {
   lastHoverLocalX = localX;
   lastHoverLocalY = localY;
-  hoverGap.value = props.measureMode
-    ? null
-    : findHoverGap(backend.getLayout(), props.view, w, localX, localY, EVENT_EDGE_MAGNET_PX);
+  if (props.measureMode || altMeasureSessionActive()) {
+    hoverGap.value = null;
+    return;
+  }
+  hoverGap.value = findHoverGap(
+    backend.getLayout(),
+    props.view,
+    w,
+    localX,
+    localY,
+    EVENT_EDGE_MAGNET_PX,
+  );
 }
 
 /** Recompute hover gap after zoom/pan/scroll when the pointer is still over the canvas. */
 function refreshHoverGapAtLastPointer(): void {
   if (
     props.measureMode ||
+    altMeasureSessionActive() ||
     measureGestureActive ||
     measureCreatePending ||
     measurePressActive ||
@@ -621,10 +686,19 @@ onMounted(async () => {
     await nextTick();
     ensureAttach();
   }
+  // Strip shares session with body — only body/solo owns window Alt/Esc listeners.
+  if (props.altMeasureRole !== 'strip') {
+    window.addEventListener('keydown', onWindowKeyDown);
+    window.addEventListener('keyup', onWindowKeyUp);
+  }
   bindResizeObserver();
 });
 
 onBeforeUnmount(() => {
+  if (props.altMeasureRole !== 'strip') {
+    window.removeEventListener('keydown', onWindowKeyDown);
+    window.removeEventListener('keyup', onWindowKeyUp);
+  }
   cancelMeasureSnapAnim();
   endMeasureCreate();
   endMeasureResize();
@@ -643,6 +717,13 @@ watch(
 );
 
 watch(
+  () => props.measureMode,
+  (on) => {
+    if (on) clearAltMeasure();
+  },
+);
+
+watch(
   () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
   () => {
     localScrollY = props.view.scrollY;
@@ -655,6 +736,8 @@ watch(
 watch(
   [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY],
   () => {
+    // Pinned measure dismisses on any visible-range change; ephemeral keeps tracking.
+    if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();
     refreshHoverGapAtLastPointer();
   },
@@ -1193,6 +1276,234 @@ const gapMeasureGeometry = computed(() => {
   };
 });
 
+/** CSS-pixel screen rect for an event (renderers report device-pixel rects scaled by dpr). */
+function eventScreenRectCss(eventId: string): { x: number; y: number; w: number; h: number } | null {
+  const rect = backend.eventScreenRect(eventId);
+  if (!rect) return null;
+  const dpr = currentDpr();
+  return { x: rect.x / dpr, y: rect.y / dpr, w: rect.w / dpr, h: rect.h / dpr };
+}
+
+/** Alt-measure anchor highlight while session active. */
+const altMeasureAnchorHighlight = computed(() => {
+  void resizeTick.value;
+  // Track the view window so the highlight stays glued to the anchored event on scroll/pan/zoom.
+  void props.view.startTime;
+  void props.view.endTime;
+  void props.view.scrollY;
+  if (!altMeasureSessionActive() || !altMeasure.anchorId) return null;
+  if (!ownsAltMeasureEndpoint(altMeasure.anchorId, altMeasure.anchorSurface)) return null;
+  return eventScreenRectCss(altMeasure.anchorId);
+});
+
+/** Alt-measure target highlight while a non-anchor event is captured as target. */
+const altMeasureTargetHighlight = computed(() => {
+  void resizeTick.value;
+  void props.view.startTime;
+  void props.view.endTime;
+  void props.view.scrollY;
+  if (!altMeasureSessionActive()) return null;
+  const target = altMeasure.target;
+  if (!target || target.eventId === null || target.eventId === altMeasure.anchorId) return null;
+  if (!ownsAltMeasureEndpoint(target.eventId, target.surface)) return null;
+  // Touching / inside (Δt = 0) → overlay hidden; show anchor highlight only.
+  const anchorEvent = altMeasure.anchorId ? findAltMeasureEvent(altMeasure.anchorId) : null;
+  if (!anchorEvent || !computeAltMeasureDelta(anchorEvent, target.time)) return null;
+  return eventScreenRectCss(target.eventId);
+});
+
+function thisAltMeasureSurface(): AltMeasureSurface {
+  return props.altMeasureRole;
+}
+
+/**
+ * True when this canvas should draw overlays for an endpoint — based on the surface
+ * recorded at capture time (pinned strip vs body), not merely whether the lane is pinned.
+ */
+function ownsAltMeasureEndpoint(
+  eventId: string | null,
+  surface: AltMeasureSurface | null,
+): boolean {
+  if (surface == null || surface !== thisAltMeasureSurface()) return false;
+  if (eventId != null && !backend.getLayout().eventsById.has(eventId)) return false;
+  return true;
+}
+
+/** Alt measure overlay (default mode): anchor → event edge or free cursor; may be pinned. */
+const altEventMeasureGeometry = computed(() => {
+  void resizeTick.value;
+  if (!altMeasureSessionActive() || !props.model) return null;
+  const anchorId = altMeasure.anchorId;
+  const target = altMeasure.target;
+  if (!anchorId || !target) return null;
+
+  const anchorEvent = findAltMeasureEvent(anchorId);
+  if (!anchorEvent) return null;
+  const times = computeAltMeasureDelta(anchorEvent, target.time);
+  if (!times) return null;
+
+  const layout = backend.getLayout();
+  const ownsAnchor = ownsAltMeasureEndpoint(anchorId, altMeasure.anchorSurface);
+  const ownsTargetEv =
+    target.eventId != null && ownsAltMeasureEndpoint(target.eventId, target.surface);
+  const freeCursor = target.eventId === null;
+
+  const viewStart = props.view.startTime;
+  const viewEnd = props.view.endTime;
+  const w = syncTrackWidth();
+  const { gapStartTime, gapEndTime, anchorRefTime, deltaNs } = times;
+
+  if (gapEndTime <= viewStart || gapStartTime >= viewEnd) return null;
+
+  const showLeft = gapStartTime >= viewStart && gapStartTime <= viewEnd;
+  const showRight = gapEndTime >= viewStart && gapEndTime <= viewEnd;
+  const visStart = Math.max(viewStart, gapStartTime);
+  const visEnd = Math.min(viewEnd, gapEndTime);
+  if (!(visEnd > visStart)) return null;
+
+  const left = xAtTime(gapStartTime);
+  const right = xAtTime(gapEndTime);
+  const arrowLeft = xAtTime(visStart);
+  const arrowRight = xAtTime(visEnd);
+  const label = formatTimeAuto(deltaNs);
+  const rangePx = arrowRight - arrowLeft;
+  const leftPct = (arrowLeft / w) * 100;
+  const widthPct = ((arrowRight - arrowLeft) / w) * 100;
+  const style = { left: `${leftPct}%`, width: `${widthPct}%` };
+  const arrowMode = measureLabelFitsInlineSpan(rangePx, label) ? ('inline' as const) : ('outside' as const);
+  const arrowLayout = { mode: arrowMode, side: 'right' as const, style };
+
+  // Free cursor: every surface paints the full-height line; stick + Δt stay on the anchor owner.
+  if (freeCursor) {
+    let showAnchor = false;
+    let anchorLaneTop = 0;
+    let showDt = false;
+    if (ownsAnchor && layout.eventsById.has(anchorId)) {
+      const gap = computeAltMeasureGap(layout, anchorId, target.time, null);
+      if (gap) {
+        showDt = true;
+        anchorLaneTop = gap.leftLaneY - props.view.scrollY;
+        showAnchor = gap.anchorRefTime >= viewStart && gap.anchorRefTime <= viewEnd;
+      }
+    }
+    return {
+      mode: 'cursor' as const,
+      anchorLaneTop,
+      anchorX: xAtTime(anchorRefTime),
+      cursorX: xAtTime(target.time),
+      showAnchor,
+      showDt,
+      label,
+      showLeft,
+      showRight,
+      arrowLayout,
+    };
+  }
+
+  // Full overlay only when every event endpoint this measure needs is owned here.
+  const canFull =
+    ownsAnchor &&
+    ownsTargetEv &&
+    layout.eventsById.has(anchorId) &&
+    target.eventId != null &&
+    layout.eventsById.has(target.eventId);
+
+  if (canFull) {
+    const gap = computeAltMeasureGap(layout, anchorId, target.time, target.eventId);
+    if (!gap) return null;
+
+    if (gap.sameLane) {
+      const top = gap.leftLaneY - props.view.scrollY;
+      return {
+        mode: 'same' as const,
+        top,
+        height: LANE_HEIGHT,
+        left,
+        right,
+        label,
+        showLeft,
+        showRight,
+        arrowLayout,
+      };
+    }
+
+    const leftLaneTop = gap.leftLaneY - props.view.scrollY;
+    const rightLaneTop = gap.rightLaneY - props.view.scrollY;
+    const laneCenterY = (y: number) => y + LANE_HEIGHT / 2;
+    const vertX = right;
+
+    return {
+      mode: 'cross' as const,
+      top: Math.min(leftLaneTop, rightLaneTop),
+      height: Math.abs(rightLaneTop - leftLaneTop) + LANE_HEIGHT,
+      left,
+      right,
+      label,
+      showLeft,
+      showRight,
+      arrowLayout,
+      crossLane: {
+        leftLaneTop,
+        rightLaneTop,
+        vertX,
+        leftCenterY: laneCenterY(leftLaneTop),
+        rightCenterY: laneCenterY(rightLaneTop),
+        horizLeftStart: left,
+        horizLeftEnd: vertX,
+        horizRightStart: vertX,
+        horizRightEnd: right,
+        horizRightY: laneCenterY(rightLaneTop),
+      },
+    };
+  }
+
+  // Split across surfaces: draw local stick (+ Δt when this surface owns the earlier edge).
+  const ownsEarlier =
+    (anchorRefTime <= target.time && ownsAnchor) ||
+    (anchorRefTime > target.time && ownsTargetEv);
+  const localEventId = ownsAnchor ? anchorId : ownsTargetEv ? target.eventId : null;
+  if (!localEventId) return null;
+  const localItem = layout.eventsById.get(localEventId);
+  if (!localItem) return null;
+
+  const stickTime = ownsAnchor ? anchorRefTime : target.time;
+  const showStick = stickTime >= viewStart && stickTime <= viewEnd;
+
+  return {
+    mode: 'split' as const,
+    top: localItem.y - props.view.scrollY,
+    height: LANE_HEIGHT,
+    left,
+    right,
+    stickX: xAtTime(stickTime),
+    vertX: right,
+    stickTime,
+    showStick,
+    showArrow: ownsEarlier,
+    showHoriz:
+      showStick && ownsEarlier && Math.abs(xAtTime(stickTime) - right) > 0.5,
+    label,
+    showLeft,
+    showRight,
+    arrowLayout,
+  };
+});
+
+/** Client-space endpoint for SwimlaneView's pin↔body vertical bridge. */
+function altMeasureBridgeEndpoint(): { clientX: number; clientY: number; time: number } | null {
+  const g = altEventMeasureGeometry.value;
+  // Keep the bridge when an edge is time-clipped (showStick false); stack clips overflow.
+  if (!g || g.mode !== 'split' || !('stickX' in g)) return null;
+  const wrap = wrapRef.value;
+  if (!wrap) return null;
+  const r = wrap.getBoundingClientRect();
+  return {
+    clientX: r.left + g.vertX,
+    clientY: r.top + g.top + g.height / 2,
+    time: g.stickTime,
+  };
+}
+
 function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
@@ -1255,8 +1566,42 @@ function onPointerMove(e: PointerEvent): void {
     const dx = e.clientX - lastX;
     lastX = e.clientX;
     emit('pan', -(dx / w) * span);
-    hoverGap.value = panCaptureHoverGap;
+    hoverGap.value = altMeasureSessionActive() ? null : panCaptureHoverGap;
     emit('hover', panCaptureHoverEvent, e.clientX, e.clientY);
+    emitLaneHover(y);
+    return;
+  }
+
+  // Sync modifier every move: missed Alt keyup (Alt+Tab / blur) must not leave ephemeral retargeting active.
+  altMeasure.altKeyHeld = e.altKey;
+  if (!e.altKey && !altMeasure.pinned && altMeasure.anchorId) clearAltMeasure();
+
+  // Live target preview only while ephemeral (Alt held, not pinned).
+  if (
+    altMeasure.anchorId &&
+    altMeasure.altKeyHeld &&
+    !altMeasure.pinned &&
+    !props.measureMode
+  ) {
+    hoverGap.value = null;
+    const surface = thisAltMeasureSurface();
+    const anchorEvent = findAltMeasureEvent(altMeasure.anchorId);
+    if (mag.eventId && mag.eventId !== altMeasure.anchorId) {
+      // Stuck to a border → explicit target edge.
+      altMeasure.target = { eventId: mag.eventId, time: mag.time, surface };
+    } else {
+      const ev = eventAtPointer(x, y, null);
+      if (ev && ev.id !== altMeasure.anchorId && anchorEvent) {
+        // Hovering another event → auto edge by relation.
+        const t = eventMeasureTargetTime(anchorEvent, ev);
+        altMeasure.target = t != null ? { eventId: ev.id, time: t, surface } : null;
+      } else {
+        // Otherwise → free cursor target.
+        altMeasure.target = { eventId: null, time: timeAtX(x), surface };
+      }
+    }
+    // Keep normal event hover (tooltip); only the gap overlay stays suppressed.
+    emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
     emitLaneHover(y);
     return;
   }
@@ -1303,6 +1648,57 @@ function onPointerUp(e: PointerEvent): void {
   dragging = false;
   restoreHoverAfterPanCapture(x, y, w, mag.eventId, e.clientX, e.clientY);
   if (Math.abs(e.clientX - downX) > MEASURE_DRAG_THRESHOLD_PX) return;
+
+  if (e.altKey && !props.measureMode) {
+    altMeasure.altKeyHeld = true;
+    const ev = eventAtPointer(x, y, mag.eventId);
+    const surface = thisAltMeasureSurface();
+    if (!ev) {
+      clearAltMeasure();
+      return;
+    }
+    // Pinned: any Alt+click event becomes the new ephemeral anchor on this surface.
+    if (altMeasure.pinned) {
+      altMeasure.anchorId = ev.id;
+      altMeasure.anchorSurface = surface;
+      altMeasure.target = null;
+      altMeasure.pinned = false;
+      return;
+    }
+    // Ephemeral, no anchor yet → set anchor on this surface.
+    if (!altMeasure.anchorId) {
+      altMeasure.anchorId = ev.id;
+      altMeasure.anchorSurface = surface;
+      altMeasure.target = null;
+      return;
+    }
+    // Ephemeral + same event on the same surface → no-op.
+    if (altMeasure.anchorId === ev.id && altMeasure.anchorSurface === surface) return;
+    // Same event id on the other surface → move the anchor here (instance switch).
+    if (altMeasure.anchorId === ev.id) {
+      altMeasure.anchorSurface = surface;
+      altMeasure.target = null;
+      return;
+    }
+    // Ephemeral + different event → pin with click-time target resolution.
+    const anchorEvent = findAltMeasureEvent(altMeasure.anchorId);
+    let nextTarget: AltMeasureTarget | null = null;
+    if (mag.eventId === ev.id) {
+      nextTarget = { eventId: ev.id, time: mag.time, surface };
+    } else if (anchorEvent) {
+      const t = eventMeasureTargetTime(anchorEvent, ev);
+      nextTarget = t != null ? { eventId: ev.id, time: t, surface } : null;
+    }
+    if (!nextTarget) return;
+    // Touching / inside (Δt = 0) cannot pin — leave ephemeral session unchanged.
+    if (!anchorEvent || !computeAltMeasureDelta(anchorEvent, nextTarget.time)) return;
+    altMeasure.target = nextTarget;
+    altMeasure.pinned = true;
+    return;
+  }
+
+  // Non-Alt click elsewhere clears a pinned (or lingering) Alt measure.
+  if (altMeasure.pinned || altMeasure.anchorId) clearAltMeasure();
   emit('select', eventAtPointer(x, y, mag.eventId));
 }
 
@@ -1338,6 +1734,9 @@ function onPointerLeave(e: PointerEvent): void {
   lastHoverLocalX = null;
   lastHoverLocalY = null;
   hoverGap.value = null;
+  // Shared strip↔body session: leave on one canvas must not blank the sibling's target mid-crossing.
+  // Solo keeps clearing ephemeral live preview on leave.
+  if (!altMeasure.pinned && props.altMeasureRole === 'solo') altMeasure.target = null;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
@@ -1374,6 +1773,8 @@ defineExpose({
   magnetizeAtClient,
   magnetizeAtClientLocal,
   clearEdgeSnapHighlight,
+  clearAltMeasure,
+  altMeasureBridgeEndpoint,
 });
 </script>
 
@@ -1537,6 +1938,200 @@ defineExpose({
         :show-right-head="gapMeasureGeometry.showRight"
       />
     </div>
+    <div
+      v-if="altMeasureAnchorHighlight"
+      class="pr-alt-measure-anchor"
+      data-testid="alt-measure-anchor"
+      :style="{
+        left: `${altMeasureAnchorHighlight.x}px`,
+        top: `${altMeasureAnchorHighlight.y}px`,
+        width: `${altMeasureAnchorHighlight.w}px`,
+        height: `${altMeasureAnchorHighlight.h}px`,
+      }"
+    />
+    <div
+      v-if="altMeasureTargetHighlight"
+      class="pr-alt-measure-anchor"
+      :class="{ 'pr-alt-measure-anchor--target': !altMeasure.pinned }"
+      data-testid="alt-measure-target"
+      :style="{
+        left: `${altMeasureTargetHighlight.x}px`,
+        top: `${altMeasureTargetHighlight.y}px`,
+        width: `${altMeasureTargetHighlight.w}px`,
+        height: `${altMeasureTargetHighlight.h}px`,
+      }"
+    />
+    <template v-if="altEventMeasureGeometry">
+      <div
+        v-if="altEventMeasureGeometry.mode === 'same'"
+        class="pr-gap-measure pr-alt-measure"
+        data-testid="alt-event-measure"
+        :style="{
+          top: `${altEventMeasureGeometry.top}px`,
+          height: `${altEventMeasureGeometry.height}px`,
+        }"
+      >
+        <div
+          v-if="altEventMeasureGeometry.showLeft"
+          class="pr-gap-measure__stick pr-gap-measure__stick--left"
+          data-testid="alt-measure-stick-left"
+          :style="{ left: `${altEventMeasureGeometry.left}px` }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showRight"
+          class="pr-gap-measure__stick pr-gap-measure__stick--right"
+          data-testid="alt-measure-stick-right"
+          :style="{ left: `${altEventMeasureGeometry.right}px` }"
+        />
+        <MeasureDtArrow
+          :label="altEventMeasureGeometry.label"
+          :style="altEventMeasureGeometry.arrowLayout.style"
+          :mode="altEventMeasureGeometry.arrowLayout.mode"
+          :side="altEventMeasureGeometry.arrowLayout.side"
+          :show-left-head="altEventMeasureGeometry.showLeft"
+          :show-right-head="altEventMeasureGeometry.showRight"
+        />
+      </div>
+      <div
+        v-else-if="altEventMeasureGeometry.mode === 'cross'"
+        class="pr-alt-measure pr-alt-measure--cross-lane"
+        data-testid="alt-event-measure"
+      >
+        <div
+          v-if="altEventMeasureGeometry.showLeft"
+          class="pr-gap-measure__stick"
+          data-testid="alt-measure-stick-left"
+          :style="{
+            left: `${altEventMeasureGeometry.left}px`,
+            top: `${altEventMeasureGeometry.crossLane!.leftLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showRight"
+          class="pr-gap-measure__stick"
+          data-testid="alt-measure-stick-right"
+          :style="{
+            left: `${altEventMeasureGeometry.right}px`,
+            top: `${altEventMeasureGeometry.crossLane!.rightLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__horiz"
+          :style="{
+            left: `${Math.min(altEventMeasureGeometry.crossLane!.horizLeftStart, altEventMeasureGeometry.crossLane!.horizLeftEnd)}px`,
+            top: `${altEventMeasureGeometry.crossLane!.leftCenterY}px`,
+            width: `${Math.abs(altEventMeasureGeometry.crossLane!.horizLeftEnd - altEventMeasureGeometry.crossLane!.horizLeftStart)}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__horiz"
+          :style="{
+            left: `${Math.min(altEventMeasureGeometry.crossLane!.horizRightStart, altEventMeasureGeometry.crossLane!.horizRightEnd)}px`,
+            top: `${altEventMeasureGeometry.crossLane!.rightCenterY}px`,
+            width: `${Math.abs(altEventMeasureGeometry.crossLane!.horizRightEnd - altEventMeasureGeometry.crossLane!.horizRightStart)}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__vertical"
+          :style="{
+            left: `${altEventMeasureGeometry.crossLane!.vertX}px`,
+            top: `${Math.min(altEventMeasureGeometry.crossLane!.leftCenterY, altEventMeasureGeometry.crossLane!.rightCenterY)}px`,
+            height: `${Math.abs(altEventMeasureGeometry.crossLane!.rightCenterY - altEventMeasureGeometry.crossLane!.leftCenterY)}px`,
+          }"
+        />
+        <div
+          class="pr-alt-measure__arrow-row"
+          :style="{
+            top: `${altEventMeasureGeometry.crossLane!.leftLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        >
+          <MeasureDtArrow
+            :label="altEventMeasureGeometry.label"
+            :style="altEventMeasureGeometry.arrowLayout.style"
+            :mode="altEventMeasureGeometry.arrowLayout.mode"
+            :side="altEventMeasureGeometry.arrowLayout.side"
+            :show-left-head="altEventMeasureGeometry.showLeft"
+            :show-right-head="altEventMeasureGeometry.showRight"
+          />
+        </div>
+      </div>
+      <div
+        v-else-if="altEventMeasureGeometry.mode === 'split'"
+        class="pr-gap-measure pr-alt-measure"
+        data-testid="alt-event-measure"
+        :style="{
+          top: `${altEventMeasureGeometry.top}px`,
+          height: `${altEventMeasureGeometry.height}px`,
+        }"
+      >
+        <div
+          v-if="altEventMeasureGeometry.showStick"
+          class="pr-gap-measure__stick"
+          data-testid="alt-measure-stick-split"
+          :style="{ left: `${altEventMeasureGeometry.stickX}px` }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showHoriz"
+          class="pr-alt-measure__horiz"
+          data-testid="alt-measure-horiz-split"
+          :style="{
+            left: `${Math.min(altEventMeasureGeometry.stickX, altEventMeasureGeometry.vertX)}px`,
+            top: `${LANE_HEIGHT / 2}px`,
+            width: `${Math.abs(altEventMeasureGeometry.vertX - altEventMeasureGeometry.stickX)}px`,
+          }"
+        />
+        <MeasureDtArrow
+          v-if="altEventMeasureGeometry.showArrow"
+          :label="altEventMeasureGeometry.label"
+          :style="altEventMeasureGeometry.arrowLayout.style"
+          :mode="altEventMeasureGeometry.arrowLayout.mode"
+          :side="altEventMeasureGeometry.arrowLayout.side"
+          :show-left-head="altEventMeasureGeometry.showLeft"
+          :show-right-head="altEventMeasureGeometry.showRight"
+        />
+      </div>
+      <div
+        v-else-if="altEventMeasureGeometry.mode === 'cursor'"
+        class="pr-alt-measure pr-alt-measure--cursor"
+        data-testid="alt-event-measure"
+      >
+        <div
+          class="pr-alt-measure__cursor-line"
+          data-testid="alt-measure-cursor-line"
+          :style="{ left: `${altEventMeasureGeometry.cursorX}px` }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showAnchor"
+          class="pr-gap-measure__stick"
+          data-testid="alt-measure-stick-anchor"
+          :style="{
+            left: `${altEventMeasureGeometry.anchorX}px`,
+            top: `${altEventMeasureGeometry.anchorLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        />
+        <div
+          v-if="altEventMeasureGeometry.showDt"
+          class="pr-alt-measure__arrow-row"
+          :style="{
+            top: `${altEventMeasureGeometry.anchorLaneTop}px`,
+            height: `${LANE_HEIGHT}px`,
+          }"
+        >
+          <MeasureDtArrow
+            :label="altEventMeasureGeometry.label"
+            :style="altEventMeasureGeometry.arrowLayout.style"
+            :mode="altEventMeasureGeometry.arrowLayout.mode"
+            :side="altEventMeasureGeometry.arrowLayout.side"
+            :show-left-head="altEventMeasureGeometry.showLeft"
+            :show-right-head="altEventMeasureGeometry.showRight"
+          />
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -1691,5 +2286,75 @@ defineExpose({
   width: 2px;
   transform: translateX(-50%);
   background: rgba(49, 122, 247, 1);
+}
+
+/* Alt+hover event-to-event measure (default mode). */
+.pr-alt-measure {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.pr-alt-measure--cross-lane {
+  top: 0;
+  bottom: 0;
+}
+
+.pr-alt-measure-anchor {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 180, 196, 0.95);
+  border-radius: 5px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.pr-alt-measure-anchor--target {
+  border-color: rgba(49, 122, 247, 0.95);
+}
+
+.pr-alt-measure--cursor {
+  top: 0;
+  bottom: 0;
+}
+
+.pr-alt-measure__cursor-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: rgba(49, 122, 247, 1);
+  pointer-events: none;
+}
+
+.pr-alt-measure__horiz {
+  position: absolute;
+  height: 1.5px;
+  transform: translateY(-50%);
+  background: rgba(49, 122, 247, 1);
+}
+
+.pr-alt-measure__vertical {
+  position: absolute;
+  width: 0;
+  border-left: 2px dashed rgba(49, 122, 247, 1);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.pr-alt-measure__arrow-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.pr-alt-measure--cross-lane .pr-gap-measure__stick,
+.pr-alt-measure--cursor .pr-gap-measure__stick {
+  top: auto;
+  bottom: auto;
 }
 </style>

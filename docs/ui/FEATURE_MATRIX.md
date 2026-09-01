@@ -41,6 +41,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Colored event rectangles | M | Normative colors [COLOR_TOKENS](COLOR_TOKENS.md) |
 | Event labels when wide enough | M | Vertically centered in block; horizontally centered in visible (clipped) event rect |
 | Adjacent-event gap measure (hover) | M | Default-mode hover in the free gap between adjacent events shows a transient, non-interactive Δt overlay (border sticks + arrow); does not change selection or window |
+| Alt event measure (Alt+click + hover) | M | Default-mode Alt+click anchor + Alt+hover Δt to an event edge or free cursor (same-lane reuse, cross-lane dashed connector, or full-height cursor line); ephemeral, does not change selection or window |
 | Zoom / pan (wheel, drag, slider) | M | See [INTERACTIONS](INTERACTIONS.md); W/S/A/D → P2 ([PACKAGING_SUGGESTIONS](../context/PACKAGING_SUGGESTIONS.md)) |
 
 | ProfilerStep background bands | P2 | Needs data |

@@ -432,6 +432,101 @@ export function findHoverGap(
   return { leftEnd, rightStart, laneY: lane.y };
 }
 
+/**
+ * Auto-selected target edge time for a hovered target event (directional): the target's
+ * start when it follows the anchor, its end when it precedes it. Null when overlapping or same id.
+ */
+export function eventMeasureTargetTime(anchor: SwimEvent, target: SwimEvent): number | null {
+  if (anchor.id === target.id) return null;
+  const aStart = anchor.startTime;
+  const aEnd = anchor.startTime + anchor.duration;
+  const tStart = target.startTime;
+  const tEnd = target.startTime + target.duration;
+  if (aStart < tEnd && tStart < aEnd) return null;
+  if (tStart >= aEnd) return tStart;
+  if (tEnd <= aStart) return tEnd;
+  return null;
+}
+
+export interface AltMeasureGap {
+  deltaNs: number;
+  /** Anchor edge (start or end) used as the measurement origin. */
+  anchorRefTime: number;
+  targetTime: number;
+  gapStartTime: number;
+  gapEndTime: number;
+  /** Lane Y of the earlier (gapStart) side. */
+  leftLaneY: number;
+  /** Lane Y of the later (gapEnd) side. */
+  rightLaneY: number;
+  sameLane: boolean;
+  targetEventId: string | null;
+}
+
+/** Time-only Alt-measure gap; null when target lies inside/touching the anchor span. */
+export function computeAltMeasureDelta(
+  anchor: SwimEvent,
+  targetTime: number,
+): {
+  anchorRefTime: number;
+  deltaNs: number;
+  gapStartTime: number;
+  gapEndTime: number;
+} | null {
+  const aStart = anchor.startTime;
+  const aEnd = anchor.startTime + anchor.duration;
+  let anchorRefTime: number;
+  let deltaNs: number;
+  if (targetTime > aEnd) {
+    anchorRefTime = aEnd;
+    deltaNs = targetTime - aEnd;
+  } else if (targetTime < aStart) {
+    anchorRefTime = aStart;
+    deltaNs = aStart - targetTime;
+  } else {
+    return null;
+  }
+  return {
+    anchorRefTime,
+    deltaNs,
+    gapStartTime: Math.min(anchorRefTime, targetTime),
+    gapEndTime: Math.max(anchorRefTime, targetTime),
+  };
+}
+
+/**
+ * Measurement gap between an anchored event and a target point (an event edge or a free cursor).
+ * Null when the anchor is missing or the target lies inside/touching the anchor span.
+ */
+export function computeAltMeasureGap(
+  layout: SwimlaneLayout,
+  anchorId: string,
+  targetTime: number,
+  targetEventId: string | null,
+): AltMeasureGap | null {
+  const anchorItem = layout.eventsById.get(anchorId);
+  if (!anchorItem) return null;
+  const times = computeAltMeasureDelta(anchorItem.event, targetTime);
+  if (!times) return null;
+
+  const targetItem = targetEventId ? layout.eventsById.get(targetEventId) : undefined;
+  const anchorIsLeft = times.anchorRefTime <= targetTime;
+  const leftLaneY = anchorIsLeft ? anchorItem.y : (targetItem?.y ?? anchorItem.y);
+  const rightLaneY = anchorIsLeft ? (targetItem?.y ?? anchorItem.y) : anchorItem.y;
+
+  return {
+    deltaNs: times.deltaNs,
+    anchorRefTime: times.anchorRefTime,
+    targetTime,
+    gapStartTime: times.gapStartTime,
+    gapEndTime: times.gapEndTime,
+    leftLaneY,
+    rightLaneY,
+    sameLane: targetItem ? targetItem.laneIndex === anchorItem.laneIndex : true,
+    targetEventId: targetEventId ?? null,
+  };
+}
+
 /** View-invariant: which event edges exactly equal a range bound (scan once per range/model). */
 export function findExactEdgeMatches(
   layout: SwimlaneLayout,
