@@ -8,8 +8,9 @@
 /**
  * Rounded-rect corner policy, in CSS px (single source of truth shared with the Canvas renderer):
  * an event gets minRR corner radius when its raw width (CSS px) is < rrSwitchThreshold, else maxRR.
- * Host code multiplies these by dpr (then rounds `((x+0.5)|0)`) and uploads the device-px trio to
- * the swim fragment shader's single `uRR` vec3 uniform.
+ * Host code multiplies these by dpr and uploads them to the swim fragment shader's single `uRR`
+ * vec3 uniform: the painted radii (minRR/maxRR) round to integer device px via `((x+0.5)|0)`,
+ * while the switch threshold stays the exact float `rrSwitchThreshold * dpr`.
  */
 export const minRR = 1;
 export const maxRR = 2;
@@ -64,7 +65,7 @@ precision highp float;
 
 uniform vec4 uColor;
 uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
-uniform vec3 uRR; // (minRadius, maxRadius, switchThreshold) in device px — CSS px × dpr, rounded in JS
+uniform vec3 uRR; // xy = min/max painted radii (device px, rounded in JS); z = exact switch threshold × dpr
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
