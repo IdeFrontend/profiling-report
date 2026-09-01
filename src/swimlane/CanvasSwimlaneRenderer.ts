@@ -156,7 +156,7 @@ export function paintGroupBands(
       if (y + h < 0 || y > heightDevice) continue;
       const r = snapEventRect(x, y, w, h);
       ctx.fillStyle = BAND_FILL;
-      roundRectPath(ctx, r.x, r.y, r.w, r.h, eventRadius(w));
+      roundRectPath(ctx, r.x, r.y, r.w, r.h, eventRadius(w / dpr, dpr));
       ctx.fill();
       drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, widthDevice, 1, '#555555', dpr);
     }
@@ -252,7 +252,7 @@ export class SwimlaneOverlayPainter {
       const y = metrics.y * dpr;
       const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
-      const r = eventPaintRect(x, y, w, h);
+      const r = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
@@ -459,7 +459,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const y = metrics.y * dpr;
       const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
-      const fr = eventPaintRect(x, y, w, h);
+      const fr = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
