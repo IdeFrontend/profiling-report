@@ -4,15 +4,15 @@ Please answer each **DATA** question with: **file name**, **field name**, and **
 
 Answers below are annotated with a status tag and, where known, `file → field` / formula.
 
-When a question is answered: write it into the owning specs and **remove** it from this ledger (same change). Process: [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions).
+When a question is answered: write it into the owning specs and **keep** the Q block here tagged **ANSWERED** (and **Implemented** when shipped). Process: [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions).
 
 **Sources (not all in git).** CI fixture is [`data/out.rep`](../../data/out.rep). Product dictionary is `npu-compute性能优化.docx` (外发版 0818, Ascend C Toolkit pack). `example.rep` is the same pack (`npu-tools-main-docs/docs/example.rep` when dropped locally; nested `npu-rep`; includes `HardwareInfo.jsonl`). Neither the docx nor `example.rep` is committed.
 
 Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · one annotated crop per question below · sources [`docs/ui/source/v930/`](../ui/source/v930/) · component crops under `src/ui/**/visual/` ([regenerate](visual/hq/README.md))
 
-**Numbering.** HQ ids stay stable for cross-references in specs (`HQ 30–31`, `HQ 34`, etc.). When Product answers, write the decision into owning specs and **remove** the Q block (and `qN.png` crop) from this ledger — gaps in `q1.png`…`q36.png` are expected. This ledger is **not** the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
+**Numbering.** This ledger is **HQ 1–36** (`q1.png`…`q36.png`). Answered items stay in place tagged **ANSWERED**; specs hold the normative decision. This ledger is **not** the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
 
-- **ANSWERED** — Product answered (source: [`355b2688f3684479b0b2b038a3b64513.docx`](../../355b2688f3684479b0b2b038a3b64513.docx), 2026-08-31). Write into owning specs and remove from this ledger in the same change.
+- **ANSWERED** — Product answered (source: [`355b2688f3684479b0b2b038a3b64513.docx`](../../355b2688f3684479b0b2b038a3b64513.docx), 2026-08-31). Write into owning specs; keep the Q block here tagged **ANSWERED** (add **Implemented** when code ships).
 - **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.
 - **PARTIAL** — field name known, but a value or a product decision is still missing.
 - **OPEN** — not derivable from the current docs or sample.
@@ -24,6 +24,19 @@ Resolved right-panel mappings (进程 / 算子类型 / Blocks, Task Duration, me
 ## DATA QUESTIONS
 
 DATA = file/field/formula mapping from report data → visualized number/series/edge.
+
+### 整体耗时 (Total duration)
+
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
+
+<img src="visual/hq/q1.png" alt="Q1 8 次迭代 / 核" width="600" height="370">
+
+1. The line **N 次迭代 / 核** (N iterations / core) — which field? (Is it `Block Dim`?)
+   - **ANSWERED** — Label = `OpBasicInfo.csv` → `Block Dim` / *core count*, where core count depends on `OpBasicInfo.csv` → `Op Type`:
+     - **cube** → `HardwareInfo.jsonl` → `aic_cube_count` (also `ai_cube_count`)
+     - **vector** → `HardwareInfo.jsonl` → `aic_vector_count` (also `ai_vector_count`)
+     - **mix** → `HardwareInfo.jsonl` → `ai_core_count`
+   - **Implemented** — `summary.coreCount` in adapter; secondary `{blockDim} / {coreCount}` in `StatsAside.vue` (HQ 1, slice 2).
 
 ### 算力情况 (Compute power)
 
@@ -162,6 +175,12 @@ This card is hidden until we have answers.
 
 These bars are already on screen. Please confirm.
 
+<img src="visual/hq/q18.png" alt="Q18 number inside the bar" width="900" height="524">
+
+18. The number **inside** the bar (for example `301001.38`) — is it time (`*_time(us)`) or cycles (`*_total_cycles`)?
+    - **ANSWERED** — Show **cost time**: mean of non-`NA` `*_time(us)` for the same family/side as the ratio (`PipeUtilization.csv`). Not cycles.
+    - **Implemented** (I-Q6f).
+
 ---
 
 <img src="visual/hq/q19.png" alt="Q19 详情 overlay (selected block)" width="900" height="315">
@@ -272,6 +291,30 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png) · [`v930/hardware-more-detail`](../ui/source/v930/hardware-more-detail.jpeg) · [`hardware-detail.png`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png)
 
+<img src="visual/hq/q30.png" alt="Q30 hardware-details overlay from HardwareInfo.jsonl" width="900" height="900">
+
+30. Must every report include `HardwareInfo.jsonl`? Yes or no.
+   - **ANSWERED** — **Yes** — every report is expected to include `HardwareInfo.jsonl`. If absent, **更多** still opens and shows **缺少 hardware info** (missing hardware info).
+   - **Implemented** in `StatsAside.vue` (HQ 30–31, slice 1A).
+
+---
+
+<img src="visual/hq/q31.png" alt="Q31 更多" width="900" height="225">
+
+31. If `HardwareInfo.jsonl` is missing, what happens to **更多** (More) / 硬件信息详情 (Hardware details)? Hide it, or show an empty page?
+    - **ANSWERED** — Do **not** hide **更多**. Open overlay and show **缺少 hardware info**.
+    - **Implemented** in `StatsAside.vue` (HQ 30–31, slice 1A).
+
+### 整体耗时 (Total duration)
+
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
+
+<img src="visual/hq/q32.png" alt="Q32 duration bar" width="600" height="370">
+
+32. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
+    - **ANSWERED** — Real percent: `Block Dim / core_count × 100%` (core_count per Q1 from `HardwareInfo.jsonl`). Clamp display at **100%** when ratio exceeds 1.
+    - **Implemented** — duration bar util % in `StatsAside.vue` (HQ 32, slice 2).
+
 ### 算力情况 (Compute power)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
@@ -280,6 +323,16 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 33. One number for the whole op, or two columns (**aic** and **aiv**), like the bandwidth cards?
     - **ANSWERED** — **Separate columns** (cube \| vector / aic \| aiv), same layout as bandwidth cards.
+
+### 输入带宽 / 输出带宽 (Input / output bandwidth)
+
+**Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
+
+<img src="visual/hq/q34.png" alt="Q34 TB/s unit on the I/O footer" width="900" height="225">
+
+34. If the measured value is small (for example `15.8 GB/s`), show **GB/s** or **TB/s**?
+    - **ANSWERED** — Always **GB/s** (not TB/s).
+    - **Implemented** — `formatGBs()` in `StatsAside.vue`; subtitle `measured / peak GB/s` (HQ 34, slice 1A).
 
 ### 内存负载分析 (Memory load analysis)
 
