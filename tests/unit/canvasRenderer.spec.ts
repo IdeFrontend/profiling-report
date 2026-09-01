@@ -16,6 +16,7 @@ import {
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
+import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
 function tinyModel(): SwimlaneModel {
@@ -99,12 +100,33 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(id).toBe('e-short');
   });
 
-  it('PR-RENDER-017: eventRadius narrow vs normal and 1 device-px margin', () => {
-    expect(eventRadius(2)).toBe(1);
-    expect(eventRadius(3.9)).toBe(1);
-    expect(eventRadius(4)).toBe(2);
-    expect(eventRadius(40)).toBe(2);
+  it('PR-RENDER-017: eventRadius is CSS-px policy × dpr (device-px radius)', () => {
+    // CSS-px raw width decides the corner radius, then it scales by dpr (rounded).
+    expect(eventRadius(2, 1)).toBe(1); // narrow
+    expect(eventRadius(3.9, 1)).toBe(1);
+    expect(eventRadius(4, 1)).toBe(2); // wide
+    expect(eventRadius(40, 1)).toBe(2);
+    expect(eventRadius(2, 2)).toBe(2); // 1 CSS px × 2 dpr
+    expect(eventRadius(40, 2)).toBe(4); // 2 CSS px × 2 dpr
     expect(EVENT_MARGIN).toBe(0.5);
+  });
+
+  it('PR-RENDER-017b: uRR threshold is exact × dpr; only radii round (fractional dpr)', () => {
+    // Mirrors the WebGL render() upload: uRR = (rrToDevicePx(minRR,dpr), rrToDevicePx(maxRR,dpr),
+    // rrSwitchThreshold * dpr). Painted radii round to integer device px; the `rawW < uRR.z`
+    // threshold stays exact so the < 4 CSS px cutoff tracks the true CSS boundary at any dpr.
+    // At dpr 1.6 the rounded threshold (6) would drift off the exact 6.4, so `z` must be exact.
+    expect(rrSwitchThreshold * 1.6).toBeCloseTo(6.4, 10);
+    expect(rrToDevicePx(rrSwitchThreshold, 1.6)).toBe(6); // demonstrates rounding would differ
+    for (const dpr of [1.25, 1.5, 1.6]) {
+      expect(rrToDevicePx(minRR, dpr)).toBe((minRR * dpr + 0.5) | 0);
+      expect(rrToDevicePx(maxRR, dpr)).toBe((maxRR * dpr + 0.5) | 0);
+    }
+    // Concrete values document the parity at 1.25: radii 1/3 device px, exact threshold 5.
+    expect(rrToDevicePx(minRR, 1.25)).toBe(1);
+    expect(rrToDevicePx(maxRR, 1.25)).toBe(3);
+    expect(rrSwitchThreshold * 1.25).toBe(5);
+    expect(rrSwitchThreshold * 1.5).toBe(6);
   });
 
   it('PR-RENDER-018: snapEventRect aligns edges to integer device pixels', () => {

@@ -29,7 +29,7 @@ import {
   type SwimlaneLayout,
 } from './layout';
 import { dependencyGraph, glLinkTime, type DependencyLink } from './dependencyLinks';
-import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS } from './shaders';
+import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, minRR, maxRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 interface GlProgram {
   program: WebGLProgram;
@@ -39,6 +39,7 @@ interface GlProgram {
   uResolution: WebGLUniformLocation | null;
   uColor: WebGLUniformLocation;
   uYBounds: WebGLUniformLocation | null;
+  uRR: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -112,6 +113,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uResolution: gl.getUniformLocation(program, 'uResolution'),
     uColor,
     uYBounds: gl.getUniformLocation(program, 'uYBounds'),
+    uRR: gl.getUniformLocation(program, 'uRR'),
   };
 }
 
@@ -439,6 +441,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, devW, devH);
+    // Corner policy is CSS px (shaders.minRR/maxRR/rrSwitchThreshold). Painted radii (uRR.xy)
+    // scale ×dpr and round to integer device px; the comparison threshold (uRR.z) stays unrounded
+    // so the `rawW < 4 CSS px` cutoff matches the true CSS boundary, not a rounded device px.
+    if (swim.uRR)
+      gl.uniform3f(
+        swim.uRR,
+        rrToDevicePx(minRR, this.dpr),
+        rrToDevicePx(maxRR, this.dpr),
+        rrSwitchThreshold * this.dpr,
+      );
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).
