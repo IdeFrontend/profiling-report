@@ -23,7 +23,7 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (I-Q11f).
 3. **PR-ROOF-002** — Shows mix labels when present.
 4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **428×294** @ **468px** aside; scaled `PAD.l` **45**; mix at plot top; **TOps/s** / **Ops/Byte** grid-aligned with gaps; markers not clipped.
 5. **PR-ROOF-003** — Empty points → no chart SVG.
-6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance.
+6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved so the card does not shift on hover.
 
 ## Visual
 
@@ -52,6 +52,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Changelog
 
+- **2026-09-01** — Hover tooltip inside raised card; reserved tip slot prevents layout jump.
 - **2026-09-01** — Fixed aside **468px** (v930 sketch); chart **428×294** scales from sketch **320×220** baseline.
 - **2026-09-01** — Card head→plot `gap` 8px (+6 under GM/L2).
 - **2026-08-31** — Mix labels anchored to plot top (`PAD.t + 10`), not mid-plot sketch band.

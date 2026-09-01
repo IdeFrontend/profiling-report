@@ -119,12 +119,16 @@ describe('RooflinePanel', () => {
     expect(wrapper.find('[data-testid="roofline-chart"]').exists()).toBe(false);
   });
 
-  it('PR-ROOF-004: hover point shows tooltip', async () => {
+  it('PR-ROOF-004: hover point shows tooltip inside card without layout jump', async () => {
     const wrapper = mount(RooflinePanel, { props: { model: sample } });
+    const card = wrapper.get('.pr-roofline__card');
+    const tip = wrapper.get('[data-testid="roofline-tooltip"]');
+    expect(card.element.contains(tip.element)).toBe(true);
+
+    const heightBefore = card.element.getBoundingClientRect().height;
     await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
-    const tip = wrapper.find('[data-testid="roofline-tooltip"]');
-    expect(tip.exists()).toBe(true);
     expect(tip.text()).toContain('Ops/Byte');
     expect(tip.text()).toContain('TOps/s');
+    expect(card.element.getBoundingClientRect().height).toBe(heightBefore);
   });
 });

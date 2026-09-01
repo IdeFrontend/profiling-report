@@ -323,13 +323,13 @@ const tooltipText = computed(() => {
           dominant-baseline="hanging"
         >TOps/s</text>
       </svg>
-    </div>
-    <div
-      v-if="hovered"
-      class="pr-roofline__tip"
-      data-testid="roofline-tooltip"
-    >
-      {{ tooltipText }}
+      <div
+        class="pr-roofline__tip"
+        data-testid="roofline-tooltip"
+        :aria-hidden="!hovered"
+      >
+        {{ tooltipText }}
+      </div>
     </div>
   </div>
 </template>
@@ -481,8 +481,16 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__tip {
+  flex: 0 0 auto;
+  min-height: calc(11px * 1.2);
+  padding: 0 2px;
   font-size: 11px;
+  line-height: 1.2;
   color: #d0d8e0;
-  min-height: 1.2em;
+  visibility: hidden;
+}
+
+.pr-roofline__tip:not(:empty) {
+  visibility: visible;
 }
 </style>
