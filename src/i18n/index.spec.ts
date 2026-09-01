@@ -12,7 +12,7 @@ describe('i18n', () => {
   it('resolves chrome strings for both locales', () => {
     expect(t('searchPlaceholder', 'zh-CN')).toBe('搜索');
     expect(t('searchPlaceholder', 'en')).toBe('Search');
-    expect(t('resizeSidebar', 'en')).toBe('Resize sidebar');
+    expect(t('resizeLaneGutter', 'en')).toBe('Resize lane gutter');
     expect(t('memoryTopology', 'zh-CN')).toBe('内存拓扑');
     expect(t('hardwareInfoMissing', 'en')).toBe('Missing hardware info');
     expect(t('hardwareInfoMissing', 'zh-CN')).toBe('缺少 hardware info');
