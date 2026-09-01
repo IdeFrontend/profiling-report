@@ -14,6 +14,8 @@ describe('i18n', () => {
     expect(t('searchPlaceholder', 'en')).toBe('Search');
     expect(t('resizeSidebar', 'en')).toBe('Resize sidebar');
     expect(t('memoryTopology', 'zh-CN')).toBe('内存拓扑');
+    expect(t('hardwareInfoMissing', 'en')).toBe('Missing hardware info');
+    expect(t('hardwareInfoMissing', 'zh-CN')).toBe('缺少 hardware info');
   });
 
   it('localizes lane category labels when categoryKey is set', () => {
