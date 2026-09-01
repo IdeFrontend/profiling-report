@@ -126,7 +126,11 @@ const durationCoreUtilPercent = computed(() => {
   return Math.min(100, Math.max(0, (block / cores) * 100));
 });
 
-const durationBarWidthPercent = computed(() => durationCoreUtilPercent.value ?? 15);
+const durationBarWidthPercent = computed(() => {
+  const util = durationCoreUtilPercent.value;
+  if (util == null) return 15;
+  return Math.round(util * 1000) / 1000;
+});
 
 const durationSecondary = computed(() => {
   const s = summary.value;
@@ -1057,6 +1061,7 @@ function backToReport() {
 }
 
 .pr-card__bar-fill--duration {
+  min-width: 0;
   background: var(--pr-color-duration-bar);
 }
 

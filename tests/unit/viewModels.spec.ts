@@ -251,6 +251,14 @@ describe('PR-VM: report view-models (interim)', () => {
 
     delete parsed.payloads['HardwareInfo.jsonl'];
     expect(adaptRep(parsed).reportModel.summary.coreCount).toBeUndefined();
+
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      '{"category":"AI Core Information","aic_cube_count":24,"aic_vector_count":48,"aic_core_count":24}',
+    );
+    parsed.payloads['OpBasicInfo.csv'] = new TextEncoder().encode(
+      'Op Name,Op Type,Task Duration(us),Block Dim\nx,cube,1,8\n',
+    );
+    expect(adaptRep(parsed).reportModel.summary.coreCount).toBe(24);
   });
 
   it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {

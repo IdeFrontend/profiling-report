@@ -387,6 +387,15 @@ describe('StatsAside', () => {
       },
     });
     expect(decorative.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 15%');
+
+    const zero = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, blockDim: 0, coreCount: 72, opType: 'vector' },
+        }),
+      },
+    });
+    expect(zero.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 0%');
   });
 
   it('PR-STATS-011: compute/util are N/A placeholders; BW not from summary.ioBandwidth', () => {

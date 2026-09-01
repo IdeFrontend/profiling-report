@@ -107,6 +107,8 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 | `summary.ioBandwidth` only | No BW cards (need `bandwidthCards`) |
 | Bandwidth side all NA | That aic/aiv column omitted; card omitted if both sides NA |
 | Duration without blockDim or opName | Duration card; no secondary line |
+| `coreCount` absent | Duration bar decorative ~15%; secondary uses blockDim only |
+| `blockDim` = 0 with `coreCount` | Duration bar width 0% (no 2px sliver) |
 | No pid / opType / blockDim | Meta segments hidden; meta row still shows **更多** + cannbot |
 | Freq-only summary (`currentFreq` / `ratedFreq`) | No meta segments; meta row still shows **更多** + cannbot |
 | No `hardwareDetails` on model | **更多** opens overlay with **缺少 hardware info** |

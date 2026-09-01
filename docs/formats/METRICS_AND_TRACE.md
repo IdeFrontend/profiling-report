@@ -49,7 +49,7 @@ Sample row (abridged):
 | Op Name | `add_custom` | Title / breadcrumb |
 | Op Type | `vector` | Badge / filter |
 | Task Duration(us) | `1.800036` | Total time |
-| Block Dim | `8` | Aside **Blocks**; I-Q6e iterations/core |
+| Block Dim | `8` | Aside **Blocks**; duration secondary + bar util (I-Q6e / HQ 1–32) |
 | Mix Block Dim | `NA` | Mix mode (later) |
 | Device Id | `0` | Device label |
 | Pid | process id | Aside **进程** |

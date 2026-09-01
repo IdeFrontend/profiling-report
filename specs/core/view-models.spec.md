@@ -68,7 +68,8 @@ I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q6g, I-Q5+, I-Q7a, I-Q11a–f. [rep-format]
 Q6 — Product-final summary formulas (compute / avg util still open; bandwidth I-Q6g). Q11 — Product-final roofline.
 
 ## Changelog
-- **2026-08-25** — Aside meta is 进程 / 算子类型 / Blocks (`pid` / `opType` / `blockDim`); drop `coreCount` / `npuArchLabel`.
+- **2026-09-01** — `summary.coreCount` from `HardwareInfo.jsonl` by op type for duration bar/secondary (HQ 1/32, PR-VM-014).
+- **2026-08-25** — Aside meta is 进程 / 算子类型 / Blocks (`pid` / `opType` / `blockDim`); `coreCount` is not a meta-row field.
 - **2026-08-21** — UB/Vec arrows: `ub_read_*` = leaving UB (`out.rep` add 2:1, PR-VM-011).
 - **2026-08-20** — npu-compute 0818: duration / measured BW / ICache / HardwareInfo.jsonl / L2↔L1 / NA-hide confirmed; UB product names first (PR-VM-010/011).
 - **2026-08-19** — I-Q6g peak is sketch 1600 GB/s (not max of measured); `bandwidthCards` optional (PR-VM-013).
