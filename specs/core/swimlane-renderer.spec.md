@@ -38,7 +38,7 @@ class CanvasSwimlaneRenderer {
 
 **Cursor.** Vertical cursor stroke uses `#317AF7` to match axis `.pr-cursor`. Swimlane paints the follow-bar as a DOM overlay in `SwimlaneView` (under Card strips); Canvas/WebGL renderers no longer stroke the cursor.
 
-**WebGL intervals.** Analytical horizontal coverage-AA combined with SDF round-rect via `min(hCoverage, rrShape)` uses **source-over** (premultiplied) blending so nested/overlapping events match Canvas compositing — not additive Sudu-style blend. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
+**WebGL intervals.** Analytical horizontal coverage-AA combined with SDF round-rect via `min(hCoverage, rrShape)`. The FS emits **straight RGB × coverage with alpha constant 1.0**, and blending is **additive** `(ONE, ONE, ONE, ONE)`: each overlapping event contributes `cov·dim·rgb`, accumulating the results of all fills at a pixel (no source-over compositing). All RGB/alpha factors are `ONE` because the output alpha is always 1.0, making `SRC_ALPHA` ≡ `ONE`. This is safe because a lane never contains nested or intersecting events — their horizontal spans are mutually exclusive — so no same-color overdraw can accumulate within a lane; instead the accumulation is exactly what we want: every device pixel sums the event coverage of **all** events (across lanes) that intersect it. Interval endpoints are uploaded relative to `model.minTime` via `encodeIntervalPair`, keeping `end > start` after float32 rounding.
 
 **Dependency curves.** On selection, WebGL draws an instanced cubic strip **2 device pixels** wide (one instance per link; pan/zoom via uniforms). Canvas fallback strokes the same cubic with a pred→succ linear gradient. See [DependencyLinksLayer](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/DependencyLinksLayer.spec.md). `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` are optional; Canvas and WebGL implement them, and `SwimlaneCanvas` calls them with `?.`.
 
@@ -80,6 +80,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-08-31** — WebGL interval fills switch to **additive** blending `(ONE, ONE, ONE, ONE)` with straight-RGB output (alpha constant 1.0): overlapping events accumulate `cov·dim·rgb`, replacing source-over premul. Safe because events within one lane never nest/intersect (mutually exclusive spans); each device pixel accumulates the event coverage of **all** events across lanes that intersect it.
 - **2026-08-31** — Corner radius is now a CSS-pixel policy (`minRR`/`maxRR`/`rrSwitchThreshold` in `shaders.ts`): 1 CSS px when raw CSS width < 4, else 2 CSS px, then × dpr. WebGL uploads the `vec3` `uRR`: radii round to integer device px, threshold stays exact; Canvas `eventRadius(cssW, dpr)` uses the same constants. (PR-RENDER-017, PR-RENDER-017b)
 - **2026-08-31** — WebGL FS: combine sudu `hCoverage` with SDF round-rect via `min` (not multiply).
 - **2026-08-28** — WebGL: restore SDF round-rect on top of sudu horizontal coverage AA (radius 1/2 device px; `uYBounds` for Y).
