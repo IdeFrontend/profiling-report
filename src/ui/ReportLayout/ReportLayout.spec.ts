@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ReportLayout from './ReportLayout.vue';
+import { ASIDE_WIDTH_DEFAULT } from '../panelResize';
 
 describe('ReportLayout', () => {
   it('PR-LAYOUT-001: renders main slot', () => {
@@ -36,15 +37,16 @@ describe('ReportLayout', () => {
     expect(wrapper.find('[data-testid="aside-content"]').exists()).toBe(false);
   });
 
-  it('PR-LAYOUT-004: exposes aside resize handle when aside is visible', () => {
+  it('PR-LAYOUT-004: aside is fixed sketch width; no resize handle', () => {
     const wrapper = mount(ReportLayout, {
-      props: { showAside: true, asideWidth: 360 },
+      props: { showAside: true, asideWidth: ASIDE_WIDTH_DEFAULT },
       slots: {
         main: '<div>main</div>',
         aside: '<div data-testid="aside-content">aside</div>',
       },
     });
-    expect(wrapper.find('[data-testid="aside-resize-handle"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="aside-resize-handle"]').exists()).toBe(false);
+    expect(wrapper.attributes('style')).toContain(`--pr-aside-width: ${ASIDE_WIDTH_DEFAULT}px`);
   });
 
   it('PR-LAYOUT-005: main column overflow visible above aside for edge chrome', async () => {
@@ -58,10 +60,10 @@ describe('ReportLayout', () => {
   it('PR-LAYOUT-006: keeps two-column grid when aside is visible (no viewport stack)', async () => {
     const src = (await import('./ReportLayout.vue?raw')).default as string;
     expect(src).toMatch(
-      /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*var\(--pr-aside-width/,
+      /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+var\(--pr-aside-width/,
     );
     const wrapper = mount(ReportLayout, {
-      props: { showAside: true, asideWidth: 360 },
+      props: { showAside: true, asideWidth: ASIDE_WIDTH_DEFAULT },
       slots: {
         main: '<div data-testid="main-content">main</div>',
         aside: '<div data-testid="aside-content">aside</div>',
@@ -69,6 +71,6 @@ describe('ReportLayout', () => {
     });
     expect(wrapper.find('.pr-layout--no-aside').exists()).toBe(false);
     expect(wrapper.find('[data-testid="aside-content"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="aside-resize-handle"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="aside-resize-handle"]').exists()).toBe(false);
   });
 });

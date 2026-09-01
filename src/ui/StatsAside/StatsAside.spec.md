@@ -89,9 +89,11 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 26. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
 27. **PR-STATS-024** — I/O bandwidth cards: aic|aiv columns, duration chrome, GB/s, bar = score%; `out.rep` uses 1600 GB/s peak (~1% score).
 28. **PR-STATS-025** — Black aside shell; grey section islands.
-29. **PR-STATS-026** — CANNBot icons render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility.
-30. **PR-STATS-027** — Icon click emits open-cannbot with scope.
-31. **PR-STATS-031** — Duration bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` set; secondary `{blockDim} / {coreCount}`; decorative 15% when `coreCount` absent.
+29. **PR-STATS-025b** — Section titles (Roofline, PIPE, topology) and **详情** sit on the aside shell outside the `#262626` island; grey panels wrap chart bodies only (toggle + chart for PIPE; diagram for topology).
+30. **PR-STATS-025c** — Summary card grid shares the stack column with grey islands (no horizontal well inset; bottom pad `8px` only).
+31. **PR-STATS-026** — CANNBot icons render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility.
+32. **PR-STATS-027** — Icon click emits open-cannbot with scope.
+33. **PR-STATS-031** — Duration bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` set; secondary `{blockDim} / {coreCount}`; decorative 15% when `coreCount` absent.
 
 ## Edge Cases
 
@@ -127,8 +129,9 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Token | Value |
 |-------|--------|
 | Background | `#1a1a1a` (`--pr-bg-aside`) — shell / gutter between islands (`v930/detail-strip-raised`) |
-| Islands | `#262626` (`--pr-bg-panel`) — Roofline, PIPE, topology; summary cards keep the raised gradient on the same well |
-| Padding | `10px 12px` |
+| Islands | `#262626` (`--pr-bg-panel`) — Roofline chart card, PIPE chart body, topology diagram; summary cards keep the raised gradient on the same well |
+| Section titles | On the aside shell **outside** grey islands — **计算负载分析**, **内存负载分析**, Roofline title (see child specs); **详情** aligns with the title row |
+| Padding | `10px 12px` (content well **444px** at fixed **468px** aside column) |
 | Title | `16px` / `600` / `#ffffff` / line-height `22px` |
 | Chart icon | `16×16` L-axis + sparkline stroke, `#e6e6e6` |
 | Close / back | stroke SVG `14×14`, `#e6e6e6` (rounded caps; not `×` / `←` glyphs) |
@@ -141,7 +144,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 
 | Token | Value |
 |-------|--------|
-| Well | `#1a1a1a` (`--pr-bg-aside`); padding `8px` (keeps bottom band before the next stack section); radius `8px`; gap `8px` |
+| Well | `#1a1a1a` (`--pr-bg-aside`); **bottom** padding `8px` only (band before next stack section); tile left/right edges align with grey islands below |
 | Columns | `repeat(6, minmax(0, 1fr))` — top-row tiles (duration + compute/util placeholders) `span 2`; BW `span 3` |
 
 ### Duration card (`summary-cards.png` / `detail-strip-raised` cell)
@@ -181,8 +184,9 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 | Token | Value |
 |-------|--------|
+| Section head | Title + **详情** on `--pr-bg-aside` (outside island); `gap` `8px` to the island below |
 | Panel | `#262626` (`--pr-bg-panel`), radius `4px`, padding `12px 10px 10px` |
-| Title | `14px` / `600` / `#ffffff` — **计算负载分析** |
+| Title | `14px` / `600` / `#ffffff` — **计算负载分析** (on aside shell, not inside panel) |
 | 详情 | `12px` / `#e6e6e6` |
 | Cube\|Vector | pill `#111111`; active `#343434` / `#ffffff`; inactive `#b3b3b3`; radius `4px`; label `12px` |
 | Chart well | `#202020`, radius `4px`, padding `10px 8px 12px` |
@@ -213,6 +217,8 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-08-31** — Summary grid drops horizontal well inset so card edges align with stack islands (PR-STATS-025c).
+- **2026-08-31** — Section titles + **详情** on aside shell outside grey islands (PR-STATS-025b); PIPE/topo panels wrap chart bodies only.
 - **2026-08-28** — Card bar tracks use `--pr-bg-aside` so light theme matches the shell.
 - **2026-08-28** — Aside shell `#1a1a1a` (`--pr-bg-aside`); islands `#262626` (`--pr-bg-panel`) from `v930/detail-strip-raised` (PR-STATS-025).
 - **2026-08-27** — Gate compute/util N/A placeholders on duration (PR-STATS-011b) so BW-only summaries stay rectangular.

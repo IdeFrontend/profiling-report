@@ -896,8 +896,51 @@ describe('StatsAside', () => {
     expect(src).toMatch(/\.pr-cards\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
     expect(src).toMatch(/\.pr-card__bar-track\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
     expect(src).toMatch(
-      /\.pr-panel--pipe,\s*\.pr-panel--topo,\s*\.pr-panel--roofline\s*\{[^}]*background:\s*var\(--pr-bg-panel\)/s,
+      /\.pr-panel--pipe,\s*\.pr-panel--topo\s*\{[^}]*background:\s*var\(--pr-bg-panel\)/s,
     );
+  });
+
+  it('PR-STATS-025c: summary grid aligns with stack islands (no horizontal well inset)', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-cards\s*\{[^}]*padding:\s*0\s+0\s+8px/s);
+  });
+
+  it('PR-STATS-025b: section titles sit outside grey islands', () => {
+    const pipes = [
+      { id: 'cube', label: 'Cube', ratio: 0.8, colorKey: 'cube', side: 'cube' as const },
+    ];
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1, opType: 'cube' },
+          pipeOccupancy: pipes,
+          roofline: {
+            points: [{ id: 'p1', label: 'x', intensity: 1, performance: 1, style: 'solid' }],
+            mixLabels: [],
+            peakComputeTops: 10,
+            peakBandwidthGBs: 1000,
+          },
+          memoryTopology: {
+            nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
+            edges: [{ id: 'gm-l2-read', from: 'gm', to: 'l2', label: '1 GB/s' }],
+          },
+        }),
+      },
+    });
+
+    const pipeSection = wrapper.get('[data-testid="pipe-occupancy"]');
+    expect(pipeSection.find('.pr-stack-section__head h4').exists()).toBe(true);
+    expect(pipeSection.find('.pr-panel--pipe .pr-stack-section__head').exists()).toBe(false);
+    expect(pipeSection.find('.pr-panel--pipe').exists()).toBe(true);
+
+    const topoSection = wrapper.get('[data-testid="stats-topology"]');
+    expect(topoSection.find('.pr-stack-section__head h4').exists()).toBe(true);
+    expect(topoSection.find('.pr-panel--topo .pr-stack-section__head').exists()).toBe(false);
+
+    const rooflineSection = wrapper.get('[data-testid="stats-roofline"]');
+    expect(rooflineSection.find('.pr-panel').exists()).toBe(false);
+    expect(rooflineSection.find('.pr-roofline__title').exists()).toBe(true);
+    expect(rooflineSection.find('.pr-roofline__card').exists()).toBe(true);
   });
 
   it('PR-STATS-026: cannbot icon entries render in summary, compute and memory sections', () => {
