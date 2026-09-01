@@ -184,7 +184,7 @@ Hide `RooflinePanel` when no GM point can be derived.
 ### Visualization logic
 
 - Horizontal 0–100% tracks with a percent scale above the rows; solid fill = ratio; hatched remainder to 100%.
-- In-bar absolute ([I-Q6f](../context/INTERIM_DECISIONS.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
+- In-bar absolute (HQ 18, [I-Q6f](../context/INTERIM_DECISIONS.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
 - **详情** opens the compute CSV overlay (`CsvFieldListPanel`) and emits `open-pipe-details`.
 - Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([I-Q6b](../context/INTERIM_DECISIONS.md)); detail tabs are block-scoped ([I-Q6c](../context/INTERIM_DECISIONS.md)).
 - Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).

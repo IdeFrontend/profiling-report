@@ -10,7 +10,7 @@ When a question is answered: write it into the owning specs and **remove** it fr
 
 Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · one annotated crop per question below · sources [`docs/ui/source/v930/`](../ui/source/v930/) · component crops under `src/ui/**/visual/` ([regenerate](visual/hq/README.md))
 
-**Numbering.** This ledger is **HQ 1–36** (`q1.png`…`q36.png`). It is not the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
+**Numbering.** HQ ids stay stable for cross-references in specs (`HQ 30–31`, `HQ 34`, etc.). When Product answers, write the decision into owning specs and **remove** the Q block (and `qN.png` crop) from this ledger — gaps in `q1.png`…`q36.png` are expected. This ledger is **not** the Q1–Q23 space in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — resolved OPEN Q22 (measure aside) is not HQ 22 (UB→L2/GM).
 
 - **ANSWERED** — Product answered (source: [`355b2688f3684479b0b2b038a3b64513.docx`](../../355b2688f3684479b0b2b038a3b64513.docx), 2026-08-31). Write into owning specs and remove from this ledger in the same change.
 - **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.
@@ -174,11 +174,6 @@ This card is hidden until we have answers.
 
 These bars are already on screen. Please confirm.
 
-<img src="visual/hq/q18.png" alt="Q18 number inside the bar" width="900" height="524">
-
-18. The number **inside** the bar (for example `301001.38`) — is it time (`*_time(us)`) or cycles (`*_total_cycles`)?
-    - **ANSWERED** — Show **cost time**: mean of non-`NA` `*_time(us)` for the same family/side as the ratio (`PipeUtilization.csv`). Not cycles. **Implemented** (I-Q6f).
-
 ---
 
 <img src="visual/hq/q19.png" alt="Q19 详情 overlay (selected block)" width="900" height="315">
@@ -296,7 +291,7 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 <img src="visual/hq/q32.png" alt="Q32 duration bar" width="600" height="370">
 
 32. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
-    - **ANSWERED** — Real percent: `Block Dim / core_count × 100%` (core_count per Q1 from `HardwareInfo.jsonl`). Clamp display at **100%** when ratio exceeds 1. Overrides [I-Q6e](INTERIM_DECISIONS.md) decorative bar.
+    - **ANSWERED** — Real percent: `Block Dim / core_count × 100%` (core_count per Q1 from `HardwareInfo.jsonl`). Clamp display at **100%** when ratio exceeds 1. **Next slice** — code still uses [I-Q6e](INTERIM_DECISIONS.md) decorative bar until slice 2 lands.
 
 ### 算力情况 (Compute power)
 

@@ -116,7 +116,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
 | Aggregation | **Interim ([I-Q6b](../context/INTERIM_DECISIONS.md)):** mean of non-`NA` ratios per pipe family |
-| Absolute in-bar | **Optional ([I-Q6f](../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)`; omit when NA |
+| Absolute in-bar | **Confirmed (HQ 18, [I-Q6f](../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)` for the family/side; omit when all NA |
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
 | ICache Miss | **Confirmed:** `aic_icache_miss_rate` / `aiv_icache_miss_rate` when the mean is present |

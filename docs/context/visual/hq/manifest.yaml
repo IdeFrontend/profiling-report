@@ -132,13 +132,6 @@ images:
       - label: "Q17 tabs"
         box: { x: 10, y: 195, w: 1000, h: 90 }
 
-  q18:
-    source_file: src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png
-    maxWidth: 900
-    highlights:
-      - label: "Q18 in-bar"
-        box: { x: 250, y: 275, w: 280, h: 50 }
-
   q19:
     source_file: src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png
     maxWidth: 900

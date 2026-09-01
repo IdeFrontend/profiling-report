@@ -94,3 +94,4 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | Q20 | 2026-08-12 | Shared agent rules in AGENTS.md (+ nested spec guides); Cursor-only review auto-post; skills in `.agents/skills/` | AGENTS.md, CLAUDE.md |
 | OPEN Q22 | 2026-08-25 | Measure mode does **not** recompute right panel / other views (local overlay only). Not HQ 22. | [INTERACTIONS](../ui/INTERACTIONS.md), [UX_SPEC](../ui/UX_SPEC.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | HQ 37 | 2026-08-28 | CSV 详情 search filters non-matching rows and highlights the matching substring (flush chip). Same on compute and memory. | [CsvFieldListPanel](../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md), [UX_SPEC](../ui/UX_SPEC.md) |
+| HQ 18 | 2026-08-31 | PIPE in-bar absolute = mean non-`NA` `*_time(us)` per family/side (not cycles) | [INTERIM_DECISIONS](INTERIM_DECISIONS.md) I-Q6f, [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |
