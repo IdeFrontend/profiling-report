@@ -862,6 +862,389 @@ describe('SwimlaneView', () => {
     wrapper.unmount();
   });
 
+  it('PR-SWIMVIEW-021: pin↔body bridge survives when one edge is time-clipped', async () => {
+    const { nextTick } = await import('vue');
+    const {
+      ALT_MEASURE_FIND_EVENT_KEY,
+      ALT_MEASURE_SHARED_KEY,
+      createAltMeasureShared,
+    } = await import('./altMeasureShared');
+
+    const roHandles: { fire: () => void }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        private el: Element | null = null;
+        constructor(private cb: ResizeObserverCallback) {
+          roHandles.push(this);
+        }
+        observe(el: Element) {
+          this.el = el;
+          this.fire();
+        }
+        fire() {
+          if (!this.el) return;
+          const wrap = this.el.closest('[data-testid="swimlane"]') as HTMLElement | null;
+          const w = wrap?.clientWidth ?? 0;
+          const h = wrap?.clientHeight ?? 0;
+          if (w <= 0 || h <= 0) return;
+          this.cb(
+            [
+              {
+                target: this.el,
+                devicePixelContentBoxSize: [{ inlineSize: w, blockSize: h }],
+                contentBoxSize: [{ inlineSize: w, blockSize: h }],
+                borderBoxSize: [],
+                contentRect: this.el.getBoundingClientRect(),
+              } as unknown as ResizeObserverEntry,
+            ],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'l1',
+              name: 'Pinned',
+              events: [{ id: 'eA', name: 'a', startTime: 100, duration: 100 }],
+            },
+            {
+              id: 'l2',
+              name: 'Body',
+              events: [{ id: 'eB', name: 'b', startTime: 400, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    // Clip the earlier edge (anchor end = 200) out of the window; later edge stays in.
+    const view = { startTime: 300, endTime: 1000, scrollY: 0 };
+    const pinnedModel = {
+      minTime: 0,
+      maxTime: 1000,
+      skipCardHeaders: true as const,
+      processes: [
+        {
+          id: 'pinned',
+          name: '',
+          threads: [
+            {
+              id: 'l1',
+              name: 'Pinned',
+              events: [{ id: 'eA', name: 'a', startTime: 100, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const shared = createAltMeasureShared();
+    const findEvent = (id: string) => {
+      for (const t of model.processes[0]!.threads) {
+        const ev = t.events.find((e) => e.id === id);
+        if (ev) return ev;
+      }
+      return null;
+    };
+    const provide = {
+      [ALT_MEASURE_SHARED_KEY as symbol]: shared,
+      [ALT_MEASURE_FIND_EVENT_KEY as symbol]: findEvent,
+    };
+    const nullProps = {
+      selectedEventId: null,
+      hoveredEventId: null,
+      searchQuery: '',
+      measureMode: false,
+      measureRange: null,
+      preferRenderer: 'canvas' as const,
+      view,
+    };
+
+    async function sizeAndRefresh(wrapper: ReturnType<typeof mount>, modelProp: unknown) {
+      const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+      Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+      Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+      Object.defineProperty(wrap, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      });
+      const canvas = wrapper.find('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+      Object.defineProperty(canvas, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      });
+      await wrapper.setProps({ model: modelProp as never });
+      await nextTick();
+      for (const ro of roHandles) ro.fire();
+      await nextTick();
+    }
+
+    const strip = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: pinnedModel,
+        altMeasureRole: 'strip',
+        pinnedLaneIds: ['l1'],
+      },
+      global: { provide },
+      attachTo: document.body,
+    });
+    const body = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model,
+        altMeasureRole: 'body',
+        pinnedLaneIds: ['l1'],
+      },
+      global: { provide },
+      attachTo: document.body,
+    });
+    await sizeAndRefresh(strip, { ...pinnedModel });
+    await sizeAndRefresh(body, { ...model });
+
+    shared.anchorId = 'eA';
+    shared.anchorSurface = 'strip';
+    shared.target = { eventId: 'eB', time: 400, surface: 'body' };
+    shared.pinned = true;
+    shared.altKeyHeld = false;
+    await nextTick();
+
+    type Bridge = { clientX: number; clientY: number; time: number } | null;
+    const stripEp = (
+      strip.vm as unknown as { $: { exposed: { altMeasureBridgeEndpoint: () => Bridge } } }
+    ).$.exposed.altMeasureBridgeEndpoint();
+    const bodyEp = (
+      body.vm as unknown as { $: { exposed: { altMeasureBridgeEndpoint: () => Bridge } } }
+    ).$.exposed.altMeasureBridgeEndpoint();
+    expect(stripEp).not.toBeNull();
+    expect(bodyEp).not.toBeNull();
+    // Earlier stick is clipped; local stick chrome may hide, but the bridge endpoint remains.
+    expect(strip.find('[data-testid="alt-measure-stick-split"]').exists()).toBe(false);
+    expect(body.find('[data-testid="alt-measure-stick-split"]').exists()).toBe(true);
+
+    strip.unmount();
+    body.unmount();
+    vi.unstubAllGlobals();
+  });
+
+  it('PR-SWIMVIEW-024: strip/body pointerleave keeps ephemeral Alt target', async () => {
+    const { nextTick } = await import('vue');
+    const {
+      ALT_MEASURE_FIND_EVENT_KEY,
+      ALT_MEASURE_SHARED_KEY,
+      createAltMeasureShared,
+    } = await import('./altMeasureShared');
+
+    const roHandles: { fire: () => void }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        private el: Element | null = null;
+        constructor(private cb: ResizeObserverCallback) {
+          roHandles.push(this);
+        }
+        observe(el: Element) {
+          this.el = el;
+          this.fire();
+        }
+        fire() {
+          if (!this.el) return;
+          const wrap = this.el.closest('[data-testid="swimlane"]') as HTMLElement | null;
+          const w = wrap?.clientWidth ?? 0;
+          const h = wrap?.clientHeight ?? 0;
+          if (w <= 0 || h <= 0) return;
+          this.cb(
+            [
+              {
+                target: this.el,
+                devicePixelContentBoxSize: [{ inlineSize: w, blockSize: h }],
+                contentBoxSize: [{ inlineSize: w, blockSize: h }],
+                borderBoxSize: [],
+                contentRect: this.el.getBoundingClientRect(),
+              } as unknown as ResizeObserverEntry,
+            ],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'l1',
+              name: 'Pinned',
+              events: [{ id: 'eA', name: 'a', startTime: 100, duration: 100 }],
+            },
+            {
+              id: 'l2',
+              name: 'Body',
+              events: [{ id: 'eB', name: 'b', startTime: 400, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const view = { startTime: 0, endTime: 1000, scrollY: 0 };
+    const pinnedModel = {
+      minTime: 0,
+      maxTime: 1000,
+      skipCardHeaders: true as const,
+      processes: [
+        {
+          id: 'pinned',
+          name: '',
+          threads: [
+            {
+              id: 'l1',
+              name: 'Pinned',
+              events: [{ id: 'eA', name: 'a', startTime: 100, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const shared = createAltMeasureShared();
+    const findEvent = (id: string) => {
+      for (const t of model.processes[0]!.threads) {
+        const ev = t.events.find((e) => e.id === id);
+        if (ev) return ev;
+      }
+      return null;
+    };
+    const provide = {
+      [ALT_MEASURE_SHARED_KEY as symbol]: shared,
+      [ALT_MEASURE_FIND_EVENT_KEY as symbol]: findEvent,
+    };
+    const nullProps = {
+      selectedEventId: null,
+      hoveredEventId: null,
+      searchQuery: '',
+      measureMode: false,
+      measureRange: null,
+      preferRenderer: 'canvas' as const,
+      view,
+    };
+
+    async function sizeAndRefresh(wrapper: ReturnType<typeof mount>, modelProp: unknown) {
+      const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+      Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+      Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+      Object.defineProperty(wrap, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      });
+      const canvas = wrapper.find('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+      Object.defineProperty(canvas, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+      });
+      await wrapper.setProps({ model: modelProp as never });
+      await nextTick();
+      for (const ro of roHandles) ro.fire();
+      await nextTick();
+    }
+
+    const strip = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: pinnedModel,
+        altMeasureRole: 'strip',
+        pinnedLaneIds: ['l1'],
+      },
+      global: { provide },
+      attachTo: document.body,
+    });
+    const body = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model,
+        altMeasureRole: 'body',
+        pinnedLaneIds: ['l1'],
+      },
+      global: { provide },
+      attachTo: document.body,
+    });
+    await sizeAndRefresh(strip, { ...pinnedModel });
+    await sizeAndRefresh(body, { ...model });
+
+    shared.anchorId = 'eA';
+    shared.anchorSurface = 'strip';
+    shared.target = { eventId: 'eB', time: 400, surface: 'body' };
+    shared.pinned = false;
+    shared.altKeyHeld = true;
+    await nextTick();
+    expect(shared.target?.eventId).toBe('eB');
+
+    await strip.find('[data-testid="swimlane-canvas"]').trigger('pointerleave', {
+      clientX: 10,
+      clientY: -5,
+      pointerId: 1,
+    });
+    await nextTick();
+    expect(shared.target?.eventId).toBe('eB');
+    expect(shared.anchorId).toBe('eA');
+
+    await body.find('[data-testid="swimlane-canvas"]').trigger('pointerleave', {
+      clientX: 10,
+      clientY: -5,
+      pointerId: 1,
+    });
+    await nextTick();
+    expect(shared.target?.eventId).toBe('eB');
+
+    // Solo still clears ephemeral live preview on leave.
+    const soloShared = createAltMeasureShared();
+    const soloProvide = {
+      [ALT_MEASURE_SHARED_KEY as symbol]: soloShared,
+      [ALT_MEASURE_FIND_EVENT_KEY as symbol]: findEvent,
+    };
+    const solo = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model,
+        altMeasureRole: 'solo',
+        pinnedLaneIds: [],
+      },
+      global: { provide: soloProvide },
+      attachTo: document.body,
+    });
+    await sizeAndRefresh(solo, { ...model });
+    soloShared.anchorId = 'eA';
+    soloShared.anchorSurface = 'solo';
+    soloShared.target = { eventId: 'eB', time: 400, surface: 'solo' };
+    soloShared.pinned = false;
+    soloShared.altKeyHeld = true;
+    await nextTick();
+    await solo.find('[data-testid="swimlane-canvas"]').trigger('pointerleave', {
+      clientX: 10,
+      clientY: -5,
+      pointerId: 1,
+    });
+    await nextTick();
+    expect(soloShared.anchorId).toBe('eA');
+    expect(soloShared.target).toBeNull();
+
+    strip.unmount();
+    body.unmount();
+    solo.unmount();
+    vi.unstubAllGlobals();
+  });
+
   it('PR-SWIMVIEW-022: free-cursor Alt target paints cursor line on strip and body', async () => {
     const { nextTick } = await import('vue');
     const {

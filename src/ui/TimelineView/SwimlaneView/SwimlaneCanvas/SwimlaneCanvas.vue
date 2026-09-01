@@ -1483,7 +1483,8 @@ const altEventMeasureGeometry = computed(() => {
 /** Client-space endpoint for SwimlaneView's pin↔body vertical bridge. */
 function altMeasureBridgeEndpoint(): { clientX: number; clientY: number; time: number } | null {
   const g = altEventMeasureGeometry.value;
-  if (!g || g.mode !== 'split' || !('stickX' in g) || !g.showStick) return null;
+  // Keep the bridge when an edge is time-clipped (showStick false); stack clips overflow.
+  if (!g || g.mode !== 'split' || !('stickX' in g)) return null;
   const wrap = wrapRef.value;
   if (!wrap) return null;
   const r = wrap.getBoundingClientRect();
@@ -1720,8 +1721,9 @@ function onPointerLeave(e: PointerEvent): void {
   lastHoverLocalX = null;
   lastHoverLocalY = null;
   hoverGap.value = null;
-  // Keep pinned target; ephemeral live preview clears on leave.
-  if (!altMeasure.pinned) altMeasure.target = null;
+  // Shared strip↔body session: leave on one canvas must not blank the sibling's target mid-crossing.
+  // Solo keeps clearing ephemeral live preview on leave.
+  if (!altMeasure.pinned && props.altMeasureRole === 'solo') altMeasure.target = null;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
