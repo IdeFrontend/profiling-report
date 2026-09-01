@@ -38,6 +38,8 @@ const DELEGATED_SPECS = new Set([
   resolve(ROOT, 'specs', 'architecture', 'public-api.spec.md'),
   resolve(ROOT, 'specs', 'architecture', 'mstt-integration.spec.md'),
   resolve(ROOT, 'specs', 'core', 'input-formats.spec.md'),
+  resolve(ROOT, 'src', 'ui', 'MultiSelectSummary', 'MultiSelectSummary.spec.md'),
+  resolve(ROOT, 'src', 'ui', 'ContextMenu', 'ContextMenu.spec.md'),
 ]);
 
 // ---- gather ----
@@ -66,6 +68,8 @@ for (const file of specFiles) {
 
   const ids = extractIds(section);
   if (ids.length === 0 && !DELEGATED_SPECS.has(file)) specsEmptyAC.push(file);
+
+  if (DELEGATED_SPECS.has(file)) continue;
 
   for (const id of ids) {
     if (!specACs.has(id)) specACs.set(id, new Set());

@@ -46,7 +46,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | ProfilerStep background bands | P2 | Needs data |
 | Dependency bezier links | P2 | `source/v930/entry.jpeg` |
 | Pin lane (gutter pushpin) | P2 | `source/v930/hardware-more-detail.jpeg` |
-| Pin lane / context menu | P2 | `source/v930/task-context-menu.jpeg` (Pin row + Ctrl+P; separate from gutter icon) |
+| Pin lane / context menu | P2 | `source/v930/task-context-menu.jpeg` — [`ContextMenu.spec.md`](../../src/ui/ContextMenu/ContextMenu.spec.md) |
 | Multi-select time slice summary | P2 | `source/v930/entry.jpeg` |
 
 ## Interactions (see also INTERACTIONS.md)
@@ -56,8 +56,8 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Hover tooltip (name, start, dur, end) | M | `source/v930/task-hover.jpeg` |
 | Single select → detail | M | |
 | Multi-select | P2 | |
-| Context menu | P2 | |
-| Timeline time-range measure (度量模式) | M2 | Replaces prior “Measure / cross-lane rulers” row. See Toolbar + [INTERACTIONS](INTERACTIONS.md). Aside is not recomputed for the measured range. |
+| Context menu | P2 | `source/v930/task-context-menu.jpeg` — [`ContextMenu.spec.md`](../../src/ui/ContextMenu/ContextMenu.spec.md) |
+| Timeline time-range measure (度量模式) | M2 | Replaces prior “Measure / cross-lane rulers” row. See Toolbar + [INTERACTIONS](INTERACTIONS.md). Aside sync → [Q22](../context/OPEN_QUESTIONS.md) |
 
 ## Right panel
 

@@ -60,9 +60,9 @@ Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (
 
 ## Context menu
 
-Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
+Sketch: `source/v930/task-context-menu.jpeg` — spec: [`ContextMenu.spec.md`](../../src/ui/ContextMenu/ContextMenu.spec.md)
 
-- Right-click lane or event → menu (e.g. **Pin row** + Ctrl+P, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
+- Right-click lane or event → menu (整屏显示 / Fit to screen, 隐藏 / Hide, 在事件视图中显示 / Show in event view; deferred items in the spec).
 
 **Phase 2+.**
 
