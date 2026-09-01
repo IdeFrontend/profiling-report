@@ -40,16 +40,16 @@ Relevant existing MSTT touchpoints (paths may drift; search symbols):
 2. **Open dispatch:** branch `openPerformanceFile` / `ViewOpener` for `.rep` / `.ncrep` **and** Chrome Trace `.json` → profiling-report panel; keep `.bin` → `openInsight`.
 3. **Panel registration:** flavor/constants panel type id; contribute to `package.json` views/commands as needed.
 4. **Dependency:** workspace package or npm link to profiling-report; Vite resolves Vue SFC from the library.
-5. **i18n:** strings for “Profiling report”, load errors, etc.
+5. **i18n:** host-owned strings for “Profiling report”, load errors, etc. Map IDE/extension language → `locale` (`zh-CN` \| `en`, or `zh*` / `en*` prefixes) and pass it into the library. Library chrome uses [`src/i18n`](../../src/i18n/index.ts); see [LOCALIZATION.md](../ui/LOCALIZATION.md).
 
 ## Message split (optional)
 
 If the panel HTML is thin and the library runs entirely in the webview:
 
-- Extension → webview: `{ type: 'load', bytes: ArrayBuffer, fileName, theme, locale }`
+- Extension → webview: `{ type: 'load', bytes: ArrayBuffer, fileName, theme, locale }` (and theme/locale push messages when the IDE language changes)
 - Webview → extension: `{ type: 'ready' | 'error' | 'select', … }`
 
-Prefer feeding the library via Vue props inside the webview when possible; use postMessage only for host capabilities (save dialog, open external, theme push).
+Prefer feeding the library via Vue props inside the webview when possible (`:locale="locale"`); use postMessage only for host capabilities (save dialog, open external, theme/locale push).
 
 **查看全部 (I-Q6d):** when the library emits `view-full-csv` with `{ fileName, text }`, the host should open the CSV in a **new editor tab** (or equivalent). Playground may use a blob URL in a new browser tab.
 

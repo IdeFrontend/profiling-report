@@ -4,6 +4,7 @@ import {
   buildAxisRulerTicks,
   resolveTimeUnitFromAxisDensity,
 } from '../../../domain/axisRuler';
+import { t } from '../../../i18n';
 import { bindWindowPointerDrag } from '../measureEdgeResize';
 import AxisRuler from '../TimeAxis/AxisRuler/AxisRuler.vue';
 
@@ -12,6 +13,7 @@ const props = defineProps<{
   maxTime: number;
   startTime: number;
   endTime: number;
+  locale?: string;
 }>();
 
 const emit = defineEmits<{
@@ -187,7 +189,7 @@ function onTrackPointerDown(e: PointerEvent) {
         type="button"
         class="pr-overview__handle pr-overview__handle--left"
         data-testid="time-overview-handle-left"
-        aria-label="Visible range start"
+        :aria-label="t('visibleRangeStart', locale)"
         :style="{ left: `${leftPct}%` }"
         @pointerdown="onPointerDown($event, 'left')"
       >
@@ -204,7 +206,7 @@ function onTrackPointerDown(e: PointerEvent) {
         type="button"
         class="pr-overview__handle pr-overview__handle--right"
         data-testid="time-overview-handle-right"
-        aria-label="Visible range end"
+        :aria-label="t('visibleRangeEnd', locale)"
         :style="{ left: `${rightPct}%` }"
         @pointerdown="onPointerDown($event, 'right')"
       >

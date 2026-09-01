@@ -52,6 +52,25 @@ const preferRenderer = computed((): PreferRenderer => {
   return 'auto';
 });
 
+type PlaygroundLocale = 'zh-CN' | 'en';
+
+function localeFromQuery(): PlaygroundLocale {
+  const loc = readQuery().get('locale')?.toLowerCase() ?? '';
+  if (loc.startsWith('en')) return 'en';
+  return 'zh-CN';
+}
+
+const locale = ref<PlaygroundLocale>(localeFromQuery());
+
+function setLocale(next: PlaygroundLocale) {
+  locale.value = next;
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (next === 'zh-CN') url.searchParams.delete('locale');
+  else url.searchParams.set('locale', next);
+  window.history.replaceState({}, '', url);
+}
+
 const title = computed(() => {
   if (openedName.value) return openedName.value;
   const kind = queryFixture.value;
@@ -267,6 +286,31 @@ onMounted(async () => {
           :href="stressHref(stressPreset, 'canvas')"
           data-testid="renderer-canvas"
         >canvas</a>
+        <span class="playground__sep">·</span>
+        <span
+          class="playground__locale"
+          role="group"
+          aria-label="Locale"
+        >
+          <button
+            type="button"
+            class="playground__locale-btn"
+            :class="{ 'playground__locale-btn--active': locale === 'zh-CN' }"
+            data-testid="locale-zh"
+            @click="setLocale('zh-CN')"
+          >
+            zh
+          </button>
+          <button
+            type="button"
+            class="playground__locale-btn"
+            :class="{ 'playground__locale-btn--active': locale === 'en' }"
+            data-testid="locale-en"
+            @click="setLocale('en')"
+          >
+            en
+          </button>
+        </span>
         <a
           href="#"
           data-testid="open-file"
@@ -303,7 +347,7 @@ onMounted(async () => {
         :source="source"
         :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
-        locale="zh-CN"
+        :locale="locale"
         @view-full-csv="onViewFullCsv"
       />
       <ProfilingReport
@@ -313,7 +357,7 @@ onMounted(async () => {
         :swimlane-model="stressModel"
         :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
-        locale="zh-CN"
+        :locale="locale"
         @view-full-csv="onViewFullCsv"
       />
       <div
@@ -378,6 +422,29 @@ body,
 
 .playground__sep {
   opacity: 0.4;
+}
+
+.playground__locale {
+  display: inline-flex;
+  border: 1px solid #444;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.playground__locale-btn {
+  appearance: none;
+  margin: 0;
+  padding: 2px 8px;
+  border: 0;
+  background: transparent;
+  color: #aaa;
+  font: inherit;
+  cursor: pointer;
+}
+
+.playground__locale-btn--active {
+  background: #333;
+  color: #fff;
 }
 
 .playground__file {

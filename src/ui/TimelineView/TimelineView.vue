@@ -507,6 +507,7 @@ defineExpose({
         :max-time="bounds.maxTime"
         :start-time="view.startTime"
         :end-time="view.endTime"
+        :locale="locale"
         @update:window="emit('update:window', $event)"
       />
     </div>

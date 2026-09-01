@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { t } from '../../../../i18n';
+import { laneCategoryLabel, t } from '../../../../i18n';
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
 import type { GutterLane } from './gutterTypes';
@@ -27,6 +27,9 @@ const isFolder = computed(() => props.lane.children !== undefined);
 const isCollapsed = computed(() => collapsed.value.has(props.lane.id));
 const isPinned = computed(() => pinned.value.has(props.lane.id));
 const pinLabel = computed(() => t('pin', props.locale));
+const displayName = computed(() =>
+  laneCategoryLabel(props.lane.categoryKey, props.lane.name, props.locale),
+);
 const pinPointerHover = ref(false);
 const laneExternallyHovered = computed(
   () => !isFolder.value && props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
@@ -74,8 +77,8 @@ function onPinClick(e: MouseEvent) {
       />
       <span
         class="pr-gutter__name"
-        :title="lane.name"
-      >{{ lane.name }}</span>
+        :title="displayName"
+      >{{ displayName }}</span>
     </span>
     <span
       v-if="lane.utilization != null"
@@ -153,8 +156,8 @@ function onPinClick(e: MouseEvent) {
     <span class="pr-gutter__lane-main">
       <span
         class="pr-gutter__name"
-        :title="lane.name"
-      >{{ lane.name }}</span>
+        :title="displayName"
+      >{{ displayName }}</span>
     </span>
     <span
       v-if="lane.utilization != null"

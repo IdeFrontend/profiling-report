@@ -5,6 +5,8 @@ export type GutterLane = {
   color: string;
   /** Present ⇒ folder (may be [] when collapsed). */
   children?: GutterLane[];
+  /** When set, gutter localizes the label via i18n lane* keys. */
+  categoryKey?: 'comm' | 'compute' | 'hbm';
 };
 
 export type GutterGroup = {

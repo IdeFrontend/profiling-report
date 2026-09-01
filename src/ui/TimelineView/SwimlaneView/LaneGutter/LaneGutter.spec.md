@@ -10,13 +10,14 @@ Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detai
 
 ## Inputs
 
-**groups** is an array of Card groups `{ id, name, lanes }` where each lane is a recursive node `{ id, name, color, utilization?, children? }`.
+**groups** is an array of Card groups `{ id, name, lanes }` where each lane is a recursive node `{ id, name, color, utilization?, children?, categoryKey? }`.
 
 - **Card** (`SwimProcess`) → group header only.
 - **Nested folder** (`children` non-empty) → lane-style row with chevron + util; no canvas events.
 - **Leaf** (no children) → lane row; util optional.
+- **`categoryKey`** (`comm` \| `compute` \| `hbm`) — when set, gutter shows the localized label (`t(lane*)`) instead of raw `name`.
 
-Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneName` and reading `utilization` from each node. Flat CTEF (no `children`) still works as Card → leaf lanes.
+Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneName` and reading `utilization` / `categoryKey` from each node. Flat CTEF (no `children`) still works as Card → leaf lanes.
 
 **collapsedIds** (optional `string[]`) — ids of Cards or nested folders whose **descendants** are hidden (the collapsed node row itself stays visible for nested folders; collapsing a Card hides all its lanes). Parent owns collapse so the canvas mirrors the visible row set (`displaySwim`).
 
@@ -125,6 +126,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 10. **PR-GUTTER-011** — Unpinned outline `#a8a8a8` on lane hover; pinned/pin-hover solid `#4a90e2`. Pin stays flush-left (not depth-indented).
 11. **PR-GUTTER-012** — Pushpin hover/focus shows localized pin tooltip (`置顶` / `Pin to top`).
 12. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
+13. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
 
 ## Edge Cases
 
@@ -155,6 +157,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
 
 ## Changelog
+- **2026-09-01** — `categoryKey` localizes card category labels (`PR-GUTTER-014`); see [LOCALIZATION.md](../../../../../docs/ui/LOCALIZATION.md).
 - **2026-08-31** — Events-chart leaf hover highlights matching gutter row `#252525` via `hoveredLaneId`; unpinned pushpin still gutter-only.
 - **2026-08-28** — Unpinned pushpin: gutter hover only (not events-chart). Row highlight later restored for chart→header hint.
 - **2026-08-28** — Pin glyph: PyPTO/DevUI `pushpin` / `pushpin-fill` SVG assets under `src/ui/icons/`.

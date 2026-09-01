@@ -61,7 +61,6 @@ const messages = {
     viewFullCsv: '查看全部',
     memoryDetails: '内存负载',
     hardwareDetails: '硬件信息详情',
-    hardwareInfoMissing: '缺少 hardware info',
     pipeDetails: 'PIPE 占用率',
     back: '返回',
     cannbotAsk: 'CANNBot 分析',
@@ -80,6 +79,16 @@ const messages = {
     noDependencies: '无依赖数据',
     noParameters: '无参数',
     pin: '置顶',
+    laneComm: '通信',
+    laneCompute: '计算',
+    laneHbm: '储存HBM',
+    resizeSidebar: '调整侧栏宽度',
+    resizeLaneGutter: '调整泳道标签宽度',
+    visibleRangeStart: '可见范围起点',
+    visibleRangeEnd: '可见范围终点',
+    reportViews: '报告视图',
+    memoryTopology: '内存拓扑',
+    phase2: 'Phase 2',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -141,7 +150,6 @@ const messages = {
     viewFullCsv: 'View full CSV',
     memoryDetails: 'Memory load',
     hardwareDetails: 'Hardware information details',
-    hardwareInfoMissing: 'Missing hardware info',
     pipeDetails: 'PIPE occupancy',
     back: 'Back',
     cannbotAsk: 'CANNBot Analysis',
@@ -158,6 +166,16 @@ const messages = {
     noDependencies: 'No dependency data',
     noParameters: 'No parameters',
     pin: 'Pin to top',
+    laneComm: 'Comm',
+    laneCompute: 'Compute',
+    laneHbm: 'HBM storage',
+    resizeSidebar: 'Resize sidebar',
+    resizeLaneGutter: 'Resize lane gutter',
+    visibleRangeStart: 'Visible range start',
+    visibleRangeEnd: 'Visible range end',
+    reportViews: 'Report views',
+    memoryTopology: 'Memory topology',
+    phase2: 'Phase 2',
   },
 } as const;
 
@@ -175,4 +193,20 @@ export function resolveLocale(locale?: string): LocaleCode {
 export function t(key: MessageKey, locale?: string): string {
   const code = resolveLocale(locale);
   return messages[code][key] ?? messages.en[key] ?? key;
+}
+
+const LANE_CATEGORY_MESSAGE: Record<'comm' | 'compute' | 'hbm', MessageKey> = {
+  comm: 'laneComm',
+  compute: 'laneCompute',
+  hbm: 'laneHbm',
+};
+
+/** Localized card-category label, or `fallbackName` when no categoryKey. */
+export function laneCategoryLabel(
+  categoryKey: 'comm' | 'compute' | 'hbm' | undefined,
+  fallbackName: string,
+  locale?: string,
+): string {
+  if (!categoryKey) return fallbackName;
+  return t(LANE_CATEGORY_MESSAGE[categoryKey], locale);
 }

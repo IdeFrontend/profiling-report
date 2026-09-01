@@ -107,7 +107,7 @@ On event select (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`):
 ## Theme and i18n
 
 - Dark IDE-aligned surfaces (sketches are dark)
-- Chinese labels match product mocks; library should expose message keys for EN/ZH
+- Chinese labels match product mocks; host sets `locale` (`zh-CN` default, `en` twin catalog) — see [LOCALIZATION.md](LOCALIZATION.md)
 - Color coding is normative — [COLOR_TOKENS.md](COLOR_TOKENS.md)
 
 ## Host vs library chrome
