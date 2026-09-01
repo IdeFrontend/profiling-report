@@ -72,6 +72,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 - **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
 - **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
 - **2026-08-31** — Renumber pin ACs to `PR-SWIMVIEW-013`…`017` (avoid collision with #45 `010`…`012`).
+10. **PR-SWIMVIEW-025** — A parent-driven change to `multiSelectedIds` (marquee commit) reaches the canvas: the local mirror stays in sync, so the dim survives the release.
+
+## Changelog
+- **2026-09-01** — `localMultiSelectedIds` now mirrors `props.multiSelectedIds`, so the marquee commit dim reaches the canvas (was lost to a stale `[]`); PR-SWIMVIEW-025.
 - **2026-08-28** — Abspos gutter handle uses explicit `grid-column: 1 / 2` so `right: 0` is the gutter seam, not the track’s far edge.
 - **2026-08-28** — Pinned-strip canvas shares measure mode/range with the body canvas.
 - **2026-08-27** — After rebase onto master (`PR-SWIMVIEW-009` = cursor magnet): pin ACs are `013`…`017` (leave `010`…`012` for #45 Card metric selector). Gutter pin ACs `010`…`013` reserve `009` for #45 metrics.
