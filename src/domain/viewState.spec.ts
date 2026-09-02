@@ -1,85 +1,97 @@
 import { describe, expect, it } from 'vitest';
 import {
   createViewState,
-  MAX_ZOOM_HISTORY,
-  pushZoomHistory,
+  hideLane,
+  MAX_UNDO_HISTORY,
+  pushUndo,
   setOffset,
-  undoZoom,
-  zoomHistoryDepth,
+  undoDepth,
+  undoLast,
 } from './viewState';
 
-describe('zoom-history (Q24)', () => {
-  it('starts empty and undoZoom is a no-op', () => {
+describe('undoStack (Q24 + general undo)', () => {
+  it('starts empty and undoLast is a no-op', () => {
     const s0 = createViewState(null);
-    expect(s0.zoomHistory).toEqual([]);
-    expect(zoomHistoryDepth(s0)).toBe(0);
-    const s1 = undoZoom(s0);
-    expect(s1).toBe(s0);
+    expect(s0.undoStack).toEqual([]);
+    expect(undoDepth(s0)).toBe(0);
+    expect(undoLast(s0)).toBe(s0);
   });
 
-  it('pushZoomHistory adds a new entry; consecutive duplicates are deduped', () => {
+  it('pushUndo records a snapshot of startTime/endTime/scrollY/selected/hidden/offset', () => {
     const s0 = createViewState(null);
-    const w1 = { startTime: 0, endTime: 100, scrollY: 0 };
-    const s1 = pushZoomHistory(s0, w1);
-    expect(s1.zoomHistory).toEqual([w1]);
-
-    // Identical window → no-op (same reference returned).
-    expect(pushZoomHistory(s1, w1)).toBe(s1);
-
-    // Different window → push.
-    const w2 = { startTime: 0, endTime: 200, scrollY: 0 };
-    const s2 = pushZoomHistory(s1, w2);
-    expect(s2.zoomHistory).toEqual([w1, w2]);
+    s0.selectedEventId = 'evt-A';
+    s0.hiddenLaneIds.push('lane-X');
+    s0.offsetNs = 500;
+    const { next: s1, snapshot } = pushUndo(s0);
+    expect(s1.undoStack.length).toBe(1);
+    expect(snapshot.selectedEventId).toBe('evt-A');
+    expect(snapshot.hiddenLaneIds).toEqual(['lane-X']);
+    expect(snapshot.offsetNs).toBe(500);
+    // The original state is not mutated.
+    expect(s0.undoStack).toEqual([]);
   });
 
-  it('caps the stack at MAX_ZOOM_HISTORY', () => {
+  it('caps the stack at MAX_UNDO_HISTORY', () => {
     let s = createViewState(null);
-    for (let i = 0; i < MAX_ZOOM_HISTORY + 5; i++) {
-      s = pushZoomHistory(s, { startTime: i, endTime: i + 1, scrollY: 0 });
+    for (let i = 0; i < MAX_UNDO_HISTORY + 5; i++) {
+      s = pushUndo(s).next;
     }
-    expect(s.zoomHistory.length).toBe(MAX_ZOOM_HISTORY);
-    expect(s.zoomHistory[0].startTime).toBe(5);
-    expect(s.zoomHistory[s.zoomHistory.length - 1].startTime).toBe(MAX_ZOOM_HISTORY + 4);
+    expect(s.undoStack.length).toBe(MAX_UNDO_HISTORY);
   });
 
-  it('undoZoom pops the most recent entry and applies it as the new window', () => {
-    // Real-world flow: the host calls `applyWindowWithHistory(next)` which
-    //   1) pushes the CURRENT window (so undo can return to it), and
-    //   2) applies `next` as the new window.
-    // We simulate two zoom-ins and check the undo step walks back to the
-    // previous window.
+  it('undoLast restores all snapshot fields, not just the window', () => {
     let s = createViewState(null);
-    // Before any change: history is empty.
-    expect(s.zoomHistory.length).toBe(0);
+    // Initial: selectedEventId=null, hiddenLaneIds=[], offsetNs=0
+    // Simulate a sequence of three user actions; each one snapshots FIRST.
+    // 1) User selected event evt-A.
+    s = pushUndo(s).next;
+    s = { ...s, selectedEventId: 'evt-A' };
+    // 2) User hid lane-X.
+    s = pushUndo(s).next;
+    s = hideLane(s, 'lane-X');
+    // 3) User set offset to 999.
+    s = pushUndo(s).next;
+    s = setOffset(s, 999);
+    expect(s.selectedEventId).toBe('evt-A');
+    expect(s.hiddenLaneIds).toEqual(['lane-X']);
+    expect(s.offsetNs).toBe(999);
+    expect(s.undoStack.length).toBe(3);
 
-    // Zoom-in #1: push {0..100}, then apply {0..50}.
-    s = pushZoomHistory(s, { startTime: 0, endTime: 100, scrollY: 0 });
-    // Imagine applyWindow set startTime=0, endTime=50 — for undo we just
-    // trust the stack. The host would now set startTime/endTime/scrollY.
-    s = { ...s, startTime: 0, endTime: 50 };
+    // First undo: revert offset.
+    s = undoLast(s);
+    expect(s.offsetNs).toBe(0);
+    expect(s.selectedEventId).toBe('evt-A');
+    expect(s.hiddenLaneIds).toEqual(['lane-X']);
 
-    // Zoom-in #2: push {0..50}, then apply {0..25}.
-    s = pushZoomHistory(s, { startTime: 0, endTime: 50, scrollY: 0 });
-    s = { ...s, startTime: 0, endTime: 25 };
+    // Second undo: un-hide lane-X.
+    s = undoLast(s);
+    expect(s.hiddenLaneIds).toEqual([]);
+    expect(s.selectedEventId).toBe('evt-A');
 
-    expect(s.zoomHistory.length).toBe(2);
-    expect(s.zoomHistory[0]).toEqual({ startTime: 0, endTime: 100, scrollY: 0 });
-    expect(s.zoomHistory[1]).toEqual({ startTime: 0, endTime: 50, scrollY: 0 });
+    // Third undo: deselect event.
+    s = undoLast(s);
+    expect(s.selectedEventId).toBeNull();
+    expect(s.undoStack.length).toBe(0);
 
-    // First undo: walk {0..25} → {0..50} (the most-recent push) and pop.
-    const undone = undoZoom(s);
-    expect(undone.startTime).toBe(0);
-    expect(undone.endTime).toBe(50);
-    expect(undone.zoomHistory.length).toBe(1);
+    // Fourth undo is a no-op.
+    expect(undoLast(s)).toBe(s);
+  });
 
-    // Second undo: walk {0..50} → {0..100} and pop.
-    const undone2 = undoZoom(undone);
-    expect(undone2.startTime).toBe(0);
-    expect(undone2.endTime).toBe(100);
-    expect(undone2.zoomHistory.length).toBe(0);
+  it('undoLast preserves fields NOT in the snapshot (measureMode, measureRange, pinnedLaneIds, undoStack)', () => {
+    const s0 = createViewState(null);
+    s0.measureMode = true;
+    s0.measureRange = { startTime: 0, endTime: 50 };
+    s0.pinnedLaneIds.push('lane-Z');
+    s0.selectedEventId = 'evt-A';
+    const { next: s1 } = pushUndo(s0);
+    s1.selectedEventId = 'evt-B';
 
-    // Third undo on an empty history is a no-op.
-    expect(undoZoom(undone2)).toBe(undone2);
+    const undone = undoLast(s1);
+    expect(undone.selectedEventId).toBe('evt-A'); // restored
+    expect(undone.measureMode).toBe(true);        // preserved
+    expect(undone.measureRange).toEqual({ startTime: 0, endTime: 50 }); // preserved
+    expect(undone.pinnedLaneIds).toEqual(['lane-Z']); // preserved
+    expect(undone.undoStack.length).toBe(0);      // popped
   });
 });
 

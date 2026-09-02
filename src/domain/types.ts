@@ -330,16 +330,30 @@ export interface SwimlaneViewState {
    */
   hiddenLaneIds: string[];
   /**
-   * Q24 zoom-history: bounded stack of {startTime, endTime, scrollY} snapshots.
-   * `pushZoomHistory` records the previous window before an interactive zoom/pan;
-   * `undoZoom` pops the top and applies it. Capped at `MAX_ZOOM_HISTORY`.
-   * MVP interim — see OPEN_QUESTIONS Q24.
+   * General undo stack. Each entry is a snapshot of the parts of `viewState`
+   * that user-driven changes can revert: window, selection, hidden lanes,
+   * offset. `undoLast` pops the top and restores it. Capped at
+   * `MAX_UNDO_HISTORY`. MVP interim — covers Q24 (zoom undo) and unifies
+   * selection / hide-lane / offset changes under one undo channel.
+   * `measureMode` / `measureRange` are *not* snapshotted (ephemeral overlay).
    */
-  zoomHistory: SwimlaneViewWindow[];
+  undoStack: UndoSnapshot[];
   /**
    * Q25 Offset: lane-start time shift in ns. Applied as a visual offset on top of
    * `view.startTime` (additive). MVP interim — see OPEN_QUESTIONS Q25.
    */
+  offsetNs: number;
+}
+
+/** Fields included in an undo-stack snapshot. Measure/pin/hover/search are
+ *  intentionally excluded — measure is ephemeral; pin ships in its own PR;
+ *  hover / search are pointer-driven, not user actions. */
+export interface UndoSnapshot {
+  startTime: number;
+  endTime: number;
+  scrollY: number;
+  selectedEventId: string | null;
+  hiddenLaneIds: string[];
   offsetNs: number;
 }
 

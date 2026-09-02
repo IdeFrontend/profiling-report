@@ -3,6 +3,7 @@ import type {
   SwimlaneModel,
   SwimlaneViewState,
   SwimlaneViewWindow,
+  UndoSnapshot,
 } from './types';
 
 const MIN_WINDOW = 1;
@@ -11,7 +12,7 @@ const MIN_WINDOW = 1;
 export const MIN_VIEW_WINDOW = MIN_WINDOW;
 
 /** Max zoom-history depth (Q24 MVP interim: bounded undo stack). */
-export const MAX_ZOOM_HISTORY = 10;
+export const MAX_UNDO_HISTORY = 10;
 
 /** Max zoom ratio for a trace: fullSpan / MIN_WINDOW (≥ 1). */
 export function maxZoomRatio(fullSpan: number): number {
@@ -58,7 +59,7 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     measureRange: null,
     pinnedLaneIds: [],
     hiddenLaneIds: [],
-    zoomHistory: [],
+    undoStack: [],
     offsetNs: 0,
   };
 }
@@ -87,42 +88,40 @@ export function showLane(state: SwimlaneViewState, laneId: string): SwimlaneView
   return { ...state, hiddenLaneIds: state.hiddenLaneIds.filter((id) => id !== laneId) };
 }
 
-/** Push the current window onto the zoom-history stack. No-op when window is unchanged. */
-export function pushZoomHistory(
-  state: SwimlaneViewState,
-  window: SwimlaneViewWindow,
-): SwimlaneViewState {
-  const last = state.zoomHistory[state.zoomHistory.length - 1];
-  if (
-    last &&
-    last.startTime === window.startTime &&
-    last.endTime === window.endTime &&
-    last.scrollY === window.scrollY
-  ) {
-    return state;
-  }
-  const next = [...state.zoomHistory, window];
-  if (next.length > MAX_ZOOM_HISTORY) next.shift();
-  return { ...state, zoomHistory: next };
+/** Snapshot a state BEFORE mutating it so undo can restore it. */
+export function pushUndo(state: SwimlaneViewState): { snapshot: UndoSnapshot; next: SwimlaneViewState } {
+  const snapshot: UndoSnapshot = {
+    startTime: state.startTime,
+    endTime: state.endTime,
+    scrollY: state.scrollY,
+    selectedEventId: state.selectedEventId,
+    hiddenLaneIds: [...state.hiddenLaneIds],
+    offsetNs: state.offsetNs,
+  };
+  const next = [...state.undoStack, snapshot];
+  if (next.length > MAX_UNDO_HISTORY) next.shift();
+  return { snapshot, next: { ...state, undoStack: next } };
 }
 
-/** Pop the most recent zoom-history entry and apply it. Returns the same state if empty. */
-export function undoZoom(state: SwimlaneViewState): SwimlaneViewState {
-  if (state.zoomHistory.length === 0) return state;
-  const next = state.zoomHistory.slice(0, -1);
-  const target = state.zoomHistory[state.zoomHistory.length - 1];
+/** Pop the top undo entry and restore its snapshot as the new view state. */
+export function undoLast(state: SwimlaneViewState): SwimlaneViewState {
+  if (state.undoStack.length === 0) return state;
+  const prev = state.undoStack[state.undoStack.length - 1];
   return {
     ...state,
-    zoomHistory: next,
-    startTime: target.startTime,
-    endTime: target.endTime,
-    scrollY: target.scrollY,
+    undoStack: state.undoStack.slice(0, -1),
+    startTime: prev.startTime,
+    endTime: prev.endTime,
+    scrollY: prev.scrollY,
+    selectedEventId: prev.selectedEventId,
+    hiddenLaneIds: prev.hiddenLaneIds,
+    offsetNs: prev.offsetNs,
   };
 }
 
-/** Number of zoom-history entries available to undo (Q24 badge "(N)"). */
-export function zoomHistoryDepth(state: SwimlaneViewState): number {
-  return state.zoomHistory.length;
+/** Current undo stack depth (Q24 badge "(N)"). */
+export function undoDepth(state: SwimlaneViewState): number {
+  return state.undoStack.length;
 }
 
 /** Set the lane-start time offset (Q25 MVP). Pass 0 to clear. */

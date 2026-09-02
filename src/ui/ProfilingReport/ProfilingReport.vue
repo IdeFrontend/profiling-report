@@ -9,13 +9,13 @@ import {
   measureFocusWindow,
   panBy,
   pinLane,
-  pushZoomHistory,
+  pushUndo,
   setMeasureMode,
   setMeasureRange,
   setOffset,
   spanFromZoomPercent,
   unpinLane,
-  undoZoom,
+  undoLast,
   zoomAt,
   zoomPercentFromSpan,
   zoomToFitWindow,
@@ -446,15 +446,15 @@ function onMeasureKeydown(e: KeyboardEvent) {
     viewState.value = clearMeasure(viewState.value);
     return;
   }
-  // Ctrl/Cmd+Z is bound to 撤销缩放 (Q24 zoom undo) — no collision with a host
-  // general-undo because the menu spec ties it to zoom history explicitly.
-  // The browser's own text-undo is suppressed only when we have something to undo.
+  // Ctrl/Cmd+Z is bound to the global undo (Q24+25) — covers zoom, pan,
+  // selection, hide-lane, and offset changes. The browser's own text-undo
+  // is suppressed only when we have something to undo.
   if (
     (e.ctrlKey || e.metaKey) &&
     !e.shiftKey &&
     !e.altKey &&
     e.key.toLowerCase() === 'z' &&
-    viewState.value.zoomHistory.length > 0
+    viewState.value.undoStack.length > 0
   ) {
     e.preventDefault();
     onUndoZoom();
@@ -477,9 +477,12 @@ watch(
 
 function onSelect(ev: SwimEvent | null) {
   if (!ev) {
+    // Snapshot for undo so deselect can be reverted (e.g. user clicked a
+    // different event then undo).
+    const { next: withSnapshot } = pushUndo(viewState.value);
     selected.value = null;
     selectedEvent.value = null;
-    viewState.value = { ...viewState.value, selectedEventId: null };
+    viewState.value = { ...withSnapshot, selectedEventId: null };
     emit('select', null);
     return;
   }
@@ -491,9 +494,10 @@ function onSelect(ev: SwimEvent | null) {
     endTime: ev.startTime + ev.duration,
     args: ev.args,
   };
+  const { next: withSnapshot } = pushUndo(viewState.value);
   selected.value = payload;
   selectedEvent.value = ev;
-  viewState.value = { ...viewState.value, selectedEventId: ev.id };
+  viewState.value = { ...withSnapshot, selectedEventId: ev.id };
   emit('select', payload);
 }
 
@@ -513,7 +517,8 @@ function onMenuClose(): void {
 }
 
 function onHideLane(laneId: string): void {
-  viewState.value = hideLane(viewState.value, laneId);
+  const { next: withSnapshot } = pushUndo(viewState.value);
+  viewState.value = hideLane(withSnapshot, laneId);
   menuState.value = null;
 }
 
@@ -594,7 +599,7 @@ function onSetPlayhead(time: number) {
 
 function onOverviewWindow(window: { startTime: number; endTime: number }) {
   stopViewWindowAnim();
-  applyWindowWithHistory({
+  applyWithHistory({
     startTime: window.startTime,
     endTime: window.endTime,
     scrollY: viewState.value.scrollY,
@@ -608,13 +613,13 @@ function onScrollY(scrollY: number) {
 function onPan(deltaTime: number) {
   stopViewWindowAnim();
   const next = panBy(viewState.value, deltaTime, bounds.value);
-  applyWindowWithHistory(next);
+  applyWithHistory(next);
 }
 
 function onZoom(factor: number, anchorTime: number) {
   stopViewWindowAnim();
   const next = zoomAt(viewState.value, factor, anchorTime, bounds.value);
-  applyWindowWithHistory(next);
+  applyWithHistory(next);
 }
 
 function onZoomToFit() {
@@ -646,13 +651,13 @@ function onZoomPercent(pct: number) {
     endTime = bounds.value.maxTime;
     startTime = endTime - span;
   }
-  applyWindowWithHistory({ startTime, endTime, scrollY: viewState.value.scrollY });
+  applyWithHistory({ startTime, endTime, scrollY: viewState.value.scrollY });
 }
 
 function onUndoZoom() {
   stopViewWindowAnim();
-  if (viewState.value.zoomHistory.length === 0) return;
-  viewState.value = undoZoom(viewState.value);
+  if (viewState.value.undoStack.length === 0) return;
+  viewState.value = undoLast(viewState.value);
 }
 
 function onResetZoom() {
@@ -660,21 +665,19 @@ function onResetZoom() {
   // (not animateToWindow) so the menu action feels synchronous.
   stopViewWindowAnim();
   const w = zoomToFitWindow(swim.value);
-  applyWindowWithHistory(w);
+  applyWithHistory(w);
 }
 
 function onSetOffset(offsetNs: number) {
-  viewState.value = setOffset(viewState.value, offsetNs);
+  // Snapshot first so undo can revert the offset change.
+  const { next: withSnapshot } = pushUndo(viewState.value);
+  viewState.value = setOffset(withSnapshot, offsetNs);
 }
 
-/** Push the previous window to history, then apply `next` as the new window. */
-function applyWindowWithHistory(next: { startTime: number; endTime: number; scrollY: number }): void {
-  const before: SwimlaneViewState = pushZoomHistory(viewState.value, {
-    startTime: viewState.value.startTime,
-    endTime: viewState.value.endTime,
-    scrollY: viewState.value.scrollY,
-  });
-  viewState.value = applyWindow(before, next);
+/** Snapshot the current viewState, then apply `next` as the new window. */
+function applyWithHistory(next: { startTime: number; endTime: number; scrollY: number }): void {
+  const { next: withSnapshot } = pushUndo(viewState.value);
+  viewState.value = applyWindow(withSnapshot, next);
 }
 
 function onSearch(q: string) {
@@ -890,7 +893,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :y="menuState.y"
       :event="menuState.event"
       :lane-id="menuState.laneId"
-      :undo-depth="viewState.zoomHistory.length"
+      :undo-depth="viewState.undoStack.length"
       :can-reset-zoom="true"
       :offset-ns="viewState.offsetNs"
       :locale="locale"
