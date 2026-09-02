@@ -543,7 +543,8 @@ defineExpose({
               v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"
               :model-value="selectedMetricForCard(strip.id) ?? metricOptionsForCard(strip.id)[0]!"
               :options="metricOptionsForCard(strip.id)"
-              :ariaLabel="`Gutter metric for ${strip.name}`"
+              :locale="locale"
+              :ariaLabel="t('gutterMetricFor', locale).replace('{name}', strip.name)"
               @update:model-value="onMetricChange(strip.id, $event)"
             />
           </span>

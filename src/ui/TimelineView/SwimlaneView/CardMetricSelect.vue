@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
-import { GUTTER_METRIC_LABELS } from '../../../domain/gutterMetrics';
+import { gutterMetricLabel } from '../../../i18n';
 
 const props = defineProps<{
   modelValue: GutterMetric;
   options: GutterMetric[];
   ariaLabel: string;
+  locale?: string;
 }>();
 
 const emit = defineEmits<{
@@ -18,8 +19,11 @@ const rootRef = ref<HTMLElement | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
 const menuStyle = ref<Record<string, string>>({});
 
-const label = computed(() => GUTTER_METRIC_LABELS[props.modelValue]);
+const label = computed(() => gutterMetricLabel(props.modelValue, props.locale));
 
+function optionLabel(metric: GutterMetric): string {
+  return gutterMetricLabel(metric, props.locale);
+}
 function placeMenu() {
   const el = rootRef.value;
   if (!el) return;
@@ -140,7 +144,7 @@ watch(
           :data-testid="`card-metric-option-${opt}`"
           @click="pick(opt, $event)"
         >
-          {{ GUTTER_METRIC_LABELS[opt] }}
+          {{ optionLabel(opt) }}
         </li>
       </ul>
     </Teleport>

@@ -295,10 +295,3 @@ export function averageBarWidthForCard(
   if (widths.length < 2) return undefined;
   return widths.reduce((a, b) => a + b, 0) / widths.length;
 }
-
-export const GUTTER_METRIC_LABELS: Record<GutterMetric, string> = {
-  clockCycle: '时钟周期',
-  cacheHit: '缓存命中率',
-  task: '任务',
-  utilization: '利用率',
-};

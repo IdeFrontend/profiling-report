@@ -25,12 +25,12 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 
 ### Supported metrics (PyPTO parity)
 
-| Value | UI label (zh) | Data source (.rep) | Lane matching |
+| Value | UI label (zh / en via i18n) | Data source (.rep) | Lane matching |
 |-------|---------------|-------------------|---------------|
-| `clockCycle` | 时钟周期 | Mean non-`NA` cycle/time columns from `PipeUtilization.csv` (`aiv_total_cycles`, `aic_*_time(us)`, pipe `*_time(us)` families) | `laneColorKey(thread.name)` — same as pipe ratios |
-| `cacheHit` | 缓存命中率 | `1 − mean(aiv_icache_miss_rate)` / `1 − mean(aic_icache_miss_rate)` per side | icache columns; map to Scalar/ICache lanes when present |
-| `task` | 任务 | Count of `SwimEvent` on each leaf thread | Direct from trace tree |
-| `utilization` | 利用率 | Event coverage: `computeThreadUtilization(thread, minTime, maxTime)` | Per [utilization.spec.md](./utilization.spec.md) |
+| `clockCycle` | 时钟周期 / Clock Cycle | Mean non-`NA` cycle/time columns from `PipeUtilization.csv` (`aiv_total_cycles`, `aic_*_time(us)`, pipe `*_time(us)` families) | `laneColorKey(thread.name)` — same as pipe ratios |
+| `cacheHit` | 缓存命中率 / Cache Hit Ratio | `1 − mean(aiv_icache_miss_rate)` / `1 − mean(aic_icache_miss_rate)` per side | icache columns; map to Scalar/ICache lanes when present |
+| `task` | 任务 / Task | Count of `SwimEvent` on each leaf thread | Direct from trace tree |
+| `utilization` | 利用率 / Utilization | Event coverage: `computeThreadUtilization(thread, minTime, maxTime)` | Per [utilization.spec.md](./utilization.spec.md) |
 
 ### Availability (hide rules)
 

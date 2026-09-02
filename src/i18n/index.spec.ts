@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { laneCategoryLabel, resolveLocale, t } from './index';
+import { gutterMetricLabel, laneCategoryLabel, resolveLocale, t } from './index';
 
 describe('i18n', () => {
   it('defaults to zh-CN and accepts en / zh prefixes', () => {
@@ -26,5 +26,18 @@ describe('i18n', () => {
     expect(laneCategoryLabel('hbm', '储存HBM', 'en')).toBe('HBM storage');
     expect(laneCategoryLabel('comm', '通信', 'zh-CN')).toBe('通信');
     expect(laneCategoryLabel(undefined, 'Core0.Cube', 'en')).toBe('Core0.Cube');
+  });
+
+  it('localizes Card gutter metric labels for zh-CN and en', () => {
+    expect(gutterMetricLabel('clockCycle', 'zh-CN')).toBe('时钟周期');
+    expect(gutterMetricLabel('cacheHit', 'zh-CN')).toBe('缓存命中率');
+    expect(gutterMetricLabel('task', 'zh-CN')).toBe('任务');
+    expect(gutterMetricLabel('utilization', 'zh-CN')).toBe('利用率');
+    expect(gutterMetricLabel('clockCycle', 'en')).toBe('Clock Cycle');
+    expect(gutterMetricLabel('cacheHit', 'en')).toBe('Cache Hit Ratio');
+    expect(gutterMetricLabel('task', 'en')).toBe('Task');
+    expect(gutterMetricLabel('utilization', 'en')).toBe('Utilization');
+    expect(t('gutterMetricFor', 'en').replace('{name}', 'Card0')).toBe('Gutter metric for Card0');
+    expect(t('gutterMetricFor', 'zh-CN').replace('{name}', 'Card0')).toBe('Card0 的泳道指标');
   });
 });
