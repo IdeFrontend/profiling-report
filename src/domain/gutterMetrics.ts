@@ -119,10 +119,18 @@ function computeRawTree(
   return leafRawValue(thread, metric, model, cycleByKey, cacheByKey);
 }
 
+function formatClockCycleLabel(raw: number): string {
+  const rounded = Math.round(raw);
+  // CSV `*_time(us)` means are often fractional; Math.round alone paints "0" on non-empty bars.
+  if (rounded !== 0 || raw === 0) return String(rounded);
+  if (raw >= 0.01) return raw.toFixed(2);
+  return raw.toPrecision(2);
+}
+
 function formatLabel(metric: GutterMetric, raw: number, barWidth: number): string {
   switch (metric) {
     case 'clockCycle':
-      return String(Math.round(raw));
+      return formatClockCycleLabel(raw);
     case 'cacheHit':
       return raw.toFixed(2);
     case 'task':
