@@ -178,6 +178,8 @@ export class SwimlaneOverlayPainter {
   private searchQuery = '';
   /** When false, selection does not dim non-neighbors (pinned-strip pass). */
   private selectionDim = true;
+  /** When false, the WebGL backend owns event labels (ClearType); overlay skips them. */
+  private drawEventLabels = true;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -225,6 +227,11 @@ export class SwimlaneOverlayPainter {
     this.searchQuery = query.trim().toLowerCase();
   }
 
+  /** WebGL ClearType path draws its own event labels; overlay must not double-draw. */
+  setDrawEventLabels(enabled: boolean): void {
+    this.drawEventLabels = enabled;
+  }
+
 
   render(): void {
     const ctx = this.ctx;
@@ -266,7 +273,7 @@ export class SwimlaneOverlayPainter {
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
-      if (matches) drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim, '#ffffff', dpr);
+      if (matches && this.drawEventLabels) drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim, '#ffffff', dpr);
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.

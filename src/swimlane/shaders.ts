@@ -177,3 +177,64 @@ void main() {
   outColor = vec4(vColor * a, a);
 }
 `;
+
+/**
+ * Sudu text pipeline (ported from sudu-editor Shaders.java).
+ * Grayscale reads scalar coverage from `.a`; ClearType reads per-subpixel RGB coverage.
+ * Both mix uBgColor → uColor with a pow-gamma. ClearType outputs alpha = 1.0 (opaque):
+ * the label background is baked in, so callers must pass the exact solid backdrop color.
+ */
+
+/** Gamma corrections tuned so WebGL re-color matches the Windows D2D reference. */
+export const CLEARTYPE_TEXT_POW = 2.25;
+export const GRAYSCALE_TEXT_POW = 0.625;
+
+/** Textured-quad VS: aPos local −1..1 → clip space via uSizePos; aTex → textureUV. */
+export const TEXT_VS = `#version 300 es
+precision highp float;
+uniform vec4 uSizePos;
+in vec2 aPos;
+in vec2 aTex;
+out vec2 textureUV;
+void main() {
+  vec2 pos = vec2(aPos.x * uSizePos.x + uSizePos.z, aPos.y * uSizePos.y + uSizePos.w);
+  textureUV = aTex;
+  gl_Position = vec4(pos, 0.0, 1.0);
+}
+`;
+
+/** Grayscale text: scalar `.a` coverage, pow-gamma, mix bg→fg. */
+export const TEXT_GRAY_FS = `#version 300 es
+precision highp float;
+uniform vec4 uColor;
+uniform vec4 uBgColor;
+uniform vec2 uTextPow;
+uniform sampler2D sDiffuse;
+in vec2 textureUV;
+out vec4 outColor;
+void main() {
+  float t = texture(sDiffuse, textureUV).a;
+  float text = pow(t, uTextPow.x);
+  outColor = mix(uBgColor, uColor, text);
+}
+`;
+
+/** ClearType text: per-subpixel RGB coverage, per-channel pow-gamma, mix bg→fg (alpha = 1). */
+export const TEXT_CLEARTYPE_FS = `#version 300 es
+precision highp float;
+uniform vec4 uColor;
+uniform vec4 uBgColor;
+uniform vec2 uTextPow;
+uniform sampler2D sDiffuse;
+in vec2 textureUV;
+out vec4 outColor;
+void main() {
+  vec3 textRGB = texture(sDiffuse, textureUV).rgb;
+  vec3 textRGBp = vec3(
+    pow(textRGB.x, uTextPow.x),
+    pow(textRGB.y, uTextPow.x),
+    pow(textRGB.z, uTextPow.x));
+  vec3 mixColor = mix(uBgColor.rgb, uColor.rgb, textRGBp);
+  outColor = vec4(mixColor, 1.0);
+}
+`;

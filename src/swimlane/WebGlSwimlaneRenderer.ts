@@ -17,6 +17,8 @@ import {
   encodeIntervalPair,
   eventBlockMetrics,
   eventEmphasisDim,
+  eventLabelAnchor,
+  eventPaintRect,
   eventScreenRect,
   findEvent,
   findLaidOutEvent,
@@ -29,7 +31,8 @@ import {
   type SwimlaneLayout,
 } from './layout';
 import { dependencyGraph, glLinkTime, type DependencyLink } from './dependencyLinks';
-import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, minRR, maxRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
+import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, minRR, maxRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
+import { TextAtlas } from './textAtlas';
 
 interface GlProgram {
   program: WebGLProgram;
@@ -59,6 +62,15 @@ interface CurveProgram {
   uResolution: WebGLUniformLocation;
   uView: WebGLUniformLocation;
   uHalfWidth: WebGLUniformLocation;
+}
+
+interface TextProgram {
+  program: WebGLProgram;
+  uSizePos: WebGLUniformLocation;
+  uColor: WebGLUniformLocation;
+  uBgColor: WebGLUniformLocation;
+  uTextPow: WebGLUniformLocation;
+  sDiffuse: WebGLUniformLocation;
 }
 
 const CURVE_SEGMENTS = 24;
@@ -137,6 +149,34 @@ function linkCurveProgram(gl: WebGL2RenderingContext): CurveProgram {
   const uHalfWidth = gl.getUniformLocation(program, 'uHalfWidth');
   if (!uResolution || !uView || !uHalfWidth) throw new Error('missing curve uniforms');
   return { program, uResolution, uView, uHalfWidth };
+}
+
+function linkTextProgram(gl: WebGL2RenderingContext, fsSrc: string): TextProgram {
+  const vs = compileShader(gl, gl.VERTEX_SHADER, TEXT_VS);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSrc);
+  const program = gl.createProgram();
+  if (!program) throw new Error('createProgram failed');
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.bindAttribLocation(program, 0, 'aPos');
+  gl.bindAttribLocation(program, 1, 'aTex');
+  gl.linkProgram(program);
+  gl.deleteShader(vs);
+  gl.deleteShader(fs);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const log = gl.getProgramInfoLog(program) ?? 'link error';
+    gl.deleteProgram(program);
+    throw new Error(log);
+  }
+  const uSizePos = gl.getUniformLocation(program, 'uSizePos');
+  const uColor = gl.getUniformLocation(program, 'uColor');
+  const uBgColor = gl.getUniformLocation(program, 'uBgColor');
+  const uTextPow = gl.getUniformLocation(program, 'uTextPow');
+  const sDiffuse = gl.getUniformLocation(program, 'sDiffuse');
+  if (!uSizePos || !uColor || !uBgColor || !uTextPow || !sDiffuse) {
+    throw new Error('missing text uniforms');
+  }
+  return { program, uSizePos, uColor, uBgColor, uTextPow, sDiffuse };
 }
 
 /** Sudu setVbSquare: encode opposite edge in aTex. */
@@ -229,6 +269,32 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
   return { vao, vbo, ibo, indexCount: 6 };
 }
 
+/** Textured unit quad (aPos + aTex). V is flipped in UVs (sudu): screen top samples canvas row 0,
+ * since the atlas uploads the OffscreenCanvas without UNPACK_FLIP_Y. */
+function createTextQuad(gl: WebGL2RenderingContext): MeshChunk {
+  const vb = new Float32Array([
+    -1, -1, 0, 1, // bottom-left  → v=1 (canvas bottom row)
+    1, -1, 1, 1, // bottom-right → v=1
+    -1, 1, 0, 0, // top-left     → v=0 (canvas top row)
+    1, 1, 1, 0, // top-right    → v=0
+  ]);
+  const ib = new Uint16Array([0, 1, 2, 1, 2, 3]);
+  const vao = gl.createVertexArray()!;
+  const vbo = gl.createBuffer()!;
+  const ibo = gl.createBuffer()!;
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, vb, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 16, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 16, 8);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  return { vao, vbo, ibo, indexCount: 6 };
+}
+
 /**
  * WebGL2 coverage-AA interval backend (Sudu-inspired; no sudu-editor dependency).
  * Draws uniform lane backgrounds, row dividers, rounded coverage-AA interval fills, and instanced
@@ -241,6 +307,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private solidProg: GlProgram | null = null;
   private curveProg: CurveProgram | null = null;
   private unitQuad: MeshChunk | null = null;
+  private textProgCT: TextProgram | null = null;
+  private textQuad: MeshChunk | null = null;
+  private atlas: TextAtlas | null = null;
   private curveVao: WebGLVertexArrayObject | null = null;
   private curveStripBuf: WebGLBuffer | null = null;
   private curveInstanceBuf: WebGLBuffer | null = null;
@@ -285,6 +354,19 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.curveProg = linkCurveProgram(gl);
     this.unitQuad = createUnitQuad(gl);
     this.initCurveBuffers(gl);
+    // ClearType labels are an optional enhancement: degrade to the Canvas2D overlay when the
+    // opaque-2D atlas is unavailable or the text program fails to link.
+    this.atlas = TextAtlas.isSupported() ? new TextAtlas() : null;
+    if (this.atlas) {
+      try {
+        this.textProgCT = linkTextProgram(gl, TEXT_CLEARTYPE_FS);
+        this.textQuad = createTextQuad(gl);
+      } catch {
+        this.atlas = null;
+        this.textProgCT = null;
+        this.textQuad = null;
+      }
+    }
     return true;
   }
 
@@ -388,6 +470,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   getNeighborIds(): Set<string> {
     return this.neighborIds;
+  }
+
+  /** True when this backend rasterizes + draws ClearType labels itself (overlay must skip them). */
+  hasClearTypeLabels(): boolean {
+    return this.atlas != null && this.textProgCT != null && this.textQuad != null;
   }
 
   render(): void {
@@ -498,6 +585,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     }
 
     if (this.paintDependencies) this.drawDependencyCurves(gl);
+    this.drawEventLabels();
 
     gl.bindVertexArray(null);
     gl.disable(gl.BLEND);
@@ -521,6 +609,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       if (this.swimProg) gl.deleteProgram(this.swimProg.program);
       if (this.solidProg) gl.deleteProgram(this.solidProg.program);
       if (this.curveProg) gl.deleteProgram(this.curveProg.program);
+      if (this.textProgCT) gl.deleteProgram(this.textProgCT.program);
+      if (this.textQuad) this.deleteChunk(this.textQuad);
+      this.atlas?.dispose(gl);
     }
     this.unitQuad = null;
     this.curveVao = null;
@@ -530,11 +621,88 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.swimProg = null;
     this.solidProg = null;
     this.curveProg = null;
+    this.textProgCT = null;
+    this.textQuad = null;
+    this.atlas = null;
     this.gl = null;
     this.canvas = null;
     this.layout = EMPTY_LAYOUT;
     this.neighborIds = new Set();
     this.depLinks = [];
+  }
+
+  private drawEventLabels(): void {
+    const gl = this.gl;
+    const prog = this.textProgCT;
+    const quad = this.textQuad;
+    const atlas = this.atlas;
+    if (!gl || !prog || !quad || !atlas) return;
+
+    const devW = this.width;
+    const devH = this.height;
+    const dpr = this.dpr;
+    const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const q = this.searchQuery;
+    const hasSearch = q.length > 0;
+    const hasSelection = this.paintDependencies && this.selectedId != null;
+    const bright = this.neighborIds;
+    // Lane background (#1f1f1f) — the event fill composites over this, not the clear color.
+    const laneBg = 0x1f / 255;
+    const fontPx = Math.max(8, Math.round(10 * dpr));
+
+    gl.disable(gl.BLEND);
+    gl.useProgram(prog.program);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(prog.sDiffuse, 0);
+    gl.uniform2f(prog.uTextPow, CLEARTYPE_TEXT_POW, 0);
+
+    for (const item of this.layout.events) {
+      const ev = item.event;
+      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+        continue;
+      }
+      const x = ((ev.startTime - this.view.startTime) / span) * devW;
+      const w = Math.max(2, (ev.duration / span) * devW);
+      const m = eventBlockMetrics(item.y, this.view.scrollY);
+      const y = m.y * dpr;
+      const h = m.h * dpr;
+      if (y + h < 0 || y > devH) continue;
+      const r = eventPaintRect(x, y, w, h, dpr);
+      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      if (!matches) continue;
+      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
+      const anchor = eventLabelAnchor(r.x, r.w, devW);
+      if (!anchor) continue;
+      const glyph = atlas.get(gl, ev.name, fontPx, anchor.maxWidth);
+      if (!glyph) continue;
+
+      const lane = this.layout.lanes[item.laneIndex];
+      if (!lane) continue;
+      const [lr, lg, lb] = hexToRgb(lane.color);
+      // ClearType is opaque (alpha = 1), so bake the composited backdrop into uBgColor:
+      // the dimmed fill over the lane background, and fade the white text toward it by `dim`
+      // to reproduce the Canvas overlay's globalAlpha on labels.
+      const fr = lr * dim + laneBg * (1 - dim);
+      const fg = lg * dim + laneBg * (1 - dim);
+      const fb = lb * dim + laneBg * (1 - dim);
+      gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
+      gl.uniform4f(prog.uColor, fr + (1 - fr) * dim, fg + (1 - fg) * dim, fb + (1 - fb) * dim, 1);
+
+      const cy = r.y + r.h / 2;
+      const gx = anchor.cx - glyph.width / 2;
+      const gy = cy - glyph.height / 2;
+      gl.uniform4f(
+        prog.uSizePos,
+        glyph.width / devW,
+        glyph.height / devH,
+        -1 + (2 * gx + glyph.width) / devW,
+        1 - (2 * gy + glyph.height) / devH,
+      );
+      gl.bindTexture(gl.TEXTURE_2D, glyph.texture);
+      gl.bindVertexArray(quad.vao);
+      gl.drawElements(gl.TRIANGLES, quad.indexCount, gl.UNSIGNED_SHORT, 0);
+    }
+    gl.bindVertexArray(null);
   }
 
   private drawSolidRect(

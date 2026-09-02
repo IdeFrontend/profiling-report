@@ -32,6 +32,8 @@ class CanvasSwimlaneRenderer {
 
 **Event labels.** When the on-screen (clipped) event width is wide enough (>40 CSS px before scale, or equivalent device width), the title is drawn centered in the visible event rect. Canvas fallback and the WebGL overlay share this layout (device-pixel glyph placement).
 
+**ClearType event labels.** When WebGL2 is the active backend and the browser supports an opaque 2D raster target (`OffscreenCanvas` + `getContext('2d', { alpha: false })`), the WebGL renderer rasterizes each label white-on-black and uploads it preserving raw subpixel RGB (`UNPACK_PREMULTIPLY_ALPHA_WEBGL` false, `UNPACK_COLORSPACE_CONVERSION_WEBGL` none), then re-colorizes via `TEXT_CLEARTYPE_FS`, which mixes the event fill color toward white per subpixel channel at gamma `2.25` and bakes the label background into an opaque quad (alpha = 1) — the overlay skips event labels in that mode. Otherwise (Canvas fallback, or WebGL without an opaque 2D atlas) labels render grayscale via Canvas2D. Label gamma constants: ClearType `2.25`, grayscale `0.625`.
+
 **Search / selection emphasis.** Non-matching search hits dim to 25% opacity; when an event is selected, events that are not the selection and not its laid-out neighbors in the active `dependencyMode` and `dependencyDepth` multiply by 0.45 (combined when both apply). Dep neighbors in that filter keep full fill and label brightness; only the clicked event gets the white selection stroke (**2 CSS px** → `round(2 × dpr)` device px); hover uses **1.5 CSS px** (`round(1.5 × dpr)`). Canvas uses `globalAlpha`; WebGL rebuilds per-dim mesh layers and passes premul `uColor` RGB×dim with alpha=dim. Labels use the same dim (overlay + Canvas fallback); search non-matches omit labels. Clearing search and selection restores full opacity.
 
 **Lane chrome.** Every event-sequence lane shares the same background fill (`#1f1f1f`); alternating zebra stripes are not used. **Card / root group headers** paint a full-width band `rgb(42, 42, 42)` (`#2a2a2a`) under the DOM Card strips in `SwimlaneView`. Horizontal dividers (`#3a3a3a`) are drawn at the bottom of each group header and each lane (1 device px), aligned with the LaneGutter borders. WebGL draws the same uniform fill and divider rects; Canvas uses strokes at the same edges.
@@ -64,6 +66,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
 1. **PR-RENDER-018**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
 1. **PR-RENDER-019**: `resize(deviceW, deviceH, dpr)` sets `canvas.width/height` to device args without writing `canvas.style`; WebGL has no `uDpr` uniform.
+1. **PR-RENDER-020**: Text shaders export sudu gamma constants (`CLEARTYPE_TEXT_POW` 2.25, `GRAYSCALE_TEXT_POW` 0.625); `eventLabelFont` uses the shared CSS px size; `clearTypeRasterSupported` is false without an opaque 2D context.
 
 ## Edge Cases
 
