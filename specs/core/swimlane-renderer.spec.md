@@ -67,6 +67,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-018**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
 1. **PR-RENDER-019**: `resize(deviceW, deviceH, dpr)` sets `canvas.width/height` to device args without writing `canvas.style`; WebGL has no `uDpr` uniform.
 1. **PR-RENDER-020**: Text shaders export sudu gamma constants (`CLEARTYPE_TEXT_POW` 2.25, `GRAYSCALE_TEXT_POW` 0.625); `eventLabelFont` uses the shared CSS px size; `clearTypeRasterSupported` is false without an opaque 2D context; `fitTextWidth` truncates an over-wide label with a trailing `...` (longest fitting prefix).
+1. **PR-RENDER-022**: Dependency curve stroke width is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (`max(1, round(2 × dpr))` device px = 2 CSS px), applied by both Canvas and WebGL; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom.
 
 ## Edge Cases
 
@@ -83,6 +84,7 @@ class CanvasSwimlaneRenderer {
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-02** — Dependency curve stroke is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (2 CSS px, min 1 device px), so Canvas and WebGL match the 2 CSS px selection stroke at any dpr; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom. (PR-RENDER-022)
 - **2026-08-31** — WebGL interval fills switch to **additive** blending `(ONE, ONE, ONE, ONE)` with straight-RGB output (alpha constant 1.0): overlapping events accumulate `cov·dim·rgb`, replacing source-over premul. Safe because events within one lane never nest/intersect (mutually exclusive spans); each device pixel accumulates the event coverage of **all** events across lanes that intersect it. Dependency curves keep premultiplied source-over `(ONE, ONE_MINUS_SRC_ALPHA, ONE, ONE_MINUS_SRC_ALPHA)`.
 - **2026-08-31** — Corner radius is now a CSS-pixel policy (`minRR`/`maxRR`/`rrSwitchThreshold` in `shaders.ts`): 1 CSS px when raw CSS width < 4, else 2 CSS px, then × dpr. WebGL uploads the `vec3` `uRR`: radii round to integer device px, threshold stays exact; Canvas `eventRadius(cssW, dpr)` uses the same constants. (PR-RENDER-017, PR-RENDER-017b)
 - **2026-08-31** — WebGL FS: combine sudu `hCoverage` with SDF round-rect via `min` (not multiply).

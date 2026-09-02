@@ -30,7 +30,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
-import { dependencyGraph, glLinkTime, type DependencyLink } from './dependencyLinks';
+import { dependencyGraph, dependencyStrokeWidth, glLinkTime, type DependencyLink } from './dependencyLinks';
 import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, minRR, maxRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 import { TextAtlas, EVENT_LABEL_FONT_CSS_PX } from './textAtlas';
 
@@ -371,15 +371,20 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   resize(devicePixelWidth: number, devicePixelHeight: number, dpr: number): void {
+    const nextDpr = dpr > 0 ? dpr : 1;
+    const dprChanged = nextDpr !== this.dpr;
     this.width = Math.max(1, Math.floor(devicePixelWidth));
     this.height = Math.max(1, Math.floor(devicePixelHeight));
-    this.dpr = dpr > 0 ? dpr : 1;
+    this.dpr = nextDpr;
     const gl = this.gl;
     const canvas = this.canvas;
     if (!gl || !canvas) return;
     canvas.width = this.width;
     canvas.height = this.height;
     gl.viewport(0, 0, this.width, this.height);
+    // Curve Y is baked into the instance buffer as `link.y0 * dpr`; re-upload so a browser-zoom
+    // dpr change (which also changes scrollY's device-px offset) keeps curves on their anchors.
+    if (dprChanged) this.rebuildCurveInstances();
   }
 
   setModel(model: SwimlaneModel): void {
@@ -913,7 +918,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       this.view.endTime - this.timeBase,
       this.view.scrollY * this.dpr,
     );
-    gl.uniform1f(prog.uHalfWidth, 1.0);
+    gl.uniform1f(prog.uHalfWidth, dependencyStrokeWidth(this.dpr) / 2);
     gl.bindVertexArray(vao);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, CURVE_STRIP_VERTS, this.curveCount);
   }
