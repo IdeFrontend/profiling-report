@@ -28,7 +28,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
-import { dependencyGraph, glLinkTime, type DependencyLink } from './dependencyLinks';
+import { DEP_STROKE_WIDTH, dependencyGraph, glLinkTime, type DependencyLink } from './dependencyLinks';
 import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, minRR, maxRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 interface GlProgram {
@@ -734,7 +734,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       this.view.endTime - this.timeBase,
       this.view.scrollY * this.dpr,
     );
-    gl.uniform1f(prog.uHalfWidth, this.dpr);
+    gl.uniform1f(prog.uHalfWidth, Math.max(1, Math.round(DEP_STROKE_WIDTH * this.dpr)) / 2);
     gl.bindVertexArray(vao);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, CURVE_STRIP_VERTS, this.curveCount);
   }
