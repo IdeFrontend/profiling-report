@@ -655,6 +655,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(prog.sDiffuse, 0);
     gl.uniform2f(prog.uTextPow, CLEARTYPE_TEXT_POW, 0);
+    gl.enable(gl.SCISSOR_TEST);
 
     for (const item of this.layout.events) {
       const ev = item.event;
@@ -698,11 +699,21 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         -1 + (2 * gx + glyph.width) / devW,
         1 - (2 * gy + glyph.height) / devH,
       );
+      // Clip the opaque label quad to its event's fill rect. WebGL scissor uses bottom-left
+      // origin; clamp to the viewport so out-of-range clipped events stay valid.
+      const sLeft = Math.max(0, Math.floor(r.x));
+      const sTop = Math.max(0, Math.floor(r.y));
+      const sRight = Math.min(devW, Math.ceil(r.x + r.w));
+      const sBottom = Math.min(devH, Math.ceil(r.y + r.h));
+      if (sRight > sLeft && sBottom > sTop) {
+        gl.scissor(sLeft, devH - sBottom, sRight - sLeft, sBottom - sTop);
+      }
       gl.bindTexture(gl.TEXTURE_2D, glyph.texture);
       gl.bindVertexArray(quad.vao);
       gl.drawElements(gl.TRIANGLES, quad.indexCount, gl.UNSIGNED_SHORT, 0);
     }
     gl.bindVertexArray(null);
+    gl.disable(gl.SCISSOR_TEST);
   }
 
   private drawSolidRect(

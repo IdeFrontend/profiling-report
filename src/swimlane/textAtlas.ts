@@ -19,9 +19,10 @@ const FONT_FAMILY = 'ui-sans-serif, system-ui, sans-serif';
 export const EVENT_LABEL_FONT_CSS_PX = 10;
 
 export function eventLabelFont(sizePx: number): string {
-  // Regular weight to match the live Canvas2D overlay (`drawEventLabel`), so ClearType
-  // labels are a drop-in for the grayscale labels they replace.
-  return `${Math.max(8, Math.round(sizePx))}px ${FONT_FAMILY}`;
+  // Bold weight (700): ClearType `pow(rgb, 2.25)` on white-on-black narrows the antialiased
+  // edge, so a heavier stroke keeps labels legible at the 10px device size. Matches the live
+  // Canvas2D overlay (`drawEventLabel`), which uses the same weight.
+  return `700 ${Math.max(8, Math.round(sizePx))}px ${FONT_FAMILY}`;
 }
 
 /** True when OffscreenCanvas + opaque 2D context are available (browser only). */
