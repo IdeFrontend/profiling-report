@@ -83,6 +83,11 @@ const messages = {
     fitToScreen: '整屏显示',
     hideLane: '隐藏',
     showInEventView: '在事件视图中显示',
+    undoZoom: '撤销缩放',
+    resetZoom: '重置缩放',
+    offsetLane: 'Offset',
+    offsetPrompt: '设置 lane 起始时间偏移 (ns)；留空或 0 清除',
+    offsetInvalid: '请输入有效数字（纳秒）',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -164,6 +169,11 @@ const messages = {
     fitToScreen: 'Fit to screen',
     hideLane: 'Hide',
     showInEventView: 'Show in event view',
+    undoZoom: 'Undo zoom',
+    resetZoom: 'Reset zoom',
+    offsetLane: 'Offset',
+    offsetPrompt: 'Set lane-start time offset (ns); leave empty or 0 to clear',
+    offsetInvalid: 'Please enter a valid number (nanoseconds)',
   },
 } as const;
 

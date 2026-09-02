@@ -9,10 +9,13 @@ import {
   measureFocusWindow,
   panBy,
   pinLane,
+  pushZoomHistory,
   setMeasureMode,
   setMeasureRange,
+  setOffset,
   spanFromZoomPercent,
   unpinLane,
+  undoZoom,
   zoomAt,
   zoomPercentFromSpan,
   zoomToFitWindow,
@@ -441,6 +444,20 @@ onBeforeUnmount(() => {
 function onMeasureKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
+    return;
+  }
+  // Ctrl/Cmd+Z is bound to 撤销缩放 (Q24 zoom undo) — no collision with a host
+  // general-undo because the menu spec ties it to zoom history explicitly.
+  // The browser's own text-undo is suppressed only when we have something to undo.
+  if (
+    (e.ctrlKey || e.metaKey) &&
+    !e.shiftKey &&
+    !e.altKey &&
+    e.key.toLowerCase() === 'z' &&
+    viewState.value.zoomHistory.length > 0
+  ) {
+    e.preventDefault();
+    onUndoZoom();
   }
 }
 
@@ -519,6 +536,43 @@ function onShowInEventView(target: SwimEvent): void {
   menuState.value = null;
 }
 
+function onUndoZoomMenu(): void {
+  onUndoZoom();
+  menuState.value = null;
+}
+
+function onResetZoomMenu(): void {
+  onResetZoom();
+  menuState.value = null;
+}
+
+/**
+ * Q25 Offset: prompt the user for a lane-start time shift in nanoseconds.
+ * MVP interim — uses `window.prompt` (Q25 dialog vs auto-align is still open).
+ * Accepts plain integer ns; empty / `0` clears the offset.
+ */
+function onSetOffsetMenu(): void {
+  // Keep the menu up while the prompt runs; the dialog blocks the event loop.
+  const raw = window.prompt(
+    t('offsetPrompt', props.locale),
+    String(viewState.value.offsetNs),
+  );
+  if (raw == null) return; // user cancelled
+  const trimmed = raw.trim();
+  if (trimmed === '' || trimmed === '0') {
+    onSetOffset(0);
+    menuState.value = null;
+    return;
+  }
+  const n = Number(trimmed);
+  if (!Number.isFinite(n)) {
+    window.alert(t('offsetInvalid', props.locale));
+    return;
+  }
+  onSetOffset(Math.trunc(n));
+  menuState.value = null;
+}
+
 function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
   hovered.value = ev;
   viewState.value = { ...viewState.value, hoveredEventId: ev?.id ?? null };
@@ -540,8 +594,9 @@ function onSetPlayhead(time: number) {
 
 function onOverviewWindow(window: { startTime: number; endTime: number }) {
   stopViewWindowAnim();
-  viewState.value = applyWindow(viewState.value, {
-    ...window,
+  applyWindowWithHistory({
+    startTime: window.startTime,
+    endTime: window.endTime,
     scrollY: viewState.value.scrollY,
   });
 }
@@ -552,18 +607,14 @@ function onScrollY(scrollY: number) {
 
 function onPan(deltaTime: number) {
   stopViewWindowAnim();
-  viewState.value = applyWindow(
-    viewState.value,
-    panBy(viewState.value, deltaTime, bounds.value),
-  );
+  const next = panBy(viewState.value, deltaTime, bounds.value);
+  applyWindowWithHistory(next);
 }
 
 function onZoom(factor: number, anchorTime: number) {
   stopViewWindowAnim();
-  viewState.value = applyWindow(
-    viewState.value,
-    zoomAt(viewState.value, factor, anchorTime, bounds.value),
-  );
+  const next = zoomAt(viewState.value, factor, anchorTime, bounds.value);
+  applyWindowWithHistory(next);
 }
 
 function onZoomToFit() {
@@ -595,11 +646,35 @@ function onZoomPercent(pct: number) {
     endTime = bounds.value.maxTime;
     startTime = endTime - span;
   }
-  viewState.value = applyWindow(viewState.value, {
-    startTime,
-    endTime,
+  applyWindowWithHistory({ startTime, endTime, scrollY: viewState.value.scrollY });
+}
+
+function onUndoZoom() {
+  stopViewWindowAnim();
+  if (viewState.value.zoomHistory.length === 0) return;
+  viewState.value = undoZoom(viewState.value);
+}
+
+function onResetZoom() {
+  // Reset to fit — same as toolbar ZoomFit, but uses a single instant apply
+  // (not animateToWindow) so the menu action feels synchronous.
+  stopViewWindowAnim();
+  const w = zoomToFitWindow(swim.value);
+  applyWindowWithHistory(w);
+}
+
+function onSetOffset(offsetNs: number) {
+  viewState.value = setOffset(viewState.value, offsetNs);
+}
+
+/** Push the previous window to history, then apply `next` as the new window. */
+function applyWindowWithHistory(next: { startTime: number; endTime: number; scrollY: number }): void {
+  const before: SwimlaneViewState = pushZoomHistory(viewState.value, {
+    startTime: viewState.value.startTime,
+    endTime: viewState.value.endTime,
     scrollY: viewState.value.scrollY,
   });
+  viewState.value = applyWindow(before, next);
 }
 
 function onSearch(q: string) {
@@ -815,10 +890,16 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :y="menuState.y"
       :event="menuState.event"
       :lane-id="menuState.laneId"
+      :undo-depth="viewState.zoomHistory.length"
+      :can-reset-zoom="true"
+      :offset-ns="viewState.offsetNs"
       :locale="locale"
       @hide-lane="onHideLane"
       @fit-to-screen="onFitToScreen"
       @show-in-event-view="onShowInEventView"
+      @undo-zoom="onUndoZoomMenu"
+      @reset-zoom="onResetZoomMenu"
+      @set-offset="onSetOffsetMenu"
       @close="onMenuClose"
     />
   </div>

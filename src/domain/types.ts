@@ -329,6 +329,18 @@ export interface SwimlaneViewState {
    * the canvas/gutter drop hidden leaves; pinned lanes ignore the flag and keep showing.
    */
   hiddenLaneIds: string[];
+  /**
+   * Q24 zoom-history: bounded stack of {startTime, endTime, scrollY} snapshots.
+   * `pushZoomHistory` records the previous window before an interactive zoom/pan;
+   * `undoZoom` pops the top and applies it. Capped at `MAX_ZOOM_HISTORY`.
+   * MVP interim — see OPEN_QUESTIONS Q24.
+   */
+  zoomHistory: SwimlaneViewWindow[];
+  /**
+   * Q25 Offset: lane-start time shift in ns. Applied as a visual offset on top of
+   * `view.startTime` (additive). MVP interim — see OPEN_QUESTIONS Q25.
+   */
+  offsetNs: number;
 }
 
 export interface SwimlaneViewWindow {

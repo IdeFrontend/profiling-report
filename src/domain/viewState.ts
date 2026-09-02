@@ -10,6 +10,9 @@ const MIN_WINDOW = 1;
 /** Shared zoom-in floor (same as `zoomAt`); export for tests / slider mapping. */
 export const MIN_VIEW_WINDOW = MIN_WINDOW;
 
+/** Max zoom-history depth (Q24 MVP interim: bounded undo stack). */
+export const MAX_ZOOM_HISTORY = 10;
+
 /** Max zoom ratio for a trace: fullSpan / MIN_WINDOW (≥ 1). */
 export function maxZoomRatio(fullSpan: number): number {
   const full = Math.max(MIN_WINDOW, fullSpan);
@@ -55,6 +58,8 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     measureRange: null,
     pinnedLaneIds: [],
     hiddenLaneIds: [],
+    zoomHistory: [],
+    offsetNs: 0,
   };
 }
 
@@ -80,6 +85,50 @@ export function hideLane(state: SwimlaneViewState, laneId: string): SwimlaneView
 export function showLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
   if (!state.hiddenLaneIds.includes(laneId)) return state;
   return { ...state, hiddenLaneIds: state.hiddenLaneIds.filter((id) => id !== laneId) };
+}
+
+/** Push the current window onto the zoom-history stack. No-op when window is unchanged. */
+export function pushZoomHistory(
+  state: SwimlaneViewState,
+  window: SwimlaneViewWindow,
+): SwimlaneViewState {
+  const last = state.zoomHistory[state.zoomHistory.length - 1];
+  if (
+    last &&
+    last.startTime === window.startTime &&
+    last.endTime === window.endTime &&
+    last.scrollY === window.scrollY
+  ) {
+    return state;
+  }
+  const next = [...state.zoomHistory, window];
+  if (next.length > MAX_ZOOM_HISTORY) next.shift();
+  return { ...state, zoomHistory: next };
+}
+
+/** Pop the most recent zoom-history entry and apply it. Returns the same state if empty. */
+export function undoZoom(state: SwimlaneViewState): SwimlaneViewState {
+  if (state.zoomHistory.length === 0) return state;
+  const next = state.zoomHistory.slice(0, -1);
+  const target = state.zoomHistory[state.zoomHistory.length - 1];
+  return {
+    ...state,
+    zoomHistory: next,
+    startTime: target.startTime,
+    endTime: target.endTime,
+    scrollY: target.scrollY,
+  };
+}
+
+/** Number of zoom-history entries available to undo (Q24 badge "(N)"). */
+export function zoomHistoryDepth(state: SwimlaneViewState): number {
+  return state.zoomHistory.length;
+}
+
+/** Set the lane-start time offset (Q25 MVP). Pass 0 to clear. */
+export function setOffset(state: SwimlaneViewState, offsetNs: number): SwimlaneViewState {
+  if (state.offsetNs === offsetNs) return state;
+  return { ...state, offsetNs };
 }
 
 export function normalizeMeasureRange(a: number, b: number): MeasureRange {

@@ -10,8 +10,23 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { SwimEvent } from '../../domain/types';
 import { t } from '../../i18n';
 
-type MenuKey = 'fit-to-screen' | 'hide-lane' | 'show-in-event-view';
-type MenuItem = { key: MenuKey; label: string };
+type MenuKey =
+  | 'fit-to-screen'
+  | 'undo-zoom'
+  | 'reset-zoom'
+  | 'hide-lane'
+  | 'show-in-event-view'
+  | 'offset';
+type MenuItem = {
+  key: MenuKey;
+  label: string;
+  /** Right-aligned shortcut or badge (e.g. "Ctrl+Z" or "(2)"). */
+  hint?: string;
+  /** Disabled state — bound item still visible but grayed out. */
+  disabled?: boolean;
+  /** Filter flag — when false, item is hidden entirely. */
+  visible?: boolean;
+};
 
 const props = withDefaults(
   defineProps<{
@@ -23,12 +38,18 @@ const props = withDefaults(
     event: SwimEvent | null;
     /** Leaf lane under the pointer, or null when the menu should not open. */
     laneId: string | null;
+    /** Q24: number of undo entries available — drives the "(N)" badge. */
+    undoDepth?: number;
+    /** Q24: whether 重置缩放 is enabled (sketch shows it disabled at fit-window). */
+    canResetZoom?: boolean;
+    /** Q25: current lane-start time offset in ns (display only in badge). */
+    offsetNs?: number;
     /** When true (timeline scrolling) the menu dismisses itself. */
     dismissOnScroll?: boolean;
     /** Locale for labels. */
     locale?: string;
   }>(),
-  { locale: 'zh-CN' },
+  { undoDepth: 0, canResetZoom: true, offsetNs: 0, locale: 'zh-CN' },
 );
 
 const emit = defineEmits<{
@@ -38,20 +59,33 @@ const emit = defineEmits<{
   'fit-to-screen': [target: SwimEvent];
   /** 在事件视图中显示 — interim: select the event and mount DetailPanel. */
   'show-in-event-view': [target: SwimEvent];
+  /** 撤销缩放 (Ctrl+Z) — pop the zoom-history stack. */
+  'undo-zoom': [];
+  /** 重置缩放 — zoom out to fit the whole trace. */
+  'reset-zoom': [];
+  /** Offset — open the offset prompt; the host shows the dialog and emits back. */
+  'set-offset': [];
   /** User dismissed the menu without picking an item. */
   'close': [];
 }>();
 
-/** Which items to show. On an event hit the event group + lane group render;
- *  on a lane-header hit only 隐藏 (event-scope items hidden). */
+/** Which items to show. The crop groups items by scope: viewport (undo/reset),
+ *  event (fit, show-in-event-view), lane (hide, offset). MVP renders every item
+ *  the spec lists; the host (ProfilingReport) provides undoDepth/canResetZoom/
+ *  offsetNs to drive badges and disabled state. */
 const items = computed<MenuItem[]>(() => {
   const isEvent = props.event != null;
-  const out: MenuItem[] = [{ key: 'hide-lane', label: t('hideLane', props.locale) }];
-  if (isEvent) {
-    out.unshift({ key: 'fit-to-screen', label: t('fitToScreen', props.locale) });
-    out.push({ key: 'show-in-event-view', label: t('showInEventView', props.locale) });
-  }
-  return out;
+  const undoHint = props.undoDepth > 0 ? `Ctrl+Z (${props.undoDepth})` : 'Ctrl+Z';
+  const offsetHint = props.offsetNs !== 0 ? `${props.offsetNs} ns` : '';
+  const out: MenuItem[] = [
+    { key: 'fit-to-screen', label: t('fitToScreen', props.locale), visible: isEvent },
+    { key: 'undo-zoom', label: t('undoZoom', props.locale), hint: undoHint, disabled: props.undoDepth === 0 },
+    { key: 'reset-zoom', label: t('resetZoom', props.locale), disabled: !props.canResetZoom },
+    { key: 'hide-lane', label: t('hideLane', props.locale) },
+    { key: 'show-in-event-view', label: t('showInEventView', props.locale), visible: isEvent },
+    { key: 'offset', label: t('offsetLane', props.locale), hint: offsetHint },
+  ];
+  return out.filter((it) => it.visible !== false);
 });
 
 /** Refs — root for clamp, item buttons for keyboard focus. */
@@ -84,7 +118,7 @@ function clampToViewport(): void {
 }
 
 watch(
-  () => [props.x, props.y, items.value.length],
+  () => [props.x, props.y, items.value.length, props.undoDepth, props.canResetZoom, props.offsetNs],
   () => {
     // Reset clamp on any input change; happens on re-open (new payload) too.
     positioned.value = null;
@@ -152,9 +186,17 @@ function moveFocus(delta: number): void {
 
 function activate(index: number): void {
   const item = items.value[index];
-  if (!item) return;
+  if (!item || item.disabled) return;
   if (item.key === 'fit-to-screen' && props.event) {
     emit('fit-to-screen', props.event);
+    return;
+  }
+  if (item.key === 'undo-zoom') {
+    emit('undo-zoom');
+    return;
+  }
+  if (item.key === 'reset-zoom') {
+    emit('reset-zoom');
     return;
   }
   if (item.key === 'hide-lane' && props.laneId) {
@@ -163,6 +205,10 @@ function activate(index: number): void {
   }
   if (item.key === 'show-in-event-view' && props.event) {
     emit('show-in-event-view', props.event);
+    return;
+  }
+  if (item.key === 'offset') {
+    emit('set-offset');
   }
 }
 
@@ -199,12 +245,16 @@ onMounted(() => {
       :ref="(el) => { if (el) itemRefs[idx] = el as HTMLButtonElement; }"
       type="button"
       class="pr-context-menu__item"
+      :class="{ 'pr-context-menu__item--disabled': item.disabled }"
       :data-testid="`context-menu-item-${item.key}`"
+      :data-hint="item.hint ?? null"
+      :disabled="item.disabled ?? false"
       role="menuitem"
       @click="activate(idx)"
       @mouseenter="focusedIndex = idx"
     >
-      {{ item.label }}
+      <span class="pr-context-menu__label">{{ item.label }}</span>
+      <span v-if="item.hint" class="pr-context-menu__hint">{{ item.hint }}</span>
     </button>
   </div>
 </template>
@@ -224,10 +274,13 @@ onMounted(() => {
 }
 
 .pr-context-menu__item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   width: 100%;
   height: 32px;
-  padding: 0 40px 0 12px;
+  padding: 0 12px;
   text-align: left;
   background: transparent;
   border: 0;
@@ -236,9 +289,20 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.pr-context-menu__item:hover,
-.pr-context-menu__item:focus {
+.pr-context-menu__item:hover:not(:disabled),
+.pr-context-menu__item:focus:not(:disabled) {
   outline: none;
   background: #3a3a3a;
+}
+
+.pr-context-menu__item--disabled,
+.pr-context-menu__item:disabled {
+  color: #8a8a8a;
+  cursor: default;
+}
+
+.pr-context-menu__hint {
+  color: #8a8a8a;
+  font-size: 12px;
 }
 </style>
