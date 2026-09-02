@@ -89,7 +89,7 @@ function paintDependencyLinksDevice(
   dpr: number,
 ): void {
   if (links.length === 0) return;
-  ctx.lineWidth = Math.max(1, Math.round(DEP_STROKE_WIDTH));
+  ctx.lineWidth = Math.max(1, Math.round(DEP_STROKE_WIDTH * dpr));
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   for (const link of links) {

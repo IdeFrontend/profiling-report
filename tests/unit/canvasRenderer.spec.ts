@@ -272,6 +272,12 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     expect(abs[0]).toBe(abs[1]);
     expect(b - a).toBeGreaterThanOrEqual(1);
   });
+
+  it('PR-RENDER-020: WebGL resize re-uploads curve instances on dpr change', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/if \(dprChanged\) this\.rebuildCurveInstances\(\)/);
+  });
 });
 
 describe('PR-RENDER: lane chrome color', () => {

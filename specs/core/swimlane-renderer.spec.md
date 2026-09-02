@@ -64,6 +64,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
 1. **PR-RENDER-018**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
 1. **PR-RENDER-019**: `resize(deviceW, deviceH, dpr)` sets `canvas.width/height` to device args without writing `canvas.style`; WebGL has no `uDpr` uniform.
+1. **PR-RENDER-020**: WebGL `resize` re-uploads curve instances when `dpr` changes (browser zoom), so curve Y anchors stay put.
 
 ## Edge Cases
 
