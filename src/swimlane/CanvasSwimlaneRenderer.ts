@@ -8,8 +8,8 @@ import type {
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
 import {
   cubicControlPull,
-  DEP_STROKE_WIDTH,
   dependencyGraph,
+  dependencyStrokeWidth,
   linkIntersectsTimeView,
   linkToScreen,
   type DependencyLink,
@@ -89,7 +89,7 @@ function paintDependencyLinksDevice(
   dpr: number,
 ): void {
   if (links.length === 0) return;
-  ctx.lineWidth = Math.max(1, Math.round(DEP_STROKE_WIDTH));
+  ctx.lineWidth = dependencyStrokeWidth(dpr);
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   for (const link of links) {

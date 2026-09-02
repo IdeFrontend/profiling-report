@@ -129,7 +129,7 @@ void main() {
 }
 `;
 
-/** Instanced cubic stroke in device pixels; uHalfWidth is device px. */
+/** Instanced cubic stroke in device pixels; uHalfWidth is device px (`dependencyStrokeWidth(dpr) / 2`, so full width = 2 CSS px). */
 export const CURVE_VS = `#version 300 es
 precision highp float;
 
