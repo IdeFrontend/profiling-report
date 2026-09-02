@@ -94,29 +94,50 @@ function hasClockFreq(
   return f != null && f > 0 && Number.isFinite(f);
 }
 
-function cyclesBody(c: number): string {
-  const abs = Math.abs(c);
-  if (abs >= 100 || Number.isInteger(c)) return String(Math.round(c));
-  if (abs >= 10) return c.toFixed(1);
-  return c.toFixed(2);
+/** Whole derived cycles from ns (I-Q14), rounded to the nearest integer. */
+function wholeCycles(ns: number, clockFreqMHz: number): number {
+  return Math.round(nsToCycles(ns, clockFreqMHz));
 }
 
-/** Axis / compact cycle label (`1234cyc`) or tooltip / cursor (`1234 cycles`). */
-function formatCycles(ns: number, opts: FormatTimeOpts | undefined, compact: boolean): string {
+/**
+ * Number of 3-digit groups needed to render the whole trace's cycle count.
+ * Every cycles value shares this width so labels read as a fixed-width counter.
+ */
+function cycleGroupCount(totalSpanNs: number | undefined, clockFreqMHz: number): number {
+  if (totalSpanNs == null || !Number.isFinite(totalSpanNs) || !(totalSpanNs > 0)) return 1;
+  const totalCycles = wholeCycles(totalSpanNs, clockFreqMHz);
+  if (!(totalCycles > 0)) return 1;
+  const digits = Math.floor(Math.log10(totalCycles)) + 1;
+  return Math.max(1, Math.ceil(digits / 3));
+}
+
+/** Zero-pad to a whole number of groups, then space-group every 3 digits (`010 325`). */
+function formatCyclesValue(value: number, groupCount: number): string {
+  const neg = value < 0;
+  const width = groupCount * 3;
+  const padded = String(Math.abs(value)).padStart(width, '0');
+  const groups: string[] = [];
+  for (let i = 0; i < padded.length; i += 3) groups.push(padded.slice(i, i + 3));
+  return (neg ? '-' : '') + groups.join(' ');
+}
+
+/** Derived CPU-clock label — number only (no `cyc` / `cycles` suffix). */
+function formatCycles(ns: number, opts: FormatTimeOpts | undefined): string {
   if (!Number.isFinite(ns) || !hasClockFreq(opts)) return '—';
-  const c = nsToCycles(ns, opts.clockFreqMHz);
-  if (!Number.isFinite(c)) return '—';
-  const body = cyclesBody(c);
-  return compact ? `${body}cyc` : `${body} cycles`;
+  const value = wholeCycles(ns, opts.clockFreqMHz);
+  if (!Number.isFinite(value)) return '—';
+  return formatCyclesValue(value, cycleGroupCount(opts.totalSpanNs, opts.clockFreqMHz));
 }
 
-/** Value and unit apart for the detail card's cycles column (`cycles` unit). */
+/** Cycles for the detail card — value only, empty unit (no `cycles` label). */
 function formatCyclesParts(ns: number, opts: FormatTimeOpts | undefined): { value: string; unit: string } {
-  const unit = 'cycles';
-  if (!Number.isFinite(ns) || !hasClockFreq(opts)) return { value: '—', unit };
-  const c = nsToCycles(ns, opts.clockFreqMHz);
-  if (!Number.isFinite(c)) return { value: '—', unit };
-  return { value: cyclesBody(c), unit };
+  if (!Number.isFinite(ns) || !hasClockFreq(opts)) return { value: '—', unit: '' };
+  const value = wholeCycles(ns, opts.clockFreqMHz);
+  if (!Number.isFinite(value)) return { value: '—', unit: '' };
+  return {
+    value: formatCyclesValue(value, cycleGroupCount(opts.totalSpanNs, opts.clockFreqMHz)),
+    unit: '',
+  };
 }
 
 function nsToUnitValue(ns: number, unit: TimeScaleUnit): number {
@@ -202,6 +223,8 @@ export type FormatTimeOpts = {
   mode?: TimeDisplayMode;
   /** AIC frequency in MHz — required when `mode` is `cycles`. */
   clockFreqMHz?: number;
+  /** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode. */
+  totalSpanNs?: number;
 };
 
 /**
@@ -215,7 +238,7 @@ export function formatAxisTime(
   tickStepNs?: number,
   opts?: FormatTimeOpts,
 ): string {
-  if (opts?.mode === 'cycles') return formatCycles(ns, opts, true);
+  if (opts?.mode === 'cycles') return formatCycles(ns, opts);
   if (!Number.isFinite(ns)) return '—';
 
   const suffix = unitSuffix(unit);
@@ -229,14 +252,14 @@ export function formatAxisTime(
 
 /**
  * Cursor / playhead label as `MM:SS.mmm` in the resolved time scale
- * (sketch: 4.456ms → `00:04.456`). Cycles mode uses a plain cycle count.
+ * (sketch: 4.456ms → `00:04.456`). Cycles mode renders a zero-padded cycle count.
  */
 export function formatCursorTime(
   ns: number,
   unit: TimeScaleUnit = 'ms',
   opts?: FormatTimeOpts,
 ): string {
-  if (opts?.mode === 'cycles') return formatCycles(Math.max(0, ns), opts, false);
+  if (opts?.mode === 'cycles') return formatCycles(Math.max(0, ns), opts);
   if (!Number.isFinite(ns)) return '00:00.000';
   const value = Math.max(0, nsToUnitValue(ns, unit));
   const totalThousandths = Math.round(value * 1000);
@@ -278,7 +301,7 @@ export function formatTimeParts(
 
 /** Format times in an explicit scale unit (axis / cursor chrome). */
 export function formatTime(ns: number, unit: TimeScaleUnit = 'ms', opts?: FormatTimeOpts): string {
-  if (opts?.mode === 'cycles') return formatCycles(ns, opts, false);
+  if (opts?.mode === 'cycles') return formatCycles(ns, opts);
   if (!Number.isFinite(ns)) return '—';
   const parts = formatTimeParts(ns, unit, opts);
   return `${parts.value} ${parts.unit}`;
@@ -292,7 +315,7 @@ export function formatTimePartsAuto(ns: number, opts?: FormatTimeOpts): { value:
 
 /** Joined {@link formatTimePartsAuto}. */
 export function formatTimeAuto(ns: number, opts?: FormatTimeOpts): string {
-  if (opts?.mode === 'cycles') return formatCycles(ns, opts, false);
+  if (opts?.mode === 'cycles') return formatCycles(ns, opts);
   if (!Number.isFinite(ns)) return '—';
   const parts = formatTimePartsAuto(ns, opts);
   return `${parts.value} ${parts.unit}`;

@@ -57,6 +57,7 @@ const ruler = computed(() =>
     timeDisplayMode: props.timeDisplayMode,
     timeScaleUnit: overviewTimeScaleUnit.value,
     clockFreqMHz: props.clockFreqMHz,
+    totalSpanNs: fullSpan.value,
     widthPx: trackWidth.value,
     muteOutside: { start: props.startTime, end: props.endTime },
   }),

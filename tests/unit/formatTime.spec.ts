@@ -111,21 +111,22 @@ describe('PR-TIME: auto-scale time labels', () => {
     expect(formatTimePartsAuto(500_000)).toEqual({ value: '500.000', unit: 'µs' });
   });
 
-  it('PR-TIME-010: cycles conversion, freq resolve, and cycle formatting', () => {
+  it('PR-TIME-010: cycles conversion, freq resolve, and fixed-width cycle formatting', () => {
     expect(nsToCycles(1000, 1000)).toBe(1000);
-    expect(formatTime(1000, 'ms', { mode: 'cycles', clockFreqMHz: 1000 })).toBe('1000 cycles');
-    expect(
-      formatAxisTime(1000, 'ms', undefined, { mode: 'cycles', clockFreqMHz: 1000 }),
-    ).toBe('1000cyc');
-    expect(formatAxisTime(0, 'ms', undefined, { mode: 'cycles', clockFreqMHz: 1000 })).toBe('0cyc');
-    expect(formatCursorTime(1000, 'ms', { mode: 'cycles', clockFreqMHz: 1000 })).toBe(
-      '1000 cycles',
-    );
+    // Fixed width from total trace cycles (10325 → 2 groups → 6 digits, zero-padded).
+    const opts = { mode: 'cycles' as const, clockFreqMHz: 1000, totalSpanNs: 10325 };
+    expect(formatTime(10325, 'ms', opts)).toBe('010 325');
+    expect(formatTime(0, 'ms', opts)).toBe('000 000');
+    expect(formatTime(5000, 'ms', opts)).toBe('005 000');
+    expect(formatAxisTime(10325, 'ms', undefined, opts)).toBe('010 325');
+    expect(formatAxisTime(0, 'ms', undefined, opts)).toBe('000 000');
+    expect(formatCursorTime(10325, 'ms', opts)).toBe('010 325');
+    // No `cycles` unit in any surface.
     expect(formatTime(1000, 'ms', { mode: 'cycles' })).toBe('—');
-    expect(formatTimeParts(1000, 'ms', { mode: 'cycles', clockFreqMHz: 1000 })).toEqual({
-      value: '1000',
-      unit: 'cycles',
-    });
+    expect(formatTimeParts(10325, 'ms', opts)).toEqual({ value: '010 325', unit: '' });
+    // Wider trace → more groups.
+    const wide = { mode: 'cycles' as const, clockFreqMHz: 1000, totalSpanNs: 1_000_000 };
+    expect(formatTime(1_000_000, 'ms', wide)).toBe('001 000 000');
     expect(resolveClockFreqMHz({ currentFreq: 1800 })).toBe(1800);
     expect(resolveClockFreqMHz({ ratedFreq: 1500 })).toBe(1500);
     expect(resolveClockFreqMHz({ currentFreq: 1800, ratedFreq: 1500 })).toBe(1800);

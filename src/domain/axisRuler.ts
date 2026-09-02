@@ -131,6 +131,8 @@ export interface BuildAxisRulerTicksOptions {
   timeDisplayMode?: TimeDisplayMode;
   /** AIC frequency in MHz when `timeDisplayMode` is `cycles`. */
   clockFreqMHz?: number;
+  /** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode. */
+  totalSpanNs?: number;
   /** Pixel width of the ruler track (drives tick density). */
   widthPx?: number;
   /**
@@ -267,7 +269,7 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
   const labelOffsetNs = base?.offsetNs ?? 0;
   const baseChromePx = base ? estimateAxisBaseChromePx(base.baseLabel) : 0;
   const minMajorPct = base ? viewportBaseMinMajorPct(widthPx) : -0.01;
-  const axisOpts = { mode, clockFreqMHz: opts.clockFreqMHz };
+  const axisOpts = { mode, clockFreqMHz: opts.clockFreqMHz, totalSpanNs: opts.totalSpanNs };
 
   // Snap to origin + k·interval (integral relative timestamps).
   let t0 = origin + Math.ceil((opts.rangeStart - origin) / interval) * interval;

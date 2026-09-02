@@ -182,6 +182,9 @@ const bounds = computed(() => {
   };
 });
 
+/** Whole trace span (ns) — drives the fixed-width cycle counter in `cycles` mode. */
+const totalSpanNs = computed(() => bounds.value.maxTime - bounds.value.minTime);
+
 /** Log zoom: 0 = fit, 100 = min window (same floor as Ctrl+wheel / zoomAt). */
 const zoomPercent = computed(() =>
   zoomPercentFromSpan(
@@ -779,6 +782,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         :selected="selected"
         :time-display-mode="localTimeDisplayMode"
         :clock-freq-m-hz="clockFreqMHz"
+        :total-span-ns="totalSpanNs"
         :time-origin="bounds.minTime"
         :locale="locale"
         :neighbors="dependencyNeighbors"
@@ -796,6 +800,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :style-pos="tooltipStyle"
       :time-display-mode="localTimeDisplayMode"
       :clock-freq-m-hz="clockFreqMHz"
+      :total-span-ns="totalSpanNs"
       :time-origin="bounds.minTime"
       :locale="locale"
     />

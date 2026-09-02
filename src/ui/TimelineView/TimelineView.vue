@@ -117,11 +117,15 @@ function onGutterWidth(w: number) {
   emit('update:gutterWidth', w);
 }
 
+/** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode. */
+const totalSpanNs = computed(() => props.bounds.maxTime - props.bounds.minTime);
+
 const cursorLabel = computed(() => {
   if (!props.cursor) return '';
   return formatDisplayTime(props.cursor.time, props.bounds.minTime, props.timeScaleUnit, {
     mode: props.timeDisplayMode,
     clockFreqMHz: props.clockFreqMHz,
+    totalSpanNs: totalSpanNs.value,
   });
 });
 
@@ -133,6 +137,7 @@ const viewportRuler = computed(() =>
     timeDisplayMode: props.timeDisplayMode,
     timeScaleUnit: props.timeScaleUnit,
     clockFreqMHz: props.clockFreqMHz,
+    totalSpanNs: totalSpanNs.value,
     widthPx: timeAxisWidth.value,
     useViewportBase: true,
   }),
@@ -151,6 +156,7 @@ const measureAxis = computed(() => {
   const label = formatTimeAuto(end - start, {
     mode: props.timeDisplayMode,
     clockFreqMHz: props.clockFreqMHz,
+    totalSpanNs: totalSpanNs.value,
   });
   const visStart = Math.max(viewStart, start);
   const visEnd = Math.min(viewEnd, end);
@@ -243,6 +249,7 @@ const cursorLabelAbove = computed(() => {
   const cursorLabelText = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit, {
     mode: props.timeDisplayMode,
     clockFreqMHz: props.clockFreqMHz,
+    totalSpanNs: totalSpanNs.value,
   });
   const cursorLabelW = estimateAxisLabelWidth(cursorLabelText, CURSOR_LABEL_MIN_WIDTH_PX);
   const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
