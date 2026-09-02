@@ -16,13 +16,13 @@ export interface TextGlyph {
 const FONT_FAMILY = 'ui-sans-serif, system-ui, sans-serif';
 
 /** CSS px before DPR scale — shared by WebGL ClearType and Canvas overlay labels. */
-export const EVENT_LABEL_FONT_CSS_PX = 10;
+export const EVENT_LABEL_FONT_CSS_PX = 12;
 
 export function eventLabelFont(sizePx: number): string {
-  // Bold weight (700): ClearType `pow(rgb, 2.25)` on white-on-black narrows the antialiased
-  // edge, so a heavier stroke keeps labels legible at the 10px device size. Matches the live
-  // Canvas2D overlay (`drawEventLabel`), which uses the same weight.
-  return `700 ${Math.max(8, Math.round(sizePx))}px ${FONT_FAMILY}`;
+  // Regular weight (400): ClearType `pow(rgb, 2.25)` on white-on-black narrows the antialiased
+  // edge, but at 12px the regular stroke stays legible. Matches the live Canvas2D overlay
+  // (`drawEventLabel`), which uses the same weight.
+  return `400 ${Math.max(8, Math.round(sizePx))}px ${FONT_FAMILY}`;
 }
 
 /** Minimal `measureText` surface — satisfied by Canvas2D and OffscreenCanvas2D contexts alike. */

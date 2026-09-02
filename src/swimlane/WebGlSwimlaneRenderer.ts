@@ -32,7 +32,7 @@ import {
 } from './layout';
 import { dependencyGraph, glLinkTime, type DependencyLink } from './dependencyLinks';
 import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, minRR, maxRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
-import { TextAtlas } from './textAtlas';
+import { TextAtlas, EVENT_LABEL_FONT_CSS_PX } from './textAtlas';
 
 interface GlProgram {
   program: WebGLProgram;
@@ -648,7 +648,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const bright = this.neighborIds;
     // Lane background (#1f1f1f) — the event fill composites over this, not the clear color.
     const laneBg = 0x1f / 255;
-    const fontPx = Math.max(8, Math.round(10 * dpr));
+    const fontPx = Math.max(8, Math.round(EVENT_LABEL_FONT_CSS_PX * dpr));
 
     gl.disable(gl.BLEND);
     gl.useProgram(prog.program);
@@ -680,12 +680,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const lane = this.layout.lanes[item.laneIndex];
       if (!lane) continue;
       const [lr, lg, lb] = hexToRgb(lane.color);
-      // ClearType is opaque (alpha = 1), so bake the composited backdrop into uBgColor:
-      // the dimmed fill over the lane background, and fade the white text toward it by `dim`
-      // to reproduce the Canvas overlay's globalAlpha on labels.
-      const fr = lr * dim + laneBg * (1 - dim);
-      const fg = lg * dim + laneBg * (1 - dim);
-      const fb = lb * dim + laneBg * (1 - dim);
+      // ClearType is opaque (alpha = 1), so bake the composited backdrop into uBgColor. The fill
+      // pass blends additively (ONE,ONE): a fully covered event pixel is `laneBg + rgb·dim`, so the
+      // label's solid backdrop must use that same formula (clamped) to sit invisibly on the fill.
+      const fr = Math.min(1, laneBg + lr * dim);
+      const fg = Math.min(1, laneBg + lg * dim);
+      const fb = Math.min(1, laneBg + lb * dim);
       gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
       gl.uniform4f(prog.uColor, fr + (1 - fr) * dim, fg + (1 - fg) * dim, fb + (1 - fb) * dim, 1);
 

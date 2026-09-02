@@ -11,7 +11,7 @@ describe('PR-RENDER: ClearType text atlas', () => {
   });
 
   it('PR-RENDER-020: eventLabelFont uses shared CSS px size', () => {
-    expect(eventLabelFont(10)).toMatch(/^700 10px /);
+    expect(eventLabelFont(12)).toMatch(/^400 12px /);
   });
 
   it('PR-RENDER-020: clearTypeRasterSupported is false in jsdom', () => {

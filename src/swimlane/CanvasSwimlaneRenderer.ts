@@ -36,7 +36,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
-import { fitTextWidth } from './textAtlas';
+import { EVENT_LABEL_FONT_CSS_PX, fitTextWidth } from './textAtlas';
 
 /** Device-pixel-snapped stroke path inset by half the (snapped) line width. */
 function strokeRoundedEvent(
@@ -74,7 +74,7 @@ function drawEventLabel(
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.font = `700 ${Math.max(8, Math.round(10 * dpr))}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `400 ${Math.max(8, Math.round(EVENT_LABEL_FONT_CSS_PX * dpr))}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const label = fitTextWidth(ctx, name, anchor.maxWidth);
