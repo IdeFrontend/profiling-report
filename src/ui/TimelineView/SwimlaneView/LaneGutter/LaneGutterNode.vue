@@ -33,14 +33,16 @@ const displayName = computed(() =>
   laneCategoryLabel(props.lane.categoryKey, props.lane.name, props.locale),
 );
 const pinPointerHover = ref(false);
+const utilTipHover = ref(false);
 const laneExternallyHovered = computed(
   () => !isFolder.value && props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
 );
 /** Leaf/folder share the same indent; pin is absolute at gutter left. */
 const pad = computed(() => `${24 + props.depth * 14}px`);
 /** Thick: folders or depth-0 leaves (通信/储存HBM); thin: pipe leaves under Core. */
+const isThinUtil = computed(() => !(isFolder.value || props.depth === 0));
 const utilSizeClass = computed(() =>
-  isFolder.value || props.depth === 0 ? 'pr-gutter__util--thick' : 'pr-gutter__util--thin',
+  isThinUtil.value ? 'pr-gutter__util--thin' : 'pr-gutter__util--thick',
 );
 
 /** AC-11's tints. The bar composites them over an opaque base rather than over the
@@ -61,9 +63,18 @@ const displayBar = computed((): GutterBarDisplay | null => {
   return null;
 });
 
+/** Thin bars omit in-track text; show value on hover (pin-tip chrome). */
+const showUtilTip = computed(
+  () =>
+    isThinUtil.value &&
+    utilTipHover.value &&
+    displayBar.value != null &&
+    displayBar.value.label.length > 0,
+);
+
 function fillColor(bar: GutterBarDisplay): string {
   if (bar.thresholdColor) {
-    return bar.barWidth <= 50 ? UTIL_RED : UTIL_GRAY;
+    return bar.barWidth < 50 ? UTIL_RED : UTIL_GRAY;
   }
   return bar.relativeMax ? UTIL_RED : UTIL_GRAY;
 }
@@ -102,25 +113,36 @@ const midlineStyle = computed(() =>
     <span
       v-if="displayBar"
       class="pr-gutter__util"
-      :class="utilSizeClass"
+      :class="[utilSizeClass, { 'pr-gutter__util--tip-open': showUtilTip }]"
       data-testid="lane-util"
+      :aria-label="isThinUtil ? displayBar.label : undefined"
+      @pointerenter="utilTipHover = true"
+      @pointerleave="utilTipHover = false"
     >
+      <span class="pr-gutter__util-track">
+        <span
+          class="pr-gutter__util-fill"
+          :style="{
+            width: `${Math.min(100, Math.max(0, displayBar.barWidth))}%`,
+            '--pr-util-fill': fillColor(displayBar),
+          }"
+        />
+        <span
+          v-if="utilMidlinePercent != null"
+          class="pr-gutter__util-mid"
+          :style="midlineStyle"
+          aria-hidden="true"
+        />
+      </span>
       <span
-        class="pr-gutter__util-fill"
-        :style="{
-          width: `${Math.min(100, Math.max(0, displayBar.barWidth))}%`,
-          '--pr-util-fill': fillColor(displayBar),
-        }"
-      />
-      <span
-        v-if="utilMidlinePercent != null"
-        class="pr-gutter__util-mid"
-        :style="midlineStyle"
-        aria-hidden="true"
-      />
-      <span
-        v-if="utilSizeClass === 'pr-gutter__util--thick'"
+        v-if="!isThinUtil"
         class="pr-gutter__util-pct"
+      >{{ displayBar.label }}</span>
+      <span
+        v-if="showUtilTip"
+        class="pr-gutter__tip pr-gutter__util-tip"
+        role="tooltip"
+        data-testid="lane-util-tip"
       >{{ displayBar.label }}</span>
     </span>
     <span
@@ -171,7 +193,7 @@ const midlineStyle = computed(() =>
       <PinIcon :filled="isPinned || pinPointerHover" />
       <span
         v-if="pinPointerHover"
-        class="pr-gutter__pin-tip"
+        class="pr-gutter__tip pr-gutter__pin-tip"
         role="tooltip"
       >{{ pinLabel }}</span>
     </button>
@@ -184,25 +206,36 @@ const midlineStyle = computed(() =>
     <span
       v-if="displayBar"
       class="pr-gutter__util"
-      :class="utilSizeClass"
+      :class="[utilSizeClass, { 'pr-gutter__util--tip-open': showUtilTip }]"
       data-testid="lane-util"
+      :aria-label="isThinUtil ? displayBar.label : undefined"
+      @pointerenter="utilTipHover = true"
+      @pointerleave="utilTipHover = false"
     >
+      <span class="pr-gutter__util-track">
+        <span
+          class="pr-gutter__util-fill"
+          :style="{
+            width: `${Math.min(100, Math.max(0, displayBar.barWidth))}%`,
+            '--pr-util-fill': fillColor(displayBar),
+          }"
+        />
+        <span
+          v-if="utilMidlinePercent != null"
+          class="pr-gutter__util-mid"
+          :style="midlineStyle"
+          aria-hidden="true"
+        />
+      </span>
       <span
-        class="pr-gutter__util-fill"
-        :style="{
-          width: `${Math.min(100, Math.max(0, displayBar.barWidth))}%`,
-          '--pr-util-fill': fillColor(displayBar),
-        }"
-      />
-      <span
-        v-if="utilMidlinePercent != null"
-        class="pr-gutter__util-mid"
-        :style="midlineStyle"
-        aria-hidden="true"
-      />
-      <span
-        v-if="utilSizeClass === 'pr-gutter__util--thick'"
+        v-if="!isThinUtil"
         class="pr-gutter__util-pct"
+      >{{ displayBar.label }}</span>
+      <span
+        v-if="showUtilTip"
+        class="pr-gutter__tip pr-gutter__util-tip"
+        role="tooltip"
+        data-testid="lane-util-tip"
       >{{ displayBar.label }}</span>
     </span>
     <span
@@ -293,15 +326,11 @@ const midlineStyle = computed(() =>
   opacity: 1;
 }
 
-.pr-gutter__pin-tip {
+.pr-gutter__tip {
   position: absolute;
-  /* Pin sits flush-left; center would clip past the gutter edge. */
-  left: 0;
-  bottom: calc(100% + 6px);
   z-index: 2;
   padding: 4px 8px;
-  /* Follows EventTooltip's chrome, as the pin spec asks; that chrome moved to the
-     raised-surface token under AC-09, and the design crop measures the same #363636. */
+  /* Follows EventTooltip's chrome; raised-surface token under AC-09. */
   background: var(--pr-surface-raised, #363636);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
@@ -311,6 +340,12 @@ const midlineStyle = computed(() =>
   color: #e8e8e8;
   white-space: nowrap;
   pointer-events: none;
+}
+
+.pr-gutter__pin-tip {
+  /* Pin sits flush-left; center would clip past the gutter edge. */
+  left: 0;
+  bottom: calc(100% + 6px);
 }
 
 .pr-gutter__name {
@@ -330,6 +365,14 @@ const midlineStyle = computed(() =>
   display: block;
   box-sizing: border-box;
   width: 110px;
+  border-radius: 4px;
+}
+
+.pr-gutter__util-track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
   background: repeating-linear-gradient(
     -45deg,
     #3a3a3a 0,
@@ -337,8 +380,6 @@ const midlineStyle = computed(() =>
     var(--pr-util-track) 1px,
     var(--pr-util-track) 4px
   );
-  border-radius: 4px;
-  overflow: hidden;
 }
 
 .pr-gutter__util-mid {
@@ -363,6 +404,21 @@ const midlineStyle = computed(() =>
 
 .pr-gutter__util--empty {
   background: transparent;
+}
+
+.pr-gutter__util--empty .pr-gutter__util-track {
+  display: none;
+}
+
+.pr-gutter__util--tip-open {
+  z-index: 3;
+}
+
+.pr-gutter__util-tip {
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Opaque under the tint, so the track's hatch reads as "still to fill" and stops dead at
