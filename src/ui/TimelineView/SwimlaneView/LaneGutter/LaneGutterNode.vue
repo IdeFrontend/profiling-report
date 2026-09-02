@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { laneCategoryLabel, t } from '../../../../i18n';
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
 import type { GutterBarDisplay, GutterLane } from './gutterTypes';
+
+/** Match EventTooltip offset; delay avoids flicker while scanning the gutter. */
+const UTIL_TIP_DELAY_MS = 400;
+const UTIL_TIP_CURSOR_OFFSET_PX = 12;
 
 const props = defineProps<{
   lane: GutterLane;
@@ -33,7 +37,10 @@ const displayName = computed(() =>
   laneCategoryLabel(props.lane.categoryKey, props.lane.name, props.locale),
 );
 const pinPointerHover = ref(false);
-const utilTipHover = ref(false);
+const utilTipVisible = ref(false);
+const utilTipPos = ref({ left: '0px', top: '0px' });
+let utilTipTimer: ReturnType<typeof setTimeout> | null = null;
+
 const laneExternallyHovered = computed(
   () => !isFolder.value && props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
 );
@@ -63,14 +70,45 @@ const displayBar = computed((): GutterBarDisplay | null => {
   return null;
 });
 
-/** Thin bars omit in-track text; show value on hover (pin-tip chrome). */
-const showUtilTip = computed(
-  () =>
-    isThinUtil.value &&
-    utilTipHover.value &&
-    displayBar.value != null &&
-    displayBar.value.label.length > 0,
+const canShowUtilTip = computed(
+  () => isThinUtil.value && displayBar.value != null && displayBar.value.label.length > 0,
 );
+
+const showUtilTip = computed(() => canShowUtilTip.value && utilTipVisible.value);
+
+function clearUtilTipTimer() {
+  if (utilTipTimer != null) {
+    clearTimeout(utilTipTimer);
+    utilTipTimer = null;
+  }
+}
+
+function setUtilTipPos(clientX: number, clientY: number) {
+  utilTipPos.value = {
+    left: `${clientX + UTIL_TIP_CURSOR_OFFSET_PX}px`,
+    top: `${clientY + UTIL_TIP_CURSOR_OFFSET_PX}px`,
+  };
+}
+
+function onLanePointerEnter(e: PointerEvent) {
+  if (!canShowUtilTip.value) return;
+  setUtilTipPos(e.clientX, e.clientY);
+  clearUtilTipTimer();
+  utilTipTimer = setTimeout(() => {
+    utilTipVisible.value = true;
+    utilTipTimer = null;
+  }, UTIL_TIP_DELAY_MS);
+}
+
+function onLanePointerMove(e: PointerEvent) {
+  if (!canShowUtilTip.value) return;
+  setUtilTipPos(e.clientX, e.clientY);
+}
+
+function onLanePointerLeave() {
+  clearUtilTipTimer();
+  utilTipVisible.value = false;
+}
 
 function fillColor(bar: GutterBarDisplay): string {
   if (bar.thresholdColor) {
@@ -88,6 +126,10 @@ function onPinClick(e: MouseEvent) {
 const midlineStyle = computed(() =>
   props.utilMidlinePercent != null ? { left: `${props.utilMidlinePercent}%` } : { display: 'none' },
 );
+
+onBeforeUnmount(() => {
+  clearUtilTipTimer();
+});
 </script>
 
 <template>
@@ -113,11 +155,8 @@ const midlineStyle = computed(() =>
     <span
       v-if="displayBar"
       class="pr-gutter__util"
-      :class="[utilSizeClass, { 'pr-gutter__util--tip-open': showUtilTip }]"
+      :class="utilSizeClass"
       data-testid="lane-util"
-      :aria-label="isThinUtil ? displayBar.label : undefined"
-      @pointerenter="utilTipHover = true"
-      @pointerleave="utilTipHover = false"
     >
       <span class="pr-gutter__util-track">
         <span
@@ -137,12 +176,6 @@ const midlineStyle = computed(() =>
       <span
         v-if="!isThinUtil"
         class="pr-gutter__util-pct"
-      >{{ displayBar.label }}</span>
-      <span
-        v-if="showUtilTip"
-        class="pr-gutter__tip pr-gutter__util-tip"
-        role="tooltip"
-        data-testid="lane-util-tip"
       >{{ displayBar.label }}</span>
     </span>
     <span
@@ -177,6 +210,9 @@ const midlineStyle = computed(() =>
     }"
     :style="{ paddingLeft: pad }"
     :data-testid="`gutter-lane-${lane.id}`"
+    @pointerenter="onLanePointerEnter"
+    @pointermove="onLanePointerMove"
+    @pointerleave="onLanePointerLeave"
   >
     <button
       type="button"
@@ -206,11 +242,9 @@ const midlineStyle = computed(() =>
     <span
       v-if="displayBar"
       class="pr-gutter__util"
-      :class="[utilSizeClass, { 'pr-gutter__util--tip-open': showUtilTip }]"
+      :class="utilSizeClass"
       data-testid="lane-util"
-      :aria-label="isThinUtil ? displayBar.label : undefined"
-      @pointerenter="utilTipHover = true"
-      @pointerleave="utilTipHover = false"
+      :aria-label="canShowUtilTip ? displayBar.label : undefined"
     >
       <span class="pr-gutter__util-track">
         <span
@@ -231,12 +265,6 @@ const midlineStyle = computed(() =>
         v-if="!isThinUtil"
         class="pr-gutter__util-pct"
       >{{ displayBar.label }}</span>
-      <span
-        v-if="showUtilTip"
-        class="pr-gutter__tip pr-gutter__util-tip"
-        role="tooltip"
-        data-testid="lane-util-tip"
-      >{{ displayBar.label }}</span>
     </span>
     <span
       v-else
@@ -244,6 +272,15 @@ const midlineStyle = computed(() =>
       :class="utilSizeClass"
       aria-hidden="true"
     />
+    <Teleport to="body">
+      <span
+        v-if="showUtilTip && displayBar"
+        class="pr-gutter__tip pr-gutter__util-tip"
+        role="tooltip"
+        data-testid="lane-util-tip"
+        :style="utilTipPos"
+      >{{ displayBar.label }}</span>
+    </Teleport>
   </div>
 </template>
 
@@ -410,14 +447,9 @@ const midlineStyle = computed(() =>
   display: none;
 }
 
-.pr-gutter__util--tip-open {
-  z-index: 3;
-}
-
 .pr-gutter__util-tip {
-  left: 50%;
-  bottom: calc(100% + 6px);
-  transform: translateX(-50%);
+  position: fixed;
+  z-index: 20;
   font-variant-numeric: tabular-nums;
 }
 
