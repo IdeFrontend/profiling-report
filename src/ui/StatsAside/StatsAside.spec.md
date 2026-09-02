@@ -38,7 +38,9 @@ I-Q6a duration + I-Q6g bandwidth. Card group renders when `taskDurationUs` **or*
 
 **Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.06` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Progress bar = `min(100%, Block Dim / core_count × 100%)` when `summary.coreCount` is set (HQ 32); else decorative ~15% cyan fill (I-Q6e). Secondary (HQ 1): `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`; omit if neither.
 
-Do **not** render a standalone op-type card. When duration is present, **算力情况** / **平均核利用率** mount as top-row placeholders (title + `N/A`) until Product Q6 defines formulas — do **not** bind `summary.computeTflops` / `summary.avgCoreUtil`. When the summary grid is BW-only (no `taskDurationUs`), omit the placeholders so the BW row stays a full 2×`span 3` without a gapped top row.
+Do **not** render a standalone op-type card. When duration is present, **算力情况** uses `computeCard` (I-Q6h / HQ 2–4, Q33) when the adapter supplies it; otherwise title + `N/A`. **平均核利用率** stays a top-row placeholder (title + `N/A`) until Product defines its formula. When the summary grid is BW-only (no `taskDurationUs`), omit the placeholders so the BW row stays a full 2×`span 3` without a gapped top row.
+
+**算力情况 (I-Q6h).** `computeCard` from adapter. Same card chrome and inner **aic \| aiv** column layout as I/O bandwidth (HQ 33). Large score (no `%`), bar fill = score % of track (`--pr-color-bandwidth-bar`, 8px pill hatched track; `min-width: 0` at 0%), subtitle `measured / peak TFLOPS`. Requires `taskDurationUs` (BW-only summary omits this card). Hide a side when measured or peak is missing; show **N/A** placeholder when duration is present but `computeCard` is absent. Do not bind `summary.computeTflops`.
 
 **I/O bandwidth (I-Q6g).** `bandwidthCards` from Memory.csv. Same card chrome as duration (`summary-cards.png`). Each card (输入/输出) is a **pair of aic | aiv columns**: large score (same `20px` value style, no `%`), `aic`/`aiv` label to the right of the number, bar fill = score % of track (`--pr-color-bandwidth-bar`, same 8px pill hatched track; **`min-width: 0`** so a 0% score is an empty track, not a 2px sliver), subtitle `measured / peak GB/s` (HQ 34; magnitude rounding). Peak is the sketch 1600 GB/s HW guess. Hide a side when all-NA; hide the card when both sides NA. Cards share the sketch **3+2 grid** with duration (six CSS columns: duration span 2, each BW card span 3). Do not show cards from `summary.ioBandwidth` alone.
 
@@ -72,7 +74,7 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 10. **PR-STATS-009b** — Summary cards use the sketch 3+2 grid spans (top-row `pr-card--top`, BW `pr-card--bw`).
 11. **PR-STATS-009c** — Duration display rounds to 2 decimal places; `title` tooltip carries the full value.
 12. **PR-STATS-010** — No type card; secondary hide-if-missing.
-13. **PR-STATS-011** — When duration is present, compute/util cards are title + `N/A` placeholders (ignore summary compute/util fields); BW not from `summary.ioBandwidth`.
+13. **PR-STATS-011** — When duration is present and `computeCard` absent, compute card is title + `N/A` (ignore `summary.computeTflops`); avg util stays `N/A`; BW not from `summary.ioBandwidth`.
 13b. **PR-STATS-011b** — BW-only summary (no duration) omits compute/util placeholders.
 14. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent.
 15. **PR-STATS-013** — Absolute time is a track sibling.
@@ -96,6 +98,7 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 33. **PR-STATS-028** — Aside shell paints a non-interactive orange top wash (`96px`, design linear-gradient) behind the header; title/meta/body stay above it.
 34. **PR-STATS-029** — Stacked body scrolls vertically only (`overflow-x: hidden; overflow-y: auto`); a vertical scrollbar gutter or DPR subpixel must not open a horizontal scrollbar.
 35. **PR-STATS-031** — Duration bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` set; secondary `{blockDim} / {coreCount}`; decorative 15% when `coreCount` absent.
+36. **PR-STATS-032** — Compute card: Cube|Vector columns, score bar, `measured / peak TFLOPS` subtitle (I-Q6h); N/A when `computeCard` absent.
 
 ## Edge Cases
 
@@ -105,7 +108,8 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 | Empty pipeOccupancy | No bars; summary still visible if present |
 | Non-MIX known opType | No Cube|Vector toggle; side-filtered bars |
 | Blank/unrecognized opType | Show all PIPE bars |
-| Missing compute/util formulas (I-Q6a) | With duration: title + `N/A`; BW-only: placeholders omitted |
+| Missing compute/util formulas (I-Q6a) | With duration: compute **N/A** when `computeCard` absent; avg util **N/A**; BW-only: placeholders omitted |
+| `computeCard` with one side | Single aic or aiv column; no **N/A** chrome |
 | `summary.ioBandwidth` only | No BW cards (need `bandwidthCards`) |
 | Bandwidth side all NA | That aic/aiv column omitted; card omitted if both sides NA |
 | Duration without blockDim or opName | Duration card; no secondary line |

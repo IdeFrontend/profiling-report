@@ -59,7 +59,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 2 | 算子类型 | `OpType` / `Op Type` | `OpBasicInfo.csv` | e.g. `vector`, `MIX` |
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | **Confirmed** (npu-compute 0818). Shown as ms in mockup (unit conversion in UI) |
-| 5 | 算力情况 | — | — | **Unspecified in docx** |
+| 5 | 算力情况 | measured / peak TFLOPS | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` | **Interim I-Q6h** (HQ 2–4, Q33). Measured fops/time; peak from core counts + frequency |
 | 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **Measured confirmed.** Peak / score still **I-Q6g** (1600 GB/s guess; sketch 81 ≠ ratio) |
 | 7 | 输出带宽 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | same as #6 |
 | 8 | 平均核利用率 | — | — | **Unspecified in docx** |
@@ -72,11 +72,22 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | Meta row | **进程** / **算子类型** / **Blocks** / **更多** / CANNBot. `OpBasicInfo.csv` → `Pid` (also `PID`) / `Op Type` / `Block Dim`. Hide a segment when unset. Meta row stays visible on the report shell so **更多** is always reachable (HQ 30–31). Not 核数, aic频率, or NPU ARCH. `Current Freq` / `Rated Freq` stay off this shell (hardware overlay / OpBasicInfo dump). Overlay `chip_info` / `arch_info` are Device Info names, not a header ARCH value. |
 | 更多 | **Always** on the report shell (HQ 30–31). Opens hardware overlay and emits `open-hardware-details`. Render `HardwareDetailsPanel` when `hardwareDetails` is present (`HardwareInfo.jsonl` preferred; OpBasicInfo fallback per I-Q7a); else show **缺少 hardware info** / Missing hardware info. |
 | 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + progress bar = `min(100%, Block Dim / core_count × 100%)` when adapter sets `summary.coreCount` (HQ 32); else decorative ~15% fill (I-Q6e). Secondary: `{blockDim} / {coreCount}` iterations/core when both set (HQ 1); else `blockDim` only; else `opName`; else omit. No standalone op-type card. |
-| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — until Q6: **title + `N/A`** placeholder (no invented values) |
+| 算力情况 card | **aic \| aiv** columns (HQ 33): large score (no `%`), bar = `round(measured/peak×100)` %, subtitle `measured / peak TFLOPS` — **I-Q6h** (HQ 2–4). Omit side without both measured + peak; **N/A** placeholder when duration present but `computeCard` absent. |
 | 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak GB/s` — **I-Q6g** / HQ 34 (hide side/card when NA). Same card chrome as 整体耗时. |
 | 平均核利用率 card | Percentage bar + enabled cores fraction — until Q6: **title + `N/A`** placeholder (no invented values) |
 
-Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [I-Q6g](../context/INTERIM_DECISIONS.md).
+Card 8 (avg core util) stays a placeholder until Product defines fields. Card 5 uses interim [I-Q6h](../context/INTERIM_DECISIONS.md) (MFU formulas still partial). Cards 6–7 **measured** columns are product-confirmed; peak and score stay [I-Q6g](../context/INTERIM_DECISIONS.md).
+
+### Interim I-Q6h (算力情况)
+
+| Slot | Interim |
+| --- | --- |
+| Measured | Mean `aic_cube_fops` / `aiv_vec_fops` ÷ mean `aic_time(us)` / `aiv_time(us)` on `ArithmeticUtilization.csv` → TFLOPS (`/ 1e6`) — same basis as roofline I-Q11a |
+| Peak | Cube: `16×sizeof(dtype)×16×core×freq×2/1000`; Vector: `128×core×freq×2/1000`. Cores from `HardwareInfo.jsonl`; freq from jsonl `ai_core_frequency_MHZ` or OpBasicInfo `Rated Freq` / `Current Freq`; `sizeof(dtype)` = **2** (FP16) until dtype in CSV |
+| Score | `round(measured/peak×100)` clamped 0–100 |
+| Display | TFLOPS with same magnitude rounding as I-Q6g GB/s |
+| Layout | Same raised card chrome as duration. Inner **aic \| aiv** columns (HQ 33). Requires `taskDurationUs`; BW-only summary omits this card |
+| NA | Omit side without both measured and peak; **N/A** placeholder when duration present but no computable sides |
 
 ### Interim I-Q6g (input / output bandwidth)
 

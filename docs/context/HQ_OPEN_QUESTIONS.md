@@ -42,8 +42,6 @@ DATA = file/field/formula mapping from report data → visualized number/series/
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-This card is hidden until we have answers.
-
 <img src="visual/hq/q2.png" alt="Q2 172 measured TFLOPS" width="600" height="370">
 
 2. **172** (measured TFLOPS) — which file, which field(s), and the formula?
@@ -53,6 +51,7 @@ This card is hidden until we have answers.
      - **Vector measured:** `MFU = M×N / aiv_time(us)` (may run high; needs confirmation). Ops basis: `Cycle × 16 × sizeof(dataType) × 16 × 2` (fp32/f16 computed separately).
      - **Vector peak (theoretical):** `128 × core_count × frequency × 2 / 1000` TFLOPS (example: 128×72×1.65 GHz×2/1000 ≈ 30 TFLOPS).
      - Inputs: `PipeUtilization.csv` `aic_time(us)` / `aiv_time(us)`; `HardwareInfo.jsonl` core counts and frequency; dtype from op context.
+   - **Implemented (interim I-Q6h, slice 3)** — measured = mean `ArithmeticUtilization.csv` `*_fops` / mean `*_time(us)` → TFLOPS; peak per Q2/Q3 formulas with FP16 `sizeof` default.
 
 ---
 
@@ -60,6 +59,7 @@ This card is hidden until we have answers.
 
 3. **320** (peak TFLOPS) — which file and field? Or a fixed number per chip?
    - **ANSWERED (PARTIAL)** — Product will supply **fixed theoretical peak** values per chip (not in report CSV). Interim formula until constants arrive: cube and vector peaks per Q2 (`HardwareInfo.jsonl` core counts + frequency + dtype).
+   - **Implemented (interim I-Q6h, slice 3)** — peak from Q2 formulas + `HardwareInfo.jsonl` / OpBasicInfo freq.
 
 ---
 
@@ -67,6 +67,7 @@ This card is hidden until we have answers.
 
 4. **90** (score) — what is the formula? Is it `measured / peak × 100`?
    - **ANSWERED** — Yes: `score = measured / peak × 100%` per side (cube / vector). Peak from Q3.
+   - **Implemented** — `computeCard` score + bar in `StatsAside.vue` (slice 3).
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
 
@@ -323,6 +324,7 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 33. One number for the whole op, or two columns (**aic** and **aiv**), like the bandwidth cards?
     - **ANSWERED** — **Separate columns** (cube \| vector / aic \| aiv), same layout as bandwidth cards.
+    - **Implemented** — `computeCard` aic \| aiv columns in `StatsAside.vue` (slice 3).
 
 ### 输入带宽 / 输出带宽 (Input / output bandwidth)
 

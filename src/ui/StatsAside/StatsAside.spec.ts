@@ -398,6 +398,27 @@ describe('StatsAside', () => {
     expect(zero.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 0%');
   });
 
+  it('PR-STATS-032: compute card aic|aiv columns, score bar, TFLOPS subtitle (HQ 2–4, Q33)', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, opType: 'mix' },
+          computeCard: {
+            sides: [
+              { side: 'aic', measuredTflops: 172, peakTflops: 320 },
+              { side: 'aiv', measuredTflops: 15.8, peakTflops: 30 },
+            ],
+          },
+        }),
+      },
+    });
+    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').text()).toBe('54');
+    expect(wrapper.get('[data-testid="stats-compute-aiv-score"]').text()).toBe('53');
+    expect(wrapper.get('[data-testid="stats-compute-aic-bar"]').attributes('style')).toContain('width: 54%');
+    expect(wrapper.text()).toMatch(/172.*320.*TFLOPS/);
+    expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
+  });
+
   it('PR-STATS-011: compute/util are N/A placeholders; BW not from summary.ioBandwidth', () => {
     const wrapper = mount(StatsAside, {
       props: {
@@ -429,6 +450,9 @@ describe('StatsAside', () => {
       props: {
         report: report({
           summary: {},
+          computeCard: {
+            sides: [{ side: 'aiv', measuredTflops: 15, peakTflops: 30 }],
+          },
           bandwidthCards: [
             {
               id: 'input',

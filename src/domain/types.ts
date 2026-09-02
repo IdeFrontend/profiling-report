@@ -111,6 +111,18 @@ export interface BandwidthCardModel {
   sides: BandwidthSideRow[];
 }
 
+/** HQ 2–4 / Q33: 算力情况 card row (aic = cube, aiv = vector). */
+export interface ComputeSideRow {
+  side: 'aic' | 'aiv';
+  measuredTflops: number;
+  peakTflops: number;
+}
+
+/** Omit when no side has both measured and peak (HQ 2–4). */
+export interface ComputeCardModel {
+  sides: ComputeSideRow[];
+}
+
 export interface PipeOccupancyItem {
   id: string;
   label: string;
@@ -215,6 +227,8 @@ export interface ReportViewModel {
   csvTexts: Record<string, string>;
   /** I-Q6g 输入/输出带宽 cards; omit when Memory.csv has no usable BW. */
   bandwidthCards?: BandwidthCardModel[];
+  /** HQ 2–4 / Q33 算力情况; omit when no side has measured + peak. */
+  computeCard?: ComputeCardModel;
   /** Interim I-Q11*; omit when no GM point. */
   roofline?: RooflineViewModel;
   /** Interim I-Q7a; omit when empty. */

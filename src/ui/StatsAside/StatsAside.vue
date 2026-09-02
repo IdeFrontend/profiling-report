@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { t } from '../../i18n';
 import type {
   BandwidthSideRow,
+  ComputeSideRow,
   PipeOccupancyItem,
   ReportCapability,
   ReportViewModel,
@@ -45,6 +46,11 @@ const COLOR: Record<string, string> = {
 
 const hasDuration = computed(() => props.report?.summary.taskDurationUs != null);
 const bandwidthCards = computed(() => props.report?.bandwidthCards ?? []);
+const computeCard = computed(() => props.report?.computeCard);
+const showComputeCard = computed(
+  () => hasDuration.value && (computeCard.value?.sides.length ?? 0) > 0,
+);
+const showComputePlaceholder = computed(() => hasDuration.value && !showComputeCard.value);
 const hasSummary = computed(() => hasDuration.value || bandwidthCards.value.length > 0);
 const bandwidthView = computed(() =>
   bandwidthCards.value.map((card) => ({
@@ -54,6 +60,13 @@ const bandwidthView = computed(() =>
       score: bandwidthScore(row),
       sub: `${formatGBs(row.measuredGBs)} / ${formatGBs(row.peakGBs)} GB/s`,
     })),
+  })),
+);
+const computeView = computed(() =>
+  (computeCard.value?.sides ?? []).map((row) => ({
+    side: row.side,
+    score: computeScore(row),
+    sub: `${formatTflops(row.measuredTflops)} / ${formatTflops(row.peakTflops)} TFLOPS`,
   })),
 );
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
@@ -221,6 +234,19 @@ function formatGBs(gbs: number): string {
 function bandwidthScore(row: BandwidthSideRow): number {
   if (!(row.peakGBs > 0)) return 0;
   return Math.min(100, Math.max(0, Math.round((row.measuredGBs / row.peakGBs) * 100)));
+}
+
+function computeScore(row: ComputeSideRow): number {
+  if (!(row.peakTflops > 0)) return 0;
+  return Math.min(100, Math.max(0, Math.round((row.measuredTflops / row.peakTflops) * 100)));
+}
+
+/** HQ 2–4: magnitude rounding for measured / peak TFLOPS subtitle. */
+function formatTflops(tflops: number): string {
+  if (tflops >= 10) return tflops.toFixed(1);
+  if (tflops >= 0.01) return tflops.toFixed(2);
+  if (tflops >= 0.001) return tflops.toFixed(3);
+  return tflops.toFixed(4);
 }
 
 const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
@@ -483,7 +509,49 @@ function backToReport() {
           </div>
         </div>
         <div
-          v-if="hasDuration"
+          v-if="showComputeCard"
+          class="pr-card pr-card--top"
+          data-testid="stats-compute-card"
+        >
+          <div class="pr-card__label">
+            {{ t('computePower', locale) }}
+          </div>
+          <div class="pr-bw-cols">
+            <div
+              v-for="row in computeView"
+              :key="row.side"
+              class="pr-bw-col"
+              :data-testid="`stats-compute-${row.side}`"
+            >
+              <div class="pr-bw-col__head">
+                <span
+                  class="pr-card__value"
+                  :data-testid="`stats-compute-${row.side}-score`"
+                >{{ row.score }}</span>
+                <span class="pr-bw-col__side">{{ row.side }}</span>
+              </div>
+              <div class="pr-card__bar-track">
+                <span
+                  class="pr-card__bar-hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-card__bar-fill pr-card__bar-fill--bw"
+                  :style="{ width: `${row.score}%` }"
+                  :data-testid="`stats-compute-${row.side}-bar`"
+                />
+              </div>
+              <div
+                class="pr-card__sub"
+                :title="row.sub"
+              >
+                {{ row.sub }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          v-else-if="showComputePlaceholder"
           class="pr-card pr-card--top pr-card--na"
           data-testid="stats-compute-card"
         >
