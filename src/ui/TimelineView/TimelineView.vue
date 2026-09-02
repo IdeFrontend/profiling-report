@@ -568,6 +568,7 @@ defineExpose({
             :side="measureArrowLayout.side"
             :show-left-head="measureAxis.showLeft"
             :show-right-head="measureAxis.showRight"
+            :locale="locale"
             interactive
             @activate="onMeasureLabelActivate"
           />

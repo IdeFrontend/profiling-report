@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { t } from '../../i18n';
 import { MEASURE_ARROW_HEAD_PX } from './cursorMeasureOverlap';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     /** Pre-formatted Δt duration label (e.g. `3.0ms`). */
     label: string;
@@ -13,6 +15,7 @@ withDefaults(
     showRightHead: boolean;
     /** Only the time axis renders the label as a clickable focus target. */
     interactive?: boolean;
+    locale?: string;
   }>(),
   {
     side: 'right',
@@ -23,6 +26,10 @@ withDefaults(
 const emit = defineEmits<{
   activate: [];
 }>();
+
+const focusTitle = computed(() =>
+  props.interactive ? t('focusMeasureRange', props.locale) : undefined,
+);
 </script>
 
 <template>
@@ -78,7 +85,7 @@ const emit = defineEmits<{
       data-testid="measure-label"
       :role="interactive ? 'button' : undefined"
       :tabindex="interactive ? 0 : undefined"
-      :title="interactive ? 'Focus measure range' : undefined"
+      :title="focusTitle"
       @pointerdown="interactive && $event.stopPropagation()"
       @click="interactive && emit('activate')"
       @keydown.enter.prevent="interactive && emit('activate')"

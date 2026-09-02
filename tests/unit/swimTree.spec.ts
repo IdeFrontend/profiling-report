@@ -3,6 +3,7 @@ import {
   collectLeafEventsFromModel,
   countLeafThreads,
   filterCollapsedTree,
+  isComputeCategory,
   isFolderNode,
   nestCardTreeFromFlatCorePipes,
   walkVisibleRows,
@@ -73,6 +74,14 @@ describe('swimTree + nested layout', () => {
   it('isFolderNode uses children property presence', () => {
     expect(isFolderNode({ id: 'a', name: 'a', events: [], children: [] })).toBe(true);
     expect(isFolderNode({ id: 'b', name: 'b', events: [] })).toBe(false);
+  });
+
+  it('isComputeCategory prefers categoryKey over display name', () => {
+    expect(isComputeCategory({ id: 'a', name: 'Compute', events: [], categoryKey: 'compute' })).toBe(
+      true,
+    );
+    expect(isComputeCategory({ id: 'b', name: '计算', events: [] })).toBe(true);
+    expect(isComputeCategory({ id: 'c', name: '通信', events: [], categoryKey: 'comm' })).toBe(false);
   });
 
   it('filterCollapsedTree keeps folder row when nested id collapsed', () => {

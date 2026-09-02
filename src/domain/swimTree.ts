@@ -8,7 +8,9 @@ export function isFolderNode(node: SwimThread): boolean {
   return node.children !== undefined;
 }
 
-/** Card compute folder — prefer `categoryKey`, fall back to zh display name. */
+/** Card compute folder — prefer `categoryKey`.
+ *  ponytail: also match zh display name `计算` for flat CTEF adapters that omit
+ *  `categoryKey`; drop the name check once every producer sets the key. */
 export function isComputeCategory(node: SwimThread): boolean {
   return node.categoryKey === 'compute' || node.name === '计算';
 }

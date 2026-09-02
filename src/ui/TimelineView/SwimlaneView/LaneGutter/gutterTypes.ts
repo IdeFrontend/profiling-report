@@ -1,3 +1,5 @@
+import type { LaneCategoryKey } from '../../../../domain/types';
+
 export type GutterLane = {
   id: string;
   name: string;
@@ -6,7 +8,7 @@ export type GutterLane = {
   /** Present ⇒ folder (may be [] when collapsed). */
   children?: GutterLane[];
   /** When set, gutter localizes the label via i18n lane* keys. */
-  categoryKey?: 'comm' | 'compute' | 'hbm';
+  categoryKey?: LaneCategoryKey;
 };
 
 export type GutterGroup = {

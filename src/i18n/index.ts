@@ -1,3 +1,5 @@
+import type { LaneCategoryKey } from '../domain/types';
+
 export type LocaleCode = 'zh-CN' | 'en';
 
 const messages = {
@@ -89,6 +91,7 @@ const messages = {
     reportViews: '报告视图',
     memoryTopology: '内存拓扑',
     phase2: 'Phase 2',
+    focusMeasureRange: '聚焦度量范围',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -176,6 +179,7 @@ const messages = {
     reportViews: 'Report views',
     memoryTopology: 'Memory topology',
     phase2: 'Phase 2',
+    focusMeasureRange: 'Focus measure range',
   },
 } as const;
 
@@ -195,7 +199,7 @@ export function t(key: MessageKey, locale?: string): string {
   return messages[code][key] ?? messages.en[key] ?? key;
 }
 
-const LANE_CATEGORY_MESSAGE: Record<'comm' | 'compute' | 'hbm', MessageKey> = {
+const LANE_CATEGORY_MESSAGE: Record<LaneCategoryKey, MessageKey> = {
   comm: 'laneComm',
   compute: 'laneCompute',
   hbm: 'laneHbm',
@@ -203,7 +207,7 @@ const LANE_CATEGORY_MESSAGE: Record<'comm' | 'compute' | 'hbm', MessageKey> = {
 
 /** Localized card-category label, or `fallbackName` when no categoryKey. */
 export function laneCategoryLabel(
-  categoryKey: 'comm' | 'compute' | 'hbm' | undefined,
+  categoryKey: LaneCategoryKey | undefined,
   fallbackName: string,
   locale?: string,
 ): string {

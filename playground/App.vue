@@ -216,12 +216,24 @@ function onViewFullCsv(payload: { fileName: string; text: string }): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+function withLocaleQuery(q: URLSearchParams): void {
+  if (locale.value !== 'zh-CN') q.set('locale', locale.value);
+}
+
+function fixtureHref(kind: FixtureKind): string {
+  const q = new URLSearchParams();
+  q.set('fixture', kind);
+  withLocaleQuery(q);
+  return `/?${q.toString()}`;
+}
+
 function stressHref(scale: StressSwimlanePreset, renderer?: PreferRenderer): string {
   const q = new URLSearchParams();
   q.set('fixture', 'stress');
   q.set('scale', scale);
   if (renderer && renderer !== 'auto') q.set('renderer', renderer);
   else if (preferRenderer.value !== 'auto') q.set('renderer', preferRenderer.value);
+  withLocaleQuery(q);
   return `/?${q.toString()}`;
 }
 
@@ -241,23 +253,23 @@ onMounted(async () => {
       <div class="playground__left">
         <strong>playground</strong>
         <a
-          href="/?fixture=sample"
+          :href="fixtureHref('sample')"
           data-testid="fixture-sample"
         >sample.lite.rep</a>
         <a
-          href="/?fixture=rep"
+          :href="fixtureHref('rep')"
           data-testid="fixture-rep"
         >out.rep</a>
         <a
-          href="/?fixture=example"
+          :href="fixtureHref('example')"
           data-testid="fixture-example"
         >example.rep</a>
         <a
-          href="/?fixture=deps"
+          :href="fixtureHref('deps')"
           data-testid="fixture-deps"
         >deps</a>
         <a
-          href="/?fixture=ffn_dense"
+          :href="fixtureHref('ffn_dense')"
           data-testid="fixture-ffn-dense"
         >ffn_dense.trace.json</a>
         <a

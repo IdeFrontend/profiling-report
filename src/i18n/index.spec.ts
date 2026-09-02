@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { laneCategoryLabel, resolveLocale, t } from '../../src/i18n';
+import { laneCategoryLabel, resolveLocale, t } from './index';
 
 describe('i18n', () => {
   it('defaults to zh-CN and accepts en / zh prefixes', () => {
@@ -16,6 +16,8 @@ describe('i18n', () => {
     expect(t('memoryTopology', 'zh-CN')).toBe('内存拓扑');
     expect(t('hardwareInfoMissing', 'en')).toBe('Missing hardware info');
     expect(t('hardwareInfoMissing', 'zh-CN')).toBe('缺少 hardware info');
+    expect(t('focusMeasureRange', 'en')).toBe('Focus measure range');
+    expect(t('focusMeasureRange', 'zh-CN')).toBe('聚焦度量范围');
   });
 
   it('localizes lane category labels when categoryKey is set', () => {
