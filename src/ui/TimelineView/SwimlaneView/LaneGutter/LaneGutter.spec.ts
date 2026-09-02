@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import LaneGutter from './LaneGutter.vue';
 
@@ -453,7 +453,8 @@ describe('LaneGutter', () => {
     expect(tip).not.toMatch(/#555/);
   });
 
-  it('PR-GUTTER-016: thin util bar hover shows value tooltip; thick does not', async () => {
+  it('PR-GUTTER-016: thin lane hover shows delayed cursor-follow value tooltip', async () => {
+    vi.useFakeTimers();
     const nested = [
       {
         id: 'card0',
@@ -478,23 +479,38 @@ describe('LaneGutter', () => {
     ];
     const wrapper = mount(LaneGutter, {
       props: { groups: nested, collapsedIds: [] },
+      attachTo: document.body,
     });
 
-    const thick = wrapper.get('[data-testid="gutter-folder-cube"] [data-testid="lane-util"]');
-    expect(thick.classes()).toContain('pr-gutter__util--thick');
-    expect(thick.text()).toContain('88');
-    await thick.trigger('pointerenter');
-    expect(thick.find('[data-testid="lane-util-tip"]').exists()).toBe(false);
+    const thickLane = wrapper.get('[data-testid="gutter-folder-cube"]');
+    expect(thickLane.get('[data-testid="lane-util"]').text()).toContain('88');
+    await thickLane.trigger('pointerenter', { clientX: 40, clientY: 20 });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
 
-    const thin = wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-util"]');
-    expect(thin.classes()).toContain('pr-gutter__util--thin');
-    expect(thin.find('.pr-gutter__util-pct').exists()).toBe(false);
-    expect(thin.find('[data-testid="lane-util-tip"]').exists()).toBe(false);
-    await thin.trigger('pointerenter');
-    const tip = thin.get('[data-testid="lane-util-tip"]');
-    expect(tip.text()).toBe('42');
-    expect(tip.classes()).toContain('pr-gutter__tip');
-    await thin.trigger('pointerleave');
-    expect(thin.find('[data-testid="lane-util-tip"]').exists()).toBe(false);
+    const thinLane = wrapper.get('[data-testid="gutter-lane-mte1"]');
+    expect(thinLane.get('[data-testid="lane-util"]').classes()).toContain('pr-gutter__util--thin');
+    expect(thinLane.find('.pr-gutter__util-pct').exists()).toBe(false);
+
+    await thinLane.trigger('pointerenter', { clientX: 100, clientY: 50 });
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+    await vi.advanceTimersByTimeAsync(399);
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+
+    const tip = document.querySelector('[data-testid="lane-util-tip"]') as HTMLElement | null;
+    expect(tip).toBeTruthy();
+    expect(tip!.textContent).toBe('42');
+    expect(tip!.style.left).toBe('112px');
+    expect(tip!.style.top).toBe('62px');
+
+    await thinLane.trigger('pointermove', { clientX: 130, clientY: 70 });
+    expect(tip!.style.left).toBe('142px');
+    expect(tip!.style.top).toBe('82px');
+
+    await thinLane.trigger('pointerleave');
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+    wrapper.unmount();
+    vi.useRealTimers();
   });
 });
