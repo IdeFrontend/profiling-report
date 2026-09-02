@@ -303,6 +303,39 @@ describe('LaneGutter', () => {
     );
   });
 
+  it('PR-GUTTER-014: categoryKey localizes card folder / spacer labels', async () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          { id: 'comm', name: '通信', categoryKey: 'comm' as const, color: '#888', utilization: 1 },
+          {
+            id: 'compute',
+            name: '计算',
+            categoryKey: 'compute' as const,
+            color: '#007084',
+            utilization: 0.9,
+            children: [{ id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 }],
+          },
+          { id: 'hbm', name: '储存HBM', categoryKey: 'hbm' as const, color: '#888', utilization: 0.46 },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested, locale: 'en' },
+    });
+    expect(wrapper.text()).toContain('Comm');
+    expect(wrapper.text()).toContain('Compute');
+    expect(wrapper.text()).toContain('HBM storage');
+    expect(wrapper.text()).not.toContain('通信');
+
+    await wrapper.setProps({ locale: 'zh-CN' });
+    expect(wrapper.text()).toContain('通信');
+    expect(wrapper.text()).toContain('计算');
+    expect(wrapper.text()).toContain('储存HBM');
+  });
+
   it('PR-GUTTER-013: click unpinned pin emits pin-lane; pinned emits unpin-lane', async () => {
     const wrapper = mount(LaneGutter, {
       props: { groups, pinnedLaneIds: ['l1'] },

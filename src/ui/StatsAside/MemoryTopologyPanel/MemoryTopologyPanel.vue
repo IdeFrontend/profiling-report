@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { MemoryTopologyModel } from '../../../domain/types';
+import { t } from '../../../i18n';
 
 const props = defineProps<{
   model: MemoryTopologyModel | null | undefined;
@@ -46,7 +47,7 @@ function rot(x: number, y: number): string {
       class="pr-topo__svg"
       viewBox="0 0 460 520"
       role="img"
-      aria-label="Memory topology"
+      :aria-label="t('memoryTopology', locale)"
     >
       <defs>
         <marker

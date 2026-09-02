@@ -146,6 +146,7 @@ function toGutterLane(thread: SwimThread): GutterLane {
     name: thread.name,
     utilization: thread.utilization,
     color: colorVarForLaneName(thread.name),
+    categoryKey: thread.categoryKey,
   };
   if (thread.children !== undefined) {
     lane.children = thread.children.map(toGutterLane);

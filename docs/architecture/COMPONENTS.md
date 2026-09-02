@@ -61,8 +61,8 @@ Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), o
 
 ### `SwimProcess` / `SwimThread` / `SwimEvent` (M)
 
-- **Process** — Card / top group: `id`, `name`, optional `utilization`, `threads[]` (通信 / 计算 / 储存HBM / flat CTEF lanes)
-- **Thread** — lane or nested folder: `id`, `name`, optional `utilization`, `events[]`, optional `children[]`
+- **Process** — Card / top group: `id`, `name`, optional `utilization`, `threads[]` (comm / compute / hbm / flat CTEF lanes)
+- **Thread** — lane or nested folder: `id`, `name`, optional `utilization`, `events[]`, optional `children[]`, optional `categoryKey` (`comm` \| `compute` \| `hbm`) for localized gutter labels ([LOCALIZATION](../ui/LOCALIZATION.md))
   - **Leaf** = no / empty `children` → paints events (may be `[]` spacer)
   - **Folder** = non-empty `children` → lane-style gutter row (chevron + util); events ignored
 - **Event** — interval: `id`, `name`, `startTime`, `duration`, optional `dependencies`, `args`

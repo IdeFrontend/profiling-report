@@ -1,5 +1,10 @@
 import type { EventDependencies, EventRef, SwimEvent, SwimlaneBand, SwimlaneModel, SwimProcess, SwimThread } from './types';
-import { collectLeafEventsFromModel, countLeafThreads, isFolderNode } from './swimTree';
+import {
+  collectLeafEventsFromModel,
+  countLeafThreads,
+  isComputeCategory,
+  isFolderNode,
+} from './swimTree';
 
 /** Sketch pipe children under each Core. */
 export const STRESS_PIPE_NAMES = [
@@ -201,6 +206,7 @@ function buildCard(
   const compute: SwimThread = {
     id: `${cardId}/compute`,
     name: '计算',
+    categoryKey: 'compute',
     utilization: synthUtil(rand, 0.9),
     events: [],
     children: cores,
@@ -213,6 +219,7 @@ function buildCard(
       {
         id: `${cardId}/comm`,
         name: '通信',
+        categoryKey: 'comm',
         utilization: synthUtil(rand, 0.95),
         events: [],
       },
@@ -220,6 +227,7 @@ function buildCard(
       {
         id: `${cardId}/hbm`,
         name: '储存HBM',
+        categoryKey: 'hbm',
         utilization: synthUtil(rand, 0.45),
         events: [],
       },
@@ -334,7 +342,7 @@ function wireCorePipeDependencies(core: SwimThread): void {
 }
 
 function wireCardCoreDependencies(card: SwimProcess): void {
-  const compute = card.threads.find((t) => t.name === '计算' && isFolderNode(t));
+  const compute = card.threads.find((t) => isComputeCategory(t) && isFolderNode(t));
   if (!compute?.children) return;
   for (const core of compute.children) {
     if (isFolderNode(core)) wireCorePipeDependencies(core);
@@ -368,7 +376,7 @@ function buildProfilerStepBands(count: number, timeSpanNs: number): SwimlaneBand
 export function stressDefaultCollapsedIds(model: SwimlaneModel): string[] {
   const collapsed: string[] = [];
   for (const card of model.processes) {
-    const compute = card.threads.find((t) => t.name === '计算' && isFolderNode(t));
+    const compute = card.threads.find((t) => isComputeCategory(t) && isFolderNode(t));
     if (!compute?.children) continue;
     for (const core of compute.children) {
       if (core.name !== 'Core0.Cube' && isFolderNode(core)) {
