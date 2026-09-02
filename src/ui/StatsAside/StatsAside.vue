@@ -111,9 +111,36 @@ const csvOnly = computed(
 
 const summary = computed(() => props.report?.summary);
 
+function numericBlockDim(blockDim: string | number | undefined): number | undefined {
+  if (blockDim == null || blockDim === '') return undefined;
+  const n = typeof blockDim === 'number' ? blockDim : Number(blockDim);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** HQ 32: Block Dim / core_count × 100%, clamped 0–100. Null when inputs missing. */
+const durationCoreUtilPercent = computed(() => {
+  const s = summary.value;
+  const block = numericBlockDim(s?.blockDim);
+  const cores = s?.coreCount;
+  if (block == null || cores == null || cores <= 0) return null;
+  return Math.min(100, Math.max(0, (block / cores) * 100));
+});
+
+const durationBarWidthPercent = computed(() => {
+  const util = durationCoreUtilPercent.value;
+  if (util == null) return 15;
+  return Math.round(util * 1000) / 1000;
+});
+
 const durationSecondary = computed(() => {
   const s = summary.value;
   if (!s) return null;
+  const block = numericBlockDim(s.blockDim);
+  if (block != null && s.coreCount != null && s.coreCount > 0) {
+    return t('iterationsPerCoreRatio', props.locale)
+      .replace('{blockDim}', String(block))
+      .replace('{coreCount}', String(s.coreCount));
+  }
   if (s.blockDim != null && s.blockDim !== '') {
     return t('iterationsPerCore', props.locale).replace('{n}', String(s.blockDim));
   }
@@ -436,7 +463,10 @@ function backToReport() {
               class="pr-card__bar-hatch"
               aria-hidden="true"
             />
-            <span class="pr-card__bar-fill pr-card__bar-fill--duration" />
+            <span
+              class="pr-card__bar-fill pr-card__bar-fill--duration"
+              :style="{ width: `${durationBarWidthPercent}%` }"
+            />
           </div>
           <div
             v-if="durationSecondary"
@@ -1031,8 +1061,7 @@ function backToReport() {
 }
 
 .pr-card__bar-fill--duration {
-  /* Sketch decorative fill ≈ 18px on ~120px track. */
-  width: 15%;
+  min-width: 0;
   background: var(--pr-color-duration-bar);
 }
 

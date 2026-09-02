@@ -98,7 +98,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 | Metric (sketch) | Likely embeds | Requirement |
 |-----------------|---------------|-------------|
-| Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Chrome still I-Q6e. Op type is not a separate card. `opName` / `blockDim` may feed duration secondary only |
+| Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Bar/secondary per I-Q6e (HQ 1/32). Op type is not a separate card. `opName` / `blockDim` feed duration secondary; `coreCount` from `HardwareInfo.jsonl` |
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Placeholder** until Q6 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [I-Q6a](../context/INTERIM_DECISIONS.md) |
 | I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Display **GB/s** (HQ 34). Peak 1600 GB/s still I-Q6g guess |

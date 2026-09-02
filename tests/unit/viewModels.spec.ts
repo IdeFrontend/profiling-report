@@ -16,6 +16,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.currentFreq).toBe(1650);
     expect(summary.ratedFreq).toBe(1650);
     expect(summary.blockDim).toBe(8);
+    expect(summary.coreCount).toBeUndefined();
 
     expect(summary.computeTflops).toBeUndefined();
     expect(summary.ioBandwidth).toBeUndefined();
@@ -229,6 +230,35 @@ describe('PR-VM: report view-models (interim)', () => {
     const byKey = Object.fromEntries(section.fields.map((f) => [f.key, f.value]));
     expect(byKey['Op Name']).toBe('add_custom');
     expect(byKey['Current Freq']).toBe('1650');
+  });
+
+  it('PR-VM-014: summary.coreCount from HardwareInfo.jsonl by op type (HQ 1)', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      '{"category":"AI Core Information","ai_core_count":36,"ai_cube_count":36,"ai_vector_count":72}',
+    );
+    expect(adaptRep(parsed).reportModel.summary.coreCount).toBe(72);
+
+    parsed.payloads['OpBasicInfo.csv'] = new TextEncoder().encode(
+      'Op Name,Op Type,Task Duration(us),Block Dim\nx,cube,1,8\n',
+    );
+    expect(adaptRep(parsed).reportModel.summary.coreCount).toBe(36);
+
+    parsed.payloads['OpBasicInfo.csv'] = new TextEncoder().encode(
+      'Op Name,Op Type,Task Duration(us),Block Dim\nx,mix,1,8\n',
+    );
+    expect(adaptRep(parsed).reportModel.summary.coreCount).toBe(36);
+
+    delete parsed.payloads['HardwareInfo.jsonl'];
+    expect(adaptRep(parsed).reportModel.summary.coreCount).toBeUndefined();
+
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      '{"category":"AI Core Information","aic_cube_count":24,"aic_vector_count":48,"aic_core_count":24}',
+    );
+    parsed.payloads['OpBasicInfo.csv'] = new TextEncoder().encode(
+      'Op Name,Op Type,Task Duration(us),Block Dim\nx,cube,1,8\n',
+    );
+    expect(adaptRep(parsed).reportModel.summary.coreCount).toBe(24);
   });
 
   it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {

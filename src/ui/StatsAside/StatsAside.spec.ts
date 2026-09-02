@@ -342,12 +342,60 @@ describe('StatsAside', () => {
     expect(secondary).toMatch(/次迭代|iterations/);
     expect(secondary).not.toContain('relu');
 
+    const withCore = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, blockDim: 8, coreCount: 72, opType: 'vector' },
+        }),
+      },
+    });
+    const ratioSecondary = withCore.get('[data-testid="stats-duration-secondary"]').text();
+    expect(ratioSecondary).toMatch(/8/);
+    expect(ratioSecondary).toMatch(/72/);
+
     const bare = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 1000 } }),
       },
     });
     expect(bare.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-031: duration bar util % from blockDim/coreCount; clamps at 100%', () => {
+    const util = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, blockDim: 8, coreCount: 72, opType: 'vector' },
+        }),
+      },
+    });
+    const fill = util.get('.pr-card__bar-fill--duration');
+    expect(fill.attributes('style')).toMatch(/width:\s*11\.111/);
+
+    const clamped = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, blockDim: 40, coreCount: 36, opType: 'mix' },
+        }),
+      },
+    });
+    expect(clamped.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 100%');
+
+    const decorative = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000, blockDim: 8 } }),
+      },
+    });
+    expect(decorative.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 15%');
+
+    const zero = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, blockDim: 0, coreCount: 72, opType: 'vector' },
+        }),
+      },
+    });
+    expect(zero.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 0%');
   });
 
   it('PR-STATS-011: compute/util are N/A placeholders; BW not from summary.ioBandwidth', () => {
