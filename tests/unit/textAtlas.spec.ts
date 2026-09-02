@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLEARTYPE_TEXT_POW, GRAYSCALE_TEXT_POW, TEXT_CLEARTYPE_FS, TEXT_GRAY_FS } from '../../src/swimlane/shaders';
-import { clearTypeRasterSupported, eventLabelFont } from '../../src/swimlane/textAtlas';
+import { clearTypeRasterSupported, eventLabelFont, fitTextWidth } from '../../src/swimlane/textAtlas';
 
 describe('PR-RENDER: ClearType text atlas', () => {
   it('PR-RENDER-020: text shaders export sudu gamma constants', () => {
@@ -16,5 +16,14 @@ describe('PR-RENDER: ClearType text atlas', () => {
 
   it('PR-RENDER-020: clearTypeRasterSupported is false in jsdom', () => {
     expect(clearTypeRasterSupported()).toBe(false);
+  });
+
+  it('PR-RENDER-020: fitTextWidth truncates over-wide labels with ellipsis', () => {
+    // Monospace measurer: width == char count.
+    const mono = { measureText: (s: string) => ({ width: s.length }) };
+    expect(fitTextWidth(mono, 'short', 10)).toBe('short');
+    const cut = fitTextWidth(mono, 'abcdefghijklmnop', 8);
+    expect(cut).toBe('abcde...');
+    expect(cut.length).toBeLessThanOrEqual(8);
   });
 });

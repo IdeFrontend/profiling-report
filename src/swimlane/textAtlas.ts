@@ -25,6 +25,30 @@ export function eventLabelFont(sizePx: number): string {
   return `700 ${Math.max(8, Math.round(sizePx))}px ${FONT_FAMILY}`;
 }
 
+/** Minimal `measureText` surface — satisfied by Canvas2D and OffscreenCanvas2D contexts alike. */
+interface TextMeasurer {
+  measureText(text: string): { width: number };
+}
+
+/**
+ * Truncate `text` with a trailing `...` so it measures within `maxWidth`; returns the original
+ * text when it already fits. Binary-searches the longest fitting prefix (log n measurements).
+ * Replaces the canvas `fillText(text, …, maxWidth)` condense behavior, which horizontally
+ * squeezed over-wide labels instead of cutting them off.
+ */
+export function fitTextWidth(measurer: TextMeasurer, text: string, maxWidth: number): string {
+  if (measurer.measureText(text).width <= maxWidth) return text;
+  const ellipsis = '...';
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (measurer.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return text.slice(0, lo) + ellipsis;
+}
+
 /** True when OffscreenCanvas + opaque 2D context are available (browser only). */
 export function clearTypeRasterSupported(): boolean {
   if (typeof OffscreenCanvas === 'undefined') return false;
@@ -59,9 +83,10 @@ export class TextAtlas {
     const probe = new OffscreenCanvas(16, 16);
     const probeCtx = probe.getContext('2d', { alpha: false })!;
     probeCtx.font = eventLabelFont(fontSizePx);
-    // maxWidth clamps the advance; `fillText(maxWidth)` re-condenses when over-wide.
-    const measured = Math.ceil(probeCtx.measureText(text).width);
-    const drawW = Math.max(1, Math.min(measured, maxWidth));
+    // Truncate with an ellipsis; the canvas no longer re-condenses over-wide text.
+    const label = fitTextWidth(probeCtx, text, maxWidth);
+    const measured = Math.ceil(probeCtx.measureText(label).width);
+    const drawW = Math.max(1, measured);
     const w = drawW + pad * 2;
     const h = Math.ceil(fontSizePx * 1.5);
 
@@ -74,7 +99,7 @@ export class TextAtlas {
     ctx.font = eventLabelFont(fontSizePx);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, w / 2, h / 2, maxWidth);
+    ctx.fillText(label, w / 2, h / 2);
 
     const texture = gl.createTexture();
     if (!texture) return null;

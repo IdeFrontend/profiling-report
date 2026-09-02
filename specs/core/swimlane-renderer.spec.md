@@ -30,7 +30,7 @@ class CanvasSwimlaneRenderer {
 
 **Lane layout.** `setModel` iterates processes and threads, computes Y positions (CSS), assigns colors via `colorForThread`. Group headers at 28 CSS px, lanes at 22 CSS px. Event blocks use height `LANE_HEIGHT - 2 * LANE_PAD_Y`, vertically centered, then scaled to device px for paint. Only events overlapping the current time viewport are drawn.
 
-**Event labels.** When the on-screen (clipped) event width is wide enough (>40 CSS px before scale, or equivalent device width), the title is drawn centered in the visible event rect. Canvas fallback and the WebGL overlay share this layout (device-pixel glyph placement).
+**Event labels.** When the on-screen (clipped) event width is wide enough (>40 CSS px before scale, or equivalent device width), the title is drawn centered in the visible event rect. Canvas fallback and the WebGL overlay share this layout (device-pixel glyph placement). A label whose measured width exceeds the visible rect is truncated with a trailing `...` (longest fitting prefix, binary-searched) rather than horizontally condensed — the canvas `fillText` max-width squeeze is no longer used.
 
 **ClearType event labels.** When WebGL2 is the active backend and the browser supports an opaque 2D raster target (`OffscreenCanvas` + `getContext('2d', { alpha: false })`), the WebGL renderer rasterizes each label white-on-black and uploads it preserving raw subpixel RGB (`UNPACK_PREMULTIPLY_ALPHA_WEBGL` false, `UNPACK_COLORSPACE_CONVERSION_WEBGL` none), then re-colorizes via `TEXT_CLEARTYPE_FS`, which mixes the event fill color toward white per subpixel channel at gamma `2.25` and bakes the label background into an opaque quad (alpha = 1) — the overlay skips event labels in that mode. Otherwise (Canvas fallback, or WebGL without an opaque 2D atlas) labels render grayscale via Canvas2D. Label gamma constants: ClearType `2.25`, grayscale `0.625`.
 
@@ -66,7 +66,7 @@ class CanvasSwimlaneRenderer {
 1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
 1. **PR-RENDER-018**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
 1. **PR-RENDER-019**: `resize(deviceW, deviceH, dpr)` sets `canvas.width/height` to device args without writing `canvas.style`; WebGL has no `uDpr` uniform.
-1. **PR-RENDER-020**: Text shaders export sudu gamma constants (`CLEARTYPE_TEXT_POW` 2.25, `GRAYSCALE_TEXT_POW` 0.625); `eventLabelFont` uses the shared CSS px size; `clearTypeRasterSupported` is false without an opaque 2D context.
+1. **PR-RENDER-020**: Text shaders export sudu gamma constants (`CLEARTYPE_TEXT_POW` 2.25, `GRAYSCALE_TEXT_POW` 0.625); `eventLabelFont` uses the shared CSS px size; `clearTypeRasterSupported` is false without an opaque 2D context; `fitTextWidth` truncates an over-wide label with a trailing `...` (longest fitting prefix).
 
 ## Edge Cases
 
