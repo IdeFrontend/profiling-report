@@ -33,6 +33,7 @@ import Chevron from '../../Chevron.vue';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import { t } from '../../../i18n';
 
 const props = withDefaults(
   defineProps<{
@@ -443,7 +444,7 @@ defineExpose({
         type="button"
         class="pr-gutter-resize"
         data-testid="gutter-resize-handle"
-        aria-label="Resize lane gutter"
+        :aria-label="t('resizeLaneGutter', locale)"
         @pointerdown="onGutterResizePointerDown"
         @pointermove="onGutterResizePointerMove"
         @pointerup="onGutterResizePointerUp"

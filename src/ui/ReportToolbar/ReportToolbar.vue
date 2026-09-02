@@ -142,7 +142,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
     <nav
       class="pr-tabs"
       data-testid="report-tabs"
-      aria-label="report views"
+      :aria-label="t('reportViews', locale)"
     >
       <div
         v-if="showOperatorSelector"
@@ -226,7 +226,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         type="button"
         class="pr-tabs__tab"
         disabled
-        title="Phase 2"
+        :title="t('phase2', locale)"
       >
         {{ t('tabSource', locale) }}
       </button>
@@ -234,7 +234,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         type="button"
         class="pr-tabs__tab"
         disabled
-        title="Phase 2"
+        :title="t('phase2', locale)"
       >
         {{ t('tabDetail', locale) }}
       </button>
@@ -242,7 +242,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         type="button"
         class="pr-tabs__tab"
         disabled
-        title="Phase 2"
+        :title="t('phase2', locale)"
       >
         {{ t('tabCache', locale) }}
       </button>

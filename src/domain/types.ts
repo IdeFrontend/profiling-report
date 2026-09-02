@@ -21,6 +21,9 @@ export interface SwimEvent {
   args?: Record<string, unknown>;
 }
 
+/** Stable card-category key for i18n (通信 / 计算 / 储存HBM). */
+export type LaneCategoryKey = 'comm' | 'compute' | 'hbm';
+
 export interface SwimThread {
   id: string;
   name: string;
@@ -29,6 +32,8 @@ export interface SwimThread {
   events: SwimEvent[];
   /** Non-empty ⇒ folder (lane-style gutter row); omit/empty ⇒ leaf. */
   children?: SwimThread[];
+  /** When set, UI localizes the gutter label via `laneComm` / `laneCompute` / `laneHbm`. */
+  categoryKey?: LaneCategoryKey;
 }
 
 export interface SwimProcess {
@@ -36,7 +41,7 @@ export interface SwimProcess {
   /** Card name (sketch) or flat CTEF process name. */
   name: string;
   utilization?: number;
-  /** Top children under the card (通信 / 计算 / 储存HBM) or flat CTEF threads. */
+  /** Top children under the card (comm / compute / hbm) or flat CTEF threads. */
   threads: SwimThread[];
 }
 

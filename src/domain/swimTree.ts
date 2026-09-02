@@ -8,6 +8,13 @@ export function isFolderNode(node: SwimThread): boolean {
   return node.children !== undefined;
 }
 
+/** Card compute folder — prefer `categoryKey`.
+ *  ponytail: also match zh display name `计算` for flat CTEF adapters that omit
+ *  `categoryKey`; drop the name check once every producer sets the key. */
+export function isComputeCategory(node: SwimThread): boolean {
+  return node.categoryKey === 'compute' || node.name === '计算';
+}
+
 /** Flat CTEF name `Core0.Cube/SCALAR` → Core0.Cube + SCALAR (not `AIV0/PIPE_V/status`). */
 const CORE_PIPE_LEAF = /^(.+\.[^/]+)\/([^/]+)$/;
 
@@ -59,6 +66,7 @@ export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneMod
     const compute: SwimThread = {
       id: `${proc.id}/compute`,
       name: '计算',
+      categoryKey: 'compute',
       events: [],
       // Mockup default when no pipe util yet — not a measured aggregate.
       utilization: meanUtilization(coreFolders) ?? 1,
@@ -69,9 +77,9 @@ export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneMod
       ...proc,
       threads: [
         // Synthetic category spacers (mockup util, not from CSV).
-        { id: `${proc.id}/comm`, name: '通信', events: [], utilization: 1 },
+        { id: `${proc.id}/comm`, name: '通信', categoryKey: 'comm', events: [], utilization: 1 },
         compute,
-        { id: `${proc.id}/hbm`, name: '储存HBM', events: [], utilization: 0.46 },
+        { id: `${proc.id}/hbm`, name: '储存HBM', categoryKey: 'hbm', events: [], utilization: 0.46 },
       ],
     };
   });
@@ -80,7 +88,7 @@ export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneMod
 
   const collapsed: string[] = [];
   for (const p of processes) {
-    const compute = p.threads.find((t) => t.name === '计算' && isFolderNode(t));
+    const compute = p.threads.find((t) => isComputeCategory(t) && isFolderNode(t));
     if (!compute?.children) continue;
     for (const core of compute.children) {
       if (core.name !== 'Core0.Cube' && isFolderNode(core)) collapsed.push(core.id);

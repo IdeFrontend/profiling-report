@@ -90,7 +90,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 |---------|------:|-------|
 | Vue 3 library packaging | M | See architecture |
 | Dark theme + CSS variables | M | |
-| i18n hooks (EN/ZH) | M | Chinese copy OK initially |
+| i18n hooks (EN/ZH) | M | Host `locale` prop; catalog in `src/i18n` — [LOCALIZATION.md](LOCALIZATION.md) |
 | Dense-trace WebGL path | M | Hybrid implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas fallback when WebGL2 unavailable — [SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) |
 | Canvas 2D renderer | M | Fallback / forced via `preferRenderer: 'canvas'` |
 | Visual regression fixtures | P2 | First functional fixture: `data/out.rep` ([I-Q4](../context/INTERIM_DECISIONS.md)); sketch-faithful golden later |
