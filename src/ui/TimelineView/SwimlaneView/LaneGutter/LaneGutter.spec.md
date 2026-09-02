@@ -60,7 +60,7 @@ Each lane **and folder** row optionally shows a util bar whose **width** and **l
 | 利用率 (utilization) | `NN%` | Equals util % (0–100) | Red when ≤ 50%; gray when &gt; 50% |
 | Legacy pipe ratio | `NN%` | `utilization × 100` | true |
 
-**Thin bars** (pipe leaves) show fill width only; **omit text label** for all metrics. **Thick bars** show **label** inside track, right-aligned.
+**Thin bars** (pipe leaves) show fill width only; **omit in-track text** for all metrics — value appears in a hover tooltip (**PR-GUTTER-016**). **Thick bars** show **label** inside track, right-aligned.
 
 ### Pin (leaf lanes only)
 
@@ -130,7 +130,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 3. **PR-GUTTER-003** — Nested folders show open-angle carets; leaf lanes have **no** chevron; folder click emits `toggle-group` with node id. Card expand UI lives on SwimlaneView strips (gutter Card is a spacer).
 4. **PR-GUTTER-004** — When a Card id is in `collapsedIds`, child lanes are hidden. When a nested folder id is collapsed, its descendants are hidden but the folder row remains.
 5. **PR-GUTTER-005** — Nested indent increases with depth; only Card uses group-header spacer chrome.
-6. **PR-GUTTER-006** — **利用率 / legacy:** red (`rgba(231,67,74,0.4)`) when util &lt; 0.5 and gray (`rgba(255,255,255,0.08)`) when ≥ 0.5. **Other metrics:** red only when `bar.relativeMax` (PyPTO max-lane rule); never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the in-track label. The fill sits on an opaque `--pr-util-track` base (solid, unhatched); thin radius 2px / thick 4px.
+6. **PR-GUTTER-006** — **利用率 / legacy:** red (`rgba(231,67,74,0.4)`) when util &lt; 0.5 and gray (`rgba(255,255,255,0.08)`) when ≥ 0.5. **Other metrics:** red only when `bar.relativeMax` (PyPTO max-lane rule); never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the in-track label (value via hover tooltip — **PR-GUTTER-016**). The fill sits on an opaque `--pr-util-track` base (solid, unhatched); thin radius 2px / thick 4px.
 7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width for utilization, or at `averageBarWidth%` for relative metrics when computable; empty util slots do not.
 8. **PR-GUTTER-008** — Card row is a non-interactive 40px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
 9. **PR-GUTTER-009** — When **bar** is set, width and label follow active metric format; **utilization** alone keeps legacy `%` behavior.
@@ -140,7 +140,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 13. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 14. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
 15. **PR-GUTTER-015** — A hovered lane row (pointer or `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; the pin tooltip carries EventTooltip chrome.
-
+16. **PR-GUTTER-016** — Hovering a **thin** filled util bar shows the metric **label** in a dark tooltip (EventTooltip / pin chrome). Thick bars keep the in-track label and do **not** show this tip.
 ## Edge Cases
 
 | State | Behavior |
@@ -175,6 +175,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../SwimlaneView.spec.md).
 
 ## Changelog
+- **2026-09-02** — Thin util bars: hover value tooltip (`PR-GUTTER-016`); EventTooltip / pin chrome.
 - **2026-09-01** — PR-GUTTER-015: row hover moves `#252525` → `--pr-surface-raised` (`#363636`) and lifts the label to `#fff`. Both UCD crops (AC-07, AC-19) measure `#363636`, and AC-19 calls out the label change the pin slice did not implement. The pin tooltip's chrome was specified as "EventTooltip chrome: `#2a2a2a` / `#555`", which AC-09 moved out from under it; it now names the raised-surface values directly. (Numbered 015 so master's `categoryKey` keeps `PR-GUTTER-014`.)
 - **2026-09-01** — Card strip 40px with `14px` / `700` / `22px` / `#e6e6e6` label (AC-17); gutter spacer and `LANE_GROUP_HEADER_HEIGHT` follow.
 - **2026-09-01** — `categoryKey` localizes card category labels (`PR-GUTTER-014`); see [LOCALIZATION.md](../../../../../docs/ui/LOCALIZATION.md).

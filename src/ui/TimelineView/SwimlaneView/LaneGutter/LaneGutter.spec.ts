@@ -452,4 +452,49 @@ describe('LaneGutter', () => {
     expect(tip).toMatch(/--pr-surface-raised, #363636/);
     expect(tip).not.toMatch(/#555/);
   });
+
+  it('PR-GUTTER-016: thin util bar hover shows value tooltip; thick does not', async () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          {
+            id: 'cube',
+            name: 'Core0.Cube',
+            color: '#007084',
+            bar: { barWidth: 80, label: '88', thresholdColor: false },
+            children: [
+              {
+                id: 'mte1',
+                name: 'MTE1',
+                color: '#885C00',
+                bar: { barWidth: 40, label: '42', thresholdColor: false },
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested, collapsedIds: [] },
+    });
+
+    const thick = wrapper.get('[data-testid="gutter-folder-cube"] [data-testid="lane-util"]');
+    expect(thick.classes()).toContain('pr-gutter__util--thick');
+    expect(thick.text()).toContain('88');
+    await thick.trigger('pointerenter');
+    expect(thick.find('[data-testid="lane-util-tip"]').exists()).toBe(false);
+
+    const thin = wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-util"]');
+    expect(thin.classes()).toContain('pr-gutter__util--thin');
+    expect(thin.find('.pr-gutter__util-pct').exists()).toBe(false);
+    expect(thin.find('[data-testid="lane-util-tip"]').exists()).toBe(false);
+    await thin.trigger('pointerenter');
+    const tip = thin.get('[data-testid="lane-util-tip"]');
+    expect(tip.text()).toBe('42');
+    expect(tip.classes()).toContain('pr-gutter__tip');
+    await thin.trigger('pointerleave');
+    expect(thin.find('[data-testid="lane-util-tip"]').exists()).toBe(false);
+  });
 });
