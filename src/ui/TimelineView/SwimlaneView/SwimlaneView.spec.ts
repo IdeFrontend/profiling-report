@@ -1836,4 +1836,48 @@ describe('SwimlaneView', () => {
     expect(selects[0]!.attributes('data-value')).toBe('task');
     expect(selects[1]!.attributes('data-value')).toBe('clockCycle');
   });
+
+  it('localizes Card metric selector labels for en locale', async () => {
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00' }],
+          },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'card0', name: 'Card0', threads: [{ id: 'l1', name: 'Lane', events: [] }] }],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        locale: 'en',
+        gutterMetricOptionsByCard: {
+          card0: ['clockCycle', 'cacheHit', 'task', 'utilization'] as GutterMetric[],
+        },
+        gutterMetricByCard: { card0: 'clockCycle' as GutterMetric },
+      },
+    });
+
+    const select = wrapper.get('[data-testid="card-metric-select"]');
+    expect(select.text()).toContain('Clock Cycle');
+    expect(select.get('.pr-metric-select__trigger').attributes('aria-label')).toBe(
+      'Gutter metric for Card0',
+    );
+    await select.get('.pr-metric-select__trigger').trigger('click');
+    expect(document.querySelector('[data-testid="card-metric-option-cacheHit"]')?.textContent).toBe(
+      'Cache Hit Ratio',
+    );
+    expect(document.querySelector('[data-testid="card-metric-option-task"]')?.textContent).toBe('Task');
+    expect(document.querySelector('[data-testid="card-metric-option-utilization"]')?.textContent).toBe(
+      'Utilization',
+    );
+  });
 });

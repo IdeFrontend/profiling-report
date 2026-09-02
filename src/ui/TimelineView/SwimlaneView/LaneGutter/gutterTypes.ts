@@ -1,8 +1,6 @@
 import type { LaneCategoryKey } from '../../../../domain/types';
 
-/** Display payload for a gutter util bar (metric-aware). */
 export type { GutterBarDisplay, GutterMetric } from '../../../../domain/gutterMetrics';
-export { GUTTER_METRIC_LABELS } from '../../../../domain/gutterMetrics';
 
 import type { GutterBarDisplay } from '../../../../domain/gutterMetrics';
 

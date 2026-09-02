@@ -1,3 +1,4 @@
+import type { GutterMetric } from '../domain/gutterMetrics';
 import type { LaneCategoryKey } from '../domain/types';
 
 export type LocaleCode = 'zh-CN' | 'en';
@@ -124,6 +125,11 @@ const messages = {
     dragPan: '平移',
     boxSelect: '框选',
     timeMeasurement: '时间测距',
+    gutterMetricClockCycle: '时钟周期',
+    gutterMetricCacheHit: '缓存命中率',
+    gutterMetricTask: '任务',
+    gutterMetricUtilization: '利用率',
+    gutterMetricFor: '{name} 的泳道指标',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -242,6 +248,11 @@ const messages = {
     dragPan: 'Pan',
     boxSelect: 'Box select',
     timeMeasurement: 'Time measure',
+    gutterMetricClockCycle: 'Clock Cycle',
+    gutterMetricCacheHit: 'Cache Hit Ratio',
+    gutterMetricTask: 'Task',
+    gutterMetricUtilization: 'Utilization',
+    gutterMetricFor: 'Gutter metric for {name}',
   },
 } as const;
 
@@ -267,6 +278,13 @@ const LANE_CATEGORY_MESSAGE: Record<LaneCategoryKey, MessageKey> = {
   hbm: 'laneHbm',
 };
 
+const GUTTER_METRIC_MESSAGE: Record<GutterMetric, MessageKey> = {
+  clockCycle: 'gutterMetricClockCycle',
+  cacheHit: 'gutterMetricCacheHit',
+  task: 'gutterMetricTask',
+  utilization: 'gutterMetricUtilization',
+};
+
 /** Localized card-category label, or `fallbackName` when no categoryKey. */
 export function laneCategoryLabel(
   categoryKey: LaneCategoryKey | undefined,
@@ -284,4 +302,9 @@ export function laneCategoryLabel(
 export function taskCountLabel(count: number, locale?: string): string {
   if (count === 1) return t('taskOne', locale);
   return t('taskMany', locale).replace('{n}', String(count));
+}
+
+/** Localized Card-header gutter metric option label. */
+export function gutterMetricLabel(metric: GutterMetric, locale?: string): string {
+  return t(GUTTER_METRIC_MESSAGE[metric], locale);
 }
