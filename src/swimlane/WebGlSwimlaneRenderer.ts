@@ -584,8 +584,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    if (this.paintDependencies) this.drawDependencyCurves(gl);
     this.drawEventLabels();
+
+    // Curves draw last, above event labels — re-enable blend (labels render opaque with no blend).
+    if (this.paintDependencies) {
+      gl.enable(gl.BLEND);
+      this.drawDependencyCurves(gl);
+    }
 
     gl.bindVertexArray(null);
     gl.disable(gl.BLEND);

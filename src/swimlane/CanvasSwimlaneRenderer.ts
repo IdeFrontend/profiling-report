@@ -480,10 +480,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, r: fr.r, matches, dim });
     }
 
-    if (this.paintDependencies) {
-      paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
-    }
-
     for (const { item, x, y, w, h, r, matches, dim } of visible) {
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
@@ -494,6 +490,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim, '#ffffff', dpr);
+    }
+
+    // Dependency curves draw above event labels.
+    if (this.paintDependencies) {
+      paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
