@@ -11,6 +11,11 @@ export const DEP_STROKE_WIDTH = 2;
 /** BFS cap per direction so depth=-1 cannot freeze the main thread. */
 export const MAX_DEPENDENCY_LINKS = 10_000;
 
+/** Full device-px stroke width at `dpr` (2 CSS px rounded, min 1) — shared by Canvas and WebGL. */
+export function dependencyStrokeWidth(dpr = 1): number {
+  return Math.max(1, Math.round(DEP_STROKE_WIDTH * dpr));
+}
+
 export interface DependencyLink {
   t0: number;
   y0: number;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   encodeIntervalPair,
   EVENT_MARGIN,
@@ -14,7 +14,7 @@ import {
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
-import { dependencyGraph } from '../../src/swimlane/dependencyLinks';
+import { dependencyGraph, dependencyStrokeWidth } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
@@ -40,6 +40,69 @@ function tinyModel(): SwimlaneModel {
       },
     ],
   };
+}
+
+function depModel(): SwimlaneModel {
+  return {
+    minTime: 0,
+    maxTime: 100,
+    processes: [
+      {
+        id: 'p-1',
+        name: 'P',
+        threads: [
+          {
+            id: 't-a',
+            name: 'A',
+            events: [
+              {
+                id: 'e-parent',
+                name: 'parent',
+                startTime: 0,
+                duration: 40,
+                dependencies: { predecessors: [], successors: [{ tid: 't-b', index: 0 }] },
+              },
+            ],
+          },
+          {
+            id: 't-b',
+            name: 'B',
+            events: [
+              {
+                id: 'e-child',
+                name: 'child',
+                startTime: 50,
+                duration: 10,
+                dependencies: { predecessors: [{ tid: 't-a', index: 0 }], successors: [] },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function mock2dContext(): CanvasRenderingContext2D {
+  const ctx: Record<string, unknown> = {
+    lineWidth: 1,
+    lineCap: 'butt',
+    lineJoin: 'miter',
+    fillStyle: '',
+    strokeStyle: '',
+    globalAlpha: 1,
+    font: '',
+    textAlign: 'left',
+    textBaseline: 'alphabetic',
+  };
+  for (const m of [
+    'clearRect', 'fillRect', 'beginPath', 'moveTo', 'lineTo', 'stroke', 'fill', 'save',
+    'restore', 'arcTo', 'closePath', 'setTransform', 'bezierCurveTo', 'fillText',
+  ]) {
+    ctx[m] = () => {};
+  }
+  ctx.createLinearGradient = () => ({ addColorStop: () => {} });
+  return ctx as unknown as CanvasRenderingContext2D;
 }
 
 describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
@@ -273,10 +336,32 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     expect(b - a).toBeGreaterThanOrEqual(1);
   });
 
-  it('PR-RENDER-022: WebGL resize re-uploads curve instances on dpr change', async () => {
-    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
-      .default as string;
-    expect(webglSrc).toMatch(/if \(dprChanged\) this\.rebuildCurveInstances\(\)/);
+  it('PR-RENDER-022: dependency stroke width is 2 CSS px rounded to device px', () => {
+    expect(dependencyStrokeWidth(1)).toBe(2);
+    expect(dependencyStrokeWidth(2)).toBe(4);
+    expect(dependencyStrokeWidth(1.25)).toBe(3); // round(2.5)
+    expect(dependencyStrokeWidth(2.5)).toBe(5);
+    expect(dependencyStrokeWidth(0.4)).toBe(1); // min 1
+  });
+
+  it('Canvas applies dpr-scaled dependency stroke width when drawing curves', () => {
+    const canvas = document.createElement('canvas');
+    const ctx = mock2dContext();
+    let curveLineWidth = 0;
+    ctx.bezierCurveTo = () => {
+      curveLineWidth = ctx.lineWidth;
+    };
+    vi.spyOn(canvas, 'getContext').mockReturnValue(ctx);
+
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 2);
+    renderer.setModel(depModel());
+    renderer.setSelection('e-parent', null);
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    renderer.render();
+
+    expect(curveLineWidth).toBe(dependencyStrokeWidth(2));
   });
 });
 

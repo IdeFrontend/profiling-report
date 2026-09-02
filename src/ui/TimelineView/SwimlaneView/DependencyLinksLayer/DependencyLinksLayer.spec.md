@@ -49,7 +49,7 @@ Crops: [`visual/dependency-links.png`](./visual/dependency-links.png) — [`visu
 [swimlane-model](../../../../../specs/core/swimlane-model.spec.md), [swimlane-renderer](../../../../../specs/core/swimlane-renderer.spec.md).
 
 ## Changelog
-- **2026-09-02** — Curve stroke restored to 2 CSS px (dpr-scaled) to match pre-device-pixel rendering; Canvas `lineWidth = DEP_STROKE_WIDTH × dpr`, WebGL `uHalfWidth = dpr`.
+- **2026-09-02** — Curve stroke restored to 2 CSS px (dpr-scaled) to match pre-device-pixel rendering; both backends use the shared `dependencyStrokeWidth(dpr)` helper (Canvas `lineWidth`, WebGL `uHalfWidth = dependencyStrokeWidth(dpr) / 2`).
 - **2026-08-27** — Pinned-lane strip excluded from dependency curves (`PR-DEPS-012`).
 - **2026-08-19** — Curve stroke 2px.
 - **2026-08-19** — Async overlap may reverse time (`t0 > t1`); signed cubic pull; PR-DEPS-011.
