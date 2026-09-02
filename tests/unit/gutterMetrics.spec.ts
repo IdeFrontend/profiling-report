@@ -74,6 +74,39 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('vec')?.label).toBe('10');
   });
 
+  it('PR-GMET-008: clockCycle label keeps decimals when round would be 0', () => {
+    const rows = parsePipeRows(
+      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,0.31,0.15'].join('\n'),
+    );
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [
+                { id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] },
+                { id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
+    expect(bars.get('vec')?.label).toBe('0.31');
+    expect(bars.get('sc')?.label).toBe('0.15');
+    // Folder mean (0.23) must not render as "0" on the thick bar.
+    expect(bars.get('folder')?.label).toBe('0.23');
+    expect(bars.get('vec')?.barWidth).toBe(100);
+  });
+
   it('PR-GMET-003b: tied lanes get relativeMax false (all gray in UI)', () => {
     const model: SwimlaneModel = {
       minTime: 0,

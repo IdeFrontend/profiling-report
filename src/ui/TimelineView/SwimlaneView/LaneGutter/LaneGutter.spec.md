@@ -54,7 +54,7 @@ Each lane **and folder** row optionally shows a util bar whose **width** and **l
 
 | Metric | `bar.label` (thick bars) | `barWidth` | Fill color |
 |--------|--------------------------|------------|------------|
-| 时钟周期 (clockCycle) | Integer cycle count (no unit suffix) | Normalized to max lane in Card | Red when `relativeMax`; else gray; all gray when tied |
+| 时钟周期 (clockCycle) | Integer when ≥ 0.5; decimals for fractional `*_time(us)` means (never `0` when raw &gt; 0) | Normalized to max lane in Card | Red when `relativeMax`; else gray; all gray when tied |
 | 缓存命中率 (cacheHit) | Decimal hit rate `0.00`–`1.00` | Normalized to max lane in Card | Same |
 | 任务 (task) | Integer event count | Normalized to max lane in Card | Same (no absolute task-count threshold) |
 | 利用率 (utilization) | `NN%` | Equals util % (0–100) | Red when ≤ 50%; gray when &gt; 50% |
