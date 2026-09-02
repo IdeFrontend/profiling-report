@@ -296,6 +296,59 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
+/** HQ 1: numeric fields from HardwareInfo.jsonl (accepts `ai_*` and `aic_*` keys). */
+function hardwareNumericFieldsFromJsonl(text: string): Record<string, number> {
+  const fields: Record<string, number> = {};
+  for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === 'category') continue;
+      const n = typeof value === 'number' ? value : Number(value);
+      if (Number.isFinite(n)) fields[key] = n;
+    }
+  }
+  return fields;
+}
+
+function pickPositiveField(fields: Record<string, number>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const n = fields[key];
+    if (n != null && n > 0) return n;
+  }
+  return undefined;
+}
+
+/** HQ 1: core count for duration bar / secondary from op type + HardwareInfo.jsonl. */
+function coreCountForOpType(fields: Record<string, number>, opType?: string): number | undefined {
+  const t = (opType ?? '').trim().toLowerCase();
+  if (t === 'mix') return pickPositiveField(fields, ['ai_core_count', 'aic_core_count']);
+  if (t.includes('vector') || t.includes('aiv') || t.includes('vec')) {
+    return pickPositiveField(fields, ['ai_vector_count', 'aic_vector_count']);
+  }
+  if (t.includes('cube') || t.includes('aic')) {
+    return pickPositiveField(fields, ['ai_cube_count', 'aic_cube_count']);
+  }
+  return undefined;
+}
+
+function summaryWithHardwareCoreCount(
+  summary: SummaryMetrics,
+  payloads: Record<string, Uint8Array>,
+): SummaryMetrics {
+  const jsonl = payloads['HardwareInfo.jsonl'];
+  if (!jsonl) return summary;
+  const coreCount = coreCountForOpType(
+    hardwareNumericFieldsFromJsonl(decodeUtf8(jsonl)),
+    summary.opType,
+  );
+  return coreCount == null ? summary : { ...summary, coreCount };
+}
+
 /** Pipe family → side-specific CSV columns (VIEW_DATA_MAPPING Cube/Vector tables). */
 const PIPE_COLUMNS: {
   id: string;
@@ -463,8 +516,12 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   const labelled = firstLabelledMemoryTopology(memory.tables);
   const memoryTopology = labelled?.model;
   const bandwidthCards = bandwidthCardsFromMemory(payloads['Memory.csv']);
+  const summary = summaryWithHardwareCoreCount(
+    summaryFromOpBasicInfo(payloads['OpBasicInfo.csv']),
+    payloads,
+  );
   return {
-    summary: summaryFromOpBasicInfo(payloads['OpBasicInfo.csv']),
+    summary,
     pipeOccupancy: pipeOccupancyFromCsv(payloads['PipeUtilization.csv']),
     overviewSeries: [],
     computeTables: compute.tables,
