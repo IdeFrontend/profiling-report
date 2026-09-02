@@ -12,7 +12,7 @@ Vue wrapper around `CanvasSwimlaneRenderer`. Translates mouse/touch events into 
 
 ## Outputs
 
-Eight interaction events: **select** fires with a `SwimEvent` (or null) on click (post-4px-gate). **multi-select** fires with the `SwimEvent[]` a marquee captured, on its pointerup. **multi-select-span** fires with the live marquee's time extent while it is dragged (and `null` when it ends), so the axis can draw Δt chrome. **hover** fires on pointermove with the hovered event plus `clientX`/`clientY` for tooltip positioning. **cursor** fires with `{ time, xRatio }` for playhead placement. **pan** fires with a time-unit delta on Shift+wheel / trackpad horizontal scroll. **zoom** fires with `[factor, anchorTime]` on Ctrl+wheel. **scroll-y** fires with the vertical scroll offset. **set-playhead** fires with a time value on every pointerdown (before the 4px drag gate, before hit test). The parent ProfilingReport translates all of these into viewport state changes.
+Eight interaction events: **select** fires with a `SwimEvent` (or null) on click (post-4px-gate). **multi-select** fires with the `SwimEvent[]` a marquee captured, on its pointerup; a Ctrl+left-click toggle also commits through it, with the full post-toggle set (empty when the last event is removed). **multi-select-span** fires with the live marquee's time extent while it is dragged (and `null` when it ends), so the axis can draw Δt chrome. **hover** fires on pointermove with the hovered event plus `clientX`/`clientY` for tooltip positioning. **cursor** fires with `{ time, xRatio }` for playhead placement. **pan** fires with a time-unit delta on Shift+wheel / trackpad horizontal scroll. **zoom** fires with `[factor, anchorTime]` on Ctrl+wheel. **scroll-y** fires with the vertical scroll offset. **set-playhead** fires with a time value on every pointerdown (before the 4px drag gate, before hit test). The parent ProfilingReport translates all of these into viewport state changes.
 
 ## Behavior
 
@@ -111,6 +111,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 50. **PR-CANVAS-050** — in measureMode, drag measures and never marquees.
 51. **PR-CANVAS-051** — live marquee emits its time extent as `multi-select-span`; end/cancel emits null.
 52. **PR-CANVAS-052** — while the rect is live, the events it currently covers are pushed to `setMultiSelection` so they stay bright and the rest dim; the preview is dropped on commit/cancel.
+53. **PR-CANVAS-053** — Ctrl+left-click toggles an event in/out of multi-selection and commits the full result through `multi-select` (the marquee commit path), so the root state, summary dock and span hull update exactly as after a region commit; removing the last event commits an empty array.
 
 ## Edge Cases
 
@@ -155,6 +156,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 - **2026-08-31** — Anchor/target highlights convert device-pixel renderer rects to CSS px (`/dpr`), fixing misaligned highlight on hi-dpi after the device-pixel resize change; PR-CANVAS-058.
 - **2026-08-28** — Alt measure targets any point: relation-chosen edge, explicit magnetized border, or free cursor (full-height blue line); blue target-event highlight; PR-CANVAS-048/055/056/057.
 - **2026-08-28** — Anchor highlight tracks the anchored event across scroll/pan/zoom (was stale on view change); PR-CANVAS-054.
+- **2026-09-02** — Ctrl+click multi-selection commits through `multi-select` like a marquee: full toggled set to the root, empty set clears; PR-CANVAS-072.
 - **2026-08-28** — Mount only active WebGL+overlay or Canvas fallback; paint gated on lastDeviceW/H; PR-CANVAS-044.
 - **2026-08-27** — Default-mode Alt event measure (Alt+click anchor + Alt+hover Δt; same-lane reuse + cross-lane dashed connector; clears on Alt keyup / Esc / toggle / measure mode); PR-CANVAS-045–053.
 - **2026-08-27** — Memoize exact-edge scans per snapped time; border hover emits `snapped`; PR-CANVAS-042/043.

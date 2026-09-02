@@ -1805,6 +1805,14 @@ function onPointerUp(e: PointerEvent): void {
         const ids = new Set(props.multiSelectedIds ?? []);
         if (ids.has(eventId)) ids.delete(eventId); else ids.add(eventId);
         emit('update-multi-selected', [...ids]);
+        // Same commit path as a marquee release: ProfilingReport's `multi-select`
+        // handler turns the full toggled set into viewState.multiSelectedIds, so
+        // Ctrl+click multi-selection behaves like a region (summary dock, span
+        // hull, single-selection dismiss, empty set clears).
+        const toggled = [...ids]
+          .map((id) => backend.findEvent(id))
+          .filter((ev): ev is SwimEvent => ev != null);
+        emit('multi-select', toggled);
       }
     }
     ctrlClickPending = false;

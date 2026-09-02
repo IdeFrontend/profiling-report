@@ -1837,7 +1837,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-XXX: Ctrl+left-click on event toggles multi-selection (add)', async () => {
+  it('PR-CANVAS-053: Ctrl+left-click on event toggles multi-selection (add)', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
@@ -1853,9 +1853,12 @@ describe('SwimlaneCanvas', () => {
     const emitted = wrapper.emitted('update-multi-selected') as unknown[][];
     expect(emitted).toHaveLength(1);
     expect(emitted[0]).toEqual([['e1']]);
-    // Should not have emitted select or multi-select (marquee)
+    // Commits through the marquee path: multi-select carries the full toggled set.
+    const committed = wrapper.emitted('multi-select') as unknown[][];
+    expect(committed).toHaveLength(1);
+    expect((committed[0][0] as { id: string }[]).map((e) => e.id)).toEqual(['e1']);
+    // Should not have emitted select (single selection untouched at canvas level)
     expect(wrapper.emitted('select')).toBeFalsy();
-    expect(wrapper.emitted('multi-select')).toBeFalsy();
     wrapper.unmount();
   });
 
@@ -1882,6 +1885,11 @@ describe('SwimlaneCanvas', () => {
     expect(emitted3).toHaveLength(2);
     // Second call: [] (removed)
     expect(emitted3[1]).toEqual([[]]);
+    // Root commit path: first toggle commits ['e1'], removal commits [].
+    const commits = wrapper.emitted('multi-select') as unknown[][];
+    expect(commits).toHaveLength(2);
+    expect((commits[0][0] as { id: string }[]).map((e) => e.id)).toEqual(['e1']);
+    expect(commits[1][0]).toEqual([]);
     wrapper.unmount();
   });
 

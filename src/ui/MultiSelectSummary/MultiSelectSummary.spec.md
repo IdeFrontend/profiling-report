@@ -122,7 +122,7 @@ Axis Δt chrome is driven by **multiSelectSpan** when measure mode is off (live 
 
 #### ProfilingReport — state ownership (PR-ROOT-007)
 
-Root holds the captured `SwimEvent[]` and handles `multi-select`, `multi-select-span`, `close`, `select-single`, empty-space click, and Escape. It owns the Δt span shown for a multi-selection: the live drag extent, then the committed hull, cleared whenever the selection is. Exclusivity lives in **view-state** (`setSelectedEvent` / `setMultiSelection` / `clearSelection`), not in each caller.
+Root holds the captured `SwimEvent[]` and handles `multi-select`, `multi-select-span`, `close`, `select-single`, empty-space click, and Escape. Ctrl+left-click toggles commit through the same `multi-select` path (PR-CANVAS-053), so a keyboard-built multi-selection lands in the root exactly like a marquee commit. It owns the Δt span shown for a multi-selection: the live drag extent, then the committed hull, cleared whenever the selection is. Exclusivity lives in **view-state** (`setSelectedEvent` / `setMultiSelection` / `clearSelection`), not in each caller.
 
 #### view-state — new field
 
@@ -139,6 +139,7 @@ Root holds the captured `SwimEvent[]` and handles `multi-select`, `multi-select-
 
 ## Changelog
 
+- **2026-09-02** — Ctrl+click multi-toggles now commit to the root via the marquee `multi-select` path, so the dock, span hull and Escape-clear behave identically for region and keyboard-built selections; PR-CANVAS-053.
 - **2026-08-27** — Commit wording aligned with the root's `select` contract: `select(null)` fires on every commit and means "no single selection", not "nothing is selected".
 - **2026-08-26** — Sort mark is the drawn [SortArrows](../SortArrows.spec.md) pair, not a `◇` text span; header color corrected to `#999999` and the label gap to 9px against the sketch.
 - **2026-08-26** — Header × is the shared [CloseButton](../CloseButton.spec.md): the typographic `×` sits on the font's math axis and never centered in its button.
