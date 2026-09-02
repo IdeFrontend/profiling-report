@@ -323,6 +323,12 @@ export interface SwimlaneViewState {
   measureRange: MeasureRange | null;
   /** Leaf lane ids in pin order (session-local); sticky strip duplicates. */
   pinnedLaneIds: string[];
+  /**
+   * Leaf lane ids hidden from the swim body (context-menu "隐藏 / Hide" filter).
+   * Independent from `collapsedIds` (folder folding) and `pinnedLaneIds` (sticky strip):
+   * the canvas/gutter drop hidden leaves; pinned lanes ignore the flag and keep showing.
+   */
+  hiddenLaneIds: string[];
 }
 
 export interface SwimlaneViewWindow {

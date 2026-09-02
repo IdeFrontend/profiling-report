@@ -157,6 +157,35 @@ export function filterCollapsedTree(
   };
 }
 
+/**
+ * Drop hidden leaf lanes (context-menu 隐藏 / Hide). Folder rows and their visible
+ * children are kept untouched; only leaves whose id is in `hiddenIds` are removed.
+ * Runs after `filterCollapsedTree` so a leaf hidden by both collapses once.
+ */
+export function filterHiddenLanes(
+  model: SwimlaneModel,
+  hiddenIds: readonly string[],
+): SwimlaneModel {
+  if (hiddenIds.length === 0) return model;
+  const hidden = new Set(hiddenIds);
+  const walk = (nodes: SwimThread[]): SwimThread[] => {
+    const out: SwimThread[] = [];
+    for (const n of nodes) {
+      if (isFolderNode(n)) {
+        out.push({ ...n, children: walk(n.children ?? []) });
+        continue;
+      }
+      if (hidden.has(n.id)) continue;
+      out.push(n);
+    }
+    return out;
+  };
+  return {
+    ...model,
+    processes: model.processes.map((p) => ({ ...p, threads: walk(p.threads) })),
+  };
+}
+
 export type VisibleSwimRow =
   | { kind: 'header'; process: SwimProcess }
   | { kind: 'folder'; thread: SwimThread; depth: number }

@@ -80,6 +80,9 @@ const messages = {
     noDependencies: '无依赖数据',
     noParameters: '无参数',
     pin: '置顶',
+    fitToScreen: '整屏显示',
+    hideLane: '隐藏',
+    showInEventView: '在事件视图中显示',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -158,6 +161,9 @@ const messages = {
     noDependencies: 'No dependency data',
     noParameters: 'No parameters',
     pin: 'Pin to top',
+    fitToScreen: 'Fit to screen',
+    hideLane: 'Hide',
+    showInEventView: 'Show in event view',
   },
 } as const;
 

@@ -78,6 +78,8 @@ const emit = defineEmits<{
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
   'suppress-measure-dt': [suppress: boolean];
+  /** Right-click hit-test (passthrough) — see ContextMenu spec. */
+  'context-menu': [payload: { event: SwimEvent | null; laneId: string | null; x: number; y: number }];
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
@@ -337,6 +339,7 @@ defineExpose({
         @zoom="(f, a) => emit('zoom', f, a)"
         @update:measure-range="emit('update:measure-range', $event)"
         @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+        @context-menu="emit('context-menu', $event)"
       />
     </div>
 
@@ -392,6 +395,7 @@ defineExpose({
         @scroll-y="onScrollY"
         @update:measure-range="emit('update:measure-range', $event)"
         @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+        @context-menu="emit('context-menu', $event)"
       />
 
       <div

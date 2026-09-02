@@ -86,6 +86,11 @@ const emit = defineEmits<{
   'update:measureRange': [range: MeasureRange | null];
   /** Hide axis Δt arrow/label during appear/clear (view↔range) tweens only. */
   'suppress-measure-dt': [suppress: boolean];
+  /**
+   * Right-click hit-test result — the bridge for ContextMenu. `event` is null on
+   * lane-header / empty canvas; `laneId` is the leaf lane under the pointer.
+   */
+  'context-menu': [payload: { event: SwimEvent | null; laneId: string | null; x: number; y: number }];
 }>();
 
 function emitLaneHover(localY: number | null): void {
@@ -1344,6 +1349,29 @@ function onPointerLeave(e: PointerEvent): void {
   emitLaneHover(null);
 }
 
+/**
+ * Right-click hit-test bridge for ContextMenu. Cancels the browser menu and
+ * emits a payload with the event (or null for a lane-header hit) plus the
+ * leaf lane under the pointer — the menu decides which items to show.
+ */
+function onContextMenu(e: MouseEvent): void {
+  e.preventDefault();
+  const target = activeCanvas();
+  if (!target) {
+    emit('context-menu', { event: null, laneId: null, x: e.clientX, y: e.clientY });
+    return;
+  }
+  const rect = target.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const mag = magnetizeLocal(x, y);
+  const hit = eventAtPointer(x, y, mag.eventId);
+  const laneId = leafLaneIdAtPoint(backend.getLayout(), props.view, y);
+  emit('context-menu', { event: hit, laneId, x: e.clientX, y: e.clientY });
+  // Suppress the same pointer as a stray click — the menu handles the action.
+  dragging = false;
+}
+
 function onWheel(e: WheelEvent): void {
   e.preventDefault();
   const target = activeCanvas();
@@ -1409,7 +1437,8 @@ defineExpose({
         @pointerup="onPointerUp"
         @pointerleave="onPointerLeave"
         @wheel="onWheel"
-      />
+        @contextmenu="onContextMenu"
+        />
     </template>
     <canvas
       v-else
@@ -1423,6 +1452,7 @@ defineExpose({
       @pointerup="onPointerUp"
       @pointerleave="onPointerLeave"
       @wheel="onWheel"
+      @contextmenu="onContextMenu"
     />
     <div
       v-if="cursorXRatio != null"

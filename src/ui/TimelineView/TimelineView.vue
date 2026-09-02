@@ -77,6 +77,8 @@ const emit = defineEmits<{
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
   'focus-measure': [];
+  /** Right-click hit-test (passthrough) — see ContextMenu spec. */
+  'context-menu': [payload: { event: SwimEvent | null; laneId: string | null; x: number; y: number }];
 }>();
 
 const timeAxisRef = ref<HTMLElement | null>(null);
@@ -607,6 +609,7 @@ defineExpose({
       @zoom="(f, a) => emit('zoom', f, a)"
       @update:measure-range="emit('update:measure-range', $event)"
       @suppress-measure-dt="suppressMeasureDt = $event"
+      @context-menu="emit('context-menu', $event)"
     />
 
     <div

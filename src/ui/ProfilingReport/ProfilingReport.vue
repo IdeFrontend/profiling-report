@@ -5,6 +5,7 @@ import {
   applyWindow,
   clearMeasure,
   createViewState,
+  hideLane,
   measureFocusWindow,
   panBy,
   pinLane,
@@ -41,10 +42,12 @@ import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   collectLeafEventsFromModel,
   filterCollapsedTree,
+  filterHiddenLanes,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
+import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_DEFAULT,
@@ -105,6 +108,10 @@ const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
 const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
+
+/** Context menu state — null when closed, or { event, laneId, x, y }. */
+type MenuState = { event: SwimEvent | null; laneId: string | null; x: number; y: number } | null;
+const menuState = ref<MenuState>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
@@ -166,7 +173,10 @@ const laneGroups = computed(() =>
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
-  return filterCollapsedTree(m, collapsedGroupIds.value);
+  return filterHiddenLanes(
+    filterCollapsedTree(m, collapsedGroupIds.value),
+    viewState.value.hiddenLaneIds,
+  );
 });
 
 const bounds = computed(() => {
@@ -470,6 +480,45 @@ function onSelect(ev: SwimEvent | null) {
   emit('select', payload);
 }
 
+function onContextMenu(payload: {
+  event: SwimEvent | null;
+  laneId: string | null;
+  x: number;
+  y: number;
+}): void {
+  // Lane-header / empty hit still opens the menu (with 隐藏 only, if a lane is under pointer).
+  if (!payload.event && !payload.laneId) return;
+  menuState.value = payload;
+}
+
+function onMenuClose(): void {
+  menuState.value = null;
+}
+
+function onHideLane(laneId: string): void {
+  viewState.value = hideLane(viewState.value, laneId);
+  menuState.value = null;
+}
+
+function onFitToScreen(target: SwimEvent): void {
+  // Center the event in the current view span — same "Fit to screen" semantics as
+  // a click on toolbar ZoomFit but for a single event.
+  const evEnd = target.startTime + target.duration;
+  const span = Math.max(1, viewState.value.endTime - viewState.value.startTime);
+  const margin = Math.max(1, span * 0.05);
+  viewState.value = applyWindow(
+    { ...viewState.value, measureMode: false, measureRange: null },
+    { startTime: target.startTime - margin, endTime: evEnd + margin, scrollY: viewState.value.scrollY },
+  );
+  menuState.value = null;
+}
+
+function onShowInEventView(target: SwimEvent): void {
+  // Interim (this library has no event-view tab): route to single-select → DetailPanel.
+  onSelect(target);
+  menuState.value = null;
+}
+
 function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
   hovered.value = ev;
   viewState.value = { ...viewState.value, hoveredEventId: ev?.id ?? null };
@@ -721,6 +770,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom="onZoom"
           @update:measure-range="onMeasureRange"
           @focus-measure="onFocusMeasure"
+          @context-menu="onContextMenu"
         />
       </template>
 
@@ -757,6 +807,19 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :style-pos="tooltipStyle"
       :time-origin="bounds.minTime"
       :locale="locale"
+    />
+
+    <ContextMenu
+      v-if="menuState && showTimeline"
+      :x="menuState.x"
+      :y="menuState.y"
+      :event="menuState.event"
+      :lane-id="menuState.laneId"
+      :locale="locale"
+      @hide-lane="onHideLane"
+      @fit-to-screen="onFitToScreen"
+      @show-in-event-view="onShowInEventView"
+      @close="onMenuClose"
     />
   </div>
 </template>
