@@ -105,6 +105,38 @@ function mock2dContext(): CanvasRenderingContext2D {
   return ctx as unknown as CanvasRenderingContext2D;
 }
 
+/**
+ * jsdom has no 2D context, so stand one in that records the colour of every fill and of
+ * every string drawn, and shrugs off the rest. Enough to prove which rows and blocks got
+ * which colour, which is the whole question for lane hover and the event states.
+ */
+function recordingCanvas(): {
+  canvas: HTMLCanvasElement;
+  fills: string[];
+  texts: Map<string, string>;
+} {
+  const fills: string[] = [];
+  const texts = new Map<string, string>();
+  let style = '';
+  const ctx = new Proxy({} as CanvasRenderingContext2D, {
+    get(_t, p) {
+      if (p === 'fillStyle') return style;
+      // Rows and headers go through fillRect, event bodies through roundRect + fill.
+      if (p === 'fillRect' || p === 'fill') return () => void fills.push(style);
+      if (p === 'fillText') return (s: string) => void texts.set(s, style);
+      if (p === 'measureText') return () => ({ width: 8 });
+      return () => undefined;
+    },
+    set(_t, p, v) {
+      if (p === 'fillStyle') style = String(v);
+      return true;
+    },
+  });
+  const canvas = document.createElement('canvas');
+  canvas.getContext = (() => ctx) as unknown as HTMLCanvasElement['getContext'];
+  return { canvas, fills, texts };
+}
+
 describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
   it('PR-RENDER-001: hitTest returns event under point', () => {
     const canvas = document.createElement('canvas');
@@ -265,11 +297,20 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
-  it('PR-RENDER-010: eventEmphasisDim matches Canvas factors', () => {
+  it('PR-RENDER-010: eventEmphasisDim matches Canvas factors', async () => {
     expect(eventEmphasisDim(false, false, true, false)).toBe(0.25);
     expect(eventEmphasisDim(true, false, false, true)).toBe(0.45);
     expect(eventEmphasisDim(false, false, true, true)).toBeCloseTo(0.25 * 0.45);
     expect(eventEmphasisDim(true, true, true, true)).toBe(1);
+    // Hovered (keepBright) under a selection: full strength, same as the selection itself.
+    expect(eventEmphasisDim(true, true, false, true)).toBe(1);
+
+    // Both Canvas paths (main + overlay) wire hover into keepBright — otherwise a light
+    // hover fill under the selection dim is what made dark labels unreadable.
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc.match(/bright\.has\(item\.id\)\s*\|\|\s*item\.id\s*===\s*this\.hoveredId/g))
+      .toHaveLength(2);
   });
 
   it.skipIf(!hasWebGl2)('PR-RENDER-010: WebGL setSelection rebuilds emphasis', () => {
@@ -367,13 +408,14 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
 
 describe('PR-RENDER: lane chrome color', () => {
   it('PR-RENDER-011: Canvas + WebGL lane fills use #1f1f1f', async () => {
+    const { LANE_FILL } = await import('../../src/swimlane/layout');
+    expect(LANE_FILL).toBe('#1f1f1f');
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(canvasSrc).toMatch(/fillStyle\s*=\s*'#1f1f1f'/);
-    expect(canvasSrc.match(/fillStyle\s*=\s*'#1f1f1f'/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(webglSrc).toMatch(/laneBg\s*=\s*0x1f\s*\/\s*255/);
+    expect(canvasSrc).toMatch(/fillStyle\s*=\s*LANE_FILL/);
+    expect(webglSrc).toMatch(/laneBg\s*=\s*hexToRgb\(LANE_FILL\)/);
   });
 
   it('PR-RENDER-012: Canvas + WebGL Card header bands use LANE_GROUP_HEADER_FILL', async () => {
@@ -389,10 +431,102 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(canvasSrc).toMatch(/fillStyle\s*=\s*LANE_GROUP_HEADER_FILL/);
     expect(webglSrc).toMatch(/hexToRgb\(LANE_GROUP_HEADER_FILL\)/);
   });
+
+  it('PR-RENDER-020b: overlay underpaint uses LANE_HOVER_FILL when the row is hovered', async () => {
+    const { LANE_HOVER_FILL, LANE_FILL } = await import('../../src/swimlane/layout');
+    const { SwimlaneOverlayPainter } = await import('../../src/swimlane/CanvasSwimlaneRenderer');
+    const { rebuildLayout } = await import('../../src/swimlane/layout');
+
+    const paint = (hoveredLane: string | null, search: string) => {
+      const { canvas, fills } = recordingCanvas();
+      const overlay = new SwimlaneOverlayPainter();
+      overlay.attach(canvas);
+      overlay.resize(400, 120, 1);
+      overlay.setLayout(rebuildLayout(tinyModel()));
+      overlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+      // Hovered event that misses the search → dim < 1, so the erase pass is not a no-op.
+      overlay.setSelection(null, 'e-long');
+      overlay.setSearchQuery(search);
+      overlay.setHoveredLane(hoveredLane);
+      overlay.render();
+      return fills;
+    };
+
+    const resting = paint(null, 'nope');
+    expect(resting).toContain(LANE_FILL);
+    expect(resting).not.toContain(LANE_HOVER_FILL);
+
+    const hovered = paint('t-1', 'nope');
+    expect(hovered).toContain(LANE_HOVER_FILL);
+  });
+
+  it('PR-RENDER-020: setHoveredLane tints only that row, and no event fill', async () => {
+    const { LANE_HOVER_FILL, LANE_FILL } = await import('../../src/swimlane/layout');
+    expect(LANE_HOVER_FILL).toBe('#363636');
+
+    const paint = (hoveredLane: string | null): string[] => {
+      const { canvas, fills } = recordingCanvas();
+      const renderer = new CanvasSwimlaneRenderer();
+      renderer.attach(canvas);
+      renderer.resize(400, 120, 1);
+      renderer.setModel(tinyModel());
+      renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+      renderer.setHoveredLane(hoveredLane);
+      renderer.render();
+      return fills;
+    };
+
+    const resting = paint(null);
+    const hovered = paint('t-1');
+    expect(resting).toContain(LANE_FILL);
+    expect(resting).not.toContain(LANE_HOVER_FILL);
+
+    // Exactly one filled rect changes colour, and it is a lane background going to the
+    // hover fill. Event bodies are in these lists too, so this is also the assertion
+    // that hovering a lane leaves every event's colour alone.
+    expect(hovered).toHaveLength(resting.length);
+    const changed = resting
+      .map((fill, i) => ({ i, from: fill, to: hovered[i]! }))
+      .filter((c) => c.from !== c.to);
+    expect(changed).toEqual([{ i: changed[0]?.i ?? -1, from: LANE_FILL, to: LANE_HOVER_FILL }]);
+
+    // A folder id never matches a leaf row, so hovering one tints nothing.
+    expect(paint('p-1')).not.toContain(LANE_HOVER_FILL);
+  });
+
+  it('PR-RENDER-021: each block paints its state fill, each label the matching contrast', async () => {
+    const { eventFill, labelColorOn, colorForThread } = await import('../../src/domain/laneColors');
+    const base = colorForThread('AIV0/PIPE_V/status');
+
+    const paint = (selected: string | null, hovered: string | null) => {
+      const { canvas, fills, texts } = recordingCanvas();
+      const renderer = new CanvasSwimlaneRenderer();
+      renderer.attach(canvas);
+      renderer.resize(400, 120, 1);
+      renderer.setModel(tinyModel());
+      renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+      renderer.setSelection(selected, hovered);
+      renderer.render();
+      return { fills, texts };
+    };
+
+    for (const [state, sel, hov] of [
+      ['normal', null, null],
+      ['hover', null, 'e-long'],
+      ['selected', 'e-long', null],
+      // Hovering your own selection keeps the selected fill.
+      ['selected', 'e-long', 'e-long'],
+    ] as const) {
+      const want = eventFill(base, state);
+      const { fills, texts } = paint(sel, hov);
+      expect(fills, `${state} fill`).toContain(want);
+      expect(texts.get('PIPE_V_busy'), `${state} label`).toBe(labelColorOn(want));
+    }
+  });
 });
 
 describe('PR-RENDER: SwimlaneRenderer surface', () => {
-  it('PR-RENDER-014: setDependencyMode and setDependencyDepth are optional', () => {
+  it('PR-RENDER-014: setDependencyMode, setDependencyDepth and setHoveredLane are optional', () => {
     const stub: SwimlaneRenderer = {
       attach() {},
       resize(_w: number, _h: number, _dpr: number) {},
@@ -407,7 +541,9 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
       hitTest: () => null,
       dispose() {},
     };
+    // Compiles without the three optionals; calling through ?. is the host contract.
     expect(stub.setDependencyMode).toBeUndefined();
     expect(stub.setDependencyDepth).toBeUndefined();
+    expect(stub.setHoveredLane).toBeUndefined();
   });
 });
