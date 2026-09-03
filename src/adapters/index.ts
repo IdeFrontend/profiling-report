@@ -10,3 +10,5 @@ export { adaptRep, adaptPayloads, emptyReportViewModel } from './adaptRep';
 export { buildMemoryTopology } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';
+export { loadReportFiles } from './loadReportFiles';
+export type { ReportFileEntry, ReportFilesSource } from './loadReportFiles';

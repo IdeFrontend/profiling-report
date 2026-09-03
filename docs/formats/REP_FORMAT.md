@@ -17,7 +17,22 @@ Both use the same binary layout and magic (**Interim [PROC-2a](../context/decisi
 
 The shipping product container uses the **`npu-rep`** magic (36-byte head, **164-byte** FileInfo, `type:u32`, `type 6` = nested operator archive) — see [INPUT_FORMATS §1.6](INPUT_FORMATS.md). It can pack nested per-operator archives; `loadReportSource` detects it separately from the `cann-rep` packer below and adapts each operator. This document's `cann-rep` layout remains the local sample packer (`data/pack_rep.py`).
 
-## Byte order and packing
+### Backend-extracted `npu-rep` (new format)
+
+A newer `.npu-rep` variant (sample `data/result.npu-rep`) is **not** parsed in the browser. It is extracted on the backend by the Linux-only `npu-compute` tool:
+
+```bash
+npu-compute -i <npu-rep file path> -o <output file path>
+```
+
+The extraction yields a folder of the same embeds this document describes
+(`trace.json` + metric CSVs + `HardwareInfo.jsonl`). The frontend renders that
+folder via `loadReportFiles` / the `files` prop. The tool is resolved by
+`backend/resolveNpuCompute.mjs` (explicit path → autodetect + version check →
+auto-download) and is never bundled. See [extracted-files](../../specs/core/extracted-files.spec.md)
+and [backend/README.md](../../backend/README.md).
+
+    20|## Byte order and packing
 
 - Little-endian
 - Structs are packed (no C padding)

@@ -20,6 +20,9 @@
   ],
   "scripts": {
     "sync:demo-fixtures": "node scripts/sync-demo-fixtures.mjs",
+    "backend:start": "node backend/server.mjs",
+    "backend:docker-build": "docker build -t profiling-report-backend -f backend/Dockerfile .",
+    "backend:docker-run": "docker run --rm -p 8787:8787 -e AUTO_DOWNLOAD_TOOL=1 -v \"$HOME/.cache/profiling-report:/root/.cache/profiling-report\" profiling-report-backend",
     "build:sample": "python3 data/build_sample_rep.py && node -e \"const {createHash}=require('crypto');const {readFileSync,writeFileSync}=require('fs');const h=createHash('sha256').update(readFileSync('data/sample.lite.rep')).digest('hex');writeFileSync('data/sample.lite.rep.sha256',h+'\\n');console.log('[build:sample] sha256',h)\" && npm run sync:demo-fixtures",
     "predev": "npm run sync:demo-fixtures",
     "dev": "vite --config playground/vite.config.ts --host 127.0.0.1 --port 5173",
