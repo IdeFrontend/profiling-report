@@ -65,7 +65,7 @@ Important AIV columns (sample is vector-heavy):
 
 | Column | Role |
 |--------|------|
-| `aiv_time(us)`, `aiv_total_cycles` | Block duration / cycles |
+| `aiv_time(us)`, `aiv_total_cycles` | Block duration / cycles — **`*_total_cycles` is not used** for Card gutter **时钟周期** (that mode uses pipe `*_time(us)` only; see [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)) |
 | `aiv_vec_time(us)`, `aiv_vec_ratio` | Vector pipe |
 | `aiv_mte2_*`, `aiv_mte3_*` | MTE pipes + active BW |
 | `aiv_scalar_*` | Scalar time, stalls, waits |
@@ -81,16 +81,16 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 ### Gutter metric modes (Card-header selector)
 
-Per-Card dropdown on swimlane Card strips ([gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)). Two modes:
+Per-Card dropdown on swimlane Card strips. Normative formula: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md) § **clockCycle formula**.
 
-| Mode | Primary embed | Notes |
-|------|---------------|-------|
-| 时钟周期 (`clockCycle`) | `PipeUtilization.csv` cycle / `*_time(us)` columns | Labels suffix **`µs`**; hide when no mappable cycle data |
-| 利用率 (`utilization`) | `trace.json` event coverage over model time span | Always when trace exists |
+| Mode | Quantity | Primary embed | Notes |
+|------|----------|---------------|-------|
+| 时钟周期 (`clockCycle`) | Mean pipe **active time (µs)** — UI label says “Clock Cycle”, values are **not** cycle counts | `PipeUtilization.csv` mapped `*_time(us)` only (see gutter-metrics column map) | Label suffix **`µs`**; hide when no mappable time data; **ignore** `*_total_cycles` |
+| 利用率 (`utilization`) | Event coverage % over model time span | `trace.json` | Always when trace exists |
 
-Default: **时钟周期** when available, else **利用率**. Aside PIPE bars remain pipe-ratio means regardless of gutter metric selection.
+Default: **时钟周期** when available, else **利用率**. Aside PIPE **ratio** bars stay I-Q6b; aside in-bar absolute times stay I-Q6f (same `*_time(us)` means as gutter clockCycle raw, different UI).
 
-**Fill / midline:** utilization — red when ≤ 50%, dash at 50%. clockCycle — red on max lane(s) only (all gray when tied); dash at mean bar width `(mean ÷ max) × 100`. See [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
+**Fill / midline:** utilization — red when ≤ 50%, dash at 50%. clockCycle — red on max lane(s) only (all gray when tied); dash at `(mean raw ÷ max raw) × 100`.
 
 ---
 
