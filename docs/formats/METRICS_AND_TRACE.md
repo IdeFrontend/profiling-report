@@ -85,7 +85,7 @@ Per-Card dropdown on swimlane Card strips ([gutter-metrics.spec.md](../../specs/
 
 | Mode | Primary embed | Notes |
 |------|---------------|-------|
-| 时钟周期 (`clockCycle`) | `PipeUtilization.csv` cycle / `*_time(us)` columns | Hide when no mappable cycle data |
+| 时钟周期 (`clockCycle`) | `PipeUtilization.csv` cycle / `*_time(us)` columns | Labels suffix **`µs`**; hide when no mappable cycle data |
 | 缓存命中率 (`cacheHit`) | `*_icache_miss_rate` → `1 − rate` | Hide when icache columns all `NA` |
 | 任务 (`task`) | `trace.json` event counts per lane | Always when events exist |
 | 利用率 (`utilization`) | `trace.json` event coverage over model time span | Always when trace exists |

@@ -17,7 +17,7 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 ## Unit contract
 
 - **barWidth** is always 0–100 (UI percent of the 110px track).
-- **label** is a display string only; no unit suffix for cycle counts.
+- **clockCycle label** is mean pipe `*_time(us)` with a **`µs`** suffix (same display unit glyph as `formatTime`), so values are not read as percents or bare ratios. **cacheHit** / **task** stay unitless; **utilization** keeps `%`.
 - Time window for **utilization** is the swimlane model span `[minTime, maxTime]` (full trace), not the visible viewport.
 - CSV aggregations ignore `NA` tokens; same mean-across-blocks rule as pipe occupancy (I-Q6b) unless a block-scoped mode is added later.
 
@@ -58,7 +58,7 @@ Dash position and red boundary are **different concepts** for the three relative
 
 ### barWidth and label
 
-**clockCycle, cacheHit, task (relative modes).** Among visible lanes in the Card subtree, find the maximum raw value `max`. Each lane: `barWidth = (value / max) × 100` (0 when `max === 0`). **label** = formatted raw value (integer for cycles/tasks when `|raw| ≥ 0.5`; **clockCycle** uses two decimal places when `0 < raw < 0.5` so fractional `*_time(us)` means do not display as `0`; hit rate always two decimals). **thresholdColor** = false. **relativeMax** = true when `raw === max` and not all lanes tie; otherwise false (all gray when tied). Never use an absolute raw-value threshold for red on these metrics.
+**clockCycle, cacheHit, task (relative modes).** Among visible lanes in the Card subtree, find the maximum raw value `max`. Each lane: `barWidth = (value / max) × 100` (0 when `max === 0`). **label** = formatted raw value (integer for tasks when `|raw| ≥ 0.5`; **clockCycle** uses two decimal places when `0 < raw < 0.5` so fractional `*_time(us)` means do not display as `0`, then appends **`µs`**; hit rate always two decimals, unitless). **thresholdColor** = false. **relativeMax** = true when `raw === max` and not all lanes tie; otherwise false (all gray when tied). Never use an absolute raw-value threshold for red on these metrics.
 
 **utilization.** `barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0 (PyPTO floor). **label** = `` `${barWidth}%` ``. **thresholdColor** = true (red when **≤ 50%**, gray when &gt; 50%). **relativeMax** omitted.
 
@@ -82,7 +82,7 @@ Export `averageBarWidthForCard(bars, metric)` for the UI layer.
 5. **PR-GMET-005** — Folder rollups: mean for ratio-like metrics; sum for task counts.
 6. **PR-GMET-006** — Ignores `NA` CSV cells; uses mean across `block_id` rows (I-Q6b).
 7. **PR-GMET-007** — `averageBarWidthForCard`: 50 for utilization; mean barWidth for relative metrics when ≥2 lanes.
-8. **PR-GMET-008** — `clockCycle` labels: integer when `|raw| ≥ 0.5`; otherwise two decimals (or `toPrecision(2)` when `raw < 0.01`) so positive fractional `*_time(us)` means never render as `0`.
+8. **PR-GMET-008** — `clockCycle` labels: integer when `|raw| ≥ 0.5`; otherwise two decimals (or `toPrecision(2)` when `raw < 0.01`) so positive fractional `*_time(us)` means never render as `0`; always suffix **`µs`**.
 
 ## Edge Cases
 
@@ -93,7 +93,7 @@ Export `averageBarWidthForCard(bars, metric)` for the UI layer.
 | Flat CTEF (no nested children) | Metrics apply to depth-0 pipe leaves |
 | Lane with no matching CSV key | Empty bar slot (no fill, no label) |
 | MIX op with both aic and aiv columns | Same `laneColorKey` blending as pipe occupancy (mean when both sides contribute) |
-| Fractional cycle/time mean &lt; 0.5 | Label shows decimals (e.g. `0.31`), not `0` |
+| Fractional cycle/time mean &lt; 0.5 | Label shows decimals with unit (e.g. `0.31µs`), not `0` or bare `0.31` |
 
 ## Dependencies
 
@@ -104,6 +104,7 @@ Export `averageBarWidthForCard(bars, metric)` for the UI layer.
 Cycle-column precedence for MIX ops when Cube and Vector both map to the same lane key — interim uses existing `laneColorKey` mean (same as PR-VM-002 pipe attach).
 
 ## Changelog
+- **2026-09-03** — `clockCycle` labels append `µs` so mean `*_time(us)` is not read as % / ratio (PR-GMET-008).
 - **2026-09-02** — `clockCycle` labels keep decimals when rounding would show `0` on fractional `*_time(us)` (PR-GMET-008).
 - **2026-08-27** — PyPTO parity locked: max-lane red, mean midline, no absolute task threshold; `relativeMax` + `averageBarWidthForCard`.
 - **2026-08-27** — Initial spec: PyPTO parity metrics, .rep mapping, hide rules.

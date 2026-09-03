@@ -122,9 +122,12 @@ function computeRawTree(
 function formatClockCycleLabel(raw: number): string {
   const rounded = Math.round(raw);
   // CSV `*_time(us)` means are often fractional; Math.round alone paints "0" on non-empty bars.
-  if (rounded !== 0 || raw === 0) return String(rounded);
-  if (raw >= 0.01) return raw.toFixed(2);
-  return raw.toPrecision(2);
+  let magnitude: string;
+  if (rounded !== 0 || raw === 0) magnitude = String(rounded);
+  else if (raw >= 0.01) magnitude = raw.toFixed(2);
+  else magnitude = raw.toPrecision(2);
+  // Match formatTime's µs glyph so bars are not read as % / bare ratios.
+  return `${magnitude}µs`;
 }
 
 function formatLabel(metric: GutterMetric, raw: number, barWidth: number): string {
