@@ -1,7 +1,7 @@
 <template>
   <span
     class="pr-chevron"
-    :class="expanded ? 'pr-chevron--down' : 'pr-chevron--right'"
+    :class="`pr-chevron--${direction ?? (expanded ? 'down' : 'right')}`"
     aria-hidden="true"
   />
 </template>
@@ -11,8 +11,10 @@ withDefaults(
   defineProps<{
     /** True = expanded (chevron points down); false = collapsed (points right). */
     expanded?: boolean;
+    /** Overrides `expanded` where the arrow is not a disclosure — a stepper, say. */
+    direction?: 'up' | 'down' | 'right';
   }>(),
-  { expanded: true },
+  { expanded: true, direction: undefined },
 );
 </script>
 
@@ -48,5 +50,11 @@ withDefaults(
   top: 2px;
   left: 1px;
   transform: rotate(-45deg);
+}
+
+.pr-chevron--up::before {
+  top: 3px;
+  left: 2px;
+  transform: rotate(-135deg);
 }
 </style>
