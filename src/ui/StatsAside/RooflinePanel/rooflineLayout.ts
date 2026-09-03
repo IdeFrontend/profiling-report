@@ -11,7 +11,7 @@ export const ROOFLINE_CARD_PAD_X = 8;
 
 const scaleFromWidth = (w: number) => w / SKETCH_SVG_W;
 
-/** Chart fills aside content well: fixed aside − shell pad − card pad. */
+/** Chart sized for the default aside content well; SVG CSS is `width: 100%` so resize reflows. */
 export const ROOFLINE_CHART_W =
   ASIDE_WIDTH_DEFAULT - ROOFLINE_ASIDE_PAD_X * 2 - ROOFLINE_CARD_PAD_X * 2;
 const chartScale = scaleFromWidth(ROOFLINE_CHART_W);

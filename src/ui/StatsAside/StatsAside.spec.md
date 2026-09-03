@@ -93,7 +93,9 @@ Do **not** render a standalone op-type card. When duration is present, **算力�
 30. **PR-STATS-025c** — Summary card grid shares the stack column with grey islands (no horizontal well inset; bottom pad `8px` only).
 31. **PR-STATS-026** — CANNBot icons render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility.
 32. **PR-STATS-027** — Icon click emits open-cannbot with scope.
-33. **PR-STATS-031** — Duration bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` set; secondary `{blockDim} / {coreCount}`; decorative 15% when `coreCount` absent.
+33. **PR-STATS-028** — Aside shell paints a non-interactive orange top wash (`96px`, design linear-gradient) behind the header; title/meta/body stay above it.
+34. **PR-STATS-029** — Stacked body scrolls vertically only (`overflow-x: hidden; overflow-y: auto`); a vertical scrollbar gutter or DPR subpixel must not open a horizontal scrollbar.
+35. **PR-STATS-031** — Duration bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` set; secondary `{blockDim} / {coreCount}`; decorative 15% when `coreCount` absent.
 
 ## Edge Cases
 
@@ -133,14 +135,15 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Background | `#1a1a1a` (`--pr-bg-aside`) — shell / gutter between islands (`v930/detail-strip-raised`) |
 | Islands | `#262626` (`--pr-bg-panel`) — Roofline chart card, PIPE chart body, topology diagram; summary cards keep the raised gradient on the same well |
 | Section titles | On the aside shell **outside** grey islands — **计算负载分析**, **内存负载分析**, Roofline title (see child specs); **详情** aligns with the title row |
-| Padding | `10px 12px` (content well **444px** at fixed **468px** aside column) |
+| Padding | `10px 12px` (content well **456px** at default **480px** aside; reflows when the aside is resized) |
 | Title | `16px` / `600` / `#ffffff` / line-height `22px` |
 | Chart icon | `16×16` L-axis + sparkline stroke, `#e6e6e6` |
 | Close / back | stroke SVG `14×14`, `#e6e6e6` (rounded caps; not `×` / `←` glyphs) |
 | Meta | `12px` / line-height `16px`; label `#8a8a8a`, value `#d0d0d0`; item gap `12px`; title→meta `12px` |
 | 更多 | `12px` / `#8a8a8a` (not playhead blue) |
 | PIPE / topology 详情 | `12px` / `#e6e6e6` |
-| Header | pinned (`flex-shrink: 0`); body / overlay `flex: 1; min-height: 0; overflow` |
+| Header | pinned (`flex-shrink: 0`); body / overlay `flex: 1; min-height: 0`; body `overflow-x: hidden; overflow-y: auto` (no horizontal scrollbar) |
+| Top wash | Absolute `96px` band at the top of `.pr-aside`: `linear-gradient(181.55deg, rgba(244, 132, 12, 0.1) -20.986%, rgba(199, 98, 7, 0) 81.41%)`; `pointer-events: none`; paints under title/meta (`PR-STATS-028`) |
 
 ### Summary card grid (`summary-cards.png`, also `v930/detail-strip-raised` aside)
 
@@ -219,6 +222,10 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-02** — Aside body is vertical-only scroll (`PR-STATS-029`); no horizontal scrollbar from exact-fit chart / scrollbar gutter.
+- **2026-09-03** — Aside resize restored (default **480**, clamp **280–720**); content well reflows with column width.
+- **2026-09-02** — Aside column **480px** (Product); content well **456px**.
+- **2026-09-02** — Orange top wash on the aside shell (`96px` design gradient; PR-STATS-028).
 - **2026-08-31** — Summary grid drops horizontal well inset so card edges align with stack islands (PR-STATS-025c).
 - **2026-08-31** — Section titles + **详情** on aside shell outside grey islands (PR-STATS-025b); PIPE/topo panels wrap chart bodies only.
 - **2026-08-28** — Card bar tracks use `--pr-bg-aside` so light theme matches the shell.

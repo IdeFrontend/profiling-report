@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import DetailPanel from './DetailPanel.vue';
 import type { DependencyNeighbors } from '../../domain/dependencies';
-import { DOCK_HEIGHT_MIN } from '../panelResize';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 const selected = { id: '1', name: 'test_op', startTime: 100, duration: 100, endTime: 200 };
 
@@ -63,28 +63,49 @@ describe('DetailPanel', () => {
     expect(wrapper.emitted('update:dependencyMode')?.[0]).toEqual(['successors']);
   });
 
-  it('PR-DPANEL-005: dragging the top edge up grows the dock', async () => {
-    const wrapper = mount(DetailPanel, { props: { selected, height: 247 } });
-    const handle = wrapper.find('[data-testid="detail-panel-resize-handle"]');
-    expect(handle.exists()).toBe(true);
-    expect(wrapper.find('[data-testid="detail-panel"]').attributes('style')).toContain('247px');
+  it('PR-DPANEL-005: the expander toggles the dock between its two sketch heights', async () => {
+    const wrapper = mount(DetailPanel, { props: { selected } });
+    const dock = wrapper.find('[data-testid="detail-panel"]');
+    const expander = wrapper.find('[data-testid="detail-panel-expander"]');
+    expect(expander.exists()).toBe(true);
+    // The drag handle is gone: the dock has two heights, not a range.
+    expect(wrapper.find('[data-testid="detail-panel-resize-handle"]').exists()).toBe(false);
 
-    await handle.trigger('pointerdown', { button: 0, clientY: 800 });
-    await handle.trigger('pointermove', { clientY: 700 });
-    // Up 100px on the top edge = 100px taller.
-    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([347]);
+    expect(dock.attributes('style')).toContain(`${DOCK_HEIGHT_COLLAPSED}px`);
+    expect(expander.attributes('aria-expanded')).toBe('false');
 
-    await handle.trigger('pointermove', { clientY: 900 });
-    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([147]);
+    await expander.trigger('click');
+    expect(wrapper.emitted('update:expanded')?.at(-1)).toEqual([true]);
 
-    // Past the floor it clamps rather than collapsing.
-    await handle.trigger('pointermove', { clientY: 4000 });
-    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_MIN]);
+    // Height is driven by the prop, so the parent owning the state is what moves it.
+    await wrapper.setProps({ expanded: true });
+    expect(dock.attributes('style')).toContain(`${DOCK_HEIGHT_EXPANDED}px`);
+    expect(expander.attributes('aria-expanded')).toBe('true');
 
-    // After pointerup the drag is over: further moves emit nothing.
-    const before = wrapper.emitted('update:height')?.length ?? 0;
-    await handle.trigger('pointerup');
-    await handle.trigger('pointermove', { clientY: 100 });
-    expect(wrapper.emitted('update:height')?.length ?? 0).toBe(before);
+    await expander.trigger('click');
+    expect(wrapper.emitted('update:expanded')?.at(-1)).toEqual([false]);
+  });
+
+  it('PR-DPANEL-006: the active tab underline sits on the header rule, not mid-header', async () => {
+    const src = (await import('./DetailPanel.vue?raw')).default as string;
+    // `align-items: center` floated the 2px underline in the middle of the 52px header;
+    // stretching the row is what drops it onto the rule below.
+    expect(src).toMatch(/\.pr-detail-panel__head\s*\{[^}]*align-items:\s*stretch/);
+    expect(src).toMatch(/\.pr-detail-panel__head\s*\{[^}]*border-bottom:\s*1px solid/);
+    expect(src).toMatch(/\.pr-detail-panel__tab\s*\{[^}]*border-bottom:\s*2px solid #fff/);
+    expect(src).not.toMatch(/\.pr-detail-panel__tab\s*\{[^}]*padding-bottom/);
+  });
+
+  it('PR-DPANEL-007: dock height animates, and the close control is the design icon', async () => {
+    const wrapper = mount(DetailPanel, { props: { selected } });
+    expect(wrapper.find('[data-testid="detail-panel-close"] .pr-icon--close').exists()).toBe(true);
+
+    const src = (await import('./DetailPanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-detail-panel\s*\{[^}]*transition:\s*height/);
+    // Cap against the viewport so a short host cannot lose the timeline on expand.
+    expect(src).toMatch(/height:\s*min\(\s*var\(--pr-dock-h\),\s*60vh\s*\)/);
+    // Enter/leave reuse that same transition so appearing never jumps the timeline.
+    expect(src).toMatch(/\.pr-detail-panel\.pr-dock-enter-from[\s\S]*?height:\s*0/);
+    expect(src).toMatch(/prefers-reduced-motion: reduce/);
   });
 });
