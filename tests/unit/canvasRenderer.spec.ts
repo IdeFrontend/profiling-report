@@ -550,7 +550,7 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
     expect(stub.setMultiSelection).toBeUndefined();
   });
 
-  it('PR-RENDER-016: setMultiSelection dims non-selected events like a single click', () => {
+  it('PR-RENDER-015: setMultiSelection dims non-selected events like a single click', () => {
     // Multi-selected ids act as the "bright" set, so the rest take the 0.45 selection dim.
     const multi = new Set(['e-long']);
     expect(eventEmphasisDim(true, multi.has('e-long'), false, multi.size > 0)).toBe(1);
@@ -629,6 +629,5 @@ describe('PR-RENDER: marquee hit collection', () => {
         y1: laneY + LANE_HEIGHT * 6,
       }),
     ).toEqual([]);
-  });
   });
 });

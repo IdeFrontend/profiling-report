@@ -159,6 +159,8 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(dropped.pinnedLaneIds).toEqual(['b']);
     expect(unpinLane(dropped, 'missing').pinnedLaneIds).toEqual(['b']);
     expect(pinned.pinnedLaneIds).toEqual(['a', 'b']);
+  });
+
   it('PR-VIEW-012: single-select and multi-select are mutually exclusive; clearSelection drops both', () => {
     const base = createViewState(model);
 

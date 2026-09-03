@@ -157,7 +157,7 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.emitted('update:height')?.at(-1)).toEqual([347]);
 
     await handle.trigger('pointermove', { clientY: 4000 });
-    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_MIN]);
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([247]);
 
     const before = wrapper.emitted('update:height')?.length ?? 0;
     await handle.trigger('pointerup');

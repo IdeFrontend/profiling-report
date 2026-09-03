@@ -1168,6 +1168,7 @@ describe('SwimlaneCanvas', () => {
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
     await canvas.trigger('pointerup', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
+  });
 
   /** Marquee is the unmodified drag, so measure mode must be off for these. */
   async function mountForMarquee() {
@@ -1288,6 +1289,8 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(false);
+  });
+
   it('PR-CANVAS-071: a press under the 4px gate still selects (click, not marquee)', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
@@ -1348,8 +1351,8 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('hover')!.at(-1)![0]).toBeNull();
 
     // Alt+click touching target must not pin.
-    await canvas.trigger('pointerdown', { clientX: 100, clientY: y, pointerId: 1, altKey: true });
-    await canvas.trigger('pointerup', { clientX: 100, clientY: y, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerdown', { clientX: 100, clientY: rect.y + rect.h / 2, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: 100, clientY: rect.y + rect.h / 2, pointerId: 1, altKey: true });
     window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft' }));
     await nextTick();
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
@@ -1705,6 +1708,13 @@ describe('SwimlaneCanvas', () => {
       /\.pr-swim-canvas-wrap--measure\s+\.pr-swim-canvas\s*\{[^}]*cursor:\s*col-resize/,
     );
   });
+
+  it('PR-CANVAS-070: unmodified drag past 4px draws the marquee and commits intersecting events', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const rect = (
+      wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
+    ).eventScreenRect('e1')!;
+
     await canvas.trigger('pointerdown', {
       clientX: rect.x - 20,
       clientY: rect.y - 4,

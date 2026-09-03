@@ -73,7 +73,8 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep full fill and label brightness.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` / `setHoveredLane` are optional (existing implementers stay valid).
 1. **PR-RENDER-015**: `setMultiSelection` keeps selected ids bright and dims the rest with the single-click factor; empty clears it (Canvas + WebGL; `skipIf` when WebGL2 is missing).
-1. **PR-RENDER-016**: `eventsIntersectingRect` collects intersecting leaf events, normalizes rect order, and returns `[]` on a miss.
+1. **PR-RENDER-018**: `eventsIntersectingRect` collects intersecting leaf events (block-edge intersection in CSS px).
+1. **PR-RENDER-019**: `eventsIntersectingRect` normalizes rect order (any 2-corner ordering) and returns `[]` on a miss (rect over headers / empty rows).
 1. **PR-RENDER-017**: `eventRadius` applies the CSS-px corner policy (1 below 4 CSS-px width, else 2) × `dpr` → device px; Canvas and WebGL share the same `shaders.ts` constants via one `uRR` vec3 uniform / `eventRadius`.
 1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
 1. **PR-RENDER-018**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.

@@ -60,6 +60,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
 
+
+25. **PR-SWIMVIEW-025** — A parent-driven change to `multiSelectedIds` (marquee commit) reaches the canvas: the local mirror stays in sync, so the dim survives the release.
+
+
 ## Changelog
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
@@ -71,8 +75,19 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 - **2026-09-01** — Pin↔body Alt-measure draws a dashed vertical cross bridge (`PR-SWIMVIEW-021`).
 - **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
 - **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
-- **2026-08-31** — Renumber pin ACs to `PR-SWIMVIEW-013`…`017` (avoid collision with #45 `010`…`012`).
-10. **PR-SWIMVIEW-025** — A parent-driven change to `multiSelectedIds` (marquee commit) reaches the canvas: the local mirror stays in sync, so the dim survives the release.
+
+
+## Changelog
+- **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
+- **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
+- **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview (`PR-SWIMVIEW-024`).
+- **2026-09-01** — Strip/body `pointerleave` keeps ephemeral Alt target; bridge survives time-clipped edges (`PR-SWIMVIEW-021`/`024`).
+- **2026-09-01** — Collapse / pin-set changes clear Alt-measure (`PR-SWIMVIEW-023`).
+- **2026-09-01** — Free-cursor Alt target paints on every shared surface (`PR-SWIMVIEW-022`).
+- **2026-09-01** — Alt-measure endpoints track strip vs body instance (no forced defer to sticky duplicate).
+- **2026-09-01** — Pin↔body Alt-measure draws a dashed vertical cross bridge (`PR-SWIMVIEW-021`).
+- **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
+- **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
 
 ## Changelog
 - **2026-09-01** — `localMultiSelectedIds` now mirrors `props.multiSelectedIds`, so the marquee commit dim reaches the canvas (was lost to a stale `[]`); PR-SWIMVIEW-025.

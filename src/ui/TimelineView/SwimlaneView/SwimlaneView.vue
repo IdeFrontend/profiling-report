@@ -406,20 +406,13 @@ defineExpose({
       type="button"
       class="pr-gutter-resize"
       data-testid="gutter-resize-handle"
-      aria-label="Resize lane gutter"
+      :aria-label="t('resizeLaneGutter', locale)"
       @pointerdown="onGutterResizePointerDown"
       @pointermove="onGutterResizePointerMove"
       @pointerup="onGutterResizePointerUp"
       @pointercancel="onGutterResizePointerUp"
     />
 
-    <LaneGutter
-      ref="gutterRef"
-      :groups="groups"
-      :collapsed-ids="collapsedIds"
-      @scroll="onGutterScroll"
-      @toggle-group="emit('toggle-group', $event)"
-    />
     <SwimlaneCanvas
       ref="canvasRef"
       :model="model"

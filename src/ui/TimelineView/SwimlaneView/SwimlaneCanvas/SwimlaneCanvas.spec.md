@@ -97,11 +97,13 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 62. **PR-CANVAS-062** — While pinned, Alt+click any event sets that event as a new ephemeral anchor and drops the pinned overlay until a new target is chosen.
 63. **PR-CANVAS-063** — A pinned measure clears on empty-canvas click, Esc, or a visible-range change (`startTime` / `endTime` / `scrollY`). Collapsing a Card/folder or pinning/unpinning lanes also clears the session (handled by the parent swim view).
 64. **PR-CANVAS-064** — Default CSS cursor on `.pr-swim-canvas` is `default` (arrow, not `crosshair` / `pointer`); hovering an event applies `pointer`; with `measureMode` the wrap applies `col-resize`.
-65. **PR-CANVAS-065** — Shift+drag past 4px draws the marquee and commits intersecting events.
-66. **PR-CANVAS-066** — a marquee hitting nothing commits an empty selection.
-67. **PR-CANVAS-067** — marquee suppresses pan/tooltip/select; `pointerleave` does not cancel.
-68. **PR-CANVAS-068** — Escape during the marquee drag cancels without committing.
-69. **PR-CANVAS-069** — plain (no-Shift) drag still pans and never marquees.
+65. **PR-CANVAS-070** — Shift+drag past 4px draws the marquee and commits intersecting events.
+66. **PR-CANVAS-071** — a marquee hitting nothing commits an empty selection.
+67. **PR-CANVAS-072** — marquee suppresses pan/tooltip/select; `pointerleave` does not cancel.
+68. **PR-CANVAS-073** — Escape during the marquee drag cancels without committing.
+69. **PR-CANVAS-074** — plain (no-Shift) drag still pans and never marquees.
+75. **PR-CANVAS-075** — In `measureMode`, drag measures and never marquees.
+76. **PR-CANVAS-076** — Live marquee emits its time extent as `multi-select-span`; end/cancel emits null.
 
 45. **PR-CANVAS-045** — Unmodified drag past 4px draws the marquee and commits intersecting events.
 46. **PR-CANVAS-046** — a marquee hitting nothing commits an empty selection.

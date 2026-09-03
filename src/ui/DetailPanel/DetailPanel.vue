@@ -69,10 +69,12 @@ const dockStyle = computed(() => ({
     </button>
     <header class="pr-detail-panel__head">
       <span class="pr-detail-panel__tab">{{ t('details', locale) }}</span>
-      <CloseButton
+      <button
+        type="button"
         class="pr-detail-panel__close"
         data-testid="detail-panel-close"
-        :label="t('closePanel', locale)"
+        :aria-label="t('closePanel', locale)"
+        :title="t('closePanel', locale)"
         @click="emit('close')"
       >
         <PrIcon name="close" />

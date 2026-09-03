@@ -160,6 +160,7 @@ const overlay = new SwimlaneOverlayPainter();
 let attached = false;
 let attachedModel: SwimlaneModel | null = null;
 let downX = 0;
+let dragging = false;
 /** Client Y for magnet during window-level measure create/resize. */
 let lastPointerClientY = 0;
 /** Last canvas-local pointer for hover-gap refresh on zoom/pan/scroll. */

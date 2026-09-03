@@ -7,11 +7,13 @@ import { collectLeafEventsFromModel } from '../../domain/swimTree';
 import type { SwimEvent, SwimlaneModel } from '../../domain/types';
 import { t } from '../../i18n';
 import {
-  DOCK_HEIGHT_DEFAULT,
-  DOCK_HEIGHT_MAX,
-  DOCK_HEIGHT_MIN,
+  DOCK_HEIGHT_COLLAPSED,
+  DOCK_HEIGHT_EXPANDED,
   startHorizontalResize,
 } from '../panelResize';
+
+const DOCK_HEIGHT_MIN = DOCK_HEIGHT_COLLAPSED;
+const DOCK_HEIGHT_MAX = DOCK_HEIGHT_EXPANDED * 2;
 
 const props = withDefaults(
   defineProps<{
@@ -23,7 +25,7 @@ const props = withDefaults(
     height?: number;
   }>(),
   {
-    height: DOCK_HEIGHT_DEFAULT,
+    height: DOCK_HEIGHT_EXPANDED,
     locale: undefined,
   },
 );
@@ -142,9 +144,8 @@ function onResizePointerDown(e: PointerEvent) {
     startClientX: e.clientY,
     startWidth: props.height,
     min: DOCK_HEIGHT_MIN,
-    // Same viewport guard as DetailPanel: never swallow the timeline.
     max: Math.min(DOCK_HEIGHT_MAX, Math.max(DOCK_HEIGHT_MIN, window.innerHeight - 160)),
-    direction: -1, // drag the top edge: up → taller
+    direction: -1,
     onChange: (h) => emit('update:height', h),
   });
   e.preventDefault();

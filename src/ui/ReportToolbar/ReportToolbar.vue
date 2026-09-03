@@ -478,9 +478,12 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         >
           <div class="pr-toolbar__display-head">
             <span class="pr-toolbar__display-title">{{ t('displayControl', locale) }}</span>
-            <CloseButton
+            <button
+              type="button"
+              class="pr-toolbar__display-close"
               data-testid="display-control-close"
-              :label="t('closePanel', locale)"
+              :aria-label="t('closePanel', locale)"
+              :title="t('closePanel', locale)"
               @click="closeDisplayControl"
             >
               <PrIcon name="close" />
