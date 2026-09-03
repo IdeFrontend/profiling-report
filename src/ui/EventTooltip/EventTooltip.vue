@@ -82,6 +82,22 @@ const title = computed(() => {
   font-size: 12px;
   line-height: 1.45;
   min-width: 180px;
+  animation: pr-tooltip-in 120ms ease;
+}
+
+@keyframes pr-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-tooltip {
+    animation: none;
+  }
 }
 
 .pr-tooltip__name {

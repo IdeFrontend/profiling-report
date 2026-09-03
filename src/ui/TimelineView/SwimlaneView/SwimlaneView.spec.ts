@@ -367,7 +367,19 @@ describe('SwimlaneView', () => {
       },
     });
     const strip = wrapper.get('[data-testid="pinned-strip"]').element as HTMLElement;
-    expect(strip.style.height).toBe('44px');
+    // Transition uses --pr-pinned-h; computed height still reflects rowCount × LANE_HEIGHT.
+    expect(strip.style.getPropertyValue('--pr-pinned-h').trim() || strip.style.height).toBe('44px');
+  });
+
+  it('PR-SWIMVIEW-025: pinned strip appears/disappears with a 200ms height transition', async () => {
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-pinned-strip\s*\{[^}]*height:\s*var\(--pr-pinned-h[^)]*\)/s);
+    expect(src).toMatch(/\.pr-pinned-strip\s*\{[^}]*transition:\s*height\s+200ms\s+ease/s);
+    // Enter/leave collapse the strip so appearing never jumps the body below it.
+    expect(src).toMatch(
+      /\.pr-pinned-strip\.pr-pinned-enter-from,[\s\S]*?\.pr-pinned-strip\.pr-pinned-leave-to\s*\{[^}]*height:\s*0/s,
+    );
+    expect(src).toMatch(/prefers-reduced-motion:\s*reduce/);
   });
 
   it('PR-SWIMVIEW-014: pinned duplicates keep the same lane ids as originals', () => {
