@@ -661,8 +661,10 @@ defineExpose({
   position: relative;
   height: 20px;
   color: #c8c8c8;
+  background: var(--pr-bg-panel, #262626);
   border-bottom: 1px solid #3a3a3a;
   flex: 0 0 auto;
+  cursor: pointer;
   /* Visible so raised cursor / outside Δt pills are not clipped; AxisRuler clips itself. */
   overflow: visible;
 }

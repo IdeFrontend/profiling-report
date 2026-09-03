@@ -235,17 +235,21 @@ function onTrackPointerDown(e: PointerEvent) {
 .pr-overview__track {
   position: relative;
   height: 20px;
+  background: var(--pr-bg-panel, #262626);
   border-bottom: 1px solid #4a4a4a;
-  cursor: default;
+  /* Clicking the track re-centers the window (onTrackPointerDown). */
+  cursor: pointer;
   /* Visible so edge handles are not cropped L/R (also unclips Y; tabs stay in-track). AxisRuler clips tick text vs aside. */
   overflow: visible;
 }
 
+/* Opaque, not a black wash: the muted band is a named design value and the
+   panes sit under the ruler, so ticks keep their normal color on top. */
 .pr-overview__dim {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--pr-axis-band-muted, #1b1b1b);
   pointer-events: none;
   z-index: 0;
 }

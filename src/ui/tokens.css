@@ -6,8 +6,15 @@
   --pr-bg-deep: #1f1f1f;
   --pr-bg-aside: #1a1a1a;
   --pr-bg-panel: #262626;
-  --pr-axis-tick: #343434;
-  --pr-axis-tick-muted: #272727;
+  /* Raised chrome floating above a panel: tooltip, OP menu, display popover. */
+  --pr-surface-raised: #363636;
+  --pr-divider: #3a3a3a;
+  --pr-tab-inactive: #b3b3b3;
+  --pr-axis-tick: #313131;
+  /* Muting is carried by the band behind the ticks (see --pr-axis-band-muted),
+     so muted ticks keep the normal color. */
+  --pr-axis-tick-muted: #313131;
+  --pr-axis-band-muted: #1b1b1b;
   --pr-playhead: #3078f0;
   --pr-color-cube: #007084;
   --pr-color-vector: #007464;
@@ -27,8 +34,13 @@
  * Sketch scrollbars are a thin rounded thumb on no track (v930/task-click-detail).
  * The library ships dark panels, so the platform default light chrome reads as a
  * bright bar against them; scoped to .pr-root so a host page keeps its own.
+ *
+ * `color-scheme` is here for the same reason: without it the UA paints light-mode
+ * form chrome (focus rings, range track, spinners) on our dark panels. Scoped, not
+ * on :root, so embedding the report cannot flip a host page to dark.
  */
 .pr-root {
+  color-scheme: dark;
   scrollbar-width: thin;
   scrollbar-color: #5a5a5a transparent;
 }

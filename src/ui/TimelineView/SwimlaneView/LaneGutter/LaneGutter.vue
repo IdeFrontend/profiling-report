@@ -11,7 +11,7 @@ const props = defineProps<{
   collapsedIds?: string[];
   /** Leaf lane ids currently pinned (filled pushpin). */
   pinnedLaneIds?: string[];
-  /** Leaf under canvas hover — gutter row `#252525` only (does not show pushpin). */
+  /** Leaf under canvas hover — gutter row highlight only (does not show pushpin). */
   hoveredLaneId?: string | null;
   locale?: string;
 }>();
@@ -91,9 +91,9 @@ defineExpose({ root });
 
 .pr-gutter__group {
   box-sizing: border-box;
-  flex: 0 0 28px;
-  height: 28px;
-  min-height: 28px;
+  flex: 0 0 40px;
+  height: 40px;
+  min-height: 40px;
   width: 100%;
   margin: 0;
   padding: 0;

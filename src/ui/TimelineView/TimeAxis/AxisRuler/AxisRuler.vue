@@ -127,11 +127,13 @@ defineProps<{
   width: 1px;
   height: 5px;
   transform: translateX(-50%);
-  background: var(--pr-axis-tick, rgb(52, 52, 52));
+  background: var(--pr-axis-tick, #313131);
 }
 
+/* Muting is carried by the band behind the ticks, so this resolves to the same
+   color by default; the token stays a hook for hosts that want dimmer ticks. */
 .pr-axis-ruler__minor--muted {
-  background: var(--pr-axis-tick-muted, rgb(39, 39, 39));
+  background: var(--pr-axis-tick-muted, #313131);
 }
 
 .pr-axis-ruler__major {
@@ -150,11 +152,11 @@ defineProps<{
   flex: 0 0 auto;
   width: 1px;
   align-self: stretch;
-  background: var(--pr-axis-tick, rgb(52, 52, 52));
+  background: var(--pr-axis-tick, #313131);
 }
 
 .pr-axis-ruler__major--muted .pr-axis-ruler__bar {
-  background: var(--pr-axis-tick-muted, rgb(39, 39, 39));
+  background: var(--pr-axis-tick-muted, #313131);
 }
 
 .pr-axis-ruler__label {

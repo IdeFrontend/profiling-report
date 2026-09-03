@@ -73,17 +73,24 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
   --pr-bg-deep: #1f1f1f;
   --pr-bg-aside: #1a1a1a;
   --pr-bg-panel: #262626;
-  --pr-axis-tick: #343434;
-  --pr-axis-tick-muted: #272727;
+  --pr-surface-raised: #363636;
+  --pr-divider: #3a3a3a;
+  --pr-tab-inactive: #b3b3b3;
+  --pr-axis-tick: #313131;
+  --pr-axis-tick-muted: #313131;
+  --pr-axis-band-muted: #1b1b1b;
 }
 ```
 
 ## Rules
 
 1. Same `colorKey` must match across PIPE aside bars, overview series, and swimlane **event** fills when category is known.
-2. **Gutter utilization bars** use threshold fills only: util &lt; 0.5 → `#733234`, util ≥ 0.5 → `#5c5c5c` — not `colorKey` / pipe category hues. Midline dash at 50% track width: `1px dashed rgba(255,255,255,0.1)`.
+2. **Gutter utilization bars** use threshold fills only: util &lt; 0.5 → `rgba(231,67,74,0.4)`, util ≥ 0.5 → `rgba(255,255,255,0.08)` — not `colorKey` / pipe category hues. Both are translucent so the track hatch reads through; over the hatch they resolve to roughly `#763437` and `#3d3d3d`. Track radius `4px`. Midline dash at 50% track width: `1px dashed rgba(255,255,255,0.1)`.
 3. Unknown swimlane category → neutral gray (`#606060`), not a random hue.
-4. Changing tokens requires updating this file and visual fixtures in the same PR.
+4. **Axis muting is a band, not a tick color.** Ticks are `--pr-axis-tick` everywhere; the region outside the overview brush window is painted `--pr-axis-band-muted` behind them. `--pr-axis-tick-muted` therefore resolves to the same value as `--pr-axis-tick` by default and exists only as a host override hook.
+5. **`--pr-surface-raised`** is the fill for chrome floating above a panel: event tooltip, OP selector menu, display-control popover. Use the token rather than repeating `#363636`.
+6. **Event states are derived, never palette entries.** One base colour per lane; `eventFill()` offsets it in OKLCH — `hover` and `selected` both `L+0.33`, with `selected` also `C×1.05` — and selection keeps the 2px white ring over the result. Hardcoding a second hue per lane is what produced the AC-08 defect, where hover and selection read as one state. Label colour follows from the fill (`L > 0.6` → dark), so it never needs picking either; both lifts cross that threshold, so labels invert under the pointer. A hovered block is exempt from the selection dim so that dark text on a light fill is not washed to mud.
+7. Changing tokens requires updating this file and visual fixtures in the same PR.
 
 ## Related
 
