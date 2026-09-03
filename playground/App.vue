@@ -337,7 +337,7 @@ onMounted(async () => {
           ref="fileInputRef"
           class="playground__file"
           type="file"
-          accept=".rep,.ncrep,.json,application/json,application/octet-stream"
+          accept=".rep,.ncrep,.npu-rep,.json,application/json,application/octet-stream"
           data-testid="open-file-input"
           @change="onFileChosen"
         >
