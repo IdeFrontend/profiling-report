@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { loadReportSource } from '../../src/index';
+import { loadReportSource, parseRep } from '../../src/index';
 import { operatorsFromNestedNames } from '../../src/adapters/loadReportSource';
+import { packNpuRep160, NPU160_TYPE_CSV, NPU160_TYPE_JSON, NPU160_TYPE_NESTED } from '../../playground/packNpuRep160';
 import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes } from '../helpers/fixtures';
 
 describe('PR-JSON: standalone Chrome Trace', () => {
@@ -39,5 +40,47 @@ describe('PR-JSON: standalone Chrome Trace', () => {
       { id: 'op1.npu.rep', label: 'op1' },
       { id: 'op2.npu.rep', label: 'op2' },
     ]);
+  });
+
+  it('PR-NPU-008: loadReportSource routes 160-byte leaf to a full single-op report', () => {
+    // Build a flat 160-byte leaf from out.rep payloads (adds the trace.json the
+    // committed data/result.npu-rep omits).
+    const payloads = parseRep(loadOutRepBytes()).payloads;
+    const entries = Object.entries(payloads).map(([name, data]) => ({
+      name,
+      type: name.endsWith('.csv') ? NPU160_TYPE_CSV : NPU160_TYPE_JSON,
+      data,
+    }));
+    const leaf = packNpuRep160(entries);
+
+    const adapted = loadReportSource(leaf);
+    expect(adapted.operators).toBeUndefined();
+    expect(adapted.reportModel.summary.opName).toBe('add_custom');
+    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
+  });
+
+  it('PR-NPU-008: loadReportSource routes nested 160-byte container to multi-op report', () => {
+    const payloads = parseRep(loadOutRepBytes()).payloads;
+    const toEntries = () =>
+      Object.entries(payloads).map(([name, data]) => ({
+        name,
+        type: name.endsWith('.csv') ? NPU160_TYPE_CSV : NPU160_TYPE_JSON,
+        data,
+      }));
+
+    const op1 = packNpuRep160(toEntries());
+    const op2 = packNpuRep160(toEntries());
+    const outer = packNpuRep160([
+      { name: 'op1.npu.rep', type: NPU160_TYPE_NESTED, data: op1 },
+      { name: 'op2.npu.rep', type: NPU160_TYPE_NESTED, data: op2 },
+    ]);
+
+    const adapted = loadReportSource(outer);
+    expect(adapted.operators?.map((o) => o.id)).toEqual(['op1.npu.rep', 'op2.npu.rep']);
+    expect(adapted.operators?.map((o) => o.label)).toEqual(['op1', 'op2']);
+    expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
+    expect(adapted.reportModel.summary.opName).toBe('add_custom');
+    expect(adapted.operatorReports?.['op2.npu.rep']?.reportModel.summary.opName).toBe('add_custom');
   });
 });

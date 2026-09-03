@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
-import { loadReportSource, loadReportFiles, type ReportFilesSource } from '../../adapters';
+import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
   clearMeasure,
@@ -62,8 +62,6 @@ import '../tokens.css';
 const props = withDefaults(defineProps<{
   title?: string;
   source?: ArrayBuffer | Uint8Array;
-  /** Already-extracted report folder (backend `npu-compute` output) — filename → bytes. */
-  files?: ReportFilesSource;
   swimlaneModel?: SwimlaneModel;
   reportModel?: ReportViewModel;
   /** cannbot payload 元信息（.rep 文件名 / 绝对路径 / id / 采集时间），宿主提供。 */
@@ -382,14 +380,6 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
   }
 }
 
-function loadFromFiles(files: ReportFilesSource) {
-  try {
-    applyAdapted(loadReportFiles(files));
-  } catch (cause) {
-    failLoad(cause);
-  }
-}
-
 /** Swap the swimlane/report to another packaged operator without re-parsing the container. */
 function onOperatorChange(id: string) {
   const rep = operatorReports.value[id];
@@ -412,27 +402,7 @@ watch(
       loadFromSource(src);
       return;
     }
-    if (props.files) return; // `files` path owns the load; don't clobber it.
     // Source removed: drop what the adapter derived, or its flags outlive the report.
-    operators.value = [];
-    operatorReports.value = {};
-    selectedOperatorId.value = null;
-    internalSwim.value = null;
-    internalReport.value = null;
-    internalCapabilities.value = null;
-  },
-  { immediate: true },
-);
-
-/** Backend-extracted folder input — mirrors the `source` watcher. */
-watch(
-  () => props.files,
-  (files) => {
-    if (files) {
-      loadFromFiles(files);
-      return;
-    }
-    if (props.source) return; // `source` path owns the load; don't clobber it.
     operators.value = [];
     operatorReports.value = {};
     selectedOperatorId.value = null;
