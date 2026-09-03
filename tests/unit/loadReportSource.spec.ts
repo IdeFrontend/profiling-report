@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadReportSource, parseRep } from '../../src/index';
 import { operatorsFromNestedNames } from '../../src/adapters/loadReportSource';
 import { packNpuRep160, NPU160_TYPE_CSV, NPU160_TYPE_JSON, NPU160_TYPE_NESTED } from '../../playground/packNpuRep160';
-import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes } from '../helpers/fixtures';
+import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes, loadResultNpuRepBytes } from '../helpers/fixtures';
 
 describe('PR-JSON: standalone Chrome Trace', () => {
   it('PR-JSON-001: loads CTEF JSON without report aside data (PROC-3)', () => {
@@ -58,6 +58,13 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
+  });
+
+  it('PR-NPU-008: real 160-byte sample without trace.json throws a clear error', () => {
+    // data/result.npu-rep is a partial metric pack (no trace.json / OpBasicInfo),
+    // so the flat-leaf adaptation must fail loudly rather than render an empty
+    // timeline.
+    expect(() => loadReportSource(loadResultNpuRepBytes())).toThrow(/trace\.json missing/);
   });
 
   it('PR-NPU-008: loadReportSource routes nested 160-byte container to multi-op report', () => {

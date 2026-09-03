@@ -27,8 +27,18 @@ describe('PR-NPU160: product 160-byte npu-rep parse', () => {
       'PipeUtilization.csv',
     ]);
     expect(parsed.files.map((f) => f.type)).toEqual([3, 4, 4, 4, 4, 4]);
-    expect(parsed.payloads['HardwareInfo.jsonl']?.byteLength).toBeGreaterThan(0);
-    expect(parsed.payloads['PipeUtilization.csv']?.byteLength).toBeGreaterThan(0);
+
+    // Exact payload lengths match the Python unpacker (data/scripts/unpack_rep.py).
+    expect(parsed.files.map((f) => f.length)).toEqual([591, 784, 982, 287, 290, 891]);
+    expect(parsed.payloads['HardwareInfo.jsonl']?.byteLength).toBe(591);
+    expect(parsed.payloads['PipeUtilization.csv']?.byteLength).toBe(891);
+
+    // Payload content is byte-exact: jsonl starts with a Host Info category line,
+    // the CSV starts with the block/sub-block keyed header.
+    const jsonl = new TextDecoder().decode(parsed.payloads['HardwareInfo.jsonl']);
+    expect(jsonl).toContain('{"category":"Host Info"');
+    const csv = new TextDecoder().decode(parsed.payloads['PipeUtilization.csv']);
+    expect(csv.startsWith('block_id,sub_block_id,')).toBe(true);
   });
 
   it('PR-NPU-007: isNpuRep160 distinguishes 160-byte from 164-byte sample', () => {
