@@ -23,11 +23,3 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Caveats.** Interim choice **A** under [UI-45](../../questions/UI.md) (true vs derived). Assumes swimlane timestamps share the AIC clock domain as OpBasicInfo freq.
 **Implement / test as:** Formatter + toolbar mode + host `timeDisplayMode` prop; `formatTimeAuto` for absolute times
 **Superseded when:** Product answers [UI-45](../../questions/UI.md) (true vs derived cycles) and/or refines freq/labels
-
-### UI-41a — Gesture parity
-
-**Status:** `interim`
-**Question:** [UI-41](../../questions/UI.md)
-**Interim:** Follow [PACKAGING_SUGGESTIONS](../../PACKAGING_SUGGESTIONS.md) as if accepted for scaffold: wheel/slider/drag MVP; W/S/A/D P2.
-**Implement / test as:** wheel/slider/drag MVP; W/S/A/D P2
-**Superseded when:** Product confirm/change UI-41

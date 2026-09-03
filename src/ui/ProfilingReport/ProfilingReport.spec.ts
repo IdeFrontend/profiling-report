@@ -449,4 +449,58 @@ describe('ProfilingReport scaffold', () => {
     expect(summaryPayload.scope).toBe('summary');
     expect((summaryPayload.data.summary as { opName?: string }).opName).toBe('matmul_v3');
   });
+
+  it('PR-VIEW-016/017: W/S/A/D keys zoom and pan the timeline', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'keyboard-nav',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
+    const start = () => wrapper.vm.viewState.startTime;
+    expect(span()).toBe(1000);
+
+    // W zooms in around center (no cursor set yet → viewport center).
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    await nextTick();
+    expect(span()).toBeLessThan(1000);
+    const zoomedSpan = span();
+
+    // D pans right (later times enter from the right), within bounds.
+    const beforePan = start();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
+    await nextTick();
+    expect(start()).toBeGreaterThan(beforePan);
+    expect(span()).toBe(zoomedSpan);
+
+    // A pans left back.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    await nextTick();
+    expect(start()).toBeLessThanOrEqual(beforePan + 1);
+
+    // S zooms back out to the full span (clamped to bounds).
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
+    await nextTick();
+    expect(span()).toBe(1000);
+    wrapper.unmount();
+  });
+
+  it('W/S/A/D ignored while typing in the search field', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'keyboard-guard',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
+    const input = wrapper.find('[data-testid="search-input"]').element as HTMLInputElement;
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true }));
+    await nextTick();
+    expect(span()).toBe(1000);
+    wrapper.unmount();
+  });
 });

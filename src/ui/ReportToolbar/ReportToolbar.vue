@@ -57,6 +57,9 @@ const atDepthMin = computed(() => props.dependencyDepth <= MIN_DEPENDENCY_DEPTH)
 const displayControlOpen = ref(false);
 /** Wrap owns the trigger and the panel, so an outside hit is anything not in here. */
 const displayWrapRef = ref<HTMLElement | null>(null);
+/** Shortcut-help (快捷键说明) popover state — same dismiss contract as display control. */
+const shortcutHelpOpen = ref(false);
+const shortcutWrapRef = ref<HTMLElement | null>(null);
 const opMenuOpen = ref(false);
 const activeOptionIndex = ref(0);
 const opMenuId = useId();
@@ -117,6 +120,37 @@ watch(displayControlOpen, (open) => {
   }
 });
 
+function toggleShortcutHelp() {
+  shortcutHelpOpen.value = !shortcutHelpOpen.value;
+}
+
+function closeShortcutHelp() {
+  shortcutHelpOpen.value = false;
+}
+
+/** Same APG dialog dismiss as 显示控制: pointerdown outside the wrap or Escape. */
+function onShortcutOutsidePointerDown(e: PointerEvent) {
+  const wrap = shortcutWrapRef.value;
+  if (!wrap || !(e.target instanceof Node) || wrap.contains(e.target)) return;
+  closeShortcutHelp();
+}
+
+function onShortcutEscape(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return;
+  e.preventDefault();
+  closeShortcutHelp();
+}
+
+watch(shortcutHelpOpen, (open) => {
+  if (open) {
+    document.addEventListener('pointerdown', onShortcutOutsidePointerDown);
+    document.addEventListener('keydown', onShortcutEscape);
+  } else {
+    document.removeEventListener('pointerdown', onShortcutOutsidePointerDown);
+    document.removeEventListener('keydown', onShortcutEscape);
+  }
+});
+
 const toolbarRef = ref<HTMLElement | null>(null);
 let toolbarClipRo: ResizeObserver | null = null;
 
@@ -155,6 +189,8 @@ watch(
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onDisplayOutsidePointerDown);
   document.removeEventListener('keydown', onDisplayEscape);
+  document.removeEventListener('pointerdown', onShortcutOutsidePointerDown);
+  document.removeEventListener('keydown', onShortcutEscape);
   toolbarClipRo?.disconnect();
   toolbarClipRo = null;
 });
@@ -401,6 +437,104 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         >
           <PrIcon name="zoom-in" />
         </button>
+      </div>
+
+      <div
+        ref="shortcutWrapRef"
+        class="pr-toolbar__shortcut-wrap"
+      >
+        <button
+          type="button"
+          class="pr-toolbar__icon-btn"
+          data-testid="toggle-shortcuts"
+          data-toolbar-clip
+          :aria-expanded="shortcutHelpOpen"
+          :aria-pressed="shortcutHelpOpen"
+          :class="{ 'pr-toolbar__icon-btn--on': shortcutHelpOpen }"
+          :title="t('shortcuts', locale)"
+          @click="toggleShortcutHelp"
+        >
+          <PrIcon name="keyboard" />
+        </button>
+
+        <div
+          v-if="shortcutHelpOpen"
+          class="pr-toolbar__shortcut-help"
+          data-testid="shortcut-help"
+          role="dialog"
+          :aria-label="t('shortcuts', locale)"
+        >
+          <div class="pr-toolbar__shortcut-head">
+            <span class="pr-toolbar__shortcut-title">{{ t('shortcuts', locale) }}</span>
+            <button
+              type="button"
+              class="pr-toolbar__shortcut-close"
+              data-testid="shortcut-help-close"
+              :title="t('closePanel', locale)"
+              @click="closeShortcutHelp"
+            >
+              <PrIcon name="close" />
+            </button>
+          </div>
+
+          <div class="pr-toolbar__shortcut-section">
+            <div class="pr-toolbar__shortcut-section-title">
+              {{ t('mouseControl', locale) }}
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('verticalMovement', locale) }}</span>
+              <kbd>{{ t('mouseWheelKey', locale) }}</kbd>
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('singleBoxSelection', locale) }}</span>
+              <kbd>{{ t('mouseClickKey', locale) }}</kbd>
+            </div>
+          </div>
+
+          <div class="pr-toolbar__shortcut-section">
+            <div class="pr-toolbar__shortcut-section-title">
+              {{ t('keyboardControl', locale) }}
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('zoomIn', locale) }}</span>
+              <kbd>W</kbd>
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('zoomOut', locale) }}</span>
+              <kbd>S</kbd>
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('panLeft', locale) }}</span>
+              <kbd>A</kbd>
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('panRight', locale) }}</span>
+              <kbd>D</kbd>
+            </div>
+          </div>
+
+          <div class="pr-toolbar__shortcut-section">
+            <div class="pr-toolbar__shortcut-section-title">
+              {{ t('combinedControl', locale) }}
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('scaling', locale) }}</span>
+              <span class="pr-toolbar__shortcut-chord"><kbd>Ctrl</kbd><kbd>{{ t('mouseWheelKey', locale) }}</kbd></span>
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('dragPan', locale) }}</span>
+              <span class="pr-toolbar__shortcut-chord"><kbd>Ctrl</kbd><kbd>{{ t('mouseClickKey', locale) }}</kbd></span>
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('boxSelect', locale) }}</span>
+              <kbd>{{ t('mouseDragKey', locale) }}</kbd>
+            </div>
+            <div class="pr-toolbar__shortcut-row">
+              <span>{{ t('timeMeasurement', locale) }}</span>
+              <span class="pr-toolbar__shortcut-chord"><kbd>Alt</kbd><kbd>{{ t('mouseClickKey', locale) }}</kbd></span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <button
@@ -796,7 +930,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 .pr-toolbar__search,
 .pr-toolbar__zoom-pill,
 .pr-toolbar__icon-btn,
-.pr-toolbar__display-wrap {
+.pr-toolbar__display-wrap,
+.pr-toolbar__shortcut-wrap {
   flex-shrink: 0;
 }
 
@@ -1243,5 +1378,99 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+/* Shortcut-help (快捷键说明) popover — same surface tokens as 显示控制. */
+.pr-toolbar__shortcut-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.pr-toolbar__shortcut-help {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  box-sizing: border-box;
+  width: 300px;
+  padding: 16px 18px 18px;
+  background: #363636;
+  border: 1px solid #5e5e5e;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.pr-toolbar__shortcut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pr-toolbar__shortcut-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.pr-toolbar__shortcut-close {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: #b3b3b3;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.pr-toolbar__shortcut-close:hover {
+  color: #ffffff;
+}
+
+.pr-toolbar__shortcut-section + .pr-toolbar__shortcut-section {
+  margin-top: 12px;
+}
+
+.pr-toolbar__shortcut-section-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e8e8e8;
+}
+
+.pr-toolbar__shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: #b2b2b2;
+}
+
+.pr-toolbar__shortcut-chord {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pr-toolbar__shortcut-row kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 2px 6px;
+  border: 1px solid #5e5e5e;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
 }
 </style>

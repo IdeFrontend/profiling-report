@@ -466,4 +466,59 @@ describe('ReportToolbar', () => {
 
     wrapper.unmount();
   });
+
+  it('PR-TOOLBAR-021: shortcut-help action renders first, before zoom-to-fit, with the keyboard glyph', () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const actions = wrapper.findAll('[data-toolbar-clip]');
+    expect(actions[0].attributes('data-testid')).toBe('toggle-shortcuts');
+    expect(actions[1].attributes('data-testid')).toBe('zoom-to-fit');
+    expect(wrapper.find('[data-testid="toggle-shortcuts"] .pr-icon--keyboard').exists()).toBe(true);
+    // Not open by default.
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(false);
+  });
+
+  it('PR-TOOLBAR-022: shortcut-help popover opens and closes via X / toggle / outside / Escape', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps, attachTo: document.body });
+    const trigger = wrapper.find('[data-testid="toggle-shortcuts"]');
+    await trigger.trigger('click');
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(true);
+
+    await wrapper.find('[data-testid="shortcut-help-close"]').trigger('click');
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(false);
+
+    await trigger.trigger('click');
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(true);
+    await trigger.trigger('click');
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(false);
+
+    await trigger.trigger('click');
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(true);
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(false);
+
+    await trigger.trigger('click');
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(true);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find('[data-testid="shortcut-help"]').exists()).toBe(false);
+
+    wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-023: popover lists W/S/A/D keycaps and i18n section labels', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    await wrapper.find('[data-testid="toggle-shortcuts"]').trigger('click');
+    const panel = wrapper.get('[data-testid="shortcut-help"]');
+    expect(panel.findAll('kbd').length).toBeGreaterThanOrEqual(4);
+    const keys = panel.findAll('kbd').map((k) => k.text());
+    expect(keys).toContain('W');
+    expect(keys).toContain('S');
+    expect(keys).toContain('A');
+    expect(keys).toContain('D');
+    const text = panel.text();
+    expect(text).toContain(t('mouseControl'));
+    expect(text).toContain(t('keyboardControl'));
+    expect(text).toContain(t('combinedControl'));
+  });
 });
