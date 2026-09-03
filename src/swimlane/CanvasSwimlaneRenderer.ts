@@ -39,7 +39,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
-import { EVENT_LABEL_FONT_CSS_PX, centeredTextBaseline, fitTextWidth } from './textAtlas';
+import { EVENT_LABEL_FONT_CSS_PX, centeredTextBaseline, fitEventLabel } from './textAtlas';
 
 /** Device-pixel-snapped stroke path inset by half the (snapped) line width. */
 function strokeRoundedEvent(
@@ -79,10 +79,21 @@ function drawEventLabel(
   ctx.fillStyle = color;
   ctx.font = `400 ${Math.max(8, Math.round(EVENT_LABEL_FONT_CSS_PX * dpr))}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center';
-  const label = fitTextWidth(ctx, name, anchor.maxWidth);
-  const { baselineY, baseline } = centeredTextBaseline(ctx.measureText(label), y + h / 2);
+  const fit = fitEventLabel(ctx, name, anchor.maxWidth);
+  if (fit.kind === 'skip') {
+    ctx.restore();
+    return;
+  }
+  const { baselineY, baseline } = centeredTextBaseline(ctx.measureText(fit.text), y + h / 2);
   ctx.textBaseline = baseline;
-  ctx.fillText(label, anchor.cx, baselineY);
+  if (fit.kind === 'shrink') {
+    // Horizontal-only shrink around the label center; vertical metrics are untouched.
+    ctx.translate(anchor.cx, baselineY);
+    ctx.scale(fit.scaleX, 1);
+    ctx.fillText(fit.text, 0, 0);
+  } else {
+    ctx.fillText(fit.text, anchor.cx, baselineY);
+  }
   ctx.restore();
 }
 

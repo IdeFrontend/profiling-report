@@ -26,9 +26,16 @@ export function eventLabelFont(sizePx: number): string {
 }
 
 /** Minimal `measureText` surface — satisfied by Canvas2D and OffscreenCanvas2D contexts alike. */
-interface TextMeasurer {
+export interface TextMeasurer {
   measureText(text: string): { width: number };
 }
+
+/** How an event label should be rendered to fit its available width (never shrunk vertically). */
+export type LabelFit =
+  | { kind: 'draw'; text: string }
+  | { kind: 'shrink'; text: string; scaleX: number }
+  | { kind: 'truncate'; text: string }
+  | { kind: 'skip' };
 
 /** Ink bounds returned by `measureText` on real 2D contexts (absent in jsdom stubs). */
 export interface TextMetricsLike {
@@ -74,6 +81,23 @@ export function fitTextWidth(measurer: TextMeasurer, text: string, maxWidth: num
   return text.slice(0, lo) + ellipsis;
 }
 
+/**
+ * Decide how to render `text` into `maxWidth` (the visible event rect's available width), never
+ * shrinking vertically:
+ *   fits            → draw as-is
+ *   rect ≥ 80% wide → horizontal shrink (`scaleX = maxWidth / measured`)
+ *   30–80%          → truncate with a trailing `...`
+ *   < 30%           → skip (too narrow to read)
+ */
+export function fitEventLabel(measurer: TextMeasurer, text: string, maxWidth: number): LabelFit {
+  const measured = measurer.measureText(text).width;
+  if (measured <= maxWidth) return { kind: 'draw', text };
+  const ratio = maxWidth / measured;
+  if (ratio >= 0.8) return { kind: 'shrink', text, scaleX: ratio };
+  if (ratio >= 0.3) return { kind: 'truncate', text: fitTextWidth(measurer, text, maxWidth) };
+  return { kind: 'skip' };
+}
+
 /** True when OffscreenCanvas + opaque 2D context are available (browser only). */
 export function clearTypeRasterSupported(): boolean {
   if (typeof OffscreenCanvas === 'undefined') return false;
@@ -108,9 +132,11 @@ export class TextAtlas {
     const probe = new OffscreenCanvas(16, 16);
     const probeCtx = probe.getContext('2d', { alpha: false })!;
     probeCtx.font = eventLabelFont(fontSizePx);
-    // Truncate with an ellipsis; the canvas no longer re-condenses over-wide text.
-    const label = fitTextWidth(probeCtx, text, maxWidth);
-    const measured = Math.ceil(probeCtx.measureText(label).width);
+    // Fit policy: draw as-is / horizontal-shrink / truncate / skip (see `fitEventLabel`).
+    const fit = fitEventLabel(probeCtx, text, maxWidth);
+    if (fit.kind === 'skip') return null;
+    const scaleX = fit.kind === 'shrink' ? fit.scaleX : 1;
+    const measured = Math.ceil(probeCtx.measureText(fit.text).width * scaleX);
     const drawW = Math.max(1, measured);
     const w = drawW + pad * 2;
     const h = Math.ceil(fontSizePx * 1.5);
@@ -123,10 +149,16 @@ export class TextAtlas {
     ctx.fillStyle = '#ffffff'; // white ink → subpixel RGB coverage
     ctx.font = eventLabelFont(fontSizePx);
     ctx.textAlign = 'center';
-    const m = ctx.measureText(label);
+    const m = ctx.measureText(fit.text);
     const { baselineY, baseline } = centeredTextBaseline(m, h / 2);
     ctx.textBaseline = baseline;
-    ctx.fillText(label, w / 2, baselineY);
+    // Horizontal-only shrink: scale around the glyph's own center so the ink stays centered
+    // and the vertical metrics are untouched.
+    ctx.save();
+    ctx.translate(w / 2, baselineY);
+    ctx.scale(scaleX, 1);
+    ctx.fillText(fit.text, 0, 0);
+    ctx.restore();
 
     const texture = gl.createTexture();
     if (!texture) return null;
