@@ -639,17 +639,33 @@ export function encodeIntervalPair(
   return [f0, f1];
 }
 
-/** Canvas/WebGL fill+label opacity: search miss → 0.25, non-emphasized when selection → ×0.45.
- * Callers pass `keepBright=true` for the selection, its laid-out dep neighbors, and the
- * hovered block. Hover must stay at full strength: a light fill with a dark label washed
- * by the selection dim is what made hovered-but-not-selected blocks unreadable. */
-export function eventEmphasisDim(
+/** Solid gray fill for events muted by an active selection (non-selected, non-neighbor). */
+export const SELECTION_MUTED_FILL = '#4D4D4D';
+/** Label text color on muted gray blocks. */
+export const SELECTION_MUTED_LABEL = '#969696';
+
+export interface EventEmphasis {
+  /** Opacity under search: 0.25 when the name misses the query, else 1. */
+  alpha: number;
+  /** True when an active selection mutes this event to solid gray. */
+  muted: boolean;
+}
+
+/** Canvas/WebGL fill+label emphasis. Search miss → alpha 0.25; an active selection mutes
+ * non-selected, non-neighbor events to solid gray (`SELECTION_MUTED_FILL`). Callers pass
+ * `keepBright=true` for the selection, its laid-out dep neighbors, and the hovered block —
+ * a light hover fill with a dark label washed by a dim is what made hovered-but-not-selected
+ * blocks unreadable, so hover must keep its color. */
+export function eventEmphasis(
   matchesSearch: boolean,
   keepBright: boolean,
   hasSearch: boolean,
   hasSelection: boolean,
-): number {
-  return (hasSearch && !matchesSearch ? 0.25 : 1) * (hasSelection && !keepBright ? 0.45 : 1);
+): EventEmphasis {
+  return {
+    alpha: hasSearch && !matchesSearch ? 0.25 : 1,
+    muted: hasSelection && !keepBright,
+  };
 }
 
 /** Parse `#RRGGBB` → RGB in 0..1. */
