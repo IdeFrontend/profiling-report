@@ -697,12 +697,15 @@ function hardwareSectionsFromJsonl(text: string): HardwareSection[] {
   }
   return sections;
 }
-function swimlaneFromPayloads(payloads: Record<string, Uint8Array>, pipes: PipeOccupancyItem[]): SwimlaneModel {
+function swimlaneFromPayloads(
+  payloads: Record<string, Uint8Array>,
+  pipes: PipeOccupancyItem[],
+): SwimlaneModel | null {
   const bytes = payloads['trace.json'];
   if (!bytes) {
-    throw new Error(
-      '[profiling-report] adaptRep: trace.json missing — timeline requires a swimlane source',
-    );
+    // Metrics-only pack: no timeline source. Return null so the caller renders
+    // the aside without a swimlane instead of hard-erroring (VIEW_DATA_REQUIREMENTS).
+    return null;
   }
   let trace: unknown;
   try {
@@ -733,7 +736,7 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
-  if (hasDependencies(swimlaneModel)) capabilities.push('dependencies');
+  if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   return {
     swimlaneModel,
     reportModel,

@@ -7,7 +7,7 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
   it('PR-SWIM-001: trace.json maps to processes/threads/events', () => {
     const parsed = parseRep(loadOutRepBytes());
     const adapted = adaptRep(parsed);
-    const model = adapted.swimlaneModel;
+    const model = adapted.swimlaneModel!;
 
     expect(model.minTime).toBeLessThan(model.maxTime);
     expect(model.processes.length).toBeGreaterThan(0);

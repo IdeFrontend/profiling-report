@@ -730,16 +730,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       {{ loadError }}
     </p>
 
-    <p
-      v-else-if="!showTimeline"
-      class="pr-error"
-      data-testid="no-timeline"
-    >
-      {{ t('noTimeline', locale) }}
-    </p>
-
     <ReportLayout
-      v-else
+      v-else-if="showTimeline || showAside"
       ref="layoutRef"
       :show-aside="showAside"
       :aside-width="asideWidth"
@@ -748,6 +740,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     >
       <template #main>
         <ReportToolbar
+          v-if="showTimeline"
           :title="title"
           :search-query="viewState.searchQuery"
           :aside-visible="viewState.asideVisible"
@@ -772,6 +765,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom-out="onZoomOut"
         />
         <TimelineView
+          v-if="showTimeline"
           ref="timelineRef"
           :bounds="bounds"
           :view="viewState"
@@ -803,6 +797,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:measure-range="onMeasureRange"
           @focus-measure="onFocusMeasure"
         />
+        <p
+          v-if="!showTimeline"
+          class="pr-error"
+          data-testid="no-timeline"
+        >
+          {{ t('noTimeline', locale) }}
+        </p>
       </template>
 
       <template #aside>
@@ -818,6 +819,14 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         />
       </template>
     </ReportLayout>
+
+    <p
+      v-else
+      class="pr-error"
+      data-testid="no-timeline"
+    >
+      {{ t('noTimeline', locale) }}
+    </p>
 
     <Transition name="pr-dock">
       <DetailPanel
