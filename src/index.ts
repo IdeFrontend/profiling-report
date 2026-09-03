@@ -18,6 +18,7 @@ export {
   emptyReportViewModel,
   isNpuRep,
   isNestedNpuArchive,
+  loadReportFiles,
   loadReportSource,
   NPU_TYPE_NESTED_ARCHIVE,
   npuArchiveStem,
@@ -26,6 +27,7 @@ export {
 } from './adapters';
 
 export type * from './domain/types';
+export type { ReportFileEntry, ReportFilesSource } from './adapters';
 export {
   DEFAULT_DEPENDENCY_DEPTH,
   MAX_DEPENDENCY_DEPTH,

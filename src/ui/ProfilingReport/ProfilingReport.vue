@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
-import { loadReportSource } from '../../adapters';
+import { loadReportSource, loadReportFiles, type ReportFilesSource } from '../../adapters';
 import {
   applyWindow,
   clearMeasure,
@@ -62,6 +62,8 @@ import '../tokens.css';
 const props = withDefaults(defineProps<{
   title?: string;
   source?: ArrayBuffer | Uint8Array;
+  /** Already-extracted report folder (backend `npu-compute` output) — filename → bytes. */
+  files?: ReportFilesSource;
   swimlaneModel?: SwimlaneModel;
   reportModel?: ReportViewModel;
   /** cannbot payload 元信息（.rep 文件名 / 绝对路径 / id / 采集时间），宿主提供。 */
@@ -345,31 +347,46 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
   );
 }
 
+function applyAdapted(adapted: AdaptedReport) {
+  operators.value = adapted.operators ?? [];
+  operatorReports.value = adapted.operatorReports ?? {};
+  selectedOperatorId.value = adapted.selectedOperatorId ?? null;
+  internalSwim.value = adapted.swimlaneModel;
+  internalReport.value = adapted.reportModel;
+  internalCapabilities.value = adapted.capabilities ?? null;
+  resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
+  loadError.value = null;
+  emit('ready');
+}
+
+function failLoad(cause: unknown) {
+  operators.value = [];
+  operatorReports.value = {};
+  selectedOperatorId.value = null;
+  internalSwim.value = null;
+  internalReport.value = null;
+  internalCapabilities.value = null;
+  selected.value = null;
+  selectedEvent.value = null;
+  hovered.value = null;
+  viewState.value = createViewState(null);
+  loadError.value = cause instanceof Error ? cause.message : String(cause);
+  emit('error', { message: loadError.value, cause });
+}
+
 function loadFromSource(source: ArrayBuffer | Uint8Array) {
   try {
-    const adapted = loadReportSource(source);
-    operators.value = adapted.operators ?? [];
-    operatorReports.value = adapted.operatorReports ?? {};
-    selectedOperatorId.value = adapted.selectedOperatorId ?? null;
-    internalSwim.value = adapted.swimlaneModel;
-    internalReport.value = adapted.reportModel;
-    internalCapabilities.value = adapted.capabilities ?? null;
-    resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
-    loadError.value = null;
-    emit('ready');
+    applyAdapted(loadReportSource(source));
   } catch (cause) {
-    operators.value = [];
-    operatorReports.value = {};
-    selectedOperatorId.value = null;
-    internalSwim.value = null;
-    internalReport.value = null;
-    internalCapabilities.value = null;
-    selected.value = null;
-    selectedEvent.value = null;
-    hovered.value = null;
-    viewState.value = createViewState(null);
-    loadError.value = cause instanceof Error ? cause.message : String(cause);
-    emit('error', { message: loadError.value, cause });
+    failLoad(cause);
+  }
+}
+
+function loadFromFiles(files: ReportFilesSource) {
+  try {
+    applyAdapted(loadReportFiles(files));
+  } catch (cause) {
+    failLoad(cause);
   }
 }
 
@@ -395,7 +412,27 @@ watch(
       loadFromSource(src);
       return;
     }
+    if (props.files) return; // `files` path owns the load; don't clobber it.
     // Source removed: drop what the adapter derived, or its flags outlive the report.
+    operators.value = [];
+    operatorReports.value = {};
+    selectedOperatorId.value = null;
+    internalSwim.value = null;
+    internalReport.value = null;
+    internalCapabilities.value = null;
+  },
+  { immediate: true },
+);
+
+/** Backend-extracted folder input — mirrors the `source` watcher. */
+watch(
+  () => props.files,
+  (files) => {
+    if (files) {
+      loadFromFiles(files);
+      return;
+    }
+    if (props.source) return; // `source` path owns the load; don't clobber it.
     operators.value = [];
     operatorReports.value = {};
     selectedOperatorId.value = null;

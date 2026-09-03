@@ -29,6 +29,7 @@ Start here: **[docs/README.md](docs/README.md)**
 ## Sample data
 
 - [`data/out.rep`](data/out.rep) — sample CANN report container
+- [`data/result.npu-rep`](data/result.npu-rep) — new-format `.npu-rep` sample (backend-extracted via `npu-compute`, not parsed in-browser)
 - [`data/out.trace.json`](data/out.trace.json) — sample Chrome Trace (CTEF) fixture
 - [`data/ffn_dense.trace.json`](data/ffn_dense.trace.json) — denser CTEF fixture (async s/f pairs); `ph: 'C'` counters stripped (regenerate when a counter lane lands)
 - [`data/sample.lite.rep`](data/sample.lite.rep) — lite nested multi-operator fixture (op2 omits ~30 MB `trace.json`). Not standalone-valid: hydrate via [`hydrateSampleRep`](playground/hydrateSampleRep.ts) / [`generateSampleOp2Trace`](playground/generateSampleOp2Trace.ts) before `loadReportSource`. Regenerate with `npm run build:sample` (Python 3 as `python3`). CI verifies [`data/sample.lite.rep.sha256`](data/sample.lite.rep.sha256) via `npm run check:sample`.

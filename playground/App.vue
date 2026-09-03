@@ -24,9 +24,11 @@ type PreferRenderer = 'auto' | 'webgl' | 'canvas';
 
 const status = ref('loading');
 const source = shallowRef<ArrayBuffer | undefined>(undefined);
+const files = shallowRef<Record<string, Uint8Array> | undefined>(undefined);
 const stressModel = shallowRef<SwimlaneModel | null>(null);
 const error = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const folderInputRef = ref<HTMLInputElement | null>(null);
 const openedName = ref<string | null>(null);
 const loadToken = ref(0);
 
@@ -115,6 +117,7 @@ async function loadUrl(url: string, opts?: { hydrateSample?: boolean }): Promise
   status.value = 'loading';
   error.value = null;
   source.value = undefined;
+  files.value = undefined;
   stressModel.value = null;
   const res = await fetch(url);
   if (!res.ok) {
@@ -133,6 +136,7 @@ function loadStress(preset: StressSwimlanePreset): void {
   status.value = 'loading';
   error.value = null;
   source.value = undefined;
+  files.value = undefined;
   openedName.value = null;
   // Defer so the loading chrome can paint before a large sync generate.
   requestAnimationFrame(() => {
@@ -153,6 +157,7 @@ function loadDeps(): void {
   status.value = 'loading';
   error.value = null;
   stressModel.value = null;
+  files.value = undefined;
   const bytes = new TextEncoder().encode(JSON.stringify(depsTraceFixture()));
   source.value = bytes.buffer.slice(0) as ArrayBuffer;
   loadToken.value += 1;
@@ -177,6 +182,44 @@ function onOpenFileClick(e: MouseEvent): void {
   fileInputRef.value?.click();
 }
 
+function onOpenFolderClick(e: MouseEvent): void {
+  e.preventDefault();
+  folderInputRef.value?.click();
+}
+
+/** Backend `npu-compute` output folder → files map (backend-extracted report). */
+async function onFolderChosen(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement;
+  const list = input.files;
+  const folderName = list?.[0]?.webkitRelativePath?.split('/')[0] ?? null;
+  input.value = '';
+  if (!list || list.length === 0) return;
+
+  status.value = 'loading';
+  error.value = null;
+  source.value = undefined;
+  stressModel.value = null;
+  try {
+    const map: Record<string, Uint8Array> = {};
+    for (const file of Array.from(list)) {
+      map[file.name] = new Uint8Array(await file.arrayBuffer());
+    }
+    files.value = map;
+    openedName.value = folderName;
+    loadToken.value += 1;
+    status.value = 'ready';
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('fixture');
+      url.searchParams.delete('scale');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+    status.value = 'error';
+  }
+}
+
 async function onFileChosen(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -186,6 +229,7 @@ async function onFileChosen(e: Event): Promise<void> {
   status.value = 'loading';
   error.value = null;
   source.value = undefined;
+  files.value = undefined;
   stressModel.value = null;
   try {
     let bytes = new Uint8Array(await file.arrayBuffer());
@@ -336,6 +380,19 @@ onMounted(async () => {
           data-testid="open-file-input"
           @change="onFileChosen"
         >
+        <a
+          href="#"
+          data-testid="open-folder"
+          @click="onOpenFolderClick"
+        >Open folder…</a>
+        <input
+          ref="folderInputRef"
+          class="playground__file"
+          type="file"
+          webkitdirectory
+          data-testid="open-folder-input"
+          @change="onFolderChosen"
+        >
       </div>
       <p
         class="playground__note"
@@ -357,6 +414,16 @@ onMounted(async () => {
         :key="`src-${loadToken}-${preferRenderer}`"
         :title="title"
         :source="source"
+        :report-meta="reportMeta"
+        :prefer-renderer="preferRenderer"
+        :locale="locale"
+        @view-full-csv="onViewFullCsv"
+      />
+      <ProfilingReport
+        v-else-if="files"
+        :key="`files-${loadToken}-${preferRenderer}`"
+        :title="title"
+        :files="files"
         :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
         :locale="locale"
