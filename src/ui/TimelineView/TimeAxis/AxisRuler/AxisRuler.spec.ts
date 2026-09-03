@@ -93,16 +93,16 @@ describe('PR-AXIS: shared ruler', () => {
   it('PR-AXIS-003: major/minor bars use --pr-axis-tick; muted use --pr-axis-tick-muted', async () => {
     const src = (await import('./AxisRuler.vue?raw')).default as string;
     expect(src).toMatch(
-      /\.pr-axis-ruler__bar\s*\{[^}]*background:\s*var\(--pr-axis-tick,\s*rgb\(52,\s*52,\s*52\)\)/,
+      /\.pr-axis-ruler__bar\s*\{[^}]*background:\s*var\(--pr-axis-tick,\s*#313131\)/,
     );
     expect(src).toMatch(
-      /\.pr-axis-ruler__major--muted\s+\.pr-axis-ruler__bar\s*\{[^}]*background:\s*var\(--pr-axis-tick-muted,\s*rgb\(39,\s*39,\s*39\)\)/,
+      /\.pr-axis-ruler__major--muted\s+\.pr-axis-ruler__bar\s*\{[^}]*background:\s*var\(--pr-axis-tick-muted,\s*#313131\)/,
     );
     expect(src).toMatch(
-      /\.pr-axis-ruler__minor\s*\{[^}]*background:\s*var\(--pr-axis-tick,\s*rgb\(52,\s*52,\s*52\)\)/,
+      /\.pr-axis-ruler__minor\s*\{[^}]*background:\s*var\(--pr-axis-tick,\s*#313131\)/,
     );
     expect(src).toMatch(
-      /\.pr-axis-ruler__minor--muted\s*\{[^}]*background:\s*var\(--pr-axis-tick-muted,\s*rgb\(39,\s*39,\s*39\)\)/,
+      /\.pr-axis-ruler__minor--muted\s*\{[^}]*background:\s*var\(--pr-axis-tick-muted,\s*#313131\)/,
     );
     expect(src).toMatch(/\.pr-axis-ruler__base\s*\{[^}]*font-weight:\s*600/);
     expect(src).toMatch(/\.pr-axis-ruler__label\s*\{[^}]*font-weight:\s*400/);

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import LaneGutter from './LaneGutter.vue';
 
+/** One rule's declarations from the raw SFC. Scoped so comment prose — which cites the
+ *  old values on purpose — cannot satisfy or break a negative assertion. */
+const rule = (src: string, selector: string): string =>
+  src.match(new RegExp(`${selector}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+
 const groups = [
   {
     id: 'p1',
@@ -35,7 +40,7 @@ describe('LaneGutter', () => {
     expect(util.find('.pr-gutter__util-pct').exists()).toBe(true);
     const fill = util.find('.pr-gutter__util-fill');
     expect(fill.exists()).toBe(true);
-    expect(fill.attributes('style')).toContain('background: #5c5c5c');
+    expect(fill.attributes('style')).toContain('--pr-util-fill: rgba(255, 255, 255, 0.08)');
   });
 
   it('PR-GUTTER-002b: util <50% fill is red', () => {
@@ -43,7 +48,7 @@ describe('LaneGutter', () => {
       props: { groups },
     });
     const fills = wrapper.findAll('.pr-gutter__util-fill');
-    expect(fills[1]!.attributes('style')).toContain('background: #733234');
+    expect(fills[1]!.attributes('style')).toContain('--pr-util-fill: rgba(231, 67, 74, 0.4)');
   });
 
   it('PR-GUTTER-003: nested folders show chevrons; leaf lanes have no chevron; folder click toggles', async () => {
@@ -131,7 +136,7 @@ describe('LaneGutter', () => {
     expect(collapsed.text()).not.toContain('MTE1');
   });
 
-  it('PR-GUTTER-006: thick folder/depth-0 bars; thin pipe leaf under Core', () => {
+  it('PR-GUTTER-006: thick folder/depth-0 bars; thin pipe leaf under Core', async () => {
     const nested = [
       {
         id: 'card0',
@@ -172,8 +177,17 @@ describe('LaneGutter', () => {
     expect(leafUtil.classes()).toContain('pr-gutter__util--thin');
     expect(leafUtil.find('.pr-gutter__util-pct').exists()).toBe(false);
     expect(leafUtil.find('.pr-gutter__util-fill').attributes('style')).toContain(
-      'background: #733234',
+      '--pr-util-fill: rgba(231, 67, 74, 0.4)',
     );
+
+    const src = (await import('./LaneGutterNode.vue?raw')).default as string;
+    // Radius follows the bar's height; 4px on the 8px bar rounds it into a stadium.
+    expect(rule(src, '\\.pr-gutter__util--thin')).toMatch(/border-radius:\s*2px/);
+    expect(rule(src, '\\.pr-gutter__util')).toMatch(/border-radius:\s*4px/);
+    // Opaque under the tint, so the track hatch cannot read through the filled part.
+    const fillRule = rule(src, '\\.pr-gutter__util-fill');
+    expect(fillRule).toMatch(/background-color:\s*var\(--pr-util-track\)/);
+    expect(fillRule).toMatch(/background-image:\s*linear-gradient\(var\(--pr-util-fill\)/);
   });
 
   it('PR-GUTTER-007: filled util has 50% midline; empty util does not', () => {
@@ -344,5 +358,27 @@ describe('LaneGutter', () => {
     expect(wrapper.emitted('pin-lane')?.[0]).toEqual(['l2']);
     await wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]').trigger('click');
     expect(wrapper.emitted('unpin-lane')?.[0]).toEqual(['l1']);
+  });
+
+  it('PR-GUTTER-015: row hover fills the raised surface and lifts the label to white', async () => {
+    const src = (await import('./LaneGutterNode.vue?raw')).default as string;
+
+    // Both UCD crops measure #363636, not the value the pin slice first shipped.
+    const hover = rule(src, '\\.pr-gutter__lane:hover,\\s*\\.pr-gutter__lane--lane-hover');
+    expect(hover).toMatch(/--pr-surface-raised, #363636/);
+    expect(hover).not.toMatch(/#252525/);
+
+    // AC-19's second bullet: hover changes the label colour too.
+    expect(
+      rule(
+        src,
+        '\\.pr-gutter__lane:hover \\.pr-gutter__name,\\s*\\.pr-gutter__lane--lane-hover \\.pr-gutter__name',
+      ),
+    ).toMatch(/color:\s*#fff/);
+
+    // Pin tooltip follows EventTooltip's chrome, which AC-09 moved to the token.
+    const tip = rule(src, '\\.pr-gutter__pin-tip');
+    expect(tip).toMatch(/--pr-surface-raised, #363636/);
+    expect(tip).not.toMatch(/#555/);
   });
 });
