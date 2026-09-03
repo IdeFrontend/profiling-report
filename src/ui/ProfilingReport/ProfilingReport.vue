@@ -60,7 +60,7 @@ import StatsAside from '../StatsAside/StatsAside.vue';
 import MemoryTopologyPanel from '../StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
 import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
-import { contentHeightFromModel, type CollapseAnimState } from '../../swimlane/layout';
+import { collapseHiddenHeight, type CollapseAnimState } from '../../swimlane/layout';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 import {
@@ -403,9 +403,7 @@ function onToggleGroup(groupId: string): void {
     clearHoverAfterCollapse();
     return;
   }
-  const hiddenHeight =
-    contentHeightFromModel(filterCollapsedTree(m, expandedIds)) -
-    contentHeightFromModel(filterCollapsedTree(m, collapsedIds));
+  const hiddenHeight = collapseHiddenHeight(m, expandedIds, collapsedIds);
 
   cancelCollapseAnim();
   if (hiddenHeight <= 0 || prefersReducedMotion()) {
