@@ -53,15 +53,10 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.get('[data-testid="tab-timeline"]').text()).toMatch(/时间线|Timeline/);
   });
 
-  it('PR-ROOT-006: top-left corner wash is 208×60 with blue fade gradient', async () => {
-    const wrapper = mount(ProfilingReport, { props: { title: 'wash' } });
-    expect(wrapper.find('[data-testid="corner-wash"]').exists()).toBe(true);
+  it('PR-ROOT-006: corner wash is no longer a root layer (moved to the toolbar strip)', async () => {
     const src = (await import('./ProfilingReport.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-root__corner-wash[\s\S]*?width:\s*208px/);
-    expect(src).toMatch(/\.pr-root__corner-wash[\s\S]*?height:\s*60px/);
-    expect(src).toMatch(
-      /\.pr-root__corner-wash[\s\S]*?linear-gradient\(\s*90deg,\s*rgba\(0,\s*90,\s*219,\s*0\.1\)\s*3\.614%/,
-    );
+    // At the root it sat under `.pr-main` (z-index: 1, opaque) and never painted.
+    expect(src).not.toMatch(/pr-root__corner-wash/);
   });
 
   it('PR-ROOT-002: accepts pre-parsed model props', () => {
@@ -275,6 +270,134 @@ describe('ProfilingReport scaffold', () => {
       await wrapper.findAll('[data-testid="op-item"]')[1].trigger('click');
       expect(wrapper.vm.viewState.searchQuery).toBe('keep-me');
       expect(wrapper.vm.viewState.endTime).toBe(endBefore);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('PR-ROOT-005c: closing aside then switching operator keeps aside closed', async () => {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const swim = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [{ id: 'e', name: 'ev', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 10,
+    };
+    const reportA = {
+      ...emptyReportViewModel(),
+      summary: { opName: 'alpha-op', taskDurationUs: 100 },
+    };
+    const reportB = {
+      ...emptyReportViewModel(),
+      summary: { opName: 'beta-op', taskDurationUs: 200 },
+    };
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swim,
+      reportModel: reportA,
+      capabilities: [],
+      operators: [
+        { id: 'a.npu.rep', label: 'a' },
+        { id: 'b.npu.rep', label: 'b' },
+      ],
+      operatorReports: {
+        'a.npu.rep': { swimlaneModel: swim, reportModel: reportA, capabilities: [] },
+        'b.npu.rep': { swimlaneModel: swim, reportModel: reportB, capabilities: [] },
+      },
+      selectedOperatorId: 'a.npu.rep',
+    });
+
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: { source: new ArrayBuffer(8) },
+      });
+      expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+
+      await wrapper.get('[data-testid="stats-aside-close"]').trigger('click');
+      expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
+      expect(wrapper.vm.viewState.asideVisible).toBe(false);
+
+      await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+      await wrapper.findAll('[data-testid="op-item"]')[1].trigger('click');
+      expect(wrapper.vm.selectedOperatorId).toBe('b.npu.rep');
+      expect(wrapper.vm.viewState.asideVisible).toBe(false);
+      expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('PR-ROOT-005d: switching operator keeps a manually resized aside width', async () => {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const swim = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [{ id: 'e', name: 'ev', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 10,
+    };
+    const reportA = {
+      ...emptyReportViewModel(),
+      summary: { opName: 'alpha-op', taskDurationUs: 100 },
+    };
+    const reportB = {
+      ...emptyReportViewModel(),
+      summary: { opName: 'beta-op', taskDurationUs: 200 },
+    };
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swim,
+      reportModel: reportA,
+      capabilities: [],
+      operators: [
+        { id: 'a.npu.rep', label: 'a' },
+        { id: 'b.npu.rep', label: 'b' },
+      ],
+      operatorReports: {
+        'a.npu.rep': { swimlaneModel: swim, reportModel: reportA, capabilities: [] },
+        'b.npu.rep': { swimlaneModel: swim, reportModel: reportB, capabilities: [] },
+      },
+      selectedOperatorId: 'a.npu.rep',
+    });
+
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: { source: new ArrayBuffer(8) },
+      });
+      const layout = wrapper.find('.pr-layout');
+      expect(layout.attributes('style')).toContain('--pr-aside-width: 480px');
+
+      const handle = wrapper.find('[data-testid="aside-resize-handle"]');
+      await handle.trigger('pointerdown', { button: 0, clientX: 1400, pointerId: 1 });
+      await handle.trigger('pointermove', { clientX: 1280, pointerId: 1 });
+      await handle.trigger('pointerup');
+      expect(layout.attributes('style')).toContain('--pr-aside-width: 600px');
+
+      await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+      await wrapper.findAll('[data-testid="op-item"]')[1].trigger('click');
+      expect(wrapper.vm.selectedOperatorId).toBe('b.npu.rep');
+      expect(wrapper.find('.pr-layout').attributes('style')).toContain('--pr-aside-width: 600px');
     } finally {
       spy.mockRestore();
     }

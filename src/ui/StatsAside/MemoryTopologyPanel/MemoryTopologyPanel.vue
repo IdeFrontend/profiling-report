@@ -664,7 +664,7 @@ function rot(x: number, y: number): string {
   width: 100%;
   height: auto;
   display: block;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .pr-topo__gm {

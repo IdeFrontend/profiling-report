@@ -909,6 +909,31 @@ describe('StatsAside', () => {
     );
   });
 
+  it('PR-STATS-028: orange top wash sits under the header inside the aside', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 } }) },
+    });
+    const wash = wrapper.find('[data-testid="aside-wash"]');
+    expect(wash.exists()).toBe(true);
+    const aside = wrapper.find('[data-testid="stats-aside"]');
+    expect(aside.element.contains(wash.element)).toBe(true);
+    expect(aside.element.firstElementChild).toBe(wash.element);
+
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-aside__wash[\s\S]*?height:\s*96px/);
+    expect(src).toMatch(
+      /\.pr-aside__wash[\s\S]*?linear-gradient\(\s*181\.55deg,\s*rgba\(244,\s*132,\s*12,\s*0\.1\)\s*-20\.986%/,
+    );
+    expect(src).toMatch(/\.pr-aside__wash[\s\S]*?pointer-events:\s*none/);
+  });
+
+  it('PR-STATS-029: stacked body scrolls vertically only (no horizontal bar)', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-aside__body\s*\{[^}]*overflow-x:\s*hidden/s);
+    expect(src).toMatch(/\.pr-aside__body\s*\{[^}]*overflow-y:\s*auto/s);
+    expect(src).not.toMatch(/\.pr-aside__body\s*\{[^}]*overflow:\s*auto/s);
+  });
+
   it('PR-STATS-025c: summary grid aligns with stack islands (no horizontal well inset)', async () => {
     const src = (await import('./StatsAside.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-cards\s*\{[^}]*padding:\s*0\s+0\s+8px/s);
