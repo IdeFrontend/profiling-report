@@ -40,12 +40,14 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-008**: Active measure toggle has `aria-pressed="true"` and renders the `measure` design icon as a 16px `currentColor` mask, so toggling retints the one glyph instead of swapping artwork.
 1. **PR-E2E-009**: Relevent connector curves meet their chips flush, at any name length.
 1. **PR-E2E-010**: Expanding the dock grows its columns with it.
+1. **PR-E2E-011**: `?fixture=npu160` loads the product 160-byte `.npu-rep` sample, parses it in-browser, and renders the timeline + aside with no load error.
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-09-03** — PR-E2E-011: product 160-byte `npu-rep` sample (`?fixture=npu160`) renders in the playground via in-browser `parseNpuRep160`.
 - **2026-09-01** — PR-E2E-008 now checks the `PrIcon` mask and its per-state tint. The HDesign asset replaced the hand-drawn glyph, so the arrowhead `fill="none"` assertion had nothing to bind to and PR-TOOLBAR-007c was withdrawn with it.
 - **2026-08-20** — PR-E2E-008 structural (no pixel crop diff); defers icon geometry to PR-TOOLBAR-007c.
 - **2026-08-20** — PR-E2E-009: chip-to-curve join measured in a real layout engine. Chips are content-sized in jsdom too, so only a browser can catch a short name sitting ~28px short of its connector.
