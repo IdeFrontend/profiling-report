@@ -7,7 +7,11 @@ import {
 } from '../../src/swimlane/layout';
 import type { SwimlaneModel } from '../../src/domain/types';
 
-/** Card → comm | compute(folder) → core(folder) → mte1, mte2 (leaves). */
+/**
+ * Card → comm | compute(folder) → core(folder) → mte1, mte2 (leaves) | hbm.
+ * Row Y (LANE_HEIGHT=22): card 0(+40) → comm 40 → compute 62 → core 84 →
+ * mte1 106 → mte2 128 → hbm 150.
+ */
 function folderModel(): SwimlaneModel {
   return {
     minTime: 0,
@@ -34,6 +38,7 @@ function folderModel(): SwimlaneModel {
               },
             ],
           },
+          { id: 'hbm', name: 'HBM', events: [] },
         ],
       },
     ],
@@ -41,13 +46,12 @@ function folderModel(): SwimlaneModel {
 }
 
 describe('applyCollapseAnim (PR-RENDER-023)', () => {
-  it('groupBottomY locates the first descendant row below a folder header', () => {
+  it('groupBottomY locates the fold just below a folder row', () => {
     const layout = rebuildLayout(folderModel());
-    // card y0 (+40) → comm 40 → compute 62 → core 84 → mte1 106 → mte2 128
     expect(groupBottomY(layout, 'core')).toBe(84 + LANE_HEIGHT);
   });
 
-  it('fully collapsed: subtree lanes shift up by hiddenHeight and fade to 0', () => {
+  it('nested collapse tucks subtree rows into the parent lane (never above it)', () => {
     const layout = rebuildLayout(folderModel());
     const out = applyCollapseAnim(layout, { groupId: 'core', visible: 0, hiddenHeight: 44 });
 
@@ -56,11 +60,14 @@ describe('applyCollapseAnim (PR-RENDER-023)', () => {
     expect(byId.get('comm')!.y).toBe(40);
     expect(byId.get('compute')!.y).toBe(62);
     expect(byId.get('core')!.y).toBe(84);
-    // Subtree slides up under the header (106→62, 128→84) and fades out.
-    expect(byId.get('mte1')!.y).toBe(62);
+    // Subtree rows land exactly on the parent lane (84), not above it, and fade out.
+    expect(byId.get('mte1')!.y).toBe(84);
     expect(byId.get('mte1')!.alpha).toBe(0);
     expect(byId.get('mte2')!.y).toBe(84);
     expect(byId.get('mte2')!.alpha).toBe(0);
+    // The sibling after the subtree closes the gap up to the parent's bottom (106).
+    expect(byId.get('hbm')!.y).toBe(106);
+    expect(byId.get('hbm')!.alpha).toBeUndefined();
   });
 
   it('shifts events with their lane and keeps the base layout untouched (pure)', () => {
@@ -68,8 +75,9 @@ describe('applyCollapseAnim (PR-RENDER-023)', () => {
     const out = applyCollapseAnim(layout, { groupId: 'core', visible: 0.5, hiddenHeight: 44 });
 
     const evById = new Map(out.events.map((e) => [e.id, e.y]));
-    expect(evById.get('e1')).toBe(106 - 22);
-    expect(evById.get('e2')).toBe(128 - 22);
+    // mte1 106 → 84 + (106−84)×0.5 = 95; mte2 128 → 84 + (128−84)×0.5 = 106.
+    expect(evById.get('e1')).toBe(95);
+    expect(evById.get('e2')).toBe(106);
 
     // Purity: the input layout is not mutated.
     const baseMte1 = layout.lanes.find((l) => l.thread.id === 'mte1')!;

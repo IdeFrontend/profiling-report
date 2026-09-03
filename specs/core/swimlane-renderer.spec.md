@@ -77,7 +77,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-021**: `setSelection(selected, hovered)` paints each block the OKLCH state fill for its winning state, and each label the contrast colour of the fill beneath it.
 1. **PR-RENDER-022**: Dependency curve stroke width is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (`max(1, round(2 × dpr))` device px = 2 CSS px), applied by both Canvas and WebGL; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom.
 1. **PR-RENDER-023**: Selecting an event paints non-selected/non-neighbor blocks solid dark-gray `#2C2C2C` with label `#969696`, keeps the selected block's lifted state fill and its contrast label, and draws no white selection ring.
-1. **PR-RENDER-024**: `setCollapseAnim(state)` transforms the expanded base layout per frame: rows/headers/events below the collapsing group slide up by `hiddenHeight × (1 − visible)` and the collapsing subtree's lanes fade to `visible` (per-lane `alpha`), without rebuilding meshes. `applyCollapseAnim` is pure (returns a new layout; the base is unchanged).
+1. **PR-RENDER-024**: `setCollapseAnim(state)` transforms the expanded base layout per frame without rebuilding meshes: the collapsing subtree's lanes slide toward the group's top edge and fade to `visible` (per-lane `alpha`, never past the parent lane), while rows/headers/events *after* the subtree shift up by `hiddenHeight × (1 − visible)` to close the gap. `applyCollapseAnim` is pure (returns a new layout; the base is unchanged).
 
 ## Edge Cases
 
@@ -95,7 +95,7 @@ WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Can
 
 ## Changelog
 - **2026-09-03** — Selection no longer draws a 2px white ring and no longer dims non-neighbors to 0.45×; instead, non-selected/non-neighbor events render solid dark-gray `#2C2C2C` with label `#969696` (`eventEmphasis` replaces `eventEmphasisDim`; `SELECTION_MUTED_FILL` / `SELECTION_MUTED_LABEL`). Selected event and its dep neighbors keep their state fills; search non-match dim (0.25) is unchanged.
-- **2026-09-03** — PR-RENDER-024: `setCollapseAnim` + `applyCollapseAnim` slide + fade lanes during a collapse/expand tween (per-lane alpha in both backends, no mesh rebuild); `FlatLane.alpha` added.
+- **2026-09-03** — PR-RENDER-024: `setCollapseAnim` + `applyCollapseAnim` slide + fade lanes during a collapse/expand tween (per-lane alpha in both backends, no mesh rebuild); `FlatLane.alpha` added. Subtree rows tuck into the parent group lane (never past it) while rows after close the gap.
 - **2026-09-02** — Dependency curve stroke is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (2 CSS px, min 1 device px), so Canvas and WebGL match the 2 CSS px selection stroke at any dpr; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom. (PR-RENDER-022)
 - **2026-09-02** — PR-RENDER-020b: overlay underpaint respects `hoveredLaneId` (`LANE_HOVER_FILL` vs `LANE_FILL`) so dimmed state fills match Canvas over a hovered row.
 - **2026-09-02** — Experiment: hover and selected share `L + 0.33`; selection still gets `C × 1.05` and the white ring.

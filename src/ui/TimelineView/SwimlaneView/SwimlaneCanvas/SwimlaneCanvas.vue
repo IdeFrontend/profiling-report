@@ -287,7 +287,9 @@ function modelContentHeight(): number {
   const base = contentHeightFromModel(props.model);
   const anim = props.collapseAnim;
   if (anim && anim.hiddenHeight > 0) {
-    return Math.max(0, base - anim.hiddenHeight * (1 - anim.visible));
+    // Match contentHeightFromModel's 120px body floor so the scroll area never
+    // under-shoots the settled height (which would clip the collapsed content).
+    return Math.max(120, base - anim.hiddenHeight * (1 - anim.visible));
   }
   return base;
 }

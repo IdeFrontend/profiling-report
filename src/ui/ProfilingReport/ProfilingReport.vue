@@ -55,7 +55,7 @@ import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
 import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
 import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
-import { contentHeightFromModel, type CollapseAnimState } from '../../swimlane/layout';
+import { collapseHiddenHeight, type CollapseAnimState } from '../../swimlane/layout';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 
@@ -320,9 +320,7 @@ function onToggleGroup(groupId: string): void {
     collapsedGroupIds.value = target;
     return;
   }
-  const hiddenHeight =
-    contentHeightFromModel(filterCollapsedTree(m, expandedIds)) -
-    contentHeightFromModel(filterCollapsedTree(m, collapsedIds));
+  const hiddenHeight = collapseHiddenHeight(m, expandedIds, collapsedIds);
 
   cancelCollapseAnim();
   if (hiddenHeight <= 0 || prefersReducedMotion()) {
