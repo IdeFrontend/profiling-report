@@ -25,7 +25,7 @@ resolveClockFreqMHz(summary?): number | undefined
 nsToCycles(ns, clockFreqMHz): number
 ```
 
-`opts = { significantDigits?, mode?, clockFreqMHz?, totalSpanNs? }` — `mode: 'cycles'` renders CPU clocks instead of wall time, and is honored **only** by the `*Auto` / `*PartsAuto` helpers (tooltip, detail). Axis ticks, the cursor, and measure Δt are always wall time.
+`opts = { significantDigits?, mode?, clockFreqMHz? }` — `mode: 'cycles'` renders CPU clocks instead of wall time, and is honored **only** by the `*Auto` / `*PartsAuto` helpers (tooltip, detail). Axis ticks, the cursor, and measure Δt are always wall time.
 
 ## Behavior
 
@@ -36,7 +36,7 @@ nsToCycles(ns, clockFreqMHz): number
 - **Spatial chrome** (viewport axis, cursor timestamp, overview axis): share a viewport / density unit — `resolveTimeUnitFromVisibleRange(end − start)` for viewport chrome; overview / total axis uses major-tick step from span×width (`resolveTimeUnitFromAxisDensity` in axisRuler) — brush window must not change overview unit.
 - **Absolute event times** (tooltip / detail Start·End·Duration) and **measure / gap Δt**: each value picks its own unit via `timeScaleUnitFromMagnitude` / `formatTimeAuto` (PyPTO-like) — **independent of zoom**. Start and Duration may use different units.
 
-**Cycles mode (I-Q14).** When `mode: 'cycles'` and a valid `clockFreqMHz`, the **`*Auto` / `*PartsAuto`** formatters render derived CPU clocks `cycles = ns × freqMHz / 1000`, rounded to an integer, as a **number only** — no `cyc` / `cycles` suffix. The value is space-grouped in 3-digit groups and **zero-padded to a fixed width** shared by every cycles label: the group count is derived from the whole trace's cycle total (`nsToCycles(totalSpanNs, freqMHz)`), so the counter reads as a fixed width (`010 325`, `000 000`). Missing / invalid `clockFreqMHz` → `—`; `formatTimePartsAuto` returns an empty `unit`. **Scope:** cycles apply to the event tooltip and the event detail strip. **Axis tick labels, the cursor timestamp, and the measure Δt label stay in wall time** — `formatAxisTime`, `formatCursorTime`, `formatTime`, and `formatTimeParts` never render cycles. `clockFreqMHz` comes from `resolveClockFreqMHz` (`currentFreq ?? ratedFreq` from `OpBasicInfo`, MHz). **Not** per-event `*_total_cycles`. Open: true vs derived — [Q23](../../docs/context/OPEN_QUESTIONS.md) / [HQ 38](../../docs/context/HQ_OPEN_QUESTIONS.md).
+**Cycles mode (I-Q14).** When `mode: 'cycles'` and a valid `clockFreqMHz`, the **`*Auto` / `*PartsAuto`** formatters render derived CPU clocks `cycles = ns × freqMHz / 1000`, rounded to an integer, as a **number only** — no `cyc` / `cycles` suffix. The value is space-grouped in 3-digit groups with **no leading zeroes** (`10 325`, `5 000`, `325`, `0`). Missing / invalid `clockFreqMHz` → `—`; `formatTimePartsAuto` returns an empty `unit`. **Scope:** cycles apply to the event tooltip and the event detail strip. **Axis tick labels, the cursor timestamp, and the measure Δt label stay in wall time** — `formatAxisTime`, `formatCursorTime`, `formatTime`, and `formatTimeParts` never render cycles. `clockFreqMHz` comes from `resolveClockFreqMHz` (`currentFreq ?? ratedFreq` from `OpBasicInfo`, MHz). **Not** per-event `*_total_cycles`. Open: true vs derived — [Q23](../../docs/context/OPEN_QUESTIONS.md) / [HQ 38](../../docs/context/HQ_OPEN_QUESTIONS.md).
 
 **Tooltip/detail formatting.** `formatTime` / `formatTimeParts` take an explicit unit (chrome callers). Surfaces that must not follow zoom use `formatTimeAuto` / `formatTimePartsAuto` / `formatDisplayTimeAuto` / `formatDisplayTimePartsAuto`. Event tooltip and detail **value cells** pass `significantDigits: 4` (`EVENT_TIME_SIGNIFICANT_DIGITS`); detail **hover titles** omit that option and keep full fixed-decimal precision. Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part. `formatTimeParts*` returns value and unit separately for the detail card; joined helpers add a space. **Presentation chrome** (detail / tooltip) keeps one digit size/weight across scales; unit identity is the suffix string — formatting does not encode unit via size or color.
 
@@ -56,7 +56,7 @@ nsToCycles(ns, clockFreqMHz): number
 1. **PR-TIME-007** — axis ticks share one fraction-digit count from tick step (no mixed `146ms` / `146.1ms`).
 1. **PR-TIME-008** — `formatTimeAuto` / magnitude unit: tooltip/detail/Δt independent of viewport unit.
 1. **PR-TIME-009** — Event tooltip / detail value cells use **4** significant digits; detail hover titles keep full precision.
-1. **PR-TIME-010** — cycles conversion, freq resolve, and fixed-width zero-padded cycle formatting via `formatTimeAuto` / `formatTimePartsAuto` (tooltip/detail only; axis/cursor/measure stay time; `—` without freq).
+1. **PR-TIME-010** — cycles conversion, freq resolve, and space-grouped (no leading zero) cycle formatting via `formatTimeAuto` / `formatTimePartsAuto` (tooltip/detail only; axis/cursor/measure stay time; `—` without freq).
 
 ## Edge Cases
 
@@ -67,6 +67,7 @@ Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTimeAuto(0)` 
 UI-40a — Time (auto) vs CPU clocks; freq from OpBasicInfo (`currentFreq`, else `ratedFreq`); see [UI-40a](../../docs/context/decisions/interim/UI.md). Cycle source still open: [UI-40](../../docs/context/questions/UI.md).
 
 ## Changelog
+- **2026-09-03** — Removed zero-padding from cycles labels; space-group only, no leading zeroes.
 - **2026-09-03** — Cycles scope narrowed: axis ticks, cursor, and measure Δt stay wall time; cycles render only on tooltip and detail (`*Auto`/`*PartsAuto` helpers).
 - **2026-09-02** — Cycles labels are number-only with fixed-width zero-padded space grouping (width from total trace cycles); dropped `cyc`/`cycles` suffix.
 - **2026-09-02** — PR-TIME-010 cycles mode (I-Q14 derived cycles); `opts.mode` / `opts.clockFreqMHz` on all formatters.

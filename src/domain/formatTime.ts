@@ -100,25 +100,10 @@ function wholeCycles(ns: number, clockFreqMHz: number): number {
 }
 
 /**
- * Number of 3-digit groups needed to render the whole trace's cycle count.
- * Every cycles value shares this width so labels read as a fixed-width counter.
+ * Space-group every 3 digits with no leading zeroes (`10 325`, `1 000 000`, `325`).
  */
-function cycleGroupCount(totalSpanNs: number | undefined, clockFreqMHz: number): number {
-  if (totalSpanNs == null || !Number.isFinite(totalSpanNs) || !(totalSpanNs > 0)) return 1;
-  const totalCycles = wholeCycles(totalSpanNs, clockFreqMHz);
-  if (!(totalCycles > 0)) return 1;
-  const digits = Math.floor(Math.log10(totalCycles)) + 1;
-  return Math.max(1, Math.ceil(digits / 3));
-}
-
-/** Zero-pad to a whole number of groups, then space-group every 3 digits (`010 325`). */
-function formatCyclesValue(value: number, groupCount: number): string {
-  const neg = value < 0;
-  const width = groupCount * 3;
-  const padded = String(Math.abs(value)).padStart(width, '0');
-  const groups: string[] = [];
-  for (let i = 0; i < padded.length; i += 3) groups.push(padded.slice(i, i + 3));
-  return (neg ? '-' : '') + groups.join(' ');
+function formatCyclesValue(value: number): string {
+  return groupIntegerDigits(String(value));
 }
 
 /** Derived CPU-clock label — number only (no `cyc` / `cycles` suffix). */
@@ -126,7 +111,7 @@ function formatCycles(ns: number, opts: FormatTimeOpts | undefined): string {
   if (!Number.isFinite(ns) || !hasClockFreq(opts)) return '—';
   const value = wholeCycles(ns, opts.clockFreqMHz);
   if (!Number.isFinite(value)) return '—';
-  return formatCyclesValue(value, cycleGroupCount(opts.totalSpanNs, opts.clockFreqMHz));
+  return formatCyclesValue(value);
 }
 
 /** Cycles for the detail card — value only, empty unit (no `cycles` label). */
@@ -135,7 +120,7 @@ function formatCyclesParts(ns: number, opts: FormatTimeOpts | undefined): { valu
   const value = wholeCycles(ns, opts.clockFreqMHz);
   if (!Number.isFinite(value)) return { value: '—', unit: '' };
   return {
-    value: formatCyclesValue(value, cycleGroupCount(opts.totalSpanNs, opts.clockFreqMHz)),
+    value: formatCyclesValue(value),
     unit: '',
   };
 }
@@ -223,8 +208,6 @@ export type FormatTimeOpts = {
   mode?: TimeDisplayMode;
   /** AIC frequency in MHz — required when `mode` is `cycles`. */
   clockFreqMHz?: number;
-  /** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode. */
-  totalSpanNs?: number;
 };
 
 /**

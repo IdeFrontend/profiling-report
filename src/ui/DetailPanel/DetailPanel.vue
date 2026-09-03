@@ -14,8 +14,6 @@ const props = withDefaults(
     selected: SelectedEvent;
     timeDisplayMode: TimeDisplayMode;
     clockFreqMHz?: number;
-    /** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode. */
-    totalSpanNs?: number;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
@@ -30,7 +28,6 @@ const props = withDefaults(
     neighbors: undefined,
     dependencyMode: 'all',
     timeOrigin: 0,
-    totalSpanNs: undefined,
   },
 );
 
@@ -93,7 +90,6 @@ const dockStyle = computed(() => ({
         :selected="selected"
         :time-display-mode="timeDisplayMode"
         :clock-freq-m-hz="clockFreqMHz"
-        :total-span-ns="totalSpanNs"
         :time-origin="timeOrigin"
         :locale="locale"
       />

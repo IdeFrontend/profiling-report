@@ -111,19 +111,18 @@ describe('PR-TIME: auto-scale time labels', () => {
     expect(formatTimePartsAuto(500_000)).toEqual({ value: '500.000', unit: 'µs' });
   });
 
-  it('PR-TIME-010: cycles conversion, freq resolve, and fixed-width cycle formatting', () => {
+  it('PR-TIME-010: cycles conversion, freq resolve, and space-grouped cycle formatting', () => {
     expect(nsToCycles(1000, 1000)).toBe(1000);
-    // Fixed width from total trace cycles (10325 → 2 groups → 6 digits, zero-padded).
-    const opts = { mode: 'cycles' as const, clockFreqMHz: 1000, totalSpanNs: 10325 };
-    expect(formatTimeAuto(10325, opts)).toBe('010 325');
-    expect(formatTimeAuto(0, opts)).toBe('000 000');
-    expect(formatTimeAuto(5000, opts)).toBe('005 000');
+    const opts = { mode: 'cycles' as const, clockFreqMHz: 1000 };
+    expect(formatTimeAuto(10325, opts)).toBe('10 325');
+    expect(formatTimeAuto(0, opts)).toBe('0');
+    expect(formatTimeAuto(5000, opts)).toBe('5 000');
+    expect(formatTimeAuto(325, opts)).toBe('325');
     // No `cycles` unit in any surface.
     expect(formatTimeAuto(1000, { mode: 'cycles' })).toBe('—');
-    expect(formatTimePartsAuto(10325, opts)).toEqual({ value: '010 325', unit: '' });
-    // Wider trace → more groups.
-    const wide = { mode: 'cycles' as const, clockFreqMHz: 1000, totalSpanNs: 1_000_000 };
-    expect(formatTimeAuto(1_000_000, wide)).toBe('001 000 000');
+    expect(formatTimePartsAuto(10325, opts)).toEqual({ value: '10 325', unit: '' });
+    // Larger values group without leading zeroes.
+    expect(formatTimeAuto(1_000_000, opts)).toBe('1 000 000');
     expect(resolveClockFreqMHz({ currentFreq: 1800 })).toBe(1800);
     expect(resolveClockFreqMHz({ ratedFreq: 1500 })).toBe(1500);
     expect(resolveClockFreqMHz({ currentFreq: 1800, ratedFreq: 1500 })).toBe(1800);

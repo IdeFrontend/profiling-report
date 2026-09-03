@@ -13,13 +13,11 @@ const props = withDefaults(
     selected: SelectedEvent;
     timeDisplayMode: TimeDisplayMode;
     clockFreqMHz?: number;
-    /** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode. */
-    totalSpanNs?: number;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
   }>(),
-  { timeOrigin: 0, totalSpanNs: undefined },
+  { timeOrigin: 0 },
 );
 
 /**
@@ -40,13 +38,11 @@ const displayOpts = computed(() => ({
   significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS,
   mode: props.timeDisplayMode,
   clockFreqMHz: props.clockFreqMHz,
-  totalSpanNs: props.totalSpanNs,
 }));
 
 const fullOpts = computed(() => ({
   mode: props.timeDisplayMode,
   clockFreqMHz: props.clockFreqMHz,
-  totalSpanNs: props.totalSpanNs,
 }));
 
 /** Value+unit on one line; caption below is Start / Duration / End only. */
