@@ -71,7 +71,7 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('sc')?.barWidth).toBeCloseTo(50, 5);
     expect(bars.get('vec')?.relativeMax).toBe(true);
     expect(bars.get('sc')?.relativeMax).toBe(false);
-    expect(bars.get('vec')?.label).toBe('10');
+    expect(bars.get('vec')?.label).toBe('10µs');
   });
 
   it('PR-GMET-008: clockCycle label keeps decimals when round would be 0', () => {
@@ -100,10 +100,10 @@ describe('PR-GMET: gutter metrics', () => {
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('vec')?.label).toBe('0.31');
-    expect(bars.get('sc')?.label).toBe('0.15');
+    expect(bars.get('vec')?.label).toBe('0.31µs');
+    expect(bars.get('sc')?.label).toBe('0.15µs');
     // Folder mean (0.23) must not render as "0" on the thick bar.
-    expect(bars.get('folder')?.label).toBe('0.23');
+    expect(bars.get('folder')?.label).toBe('0.23µs');
     expect(bars.get('vec')?.barWidth).toBe(100);
   });
 
