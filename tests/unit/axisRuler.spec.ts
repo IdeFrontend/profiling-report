@@ -24,7 +24,6 @@ describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
       rangeStart: 0,
       rangeEnd: 10_000,
       origin: 0,
-      timeDisplayMode: 'time',
       timeScaleUnit: 'us',
       widthPx: 200,
     });
@@ -32,7 +31,6 @@ describe('PR-AXIS: calculateGridInterval / buildAxisRulerTicks', () => {
       rangeStart: 0,
       rangeEnd: 10_000,
       origin: 0,
-      timeDisplayMode: 'time',
       timeScaleUnit: 'us',
       widthPx: 2000,
     });

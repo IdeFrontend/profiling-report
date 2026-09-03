@@ -14,7 +14,7 @@ describe('PR-AXIS: shared ruler', () => {
       rangeStart: 986,
       rangeEnd: 986 + 10_000,
       origin: 986,
-      timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
+      timeScaleUnit: 'ms',
       widthPx: 1000,
     });
     expect(interval).toBe(1000);
@@ -40,7 +40,7 @@ describe('PR-AXIS: shared ruler', () => {
       rangeStart: 0,
       rangeEnd: 10_000,
       origin: 0,
-      timeDisplayMode: 'time' as const, timeScaleUnit: 'ms',
+      timeScaleUnit: 'ms',
       widthPx: 1000,
     });
     const wrapper = mount(AxisRuler, {

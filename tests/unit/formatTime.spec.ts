@@ -115,18 +115,15 @@ describe('PR-TIME: auto-scale time labels', () => {
     expect(nsToCycles(1000, 1000)).toBe(1000);
     // Fixed width from total trace cycles (10325 → 2 groups → 6 digits, zero-padded).
     const opts = { mode: 'cycles' as const, clockFreqMHz: 1000, totalSpanNs: 10325 };
-    expect(formatTime(10325, 'ms', opts)).toBe('010 325');
-    expect(formatTime(0, 'ms', opts)).toBe('000 000');
-    expect(formatTime(5000, 'ms', opts)).toBe('005 000');
-    expect(formatAxisTime(10325, 'ms', undefined, opts)).toBe('010 325');
-    expect(formatAxisTime(0, 'ms', undefined, opts)).toBe('000 000');
-    expect(formatCursorTime(10325, 'ms', opts)).toBe('010 325');
+    expect(formatTimeAuto(10325, opts)).toBe('010 325');
+    expect(formatTimeAuto(0, opts)).toBe('000 000');
+    expect(formatTimeAuto(5000, opts)).toBe('005 000');
     // No `cycles` unit in any surface.
-    expect(formatTime(1000, 'ms', { mode: 'cycles' })).toBe('—');
-    expect(formatTimeParts(10325, 'ms', opts)).toEqual({ value: '010 325', unit: '' });
+    expect(formatTimeAuto(1000, { mode: 'cycles' })).toBe('—');
+    expect(formatTimePartsAuto(10325, opts)).toEqual({ value: '010 325', unit: '' });
     // Wider trace → more groups.
     const wide = { mode: 'cycles' as const, clockFreqMHz: 1000, totalSpanNs: 1_000_000 };
-    expect(formatTime(1_000_000, 'ms', wide)).toBe('001 000 000');
+    expect(formatTimeAuto(1_000_000, wide)).toBe('001 000 000');
     expect(resolveClockFreqMHz({ currentFreq: 1800 })).toBe(1800);
     expect(resolveClockFreqMHz({ ratedFreq: 1500 })).toBe(1500);
     expect(resolveClockFreqMHz({ currentFreq: 1800, ratedFreq: 1500 })).toBe(1800);

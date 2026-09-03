@@ -117,16 +117,12 @@ function onGutterWidth(w: number) {
   emit('update:gutterWidth', w);
 }
 
-/** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode. */
+/** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode (measure Δt). */
 const totalSpanNs = computed(() => props.bounds.maxTime - props.bounds.minTime);
 
 const cursorLabel = computed(() => {
   if (!props.cursor) return '';
-  return formatDisplayTime(props.cursor.time, props.bounds.minTime, props.timeScaleUnit, {
-    mode: props.timeDisplayMode,
-    clockFreqMHz: props.clockFreqMHz,
-    totalSpanNs: totalSpanNs.value,
-  });
+  return formatDisplayTime(props.cursor.time, props.bounds.minTime, props.timeScaleUnit);
 });
 
 const viewportRuler = computed(() =>
@@ -134,10 +130,7 @@ const viewportRuler = computed(() =>
     rangeStart: props.view.startTime,
     rangeEnd: props.view.endTime,
     origin: props.bounds.minTime,
-    timeDisplayMode: props.timeDisplayMode,
     timeScaleUnit: props.timeScaleUnit,
-    clockFreqMHz: props.clockFreqMHz,
-    totalSpanNs: totalSpanNs.value,
     widthPx: timeAxisWidth.value,
     useViewportBase: true,
   }),
@@ -246,11 +239,7 @@ const cursorLabelAbove = computed(() => {
   const cursor = props.cursor;
   const axisW = timeAxisWidth.value;
   if (!axis || !layout || !cursor || axisW <= 0) return false;
-  const cursorLabelText = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit, {
-    mode: props.timeDisplayMode,
-    clockFreqMHz: props.clockFreqMHz,
-    totalSpanNs: totalSpanNs.value,
-  });
+  const cursorLabelText = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit);
   const cursorLabelW = estimateAxisLabelWidth(cursorLabelText, CURSOR_LABEL_MIN_WIDTH_PX);
   const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
   const dtPlacement =
@@ -534,8 +523,6 @@ defineExpose({
         :start-time="view.startTime"
         :end-time="view.endTime"
         :locale="locale"
-        :time-display-mode="timeDisplayMode"
-        :clock-freq-m-hz="clockFreqMHz"
         @update:window="emit('update:window', $event)"
       />
     </div>

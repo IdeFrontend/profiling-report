@@ -10,7 +10,6 @@ describe('TimeOverviewBar', () => {
         maxTime: 10000,
         startTime: 2000,
         endTime: 8000,
-        timeDisplayMode: 'time' as const,
       },
     });
 
@@ -24,7 +23,6 @@ describe('TimeOverviewBar', () => {
         maxTime: 10000,
         startTime: 3000,
         endTime: 7000,
-        timeDisplayMode: 'time' as const,
       },
     });
 
@@ -42,7 +40,6 @@ describe('TimeOverviewBar', () => {
         maxTime: 6260,
         startTime: 1000,
         endTime: 6260,
-        timeDisplayMode: 'time' as const,
       },
     });
     const firstLabel = wrapper.find('.pr-axis-ruler__label');
@@ -56,7 +53,6 @@ describe('TimeOverviewBar', () => {
         maxTime: 10000,
         startTime: 0,
         endTime: 10000,
-        timeDisplayMode: 'time' as const,
       },
     });
     expect(wrapper.find('[data-testid="axis-ruler"]').exists()).toBe(true);
@@ -82,7 +78,6 @@ describe('TimeOverviewBar', () => {
         maxTime: 1000,
         startTime: 200,
         endTime: 500,
-        timeDisplayMode: 'time' as const,
       },
       attachTo: document.body,
     });

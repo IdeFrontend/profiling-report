@@ -236,9 +236,7 @@ export function formatAxisTime(
   ns: number,
   unit: TimeScaleUnit = 'ms',
   tickStepNs?: number,
-  opts?: FormatTimeOpts,
 ): string {
-  if (opts?.mode === 'cycles') return formatCycles(ns, opts);
   if (!Number.isFinite(ns)) return '—';
 
   const suffix = unitSuffix(unit);
@@ -252,14 +250,12 @@ export function formatAxisTime(
 
 /**
  * Cursor / playhead label as `MM:SS.mmm` in the resolved time scale
- * (sketch: 4.456ms → `00:04.456`). Cycles mode renders a zero-padded cycle count.
+ * (sketch: 4.456ms → `00:04.456`).
  */
 export function formatCursorTime(
   ns: number,
   unit: TimeScaleUnit = 'ms',
-  opts?: FormatTimeOpts,
 ): string {
-  if (opts?.mode === 'cycles') return formatCycles(Math.max(0, ns), opts);
   if (!Number.isFinite(ns)) return '00:00.000';
   const value = Math.max(0, nsToUnitValue(ns, unit));
   const totalThousandths = Math.round(value * 1000);
@@ -280,7 +276,6 @@ export function formatTimeParts(
   unit: TimeScaleUnit = 'ms',
   opts?: FormatTimeOpts,
 ): { value: string; unit: string } {
-  if (opts?.mode === 'cycles') return formatCyclesParts(ns, opts);
   const label = unitSuffix(unit);
   if (!Number.isFinite(ns)) return { value: '—', unit: label };
   const sig = opts?.significantDigits;
@@ -301,7 +296,6 @@ export function formatTimeParts(
 
 /** Format times in an explicit scale unit (axis / cursor chrome). */
 export function formatTime(ns: number, unit: TimeScaleUnit = 'ms', opts?: FormatTimeOpts): string {
-  if (opts?.mode === 'cycles') return formatCycles(ns, opts);
   if (!Number.isFinite(ns)) return '—';
   const parts = formatTimeParts(ns, unit, opts);
   return `${parts.value} ${parts.unit}`;
