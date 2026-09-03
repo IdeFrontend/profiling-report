@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLEARTYPE_TEXT_POW, GRAYSCALE_TEXT_POW, TEXT_CLEARTYPE_FS, TEXT_GRAY_FS } from '../../src/swimlane/shaders';
-import { clearTypeRasterSupported, eventLabelFont, fitTextWidth } from '../../src/swimlane/textAtlas';
+import { centeredTextBaseline, clearTypeRasterSupported, eventLabelFont, fitTextWidth } from '../../src/swimlane/textAtlas';
 
 describe('PR-RENDER: ClearType text atlas', () => {
   it('PR-RENDER-020: text shaders export sudu gamma constants', () => {
@@ -25,5 +25,19 @@ describe('PR-RENDER: ClearType text atlas', () => {
     const cut = fitTextWidth(mono, 'abcdefghijklmnop', 8);
     expect(cut).toBe('abcde...');
     expect(cut.length).toBeLessThanOrEqual(8);
+  });
+
+  it('PR-RENDER-020: centeredTextBaseline centers ink and falls back to middle', () => {
+    // Ink metrics present → alphabetic baseline shifted so ink midpoint lands on centerY.
+    expect(centeredTextBaseline({ width: 10, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 3 }, 20)).toEqual({
+      baselineY: 23,
+      baseline: 'alphabetic',
+    });
+    // No ink metrics (jsdom stub) → middle baseline, unshifted.
+    expect(centeredTextBaseline({ width: 10 }, 20)).toEqual({ baselineY: 20, baseline: 'middle' });
+    expect(centeredTextBaseline({ width: 10, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 0 }, 20)).toEqual({
+      baselineY: 20,
+      baseline: 'middle',
+    });
   });
 });

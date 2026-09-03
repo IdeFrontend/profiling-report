@@ -30,6 +30,31 @@ interface TextMeasurer {
   measureText(text: string): { width: number };
 }
 
+/** Ink bounds returned by `measureText` on real 2D contexts (absent in jsdom stubs). */
+export interface TextMetricsLike {
+  width: number;
+  actualBoundingBoxAscent?: number;
+  actualBoundingBoxDescent?: number;
+}
+
+/**
+ * Vertical placement that centers a label's ink, not its em-box. `textBaseline='middle'` centers
+ * the em square, leaving text visibly high/low for fonts with asymmetric ascent/descent
+ * (system-ui). When ink bounds are available, return an `alphabetic` baseline shifted by
+ * (ascent − descent)/2 so the ink midpoint lands on `centerY`; otherwise fall back to `middle`.
+ */
+export function centeredTextBaseline(
+  metrics: TextMetricsLike,
+  centerY: number,
+): { baselineY: number; baseline: 'middle' | 'alphabetic' } {
+  const ascent = metrics.actualBoundingBoxAscent ?? 0;
+  const descent = metrics.actualBoundingBoxDescent ?? 0;
+  if (ascent > 0 || descent > 0) {
+    return { baselineY: centerY + (ascent - descent) / 2, baseline: 'alphabetic' };
+  }
+  return { baselineY: centerY, baseline: 'middle' };
+}
+
 /**
  * Truncate `text` with a trailing `...` so it measures within `maxWidth`; returns the original
  * text when it already fits. Binary-searches the longest fitting prefix (log n measurements).
@@ -98,8 +123,10 @@ export class TextAtlas {
     ctx.fillStyle = '#ffffff'; // white ink → subpixel RGB coverage
     ctx.font = eventLabelFont(fontSizePx);
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, w / 2, h / 2);
+    const m = ctx.measureText(label);
+    const { baselineY, baseline } = centeredTextBaseline(m, h / 2);
+    ctx.textBaseline = baseline;
+    ctx.fillText(label, w / 2, baselineY);
 
     const texture = gl.createTexture();
     if (!texture) return null;
