@@ -639,8 +639,8 @@ export function encodeIntervalPair(
   return [f0, f1];
 }
 
-/** Solid light-gray fill for events muted by an active selection (non-selected, non-neighbor). */
-export const SELECTION_MUTED_FILL = '#E6E6E6';
+/** Solid dark-gray fill for events muted by an active selection (non-selected, non-neighbor). */
+export const SELECTION_MUTED_FILL = '#2C2C2C';
 /** Label text color on muted gray blocks. */
 export const SELECTION_MUTED_LABEL = '#969696';
 
