@@ -20,19 +20,19 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 
 ### Pinned lanes (sticky strip)
 
-When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim body (below overview/axis chrome, above the scrolling lane body) renders **duplicate** leaf rows for each pinned id, in pin order. Original rows stay in the main scroll model at their tree positions.
+When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim body (below overview/axis chrome, above the scrolling lane body) renders **duplicates** for each pinned id in pin order. A pinned **leaf** duplicates that row; a pinned **folder** duplicates the folder row **plus its descendant subtree**. Original rows stay in the main scroll model at their tree positions. Strip folder collapse is **independent** of body `collapsedIds`.
 
 | Concern | Behavior |
 |---------|----------|
-| Gutter | Pinned strip shows duplicate lane labels + util for each pinned leaf (same chrome as originals; pushpin shown **filled** `#4a90e2`) |
-| Canvas | Pinned strip paints duplicate event rows at the same Y stack as the gutter duplicates; shares `timeWindow`, zoom, and horizontal scroll with the main canvas |
+| Gutter | Pinned strip shows duplicate lane/folder chrome for each pinned root (and visible descendants); pushpin filled `#4a90e2` on the pinned id |
+| Canvas | Pinned strip paints a matching thread tree (Card-free); shares `timeWindow`, zoom, and horizontal scroll with the main canvas |
 | Measure | Pinned-strip canvas uses the same `measureMode` / `measureRange` as the body (create, resize, overlay) — not pan while measure is active. Magnet follows the canvas under the pointer across pin strip ↔ body (`PR-SWIMVIEW-018`). **Alt event measure** shares one session across strip + body so users can measure between a sticky-lane event and a scroll-body event; a dashed vertical bridge connects event↔event pairs (`PR-SWIMVIEW-020`/`021`); free-cursor targets paint the cursor line on every surface (`PR-SWIMVIEW-022`) |
 | Card headers | Full-width Card strips remain in the scrolling body only — pinned strip is **lane-height rows** (`22px`) without Card spacers |
 | Scroll | Main body `scrollY` does not move the pinned strip; pinned strip height reduces the scroll viewport (`bodyViewportH − pinnedHeight`) |
 | Unpin | Click filled pushpin on duplicate or original → parent removes id from **pinnedLaneIds**; strip row removed |
 | Collapse | Pinned strip **keeps** duplicates when an ancestor Card/folder is collapsed; originals hide in the scroll body. Requires unfiltered `pinSourceModel` (not `displaySwim`). |
 | Dependencies | Pinned-strip canvas pass draws events/labels only — no `dependencyGraph` / `paintDependencyLinks` in strip Y space (no beziers, dimming, or neighbor highlighting there). Main scroll canvas unchanged. |
-| Cross-card | Any leaf id may be pinned regardless of Card/process; strip lists duplicates in **pin order** (may interleave Cards). |
+| Cross-card | Any leaf or nested-folder id may be pinned regardless of Card/process; **Card headers are not pinnable**. Strip lists roots in **pin order** (may interleave Cards). Parent+child both pinned may duplicate the child. |
 
 Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
 
@@ -59,8 +59,11 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 19. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
 20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
+22. **PR-SWIMVIEW-025** — Pinning a folder duplicates that folder and its descendants in the strip; Card spacers remain non-pinnable.
+23. **PR-SWIMVIEW-026** — Collapsing a folder in the strip hides strip descendants only; body `collapsedIds` / `toggle-group` are unchanged.
 
 ## Changelog
+- **2026-09-03** — Folder pin subtree strip (`PR-SWIMVIEW-025`/`026`); strip-local collapse.
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
 - **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview (`PR-SWIMVIEW-024`).

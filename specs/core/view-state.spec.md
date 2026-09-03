@@ -25,7 +25,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty **pinnedLaneIds**, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
 
-**Pinned lanes.** **pinnedLaneIds** holds globally unique leaf lane ids in pin order (session-local). No Card/process grouping in state — pins may span multiple Cards or groups; cross-card pin order is preserved in the array. Gutter pushpin and context-menu **Pin row** (Ctrl+P) are alternate affordances for the same list — not separate pin state. `pinLane` appends an id when absent (idempotent). `unpinLane` removes an id when present. Neither mutates the swim tree — duplicates are a view concern ([`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)).
+**Pinned lanes.** **pinnedLaneIds** holds globally unique lane ids (leaf **or nested folder**) in pin order (session-local). Card/process header ids are not pin targets. Pins may span multiple Cards or groups; cross-card pin order is preserved in the array. Gutter pushpin and context-menu **Pin row** (Ctrl+P) are alternate affordances for the same list — not separate pin state. `pinLane` appends an id when absent (idempotent). `unpinLane` removes an id when present. Neither mutates the swim tree — duplicates are a view concern ([`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)).
 
 **Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only — does not drive aside recompute. `measureFocusWindow` centers a measured range so it spans half the visible width (25% padding each side), clamps to bounds, and fits the full bounds when 2× duration exceeds the trace.
 
@@ -75,6 +75,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-09-03** — **pinnedLaneIds** may include nested folder ids (Card headers still excluded).
 - **2026-08-31** — Pinned strip stays visible under ancestor collapse (full swim as pin source).
 - **2026-08-31** — Renumber pin ACs to `PR-VIEW-013`…`015` (avoid collision with #31 `PR-VIEW-012`).
 - **2026-08-27** — Gutter pushpin and context-menu Pin row share **pinnedLaneIds**.

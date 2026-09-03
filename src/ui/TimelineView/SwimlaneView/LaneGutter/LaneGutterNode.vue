@@ -63,15 +63,39 @@ function onPinClick(e: MouseEvent) {
 </script>
 
 <template>
-  <button
+  <!-- div not button: pin is its own button (button-in-button is invalid HTML). -->
+  <div
     v-if="isFolder"
-    type="button"
     class="pr-gutter__lane pr-gutter__lane--folder"
+    :class="{ 'pr-gutter__lane--pinned': isPinned }"
     :style="{ paddingLeft: pad }"
     :data-testid="`gutter-folder-${lane.id}`"
+    role="button"
+    tabindex="0"
     :aria-expanded="!isCollapsed"
     @click="emit('toggle', lane.id)"
+    @keydown.enter.prevent="emit('toggle', lane.id)"
+    @keydown.space.prevent="emit('toggle', lane.id)"
   >
+    <button
+      type="button"
+      class="pr-gutter__pin"
+      data-testid="lane-pin"
+      :aria-label="pinLabel"
+      :aria-pressed="isPinned"
+      @click="onPinClick"
+      @pointerenter="pinPointerHover = true"
+      @pointerleave="pinPointerHover = false"
+      @focus="pinPointerHover = true"
+      @blur="pinPointerHover = false"
+    >
+      <PinIcon :filled="isPinned || pinPointerHover" />
+      <span
+        v-if="pinPointerHover"
+        class="pr-gutter__pin-tip"
+        role="tooltip"
+      >{{ pinLabel }}</span>
+    </button>
     <span class="pr-gutter__lane-main">
       <Chevron
         class="pr-gutter__chevron"
@@ -110,7 +134,7 @@ function onPinClick(e: MouseEvent) {
       :class="utilSizeClass"
       aria-hidden="true"
     />
-  </button>
+  </div>
   <template v-if="isFolder && !isCollapsed">
     <LaneGutterNode
       v-for="child in lane.children"

@@ -224,7 +224,7 @@ describe('LaneGutter', () => {
     expect(spacer.find('button').exists()).toBe(false);
   });
 
-  it('PR-GUTTER-010: leaf rows include pushpin; unpinned hover-only; pinned always visible', async () => {
+  it('PR-GUTTER-010: leaf and folder rows include pushpin; Card spacer omits; pinned always visible', async () => {
     const nested = [
       {
         id: 'card0',
@@ -242,19 +242,20 @@ describe('LaneGutter', () => {
       },
     ];
     const wrapper = mount(LaneGutter, {
-      props: { groups: nested, pinnedLaneIds: ['mte1'] },
+      props: { groups: nested, pinnedLaneIds: ['mte1', 'compute'] },
       attachTo: document.body,
     });
     wrapper.get('[data-testid="gutter-lane-leaf"] [data-testid="lane-pin"]');
     wrapper.get('[data-testid="gutter-lane-mte1"] [data-testid="lane-pin"]');
+    wrapper.get('[data-testid="gutter-folder-compute"] [data-testid="lane-pin"]');
     expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).not.toContain(
       'pr-gutter__lane--pinned',
     );
     expect(wrapper.get('[data-testid="gutter-lane-mte1"]').classes()).toContain(
       'pr-gutter__lane--pinned',
     );
-    expect(wrapper.find('[data-testid="gutter-folder-compute"] [data-testid="lane-pin"]').exists()).toBe(
-      false,
+    expect(wrapper.get('[data-testid="gutter-folder-compute"]').classes()).toContain(
+      'pr-gutter__lane--pinned',
     );
     expect(wrapper.get('[data-testid="gutter-group-card0"]').find('[data-testid="lane-pin"]').exists()).toBe(
       false,
@@ -358,6 +359,30 @@ describe('LaneGutter', () => {
     expect(wrapper.emitted('pin-lane')?.[0]).toEqual(['l2']);
     await wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]').trigger('click');
     expect(wrapper.emitted('unpin-lane')?.[0]).toEqual(['l1']);
+  });
+
+  it('PR-GUTTER-016: folder pin click emits pin-lane without toggle-group', async () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          {
+            id: 'compute',
+            name: '计算',
+            color: '#007084',
+            utilization: 0.9,
+            children: [{ id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 }],
+          },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested },
+    });
+    await wrapper.get('[data-testid="gutter-folder-compute"] [data-testid="lane-pin"]').trigger('click');
+    expect(wrapper.emitted('pin-lane')?.[0]).toEqual(['compute']);
+    expect(wrapper.emitted('toggle-group')).toBeUndefined();
   });
 
   it('PR-GUTTER-015: row hover fills the raised surface and lifts the label to white', async () => {

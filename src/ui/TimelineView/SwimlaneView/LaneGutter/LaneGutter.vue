@@ -9,7 +9,7 @@ const props = defineProps<{
   groups: GutterGroup[];
   /** Card or nested folder ids whose descendants are hidden. */
   collapsedIds?: string[];
-  /** Leaf lane ids currently pinned (filled pushpin). */
+  /** Leaf/folder lane ids currently pinned (filled pushpin). Card spacers are never pinned. */
   pinnedLaneIds?: string[];
   /** Leaf under canvas hover — gutter row highlight only (does not show pushpin). */
   hoveredLaneId?: string | null;

@@ -1736,4 +1736,124 @@ describe('SwimlaneView', () => {
     // Collapsed Card spacer only in body — no original leaf row.
     expect(wrapper.get('.pr-swim-row--body').find('[data-testid="gutter-lane-l1"]').exists()).toBe(false);
   });
+
+  it('PR-SWIMVIEW-025: pinning a folder duplicates the folder subtree in the strip', () => {
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'cube',
+              name: 'CUBE',
+              events: [],
+              children: [
+                {
+                  id: 'scalar',
+                  name: 'SCALAR',
+                  events: [{ id: 'e1', name: 'op', startTime: 0, duration: 10 }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const view = createViewState(model);
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [
+              {
+                id: 'cube',
+                name: 'CUBE',
+                color: '#f00',
+                children: [{ id: 'scalar', name: 'SCALAR', color: '#0f0', utilization: 0.5 }],
+              },
+            ],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['cube'],
+        model,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const strip = wrapper.get('[data-testid="pinned-gutter"]');
+    expect(strip.find('[data-testid="gutter-folder-cube"]').exists()).toBe(true);
+    expect(strip.find('[data-testid="gutter-lane-scalar"]').exists()).toBe(true);
+    // Card spacer still has no pin.
+    expect(wrapper.get('[data-testid="gutter-group-card0"]').find('[data-testid="lane-pin"]').exists()).toBe(
+      false,
+    );
+  });
+
+  it('PR-SWIMVIEW-026: strip folder collapse is independent of body collapsedIds', async () => {
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'cube',
+              name: 'CUBE',
+              events: [],
+              children: [
+                {
+                  id: 'scalar',
+                  name: 'SCALAR',
+                  events: [{ id: 'e1', name: 'op', startTime: 0, duration: 10 }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const view = createViewState(model);
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [
+              {
+                id: 'cube',
+                name: 'CUBE',
+                color: '#f00',
+                children: [{ id: 'scalar', name: 'SCALAR', color: '#0f0', utilization: 0.5 }],
+              },
+            ],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['cube'],
+        model,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const strip = wrapper.get('[data-testid="pinned-gutter"]');
+    expect(strip.find('[data-testid="gutter-lane-scalar"]').exists()).toBe(true);
+    await strip.get('[data-testid="gutter-folder-cube"]').trigger('click');
+    expect(strip.find('[data-testid="gutter-lane-scalar"]').exists()).toBe(false);
+    // Body still shows the child (body collapse unchanged).
+    expect(wrapper.get('.pr-swim-row--body').find('[data-testid="gutter-lane-scalar"]').exists()).toBe(true);
+    expect(wrapper.emitted('toggle-group')).toBeUndefined();
+  });
 });

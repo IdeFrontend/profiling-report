@@ -51,9 +51,9 @@ Clicking a **folder** lane toggles expand/collapse (`aria-expanded`). Card toggl
 
 Each lane **and folder** row optionally shows a utilization bar with the percentage **inside, right-aligned**. See **Visual** below.
 
-### Pin (leaf lanes only)
+### Pin (leaves and nested folders)
 
-Pushpin control on **leaf** rows only — not on nested folders or Card spacers. Click toggles pin state via `pin-lane` / `unpin-lane`. Duplicates render in the sticky pinned strip owned by `SwimlaneView`; originals stay in tree order below.
+Pushpin control on **leaf and nested folder** rows — not on Card spacers. Click toggles pin state via `pin-lane` / `unpin-lane`. Pinning a folder duplicates the folder **plus descendants** in the sticky strip (see [`SwimlaneView.spec.md`](../SwimlaneView.spec.md)). Originals stay in tree order below.
 
 | Element | Visual (normative) |
 |---------|-------------------|
@@ -122,12 +122,13 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 6. **PR-GUTTER-006** — Util fills are red (`rgba(231,67,74,0.4)`) when util &lt; 0.5 and gray (`rgba(255,255,255,0.08)`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the % label. The fill sits on an opaque `--pr-util-track` base (solid, unhatched), and the thin bar's radius is 2px against the thick bar's 4px.
 7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width; empty util slots do not.
 8. **PR-GUTTER-008** — Card row is a non-interactive 40px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
-9. **PR-GUTTER-010** — Leaf rows include a pushpin control (DOM); folder/Card rows omit pin. Unpinned pin hidden until leaf gutter hover (or focus); **pinned pin always visible**. Does **not** appear from events-chart hover.
+9. **PR-GUTTER-010** — Leaf **and folder** rows include a pushpin control (DOM); **Card** rows omit pin. Unpinned pin hidden until gutter hover (or focus); **pinned pin always visible**. Does **not** appear from events-chart hover.
 10. **PR-GUTTER-011** — Unpinned outline `#a8a8a8` on lane hover; pinned/pin-hover solid `#4a90e2`. Pin stays flush-left (not depth-indented).
 11. **PR-GUTTER-012** — Pushpin hover/focus shows localized pin tooltip (`置顶` / `Pin to top`).
 12. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 13. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
 14. **PR-GUTTER-015** — A hovered lane row (pointer or `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; the pin tooltip carries EventTooltip chrome.
+15. **PR-GUTTER-016** — Folder pin click emits `pin-lane` / `unpin-lane` and does **not** emit `toggle-group`.
 
 ## Edge Cases
 
@@ -158,6 +159,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
 
 ## Changelog
+- **2026-09-03** — Folders are pinnable (`PR-GUTTER-010`/`016`); Card spacers still omit pin. Folder row is a `div` so the pin can be a nested button.
 - **2026-09-01** — PR-GUTTER-015: row hover moves `#252525` → `--pr-surface-raised` (`#363636`) and lifts the label to `#fff`. Both UCD crops (AC-07, AC-19) measure `#363636`, and AC-19 calls out the label change the pin slice did not implement. The pin tooltip's chrome was specified as "EventTooltip chrome: `#2a2a2a` / `#555`", which AC-09 moved out from under it; it now names the raised-surface values directly. (Numbered 015 so master's `categoryKey` keeps `PR-GUTTER-014`.)
 - **2026-09-01** — Card strip 40px with `14px` / `700` / `22px` / `#e6e6e6` label (AC-17); gutter spacer and `LANE_GROUP_HEADER_HEIGHT` follow.
 - **2026-09-01** — `categoryKey` localizes card category labels (`PR-GUTTER-014`); see [LOCALIZATION.md](../../../../../docs/ui/LOCALIZATION.md).

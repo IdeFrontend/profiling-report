@@ -22,7 +22,11 @@ import {
   clearAltMeasureShared,
   createAltMeasureShared,
 } from './altMeasureShared';
-import { buildPinnedSwimModel, resolvePinnedGutterLanes } from './pinnedLanes';
+import {
+  buildPinnedSwimModel,
+  countPinnedVisibleRows,
+  resolvePinnedGutterRoots,
+} from './pinnedLanes';
 import {
   GUTTER_WIDTH_DEFAULT,
   GUTTER_WIDTH_MAX,
@@ -138,10 +142,23 @@ watch(
 const collapsed = computed(() => new Set(props.collapsedIds));
 
 const pinnedLaneIds = computed(() => props.pinnedLaneIds ?? []);
-const pinnedRows = computed(() => resolvePinnedGutterLanes(props.groups, pinnedLaneIds.value));
+/** Strip-local folder collapse — independent of body `collapsedIds`. */
+const stripCollapsedIds = ref<string[]>([]);
+const pinnedRoots = computed(() => resolvePinnedGutterRoots(props.groups, pinnedLaneIds.value));
 const pinnedModel = computed(() =>
-  buildPinnedSwimModel(props.pinSourceModel ?? props.model, pinnedLaneIds.value),
+  buildPinnedSwimModel(
+    props.pinSourceModel ?? props.model,
+    pinnedLaneIds.value,
+    stripCollapsedIds.value,
+  ),
 );
+
+function onStripToggle(id: string): void {
+  const next = new Set(stripCollapsedIds.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  stripCollapsedIds.value = [...next];
+}
 
 /** Shared Alt-measure session so pin-strip ↔ body can measure across sticky and scroll lanes. */
 const altMeasureShared = createAltMeasureShared();
@@ -197,7 +214,7 @@ const altMeasureCrossBridge = computed(() => {
   // Re-read client rects after gutter / body resize (sticks re-project; bridge must follow).
   void localGutterWidth.value;
   void bodyViewportH.value;
-  if (!pinnedRows.value.length) return null;
+  if (!pinnedRoots.value.length) return null;
   const strip = pinnedCanvasRef.value?.altMeasureBridgeEndpoint?.() ?? null;
   const body = canvasRef.value?.altMeasureBridgeEndpoint?.() ?? null;
   const stack = stackRef.value;
@@ -213,7 +230,9 @@ const altMeasureCrossBridge = computed(() => {
     height: Math.abs(y2 - y1),
   };
 });
-const pinnedStripHeight = computed(() => pinnedRows.value.length * LANE_HEIGHT);
+const pinnedStripHeight = computed(() =>
+  countPinnedVisibleRows(pinnedRoots.value, stripCollapsedIds.value) * LANE_HEIGHT,
+);
 const pinnedView = computed(() => ({
   startTime: props.view.startTime,
   endTime: props.view.endTime,
@@ -383,7 +402,7 @@ defineExpose({
       }"
     />
     <div
-      v-if="pinnedRows.length"
+      v-if="pinnedRoots.length"
       ref="pinnedStripRef"
       class="pr-pinned-strip"
       data-testid="pinned-strip"
@@ -394,13 +413,15 @@ defineExpose({
         data-testid="pinned-gutter"
       >
         <LaneGutterNode
-          v-for="row in pinnedRows"
+          v-for="row in pinnedRoots"
           :key="`pin-${row.lane.id}`"
           :lane="row.lane"
           :depth="row.depth"
+          :collapsed-ids="stripCollapsedIds"
           :pinned-lane-ids="pinnedLaneIds"
           :hovered-lane-id="hoveredLaneId"
           :locale="locale"
+          @toggle="onStripToggle"
           @pin-lane="emit('pin-lane', $event)"
           @unpin-lane="emit('unpin-lane', $event)"
         />

@@ -57,13 +57,13 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
   };
 }
 
-/** Append leaf lane id in pin order; idempotent when already present. */
+/** Append lane/folder id in pin order; idempotent when already present. */
 export function pinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
   if (state.pinnedLaneIds.includes(laneId)) return state;
   return { ...state, pinnedLaneIds: [...state.pinnedLaneIds, laneId] };
 }
 
-/** Remove leaf lane id; no-op when absent. */
+/** Remove lane/folder id; no-op when absent. */
 export function unpinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
   if (!state.pinnedLaneIds.includes(laneId)) return state;
   return { ...state, pinnedLaneIds: state.pinnedLaneIds.filter((id) => id !== laneId) };

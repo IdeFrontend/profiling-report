@@ -277,7 +277,7 @@ Design: [page 1001698](https://octo-g.hdesign.huawei.com/developerPreview/develo
 
 Bullet 2 was never implemented — the row label stayed `#b0b0b0` through hover. Sampling this crop, a resting label peaks at ~`#b0b0b0` while the hovered row's peaks at pure white, so hover now lifts the label to `#fff`. The pin tooltip moved onto the raised-surface chrome at the same time: its spec says to follow EventTooltip, but named that chrome by value (`#2a2a2a` / `#555`), which went stale when AC-09 retinted the tooltip. This crop's bubble measures `#363636`, agreeing with the token.
 
-**Still open, and a behaviour question rather than polish:** every row in this crop carries a `>` chevron — that is, the design puts the pushpin on *expandable* rows. The merged slice restricts pinning to leaves (`PR-GUTTER-010`, "folder/Card rows omit pin"). Widening it would change reviewed behaviour and the sticky-strip model, so it needs a product call, not a CSS change.
+**Resolved (2026-09-03):** nested **folders** are pinnable (`PR-GUTTER-010`/`016`, `PR-SWIMVIEW-025`/`026`); sticky strip duplicates the folder subtree. **Card** spacers stay non-pinnable. Design chevrons on AC-19 rows map to folder-capable gutter rows, not Card headers.
 
 ### AC-20 — Dialog chrome / copy
 
