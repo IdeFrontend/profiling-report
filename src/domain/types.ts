@@ -298,13 +298,15 @@ export type DependencyMode = 'all' | 'predecessors' | 'successors';
 
 /** Hop count from the selection. `1` = immediate neighbors; `-1` = no hop cap (link count still budgeted). */
 export const DEFAULT_DEPENDENCY_DEPTH = 1;
+/** Lower clamp: the sentinel itself, since `-1` means "walk the whole chain". */
+export const MIN_DEPENDENCY_DEPTH = -1;
 /** Upper clamp — beyond this the BFS is indistinguishable from `-1` and just wastes time. */
 export const MAX_DEPENDENCY_DEPTH = 100;
 
 export function normalizeDependencyDepth(n: number): number {
   if (!Number.isFinite(n)) return DEFAULT_DEPENDENCY_DEPTH;
   const d = Math.trunc(n);
-  if (d < -1) return -1;
+  if (d < MIN_DEPENDENCY_DEPTH) return MIN_DEPENDENCY_DEPTH;
   if (d > MAX_DEPENDENCY_DEPTH) return MAX_DEPENDENCY_DEPTH;
   return d;
 }
@@ -352,6 +354,8 @@ export interface SwimlaneRenderer {
   setDependencyDepth?(depth: number): void;
   /** Optional: when false, skip dependency curves / selection dimming. */
   setPaintDependencies?(enabled: boolean): void;
+  /** Optional: leaf lane under the pointer; hosts that omit this paint no row hover. */
+  setHoveredLane?(laneId: string | null): void;
   contentHeight(): number;
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;
   findEvent(id: string): SwimEvent | null;

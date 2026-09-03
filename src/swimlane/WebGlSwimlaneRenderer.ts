@@ -9,7 +9,9 @@ import {
 } from '../domain/types';
 import {
   EMPTY_LAYOUT,
+  LANE_FILL,
   LANE_GROUP_HEADER_FILL,
+  LANE_HOVER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   MAX_QUADS_PER_MESH,
@@ -254,6 +256,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private timeBase = 0;
   private searchQuery = '';
   private selectedId: string | null = null;
+  private hoveredLaneId: string | null = null;
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private paintDependencies = true;
@@ -323,6 +326,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();
+  }
+
+  /** Leaf lane under the pointer — tints that row's background only (AC-07). */
+  setHoveredLane(laneId: string | null): void {
+    this.hoveredLaneId = laneId;
   }
 
   setSearchQuery(query: string): void {
@@ -414,7 +422,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     // Uniform lane chrome + 1px dividers aligned with LaneGutter borders (no blend)
     gl.disable(gl.BLEND);
     gl.useProgram(solid.program);
-    const laneBg = 0x1f / 255;
+    const laneBg = hexToRgb(LANE_FILL);
+    const laneHoverBg = hexToRgb(LANE_HOVER_FILL);
     const headerBg = hexToRgb(LANE_GROUP_HEADER_FILL);
     const divider = 0x3a / 255;
 
@@ -436,7 +445,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const y = (lane.y - this.view.scrollY) * dpr;
       const laneH = LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > devH) continue;
-      this.drawSolidRect(solid, unit, 0, y, devW, laneH, [laneBg, laneBg, laneBg]);
+      const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
+      this.drawSolidRect(solid, unit, 0, y, devW, laneH, bg);
       this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider]);
     }
 
