@@ -36,6 +36,8 @@ When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim bo
 
 Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
 
+**Strip animation.** The pinned strip appears/disappears over **200ms**: its height tweens through a `--pr-pinned-h` custom property (0 ↔ N·`LANE_HEIGHT`), so pinning/unpinning the first/last lane grows/shrinks the strip smoothly and the body below reflows at the same rate instead of jumping. Incremental pins while the strip is visible animate the same way (N·22 ↔ (N±1)·22). `prefers-reduced-motion: reduce` drops the transition.
+
 ## Acceptance Criteria
 
 1. **PR-SWIMVIEW-001** — Renders gutter and canvas side by side.
@@ -59,8 +61,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 19. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
 20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
+22. **PR-SWIMVIEW-025** — Pinned strip appears/disappears over 200ms via `--pr-pinned-h` height transition; enter/leave collapse to `height: 0`; `prefers-reduced-motion: reduce` drops the transition.
 
 ## Changelog
+- **2026-09-03** — Pinned strip appears/disappears over 200ms via `--pr-pinned-h` height transition; reduced-motion drops it.
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
 - **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview (`PR-SWIMVIEW-024`).

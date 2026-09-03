@@ -16,7 +16,7 @@ Main layout shell: two-column grid with main content area and optional right asi
 
 ## Behavior
 
-The main column always renders as a vertical stack (toolbar strip, then timeline). The aside column is full height of the layout row (header flush with toolbar top). Aside opens at **480px** (Product default) and is **user-resizable** via a left-edge `ew-resize` handle (drag left to widen). Clamp **280–720**. When `showAside` is false the column is removed from the DOM. The aside always stays in the right column; in narrow host panels the timeline and panels share a layout budget (see below).
+The main column always renders as a vertical stack (toolbar strip, then timeline). The aside column is full height of the layout row (header flush with toolbar top). Aside opens at **480px** (Product default) and is **user-resizable** via a left-edge `ew-resize` handle (drag left to widen). Clamp **280–720**. When `showAside` is false the column is removed from the DOM after a **200ms** collapse: the grid track tweens `0 ↔ var(--pr-aside-width)` and the aside fades in/out (`opacity`), so the timeline reflows smoothly instead of jumping. The transition is disabled while the resize handle is dragging (no lag behind the pointer) and under `prefers-reduced-motion: reduce`. The aside always stays in the right column; in narrow host panels the timeline and panels share a layout budget (see below).
 
 Main column background is `--pr-bg-deep` (`#1f1f1f`). There is no full-width border across the top of the two-column grid (toolbar `border-bottom` only covers main).
 
@@ -46,6 +46,7 @@ Resizable panel chrome (widths owned by ProfilingReport; handle lives here):
 4. **PR-LAYOUT-004** — Aside opens at **480px** with a left-edge resize handle (`aside-resize-handle`) that emits `update:asideWidth`.
 5. **PR-LAYOUT-005** — `.pr-main` is `overflow: visible` with `z-index: 1` so timeline edge chrome can overlap the aside seam; aside is `z-index: 0` with `--pr-bg-aside`.
 6. **PR-LAYOUT-006** — Keeps two-column grid when aside is visible (`minmax(0, 1fr)` main + `minmax(0, var(--pr-aside-width))` aside; no viewport stack).
+7. **PR-LAYOUT-007** — Aside show/hide animates over 200ms (grid-track collapse + fade); transition disabled while resizing and under `prefers-reduced-motion: reduce`.
 
 ## Edge Cases
 
@@ -56,6 +57,7 @@ Resizable panel chrome (widths owned by ProfilingReport; handle lives here):
 - [Entry overview](../../../docs/ui/source/v930/entry.jpeg) — two-column layout
 
 ## Changelog
+- **2026-09-03** — Aside show/hide animates over 200ms (grid-track collapse + fade); disabled while resizing and under reduced motion.
 - **2026-09-03** — Restore aside resize handle; default open **480px**, clamp **280–720**; narrow fit shrinks aside then gutter (no horizontal scroll).
 - **2026-09-02** — Aside fixed **480px** (Product); roofline chart scales to **440×303**. *(Superseded — resize restored; see above.)*
 - **2026-09-01** — Aside fixed **468px** (v930 sketch); resize handle removed; narrow fit shrinks gutter only. *(Superseded.)*

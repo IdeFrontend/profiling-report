@@ -76,8 +76,24 @@ describe('ReportLayout', () => {
         aside: '<div data-testid="aside-content">aside</div>',
       },
     });
-    expect(wrapper.find('.pr-layout--no-aside').exists()).toBe(false);
     expect(wrapper.find('[data-testid="aside-content"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="aside-resize-handle"]').exists()).toBe(true);
+
+    // Hidden aside collapses the track to 0 (no dedicated --no-aside class anymore).
+    const hidden = mount(ReportLayout, {
+      props: { showAside: false },
+      slots: { main: '<div>main</div>', aside: '<div>aside</div>' },
+    });
+    expect(hidden.attributes('style')).toContain('--pr-aside-width: 0px');
+  });
+
+  it('PR-LAYOUT-007: aside show/hide animates the grid track and fades, except while resizing', async () => {
+    const src = (await import('./ReportLayout.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-layout\s*\{[^}]*transition:\s*grid-template-columns\s+200ms\s+ease/s);
+    // Resize drag disables the track transition so it never lags the pointer.
+    expect(src).toMatch(/\.pr-layout--resizing\s*\{[^}]*transition:\s*none/s);
+    expect(src).toMatch(/\.pr-aside-enter-from,[^}]*opacity:\s*0/s);
+    expect(src).toMatch(/\.pr-aside-leave-to[^}]*opacity:\s*0/s);
+    expect(src).toMatch(/prefers-reduced-motion:\s*reduce/);
   });
 });
