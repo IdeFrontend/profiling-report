@@ -26,14 +26,6 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Answer so far:** Two-tier auto **and** Time (auto) vs CPU clocks — [`UI-40a`](../decisions/interim/UI.md). Cycle *source* (true vs derived) → [UI-45](UI.md).
 
-### UI-41 — gesture parity (was: Q19)
-
-**Status:** `interim`
-
-**Question:** Gesture parity?
-
-**Interim:** Wheel/slider/drag MVP; W/S/A/D P2 — [`UI-41a`](../decisions/interim/UI.md).
-
 ### UI-45 — Timeline CPU clocks — true vs derived (was: Q23 / HQ 38)
 
 <img src="../visual/questions/ui-45.png" alt="UI-45 task display unit Time vs CPU clocks" width="475" height="260">

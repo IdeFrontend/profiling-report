@@ -3,6 +3,8 @@ import {
   applyWindow,
   clearMeasure,
   createViewState,
+  KEYBOARD_PAN_STEP_PX,
+  keyboardPanStepTime,
   measureFocusWindow,
   MIN_VIEW_WINDOW,
   panBy,
@@ -155,5 +157,26 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(dropped.pinnedLaneIds).toEqual(['b']);
     expect(unpinLane(dropped, 'missing').pinnedLaneIds).toEqual(['b']);
     expect(pinned.pinnedLaneIds).toEqual(['a', 'b']);
+  });
+
+  it('PR-VIEW-016: keyboardPanStepTime maps KEYBOARD_PAN_STEP_PX to a time delta', () => {
+    expect(KEYBOARD_PAN_STEP_PX).toBe(30);
+    // 30 px across a 1000 px track, over a 1000 ns span → 30 ns.
+    expect(keyboardPanStepTime(1000, 1000)).toBe(30);
+    // Wider span → proportionally larger step.
+    expect(keyboardPanStepTime(2000, 1000)).toBe(60);
+    // Wider track → proportionally smaller step (30/2000 × 1000 = 15).
+    expect(keyboardPanStepTime(1000, 2000)).toBeCloseTo(15, 10);
+  });
+
+  it('PR-VIEW-017: keyboardPanStepTime clamps non-positive span/trackWidth', () => {
+    // Zero/negative trackWidth clamps to 1 → step stays finite (no NaN / div-by-zero).
+    expect(Number.isFinite(keyboardPanStepTime(1000, 0))).toBe(true);
+    expect(keyboardPanStepTime(1000, 0)).toBe(30 * 1000);
+    expect(keyboardPanStepTime(1000, -5)).toBe(30 * 1000);
+    // Zero/negative span clamps to 1 → positive step.
+    expect(keyboardPanStepTime(0, 1000)).toBeCloseTo(0.03, 10);
+    expect(keyboardPanStepTime(-7, 1000)).toBeCloseTo(0.03, 10);
+    expect(keyboardPanStepTime(-7, -3)).toBe(30);
   });
 });

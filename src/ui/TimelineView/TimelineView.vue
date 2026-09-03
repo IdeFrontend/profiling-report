@@ -493,6 +493,10 @@ defineExpose({
   get gutterRoot() {
     return swimlaneRef.value?.gutterRoot ?? null;
   },
+  /** Viewport track width (CSS px) — the time-axis column, used by keyboard pan. */
+  get trackWidth() {
+    return timeAxisWidth.value;
+  },
 });
 </script>
 

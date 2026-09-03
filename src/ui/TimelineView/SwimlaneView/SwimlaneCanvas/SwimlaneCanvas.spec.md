@@ -98,6 +98,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 62. **PR-CANVAS-062** — While pinned, Alt+click any event sets that event as a new ephemeral anchor and drops the pinned overlay until a new target is chosen.
 63. **PR-CANVAS-063** — A pinned measure clears on empty-canvas click, Esc, or a visible-range change (`startTime` / `endTime` / `scrollY`). Collapsing a Card/folder or pinning/unpinning lanes also clears the session (handled by the parent swim view).
 64. **PR-CANVAS-064** — Default CSS cursor on `.pr-swim-canvas` is `default` (arrow, not `crosshair` / `pointer`); hovering an event applies `pointer`; with `measureMode` the wrap applies `col-resize`.
+65. **PR-CANVAS-065** — Ctrl+left-drag still pans the viewport (emits `pan`) — the PyPTO "combined" horizontal pan works because pan is not gated on the modifier.
 
 ## Edge Cases
 
@@ -130,6 +131,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-03** — Ctrl+left-drag pan locked in as the PyPTO combined-pan binding (`PR-CANVAS-065`).
 - **2026-09-02** — Default swim-canvas CSS cursor is `default` (arrow); event hover uses `pointer`; measure mode keeps `col-resize` (`PR-CANVAS-064`).
 - **2026-09-02** — Alt-measure chrome and the pin↔body dashed bridge stack at `z-index: 9` with the swim cursor (above Card strips at 8), so the cross-lane connector no longer disappears under Card headers (`PR-CANVAS-050` / `PR-SWIMVIEW-004`).
 - **2026-09-01** — Refuse to pin on Δt = 0; suppress hover-gap under Alt during pan; keep event hover while Alt-retargeting (`PR-CANVAS-049`/`053`/`060`).

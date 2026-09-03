@@ -86,6 +86,16 @@ Format and statuses: [README.md](README.md).
 
 ---
 
+## UI-41 (was: Q19)
+
+- **Resolved:** 2026-09-03
+- **Question:** Gesture parity?
+- **Decision:** W/S/A/D zoom/pan (cursor-anchored zoom, 30 px pan) + Ctrl+left-drag pan + 快捷键说明 shortcut-help popover (PyPTO parity). Search Enter/prev-next jump deferred to a separate branch.
+- **Specs:** [INTERACTIONS](../../ui/INTERACTIONS.md), [view-state.spec.md](../../../specs/core/view-state.spec.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md)
+- **Source:** Product acceptance of packaging suggestion; PR [#75](https://github.com/IdeFrontend/profiling-report/pull/75).
+
+---
+
 ## UI-42 (was: Q22)
 
 - **Resolved:** 2026-08-25
