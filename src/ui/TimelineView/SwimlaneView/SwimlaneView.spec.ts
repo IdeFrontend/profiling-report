@@ -325,6 +325,50 @@ describe('SwimlaneView', () => {
     expect(wrapper.find('.pr-swim-row--body').exists()).toBe(true);
   });
 
+  it('PR-SWIMVIEW-025: pinned strip height accounts for multi-row leaf', () => {
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    view.pinnedLaneIds = ['l1'];
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', rowCount: 2 }],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l1'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [
+                {
+                  id: 'l1',
+                  name: 'Lane',
+                  events: [
+                    { id: 'a', name: 'a', startTime: 0, duration: 100 },
+                    { id: 'b', name: 'b', startTime: 50, duration: 100 },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const strip = wrapper.get('[data-testid="pinned-strip"]').element as HTMLElement;
+    expect(strip.style.height).toBe('44px');
+  });
+
   it('PR-SWIMVIEW-014: pinned duplicates keep the same lane ids as originals', () => {
     const view = createViewState({
       minTime: 0,

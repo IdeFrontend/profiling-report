@@ -128,6 +128,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 12. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 13. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
 14. **PR-GUTTER-015** — A hovered lane row (pointer or `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; the pin tooltip carries EventTooltip chrome.
+15. **PR-GUTTER-016** — A leaf with `rowCount` renders one title cell `rowCount × 22px` (name + util + pin vertically centered) with a single bottom border — no per-sub-row gutter rows.
 
 ## Edge Cases
 
@@ -158,6 +159,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
 
 ## Changelog
+- **2026-09-03** — Multi-row leaf renders one tall title cell `rowCount × 22px` (`PR-GUTTER-016`).
 - **2026-09-01** — PR-GUTTER-015: row hover moves `#252525` → `--pr-surface-raised` (`#363636`) and lifts the label to `#fff`. Both UCD crops (AC-07, AC-19) measure `#363636`, and AC-19 calls out the label change the pin slice did not implement. The pin tooltip's chrome was specified as "EventTooltip chrome: `#2a2a2a` / `#555`", which AC-09 moved out from under it; it now names the raised-surface values directly. (Numbered 015 so master's `categoryKey` keeps `PR-GUTTER-014`.)
 - **2026-09-01** — Card strip 40px with `14px` / `700` / `22px` / `#e6e6e6` label (AC-17); gutter spacer and `LANE_GROUP_HEADER_HEIGHT` follow.
 - **2026-09-01** — `categoryKey` localizes card category labels (`PR-GUTTER-014`); see [LOCALIZATION.md](../../../../../docs/ui/LOCALIZATION.md).

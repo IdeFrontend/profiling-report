@@ -59,8 +59,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 19. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
 20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
+22. **PR-SWIMVIEW-025** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
 
 ## Changelog
+- **2026-09-03** — Pinned-strip height and body content height account for multi-row leaf `rowCount` (`PR-SWIMVIEW-025`).
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
 - **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview (`PR-SWIMVIEW-024`).

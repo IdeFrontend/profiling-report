@@ -39,6 +39,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/decisions/DATA.md)); flat CTEF still valid |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |
 | Colored event rectangles | M | Normative colors [COLOR_TOKENS](COLOR_TOKENS.md) |
+| Multi-height lanes (overlapping events) | M | A leaf lane whose events overlap in time splits into non-overlapping sub-rows under one title (`source/v930/task-multi-height.jpeg`); row height grows by `rowCount × 22px` |
 | Event labels when wide enough | M | Vertically centered in block; horizontally centered in visible (clipped) event rect |
 | Adjacent-event gap measure (hover) | M | Default-mode hover in the free gap between adjacent events shows a transient, non-interactive Δt overlay (border sticks + arrow); does not change selection or window |
 | Alt event measure (Alt+click + hover) | M | Default-mode Alt+click anchor + Alt+hover Δt to an event edge or free cursor (same-lane reuse, cross-lane dashed connector, or full-height cursor line); ephemeral, does not change selection or window |
