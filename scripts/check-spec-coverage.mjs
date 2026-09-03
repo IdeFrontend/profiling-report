@@ -67,6 +67,8 @@ for (const file of specFiles) {
   const ids = extractIds(section);
   if (ids.length === 0 && !DELEGATED_SPECS.has(file)) specsEmptyAC.push(file);
 
+  if (DELEGATED_SPECS.has(file)) continue;
+
   for (const id of ids) {
     if (!specACs.has(id)) specACs.set(id, new Set());
     specACs.get(id).add(file);

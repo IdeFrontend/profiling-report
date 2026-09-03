@@ -9,6 +9,7 @@ import {
   normalizeDependencyDepth,
 } from '../../domain/types';
 import { t } from '../../i18n';
+import CloseButton from '../CloseButton.vue';
 
 const props = defineProps<{
   searchQuery: string;
@@ -481,6 +482,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
               type="button"
               class="pr-toolbar__display-close"
               data-testid="display-control-close"
+              :aria-label="t('closePanel', locale)"
               :title="t('closePanel', locale)"
               @click="closeDisplayControl"
             >

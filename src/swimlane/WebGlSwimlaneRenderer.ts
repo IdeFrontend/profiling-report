@@ -261,6 +261,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private paintDependencies = true;
   private neighborIds = new Set<string>();
+  private multiIds = new Set<string>();
   private depLinks: DependencyLink[] = [];
   private width = 0;
   private height = 0;
@@ -363,6 +364,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();
+  }
+
+  setMultiSelection(ids: string[]): void {
+    if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
+    this.multiIds = new Set(ids);
+    this.rebuildEmphasisSplit();
   }
 
   contentHeight(): number {
@@ -549,6 +556,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.canvas = null;
     this.layout = EMPTY_LAYOUT;
     this.neighborIds = new Set();
+    this.multiIds = new Set();
     this.depLinks = [];
   }
 
@@ -608,10 +616,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.disposeEmphasisSplit();
     const q = this.searchQuery;
     const sel = this.selectedId;
-    if (!gl || (!q && !sel)) return;
+    const multi = this.multiIds;
+    if (!gl || (!q && !sel && multi.size === 0)) return;
 
     const hasSearch = q.length > 0;
-    const hasSelection = this.paintDependencies && sel != null;
+    const hasSelection = this.paintDependencies && sel != null || multi.size > 0;
     const bright = this.neighborIds;
     const byLane = new Map<number, LaidOutEvent[]>();
     for (const ev of this.layout.events) {
@@ -626,7 +635,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const byDim = new Map<number, number[]>();
       for (const item of events) {
         const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
-        const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
+        const dim = eventEmphasisDim(
+          matches,
+          bright.has(item.id) || multi.has(item.id),
+          hasSearch,
+          hasSelection,
+        );
         let pairs = byDim.get(dim);
         if (!pairs) {
           pairs = [];

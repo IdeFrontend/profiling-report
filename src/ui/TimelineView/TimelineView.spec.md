@@ -12,6 +12,8 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Measure mode (M2).** The overview bar stays visible for window navigation (no measure span is drawn on it). The viewport time axis draws blue vertical bars at **true** measured-range edges that fall inside the current view, plus a double-sided Δt arrow across the visible measure span, and accepts the same drag-to-measure gesture as the swimlane. Geometry for the shaft/label **clamps to the current view window**; a bar and arrowhead are **not** drawn for an edge that is only clamped onto the view boundary (that would falsely read as the selection ending at the screen edge). When the range is **fully outside** the view, the axis keeps a one-sided **offscreen cue** at the near edge (pointing chevron + Δt just inside; **no** vertical edge bar). Δt label always uses the full measured duration. During swimlane appear/clear tweens (range↔visible window), the Δt arrow and label are hidden while bars/fades still animate; they stay visible when tweening between two non-empty ranges. Swimlane fade/gray borders live in `SwimlaneCanvas`.
 
+**Multi-select Δt.** The axis chrome is not measure-only: when `measureMode` is off, a marquee multi-selection drives the **same** bars + double-sided arrow + duration label through **multiSelectSpan**. It follows the live marquee extent during the drag, then the committed **selection hull** (`[min(starts), max(ends)]`) once the rect commits, and persists until the multi-selection clears (empty-space click, Escape, dock close, empty marquee commit). Measure mode wins the axis while it is on. Marquee bars are **not** resize handles — the span belongs to the selection, not to a range the user edits — but the Δt pill still focuses the viewport on it.
+
 **Δt arrow geometry (v930).** Each arrowhead is an **open stroke chevron** (single path, `fill="none"`, sharp **miter** tip — not bevelled/flat). The visible tip sits **1px** inward from the adjacent vertical measure bar. The shaft overlaps deep into each chevron until it meets the arms (no gap between shaft and arrow lines). The Δt duration label sits centered on the arrow with a **4px gap** on each side between the label chrome and the horizontal shaft (shaft breaks around the label; they do not touch). Shaft and chevron strokes are **1.5px** wide in solid `rgba(49, 122, 247, 1)`.
 
 **Narrow selection.** When the measured span’s pixel width is smaller than pads + heads + shaft–label gaps + label width, park the duration pill **outside** the bars (prefer **4px to the right** of the right bar; if that would clip, **4px to the left** of the left bar) while still drawing the two-sided arrow between the bars. When the span is so narrow that the arrowheads would overlap (`<` pads + both heads ≈ **20px**), hide heads **and** the horizontal shaft; only the outside duration label remains between/near the vertical bars.
@@ -22,7 +24,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 
 **Edge resize.** Axis blue bars are 9px hit pads with a 1px stem (`col-resize`); hover/active thickens the stem to 2px. Dragging left/right moves that edge only (**other edge fixed**, including when it lies outside the current view); the dragged edge is clamped to the view window with a ~1px min span. Resize listens on `window` for move/up so releasing over Card strips (above the bars) still ends the drag. Empty-axis drag still creates a new measure range; create/resize use the swimlane event-edge magnet when the pointer is over the canvas (axis-started drags included).
 
-**Focus measure.** Clicking the Δt duration pill emits `focus-measure`. The parent animates the viewport so the measured range is centered and spans half the visible width (~400ms ease-out; instant when `prefers-reduced-motion`).
+**Focus measure.** Clicking the Δt duration pill emits `focus-measure` with the span it describes (measure range or marquee hull). The parent animates the viewport so that span is centered and spans half the visible width (~400ms ease-out; instant when `prefers-reduced-motion`).
 
 ## Acceptance Criteria
 
@@ -44,9 +46,11 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 16. **PR-TIMELINE-016** — Cursor playhead line uses time-proportional `xRatio` placement.
 17. **PR-TIMELINE-017** — No viewport breakpoint stacks swim rows; swim-row columns use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` so the track cannot collapse (stable MSTT embedding).
 18. **PR-TIMELINE-018** — Viewport time axis shows `axis-ruler-base` deep in trace; near-origin viewport omits it; overview has no base.
+19. **PR-TIMELINE-019** — With measure mode off, `multiSelectSpan` draws the same axis bars + Δt arrow; those bars do not resize.
 
 ## Changelog
 - **2026-08-27** — Viewport axis coarse base + remainder ticks via `useViewportBase`; PR-TIMELINE-018.
+- **2026-08-26** — Axis Δt chrome also serves marquee multi-select via `multiSelectSpan` (bars static); `focus-measure` carries its span; PR-TIMELINE-019.
 - **2026-08-25** — Cursor labels relative to minTime; PR-TIMELINE-015.
 - **2026-08-25** — Note continuous `fitPanelWidths` track budget (owned by ProfilingReport).
 - **2026-08-25** — Track column `minmax(80px, 1fr)` so chart cannot collapse under a wide gutter token; PR-TIMELINE-017.
@@ -54,6 +58,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 - **2026-08-24** — Drop horizontal scroll; shrink-to-fit in narrow MSTT panels; PR-TIMELINE-017.
 - **2026-08-24** — Restore seam overlap via `.pr-main` overflow visible (no swim scrollport).
 - **2026-08-24** — Cursor playhead uses xRatio percentage; PR-TIMELINE-016.
+
 
 - **2026-08-23** — Axis magnet path emits cursor `xRatio` from swimlane magnet, not raw pointer x; PR-TIMELINE-014.
 - **2026-08-23** — Axis measure range borders use a 2px stem (not 1px / hover-only); PR-TIMELINE-010.

@@ -275,6 +275,36 @@ describe('SwimlaneView', () => {
     expect(src).not.toMatch(/background:\s*rgb\(50,\s*50,\s*50\)/);
   });
 
+  it('PR-SWIMVIEW-025: parent-driven multiSelectedIds change reaches the canvas (marquee commit)', async () => {
+    // Regression: SwimlaneView kept a local mirror of `multiSelectedIds` for the
+    // canvas but never synced it from the prop, so a parent-driven swap (the
+    // marquee commit path: ProfilingReport mutates `viewState.multiSelectedIds`
+    // and re-renders) was dropped — the canvas kept the stale `[]` and the
+    // post-release dim disappeared. `localGutterWidth` has the same mirror
+    // pattern with a watch; this test pins the fix for the multiSelect side.
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        multiSelectedIds: [],
+        searchQuery: '',
+      },
+    });
+    const canvas = wrapper.findComponent(SwimlaneCanvas);
+    expect(canvas.props('multiSelectedIds')).toEqual([]);
+    await wrapper.setProps({ multiSelectedIds: ['e1', 'e2'] });
+    expect(canvas.props('multiSelectedIds')).toEqual(['e1', 'e2']);
+  });
+
   it('PR-SWIMVIEW-008: overlays pin to used grid columns; track has non-zero floor', async () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     expect(src).toMatch(

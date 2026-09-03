@@ -53,6 +53,7 @@ Specs are co-located with their components.
 | RooflinePanel | `PR-ROOF-*` | M2 | `src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md` |
 | HardwareDetailsPanel | `PR-HW-*` | M1 | `src/ui/StatsAside/HardwareDetailsPanel/HardwareDetailsPanel.spec.md` |
 | SwimlaneCanvas | `PR-CANVAS-*` | MVP | `src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md` |
+| MultiSelectSummary | `PR-MSEL-*` | P2 | `src/ui/MultiSelectSummary/MultiSelectSummary.vue`, `src/ui/MultiSelectSummary/MultiSelectSummary.spec.ts` |
 
 ### Architecture
 

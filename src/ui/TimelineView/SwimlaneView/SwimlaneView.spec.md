@@ -12,7 +12,7 @@ Body row: LaneGutter | SwimlaneCanvas with shared Y scroll sync, body-local gutt
 
 **Body scroll.** `.pr-swim-row--body` uses `overflow: hidden` so lane scroll stays contained while ReportLayout `.pr-main` stays `overflow: visible` for overview/axis chrome at the aside seam.
 
-**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips (`z-index: 8`). The mouse-following cursor bar and Alt-measure chrome (dashed cross-lane connector, sticks, Δt, free-cursor target line, event highlights, and the pin↔body cross bridge) sit **above** the Card strips at `z-index: 9`: the strips are opaque full-row buttons, so anything below them punches a visible gap at every Card header (AC-13; same failure for Alt-measure's dashed vertical). Blue edge marks stay above that band (`z-index: 10–11`) so magnet snap markers always paint on top of the playhead / Alt-measure stems. The canvas wrap's `overflow: hidden` clips overlays to the chart column. Cursor x comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
+**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. The marquee multi-select rect sits above the measure chrome and still below the strips (`z-index: 6`), so an unmodified drag reads as one rectangle across Card bands without painting over header chrome. The mouse-following cursor bar lives inside `SwimlaneCanvas` (`z-index: 3`, above the event canvas, below blue edge marks at `z-index: 4–5`) so magnet snap markers always paint on top of the gray/blue playhead stem. Card strips remain on top (`z-index: 8`). Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
 
 **Gutter resize.** The `ew-resize` handle (`data-testid="gutter-resize-handle"`) lives on the swim body seam (`z-index: 5`), under Card strips (`z-index: 8`), so it is inactive across Card bands. Overview/axis rows do not host the handle. The handle is pinned to the **used** gutter grid column (`grid-column: 1 / 2`), not `left: var(--pr-gutter-width)`, so it stays aligned when the gutter column shrinks below the token. The end line must be explicit: for abspos children, a lone `grid-column: 1` resolves end to `auto` (container padding edge) and parks the handle on the far track edge. Card-strip labels use the same column formula as the swim row.
 
@@ -60,6 +60,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
 
+
+25. **PR-SWIMVIEW-025** — A parent-driven change to `multiSelectedIds` (marquee commit) reaches the canvas: the local mirror stays in sync, so the dim survives the release.
+
+
 ## Changelog
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
@@ -71,7 +75,22 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 - **2026-09-01** — Pin↔body Alt-measure draws a dashed vertical cross bridge (`PR-SWIMVIEW-021`).
 - **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
 - **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
-- **2026-08-31** — Renumber pin ACs to `PR-SWIMVIEW-013`…`017` (avoid collision with #45 `010`…`012`).
+
+
+## Changelog
+- **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
+- **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
+- **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview (`PR-SWIMVIEW-024`).
+- **2026-09-01** — Strip/body `pointerleave` keeps ephemeral Alt target; bridge survives time-clipped edges (`PR-SWIMVIEW-021`/`024`).
+- **2026-09-01** — Collapse / pin-set changes clear Alt-measure (`PR-SWIMVIEW-023`).
+- **2026-09-01** — Free-cursor Alt target paints on every shared surface (`PR-SWIMVIEW-022`).
+- **2026-09-01** — Alt-measure endpoints track strip vs body instance (no forced defer to sticky duplicate).
+- **2026-09-01** — Pin↔body Alt-measure draws a dashed vertical cross bridge (`PR-SWIMVIEW-021`).
+- **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
+- **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
+
+## Changelog
+- **2026-09-01** — `localMultiSelectedIds` now mirrors `props.multiSelectedIds`, so the marquee commit dim reaches the canvas (was lost to a stale `[]`); PR-SWIMVIEW-025.
 - **2026-08-28** — Abspos gutter handle uses explicit `grid-column: 1 / 2` so `right: 0` is the gutter seam, not the track’s far edge.
 - **2026-08-28** — Pinned-strip canvas shares measure mode/range with the body canvas.
 - **2026-08-27** — After rebase onto master (`PR-SWIMVIEW-009` = cursor magnet): pin ACs are `013`…`017` (leave `010`…`012` for #45 Card metric selector). Gutter pin ACs `010`…`013` reserve `009` for #45 metrics.

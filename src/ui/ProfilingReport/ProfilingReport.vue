@@ -4,12 +4,16 @@ import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
   clearMeasure,
+  clearSelection,
   createViewState,
   measureFocusWindow,
+  normalizeMeasureRange,
   panBy,
   pinLane,
   setMeasureMode,
   setMeasureRange,
+  setMultiSelection,
+  setSelectedEvent,
   spanFromZoomPercent,
   unpinLane,
   zoomAt,
@@ -45,6 +49,7 @@ import {
 import { t } from '../../i18n';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
+import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   fitPanelWidths,
@@ -99,6 +104,13 @@ const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
 /** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
 const selectedEvent = ref<SwimEvent | null>(null);
+/** Marquee capture; mutually exclusive with `selected` (only one dock mounts). */
+const multiSelected = ref<SwimEvent[]>([]);
+/**
+ * Δt span shown on the axis for the marquee: the live drag extent while dragging, then
+ * the committed selection hull. Cleared with the selection.
+ */
+const multiSelectSpan = ref<MeasureRange | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
@@ -215,9 +227,7 @@ function animateToWindow(window: { startTime: number; endTime: number; scrollY: 
   });
 }
 
-function onFocusMeasure() {
-  const range = viewState.value.measureRange;
-  if (!range) return;
+function onFocusMeasure(range: MeasureRange) {
   const target = measureFocusWindow(range, bounds.value, viewState.value.scrollY);
   animateToWindow(target);
 }
@@ -240,6 +250,8 @@ function resetViewFromModel(
   viewState.value = next;
   selected.value = null;
   selectedEvent.value = null;
+  multiSelected.value = [];
+  multiSelectSpan.value = null;
   hovered.value = null;
   // Operator switches keep session gutter/aside preferences; fresh loads reset them.
   if (!opts?.preservePanelWidths) resetPanelWidthsToDefaults();
@@ -362,6 +374,8 @@ function loadFromSource(source: ArrayBuffer | Uint8Array) {
     internalCapabilities.value = null;
     selected.value = null;
     selectedEvent.value = null;
+    multiSelected.value = [];
+    multiSelectSpan.value = null;
     hovered.value = null;
     viewState.value = createViewState(null);
     loadError.value = cause instanceof Error ? cause.message : String(cause);
@@ -424,7 +438,7 @@ watch(showAside, () => {
 });
 
 onMounted(() => {
-  window.addEventListener('keydown', onMeasureKeydown);
+  window.addEventListener('keydown', onRootKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
@@ -435,12 +449,17 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
   stopLayoutFitObserver();
-  window.removeEventListener('keydown', onMeasureKeydown);
+  window.removeEventListener('keydown', onRootKeydown);
 });
 
-function onMeasureKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
+/** Escape drops the measure overlay and the marquee multi-selection alike. */
+function onRootKeydown(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return;
+  if (viewState.value.measureMode || viewState.value.measureRange) {
     viewState.value = clearMeasure(viewState.value);
+  }
+  if (multiSelected.value.length > 0) {
+    onSelect(null);
   }
 }
 
@@ -459,10 +478,12 @@ watch(
 );
 
 function onSelect(ev: SwimEvent | null) {
+  multiSelected.value = [];
+  multiSelectSpan.value = null;
   if (!ev) {
     selected.value = null;
     selectedEvent.value = null;
-    viewState.value = { ...viewState.value, selectedEventId: null };
+    viewState.value = clearSelection(viewState.value);
     emit('select', null);
     return;
   }
@@ -476,8 +497,43 @@ function onSelect(ev: SwimEvent | null) {
   };
   selected.value = payload;
   selectedEvent.value = ev;
-  viewState.value = { ...viewState.value, selectedEventId: ev.id };
+  viewState.value = setSelectedEvent(viewState.value, ev.id);
   emit('select', payload);
+}
+
+/**
+ * Marquee commit. Both branches emit `select(null)`: an empty rect clears everything,
+ * a non-empty one dismisses the single selection in favor of the multi-selection — so
+ * hosts read `select(null)` as "no single selection", not "nothing is selected"
+ * (contract in ProfilingReport.spec.md Outputs). The axis Δt switches from the live
+ * drag extent to the committed selection hull and persists until the selection clears.
+ */
+function onMultiSelect(events: SwimEvent[]) {
+  if (events.length === 0) {
+    onSelect(null);
+    return;
+  }
+  selected.value = null;
+  selectedEvent.value = null;
+  multiSelected.value = events;
+  multiSelectSpan.value = normalizeMeasureRange(
+    Math.min(...events.map((e) => e.startTime)),
+    Math.max(...events.map((e) => e.startTime + e.duration)),
+  );
+  viewState.value = setMultiSelection(
+    viewState.value,
+    events.map((e) => e.id),
+  );
+  emit('select', null);
+}
+
+/**
+ * Live marquee extent during the drag. The canvas nulls it on pointerup/Escape; on a
+ * commit `onMultiSelect` runs right after and swaps in the hull, so a cancel is the only
+ * path that leaves it cleared.
+ */
+function onMultiSelectSpan(span: MeasureRange | null) {
+  multiSelectSpan.value = span;
 }
 
 function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
@@ -709,6 +765,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :display-swim="displaySwim"
           :pin-source-model="swim"
           :cursor="cursor"
+          :multi-select-span="multiSelectSpan"
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"
           :prefer-renderer="preferRenderer ?? 'auto'"
@@ -720,6 +777,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @pin-lane="onPinLane"
           @unpin-lane="onUnpinLane"
           @select="onSelect"
+          @multi-select="onMultiSelect"
+          @multi-select-span="onMultiSelectSpan"
           @hover="onHover"
           @cursor="onCursor"
           @set-playhead="onSetPlayhead"
@@ -744,20 +803,32 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </template>
     </ReportLayout>
 
-    <Transition name="pr-dock">
-      <DetailPanel
-        v-if="selected && showTimeline"
-        :selected="selected"
-        :time-origin="bounds.minTime"
-        :locale="locale"
-        :neighbors="dependencyNeighbors"
-        :dependency-mode="localDependencyMode"
-        :expanded="dockExpanded"
-        @close="onSelect(null)"
-        @update:expanded="dockExpanded = $event"
-        @update:dependency-mode="onDependencyMode"
-      />
-    </Transition>
+    <!-- Mutually exclusive docks: multi-select wins, then single-select, else neither. -->
+    <MultiSelectSummary
+      v-if="multiSelected.length && showTimeline"
+      :selected-events="multiSelected"
+      :model="swim"
+      :locale="locale"
+      :height="dockHeight"
+      @close="onSelect(null)"
+      @select-single="onSelect"
+      @update:height="dockHeight = $event"
+    />
+
+    <DetailPanel
+      v-else-if="selected && showTimeline"
+      :selected="selected"
+      :time-origin="bounds.minTime"
+      :locale="locale"
+      :neighbors="dependencyNeighbors"
+      :dependency-mode="localDependencyMode"
+      :expanded="dockExpanded"
+      :height="dockHeight"
+      @close="onSelect(null)"
+      @update:expanded="dockExpanded = $event"
+      @update:height="dockHeight = $event"
+      @update:dependency-mode="onDependencyMode"
+    />
 
     <EventTooltip
       v-if="hovered && showTimeline"

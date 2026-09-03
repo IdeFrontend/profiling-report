@@ -14,6 +14,7 @@ import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import CannbotIcon from './CannbotIcon.vue';
 import type { CannbotScope } from '../../domain/cannbot';
+import CloseButton from '../CloseButton.vue';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
@@ -324,29 +325,11 @@ function backToReport() {
         <h3 :title="headerTitle">
           {{ headerTitle }}
         </h3>
-        <button
-          type="button"
-          class="pr-aside__close"
+        <CloseButton
           data-testid="stats-aside-close"
-          :aria-label="t('closePanel', locale)"
-          :title="t('closePanel', locale)"
+          :label="t('closePanel', locale)"
           @click="emit('close')"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            aria-hidden="true"
-          >
-            <path
-              d="M4 4l8 8M12 4l-8 8"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
+        />
       </div>
       <p
         v-if="asideSurface === 'report' && (hasMeta || showMore)"
@@ -848,8 +831,7 @@ function backToReport() {
   color: #e6e6e6;
 }
 
-.pr-aside__back,
-.pr-aside__close {
+.pr-aside__back {
   appearance: none;
   display: inline-flex;
   flex-shrink: 0;
@@ -866,8 +848,7 @@ function backToReport() {
   cursor: pointer;
 }
 
-.pr-aside__back:hover,
-.pr-aside__close:hover {
+.pr-aside__back:hover {
   color: #ffffff;
 }
 

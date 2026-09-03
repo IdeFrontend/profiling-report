@@ -12,7 +12,7 @@ The component works in two modes. In **auto-loading mode**, provide **source** �
 
 ## Outputs
 
-Lifecycle events: **ready** fires once the report is loaded and the timeline is rendered. **select** fires with a `SelectedEvent` (id, name, startTime, duration, endTime) when the user clicks an event on the swimlane, or `null` when they click empty space. **error** fires with `{ message, cause? }` on load or parse failure. **open-hardware-details** is forwarded from StatsAside when the user clicks 更多 (aside also opens interim HardwareDetailsPanel when data exists, I-Q7a). **open-pipe-details** is forwarded when the user clicks PIPE 详情 (aside navigates to CSV details). **view-full-csv** forwards `{ fileName, text }` for 查看全部 (I-Q6d). **cannbot-request** fires when a section cannbot icon is clicked, with the `CannbotPayload` assembled from the current reportModel + reportMeta (version/scope/report_name/report_id/report_path/op_name/collected_at/data/prompt). Aside **close** is handled internally (`asideVisible = false`); it is not a root emit. The component does not expose internal view state — viewport, hover, and cursor are managed internally.
+Lifecycle events: **ready** fires once the report is loaded and the timeline is rendered. **select** tracks the **single** selection: it fires with a `SelectedEvent` (id, name, startTime, duration, endTime) when the user clicks an event on the swimlane, and with `null` whenever the single selection is dismissed — an empty-space click, a cleared marquee (empty commit / Escape / dock close), or a non-empty marquee commit that replaces it with a multi-selection. In that last case `select(null)` arrives while the (internal) multi-select dock is active, so hosts read it as "no single selection", not "nothing is selected". The marquee's `multi-select` / `multi-select-span` are internal child→root emits, not part of the host surface ([public-api](../../../specs/architecture/public-api.spec.md)). **error** fires with `{ message, cause? }` on load or parse failure. **open-hardware-details** is forwarded from StatsAside when the user clicks 更多 (aside also opens interim HardwareDetailsPanel when data exists, I-Q7a). **open-pipe-details** is forwarded when the user clicks PIPE 详情 (aside navigates to CSV details). **view-full-csv** forwards `{ fileName, text }` for 查看全部 (I-Q6d). **cannbot-request** fires when a section cannbot icon is clicked, with the `CannbotPayload` assembled from the current reportModel + reportMeta (version/scope/report_name/report_id/report_path/op_name/collected_at/data/prompt). Aside **close** is handled internally (`asideVisible = false`); it is not a root emit. The component does not expose internal view state — viewport, hover, and cursor are managed internally.
 
 ## Interaction flows
 
@@ -45,7 +45,7 @@ sequenceDiagram
 
 Ctrl+wheel zooms around cursor position. Toolbar buttons zoom around viewport center. Zoom-to-fit eases both view edges to the full trace span (same animation as Δt measure focus). All zoom operations are clamped to timeline bounds. The toolbar `zoomPercent` slider shares the same range: 0 = fit, 100 = `MIN_WINDOW` (same floor as `zoomAt` / Ctrl+wheel), not a hard 100× cap.
 
-### Drag-pan
+### Wheel-pan
 
 ```mermaid
 sequenceDiagram
@@ -54,8 +54,7 @@ sequenceDiagram
     participant Root as ProfilingReport
     participant State as viewState
 
-    User->>Canvas: pointerdown
-    User->>Canvas: pointermove (while dragging)
+    User->>Canvas: Shift+wheel / trackpad deltaX
     Canvas->>Root: emit('pan', deltaTime)
     Root->>State: panBy(view, deltaTime, bounds)
     State-->>Root: new SwimlaneViewWindow
@@ -63,7 +62,7 @@ sequenceDiagram
     Root->>TimeOverviewBar: update startTime/endTime
 ```
 
-Drag-to-pan emits delta time continuously on every pointermove. Pan is clamped to timeline bounds. A 4px threshold on pointer-up suppresses the click-to-select when movement exceeded 4px.
+Time panning is **Shift+wheel** or a two-finger horizontal trackpad scroll — an unmodified drag marquees instead (see [MultiSelectSummary](../MultiSelectSummary/MultiSelectSummary.spec.md)). Pan is clamped to timeline bounds. A 4px threshold on pointer-up still separates click-to-select from a marquee drag.
 
 ### Hover, selection, tooltip
 
@@ -87,7 +86,7 @@ sequenceDiagram
     Root->>Root: clear hover, hide tooltip
 ```
 
-Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear. A 4px threshold on pointer-up gates selection: movement >4px between pointerdown and pointerup suppresses the click-to-select. Pan emits continuously on every move while dragging.
+Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear. A 4px threshold on pointer-up gates selection: movement >4px between pointerdown and pointerup starts a marquee instead, so that press never selects.
 
 ### Search
 
@@ -142,7 +141,9 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside availability.** `asideAvailable` is true when duration, I/O bandwidth cards (I-Q6g), PIPE, CSV tables, roofline, hardware details, or labelled topology exist. Name/type alone do not open the aside. Missing `bandwidthCards` on a host-managed model is treated as empty.
 
-**State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
+**State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection (single and marquee), hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
+
+**Selection and the docks.** Single-select and marquee multi-select are mutually exclusive and drive mutually exclusive docks: `multiSelectedIds` non-empty mounts [MultiSelectSummary](../MultiSelectSummary/MultiSelectSummary.spec.md), else a `selectedEventId` mounts DetailPanel, else neither. The exclusivity itself lives in [view-state](../../../specs/core/view-state.spec.md) (`setSelectedEvent` / `setMultiSelection` / `clearSelection`), so the root just routes: canvas `multi-select` sets the marquee, the dock's `select-single` and `close` and an empty-space click and **Escape** go back through the single-select path. Every marquee commit emits `select(null)` — an empty commit because everything cleared, a non-empty one because the single selection was dismissed in favor of the multi-selection — so `select(null)` means "no single selection", and a host must not infer from it that nothing is selected (see Outputs). The root also owns the Δt span the axis draws for a multi-selection — the live marquee extent during the drag, then the committed selection hull — and drops it whenever the selection goes. Both docks share the one session-only `dockHeight`. Marquee aside sync is out of scope until Q22.
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
@@ -172,7 +173,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 4. **PR-ROOT-004** — Auto-loaded sources apply the adapter's capabilities; the prop overrides them; host-managed models and a removed `source` publish none and clear operator state (no stale OP selector).
 5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models and capabilities; re-select is a no-op; closing the aside then switching operator keeps the aside closed; a manually resized aside keeps its preferred width across operator switches (does not reset to 480).
 6. **PR-ROOT-006** — *WITHDRAWN (2026-09-01)* — the corner wash moved to the toolbar strip, which now owns it; at the root it was occluded by `.pr-main`.
-7. **PR-ROOT-008** — cannbot-request emits assembled payload with reportMeta.
+7. **PR-ROOT-007** — Marquee mounts MultiSelectSummary; `select-single` / Escape / an empty commit swap back.
+8. **PR-ROOT-008** — cannbot-request emits assembled payload with reportMeta.
 
 ## Edge Cases
 
@@ -203,7 +205,10 @@ Q3 (OP selector semantics), Q15 (standalone CTEF hides aside).
 ## Changelog
 - **2026-09-03** — Operator switch preserves `asideVisible` and session gutter/aside widths (closing or resizing the sidebar then changing OP no longer reopens it or snaps width back to 480; PR-ROOT-005).
 - **2026-08-27** — **Breaking:** removed `timeUnit` host prop; wall-time labels auto-scale (`TimeScaleUnit`) from viewport span and overview density per I-Q14.
+- **2026-08-27** — `select` contract restated: `null` means "no single selection" and also fires on a non-empty marquee commit; `multi-select` / `multi-select-span` documented as internal emits.
 - **2026-08-26** — reportMeta prop + cannbot-request payload emit (PR-ROOT-008).
+- **2026-08-26** — Gesture flip per Product: drag marquees instead of panning (pan is Shift+wheel / trackpad horizontal), and the root owns the multi-select Δt span (live extent → committed hull).
+- **2026-08-25** — Owns the marquee multi-selection: mutually exclusive docks, Escape clears it, empty commit = clear; PR-ROOT-007.
 - **2026-08-20** — Top-left 208×60 blue fade corner wash (PR-ROOT-006).
 - **2026-08-20** — Multi-operator npu-rep packs: OP selector + operator switch (PR-ROOT-005).
 - **2026-09-01** — The dock's height becomes a boolean: the root holds `dockExpanded` rather than a pixel height, and wraps the dock in a `Transition` so appearing and disappearing animate on the same curve as the expander.

@@ -100,6 +100,14 @@ const messages = {
     memoryTopology: '内存拓扑',
     phase2: 'Phase 2',
     focusMeasureRange: '聚焦度量范围',
+    // Marquee multi-select dock (v930/task-marquee). The sketch keeps the table
+    // headers in English in the zh-CN UI, same as Parameter / Relevent above.
+    itemsSelected: '已选中 {n} 项。',
+    slices: 'Slices',
+    wallDuration: 'Wall Duration',
+    selfTime: 'Self time',
+    avgWallDuration: 'Average Wall Duration',
+    sortColumn: '排序',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -194,6 +202,12 @@ const messages = {
     memoryTopology: 'Memory topology',
     phase2: 'Phase 2',
     focusMeasureRange: 'Focus measure range',
+    itemsSelected: '{n} items selected.',
+    slices: 'Slices',
+    wallDuration: 'Wall Duration',
+    selfTime: 'Self time',
+    avgWallDuration: 'Average Wall Duration',
+    sortColumn: 'Sort',
   },
 } as const;
 

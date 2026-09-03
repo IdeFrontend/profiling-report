@@ -6,6 +6,7 @@ import {
   eventLabelAnchor,
   eventPaintRect,
   eventRadius,
+  eventsIntersectingRect,
   hitTestLayout,
   rebuildLayout,
   
@@ -545,5 +546,88 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
     expect(stub.setDependencyMode).toBeUndefined();
     expect(stub.setDependencyDepth).toBeUndefined();
     expect(stub.setHoveredLane).toBeUndefined();
+    // Marquee support is optional too: a host renderer predating it stays valid.
+    expect(stub.setMultiSelection).toBeUndefined();
+  });
+
+  it('PR-RENDER-015: setMultiSelection dims non-selected events like a single click', () => {
+    // Multi-selected ids act as the "bright" set, so the rest take the 0.45 selection dim.
+    const multi = new Set(['e-long']);
+    expect(eventEmphasisDim(true, multi.has('e-long'), false, multi.size > 0)).toBe(1);
+    expect(eventEmphasisDim(true, multi.has('e-short'), false, multi.size > 0)).toBe(0.45);
+    // Empty selection clears the dim entirely.
+    expect(eventEmphasisDim(true, false, false, false)).toBe(1);
+
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setMultiSelection(['e-long']);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setMultiSelection([]);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
+
+  it.skipIf(!hasWebGl2)('PR-RENDER-017: WebGL setMultiSelection rebuilds emphasis', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setMultiSelection(['e-long']);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setMultiSelection([]);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
+});
+
+describe('PR-RENDER: marquee hit collection', () => {
+  const layout = rebuildLayout(tinyModel());
+  const view = { startTime: 0, endTime: 1000, scrollY: 0 };
+  /** Both fixture events start at t=0 on the one lane; e-long runs to 800, e-short to 1. */
+  const laneY = layout.eventsById.get('e-long')!.y;
+
+  it('PR-RENDER-018: collects every event whose block intersects the rect', () => {
+    const all = eventsIntersectingRect(layout, view, 400, {
+      x0: 0,
+      y0: laneY - view.scrollY,
+      x1: 400,
+      y1: laneY + LANE_HEIGHT,
+    });
+    expect(all.map((e) => e.id).sort()).toEqual(['e-long', 'e-short']);
+
+    // Right half of the view only reaches e-long (e-short is 1ns wide at x≈0).
+    const right = eventsIntersectingRect(layout, view, 400, {
+      x0: 200,
+      y0: laneY - view.scrollY,
+      x1: 400,
+      y1: laneY + LANE_HEIGHT,
+    });
+    expect(right.map((e) => e.id)).toEqual(['e-long']);
+  });
+
+  it('PR-RENDER-019: rect order is normalized and misses collect nothing', () => {
+    const dragUpLeft = eventsIntersectingRect(layout, view, 400, {
+      x0: 400,
+      y0: laneY + LANE_HEIGHT,
+      x1: 200,
+      y1: laneY - view.scrollY,
+    });
+    expect(dragUpLeft.map((e) => e.id)).toEqual(['e-long']);
+
+    // Below the only lane: a rect over empty space / group headers collects nothing.
+    expect(
+      eventsIntersectingRect(layout, view, 400, {
+        x0: 0,
+        y0: laneY + LANE_HEIGHT * 4,
+        x1: 400,
+        y1: laneY + LANE_HEIGHT * 6,
+      }),
+    ).toEqual([]);
   });
 });

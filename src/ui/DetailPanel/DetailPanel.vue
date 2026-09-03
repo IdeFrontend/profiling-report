@@ -8,6 +8,7 @@ import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 import DetailSummary from './DetailSummary/DetailSummary.vue';
 import DetailParameter from './DetailParameter/DetailParameter.vue';
 import DetailRelevant from './DetailRelevant/DetailRelevant.vue';
+import CloseButton from '../CloseButton.vue';
 
 const props = withDefaults(
   defineProps<{

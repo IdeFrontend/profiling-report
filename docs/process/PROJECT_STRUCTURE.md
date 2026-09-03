@@ -66,7 +66,7 @@ profiling-report/
       ReportLayout/
       EventTooltip/
       ContextMenu/                              P2 stub + visual
-      MultiSelectSummary/                       P2 stub + visual
+      MultiSelectSummary/                       marquee dock (P2)
 
       TimelineView/                             left column stack
         TimelineView.vue

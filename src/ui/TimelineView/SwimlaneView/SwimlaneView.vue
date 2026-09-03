@@ -51,6 +51,7 @@ const props = withDefaults(
     view: SwimlaneViewState;
     selectedEventId: string | null;
     hoveredEventId: string | null;
+    multiSelectedIds?: string[];
     searchQuery: string;
     measureMode?: boolean;
     measureRange?: MeasureRange | null;
@@ -69,6 +70,7 @@ const props = withDefaults(
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
     cursorXRatio: null,
     cursorSnapped: false,
+    multiSelectedIds: () => [],
   },
 );
 
@@ -79,6 +81,8 @@ const emit = defineEmits<{
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
   select: [event: SwimEvent | null];
+  'multi-select': [events: SwimEvent[]];
+  'multi-select-span': [span: MeasureRange | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
@@ -109,6 +113,18 @@ const stackRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
+const localMultiSelectedIds = ref<string[]>(props.multiSelectedIds ?? []);
+/** Keep the local mirror in sync with parent-driven updates (marquee commit).
+ * Without this, `localMultiSelectedIds` only catches the initial value and any
+ * `update-multi-selected` toggle — a `view.multiSelectedIds` swap in the parent
+ * (the marquee commit path) never reaches the canvas, so `setMultiSelection` is
+ * called with a stale `[]` and the post-release dim disappears. */
+watch(
+  () => props.multiSelectedIds,
+  (v) => {
+    if (v) localMultiSelectedIds.value = v;
+  },
+);
 /** Swimlane mouse-follow bar; synced from canvas emits and parent `cursorXRatio` (axis hover). */
 const cursorXRatio = ref<number | null>(props.cursorXRatio ?? null);
 /** Gray the swim vertical bar while the cursor is magnetized to an event edge. */
@@ -281,6 +297,10 @@ function onScrollY(scrollY: number) {
   emit('update:scrollY', Math.max(0, scrollY));
 }
 
+function onUpdateMultiSelected(newIds: string[]) {
+  localMultiSelectedIds.value = newIds;
+}
+
 function onGutterScroll(): void {
   const el = gutterRef.value?.root;
   if (!el) return;
@@ -381,6 +401,45 @@ defineExpose({
         top: `${altMeasureCrossBridge.top}px`,
         height: `${altMeasureCrossBridge.height}px`,
       }"
+    />
+    <button
+      type="button"
+      class="pr-gutter-resize"
+      data-testid="gutter-resize-handle"
+      :aria-label="t('resizeLaneGutter', locale)"
+      @pointerdown="onGutterResizePointerDown"
+      @pointermove="onGutterResizePointerMove"
+      @pointerup="onGutterResizePointerUp"
+      @pointercancel="onGutterResizePointerUp"
+    />
+
+    <SwimlaneCanvas
+      ref="canvasRef"
+      :model="model"
+      :view="view"
+      :selected-event-id="selectedEventId"
+      :hovered-event-id="hoveredEventId"
+      :multi-selected-ids="localMultiSelectedIds"
+      :search-query="searchQuery"
+      :measure-mode="measureMode"
+      :measure-range="measureRange"
+      :dependency-mode="dependencyMode"
+      :dependency-depth="dependencyDepth"
+      :prefer-renderer="preferRenderer ?? 'auto'"
+      :cursor-x-ratio="cursorXRatio"
+      :cursor-snapped="cursorSnapped"
+      @select="emit('select', $event)"
+      @multi-select="emit('multi-select', $event)"
+      @multi-select-span="emit('multi-select-span', $event)"
+      @hover="(ev, x, y) => emit('hover', ev, x, y)"
+      @cursor="onCursor"
+      @set-playhead="emit('set-playhead', $event)"
+      @pan="emit('pan', $event)"
+      @zoom="(f, a) => emit('zoom', f, a)"
+      @scroll-y="onScrollY"
+      @update:measure-range="emit('update:measure-range', $event)"
+      @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+      @update-multi-selected="onUpdateMultiSelected"
     />
     <div
       v-if="pinnedRows.length"

@@ -185,7 +185,7 @@ WebGL2 interval backend with sudu-style analytical horizontal coverage AA combin
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside).
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
@@ -221,7 +221,7 @@ Renders `OverviewSeries` (Cube/Vector); **hidden** when empty.
 
 ### `SwimlaneCanvas` (M / M2)
 
-Mounts `SwimlaneRenderer`, maps pointer events to `hitTest` (CSS local × `devicePixelRatio`), updates hover/selection in view state. Chooses WebGL+overlay or Canvas fallback once and mounts **only** that canvas set. Sizes via `ResizeObserver` `devicePixelContentBoxSize` → `resize(deviceW, deviceH, dpr)`; CSS canvases stay `width/height: 100%`; paint waits until device buffer size is ≥ 1×1. **M2:** when `measureMode`, drag sets `measureRange`; draws shaded band + Δt; pan-drag suppressed.
+Mounts `SwimlaneRenderer`, maps pointer events to `hitTest` (CSS local × `devicePixelRatio`), updates hover/selection in view state. Chooses WebGL+overlay or Canvas fallback once and mounts **only** that canvas set. Sizes via `ResizeObserver` `devicePixelContentBoxSize` → `resize(deviceW, deviceH, dpr)`; CSS canvases stay `width/height: 100%`; paint waits until device buffer size is ≥ 1×1. Unmodified drag marquees a multi-selection; pan is Shift+wheel / horizontal trackpad scroll. **M2:** when `measureMode`, drag sets `measureRange` instead of marqueeing; draws shaded band + Δt.
 
 **Why:** Thin Vue wrapper over imperative rendering — keeps LOD/WebGL out of the Vue reactivity graph.
 
@@ -287,7 +287,7 @@ Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRendere
 
 ### `ContextMenu` / `MultiSelectSummary` (P2)
 
-Pin/context actions and multi-select aggregate table.
+Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is implemented: an unmodified drag on `SwimlaneCanvas` commits a marquee (measure mode wins the gesture; pan moved to Shift+wheel / trackpad horizontal scroll), the dock replaces `DetailPanel` (mutually exclusive) with a sortable Slices table, and the axis keeps measure-parity Δt chrome over the selection span. `ContextMenu` is still a stub.
 
 **Why:** Listed in FEATURE_MATRIX; not MVP.
 
