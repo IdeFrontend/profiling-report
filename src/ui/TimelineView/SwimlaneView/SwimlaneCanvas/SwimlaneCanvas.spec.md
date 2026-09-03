@@ -103,6 +103,8 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 67. **PR-CANVAS-067** — Ctrl+left-drag still pans the viewport (emits `pan`) — the PyPTO "combined" horizontal pan works because pan is not gated on the modifier.
 68. **PR-CANVAS-068** — Horizontal-dominant wheel (`|deltaX| > |deltaY|`) emits `pan` (pixel→time, same formula as drag), including when `ctrlKey` is set; vertical-dominant non-ctrl wheel still emits `scroll-y`; Ctrl/Cmd+vertical wheel still zooms.
 71. **PR-CANVAS-071** — Inbound `hoveredLaneId` prop calls renderer `setHoveredLane` (and WebGL overlay when active) without re-emitting `lane-hover` (gutter→track half of AC-07).
+72. **PR-CANVAS-072** — The event-edge magnet (`nearestEventEdgeAtPoint`) snaps only to edges in the sub-row under the pointer; a multi-row leaf does not snap across sub-rows.
+73. **PR-CANVAS-073** — The hover-gap measure (`findHoverGap`) computes an idle gap only within the sub-row under the pointer; the vertical padding check and the left/right neighbour scan are sub-row-scoped.
 
 ## Edge Cases
 
@@ -144,6 +146,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 - **2026-09-07** — Trackpad two-finger horizontal pan + pinch-as-ctrl-wheel zoom priority (`PR-CANVAS-068`).
 - **2026-09-03** — Ctrl+left-drag pan locked in as the PyPTO combined-pan binding (`PR-CANVAS-067`).
 - **2026-09-03** — Collapsed-group summary bar click expands via `toggle-group` (PR-CANVAS-065; later entries add hover clear, select clear / sole-leaf select).
+- **2026-09-03** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-072`/`073`; 069/070 reserved for #71).
 - **2026-09-02** — Default swim-canvas CSS cursor is `default` (arrow); event hover uses `pointer`; measure mode keeps `col-resize` (`PR-CANVAS-064`).
 - **2026-09-02** — Alt-measure chrome and the pin↔body dashed bridge stack at `z-index: 9` with the swim cursor (above Card strips at 8), so the cross-lane connector no longer disappears under Card headers (`PR-CANVAS-050` / `PR-SWIMVIEW-004`).
 - **2026-09-01** — Refuse to pin on Δt = 0; suppress hover-gap under Alt during pan; keep event hover while Alt-retargeting (`PR-CANVAS-049`/`053`/`060`).
