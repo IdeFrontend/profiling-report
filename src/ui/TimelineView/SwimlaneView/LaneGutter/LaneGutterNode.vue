@@ -41,8 +41,10 @@ const utilSizeClass = computed(() =>
   isFolder.value || props.depth === 0 ? 'pr-gutter__util--thick' : 'pr-gutter__util--thin',
 );
 
-const UTIL_RED = '#733234';
-const UTIL_GRAY = '#5c5c5c';
+/** AC-11's tints. The bar composites them over an opaque base rather than over the
+ *  track, so the hatch marks what is left to fill and stops at the filled edge. */
+const UTIL_RED = 'rgba(231, 67, 74, 0.4)';
+const UTIL_GRAY = 'rgba(255, 255, 255, 0.08)';
 
 function pctLabel(util: number): string {
   return `${Math.round(util * 100)}%`;
@@ -90,7 +92,7 @@ function onPinClick(e: MouseEvent) {
         class="pr-gutter__util-fill"
         :style="{
           width: `${Math.min(100, Math.max(0, lane.utilization * 100))}%`,
-          background: fillColor(lane.utilization),
+          '--pr-util-fill': fillColor(lane.utilization),
         }"
       />
       <span
@@ -169,7 +171,7 @@ function onPinClick(e: MouseEvent) {
         class="pr-gutter__util-fill"
         :style="{
           width: `${Math.min(100, Math.max(0, lane.utilization * 100))}%`,
-          background: fillColor(lane.utilization),
+          '--pr-util-fill': fillColor(lane.utilization),
         }"
       />
       <span
@@ -219,9 +221,17 @@ function onPinClick(e: MouseEvent) {
   cursor: pointer;
 }
 
+/* AC-07/AC-19 crops both measure #363636 on the hovered row — the raised-surface
+   token, not the #252525 the pin slice first guessed. */
 .pr-gutter__lane:hover,
 .pr-gutter__lane--lane-hover {
-  background: #252525;
+  background: var(--pr-surface-raised, #363636);
+}
+
+/* AC-19: hover lifts the label off its resting grey as well as revealing the pin. */
+.pr-gutter__lane:hover .pr-gutter__name,
+.pr-gutter__lane--lane-hover .pr-gutter__name {
+  color: #fff;
 }
 
 .pr-gutter__lane-main {
@@ -268,10 +278,12 @@ function onPinClick(e: MouseEvent) {
   bottom: calc(100% + 6px);
   z-index: 2;
   padding: 4px 8px;
-  background: #2a2a2a;
-  border: 1px solid #555;
-  border-radius: 2px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  /* Follows EventTooltip's chrome, as the pin spec asks; that chrome moved to the
+     raised-surface token under AC-09, and the design crop measures the same #363636. */
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
   font-size: 12px;
   line-height: 1.2;
   color: #e8e8e8;
@@ -289,6 +301,9 @@ function onPinClick(e: MouseEvent) {
 }
 
 .pr-gutter__util {
+  /* Shared with the fill's opaque base, so the two can never drift apart. */
+  --pr-util-track: #2a2a2a;
+
   position: relative;
   display: block;
   box-sizing: border-box;
@@ -297,10 +312,10 @@ function onPinClick(e: MouseEvent) {
     -45deg,
     #3a3a3a 0,
     #3a3a3a 1px,
-    #2a2a2a 1px,
-    #2a2a2a 4px
+    var(--pr-util-track) 1px,
+    var(--pr-util-track) 4px
   );
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -318,14 +333,20 @@ function onPinClick(e: MouseEvent) {
   height: 16px;
 }
 
+/* Half the height, so half the radius: 4px on an 8px bar rounds the ends into a stadium
+   and the bar stops reading as a bar. */
 .pr-gutter__util--thin {
   height: 8px;
+  border-radius: 2px;
 }
 
 .pr-gutter__util--empty {
   background: transparent;
 }
 
+/* Opaque under the tint, so the track's hatch reads as "still to fill" and stops dead at
+   the filled edge. Letting it run on through the fill — which it did — left the bar with
+   one texture end to end and only a colour change to show how far along it was. */
 .pr-gutter__util-fill {
   position: absolute;
   left: 0;
@@ -333,6 +354,8 @@ function onPinClick(e: MouseEvent) {
   bottom: 0;
   min-width: 0;
   border-radius: 0;
+  background-color: var(--pr-util-track);
+  background-image: linear-gradient(var(--pr-util-fill), var(--pr-util-fill));
 }
 
 .pr-gutter__util-pct {
