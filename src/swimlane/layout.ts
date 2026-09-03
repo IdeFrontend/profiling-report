@@ -221,7 +221,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     lanes.push(lane);
     lanesByTid.set(thread.id, lane);
     const laneEvents: LaidOutEvent[] = [];
-    const sorted = [...thread.events].sort((a, b) => b.duration - a.duration);
+    const sorted = [...thread.events].sort((a, b) => a.startTime - b.startTime);
     for (const ev of sorted) {
       const item: LaidOutEvent = { id: ev.id, event: ev, laneIndex: lanes.length - 1, y, color };
       events.push(item);
