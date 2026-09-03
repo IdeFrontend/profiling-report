@@ -182,8 +182,13 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(
       /\.pr-toolbar__display-field input\[type='number'\][\s\S]*?border-radius:\s*6px/,
     );
-    // No manual unit <select> exists any more (UI-40a auto-scaling units).
-    expect(src).not.toMatch(/\.pr-toolbar__display-field select/);
+    // Time display unit <select> shares the field family: #404040 bg, 6px radius.
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?background-color:\s*#404040/);
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?border-radius:\s*6px/);
+    // And carries a design chevron (native select chrome is removed).
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?appearance:\s*none/);
+    expect(src).toMatch(/\.pr-toolbar__display-select-chevron/);
+
   });
 
   it('PR-TOOLBAR-009c: action icon rest/hover/pressed match sketch', async () => {

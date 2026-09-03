@@ -125,7 +125,8 @@ Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardwa
 | Close | `close` design icon, `#b3b3b3` |
 | Section label | `12px` / `#b2b2b2` |
 | Help | `help` design icon as a `<button type="button">` (so clicks do not activate the depth field label); tip referenced via `aria-describedby`; hover/focus bubble on `--pr-surface-raised`, `11px` / `#e6e6e6`, above the icon |
-| Time unit select | `#404040` bg, radius `6px`, height `32px`, text `#ffffff` |
+| Time unit select | `#404040` bg, radius `6px`, height `32px`, text `#ffffff`, `appearance: none` |
+| Time unit chevron | Down triangle on the select's right (`right: 12px`), `#b3b3b3`, `pointer-events: none` so clicks reach the field |
 | Depth input bg | `#404040` |
 | Depth input radius | `6px` |
 | Depth input height | `32px`; text `#ffffff`; `40px` right padding to clear the stepper |

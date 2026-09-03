@@ -493,19 +493,25 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           </div>
           <label class="pr-toolbar__display-field">
             <span class="pr-toolbar__display-label">{{ t('taskDisplayUnit', locale) }}</span>
-            <select
-              data-testid="time-display-mode"
-              :value="timeDisplayMode"
-              @change="emit('update:timeDisplayMode', ($event.target as HTMLSelectElement).value as TimeDisplayMode)"
-            >
-              <option value="time">{{ t('displayModeTime', locale) }}</option>
-              <option
-                v-if="clockFreqMHz != null"
-                value="cycles"
+            <span class="pr-toolbar__display-select">
+              <select
+                data-testid="time-display-mode"
+                :value="timeDisplayMode"
+                @change="emit('update:timeDisplayMode', ($event.target as HTMLSelectElement).value as TimeDisplayMode)"
               >
-                {{ t('displayModeCycles', locale) }}
-              </option>
-            </select>
+                <option value="time">{{ t('displayModeTime', locale) }}</option>
+                <option
+                  v-if="clockFreqMHz != null"
+                  value="cycles"
+                >
+                  {{ t('displayModeCycles', locale) }}
+                </option>
+              </select>
+              <span
+                class="pr-toolbar__display-select-chevron"
+                aria-hidden="true"
+              />
+            </span>
           </label>
           <label class="pr-toolbar__display-field">
             <span class="pr-toolbar__display-label">
@@ -1066,8 +1072,62 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   opacity: 1;
 }
 
-/* Only a number field lives here — the manual ms/µs/ns <select> was removed with
-   auto-scaling units (UI-40a), so its dropdown chevron went with it. */
+/* Time display unit <select> matches the depth input field family (dark #404040,
+   radius 6px, 32px, white text) plus a design chevron on the right. The native
+   `<select>` cannot host child elements, so the chevron is an overlaid span that
+   lets clicks fall through to the field. */
+.pr-toolbar__display-select {
+  position: relative;
+  display: block;
+}
+
+.pr-toolbar__display-field select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  /* Right padding clears the overlaid chevron. */
+  padding: 0 32px 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background-color: #404040;
+  color: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.pr-toolbar__display-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  color: #b3b3b3;
+}
+
+/* Same border-triangle glyph as Chevron.vue, drawn down. */
+.pr-toolbar__display-select-chevron::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 1.2px 1.2px 0;
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+}
+
+/* The depth field's own ±1 stepper; the separate 任务显示单位 select above carries
+   its own chevron. */
+
 .pr-toolbar__display-stepper {
   position: relative;
   display: block;
@@ -1164,13 +1224,15 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
    keyboard entry, so suppress the default and re-add it for :focus-visible only. */
 .pr-toolbar__search input:focus,
 .pr-toolbar__slider:focus,
-.pr-toolbar__display-field input[type='number']:focus {
+.pr-toolbar__display-field input[type='number']:focus,
+.pr-toolbar__display-field select:focus {
   outline: none;
 }
 
 .pr-toolbar__search input:focus-visible,
 .pr-toolbar__slider:focus-visible,
-.pr-toolbar__display-field input[type='number']:focus-visible {
+.pr-toolbar__display-field input[type='number']:focus-visible,
+.pr-toolbar__display-field select:focus-visible {
   outline: 2px solid var(--pr-playhead, #3078f0);
   outline-offset: 1px;
 }
