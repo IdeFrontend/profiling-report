@@ -44,6 +44,7 @@ interface GlProgram {
   uColor: WebGLUniformLocation;
   uYBounds: WebGLUniformLocation | null;
   uRR: WebGLUniformLocation | null;
+  uSrcOver: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -75,6 +76,8 @@ interface LaneMeshes {
   chunks: MeshChunk[];
   /** When search and/or selection is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
+  /** Collapsed-folder summary lane: drawn source-over (exact color), never additive. */
+  summary?: boolean;
 }
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
@@ -119,6 +122,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uColor,
     uYBounds: gl.getUniformLocation(program, 'uYBounds'),
     uRR: gl.getUniformLocation(program, 'uRR'),
+    uSrcOver: gl.getUniformLocation(program, 'uSrcOver'),
   };
 }
 
@@ -471,6 +475,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         rrToDevicePx(maxRR, this.dpr),
         rrSwitchThreshold * this.dpr,
       );
+    if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).
@@ -496,6 +501,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
       if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
+      // Summary bars composite source-over so their exact fill lands without adding onto
+      // the lane background (additive would lighten #2c2c2c to #4b4b4b over #1f1f1f).
+      if (meshes.summary) {
+        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
+      }
+
       const drawChunks = (chunks: MeshChunk[], rgb: [number, number, number], dim: number): void => {
         // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
         gl.uniform4f(swim.uColor, rgb[0] * dim, rgb[1] * dim, rgb[2] * dim, dim);
@@ -511,6 +523,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         }
       } else {
         drawChunks(meshes.chunks, meshes.color, 1);
+      }
+
+      if (meshes.summary) {
+        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
+        if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
       }
     }
 
@@ -595,12 +612,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
         pairs.push(a, b);
       }
-      // Folder lanes carry only summary bars — paint the whole mesh gray.
+      // Folder lanes carry only summary bars — paint the whole mesh in the summary gray.
       const summary = events.length > 0 && events.every((e) => e.summary);
       return {
         color: hexToRgb(summary ? SUMMARY_EVENT_FILL : lane.color),
         chunks: createChunksFromPairs(gl, pairs),
         emphasisLayers: null,
+        summary,
       };
     });
     this.rebuildEmphasisSplit();

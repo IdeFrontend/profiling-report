@@ -209,8 +209,8 @@ export class SwimlaneOverlayPainter {
       if (y + h < 0 || y > this.height) continue;
       const r = eventPaintRect(x, y, w, h, dpr);
 
-      // Summary bars: the GL pass painted the resting gray; repaint the hover lift and
-      // draw the dimmed task-count label. Never dimmed by search/selection, never ringed.
+      // Summary bars: the GL pass painted the resting gray (source-over); repaint the
+      // hover lift and draw the dimmed task-count label. Never dimmed/selected/ringed.
       if (item.summary) {
         const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
         const fill = eventFill(item.color, state);
