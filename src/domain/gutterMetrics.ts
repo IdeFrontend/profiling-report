@@ -2,7 +2,7 @@ import { laneColorKey } from './laneColors';
 import { computeThreadUtilization } from './utilization';
 import type { SwimlaneModel, SwimProcess, SwimThread } from './types';
 
-export type GutterMetric = 'clockCycle' | 'cacheHit' | 'task' | 'utilization';
+export type GutterMetric = 'clockCycle' | 'utilization';
 
 export type GutterBarDisplay = {
   barWidth: number;
@@ -22,8 +22,6 @@ const PIPE_TIME_COLUMNS: { colorKey: string; columns: string[] }[] = [
   { colorKey: 'scalar', columns: ['aic_scalar_time(us)', 'aiv_scalar_time(us)'] },
   { colorKey: 'vector', columns: ['aiv_vec_time(us)'] },
 ];
-
-const ICACHE_COLUMNS = ['aic_icache_miss_rate', 'aiv_icache_miss_rate'] as const;
 
 function parseNumber(raw: string | undefined): number | undefined {
   if (raw == null || raw === '' || raw === 'NA') return undefined;
@@ -59,32 +57,16 @@ function cycleByColorKey(rows: Record<string, string>[]): Map<string, number> {
   return out;
 }
 
-function cacheHitByColorKey(rows: Record<string, string>[]): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const col of ICACHE_COLUMNS) {
-    const miss = meanNonNa(rows, [col]);
-    if (miss == null) continue;
-    const side = col.startsWith('aic_') ? 'cube' : 'vector';
-    out.set(side, 1 - miss);
-  }
-  return out;
-}
-
 function leafRawValue(
   thread: SwimThread,
   metric: GutterMetric,
   model: SwimlaneModel,
   cycleByKey: Map<string, number>,
-  cacheByKey: Map<string, number>,
 ): number | undefined {
   const key = laneColorKey(thread.name);
   switch (metric) {
     case 'clockCycle':
       return cycleByKey.get(key);
-    case 'cacheHit':
-      return cacheByKey.get(key);
-    case 'task':
-      return thread.events.length > 0 ? thread.events.length : undefined;
     case 'utilization': {
       const u = computeThreadUtilization(thread, model.minTime, model.maxTime);
       return u > 0 ? u : undefined;
@@ -94,12 +76,8 @@ function leafRawValue(
   }
 }
 
-function rollup(
-  values: number[],
-  metric: GutterMetric,
-): number | undefined {
+function rollup(values: number[]): number | undefined {
   if (values.length === 0) return undefined;
-  if (metric === 'task') return values.reduce((a, b) => a + b, 0);
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
@@ -108,15 +86,14 @@ function computeRawTree(
   metric: GutterMetric,
   model: SwimlaneModel,
   cycleByKey: Map<string, number>,
-  cacheByKey: Map<string, number>,
 ): number | undefined {
   if (thread.children !== undefined) {
     const childVals = (thread.children ?? [])
-      .map((c) => computeRawTree(c, metric, model, cycleByKey, cacheByKey))
+      .map((c) => computeRawTree(c, metric, model, cycleByKey))
       .filter((v): v is number => v != null);
-    return rollup(childVals, metric);
+    return rollup(childVals);
   }
-  return leafRawValue(thread, metric, model, cycleByKey, cacheByKey);
+  return leafRawValue(thread, metric, model, cycleByKey);
 }
 
 function formatClockCycleLabel(raw: number): string {
@@ -134,10 +111,6 @@ function formatLabel(metric: GutterMetric, raw: number, barWidth: number): strin
   switch (metric) {
     case 'clockCycle':
       return formatClockCycleLabel(raw);
-    case 'cacheHit':
-      return raw.toFixed(2);
-    case 'task':
-      return String(Math.round(raw));
     case 'utilization':
       return `${barWidth}%`;
     default:
@@ -186,12 +159,11 @@ function collectRawForProcess(
   metric: GutterMetric,
   model: SwimlaneModel,
   cycleByKey: Map<string, number>,
-  cacheByKey: Map<string, number>,
 ): Map<string, number> {
   const raw = new Map<string, number>();
   const walk = (threads: SwimThread[]) => {
     for (const t of threads) {
-      const v = computeRawTree(t, metric, model, cycleByKey, cacheByKey);
+      const v = computeRawTree(t, metric, model, cycleByKey);
       if (v != null) raw.set(t.id, v);
       if (t.children?.length) walk(t.children);
     }
@@ -217,68 +189,29 @@ function cardHasCycleData(
   return walk(proc.threads);
 }
 
-function cardHasCacheData(
-  proc: SwimProcess,
-  cacheByKey: Map<string, number>,
-): boolean {
-  const walk = (threads: SwimThread[]): boolean => {
-    for (const t of threads) {
-      if (t.children !== undefined) {
-        if (walk(t.children ?? [])) return true;
-        continue;
-      }
-      if (cacheByKey.has(laneColorKey(t.name))) return true;
-    }
-    return false;
-  };
-  return walk(proc.threads);
-}
-
-function cardHasEvents(proc: SwimProcess): boolean {
-  const walk = (threads: SwimThread[]): boolean => {
-    for (const t of threads) {
-      if (t.children !== undefined) {
-        if (walk(t.children ?? [])) return true;
-        continue;
-      }
-      if (t.events.length > 0) return true;
-    }
-    return false;
-  };
-  return walk(proc.threads);
-}
-
 export function availableGutterMetrics(
   model: SwimlaneModel,
   pipeUtilRows: Record<string, string>[] = [],
   cardId?: string,
 ): GutterMetric[] {
   const cycleByKey = cycleByColorKey(pipeUtilRows);
-  const cacheByKey = cacheHitByColorKey(pipeUtilRows);
   const procs = cardId
     ? model.processes.filter((p) => p.id === cardId)
     : model.processes;
 
-  const metrics = new Set<GutterMetric>();
-  let anyEvents = false;
+  const metrics: GutterMetric[] = [];
   for (const proc of procs) {
-    if (cardHasCycleData(proc, cycleByKey)) metrics.add('clockCycle');
-    if (cardHasCacheData(proc, cacheByKey)) metrics.add('cacheHit');
-    if (cardHasEvents(proc)) {
-      metrics.add('task');
-      anyEvents = true;
+    if (cardHasCycleData(proc, cycleByKey)) {
+      metrics.push('clockCycle');
+      break;
     }
   }
-  if (procs.length > 0 || model.processes.length > 0) metrics.add('utilization');
-  if (!anyEvents && model.processes.some((p) => p.threads.length > 0)) {
-    metrics.add('utilization');
-  }
-  return [...metrics];
+  if (procs.length > 0 || model.processes.length > 0) metrics.push('utilization');
+  return metrics;
 }
 
 export function defaultGutterMetric(available: GutterMetric[]): GutterMetric {
   if (available.includes('clockCycle')) return 'clockCycle';
-  if (available.includes('task')) return 'task';
   return 'utilization';
 }
 
@@ -291,12 +224,11 @@ export function gutterBarsForCard(
   const proc = model.processes.find((p) => p.id === cardId);
   if (!proc) return new Map();
   const cycleByKey = cycleByColorKey(pipeUtilRows);
-  const cacheByKey = cacheHitByColorKey(pipeUtilRows);
-  const raw = collectRawForProcess(proc, metric, model, cycleByKey, cacheByKey);
+  const raw = collectRawForProcess(proc, metric, model, cycleByKey);
   return toBars(raw, metric);
 }
 
-/** PyPTO average-line position (% of 110px track). Util = 50; relative metrics = mean barWidth. */
+/** PyPTO average-line position (% of 110px track). Util = 50; clockCycle = mean barWidth. */
 export function averageBarWidthForCard(
   bars: Map<string, GutterBarDisplay>,
   metric: GutterMetric,

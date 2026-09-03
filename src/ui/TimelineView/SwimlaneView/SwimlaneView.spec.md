@@ -20,7 +20,7 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 **Card strips.** Each Card header is a full-width opaque strip spanning gutter + swimlane, painted above the gutter resize handle so the seam does not cut through Card rows. Fill/hover bind to `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` (`#2a2a2a` / `#323232`) via `--pr-card-header-fill` / `--pr-card-header-hover`. Header **Y** comes from `layoutHeaders(model)` (same `walkVisibleRows` heights as the canvas, without an event-layout rebuild). The full strip is interactive (`pointer-events: auto`): click toggles expand/collapse (`toggle-group`); `pointerenter` clears the swim cursor (and axis timestamp via `cursor` emit). Wheel events are forwarded to `SwimlaneCanvas` so scroll/zoom still work over header chrome. Chevron + name sit in the left (gutter) column via shared `Chevron.vue`; the LaneGutter Card row is a non-interactive height spacer only.
 
-**Card metric selector.** When a Card is **expanded** and **gutterMetricOptionsByCard** lists at least one mode for that Card, show a compact select on the **right side of the gutter column** within the Card strip (`data-testid="card-metric-select"`). Labels (i18n): **时钟周期** (Clock Cycle), **缓存命中率** (Cache Hit Ratio), **任务** (Task), **利用率** (Utilization). Changing the value emits **update:gutter-metric** and must **not** toggle collapse (`stopPropagation` on the control). When collapsed or no modes available, hide the select. Each Card keeps independent selection state.
+**Card metric selector.** When a Card is **expanded** and **gutterMetricOptionsByCard** lists at least one mode for that Card, show a compact select on the **right side of the gutter column** within the Card strip (`data-testid="card-metric-select"`). Labels (i18n): **时钟周期** (Clock Cycle), **利用率** (Utilization). Changing the value emits **update:gutter-metric** and must **not** toggle collapse (`stopPropagation` on the control). When collapsed or no modes available, hide the select. Each Card keeps independent selection state.
 
 **Body scroll.** `.pr-swim-row--body` uses `overflow: hidden` so lane scroll stays contained while ReportLayout `.pr-main` stays `overflow: visible` for overview/axis chrome at the aside seam.
 
@@ -99,6 +99,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-03** — Card metric selector offers only **时钟周期** / **利用率** (cacheHit and task removed).
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
 - **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview (`PR-SWIMVIEW-024`).
