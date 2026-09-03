@@ -5,7 +5,7 @@ import {
   formatDisplayTimeAuto,
   formatTimeAuto,
 } from '../../domain/formatTime';
-import { t } from '../../i18n';
+import { t, taskCountLabel } from '../../i18n';
 import type { SwimEvent, TimeDisplayMode } from '../../domain/types';
 
 const props = withDefaults(
@@ -26,6 +26,11 @@ const displayOpts = computed(() => ({
   mode: props.timeDisplayMode,
   clockFreqMHz: props.clockFreqMHz,
 }));
+
+/** Summary bars show "N tasks" as the title instead of an empty name. */
+const title = computed(() =>
+  props.event.taskCount != null ? taskCountLabel(props.event.taskCount) : props.event.name,
+);
 </script>
 
 <template>
@@ -35,7 +40,7 @@ const displayOpts = computed(() => ({
     :style="stylePos"
   >
     <div class="pr-tooltip__name">
-      {{ event.name }}
+      {{ title }}
     </div>
     <div>
       {{ t('start', locale) }}:
