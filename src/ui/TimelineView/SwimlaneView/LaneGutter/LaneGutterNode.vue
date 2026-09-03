@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { laneCategoryLabel, t } from '../../../../i18n';
-import { LANE_HEIGHT } from '../../../../swimlane/layout';
+import { LANE_HEIGHT, type CollapseAnimState } from '../../../../swimlane/layout';
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
 import type { GutterBarDisplay, GutterLane } from './gutterTypes';
@@ -20,6 +20,8 @@ const props = defineProps<{
   locale?: string;
   /** Average marker position (%); omit to hide midline on this row. */
   utilMidlinePercent?: number;
+  /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
+  collapseAnim?: CollapseAnimState | null;
 }>();
 
 const emit = defineEmits<{
@@ -134,6 +136,17 @@ const midlineStyle = computed(() =>
   props.utilMidlinePercent != null ? { left: `${props.utilMidlinePercent}%` } : { display: 'none' },
 );
 
+/** Height/opacity of the collapsible wrapper while this folder is animating. */
+function collapseStyle(id: string): Record<string, string> | undefined {
+  const anim = props.collapseAnim;
+  if (!anim || anim.groupId !== id || anim.hiddenHeight <= 0) return undefined;
+  return {
+    height: `${Math.max(0, anim.hiddenHeight * anim.visible)}px`,
+    opacity: `${Math.max(0, Math.min(1, anim.visible))}`,
+    overflow: 'hidden',
+  };
+}
+
 onBeforeUnmount(() => {
   clearUtilTipTimer();
 });
@@ -195,25 +208,33 @@ onBeforeUnmount(() => {
       aria-hidden="true"
     />
   </button>
-  <template v-if="isFolder && !isCollapsed">
-    <LaneGutterNode
-      v-for="child in lane.children"
-      :key="child.id"
-      :lane="child"
-      :depth="depth + 1"
-      :collapsed-ids="collapsedIds"
-      :pinned-lane-ids="pinnedLaneIds"
-      :hovered-lane-id="hoveredLaneId"
-      :locale="locale"
-      :util-midline-percent="utilMidlinePercent"
-      @toggle="(id) => emit('toggle', id)"
-      @pin-lane="(id) => emit('pin-lane', id)"
-      @unpin-lane="(id) => emit('unpin-lane', id)"
-      @lane-hover="(id) => emit('lane-hover', id)"
-    />
-  </template>
   <div
-    v-else-if="!isFolder"
+    v-if="isFolder"
+    class="pr-gutter__collapse"
+    :data-testid="`gutter-collapse-${lane.id}`"
+    :style="collapseStyle(lane.id)"
+  >
+    <template v-if="!isCollapsed">
+      <LaneGutterNode
+        v-for="child in lane.children"
+        :key="child.id"
+        :lane="child"
+        :depth="depth + 1"
+        :collapsed-ids="collapsedIds"
+        :pinned-lane-ids="pinnedLaneIds"
+        :hovered-lane-id="hoveredLaneId"
+        :locale="locale"
+        :util-midline-percent="utilMidlinePercent"
+        :collapse-anim="collapseAnim"
+        @toggle="(id) => emit('toggle', id)"
+        @pin-lane="(id) => emit('pin-lane', id)"
+        @unpin-lane="(id) => emit('unpin-lane', id)"
+        @lane-hover="(id) => emit('lane-hover', id)"
+      />
+    </template>
+  </div>
+  <div
+    v-else
     class="pr-gutter__lane"
     :class="{
       'pr-gutter__lane--lane-hover': laneExternallyHovered,
@@ -296,6 +317,13 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* Wraps a folder's descendant rows so the collapse tween can animate height + opacity;
+   `overflow: hidden` is applied inline only while animating so the pin tooltip stays unclipped. */
+.pr-gutter__collapse {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 .pr-gutter__lane {
   box-sizing: border-box;
   display: grid;

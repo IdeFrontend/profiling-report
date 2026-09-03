@@ -59,7 +59,8 @@ import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
 import MemoryTopologyPanel from '../StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
-import { animateViewWindow } from '../TimelineView/animateViewWindow';
+import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
+import { contentHeightFromModel, type CollapseAnimState } from '../../swimlane/layout';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 import {
@@ -138,6 +139,9 @@ const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+/** In-flight collapse/expand tween; null when settled. */
+const collapseAnim = ref<CollapseAnimState | null>(null);
+let cancelCollapseAnim: () => void = () => {};
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
 const operators = ref<ReportOperator[]>([]);
 /** Shallow: avoid deep-proxying every swim event in every operator pack. */
@@ -239,12 +243,21 @@ const laneGroups = computed((): GutterGroup[] => {
   });
 });
 
+/** Collapse set with the in-flight group forced EXPANDED so the tween can interpolate. */
+const visualCollapsedIds = computed(() => {
+  const anim = collapseAnim.value;
+  if (!anim) return collapsedGroupIds.value;
+  return collapsedGroupIds.value.filter((id) => id !== anim.groupId);
+});
+
 /** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
   // Swim is already toRaw'd; replace swimlaneModel (or toggle collapse) to refresh — in-place nested edits do not.
-  return filterCollapsedTree(m, collapsedGroupIds.value);
+  // During a collapse tween, `visualCollapsedIds` omits the animating group so the expanded
+  // tree stays cached and the canvas never rebuilds meshes mid-animation.
+  return filterCollapsedTree(m, visualCollapsedIds.value);
 });
 
 const bounds = computed(() => {
@@ -376,21 +389,63 @@ function onAsideWidth(w: number): void {
 
 function onToggleGroup(groupId: string): void {
   const set = new Set(collapsedGroupIds.value);
-  if (set.has(groupId)) set.delete(groupId);
-  else set.add(groupId);
-  collapsedGroupIds.value = [...set];
-  // Collapse/expand rebuilds the visible tree — clear a hover that may point at a
-  // vanished summary bar (or any other event that just left the filtered model).
+  const collapsing = !set.has(groupId);
+  if (collapsing) set.add(groupId);
+  else set.delete(groupId);
+  const target = [...set];
+
+  // Height of the descendants being hidden/shown (expanded − collapsed content height).
+  const collapsedIds = collapsing ? target : collapsedGroupIds.value;
+  const expandedIds = collapsing ? collapsedGroupIds.value : target;
+  const m = swim.value;
+  if (!m) {
+    collapsedGroupIds.value = target;
+    clearHoverAfterCollapse();
+    return;
+  }
+  const hiddenHeight =
+    contentHeightFromModel(filterCollapsedTree(m, expandedIds)) -
+    contentHeightFromModel(filterCollapsedTree(m, collapsedIds));
+
+  cancelCollapseAnim();
+  if (hiddenHeight <= 0 || prefersReducedMotion()) {
+    collapsedGroupIds.value = target;
+    clampScrollAfterCollapse();
+    return;
+  }
+
+  collapseAnim.value = { groupId, visible: collapsing ? 1 : 0, hiddenHeight };
+  cancelCollapseAnim = animateProgress({
+    from: collapsing ? 1 : 0,
+    to: collapsing ? 0 : 1,
+    durationMs: 200,
+    onUpdate: (visible) => {
+      collapseAnim.value = { groupId, visible, hiddenHeight };
+    },
+    onDone: () => {
+      collapseAnim.value = null;
+      collapsedGroupIds.value = target;
+      clampScrollAfterCollapse();
+    },
+  });
+}
+
+/** Clear hover that may point at a vanished summary bar / pruned event. */
+function clearHoverAfterCollapse(): void {
   hovered.value = null;
-  // Keep scroll within new content height
+  viewState.value = { ...viewState.value, hoveredEventId: null };
+}
+
+function clampScrollAfterCollapse(): void {
+  clearHoverAfterCollapse();
+  // Keep scroll within new content height once the collapse settles.
   const el = timelineRef.value?.gutterRoot;
-  viewState.value = {
-    ...viewState.value,
-    hoveredEventId: null,
-    ...(el
-      ? { scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) }
-      : {}),
-  };
+  if (el) {
+    viewState.value = {
+      ...viewState.value,
+      scrollY: Math.min(viewState.value.scrollY, el.scrollHeight),
+    };
+  }
 }
 
 function onPinLane(laneId: string): void {
@@ -556,6 +611,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
+  cancelCollapseAnim();
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onGlobalKeydown);
 });
@@ -894,10 +950,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :dependency-mode="localDependencyMode"
           :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
-          :collapsed-ids="collapsedGroupIds"
+          :collapsed-ids="visualCollapsedIds"
           :pinned-lane-ids="viewState.pinnedLaneIds"
           :display-swim="displaySwim"
           :pin-source-model="swim"
+          :collapse-anim="collapseAnim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"

@@ -17,6 +17,8 @@ import {
   type DependencyLink,
 } from './dependencyLinks';
 import {
+  applyCollapseAnim,
+  BAND_FILL,
   EMPTY_LAYOUT,
   eventPaintRect,
   LANE_FILL,
@@ -36,6 +38,8 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_LABEL_COLOR,
+  snapEventRect,
+  type CollapseAnimState,
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
@@ -264,12 +268,14 @@ export class SwimlaneOverlayPainter {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const { alpha, muted } = eventEmphasis(
+      const laneAlpha = this.layout.lanes[item.laneIndex]?.alpha ?? 1;
+      const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
         bright.has(item.id) || item.id === this.hoveredId,
         hasSearch,
         hasSelection,
       );
+      const alpha = emphAlpha * laneAlpha;
 
       // The GL pass laid down the resting fill at this block's own emphasis. Painting a
       // semi-transparent state fill on top of that would double-composite — Canvas
@@ -279,7 +285,7 @@ export class SwimlaneOverlayPainter {
       const fill = eventFill(item.color, state);
       if (state !== 'normal') {
         const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = laneAlpha;
         ctx.fillStyle =
           laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
         roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
@@ -326,6 +332,8 @@ export class SwimlaneOverlayPainter {
 export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
+  /** Expanded layout the collapse tween interpolates from; `layout` is its transform. */
+  private baseLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private selectedId: string | null = null;
@@ -360,8 +368,14 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setModel(model: SwimlaneModel): void {
-    this.layout = rebuildLayout(model);
+    this.baseLayout = rebuildLayout(model);
+    this.layout = this.baseLayout;
     this.refreshDepCache();
+  }
+
+  /** Per-frame collapse/expand transform applied to the expanded base layout. */
+  setCollapseAnim(state: CollapseAnimState | null): void {
+    this.layout = applyCollapseAnim(this.baseLayout, state);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -472,6 +486,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const y = (lane.y - this.view.scrollY) * dpr;
       const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > this.height) continue;
+      ctx.globalAlpha = lane.alpha ?? 1;
       ctx.fillStyle = lane.thread.id === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
       ctx.fillRect(0, y, this.width, laneH);
       ctx.strokeStyle = '#3a3a3a';
@@ -479,6 +494,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.moveTo(0, y + laneH - 0.5);
       ctx.lineTo(this.width, y + laneH - 0.5);
       ctx.stroke();
+      ctx.globalAlpha = 1;
     }
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
@@ -538,12 +554,14 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const { alpha, muted } = eventEmphasis(
+      const laneAlpha = this.layout.lanes[item.laneIndex]?.alpha ?? 1;
+      const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
         bright.has(item.id) || item.id === this.hoveredId,
         hasSearch,
         hasSelection,
       );
+      const alpha = emphAlpha * laneAlpha;
       const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
       const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
       ctx.globalAlpha = alpha;
@@ -592,6 +610,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   dispose(): void {
     this.canvas = null;
     this.ctx = null;
+    this.baseLayout = EMPTY_LAYOUT;
     this.layout = EMPTY_LAYOUT;
     this.neighborIds = new Set();
     this.depLinks = [];

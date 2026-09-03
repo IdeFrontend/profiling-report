@@ -24,6 +24,7 @@ import {
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
   summaryFolderId,
+  type CollapseAnimState,
   type ExactEdgeMatch,
   type HoverGap,
 } from '../../../../swimlane/layout';
@@ -87,6 +88,8 @@ const props = withDefaults(
      * Track paint follows this when it differs from the local pointer hit.
      */
     hoveredLaneId?: string | null;
+    /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
+    collapseAnim?: CollapseAnimState | null;
   }>(),
   {
     dependencyMode: 'all',
@@ -97,6 +100,7 @@ const props = withDefaults(
     altMeasureRole: 'solo',
     pinnedLaneIds: () => [],
     hoveredLaneId: null,
+    collapseAnim: null,
   },
 );
 
@@ -305,7 +309,12 @@ function zeroBackingStores(): void {
 }
 
 function modelContentHeight(): number {
-  return contentHeightFromModel(props.model);
+  const base = contentHeightFromModel(props.model);
+  const anim = props.collapseAnim;
+  if (anim && anim.hiddenHeight > 0) {
+    return Math.max(0, base - anim.hiddenHeight * (1 - anim.visible));
+  }
+  return base;
 }
 
 function maxScrollY(): number {
@@ -751,6 +760,17 @@ watch(
   () => {
     attachedModel = null;
     resize();
+  },
+);
+
+/** Per-frame collapse/expand: transform the expanded layout, shrink the scroll area, repaint. */
+watch(
+  () => props.collapseAnim,
+  (anim) => {
+    backend.setCollapseAnim(anim ?? null);
+    const wrap = wrapRef.value;
+    if (wrap) sizerHeight.value = Math.max(modelContentHeight(), wrap.clientHeight || 0);
+    sync();
   },
 );
 

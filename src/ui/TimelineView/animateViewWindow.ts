@@ -65,3 +65,48 @@ export function animateViewWindow(opts: {
     if (raf) cancelAnimationFrame(raf);
   };
 }
+
+/**
+ * Tween a scalar `from` → `to` with the same ease + reduced-motion behaviour as
+ * `animateViewWindow`. Used for the lane collapse/expand slide (progress 0..1).
+ */
+export function animateProgress(opts: {
+  from: number;
+  to: number;
+  onUpdate: (value: number) => void;
+  durationMs?: number;
+  onDone?: () => void;
+}): () => void {
+  const duration =
+    prefersReducedMotion() ? 0 : Math.max(0, opts.durationMs ?? DEFAULT_DURATION_MS);
+
+  if (duration === 0) {
+    opts.onUpdate(opts.to);
+    opts.onDone?.();
+    return () => {};
+  }
+
+  const { from, to } = opts;
+  let raf = 0;
+  let cancelled = false;
+  const t0 = performance.now();
+
+  const tick = (now: number) => {
+    if (cancelled) return;
+    const t = Math.min(1, (now - t0) / duration);
+    const e = easeInOutCubic(t);
+    opts.onUpdate(lerp(from, to, e));
+    if (t < 1) {
+      raf = requestAnimationFrame(tick);
+    } else {
+      opts.onUpdate(to);
+      opts.onDone?.();
+    }
+  };
+
+  raf = requestAnimationFrame(tick);
+  return () => {
+    cancelled = true;
+    if (raf) cancelAnimationFrame(raf);
+  };
+}
