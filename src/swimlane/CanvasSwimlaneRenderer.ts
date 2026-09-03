@@ -6,6 +6,7 @@ import type {
   SwimlaneViewWindow,
 } from '../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
+import { taskCountLabel } from '../i18n';
 import { eventFill, eventStateOf, labelColorOn } from '../domain/laneColors';
 import {
   cubicControlPull,
@@ -49,13 +50,14 @@ function drawEventLabel(
   alpha = 1,
   color = '#ffffff',
   dpr = 1,
+  italic = false,
 ): void {
   const anchor = eventLabelAnchor(x, w, viewW);
   if (!anchor) return;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.font = `${Math.max(8, Math.round(10 * dpr))}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `${italic ? 'italic ' : ''}${Math.max(8, Math.round(10 * dpr))}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
@@ -195,7 +197,6 @@ export class SwimlaneOverlayPainter {
     const dpr = this.dpr;
 
     for (const item of this.layout.events) {
-      if (item.summary) continue;
       const ev = item.event;
       if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
         continue;
@@ -207,6 +208,40 @@ export class SwimlaneOverlayPainter {
       const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
       const r = eventPaintRect(x, y, w, h, dpr);
+
+      // Summary bars: the GL pass painted the resting gray; repaint the hover lift
+      // and draw the italic task-count label. Never dimmed, never selected/ringed.
+      if (item.summary) {
+        const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+        const fill = eventFill(item.color, state);
+        if (state !== 'normal') {
+          const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
+          ctx.globalAlpha = 1;
+          ctx.fillStyle =
+            laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
+          roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = fill;
+          roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        drawEventLabel(
+          ctx,
+          taskCountLabel(ev.taskCount ?? 0),
+          r.x,
+          r.y,
+          r.w,
+          r.h,
+          this.width,
+          1,
+          labelColorOn(fill),
+          dpr,
+          true,
+        );
+        continue;
+      }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const { alpha, muted } = eventEmphasis(
@@ -452,13 +487,29 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       if (y + h < 0 || y > this.height) continue;
       const fr = eventPaintRect(x, y, w, h, dpr);
 
-      // Summary bars are gray, non-interactive: full opacity, no label, no ring.
+      // Summary bars: gray fill with a hover lift, italic task-count label, never
+      // dimmed or selected/ringed. Click-to-expand is handled by the host, not here.
       if (item.summary) {
+        const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+        const fill = eventFill(item.color, state);
         ctx.globalAlpha = 1;
-        ctx.fillStyle = item.color;
+        ctx.fillStyle = fill;
         roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
         ctx.fill();
         ctx.globalAlpha = 1;
+        drawEventLabel(
+          ctx,
+          taskCountLabel(ev.taskCount ?? 0),
+          fr.x,
+          fr.y,
+          fr.w,
+          fr.h,
+          this.width,
+          1,
+          labelColorOn(fill),
+          dpr,
+          true,
+        );
         continue;
       }
 

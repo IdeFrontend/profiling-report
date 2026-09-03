@@ -19,6 +19,8 @@ export interface SwimEvent {
   /** Omit when both lists would be empty. */
   dependencies?: EventDependencies;
   args?: Record<string, unknown>;
+  /** Collapsed-folder summary bar: number of leaf tasks this union interval covers. */
+  taskCount?: number;
 }
 
 /** Stable card-category key for i18n (通信 / 计算 / 储存HBM). */

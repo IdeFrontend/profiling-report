@@ -143,20 +143,20 @@ describe('swimTree + nested layout', () => {
   it('unionEventIntervals merges overlapping and touching intervals into disjoint ranges', () => {
     const ev = (id: string, startTime: number, duration: number) => ({ id, name: id, startTime, duration });
 
-    // Overlapping spans merge.
+    // Overlapping spans merge; count = number of merged source events.
     expect(unionEventIntervals([ev('a', 0, 10), ev('b', 5, 10)])).toEqual([
-      { startTime: 0, duration: 15 },
+      { startTime: 0, duration: 15, count: 2 },
     ]);
 
-    // Touching (end === next.start) merges into one span.
+    // Touching (end === next.start) merges into one span, still two tasks.
     expect(unionEventIntervals([ev('a', 0, 10), ev('b', 10, 5)])).toEqual([
-      { startTime: 0, duration: 15 },
+      { startTime: 0, duration: 15, count: 2 },
     ]);
 
-    // Disjoint stays separate, sorted by start.
+    // Disjoint stays separate, sorted by start; one task each.
     expect(unionEventIntervals([ev('b', 20, 5), ev('a', 0, 10)])).toEqual([
-      { startTime: 0, duration: 10 },
-      { startTime: 20, duration: 5 },
+      { startTime: 0, duration: 10, count: 1 },
+      { startTime: 20, duration: 5, count: 1 },
     ]);
 
     expect(unionEventIntervals([])).toEqual([]);
@@ -167,17 +167,17 @@ describe('swimTree + nested layout', () => {
     const compute = collapsed.processes[0]!.threads[1]!;
     const cube = compute.children!.find((c) => c.id === 'cube')!;
     expect(cube.summaryEvents).toEqual([
-      { id: 'cube/summary/0', name: '', startTime: 0, duration: 10 },
+      { id: 'cube/summary/0', name: '', startTime: 0, duration: 10, taskCount: 1 },
     ]);
     // Expanded folder has no summary.
     const vec0 = compute.children!.find((c) => c.id === 'vec0')!;
     expect(vec0.summaryEvents).toBeUndefined();
 
-    // Collapse the whole 计算 subtree: e1 (0..10) ∪ e2 (0..5) = 0..10.
+    // Collapse the whole 计算 subtree: e1 (0..10) ∪ e2 (0..5) = 0..10, 2 tasks.
     const computeCollapsed = filterCollapsedTree(nestedModel(), ['compute']);
     const c2 = computeCollapsed.processes[0]!.threads[1]!;
     expect(c2.summaryEvents).toEqual([
-      { id: 'compute/summary/0', name: '', startTime: 0, duration: 10 },
+      { id: 'compute/summary/0', name: '', startTime: 0, duration: 10, taskCount: 2 },
     ]);
   });
 

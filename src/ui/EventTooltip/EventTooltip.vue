@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import {
   EVENT_TIME_SIGNIFICANT_DIGITS,
   formatDisplayTimeAuto,
   formatTimeAuto,
 } from '../../domain/formatTime';
-import { t } from '../../i18n';
+import { t, taskCountLabel } from '../../i18n';
 import type { SwimEvent } from '../../domain/types';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     event: SwimEvent;
     stylePos: { left: string; top: string };
@@ -19,6 +20,11 @@ withDefaults(
 );
 
 const displayOpts = { significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS };
+
+/** Summary bars show "N tasks" as the title instead of an empty name. */
+const title = computed(() =>
+  props.event.taskCount != null ? taskCountLabel(props.event.taskCount) : props.event.name,
+);
 </script>
 
 <template>
@@ -28,7 +34,7 @@ const displayOpts = { significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS };
     :style="stylePos"
   >
     <div class="pr-tooltip__name">
-      {{ event.name }}
+      {{ title }}
     </div>
     <div>
       {{ t('start', locale) }}:

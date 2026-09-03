@@ -309,7 +309,9 @@ export function hitTestLayout(
 ): string | null {
   const contentYCss = y / dpr + view.scrollY;
   const lane = layout.lanes.find((l) => contentYCss >= l.y && contentYCss < l.y + LANE_HEIGHT);
-  if (!lane || lane.folder) return null;
+  if (!lane) return null;
+  // Folder lanes carry only summary bars (collapsed) or nothing (expanded) — both
+  // resolve through eventsByLane, so a folder with no summary events still hits nothing.
   const laneIndex = layout.lanes.indexOf(lane);
   const span = Math.max(1, view.endTime - view.startTime);
   const candidates: { id: string; duration: number }[] = [];
@@ -328,6 +330,13 @@ export function hitTestLayout(
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => a.duration - b.duration);
   return candidates[0]!.id;
+}
+
+/** Folder id a summary bar belongs to, or null when `eventId` is not a summary event. */
+export function summaryFolderId(layout: SwimlaneLayout, eventId: string): string | null {
+  const item = layout.eventsById.get(eventId);
+  if (!item?.summary) return null;
+  return layout.lanes[item.laneIndex]?.thread.id ?? null;
 }
 
 export function findLaidOutEvent(layout: SwimlaneLayout, id: string): LaidOutEvent | undefined {

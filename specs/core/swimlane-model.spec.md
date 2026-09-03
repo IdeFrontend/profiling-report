@@ -35,7 +35,7 @@ interface SwimEvent    {
 
 **`skipCardHeaders`:** when `true`, `rebuildLayout` / `contentHeightFromModel` skip Card header rows. Used only for the viewer-built pinned sticky-strip model — never on adapter/producer models.
 
-**Collapsed-group summary events:** when a folder is collapsed, `filterCollapsedTree` prunes its descendants but attaches `summaryEvents` — the disjoint union (merged overlapping *and touching* intervals) of every descendant leaf event, sorted by `startTime`. Expanded folders omit `summaryEvents`. These gray bars are painted on the collapsed folder's own lane by the renderer; they are non-interactive (no hover/select/hit-test) and never labeled. Producers/adapters do not emit `summaryEvents` — it is viewer-built in the collapse pass.
+**Collapsed-group summary events:** when a folder is collapsed, `filterCollapsedTree` prunes its descendants but attaches `summaryEvents` — the disjoint union (merged overlapping *and touching* intervals) of every descendant leaf event, sorted by `startTime`. Each summary event carries `taskCount` = the number of leaf tasks merged into its interval. Expanded folders omit `summaryEvents`. These gray bars are painted on the collapsed folder's own lane by the renderer, labeled "N tasks", hover-highlighted, and click-to-expand (see [`swimlane-renderer.spec.md`](swimlane-renderer.spec.md)). Producers/adapters do not emit `summaryEvents` — it is viewer-built in the collapse pass.
 
 **Card nesting:** `adaptRep` applies `nestCardTreeFromFlatCorePipes` only when the producer sets `nestCardTree: true` on the trace doc (`sample.rep`). Real traces without the flag stay flat even if thread names look like `CoreN.*/PIPE`.
 
@@ -76,7 +76,7 @@ interface SwimEvent    {
 1. **PR-SWIM-011**: Recycled flow ids and the same id in two processes each keep their pairs, including when finishes appear first in the file.
 1. **PR-SWIM-012**: A flow in a gap under an enclosing slice binds the enclosing event.
 1. **PR-SWIM-013**: Touching X intervals (`end === next.start`) are siblings, not nested.
-1. **PR-SWIM-014**: A collapsed folder in the collapse-filtered tree exposes `summaryEvents` (disjoint union of descendant leaf intervals); an expanded folder omits `summaryEvents`.
+1. **PR-SWIM-014**: A collapsed folder in the collapse-filtered tree exposes `summaryEvents` (disjoint union of descendant leaf intervals, each carrying `taskCount` = merged task count); an expanded folder omits `summaryEvents`.
 1. **PR-SWIM-015**: Producer `nestCardTree: true` is recorded in `metadata`; absent → no nest flag (adaptRep does not invent Card nesting).
 
 ## Edge Cases
