@@ -550,6 +550,16 @@ describe('PR-RENDER: lane chrome color', () => {
     // Hovered: the overlay still draws the label over the lifted state fill, in that fill's contrast.
     expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
   });
+
+  it('PR-RENDER-025: ClearType label backdrop matches the hovered row chrome', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // The label pass carries its own hovered-row chrome (#363636) and bakes it into the opaque
+    // backdrop via the same `bg + rgb·dim` formula the fill pass uses, so the label rect reads
+    // as the event rect when its row is hovered.
+    expect(webglSrc).toMatch(/laneHoverBg = 0x36 \/ 255/);
+    expect(webglSrc).toMatch(/Math\.min\(1, bg \+ lr \* dim\)/);
+  });
 });
 
 describe('PR-RENDER: SwimlaneRenderer surface', () => {

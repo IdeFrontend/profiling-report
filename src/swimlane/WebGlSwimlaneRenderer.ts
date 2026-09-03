@@ -666,8 +666,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const hasSearch = q.length > 0;
     const hasSelection = this.paintDependencies && this.selectedId != null;
     const bright = this.neighborIds;
-    // Lane background (#1f1f1f) — the event fill composites over this, not the clear color.
+    // Lane backgrounds — the event fill composites over these, not the clear color. The
+    // hovered row's chrome is `LANE_HOVER_FILL`, so its label backdrop must match that too.
     const laneBg = 0x1f / 255;
+    const laneHoverBg = 0x36 / 255;
     const fontPx = Math.max(8, Math.round(EVENT_LABEL_FONT_CSS_PX * dpr));
 
     gl.disable(gl.BLEND);
@@ -701,11 +703,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       if (!lane) continue;
       const [lr, lg, lb] = hexToRgb(lane.color);
       // ClearType is opaque (alpha = 1), so bake the composited backdrop into uBgColor. The fill
-      // pass blends additively (ONE,ONE): a fully covered event pixel is `laneBg + rgb·dim`, so the
+      // pass blends additively (ONE,ONE): a fully covered event pixel is `bg + rgb·dim`, so the
       // label's solid backdrop must use that same formula (clamped) to sit invisibly on the fill.
-      const fr = Math.min(1, laneBg + lr * dim);
-      const fg = Math.min(1, laneBg + lg * dim);
-      const fb = Math.min(1, laneBg + lb * dim);
+      // `bg` is the hovered row's chrome when this event's lane is the hovered row.
+      const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
+      const fr = Math.min(1, bg + lr * dim);
+      const fg = Math.min(1, bg + lg * dim);
+      const fb = Math.min(1, bg + lb * dim);
       gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
       gl.uniform4f(prog.uColor, fr + (1 - fr) * dim, fg + (1 - fg) * dim, fb + (1 - fb) * dim, 1);
 
