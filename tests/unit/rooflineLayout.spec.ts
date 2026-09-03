@@ -11,11 +11,11 @@ import {
 
 describe('rooflineLayout', () => {
   it('derives chart width from fixed aside content well', () => {
-    expect(ASIDE_WIDTH_DEFAULT).toBe(468);
+    expect(ASIDE_WIDTH_DEFAULT).toBe(480);
     expect(ROOFLINE_CHART_W).toBe(
       ASIDE_WIDTH_DEFAULT - ROOFLINE_ASIDE_PAD_X * 2 - ROOFLINE_CARD_PAD_X * 2,
     );
-    expect(ROOFLINE_CHART_W).toBe(428);
+    expect(ROOFLINE_CHART_W).toBe(440);
   });
 
   it('scales sketch baseline PAD and height proportionally', () => {

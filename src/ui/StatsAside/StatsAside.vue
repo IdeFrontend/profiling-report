@@ -256,6 +256,11 @@ function backToReport() {
     class="pr-aside"
     data-testid="stats-aside"
   >
+    <div
+      class="pr-aside__wash"
+      data-testid="aside-wash"
+      aria-hidden="true"
+    />
     <header class="pr-aside__head">
       <div class="pr-aside__title-row">
         <button
@@ -767,6 +772,8 @@ function backToReport() {
 
 <style scoped>
 .pr-aside {
+  /* Anchors the top wash. */
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -780,17 +787,41 @@ function backToReport() {
   padding: 10px 12px;
 }
 
+/** Design top glow behind the title / meta row (orange fade into the shell). */
+.pr-aside__wash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  height: 96px;
+  background: linear-gradient(
+    181.55deg,
+    rgba(244, 132, 12, 0.1) -20.986%,
+    rgba(199, 98, 7, 0) 81.41%
+  );
+  pointer-events: none;
+}
+
 .pr-aside__head {
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
 }
 
 .pr-aside__body {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
-  overflow: auto;
+  /* Vertical only. Exact-fit children (roofline 440px in a 456px well) overflow by
+     a scrollbar gutter or a DPR subpixel and would otherwise open a horizontal bar. */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .pr-aside__head h3 {
@@ -927,6 +958,8 @@ function backToReport() {
 }
 
 .pr-aside > .pr-aside__detail {
+  position: relative;
+  z-index: 1;
   flex: 1 1 auto;
   overflow: hidden;
 }

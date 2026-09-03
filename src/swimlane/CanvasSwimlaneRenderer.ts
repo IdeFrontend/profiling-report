@@ -6,6 +6,7 @@ import type {
   SwimlaneViewWindow,
 } from '../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
+import { eventFill, eventStateOf, labelColorOn } from '../domain/laneColors';
 import {
   cubicControlPull,
   dependencyGraph,
@@ -19,7 +20,9 @@ import {
   EMPTY_LAYOUT,
   eventPaintRect,
   eventRadius,
+  LANE_FILL,
   LANE_GROUP_HEADER_FILL,
+  LANE_HOVER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   contentHeightFromLayout,
@@ -177,6 +180,7 @@ export class SwimlaneOverlayPainter {
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
+  private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
   private searchQuery = '';
   /** When false, selection does not dim non-neighbors (pinned-strip pass). */
@@ -215,6 +219,11 @@ export class SwimlaneOverlayPainter {
   setSelection(selectedId: string | null, hoveredId: string | null): void {
     this.hoveredId = hoveredId;
     this.selectedId = selectedId;
+  }
+
+  /** Same leaf-lane id the WebGL background pass uses for AC-07 row tint. */
+  setHoveredLane(laneId: string | null): void {
+    this.hoveredLaneId = laneId;
   }
 
   /** Renderer already walked the graph; overlay only dims from these ids. */
@@ -265,18 +274,40 @@ export class SwimlaneOverlayPainter {
       const r = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
+      const dim = eventEmphasisDim(
+        matches,
+        bright.has(item.id) || item.id === this.hoveredId,
+        hasSearch,
+        hasSelection,
+      );
 
+      // The GL pass laid down the resting fill at this block's own dim. Painting a
+      // semi-transparent state fill on top of that would double-composite — Canvas
+      // blends the same state over the lane background instead. Reset to the lane
+      // fill first (hover tint when that row is hovered) so both backends agree.
+      const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+      const fill = eventFill(item.color, state);
+      if (state !== 'normal') {
+        const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle =
+          laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
+        roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
+        ctx.fill();
+        ctx.globalAlpha = dim;
+        ctx.fillStyle = fill;
+        roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
         strokeRoundedEvent(ctx, r, Math.round(2 * dpr));
-      } else if (item.id === this.hoveredId) {
-        ctx.strokeStyle = '#c8e0ff';
-        strokeRoundedEvent(ctx, r, Math.round(1.5 * dpr));
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
-      if (matches && this.drawEventLabels) drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim, '#ffffff', dpr);
+      if (matches && this.drawEventLabels)
+        drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim, labelColorOn(fill), dpr);
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
@@ -298,6 +329,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
+  private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
   private depLinks: DependencyLink[] = [];
   private depMode: DependencyMode = 'all';
@@ -340,6 +372,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
     this.refreshDepCache();
+  }
+
+  /** Leaf lane under the pointer — tints that row's background only (AC-07). */
+  setHoveredLane(laneId: string | null): void {
+    this.hoveredLaneId = laneId;
   }
 
   setSearchQuery(query: string): void {
@@ -408,7 +445,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const ctx = this.ctx;
     if (!ctx || !this.canvas) return;
     ctx.clearRect(0, 0, this.width, this.height);
-    ctx.fillStyle = '#1f1f1f';
+    ctx.fillStyle = LANE_FILL;
     ctx.fillRect(0, 0, this.width, this.height);
 
     const dpr = this.dpr;
@@ -428,10 +465,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     }
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
-      const y = (this.layout.lanes[i]!.y - this.view.scrollY) * dpr;
+      const lane = this.layout.lanes[i]!;
+      const y = (lane.y - this.view.scrollY) * dpr;
       const laneH = LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > this.height) continue;
-      ctx.fillStyle = '#1f1f1f';
+      ctx.fillStyle = lane.thread.id === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
       ctx.fillRect(0, y, this.width, laneH);
       ctx.strokeStyle = '#3a3a3a';
       ctx.beginPath();
@@ -456,6 +494,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       r: number;
       matches: boolean;
       dim: number;
+      /** Carried from the fill pass so the label can pick its contrast off what was painted. */
+      fill: string;
     }[] = [];
 
     for (const item of this.layout.events) {
@@ -472,25 +512,33 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const fr = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
+      const dim = eventEmphasisDim(
+        matches,
+        bright.has(item.id) || item.id === this.hoveredId,
+        hasSearch,
+        hasSelection,
+      );
+      const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+      const fill = eventFill(item.color, state);
       ctx.globalAlpha = dim;
-      ctx.fillStyle = item.color;
+      ctx.fillStyle = fill;
       roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
       ctx.fill();
       ctx.globalAlpha = 1;
-      visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, r: fr.r, matches, dim });
+      visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, r: fr.r, matches, dim, fill });
     }
 
-    for (const { item, x, y, w, h, r, matches, dim } of visible) {
+    for (const { item, x, y, w, h, r, matches, dim, fill } of visible) {
+      // The state fill went down above; the ring rides on top of it, so a selected block
+      // stays marked as such even while hovered.
       if (item.id === this.selectedId) {
         ctx.strokeStyle = '#ffffff';
         strokeRoundedEvent(ctx, { x, y, w, h, r }, Math.round(2 * dpr));
-      } else if (item.id === this.hoveredId) {
-        ctx.strokeStyle = '#c8e0ff';
-        strokeRoundedEvent(ctx, { x, y, w, h, r }, Math.round(1.5 * dpr));
       }
 
-      if (matches) drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim, '#ffffff', dpr);
+      if (matches) {
+        drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim, labelColorOn(fill), dpr);
+      }
     }
 
     // Dependency curves draw above event labels.
@@ -511,8 +559,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 }
 
 export {
+  LANE_FILL,
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
+  LANE_HOVER_FILL,
   LANE_HEIGHT,
   LANE_PAD_Y,
   EVENT_MARGIN,

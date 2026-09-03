@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../../src/ui/panelResize';
 
 /** With fit = [minTime, maxTime], events fill the canvas; probe near the left first. */
 const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.35, 0.5, 0.65, 0.8];
@@ -191,7 +192,7 @@ test.describe('PR-E2E feature paths', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('PR-E2E-008: measure toggle activates with open-stroke Δt icon', async ({ page }) => {
+  test('PR-E2E-008: measure toggle activates and retints its masked design icon', async ({ page }) => {
     await page.goto('/');
     const btn = page.getByTestId('toggle-measure');
     await expect(btn).toBeVisible({ timeout: 15_000 });
@@ -199,10 +200,36 @@ test.describe('PR-E2E feature paths', () => {
     await expect(btn).toHaveAttribute('aria-pressed', 'true');
     await expect(btn).toHaveClass(/pr-toolbar__icon-btn--on/);
 
-    const heads = btn.locator('[data-testid="measure-icon-head"]');
-    await expect(heads).toHaveCount(2);
-    await expect(heads.nth(0)).toHaveAttribute('fill', 'none');
-    await expect(heads.nth(1)).toHaveAttribute('fill', 'none');
+    const icon = btn.locator('.pr-icon--measure');
+    await expect(icon).toHaveCount(1);
+    const paint = (): Promise<{ mask: string; box: string; tint: string }> =>
+      icon.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return {
+          mask: s.maskImage === 'none' ? s.webkitMaskImage : s.maskImage,
+          box: `${s.width} ${s.height}`,
+          tint: s.backgroundColor,
+        };
+      });
+
+    // Hover tints the button the same blue as the active state, so park the pointer
+    // before sampling or both reads come back identical.
+    const parked = async (): Promise<{ mask: string; box: string; tint: string }> => {
+      await page.mouse.move(0, 0);
+      return paint();
+    };
+
+    const on = await parked();
+    expect(on.mask).toMatch(/^url\(/);
+    expect(on.box).toBe('16px 16px');
+
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-pressed', 'false');
+    const off = await parked();
+    // One glyph tinted through currentColor is the whole point of masking: the
+    // artwork must not change between states, only its colour.
+    expect(off.mask).toBe(on.mask);
+    expect(off.tint).not.toBe(on.tint);
   });
 
   test('PR-E2E-009: Relevent chips fill their track so curves start at the chip edge', async ({
@@ -248,10 +275,10 @@ test.describe('PR-E2E feature paths', () => {
     for (const short of fill) expect(Math.abs(short)).toBeLessThan(1);
   });
 
-  test('PR-E2E-010: dragging the dock taller grows its columns with it', async ({ page }) => {
-    // The body was content-sized, so it kept its ~212px whatever height the drag gave
-    // the dock: the identity card stopped short and the rest was dead space. Only a
-    // real layout engine sees this — jsdom reports zero-height boxes.
+  test('PR-E2E-010: expanding the dock grows its columns with it', async ({ page }) => {
+    // The body was content-sized, so it kept its ~212px whatever height the dock had:
+    // the identity card stopped short and the rest was dead space. Only a real layout
+    // engine sees this — jsdom reports zero-height boxes.
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto('/?fixture=deps');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
@@ -269,14 +296,14 @@ test.describe('PR-E2E feature paths', () => {
           (sel) => document.querySelector(sel)!.getBoundingClientRect().height,
         ),
       );
+    // The dock animates in, so a baseline taken on `toBeVisible` catches it mid-slide.
+    const settledAt = (h: number) =>
+      expect.poll(async () => (await heights())[0], { timeout: 2000 }).toBe(h);
+    await settledAt(DOCK_HEIGHT_COLLAPSED);
     const [dock0, body0] = await heights();
 
-    const handle = page.getByTestId('detail-panel-resize-handle');
-    const grip = (await handle.boundingBox())!;
-    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(grip.x + grip.width / 2, grip.y - 200, { steps: 10 });
-    await page.mouse.up();
+    await page.getByTestId('detail-panel-expander').click();
+    await settledAt(DOCK_HEIGHT_EXPANDED);
 
     const [dock1, body1, card1] = await heights();
     expect(dock1).toBeGreaterThan(dock0 + 100);

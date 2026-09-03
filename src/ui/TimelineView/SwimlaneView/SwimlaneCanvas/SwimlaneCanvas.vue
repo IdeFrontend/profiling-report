@@ -108,12 +108,23 @@ const emit = defineEmits<{
   'suppress-measure-dt': [suppress: boolean];
 }>();
 
+/**
+ * Track-side half of the lane hover (AC-07); the gutter row is the other half.
+ *
+ * Held here rather than round-tripped through the parent because the renderers need it
+ * on the same pointermove that emits it, and painted by them rather than laid over the
+ * canvas as a DOM band: an overlay would tint the events it crosses, and hover on an
+ * event already means something else (AC-08's lifted fill).
+ */
+const hoveredLaneId = ref<string | null>(null);
+
 function emitLaneHover(localY: number | null): void {
-  if (localY == null) {
-    emit('lane-hover', null);
-    return;
-  }
-  emit('lane-hover', leafLaneIdAtPoint(backend.getLayout(), props.view, localY));
+  const id = localY == null ? null : leafLaneIdAtPoint(backend.getLayout(), props.view, localY);
+  hoveredLaneId.value = id;
+  backend.setHoveredLane?.(id);
+  // Overlay underpaint must see the same hovered row as the GL background pass.
+  if (useWebGl.value) overlay.setHoveredLane(id);
+  emit('lane-hover', id);
 }
 
 const wrapRef = ref<HTMLDivElement | null>(null);
@@ -462,6 +473,7 @@ function applyViewState(forceModel = false): void {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
+    overlay.setHoveredLane(hoveredLaneId.value);
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSelectionDim(props.showDependencies !== false);
     overlay.setSearchQuery(props.searchQuery);
@@ -1784,7 +1796,10 @@ defineExpose({
     ref="wrapRef"
     class="pr-swim-canvas-wrap"
     data-testid="swimlane"
-    :class="{ 'pr-swim-canvas-wrap--measure': measureMode }"
+    :class="{
+      'pr-swim-canvas-wrap--measure': measureMode,
+      'pr-swim-canvas-wrap--over-event': hoveredEventId != null,
+    }"
     :data-renderer="useWebGl ? 'webgl' : 'canvas'"
   >
     <div
@@ -2146,10 +2161,6 @@ defineExpose({
   background: #1f1f1f;
 }
 
-.pr-swim-canvas-wrap--measure .pr-swim-canvas {
-  cursor: col-resize;
-}
-
 .pr-swim-canvas-sizer {
   width: 100%;
   pointer-events: none;
@@ -2162,9 +2173,20 @@ defineExpose({
   width: 100%;
   height: 100%;
   display: block;
-  cursor: crosshair;
+  cursor: default;
   touch-action: none;
   z-index: 0;
+}
+
+/* Events are painted into the canvas, so the hand comes from hover hit-test.
+   Declared before measure: equal specificity, measure keeps col-resize. */
+.pr-swim-canvas-wrap--over-event .pr-swim-canvas {
+  cursor: pointer;
+}
+
+/* Measure mode: col-resize over empty canvas and events alike. */
+.pr-swim-canvas-wrap--measure .pr-swim-canvas {
+  cursor: col-resize;
 }
 
 .pr-swim-canvas--gl {
@@ -2237,6 +2259,9 @@ defineExpose({
 }
 
 /* Full-height playhead bar — above event canvas, below blue edge marks. */
+/* Above the Card strips (z-index 8 in SwimlaneView), which are opaque full-row
+   buttons and otherwise punch a gap in the line at every Card header. The wrap's
+   overflow: hidden still clips the bar to the chart column. */
 .pr-swim-cursor {
   position: absolute;
   top: 0;
@@ -2245,21 +2270,23 @@ defineExpose({
   background: #317af7;
   transform: translateX(-0.5px);
   pointer-events: none;
-  z-index: 3;
+  z-index: 9;
 }
 
 .pr-swim-cursor--snapped {
   background: #4c4c4c;
 }
 
-/* Event-edge marks: 2px snap + committed exact-match bars (full lane height). */
+/* Event-edge marks: 2px snap + committed exact-match bars (full lane height).
+   Kept above .pr-swim-cursor so snap markers still paint on top of the playhead
+   stem; both were raised together when the cursor moved above the Card strips. */
 .pr-measure-edge-mark {
   position: absolute;
   width: 1px;
   transform: translateX(-50%);
   background: var(--pr-playhead, #3078f0);
   pointer-events: none;
-  z-index: 4;
+  z-index: 10;
 }
 
 .pr-measure-edge-mark--exact {
@@ -2268,7 +2295,7 @@ defineExpose({
 
 .pr-measure-edge-mark--snap {
   width: 2px;
-  z-index: 5;
+  z-index: 11;
 }
 
 /* Default-mode hover gap measure: lane-height overlay, non-interactive. */
@@ -2289,13 +2316,16 @@ defineExpose({
   background: rgba(49, 122, 247, 1);
 }
 
-/* Alt+hover event-to-event measure (default mode). */
+/* Alt+hover event-to-event measure (default mode).
+ * Same stacking as `.pr-swim-cursor` (z-index 9): Card strips are opaque at 8, and
+ * neither the wrap nor the swim row creates a stacking context, so anything ≤8 is
+ * punched out at every Card header — including the dashed cross-lane connector. */
 .pr-alt-measure {
   position: absolute;
   left: 0;
   right: 0;
   pointer-events: none;
-  z-index: 4;
+  z-index: 9;
 }
 
 .pr-alt-measure--cross-lane {
@@ -2309,7 +2339,7 @@ defineExpose({
   border: 2px solid rgba(255, 180, 196, 0.95);
   border-radius: 5px;
   pointer-events: none;
-  z-index: 4;
+  z-index: 9;
 }
 
 .pr-alt-measure-anchor--target {

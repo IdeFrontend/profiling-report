@@ -3,22 +3,22 @@ import { CLEARTYPE_TEXT_POW, GRAYSCALE_TEXT_POW, TEXT_CLEARTYPE_FS, TEXT_GRAY_FS
 import { centeredTextBaseline, clearTypeRasterSupported, eventLabelFont, fitTextWidth } from '../../src/swimlane/textAtlas';
 
 describe('PR-RENDER: ClearType text atlas', () => {
-  it('PR-RENDER-020: text shaders export sudu gamma constants', () => {
+  it('PR-RENDER-023: text shaders export sudu gamma constants', () => {
     expect(CLEARTYPE_TEXT_POW).toBe(2.25);
     expect(GRAYSCALE_TEXT_POW).toBe(0.625);
     expect(TEXT_CLEARTYPE_FS).toContain('mix(uBgColor.rgb, uColor.rgb');
     expect(TEXT_GRAY_FS).toContain('texture(sDiffuse, textureUV).a');
   });
 
-  it('PR-RENDER-020: eventLabelFont uses shared CSS px size', () => {
+  it('PR-RENDER-023: eventLabelFont uses shared CSS px size', () => {
     expect(eventLabelFont(12)).toMatch(/^400 12px /);
   });
 
-  it('PR-RENDER-020: clearTypeRasterSupported is false in jsdom', () => {
+  it('PR-RENDER-023: clearTypeRasterSupported is false in jsdom', () => {
     expect(clearTypeRasterSupported()).toBe(false);
   });
 
-  it('PR-RENDER-020: fitTextWidth truncates over-wide labels with ellipsis', () => {
+  it('PR-RENDER-023: fitTextWidth truncates over-wide labels with ellipsis', () => {
     // Monospace measurer: width == char count.
     const mono = { measureText: (s: string) => ({ width: s.length }) };
     expect(fitTextWidth(mono, 'short', 10)).toBe('short');
@@ -27,7 +27,7 @@ describe('PR-RENDER: ClearType text atlas', () => {
     expect(cut.length).toBeLessThanOrEqual(8);
   });
 
-  it('PR-RENDER-020: centeredTextBaseline centers ink and falls back to middle', () => {
+  it('PR-RENDER-023: centeredTextBaseline centers ink and falls back to middle', () => {
     // Ink metrics present → alphabetic baseline shifted so ink midpoint lands on centerY.
     expect(centeredTextBaseline({ width: 10, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 3 }, 20)).toEqual({
       baselineY: 23,
