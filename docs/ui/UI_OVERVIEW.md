@@ -53,7 +53,7 @@ Toolbar sits **only** above the timeline (main column). StatsAside starts at the
 Sketch target tree (**Card → category → Core → pipes**):
 
 ```text
-Card0 | Card1                 ← only group header (28px)
+Card0 | Card1                 ← only group header (40px)
 ├── 通信                      ← leaf spacer (util; no events)
 ├── 计算                      ← folder lane-row (chevron + util)
 │   ├── Core0.Cube / Vec*     ← folder lane-row

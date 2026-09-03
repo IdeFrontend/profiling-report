@@ -2,6 +2,8 @@
 
 Cross-layer map: **sources (v930) → component visual packs**. Pixel measures live in each component `{Name}.spec.md` **Visual** section (when present).
 
+**UCD visual-review findings** (Ascend C / this library only): [`review/UI_REVIEW_FINDINGS.md`](./review/UI_REVIEW_FINDINGS.md) + [`review/screenshots/ascend-c/`](./review/screenshots/ascend-c/).
+
 **Component tree (folders + packs):** [`src/ui/COMPONENT_TREE.md`](../../src/ui/COMPONENT_TREE.md).
 
 ## Layers
