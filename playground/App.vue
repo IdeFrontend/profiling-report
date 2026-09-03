@@ -311,7 +311,7 @@ onMounted(async () => {
             data-testid="locale-zh"
             @click="setLocale('zh-CN')"
           >
-            zh
+            中
           </button>
           <button
             type="button"

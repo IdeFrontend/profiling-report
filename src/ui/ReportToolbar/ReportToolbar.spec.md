@@ -24,11 +24,13 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Aside toggle.** Visible only when `asideAvailable` is true. Square icon button with panel SVG.
 
-**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务连接层级** (`data-testid="dependency-depth"`, `update:dependencyDepth`): how many hops the swimlane dependency graph walks, `-1` for the whole chain, normalized through `normalizeDependencyDepth` so a cleared field yields the shared default rather than `NaN`. It commits on `change`, not per keystroke — a half-typed number must not rebuild the graph. Toggle the button or click **X** to close. Time units auto-scale from viewport span and overview axis density per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md) — there is **no** manual ms/µs/ns dropdown (sketch may show 时钟周期; MVP does **not** offer cycle mode). Dependency *direction* is not here: it filters what the selected event shows, so it lives in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
+**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务连接层级** (`data-testid="dependency-depth"`, `update:dependencyDepth`): how many hops the swimlane dependency graph walks, `-1` for the whole chain, normalized through `normalizeDependencyDepth` so a cleared field yields the shared default rather than `NaN`. It commits on `change`, not per keystroke — a half-typed number must not rebuild the graph. Close via the **X**, a second press of the layers button, a pointerdown anywhere outside the wrap (trigger + panel), or **Escape**.
+
+**Stepper.** The field carries its own ±1 buttons, inset at its right edge. Chrome's native spinner is not usable here — `appearance: none` does not remove it, it renders as a light-mode block on the dark field, and it takes no styling — so the pair is ours: two half-height buttons behind a hairline, in the same hover and active tints as the operator menu's rows. Both go through `normalizeDependencyDepth`, so a step cannot leave the range that typing cannot, and each disables on reaching its clamp (`MIN_DEPENDENCY_DEPTH` / `MAX_DEPENDENCY_DEPTH`) rather than silently no-opping. They are `aria-hidden` and out of the tab order on purpose: a number input already steps on ArrowUp / ArrowDown, so exposing them would announce a second copy of a control assistive tech can already reach. There is no press-and-hold repeat; the useful values are small and the rest is faster to type. Time units auto-scale from viewport span and overview axis density per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md) — there is **no** manual ms/µs/ns dropdown (sketch may show 时钟周期; MVP does **not** offer cycle mode). Dependency *direction* is not here: it filters what the selected event shows, so it lives in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
 
 **Measure (M2).** A measure icon button between zoom-to-fit and display-control toggles measure mode. The button reflects the `measureMode` prop via `aria-pressed` and the `--on` class (shared with the other active action-icon states) and emits `update:measureMode` with the new boolean on click.
 
-**Measure icon geometry (`visual/measure-active.png`).** Two vertical rounded bars with a horizontal double-headed Δt arrow between them. Arrowheads are **open stroke chevrons** (two diagonal lines only — `fill="none"`, never solid triangles). Leave a **~1px gap** between each chevron tip and the adjacent vertical bar (tips must not touch the bars). Stroke weight matches the bars.
+**Measure icon geometry (`visual/measure-active.png`).** Two vertical bars with a horizontal double-headed Δt arrow between them, supplied as the HDesign asset `icons/measure.svg`. The hand-drawn approximation this replaced is gone, and with it the constraints that policed it (open stroke chevrons, ~1px tip gap) — the asset is now the reference, not a set of rules for redrawing one.
 
 **OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** label (e.g. `op1` / `op2`); menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
@@ -36,7 +38,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 ## Visual
 
-Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg) (device px @ dump resolution). Control height **~28–29 px** CSS.
+Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg) (device px @ dump resolution). Control height **~28–29 px** CSS. Chrome strip is **min-height 60px** on one row; when tabs + toolbar no longer fit side-by-side the **whole** `.pr-toolbar` (search, zoom, actions) wraps to a second row together and the corner wash stretches with the taller chrome. If the second row is still too narrow, trailing icon actions crop (`overflow-x: clip`) while search and zoom stay visible; cropped trailing controls are marked `inert` so they leave the tab order.
 
 Lives in the **main** column only (above the timeline), not spanning the StatsAside — see [ReportLayout](../ReportLayout/ReportLayout.spec.md).
 
@@ -44,9 +46,12 @@ Lives in the **main** column only (above the timeline), not spanning the StatsAs
 
 | Token | Value |
 |-------|--------|
+| Height | `min-height: 60px` (`box-sizing: border-box`, includes bottom border); grows when the whole toolbar wraps to a second row |
+| Padding | `8px` — vertical inset so a wrapped toolbar row is not flush with the tabs above or the axis below |
+| Narrow host | Chrome `flex-wrap: wrap`; toolbar stays `nowrap` so search/zoom/actions jump together; second-row overflow uses `overflow-x: clip` (crop trailing icons, keep search/zoom); clipped trailing actions get `inert` |
 | Background | `#1f1f1f` (`--pr-bg-deep`) |
 | Border | `1px solid #3a3a3a` bottom |
-| Corner wash | Owned by ProfilingReport — 208×60 top-left blue fade (see root spec) |
+| Corner wash | 208px-wide top-left blue fade, `top: 0; bottom: 0` so it fills the full chrome height (including a wrapped second row): `radial-gradient(59% 100.4% at 41% 0%, rgba(44,41,175,0.2) 0%, rgba(0,0,0,0) 100%)` over `linear-gradient(90deg, rgba(0,90,219,0.1) 3.614%, rgba(0,2,172,0) 76.501%)`; `pointer-events: none`. Radial horizontal radius is **59%** so the transparent stop lands on the box’s right edge (Figma’s `150.89%` left residual α at the clip → hard seam into `#1f1f1f`) |
 
 ### OP selector (`visual/op-selector.png`, `visual/op-selector-open.png`)
 
@@ -58,10 +63,11 @@ Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930
 | Trigger label | Selected operator label (e.g. `op1`) — white, 18px / weight 700 / line-height 26px / letter-spacing 0 |
 | Chevron | Thin stroke `10×10`, color `#c8c8c8`; down when closed, rotated 180° when open |
 | Gap label↔chevron | `4px` |
-| Menu bg | `#363636` |
+| Menu bg | `#363636` (`--pr-surface-raised`) |
 | Menu radius | `8px` |
-| Menu border | `1px solid #4a4a4a` |
-| Item text | `#d0d0d0` / 12px; active `#ffffff` on `#2a3550` |
+| Menu border | none |
+| Item radius | `4px` |
+| Item text | `#d0d0d0` / 12px; hover `#ffffff` on `rgba(255,255,255,0.1)`; active `#ffffff` on `rgba(49,122,247,0.2)`. Hover must **lighten** against the menu, never darken |
 | Visible when | `operators.length > 1` |
 
 ### Search (`visual/search.png`)
@@ -73,7 +79,7 @@ Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930
 | Shape | Rounded rect: `border-radius: 4px` (not capsule) |
 | Background | `#2a2a2a` |
 | Border | none (or `1px solid #3a3a3a` if needed) |
-| Icon | Stroke magnifying glass SVG `14×14`, color `#9a9a9a`, left inset |
+| Icon | `search` design icon `16×16`, color `#9a9a9a`, left inset |
 | Input padding | `0 12px 0 32px` |
 | Placeholder | `#808080`; text `#e0e0e0`; font `12px` |
 
@@ -82,7 +88,7 @@ Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930
 | Token | Value |
 |-------|--------|
 | Container | Single control, height `28px`, `border-radius: 4px`, bg `#363636` |
-| Zoom out / in | Magnifying-glass SVGs with − / + inside (not bare ± text); `16×16`, color `#c8c8c8` |
+| Zoom out / in | `zoom-out` / `zoom-in` design icons — magnifying glass with − / + inside (not bare ± text); `16×16`, color `#c8c8c8` |
 | Buttons | Transparent, no separate square border; padding `4px 6px` |
 | Slider | Width ~`100px`; track height `2px`; filled (left) `#ffffff`; unfilled `#1a1a1a`; thumb `10px` circle `#c8c8c8` |
 | Gap | `4px` between icon / slider / icon inside pill |
@@ -93,7 +99,7 @@ Resting fill from `v930/entry` actions strip; hover/pressed from `v930/hardware-
 
 | Token | Value |
 |-------|--------|
-| Size | Square `28×28` |
+| Size | Square `28×28`; glyph `16×16` |
 | Radius | `6px` |
 | Border | none (no stroke ring) |
 | Background (rest) | `#363636` (not transparent) |
@@ -109,18 +115,48 @@ Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardwa
 
 | Token | Value |
 |-------|--------|
-| Trigger | Layers (stacked diamonds) SVG; `aria-expanded`; `--on` when open |
+| Trigger | `display-config` design icon (stacked layers); `aria-expanded`; `--on` when open |
 | Panel bg | `#363636` |
 | Panel border | `1px solid #5e5e5e` |
 | Panel radius | `12px` |
 | Panel padding | `20px 22px 22px` |
 | Shadow | soft `0 6px 20px rgba(0,0,0,0.55)` |
 | Title | `13px` / `600` / `#ffffff` |
-| Close | thin `#e6e6e6` × |
+| Close | `close` design icon, `#b3b3b3` |
 | Section label | `12px` / `#b2b2b2` |
+| Help | `help` design icon as a `<button type="button">` (so clicks do not activate the depth field label); tip referenced via `aria-describedby`; hover/focus bubble on `--pr-surface-raised`, `11px` / `#e6e6e6`, above the icon |
 | Depth input bg | `#404040` |
 | Depth input radius | `6px` |
-| Depth input height | `32px`; text `#ffffff` |
+| Depth input height | `32px`; text `#ffffff`; `40px` right padding to clear the stepper |
+| Stepper | Two `28px` half-height buttons inset at the field's right edge; `1px rgba(255,255,255,0.08)` hairline down the left and between them; outer corners follow the field at `5px` |
+| Stepper chevrons | Shared [`Chevron`](../Chevron.vue) at `direction="up"` / `"down"`, `#b3b3b3` |
+| Stepper hover / active | `rgba(255,255,255,0.1)` / `rgba(49,122,247,0.2)` with `--pr-text-accent` — the operator menu's two tints (AC-21.3) |
+| Stepper at a clamp | `disabled`, `#5e5e5e`, `cursor: default` |
+
+### Icons
+
+Rendered by [`PrIcon`](../PrIcon.vue) as CSS-masked spans, so the button tints one asset through
+`currentColor` across rest / hover / active instead of shipping a glyph per state. Assets live in
+[`src/ui/icons/`](../icons); the HDesign originals stay in
+[`docs/ui/review/icons/`](../../../docs/ui/review/icons) as provenance.
+
+The exports carry Figma's invisible bookkeeping — duplicate copies of each path at
+`fill-opacity="0"` or `stroke-opacity="0"`, plus a full-bleed frame rect. Those are stripped on
+import (`zoom-in` alone went 9.7 kB → 0.5 kB) because anything over Vite's 4 kB
+`assetsInlineLimit` is emitted as a separate file, which a consumer of the library bundle would
+not serve.
+
+| Name | Source export | Used by |
+|------|---------------|---------|
+| `search` | `操作图标-搜索(search-new).svg` | Search field (AC-02) |
+| `zoom-in` / `zoom-out` | `ic_public_zoom_in.svg` / `ic_public_zoom_out1.svg` | Zoom pill (AC-03) |
+| `stats` | `性能统计.svg` | Aside toggle (AC-04) |
+| `measure` | `measure_icon.svg` | Measure toggle |
+| `display-config` | `泳道图显示配置.svg` | 显示控制 trigger |
+| `help` | `帮助.svg` | 任务连接层级 help (AC-20.2) |
+| `close` | `ic_public_close.svg` | 显示控制 close (AC-20.5) |
+
+Zoom-to-fit keeps its hand-drawn frame glyph — no design export was supplied for it.
 
 ### Full strip (`visual/toolbar.png`)
 
@@ -134,16 +170,21 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
 5. **PR-TOOLBAR-005** — Layers button opens 显示控制 with `dependency-depth` field; `time-unit` select is absent; popover is not visible until open.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
-7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) renders bars + open stroke Δt arrow (chevron heads, gap from bars); emits `update:measureMode` on click.
+7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) renders the `measure` icon (`data-testid="measure-icon"`); emits `update:measureMode` on click.
 8. **PR-TOOLBAR-007b** — Active measure toggle uses `aria-pressed="true"` and `--on`.
-9. **PR-TOOLBAR-007c** — Measure SVG arrowheads use `fill="none"` (stroke chevrons only; no filled triangle paths).
-10. **PR-TOOLBAR-008** — Search exposes a magnifier SVG; zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
-11. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`.
-12. **PR-TOOLBAR-010** — Display-control popover closes via X or toggling the layers button.
+9. **PR-TOOLBAR-007c** — *WITHDRAWN (2026-09-01)* — policed the arrowhead geometry of the hand-drawn measure glyph, which the HDesign asset replaced.
+10. **PR-TOOLBAR-008** — Search exposes a magnifier icon (`data-testid="search-magnifier"`); zoom root uses compound pill class; zoom ± are icon buttons (not bare text-only ± outside a pill).
+11. **PR-TOOLBAR-009** — Strip uses `--pr-bg-deep`; search `#2a2a2a`; zoom pill `#363636`; zoom track filled `#ffffff` / unfilled `#1a1a1a`. `.pr-chrome` is `min-height: 60px` with `flex-wrap: wrap` and `padding: 8px` so the whole `.pr-toolbar` (search + zoom + actions, itself `nowrap`) jumps to a second row together when it no longer fits beside the tabs, with vertical inset so the wrapped row is not flush with the tabs or the axis; `overflow-x: clip` then crops trailing icon actions if the second row is still too narrow. Search and zoom stay visible.
+12. **PR-TOOLBAR-010** — Display-control popover closes via X, toggling the layers button, a pointerdown outside the wrap (trigger + panel), or Escape.
 13. **PR-TOOLBAR-011** — 显示控制 carries the dependency depth field; emits normalized on change.
 14. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows selected operator label; menu lists operators; selecting emits `update:selectedOperatorId`; Escape/Enter/Arrow supported; re-select does not emit; open state clears when selector unmounts.
 15. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
 16. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); trigger type is 18px / 700 / 26px lh.
+17. **PR-TOOLBAR-016** — Design icons render as `PrIcon` masked spans tinted by `currentColor`, so one asset serves both rest and active states; `16×16`.
+18. **PR-TOOLBAR-017** — The 任务连接层级 help control is a `<button type="button">` with a CSS hover/focus bubble (`data-testid="connection-level-help"`), not a native `title`. The tip has `role="tooltip"` and is linked from the button via `aria-describedby`; the button's `aria-label` is the short `helpConnectionLevel` name (distinct from the tip's `connectionLevelHelp` text) so AT does not announce the explanation twice.
+19. **PR-TOOLBAR-018** — The corner wash is the strip's first child, painting above the strip background and below the tabs, pinned with `top: 0; bottom: 0` so it fills the full `.pr-chrome` height (including when the toolbar wraps). Radial horizontal radius is **59%** so opacity reaches 0 at the 208px right edge (no hard seam into `#1f1f1f`). `.pr-chrome` is `position: relative` with **no** `z-index` or `isolation`: a stacking context there would trap the OP menu and 显示控制 popover inside the strip. `.pr-tabs` is positioned so labels paint over the wash.
+20. **PR-TOOLBAR-019** — The depth field's own stepper buttons emit `update:dependencyDepth` ±1 through `normalizeDependencyDepth`, disable at each clamp, and stay out of the tab order and the accessibility tree.
+21. **PR-TOOLBAR-020** — Trailing toolbar icon actions (`zoom-to-fit`, measure, display-control, aside) carry `data-toolbar-clip`; when `overflow-x: clip` crops them past the toolbar's right edge they receive `inert` so keyboard focus cannot land on an invisible control. Search and zoom are never marked.
 
 ## Edge Cases
 
@@ -167,6 +208,18 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-09-03** — Chrome `padding: 8px` so a wrapped toolbar row is not flush with the tabs or the axis (`PR-TOOLBAR-009`).
+- **2026-09-03** — Display-control closes on Escape (`PR-TOOLBAR-010`); clipped trailing icon actions get `inert` so they leave the tab order (`PR-TOOLBAR-020`).
+- **2026-09-02** — Whole toolbar wraps to a second row together; wash stretches with `top/bottom: 0`; second-row overflow still crops trailing icons (`PR-TOOLBAR-009` / `018`).
+- **2026-09-02** — Chrome stays one row on narrow hosts: `nowrap` + `overflow-x: clip`; trailing icon actions crop, search/zoom stay (`PR-TOOLBAR-009`). *(Superseded — whole-toolbar wrap restored; see above.)*
+- **2026-09-02** — Corner wash radial horizontal radius `150.89%` → `59%` so the fade completes inside the 208px box (no hard seam into `#1f1f1f`; PR-TOOLBAR-018).
+- **2026-09-02** — Chrome strip uses `min-height: 60px` (not fixed `height`) so a wrapped action row is not cropped (`PR-TOOLBAR-009`).
+- **2026-09-02** — Chrome strip (OP selector + tabs + actions) single-row band is `60px` (`PR-TOOLBAR-009`).
+- **2026-09-02** — PR-TOOLBAR-017: help control becomes a real `<button>` with `aria-describedby` on the tip (was a focusable `generic` span whose `aria-label` browsers ignore). PR-TOOLBAR-018: wash height is `100%` of the strip rather than a fixed 60px that spilled under `.pr-main`.
+- **2026-09-01** — PR-TOOLBAR-010: a pointerdown outside the wrap (trigger + panel) dismisses 显示控制 immediately, matching the usual popover expectation. Previously only the X and a second press of the layers button closed it.
+- **2026-09-01** — PR-TOOLBAR-019: the depth field gets a custom stepper. AC-20.6 dropped Chrome's native spinner because it renders as a light-mode block on the dark field; the field was then left with no step affordance at all, which Product asked to restore. `Chevron` gains a `direction` prop so the pair reuses the existing glyph, and `MIN_DEPENDENCY_DEPTH` replaces the `-1` literal that the clamp, the markup and the disabled state would otherwise each repeat.
+- **2026-09-01** — Corner wash moved here from the report root, where `.pr-main` covered it (PR-TOOLBAR-018; PR-ROOT-006 withdrawn).
+- **2026-09-01** — HDesign icons for search / zoom / stats / measure / 显示控制 / help / close via `PrIcon` masks at `16×16`; help gains a CSS hover bubble (PR-TOOLBAR-016/017). PR-TOOLBAR-007c withdrawn with the hand-drawn measure glyph.
 - **2026-08-27** — Removed manual time-unit dropdown from 显示控制; wall-time labels auto-scale per I-Q14; PR-TOOLBAR-005 restated.
 - **2026-08-21** — Reset `opMenuOpen` when OP selector unmounts (single-op swap).
 - **2026-08-21** — OP menu: `useId` + menu ref for focus; restore trigger focus on Escape/select.
