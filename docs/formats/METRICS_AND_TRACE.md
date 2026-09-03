@@ -27,7 +27,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | Embedded file | Feeds (MVP) | Feeds (Phase 2+) |
 |---------------|-------------|------------------|
 | `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
-| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter (pipe-ratio legacy default); **时钟周期** / **缓存命中率** gutter modes | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
+| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter (pipe-ratio legacy default); **时钟周期** gutter mode | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
 | `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
 | `Memory.csv` | Optional summary I/O bandwidth tiles (DATA-33g) | Memory topology diagram + field drill-down |
 | `MemoryL0.csv` | — | L0 path details on memory diagram |
@@ -81,18 +81,16 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 ### Gutter metric modes (Card-header selector)
 
-Per-Card dropdown on swimlane Card strips ([gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)). PyPTO parity — four modes:
+Per-Card dropdown on swimlane Card strips ([gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)). Two modes:
 
 | Mode | Primary embed | Notes |
 |------|---------------|-------|
 | 时钟周期 (`clockCycle`) | `PipeUtilization.csv` cycle / `*_time(us)` columns | Labels suffix **`µs`**; hide when no mappable cycle data |
-| 缓存命中率 (`cacheHit`) | `*_icache_miss_rate` → `1 − rate` | Hide when icache columns all `NA` |
-| 任务 (`task`) | `trace.json` event counts per lane | Always when events exist |
 | 利用率 (`utilization`) | `trace.json` event coverage over model time span | Always when trace exists |
 
-Default: **时钟周期** when available, else **任务**, else **利用率**. Aside PIPE bars remain pipe-ratio means regardless of gutter metric selection.
+Default: **时钟周期** when available, else **利用率**. Aside PIPE bars remain pipe-ratio means regardless of gutter metric selection.
 
-**Fill / midline (PyPTO parity, resolved):** utilization — red when ≤ 50%, dash at 50%. clockCycle / cacheHit / task — red on max lane(s) only (all gray when tied); dash at mean bar width `(mean ÷ max) × 100`. No absolute task-count threshold. See [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
+**Fill / midline:** utilization — red when ≤ 50%, dash at 50%. clockCycle — red on max lane(s) only (all gray when tied); dash at mean bar width `(mean ÷ max) × 100`. See [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
 
 ---
 

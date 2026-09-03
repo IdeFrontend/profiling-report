@@ -46,8 +46,6 @@ Card-header metric dropdown options use `gutterMetricLabel(metric, locale)` (`sr
 | `GutterMetric` | Message key | zh-CN | en |
 |----------------|-------------|-------|-----|
 | `clockCycle` | `gutterMetricClockCycle` | 时钟周期 | Clock Cycle |
-| `cacheHit` | `gutterMetricCacheHit` | 缓存命中率 | Cache Hit Ratio |
-| `task` | `gutterMetricTask` | 任务 | Task |
 | `utilization` | `gutterMetricUtilization` | 利用率 | Utilization |
 
 Aria label for the control: `gutterMetricFor` (`{name} 的泳道指标` / `Gutter metric for {name}`).

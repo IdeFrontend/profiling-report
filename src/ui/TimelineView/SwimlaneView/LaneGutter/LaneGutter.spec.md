@@ -55,8 +55,6 @@ Each lane **and folder** row optionally shows a util bar whose **width** and **l
 | Metric | `bar.label` (thick bars) | `barWidth` | Fill color |
 |--------|--------------------------|------------|------------|
 | 时钟周期 (clockCycle) | Integer when ≥ 0.5; decimals for fractional `*_time(us)` means (never `0` when raw &gt; 0); always suffix **`µs`** | Normalized to max lane in Card | Red when `relativeMax`; else gray; all gray when tied |
-| 缓存命中率 (cacheHit) | Decimal hit rate `0.00`–`1.00` | Normalized to max lane in Card | Same |
-| 任务 (task) | Integer event count | Normalized to max lane in Card | Same (no absolute task-count threshold) |
 | 利用率 (utilization) | `NN%` | Equals util % (0–100) | Red when ≤ 50%; gray when &gt; 50% |
 | Legacy pipe ratio | `NN%` | `utilization × 100` | true |
 
@@ -90,7 +88,7 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 | Shape | Rounded rect, radius by bar height: **4px** on the 16px thick bar, **2px** on the 8px thin one. Never a full capsule / `height/2` — 4px on an 8px bar rounds the ends into a stadium |
 | Track / unfilled | Gray **diagonal hatch** — repeating `-45deg` stripes `#3a3a3a` on `--pr-util-track` (`#2a2a2a`) |
 | Value fill | **利用率 / legacy:** util &lt; 0.5 → `rgba(231,67,74,0.4)` (red); util ≥ 0.5 → `rgba(255,255,255,0.08)` (gray). **Other metrics:** gray fill; `#733234`-equivalent red tint when `bar.relativeMax`; when all lanes tie, uniform gray. Never pipe/category `lane.color`. Composited over an opaque `--pr-util-track` base so the filled portion is **solid** and the hatch stops at the filled edge |
-| Midline | `1px dashed rgba(255,255,255,0.1)` at `left: 50%` for **利用率**; at `left: averageBarWidth%` for clockCycle/cacheHit/task when ≥2 lanes have bars; above fill, under text; omit on empty slots |
+| Midline | `1px dashed rgba(255,255,255,0.1)` at `left: 50%` for **利用率**; at `left: averageBarWidth%` for clockCycle when ≥2 lanes have bars; above fill, under text; omit on empty slots |
 | Bar text | **Thick bars only**, inside track, right-aligned, `padding-right: 6px`. **Thin bars omit text** |
 | Text font | 10px, weight 600, tabular-nums, color **`#b0b0b0`** (same as lane title — not bright white) |
 | Layout | `grid-template-columns: minmax(0,1fr) 110px` (name + util) |

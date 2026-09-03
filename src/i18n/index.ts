@@ -102,8 +102,6 @@ const messages = {
     phase2: 'Phase 2',
     focusMeasureRange: '聚焦度量范围',
     gutterMetricClockCycle: '时钟周期',
-    gutterMetricCacheHit: '缓存命中率',
-    gutterMetricTask: '任务',
     gutterMetricUtilization: '利用率',
     gutterMetricFor: '{name} 的泳道指标',
   },
@@ -201,8 +199,6 @@ const messages = {
     phase2: 'Phase 2',
     focusMeasureRange: 'Focus measure range',
     gutterMetricClockCycle: 'Clock Cycle',
-    gutterMetricCacheHit: 'Cache Hit Ratio',
-    gutterMetricTask: 'Task',
     gutterMetricUtilization: 'Utilization',
     gutterMetricFor: 'Gutter metric for {name}',
   },
@@ -232,8 +228,6 @@ const LANE_CATEGORY_MESSAGE: Record<LaneCategoryKey, MessageKey> = {
 
 const GUTTER_METRIC_MESSAGE: Record<GutterMetric, MessageKey> = {
   clockCycle: 'gutterMetricClockCycle',
-  cacheHit: 'gutterMetricCacheHit',
-  task: 'gutterMetricTask',
   utilization: 'gutterMetricUtilization',
 };
 

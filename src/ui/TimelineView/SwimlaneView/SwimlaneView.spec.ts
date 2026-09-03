@@ -1757,8 +1757,8 @@ describe('SwimlaneView', () => {
       selectedEventId: null,
       hoveredEventId: null,
       searchQuery: '',
-      gutterMetricOptionsByCard: { card0: ['task', 'utilization'] as GutterMetric[] },
-      gutterMetricByCard: { card0: 'task' as GutterMetric },
+      gutterMetricOptionsByCard: { card0: ['clockCycle', 'utilization'] as GutterMetric[] },
+      gutterMetricByCard: { card0: 'clockCycle' as GutterMetric },
     };
 
     const expanded = mount(SwimlaneView, { props: { ...baseProps, collapsedIds: [] } });
@@ -1789,8 +1789,8 @@ describe('SwimlaneView', () => {
         selectedEventId: null,
         hoveredEventId: null,
         searchQuery: '',
-        gutterMetricOptionsByCard: { card0: ['task', 'utilization'] as GutterMetric[] },
-        gutterMetricByCard: { card0: 'task' as GutterMetric },
+        gutterMetricOptionsByCard: { card0: ['clockCycle', 'utilization'] as GutterMetric[] },
+        gutterMetricByCard: { card0: 'clockCycle' as GutterMetric },
       },
     });
 
@@ -1824,16 +1824,16 @@ describe('SwimlaneView', () => {
         hoveredEventId: null,
         searchQuery: '',
         gutterMetricOptionsByCard: {
-          card0: ['task', 'utilization'] as GutterMetric[],
-          card1: ['clockCycle', 'task'] as GutterMetric[],
+          card0: ['utilization'] as GutterMetric[],
+          card1: ['clockCycle', 'utilization'] as GutterMetric[],
         },
-        gutterMetricByCard: { card0: 'task' as GutterMetric, card1: 'clockCycle' as GutterMetric },
+        gutterMetricByCard: { card0: 'utilization' as GutterMetric, card1: 'clockCycle' as GutterMetric },
       },
     });
 
     const selects = wrapper.findAll('[data-testid="card-metric-select"]');
     expect(selects).toHaveLength(2);
-    expect(selects[0]!.attributes('data-value')).toBe('task');
+    expect(selects[0]!.attributes('data-value')).toBe('utilization');
     expect(selects[1]!.attributes('data-value')).toBe('clockCycle');
   });
 
@@ -1860,7 +1860,7 @@ describe('SwimlaneView', () => {
         searchQuery: '',
         locale: 'en',
         gutterMetricOptionsByCard: {
-          card0: ['clockCycle', 'cacheHit', 'task', 'utilization'] as GutterMetric[],
+          card0: ['clockCycle', 'utilization'] as GutterMetric[],
         },
         gutterMetricByCard: { card0: 'clockCycle' as GutterMetric },
       },
@@ -1872,10 +1872,8 @@ describe('SwimlaneView', () => {
       'Gutter metric for Card0',
     );
     await select.get('.pr-metric-select__trigger').trigger('click');
-    expect(document.querySelector('[data-testid="card-metric-option-cacheHit"]')?.textContent).toBe(
-      'Cache Hit Ratio',
-    );
-    expect(document.querySelector('[data-testid="card-metric-option-task"]')?.textContent).toBe('Task');
+    expect(document.querySelector('[data-testid="card-metric-option-cacheHit"]')).toBeNull();
+    expect(document.querySelector('[data-testid="card-metric-option-task"]')).toBeNull();
     expect(document.querySelector('[data-testid="card-metric-option-utilization"]')?.textContent).toBe(
       'Utilization',
     );
