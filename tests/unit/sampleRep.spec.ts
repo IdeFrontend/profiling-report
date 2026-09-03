@@ -160,22 +160,9 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(all?.utilization).toBeUndefined();
   });
 
-  it('op1/op2 include ProfilerStep bands (stress-style group labels)', () => {
-    expect(op1.swimlaneModel.bands?.map((b) => b.name)).toEqual([
-      'ProfilerStep#1',
-      'ProfilerStep#2',
-      'ProfilerStep#3',
-    ]);
-    expect(op2.swimlaneModel.bands?.map((b) => b.name)).toEqual([
-      'ProfilerStep#1',
-      'ProfilerStep#2',
-      'ProfilerStep#3',
-      'ProfilerStep#4',
-      'ProfilerStep#5',
-    ]);
-    expect(op2.swimlaneModel.bands![0]!.startTime).toBe(0);
-    const last = op2.swimlaneModel.bands![op2.swimlaneModel.bands!.length - 1]!;
-    expect(last.startTime + last.duration).toBe(1_000_000_000);
+  it('op1/op2 expose no bands (summary bars are viewer-computed)', () => {
+    expect('bands' in op1.swimlaneModel).toBe(false);
+    expect('bands' in op2.swimlaneModel).toBe(false);
   });
 
   it('events carry producer Parameter fields (Code / Pc_addr / …)', () => {

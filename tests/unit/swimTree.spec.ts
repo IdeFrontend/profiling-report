@@ -6,6 +6,7 @@ import {
   isComputeCategory,
   isFolderNode,
   nestCardTreeFromFlatCorePipes,
+  unionEventIntervals,
   walkVisibleRows,
 } from '../../src/domain/swimTree';
 import type { SwimlaneModel } from '../../src/domain/types';
@@ -15,7 +16,6 @@ import {
   LANE_HEIGHT,
   layoutHeaders,
   rebuildLayout,
-  showsProfilerStepBands,
 } from '../../src/swimlane/layout';
 
 function nestedModel(): SwimlaneModel {
@@ -134,20 +134,51 @@ describe('swimTree + nested layout', () => {
     expect(countLeafThreads(nestedModel().processes[0]!.threads)).toBe(4);
   });
 
-  it('rebuildLayout carries bands and showsProfilerStepBands for folders/spacers', () => {
-    const model = {
-      ...nestedModel(),
-      bands: [
-        { id: 'b1', name: 'ProfilerStep#1', startTime: 0, duration: 500 },
-      ],
-    };
-    const layout = rebuildLayout(model);
-    expect(layout.bands).toHaveLength(1);
-    expect(layout.lanes.filter((l) => l.folder).every((l) => showsProfilerStepBands(l))).toBe(true);
-    const spacer = layout.lanes.find((l) => l.thread.name === '通信');
-    expect(spacer && showsProfilerStepBands(spacer)).toBe(true);
-    const pipe = layout.lanes.find((l) => l.thread.id === 'mte1');
-    expect(pipe && showsProfilerStepBands(pipe)).toBe(false);
+  it('rebuildLayout carries no bands; folders still lay out as lanes', () => {
+    const layout = rebuildLayout(nestedModel());
+    expect('bands' in layout).toBe(false);
+    expect(layout.lanes.filter((l) => l.folder).length).toBeGreaterThan(0);
+  });
+
+  it('unionEventIntervals merges overlapping and touching intervals into disjoint ranges', () => {
+    const ev = (id: string, startTime: number, duration: number) => ({ id, name: id, startTime, duration });
+
+    // Overlapping spans merge.
+    expect(unionEventIntervals([ev('a', 0, 10), ev('b', 5, 10)])).toEqual([
+      { startTime: 0, duration: 15 },
+    ]);
+
+    // Touching (end === next.start) merges into one span.
+    expect(unionEventIntervals([ev('a', 0, 10), ev('b', 10, 5)])).toEqual([
+      { startTime: 0, duration: 15 },
+    ]);
+
+    // Disjoint stays separate, sorted by start.
+    expect(unionEventIntervals([ev('b', 20, 5), ev('a', 0, 10)])).toEqual([
+      { startTime: 0, duration: 10 },
+      { startTime: 20, duration: 5 },
+    ]);
+
+    expect(unionEventIntervals([])).toEqual([]);
+  });
+
+  it('PR-SWIM-014: collapsed folder carries disjoint-union summaryEvents; expanded omits', () => {
+    const collapsed = filterCollapsedTree(nestedModel(), ['cube']);
+    const compute = collapsed.processes[0]!.threads[1]!;
+    const cube = compute.children!.find((c) => c.id === 'cube')!;
+    expect(cube.summaryEvents).toEqual([
+      { id: 'cube/summary/0', name: '', startTime: 0, duration: 10 },
+    ]);
+    // Expanded folder has no summary.
+    const vec0 = compute.children!.find((c) => c.id === 'vec0')!;
+    expect(vec0.summaryEvents).toBeUndefined();
+
+    // Collapse the whole 计算 subtree: e1 (0..10) ∪ e2 (0..5) = 0..10.
+    const computeCollapsed = filterCollapsedTree(nestedModel(), ['compute']);
+    const c2 = computeCollapsed.processes[0]!.threads[1]!;
+    expect(c2.summaryEvents).toEqual([
+      { id: 'compute/summary/0', name: '', startTime: 0, duration: 10 },
+    ]);
   });
 
   it('nestCardTreeFromFlatCorePipes builds Card → 计算 → Core → pipe', () => {

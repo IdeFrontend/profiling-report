@@ -11,11 +11,9 @@ interface SwimlaneModel {
   processes: SwimProcess[];
   minTime: number;
   maxTime: number;
-  bands?: SwimlaneBand[]; // optional ProfilerStep-style phase bands; omit when absent
   /** Viewer-only: omit Card header bands (sticky pinned strip). Adapters must not set. */
   skipCardHeaders?: boolean;
 }
-interface SwimlaneBand { id: string; name: string; startTime: number; duration: number }
 interface SwimProcess  { id: string; name: string; utilization?: number; threads: SwimThread[]; }
 interface SwimThread   {
   id: string;
@@ -23,6 +21,7 @@ interface SwimThread   {
   events: SwimEvent[];
   utilization?: number;
   children?: SwimThread[]; // folder when non-empty; leaf when absent/empty
+  summaryEvents?: SwimEvent[]; // collapsed folder only: gray summary bars (viewer-built)
 }
 interface EventRef     { tid: string; index: number } // SwimThread.id + post-sort index into thread.events
 interface EventDependencies { predecessors: EventRef[]; successors: EventRef[] }
@@ -36,7 +35,7 @@ interface SwimEvent    {
 
 **`skipCardHeaders`:** when `true`, `rebuildLayout` / `contentHeightFromModel` skip Card header rows. Used only for the viewer-built pinned sticky-strip model — never on adapter/producer models.
 
-**Bands:** optional shared phase intervals painted on folder/spacer group rows when present. Chrome Trace / `.rep` adapters pass through producer `bands` (`ts`/`dur` in the same unit as X events) and never invent them when absent. Stress fixtures and `sample.rep` supply `ProfilerStep#N` bands.
+**Collapsed-group summary events:** when a folder is collapsed, `filterCollapsedTree` prunes its descendants but attaches `summaryEvents` — the disjoint union (merged overlapping *and touching* intervals) of every descendant leaf event, sorted by `startTime`. Expanded folders omit `summaryEvents`. These gray bars are painted on the collapsed folder's own lane by the renderer; they are non-interactive (no hover/select/hit-test) and never labeled. Producers/adapters do not emit `summaryEvents` — it is viewer-built in the collapse pass.
 
 **Card nesting:** `adaptRep` applies `nestCardTreeFromFlatCorePipes` only when the producer sets `nestCardTree: true` on the trace doc (`sample.rep`). Real traces without the flag stay flat even if thread names look like `CoreN.*/PIPE`.
 
@@ -77,7 +76,7 @@ interface SwimEvent    {
 1. **PR-SWIM-011**: Recycled flow ids and the same id in two processes each keep their pairs, including when finishes appear first in the file.
 1. **PR-SWIM-012**: A flow in a gap under an enclosing slice binds the enclosing event.
 1. **PR-SWIM-013**: Touching X intervals (`end === next.start`) are siblings, not nested.
-1. **PR-SWIM-014**: Producer `bands` in the trace doc become `SwimlaneModel.bands`; absent/malformed → omit.
+1. **PR-SWIM-014**: A collapsed folder in the collapse-filtered tree exposes `summaryEvents` (disjoint union of descendant leaf intervals); an expanded folder omits `summaryEvents`.
 1. **PR-SWIM-015**: Producer `nestCardTree: true` is recorded in `metadata`; absent → no nest flag (adaptRep does not invent Card nesting).
 
 ## Edge Cases
@@ -95,6 +94,7 @@ Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit
 
 ## Changelog
 - **2026-09-03** — Ordering drops the "longest `duration` first on ties" tie-break: intra-lane exclusivity makes equal `startTime` within a lane impossible, so it is dead. `rebuildLayout` sorts by `startTime` only; `hitTestLayout` (not rebuildLayout) prefers the shorter nested event in the Chrome-trace overlap path.
+- **2026-09-03** — Drop producer `bands`/`SwimlaneBand`; collapsed folders expose viewer-built `summaryEvents` (disjoint union). PR-SWIM-014.
 - **2026-08-28** — Document viewer-only `skipCardHeaders` for pinned sticky strip (no process-id sentinel).
 - **2026-08-25** — PR-SWIM-015: `nestCardTree` producer opt-in; adaptRep no longer nests every `.rep`.
 - **2026-08-25** — PR-SWIM-014: pass through producer `bands` (sample.rep ProfilerStep labels).

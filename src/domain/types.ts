@@ -34,6 +34,11 @@ export interface SwimThread {
   children?: SwimThread[];
   /** When set, UI localizes the gutter label via `laneComm` / `laneCompute` / `laneHbm`. */
   categoryKey?: LaneCategoryKey;
+  /**
+   * Collapsed folder only: gray summary bars — the disjoint union of all descendant
+   * leaf intervals. Expanded folders omit it. Viewer-built, never on producer models.
+   */
+  summaryEvents?: SwimEvent[];
 }
 
 export interface SwimProcess {
@@ -54,24 +59,11 @@ export interface SwimlaneModel {
   minTime: number;
   maxTime: number;
   /**
-   * Optional phase bands for group rows (e.g. ProfilerStep#N).
-   * Omit when absent — adapters must not invent these.
-   */
-  bands?: SwimlaneBand[];
-  /**
    * When true, layout skips Card header bands (sticky pinned-lane strip).
    * Viewer-built only — adapters must not set this on producer models.
    */
   skipCardHeaders?: boolean;
   metadata?: Record<string, unknown>;
-}
-
-/** Shared timeline phase marker painted on folder / spacer group rows. */
-export interface SwimlaneBand {
-  id: string;
-  name: string;
-  startTime: number;
-  duration: number;
 }
 
 export interface SummaryMetrics {

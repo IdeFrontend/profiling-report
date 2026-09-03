@@ -6,12 +6,13 @@ import {
   eventLabelAnchor,
   eventPaintRect,
   eventRadius,
+  findExactEdgeMatches,
   hitTestLayout,
   rebuildLayout,
-  
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   snapEventRect,
+  SUMMARY_EVENT_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
@@ -597,5 +598,42 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
     expect(stub.setDependencyMode).toBeUndefined();
     expect(stub.setDependencyDepth).toBeUndefined();
     expect(stub.setHoveredLane).toBeUndefined();
+  });
+});
+
+describe('PR-RENDER: collapsed-group summary events', () => {
+  it('PR-RENDER-024: summary events lay out gray, non-interactive, excluded from edge matches', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [],
+              summaryEvents: [{ id: 'folder/summary/0', name: '', startTime: 10, duration: 40 }],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(model);
+    const summary = layout.events.find((e) => e.id === 'folder/summary/0');
+    expect(summary).toBeTruthy();
+    expect(summary!.summary).toBe(true);
+    expect(summary!.color).toBe(SUMMARY_EVENT_FILL);
+
+    // Non-interactive: the folder lane never hit-tests (returns null).
+    const view = { startTime: 0, endTime: 100, scrollY: 0 };
+    const y = LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+    expect(hitTestLayout(layout, view, 400, 100, y)).toBeNull();
+
+    // Excluded from exact-edge magnet/measure matches (summary start 10 / end 50).
+    expect(findExactEdgeMatches(layout, 10, 50)).toEqual([]);
   });
 });

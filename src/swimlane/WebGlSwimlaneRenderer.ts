@@ -27,6 +27,7 @@ import {
   rebuildLayout,
   SELECTION_MUTED_FILL,
   snapEventRect,
+  SUMMARY_EVENT_FILL,
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
@@ -594,8 +595,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
         pairs.push(a, b);
       }
+      // Folder lanes carry only summary bars — paint the whole mesh gray.
+      const summary = events.length > 0 && events.every((e) => e.summary);
       return {
-        color: hexToRgb(lane.color),
+        color: hexToRgb(summary ? SUMMARY_EVENT_FILL : lane.color),
         chunks: createChunksFromPairs(gl, pairs),
         emphasisLayers: null,
       };
@@ -627,6 +630,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const events = byLane.get(idx) ?? [];
       const byKey = new Map<string, { rgb: [number, number, number]; dim: number; pairs: number[] }>();
       for (const item of events) {
+        if (item.summary) continue;
         const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
         const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
         const rgb = muted ? mutedRgb : meshes.color;
@@ -639,10 +643,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
         bucket.pairs.push(a, b);
       }
-      // Dimmer layers first so full-bright selection/matches paint on top.
-      meshes.emphasisLayers = [...byKey.values()]
-        .sort((a, b) => a.dim - b.dim)
-        .map(({ rgb, dim, pairs }) => ({ rgb, dim, chunks: createChunksFromPairs(gl, pairs) }));
+      // Dimmer layers first so full-bright selection/matches paint on top. Lanes with no
+      // non-summary events keep the base mesh (summary bars) full-bright.
+      meshes.emphasisLayers =
+        byKey.size === 0
+          ? null
+          : [...byKey.values()]
+              .sort((a, b) => a.dim - b.dim)
+              .map(({ rgb, dim, pairs }) => ({ rgb, dim, chunks: createChunksFromPairs(gl, pairs) }));
     }
   }
 

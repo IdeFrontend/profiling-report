@@ -30,11 +30,9 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     // Ascend .rep embed: ns source → values stay in ns
     expect(model.metadata?.displayTimeUnit).toBe('ns');
     expect(events[0]!.startTime).toBeLessThan(1e9);
-    // Adapters never invent ProfilerStep bands
-    expect(model.bands).toBeUndefined();
   });
 
-  it('PR-SWIM-014: producer bands pass through with source-unit conversion', () => {
+  it('PR-SWIM-014: producer bands are ignored (summary bars are viewer-computed)', () => {
     const model = chromeTraceToSwimlane({
       displayTimeUnit: 'ns',
       bands: [
@@ -43,10 +41,8 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       ],
       traceEvents: [{ ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 1000 }],
     }, { sourceTimeUnit: 'ns' });
-    expect(model.bands).toEqual([
-      { id: 'band-step-1', name: 'ProfilerStep#1', startTime: 0, duration: 500 },
-      { id: 'band-step-2', name: 'ProfilerStep#2', startTime: 500, duration: 500 },
-    ]);
+    // No `bands` field survives — the model has no phase-band concept anymore.
+    expect('bands' in model).toBe(false);
   });
 
   it('PR-SWIM-015: nestCardTree is producer opt-in metadata only', () => {
