@@ -75,6 +75,8 @@ export const EVENT_MARGIN = EVENT_MARGIN_DEVICE;
 
 /** Fill for collapsed-folder summary bars (gray, non-interactive). */
 export const SUMMARY_EVENT_FILL = '#2c2c2c';
+/** Dimmed foreground for summary bar task-count labels (matches old ProfilerStep labels). */
+export const SUMMARY_LABEL_COLOR = '#555555';
 
 /** Max quads per mesh (ushort indices: 65536 / 4 vertices). */
 export const MAX_QUADS_PER_MESH = 0x1_00_00 / 4;

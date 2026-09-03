@@ -6,6 +6,7 @@ import type {
   SwimlaneViewWindow,
 } from '../domain/types';
 import { DEFAULT_DEPENDENCY_DEPTH, normalizeDependencyDepth } from '../domain/types';
+import { taskCountLabel } from '../i18n';
 import { eventFill, eventStateOf, labelColorOn } from '../domain/laneColors';
 import {
   cubicControlPull,
@@ -34,6 +35,7 @@ import {
   rebuildLayout,
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
+  SUMMARY_LABEL_COLOR,
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
@@ -207,8 +209,8 @@ export class SwimlaneOverlayPainter {
       if (y + h < 0 || y > this.height) continue;
       const r = eventPaintRect(x, y, w, h, dpr);
 
-      // Summary bars: the GL pass painted the resting gray; repaint the hover lift.
-      // No label — the task count lives in the tooltip. Never dimmed/selected/ringed.
+      // Summary bars: the GL pass painted the resting gray; repaint the hover lift and
+      // draw the dimmed task-count label. Never dimmed by search/selection, never ringed.
       if (item.summary) {
         const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
         const fill = eventFill(item.color, state);
@@ -225,6 +227,18 @@ export class SwimlaneOverlayPainter {
           ctx.fill();
           ctx.globalAlpha = 1;
         }
+        drawEventLabel(
+          ctx,
+          taskCountLabel(ev.taskCount ?? 0),
+          r.x,
+          r.y,
+          r.w,
+          r.h,
+          this.width,
+          1,
+          SUMMARY_LABEL_COLOR,
+          dpr,
+        );
         continue;
       }
 
@@ -472,8 +486,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       if (y + h < 0 || y > this.height) continue;
       const fr = eventPaintRect(x, y, w, h, dpr);
 
-      // Summary bars: gray fill with a hover lift, no label, never dimmed or
-      // selected/ringed. Click-to-expand is handled by the host, not here.
+      // Summary bars: gray fill with a hover lift and a dimmed task-count label;
+      // never dimmed by search/selection or selected/ringed. Click-to-expand is the host's job.
       if (item.summary) {
         const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
         const fill = eventFill(item.color, state);
@@ -482,6 +496,18 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
         ctx.fill();
         ctx.globalAlpha = 1;
+        drawEventLabel(
+          ctx,
+          taskCountLabel(ev.taskCount ?? 0),
+          fr.x,
+          fr.y,
+          fr.w,
+          fr.h,
+          this.width,
+          1,
+          SUMMARY_LABEL_COLOR,
+          dpr,
+        );
         continue;
       }
 
