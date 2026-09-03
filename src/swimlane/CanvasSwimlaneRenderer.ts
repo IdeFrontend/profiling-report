@@ -306,7 +306,10 @@ export class SwimlaneOverlayPainter {
       }
 
       // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
-      if (matches && this.drawEventLabels)
+      // When the WebGL backend owns labels (ClearType), non-resting blocks still get their label
+      // here: the opaque state fill painted above covers the GL label, and the label's contrast
+      // must match that fill (dark on the lifted hover/selected colour).
+      if (matches && (this.drawEventLabels || state !== 'normal'))
         drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim, labelColorOn(fill), dpr);
     }
 

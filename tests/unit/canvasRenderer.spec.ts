@@ -524,6 +524,32 @@ describe('PR-RENDER: lane chrome color', () => {
       expect(texts.get('PIPE_V_busy'), `${state} label`).toBe(labelColorOn(want));
     }
   });
+
+  it('PR-RENDER-024: ClearType mode still labels hovered/selected blocks via the overlay', async () => {
+    const { eventFill, labelColorOn, colorForThread } = await import('../../src/domain/laneColors');
+    const { SwimlaneOverlayPainter } = await import('../../src/swimlane/CanvasSwimlaneRenderer');
+    const { rebuildLayout } = await import('../../src/swimlane/layout');
+    const base = colorForThread('AIV0/PIPE_V/status');
+
+    const paint = (hovered: string | null) => {
+      const { canvas, texts } = recordingCanvas();
+      const overlay = new SwimlaneOverlayPainter();
+      overlay.attach(canvas);
+      overlay.resize(400, 120, 1);
+      overlay.setLayout(rebuildLayout(tinyModel()));
+      overlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+      overlay.setDrawEventLabels(false); // WebGL ClearType owns the resting labels
+      overlay.setSelection(null, hovered);
+      overlay.render();
+      return texts;
+    };
+
+    // Resting: the overlay draws no labels (the WebGL ClearType pass owns them).
+    expect(paint(null).get('PIPE_V_busy')).toBeUndefined();
+
+    // Hovered: the overlay still draws the label over the lifted state fill, in that fill's contrast.
+    expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
+  });
 });
 
 describe('PR-RENDER: SwimlaneRenderer surface', () => {
