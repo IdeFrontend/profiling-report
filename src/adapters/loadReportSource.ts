@@ -2,6 +2,7 @@ import { adaptPayloads, adaptRep, emptyReportViewModel } from './adaptRep';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { parseRep } from './parseRep';
 import { isNestedNpuArchive, isNpuRep, npuArchiveStem, parseNpuRep } from './parseNpuRep';
+import { isNestedNpuArchive160, isNpuRep160, parseNpuRep160 } from './parseNpuRep160';
 import { hasDependencies } from '../domain/dependencies';
 import type { AdaptedReport, ReportOperator } from '../domain/types';
 
@@ -47,13 +48,24 @@ export function operatorsFromNestedNames(names: string[]): ReportOperator[] {
 }
 
 /**
- * Adapt `npu-rep` bytes. An outer container (nested `.npu.rep` archives) yields
- * a multi-operator report (default-selecting the first); a flat leaf pack yields
- * a single-operator report exactly like `adaptRep`.
+ * Adapt an `npu-rep` byte stream with an arbitrary parser + nested predicate.
+ * An outer container (nested `.npu.rep` archives) yields a multi-operator
+ * report (default-selecting the first); a flat leaf pack yields a
+ * single-operator report exactly like `adaptRep`.
  */
-function adaptNpuRep(bytes: Uint8Array): AdaptedReport {
-  const parsed = parseNpuRep(bytes);
-  const nested = parsed.files.filter((f) => isNestedNpuArchive(f, parsed.payloads[f.name]));
+function adaptNpuRepLike(
+  bytes: Uint8Array,
+  parse: (b: Uint8Array) => {
+    files: { name: string; type: number; offset: number; length: number }[];
+    payloads: Record<string, Uint8Array>;
+  },
+  isNested: (
+    entry: { name: string; type: number; offset: number; length: number },
+    payload: Uint8Array,
+  ) => boolean,
+): AdaptedReport {
+  const parsed = parse(bytes);
+  const nested = parsed.files.filter((f) => isNested(f, parsed.payloads[f.name]));
 
   if (nested.length === 0) {
     return adaptPayloads(parsed.payloads);
@@ -62,7 +74,7 @@ function adaptNpuRep(bytes: Uint8Array): AdaptedReport {
   const operators = operatorsFromNestedNames(nested.map((e) => e.name));
   const operatorReports: Record<string, AdaptedReport> = {};
   for (const entry of nested) {
-    const leaf = parseNpuRep(parsed.payloads[entry.name]);
+    const leaf = parse(parsed.payloads[entry.name]);
     operatorReports[entry.name] = adaptPayloads(leaf.payloads);
   }
 
@@ -75,6 +87,16 @@ function adaptNpuRep(bytes: Uint8Array): AdaptedReport {
   };
 }
 
+/** Adapt the interim 164-byte `npu-rep` sample format (nested `type 6`). */
+function adaptNpuRep(bytes: Uint8Array): AdaptedReport {
+  return adaptNpuRepLike(bytes, parseNpuRep, isNestedNpuArchive);
+}
+
+/** Adapt the product 160-byte `npu-rep` format (nested `type 1`). */
+function adaptNpuRep160(bytes: Uint8Array): AdaptedReport {
+  return adaptNpuRepLike(bytes, parseNpuRep160, isNestedNpuArchive160);
+}
+
 /**
  * Load either a `.rep` / `.ncrep` / `.npu-rep` container or standalone Chrome Trace JSON bytes.
  * PROC-3 / VIEW_DATA_REQUIREMENTS: JSON path hides analytics aside (empty ReportViewModel).
@@ -85,6 +107,9 @@ export function loadReportSource(source: ArrayBuffer | Uint8Array): AdaptedRepor
     return adaptRep(parseRep(bytes));
   }
   if (isNpuRep(bytes)) {
+    if (isNpuRep160(bytes)) {
+      return adaptNpuRep160(bytes);
+    }
     return adaptNpuRep(bytes);
   }
   const text = new TextDecoder().decode(bytes).replace(/^\uFEFF/, '');

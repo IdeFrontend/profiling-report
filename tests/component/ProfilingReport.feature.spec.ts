@@ -228,19 +228,6 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="dependency-depth"]').exists()).toBe(true);
   });
 
-  it('PR-FILES-005: files prop renders timeline from an extracted folder', async () => {
-    const payloads = parseRep(loadOutRepBytes()).payloads;
-    const wrapper = mount(ProfilingReport, {
-      props: { files: payloads },
-    });
-    await flushPromises();
-
-    expect(wrapper.find('[data-testid="swimlane"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="report-toolbar"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="profiling-report"]').attributes('data-capabilities'))
-      .toBe('roofline,hardwareDetails,memoryDiagram');
-  });
-
   it('PR-UI-008: CSV-only report (compute/memory, no summary/pipe) auto-opens aside', async () => {
     const emptySwim: SwimlaneModel = {
       processes: [],
@@ -248,7 +235,8 @@ describe('PR-UI: ProfilingReport feature contract', () => {
       maxTime: 1,
     };
     const csvOnly = {
-      ...emptyReportViewModel(),      computeTables: [
+      ...emptyReportViewModel(),
+      computeTables: [
         {
           fileName: 'PipeUtilization.csv',
           headers: ['Block', 'Util'],
