@@ -9,7 +9,6 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
-  type TimeDisplayMode,
   type TimeScaleUnit,
 } from '../../domain/types';
 import { GUTTER_WIDTH_DEFAULT } from '../panelResize';
@@ -39,8 +38,6 @@ const props = withDefaults(
     bounds: { minTime: number; maxTime: number };
     view: SwimlaneViewState;
     timeScaleUnit: TimeScaleUnit;
-    timeDisplayMode: TimeDisplayMode;
-    clockFreqMHz?: number;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
     groups: GutterGroup[];
@@ -117,9 +114,6 @@ function onGutterWidth(w: number) {
   emit('update:gutterWidth', w);
 }
 
-/** Whole trace span (ns) — fixes the zero-padded cycle width in `cycles` mode (measure Δt). */
-const totalSpanNs = computed(() => props.bounds.maxTime - props.bounds.minTime);
-
 const cursorLabel = computed(() => {
   if (!props.cursor) return '';
   return formatDisplayTime(props.cursor.time, props.bounds.minTime, props.timeScaleUnit);
@@ -146,11 +140,7 @@ const measureAxis = computed(() => {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
-  const label = formatTimeAuto(end - start, {
-    mode: props.timeDisplayMode,
-    clockFreqMHz: props.clockFreqMHz,
-    totalSpanNs: totalSpanNs.value,
-  });
+  const label = formatTimeAuto(end - start);
   const visStart = Math.max(viewStart, start);
   const visEnd = Math.min(viewEnd, end);
   if (!(visEnd > visStart)) {

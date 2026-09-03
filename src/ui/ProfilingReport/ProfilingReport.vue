@@ -731,8 +731,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :bounds="bounds"
           :view="viewState"
           :time-scale-unit="viewportTimeScaleUnit"
-          :time-display-mode="localTimeDisplayMode"
-          :clock-freq-m-hz="clockFreqMHz"
           :dependency-mode="localDependencyMode"
           :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
