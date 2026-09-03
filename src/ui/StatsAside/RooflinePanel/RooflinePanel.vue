@@ -28,7 +28,7 @@ const plotH = H - PAD.t - PAD.b;
 const plotBottomY = PAD.t + plotH;
 
 const mixY = PAD.t + MIX_TOP_INSET;
-/** Screen px — SVG display size matches viewBox 1:1. */
+/** Label sizes in viewBox user units (same as former 1:1 screen px). */
 const AXIS_FONT_PX = 9;
 
 const xTickY = plotBottomY + X_TICK_BELOW_PLOT;
@@ -157,7 +157,6 @@ const tooltipText = computed(() => {
         data-testid="roofline-chart"
         :width="W"
         :height="H"
-        :style="{ width: `${W}px`, height: `${H}px` }"
         :viewBox="`0 0 ${W} ${H}`"
         role="img"
         :aria-label="t('roofline', locale)"
@@ -411,10 +410,13 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__svg {
-  /* Sketch-native W×H — fixed px so SVG text/strokes do not scale with aside width. */
-  flex-shrink: 0;
+  /* Intrinsic W×H via attributes + viewBox; CSS width tracks the card so a
+     vertical scrollbar (or DPR rounding) cannot force a horizontal overflow. */
   display: block;
-  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  overflow: hidden;
 }
 
 .pr-roofline__frame {

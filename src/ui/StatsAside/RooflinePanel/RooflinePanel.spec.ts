@@ -67,11 +67,14 @@ describe('RooflinePanel', () => {
     expect(mix.find('.pr-roofline__mix-pct').exists()).toBe(true);
   });
 
-  it('PR-ROOF-002b: layout — sketch-calibrated label positions and left inset', () => {
+  it('PR-ROOF-002b: layout — sketch-calibrated label positions and left inset', async () => {
     const wrapper = mount(RooflinePanel, { props: { model: sample } });
     const svg = wrapper.get('[data-testid="roofline-chart"]');
     expect(Number(svg.attributes('width'))).toBe(ROOFLINE_CHART_W);
     expect(Number(svg.attributes('height'))).toBe(ROOFLINE_CHART_H);
+    expect(svg.attributes('style') ?? '').not.toMatch(/width:\s*\d+px/);
+    const roofSrc = (await import('./RooflinePanel.vue?raw')).default as string;
+    expect(roofSrc).toMatch(/\.pr-roofline__svg\s*\{[^}]*width:\s*100%/s);
     const frame = wrapper.get('.pr-roofline__frame');
     const plotTop = Number(frame.attributes('y'));
     const plotLeft = Number(frame.attributes('x'));
@@ -80,8 +83,8 @@ describe('RooflinePanel', () => {
     const plotBottom = plotTop + plotH;
     const xTickY = plotBottom + ROOFLINE_X_TICK_BELOW_PLOT;
 
-    expect(ROOFLINE_CHART_W).toBe(428);
-    expect(ROOFLINE_CHART_H).toBe(294);
+    expect(ROOFLINE_CHART_W).toBe(440);
+    expect(ROOFLINE_CHART_H).toBe(303);
     expect(plotTop).toBe(ROOFLINE_PAD.t);
     expect(plotLeft).toBe(ROOFLINE_PAD.l);
     expect(plotW).toBe(ROOFLINE_CHART_W - ROOFLINE_PAD.l - ROOFLINE_PAD.r);

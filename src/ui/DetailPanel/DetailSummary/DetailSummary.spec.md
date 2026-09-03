@@ -20,7 +20,13 @@ Identity card: a circular op glyph, the event name, an optional type pill, and a
 
 The pill under the name carries the instruction or op type (the sketch shows `MOV_OUT_TO_L1_MULTI_ND2NZ` under `FIX_LOC_TO_DST`). Producers spell that field differently, so the first present of `op_type`, `kernel_type`, `kernel_name`, `type`, `cat` in `args` wins and the pill hides when none is there.
 
-Every cell that truncates carries its full text in `title`, so a hover recovers what the ellipsis ate — a nanosecond-resolution Ascend timestamp is the common case, and it is exactly the digits that matter. The value-line hover includes the unit.
+**The card fits its figures; it never crops them and never stretches.** Start / duration / end are the reason the card exists, so they set its width: the three metric cells keep their automatic minimum (no `min-width: 0`) and carry no ellipsis, and `DetailPanel` gives the card a `min-content` track. The card therefore grows for a wide value and shrinks for a narrow one, and the width it does not need goes to the Parameter and Relevent columns rather than padding the card out.
+
+Only the metrics resist shrinking. The **name and type pill still ellipsize**, so a long kernel name cannot widen the card past the figures — which would defeat the point, since the name has a hover title and the figures are what the card is for.
+
+This trades a stable width for uncropped values: the card is a little wider or narrower per selection (about 40px across a fixture, mostly the unit suffix, since `tabular-nums` fixes the digits). Heights stay constant, so the timeline above never moves.
+
+Every cell that truncates carries its full text in `title`, so a hover recovers what the ellipsis ate. The value line carries one too, but for a different reason — it is not cropped, it is *rounded* to 4 significant digits, and a nanosecond-resolution Ascend timestamp is exactly the case where the dropped digits matter. The value hover includes the unit.
 
 The metric **value line** shows number + unit (`479.6 ms`); the caption below is the field name only (`Start` / `Duration` / `End`). Units may differ across columns when magnitudes differ.
 
@@ -32,6 +38,7 @@ The metric **value line** shows number + unit (`479.6 ms`); the caption below is
 2. **PR-DSUM-002** — Renders start / duration / end with unit beside the value (per-value auto unit, **4** significant digits); captions are field names only; digit chrome is uniform across units (no size/tint-by-unit).
 3. **PR-DSUM-003** — Shows the type pill from `args` when present and hides it otherwise.
 4. **PR-DSUM-004** — Every truncating cell carries its full-precision text as a hover title.
+5. **PR-DSUM-005** — The metric cells never crop: they keep their automatic minimum width and carry no ellipsis, and the card takes a `min-content` track so it fits them without stretching. The name and pill still ellipsize.
 
 ## Visual
 
@@ -47,6 +54,7 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 [format-time](../../../../specs/core/format-time.spec.md).
 
 ## Changelog
+- **2026-09-01** — PR-DSUM-005: the card's fixed 290px track becomes `min-content` and the metric cells lose `min-width: 0` and their ellipsis, so start / duration / end are never cropped and the card claims only the width they need. 290px was chosen off one sketch frame and cropped as soon as a value ran wide.
 - **2026-08-28** — Intentional: uniform digit chrome; unit via suffix text (no size/tint-by-unit).
 - **2026-08-28** — Unit beside the value (`479.6 ms`); caption is Start/Duration/End only.
 - **2026-08-28** — Value cells: 4 significant digits; hover titles keep full precision.
@@ -56,6 +64,7 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 - **2026-08-20** — Glyph ring 46px, matching the sketch.
 - **2026-08-20** — Glyph redrawn from the sketch: a solid isometric cube in a broken hexagonal node ring with three dots, replacing the hollow wireframe hexagon and its four-dot star.
 - **2026-08-20** — Surfaces sampled from the sketch rather than eyeballed: card `#313131` on the `#262626` dock, metric panel `#3c3c3c`, and the type pill takes the sketch's muted `#7356a6` instead of the bright swimlane `mov` purple — the pill is dock chrome, not an event block.
+- **2026-08-31** — Same surfaces restated as translucent white per design hand-off (AC-10): card and metric panel are both `rgba(255,255,255,0.05)`, which composite over the dock to the `#313131` / `#3b3b3b` above. Card is a fixed **290px** track at `8px` radius (superseded 2026-09-01); the metric panel is `60px` tall with `10px 12px` padding, a `1px solid rgba(255,255,255,0.05)` border, and lays its three metrics out as a flex row with `16px` gaps rather than equal grid thirds.
 - **2026-08-13** — Sketch card proportions: larger node glyph, unit moved into the metric captions.
 - **2026-08-13** — Identity card layout (glyph, type pill, inset metric panel).
 - **2026-08-10** — Renamed from DetailStrip; visual pack is identity card only.

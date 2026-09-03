@@ -393,6 +393,7 @@ function onViewAll() {
   padding: 4px 22px 4px 10px;
   border-radius: 4px;
   min-width: 72px;
+  cursor: pointer;
 }
 
 .pr-csv__view-all {
@@ -423,7 +424,8 @@ function onViewAll() {
   gap: 0;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border-top: 1px solid #333;
 }
 

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import DetailSummary from './DetailSummary.vue';
 
+/** One rule's declarations from the raw SFC. Scoped so comment prose — which cites the
+ *  dropped declarations on purpose — cannot satisfy or break a negative assertion. */
+const rule = (src: string, selector: string): string =>
+  src.match(new RegExp(`${selector}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+
 describe('DetailSummary', () => {
   it('PR-DSUM-001: renders event name', () => {
     const wrapper = mount(DetailSummary, {
@@ -104,5 +109,27 @@ describe('DetailSummary', () => {
       '0-0-103-13-2(matmul)',
     );
     expect(wrapper.find('[data-testid="detail-summary-kind"]').attributes('title')).toBe('event');
+  });
+
+  it('PR-DSUM-005: metrics set the card width; only the name and pill crop', async () => {
+    // jsdom does no layout, so assert the declarations the sizing rests on. Each is
+    // load-bearing and each is a plausible thing to re-add while tidying.
+    const src = (await import('./DetailSummary.vue?raw')).default as string;
+    const panel = (await import('../DetailPanel.vue?raw')).default as string;
+
+    // Zeroing this collapses the cells and the figures ellipsize again.
+    expect(rule(src, '\\.pr-detail-summary__metric')).not.toMatch(/min-width/);
+    for (const selector of ['\\.pr-detail-summary__value', '\\.pr-detail-summary__label']) {
+      expect(rule(src, selector), selector).not.toMatch(/text-overflow|overflow/);
+    }
+    // A fixed track would crop the cells however wide they are.
+    expect(rule(panel, '\\.pr-detail-panel__body')).toMatch(/grid-template-columns:\s*min-content/);
+    expect(rule(panel, '\\.pr-detail-panel__body--no-relevant')).toMatch(
+      /grid-template-columns:\s*min-content/,
+    );
+
+    // The name is free to be long, so it must still give way.
+    expect(rule(src, '\\.pr-detail-summary__name')).toMatch(/text-overflow:\s*ellipsis/);
+    expect(rule(src, '\\.pr-detail-summary__kind')).toMatch(/text-overflow:\s*ellipsis/);
   });
 });

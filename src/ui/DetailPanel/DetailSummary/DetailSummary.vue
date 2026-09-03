@@ -167,14 +167,17 @@ const metrics = computed(() => {
 </template>
 
 <style scoped>
+/* Translucent over the #262626 dock, which composites to the #313131 the sketch
+   was sampled at; the nested metrics panel layers the same 5% again for #3b3b3b. */
+/* No width of its own: DetailPanel gives it a `min-content` track, so the card is as
+   wide as the widest thing in it that refuses to shrink — the metric panel below. */
 .pr-detail-summary {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   padding: 16px;
-  min-width: 0;
-  border-radius: 10px;
-  background: #313131;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .pr-detail-summary__identity {
@@ -223,17 +226,22 @@ const metrics = computed(() => {
 }
 
 .pr-detail-summary__metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  gap: 16px;
+  box-sizing: border-box;
+  height: 60px;
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: #3c3c3c;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
 }
 
+/* Deliberately no `min-width: 0`: the automatic minimum keeps each cell at its own
+   nowrap width, which is what makes the card's `min-content` track wide enough for all
+   three. Zero it and the cells collapse and the figures ellipsize again. */
 .pr-detail-summary__metric {
-  min-width: 0;
+  white-space: nowrap;
 }
 
 .pr-detail-summary__value {
@@ -242,9 +250,6 @@ const metrics = computed(() => {
   font-weight: 700;
   color: #f2f2f2;
   font-variant-numeric: tabular-nums;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pr-detail-summary__unit {
@@ -254,20 +259,12 @@ const metrics = computed(() => {
 }
 
 .pr-detail-summary__label {
-  /* One line always: a wrapping caption would change the card height between
-     selections and make the column jump. */
+  /* One line always (inherited nowrap): a wrapping caption would change the card height
+     between selections and make the column jump. */
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: #a0a0a0;
   font-size: 11px;
   line-height: 1.35;
 }
 
-@media (max-width: 900px) {
-  .pr-detail-summary__metrics {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

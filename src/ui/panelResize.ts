@@ -3,26 +3,23 @@ export const GUTTER_WIDTH_DEFAULT = 280;
 export const GUTTER_WIDTH_MIN = 180;
 export const GUTTER_WIDTH_MAX = 480;
 
-/** v930 aside column width at 1920-wide reference (1870px crop @ 7680 source). */
-export const V930_SOURCE_WIDTH = 7680;
-export const V930_REFERENCE_WIDTH = 1920;
-export const V930_ASIDE_CROP_WIDTH = 1870;
-export const ASIDE_WIDTH_DEFAULT = Math.round(
-  (V930_ASIDE_CROP_WIDTH / V930_SOURCE_WIDTH) * V930_REFERENCE_WIDTH,
-);
-/** Aside is fixed at sketch width (not user-resizable). */
-export const ASIDE_WIDTH_MIN = ASIDE_WIDTH_DEFAULT;
-export const ASIDE_WIDTH_MAX = ASIDE_WIDTH_DEFAULT;
+/** Default open width (Product; v930 crop was ~468 at 1920). User-resizable within min/max. */
+export const ASIDE_WIDTH_DEFAULT = 480;
+export const ASIDE_WIDTH_MIN = 280;
+export const ASIDE_WIDTH_MAX = 720;
 
 /** Minimum swimlane track column width (px) the layout budget tries to protect. */
 export const TIMELINE_TRACK_MIN = 320;
 
-/** Detail dock height (px). Default is the v930 sketch proportion at 1920 wide. */
-export const DOCK_HEIGHT_DEFAULT = 247;
-export const DOCK_HEIGHT_MIN = 140;
-/** Ceiling is also capped against the viewport at drag time, so a short window can't
- *  let the dock swallow the timeline. */
-export const DOCK_HEIGHT_MAX = 720;
+/**
+ * The detail dock's two heights (px), measured off the v930 sketch pair at 1920 wide —
+ * `task-click-detail` (just appeared) and `detail-strip-raised` (raised). Both exports
+ * are 4x, and both put the dock's bottom at 1049 CSS, so the tops at 802 and 642 give
+ * these two figures. The dock is not freely resizable: the design offers one expander,
+ * and arbitrary heights only ever produced layouts the sketch never sanctioned.
+ */
+export const DOCK_HEIGHT_COLLAPSED = 247;
+export const DOCK_HEIGHT_EXPANDED = 407;
 
 export function clampPanelWidth(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
@@ -30,8 +27,10 @@ export function clampPanelWidth(value: number, min: number, max: number): number
 }
 
 /**
- * Fit gutter width to a host budget while protecting a minimum swimlane track.
- * Aside stays fixed at sketch width (`ASIDE_WIDTH_DEFAULT`); only gutter shrinks.
+ * Fit gutter/aside to a host width while protecting a minimum swimlane track.
+ * Starts from preferred sizes; shrinks aside toward its min first, then gutter.
+ * Expanding host restores toward preferred (caller passes preferred each time).
+ * Never introduces horizontal scroll — columns compress within the host.
  */
 export function fitPanelWidths(
   hostWidth: number,
@@ -44,25 +43,32 @@ export function fitPanelWidths(
 ): { gutterWidth: number; asideWidth: number } {
   const minTrack = opts.minTrack ?? TIMELINE_TRACK_MIN;
   let gutter = clampPanelWidth(opts.preferredGutter, GUTTER_WIDTH_MIN, GUTTER_WIDTH_MAX);
-  const aside = opts.asideVisible ? ASIDE_WIDTH_DEFAULT : 0;
+  let aside = clampPanelWidth(opts.preferredAside, ASIDE_WIDTH_MIN, ASIDE_WIDTH_MAX);
 
   if (!Number.isFinite(hostWidth) || hostWidth <= 0) {
-    return { gutterWidth: gutter, asideWidth: aside };
+    return { gutterWidth: gutter, asideWidth: opts.asideVisible ? aside : 0 };
   }
 
-  const ideal = gutter + minTrack + aside;
+  const asideBudget = opts.asideVisible ? aside : 0;
+  const ideal = gutter + minTrack + asideBudget;
   if (hostWidth >= ideal) {
-    return { gutterWidth: gutter, asideWidth: aside };
+    return { gutterWidth: gutter, asideWidth: asideBudget };
   }
 
-  const deficit = ideal - hostWidth;
+  let deficit = ideal - hostWidth;
+
+  if (opts.asideVisible && deficit > 0) {
+    const shrink = Math.min(deficit, aside - ASIDE_WIDTH_MIN);
+    aside -= shrink;
+    deficit -= shrink;
+  }
 
   if (deficit > 0) {
     const shrink = Math.min(deficit, gutter - GUTTER_WIDTH_MIN);
     gutter -= shrink;
   }
 
-  return { gutterWidth: gutter, asideWidth: aside };
+  return { gutterWidth: gutter, asideWidth: opts.asideVisible ? aside : 0 };
 }
 
 export interface HorizontalResizeSession {

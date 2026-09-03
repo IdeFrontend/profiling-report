@@ -21,7 +21,7 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (I-Q11f).
 1. **PR-ROOF-001** — Renders chart with at least one point and roof path.
 2. **PR-ROOF-001b** — Raised chart card includes under-roof `#3078f0` gradient wash.
 3. **PR-ROOF-002** — Shows mix labels when present.
-4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **428×294** @ **468px** aside; scaled `PAD.l` **45**; mix at plot top; **TOps/s** / **Ops/Byte** grid-aligned with gaps; markers not clipped.
+4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; mix at plot top; **TOps/s** / **Ops/Byte** grid-aligned with gaps; markers not clipped; SVG display width tracks the card (`width: 100%`).
 5. **PR-ROOF-003** — Empty points → no chart SVG.
 6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved so the card does not shift on hover.
 
@@ -40,8 +40,8 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 | Area wash | Vertical `#3078f0` under ridge: 16% → 10% @40% → 5% @75% → 0% at floor |
 | Mix annotation | Two-tone at plot top: names `#999999`, percents `#ffffff`, `10px`; `label (percent.toFixed(6)%)`, comma-separated; baseline `y = PAD.t + 13` |
 | Axis / ticks | `#999999` `9px`; ticks as decimals; x ticks at `plotBottom + 16`; y ticks at tick line `+ 4`; **TOps/s** end-anchored at left grid (`x = PAD.l`, hanging, bottom `12px` above plot top); **Ops/Byte** start-anchored `4px` right of plot on bottom grid line (`x = PAD.l + plotW + 4`, `y = plotBottom`, middle baseline) |
-| Chart SVG | Fixed **`428×294`** px @ **468px** aside (`aside − 24 shell pad − 16 card pad`; height scales from sketch **`320×220`**); display 1:1 with viewBox — typography stays sketch px |
-| Plot inset | `PAD` `{ l: 45, r: 64, t: 27, b: 48 }` — sketch `{34,48,20,36}` scaled by `428/320`; plot frame has no stroke (sketch flat well) |
+| Chart SVG | Intrinsic **`440×303`** viewBox @ **480px** aside (`aside − 24 shell pad − 16 card pad`; height scales from sketch **`320×220`**); CSS `width: 100%` so a scrollbar gutter cannot force horizontal overflow |
+| Plot inset | `PAD` `{ l: 47, r: 66, t: 28, b: 50 }` — sketch `{34,48,20,36}` scaled by `440/320`; plot frame has no stroke (sketch flat well) |
 | Header→plot | Card `gap` **8px** (`6px` under GM/L2 before SVG/plot); SVG top pad `PAD.t` **27** |
 | Grid | `#4a5568` (blue-grey; visible on `#262626` well) |
 | Markers | Data + roof vertex circles render **outside** plot clip so edge markers are not cropped |
@@ -52,6 +52,8 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Changelog
 
+- **2026-09-02** — Chart SVG uses `width: 100%` (viewBox stays **440×303**) so aside scroll never needs a horizontal bar.
+- **2026-09-02** — Aside **480px** (Product); chart **440×303** from content well.
 - **2026-09-01** — Hover tooltip inside raised card; reserved tip slot prevents layout jump.
 - **2026-09-01** — Fixed aside **468px** (v930 sketch); chart **428×294** scales from sketch **320×220** baseline.
 - **2026-09-01** — Card head→plot `gap` 8px (+6 under GM/L2).

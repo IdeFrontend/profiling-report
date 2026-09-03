@@ -47,7 +47,6 @@ import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
-  DOCK_HEIGHT_DEFAULT,
   fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
@@ -108,9 +107,10 @@ const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
+const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
-const asideWidth = ASIDE_WIDTH_DEFAULT;
-const dockHeight = ref(DOCK_HEIGHT_DEFAULT);
+const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
+const dockExpanded = ref(false);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
@@ -224,10 +224,16 @@ function onFocusMeasure() {
 
 function resetPanelWidthsToDefaults(): void {
   preferredGutterWidth.value = GUTTER_WIDTH_DEFAULT;
+  preferredAsideWidth.value = ASIDE_WIDTH_DEFAULT;
   gutterWidth.value = GUTTER_WIDTH_DEFAULT;
+  asideWidth.value = ASIDE_WIDTH_DEFAULT;
 }
 
-function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean): void {
+function resetViewFromModel(
+  model: SwimlaneModel | null,
+  showAsidePanel: boolean,
+  opts?: { preservePanelWidths?: boolean },
+): void {
   stopViewWindowAnim();
   const next = createViewState(model);
   next.asideVisible = showAsidePanel;
@@ -235,7 +241,8 @@ function resetViewFromModel(model: SwimlaneModel | null, showAsidePanel: boolean
   selected.value = null;
   selectedEvent.value = null;
   hovered.value = null;
-  resetPanelWidthsToDefaults();
+  // Operator switches keep session gutter/aside preferences; fresh loads reset them.
+  if (!opts?.preservePanelWidths) resetPanelWidthsToDefaults();
   const fromMeta = model?.metadata?.defaultCollapsedIds;
   collapsedGroupIds.value = Array.isArray(fromMeta)
     ? fromMeta.filter((id): id is string => typeof id === 'string')
@@ -256,9 +263,10 @@ function applyLayoutFit(): void {
   const next = fitPanelWidths(hostWidth, {
     asideVisible: showAside.value,
     preferredGutter: preferredGutterWidth.value,
-    preferredAside: ASIDE_WIDTH_DEFAULT,
+    preferredAside: preferredAsideWidth.value,
   });
   if (next.gutterWidth !== gutterWidth.value) gutterWidth.value = next.gutterWidth;
+  if (next.asideWidth !== asideWidth.value) asideWidth.value = next.asideWidth;
 }
 
 async function bindLayoutFit(): Promise<void> {
@@ -277,6 +285,13 @@ async function bindLayoutFit(): Promise<void> {
 function onGutterWidth(w: number): void {
   preferredGutterWidth.value = w;
   gutterWidth.value = w;
+}
+
+function onAsideWidth(w: number): void {
+  preferredAsideWidth.value = w;
+  asideWidth.value = w;
+  // Re-fit so a drag that would starve the track is clamped in the same turn.
+  applyLayoutFit();
 }
 
 function onToggleGroup(groupId: string): void {
@@ -362,7 +377,10 @@ function onOperatorChange(id: string) {
   internalSwim.value = rep.swimlaneModel;
   internalReport.value = rep.reportModel;
   internalCapabilities.value = rep.capabilities ?? null;
-  resetViewFromModel(rep.swimlaneModel, reportHasAsideContent(rep.reportModel));
+  // Viewport/selection reset like a fresh load, but keep aside open/closed and panel widths.
+  resetViewFromModel(rep.swimlaneModel, viewState.value.asideVisible, {
+    preservePanelWidths: true,
+  });
 }
 
 /** Parse before first paint when `source` is already available (avoids empty→loaded height jump). */
@@ -607,11 +625,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     :data-theme="theme ?? 'dark'"
     :data-capabilities="caps.join(',')"
   >
-    <div
-      class="pr-root__corner-wash"
-      data-testid="corner-wash"
-      aria-hidden="true"
-    />
     <ReportToolbar
       v-if="!showTimeline"
       :title="title"
@@ -658,6 +671,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       ref="layoutRef"
       :show-aside="showAside"
       :aside-width="asideWidth"
+      :locale="locale"
+      @update:aside-width="onAsideWidth"
     >
       <template #main>
         <ReportToolbar
@@ -729,18 +744,20 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </template>
     </ReportLayout>
 
-    <DetailPanel
-      v-if="selected && showTimeline"
-      :selected="selected"
-      :time-origin="bounds.minTime"
-      :locale="locale"
-      :neighbors="dependencyNeighbors"
-      :dependency-mode="localDependencyMode"
-      :height="dockHeight"
-      @close="onSelect(null)"
-      @update:height="dockHeight = $event"
-      @update:dependency-mode="onDependencyMode"
-    />
+    <Transition name="pr-dock">
+      <DetailPanel
+        v-if="selected && showTimeline"
+        :selected="selected"
+        :time-origin="bounds.minTime"
+        :locale="locale"
+        :neighbors="dependencyNeighbors"
+        :dependency-mode="localDependencyMode"
+        :expanded="dockExpanded"
+        @close="onSelect(null)"
+        @update:expanded="dockExpanded = $event"
+        @update:dependency-mode="onDependencyMode"
+      />
+    </Transition>
 
     <EventTooltip
       v-if="hovered && showTimeline"
@@ -768,22 +785,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
   overflow: hidden;
-}
-
-/** Top-left accent wash behind OP selector / tab strip (v930 sketch). */
-.pr-root__corner-wash {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 0;
-  width: 208px;
-  height: 60px;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 90, 219, 0.1) 3.614%,
-    rgba(0, 2, 172, 0) 76.501%
-  );
-  pointer-events: none;
 }
 
 .pr-error {
