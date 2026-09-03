@@ -17,12 +17,15 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 
 **MVP gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, drag pan, toolbar zoom / zoom-to-fit (table above). PyPTO keyboard shortcuts (W/S zoom, A/D pan) are **Phase 2** unless [Q19](../context/OPEN_QUESTIONS.md) resolves otherwise — do not treat them as MVP parity.
 
+**CSS cursors (timeline):** swimlane canvas empty space uses `default` (arrow; not `crosshair` or hand `pointer`). Hovering an event uses `pointer`. Viewport time axis uses `pointer`. Measure mode / measure edge bars use `col-resize`. Overview brush uses `grab` / `grabbing` / `ew-resize` on handles.
+
 ## Hover
 
 Sketch: `source/v930/task-hover.jpeg`
 
 - Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Times use **per-value** auto units (`formatDisplayTimeAuto` / `formatTimeAuto`, 4 significant digits) — independent of viewport zoom ([I-Q14](../context/INTERIM_DECISIONS.md)). No host `timeUnit` prop.
-- Highlight the hovered rectangle (outline or brightness).
+- Highlight the hovered rectangle by **lifting its own fill**, not by outlining it: `eventFill()` derives every state from the lane's base colour in OKLCH (`hover` and `selected` both `L+0.33`, with `selected` also `C×1.05`). Ringing on hover as well as selection is what made the two read as one state — the defect AC-08 reported — so the ring is selection's alone and rides over its fill. A block that is both keeps the selected fill. Both lifts clear the `L 0.6` label flip, so **a label inverts as the pointer crosses it**. A hovered block keeps full opacity under a selection — without that, dark text on a light fill washed by the selection dim is unreadable.
+- The two compose: a hovered selected event shows the lifted fill *and* the ring.
 - No selection change on hover alone.
 - **Default-mode gap measure:** hovering the **free middle** between two adjacent events on a lane (outside the ~10px event-edge magnet zone when the gap is wide enough, not over a block) may show a transient, non-interactive Δt overlay — two blue border sticks plus the shared double-sided Δt arrow/label — **only when the label and arrow fit entirely inside the visible gap span**. The overlay **persists during zoom/pan/scroll and left-button pan drag** while the pointer stays over the canvas. When both neighbouring events are off-screen but the gap still spans the window, sticks are omitted and the arrow spans the viewport (Δt shows the true gap duration). **Pan capture:** on button down, the active gap measure and event hover **freeze** until button up — lane and hovered event do not change while dragging. At high zoom, when the gap is narrower than ~20px, the magnet band shrinks so a fit check can still succeed. If the label does not fit, nothing is drawn. It does not capture the pointer, change selection or the time window, and is hidden in measure mode.
 
@@ -34,7 +37,7 @@ Sketch: `source/v930/task-hover.jpeg`
 
 Sketches: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (click → 详情 + 置灰), [`v930/detail-strip-raised`](./source/v930/detail-strip-raised.jpeg)
 
-- Click event → selected state (distinct from hover).
+- Click event → selected state, a 2px white ring. Distinct from hover, which lifts the fill instead.
 - Populate detail region with at least name and start → duration (and end).
 - Optional: dim non-selected events slightly (shown in `task-click-detail`).
 - Click empty space → clear selection.
