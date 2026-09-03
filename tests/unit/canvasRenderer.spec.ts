@@ -648,7 +648,7 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     expect(findExactEdgeMatches(layout, 10, 50)).toEqual([]);
   });
 
-  it('PR-RENDER-025: summary bars render an italic task-count label and a hover lift', () => {
+  it('PR-RENDER-025: summary bars render a gray fill, no label, and a hover lift', () => {
     const { canvas, fills, texts } = recordingCanvas();
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
@@ -657,9 +657,9 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
     renderer.render();
 
-    // Resting: gray fill + "4 tasks" label.
+    // Resting: gray fill, no label drawn (task count lives in the tooltip).
     expect(fills).toContain(SUMMARY_EVENT_FILL);
-    expect([...texts.keys()]).toContain('4 tasks');
+    expect([...texts.keys()]).not.toContain('4 tasks');
 
     // Hover: the fill lifts off the gray via the OKLCH hover state.
     const hoverCanvas = recordingCanvas();
