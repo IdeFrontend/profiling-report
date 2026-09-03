@@ -38,6 +38,8 @@ class CanvasSwimlaneRenderer {
 
 Hover and selected sit on the same lightness. Earlier passes kept them `0.13` apart (`+0.25` / `+0.38`) or pushed hover alone to `+0.34`; this trial collapses the lightness gap on purpose.
 
+**Collapsed-group summary events.** When a folder is collapsed, `filterCollapsedTree` attaches `summaryEvents` to that folder row. `rebuildLayout` lays them out on the folder's own lane as `LaidOutEvent`s with `summary: true` and the gray `SUMMARY_EVENT_FILL`. Both backends paint them as ordinary rounded event blocks in gray: the Canvas fallback paints them at full opacity, and the WebGL backend paints the whole folder-lane mesh gray. Summary bars are **non-interactive**: never hovered, never selected (no white ring), never labeled, never dimmed by search/selection emphasis (the WebGL base mesh stays full-bright because summary events are skipped by the emphasis split), and never contribute to dependency or edge-magnet/measure paths (`hitTest` already returns null on folder lanes; `findExactEdgeMatches` / `findExactEdgeMatchesAt` skip `summary` items).
+
 **Label contrast.** Event labels take their colour from the fill actually painted, flipping to `#000000` above `L 0.6` and `#ffffff` at or below — never chosen per state. The DOM equivalent of the same rule is `color: oklch(from var(--c) clamp(0, (0.6 - l) * 1000, 1) 0 0)`; the renderers cannot use it because there is no element to compute a style on.
 
 Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts as the pointer crosses its block**. That is accepted, not overlooked. An earlier revision held hover below the flip precisely to keep labels steady, and what it bought — a lift clipped to `≈ +0.09` — was too weak to notice, which is the defect that replaced it. Deriving the label from the painted fill rather than from the state is what makes the trade safe: however the lifts are retuned, a fill and its label cannot end up disagreeing about which side of the threshold they are on.
@@ -78,6 +80,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-022**: Dependency curve stroke width is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (`max(1, round(2 × dpr))` device px = 2 CSS px), applied by both Canvas and WebGL; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom.
 1. **PR-RENDER-023**: Selecting an event paints non-selected/non-neighbor blocks solid dark-gray `#2C2C2C` with label `#969696`, keeps the selected block's lifted state fill and its contrast label, and draws no white selection ring.
 1. **PR-RENDER-024**: `eventGapPrev` / `eventGapNext` return a lane event's distance to its previous/next neighbor from whole-lane pairs — `EDGE_GAP` on the true lane boundaries, real neighbors across chunk splits in both directions — and `setVbSquareWithGaps` writes one 6-float/vertex quad carrying both gaps per vertex.
+1. **PR-RENDER-025**: Collapsed-folder `summaryEvents` are laid out on the folder lane and painted gray; they are never labeled, never dimmed by search/selection, never hit-testable/selectable, and excluded from `findExactEdgeMatches` / `findExactEdgeMatchesAt`.
 
 ## Edge Cases
 
@@ -96,6 +99,7 @@ WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Can
 ## Changelog
 - **2026-09-03** — Selection no longer draws a 2px white ring and no longer dims non-neighbors to 0.45×; instead, non-selected/non-neighbor events render solid dark-gray `#2C2C2C` with label `#969696` (`eventEmphasis` replaces `eventEmphasisDim`; `SELECTION_MUTED_FILL` / `SELECTION_MUTED_LABEL`). Selected event and its dep neighbors keep their state fills; search non-match dim (0.25) is unchanged.
 - **2026-09-04** — Extracted `eventGapPrev` / `eventGapNext` / `EDGE_GAP` and exported `setVbSquareWithGaps` so the isolated-event gap math and vertex packing are unit-testable without a GL context; `createChunk` reads gaps straight from the full `pairs` array by global index (no per-chunk copies or gap arrays) so the million-event mesh path allocates only the vertex/index buffers (PR-RENDER-024).
+- **2026-09-03** — Collapsed-group summary events: gray `LaidOutEvent`s on folder lanes, non-interactive, never labeled/dimmed; `paintGroupBands`/ProfilerStep bands removed. PR-RENDER-025.
 - **2026-09-02** — Dependency curve stroke is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (2 CSS px, min 1 device px), so Canvas and WebGL match the 2 CSS px selection stroke at any dpr; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom. (PR-RENDER-022)
 - **2026-09-02** — PR-RENDER-020b: overlay underpaint respects `hoveredLaneId` (`LANE_HOVER_FILL` vs `LANE_FILL`) so dimmed state fills match Canvas over a hovered row.
 - **2026-09-02** — Experiment: hover and selected share `L + 0.33`; selection still gets `C × 1.05` and the white ring.

@@ -1,4 +1,4 @@
-import type { SwimEvent, SwimlaneBand, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
+import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
 import { walkVisibleRows } from '../domain/swimTree';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
@@ -73,8 +73,8 @@ export function eventPaintRect(
 /** @deprecated Use EVENT_MARGIN_DEVICE — kept as alias for older call sites during migration. */
 export const EVENT_MARGIN = EVENT_MARGIN_DEVICE;
 
-/** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */
-export const BAND_FILL = '#2c2c2c';
+/** Fill for collapsed-folder summary bars (gray, non-interactive). */
+export const SUMMARY_EVENT_FILL = '#4a4a4a';
 
 /** Max quads per mesh (ushort indices: 65536 / 4 vertices). */
 export const MAX_QUADS_PER_MESH = 0x1_00_00 / 4;
@@ -100,14 +100,14 @@ export interface LaidOutEvent {
   laneIndex: number;
   y: number;
   color: string;
+  /** Collapsed-folder summary bar: gray, non-interactive, never labeled/dimmed. */
+  summary?: boolean;
 }
 
 export interface SwimlaneLayout {
   lanes: FlatLane[];
   headers: GroupHeader[];
   events: LaidOutEvent[];
-  /** Shared phase bands; empty when model omits them. */
-  bands: SwimlaneBand[];
   eventsById: Map<string, LaidOutEvent>;
   lanesByTid: Map<string, FlatLane>;
   /** Events for each lane index (contiguous groups from rebuild); folders are `[]`. */
@@ -118,16 +118,10 @@ export const EMPTY_LAYOUT: SwimlaneLayout = {
   lanes: [],
   headers: [],
   events: [],
-  bands: [],
   eventsById: new Map(),
   lanesByTid: new Map(),
   eventsByLane: [],
 };
-
-/** Folder rows and depth-0 spacer leaves (通信 / 储存HBM) show ProfilerStep bands. */
-export function showsProfilerStepBands(lane: FlatLane): boolean {
-  return lane.folder === true || (lane.depth === 0 && lane.thread.events.length === 0);
-}
 
 export function contentHeightFromLayout(layout: SwimlaneLayout): number {
   if (layout.headers.length === 0 && layout.lanes.length === 0) {
@@ -183,7 +177,6 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       lanes: [],
       headers: [],
       events: [],
-      bands: [],
       eventsById: new Map(),
       lanesByTid: new Map(),
       eventsByLane: [],
@@ -195,7 +188,6 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   const eventsById = new Map<string, LaidOutEvent>();
   const lanesByTid = new Map<string, FlatLane>();
   const eventsByLane: LaidOutEvent[][] = [];
-  const bands = model.bands ?? [];
 
   let y = 0;
   /** Sticky pin strip: flat leaf rows only — no Card header chrome. */
@@ -213,7 +205,25 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       const lane: FlatLane = { thread, y, color, folder: true, depth: row.depth };
       lanes.push(lane);
       lanesByTid.set(thread.id, lane);
-      eventsByLane.push([]);
+      const laneEvents: LaidOutEvent[] = [];
+      // Collapsed folders carry gray summary bars (disjoint union of descendants).
+      const summaries = [...(thread.summaryEvents ?? [])].sort(
+        (a, b) => a.startTime - b.startTime,
+      );
+      for (const ev of summaries) {
+        const item: LaidOutEvent = {
+          id: ev.id,
+          event: ev,
+          laneIndex: lanes.length - 1,
+          y,
+          color: SUMMARY_EVENT_FILL,
+          summary: true,
+        };
+        events.push(item);
+        eventsById.set(ev.id, item);
+        laneEvents.push(item);
+      }
+      eventsByLane.push(laneEvents);
       y += LANE_HEIGHT;
       continue;
     }
@@ -231,7 +241,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     eventsByLane.push(laneEvents);
     y += LANE_HEIGHT;
   }
-  return { lanes, headers, events, bands, eventsById, lanesByTid, eventsByLane };
+  return { lanes, headers, events, eventsById, lanesByTid, eventsByLane };
 }
 
 /** Event block height and Y, vertically centered in the lane between row dividers. */
@@ -546,6 +556,7 @@ export function findExactEdgeMatches(
   const bounds = new Set([rangeStart, rangeEnd]);
   const out: ExactEdgeMatch[] = [];
   for (const item of layout.events) {
+    if (item.summary) continue;
     const ev = item.event;
     const end = ev.startTime + ev.duration;
     if (bounds.has(ev.startTime)) {
@@ -565,6 +576,7 @@ export function findExactEdgeMatchesAt(
 ): ExactEdgeMatch[] {
   const out: ExactEdgeMatch[] = [];
   for (const item of layout.events) {
+    if (item.summary) continue;
     const ev = item.event;
     if (ev.startTime === time) {
       out.push({ eventId: item.id, edge: 'start', time, laneY: item.y });

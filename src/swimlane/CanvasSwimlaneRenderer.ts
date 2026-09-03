@@ -16,10 +16,8 @@ import {
   type DependencyLink,
 } from './dependencyLinks';
 import {
-  BAND_FILL,
   EMPTY_LAYOUT,
   eventPaintRect,
-  eventRadius,
   LANE_FILL,
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
@@ -34,10 +32,8 @@ import {
   findLaidOutEvent,
   hitTestLayout,
   rebuildLayout,
-  showsProfilerStepBands,
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
-  snapEventRect,
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
@@ -117,38 +113,6 @@ function roundRectPath(
   ctx.closePath();
 }
 
-export function paintGroupBands(
-  ctx: CanvasRenderingContext2D,
-  layout: SwimlaneLayout,
-  view: SwimlaneViewWindow,
-  widthDevice: number,
-  heightDevice: number,
-  dpr = 1,
-): void {
-  const bands = layout.bands;
-  if (!bands.length) return;
-  const span = Math.max(1, view.endTime - view.startTime);
-  for (const lane of layout.lanes) {
-    if (!showsProfilerStepBands(lane)) continue;
-    for (const band of bands) {
-      if (band.startTime + band.duration < view.startTime || band.startTime > view.endTime) {
-        continue;
-      }
-      const x = ((band.startTime - view.startTime) / span) * widthDevice;
-      const w = Math.max(2, (band.duration / span) * widthDevice);
-      const metrics = eventBlockMetrics(lane.y, view.scrollY);
-      const y = metrics.y * dpr;
-      const h = metrics.h * dpr;
-      if (y + h < 0 || y > heightDevice) continue;
-      const r = snapEventRect(x, y, w, h);
-      ctx.fillStyle = BAND_FILL;
-      roundRectPath(ctx, r.x, r.y, r.w, r.h, eventRadius(w / dpr, dpr));
-      ctx.fill();
-      drawEventLabel(ctx, band.name, r.x, r.y, r.w, r.h, widthDevice, 1, '#555555', dpr);
-    }
-  }
-}
-
 /**
  * Canvas2D overlay: labels and hover/selection state fills.
  * Used on top of WebGL interval fills (hybrid path).
@@ -223,9 +187,6 @@ export class SwimlaneOverlayPainter {
     if (!ctx || !this.canvas) return;
     ctx.clearRect(0, 0, this.width, this.height);
 
-    // WebGL draws lane chrome + event fills; overlay adds band fills/labels + event labels.
-    paintGroupBands(ctx, this.layout, this.view, this.width, this.height, this.dpr);
-
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
@@ -234,6 +195,7 @@ export class SwimlaneOverlayPainter {
     const dpr = this.dpr;
 
     for (const item of this.layout.events) {
+      if (item.summary) continue;
       const ev = item.event;
       if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
         continue;
@@ -459,8 +421,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.stroke();
     }
 
-    paintGroupBands(ctx, this.layout, this.view, this.width, this.height, this.dpr);
-
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
@@ -491,6 +451,16 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
       const fr = eventPaintRect(x, y, w, h, dpr);
+
+      // Summary bars are gray, non-interactive: full opacity, no label, no ring.
+      if (item.summary) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = item.color;
+        roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        continue;
+      }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const { alpha, muted } = eventEmphasis(

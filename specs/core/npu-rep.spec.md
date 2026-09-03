@@ -31,7 +31,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 3. **PR-NPU-003** — Rejects bad magic / version / length mismatch.
 4. **PR-NPU-004** — loadReportSource loads multi-op npu-rep; defaults to first operator; ids are FileInfo names.
 5. **PR-NPU-005** — Duplicate operator stems (`op1.npu.rep` + `op1.rep`) throw.
-6. **PR-NPU-006** — `sample.lite.rep` operators have distinct traces, CSVs, connections (op1: every event 3–8 neighbors; op2: 1–4), Cube pipe occupancy, Card → 计算 → Core → pipe nesting (via producer `nestCardTree` opt-in), ProfilerStep bands (op1: 3, op2: 5), and producer Parameter args (`Code`, `Detail`, `Pc_addr`, `Process_bytes`). Committed artifact is **lite** (op2 omits `trace.json`); playground/tests hydrate op2 via `generateSampleOp2Trace` before `loadReportSource`.
+6. **PR-NPU-006** — `sample.lite.rep` operators have distinct traces, CSVs, connections (op1: every event 3–8 neighbors; op2: 1–4), Cube pipe occupancy, Card → 计算 → Core → pipe nesting (via producer `nestCardTree` opt-in), and producer Parameter args (`Code`, `Detail`, `Pc_addr`, `Process_bytes`). Committed artifact is **lite** (op2 omits `trace.json`); playground/tests hydrate op2 via `generateSampleOp2Trace` before `loadReportSource`.
 7. **PR-NPU-007** — `parseNpuRep160` parses the product 160-byte head + file table from `data/result.npu-rep` (6 entries; `jsonl` type 3, CSVs type 4); rejects bad magic / version / origin / length; round-trips `packNpuRep160`.
 8. **PR-NPU-008** — `loadReportSource` routes a 160-byte container: a flat leaf → single-op `AdaptedReport`; a nested `type 1` container → multi-op report.
 9. **PR-NPU-009** — A metrics-only 160-byte pack (no `trace.json`) adapts with a **null** `swimlaneModel` and a populated `reportModel` (no hard error), so the viewer renders the aside without a timeline.
@@ -51,7 +51,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 - **2026-09-03** — PR-NPU-007/008: product 160-byte layout (`parseNpuRep160` + routing by `fileInfoLength`); 164-byte layout re-labeled as the interim sample format.
 - **2026-08-26** — PR-NPU-006: rename to `sample.lite.rep`; op2 trace generated at hydrate time; generator in `playground/`.
 - **2026-08-25** — PR-NPU-006: `nestCardTree` opt-in nesting; trim sample.rep to ~30 MB; align neighbor AC to 3–8.
-- **2026-08-25** — PR-NPU-006: sample traces include ProfilerStep bands; nest Core.*/PIPE lanes; fixture operators stay distinct.
+- **2026-08-25** — PR-NPU-006: nest Core.*/PIPE lanes; fixture operators stay distinct.
 - **2026-08-25** — PR-NPU-006: nest `CoreN.*/PIPE` sample lanes into Card → 计算 → Core → pipe; fixture operators stay distinct (traces + CSVs + connections).
 - **2026-08-25** — PR-NPU-006: `data/sample.rep` fixture with distinct operators (traces + CSVs + connections).
 - **2026-08-21** — PR-NPU-005: duplicate operator stems throw (unit-tested).
