@@ -255,9 +255,9 @@ describe('LaneGutter', () => {
       },
     });
     const fills = wrapper.findAll('.pr-gutter__util-fill');
-    expect(fills[0]!.attributes('style')).toContain('background: #733234');
-    expect(fills[1]!.attributes('style')).toContain('background: #5c5c5c');
-    expect(fills[2]!.attributes('style')).toContain('background: #5c5c5c');
+    expect(fills[0]!.attributes('style')).toContain('--pr-util-fill: rgba(231, 67, 74, 0.4)');
+    expect(fills[1]!.attributes('style')).toContain('--pr-util-fill: rgba(255, 255, 255, 0.08)');
+    expect(fills[2]!.attributes('style')).toContain('--pr-util-fill: rgba(255, 255, 255, 0.08)');
   });
 
   it('PR-GUTTER-008: Card row is a non-interactive spacer', () => {
@@ -447,8 +447,8 @@ describe('LaneGutter', () => {
       ),
     ).toMatch(/color:\s*#fff/);
 
-    // Pin tooltip follows EventTooltip's chrome, which AC-09 moved to the token.
-    const tip = rule(src, '\\.pr-gutter__pin-tip');
+    // Shared tip chrome (pin + util) follows EventTooltip / raised-surface token.
+    const tip = rule(src, '\\.pr-gutter__tip');
     expect(tip).toMatch(/--pr-surface-raised, #363636/);
     expect(tip).not.toMatch(/#555/);
   });
