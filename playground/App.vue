@@ -15,6 +15,7 @@ const FILE_FIXTURES = {
   sample: { name: 'sample.lite.rep', url: '/data/sample.lite.rep' },
   rep: { name: 'out.rep', url: '/data/out.rep' },
   example: { name: 'example.rep', url: '/data/example.rep' },
+  npu160: { name: 'example160.rep', url: '/data/example160.rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
 } as const;
 
@@ -264,6 +265,10 @@ onMounted(async () => {
           :href="fixtureHref('example')"
           data-testid="fixture-example"
         >example.rep</a>
+        <a
+          :href="fixtureHref('npu160')"
+          data-testid="fixture-npu160"
+        >example160.rep</a>
         <a
           :href="fixtureHref('deps')"
           data-testid="fixture-deps"
