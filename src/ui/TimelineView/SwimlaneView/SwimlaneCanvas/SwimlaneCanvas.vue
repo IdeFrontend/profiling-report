@@ -933,6 +933,11 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueeAnchor = null;
   // Stay non-pending so the release is not mistaken for a click-select.
   marqueePending = false;
+  // Escape cancels the gesture fully — release the press flag so hover/cursor resume
+  // immediately, not on the next pointerdown/pointerup. The unbind above already
+  // stops window-level drag move/end from firing, so the next pointerup is a plain
+  // click (no marquee context to suppress).
+  marqueePressActive = false;
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
@@ -1794,26 +1799,22 @@ function onPointerUp(e: PointerEvent): void {
 
   // Ctrl+left-click within threshold: toggle event in multi-selection.
   if (ctrlClickPending && Math.abs(e.clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX) {
-    const target = activeCanvas();
-    if (target) {
-      const localX = e.clientX - target.getBoundingClientRect().left;
-      const localY = e.clientY - target.getBoundingClientRect().top;
-      const irect = { x0: localX, x1: localX + 1, y0: localY, y1: localY + 1 };
-      const events = eventsIntersectingRect(backend.getLayout(), props.view, syncTrackWidth(), irect);
-      if (events.length > 0) {
-        const eventId = events[0].id;
-        const ids = new Set(props.multiSelectedIds ?? []);
-        if (ids.has(eventId)) ids.delete(eventId); else ids.add(eventId);
-        emit('update-multi-selected', [...ids]);
-        // Same commit path as a marquee release: ProfilingReport's `multi-select`
-        // handler turns the full toggled set into viewState.multiSelectedIds, so
-        // Ctrl+click multi-selection behaves like a region (summary dock, span
-        // hull, single-selection dismiss, empty set clears).
-        const toggled = [...ids]
-          .map((id) => backend.findEvent(id))
-          .filter((ev): ev is SwimEvent => ev != null);
-        emit('multi-select', toggled);
-      }
+    // Use the same hit-test as a plain click (shortest-overlap) so Ctrl+click picks
+    // the event the user is actually pointing at, not the first in layout order.
+    const hit = eventAtPointer(x, y, mag.eventId);
+    if (hit) {
+      const eventId = hit.id;
+      const ids = new Set(props.multiSelectedIds ?? []);
+      if (ids.has(eventId)) ids.delete(eventId); else ids.add(eventId);
+      emit('update-multi-selected', [...ids]);
+      // Same commit path as a marquee release: ProfilingReport's `multi-select`
+      // handler turns the full toggled set into viewState.multiSelectedIds, so
+      // Ctrl+click multi-selection behaves like a region (summary dock, span
+      // hull, single-selection dismiss, empty set clears).
+      const toggled = [...ids]
+        .map((id) => backend.findEvent(id))
+        .filter((ev): ev is SwimEvent => ev != null);
+      emit('multi-select', toggled);
     }
     ctrlClickPending = false;
     return;

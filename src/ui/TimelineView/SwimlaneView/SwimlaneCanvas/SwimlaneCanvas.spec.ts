@@ -1731,7 +1731,35 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-074: drag never pans; Shift+wheel and trackpad deltaX pan instead', async () => {
+  it('PR-CANVAS-074: Escape during the drag fully releases the press flag — next plain click selects', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const rect = (
+      wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
+    ).eventScreenRect('e1')!;
+
+    // Start a drag that crosses the 4px gate.
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: rect.x + 20, clientY: rect.y + 8, buttons: 1 }),
+    );
+    await wrapper.vm.$nextTick();
+
+    // Escape cancels the marquee mid-drag (no pointerup yet).
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await wrapper.vm.$nextTick();
+
+    // A new plain click on the same event must select it (regression: marqueePressActive
+    // used to stay set until the next pointerup, suppressing hover/cursor until then).
+    const emittedSelect = wrapper.emitted('select');
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: rect.y + rect.h / 2, pointerId: 2 });
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: rect.y + rect.h / 2, pointerId: 2 });
+    await wrapper.vm.$nextTick();
+    const selects = wrapper.emitted('select') ?? [];
+    expect(selects.length).toBeGreaterThan(emittedSelect?.length ?? 0);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-049: drag never pans; Shift+wheel and trackpad deltaX pan instead', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1 });
     window.dispatchEvent(new PointerEvent('pointermove', { clientX: 90, clientY: 30, buttons: 1 }));
