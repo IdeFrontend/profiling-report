@@ -1240,9 +1240,9 @@ describe('SwimlaneCanvas', () => {
 
   it('PR-CANVAS-040: blue edge marks stack above the swim playhead stem', async () => {
     const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-swim-cursor\s*\{[^}]*z-index:\s*3/);
-    expect(src).toMatch(/\.pr-measure-edge-mark\s*\{[^}]*z-index:\s*4/);
-    expect(src).toMatch(/\.pr-measure-edge-mark--snap\s*\{[^}]*z-index:\s*5/);
+    expect(src).toMatch(/\.pr-swim-cursor\s*\{[^}]*z-index:\s*9/);
+    expect(src).toMatch(/\.pr-measure-edge-mark\s*\{[^}]*z-index:\s*10/);
+    expect(src).toMatch(/\.pr-measure-edge-mark--snap\s*\{[^}]*z-index:\s*11/);
   });
 
   it('PR-CANVAS-041: resize drag off an event emits unsnapped cursor', async () => {
@@ -1484,6 +1484,11 @@ describe('SwimlaneCanvas', () => {
   });
 
   it('PR-CANVAS-050: cross-lane measure draws the dashed connector and Δt label', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    // Same stack as the swim cursor — above Card strips — so the dashed vertical
+    // stays unbroken through Card headers (AC-13 failure mode for Alt-measure).
+    expect(src).toMatch(/\.pr-alt-measure\s*\{[^}]*z-index:\s*9/);
+
     const crossModel = {
       minTime: 0,
       maxTime: 1000,
@@ -1721,5 +1726,17 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
     wrapper.unmount();
+  });
+
+  it('PR-CANVAS-064: default swim canvas cursor is arrow; events pointer; measure col-resize', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-swim-canvas\s*\{[^}]*cursor:\s*default/);
+    expect(src).not.toMatch(/\.pr-swim-canvas\s*\{[^}]*cursor:\s*crosshair/);
+    expect(src).toMatch(
+      /\.pr-swim-canvas-wrap--over-event\s+\.pr-swim-canvas\s*\{[^}]*cursor:\s*pointer/,
+    );
+    expect(src).toMatch(
+      /\.pr-swim-canvas-wrap--measure\s+\.pr-swim-canvas\s*\{[^}]*cursor:\s*col-resize/,
+    );
   });
 });

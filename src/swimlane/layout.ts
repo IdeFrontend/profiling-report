@@ -6,11 +6,20 @@ import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
 /** Matches `.pr-gutter__group` height so canvas lanes align with gutter labels. */
-export const LANE_GROUP_HEADER_HEIGHT = 28;
+export const LANE_GROUP_HEADER_HEIGHT = 40;
 /** Card / root group-header strip across gutter + swimlane (`rgb(42, 42, 42)`). */
 export const LANE_GROUP_HEADER_FILL = '#2a2a2a';
 /** Card strip hover fill (`rgb(50, 50, 50)`); DOM only — canvas headers stay static. */
 export const LANE_GROUP_HEADER_HOVER = '#323232';
+/** Default lane row fill (`rgb(31, 31, 31)`); matches `.pr-gutter__lane`. */
+export const LANE_FILL = '#1f1f1f';
+/**
+ * Hovered lane row fill (AC-07), the value both UCD crops sample and the same
+ * `--pr-surface-raised` the gutter row uses. Painted into the row background by the
+ * renderers rather than composited over them: a DOM band would tint the events it
+ * crossed, and a lifted fill on an event already means hover on that event (AC-08).
+ */
+export const LANE_HOVER_FILL = '#363636';
 /** Half of 1 device-px gap between abutting event fills (inset per side after CSS→device scale). */
 export const EVENT_MARGIN_DEVICE = 0.5;
 
@@ -631,14 +640,16 @@ export function encodeIntervalPair(
 }
 
 /** Canvas/WebGL fill+label opacity: search miss → 0.25, non-emphasized when selection → ×0.45.
- * Callers pass `isSelected=true` for the clicked event and its laid-out dep neighbors. */
+ * Callers pass `keepBright=true` for the selection, its laid-out dep neighbors, and the
+ * hovered block. Hover must stay at full strength: a light fill with a dark label washed
+ * by the selection dim is what made hovered-but-not-selected blocks unreadable. */
 export function eventEmphasisDim(
   matchesSearch: boolean,
-  isSelected: boolean,
+  keepBright: boolean,
   hasSearch: boolean,
   hasSelection: boolean,
 ): number {
-  return (hasSearch && !matchesSearch ? 0.25 : 1) * (hasSelection && !isSelected ? 0.45 : 1);
+  return (hasSearch && !matchesSearch ? 0.25 : 1) * (hasSelection && !keepBright ? 0.45 : 1);
 }
 
 /** Parse `#RRGGBB` → RGB in 0..1. */

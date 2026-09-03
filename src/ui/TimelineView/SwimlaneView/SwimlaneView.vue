@@ -220,7 +220,7 @@ const pinnedView = computed(() => ({
   scrollY: 0,
 }));
 
-/** Leaf under canvas pointer — gutter header `#252525` only (not pushpin). */
+/** Leaf under canvas pointer — gutter row highlight only (not pushpin). */
 const hoveredLaneId = ref<string | null>(null);
 
 function onLaneHover(id: string | null): void {
@@ -537,10 +537,12 @@ defineExpose({
   overflow: hidden;
 }
 
-/** Pin↔body Alt-measure vertical — spans sticky strip and scroll body. */
+/** Pin↔body Alt-measure vertical — spans sticky strip and scroll body.
+ * z-index 9 matches in-canvas Alt-measure / swim cursor so Card strips (8) cannot
+ * punch gaps in the dashed bridge. */
 .pr-alt-measure-cross-bridge {
   position: absolute;
-  z-index: 7;
+  z-index: 9;
   width: 0;
   border-left: 2px dashed rgba(49, 122, 247, 1);
   transform: translateX(-50%);
@@ -640,14 +642,14 @@ defineExpose({
   position: absolute;
   left: 0;
   right: 0;
-  height: 28px;
+  height: 40px;
   box-sizing: border-box;
   margin: 0;
   padding: 0;
   border: 0;
   border-bottom: 1px solid #3a3a3a;
   background: var(--pr-card-header-fill);
-  color: #e8e8e8;
+  color: #e6e6e6;
   font: inherit;
   cursor: pointer;
   pointer-events: auto;
@@ -675,7 +677,9 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 22px;
+  letter-spacing: 0;
 }
 </style>

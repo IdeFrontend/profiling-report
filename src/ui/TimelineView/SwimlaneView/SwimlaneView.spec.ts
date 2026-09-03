@@ -113,10 +113,13 @@ describe('SwimlaneView', () => {
     expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(false);
     const viewSrc = (await import('./SwimlaneView.vue?raw')).default as string;
     expect(viewSrc).toMatch(/\.pr-card-strips\s*\{[^}]*z-index:\s*8/);
+    expect(viewSrc).toMatch(/\.pr-alt-measure-cross-bridge\s*\{[^}]*z-index:\s*9/);
     const canvasSrc = (await import('./SwimlaneCanvas/SwimlaneCanvas.vue?raw')).default as string;
-    expect(canvasSrc).toMatch(/\.pr-swim-cursor\s*\{[^}]*z-index:\s*3/);
-    expect(canvasSrc).toMatch(/\.pr-measure-edge-mark\s*\{[^}]*z-index:\s*4/);
-    expect(canvasSrc).toMatch(/\.pr-measure-edge-mark--snap\s*\{[^}]*z-index:\s*5/);
+    expect(canvasSrc).toMatch(/\.pr-swim-cursor\s*\{[^}]*z-index:\s*9/);
+    expect(canvasSrc).toMatch(/\.pr-alt-measure\s*\{[^}]*z-index:\s*9/);
+    expect(canvasSrc).toMatch(/\.pr-alt-measure-anchor\s*\{[^}]*z-index:\s*9/);
+    expect(canvasSrc).toMatch(/\.pr-measure-edge-mark\s*\{[^}]*z-index:\s*10/);
+    expect(canvasSrc).toMatch(/\.pr-measure-edge-mark--snap\s*\{[^}]*z-index:\s*11/);
     expect(canvasSrc).toMatch(/\.pr-measure-border\s*\{[^}]*z-index:\s*3/);
   });
 
