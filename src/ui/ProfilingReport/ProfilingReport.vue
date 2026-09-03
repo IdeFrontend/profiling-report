@@ -54,7 +54,8 @@ import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
 import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
-import { animateViewWindow } from '../TimelineView/animateViewWindow';
+import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
+import { contentHeightFromModel, type CollapseAnimState } from '../../swimlane/layout';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 
@@ -114,6 +115,9 @@ const dockExpanded = ref(false);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+/** In-flight collapse/expand tween; null when settled. */
+const collapseAnim = ref<CollapseAnimState | null>(null);
+let cancelCollapseAnim: () => void = () => {};
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
 const operators = ref<ReportOperator[]>([]);
 /** Shallow: avoid deep-proxying every swim event in every operator pack. */
@@ -162,11 +166,18 @@ const laneGroups = computed(() =>
   })),
 );
 
+/** Collapse set with the in-flight group forced EXPANDED so the tween can interpolate. */
+const visualCollapsedIds = computed(() => {
+  const anim = collapseAnim.value;
+  if (!anim) return collapsedGroupIds.value;
+  return collapsedGroupIds.value.filter((id) => id !== anim.groupId);
+});
+
 /** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
-  return filterCollapsedTree(m, collapsedGroupIds.value);
+  return filterCollapsedTree(m, visualCollapsedIds.value);
 });
 
 const bounds = computed(() => {
@@ -296,13 +307,54 @@ function onAsideWidth(w: number): void {
 
 function onToggleGroup(groupId: string): void {
   const set = new Set(collapsedGroupIds.value);
-  if (set.has(groupId)) set.delete(groupId);
-  else set.add(groupId);
-  collapsedGroupIds.value = [...set];
-  // Keep scroll within new content height
+  const collapsing = !set.has(groupId);
+  if (collapsing) set.add(groupId);
+  else set.delete(groupId);
+  const target = [...set];
+
+  // Height of the descendants being hidden/shown (expanded − collapsed content height).
+  const collapsedIds = collapsing ? target : collapsedGroupIds.value;
+  const expandedIds = collapsing ? collapsedGroupIds.value : target;
+  const m = swim.value;
+  if (!m) {
+    collapsedGroupIds.value = target;
+    return;
+  }
+  const hiddenHeight =
+    contentHeightFromModel(filterCollapsedTree(m, expandedIds)) -
+    contentHeightFromModel(filterCollapsedTree(m, collapsedIds));
+
+  cancelCollapseAnim();
+  if (hiddenHeight <= 0 || prefersReducedMotion()) {
+    collapsedGroupIds.value = target;
+    clampScrollAfterCollapse();
+    return;
+  }
+
+  collapseAnim.value = { groupId, visible: collapsing ? 1 : 0, hiddenHeight };
+  cancelCollapseAnim = animateProgress({
+    from: collapsing ? 1 : 0,
+    to: collapsing ? 0 : 1,
+    durationMs: 200,
+    onUpdate: (visible) => {
+      collapseAnim.value = { groupId, visible, hiddenHeight };
+    },
+    onDone: () => {
+      collapseAnim.value = null;
+      collapsedGroupIds.value = target;
+      clampScrollAfterCollapse();
+    },
+  });
+}
+
+function clampScrollAfterCollapse(): void {
+  // Keep scroll within new content height once the collapse settles.
   const el = timelineRef.value?.gutterRoot;
   if (el) {
-    viewState.value = { ...viewState.value, scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) };
+    viewState.value = {
+      ...viewState.value,
+      scrollY: Math.min(viewState.value.scrollY, el.scrollHeight),
+    };
   }
 }
 
@@ -434,6 +486,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
+  cancelCollapseAnim();
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
@@ -704,10 +757,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :dependency-mode="localDependencyMode"
           :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
-          :collapsed-ids="collapsedGroupIds"
+          :collapsed-ids="visualCollapsedIds"
           :pinned-lane-ids="viewState.pinnedLaneIds"
           :display-swim="displaySwim"
           :pin-source-model="swim"
+          :collapse-anim="collapseAnim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"

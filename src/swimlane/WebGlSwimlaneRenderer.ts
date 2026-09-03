@@ -8,6 +8,7 @@ import {
   type SwimlaneViewWindow,
 } from '../domain/types';
 import {
+  applyCollapseAnim,
   EMPTY_LAYOUT,
   LANE_FILL,
   LANE_GROUP_HEADER_FILL,
@@ -27,6 +28,7 @@ import {
   rebuildLayout,
   SELECTION_MUTED_FILL,
   snapEventRect,
+  type CollapseAnimState,
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
@@ -252,6 +254,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   /** Bumped in `refreshDepCache`; Playwright reads `data-dep-graph-gen` on the canvas. */
   private depGraphGen = 0;
   private laneMeshes: LaneMeshes[] = [];
+  /** Expanded layout the collapse tween interpolates from; `layout` is its transform. */
+  private baseLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   /** Subtracted from event times before float32 upload (model.minTime). */
@@ -311,11 +315,17 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setModel(model: SwimlaneModel): void {
-    this.layout = rebuildLayout(model);
+    this.baseLayout = rebuildLayout(model);
+    this.layout = this.baseLayout;
     this.timeBase = model?.minTime ?? 0;
     this.refreshDepCache();
     this.rebuildMeshes();
     this.rebuildCurveInstances();
+  }
+
+  /** Per-frame collapse/expand transform applied to the expanded base layout. */
+  setCollapseAnim(state: CollapseAnimState | null): void {
+    this.layout = applyCollapseAnim(this.baseLayout, state);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -447,9 +457,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const y = (lane.y - this.view.scrollY) * dpr;
       const laneH = LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > devH) continue;
+      const alpha = lane.alpha ?? 1;
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
-      this.drawSolidRect(solid, unit, 0, y, devW, laneH, bg);
-      this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider]);
+      this.drawSolidRect(solid, unit, 0, y, devW, laneH, bg, alpha);
+      this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider], alpha);
     }
 
     // Coverage-AA intervals (analytical X) — additive (ONE, ONE, ONE, ONE): the FS emits straight
@@ -491,13 +502,15 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
       const sy = bandHSnapped / devH;
       const py = 1 - (topSnapped * 2 + bandHSnapped) / devH;
+      const laneAlpha = lane.alpha ?? 1;
 
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
       if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
       const drawChunks = (chunks: MeshChunk[], rgb: [number, number, number], dim: number): void => {
         // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
-        gl.uniform4f(swim.uColor, rgb[0] * dim, rgb[1] * dim, rgb[2] * dim, dim);
+        const a = dim * laneAlpha;
+        gl.uniform4f(swim.uColor, rgb[0] * a, rgb[1] * a, rgb[2] * a, a);
         for (const chunk of chunks) {
           gl.bindVertexArray(chunk.vao);
           gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
@@ -548,6 +561,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.curveProg = null;
     this.gl = null;
     this.canvas = null;
+    this.baseLayout = EMPTY_LAYOUT;
     this.layout = EMPTY_LAYOUT;
     this.neighborIds = new Set();
     this.depLinks = [];
@@ -561,6 +575,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     w: number,
     h: number,
     rgb: [number, number, number],
+    alpha = 1,
   ): void {
     const gl = this.gl!;
     const devW = this.width;
@@ -570,7 +585,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const px = -1 + (2 * x + w) / devW;
     const py = 1 - (2 * y + h) / devH;
     gl.uniform4f(prog.uSizePos, sx, sy, px, py);
-    gl.uniform4f(prog.uColor, rgb[0], rgb[1], rgb[2], 1);
+    gl.uniform4f(prog.uColor, rgb[0], rgb[1], rgb[2], alpha);
     gl.bindVertexArray(unit.vao);
     gl.drawElements(gl.TRIANGLES, unit.indexCount, gl.UNSIGNED_SHORT, 0);
   }

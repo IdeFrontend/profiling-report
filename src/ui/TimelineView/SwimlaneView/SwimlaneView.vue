@@ -15,6 +15,7 @@ import {
   LANE_GROUP_HEADER_HOVER,
   LANE_HEIGHT,
   layoutHeaders,
+  type CollapseAnimState,
 } from '../../../swimlane/layout';
 import {
   ALT_MEASURE_FIND_EVENT_KEY,
@@ -63,12 +64,15 @@ const props = withDefaults(
     /** True when the cursor is magnetized to an event edge (gray the swim vertical bar). */
     cursorSnapped?: boolean;
     locale?: string;
+    /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
+    collapseAnim?: CollapseAnimState | null;
   }>(),
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
     cursorXRatio: null,
     cursorSnapped: false,
+    collapseAnim: null,
   },
 );
 
@@ -228,14 +232,22 @@ function onLaneHover(id: string | null): void {
 }
 
 /** Card header Y from the same row walk as the canvas, without an event-layout rebuild. */
-const cardHeaders = computed(() =>
-  layoutHeaders(props.model).map((h) => ({
+const cardHeaders = computed(() => {
+  const headers = layoutHeaders(props.model).map((h) => ({
     id: h.id,
     name: h.name,
     y: h.y,
     expanded: !collapsed.value.has(h.id),
-  })),
-);
+  }));
+  // Collapse/expand of a Card slides the strips below its header up to close the gap.
+  const anim = props.collapseAnim;
+  if (!anim || anim.hiddenHeight <= 0) return headers;
+  const groupHeader = headers.find((h) => h.id === anim.groupId);
+  if (!groupHeader) return headers; // folder collapse — Card strips stay put
+  const bottomY = groupHeader.y + LANE_GROUP_HEADER_HEIGHT;
+  const shift = anim.hiddenHeight * (1 - anim.visible);
+  return headers.map((h) => (h.y >= bottomY ? { ...h, y: h.y - shift } : h));
+});
 
 const visibleCardStrips = computed(() => {
   const scrollY = props.view.scrollY;
@@ -460,6 +472,7 @@ defineExpose({
         :pinned-lane-ids="pinnedLaneIds"
         :hovered-lane-id="hoveredLaneId"
         :locale="locale"
+        :collapse-anim="collapseAnim"
         @scroll="onGutterScroll"
         @toggle-group="emit('toggle-group', $event)"
         @pin-lane="emit('pin-lane', $event)"
@@ -482,6 +495,7 @@ defineExpose({
         :resolve-magnetize="magnetizeAtClient"
         :alt-measure-role="pinnedLaneIds.length ? 'body' : 'solo'"
         :pinned-lane-ids="pinnedLaneIds"
+        :collapse-anim="collapseAnim"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"

@@ -23,6 +23,7 @@ import {
   leafLaneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
+  type CollapseAnimState,
   type ExactEdgeMatch,
   type HoverGap,
 } from '../../../../swimlane/layout';
@@ -81,6 +82,8 @@ const props = withDefaults(
     altMeasureRole?: 'body' | 'strip' | 'solo';
     /** Leaf lane ids currently in the sticky strip (informational; ownership uses surfaces). */
     pinnedLaneIds?: string[];
+    /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
+    collapseAnim?: CollapseAnimState | null;
   }>(),
   {
     dependencyMode: 'all',
@@ -90,6 +93,7 @@ const props = withDefaults(
     cursorSnapped: false,
     altMeasureRole: 'solo',
     pinnedLaneIds: () => [],
+    collapseAnim: null,
   },
 );
 
@@ -280,7 +284,12 @@ function zeroBackingStores(): void {
 }
 
 function modelContentHeight(): number {
-  return contentHeightFromModel(props.model);
+  const base = contentHeightFromModel(props.model);
+  const anim = props.collapseAnim;
+  if (anim && anim.hiddenHeight > 0) {
+    return Math.max(0, base - anim.hiddenHeight * (1 - anim.visible));
+  }
+  return base;
 }
 
 function maxScrollY(): number {
@@ -725,6 +734,17 @@ watch(
   () => {
     attachedModel = null;
     resize();
+  },
+);
+
+/** Per-frame collapse/expand: transform the expanded layout, shrink the scroll area, repaint. */
+watch(
+  () => props.collapseAnim,
+  (anim) => {
+    backend.setCollapseAnim(anim ?? null);
+    const wrap = wrapRef.value;
+    if (wrap) sizerHeight.value = Math.max(modelContentHeight(), wrap.clientHeight || 0);
+    sync();
   },
 );
 

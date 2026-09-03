@@ -86,6 +86,59 @@ export interface FlatLane {
   /** Nested folder row: reserves height, no events painted. */
   folder?: boolean;
   depth: number;
+  /** 0..1 opacity during a collapse/expand tween (default 1, fully opaque). */
+  alpha?: number;
+}
+
+/**
+ * In-flight collapse/expand tween applied to a layout built from the **expanded**
+ * model. `visible` = 1 fully expanded, 0 fully collapsed; `hiddenHeight` = px of
+ * descendant content hidden at full collapse. Consumed by renderers + DOM gutter.
+ */
+export interface CollapseAnimState {
+  groupId: string;
+  visible: number;
+  hiddenHeight: number;
+}
+
+/** Content-space Y just below the group header (Card) or folder row. -1 when absent. */
+export function groupBottomY(layout: SwimlaneLayout, groupId: string): number {
+  const header = layout.headers.find((h) => h.id === groupId);
+  if (header) return header.y + LANE_GROUP_HEADER_HEIGHT;
+  const lane = layout.lanes.find((l) => l.thread.id === groupId);
+  if (lane) return lane.y + LANE_HEIGHT;
+  return -1;
+}
+
+/**
+ * Slide + fade the collapse: every lane/header/event below the group slides up by
+ * `hiddenHeight * (1 - visible)`, and the collapsing subtree's rows fade to
+ * `visible` so they read as sliding out under the header. Pure — returns a new
+ * layout; renderers hold the expanded base and call this per frame (no mesh rebuild).
+ */
+export function applyCollapseAnim(
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+): SwimlaneLayout {
+  if (!state || state.hiddenHeight <= 0 || state.visible >= 1) return layout;
+  const bottomY = groupBottomY(layout, state.groupId);
+  if (bottomY < 0) return layout;
+
+  const shift = state.hiddenHeight * (1 - state.visible);
+  const subtreeEnd = bottomY + state.hiddenHeight;
+
+  const lanes = layout.lanes.map((l) => {
+    if (l.y < bottomY) return l;
+    const next = { ...l, y: l.y - shift };
+    if (l.y < subtreeEnd) next.alpha = Math.max(0, Math.min(1, state.visible));
+    return next;
+  });
+  const headers = layout.headers.map((h) => (h.y < bottomY ? h : { ...h, y: h.y - shift }));
+  const events = layout.events.map((e) => (e.y < bottomY ? e : { ...e, y: e.y - shift }));
+  const eventsByLane: LaidOutEvent[][] = lanes.map(() => []);
+  for (const e of events) eventsByLane[e.laneIndex]?.push(e);
+
+  return { ...layout, lanes, headers, events, eventsByLane };
 }
 
 export interface GroupHeader {

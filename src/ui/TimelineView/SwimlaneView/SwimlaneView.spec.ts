@@ -336,6 +336,15 @@ describe('SwimlaneView', () => {
     expect(src).toMatch(/prefers-reduced-motion:\s*reduce/);
   });
 
+  it('PR-SWIMVIEW-026: collapse tween slides canvas + Card strips + gutter', async () => {
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    // Forwards the tween to the body canvas and the gutter.
+    expect(src).toMatch(/:collapse-anim="collapseAnim"/);
+    // Card strips below a collapsing Card shift up by the same offset as the canvas.
+    expect(src).toMatch(/anim\.hiddenHeight \* \(1 - anim\.visible\)/);
+    expect(src).toMatch(/LANE_GROUP_HEADER_HEIGHT/);
+  });
+
   it('PR-SWIMVIEW-014: pinned duplicates keep the same lane ids as originals', () => {
     const view = createViewState({
       minTime: 0,

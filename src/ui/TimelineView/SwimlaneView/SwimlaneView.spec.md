@@ -62,8 +62,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
 22. **PR-SWIMVIEW-025** — Pinned strip appears/disappears over 200ms via `--pr-pinned-h` height transition; enter/leave collapse to `height: 0`; `prefers-reduced-motion: reduce` drops the transition.
+23. **PR-SWIMVIEW-026** — Collapsing/expanding a Card or folder slides the content: the canvas rows/events below the group shift up/down and the collapsing subtree fades (`collapseAnim` → `SwimlaneCanvas.setCollapseAnim`), Card strips below the collapsed Card shift with the same offset, and the gutter collapse wrapper animates height + opacity. Driven by a 200ms `animateProgress` tween owned by `ProfilingReport`; instant under `prefers-reduced-motion: reduce`.
 
 ## Changelog
+- **2026-09-03** — PR-SWIMVIEW-026: lane collapse/expand animates — canvas slide+fade (`collapseAnim` → `setCollapseAnim`), Card strips below the collapsed Card shift, gutter wrapper animates height + opacity; `ProfilingReport` owns a 200ms tween.
 - **2026-09-03** — Pinned strip appears/disappears over 200ms via `--pr-pinned-h` height transition; reduced-motion drops it.
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
