@@ -270,7 +270,8 @@ export interface ReportOperator {
 }
 
 export interface AdaptedReport {
-  swimlaneModel: SwimlaneModel;
+  /** `null` when the source has no timeline (metrics-only pack, no `trace.json`). */
+  swimlaneModel: SwimlaneModel | null;
   reportModel: ReportViewModel;
   capabilities?: ReportCapability[];
   /** Multi-operator packs only: selectable operators (omit for single-op sources). */

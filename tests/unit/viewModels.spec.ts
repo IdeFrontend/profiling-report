@@ -83,7 +83,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(adapted.reportModel.pipeOccupancy.filter((p) => p.side === 'cube')).toEqual([]);
 
     // Gutter util comes from PIPE ratios, not busy-fraction heuristics
-    const pipeLane = adapted.swimlaneModel.processes
+    const pipeLane = adapted.swimlaneModel!.processes
       .flatMap((p) => p.threads)
       .find((t) => t.name.includes('PIPE_V'));
     expect(pipeLane?.utilization).toBeCloseTo(byId.vector.ratio, 5);

@@ -7,13 +7,13 @@ import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes, loadResultNpuRepBy
 describe('PR-JSON: standalone Chrome Trace', () => {
   it('PR-JSON-001: loads CTEF JSON without report aside data (PROC-3)', () => {
     const adapted = loadReportSource(loadOutTraceBytes());
-    expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
-    expect(adapted.swimlaneModel.minTime).toBeLessThan(adapted.swimlaneModel.maxTime);
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
+    expect(adapted.swimlaneModel!.minTime).toBeLessThan(adapted.swimlaneModel!.maxTime);
     expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
     expect(adapted.reportModel.overviewSeries).toEqual([]);
-    expect(adapted.swimlaneModel.processes[0]?.threads[0]?.utilization).toBeUndefined();
-    expect(adapted.swimlaneModel.bands).toBeUndefined();
+    expect(adapted.swimlaneModel!.processes[0]?.threads[0]?.utilization).toBeUndefined();
+    expect(adapted.swimlaneModel!.bands).toBeUndefined();
   });
 
   it('PR-JSON-002: loadReportSource still accepts .rep bytes', () => {
@@ -28,7 +28,7 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.operators?.map((o) => o.label)).toEqual(['op1', 'op2']);
     expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
-    expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.operatorReports?.['op2.npu.rep']?.reportModel.summary.opName).toBe('add_custom');
   });
 
@@ -57,14 +57,19 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.operators).toBeUndefined();
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
-    expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
   });
 
-  it('PR-NPU-008: real 160-byte sample without trace.json throws a clear error', () => {
-    // data/result.npu-rep is a partial metric pack (no trace.json / OpBasicInfo),
-    // so the flat-leaf adaptation must fail loudly rather than render an empty
-    // timeline.
-    expect(() => loadReportSource(loadResultNpuRepBytes())).toThrow(/trace\.json missing/);
+  it('PR-NPU-009: metrics-only 160-byte sample adapts with a null swimlane (no hard error)', () => {
+    // data/result.npu-rep is a partial metric pack (no trace.json / OpBasicInfo):
+    // it must adapt to a metrics-only report (null swimlane + populated aside)
+    // rather than throwing, so the viewer can render the aside without a timeline.
+    const adapted = loadReportSource(loadResultNpuRepBytes());
+    expect(adapted.swimlaneModel).toBeNull();
+    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    expect(adapted.reportModel.memoryTables.length).toBeGreaterThan(0);
+    expect(adapted.reportModel.hardwareDetails).toBeDefined();
+    expect(adapted.operators).toBeUndefined();
   });
 
   it('PR-NPU-008: loadReportSource routes nested 160-byte container to multi-op report', () => {

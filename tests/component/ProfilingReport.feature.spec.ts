@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { adaptRep, emptyReportViewModel, parseRep, ProfilingReport } from '../../src/index';
-import { loadOutRepBuffer, loadOutRepBytes, loadNpuRepBuffer } from '../helpers/fixtures';
+import { loadOutRepBuffer, loadOutRepBytes, loadNpuRepBuffer, loadResultNpuRepBytes } from '../helpers/fixtures';
 import type { SwimlaneModel } from '../../src/domain/types';
 
 describe('PR-UI: ProfilingReport feature contract', () => {
@@ -39,12 +39,12 @@ describe('PR-UI: ProfilingReport feature contract', () => {
   it('PR-UI-002: select emits detail payload', async () => {
     const parsed = parseRep(loadOutRepBytes());
     const adapted = adaptRep(parsed);
-    const event = adapted.swimlaneModel.processes[0]?.threads[0]?.events[0];
+    const event = adapted.swimlaneModel!.processes[0]?.threads[0]?.events[0];
     expect(event).toBeDefined();
 
     const wrapper = mount(ProfilingReport, {
       props: {
-        swimlaneModel: adapted.swimlaneModel,
+        swimlaneModel: adapted.swimlaneModel!,
         reportModel: adapted.reportModel,
       },
     });
@@ -170,7 +170,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(ProfilingReport, {
       props: {
-        swimlaneModel: adapted.swimlaneModel,
+        swimlaneModel: adapted.swimlaneModel!,
         reportModel: adapted.reportModel,
       },
     });
@@ -182,21 +182,21 @@ describe('PR-UI: ProfilingReport feature contract', () => {
       viewState: { startTime: number; endTime: number };
     };
     const spanZoomed = vm.viewState.endTime - vm.viewState.startTime;
-    const full = adapted.swimlaneModel.maxTime - adapted.swimlaneModel.minTime;
+    const full = adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime;
 
     expect(spanZoomed).toBeLessThan(full);
 
     await wrapper.get('[data-testid="zoom-to-fit"]').trigger('click');
     await flushPromises();
-    expect(vm.viewState.startTime).toBe(adapted.swimlaneModel.minTime);
-    expect(vm.viewState.endTime).toBe(adapted.swimlaneModel.maxTime);
+    expect(vm.viewState.startTime).toBe(adapted.swimlaneModel!.minTime);
+    expect(vm.viewState.endTime).toBe(adapted.swimlaneModel!.maxTime);
   });
 
   it('PR-UI-005: search query updates view state', async () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(ProfilingReport, {
       props: {
-        swimlaneModel: adapted.swimlaneModel,
+        swimlaneModel: adapted.swimlaneModel!,
         reportModel: adapted.reportModel,
       },
     });
@@ -269,6 +269,21 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
   });
 
+  it('PR-UI-012: metrics-only source renders the aside without a timeline (no hard error)', async () => {
+    // data/result.npu-rep has metric CSVs + hardware info but no trace.json:
+    // it must render the aside (PIPE/memory/hardware) with no swimlane and no error.
+    const wrapper = mount(ProfilingReport, {
+      props: { source: loadResultNpuRepBytes() },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="load-error"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="swimlane"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="no-timeline"]').exists()).toBe(true);
+  });
+
   it('PR-ROOT-004: auto-loaded source applies the adapter capabilities, the prop overrides', async () => {
     // out.rep carries roofline, hardwareDetails and memoryDiagram; loadReportSource
     // derives them, so a host passing only `source` must still get them.
@@ -320,7 +335,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(ProfilingReport, {
       props: {
-        swimlaneModel: adapted.swimlaneModel,
+        swimlaneModel: adapted.swimlaneModel!,
         reportModel: adapted.reportModel,
       },
     });
@@ -336,12 +351,12 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     };
     const before = { ...vm.viewState };
     expect(before.endTime - before.startTime).toBeLessThan(
-      adapted.swimlaneModel.maxTime - adapted.swimlaneModel.minTime,
+      adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime,
     );
 
     await wrapper.get('[data-testid="zoom-to-fit"]').trigger('click');
     await flushPromises();
-    expect(vm.viewState.startTime).toBe(adapted.swimlaneModel.minTime);
-    expect(vm.viewState.endTime).toBe(adapted.swimlaneModel.maxTime);
+    expect(vm.viewState.startTime).toBe(adapted.swimlaneModel!.minTime);
+    expect(vm.viewState.endTime).toBe(adapted.swimlaneModel!.maxTime);
   });
 });
