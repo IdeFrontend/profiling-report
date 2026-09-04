@@ -36,7 +36,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
-**Shortcut help (PyPTO parity).** A **keyboard** glyph button sits **first** in the action-icon list — immediately after the zoom pill, before zoom-to-fit / measure / display-control / aside. It opens a floating **快捷键说明** popover (`data-testid="shortcut-help"`) mirroring PyPTO's `swimGraphShortCutKeyDescripiton` panel: **450px** card, **16px** radius; **鼠标操作** and **键盘操作** side-by-side (mouse: vertical movement = wheel glyph, single/box selection = left-click glyph; keyboard: zoom W|S and pan A|D as horizontal pairs); **组合操作** full-width below (scaling = wheel+Ctrl; pan = left-click+Ctrl; box select = left-click; time measurement = left-click+Alt). Bindings render as PyPTO 24×24 multi-color SVG glyphs (`img[data-shortcut-icon]`) — not text `<kbd>` keycaps. Trackpad/gesture alternatives are omitted (unsupported here). The panel closes via the X, a second press of the trigger, a pointerdown outside the wrap (trigger + panel), or **Escape** — the same dismiss contract as 显示控制. The `help` icon remains reserved for the connection-level tooltip; the shortcut action uses a distinct `keyboard` glyph.
+**Shortcut help (PyPTO parity).** A **keyboard** glyph button sits **first** in the action-icon list — immediately after the zoom pill, before zoom-to-fit / measure / display-control / aside. It opens a floating **快捷键说明** popover (`data-testid="shortcut-help"`) mirroring PyPTO's `swimGraphShortCutKeyDescripiton` panel: **450px** card, **16px** radius; **鼠标操作** and **键盘操作** side-by-side (mouse: vertical movement = wheel glyph, single/box selection = left-click glyph; keyboard: zoom W|S and pan A|D as horizontal pairs); **组合操作** full-width below (scaling = wheel+Ctrl; pan = left-click+Ctrl; box select = left-click; time measurement = left-click+Alt). Bindings render as PyPTO 24×24 multi-color SVG glyphs (`img[data-shortcut-icon]`) — not text `<kbd>` keycaps. Trackpad/gesture alternatives are omitted (unsupported here). The panel is **teleported to `body`** with `position: fixed` (right-aligned under the trigger, clamped into the viewport) so toolbar `overflow-x: clip` cannot crop it. The panel closes via the X, a second press of the trigger, a pointerdown outside the wrap (trigger + panel), or **Escape** — the same dismiss contract as 显示控制. The `help` icon remains reserved for the connection-level tooltip; the shortcut action uses a distinct `keyboard` glyph.
 
 ## Visual
 
@@ -216,6 +216,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-09-04** — Shortcut-help popover teleports to `body` (fixed) so toolbar `overflow-x: clip` cannot crop the 450px card.
 - **2026-09-04** — Shortcut-help popover matches PyPTO layout (Mouse‖Keyboard + Combined) and 24×24 SVG glyphs (`PR-TOOLBAR-023`).
 - **2026-09-03** — Shortcut-help action (`keyboard` glyph, first in the action list) + 快捷键说明 popover (`PR-TOOLBAR-021` / `022` / `023`).
 - **2026-09-03** — Chrome `padding: 8px` so a wrapped toolbar row is not flush with the tabs or the axis (`PR-TOOLBAR-009`).

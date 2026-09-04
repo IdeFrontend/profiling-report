@@ -69,6 +69,13 @@ const displayWrapRef = ref<HTMLElement | null>(null);
 /** Shortcut-help (快捷键说明) popover state — same dismiss contract as display control. */
 const shortcutHelpOpen = ref(false);
 const shortcutWrapRef = ref<HTMLElement | null>(null);
+const shortcutTriggerRef = ref<HTMLButtonElement | null>(null);
+const shortcutHelpRef = ref<HTMLElement | null>(null);
+/** Fixed coords — panel teleports to body to escape toolbar `overflow-x: clip`. */
+const shortcutHelpStyle = ref<Record<string, string>>({});
+const SHORTCUT_HELP_WIDTH_PX = 450;
+const SHORTCUT_HELP_GAP_PX = 6;
+const SHORTCUT_HELP_MARGIN_PX = 8;
 const opMenuOpen = ref(false);
 const activeOptionIndex = ref(0);
 const opMenuId = useId();
@@ -137,10 +144,30 @@ function closeShortcutHelp() {
   shortcutHelpOpen.value = false;
 }
 
-/** Same APG dialog dismiss as 显示控制: pointerdown outside the wrap or Escape. */
+/** Anchor under the trigger, right-aligned; clamp so the 450px card stays in the viewport. */
+function positionShortcutHelp() {
+  const trigger = shortcutTriggerRef.value;
+  if (!trigger) return;
+  const r = trigger.getBoundingClientRect();
+  const width = SHORTCUT_HELP_WIDTH_PX;
+  const margin = SHORTCUT_HELP_MARGIN_PX;
+  let left = r.right - width;
+  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+  left = Math.min(Math.max(left, margin), maxLeft);
+  shortcutHelpStyle.value = {
+    position: 'fixed',
+    top: `${r.bottom + SHORTCUT_HELP_GAP_PX}px`,
+    left: `${left}px`,
+    right: 'auto',
+    zIndex: '1000',
+  };
+}
+
+/** Same APG dialog dismiss as 显示控制; panel is teleported, so check wrap + panel. */
 function onShortcutOutsidePointerDown(e: PointerEvent) {
-  const wrap = shortcutWrapRef.value;
-  if (!wrap || !(e.target instanceof Node) || wrap.contains(e.target)) return;
+  if (!(e.target instanceof Node)) return;
+  if (shortcutWrapRef.value?.contains(e.target)) return;
+  if (shortcutHelpRef.value?.contains(e.target)) return;
   closeShortcutHelp();
 }
 
@@ -150,13 +177,17 @@ function onShortcutEscape(e: KeyboardEvent) {
   closeShortcutHelp();
 }
 
-watch(shortcutHelpOpen, (open) => {
+watch(shortcutHelpOpen, async (open) => {
   if (open) {
+    await nextTick();
+    positionShortcutHelp();
     document.addEventListener('pointerdown', onShortcutOutsidePointerDown);
     document.addEventListener('keydown', onShortcutEscape);
+    window.addEventListener('resize', positionShortcutHelp);
   } else {
     document.removeEventListener('pointerdown', onShortcutOutsidePointerDown);
     document.removeEventListener('keydown', onShortcutEscape);
+    window.removeEventListener('resize', positionShortcutHelp);
   }
 });
 
@@ -200,6 +231,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onDisplayEscape);
   document.removeEventListener('pointerdown', onShortcutOutsidePointerDown);
   document.removeEventListener('keydown', onShortcutEscape);
+  window.removeEventListener('resize', positionShortcutHelp);
   toolbarClipRo?.disconnect();
   toolbarClipRo = null;
 });
@@ -453,6 +485,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         class="pr-toolbar__shortcut-wrap"
       >
         <button
+          ref="shortcutTriggerRef"
           type="button"
           class="pr-toolbar__icon-btn"
           data-testid="toggle-shortcuts"
@@ -466,13 +499,16 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           <PrIcon name="keyboard" />
         </button>
 
-        <div
-          v-if="shortcutHelpOpen"
-          class="pr-toolbar__shortcut-help"
-          data-testid="shortcut-help"
-          role="dialog"
-          :aria-label="t('shortcuts', locale)"
-        >
+        <Teleport to="body">
+          <div
+            v-if="shortcutHelpOpen"
+            ref="shortcutHelpRef"
+            class="pr-toolbar__shortcut-help"
+            data-testid="shortcut-help"
+            role="dialog"
+            :aria-label="t('shortcuts', locale)"
+            :style="shortcutHelpStyle"
+          >
           <div class="pr-toolbar__shortcut-head">
             <span class="pr-toolbar__shortcut-title">{{ t('shortcuts', locale) }}</span>
             <button
@@ -652,6 +688,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
             </div>
           </div>
         </div>
+        </Teleport>
       </div>
 
       <button
@@ -1504,10 +1541,6 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 }
 
 .pr-toolbar__shortcut-help {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 20;
   box-sizing: border-box;
   width: 450px;
   padding: 16px 20px 20px;
