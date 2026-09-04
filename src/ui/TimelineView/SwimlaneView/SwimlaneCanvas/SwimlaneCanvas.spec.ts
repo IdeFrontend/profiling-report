@@ -1739,4 +1739,65 @@ describe('SwimlaneCanvas', () => {
       /\.pr-swim-canvas-wrap--measure\s+\.pr-swim-canvas\s*\{[^}]*cursor:\s*col-resize/,
     );
   });
+
+  it('PR-CANVAS-065: clicking a collapsed summary bar emits toggle-group, not select', async () => {
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 'folder/summary/0', name: '', startTime: 0, duration: 1000, taskCount: 4 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    // Model watch → resize/attach so the summary bar is laid out for hit-testing.
+    await wrapper.setProps({ model: { ...model } });
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('folder/summary/0');
+    expect(rect).toBeTruthy();
+    const x = rect!.x + rect!.w / 2;
+    const y = rect!.y + rect!.h / 2;
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+
+    expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['folder']);
+    expect(wrapper.emitted('select')).toBeFalsy();
+    wrapper.unmount();
+  });
 });

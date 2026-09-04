@@ -41,4 +41,22 @@ describe('EventTooltip', () => {
     expect(text).toContain('500.0 ns'); // duration → ns (4 sig digits)
     expect(text).toContain('2.001 ms'); // end 2_000_500 → ms
   });
+
+  it('PR-TOOLTIP-003: summary event shows an "N tasks" title instead of its empty name', () => {
+    const many = mount(EventTooltip, {
+      props: {
+        event: makeEvent({ name: '', taskCount: 4 }),
+        stylePos: { left: '0px', top: '0px' },
+      },
+    });
+    expect(many.text()).toContain('4 tasks');
+
+    const one = mount(EventTooltip, {
+      props: {
+        event: makeEvent({ name: '', taskCount: 1 }),
+        stylePos: { left: '0px', top: '0px' },
+      },
+    });
+    expect(one.text()).toContain('1 task');
+  });
 });

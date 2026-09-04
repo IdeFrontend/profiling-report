@@ -6,15 +6,19 @@ import {
   eventLabelAnchor,
   eventPaintRect,
   eventRadius,
+  findExactEdgeMatches,
   hitTestLayout,
   rebuildLayout,
-  
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   snapEventRect,
+  SUMMARY_EVENT_FILL,
+  SUMMARY_LABEL_COLOR,
+  summaryFolderId,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
+import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
@@ -597,5 +601,76 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
     expect(stub.setDependencyMode).toBeUndefined();
     expect(stub.setDependencyDepth).toBeUndefined();
     expect(stub.setHoveredLane).toBeUndefined();
+  });
+});
+
+describe('PR-RENDER: collapsed-group summary events', () => {
+  function summaryModel(taskCount: number): SwimlaneModel {
+    return {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 'folder/summary/0', name: '', startTime: 10, duration: 40, taskCount },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  it('PR-RENDER-024: summary events lay out gray, are hit-testable, excluded from edge matches', () => {
+    const layout = rebuildLayout(summaryModel(4));
+    const summary = layout.events.find((e) => e.id === 'folder/summary/0');
+    expect(summary).toBeTruthy();
+    expect(summary!.summary).toBe(true);
+    expect(summary!.color).toBe(SUMMARY_EVENT_FILL);
+
+    // Hit-testable: the folder lane resolves to the summary bar (click-to-expand).
+    const view = { startTime: 0, endTime: 100, scrollY: 0 };
+    const y = LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+    expect(hitTestLayout(layout, view, 400, 100, y)).toBe('folder/summary/0');
+
+    // `summaryFolderId` maps the bar back to its grouping node.
+    expect(summaryFolderId(layout, 'folder/summary/0')).toBe('folder');
+    expect(summaryFolderId(layout, 'no-such-id')).toBeNull();
+
+    // Excluded from exact-edge magnet/measure matches (summary start 10 / end 50).
+    expect(findExactEdgeMatches(layout, 10, 50)).toEqual([]);
+  });
+
+  it('PR-RENDER-025: summary bars render a gray fill with a dimmed task-count label and a hover lift', () => {
+    const { canvas, fills, texts } = recordingCanvas();
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(summaryModel(4));
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    renderer.render();
+
+    // Resting: gray fill + dimmed "4 tasks" label.
+    expect(fills).toContain(SUMMARY_EVENT_FILL);
+    expect(texts.get('4 tasks')).toBe(SUMMARY_LABEL_COLOR);
+
+    // Hover: the fill lifts off the gray via the OKLCH hover state.
+    const hoverCanvas = recordingCanvas();
+    const hovered = new CanvasSwimlaneRenderer();
+    hovered.attach(hoverCanvas.canvas);
+    hovered.resize(400, 120, 1);
+    hovered.setModel(summaryModel(4));
+    hovered.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    hovered.setSelection(null, 'folder/summary/0');
+    hovered.render();
+    expect(hoverCanvas.fills).toContain(eventFill(SUMMARY_EVENT_FILL, 'hover'));
   });
 });

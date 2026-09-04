@@ -66,6 +66,7 @@ precision highp float;
 uniform vec4 uColor;
 uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 uniform vec3 uRR; // xy = min/max painted radii (device px, rounded in JS); z = exact switch threshold × dpr
+uniform float uSrcOver; // 1.0 = premultiplied source-over (summary bars); 0.0 = additive (events)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
@@ -102,10 +103,12 @@ void main() {
   // for very thin events round-rect-coverage provide brighter inaccurate results
   // using min
   float cov = min(hCoverage, rrShape);
-  // Straight RGB × coverage with constant alpha 1.0: the additive blend (ONE, ONE, ONE, ONE)
-  // therefore adds each event's full cov·dim·rgb (SRC_ALPHA ≡ ONE), so pixels accumulate all event
-  // coverage across lanes with no quadratic dim.
-  outColor = vec4(uColor.xyz * cov, 1.0);
+  // Straight RGB × coverage. In additive mode alpha stays 1.0 (the additive blend
+  // (ONE, ONE, ONE, ONE) makes SRC_ALPHA ≡ ONE, so pixels accumulate all event coverage
+  // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars)
+  // alpha carries cov for premultiplied source-over so the exact fill color lands without
+  // adding onto the lane background beneath it.
+  outColor = vec4(uColor.xyz * cov, mix(1.0, cov, uSrcOver));
 }
 `;
 

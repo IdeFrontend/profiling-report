@@ -118,6 +118,32 @@ export function collectLeafEvents(threads: SwimThread[]): SwimEvent[] {
   return out;
 }
 
+/**
+ * Disjoint union of event intervals: sort by start and merge overlapping *and touching*
+ * spans (`next.start <= cur.end`) into the minimal set of non-overlapping ranges.
+ * Each range carries `count` = the number of source events merged into it.
+ */
+export function unionEventIntervals(
+  events: SwimEvent[],
+): { startTime: number; duration: number; count: number }[] {
+  const sorted = [...events].sort(
+    (a, b) => a.startTime - b.startTime || b.duration - a.duration,
+  );
+  const out: { startTime: number; duration: number; count: number }[] = [];
+  for (const ev of sorted) {
+    const start = ev.startTime;
+    const end = ev.startTime + ev.duration;
+    const last = out[out.length - 1];
+    if (last && start <= last.startTime + last.duration) {
+      last.duration = Math.max(last.startTime + last.duration, end) - last.startTime;
+      last.count += 1;
+    } else {
+      out.push({ startTime: start, duration: Math.max(0, end - start), count: 1 });
+    }
+  }
+  return out;
+}
+
 export function collectLeafEventsFromModel(model: SwimlaneModel): SwimEvent[] {
   return model.processes.flatMap((p) => collectLeafEvents(p.threads));
 }
@@ -151,7 +177,16 @@ export function filterCollapsedTree(
     nodes.map((n) => {
       if (!isFolderNode(n)) return n;
       if (collapsed.has(n.id)) {
-        return { ...n, children: [], events: [] };
+        const summaryEvents = unionEventIntervals(collectLeafEvents(n.children ?? [])).map(
+          (r, i) => ({
+            id: `${n.id}/summary/${i}`,
+            name: '',
+            startTime: r.startTime,
+            duration: r.duration,
+            taskCount: r.count,
+          }),
+        );
+        return { ...n, children: [], events: [], summaryEvents };
       }
       return { ...n, children: filterThreads(n.children ?? []) };
     });

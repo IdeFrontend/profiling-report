@@ -228,3 +228,11 @@ export function laneCategoryLabel(
   if (!categoryKey) return fallbackName;
   return t(LANE_CATEGORY_MESSAGE[categoryKey], locale);
 }
+
+/**
+ * Summary bar label and tooltip title: "1 task" / "N tasks".
+ * English, matching the tooltip's Start/Duration/End chrome (English in both locales).
+ */
+export function taskCountLabel(count: number): string {
+  return count === 1 ? '1 task' : `${count} tasks`;
+}
