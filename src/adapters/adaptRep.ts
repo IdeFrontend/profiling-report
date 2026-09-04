@@ -296,6 +296,46 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
+/**
+ * Product `npu-rep` summary source: `Summary.jsonl`. Op identity lives in the
+ * `OpInfoSummary` category (same field names as `OpBasicInfo.csv`, but JSON
+ * typed values with `null` for absent fields).
+ */
+function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
+  if (!payload) return {};
+  for (const line of decodeUtf8(payload).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (obj.category !== 'OpInfoSummary') continue;
+
+    const text = (v: unknown): string | undefined => {
+      if (v == null) return undefined;
+      const s = String(v).trim();
+      return s === '' ? undefined : s;
+    };
+    const num = (v: unknown): number | undefined => {
+      if (v == null) return undefined;
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+
+    return {
+      opName: text(obj['Op Name']),
+      opType: text(obj['Op Type']),
+      taskDurationUs: num(obj['Task Duration(us)']),
+      currentFreq: num(obj['Current Freq']),
+      ratedFreq: num(obj['Rated Freq']),
+      pid: text(obj['Pid']),
+      blockDim: num(obj['Block Dim']) ?? text(obj['Block Dim']),
+    };
+  }
+  return {};
+}
+
 /** DATA-1: numeric fields from HardwareInfo.jsonl (accepts `ai_*` and `aic_*` keys). */
 function hardwareNumericFieldsFromJsonl(text: string): Record<string, number> {
   const fields: Record<string, number> = {};
@@ -517,7 +557,9 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   const memoryTopology = labelled?.model;
   const bandwidthCards = bandwidthCardsFromMemory(payloads['Memory.csv']);
   const summary = summaryWithHardwareCoreCount(
-    summaryFromOpBasicInfo(payloads['OpBasicInfo.csv']),
+    payloads['OpBasicInfo.csv']
+      ? summaryFromOpBasicInfo(payloads['OpBasicInfo.csv'])
+      : summaryFromSummaryJsonl(payloads['Summary.jsonl']),
     payloads,
   );
   return {
@@ -598,7 +640,13 @@ function swimlaneFromPayloads(
   payloads: Record<string, Uint8Array>,
   pipes: PipeOccupancyItem[],
 ): SwimlaneModel | null {
-  const bytes = payloads['trace.json'];
+  // Two timeline sources, two units:
+  //  - `trace.json` (classic `.rep`) stores genuine nanoseconds (Ascend producer convention).
+  //  - `PipeTrace.json` (product `npu-rep`) stores microseconds despite its
+  //    `displayTimeUnit: "ns"` label — verified: every ts/dur × the 1650 MHz rated
+  //    frequency is an exact integer cycle count.
+  const isPipeTrace = payloads['trace.json'] == null && payloads['PipeTrace.json'] != null;
+  const bytes = payloads['trace.json'] ?? payloads['PipeTrace.json'];
   if (!bytes) {
     // Metrics-only pack: no timeline source. Return null so the caller renders
     // the aside without a swimlane instead of hard-erroring (VIEW_DATA_REQUIREMENTS).
@@ -610,8 +658,7 @@ function swimlaneFromPayloads(
   } catch (cause) {
     throw new Error('[profiling-report] adaptRep: trace.json is not valid JSON', { cause });
   }
-  // Ascend `.rep` embeds store ts/dur in nanoseconds (producer convention, not CTEF).
-  const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: 'ns' });
+  const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: isPipeTrace ? 'us' : 'ns' });
   // Util on flat names first (`laneColorKey` uses Core.*/PIPE suffix); nest keeps leaf util.
   // Nesting is producer opt-in (`nestCardTree` in trace.json) — never invent for arbitrary .rep.
   const withUtil = withPipeLaneUtilizations(model, pipes);

@@ -35,6 +35,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 7. **PR-NPU-007** — `parseNpuRep160` parses the product 160-byte head + file table from `data/result.npu-rep` (6 entries; `jsonl` type 3, CSVs type 4); rejects bad magic / version / origin / length; round-trips `packNpuRep160`.
 8. **PR-NPU-008** — `loadReportSource` routes a 160-byte container: a flat leaf → single-op `AdaptedReport`; a nested `type 1` container → multi-op report.
 9. **PR-NPU-009** — A metrics-only 160-byte pack (no `trace.json`) adapts with a **null** `swimlaneModel` and a populated `reportModel` (no hard error), so the viewer renders the aside without a timeline.
+10. **PR-NPU-010** — The product timeline/summary embeds (`PipeTrace.json` + `Summary.jsonl`) map to the swimlane and op identity: `PipeTrace.json` drives the swimlane (µs → ns), `Summary.jsonl` `OpInfoSummary` supplies `opName`/`opType`/`taskDurationUs`/`blockDim`/`pid`.
 
 ## Edge Cases
 

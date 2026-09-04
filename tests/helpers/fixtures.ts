@@ -7,6 +7,7 @@ const OUT_TRACE = resolve(__dirname, '../../data/out.trace.json');
 const NPU_REP = resolve(__dirname, '../../data/example.npu.rep');
 const SAMPLE_LITE_REP = resolve(__dirname, '../../data/sample.lite.rep');
 const RESULT_NPU_REP = resolve(__dirname, '../../data/result.npu-rep');
+const VECTOR_MULADD_NPU_REP = resolve(__dirname, '../../data/vector_muladd_plain.npu-rep');
 
 export const EXPECTED_OUT_REP_EMBEDS = [
   'ArithmeticUtilization.csv',
@@ -50,6 +51,11 @@ export function loadNpuRepBuffer(): ArrayBuffer {
 /** Real 160-byte product sample (`data/result.npu-rep`). */
 export function loadResultNpuRepBytes(): Uint8Array {
   return new Uint8Array(readFileSync(RESULT_NPU_REP));
+}
+
+/** Full product `npu-rep` sample with `PipeTrace.json` timeline + `Summary.jsonl` (`vector_muladd_plain`). */
+export function loadVectorMuladdNpuRepBytes(): Uint8Array {
+  return new Uint8Array(readFileSync(VECTOR_MULADD_NPU_REP));
 }
 
 /** Lite sample.lite.rep on disk → full bytes with op2 trace hydrated in memory. */
