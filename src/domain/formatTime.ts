@@ -74,17 +74,36 @@ export function timeScaleUnitFromMagnitude(ns: number): TimeScaleUnit {
  * Returns undefined when missing/invalid so clocks UI can hide.
  */
 export function resolveClockFreqMHz(summary?: SummaryMetrics | null): number | undefined {
-  const raw = summary?.currentFreq ?? summary?.ratedFreq;
-  if (raw == null || !Number.isFinite(raw) || raw <= 0) return undefined;
-  return raw;
+  const current = summary?.currentFreq;
+  if (current != null && Number.isFinite(current) && current > 0) return current;
+  const rated = summary?.ratedFreq;
+  if (rated != null && Number.isFinite(rated) && rated > 0) return rated;
+  return undefined;
 }
 
 /**
- * Display cycles from wall time (I-Q14): `ns × freqMHz / 1000`.
+ * Exact derived cycles as a BigInt (I-Q14): `round(ns) × round(freqMHz) / 1000`,
+ * rounded half-up. BigInt keeps the integer exact past `Number.MAX_SAFE_INTEGER`,
+ * where `ns × freqMHz` as a double loses its low digits (a 708 s trace at 1650 MHz
+ * is ~1.17e18 cycles, whose double ULP is ~256).
+ *
+ * `ns` is always a non-negative trace-relative time here (tooltip/detail subtract
+ * `model.minTime`; cursor clamps to ≥ 0), so half-up rounding is safe.
+ */
+function wholeCyclesExact(ns: number, clockFreqMHz: number): bigint {
+  const nsInt = BigInt(Math.round(ns));
+  const freqInt = BigInt(Math.round(clockFreqMHz));
+  return (nsInt * freqInt + 500n) / 1000n;
+}
+
+/**
+ * Display cycles from wall time (I-Q14): `cycles = ns × freqMHz / 1000`.
+ * Exact within `Number.MAX_SAFE_INTEGER`; callers that format the label use the
+ * BigInt path directly so grouped digits stay exact for long traces.
  * Not per-event `*_total_cycles`; assumes timeline ns shares the AIC clock domain.
  */
 export function nsToCycles(ns: number, clockFreqMHz: number): number {
-  return (ns * clockFreqMHz) / 1000;
+  return Number(wholeCyclesExact(ns, clockFreqMHz));
 }
 
 function hasClockFreq(
@@ -94,33 +113,24 @@ function hasClockFreq(
   return f != null && f > 0 && Number.isFinite(f);
 }
 
-/** Whole derived cycles from ns (I-Q14), rounded to the nearest integer. */
-function wholeCycles(ns: number, clockFreqMHz: number): number {
-  return Math.round(nsToCycles(ns, clockFreqMHz));
-}
-
 /**
  * Space-group every 3 digits with no leading zeroes (`10 325`, `1 000 000`, `325`).
  */
-function formatCyclesValue(value: number): string {
-  return groupIntegerDigits(String(value));
+function formatCyclesValue(value: bigint): string {
+  return groupIntegerDigits(value.toString());
 }
 
 /** Derived CPU-clock label — number only (no `cyc` / `cycles` suffix). */
 function formatCycles(ns: number, opts: FormatTimeOpts | undefined): string {
   if (!Number.isFinite(ns) || !hasClockFreq(opts)) return '—';
-  const value = wholeCycles(ns, opts.clockFreqMHz);
-  if (!Number.isFinite(value)) return '—';
-  return formatCyclesValue(value);
+  return formatCyclesValue(wholeCyclesExact(ns, opts.clockFreqMHz));
 }
 
 /** Cycles for the detail card — value only, empty unit (no `cycles` label). */
 function formatCyclesParts(ns: number, opts: FormatTimeOpts | undefined): { value: string; unit: string } {
   if (!Number.isFinite(ns) || !hasClockFreq(opts)) return { value: '—', unit: '' };
-  const value = wholeCycles(ns, opts.clockFreqMHz);
-  if (!Number.isFinite(value)) return { value: '—', unit: '' };
   return {
-    value: formatCyclesValue(value),
+    value: formatCyclesValue(wholeCyclesExact(ns, opts.clockFreqMHz)),
     unit: '',
   };
 }
