@@ -99,6 +99,43 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(full.find('[data-testid="stats-compute"]').exists()).toBe(false);
   });
 
+  it('PR-UI-009: host cycles mode falls back to time when freq is missing', async () => {
+    const emptySwim: SwimlaneModel = { processes: [], minTime: 0, maxTime: 1 };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: emptySwim,
+        reportModel: emptyReportViewModel(), // summary {} → no OpBasicInfo freq
+        timeDisplayMode: 'cycles',
+      },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="toggle-display-control"]').trigger('click');
+    await flushPromises();
+    const select = wrapper.get('[data-testid="time-display-mode"]');
+    // Fallback to wall time: the select value is `time`, and the cycles option hides.
+    expect(select.attributes('value')).toBe('time');
+    expect(select.findAll('option').map((o) => o.attributes('value'))).not.toContain('cycles');
+  });
+
+  it('PR-UI-010: host cycles mode holds when freq is present', async () => {
+    const emptySwim: SwimlaneModel = { processes: [], minTime: 0, maxTime: 1 };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: emptySwim,
+        reportModel: { ...emptyReportViewModel(), summary: { currentFreq: 1650 } },
+        timeDisplayMode: 'cycles',
+      },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="toggle-display-control"]').trigger('click');
+    await flushPromises();
+    const select = wrapper.get('[data-testid="time-display-mode"]');
+    expect(select.attributes('value')).toBe('cycles');
+    expect(select.findAll('option').map((o) => o.attributes('value'))).toContain('cycles');
+  });
+
   it('PR-UI-004: zoom-to-fit resets time window', async () => {
     stubReducedMotion();
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
