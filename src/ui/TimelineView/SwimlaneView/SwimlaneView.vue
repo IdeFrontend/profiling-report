@@ -15,6 +15,7 @@ import {
   LANE_GROUP_HEADER_HOVER,
   LANE_HEIGHT,
   layoutHeaders,
+  type CollapseAnimState,
 } from '../../../swimlane/layout';
 import {
   ALT_MEASURE_FIND_EVENT_KEY,
@@ -63,12 +64,15 @@ const props = withDefaults(
     /** True when the cursor is magnetized to an event edge (gray the swim vertical bar). */
     cursorSnapped?: boolean;
     locale?: string;
+    /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
+    collapseAnim?: CollapseAnimState | null;
   }>(),
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
     cursorXRatio: null,
     cursorSnapped: false,
+    collapseAnim: null,
   },
 );
 
@@ -228,14 +232,22 @@ function onLaneHover(id: string | null): void {
 }
 
 /** Card header Y from the same row walk as the canvas, without an event-layout rebuild. */
-const cardHeaders = computed(() =>
-  layoutHeaders(props.model).map((h) => ({
+const cardHeaders = computed(() => {
+  const headers = layoutHeaders(props.model).map((h) => ({
     id: h.id,
     name: h.name,
     y: h.y,
     expanded: !collapsed.value.has(h.id),
-  })),
-);
+  }));
+  // Collapse/expand of a Card slides the strips below its header up to close the gap.
+  const anim = props.collapseAnim;
+  if (!anim || anim.hiddenHeight <= 0) return headers;
+  const groupHeader = headers.find((h) => h.id === anim.groupId);
+  if (!groupHeader) return headers; // folder collapse — Card strips stay put
+  const bottomY = groupHeader.y + LANE_GROUP_HEADER_HEIGHT;
+  const shift = anim.hiddenHeight * (1 - anim.visible);
+  return headers.map((h) => (h.y >= bottomY ? { ...h, y: h.y - shift } : h));
+});
 
 const visibleCardStrips = computed(() => {
   const scrollY = props.view.scrollY;
@@ -382,59 +394,61 @@ defineExpose({
         height: `${altMeasureCrossBridge.height}px`,
       }"
     />
-    <div
-      v-if="pinnedRows.length"
-      ref="pinnedStripRef"
-      class="pr-pinned-strip"
-      data-testid="pinned-strip"
-      :style="{ height: `${pinnedStripHeight}px` }"
-    >
+    <Transition name="pr-pinned">
       <div
-        class="pr-pinned-strip__gutter"
-        data-testid="pinned-gutter"
+        v-if="pinnedRows.length"
+        ref="pinnedStripRef"
+        class="pr-pinned-strip"
+        data-testid="pinned-strip"
+        :style="{ '--pr-pinned-h': `${pinnedStripHeight}px` }"
       >
-        <LaneGutterNode
-          v-for="row in pinnedRows"
-          :key="`pin-${row.lane.id}`"
-          :lane="row.lane"
-          :depth="row.depth"
+        <div
+          class="pr-pinned-strip__gutter"
+          data-testid="pinned-gutter"
+        >
+          <LaneGutterNode
+            v-for="row in pinnedRows"
+            :key="`pin-${row.lane.id}`"
+            :lane="row.lane"
+            :depth="row.depth"
+            :pinned-lane-ids="pinnedLaneIds"
+            :hovered-lane-id="hoveredLaneId"
+            :locale="locale"
+            @pin-lane="emit('pin-lane', $event)"
+            @unpin-lane="emit('unpin-lane', $event)"
+          />
+        </div>
+        <SwimlaneCanvas
+          v-if="pinnedModel"
+          ref="pinnedCanvasRef"
+          class="pr-pinned-strip__canvas"
+          data-testid="pinned-canvas"
+          :model="pinnedModel"
+          :view="pinnedView"
+          :selected-event-id="selectedEventId"
+          :hovered-event-id="hoveredEventId"
+          :search-query="searchQuery"
+          :measure-mode="measureMode"
+          :measure-range="measureRange"
+          :show-dependencies="false"
+          :prefer-renderer="preferRenderer ?? 'auto'"
+          :cursor-x-ratio="cursorXRatio"
+          :cursor-snapped="cursorSnapped"
+          :resolve-magnetize="magnetizeAtClient"
+          alt-measure-role="strip"
           :pinned-lane-ids="pinnedLaneIds"
-          :hovered-lane-id="hoveredLaneId"
-          :locale="locale"
-          @pin-lane="emit('pin-lane', $event)"
-          @unpin-lane="emit('unpin-lane', $event)"
+          @select="emit('select', $event)"
+          @hover="(ev, x, y) => emit('hover', ev, x, y)"
+          @lane-hover="onLaneHover"
+          @cursor="onCursor"
+          @set-playhead="emit('set-playhead', $event)"
+          @pan="emit('pan', $event)"
+          @zoom="(f, a) => emit('zoom', f, a)"
+          @update:measure-range="emit('update:measure-range', $event)"
+          @suppress-measure-dt="emit('suppress-measure-dt', $event)"
         />
       </div>
-      <SwimlaneCanvas
-        v-if="pinnedModel"
-        ref="pinnedCanvasRef"
-        class="pr-pinned-strip__canvas"
-        data-testid="pinned-canvas"
-        :model="pinnedModel"
-        :view="pinnedView"
-        :selected-event-id="selectedEventId"
-        :hovered-event-id="hoveredEventId"
-        :search-query="searchQuery"
-        :measure-mode="measureMode"
-        :measure-range="measureRange"
-        :show-dependencies="false"
-        :prefer-renderer="preferRenderer ?? 'auto'"
-        :cursor-x-ratio="cursorXRatio"
-        :cursor-snapped="cursorSnapped"
-        :resolve-magnetize="magnetizeAtClient"
-        alt-measure-role="strip"
-        :pinned-lane-ids="pinnedLaneIds"
-        @select="emit('select', $event)"
-        @hover="(ev, x, y) => emit('hover', ev, x, y)"
-        @lane-hover="onLaneHover"
-        @cursor="onCursor"
-        @set-playhead="emit('set-playhead', $event)"
-        @pan="emit('pan', $event)"
-        @zoom="(f, a) => emit('zoom', f, a)"
-        @update:measure-range="emit('update:measure-range', $event)"
-        @suppress-measure-dt="emit('suppress-measure-dt', $event)"
-      />
-    </div>
+    </Transition>
 
     <div
       ref="bodyRef"
@@ -458,6 +472,7 @@ defineExpose({
         :pinned-lane-ids="pinnedLaneIds"
         :hovered-lane-id="hoveredLaneId"
         :locale="locale"
+        :collapse-anim="collapseAnim"
         @scroll="onGutterScroll"
         @toggle-group="emit('toggle-group', $event)"
         @pin-lane="emit('pin-lane', $event)"
@@ -480,6 +495,7 @@ defineExpose({
         :resolve-magnetize="magnetizeAtClient"
         :alt-measure-role="pinnedLaneIds.length ? 'body' : 'solo'"
         :pinned-lane-ids="pinnedLaneIds"
+        :collapse-anim="collapseAnim"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"
@@ -550,15 +566,31 @@ defineExpose({
 }
 
 .pr-pinned-strip {
+  box-sizing: border-box;
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: minmax(0, var(--pr-gutter-width, 280px)) minmax(80px, 1fr);
   gap: 0;
   align-items: stretch;
   min-width: 0;
+  /* Enter/leave collapse the strip via `--pr-pinned-h` (0 ↔ N·LANE_HEIGHT). */
+  height: var(--pr-pinned-h, 0px);
+  transition: height 200ms ease;
+  overflow: hidden;
   z-index: 6;
   border-bottom: 1px solid #555;
   background: #1f1f1f;
+}
+
+.pr-pinned-strip.pr-pinned-enter-from,
+.pr-pinned-strip.pr-pinned-leave-to {
+  height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-pinned-strip {
+    transition: none;
+  }
 }
 
 .pr-pinned-strip__gutter {

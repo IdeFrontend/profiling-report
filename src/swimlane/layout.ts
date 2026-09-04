@@ -1,6 +1,6 @@
 import type { SwimEvent, SwimlaneBand, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
-import { walkVisibleRows } from '../domain/swimTree';
+import { filterCollapsedTree, walkVisibleRows } from '../domain/swimTree';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 export const LANE_HEIGHT = 22;
@@ -86,6 +86,160 @@ export interface FlatLane {
   /** Nested folder row: reserves height, no events painted. */
   folder?: boolean;
   depth: number;
+  /** 0..1 opacity during a collapse/expand tween (default 1, fully opaque). */
+  alpha?: number;
+}
+
+/**
+ * In-flight collapse/expand tween applied to a layout built from the **expanded**
+ * model. `visible` = 1 fully expanded, 0 fully collapsed; `hiddenHeight` = px of
+ * descendant content hidden at full collapse. Consumed by renderers + DOM gutter.
+ */
+export interface CollapseAnimState {
+  groupId: string;
+  visible: number;
+  hiddenHeight: number;
+}
+
+/**
+ * Content-space Y of the group's top edge (`Card` header or folder lane) and the fold
+ * line just below it. Both -1 when `groupId` is absent from the layout.
+ */
+export function groupEdges(
+  layout: SwimlaneLayout,
+  groupId: string,
+): { top: number; foldY: number } | null {
+  const header = layout.headers.find((h) => h.id === groupId);
+  if (header) return { top: header.y, foldY: header.y + LANE_GROUP_HEADER_HEIGHT };
+  const lane = layout.lanes.find((l) => l.thread.id === groupId);
+  if (lane) return { top: lane.y, foldY: lane.y + LANE_HEIGHT };
+  return null;
+}
+
+/** Content-space Y just below the group header (Card) or folder row. -1 when absent. */
+export function groupBottomY(layout: SwimlaneLayout, groupId: string): number {
+  return groupEdges(layout, groupId)?.foldY ?? -1;
+}
+
+/**
+ * Per-frame collapse/expand transform, computed once per state from the expanded base
+ * layout and applied inline in the paint loops (no per-frame layout materialization).
+ */
+export interface CollapseTransform {
+  active: boolean;
+  /** Fold line: content Y just below the group header/folder row. */
+  foldY: number;
+  /** Content Y of the group's top edge (header/folder row). */
+  groupTop: number;
+  /** Content Y just past the last subtree row at full expansion. */
+  subtreeEnd: number;
+  /** 0..1 visibility of the collapsing subtree. */
+  visible: number;
+  /** Gap close amount for rows after the subtree (`hiddenHeight × (1 − visible)`). */
+  shift: number;
+}
+
+export const IDLE_COLLAPSE: CollapseTransform = {
+  active: false,
+  foldY: 0,
+  groupTop: 0,
+  subtreeEnd: 0,
+  visible: 1,
+  shift: 0,
+};
+
+/** Build the collapse transform for `state` (or IDLE when settled / group absent). */
+export function collapseTransform(
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+): CollapseTransform {
+  if (!state || state.hiddenHeight <= 0 || state.visible >= 1) return IDLE_COLLAPSE;
+  const edges = groupEdges(layout, state.groupId);
+  if (!edges) return IDLE_COLLAPSE;
+  return {
+    active: true,
+    foldY: edges.foldY,
+    groupTop: edges.top,
+    subtreeEnd: edges.foldY + state.hiddenHeight,
+    visible: state.visible,
+    shift: state.hiddenHeight * (1 - state.visible),
+  };
+}
+
+/**
+ * Slide the collapse in two regions (see `applyCollapseAnim`): subtree rows tuck toward
+ * the group's top edge; rows after the subtree shift up to close the gap.
+ */
+export function collapseShiftY(y: number, t: CollapseTransform): number {
+  if (!t.active) return y;
+  if (y < t.foldY) return y; // parent + above: untouched
+  if (y < t.subtreeEnd) return t.groupTop + (y - t.groupTop) * t.visible;
+  return y - t.shift;
+}
+
+/** Fade the collapsing subtree; everything else stays opaque. */
+export function collapseAlpha(y: number, t: CollapseTransform): number {
+  if (!t.active) return 1;
+  if (y < t.foldY || y >= t.subtreeEnd) return 1;
+  return Math.max(0, Math.min(1, t.visible));
+}
+
+/**
+ * Slide + fade the collapse. Two regions, so a **nested** folder's rows tuck into the
+ * parent group lane (never past it into the lanes above) while only the rows *after*
+ * the subtree close the gap:
+ * - **Subtree rows** (`foldY ≤ y < foldY + hiddenHeight`): slide toward the group's
+ *   top edge and fade to `visible` — they end exactly on the parent lane, then vanish.
+ * - **Rows after the subtree** (`y ≥ foldY + hiddenHeight`): shift up by
+ *   `hiddenHeight × (1 − visible)` to close the gap, staying opaque.
+ * Pure — returns a new layout; renderers hold the expanded base and call this per frame.
+ */
+export function applyCollapseAnim(
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+): SwimlaneLayout {
+  const t = collapseTransform(layout, state);
+  if (!t.active) return layout;
+
+  const lanes = layout.lanes.map((l) => {
+    const y = collapseShiftY(l.y, t);
+    if (y === l.y) return l; // parent + above, or no-op rows after subtree when shift 0
+    const next = { ...l, y };
+    if (l.y < t.subtreeEnd) next.alpha = collapseAlpha(l.y, t);
+    return next;
+  });
+  const headers = layout.headers.map((h) => {
+    const y = collapseShiftY(h.y, t);
+    return y === h.y ? h : { ...h, y };
+  });
+
+  // Events track their lane's animated Y (a lane's events all share that lane's `y`).
+  const events = layout.events.map((e) => {
+    const lane = lanes[e.laneIndex];
+    return lane && e.y !== lane.y ? { ...e, y: lane.y } : e;
+  });
+  const eventsById = new Map(events.map((e) => [e.id, e]));
+  const lanesByTid = new Map(lanes.map((l) => [l.thread.id, l]));
+  const eventsByLane: LaidOutEvent[][] = lanes.map(() => []);
+  for (const e of events) eventsByLane[e.laneIndex]?.push(e);
+
+  return { ...layout, lanes, headers, events, eventsById, lanesByTid, eventsByLane };
+}
+
+/**
+ * Exact px of lane rows hidden when `expandedIds` → `collapsedIds` (folder/Card subtree
+ * rows only, no header bands, no `contentHeightFromModel` 120px floor). Used to size a
+ * collapse/expand tween so the shift and the fade region line up with the true content.
+ */
+export function collapseHiddenHeight(
+  model: SwimlaneModel | null,
+  expandedIds: readonly string[],
+  collapsedIds: readonly string[],
+): number {
+  if (!model) return 0;
+  const rowHeight = (m: SwimlaneModel): number =>
+    walkVisibleRows(m).reduce((n, r) => n + (r.kind === 'header' ? 0 : LANE_HEIGHT), 0);
+  return Math.max(0, rowHeight(filterCollapsedTree(model, expandedIds)) - rowHeight(filterCollapsedTree(model, collapsedIds)));
 }
 
 export interface GroupHeader {

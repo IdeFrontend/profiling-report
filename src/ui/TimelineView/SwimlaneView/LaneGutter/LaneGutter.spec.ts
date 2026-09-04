@@ -381,4 +381,18 @@ describe('LaneGutter', () => {
     expect(tip).toMatch(/--pr-surface-raised, #363636/);
     expect(tip).not.toMatch(/#555/);
   });
+
+  it('PR-GUTTER-016: collapse wrapper animates height + opacity during a tween', () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups, collapseAnim: { groupId: 'p1', visible: 0.5, hiddenHeight: 44 } },
+    });
+    const el = wrapper.get('[data-testid="gutter-collapse-p1"]');
+    expect(el.attributes('style')).toContain('height: 22px');
+    expect(el.attributes('style')).toContain('opacity: 0.5');
+    expect(el.attributes('style')).toContain('overflow: hidden');
+
+    // At rest the wrapper has no inline clip, so the pin tooltip is not clipped.
+    const rest = mount(LaneGutter, { props: { groups } });
+    expect(rest.get('[data-testid="gutter-collapse-p1"]').attributes('style')).toBeUndefined();
+  });
 });

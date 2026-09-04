@@ -24,6 +24,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-UI-006**: Standalone CTEF renders timeline without aside panel.
 1. **PR-UI-007**: Time overview brush emits window update events.
 1. **PR-UI-008**: CSV-only report (compute/memory tables, no summary/pipe) auto-opens aside and shows toggle.
+1. **PR-UI-009**: Collapsing/expanding a folder starts a tween without re-deriving the display model per frame — `filterCollapsedTree` runs once at tween start (for the forced-expanded visual set) and stays stable across tween steps.
 
 ### E2E (PR-E2E)
 
@@ -43,6 +44,7 @@ Outside-in tests verifying the full component tree and playground render correct
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-09-04** — PR-UI-009: collapse/expand tween keeps the display model identity stable (no per-frame `filterCollapsedTree` / WebGL mesh rebuild).
 - **2026-09-01** — PR-E2E-008 now checks the `PrIcon` mask and its per-state tint. The HDesign asset replaced the hand-drawn glyph, so the arrowhead `fill="none"` assertion had nothing to bind to and PR-TOOLBAR-007c was withdrawn with it.
 - **2026-08-20** — PR-E2E-008 structural (no pixel crop diff); defers icon geometry to PR-TOOLBAR-007c.
 - **2026-08-20** — PR-E2E-009: chip-to-curve join measured in a real layout engine. Chips are content-sized in jsdom too, so only a browser can catch a short name sitting ~28px short of its connector.
