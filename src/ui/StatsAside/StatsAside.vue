@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { t } from '../../i18n';
+import { t, type MessageKey } from '../../i18n';
 import type {
   BandwidthCardModel,
   ComputeSideRow,
@@ -59,7 +59,7 @@ const hasSummary = computed(
 const bandwidthView = computed(() =>
   bandwidthUtilSides.value.map((row, i) => ({
     dir: row.dir,
-    labelKey: row.dir === 'read' ? 'bwRead' : 'bwWrite',
+    labelKey: (row.dir === 'read' ? 'bwRead' : 'bwWrite') as MessageKey,
     score: bandwidthScore(row),
     barTone: i === 0 ? 'primary' : 'secondary',
     ratio: `${formatGBs(row.measuredGBs)} / ${formatGBs(row.peakGBs)}`,

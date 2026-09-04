@@ -312,10 +312,10 @@ describe('StatsAside', () => {
       },
     });
     expect(wrapper.get('[data-testid="stats-summary"]').classes()).toContain('pr-cards');
-    expect(wrapper.get('[data-testid="stats-duration-card"]').exists()).toBe(true);
-    expect(wrapper.get('[data-testid="stats-core-util-card"]').exists()).toBe(true);
-    expect(wrapper.get('[data-testid="stats-compute-card"]').exists()).toBe(true);
-    expect(wrapper.get('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-duration-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-core-util-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-compute-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="stats-bandwidth-input"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-bandwidth-output"]').exists()).toBe(false);
   });
