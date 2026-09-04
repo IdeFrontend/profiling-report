@@ -268,7 +268,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 ### DATA-37 — roofline formulas (was: Q11)
 
-**Status:** `open`
+**Status:** `open` + `interim`
 
 **Question:** Roofline formulas?
 

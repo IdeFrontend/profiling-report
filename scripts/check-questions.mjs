@@ -97,7 +97,7 @@ function checkDecisionLinks() {
 
 // ---- Check 2: cited ids resolve ----
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist']);
-const SCAN_EXTS = /\.(md|ts|vue|mjs|py|tsx)$/;
+const SCAN_EXTS = /\.(md|mdc|ts|vue|mjs|py|tsx)$/;
 
 function walk(dir, acc) {
   if (!existsSync(dir)) return acc;
@@ -106,8 +106,6 @@ function walk(dir, acc) {
     const rel = full.slice(ROOT.length + 1);
     if (SKIP_DIRS.has(name)) continue;
     if (rel === 'docs/archive') continue;
-    if (rel.startsWith('docs/context/questions/')) continue;
-    if (rel.startsWith('docs/context/decisions/')) continue;
     let st;
     try {
       st = statSync(full);
@@ -122,12 +120,10 @@ function walk(dir, acc) {
 
 function checkIdResolution() {
   const defined = definedIds();
-  const files = walk(join(ROOT, 'docs'), []);
-  walk(join(ROOT, 'specs'), files);
-  walk(join(ROOT, 'src'), files);
-  walk(join(ROOT, 'tests'), files);
-  walk(join(ROOT, 'playground'), files);
-  walk(join(ROOT, 'data'), files);
+  // Scan the whole repo (docs, specs, src, tests, playground, data, scripts,
+  // .cursor, and root markdown) so every cross-reference resolves — including
+  // citations inside the question/decision stores themselves.
+  const files = walk(ROOT, []);
 
   const undefinedIds = new Map();
   for (const rel of files) {

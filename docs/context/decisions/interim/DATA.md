@@ -15,7 +15,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 ### DATA-32a — Overview series
 
 **Status:** `interim`
-**Question:** [DATA-32](DATA.md)
+**Question:** [DATA-32](../DATA.md)
 **Interim:** Adapter returns `overviewSeries: []`; UI **hides** charts (aligns with Product DATA-32).
 **Implement / test as:** No fake series from CSV
 **Superseded when:** Producer defines `OverviewSeries` source
@@ -79,7 +79,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 ### DATA-34a — Hardware details panel
 
 **Status:** `interim`
-**Question:** [DATA-34](DATA.md)
+**Question:** [DATA-34](../DATA.md)
 **Interim:** **Source confirmed:** `HardwareInfo.jsonl` category sections. Fallback: flat **OpBasicInfo** non-empty columns when jsonl absent. Never invent cores/HBM/peaks. **更多** always opens the overlay (UI-30, UI-31): show `HardwareDetailsPanel` when data exists, else **缺少 hardware info**. Aside meta is **进程** / **算子类型** / **Blocks**, not 核数 / NPU ARCH.
 **Implement / test as:** `HardwareDetailsPanel`, adapter tests
 **Superseded when:** Product changes HardwareInfo overlay source

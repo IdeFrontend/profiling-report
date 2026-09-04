@@ -36,6 +36,7 @@ IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker in place
 |--------|--------|
 | `HQ 1–29` | `DATA-1 … DATA-29` |
 | `HQ 30–36` | `UI-30 … UI-36` |
+| `HQ 37` | `UI-43` |
 | `Q3/Q4/Q5/Q6/Q7/Q8/Q9/Q11` | `DATA-30 … DATA-37` |
 | `Q10/Q12/Q13/Q14/Q19/Q22` | `UI-37 … UI-42` |
 | `Q1/Q2/Q15/Q20/Q21` | `PROC-1 … PROC-5` |
@@ -49,3 +50,4 @@ IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker in place
 | `I-Q11a–f` | `DATA-37a…DATA-37f` |
 | `I-Q14` | `UI-40a` |
 | `I-Q16–19` | `PKG-1a…PKG-3a`, `UI-41a` |
+| `D-PIN-FOLDER` | `UI-44` |
