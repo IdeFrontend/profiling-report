@@ -78,7 +78,15 @@ export function fitTextWidth(measurer: TextMeasurer, text: string, maxWidth: num
     if (measurer.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
     else hi = mid - 1;
   }
-  return text.slice(0, lo) + ellipsis;
+  // The cut text must not end with a space or '_' — drop trailing separators before the
+  // ellipsis (plain index walk, no regex) so the label never reads like `foo_…` / `foo …`.
+  let end = lo;
+  while (end > 0) {
+    const ch = text[end - 1];
+    if (ch !== ' ' && ch !== '_') break;
+    end--;
+  }
+  return text.slice(0, end) + ellipsis;
 }
 
 /**

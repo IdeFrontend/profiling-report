@@ -27,6 +27,14 @@ describe('PR-RENDER: ClearType text atlas', () => {
     expect(cut.length).toBeLessThanOrEqual(8);
   });
 
+  it('PR-RENDER-023: fitTextWidth strips a trailing space/underscore before the ellipsis', () => {
+    const mono = { measureText: (s: string) => ({ width: s.length }) };
+    // Cut lands on a trailing '_' → dropped, ellipsis follows the word.
+    expect(fitTextWidth(mono, 'a_bcdef', 5)).toBe('a...');
+    // Cut lands on a trailing space → dropped.
+    expect(fitTextWidth(mono, 'a bcdef', 5)).toBe('a...');
+  });
+
   it('PR-RENDER-023: fitEventLabel picks draw/shrink/truncate/skip by width ratio', () => {
     const mono = { measureText: (s: string) => ({ width: s.length }) };
     const ten = 'abcdefghij'; // measured width 10
