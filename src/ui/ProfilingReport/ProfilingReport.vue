@@ -328,18 +328,22 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
   if (!rm) return false;
   const hasDuration = rm.summary.taskDurationUs != null;
   const hasBandwidth = (rm.bandwidthCards ?? []).length > 0;
+  const hasComputeCard = (rm.computeCard?.sides.length ?? 0) > 0;
   const hasPipe = rm.pipeOccupancy.length > 0;
   const hasComputeTables = rm.computeTables.length > 0;
   const hasMemoryTables = rm.memoryTables.length > 0;
+  const hasSummaryCategories = (rm.summaryCategories?.length ?? 0) > 0;
   const hasRoofline = (rm.roofline?.points?.length ?? 0) > 0;
   const hasHardware = (rm.hardwareDetails?.sections.length ?? 0) > 0;
   const hasTopology = (rm.memoryTopology?.edges.some((e) => e.label) ?? false);
   return (
     hasDuration ||
     hasBandwidth ||
+    hasComputeCard ||
     hasPipe ||
     hasComputeTables ||
     hasMemoryTables ||
+    hasSummaryCategories ||
     hasRoofline ||
     hasHardware ||
     hasTopology

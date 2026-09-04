@@ -36,6 +36,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 8. **PR-NPU-008** — `loadReportSource` routes a 160-byte container: a flat leaf → single-op `AdaptedReport`; a nested `type 1` container → multi-op report.
 9. **PR-NPU-009** — A metrics-only 160-byte pack (no `trace.json`) adapts with a **null** `swimlaneModel` and a populated `reportModel` (no hard error), so the viewer renders the aside without a timeline.
 10. **PR-NPU-010** — The product timeline/summary embeds (`PipeTrace.json` + `Summary.jsonl`) map to the swimlane and op identity: `PipeTrace.json` drives the swimlane (µs → ns), `Summary.jsonl` `OpInfoSummary` supplies `opName`/`opType`/`taskDurationUs`/`blockDim`/`pid`.
+11. **PR-NPU-011** — The product report derives compute / bandwidth / utilization and summary categories: `coreCount` resolves from spaced `HardwareInfo.jsonl` keys (`ai vector count`); bandwidth cards prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)`); `parallelUtilization` / `parallelBalance` come from `OpInfoSummary`; and the detail surface is populated from `summary.jsonl` metric categories (excluding `OpInfoSummary`).
 
 ## Edge Cases
 
@@ -46,6 +47,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
+- **2026-09-04** — PR-NPU-011: full NPU-Compute support — case-insensitive embed names (`PipeTrace.json`/`trace.json`, `Summary.jsonl`/`summary.jsonl`), spaced `HardwareInfo.jsonl` keys, `OpInfoSummary` compute/BW/utilization fields, summary-first detail categories, and the spec's resolved Product answers (compute power, bandwidth peak/score, parallel utilization, duration `{blockDim} Blocks / {coreCount} 核`).
 - **2026-09-03** — PR-NPU-007/008: product 160-byte layout (`parseNpuRep160` + routing by `fileInfoLength`); 164-byte layout re-labeled as the interim sample format.
 - **2026-08-26** — PR-NPU-006: rename to `sample.lite.rep`; op2 trace generated at hydrate time; generator in `playground/`.
 - **2026-08-25** — PR-NPU-006: `nestCardTree` opt-in nesting; trim sample.rep to ~30 MB; align neighbor AC to 3–8.

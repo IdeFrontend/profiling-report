@@ -18,9 +18,10 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.blockDim).toBe(8);
     expect(summary.coreCount).toBeUndefined();
 
-    expect(summary.computeTflops).toBeUndefined();
-    expect(summary.ioBandwidth).toBeUndefined();
-    expect(summary.avgCoreUtil).toBeUndefined();
+    // Classic `.rep` has no summary.jsonl → no derived compute/BW/utilization fields.
+    expect(summary.aicFlops).toBeUndefined();
+    expect(summary.aivFlops).toBeUndefined();
+    expect(summary.parallelUtilization).toBeUndefined();
   });
 
   it('PR-VM-013 (interim DATA-33g): Memory.csv → bandwidthCards mean non-NA; peak 1600 GB/s', () => {

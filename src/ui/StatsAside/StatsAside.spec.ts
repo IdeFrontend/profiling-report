@@ -278,7 +278,7 @@ describe('StatsAside', () => {
     expect(card.get('.pr-card__num').text()).toBe('4.60');
     expect(card.get('.pr-card__unit').text()).toBe('ms');
     expect(card.get('[data-testid="stats-duration-value"]').attributes('title')).toBe('4.6 ms');
-    expect(card.find('[data-testid="stats-duration-bar"]').exists()).toBe(true);
+    expect(card.find('[data-testid="stats-duration-bar"]').exists()).toBe(false);
   });
 
   it('PR-STATS-009c: duration rounds to 2 dp; tooltip keeps full value', () => {
@@ -363,7 +363,7 @@ describe('StatsAside', () => {
     expect(bare.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-031: duration bar util % from blockDim/coreCount; clamps at 100%', () => {
+  it('PR-STATS-031: duration secondary shows `{blockDim} Blocks / {coreCount} 核` (bar removed)', () => {
     const util = mount(StatsAside, {
       props: {
         report: report({
@@ -371,33 +371,20 @@ describe('StatsAside', () => {
         }),
       },
     });
-    const fill = util.get('.pr-card__bar-fill--duration');
-    expect(fill.attributes('style')).toMatch(/width:\s*11\.111/);
+    expect(util.find('[data-testid="stats-duration-bar"]').exists()).toBe(false);
+    expect(util.find('.pr-card__bar-fill--duration').exists()).toBe(false);
+    const secondary = util.get('[data-testid="stats-duration-secondary"]').text();
+    expect(secondary).toContain('8');
+    expect(secondary).toContain('72');
+    expect(secondary).toMatch(/Blocks/);
 
-    const clamped = mount(StatsAside, {
-      props: {
-        report: report({
-          summary: { taskDurationUs: 1000, blockDim: 40, coreCount: 36, opType: 'mix' },
-        }),
-      },
-    });
-    expect(clamped.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 100%');
-
-    const decorative = mount(StatsAside, {
+    const blockOnly = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 1000, blockDim: 8 } }),
       },
     });
-    expect(decorative.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 15%');
-
-    const zero = mount(StatsAside, {
-      props: {
-        report: report({
-          summary: { taskDurationUs: 1000, blockDim: 0, coreCount: 72, opType: 'vector' },
-        }),
-      },
-    });
-    expect(zero.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 0%');
+    expect(blockOnly.get('[data-testid="stats-duration-secondary"]').text()).toContain('8');
+    expect(blockOnly.get('[data-testid="stats-duration-secondary"]').text()).toContain('Blocks');
   });
 
   it('PR-STATS-032: compute card Cube|Vector columns, score bar, TFLOPS subtitle (DATA-2..4, UI-33)', () => {
@@ -480,6 +467,35 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-bandwidth-read"]').exists()).toBe(false);
     expect(wrapper.text()).not.toMatch(/带宽利用率|Bandwidth utilization/);
+  });
+
+  it('PR-STATS-011c: compute/util render real values from summary.jsonl derived fields', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            taskDurationUs: 1000,
+            aicFlops: 100,
+            aivFlops: 80,
+            aicFlopsTheoretical: 200,
+            aivFlopsTheoretical: 160,
+            parallelUtilization: 0.981418,
+            parallelBalance: 0.933769,
+          },
+          computeCard: {
+            sides: [
+              { side: 'aic', measuredTflops: 100, peakTflops: 200 },
+              { side: 'aiv', measuredTflops: 80, peakTflops: 160 },
+            ],
+          },
+        }),
+      },
+    });
+    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').text()).toContain('50');
+    const core = wrapper.get('[data-testid="stats-core-util-card"]');
+    expect(core.text()).toMatch(/并行使用率|parallel/);
+    expect(core.text()).toMatch(/98\.14/);
+    expect(core.text()).toMatch(/93\.38|负载均衡|Load balance/);
   });
 
   it('PR-STATS-011b: BW-only summary hides compute/util placeholders', () => {
