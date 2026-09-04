@@ -247,23 +247,24 @@ function createChunk(
 function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): MeshChunk[] {
   const chunks: MeshChunk[] = [];
   const totalPairs = pairs.length / 2;
+  // Edge fake-gap for the first/last event of a lane: a huge constant (model time units) so an
+  // isolated/thin edge event is treated as having plenty of empty space on the boundary side and
+  // always saturates the extension margin. (eventRange degenerates to a thin value for a single
+  // event, which would suppress the extension.)
+  const edgeGap = 1e12;
   for (let off = 0; off < totalPairs; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, totalPairs - off);
-    // eventRange across the whole lane (all events), used as fake edge gap.
-    const first = pairs[0]!;
-    const lastEnd = pairs[totalPairs * 2 - 1]!;
-    const eventRange = lastEnd - first;
     const slice = new Float32Array(pairs.slice(off * 2, (off + count) * 2));
     const gaps = new Float32Array(count * 2);
     for (let i = 0; i < count; i++) {
       const gi = off + i;
       const x0 = pairs[gi * 2]!;
       const x1 = pairs[gi * 2 + 1]!;
-      // gapPrev = distance from prev event end (fake large gap for first event of the line)
-      const gapPrev = gi === 0 ? eventRange : x0 - pairs[gi * 2 - 1]!;
+      // gapPrev = distance from prev event end (huge fake gap for first event of the line)
+      const gapPrev = gi === 0 ? edgeGap : x0 - pairs[gi * 2 - 1]!;
       // gapNext = distance to next event start; edge of a non-final chunk still has a neighbor
       const last = gi * 2 + 2 >= pairs.length;
-      const gapNext = last ? eventRange : pairs[gi * 2 + 2]! - x1;
+      const gapNext = last ? edgeGap : pairs[gi * 2 + 2]! - x1;
       gaps[i * 2] = gapPrev;
       gaps[i * 2 + 1] = gapNext;
     }
