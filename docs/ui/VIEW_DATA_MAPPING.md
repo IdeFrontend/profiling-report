@@ -338,7 +338,7 @@ Docx table empty. Mockup layout:
 
 ## Open questions / TBD (visualization)
 
-Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md).
+Full prioritized list for the product owner: [questions](../context/questions/).
 
 | Topic | Source status |
 | --- | --- |

@@ -2,16 +2,16 @@
 
 **These are not Product-final decisions.** They exist so MVP implementation and tests can proceed while producer / data specs are incomplete.
 
-**Scope.** This file is the **engineering execution table**, not the question ledger. The questions themselves live in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md); a question with status `interim` keeps its row there and points at a sub-letter rule here (e.g. `DATA-33b`). This file holds the interim rule text plus the implement/test mapping, supersede conditions, the deferral ledger, and the MVP scope checklist — content that does not belong in a product-facing question list.
+**Scope.** This file is the **engineering execution table**, not the question ledger. The questions themselves live in [questions](questions/); a question with status `interim` keeps its row there and points at a sub-letter rule here (e.g. `DATA-33b`). This file holds the interim rule text plus the implement/test mapping, supersede conditions, the deferral ledger, and the MVP scope checklist — content that does not belong in a product-facing question list.
 
 | Rule | Detail |
 |------|--------|
 | Status label | `interim` — never write as `resolved` product truth |
-| Supersede | When Product or the format/data spec answers the linked question: write the decision into owning specs, **remove** the row from [OPEN_QUESTIONS](OPEN_QUESTIONS.md) and file a [decisions/](decisions/) entry, delete or strike this interim row, and scrub “until Q*” wording — all in the **same change**. See [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions). |
+| Supersede | When Product or the format/data spec answers the linked question: write the decision into owning specs, **remove** the row from [questions](questions/) and file a [decisions/](decisions/) entry, delete or strike this interim row, and scrub “until Q*” wording — all in the **same change**. See [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions). |
 | Tests | Assert interim behavior; titles may note `(interim)` |
     10|| Code comments | Prefer linking this file / the question id over inventing silent TBDs |
 
-Canonical Product answers live in the owning **specs** after resolution (see [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions)). The open list holds unanswered items only: [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md); Product-final decisions: [decisions/](decisions/). Packaging proposals that Product has not confirmed: [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md) (also interim until accepted).
+Canonical Product answers live in the owning **specs** after resolution (see [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions)). The open list holds unanswered items only: [questions](questions/); Product-final decisions: [decisions/](decisions/). Packaging proposals that Product has not confirmed: [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md) (also interim until accepted).
 
 ---
 

@@ -15,7 +15,8 @@ const ROOT = resolve(__dirname, '..');
 const SOURCE_MANIFEST = resolve(ROOT, 'docs/ui/source/manifest.yaml');
 const HQ_MANIFEST = resolve(ROOT, 'docs/context/visual/questions/manifest.yaml');
 const DOCS_CONTEXT = resolve(ROOT, 'docs/context');
-const HQ_MD = resolve(DOCS_CONTEXT, 'OPEN_QUESTIONS.md');
+const QUESTIONS_DIR = resolve(DOCS_CONTEXT, 'questions');
+const HQ_MD_FILES = [resolve(QUESTIONS_DIR, 'DATA.md'), resolve(QUESTIONS_DIR, 'UI.md')];
 const HQ_OUT_DIR = resolve(DOCS_CONTEXT, 'visual/questions');
 const SOURCE_DIR = resolve(ROOT, 'docs/ui/source');
 
@@ -253,29 +254,31 @@ async function renderOne(id, meta, sourceIds) {
 }
 
 async function syncMdEmbeds(dimensions) {
-  if (!existsSync(HQ_MD)) return;
-  const embedRe = /!\[([^\]]*)\]\(visual\/questions\/([a-z0-9-]+)\.png\)/g;
-  const htmlRe = /<img src="visual\/questions\/([a-z0-9-]+)\.png"[^>]*>/g;
-  let md = readFileSync(HQ_MD, 'utf-8');
-  let changed = false;
+  for (const mdPath of HQ_MD_FILES) {
+    if (!existsSync(mdPath)) continue;
+    const embedRe = /!\[([^\]]*)\]\((?:\.\.\/)?visual\/questions\/([a-z0-9-]+)\.png\)/g;
+    const htmlRe = /<img src="(?:\.\.\/)?visual\/questions\/([a-z0-9-]+)\.png"[^>]*>/g;
+    let md = readFileSync(mdPath, 'utf-8');
+    let changed = false;
 
-  md = md.replace(embedRe, (match, alt, id) => {
-    const d = dimensions[id];
-    if (!d) return match;
-    changed = true;
-    return `<img src="visual/questions/${id}.png" alt="${alt}" width="${d.w}" height="${d.h}">`;
-  });
+    md = md.replace(embedRe, (match, alt, id) => {
+      const d = dimensions[id];
+      if (!d) return match;
+      changed = true;
+      return `<img src="../visual/questions/${id}.png" alt="${alt}" width="${d.w}" height="${d.h}">`;
+    });
 
-  md = md.replace(htmlRe, (tag, id) => {
-    const d = dimensions[id];
-    if (!d) return tag;
-    const altMatch = tag.match(/alt="([^"]*)"/);
-    const alt = altMatch?.[1] ?? id;
-    changed = true;
-    return `<img src="visual/questions/${id}.png" alt="${alt}" width="${d.w}" height="${d.h}">`;
-  });
+    md = md.replace(htmlRe, (tag, id) => {
+      const d = dimensions[id];
+      if (!d) return tag;
+      const altMatch = tag.match(/alt="([^"]*)"/);
+      const alt = altMatch?.[1] ?? id;
+      changed = true;
+      return `<img src="../visual/questions/${id}.png" alt="${alt}" width="${d.w}" height="${d.h}">`;
+    });
 
-  if (changed) writeFileSync(HQ_MD, md);
+    if (changed) writeFileSync(mdPath, md);
+  }
 }
 
 async function main() {

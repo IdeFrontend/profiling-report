@@ -362,7 +362,7 @@ Verified against unpacked payloads (2026-08-03 local sample):
 
 ## 6. Open / TBD (formats)
 
-See prioritized product-owner list: [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md).
+See prioritized product-owner list: [questions](../context/questions/).
 
 | Item | Notes |
 | --- | --- |

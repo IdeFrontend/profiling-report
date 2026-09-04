@@ -43,7 +43,7 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 - **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select).
 - **P2:** Secondary tabs (OP算子 / 源码 / 详情 / 缓存), roofline, memory topology, hardware aside, deps, multiselect, context menu.
 
-Fidelity of lane content depends on trace richness. Product **target** is sketch-like multi-core lanes ([OPEN_QUESTIONS](../context/OPEN_QUESTIONS.md) DATA-31); sample fixture may be thinner. UX still applies; empty or thinner data **hides** optional surfaces ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)).
+Fidelity of lane content depends on trace richness. Product **target** is sketch-like multi-core lanes ([questions](../context/questions/) DATA-31); sample fixture may be thinner. UX still applies; empty or thinner data **hides** optional surfaces ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)).
 
 ---
 
@@ -299,7 +299,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 - **DOM:** gutter labels, toolbar, aside panels, tooltips, detail strip — keyboard-focusable where practical.
 - **Canvas/WebGL:** interval glyphs only; not the sole carrier of text.
-- **MVP input:** mouse + wheel + toolbar. Full shortcut parity with PyPTO (W/S/A/D) is P2 ([UI-41](../context/OPEN_QUESTIONS.md)).
+- **MVP input:** mouse + wheel + toolbar. Full shortcut parity with PyPTO (W/S/A/D) is P2 ([UI-41](../context/questions/UI.md)).
 - **Density:** support zoom from full-trace overview to ns-scale intervals; labels appear when block width allows (FEATURE_MATRIX).
 
 ---

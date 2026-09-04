@@ -34,7 +34,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([UI-40](../context/OPEN_QUESTIONS.md)) |
+| Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([UI-40](../context/questions/UI.md)) |
 | Cube / Vector overview charts | M | **Hide** until `OverviewSeries` ([DATA-32](../context/decisions/DATA.md)) |
 | Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/decisions/DATA.md)); flat CTEF still valid |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |

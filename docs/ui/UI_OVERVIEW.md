@@ -64,7 +64,7 @@ Card0 | Card1                 ← only group header (40px)
 
 **Row chrome:** only **Card** uses process group-header chrome. Nested folders (`计算`, `CoreN.*`) are **lane-style rows** (22px + chevron + util). Pipe leaves paint events.
 
-**Lane names:** producer / synthetic model supplies explicit nodes ([DATA-35](../context/decisions/DATA.md)); viewer does not invent Card/Core hierarchy from flat `AIV0/PIPE_*` traces. Product **target** is this sketch tree ([DATA-31](../context/OPEN_QUESTIONS.md)); sample `out.rep` stays thin AIV pipes until a golden arrives. Playground stress presets emit the Card tree.
+**Lane names:** producer / synthetic model supplies explicit nodes ([DATA-35](../context/decisions/DATA.md)); viewer does not invent Card/Core hierarchy from flat `AIV0/PIPE_*` traces. Product **target** is this sketch tree ([DATA-31](../context/questions/DATA.md)); sample `out.rep` stays thin AIV pipes until a golden arrives. Playground stress presets emit the Card tree.
 
 Reference: `source/v930/entry.jpeg`, `source/v930/hardware-more-detail.jpeg` (expanded Core2.Cube).
 

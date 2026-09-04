@@ -155,7 +155,7 @@ The sample `out.rep` trace is a **single-channel AIV pipe-state busy timeline**,
 
 | Expectation | Sample reality | Spec stance |
 |-------------|----------------|-------------|
-| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([DATA-31](../context/OPEN_QUESTIONS.md)); stress emits it; flat CTEF uses **producer names** as-is ([DATA-35](../context/decisions/DATA.md)) |
+| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([DATA-31](../context/questions/DATA.md)); stress emits it; flat CTEF uses **producer names** as-is ([DATA-35](../context/decisions/DATA.md)) |
 | Instruction names on bars | Marker / busy names | Show event `name`; richer labels when future traces include them |
 | ProfilerStep bands | Not in sample | Phase 2 / when args or counter tracks exist |
 | Dependencies | Not in sample | Phase 2; parse when predecessor/successor args appear |

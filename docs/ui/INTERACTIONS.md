@@ -15,7 +15,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 | Zoom to fit | Fit full `[minTime, maxTime]` in view (animated, same easing as Δt focus) | MVP |
 | Click lane header expand/collapse | Toggle children | MVP |
 
-**MVP gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, drag pan, toolbar zoom / zoom-to-fit (table above). PyPTO keyboard shortcuts (W/S zoom, A/D pan) are **Phase 2** unless [UI-41](../context/OPEN_QUESTIONS.md) resolves otherwise — do not treat them as MVP parity.
+**MVP gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, drag pan, toolbar zoom / zoom-to-fit (table above). PyPTO keyboard shortcuts (W/S zoom, A/D pan) are **Phase 2** unless [UI-41](../context/questions/UI.md) resolves otherwise — do not treat them as MVP parity.
 
 **CSS cursors (timeline):** swimlane canvas empty space uses `default` (arrow; not `crosshair` or hand `pointer`). Hovering an event uses `pointer`. Viewport time axis uses `pointer`. Measure mode / measure edge bars use `col-resize`. Overview brush uses `grab` / `grabbing` / `ew-resize` on handles.
 

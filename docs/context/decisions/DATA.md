@@ -1,6 +1,6 @@
 # DATA decisions
 
-Product-final answers to **DATA** questions (file/field/formula data mapping) that have left the open list. Each entry keeps the **same bare id** as its question in [OPEN_QUESTIONS.md](../OPEN_QUESTIONS.md), plus a `Was` reference to the pre-merge id.
+Product-final answers to **DATA** questions (file/field/formula data mapping) that have left the open list. Each entry keeps the **same bare id** as its question in [questions/](../questions/), plus a `Was` reference to the pre-merge id.
 
 Normative truth lives in the owning **specs** (linked per entry); this log is the traceability record, not the source of truth.
 
