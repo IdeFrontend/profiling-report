@@ -317,7 +317,7 @@ function onUnpinLane(laneId: string): void {
 /**
  * Aside has content when any of: duration card, I/O bandwidth cards,
  * pipe occupancy, compute/memory CSV tables, roofline points, or hardware details are present.
- * Name/type alone do not open the aside (I-Q6a). Must stay in sync with StatsAside.
+ * Name/type alone do not open the aside (DATA-33a). Must stay in sync with StatsAside.
  */
 function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
   if (!rm) return false;

@@ -1,8 +1,8 @@
-# Packaging and Process Suggestions (Q16–Q19)
+# Packaging and Process Suggestions (PKG-1 … PKG-3, UI-41)
 
-**Status:** **Interim** for MVP scaffold — treat as accepted until Product confirms or changes. Tracked in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) (I-Q16–19) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
+**Status:** **Interim** for MVP scaffold — treat as accepted until Product confirms or changes. Tracked in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) (PKG-1a … PKG-3a, UI-41a) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
 
-## Q16 — Package identity
+## PKG-1 — Package identity
 
 | Choice | Suggestion |
 |--------|------------|
@@ -11,7 +11,7 @@
 | Consume in MSTT | **Workspace path / workspace protocol dependency** for v1 (fast iterate); publish to internal registry when a second host needs a versioned artifact |
 | License | Match MSTT / CANN internal license; do not invent a public OSS license without Legal |
 
-## Q17 — Design system & i18n
+## PKG-2 — Design system & i18n
 
 | Choice | Suggestion |
 |--------|------------|
@@ -20,7 +20,7 @@
 | Default locale | **zh-CN** strings as default (sketches are Chinese); English message catalog from day one via i18n keys |
 | Theme | Dark default; accept VS Code / MSTT CSS variable injection for shell |
 
-## Q18 — PyPTO copy-paste
+## PKG-3 — PyPTO copy-paste
 
 | Choice | Suggestion |
 |--------|------------|
@@ -28,7 +28,7 @@
 | Blocker | **Legal/OSL clearance** before pasting substantial PyPTO source verbatim — treat as Required before large copy PRs |
 | Attribution | Note non-trivial ports in PR description; no runtime dependency on pypto_toolkit |
 
-## Q19 — Gesture parity
+## UI-41 — Gesture parity
 
 | Choice | Suggestion |
 |--------|------------|
@@ -38,4 +38,4 @@
 
 ## Ask Product to confirm
 
-Reply with accept / change per row (Q16–Q19). Until then, implementers follow the **Suggestion** column.
+Reply with accept / change per row (PKG-1 … PKG-3, UI-41). Until then, implementers follow the **Suggestion** column.

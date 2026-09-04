@@ -27,7 +27,7 @@ flowchart LR
 
 **MSTT host:** Ready on [`mstt` branch `feature/profiling-report`](https://github.com/IdeFrontend/mstt/tree/feature/profiling-report); library open PR [#29](https://github.com/IdeFrontend/profiling-report/pull/29) (layout).
 
-**Still open (Product):** Q9 dep encoding in real `.rep`; Q11 roofline formulas (interim shipped); Q22 measure → aside sync.
+**Still open (Product):** DATA-36 dep encoding in real `.rep`; DATA-37 roofline formulas (interim shipped); UI-42 measure → aside sync.
 
 **Design frames:** M1 — Cube/Vector MIX toggle + compute/memory detail tabs (`v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail`); M2 — 度量模式 (`v930/task-measure-mode`; local overlay, aside unchanged) + topology edge values (`v930/memory-load-detail`). Index: [`DESIGN_INDEX.md`](../../ui/DESIGN_INDEX.md).
 

@@ -46,7 +46,7 @@ Toolbar sits **only** above the timeline (main column). StatsAside starts at the
 - Vertical playhead / scrubber with precise timestamp (e.g. `00:06.456`)
 - **统计分析**: stacked area/line charts for **Cube** (blue) and **Vector** (teal), time-aligned with the swimlane
 
-**MVP:** time axis + zoom-linked overview charts **only when** `OverviewSeries` is present; otherwise **hide** the chart region (Product [Q5](../context/OPEN_QUESTIONS.md)). See [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md).
+**MVP:** time axis + zoom-linked overview charts **only when** `OverviewSeries` is present; otherwise **hide** the chart region (Product [DATA-32](../context/DECISIONS.md)). See [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md).
 
 ### 3. Left lane hierarchy
 
@@ -64,7 +64,7 @@ Card0 | Card1                 ← only group header (40px)
 
 **Row chrome:** only **Card** uses process group-header chrome. Nested folders (`计算`, `CoreN.*`) are **lane-style rows** (22px + chevron + util). Pipe leaves paint events.
 
-**Lane names:** producer / synthetic model supplies explicit nodes ([Q8](../context/OPEN_QUESTIONS.md)); viewer does not invent Card/Core hierarchy from flat `AIV0/PIPE_*` traces. Product **target** is this sketch tree ([Q4](../context/OPEN_QUESTIONS.md)); sample `out.rep` stays thin AIV pipes until a golden arrives. Playground stress presets emit the Card tree.
+**Lane names:** producer / synthetic model supplies explicit nodes ([DATA-35](../context/DECISIONS.md)); viewer does not invent Card/Core hierarchy from flat `AIV0/PIPE_*` traces. Product **target** is this sketch tree ([DATA-31](../context/OPEN_QUESTIONS.md)); sample `out.rep` stays thin AIV pipes until a golden arrives. Playground stress presets emit the Card tree.
 
 Reference: `source/v930/entry.jpeg`, `source/v930/hardware-more-detail.jpeg` (expanded Core2.Cube).
 
@@ -88,9 +88,9 @@ Modes observed in sketches:
 | Report statistics | `v930/report-stats-open`, `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` | Total time; PIPE bars + Cube\|Vector (MIX); compute/memory detail tabs; block + 查看全部 | M / M1 |
 | Roofline (within stats aside or sibling) | `source/v930/entry.jpeg`, `source/v930/entry.jpeg` | Log-log bottleneck chart | M2 |
 | Memory topology | `source/v930/memory-load-detail.jpeg`, changelog #5 | Static SVG + data-driven edge labels | M2 |
-| Hardware details | `source/v930/hardware-more-detail.jpeg` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([Q7](../context/OPEN_QUESTIONS.md)) |
+| Hardware details | `source/v930/hardware-more-detail.jpeg` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([DATA-34](../context/DECISIONS.md)) |
 | Pipe field list | `source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg` | Searchable PipeUtilization columns (filter + highlight) | M1 |
-| Memory analysis | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` | **Static SVG** + **data-driven edge labels** ([Q12](../context/OPEN_QUESTIONS.md)) | P2 |
+| Memory analysis | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` | **Static SVG** + **data-driven edge labels** ([UI-38](../context/DECISIONS.md)) | P2 |
 
 **MVP:** Summary tiles that have clear data + PIPE bars when CSV present; **hide** anything without inputs ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)). Overview charts hidden until series exist. Colors: [COLOR_TOKENS.md](COLOR_TOKENS.md).
 

@@ -28,17 +28,17 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 
 | Semantic area | Insight operator (`.bin` path) | `.rep` / `.ncrep` | PyPTO swimlane |
 |---------------|--------------------------------|------------------|----------------|
-| **Timeline grain** | Per-**instruction** Gantt on named pipes (SCALAR, FLOWCTRL, MTE1–3, CUBE, VECTOR, FIXP, CACHEMISS, …) plus SET_FLAG ↔ WAIT_FLAG sync edges | Chrome Trace → process / thread lanes. Sample fixture: **pipe busy/state** intervals on AIV pipes. Product traces may be richer (multi-core instruction-like lanes — see [OPEN_QUESTIONS](../context/OPEN_QUESTIONS.md) Q4) | Process → thread → **duration events** (ops/tasks); optional AICPU E2E (scheduler / orchestrator) and counter lanes |
+| **Timeline grain** | Per-**instruction** Gantt on named pipes (SCALAR, FLOWCTRL, MTE1–3, CUBE, VECTOR, FIXP, CACHEMISS, …) plus SET_FLAG ↔ WAIT_FLAG sync edges | Chrome Trace → process / thread lanes. Sample fixture: **pipe busy/state** intervals on AIV pipes. Product traces may be richer (multi-core instruction-like lanes — see [OPEN_QUESTIONS](../context/OPEN_QUESTIONS.md) DATA-31) | Process → thread → **duration events** (ops/tasks); optional AICPU E2E (scheduler / orchestrator) and counter lanes |
 | **Op / block identity** | Details “base info”: op name, type (`vector`/`cube`/`mix`), duration, block dim, per-block times | `OpBasicInfo.csv` | Usually light: names / args (`seqNo`, `taskId`, hints); no dedicated op-summary CSV |
 | **Pipe utilization aggregates** | Details compute workload: cycles% by pipe/instruction; timeline shows occupancy visually | `PipeUtilization.csv` (`aic_*` / `aiv_*` ratios, MTE, scalar stalls, i-cache, …) | Derived from event spans and/or joined **`tilefwk_prof_pmu.csv`** — not the Ascend OP CSV pack |
 | **Arithmetic / roofline** | Compute workload + Roofline (intensity vs TOPS, memory/transfer ceilings) | `ArithmeticUtilization.csv` (+ Roofline UI later) | Performance side panels only if metrics are fed into the model |
 | **Memory paths** | Memory heatmap: HBM/L2/L1/L0/UB requests, BW, hit rates, peak % of theoretical | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv` | Not core swimlane payload |
 | **L2 cache** | Dedicated Cache view (line hit/miss) linked to Source | `L2Cache.csv` (Phase 2+ UI) | Optional counters / PMU-like fields |
 | **Source ↔ instruction** | First-class Source heatmap (line ↔ insn, PC, cycles, conflicts) | **Not** in sample embeds | Not swimlane core (may jump to compute graph via hashes) |
-| **Deps / sync** | SET_FLAG / WAIT_FLAG between pipes | Only if encoded in `trace.json` args or side embeds ([Q9](../context/OPEN_QUESTIONS.md)) | Flow events (`s`/`f`), `dyn_topo.txt`, and/or `deps.json` |
+| **Deps / sync** | SET_FLAG / WAIT_FLAG between pipes | Only if encoded in `trace.json` args or side embeds ([DATA-36](../context/OPEN_QUESTIONS.md)) | Flow events (`s`/`f`), `dyn_topo.txt`, and/or `deps.json` |
 | **Conflicts / stalls** | Source UB conflicts; wait cycles in Details | `ResourceConflictRatio.csv` (Phase 2+) | Stall/conflict if present in event args or PMU |
-| **Host / NPU inventory** | May appear in Insight detail chrome | Not in sample `.rep` ([Q7](../context/OPEN_QUESTIONS.md)) | Not typical |
-| **Counters / step metrics** | Optional MTE throughput-style counters on Timeline | Not first-class in sample (overview charts data source open — [Q5](../context/OPEN_QUESTIONS.md)) | Chrome Trace `ph: C` lanes (e.g. ready counts, mem usage) |
+| **Host / NPU inventory** | May appear in Insight detail chrome | Not in sample `.rep` ([DATA-34](../context/DECISIONS.md)) | Not typical |
+| **Counters / step metrics** | Optional MTE throughput-style counters on Timeline | Not first-class in sample (overview charts data source open — [DATA-32](../context/DECISIONS.md)) | Chrome Trace `ph: C` lanes (e.g. ready counts, mem usage) |
 | **Primary product question** | “What did this kernel do on the pipes, and how does it map to source?” | “Give me a portable OP report: summary panels + a swimlane-friendly timeline.” | “How did tasks schedule across cores (and AICPU), with deps and optional PMU?” |
 
 ## Why they differ
@@ -64,7 +64,7 @@ Semantic **overlap** (timed lanes, pipe util concepts, op identity) justifies a 
 
 - **Aim to cover:** op identity, pipe utilization aggregates, memory/L2 aggregates, timed lane activity for a swimlane UI.
 - **Do not claim by default:** bit-parity with Insight instruction-level Source/Cache graphs or PyPTO AICPU/Mix/wrap schedule features.
-- **Sample gap:** current [`data/out.rep`](../../data/out.rep) `trace.json` is pipe-state busy intervals, thinner than product **target** (sketch-like multi-core instruction Gantt — [Q4](../context/OPEN_QUESTIONS.md)). Use sample until a sketch-faithful golden arrives; lane naming follows **producer fixed names** ([Q8](../context/OPEN_QUESTIONS.md)).
+- **Sample gap:** current [`data/out.rep`](../../data/out.rep) `trace.json` is pipe-state busy intervals, thinner than product **target** (sketch-like multi-core instruction Gantt — [DATA-31](../context/OPEN_QUESTIONS.md)). Use sample until a sketch-faithful golden arrives; lane naming follows **producer fixed names** ([DATA-35](../context/DECISIONS.md)).
 
 ## Delivery note (MSTT viewers)
 
@@ -74,11 +74,11 @@ Semantic payloads above are delivered differently in MSTT:
 Performance results tree file click
   ├─ .csv          → CsvEditorProvider (raw table; not this comparison)
   ├─ .bin          → MindStudio Insight (operator semantics above)
-  ├─ .json         → profiling-report when Chrome Trace ([Q15](../context/OPEN_QUESTIONS.md))
+  ├─ .json         → profiling-report when Chrome Trace ([PROC-3](../context/DECISIONS.md))
   └─ .rep / .ncrep → profiling-report Vue panel
 ```
 
-`.rep` and `.ncrep` share the same container semantics (**Interim [I-Q2](../context/INTERIM_DECISIONS.md)** — product alias until divergence is defined). Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
+`.rep` and `.ncrep` share the same container semantics (**Interim [PROC-2a](../context/INTERIM_DECISIONS.md)** — product alias until divergence is defined). Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
 
 | Axis | Insight operator | `.rep` / profiling-report | PyPTO swimlane |
 |------|------------------|---------------------------|----------------|
@@ -92,5 +92,5 @@ Performance results tree file click
 - [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — per-view required inputs / hide rules
 - [REP_FORMAT.md](REP_FORMAT.md) — container binary layout
 - [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.rep` embeds → UI panels
-- [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md) — remaining blockers (esp. Q6)
+- [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md) — remaining blockers (esp. DATA-33)
 - [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — renderer tech, not data semantics

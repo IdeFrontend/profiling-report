@@ -1,6 +1,6 @@
 # Color Tokens (Normative from Sketches)
 
-Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([Q13 Resolved](../context/OPEN_QUESTIONS.md)). Extracted from [`source/v930/`](./source/v930/) (`entry.jpeg` and related frames). Roundings are ±4–8 in RGB from sampled pixels.
+Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([UI-39](../context/DECISIONS.md)). Extracted from [`source/v930/`](./source/v930/) (`entry.jpeg` and related frames). Roundings are ±4–8 in RGB from sampled pixels.
 
 Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MSTT theme may tint chrome; **category hues below stay fixed** unless Product revises this file.
 
@@ -16,7 +16,7 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
 | `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card decorative bar (report-stats cyan) |
 | `--pr-color-overview-cube` | `#3078F0` | Overview Cube series fill |
-| `--pr-color-bandwidth-bar` | `#3078F0` | I-Q6g I/O bandwidth card bar fill (same hex, separate so Cube series edits do not repaint cards) |
+| `--pr-color-bandwidth-bar` | `#3078F0` | DATA-33g I/O bandwidth card bar fill (same hex, separate so Cube series edits do not repaint cards) |
 
 ### Toolbar controls (hardcoded; not CSS vars)
 

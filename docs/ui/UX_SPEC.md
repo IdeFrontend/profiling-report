@@ -43,7 +43,7 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 - **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select).
 - **P2:** Secondary tabs (OP算子 / 源码 / 详情 / 缓存), roofline, memory topology, hardware aside, deps, multiselect, context menu.
 
-Fidelity of lane content depends on trace richness. Product **target** is sketch-like multi-core lanes ([OPEN_QUESTIONS](../context/OPEN_QUESTIONS.md) Q4); sample fixture may be thinner. UX still applies; empty or thinner data **hides** optional surfaces ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)).
+Fidelity of lane content depends on trace richness. Product **target** is sketch-like multi-core lanes ([OPEN_QUESTIONS](../context/OPEN_QUESTIONS.md) DATA-31); sample fixture may be thinner. UX still applies; empty or thinner data **hides** optional surfaces ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)).
 
 ---
 
@@ -119,7 +119,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Steps** | Open hardware details; read chip / core / memory inventory |
 | **Success** | User knows which NPU configuration produced the report |
 | **Sketches** | `source/v930/hardware-more-detail.jpeg`, `source/v930/entry.jpeg` annotations |
-| **Depends** | **Out of MVP** until further specs ([Q7](../context/OPEN_QUESTIONS.md)) |
+| **Depends** | **Out of MVP** until further specs ([DATA-34](../context/DECISIONS.md)) |
 
 ### S8 — Follow dependencies / multi-select (P2)
 
@@ -274,8 +274,8 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S6–S9 (P2)
 
-- **S6:** Aside → memory topology (static SVG + data-driven labels, [Q12](../context/OPEN_QUESTIONS.md)) → optional details list.
-- **S7:** Deferred — hardware aside **out of MVP** ([Q7](../context/OPEN_QUESTIONS.md)).
+- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/DECISIONS.md)) → optional details list.
+- **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/DECISIONS.md)).
 - **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
 - **S9:** Click 源码 / 详情 / 缓存 / OP算子 → different main surface; return to 时间线 restores view state.
 
@@ -285,9 +285,9 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 | Condition | UX |
 |-----------|-----|
-| No `OverviewSeries` | Hide `OverviewCharts` ([Q5](../context/OPEN_QUESTIONS.md)) |
+| No `OverviewSeries` | Hide `OverviewCharts` ([DATA-32](../context/DECISIONS.md)) |
 | Optional CSV / panel inputs missing | Hide related surface ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)); Timeline still works if trace present |
-| Summary formula unknown (Q6) | **Interim [I-Q6a](../context/INTERIM_DECISIONS.md):** duration from OpBasicInfo; **[I-Q6g](../context/INTERIM_DECISIONS.md)** I/O BW cards; compute / avg-util as title + `N/A` |
+| Summary formula unknown (DATA-33) | **Interim [DATA-33a](../context/INTERIM_DECISIONS.md):** duration from OpBasicInfo; **[DATA-33g](../context/INTERIM_DECISIONS.md)** I/O BW cards; compute / avg-util as title + `N/A` |
 | Trace missing / invalid | Error state on root; emit `error`; do not show broken swimlane |
 | All AIC fields `NA` (vector-only) | Show AIV-derived PIPE; do not invent Cube series |
 | Search no matches | Neutral empty hint in toolbar/results; swimlane unchanged except clear highlights |
@@ -299,7 +299,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 - **DOM:** gutter labels, toolbar, aside panels, tooltips, detail strip — keyboard-focusable where practical.
 - **Canvas/WebGL:** interval glyphs only; not the sole carrier of text.
-- **MVP input:** mouse + wheel + toolbar. Full shortcut parity with PyPTO (W/S/A/D) is P2 ([Q19](../context/OPEN_QUESTIONS.md)).
+- **MVP input:** mouse + wheel + toolbar. Full shortcut parity with PyPTO (W/S/A/D) is P2 ([UI-41](../context/OPEN_QUESTIONS.md)).
 - **Density:** support zoom from full-trace overview to ns-scale intervals; labels appear when block width allows (FEATURE_MATRIX).
 
 ---
@@ -326,9 +326,9 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 | Topic | Question | UX impact until resolved |
 |-------|----------|---------------------------|
-| Trace richness | Q4, Q8 | Lane taxonomy may be thinner than sketches; hierarchy collapses to available threads |
-| Overview series | Q5 | Charts hidden if no series |
-| Summary formulas | Q6 / [I-Q6a](../context/INTERIM_DECISIONS.md) / [I-Q6g](../context/INTERIM_DECISIONS.md) | Duration + guessed I/O BW; compute / avg-util N/A placeholders |
-| Hardware aside | Q7 | S7 blocked |
-| Dependencies | Q9 | S8 dep flows blocked |
-| Gestures | Q19 | MVP uses wheel/slider only |
+| Trace richness | DATA-31, DATA-35 | Lane taxonomy may be thinner than sketches; hierarchy collapses to available threads |
+| Overview series | DATA-32 | Charts hidden if no series |
+| Summary formulas | DATA-33 / [DATA-33a](../context/INTERIM_DECISIONS.md) / [DATA-33g](../context/INTERIM_DECISIONS.md) | Duration + guessed I/O BW; compute / avg-util N/A placeholders |
+| Hardware aside | DATA-34 | S7 blocked |
+| Dependencies | DATA-36 | S8 dep flows blocked |
+| Gestures | UI-41 | MVP uses wheel/slider only |

@@ -32,7 +32,7 @@ ProfilingReport
 │     ├─ CsvFieldListPanel (compute + memory detail tabs M1)
 │     ├─ RooflinePanel (M2)
 │     ├─ MemoryTopologyPanel (M2)
-│     └─ HardwareDetailsPanel (M1 interim I-Q7a)
+│     └─ HardwareDetailsPanel (M1 interim DATA-34a)
 ├─ DetailPanel → DetailSummary, DetailParameter (P2), DetailRelevant (P2)
 ├─ EventTooltip (overlay)
 ├─ ContextMenu (P2 overlay)
@@ -71,19 +71,19 @@ Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), o
 
 ### `ReportViewModel` (M)
 
-OP-report analytics bundle: `summary`, `bandwidthCards[]` (I-Q6g), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
+OP-report analytics bundle: `summary`, `bandwidthCards[]` (DATA-33g), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
 
 **Why:** Separates Ascend OP report chrome from the timeline. PyPTO-only hosts can omit it; `.rep` adapter always fills what CSVs allow.
 
 ### `SummaryMetrics` (M)
 
-Op name/type, task duration, optional raw frequency fields. Compute / avg util remain optional and **unset under [I-Q6a](../context/INTERIM_DECISIONS.md)**. I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([I-Q6g](../context/INTERIM_DECISIONS.md)), not `summary.ioBandwidth`.
+Op name/type, task duration, optional raw frequency fields. Compute / avg util remain optional and **unset under [DATA-33a](../context/INTERIM_DECISIONS.md)**. I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/INTERIM_DECISIONS.md)), not `summary.ioBandwidth`.
 
-**Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns plus documented I-Q6g guesses.
+**Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns plus documented DATA-33g guesses.
 
-### `BandwidthCardModel` (M, I-Q6g)
+### `BandwidthCardModel` (M, DATA-33g)
 
-`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1600 GB/s constant until Product supplies a field. UI displays GB/s (HQ 34). Optional on `ReportViewModel` (omit when unused).
+`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1600 GB/s constant until Product supplies a field. UI displays GB/s (UI-34). Optional on `ReportViewModel` (omit when unused).
 
 **Why:** Dual aic \| aiv columns match `summary-cards.png`; hide-if-NA per side. Same card chrome as duration.
 
@@ -103,7 +103,7 @@ Op name/type, task duration, optional raw frequency fields. Compute / avg util r
 
 `{ id, label, points: { t, v }[] }` for Cube/Vector overview charts.
 
-**Why:** Isolates [Q5](../context/OPEN_QUESTIONS.md) (time-series source). `OverviewCharts` hides when the array is empty instead of blocking MVP.
+**Why:** Isolates [DATA-32](../context/DECISIONS.md) (time-series source). `OverviewCharts` hides when the array is empty instead of blocking MVP.
 
 ### `SwimlaneViewState` (M / M2)
 
@@ -209,7 +209,7 @@ Hierarchical folder/leaf labels and utilization mini-bars, scroll-synced with th
 
 ### `TimeAxis` (M)
 
-Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**. **Two-tier auto ([I-Q14](../context/INTERIM_DECISIONS.md)):** axis/cursor chrome from viewport/density `timeScaleUnit`; tooltip/detail/Δt use per-value magnitude. No manual unit dropdown; no clock-cycle mode yet.
+Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**. **Two-tier auto ([UI-40a](../context/INTERIM_DECISIONS.md)):** axis/cursor chrome from viewport/density `timeScaleUnit`; tooltip/detail/Δt use per-value magnitude. No manual unit dropdown; no clock-cycle mode yet.
 
 **Why:** Shared alignment for overview charts and swimlane; playhead per INTERACTIONS.
 
@@ -217,7 +217,7 @@ Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times a
 
 Renders `OverviewSeries` (Cube/Vector); **hidden** when empty.
 
-**Why:** MVP feature in sketches; hiding when empty avoids blocking on unresolved series math (Q5).
+**Why:** MVP feature in sketches; hiding when empty avoids blocking on unresolved series math (DATA-32).
 
 ### `SwimlaneCanvas` (M / M2)
 
@@ -235,11 +235,11 @@ Hover overlay: name, start, duration, end.
 
 Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter and Relevant columns are P2 stubs with design crops.
 
-**Why:** Delivers select→detail without waiting on dependency data (Q9). Full dock chrome matches `v930/detail-strip-raised`.
+**Why:** Delivers select→detail without waiting on dependency data (DATA-36). Full dock chrome matches `v930/detail-strip-raised`.
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** → open interim `HardwareDetailsPanel` when data exists (I-Q7a) and emit `open-hardware-details`. **Stacked report:** duration card, I/O bandwidth cards (I-Q6g) when `bandwidthCards` non-empty, Roofline (M2 interim I-Q11*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** → open interim `HardwareDetailsPanel` when data exists (DATA-34a) and emit `open-hardware-details`. **Stacked report:** duration card, I/O bandwidth cards (DATA-33g) when `bandwidthCards` non-empty, Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
@@ -263,27 +263,27 @@ Searchable field list with CSV tabs, optional block switcher, **查看全部** e
 
 ### `RooflinePanel` (M2)
 
-Log-log roofline chart from `RooflineViewModel` (I-Q11a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until I-Q11f superseded. Mounted on the StatsAside stacked report after the duration card; hide when no points.
+Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until DATA-37f superseded. Mounted on the StatsAside stacked report after the duration card; hide when no points.
 
-**Why:** FEATURE_MATRIX / sketches; interim math unblocks M2 while Q11 open.
+**Why:** FEATURE_MATRIX / sketches; interim math unblocks M2 while DATA-37 open.
 
 ### `MemoryTopologyPanel` (M2)
 
-Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([Q12](../context/OPEN_QUESTIONS.md), changelog #5). Mounted on the stacked 报告统计 below PIPE; **详情** opens the memory CSV overlay.
+Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/DECISIONS.md), changelog #5). Mounted on the stacked 报告统计 below PIPE; **详情** opens the memory CSV overlay.
 
 **Why:** Geometry stays in the SVG asset; labels from adapter mapping table.
 
-### `HardwareDetailsPanel` (M1 interim I-Q7a)
+### `HardwareDetailsPanel` (M1 interim DATA-34a)
 
 Sectioned key–value list from `HardwareDetailsModel`. Prefer HardwareInfo.jsonl; else OpBasicInfo. Never invent peaks/cores/HBM.
 
-**Why:** 更多 drill-down while Product Q7 inventory remains open.
+**Why:** 更多 drill-down while Product DATA-34 inventory remains open.
 
 ### Dependency curves (P2; spec `DependencyLinksLayer`)
 
 Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRenderer` (instanced polyline) or `CanvasSwimlaneRenderer` (2D stroke); not a Vue overlay. Spec + crops live in `src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/`.
 
-**Why:** Separate from interval fill so Canvas/WebGL backends stay simple; needs dep encoding (Q9).
+**Why:** Separate from interval fill so Canvas/WebGL backends stay simple; needs dep encoding (DATA-36).
 
 ### `ContextMenu` / `MultiSelectSummary` (P2)
 

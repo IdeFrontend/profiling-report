@@ -277,13 +277,7 @@ Design: [page 1001698](https://octo-g.hdesign.huawei.com/developerPreview/develo
 
 Bullet 2 was never implemented — the row label stayed `#b0b0b0` through hover. Sampling this crop, a resting label peaks at ~`#b0b0b0` while the hovered row's peaks at pure white, so hover now lifts the label to `#fff`. The pin tooltip moved onto the raised-surface chrome at the same time: its spec says to follow EventTooltip, but named that chrome by value (`#2a2a2a` / `#555`), which went stale when AC-09 retinted the tooltip. This crop's bubble measures `#363636`, agreeing with the token.
 
-<<<<<<< HEAD
-**Still open, and a behaviour question rather than polish:** every row in this crop carries a `>` chevron — that is, the design puts the pushpin on *expandable* rows. The merged slice restricts pinning to leaves (`PR-GUTTER-010`, "folder/Card rows omit pin"). Widening it would change reviewed behaviour and the sticky-strip model, so it needs a product call, not a CSS change.
-=======
-**Product (2026-09-04) — [D-PIN-FOLDER](../../context/INTERIM_DECISIONS.md):** do **not** ship folder/group pin in the current iteration. Shipped behavior remains **leaf lanes only** (`#51`). Folder + subtree strip is implemented on `feat/pin-grouping-nodes` (PR #69 closed unmerged; branch kept) for a later iteration.
-
-**Earlier note (superseded by D-PIN-FOLDER):** nested folders were explored as pinnable; that work is parked, not merged.
->>>>>>> d533925 (docs: defer folder pin out of current iteration (D-PIN-FOLDER))
+**Product (2026-09-04) — [D-PIN-FOLDER](../../context/INTERIM_DECISIONS.md):** do **not** ship folder/group pin in the current iteration. Shipped behavior remains **leaf lanes only** (`#51`). Folder + subtree strip is implemented on `feat/pin-grouping-nodes` (PR [#69](https://github.com/IdeFrontend/profiling-report/pull/69) closed unmerged; branch kept) for a later iteration.
 
 ### AC-20 — Dialog chrome / copy
 

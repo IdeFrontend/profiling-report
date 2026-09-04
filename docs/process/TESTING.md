@@ -54,7 +54,7 @@ MSTT integration is verified manually or via mstt’s own tests after the librar
 
 | Source | Use |
 |--------|-----|
-| [`data/out.rep`](../../data/out.rep) | Primary golden container for MVP CI (**Interim [I-Q4](../context/INTERIM_DECISIONS.md)** — not sketch pixel-parity) |
+| [`data/out.rep`](../../data/out.rep) | Primary golden container for MVP CI (**Interim [DATA-31a](../context/INTERIM_DECISIONS.md)** — not sketch pixel-parity) |
 | `tests/fixtures/` (when code exists) | Unpacked snapshots, expected `SwimlaneModel` / `ReportViewModel` JSON |
 | Synthetic tiny traces | Edge cases (empty events, NA-only AIC columns, single lane) |
 

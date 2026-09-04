@@ -60,7 +60,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | **Confirmed** (npu-compute 0818). Shown as ms in mockup (unit conversion in UI) |
 | 5 | 算力情况 | — | — | **Unspecified in docx** |
-| 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **Measured confirmed.** Peak / score still **I-Q6g** (1600 GB/s guess; sketch 81 ≠ ratio) |
+| 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **Measured confirmed.** Peak / score still **DATA-33g** (1600 GB/s guess; sketch 81 ≠ ratio) |
 | 7 | 输出带宽 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | same as #6 |
 | 8 | 平均核利用率 | — | — | **Unspecified in docx** |
 
@@ -69,20 +69,20 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | Element | Behavior |
 | --- | --- |
 | Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
-| Meta row | **进程** / **算子类型** / **Blocks** / **更多** / CANNBot. `OpBasicInfo.csv` → `Pid` (also `PID`) / `Op Type` / `Block Dim`. Hide a segment when unset. Meta row stays visible on the report shell so **更多** is always reachable (HQ 30–31). Not 核数, aic频率, or NPU ARCH. `Current Freq` / `Rated Freq` stay off this shell (hardware overlay / OpBasicInfo dump). Overlay `chip_info` / `arch_info` are Device Info names, not a header ARCH value. |
-| 更多 | **Always** on the report shell (HQ 30–31). Opens hardware overlay and emits `open-hardware-details`. Render `HardwareDetailsPanel` when `hardwareDetails` is present (`HardwareInfo.jsonl` preferred; OpBasicInfo fallback per I-Q7a); else show **缺少 hardware info** / Missing hardware info. |
-| 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + progress bar = `min(100%, Block Dim / core_count × 100%)` when adapter sets `summary.coreCount` (HQ 32); else decorative ~15% fill (I-Q6e). Secondary: `{blockDim} / {coreCount}` iterations/core when both set (HQ 1); else `blockDim` only; else `opName`; else omit. No standalone op-type card. |
-| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — until Q6: **title + `N/A`** placeholder (no invented values) |
-| 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak GB/s` — **I-Q6g** / HQ 34 (hide side/card when NA). Same card chrome as 整体耗时. |
-| 平均核利用率 card | Percentage bar + enabled cores fraction — until Q6: **title + `N/A`** placeholder (no invented values) |
+| Meta row | **进程** / **算子类型** / **Blocks** / **更多** / CANNBot. `OpBasicInfo.csv` → `Pid` (also `PID`) / `Op Type` / `Block Dim`. Hide a segment when unset. Meta row stays visible on the report shell so **更多** is always reachable (UI-30, UI-31). Not 核数, aic频率, or NPU ARCH. `Current Freq` / `Rated Freq` stay off this shell (hardware overlay / OpBasicInfo dump). Overlay `chip_info` / `arch_info` are Device Info names, not a header ARCH value. |
+| 更多 | **Always** on the report shell (UI-30, UI-31). Opens hardware overlay and emits `open-hardware-details`. Render `HardwareDetailsPanel` when `hardwareDetails` is present (`HardwareInfo.jsonl` preferred; OpBasicInfo fallback per DATA-34a); else show **缺少 hardware info** / Missing hardware info. |
+| 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + progress bar = `min(100%, Block Dim / core_count × 100%)` when adapter sets `summary.coreCount` (UI-32); else decorative ~15% fill (DATA-33e). Secondary: `{blockDim} / {coreCount}` iterations/core when both set (DATA-1); else `blockDim` only; else `opName`; else omit. No standalone op-type card. |
+| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — until DATA-33: **title + `N/A`** placeholder (no invented values) |
+| 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak GB/s` — **DATA-33g** / UI-34 (hide side/card when NA). Same card chrome as 整体耗时. |
+| 平均核利用率 card | Percentage bar + enabled cores fraction — until DATA-33: **title + `N/A`** placeholder (no invented values) |
 
-Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [I-Q6g](../context/INTERIM_DECISIONS.md).
+Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [DATA-33g](../context/INTERIM_DECISIONS.md).
 
-### Interim I-Q6g (input / output bandwidth)
+### Interim DATA-33g (input / output bandwidth)
 
 | Slot | Interim |
 | --- | --- |
-| Measured | **Confirmed:** mean of non-`NA` matching Memory.csv column(s) across `block_id` (same as I-Q6b) |
+| Measured | **Confirmed:** mean of non-`NA` matching Memory.csv column(s) across `block_id` (same as DATA-33b) |
 | Peak | 1600 GB/s (1.6 TB/s) for every aic/aiv × in/out slot — sketch HW guess, **not** max of measured columns |
 | Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
 | Display | **GB/s** with magnitude rounding: ≥10 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 |
@@ -97,7 +97,7 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 
 ![Hardware details](./source/v930/hardware-more-detail.jpeg)
 
-**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. **更多** always opens the overlay (HQ 30–31): show sections when `hardwareDetails` is present; else **缺少 hardware info**. Adapter may still fall back to OpBasicInfo columns when jsonl is absent (I-Q7a). `data/out.rep` omits jsonl; the toolkit `example.rep` pack includes it (not in git).
+**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. **更多** always opens the overlay (UI-30, UI-31): show sections when `hardwareDetails` is present; else **缺少 hardware info**. Adapter may still fall back to OpBasicInfo columns when jsonl is absent (DATA-34a). `data/out.rep` omits jsonl; the toolkit `example.rep` pack includes it (not in git).
 
 | Section (UI) | Typical fields |
 | --- | --- |
@@ -135,18 +135,18 @@ Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards
 1. Tab labels are memory-oriented (内存单元 / 通路 / 搬运) while mapped fields are **pipe utilization ratios** (`aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio`). Possible mislabel or incomplete mapping.
 2. Those ratios alone **cannot** supply Ops/Byte or TOps/s for the chart axes, nor peak bandwidth / peak compute for the roof. Product must define the real formulas and hardware-limit sources.
 
-### Interim M2 implementation (I-Q11a–f)
+### Interim M2 implementation (DATA-37a–f)
 
-Do **not** use the docx tab→pipe-ratio table. While Q11 is open:
+Do **not** use the docx tab→pipe-ratio table. While DATA-37 is open:
 
 | Axis / element | Interim source |
 | --- | --- |
-| Y achieved | I-Q11a: `fops / timeUs / 1e6` from `ArithmeticUtilization.csv` |
-| X GM | I-Q11b: fops / GM R+W bytes from `Memory.csv` |
-| L2 point | I-Q11c: omit |
-| Roof | I-Q11d: peakCompute=1 TOps/s; peakBW from main-mem BW columns |
-| Op-mix labels | I-Q11e: normalize Vector/Cube mix ratios |
-| Tabs | I-Q11f: hidden |
+| Y achieved | DATA-37a: `fops / timeUs / 1e6` from `ArithmeticUtilization.csv` |
+| X GM | DATA-37b: fops / GM R+W bytes from `Memory.csv` |
+| L2 point | DATA-37c: omit |
+| Roof | DATA-37d: peakCompute=1 TOps/s; peakBW from main-mem BW columns |
+| Op-mix labels | DATA-37e: normalize Vector/Cube mix ratios |
+| Tabs | DATA-37f: hidden |
 
 Hide `RooflinePanel` when no GM point can be derived.
 
@@ -184,9 +184,9 @@ Hide `RooflinePanel` when no GM point can be derived.
 ### Visualization logic
 
 - Horizontal 0–100% tracks with a percent scale above the rows; solid fill = ratio; hatched remainder to 100%.
-- In-bar absolute (HQ 18, [I-Q6f](../context/INTERIM_DECISIONS.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
+- In-bar absolute (DATA-18, [DATA-33f](../context/INTERIM_DECISIONS.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
 - **详情** opens the compute CSV overlay (`CsvFieldListPanel`) and emits `open-pipe-details`.
-- Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([I-Q6b](../context/INTERIM_DECISIONS.md)); detail tabs are block-scoped ([I-Q6c](../context/INTERIM_DECISIONS.md)).
+- Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([DATA-33b](../context/INTERIM_DECISIONS.md)); detail tabs are block-scoped ([DATA-33c](../context/INTERIM_DECISIONS.md)).
 - Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).
 
 ---
@@ -203,7 +203,7 @@ Detail surface uses **tabs** ([`v930/compute-load-detail`](./source/v930/compute
 | `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
 | `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
 
-Render a searchable key–value (or table) list of all columns for the **selected block** ([I-Q6c](../context/INTERIM_DECISIONS.md)):
+Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-33c](../context/INTERIM_DECISIONS.md)):
 
 - AIC group: cycles, `*_time(us)`, `*_ratio`, active BW, ICache miss, scalar stall/wait breakdowns.
 - AIV group: same pattern; display `NA` when absent.
@@ -252,7 +252,7 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
 - Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
 - Overlay **Peak (%)** utilization on units only when a field mapping exists (still open for many units).
-- Labels are **block-scoped** via the same block switcher as memory details ([I-Q6c](../context/INTERIM_DECISIONS.md)).
+- Labels are **block-scoped** via the same block switcher as memory details ([DATA-33c](../context/INTERIM_DECISIONS.md)).
 
 ---
 
@@ -263,8 +263,8 @@ Memory detail controls ([`v930/memory-load-detail`](./source/v930/memory-load-de
 | Control | Behavior |
 | --- | --- |
 | Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent |
-| Block switcher | Filter rows to selected `block_id` ([I-Q6c](../context/INTERIM_DECISIONS.md)); default = first block |
-| 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([I-Q6d](../context/INTERIM_DECISIONS.md)) |
+| Block switcher | Filter rows to selected `block_id` ([DATA-33c](../context/INTERIM_DECISIONS.md)); default = first block |
+| 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/INTERIM_DECISIONS.md)) |
 
 Searchable key–value / table of columns for the active tab + block. Show `NA` when present.
 
@@ -343,7 +343,7 @@ Full prioritized list for the product owner: [OPEN_QUESTIONS.md](../context/OPEN
 | Topic | Source status |
 | --- | --- |
 | Report-stat cards 5, 8 field derivation | Empty in product tables |
-| I/O bandwidth peak / score (cards 6–7) | **Measured confirmed.** Peak / score still **I-Q6g** |
+| I/O bandwidth peak / score (cards 6–7) | **Measured confirmed.** Peak / score still **DATA-33g** |
 | Stats header 进程 / 算子类型 / Blocks | **Closed.** `OpBasicInfo.csv` `Pid` / `Op Type` / `Block Dim`. 核数 / NPU ARCH / aic频率 are not on the v930 header. |
 | Roofline tab names vs pipe-ratio fields; missing axis formulas | Contradictory / incomplete |
 | Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |

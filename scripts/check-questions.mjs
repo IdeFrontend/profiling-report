@@ -1,0 +1,137 @@
+#!/usr/bin/env node
+
+/**
+ * Validate the open-question / decision stores and every cross-reference to them.
+ *
+ * Invariants (see docs/context/OPEN_QUESTIONS.md):
+ *   1. No `resolved` status row is left on the open list.
+ *   2. Every DATA-/UI-/PROC-/PKG- id cited in the repo resolves to a known id in
+ *      OPEN_QUESTIONS.md ∪ INTERIM_DECISIONS.md ∪ DECISIONS.md.
+ *   3. Every DECISIONS.md entry links at least one owning spec.
+ *   4. Only the canonical status enum (open|partial|interim|deferred) is used on the open list.
+ */
+
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(__dirname, '..');
+
+const OPEN = resolve(ROOT, 'docs/context/OPEN_QUESTIONS.md');
+const INTERIM = resolve(ROOT, 'docs/context/INTERIM_DECISIONS.md');
+const DECISIONS = resolve(ROOT, 'docs/context/DECISIONS.md');
+
+const errors = [];
+const warnings = [];
+
+const ID_RE = /(?<!PR-)\b((?:DATA|UI|PROC|PKG)-\d+[a-z]?)\b/g;
+
+/** Collect all defined ids from the three stores (structural positions only). */
+function definedIds() {
+  const set = new Set();
+  const open = readFileSync(OPEN, 'utf8');
+  for (const m of open.matchAll(/^###\s+((?:DATA|UI|PROC|PKG)-\d+)\b/gm)) set.add(m[1]);
+  const dec = readFileSync(DECISIONS, 'utf8');
+  for (const m of dec.matchAll(/^##\s+((?:DATA|UI|PROC|PKG)-\d+)\b/gm)) set.add(m[1]);
+  const interim = readFileSync(INTERIM, 'utf8');
+  for (const m of interim.matchAll(/\*\*((?:DATA|UI|PROC|PKG)-\d+[a-z]?)\*\*/g)) set.add(m[1]);
+  return set;
+}
+
+// ---- Check 1 + 4: status on the open list ----
+function checkOpenStatus() {
+  const open = readFileSync(OPEN, 'utf8');
+  const allowed = new Set(['open', 'partial', 'interim', 'deferred']);
+  let count = 0;
+  for (const line of open.split('\n')) {
+    if (!line.includes('**Status:**')) continue;
+    count++;
+    const ticks = [...line.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+    for (const t of ticks) {
+      if (!allowed.has(t)) {
+        errors.push(`OPEN_QUESTIONS.md: status \`${t}\` is not in the open-list enum (open|partial|interim|deferred) — ${line.trim()}`);
+      }
+    }
+  }
+  if (count === 0) errors.push('OPEN_QUESTIONS.md: no `**Status:**` rows found (expected one per question)');
+}
+
+// ---- Check 3: decision → spec link ----
+function checkDecisionLinks() {
+  const dec = readFileSync(DECISIONS, 'utf8');
+  const sections = dec.split(/\n##\s+/).slice(1); // drop preamble
+  for (const section of sections) {
+    const id = section.match(/^(DATA|UI|PROC|PKG)-\d+/)?.[0];
+    if (!id) {
+      warnings.push(`DECISIONS.md: section with no parseable id: ${section.split('\n')[0]}`);
+      continue;
+    }
+    const hasSpecs = section.includes('**Specs:**');
+    const hasLink = /\*\*Specs:\*\*[^\n]*\]\([^)]+\)/.test(section);
+    if (!hasSpecs) errors.push(`DECISIONS.md: ${id} has no \`**Specs:**\` field`);
+    else if (!hasLink) errors.push(`DECISIONS.md: ${id} \`**Specs:**\` field has no markdown link`);
+  }
+}
+
+// ---- Check 2: cited ids resolve ----
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist']);
+const SCAN_EXTS = /\.(md|ts|vue|mjs|py|tsx)$/;
+
+function walk(dir, acc) {
+  if (!existsSync(dir)) return acc;
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    const rel = full.slice(ROOT.length + 1);
+    if (SKIP_DIRS.has(name)) continue;
+    if (rel === 'docs/archive') continue;
+    if (rel === 'docs/context/OPEN_QUESTIONS.md') continue;
+    if (rel === 'docs/context/INTERIM_DECISIONS.md') continue;
+    if (rel === 'docs/context/DECISIONS.md') continue;
+    let st;
+    try {
+      st = statSync(full);
+    } catch {
+      continue;
+    }
+    if (st.isDirectory()) walk(full, acc);
+    else if (SCAN_EXTS.test(name)) acc.push(rel);
+  }
+  return acc;
+}
+
+function checkIdResolution() {
+  const defined = definedIds();
+  const files = walk(join(ROOT, 'docs'), []);
+  walk(join(ROOT, 'specs'), files);
+  walk(join(ROOT, 'src'), files);
+  walk(join(ROOT, 'tests'), files);
+  walk(join(ROOT, 'playground'), files);
+  walk(join(ROOT, 'data'), files);
+
+  const undefinedIds = new Map();
+  for (const rel of files) {
+    const content = readFileSync(join(ROOT, rel), 'utf8');
+    for (const m of content.matchAll(ID_RE)) {
+      if (!defined.has(m[0])) {
+        if (!undefinedIds.has(m[0])) undefinedIds.set(m[0], new Set());
+        undefinedIds.get(m[0]).add(rel);
+      }
+    }
+  }
+  for (const [id, refs] of undefinedIds) {
+    errors.push(`undefined question id "${id}" cited in: ${[...refs].sort().join(', ')}`);
+  }
+}
+
+checkOpenStatus();
+checkDecisionLinks();
+checkIdResolution();
+
+for (const w of warnings) console.warn(`WARN: ${w}`);
+if (errors.length) {
+  for (const e of errors) console.error(`ERROR: ${e}`);
+  console.error(`\ncheck-questions: ${errors.length} error(s), ${warnings.length} warning(s)`);
+  process.exit(1);
+}
+console.log(`check-questions: ok (${warnings.length} warning(s))`);

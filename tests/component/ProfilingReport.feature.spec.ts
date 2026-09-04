@@ -65,7 +65,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     });
   });
 
-  it('PR-UI-003: hides optional panels when data missing (Q3 / interim)', async () => {
+  it('PR-UI-003: hides optional panels when data missing (DATA-30 / interim)', async () => {
     const emptyReport = emptyReportViewModel();
     const emptySwim: SwimlaneModel = {
       processes: [],
@@ -142,7 +142,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(vm.viewState.searchQuery).toBe('PIPE_V');
   });
 
-  it('PR-UI-006: Chrome Trace source hides analytics aside (Q15)', async () => {
+  it('PR-UI-006: Chrome Trace source hides analytics aside (PROC-3)', async () => {
     const { loadOutTraceBuffer } = await import('../helpers/fixtures');
     const wrapper = mount(ProfilingReport, {
       props: { source: loadOutTraceBuffer(), locale: 'en' },

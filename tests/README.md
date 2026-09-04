@@ -18,27 +18,27 @@ Maps product specs and interim decisions to stable **test ids**. See [docs/proce
 | Id | Layer | File | Spec / interim |
 |----|-------|------|----------------|
 | PR-FMT-001 | unit | `tests/unit/parseRep.spec.ts` | REP_FORMAT |
-| PR-FMT-002 | unit | `tests/unit/parseRep.spec.ts` | REP_FORMAT, I-Q4 |
-| PR-VM-001 | unit | `tests/unit/viewModels.spec.ts` | I-Q6a |
-| PR-VM-002 | unit | `tests/unit/viewModels.spec.ts` | I-Q6b |
-| PR-VM-003 | unit | `tests/unit/viewModels.spec.ts` | I-Q5+, Q5 |
+| PR-FMT-002 | unit | `tests/unit/parseRep.spec.ts` | REP_FORMAT, DATA-31a |
+| PR-VM-001 | unit | `tests/unit/viewModels.spec.ts` | DATA-33a |
+| PR-VM-002 | unit | `tests/unit/viewModels.spec.ts` | DATA-33b |
+| PR-VM-003 | unit | `tests/unit/viewModels.spec.ts` | DATA-32a, DATA-32 |
 | PR-SWIM-001 | unit | `tests/unit/swimlaneModel.spec.ts` | COMPONENTS |
-| PR-TIME-001 | unit | `tests/unit/formatTime.spec.ts` | I-Q14 |
+| PR-TIME-001 | unit | `tests/unit/formatTime.spec.ts` | UI-40a |
 | PR-VIEW-001..003 | unit | `tests/unit/viewState.spec.ts` | INTERACTIONS, COMPONENTS |
 | PR-RENDER-001..002 | unit | `tests/unit/canvasRenderer.spec.ts` | SwimlaneRenderer |
-| PR-JSON-001..002 | unit | `tests/unit/loadReportSource.spec.ts` | Q15 standalone CTEF |
+| PR-JSON-001..002 | unit | `tests/unit/loadReportSource.spec.ts` | PROC-3 standalone CTEF |
 | PR-UI-001 | component | `tests/component/ProfilingReport.feature.spec.ts` | UX S1 |
 | PR-UI-002 | component | `tests/component/ProfilingReport.feature.spec.ts` | INTERACTIONS |
-| PR-UI-003 | component | `tests/component/ProfilingReport.feature.spec.ts` | Q3, VIEW_DATA_REQUIREMENTS |
+| PR-UI-003 | component | `tests/component/ProfilingReport.feature.spec.ts` | DATA-30, VIEW_DATA_REQUIREMENTS |
 | PR-UI-004 | component | `tests/component/ProfilingReport.feature.spec.ts` | UX S2 zoom-to-fit |
 | PR-UI-005 | component | `tests/component/ProfilingReport.feature.spec.ts` | Search |
-| PR-UI-006 | component | `tests/component/ProfilingReport.feature.spec.ts` | Q15 hide aside |
+| PR-UI-006 | component | `tests/component/ProfilingReport.feature.spec.ts` | PROC-3 hide aside |
 | PR-UI-007 | component | `tests/component/ProfilingReport.feature.spec.ts` | Time overview brush |
-| PR-E2E-001 | e2e | `tests/e2e/feature.spec.ts` | UX S1, I-Q4 |
+| PR-E2E-001 | e2e | `tests/e2e/feature.spec.ts` | UX S1, DATA-31a |
 | PR-E2E-002 | e2e | `tests/e2e/feature.spec.ts` | UX S3 |
 | PR-E2E-003 | e2e | `tests/e2e/feature.spec.ts` | UX S3 |
 | PR-E2E-004 | e2e | `tests/e2e/feature.spec.ts` | UX S2 |
-| PR-E2E-005 | e2e | `tests/e2e/feature.spec.ts` | Q15 |
+| PR-E2E-005 | e2e | `tests/e2e/feature.spec.ts` | PROC-3 |
 | PR-E2E-006 | e2e | `tests/e2e/feature.spec.ts` | Overview brush + cursor line |
 | PR-E2E-007 | e2e | `tests/e2e/feature.spec.ts` | WebGL dependency curves (`ffn_dense`) |
 | PR-E2E-008 | e2e | `tests/e2e/feature.spec.ts` | Measure toggle active + masked design icon retints |

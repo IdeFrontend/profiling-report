@@ -51,13 +51,13 @@ Under [INTERIM_DECISIONS](INTERIM_DECISIONS.md) until Product/data spec complete
 | Phase | Intent |
 |-------|--------|
 | **MVP** | Narrow viewer: timeline shell + swimlane + core stats/PIPE + basic interactions (see [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)) |
-| **Phase 2+** | Remaining sketch features remain **in product scope**: product-final hardware inventory, memory topology SVG, dependency graph, multiselect, source/details/cache tabs, roofline tabs/L2 beyond I-Q11*, etc. |
+| **Phase 2+** | Remaining sketch features remain **in product scope**: product-final hardware inventory, memory topology SVG, dependency graph, multiselect, source/details/cache tabs, roofline tabs/L2 beyond DATA-37*, etc. |
 
 ## Design references
 
 - Domain / users / glossary: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md)
 - Market / competitors (NVIDIA Nsight analogues): [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md)
-- Packaging proposals (Q16–Q19): [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md)
+- Packaging proposals (PKG-1 … PKG-3, UI-41): [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md)
 - **Interim MVP defaults:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) (not Product-final)
 - UI sketches: [`docs/ui/source/v930/`](../ui/source/v930/) — index [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md)
 - Color tokens: [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md)

@@ -22,14 +22,14 @@ With no parameters at all the column shows an empty note rather than disappearin
 
 Keys are not translated: they are producer field names (`Code`, `Pc_addr`, `Process_bytes` in the sketch) and renaming them would break the link back to the trace.
 
-`event_id` and `dependencies` are dropped: under [I-Q9](../../../../docs/context/INTERIM_DECISIONS.md) they are the dependency transport, already shown as the Relevent graph, and the sketch's parameter list holds only producer fields. `cat` goes with them: the Chrome Trace adapter copies the event category into `args`, and DetailSummary already reads it for the type pill — it is not a producer parameter.
+`event_id` and `dependencies` are dropped: under [DATA-36a](../../../../docs/context/INTERIM_DECISIONS.md) they are the dependency transport, already shown as the Relevent graph, and the sketch's parameter list holds only producer fields. `cat` goes with them: the Chrome Trace adapter copies the event category into `args`, and DetailSummary already reads it for the type pill — it is not a producer parameter.
 
 ## Acceptance Criteria
 
 1. **PR-DPARAM-001** — Renders one row per `args` entry with the producer key verbatim.
 1. **PR-DPARAM-002** — Shows the empty note when `args` is missing or holds no usable values.
 1. **PR-DPARAM-003** — Path-like values render as links; an array value stacks its entries under a single key.
-1. **PR-DPARAM-004** — Drops the I-Q9 transport keys `event_id` and `dependencies` plus the adapter-injected `cat` from the list.
+1. **PR-DPARAM-004** — Drops the DATA-36a transport keys `event_id` and `dependencies` plus the adapter-injected `cat` from the list.
 
 ## Visual
 
@@ -37,5 +37,5 @@ Normative crop: [`visual/parameter-list.png`](./visual/parameter-list.png) — [
 
 ## Changelog
 - **2026-08-19** — `cat` hidden too: the Chrome Trace adapter injects it into `args` and the type pill already shows it.
-- **2026-08-13** — Data-driven rows from `SelectedEvent.args`; path rows and empty note; I-Q9 transport keys hidden.
+- **2026-08-13** — Data-driven rows from `SelectedEvent.args`; path rows and empty note; DATA-36a transport keys hidden.
 - **2026-08-10** — Stub + visual pack from `v930/detail-strip-raised`.

@@ -60,15 +60,15 @@ flowchart LR
 | Pain point | Developer question | Product response | UX / phase |
 |------------|--------------------|------------------|------------|
 | Opaque total cost | How long did the op take? What’s compute vs I/O BW? | Report summary tiles from OpBasicInfo + aggregates | **S1** · M |
-| Boundedness unclear | Am I compute-bound or memory-bound? | Summary tiles when formulas known; later **roofline** | **S1**, **S6** · compute tiles blocked on [Q6](OPEN_QUESTIONS.md); roofline P2 |
+| Boundedness unclear | Am I compute-bound or memory-bound? | Summary tiles when formulas known; later **roofline** | **S1**, **S6** · compute tiles blocked on [DATA-33](OPEN_QUESTIONS.md); roofline P2 |
 | Pipe imbalance | Which pipes dominate or sit idle? | PIPE occupancy bars; gutter util % | **S4**, **S5** · M (field list M1); hide if no CSV |
 | Timeline blindness | Where is wall time spent across lanes? | Swimlane zoom / pan / hover / select | **S2**, **S3** · M |
 | Core imbalance | Do some `block_id`s lag? | Gutter hierarchy + per-lane util; CSV keyed by block | **S4** · M |
-| Memory path pressure | Is L1 / UB / GM / HBM the limiter? | Static SVG + data-driven labels | **S6** · P2 ([Q12](OPEN_QUESTIONS.md)) |
-| Sync / deps | Why is this interval waiting? | Dependency links + detail graph | **S8** · P2 ([Q9](OPEN_QUESTIONS.md)) |
+| Memory path pressure | Is L1 / UB / GM / HBM the limiter? | Static SVG + data-driven labels | **S6** · P2 ([UI-38](DECISIONS.md)) |
+| Sync / deps | Why is this interval waiting? | Dependency links + detail graph | **S8** · P2 ([DATA-36](OPEN_QUESTIONS.md)) |
 | Source ↔ insn | Which line caused this stall? | Insight Source/Cache on `.bin`; optional later tabs | **S9** · P2 / Insight |
-| Wrong hardware context | Which chip / HBM / core count was this run? | Hardware aside | **Out of MVP** ([Q7](OPEN_QUESTIONS.md)) |
-| Fixture thinner than sketches | Why don’t I see multi-core instruction Gantt? | Target = sketches ([Q4](OPEN_QUESTIONS.md)); render available lanes; hide empty charts ([Q5](OPEN_QUESTIONS.md)) | Interim `out.rep` until golden |
+| Wrong hardware context | Which chip / HBM / core count was this run? | Hardware aside | **Out of MVP** ([DATA-34](DECISIONS.md)) |
+| Fixture thinner than sketches | Why don’t I see multi-core instruction Gantt? | Target = sketches ([DATA-31](OPEN_QUESTIONS.md)); render available lanes; hide empty charts ([DATA-32](DECISIONS.md)) | Interim `out.rep` until golden |
 
 MVP is deliberately scoped to the **highest-frequency questions** after opening a report: duration, pipe ranking, and timeline navigation. Deeper microarchitecture and schedule-orchestration features stay Phase 2 or in Insight / PyPTO.
 
@@ -89,7 +89,7 @@ Pain: need Insight-like OP metrics + PyPTO-like timeline
 |---------------|------------------|
 | **Swimlane as primary** | Perf intuition is temporal — busy vs idle pipes over time (PyPTO-like) |
 | **Summary + PIPE aside** | First answers after open (“how long / which pipes”) without clicking every bar |
-| **Overview Cube/Vector charts** | Time-aligned compute mix when series exist; hide when not ([Q5](OPEN_QUESTIONS.md)) |
+| **Overview Cube/Vector charts** | Time-aligned compute mix when series exist; hide when not ([DATA-32](DECISIONS.md)) |
 | **Hierarchical gutter** | Cores → pipes mirrors how developers reason about Block Dim and pipe children |
 | **Color consistency** | Same Cube / Vector / MTE language across bars, lanes, and charts |
 | **Keep Insight for `.bin`** | Instruction / Source / Cache depth is a different product question |
@@ -110,8 +110,8 @@ Sketches under [`docs/ui/`](../ui/) encode this composition: dense dark timeline
 | As an OP dev, I compare util across cores / pipes | **S4** Compare utilization | M | UX_SPEC, gutter + PIPE |
 | As an OP dev, I rank pipes and search raw counters | **S5** Drill into PIPE metrics | M1 | UX_SPEC, [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md) |
 | As an OP dev, I check whether memory paths limit the op | **S6** Analyze memory paths | P2 | UX_SPEC, FEATURE_MATRIX |
-| As an OP dev, I confirm NPU / HBM context for the run | **S7** Review hardware context | P2 | UX_SPEC, [Q7](OPEN_QUESTIONS.md) |
-| As an OP dev, I follow deps or aggregate a time slice | **S8** Dependencies / multi-select | P2 | UX_SPEC, [Q9](OPEN_QUESTIONS.md) |
+| As an OP dev, I confirm NPU / HBM context for the run | **S7** Review hardware context | P2 | UX_SPEC, [DATA-34](DECISIONS.md) |
+| As an OP dev, I follow deps or aggregate a time slice | **S8** Dependencies / multi-select | P2 | UX_SPEC, [DATA-36](OPEN_QUESTIONS.md) |
 | As an OP dev, I switch to OP / Source / Details / Cache modes | **S9** Secondary tabs | P2 | UX_SPEC; Insight remains for `.bin` depth |
 
 ---

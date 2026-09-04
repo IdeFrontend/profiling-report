@@ -48,7 +48,7 @@ interface SwimEvent    {
 
 ## Behavior
 
-**Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — Q8: do not invent Card/Core nesting from AIV pipe names.
+**Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — DATA-35: do not invent Card/Core nesting from AIV pipe names.
 
 **Async dependencies.** `ph: 's'` / `ph: 'f'` events are not intervals. They pair by process and trace `id`: each id's starts and finishes are ordered by timestamp and zipped (`start.ts <= finish.ts`); leftover unpaired endpoints are dropped. File order does not matter — a finish that appears before its start still pairs. Recycled ids after a flow closes, and the same id used in two processes, each keep their own edge. Unpaired starts, extra finishes, or `start.ts > finish.ts` are dropped. After X events are sorted per thread, each pair finds the **innermost** X event on the start thread whose `[startTime, startTime+duration]` contains `start.ts` (enclosing-parent chain from the last start ≤ ts), and the innermost X event on the finish thread that contains `finish.ts`. Those two events are linked: parent `successors` ← child `{ tid: SwimThread.id, index }`, child `predecessors` ← parent. The two X intervals may overlap (`pred.end > succ.start`) — that is valid; dependency curves still run pred-right → succ-left. Same-event pairs (both endpoints resolve to one slice) are dropped — no self-loop. Duplicate refs are not stored. Events with no edges omit `dependencies`. s/f timestamps use the same ns conversion as X events.
 
@@ -91,7 +91,7 @@ interface SwimEvent    {
 
 ## Open
 
-Q8 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
+DATA-35 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
 - **2026-09-03** — Ordering drops the "longest `duration` first on ties" tie-break: intra-lane exclusivity makes equal `startTime` within a lane impossible, so it is dead. `rebuildLayout` sorts by `startTime` only; `hitTestLayout` (not rebuildLayout) prefers the shorter nested event in the Chrome-trace overlap path.

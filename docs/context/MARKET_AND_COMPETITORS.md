@@ -75,7 +75,7 @@ These partition Ascend OP tooling; they are **ecosystem neighbors**, not externa
 | **MSTT** | Host IDE; opens `.rep` into this library; keeps `.bin` → Insight |
 | **MindStudio Insight** | Legacy / deep operator viewer for `.bin`; system modes stay there |
 | **PyPTO Toolkit** | Swimlane UX/algorithm reference; optional later consumer via adapter |
-| **CANN / msprof-class producers** | Write profiling artifacts (producer of `.rep` still tracked in [OPEN_QUESTIONS](OPEN_QUESTIONS.md) Q1) |
+| **CANN / msprof-class producers** | Write profiling artifacts (producer of `.rep` still tracked in [OPEN_QUESTIONS](OPEN_QUESTIONS.md) PROC-1) |
 
 Semantics across Insight / `.rep` / PyPTO: [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md). User workflow: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
 
