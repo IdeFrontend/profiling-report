@@ -1,58 +1,44 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_QUADS_PER_MESH } from '../../src/swimlane/layout';
 import {
-  computeChunkGaps,
   EDGE_GAP,
+  eventGaps,
   setVbSquareWithGaps,
 } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { extendMargin1Css, extendMargin2Css, extendTargetSizeCss } from '../../src/swimlane/shaders';
 
-/** [start, end] pairs for `n` non-overlapping events: start = i*10, end = i*10+5, gap = 5. */
+/** `n` non-overlapping events: start = i*10, end = i*10+5, so every interior gap is 5. */
 function lanePairs(n: number): number[] {
   const pairs: number[] = [];
-  for (let i = 0; i < n; i++) {
-    pairs.push(i * 10, i * 10 + 5);
-  }
+  for (let i = 0; i < n; i++) pairs.push(i * 10, i * 10 + 5);
   return pairs;
 }
 
-/**
- * `computeChunkGaps` returns a `Float32Array`, so `EDGE_GAP` (1e12) is rounded to the nearest
- * single-precision value (999999995904). The shader only needs "huge", so this is correct — but
- * assertions must compare against the float32 form, not the double-precision literal.
- */
-const EDGE_GAP_F32 = Math.fround(EDGE_GAP);
-
-describe('computeChunkGaps', () => {
-  it('PR-RENDER-024: returns an empty array for an empty lane', () => {
-    expect(computeChunkGaps([])).toEqual(new Float32Array(0));
+describe('eventGaps', () => {
+  it('PR-RENDER-024: a single event is an edge on both sides', () => {
+    expect(eventGaps([10, 15], 0)).toEqual([EDGE_GAP, EDGE_GAP]);
   });
 
-  it('PR-RENDER-024: a single event gets EDGE_GAP on both sides', () => {
-    expect(computeChunkGaps([10, 15])).toEqual(new Float32Array([EDGE_GAP_F32, EDGE_GAP_F32]));
+  it('PR-RENDER-024: an interior event reads exact neighbors on both sides', () => {
+    // [0,5], [20,25], [40,45]: gapPrev = 20-5 = 15, gapNext = 40-25 = 15.
+    expect(eventGaps([0, 5, 20, 25, 40, 45], 1)).toEqual([15, 15]);
   });
 
-  it('PR-RENDER-024: interior gaps are the exact nearest-neighbor distance', () => {
-    // Three events: [0,5], [20,25], [40,45]. gapPrev[1] = 20-5 = 15; gapNext[1] = 40-25 = 15.
-    const gaps = computeChunkGaps([0, 5, 20, 25, 40, 45]);
-    expect(Array.from(gaps)).toEqual([EDGE_GAP_F32, 15, 15, 15, 15, EDGE_GAP_F32]);
+  it('PR-RENDER-024: lane boundary events use EDGE_GAP only on their boundary side', () => {
+    const pairs = lanePairs(3);
+    expect(eventGaps(pairs, 0)).toEqual([EDGE_GAP, 5]); // first: fake prev, real next
+    expect(eventGaps(pairs, 2)).toEqual([5, EDGE_GAP]); // last: real prev, fake next
   });
 
-  it('PR-RENDER-024: boundary sides use EDGE_GAP, never a neighbor distance', () => {
-    const gaps = computeChunkGaps(lanePairs(3));
-    expect(gaps[0]).toBe(EDGE_GAP_F32); // first event gapPrev
-    expect(gaps[1]).toBe(5); // first event gapNext = 10 - 5
-    expect(gaps[gaps.length - 2]).toBe(5); // last event gapPrev
-    expect(gaps[gaps.length - 1]).toBe(EDGE_GAP_F32); // last event gapNext
-  });
-
-  it('PR-RENDER-024: a lane past MAX_QUADS_PER_MESH keeps a real gapNext on the first chunk boundary', () => {
-    // 16385 events; the last event of the first chunk (index MAX_QUADS_PER_MESH - 1) is not the
-    // global last event, so its gapNext must still be the real distance to the next neighbor.
-    const gaps = computeChunkGaps(lanePairs(MAX_QUADS_PER_MESH + 1));
-    const boundaryIdx = (MAX_QUADS_PER_MESH - 1) * 2;
-    expect(gaps[boundaryIdx + 1]).toBe(5); // gapNext to event MAX_QUADS_PER_MESH
-    expect(gaps[gaps.length - 1]).toBe(EDGE_GAP_F32); // only the true last event is an edge
+  it('PR-RENDER-024: chunk-split events read real neighbors across the boundary, both directions', () => {
+    // MAX_QUADS_PER_MESH + 2 events: chunk 1 = indices 0..MAX_QUADS_PER_MESH-1,
+    // chunk 2 = indices MAX_QUADS_PER_MESH .. MAX_QUADS_PER_MESH+1.
+    const pairs = lanePairs(MAX_QUADS_PER_MESH + 2);
+    // Last event of chunk 1: gapNext is the real distance to chunk 2's first event (not EDGE_GAP).
+    expect(eventGaps(pairs, MAX_QUADS_PER_MESH - 1)).toEqual([5, 5]);
+    // First event of chunk 2: gapPrev is the real distance back into chunk 1's last event
+    // (not EDGE_GAP), and gapNext is real since it is not the lane's last event.
+    expect(eventGaps(pairs, MAX_QUADS_PER_MESH)).toEqual([5, 5]);
   });
 });
 
