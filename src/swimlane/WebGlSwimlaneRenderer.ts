@@ -18,7 +18,7 @@ import {
   contentHeightFromLayout,
   encodeIntervalPair,
   eventBlockMetrics,
-  eventEmphasisDim,
+  eventEmphasis,
   eventLabelAnchor,
   eventPaintRect,
   eventScreenRect,
@@ -27,6 +27,8 @@ import {
   hexToRgb,
   hitTestLayout,
   rebuildLayout,
+  SELECTION_MUTED_FILL,
+  SELECTION_MUTED_LABEL,
   snapEventRect,
   type FlatLane,
   type LaidOutEvent,
@@ -55,6 +57,7 @@ interface MeshChunk {
 }
 
 interface EmphasisLayer {
+  rgb: [number, number, number];
   dim: number;
   chunks: MeshChunk[];
 }
@@ -82,7 +85,7 @@ const CURVE_INSTANCE_FLOATS = 10;
 interface LaneMeshes {
   color: [number, number, number];
   chunks: MeshChunk[];
-  /** When search and/or selection is active: per-dim mesh layers (Canvas alpha parity). */
+  /** When search and/or selection is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
 }
 
@@ -576,14 +579,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
       const sy = bandHSnapped / devH;
       const py = 1 - (topSnapped * 2 + bandHSnapped) / devH;
-      const [r, g, b] = meshes.color;
 
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
       if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
-      const drawChunks = (chunks: MeshChunk[], dim: number): void => {
+      const drawChunks = (chunks: MeshChunk[], rgb: [number, number, number], dim: number): void => {
         // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
-        gl.uniform4f(swim.uColor, r * dim, g * dim, b * dim, dim);
+        gl.uniform4f(swim.uColor, rgb[0] * dim, rgb[1] * dim, rgb[2] * dim, dim);
         for (const chunk of chunks) {
           gl.bindVertexArray(chunk.vao);
           gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
@@ -592,10 +594,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
       if (meshes.emphasisLayers) {
         for (const layer of meshes.emphasisLayers) {
-          drawChunks(layer.chunks, layer.dim);
+          drawChunks(layer.chunks, layer.rgb, layer.dim);
         }
       } else {
-        drawChunks(meshes.chunks, 1);
+        drawChunks(meshes.chunks, meshes.color, 1);
       }
     }
 
@@ -693,7 +695,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const r = eventPaintRect(x, y, w, h, dpr);
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       if (!matches) continue;
-      const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
+      const { muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
       const anchor = eventLabelAnchor(r.x, r.w, devW);
       if (!anchor) continue;
       const glyph = atlas.get(gl, ev.name, fontPx, anchor.maxWidth);
@@ -701,17 +703,23 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
       const lane = this.layout.lanes[item.laneIndex];
       if (!lane) continue;
-      const [lr, lg, lb] = hexToRgb(lane.color);
       // ClearType is opaque (alpha = 1), so bake the composited backdrop into uBgColor. The fill
-      // pass blends additively (ONE,ONE): a fully covered event pixel is `bg + rgb·dim`, so the
+      // pass blends additively (ONE,ONE): a fully covered event pixel is `bg + rgb`, so the
       // label's solid backdrop must use that same formula (clamped) to sit invisibly on the fill.
-      // `bg` is the hovered row's chrome when this event's lane is the hovered row.
+      // `bg` is the hovered row's chrome when this event's lane is the hovered row; a muted
+      // (non-selected, non-neighbor) event swaps in `SELECTION_MUTED_FILL`/`SELECTION_MUTED_LABEL`.
+      const [lr, lg, lb] = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
-      const fr = Math.min(1, bg + lr * dim);
-      const fg = Math.min(1, bg + lg * dim);
-      const fb = Math.min(1, bg + lb * dim);
+      const fr = Math.min(1, bg + lr);
+      const fg = Math.min(1, bg + lg);
+      const fb = Math.min(1, bg + lb);
       gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
-      gl.uniform4f(prog.uColor, fr + (1 - fr) * dim, fg + (1 - fg) * dim, fb + (1 - fb) * dim, 1);
+      if (muted) {
+        const [mr, mg, mb] = hexToRgb(SELECTION_MUTED_LABEL);
+        gl.uniform4f(prog.uColor, mr, mg, mb, 1);
+      } else {
+        gl.uniform4f(prog.uColor, 1, 1, 1, 1);
+      }
 
       const cy = r.y + r.h / 2;
       const gx = anchor.cx - glyph.width / 2;
@@ -790,7 +798,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.rebuildEmphasisSplit();
   }
 
-  /** Split lane meshes by Canvas-equivalent emphasis dim (search × selection). */
+  /** Split lane meshes by Canvas-equivalent emphasis (search alpha × selection gray muting). */
   private rebuildEmphasisSplit(): void {
     const gl = this.gl;
     this.disposeEmphasisSplit();
@@ -801,6 +809,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const hasSearch = q.length > 0;
     const hasSelection = this.paintDependencies && sel != null;
     const bright = this.neighborIds;
+    const mutedRgb = hexToRgb(SELECTION_MUTED_FILL);
     const byLane = new Map<number, LaidOutEvent[]>();
     for (const ev of this.layout.events) {
       const list = byLane.get(ev.laneIndex) ?? [];
@@ -811,22 +820,24 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     for (let idx = 0; idx < this.laneMeshes.length; idx++) {
       const meshes = this.laneMeshes[idx]!;
       const events = byLane.get(idx) ?? [];
-      const byDim = new Map<number, number[]>();
+      const byKey = new Map<string, { rgb: [number, number, number]; dim: number; pairs: number[] }>();
       for (const item of events) {
         const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
-        const dim = eventEmphasisDim(matches, bright.has(item.id), hasSearch, hasSelection);
-        let pairs = byDim.get(dim);
-        if (!pairs) {
-          pairs = [];
-          byDim.set(dim, pairs);
+        const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
+        const rgb = muted ? mutedRgb : meshes.color;
+        const key = `${muted ? 1 : 0}|${alpha}`;
+        let bucket = byKey.get(key);
+        if (!bucket) {
+          bucket = { rgb, dim: alpha, pairs: [] };
+          byKey.set(key, bucket);
         }
         const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-        pairs.push(a, b);
+        bucket.pairs.push(a, b);
       }
       // Dimmer layers first so full-bright selection/matches paint on top.
-      meshes.emphasisLayers = [...byDim.entries()]
-        .sort((a, b) => a[0] - b[0])
-        .map(([dim, pairs]) => ({ dim, chunks: createChunksFromPairs(gl, pairs) }));
+      meshes.emphasisLayers = [...byKey.values()]
+        .sort((a, b) => a.dim - b.dim)
+        .map(({ rgb, dim, pairs }) => ({ rgb, dim, chunks: createChunksFromPairs(gl, pairs) }));
     }
   }
 

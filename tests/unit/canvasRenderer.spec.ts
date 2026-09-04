@@ -2,13 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   encodeIntervalPair,
   EVENT_MARGIN,
-  eventEmphasisDim,
+  eventEmphasis,
   eventLabelAnchor,
   eventPaintRect,
   eventRadius,
   hitTestLayout,
   rebuildLayout,
   
+  SELECTION_MUTED_FILL,
+  SELECTION_MUTED_LABEL,
   snapEventRect,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
@@ -298,16 +300,16 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
-  it('PR-RENDER-010: eventEmphasisDim matches Canvas factors', async () => {
-    expect(eventEmphasisDim(false, false, true, false)).toBe(0.25);
-    expect(eventEmphasisDim(true, false, false, true)).toBe(0.45);
-    expect(eventEmphasisDim(false, false, true, true)).toBeCloseTo(0.25 * 0.45);
-    expect(eventEmphasisDim(true, true, true, true)).toBe(1);
-    // Hovered (keepBright) under a selection: full strength, same as the selection itself.
-    expect(eventEmphasisDim(true, true, false, true)).toBe(1);
+  it('PR-RENDER-010: eventEmphasis returns search alpha + selection muting', async () => {
+    expect(eventEmphasis(false, false, true, false)).toEqual({ alpha: 0.25, muted: false });
+    expect(eventEmphasis(true, false, false, true)).toEqual({ alpha: 1, muted: true });
+    expect(eventEmphasis(false, false, true, true)).toEqual({ alpha: 0.25, muted: true });
+    expect(eventEmphasis(true, true, true, true)).toEqual({ alpha: 1, muted: false });
+    // Hovered (keepBright) under a selection: unmuted, same as the selection itself.
+    expect(eventEmphasis(true, true, false, true)).toEqual({ alpha: 1, muted: false });
 
     // Both Canvas paths (main + overlay) wire hover into keepBright — otherwise a light
-    // hover fill under the selection dim is what made dark labels unreadable.
+    // hover fill under the selection mute is what made dark labels unreadable.
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
     expect(canvasSrc.match(/bright\.has\(item\.id\)\s*\|\|\s*item\.id\s*===\s*this\.hoveredId/g))
@@ -330,7 +332,7 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
-  it('PR-RENDER-013: dep neighbors keep full fill and label brightness', () => {
+  it('PR-RENDER-013: dep neighbors keep their color; non-neighbors render gray', () => {
     const parent: SwimEvent = {
       id: 'e-parent',
       name: 'parent',
@@ -364,8 +366,8 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     expect(ids.has('e-parent')).toBe(true);
     expect(ids.has('e-child')).toBe(true);
     expect(ids.has('e-plain')).toBe(false);
-    expect(eventEmphasisDim(true, ids.has('e-child'), false, true)).toBe(1);
-    expect(eventEmphasisDim(true, ids.has('e-plain'), false, true)).toBe(0.45);
+    expect(eventEmphasis(true, ids.has('e-child'), false, true)).toEqual({ alpha: 1, muted: false });
+    expect(eventEmphasis(true, ids.has('e-plain'), false, true)).toEqual({ alpha: 1, muted: true });
   });
 
   it('PR-RENDER-009: encodeIntervalPair stays monotonic after float32 round', () => {
@@ -525,6 +527,56 @@ describe('PR-RENDER: lane chrome color', () => {
     }
   });
 
+  it('PR-RENDER-023: selection mutes non-neighbors to gray and drops the white ring', async () => {
+    const { eventFill, labelColorOn, colorForThread } = await import('../../src/domain/laneColors');
+    const base = colorForThread('AIV0/PIPE_V/status');
+
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-a',
+              name: 'AIV0/PIPE_V/status',
+              events: [{ id: 'sel', name: 'selected_evt', startTime: 0, duration: 200 }],
+            },
+            {
+              id: 't-b',
+              name: 'AIV0/PIPE_V/status',
+              events: [{ id: 'other', name: 'other_evt', startTime: 0, duration: 200 }],
+            },
+          ],
+        },
+      ],
+    };
+
+    const { canvas, fills, texts } = recordingCanvas();
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(model);
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setSelection('sel', null);
+    renderer.render();
+
+    // Non-neighbor 'other' is muted: gray fill, muted label.
+    expect(fills).toContain(SELECTION_MUTED_FILL);
+    expect(texts.get('other_evt')).toBe(SELECTION_MUTED_LABEL);
+    // The selection keeps its lifted state fill and its contrast label.
+    expect(fills).toContain(eventFill(base, 'selected'));
+    expect(texts.get('selected_evt')).toBe(labelColorOn(eventFill(base, 'selected')));
+
+    // The 2px white ring is gone: no white stroke remains in the Canvas renderer.
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc).not.toMatch(/strokeRoundedEvent/);
+    expect(canvasSrc).not.toMatch(/strokeStyle\s*=\s*'#ffffff'/);
+  });
+
   it('PR-RENDER-024: ClearType mode still labels hovered/selected blocks via the overlay', async () => {
     const { eventFill, labelColorOn, colorForThread } = await import('../../src/domain/laneColors');
     const { SwimlaneOverlayPainter } = await import('../../src/swimlane/CanvasSwimlaneRenderer');
@@ -551,14 +603,15 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
   });
 
-  it('PR-RENDER-025: ClearType label backdrop matches the hovered row chrome', async () => {
+  it('PR-RENDER-025: ClearType label backdrop matches the fill and mutes to gray', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     // The label pass carries its own hovered-row chrome (#363636) and bakes it into the opaque
-    // backdrop via the same `bg + rgb·dim` formula the fill pass uses, so the label rect reads
-    // as the event rect when its row is hovered.
+    // backdrop via the same `bg + rgb` additive formula the fill pass uses, so the label rect
+    // reads as the event rect; a muted event swaps in the gray fill/label colors instead.
     expect(webglSrc).toMatch(/laneHoverBg = 0x36 \/ 255/);
-    expect(webglSrc).toMatch(/Math\.min\(1, bg \+ lr \* dim\)/);
+    expect(webglSrc).toMatch(/Math\.min\(1, bg \+ lr\)/);
+    expect(webglSrc).toMatch(/hexToRgb\(SELECTION_MUTED_LABEL\)/);
   });
 });
 

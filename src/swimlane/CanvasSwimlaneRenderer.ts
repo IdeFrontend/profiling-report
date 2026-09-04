@@ -27,7 +27,7 @@ import {
   LANE_HEIGHT,
   contentHeightFromLayout,
   eventBlockMetrics,
-  eventEmphasisDim,
+  eventEmphasis,
   eventLabelAnchor,
   eventScreenRect,
   findEvent,
@@ -35,30 +35,13 @@ import {
   hitTestLayout,
   rebuildLayout,
   showsProfilerStepBands,
+  SELECTION_MUTED_FILL,
+  SELECTION_MUTED_LABEL,
   snapEventRect,
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
 import { EVENT_LABEL_FONT_CSS_PX, centeredTextBaseline, fitEventLabel } from './textAtlas';
-
-/** Device-pixel-snapped stroke path inset by half the (snapped) line width. */
-function strokeRoundedEvent(
-  ctx: CanvasRenderingContext2D,
-  r: { x: number; y: number; w: number; h: number; r: number },
-  lineWidthDevice: number,
-): void {
-  const lw = Math.max(1, Math.round(lineWidthDevice));
-  ctx.lineWidth = lw;
-  roundRectPath(
-    ctx,
-    r.x + lw / 2,
-    r.y + lw / 2,
-    Math.max(1, r.w - lw),
-    Math.max(1, r.h - lw),
-    r.r,
-  );
-  ctx.stroke();
-}
 
 function drawEventLabel(
   ctx: CanvasRenderingContext2D,
@@ -181,7 +164,7 @@ export function paintGroupBands(
 }
 
 /**
- * Canvas2D overlay: labels, selection/hover strokes, cursor.
+ * Canvas2D overlay: labels and hover/selection state fills.
  * Used on top of WebGL interval fills (hybrid path).
  */
 export class SwimlaneOverlayPainter {
@@ -194,8 +177,8 @@ export class SwimlaneOverlayPainter {
   private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
   private searchQuery = '';
-  /** When false, selection does not dim non-neighbors (pinned-strip pass). */
-  private selectionDim = true;
+  /** When false, selection does not mute non-neighbors (pinned-strip pass). */
+  private selectionMuted = true;
   /** When false, the WebGL backend owns event labels (ClearType); overlay skips them. */
   private drawEventLabels = true;
   private width = 0;
@@ -237,13 +220,13 @@ export class SwimlaneOverlayPainter {
     this.hoveredLaneId = laneId;
   }
 
-  /** Renderer already walked the graph; overlay only dims from these ids. */
+  /** Renderer already walked the graph; overlay only mutes from these ids. */
   setNeighborIds(ids: Set<string>): void {
     this.neighborIds = ids;
   }
 
-  setSelectionDim(enabled: boolean): void {
-    this.selectionDim = enabled;
+  setSelectionMuted(enabled: boolean): void {
+    this.selectionMuted = enabled;
   }
 
   setSearchQuery(query: string): void {
@@ -261,13 +244,13 @@ export class SwimlaneOverlayPainter {
     if (!ctx || !this.canvas) return;
     ctx.clearRect(0, 0, this.width, this.height);
 
-    // WebGL draws lane chrome + event fills; overlay adds band fills/labels + event strokes/labels.
+    // WebGL draws lane chrome + event fills; overlay adds band fills/labels + event labels.
     paintGroupBands(ctx, this.layout, this.view, this.width, this.height, this.dpr);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
-    const hasSelection = this.selectionDim && this.selectedId != null;
+    const hasSelection = this.selectionMuted && this.selectedId != null;
     const bright = this.neighborIds;
     const dpr = this.dpr;
 
@@ -285,14 +268,14 @@ export class SwimlaneOverlayPainter {
       const r = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const dim = eventEmphasisDim(
+      const { alpha, muted } = eventEmphasis(
         matches,
         bright.has(item.id) || item.id === this.hoveredId,
         hasSearch,
         hasSelection,
       );
 
-      // The GL pass laid down the resting fill at this block's own dim. Painting a
+      // The GL pass laid down the resting fill at this block's own emphasis. Painting a
       // semi-transparent state fill on top of that would double-composite — Canvas
       // blends the same state over the lane background instead. Reset to the lane
       // fill first (hover tint when that row is hovered) so both backends agree.
@@ -305,23 +288,31 @@ export class SwimlaneOverlayPainter {
           laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
         roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
         ctx.fill();
-        ctx.globalAlpha = dim;
+        ctx.globalAlpha = alpha;
         ctx.fillStyle = fill;
         roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
         ctx.fill();
         ctx.globalAlpha = 1;
       }
-      if (item.id === this.selectedId) {
-        ctx.strokeStyle = '#ffffff';
-        strokeRoundedEvent(ctx, r, Math.round(2 * dpr));
-      }
 
-      // Same visibility as Canvas fills: search misses omit labels; selection dims the rest.
+      // Same visibility as Canvas fills: search misses omit labels; muted events gray the rest.
       // When the WebGL backend owns labels (ClearType), non-resting blocks still get their label
       // here: the opaque state fill painted above covers the GL label, and the label's contrast
-      // must match that fill (dark on the lifted hover/selected colour).
-      if (matches && (this.drawEventLabels || state !== 'normal'))
-        drawEventLabel(ctx, ev.name, r.x, r.y, r.w, r.h, this.width, dim, labelColorOn(fill), dpr);
+      // must match that fill.
+      if (matches && (this.drawEventLabels || state !== 'normal')) {
+        drawEventLabel(
+          ctx,
+          ev.name,
+          r.x,
+          r.y,
+          r.w,
+          r.h,
+          this.width,
+          alpha,
+          muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
+          dpr,
+        );
+      }
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
@@ -410,7 +401,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
   }
 
-  /** When false, skip dependency curves and selection dimming (pinned-strip pass). */
+  /** When false, skip dependency curves and selection muting (pinned-strip pass). */
   setPaintDependencies(enabled: boolean): void {
     if (enabled === this.paintDependencies) return;
     this.paintDependencies = enabled;
@@ -505,9 +496,9 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       y: number;
       w: number;
       h: number;
-      r: number;
       matches: boolean;
-      dim: number;
+      alpha: number;
+      muted: boolean;
       /** Carried from the fill pass so the label can pick its contrast off what was painted. */
       fill: string;
     }[] = [];
@@ -526,32 +517,46 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const fr = eventPaintRect(x, y, w, h, dpr);
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const dim = eventEmphasisDim(
+      const { alpha, muted } = eventEmphasis(
         matches,
         bright.has(item.id) || item.id === this.hoveredId,
         hasSearch,
         hasSelection,
       );
       const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
-      const fill = eventFill(item.color, state);
-      ctx.globalAlpha = dim;
+      const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
+      ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
       roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
       ctx.fill();
       ctx.globalAlpha = 1;
-      visible.push({ item, x: fr.x, y: fr.y, w: fr.w, h: fr.h, r: fr.r, matches, dim, fill });
+      visible.push({
+        item,
+        x: fr.x,
+        y: fr.y,
+        w: fr.w,
+        h: fr.h,
+        matches,
+        alpha,
+        muted,
+        fill,
+      });
     }
 
-    for (const { item, x, y, w, h, r, matches, dim, fill } of visible) {
-      // The state fill went down above; the ring rides on top of it, so a selected block
-      // stays marked as such even while hovered.
-      if (item.id === this.selectedId) {
-        ctx.strokeStyle = '#ffffff';
-        strokeRoundedEvent(ctx, { x, y, w, h, r }, Math.round(2 * dpr));
-      }
-
+    for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
       if (matches) {
-        drawEventLabel(ctx, item.event.name, x, y, w, h, this.width, dim, labelColorOn(fill), dpr);
+        drawEventLabel(
+          ctx,
+          item.event.name,
+          x,
+          y,
+          w,
+          h,
+          this.width,
+          alpha,
+          muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
+          dpr,
+        );
       }
     }
 
