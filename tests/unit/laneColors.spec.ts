@@ -51,7 +51,7 @@ describe('eventFill', () => {
     }
   });
 
-  it('shares lightness between hover and selected; ring and chroma carry the distinction', () => {
+  it('shares lightness between hover and selected; chroma carries the distinction', () => {
     for (const [key, base] of Object.entries(LANE_COLOR_HEX)) {
       expect(L(eventFill(base, 'selected')) - L(eventFill(base, 'hover')), key).toBeCloseTo(0, 2);
     }
