@@ -98,7 +98,7 @@ AICore parallel stays a placeholder until Product defines fields. Card 5 uses in
 | Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
 | Display | **GB/s** with magnitude rounding: ≥10 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 (UI-34; sketch may still print TB/s) |
 | Layout | Sketch: one card, **读 \| 写** columns, score **with** `%`. UI mean-collapses aic\|aiv per direction |
-| Bar | Fill width = score % of track (`--pr-color-bandwidth-bar`); same 8px pill hatched track as duration; 0% fill has no 2px sliver |
+| Bar | Fill width = score % of track (`--pr-color-card-bar-primary` / `--pr-color-card-bar-secondary`; legacy alias `--pr-color-bandwidth-bar`); same 8px pill hatched track as duration; 0% fill has no 2px sliver |
 | NA | Omit that column; omit the card if both sides NA |
 | `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused |
 

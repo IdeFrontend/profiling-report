@@ -3,14 +3,6 @@
 # regenerate: npm run render:question-visuals
 
 images:
-  data-1:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 40, y: 280, w: 880, h: 380 }
-    maxWidth: 900
-    highlights:
-      - label: "DATA-1 次迭代/核"
-        box: { x: 32, y: 300, w: 340, h: 52 }
-
   data-2:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
     crop: { x: 40, y: 700, w: 880, h: 400 }
@@ -26,14 +18,6 @@ images:
     highlights:
       - label: "DATA-3 320"
         box: { x: 180, y: 320, w: 200, h: 52 }
-
-  data-4:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 40, y: 700, w: 880, h: 400 }
-    maxWidth: 900
-    highlights:
-      - label: "DATA-4 90"
-        box: { x: 32, y: 140, w: 180, h: 80 }
 
   data-5:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
@@ -132,13 +116,6 @@ images:
       - label: "DATA-17 tabs"
         box: { x: 10, y: 195, w: 1000, h: 90 }
 
-  data-18:
-    source_file: src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-18 in-bar"
-        box: { x: 250, y: 275, w: 280, h: 50 }
-
   data-19:
     source_file: src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png
     maxWidth: 900
@@ -215,52 +192,6 @@ images:
     highlights:
       - label: "DATA-29 selected block"
         box: { x: 1140, y: 370, w: 495, h: 70 }
-
-  ui-30:
-    source_file: src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png
-    maxWidth: 900
-    highlights:
-      - label: "UI-30 overlay"
-        box: { x: 0, y: 0, w: 1850, h: 110 }
-
-  ui-31:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 0, y: 0, w: 1850, h: 220 }
-    maxWidth: 900
-    highlights:
-      - label: "UI-31 更多"
-        box: { x: 910, y: 148, w: 170, h: 62 }
-
-  ui-32:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 40, y: 280, w: 880, h: 380 }
-    maxWidth: 900
-    highlights:
-      - label: "UI-32 bar"
-        box: { x: 32, y: 220, w: 400, h: 40 }
-
-  ui-33:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 40, y: 700, w: 880, h: 400 }
-    maxWidth: 900
-    highlights:
-      - label: "UI-33 Cube|Vector"
-        box: { x: 20, y: 100, w: 840, h: 220 }
-
-  ui-34:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 940, y: 700, w: 880, h: 400 }
-    maxWidth: 900
-    highlights:
-      - label: "UI-34 TB/s"
-        box: { x: 32, y: 320, w: 400, h: 52 }
-
-  ui-35:
-    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
-    maxWidth: 900
-    highlights:
-      - label: "UI-35 diagram (no right-click UI)"
-        box: { x: 160, y: 80, w: 1780, h: 1860 }
 
   ui-36:
     source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
