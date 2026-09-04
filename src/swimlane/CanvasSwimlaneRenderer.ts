@@ -164,7 +164,7 @@ export class SwimlaneOverlayPainter {
   private neighborIds = new Set<string>();
   private searchQuery = '';
   /** When false, selection does not mute non-neighbors (pinned-strip pass). */
-  private selectionDim = true;
+  private selectionMuted = true;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -209,8 +209,8 @@ export class SwimlaneOverlayPainter {
     this.neighborIds = ids;
   }
 
-  setSelectionDim(enabled: boolean): void {
-    this.selectionDim = enabled;
+  setSelectionMuted(enabled: boolean): void {
+    this.selectionMuted = enabled;
   }
 
   setSearchQuery(query: string): void {
@@ -229,7 +229,7 @@ export class SwimlaneOverlayPainter {
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
-    const hasSelection = this.selectionDim && this.selectedId != null;
+    const hasSelection = this.selectionMuted && this.selectedId != null;
     const bright = this.neighborIds;
     const dpr = this.dpr;
 
