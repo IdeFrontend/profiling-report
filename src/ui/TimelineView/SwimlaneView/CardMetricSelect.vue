@@ -17,13 +17,21 @@ const emit = defineEmits<{
 const open = ref(false);
 const rootRef = ref<HTMLElement | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
+const triggerRef = ref<HTMLButtonElement | null>(null);
 const menuStyle = ref<Record<string, string>>({});
+const activeIndex = ref(0);
 
 const label = computed(() => gutterMetricLabel(props.modelValue, props.locale));
+const activeId = computed(() =>
+  open.value && props.options[activeIndex.value]
+    ? `card-metric-option-${props.options[activeIndex.value]}`
+    : undefined,
+);
 
 function optionLabel(metric: GutterMetric): string {
   return gutterMetricLabel(metric, props.locale);
 }
+
 function placeMenu() {
   const el = rootRef.value;
   if (!el) return;
@@ -36,17 +44,23 @@ function placeMenu() {
   };
 }
 
+function syncActiveFromValue() {
+  const i = props.options.indexOf(props.modelValue);
+  activeIndex.value = i >= 0 ? i : 0;
+}
+
 function toggle(e: Event) {
   e.stopPropagation();
   e.preventDefault();
   open.value = !open.value;
 }
 
-function pick(metric: GutterMetric, e: Event) {
-  e.stopPropagation();
-  e.preventDefault();
+function pick(metric: GutterMetric, e?: Event) {
+  e?.stopPropagation();
+  e?.preventDefault();
   emit('update:modelValue', metric);
   open.value = false;
+  triggerRef.value?.focus();
 }
 
 function onDocPointerDown(e: PointerEvent) {
@@ -57,8 +71,40 @@ function onDocPointerDown(e: PointerEvent) {
 }
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && open.value) {
+  if (!open.value) return;
+  const n = props.options.length;
+  if (n === 0) return;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
     open.value = false;
+    triggerRef.value?.focus();
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    activeIndex.value = (activeIndex.value + 1) % n;
+    return;
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    activeIndex.value = (activeIndex.value - 1 + n) % n;
+    return;
+  }
+  if (e.key === 'Home') {
+    e.preventDefault();
+    activeIndex.value = 0;
+    return;
+  }
+  if (e.key === 'End') {
+    e.preventDefault();
+    activeIndex.value = n - 1;
+    return;
+  }
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    const opt = props.options[activeIndex.value];
+    if (opt) pick(opt);
   }
 }
 
@@ -68,6 +114,7 @@ function onScrollOrResize() {
 
 watch(open, async (v) => {
   if (v) {
+    syncActiveFromValue();
     await nextTick();
     placeMenu();
   }
@@ -110,11 +157,14 @@ watch(
     @pointerdown.stop
   >
     <button
+      ref="triggerRef"
       type="button"
       class="pr-metric-select__trigger"
       :aria-label="ariaLabel"
       :aria-expanded="open"
       aria-haspopup="listbox"
+      :aria-controls="open ? 'card-metric-listbox' : undefined"
+      :aria-activedescendant="activeId"
       @click="toggle"
     >
       <span class="pr-metric-select__label">{{ label }}</span>
@@ -126,20 +176,26 @@ watch(
     <Teleport to="body">
       <ul
         v-if="open"
+        id="card-metric-listbox"
         ref="menuRef"
         class="pr-metric-select__menu"
         role="listbox"
+        tabindex="-1"
         :style="menuStyle"
         data-testid="card-metric-menu"
         @click.stop
         @pointerdown.stop
       >
         <li
-          v-for="opt in options"
+          v-for="(opt, i) in options"
+          :id="`card-metric-option-${opt}`"
           :key="opt"
           role="option"
           class="pr-metric-select__option"
-          :class="{ 'pr-metric-select__option--selected': opt === modelValue }"
+          :class="{
+            'pr-metric-select__option--selected': opt === modelValue,
+            'pr-metric-select__option--active': i === activeIndex,
+          }"
           :aria-selected="opt === modelValue"
           :data-testid="`card-metric-option-${opt}`"
           @click="pick(opt, $event)"
@@ -250,7 +306,8 @@ watch(
   text-overflow: ellipsis;
 }
 
-.pr-metric-select__option:hover {
+.pr-metric-select__option:hover,
+.pr-metric-select__option--active {
   background: #323232;
 }
 
@@ -259,7 +316,8 @@ watch(
   color: #fff;
 }
 
-.pr-metric-select__option--selected:hover {
+.pr-metric-select__option--selected:hover,
+.pr-metric-select__option--selected.pr-metric-select__option--active {
   background: #3078f0;
 }
 </style>

@@ -7,7 +7,7 @@ export type GutterMetric = 'clockCycle' | 'utilization';
 export type GutterBarDisplay = {
   barWidth: number;
   label: string;
-  /** Util / legacy pipe ratio: red when barWidth ≤ 50. */
+  /** Util / legacy pipe ratio: red when barWidth < 50 (gray at exactly 50). */
   thresholdColor?: boolean;
   /** Relative metrics: red fill when this lane is the Card max (false when all lanes tie). */
   relativeMax?: boolean;
@@ -29,30 +29,35 @@ function parseNumber(raw: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function meanNonNa(rows: Record<string, string>[], columns: readonly string[]): number | undefined {
+function meanColumn(rows: Record<string, string>[], column: string): number | undefined {
   const vals: number[] = [];
-  for (const col of columns) {
-    for (const row of rows) {
-      const n = parseNumber(row[col]);
-      if (n != null) vals.push(n);
-    }
+  for (const row of rows) {
+    const n = parseNumber(row[column]);
+    if (n != null) vals.push(n);
   }
   if (vals.length === 0) return undefined;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-function cycleByColorKey(rows: Record<string, string>[]): Map<string, number> {
-  const collected = new Map<string, number[]>();
-  for (const pipe of PIPE_TIME_COLUMNS) {
-    const mean = meanNonNa(rows, pipe.columns);
-    if (mean == null) continue;
-    const list = collected.get(pipe.colorKey) ?? [];
-    list.push(mean);
-    collected.set(pipe.colorKey, list);
+/** Per-column means, then mean of those means (normative MIX / multi-column keys). */
+function meanOfColumnMeans(
+  rows: Record<string, string>[],
+  columns: readonly string[],
+): number | undefined {
+  const means: number[] = [];
+  for (const col of columns) {
+    const m = meanColumn(rows, col);
+    if (m != null) means.push(m);
   }
+  if (means.length === 0) return undefined;
+  return means.reduce((a, b) => a + b, 0) / means.length;
+}
+
+function cycleByColorKey(rows: Record<string, string>[]): Map<string, number> {
   const out = new Map<string, number>();
-  for (const [key, vals] of collected) {
-    out.set(key, vals.reduce((a, b) => a + b, 0) / vals.length);
+  for (const pipe of PIPE_TIME_COLUMNS) {
+    const mean = meanOfColumnMeans(rows, pipe.columns);
+    if (mean != null) out.set(pipe.colorKey, mean);
   }
   return out;
 }
@@ -189,6 +194,20 @@ function cardHasCycleData(
   return walk(proc.threads);
 }
 
+function cardHasTraceLanes(proc: SwimProcess): boolean {
+  const walk = (threads: SwimThread[]): boolean => {
+    for (const t of threads) {
+      if (t.children !== undefined) {
+        if (walk(t.children ?? [])) return true;
+        continue;
+      }
+      return true;
+    }
+    return false;
+  };
+  return walk(proc.threads);
+}
+
 export function availableGutterMetrics(
   model: SwimlaneModel,
   pipeUtilRows: Record<string, string>[] = [],
@@ -206,7 +225,12 @@ export function availableGutterMetrics(
       break;
     }
   }
-  if (procs.length > 0 || model.processes.length > 0) metrics.push('utilization');
+  for (const proc of procs) {
+    if (cardHasTraceLanes(proc)) {
+      metrics.push('utilization');
+      break;
+    }
+  }
   return metrics;
 }
 

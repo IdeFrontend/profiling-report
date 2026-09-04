@@ -95,13 +95,13 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 
 ### utilization (summary)
 
-`barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0. **label** = `` `${barWidth}%` ``. **thresholdColor** = true (red when **≤ 50%**, gray when &gt; 50%). Midline fixed at **50%**. Full rules: [utilization.spec.md](./utilization.spec.md).
+`barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0. **label** = `` `${barWidth}%` ``. **thresholdColor** = true (red when **&lt; 50%**, gray when ≥ 50% — matches LaneGutter `barWidth < 50`). Midline fixed at **50%**. Full rules: [utilization.spec.md](./utilization.spec.md).
 
 ### Fill / midline (both metrics)
 
 | Metric | Red fill | Dashed average-line position |
 |--------|------------------|------------------------------|
-| **utilization** | util ≤ 50% | fixed **50%** |
+| **utilization** | util &lt; 50% (gray at exactly 50%) | fixed **50%** |
 | **clockCycle** | lane(s) at max; all gray when tied | `(mean raw ÷ max raw) × 100` |
 
 ## Acceptance Criteria

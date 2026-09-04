@@ -214,7 +214,7 @@ describe('LaneGutter', () => {
     );
   });
 
-  it('PR-GUTTER-007b: relative metric midline uses averageBarWidth', () => {
+  it('PR-GUTTER-007: relative metric midline uses averageBarWidth', () => {
     const wrapper = mount(LaneGutter, {
       props: {
         groups: [
@@ -238,7 +238,7 @@ describe('LaneGutter', () => {
     expect(mid.attributes('style')).toContain('left: 75%');
   });
 
-  it('PR-GUTTER-006b: relativeMax drives red fill; tied bars stay gray', () => {
+  it('PR-GUTTER-006: relativeMax drives red fill; tied bars stay gray', () => {
     const wrapper = mount(LaneGutter, {
       props: {
         groups: [

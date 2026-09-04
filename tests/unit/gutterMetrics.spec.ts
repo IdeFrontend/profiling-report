@@ -23,7 +23,7 @@ function parsePipeRows(text: string): Record<string, string>[] {
 }
 
 describe('PR-GMET: gutter metrics', () => {
-  it('PR-GMET-001: omits clockCycle when CSV lacks columns', () => {
+  it('PR-GMET-001: omits clockCycle when CSV lacks columns; empty Card has no modes', () => {
     const model: SwimlaneModel = {
       minTime: 0,
       maxTime: 1000,
@@ -33,9 +33,15 @@ describe('PR-GMET: gutter metrics', () => {
           name: 'Card0',
           threads: [{ id: 'l1', name: 'Core0.Vec0/VECTOR', events: [{ id: 'e1', name: 'x', startTime: 0, duration: 100 }] }],
         },
+        {
+          id: 'empty',
+          name: 'Empty',
+          threads: [],
+        },
       ],
     };
     expect(availableGutterMetrics(model, [], 'card0')).toEqual(['utilization']);
+    expect(availableGutterMetrics(model, [], 'empty')).toEqual([]);
   });
 
   it('PR-GMET-002: default is clockCycle, else utilization', () => {
@@ -106,7 +112,7 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('vec')?.barWidth).toBe(100);
   });
 
-  it('PR-GMET-003b: tied clockCycle lanes get relativeMax false (all gray in UI)', () => {
+  it('PR-GMET-003: tied clockCycle lanes get relativeMax false (all gray in UI)', () => {
     const rows = parsePipeRows(
       ['block_id,aiv_vec_time(us)', '0,10', '1,10'].join('\n'),
     );
@@ -206,22 +212,41 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('folder')?.label).toBe('7µs');
   });
 
-  it('PR-GMET-006: ignores NA cells when aggregating CSV means', () => {
+  it('PR-GMET-006: ignores NA cells; mean-of-column-means for multi-column keys', () => {
+    // Flat cell mean would be (10+10+100)/3 ≈ 40; mean-of-column-means is (10+100)/2 = 55.
+    const rows = parsePipeRows(
+      [
+        'block_id,aic_mte2_time(us),aiv_mte2_time(us)',
+        '0,10,NA',
+        '1,10,NA',
+        '2,NA,100',
+      ].join('\n'),
+    );
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [{ id: 'mte2', name: 'Core0.Cube/MTE2', events: [] }],
+        },
+      ],
+    };
+    const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
+    expect(bars.get('mte2')?.label).toBe('55µs');
+
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const table = adapted.reportModel.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
     expect(table).toBeDefined();
-    const rows = table!.rows;
-    const metrics = availableGutterMetrics(adapted.swimlaneModel, rows, adapted.swimlaneModel.processes[0]!.id);
-    expect(metrics).toContain('clockCycle');
+    const fixtureRows = table!.rows;
+    const metrics = availableGutterMetrics(
+      adapted.swimlaneModel,
+      fixtureRows,
+      adapted.swimlaneModel.processes[0]!.id,
+    );
     expect(metrics).toEqual(expect.arrayContaining(['clockCycle', 'utilization']));
     expect(metrics).not.toContain('cacheHit');
     expect(metrics).not.toContain('task');
-    const bars = gutterBarsForCard(
-      adapted.swimlaneModel,
-      rows,
-      'clockCycle',
-      adapted.swimlaneModel.processes[0]!.id,
-    );
-    expect(bars.size).toBeGreaterThan(0);
   });
 });

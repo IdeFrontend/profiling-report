@@ -520,10 +520,11 @@ defineExpose({
           '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
         }"
       >
-        <button
+        <div
           v-for="strip in visibleCardStrips"
           :key="strip.id"
-          type="button"
+          role="button"
+          tabindex="0"
           class="pr-card-strip"
           :data-testid="`card-strip-${strip.id}`"
           :aria-expanded="strip.expanded"
@@ -531,6 +532,8 @@ defineExpose({
           :style="{ top: `${strip.top}px` }"
           @pointerenter="clearCursor"
           @click="emit('toggle-group', strip.id)"
+          @keydown.enter.prevent="emit('toggle-group', strip.id)"
+          @keydown.space.prevent="emit('toggle-group', strip.id)"
           @wheel="onStripWheel"
         >
           <span class="pr-card-strip__label">
@@ -548,7 +551,7 @@ defineExpose({
               @update:model-value="onMetricChange(strip.id, $event)"
             />
           </span>
-        </button>
+        </div>
       </div>
     </div>
   </div>
