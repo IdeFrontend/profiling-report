@@ -40,6 +40,16 @@ Canonical Product answers live in the owning **specs** after resolution (see [DE
 
 ---
 
+## Product deferrals (current iteration)
+
+Product-confirmed **out of this iteration** — not interim guesses. Shipped `master` must not land these until Product re-schedules.
+
+| ID | Topic | Decision | Parked work | Revisit when |
+|----|-------|----------|-------------|--------------|
+| **D-PIN-FOLDER** | Pin grouping / folder nodes | **Do not ship** folder (or Card) pin in the current iteration. Shipped pin remains **leaf lanes only** ([INTERACTIONS](../ui/INTERACTIONS.md), `#51`). | Branch `feat/pin-grouping-nodes` — folder + subtree sticky strip (PR [#69](https://github.com/IdeFrontend/profiling-report/pull/69) closed unmerged; branch kept) | Product schedules folder pin |
+
+---
+
 ## MVP scope under interims (checklist)
 
 Allowed to implement now:
