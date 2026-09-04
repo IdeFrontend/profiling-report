@@ -78,6 +78,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-022**: Dependency curve stroke width is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (`max(1, round(2 × dpr))` device px = 2 CSS px), applied by both Canvas and WebGL; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom.
 1. **PR-RENDER-023**: Selecting an event paints non-selected/non-neighbor blocks solid dark-gray `#2C2C2C` with label `#969696`, keeps the selected block's lifted state fill and its contrast label, and draws no white selection ring.
 1. **PR-RENDER-024**: `eventGapPrev` / `eventGapNext` return a lane event's distance to its previous/next neighbor from whole-lane pairs — `EDGE_GAP` on the true lane boundaries, real neighbors across chunk splits in both directions — and `setVbSquareWithGaps` writes one 6-float/vertex quad carrying both gaps per vertex.
+1. **PR-RENDER-025**: Emphasis / search / selection layer meshes pack a sparse subset of a lane but still compute `gapPrev` / `gapNext` against the **full** sorted lane (via lane indices into whole-lane pairs) — never against same-`dim` subsequence neighbors.
 
 ## Edge Cases
 
@@ -94,6 +95,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-04** — Emphasis/search meshes pack sparse lane indices into whole-lane pairs so isolated-event gaps keep real neighbors across dim buckets (PR-RENDER-025).
 - **2026-09-03** — Selection no longer draws a 2px white ring and no longer dims non-neighbors to 0.45×; instead, non-selected/non-neighbor events render solid dark-gray `#2C2C2C` with label `#969696` (`eventEmphasis` replaces `eventEmphasisDim`; `SELECTION_MUTED_FILL` / `SELECTION_MUTED_LABEL`). Selected event and its dep neighbors keep their state fills; search non-match dim (0.25) is unchanged.
 - **2026-09-04** — Extracted `eventGapPrev` / `eventGapNext` / `EDGE_GAP` and exported `setVbSquareWithGaps` so the isolated-event gap math and vertex packing are unit-testable without a GL context; `createChunk` reads gaps straight from the full `pairs` array by global index (no per-chunk copies or gap arrays) so the million-event mesh path allocates only the vertex/index buffers (PR-RENDER-024).
 - **2026-09-02** — Dependency curve stroke is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (2 CSS px, min 1 device px), so Canvas and WebGL match the 2 CSS px selection stroke at any dpr; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom. (PR-RENDER-022)
