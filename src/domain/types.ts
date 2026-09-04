@@ -293,7 +293,7 @@ export interface SelectedEvent {
 /** Auto wall-time scale (I-Q14 interim): s / ms / µs / ns from viewport or axis density. */
 export type TimeScaleUnit = 's' | 'ms' | 'us' | 'ns';
 
-/** Which selection dependency curves (and undimmed neighbors) to show. */
+/** Which selection dependency curves (and unmuted neighbors) to show. */
 export type DependencyMode = 'all' | 'predecessors' | 'successors';
 
 /** Hop count from the selection. `1` = immediate neighbors; `-1` = no hop cap (link count still budgeted). */
@@ -352,7 +352,7 @@ export interface SwimlaneRenderer {
   setDependencyMode?(mode: DependencyMode): void;
   /** Optional: hosts that omit this keep default hop depth. */
   setDependencyDepth?(depth: number): void;
-  /** Optional: when false, skip dependency curves / selection dimming. */
+  /** Optional: when false, skip dependency curves / selection muting. */
   setPaintDependencies?(enabled: boolean): void;
   /** Optional: leaf lane under the pointer; hosts that omit this paint no row hover. */
   setHoveredLane?(laneId: string | null): void;
