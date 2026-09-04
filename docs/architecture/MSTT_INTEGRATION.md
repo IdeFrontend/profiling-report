@@ -51,7 +51,7 @@ If the panel HTML is thin and the library runs entirely in the webview:
 
 Prefer feeding the library via Vue props inside the webview when possible (`:locale="locale"`); use postMessage only for host capabilities (save dialog, open external, theme/locale push).
 
-**查看全部 (I-Q6d):** when the library emits `view-full-csv` with `{ fileName, text }`, the host should open the CSV in a **new editor tab** (or equivalent). Playground may use a blob URL in a new browser tab.
+**查看全部 (DATA-33d):** when the library emits `view-full-csv` with `{ fileName, text }`, the host should open the CSV in a **new editor tab** (or equivalent). Playground may use a blob URL in a new browser tab.
 
 ## Capabilities
 

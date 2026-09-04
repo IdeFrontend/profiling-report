@@ -4,7 +4,7 @@
 |----------------|
 | PR-CSV-*       |
 
-Reusable searchable CSV field list with tabs, optional block switcher, and 查看全部 (I-Q6c / I-Q6d; sketches `v930/compute-load-detail`, `v930/search-highlight`, `v930/memory-load-detail`).
+Reusable searchable CSV field list with tabs, optional block switcher, and 查看全部 (DATA-33c / DATA-33d; sketches `v930/compute-load-detail`, `v930/search-highlight`, `v930/memory-load-detail`).
 
 ## Inputs
 
@@ -23,7 +23,7 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 ## Behavior
 
 1. Tabs list present tables; selecting a tab switches the field list.
-2. Bound **selectedBlockId** when it is in the active table’s `blockIds`; otherwise an internal fallback to that table’s first `blockId` (I-Q6c). Only the block picker emits `update:selectedBlockId` — tab switches do not write through. Rows filtered to the displayed `block_id`.
+2. Bound **selectedBlockId** when it is in the active table’s `blockIds`; otherwise an internal fallback to that table’s first `blockId` (DATA-33c). Only the block picker emits `update:selectedBlockId` — tab switches do not write through. Rows filtered to the displayed `block_id`.
 3. Search hides fields whose headers do not contain the query (case-insensitive substring). A match paints that slice as a navy chip with light-blue text, flush to the surrounding label (no pad). Values stay unchanged. Zero matches leave the list empty (no extra copy). The query persists across tab switches. Clear (×) empties the query and restores the full list. Same rule on compute and memory overlays.
 4. Field list shows header → value for the first matching row of the selected block (or all columns from that row). Show literal `NA`.
 5. 查看全部 emits full CSV text for the active `fileName`.
