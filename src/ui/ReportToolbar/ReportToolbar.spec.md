@@ -36,7 +36,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
-**Shortcut help (PyPTO parity).** A **keyboard** glyph button sits **first** in the action-icon list — immediately after the zoom pill, before zoom-to-fit / measure / display-control / aside. It opens a floating **快捷键说明** popover (`data-testid="shortcut-help"`) mirroring PyPTO's `swimGraphShortCutKeyDescripiton` panel, grouped into three sections — **鼠标操作** (vertical movement = wheel; single/box selection = left click), **键盘操作** (zoom in `W` / zoom out `S`; move left `A` / move right `D`), **组合操作** (scaling `Ctrl`+wheel; drag/pan `Ctrl`+left-drag; box select left-drag; time measurement `Alt`+click). Keyboard bindings render as keycap `<kbd>` spans. The panel closes via the X, a second press of the trigger, a pointerdown outside the wrap (trigger + panel), or **Escape** — the same dismiss contract as 显示控制. The `help` icon remains reserved for the connection-level tooltip; the shortcut action uses a distinct `keyboard` glyph.
+**Shortcut help (PyPTO parity).** A **keyboard** glyph button sits **first** in the action-icon list — immediately after the zoom pill, before zoom-to-fit / measure / display-control / aside. It opens a floating **快捷键说明** popover (`data-testid="shortcut-help"`) mirroring PyPTO's `swimGraphShortCutKeyDescripiton` panel: **450px** card, **16px** radius; **鼠标操作** and **键盘操作** side-by-side (mouse: vertical movement = wheel glyph, single/box selection = left-click glyph; keyboard: zoom W|S and pan A|D as horizontal pairs); **组合操作** full-width below (scaling = wheel+Ctrl; pan = left-click+Ctrl; box select = left-click; time measurement = left-click+Alt). Bindings render as PyPTO 24×24 multi-color SVG glyphs (`img[data-shortcut-icon]`) — not text `<kbd>` keycaps. Trackpad/gesture alternatives are omitted (unsupported here). The panel closes via the X, a second press of the trigger, a pointerdown outside the wrap (trigger + panel), or **Escape** — the same dismiss contract as 显示控制. The `help` icon remains reserved for the connection-level tooltip; the shortcut action uses a distinct `keyboard` glyph.
 
 ## Visual
 
@@ -192,7 +192,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 21. **PR-TOOLBAR-020** — Trailing toolbar icon actions (`zoom-to-fit`, measure, display-control, aside) carry `data-toolbar-clip`; when `overflow-x: clip` crops them past the toolbar's right edge they receive `inert` so keyboard focus cannot land on an invisible control. Search and zoom are never marked.
 22. **PR-TOOLBAR-021** — The shortcut-help action renders **first** in the action list (immediately after the zoom pill, before `zoom-to-fit`), using the `keyboard` glyph (`data-testid="toggle-shortcuts"`, `data-toolbar-clip`).
 23. **PR-TOOLBAR-022** — Clicking the shortcut-help trigger opens the `shortcut-help` popover listing mouse / keyboard / combined bindings (W/S/A/D, Ctrl+wheel, Ctrl+drag, Alt+click); it closes via the X, a second press, an outside pointerdown, or Escape.
-24. **PR-TOOLBAR-023** — The popover renders keyboard bindings as keycap `<kbd>` spans and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`).
+24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below.
 
 ## Edge Cases
 
@@ -216,6 +216,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-09-04** — Shortcut-help popover matches PyPTO layout (Mouse‖Keyboard + Combined) and 24×24 SVG glyphs (`PR-TOOLBAR-023`).
 - **2026-09-03** — Shortcut-help action (`keyboard` glyph, first in the action list) + 快捷键说明 popover (`PR-TOOLBAR-021` / `022` / `023`).
 - **2026-09-03** — Chrome `padding: 8px` so a wrapped toolbar row is not flush with the tabs or the axis (`PR-TOOLBAR-009`).
 - **2026-09-03** — Display-control closes on Escape (`PR-TOOLBAR-010`); clipped trailing icon actions get `inert` so they leave the tab order (`PR-TOOLBAR-020`).

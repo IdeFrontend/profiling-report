@@ -506,16 +506,23 @@ describe('ReportToolbar', () => {
     wrapper.unmount();
   });
 
-  it('PR-TOOLBAR-023: popover lists W/S/A/D keycaps and i18n section labels', async () => {
+  it('PR-TOOLBAR-023: popover lists SVG glyphs and i18n section labels', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     await wrapper.find('[data-testid="toggle-shortcuts"]').trigger('click');
     const panel = wrapper.get('[data-testid="shortcut-help"]');
-    expect(panel.findAll('kbd').length).toBeGreaterThanOrEqual(4);
-    const keys = panel.findAll('kbd').map((k) => k.text());
-    expect(keys).toContain('W');
-    expect(keys).toContain('S');
-    expect(keys).toContain('A');
-    expect(keys).toContain('D');
+    const icons = panel.findAll('[data-shortcut-icon]');
+    expect(icons.length).toBeGreaterThanOrEqual(8);
+    const kinds = icons.map((el) => el.attributes('data-shortcut-icon'));
+    expect(kinds).toContain('key-w');
+    expect(kinds).toContain('key-s');
+    expect(kinds).toContain('key-a');
+    expect(kinds).toContain('key-d');
+    expect(kinds).toContain('mouse-wheel');
+    expect(kinds).toContain('mouse-click');
+    expect(kinds).toContain('key-ctrl');
+    expect(kinds).toContain('key-alt');
+    expect(panel.find('.pr-toolbar__shortcut-mouse-key').exists()).toBe(true);
+    expect(panel.find('.pr-toolbar__shortcut-column--combined').exists()).toBe(true);
     const text = panel.text();
     expect(text).toContain(t('mouseControl'));
     expect(text).toContain(t('keyboardControl'));

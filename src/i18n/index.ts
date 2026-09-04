@@ -115,9 +115,6 @@ const messages = {
     dragPan: '平移',
     boxSelect: '框选',
     timeMeasurement: '时间测距',
-    mouseWheelKey: '滚轮',
-    mouseClickKey: '左键',
-    mouseDragKey: '左键拖动',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -227,9 +224,6 @@ const messages = {
     dragPan: 'Pan',
     boxSelect: 'Box select',
     timeMeasurement: 'Time measure',
-    mouseWheelKey: 'wheel',
-    mouseClickKey: 'left click',
-    mouseDragKey: 'left-drag',
   },
 } as const;
 
