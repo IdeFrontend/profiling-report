@@ -181,27 +181,29 @@ export function setVbSquareWithGaps(
 }
 
 /**
- * Build a swimlane mesh chunk. `pairs` stores [x0,x1] event intervals in event coordinates
- * (relative to timeBase) and `gaps` stores the matching [gapPrev,gapNext] distance per event
- * in the same coordinate space. Edge events use `EDGE_GAP` as a large fake gap.
- * The 6-float vertex format (pos, uv, data) enables branchless extension in the vertex shader.
+ * Build a swimlane mesh chunk from `pairs` (full lane of [x0,x1] intervals in event coords,
+ * relative to timeBase), starting at pair offset `off`. Gaps are read straight from `pairs` via
+ * the global index (`eventGapPrev` / `eventGapNext`) — no per-chunk copy or gap array is made,
+ * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
+ * (pos, uv, data) enables branchless extension in the vertex shader.
  */
 function createChunk(
   gl: WebGL2RenderingContext,
-  pairs: Float32Array,
-  gaps: Float32Array,
+  pairs: number[],
+  off: number,
   pairCount: number,
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
   const vb = new Float32Array(numSquares * 24);
   const ib = new Uint16Array(numSquares * 6);
   for (let i = 0; i < numSquares; i++) {
+    const gi = off + i;
     setVbSquareWithGaps(
       i * 24,
-      pairs[i * 2]!,
-      pairs[i * 2 + 1]!,
-      gaps[i * 2]!,
-      gaps[i * 2 + 1]!,
+      pairs[gi * 2]!,
+      pairs[gi * 2 + 1]!,
+      eventGapPrev(pairs, gi),
+      eventGapNext(pairs, gi),
       vb,
     );
     const n = i * 4;
@@ -242,41 +244,39 @@ function createChunk(
 export const EDGE_GAP = 1e12;
 
 /**
- * Nearest-neighbor gaps for one event at global pair index `gi`, in event coords.
+ * Distance from the previous event's end to event `gi`'s start, in event coords.
  *
- * `gi` indexes the **whole lane** (not a chunk), so the boundaries are correct across chunk
- * splits: the first event of any non-first chunk reads a real `gapPrev` from the previous
- * chunk's last event, and the last event of any non-final chunk reads a real `gapNext` from
- * the next chunk's first event. Only the lane's true first/last events use `EDGE_GAP`.
+ * `gi` indexes the **whole lane** (not a chunk), so the first event of any non-first chunk reads
+ * a real gap back into the previous chunk's last event. Only the lane's true first event uses
+ * `EDGE_GAP`. Scalar (no allocation) so the mesh-build loop can call it per event.
  */
-export function eventGaps(pairs: number[], gi: number): [number, number] {
-  const x0 = pairs[gi * 2]!;
-  const x1 = pairs[gi * 2 + 1]!;
-  const gapPrev = gi === 0 ? EDGE_GAP : x0 - pairs[gi * 2 - 1]!;
-  const last = gi * 2 + 2 >= pairs.length;
-  const gapNext = last ? EDGE_GAP : pairs[gi * 2 + 2]! - x1;
-  return [gapPrev, gapNext];
+export function eventGapPrev(pairs: number[], gi: number): number {
+  return gi === 0 ? EDGE_GAP : pairs[gi * 2]! - pairs[gi * 2 - 1]!;
 }
 
 /**
- * Build mesh chunks from per-event encoded intervals. Gaps are computed per event from the
- * whole lane (`eventGaps`, global index) and packed beside each quad. Only one chunk's gaps are
- * materialized at a time, and each chunk's boundary events read real neighbors — `gapPrev` back
- * into the previous chunk and `gapNext` forward into the next — across the split.
+ * Distance from event `gi`'s end to the next event's start, in event coords.
+ *
+ * `gi` indexes the **whole lane** (not a chunk), so the last event of any non-final chunk reads a
+ * real gap forward into the next chunk's first event. Only the lane's true last event uses
+ * `EDGE_GAP`. Scalar (no allocation) so the mesh-build loop can call it per event.
+ */
+export function eventGapNext(pairs: number[], gi: number): number {
+  return gi * 2 + 2 >= pairs.length ? EDGE_GAP : pairs[gi * 2 + 2]! - pairs[gi * 2 + 1]!;
+}
+
+/**
+ * Build mesh chunks from per-event encoded intervals. Each chunk reads its events (and their
+ * gaps) straight from the full `pairs` array by global index, so boundary events resolve real
+ * neighbors across the chunk split — `gapPrev` back and `gapNext` forward — with no per-chunk
+ * copies or gap arrays.
  */
 function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): MeshChunk[] {
   const chunks: MeshChunk[] = [];
   const totalPairs = pairs.length / 2;
   for (let off = 0; off < totalPairs; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, totalPairs - off);
-    const slice = new Float32Array(pairs.slice(off * 2, (off + count) * 2));
-    const gaps = new Float32Array(count * 2);
-    for (let i = 0; i < count; i++) {
-      const [gapPrev, gapNext] = eventGaps(pairs, off + i);
-      gaps[i * 2] = gapPrev;
-      gaps[i * 2 + 1] = gapNext;
-    }
-    chunks.push(createChunk(gl, slice, gaps, count));
+    chunks.push(createChunk(gl, pairs, off, count));
   }
   return chunks;
 }

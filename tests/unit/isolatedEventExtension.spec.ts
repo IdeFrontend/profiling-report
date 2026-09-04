@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { MAX_QUADS_PER_MESH } from '../../src/swimlane/layout';
 import {
   EDGE_GAP,
-  eventGaps,
+  eventGapNext,
+  eventGapPrev,
   setVbSquareWithGaps,
 } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { extendMargin1Css, extendMargin2Css, extendTargetSizeCss } from '../../src/swimlane/shaders';
@@ -14,31 +15,39 @@ function lanePairs(n: number): number[] {
   return pairs;
 }
 
-describe('eventGaps', () => {
-  it('PR-RENDER-024: a single event is an edge on both sides', () => {
-    expect(eventGaps([10, 15], 0)).toEqual([EDGE_GAP, EDGE_GAP]);
+describe('eventGapPrev', () => {
+  it('PR-RENDER-024: the first event uses EDGE_GAP (no predecessor)', () => {
+    expect(eventGapPrev(lanePairs(3), 0)).toBe(EDGE_GAP);
   });
 
-  it('PR-RENDER-024: an interior event reads exact neighbors on both sides', () => {
-    // [0,5], [20,25], [40,45]: gapPrev = 20-5 = 15, gapNext = 40-25 = 15.
-    expect(eventGaps([0, 5, 20, 25, 40, 45], 1)).toEqual([15, 15]);
-  });
-
-  it('PR-RENDER-024: lane boundary events use EDGE_GAP only on their boundary side', () => {
+  it('PR-RENDER-024: interior and later-chunk events read the real previous distance', () => {
     const pairs = lanePairs(3);
-    expect(eventGaps(pairs, 0)).toEqual([EDGE_GAP, 5]); // first: fake prev, real next
-    expect(eventGaps(pairs, 2)).toEqual([5, EDGE_GAP]); // last: real prev, fake next
+    // [0,5],[10,15],[20,25]: gapPrev[1] = 10-5 = 5, gapPrev[2] = 20-15 = 5.
+    expect(eventGapPrev(pairs, 1)).toBe(5);
+    expect(eventGapPrev(pairs, 2)).toBe(5);
   });
 
-  it('PR-RENDER-024: chunk-split events read real neighbors across the boundary, both directions', () => {
-    // MAX_QUADS_PER_MESH + 2 events: chunk 1 = indices 0..MAX_QUADS_PER_MESH-1,
-    // chunk 2 = indices MAX_QUADS_PER_MESH .. MAX_QUADS_PER_MESH+1.
+  it('PR-RENDER-024: the first event of a non-first chunk reads back across the split', () => {
     const pairs = lanePairs(MAX_QUADS_PER_MESH + 2);
-    // Last event of chunk 1: gapNext is the real distance to chunk 2's first event (not EDGE_GAP).
-    expect(eventGaps(pairs, MAX_QUADS_PER_MESH - 1)).toEqual([5, 5]);
-    // First event of chunk 2: gapPrev is the real distance back into chunk 1's last event
-    // (not EDGE_GAP), and gapNext is real since it is not the lane's last event.
-    expect(eventGaps(pairs, MAX_QUADS_PER_MESH)).toEqual([5, 5]);
+    expect(eventGapPrev(pairs, MAX_QUADS_PER_MESH)).toBe(5);
+  });
+});
+
+describe('eventGapNext', () => {
+  it('PR-RENDER-024: the last event uses EDGE_GAP (no successor)', () => {
+    expect(eventGapNext(lanePairs(3), 2)).toBe(EDGE_GAP);
+  });
+
+  it('PR-RENDER-024: interior and earlier-chunk events read the real next distance', () => {
+    const pairs = lanePairs(3);
+    // [0,5],[10,15],[20,25]: gapNext[0] = 10-5 = 5, gapNext[1] = 20-15 = 5.
+    expect(eventGapNext(pairs, 0)).toBe(5);
+    expect(eventGapNext(pairs, 1)).toBe(5);
+  });
+
+  it('PR-RENDER-024: the last event of a non-final chunk reads forward across the split', () => {
+    const pairs = lanePairs(MAX_QUADS_PER_MESH + 2);
+    expect(eventGapNext(pairs, MAX_QUADS_PER_MESH - 1)).toBe(5);
   });
 });
 
