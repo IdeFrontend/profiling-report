@@ -18,7 +18,10 @@
 
 import { isNpuRep } from './parseNpuRep';
 
+/** Brand string, without the trailing NUL (matches the 164-byte parser's `header.magic`). */
 const MAGIC = 'npu-rep';
+/** Exact 8-byte on-disk magic: `npu-rep` + NUL (matches `unpack_rep.py` `MAGIC = b"npu-rep\0"`). */
+const MAGIC_WITH_NUL = 'npu-rep\0';
 const HEAD_SIZE = 36;
 const FILEINFO_SIZE = 160;
 const SUPPORTED_VERSION = 0x00010000;
@@ -63,8 +66,10 @@ function readAscii(bytes: Uint8Array, offset: number, len: number): string {
 
 function readCString(bytes: Uint8Array, offset: number, maxLen: number): string {
   const slice = bytes.subarray(offset, offset + maxLen);
-  let end = slice.indexOf(0);
-  if (end < 0) end = maxLen;
+  const end = slice.indexOf(0);
+  if (end < 0) {
+    throw new Error('[profiling-report] parseNpuRep160: embed name is not null-terminated');
+  }
   return new TextDecoder().decode(slice.subarray(0, end));
 }
 
@@ -80,7 +85,7 @@ function readSafeU64(view: DataView, offset: number, label: string): number {
 export function isNpuRep160(source: ArrayBuffer | Uint8Array): boolean {
   const { bytes } = toDataView(source);
   if (bytes.byteLength < HEAD_SIZE) return false;
-  if (readAscii(bytes, 0, MAGIC.length) !== MAGIC) return false;
+  if (readAscii(bytes, 0, 8) !== MAGIC_WITH_NUL) return false;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   return view.getUint32(20, true) === FILEINFO_SIZE;
 }
@@ -106,7 +111,7 @@ export function parseNpuRep160(source: ArrayBuffer | Uint8Array): ParsedNpuRep16
   }
 
   const magicBytes = readAscii(bytes, 0, 8);
-  if (!magicBytes.startsWith(MAGIC)) {
+  if (magicBytes !== MAGIC_WITH_NUL) {
     throw new Error(`[profiling-report] parseNpuRep160: bad head magic ${JSON.stringify(magicBytes)}`);
   }
 
@@ -154,7 +159,7 @@ export function parseNpuRep160(source: ArrayBuffer | Uint8Array): ParsedNpuRep16
   for (let i = 0; i < fileInfoCount; i++) {
     const pos = HEAD_SIZE + i * FILEINFO_SIZE;
     const fileMagic = readAscii(bytes, pos, 8);
-    if (!fileMagic.startsWith(MAGIC)) {
+    if (fileMagic !== MAGIC_WITH_NUL) {
       throw new Error(`[profiling-report] parseNpuRep160: bad file magic at index ${i}`);
     }
 
