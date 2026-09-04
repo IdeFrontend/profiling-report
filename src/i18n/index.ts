@@ -207,7 +207,7 @@ const messages = {
 
 export type MessageKey = keyof (typeof messages)['en'];
 
-/** Resolve locale; default zh-CN per packaging interim Q17. */
+/** Resolve locale; default zh-CN per packaging interim PKG-2. */
 export function resolveLocale(locale?: string): LocaleCode {
   if (!locale) return 'zh-CN';
   const lower = locale.toLowerCase();

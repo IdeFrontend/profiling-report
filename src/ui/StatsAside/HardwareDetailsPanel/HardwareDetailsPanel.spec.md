@@ -4,7 +4,7 @@
 |----------------|
 | PR-HW-*        |
 
-Interim hardware details list (I-Q7a).
+Interim hardware details list (DATA-34a).
 
 ## Inputs
 
@@ -35,7 +35,7 @@ Normative crop: [`visual/hardware-detail.png`](./visual/hardware-detail.png) —
 
 ## Dependencies
 
-I-Q7a, [view-models](../../../../specs/core/view-models.spec.md).
+DATA-34a, [view-models](../../../../specs/core/view-models.spec.md).
 
 ## Changelog
 

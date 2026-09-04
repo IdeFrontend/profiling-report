@@ -139,7 +139,7 @@ function numericBlockDim(blockDim: string | number | undefined): number | undefi
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** HQ 32: Block Dim / core_count × 100%, clamped 0–100. Null when inputs missing. */
+/** UI-32: Block Dim / core_count × 100%, clamped 0–100. Null when inputs missing. */
 const durationCoreUtilPercent = computed(() => {
   const s = summary.value;
   const block = numericBlockDim(s?.blockDim);
@@ -175,7 +175,7 @@ const hasMeta = computed(() => {
   return Boolean(s && (s.pid || s.opType || (s.blockDim != null && s.blockDim !== '')));
 });
 
-/** HQ 30–31: 更多 is always available on the report shell. */
+/** UI-30, UI-31: 更多 is always available on the report shell. */
 const showMore = computed(() => asideSurface.value === 'report');
 
 const opType = computed(() => (props.report?.summary.opType ?? '').trim());
@@ -232,7 +232,7 @@ function formatPipeAbsolute(v: number): string {
   return v.toFixed(5);
 }
 
-/** HQ 34: display measured/peak in GB/s (magnitude rounding). */
+/** UI-34: display measured/peak in GB/s (magnitude rounding). */
 function formatGBs(gbs: number): string {
   if (gbs >= 10) return gbs.toFixed(1);
   if (gbs >= 0.01) return gbs.toFixed(2);
@@ -250,7 +250,7 @@ function computeScore(row: ComputeSideRow): number {
   return Math.min(100, Math.max(0, Math.round((row.measuredTflops / row.peakTflops) * 100)));
 }
 
-/** Sketch 读|写: collapse input/output × aic|aiv into one mean per direction (I-Q6g). */
+/** Sketch 读|写: collapse input/output × aic|aiv into one mean per direction (DATA-33g). */
 function bandwidthUtilFromCards(
   cards: BandwidthCardModel[],
 ): { dir: 'read' | 'write'; measuredGBs: number; peakGBs: number }[] {
@@ -266,7 +266,7 @@ function bandwidthUtilFromCards(
   return out;
 }
 
-/** HQ 2–4: magnitude rounding for measured / peak TFLOPS subtitle. */
+/** DATA-2..4: magnitude rounding for measured / peak TFLOPS subtitle. */
 function formatTflops(tflops: number): string {
   if (tflops >= 10) return tflops.toFixed(1);
   if (tflops >= 0.01) return tflops.toFixed(2);

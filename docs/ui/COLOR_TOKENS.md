@@ -1,6 +1,6 @@
 # Color Tokens (Normative from Sketches)
 
-Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([Q13 Resolved](../context/OPEN_QUESTIONS.md)). Extracted from [`source/v930/`](./source/v930/) (`entry.jpeg` and related frames). Roundings are ±4–8 in RGB from sampled pixels.
+Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([UI-39](../context/decisions/UI.md)). Extracted from [`source/v930/`](./source/v930/) (`entry.jpeg` and related frames). Roundings are ±4–8 in RGB from sampled pixels.
 
 Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MSTT theme may tint chrome; **category hues below stay fixed** unless Product revises this file.
 
@@ -18,7 +18,7 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-color-card-bar-primary` | `#5EC8D8` | Left dual-column bars (Cube / 读 / 并行使用率) |
 | `--pr-color-card-bar-secondary` | `#5ED8A8` | Right dual-column bars (Vector / 写 / 负载均衡度) |
 | `--pr-color-overview-cube` | `#3078F0` | Overview Cube series fill |
-| `--pr-color-bandwidth-bar` | `#5EC8D8` | Alias for card primary bar (legacy name) |
+| `--pr-color-bandwidth-bar` | `#5EC8D8` | Alias for card primary bar (legacy name; DATA-33g 读\|写 bars) |
 
 ### Toolbar controls (hardcoded; not CSS vars)
 

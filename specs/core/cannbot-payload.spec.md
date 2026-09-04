@@ -44,6 +44,6 @@ The payload reuses the already-parsed view model — same section references, ne
 [view-models](./view-models.spec.md) — the `ReportViewModel` sections reused by reference. Consumers: [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md), [ProfilingReport](../../src/ui/ProfilingReport/ProfilingReport.spec.md).
 
 ## Changelog
-- **2026-09-04** — Summary scope includes `computeCard` (I-Q6h / HQ slice 3).
+- **2026-09-04** — Summary scope includes `computeCard` (DATA-33h / HQ slice 3).
 - **2026-08-26** — Initial spec (cannbot payload builder).
 - **2026-08-27** — Document the designed scope enum (full 7-value set) vs the 930 release's implemented three; remaining values reserved for future releases (review follow-up).

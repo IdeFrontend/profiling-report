@@ -121,7 +121,7 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.get('[data-testid="toggle-aside"]').attributes('aria-pressed')).toBe('false');
   });
 
-  it('aside unavailable when only op name/type without duration or PIPE (I-Q6a)', () => {
+  it('aside unavailable when only op name/type without duration or PIPE (DATA-33a)', () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'no-duration',

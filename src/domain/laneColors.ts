@@ -51,10 +51,10 @@ export type EventState = 'normal' | 'hover' | 'selected';
  * same colour and adding a lane meant inventing its states by eye.
  *
  * Experiment: hover and selection share the same lightness lift (`L + 0.33` → ≈ 0.83).
- * Selection alone is then told apart by chroma (`C × 1.05`) and the 2px white ring.
- * Both land above the label-flip threshold, so a label inverts as the pointer crosses it.
- * A hovered block is also exempt from the selection dim — without that, dark text on a
- * light fill washed by 0.45 opacity is what made the oranges unreadable.
+ * Selection alone is then told apart by chroma (`C × 1.05`) and the gray muting of every
+ * non-selected, non-neighbor event. Both land above the label-flip threshold, so a label
+ * inverts as the pointer crosses it. A hovered block is also exempt from the selection mute —
+ * without that, a light fill with a dark label rendered gray is what made the oranges unreadable.
  */
 const STATE_LIFT_L = 0.33;
 
@@ -76,8 +76,8 @@ const TEXT_FLIP_L = 0.6;
  * Which state wins when a block is both selected and hovered.
  *
  * Selection, because hovering your own selection must not drop it back to the hover
- * fill, or it reads as having lost the selection. The white ring sits on top of the
- * fill, so a hovered selection is still marked.
+ * fill, or it reads as having lost the selection. The surrounding gray muting marks the
+ * selection, so a hovered selection is still distinguished.
  */
 export function eventStateOf(
   id: string,

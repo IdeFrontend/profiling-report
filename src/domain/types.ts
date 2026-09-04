@@ -88,37 +88,37 @@ export interface SummaryMetrics {
   ratedFreq?: number;
   /** OpBasicInfo `Pid` / `PID` — aside meta **进程**. */
   pid?: string;
-  /** OpBasicInfo `Block Dim` — aside meta **Blocks**, duration bar (HQ 32), and secondary (HQ 1). */
+  /** OpBasicInfo `Block Dim` — aside meta **Blocks**, duration bar (UI-32), and secondary (DATA-1). */
   blockDim?: string | number;
-  /** HQ 1: `HardwareInfo.jsonl` core count for `Op Type` (cube/vector/mix). */
+  /** DATA-1: `HardwareInfo.jsonl` core count for `Op Type` (cube/vector/mix). */
   coreCount?: number;
-  /** Interim I-Q6a: leave unset until Product formulas exist */
+  /** Interim DATA-33a: leave unset until Product formulas exist */
   computeTflops?: number;
   ioBandwidth?: number;
   avgCoreUtil?: number;
 }
 
-/** I-Q6g: one AIC/AIV row on an I/O bandwidth card. Values in GB/s; UI shows GB/s (HQ 34). */
+/** DATA-33g: one AIC/AIV row on an I/O bandwidth card. Values in GB/s; UI shows GB/s (UI-34). */
 export interface BandwidthSideRow {
   side: 'aic' | 'aiv';
   measuredGBs: number;
   peakGBs: number;
 }
 
-/** I-Q6g: 输入/输出带宽. Omit the card when both sides are NA. */
+/** DATA-33g: 输入/输出带宽. Omit the card when both sides are NA. */
 export interface BandwidthCardModel {
   id: 'input' | 'output';
   sides: BandwidthSideRow[];
 }
 
-/** HQ 2–4 / Q33: 算力情况 card row (aic = cube, aiv = vector). */
+/** DATA-2..4 / UI-33: 算力情况 card row (aic = cube, aiv = vector). */
 export interface ComputeSideRow {
   side: 'aic' | 'aiv';
   measuredTflops: number;
   peakTflops: number;
 }
 
-/** Omit when no side has both measured and peak (HQ 2–4). */
+/** Omit when no side has both measured and peak (DATA-33h). */
 export interface ComputeCardModel {
   sides: ComputeSideRow[];
 }
@@ -133,7 +133,7 @@ export interface PipeOccupancyItem {
    * Cube uses `aic_*` columns; Vector uses `aiv_*` — never blend across sides.
    */
   side?: 'cube' | 'vector';
-  /** Mean non-NA `*_time(us)` for this family (I-Q6f); omit when all NA. */
+  /** Mean non-NA `*_time(us)` for this family (DATA-33f); omit when all NA. */
   absoluteValue?: number;
 }
 
@@ -148,11 +148,11 @@ export interface CsvTableModel {
   fileName: string;
   headers: string[];
   rows: Record<string, string>[];
-  /** Distinct block_id values in fixture order (I-Q6c). */
+  /** Distinct block_id values in fixture order (DATA-33c). */
   blockIds: string[];
 }
 
-/** M2 interim roofline point (I-Q11*). */
+/** M2 interim roofline point (DATA-37*). */
 export interface RooflinePoint {
   id: string;
   label: string;
@@ -169,7 +169,7 @@ export interface RooflineMixLabel {
   percent: number;
 }
 
-/** M2 interim roofline model (I-Q11a–f). Omit when undecidable. */
+/** M2 interim roofline model (DATA-37a–f). Omit when undecidable. */
 export interface RooflineViewModel {
   points: RooflinePoint[];
   mixLabels: RooflineMixLabel[];
@@ -188,12 +188,12 @@ export interface HardwareSection {
   fields: HardwareField[];
 }
 
-/** M1 interim hardware details (I-Q7a). */
+/** M1 interim hardware details (DATA-34a). */
 export interface HardwareDetailsModel {
   sections: HardwareSection[];
 }
 
-/** M2 memory-topology node (change-log #5, Q12). */
+/** M2 memory-topology node (change-log #5, UI-38). */
 export interface MemoryTopologyNode {
   id: string;
   /** Display label, e.g. GM, L2 Cache, Cube, UB, Vec. */
@@ -223,15 +223,15 @@ export interface ReportViewModel {
   computeTables: CsvTableModel[];
   /** Memory tabs: Memory.csv | L2Cache | MemoryL0 | MemoryUB. */
   memoryTables: CsvTableModel[];
-  /** Raw CSV text by basename for 查看全部 (I-Q6d). */
+  /** Raw CSV text by basename for 查看全部 (DATA-33d). */
   csvTexts: Record<string, string>;
-  /** I-Q6g 输入/输出带宽 cards; omit when Memory.csv has no usable BW. */
+  /** DATA-33g 输入/输出带宽 cards; omit when Memory.csv has no usable BW. */
   bandwidthCards?: BandwidthCardModel[];
-  /** HQ 2–4 / Q33 算力情况; omit when no side has measured + peak. */
+  /** DATA-33h 算力情况; omit when no side has measured + peak. */
   computeCard?: ComputeCardModel;
-  /** Interim I-Q11*; omit when no GM point. */
+  /** Interim DATA-37*; omit when no GM point. */
   roofline?: RooflineViewModel;
-  /** Interim I-Q7a; omit when empty. */
+  /** Interim DATA-34a; omit when empty. */
   hardwareDetails?: HardwareDetailsModel;
   /** M2 memory topology (change-log #5); omit when no label data. */
   memoryTopology?: MemoryTopologyModel;
@@ -304,10 +304,10 @@ export interface SelectedEvent {
   args?: Record<string, unknown>;
 }
 
-/** Auto wall-time scale (I-Q14 interim): s / ms / µs / ns from viewport or axis density. */
+/** Auto wall-time scale (UI-40a interim): s / ms / µs / ns from viewport or axis density. */
 export type TimeScaleUnit = 's' | 'ms' | 'us' | 'ns';
 
-/** Which selection dependency curves (and undimmed neighbors) to show. */
+/** Which selection dependency curves (and unmuted neighbors) to show. */
 export type DependencyMode = 'all' | 'predecessors' | 'successors';
 
 /** Hop count from the selection. `1` = immediate neighbors; `-1` = no hop cap (link count still budgeted). */
@@ -366,7 +366,7 @@ export interface SwimlaneRenderer {
   setDependencyMode?(mode: DependencyMode): void;
   /** Optional: hosts that omit this keep default hop depth. */
   setDependencyDepth?(depth: number): void;
-  /** Optional: when false, skip dependency curves / selection dimming. */
+  /** Optional: when false, skip dependency curves / selection muting. */
   setPaintDependencies?(enabled: boolean): void;
   /** Optional: leaf lane under the pointer; hosts that omit this paint no row hover. */
   setHoveredLane?(laneId: string | null): void;

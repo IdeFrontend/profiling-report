@@ -14,7 +14,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 - **close** — aside close control; parent clears `asideVisible`.
 - **open-hardware-details** — **更多** / More (emit intent).
-- **view-full-csv** — re-emitted from `CsvFieldListPanel` (I-Q6d).
+- **view-full-csv** — re-emitted from `CsvFieldListPanel` (DATA-33d).
 - **open-pipe-details** — **详情** / Details on the PIPE section; opens compute CSV overlay when compute tables exist, and always emits.
 - **open-cannbot** — cannbot icon click (right end of the meta row; left of **详情** on the compute and memory section heads) carries the section scope (summary/compute/memory).
 
@@ -22,7 +22,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 ### Shell (header chrome)
 
-Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** always on the report shell (HQ 30–31).
+Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** always on the report shell (UI-30, UI-31).
 
 Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
 
@@ -30,27 +30,27 @@ Overlay surfaces replace the stacked report: header title becomes **计算负载
 
 ### Stacked report
 
-Default surface stacks, hide-if-missing, in order: summary card grid (duration, compute/util `N/A` placeholders, I/O bandwidth), Roofline, PIPE (计算负载分析), memory topology (内存负载分析). No Summary | PIPE | Compute | Memory tabs.
+Default surface stacks, hide-if-missing, in order: summary **2×2** card grid (duration, AICore parallel placeholder, compute Cube\|Vector, bandwidth 读\|写), Roofline, PIPE (计算负载分析), memory topology (内存负载分析). No Summary | PIPE | Compute | Memory tabs.
 
 ### Summary cards
 
-I-Q6a duration + I-Q6g bandwidth + I-Q6h compute. Card group renders when `taskDurationUs` **or** `bandwidthCards` is present (name/type alone do not open an empty grid).
+DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders when `taskDurationUs` **or** `bandwidthCards` is present (name/type alone do not open an empty grid).
 
 **Sketch grid (`summary-cards.png`, v930 refresh).** **2×2**: top **整体耗时** | **AICore 并行使用率**; bottom **算力情况** | **带宽利用率**. Do **not** render a standalone op-type card. When duration is present and a card’s data/formula is missing, that cell is title + `N/A` (keeps the grid rectangular). BW-only summaries (no `taskDurationUs`) omit duration-gated placeholders.
 
-**Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.60` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Progress bar = `min(100%, Block Dim / core_count × 100%)` when `summary.coreCount` is set (HQ 32); else decorative ~15% cyan fill (I-Q6e). Secondary (HQ 1): `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`; omit if neither.
+**Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.60` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Progress bar = `min(100%, Block Dim / core_count × 100%)` when `summary.coreCount` is set (UI-32); else decorative ~15% cyan fill (DATA-33e). Secondary (DATA-1): `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`; omit if neither.
 
-**AICore 并行使用率.** Sketch: dual columns **并行使用率** | **负载均衡度**, each with large `%` score + bar + column label under the bar. Formulas are **OPEN** (former 平均核利用率 / HQ 9–10 remapped here) — until Product defines fields, mount title + `N/A` when duration is present. Do not bind `summary.avgCoreUtil`.
+**AICore 并行使用率.** Sketch: dual columns **并行使用率** | **负载均衡度**, each with large `%` score + bar + column label under the bar. Formulas are **OPEN** (former 平均核利用率 remapped here) — until Product defines fields, mount title + `N/A` when duration is present. Do not bind `summary.avgCoreUtil`.
 
-**算力情况 (I-Q6h).** `computeCard` from adapter. Inner **Cube \| Vector** columns (HQ 33; adapter sides `aic`/`aiv`). Large score (**no** `%`), bar fill = score % of track (8px pill hatched track; `min-width: 0` at 0%; distinct fill hues per side in the sketch), subtitle `measured / peak` with `TFLOPS` on the next line. Requires `taskDurationUs`. Hide a side when measured or peak is missing; show **N/A** when duration is present but `computeCard` is absent. Do not bind `summary.computeTflops`.
+**算力情况 (DATA-33h).** `computeCard` from adapter. Inner **Cube \| Vector** columns (UI-33; adapter sides `aic`/`aiv`). Large score (**no** `%`), bar fill = score % of track (8px pill hatched track; `min-width: 0` at 0%; distinct fill hues per side in the sketch), subtitle `measured / peak` with `TFLOPS` on the next line. Requires `taskDurationUs`. Hide a side when measured or peak is missing; show **N/A** when duration is present but `computeCard` is absent. Do not bind `summary.computeTflops`.
 
-**带宽利用率 (I-Q6g, sketch).** One card with **读 \| 写** columns (replaces separate 输入/输出 × aic|aiv cards). Large score **with** `%`, bar = score % of track, subtitle `measured / peak` throughput. Display unit **GB/s** (HQ 34; sketch still prints TB/s). Peak remains the 1600 GB/s HW guess until Product supplies a field. Measured from `Memory.csv` main-mem read/write: UI collapses each input/output card’s aic|aiv sides to a **mean** for 读/写 until Product defines aggregation. Hide a column when all-NA; hide the card when both NA. Do not show cards from `summary.ioBandwidth` alone.
+**带宽利用率 (DATA-33g, sketch).** One card with **读 \| 写** columns (replaces separate 输入/输出 × aic|aiv cards). Large score **with** `%`, bar = score % of track, subtitle `measured / peak` throughput. Display unit **GB/s** (UI-34; sketch still prints TB/s). Peak remains the 1600 GB/s HW guess until Product supplies a field. Measured from `Memory.csv` main-mem read/write: UI collapses each input/output card’s aic|aiv sides to a **mean** for 读/写 until Product defines aggregation. Hide a column when all-NA; hide the card when both NA. Do not show cards from `summary.ioBandwidth` alone.
 
-**PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios (I-Q6b). Bar colors match COLOR_TOKENS. Section title **计算负载分析**. **详情** opens the compute CSV overlay when tables exist and emits **open-pipe-details**. A 0%–100% scale with 20/40/60/80 grid overlays sits above the rows — 0% left-aligned to the track start, 100% right-aligned to the end, 20/40/60/80 centered on those marks. Each row: label (ellipsis if wider than the column), track with solid fill for ratio and a `colorKey`-tinted hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (I-Q6f) that may paint over the hatch when the fill is narrower than the digits, and a right-aligned percent inside the track.
+**PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios (DATA-33b). Bar colors match COLOR_TOKENS. Section title **计算负载分析**. **详情** opens the compute CSV overlay when tables exist and emits **open-pipe-details**. A 0%–100% scale with 20/40/60/80 grid overlays sits above the rows — 0% left-aligned to the track start, 100% right-aligned to the end, 20/40/60/80 centered on those marks. Each row: label (ellipsis if wider than the column), track with solid fill for ratio and a `colorKey`-tinted hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (DATA-33f) that may paint over the hatch when the fill is narrower than the digits, and a right-aligned percent inside the track.
 
 **Cube | Vector toggle.** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side (cube/aic or vector/aiv/vec): no toggle; show pipes for that side only. When `opType` is blank or unrecognized: no toggle; show all PIPE bars (do not default-filter to vector).
 
-**Roofline (M2 interim).** When `report.roofline.points` is non-empty, mount `RooflinePanel` on the stack after the summary cards (I-Q11a–f). Hide on overlays and when absent. No tabs until I-Q11f superseded.
+**Roofline (M2 interim).** When `report.roofline.points` is non-empty, mount `RooflinePanel` on the stack after the summary cards (DATA-37a–f). Hide on overlays and when absent. No tabs until DATA-37f superseded.
 
 **Topology (M2).** When labelled edges exist, mount `MemoryTopologyPanel` below PIPE with title **内存负载分析** and **详情**. **详情** opens the memory CSV overlay. If memory tables exist but the current block has no labelled edges, still show the section chrome + **详情** (no diagram) so the overlay stays reachable. Labels are block-scoped: parent owns `selectedBlockId` and rebuilds via `buildMemoryTopology`. Hide the diagram when the model is absent. On **report** change, re-pick `selectedBlockId` via `firstLabelledMemoryTopology` (do not keep a stale id that is unlabelled in the new file).
 
@@ -58,9 +58,9 @@ I-Q6a duration + I-Q6g bandwidth + I-Q6h compute. Card group renders when `taskD
 
 **Compute / Memory overlays.** Hosts `CsvFieldListPanel`. Compute (`v930/compute-load-detail`, `v930/search-highlight`): tabs + search only — no block picker, no 查看全部. Memory (`v930/memory-load-detail`): tabs, search, block switcher, 查看全部. Overlay body fills the column under the header; the field list scrolls (no inner max-height cap).
 
-### Hardware details (M1 interim I-Q7a)
+### Hardware details (M1 interim DATA-34a)
 
-**更多** opens the hardware overlay (HQ 30–31): always visible on the report shell; emits `open-hardware-details`. When `hardwareDetails` is present, render `HardwareDetailsPanel`; otherwise show **缺少 hardware info** / Missing hardware info. Header back control returns to the stacked report.
+**更多** opens the hardware overlay (UI-30, UI-31): always visible on the report shell; emits `open-hardware-details`. When `hardwareDetails` is present, render `HardwareDetailsPanel`; otherwise show **缺少 hardware info** / Missing hardware info. Header back control returns to the stacked report.
 
 ## Acceptance Criteria
 
@@ -110,7 +110,7 @@ I-Q6a duration + I-Q6g bandwidth + I-Q6h compute. Card group renders when `taskD
 | Empty pipeOccupancy | No bars; summary still visible if present |
 | Non-MIX known opType | No Cube|Vector toggle; side-filtered bars |
 | Blank/unrecognized opType | Show all PIPE bars |
-| Missing compute / AICore-parallel formulas (I-Q6a) | With duration: compute **N/A** when `computeCard` absent; AICore parallel **N/A**; BW-only: placeholders omitted |
+| Missing compute / AICore-parallel formulas (DATA-33a) | With duration: compute **N/A** when `computeCard` absent; AICore parallel **N/A**; BW-only: placeholders omitted |
 | `computeCard` with one side | Single Cube or Vector column; no **N/A** chrome |
 | `summary.ioBandwidth` only | No BW cards (need `bandwidthCards`) |
 | Bandwidth side all NA | That column omitted; card omitted if both sides NA |
@@ -165,7 +165,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Surface | `linear-gradient(225deg, #272f31 0%, #262b2c 35%, #252525 72%)` (detail-strip-raised TR→BL samples) + inset `1px` highlight `rgba(255,255,255,0.04)`; radius `8px`; pad `12px 14px` |
 | Label | `11px` / `#999999`; margin-bottom `6px`; one line, no ellipsis |
 | Value | number `20px` / `600` / `#ececec`; unit sibling `12px` / `500` / `#868686` |
-| Bar | height `8px`; pill; fill `--pr-color-duration-bar` = util % when `coreCount` set (HQ 32), else ~15%; hatch `#2a2a2a` / `#1f1f1f` on `--pr-bg-aside` track |
+| Bar | height `8px`; pill; fill `--pr-color-duration-bar` = util % when `coreCount` set (UI-32), else ~15%; hatch `#2a2a2a` / `#1f1f1f` on `--pr-bg-aside` track |
 | Sub | `11px` / `#8a8a8a`; one line, no ellipsis; rounded display with full value in `title` |
 
 ### 算力情况 card (`summary-cards.png`)
@@ -190,7 +190,7 @@ Sketch: one card, **读 \| 写** columns (not separate 输入/输出 cards).
 | Score | same Value number token **with** muted `%` |
 | Side label | `11px` / `#999999`, same row as score; score start / label end (`读` / `写`) |
 | Bar | same 8px pill hatched track; fill = score %; 0% fill `min-width: 0` |
-| Sub | `measured / peak` then unit on the next line (**GB/s**, HQ 34; sketch TB/s); full value in `title` |
+| Sub | `measured / peak` then unit on the next line (**GB/s**, UI-34; sketch TB/s); full value in `title` |
 
 ### AICore 并行使用率 placeholder (until Product formulas)
 
@@ -237,7 +237,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Dependencies
 
-[COLOR_TOKENS.md](../../../docs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md), I-Q6a/b/c/d/e/f/g, I-Q7a, I-Q11a–f.
+[COLOR_TOKENS.md](../../../docs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md), DATA-33a/b/c/d/e/f/g, DATA-34a, DATA-37a–f.
 
 ## Changelog
 
@@ -255,7 +255,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 - **2026-08-27** — Review fixes: truncation `title` on duration secondary + BW subtitles; N/A cards flex-center the value in the stretched top-row tile; docs aligned on N/A placeholders (not hide).
 - **2026-08-27** — Duration display always 2 dp; full value in `title` tooltip (PR-STATS-009c). Gradient stops re-sampled from detail-strip-raised (`#272f31` → `#252525`).
 - **2026-08-27** — Restore card gradient + well `padding: 8px` (bottom band); prior flat/`padding:0` pass broke sketch chrome.
-- **2026-08-27** — 算力情况 / 平均核利用率 shown as title + `N/A` placeholders when duration is present (PR-STATS-011); still ignore summary compute/util fields until Q6.
+- **2026-08-27** — 算力情况 / 平均核利用率 shown as title + `N/A` placeholders when duration is present (PR-STATS-011); still ignore summary compute/util fields until DATA-33.
 - **2026-08-26** — Summary cards use sketch 3+2 grid and raised tile chrome (dark well, pill 8px bars, split duration unit); drop full-width stack interim.
 - **2026-08-31** — CSV-only fallback renders cannbot icons on the compute/memory list titles; compute/memory icons gated on `computeTables`/`memoryTables` so the entry tracks the payload data (PR-STATS-026).
 - **2026-08-26** — cannbot icon entries on meta row / compute / memory section heads (PR-STATS-026/027).
@@ -266,16 +266,16 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 - **2026-08-19** — PIPE fill width is ratio-only (`min-width: 0`; abs is a track sibling). Label column stays `72px` for ICache Miss. Panel stays `#1f1f1f` (artboard `#141414` is page, not card).
 - **2026-08-19** — Resampled `compute-load.jpeg`: title `14px`, scale/in-bar `12px`, Scalar `#1A743E`.
 - **2026-08-19** — PIPE card tokens from `pipe-bars.png` / `mode-tabs.png`: tinted hatch, in-track %, `#202020` well, 16px row gap.
-- **2026-08-19** — I-Q6g peak is sketch 1600 GB/s; `--pr-color-bandwidth-bar`; flex aic\|aiv columns; 0% bar `min-width: 0`.
-- **2026-08-19** — PR-STATS-024 asserts score via `data-testid`; peak is adapter max (I-Q6g).
-- **2026-08-19** — I/O bandwidth cards I-Q6g (PR-STATS-024); PR-STATS-011 still hides compute/util.
+- **2026-08-19** — DATA-33g peak is sketch 1600 GB/s; `--pr-color-bandwidth-bar`; flex aic\|aiv columns; 0% bar `min-width: 0`.
+- **2026-08-19** — PR-STATS-024 asserts score via `data-testid`; peak is adapter max (DATA-33g).
+- **2026-08-19** — I/O bandwidth cards DATA-33g (PR-STATS-024); PR-STATS-011 still hides compute/util.
 - **2026-08-14** — CSV tab switch does not rewrite topology block (PR-STATS-022).
 - **2026-08-13** — Memory 详情 without diagram (PR-STATS-023); re-pick labelled block on report swap (PR-STATS-021).
 - **2026-08-13** — Stacked 报告统计; 详情/更多 overlays; drop mode tabs; topology section (PR-STATS-019–022).
-- **2026-08-10** — Hardware overlay via 更多 (PR-STATS-018, I-Q7a); PIPE 详情 → compute mode (PR-STATS-016).
-- **2026-08-10** — Roofline section when points present (PR-STATS-015, I-Q11*).
-- **2026-08-07** — PIPE sketch chrome: scale, hatch, absolute time, Details (PR-STATS-012–014, I-Q6f).
-- **2026-08-07** — Duration card chrome I-Q6e (PR-STATS-009–011).
+- **2026-08-10** — Hardware overlay via 更多 (PR-STATS-018, DATA-34a); PIPE 详情 → compute mode (PR-STATS-016).
+- **2026-08-10** — Roofline section when points present (PR-STATS-015, DATA-37*).
+- **2026-08-07** — PIPE sketch chrome: scale, hatch, absolute time, Details (PR-STATS-012–014, DATA-33f).
+- **2026-08-07** — Duration card chrome DATA-33e (PR-STATS-009–011).
 - **2026-08-07** — Shell close/meta/更多 (PR-STATS-006–008).
 - **2026-08-07** — Mode switcher + compute/memory CSV panels (PR-STATS-005).
 - **2026-08-07** — Unrecognized opType shows all PIPE sides; PR-STATS-004.
@@ -284,4 +284,4 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Open
 
-Q6 — AICore parallel (HQ 9–10) and bandwidth peak/score/aggregation still Product-open (compute I-Q6h + measured BW columns shipped). Measure range does not recompute this aside.
+DATA-33 — AICore parallel formulas and bandwidth peak/score/aggregation still Product-open (compute DATA-33h + measured BW columns shipped). Measure range does not recompute this aside.

@@ -400,7 +400,7 @@ describe('StatsAside', () => {
     expect(zero.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 0%');
   });
 
-  it('PR-STATS-032: compute card Cube|Vector columns, score bar, TFLOPS subtitle (HQ 2–4, Q33)', () => {
+  it('PR-STATS-032: compute card Cube|Vector columns, score bar, TFLOPS subtitle (DATA-2..4, UI-33)', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({

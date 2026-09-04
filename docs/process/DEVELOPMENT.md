@@ -86,24 +86,16 @@ Do not leave “temporary” undocumented behavior in main.
 
 ## Resolving open questions
 
-Open lists: [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md) holds **unanswered / interim** rows only; [HQ_OPEN_QUESTIONS.md](../context/HQ_OPEN_QUESTIONS.md) keeps **ANSWERED** / **OBSOLETE** notes in place.
+The open list is for **unanswered** items only: [questions](../context/questions/) (status `open` / `partial` / `interim` / `deferred`). Product-final answers live in [decisions/](../context/decisions/).
 
 When Product answers a question:
 
 1. **Convert to a spec requirement** in the owning docs/specs (INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, VIEW_DATA_REQUIREMENTS, format docs, co-located `*.spec.md`, etc.). Write normative product truth — not “open until Q*” / “blocked on Q*”.
-2. **Update** the open list(s) in the **same change**:
-   - [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md) — **remove** the table row; optional resolution-log line pointing at the specs (not at HQ).
-   - [HQ_OPEN_QUESTIONS.md](../context/HQ_OPEN_QUESTIONS.md) — **keep** the Q block tagged **ANSWERED** (add **Implemented** when shipped). Drop crops only if Product retires the id entirely.
-3. **Supersede interim guesses** — delete or strike the matching [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md) row and scrub “until Q*” wording elsewhere.
+2. **File the decision** in the matching `docs/context/decisions/<PREFIX>.md` (DATA/UI/PROC/PKG) — same bare id as the question, with `Was`, date, decision, specs, source — and **remove** the row from [questions](../context/questions/) in the **same change**. For open-question crops, drop the matching `docs/context/visual/questions` manifest entry and PNG. IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker, never delete or renumber.
+3. **Supersede interim guesses** — delete or strike the matching [decisions/interim/](../context/decisions/interim/) row and scrub “until Q*” wording elsewhere.
 4. **Tests** assert the decided behavior when the feature already exists; otherwise the new spec text is the DoR input for the next slice.
 
-When a sketch or Product change **retires** a question (UI gone, renamed card, layout replaced):
-
-1. Tag it **OBSOLETE** on the HQ ledger (one-line note; keep the crop so old docx wording is not re-opened).
-2. Sync [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md) / [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md) so they do not still list the retired chrome as an open Product ask.
-3. Do **not** invent replacement formulas for the new UI until Product answers.
-
-Do **not** leave a **Resolved** row parked on an open-questions table. Agents: see `.cursor/rules/resolve-open-questions.mdc`.
+Do **not** leave a `resolved` row parked on the open-questions list. Agents: see `.cursor/rules/resolve-open-questions.mdc`.
 
 ## Copy-paste policy
 
@@ -117,9 +109,9 @@ Do **not** leave a **Resolved** row parked on an open-questions table. Agents: s
 
 **Milestone 2 (parse → view-models → swimlane → UI shell)** — green on `master` (`PR-FMT-*` / `PR-VM-*` / `PR-SWIM-*` / `PR-UI-*` / `PR-E2E-*`).
 
-**Milestone 3 (renderer + navigation)** — Canvas `SwimlaneRenderer`, view-state zoom/pan, toolbar (search / zoom / fit / toggle aside), I-Q14 time formatting (`PR-TIME-*` / `PR-VIEW-*` / `PR-RENDER-*` / `PR-UI-004+` / `PR-E2E-004`).
+**Milestone 3 (renderer + navigation)** — Canvas `SwimlaneRenderer`, view-state zoom/pan, toolbar (search / zoom / fit / toggle aside), UI-40a time formatting (`PR-TIME-*` / `PR-VIEW-*` / `PR-RENDER-*` / `PR-UI-004+` / `PR-E2E-004`).
 
-**Milestone 4 (trace JSON + MVP polish)** — standalone Chrome Trace open path (Q15), gutter util bars, time-unit control, i18n hooks, CSS tokens (`PR-JSON-*` / `PR-UI-006` / `PR-E2E-005`).
+**Milestone 4 (trace JSON + MVP polish)** — standalone Chrome Trace open path (PROC-3), gutter util bars, time-unit control, i18n hooks, CSS tokens (`PR-JSON-*` / `PR-UI-006` / `PR-E2E-005`).
 
 ## Delivery milestones
 

@@ -124,7 +124,7 @@ Extended existing specs and created new ones to define M1 behavior:
 
 Key additions:
 - `collectCsvTables()` — generic CSV → `CsvTableModel` converter with `blockIds` extraction from rows
-- `csvTexts` map — raw CSV text by filename for 查看全部 (I-Q6d)
+- `csvTexts` map — raw CSV text by filename for 查看全部 (DATA-33d)
 - `reportModelFromParsed()` — collects compute tables (3 files) and memory tables (4 files)
 
 ### Task 3: Domain Types — COMPLETED (2026-08-07)
@@ -166,10 +166,10 @@ interface PipeOccupancyItem {
 #### CsvFieldListPanel (`src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.vue`)
 
 - **CSV tabs**: Lists available tables by filename, product label mapping (e.g., `Memory.csv` → "MemoryL1")
-- **Block switcher**: `<select>` picker filtered by `block_id` column (I-Q6c)
+- **Block switcher**: `<select>` picker filtered by `block_id` column (DATA-33c)
 - **Search**: Filters field header names (case-insensitive substring)
 - **Field list**: Shows header → value pairs for the selected block/row with literal `NA` display
-- **查看全部 button**: Emits `view-full-csv` with `{ fileName, text }` for full CSV export (I-Q6d)
+- **查看全部 button**: Emits `view-full-csv` with `{ fileName, text }` for full CSV export (DATA-33d)
 
 ### Task 5: i18n — COMPLETED (2026-08-07)
 
@@ -186,7 +186,7 @@ interface PipeOccupancyItem {
 | `computeAnalysis` | 计算负载分析 | Compute load analysis |
 | `memoryAnalysis` | 内存负载分析 | Memory load analysis |
 
-Default locale is zh-CN per interim decision Q17.
+Default locale is zh-CN per interim decision PKG-2.
 
 ### Task 6: Tests — COMPLETED (2026-08-07)
 

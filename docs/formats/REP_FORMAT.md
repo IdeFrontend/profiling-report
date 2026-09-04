@@ -2,7 +2,7 @@
 
 Interim normative description of the binary report container used by profiling-report. Derived from [`data/pack_rep.py`](../../data/pack_rep.py), [`data/unpack_rep.py`](../../data/unpack_rep.py), and sample [`data/out.rep`](../../data/out.rep).
 
-**Producer status ([Q1](../context/OPEN_QUESTIONS.md)):** The producing tool is still under development. Until an official producer format specification is published, treat this document + sample data as the implementation source of truth, and expect additive updates when the producer spec lands.
+**Producer status ([PROC-1](../context/decisions/PROC.md)):** The producing tool is still under development. Until an official producer format specification is published, treat this document + sample data as the implementation source of truth, and expect additive updates when the producer spec lands.
 
 ## Extensions
 
@@ -11,7 +11,7 @@ Interim normative description of the binary report container used by profiling-r
 | `.rep` | Generic CANN report container (sample: `data/out.rep`) |
 | `.ncrep` | Product alias for OP profiling reports (UI sketches: `report.ncrep`) |
 
-Both use the same binary layout and magic (**Interim [I-Q2](../context/INTERIM_DECISIONS.md)** until Product defines divergence). Hosts should open either extension with the profiling-report viewer.
+Both use the same binary layout and magic (**Interim [PROC-2a](../context/decisions/interim/PROC.md)** until Product defines divergence). Hosts should open either extension with the profiling-report viewer.
 
 ### Product `npu-rep` container
 

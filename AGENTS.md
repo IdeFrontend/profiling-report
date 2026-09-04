@@ -56,7 +56,7 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 
 ## Resolving open questions
 
-When Product answers an HQ / OPEN_QUESTIONS item: write it into the owning specs in the same change. **Remove** the row from [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) (resolution log optional). On [HQ_OPEN_QUESTIONS.md](docs/context/HQ_OPEN_QUESTIONS.md), **keep** the Q block tagged **ANSWERED** / **Implemented**. When sketch/product retires an ask, tag **OBSOLETE** on HQ and sync OPEN/INTERIM — do not re-open retired chrome. Do not leave a **Resolved** row on an OPEN_QUESTIONS table. Process: [`docs/process/DEVELOPMENT.md`](docs/process/DEVELOPMENT.md) § Resolving open questions; Cursor rule `.cursor/rules/resolve-open-questions.mdc`.
+When Product answers a question: write it into the owning specs, file it in [`docs/context/decisions/`](docs/context/decisions/), and **remove** it from [`docs/context/questions/`](docs/context/questions/) in the same change. Do not leave a `resolved` row on the open list. Process: [`docs/process/DEVELOPMENT.md`](docs/process/DEVELOPMENT.md) § Resolving open questions; Cursor rule `.cursor/rules/resolve-open-questions.mdc`.
 
 ## Skills (on demand)
 
