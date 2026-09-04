@@ -287,7 +287,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-----------|-----|
 | No `OverviewSeries` | Hide `OverviewCharts` ([Q5](../context/OPEN_QUESTIONS.md)) |
 | Optional CSV / panel inputs missing | Hide related surface ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)); Timeline still works if trace present |
-| Summary formula unknown (Q6) | **Interim [I-Q6a](../context/INTERIM_DECISIONS.md):** duration from OpBasicInfo; **[I-Q6g](../context/INTERIM_DECISIONS.md)** I/O BW cards; compute / avg-util as title + `N/A` |
+| Summary formula unknown (Q6) | **Interim [I-Q6a](../context/INTERIM_DECISIONS.md):** duration; **[I-Q6h](../context/INTERIM_DECISIONS.md)** compute Cube\|Vector when `computeCard` exists; **[I-Q6g](../context/INTERIM_DECISIONS.md)** bandwidth 读\|写; AICore parallel title + `N/A` until HQ 9–10 |
 | Trace missing / invalid | Error state on root; emit `error`; do not show broken swimlane |
 | All AIC fields `NA` (vector-only) | Show AIV-derived PIPE; do not invent Cube series |
 | Search no matches | Neutral empty hint in toolbar/results; swimlane unchanged except clear highlights |
@@ -328,7 +328,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-------|----------|---------------------------|
 | Trace richness | Q4, Q8 | Lane taxonomy may be thinner than sketches; hierarchy collapses to available threads |
 | Overview series | Q5 | Charts hidden if no series |
-| Summary formulas | Q6 / [I-Q6a](../context/INTERIM_DECISIONS.md) / [I-Q6g](../context/INTERIM_DECISIONS.md) | Duration + guessed I/O BW; compute / avg-util N/A placeholders |
-| Hardware aside | Q7 | S7 blocked |
+| Summary formulas | Q6 / [I-Q6a](../context/INTERIM_DECISIONS.md) / [I-Q6g](../context/INTERIM_DECISIONS.md) / [I-Q6h](../context/INTERIM_DECISIONS.md) | Duration + interim compute/BW; AICore parallel N/A; BW peak/score still guessed |
+| Hardware aside | Q7 / HQ 30–31 | **更多** always opens; missing HardwareInfo → **缺少 hardware info** |
 | Dependencies | Q9 | S8 dep flows blocked |
 | Gestures | Q19 | MVP uses wheel/slider only |

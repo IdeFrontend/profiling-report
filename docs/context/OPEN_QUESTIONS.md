@@ -1,35 +1,40 @@
 # Open Questions Before Complete Specs
 
-Status values: **Open** | **Proposed** | **Resolved** | **Interim** (engineering default — see [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); not Product-final).
+Status values: **Open** | **Proposed** | **Interim** (engineering default — see [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); not Product-final) | **Obsolete** (UI/question retired; do not re-open).
 
 Answers must update the relevant specs ([REP_FORMAT](../formats/REP_FORMAT.md), [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md), [UX_SPEC](../ui/UX_SPEC.md), [COMPONENTS](../architecture/COMPONENTS.md), etc.). Do not leave permanent TBDs only in code.
 
 **When resolved:** remove the row from the tables below and write the decision into those specs in the **same change**. Optional one-line entry in the resolution log. Process: [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions).
 
+**Do not** leave **Resolved** rows in the tables — they belong in the resolution log only.
+
 ## Why Product-complete specs are still incomplete
 
-Producer **format/data specification is still forthcoming**. Product has answered many P0 items; remaining Product gaps (especially **Q6 formulas** and a **sketch-faithful golden**) are covered by **Interim** defaults so MVP coding can start.
+Producer **format/data specification is still forthcoming**. Product has answered many P0 items; remaining Product gaps (especially **AICore parallel formulas**, bandwidth **peak/score**, and a **sketch-faithful golden**) are covered by **Interim** defaults so MVP coding can continue.
 
 **MVP unblock doc:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md)
 
-**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (HQ DATA 1–29, HQ UI/UX 30–36). Those HQ numbers are not the Q1–Q23 ids in the tables below.
+**Right-panel field / UX ledger:** [HQ_OPEN_QUESTIONS.md](HQ_OPEN_QUESTIONS.md) (HQ DATA 1–29, HQ UI/UX 30–36). Those HQ numbers are not the Q1–Q23 ids in the tables below. HQ keeps **ANSWERED** / **OBSOLETE** notes in place; this file only lists still-open / interim product gaps.
 
 ## What you can do now
 
 - Implement per [INTERIM_DECISIONS](INTERIM_DECISIONS.md) + [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)
-- Timeline with minimal data; hide panels without inputs (Q3)
-- Hide overview charts (Q5 / I-Q5+)
-- Thin summary + PIPE mean aggregation (I-Q6a / I-Q6b); I/O BW cards (I-Q6g)
+- Timeline with minimal data; hide panels without inputs (resolved Q3)
+- Hide overview charts (resolved Q5 / I-Q5+)
+- Summary **2×2**: duration (I-Q6e); compute Cube\|Vector (I-Q6h); bandwidth 读\|写 (I-Q6g); AICore parallel **N/A** until HQ 9–10
+- PIPE mean aggregation (I-Q6b)
 - Fixture `data/out.rep` for CI (I-Q4); colors [COLOR_TOKENS](../ui/COLOR_TOKENS.md)
-- Open Chrome Trace `.json` in profiling-report (Q15)
+- Open Chrome Trace `.json` in profiling-report (resolved Q15)
 - Packaging scaffold per [PACKAGING_SUGGESTIONS](PACKAGING_SUGGESTIONS.md) (I-Q16–19)
 
 ## Still blocking Product-final (not coding) acceptance
 
-- Exact summary tile formulas (Q6) — measured I/O BW confirmed; peak/score still guessed; compute / avg util shown as **N/A** placeholders until formulas land
+- AICore **并行使用率** / **负载均衡度** formulas (HQ 9–10) — card ships as **N/A**
+- Bandwidth **peak / score** (HQ 5–8; I-Q6g guess 1600 GB/s; sketch 81 ≠ ratio); 读\|写 aggregation
+- Compute **Product-final** MFU / fixed chip peaks / dtype (HQ 2–3 partial; I-Q6h interim)
 - Production-like multi-core instruction golden (Q4 target) — interim uses `out.rep`
 - Overview chart producer — interim keeps charts hidden
-- Phase 2 contracts Q9–Q11, Q10
+- Phase 2 contracts Q9–Q11 (deps / tabs / roofline), OPEN Q10
 
 ---
 
@@ -37,14 +42,9 @@ Producer **format/data specification is still forthcoming**. Product has answere
 
 | ID | Question | Status | Specs / notes |
 |----|----------|--------|---------------|
-| **Q1** | Producer of `.rep` / `.ncrep` | **Resolved** | Tool WIP. Sample `.rep` + [REP_FORMAT](../formats/REP_FORMAT.md) until producer spec. |
 | **Q2** | `.ncrep` vs `.rep` | **Interim** | Same layout/alias — [I-Q2](INTERIM_DECISIONS.md). |
-| **Q3** | Required embeds / missing data | **Resolved** | Minimal open; **hide** missing panels. → [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
-| **Q4** | Authoritative MVP fixture shape | **Resolved (target)** + **Interim (fixture)** | Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
-| **Q5** | Overview charts data source | **Resolved** | **Hide** until `OverviewSeries` (C). Adapter `[]` — [I-Q5+](INTERIM_DECISIONS.md). |
-| **Q6** | Report summary formulas | **Interim** | **Confirmed (npu-compute 0818):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read\|write}_bw`; I/O display **GB/s** (HQ 34). Compute TFLOPS and avg core util stay in the sketch grid as **title + `N/A`** until formulas exist ([I-Q6a](INTERIM_DECISIONS.md)). PIPE = mean non-`NA` — [I-Q6b](INTERIM_DECISIONS.md). MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score** (I-Q6g guess 1600 GB/s; sketch 81 ≠ ratio), `block_id` mean vs max vs selected block. |
-| **Q7** | Hardware details sidebar | **Resolved (source)** + **HQ 30–31** | **`HardwareInfo.jsonl`** is the details source (npu-compute 0818). Not required to open Timeline; **更多** always opens overlay — show `hardwareDetails` when present, else **缺少 hardware info** ([I-Q7a](INTERIM_DECISIONS.md)). Aside meta is **进程** / **算子类型** / **Blocks** (`Pid` / `Op Type` / `Block Dim`). |
-| **Q8** | Lane hierarchy mapping | **Resolved (interim naming)** | Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children` (sketch Card tree). |
+| **Q4** | Authoritative MVP fixture shape | **Interim** | Product target = sketch-like Gantt. **CI fixture** = `out.rep` until golden — [I-Q4](INTERIM_DECISIONS.md). |
+| **Q6** | Report summary formulas | **Interim** | **Shipped interim:** duration [I-Q6e]; compute Cube\|Vector [I-Q6h] (HQ 2–4, Q33); bandwidth **measured** + 读\|写 card [I-Q6g] (HQ 34 GB/s). PIPE mean — [I-Q6b](INTERIM_DECISIONS.md). MIX Cube\|Vector + ICache Miss confirmed. **Still open:** AICore 并行使用率 / 负载均衡度 (HQ 9–10; **N/A** via [I-Q6a](INTERIM_DECISIONS.md)); BW peak/score/aggregation (HQ 5–8); compute MFU/chip peaks/dtype; `block_id` mean vs max vs selected (HQ 28–29). **Obsolete:** former 平均核利用率 / 启用 n/m 核 card chrome; separate 输入/输出 × aic\|aiv BW cards — see [HQ_OPEN_QUESTIONS](HQ_OPEN_QUESTIONS.md). |
 
 ---
 
@@ -55,10 +55,7 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q9** | Dependencies encoding | **Open** + **Interim** | Interim successor-list encoding via Chrome Trace `args` — [I-Q9](INTERIM_DECISIONS.md), [dependencies spec](../../specs/core/dependencies.spec.md). METRICS_AND_TRACE, INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS |
 | **Q10** | Source / Details / Cache tabs | Open | FEATURE_MATRIX, UX_SPEC, MSTT_INTEGRATION, FORMATS_COMPARISON |
 | **Q11** | Roofline formulas | Open | METRICS_AND_TRACE, UI_OVERVIEW, FEATURE_MATRIX, COMPONENTS |
-| **Q12** | Memory topology | **Resolved** | Static SVG + data-driven edge labels. |
-| **Q13** | Color / category legend | **Resolved** | [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
-| **Q14** | Time units UX | **Resolved (partial)** + **Interim (auto time)** | Two-tier auto: chrome from zoom/density; tooltip/detail/Δt per-value — [I-Q14](INTERIM_DECISIONS.md). Cycles deferred. |
-| **Q15** | MSTT `.json` policy | **Resolved** | Chrome Trace `.json` → profiling-report. |
+| **Q14** | Time units UX | **Interim** | Two-tier auto: chrome from zoom/density; tooltip/detail/Δt per-value — [I-Q14](INTERIM_DECISIONS.md). Cycles deferred. |
 
 ---
 
@@ -70,7 +67,6 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | **Q17** | Design system / i18n | **Interim** | same |
 | **Q18** | PyPTO copy-paste license | **Interim** | same — Legal before verbatim paste |
 | **Q19** | Gesture parity | **Interim** | Wheel/slider/drag MVP; W/S/A/D P2 |
-| **Q20** | Cursor skills / agent rules | **Resolved** | Shared: [`AGENTS.md`](../../AGENTS.md), nested `specs/AGENTS.md` (Claude: `specs/CLAUDE.md` → `@./AGENTS.md`), skills in `.agents/skills/`. Cursor-only: `.cursor/rules/code-review-post-github.mdc`. Root Claude: [`CLAUDE.md`](../../CLAUDE.md) → `@AGENTS.md`. |
 | **Q21** | Acceptance owner | Open | PROJECT_GOALS, this file |
 
 ---
@@ -96,4 +92,6 @@ Producer **format/data specification is still forthcoming**. Product has answere
 | HQ 37 | 2026-08-28 | CSV 详情 search filters non-matching rows and highlights the matching substring (flush chip). Same on compute and memory. | [CsvFieldListPanel](../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md), [UX_SPEC](../ui/UX_SPEC.md) |
 | HQ 18 | 2026-08-31 | PIPE in-bar absolute = mean non-`NA` `*_time(us)` per family/side (not cycles) | [INTERIM_DECISIONS](INTERIM_DECISIONS.md) I-Q6f, [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |
 | HQ 1, HQ 32 | 2026-09-01 | Duration secondary `{blockDim}/{coreCount}`; bar = `min(100%, Block Dim/core_count×100%)`; `coreCount` from HardwareInfo.jsonl by op type | [INTERIM_DECISIONS](INTERIM_DECISIONS.md) I-Q6e, [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |
-| HQ 2–4, Q33 | 2026-09-02 | Compute card: aic/aiv measured/peak TFLOPS + score bar (I-Q6h interim fops/time measured) | [INTERIM_DECISIONS](INTERIM_DECISIONS.md) I-Q6h, [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |
+| HQ 2–4, Q33 | 2026-09-02 | Compute card: Cube/Vector measured/peak TFLOPS + score bar (I-Q6h interim fops/time measured) | [INTERIM_DECISIONS](INTERIM_DECISIONS.md) I-Q6h, [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |
+| summary-cards v930 refresh | 2026-09-04 | Sketch 2×2: AICore 并行使用率 (ex avg util); 带宽利用率 读\|写 (ex dual I/O aic\|aiv); compute Cube\|Vector | [StatsAside.spec.md](../../src/ui/StatsAside/StatsAside.spec.md), [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) |
+| HQ obsolete (v930) | 2026-09-04 | Marked obsolete in HQ ledger: 平均核利用率 card; 启用 n/m 核; four-way 输入/输出×aic\|aiv BW layout | [HQ_OPEN_QUESTIONS](HQ_OPEN_QUESTIONS.md) Q5–10 |

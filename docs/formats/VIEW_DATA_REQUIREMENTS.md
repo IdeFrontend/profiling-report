@@ -100,9 +100,9 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-----------------|---------------|-------------|
 | Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Bar/secondary per I-Q6e (HQ 1/32). Op type is not a separate card. `opName` / `blockDim` feed duration secondary; `coreCount` from `HardwareInfo.jsonl` |
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
-| Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` peaks | **I-Q6h** (HQ 2–4, Q33): `computeCard` with aic/aiv sides when both measured and peak exist; else title + `N/A` when duration present — [I-Q6a](../context/INTERIM_DECISIONS.md) |
-| I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Display **GB/s** (HQ 34). Peak 1600 GB/s still I-Q6g guess |
-| Avg core util % | PipeUtilization / OpBasicInfo TBD | **Placeholder** until Q6 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [I-Q6a](../context/INTERIM_DECISIONS.md) |
+| Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` peaks | **I-Q6h** (HQ 2–4, Q33): `computeCard` with Cube/Vector (aic/aiv) sides when both measured and peak exist; else title + `N/A` when duration present — [I-Q6a](../context/INTERIM_DECISIONS.md) |
+| Bandwidth utilization tile | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | Sketch **带宽利用率** **读 \| 写**. **Measured confirmed.** Display **GB/s** (HQ 34). Peak 1600 GB/s still I-Q6g guess; aic/aiv → 读/写 aggregation OPEN |
+| AICore parallel util | TBD | **Placeholder** until Product formulas — title + `N/A` when duration is present (replaces former avg core util); omit when BW-only — [I-Q6a](../context/INTERIM_DECISIONS.md) |
 | Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
 

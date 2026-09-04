@@ -86,14 +86,22 @@ Do not leave “temporary” undocumented behavior in main.
 
 ## Resolving open questions
 
-Open lists are for **unanswered** items only: [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md), [HQ_OPEN_QUESTIONS.md](../context/HQ_OPEN_QUESTIONS.md).
+Open lists: [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md) holds **unanswered / interim** rows only; [HQ_OPEN_QUESTIONS.md](../context/HQ_OPEN_QUESTIONS.md) keeps **ANSWERED** / **OBSOLETE** notes in place.
 
 When Product answers a question:
 
 1. **Convert to a spec requirement** in the owning docs/specs (INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, VIEW_DATA_REQUIREMENTS, format docs, co-located `*.spec.md`, etc.). Write normative product truth — not “open until Q*” / “blocked on Q*”.
-2. **Remove** the item from the open list(s) in the **same change**. For HQ crops, drop the matching `docs/context/visual/hq` manifest entry and PNG. Optional: one line in the OPEN_QUESTIONS **resolution log** that points at the specs (not at HQ).
+2. **Update** the open list(s) in the **same change**:
+   - [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md) — **remove** the table row; optional resolution-log line pointing at the specs (not at HQ).
+   - [HQ_OPEN_QUESTIONS.md](../context/HQ_OPEN_QUESTIONS.md) — **keep** the Q block tagged **ANSWERED** (add **Implemented** when shipped). Drop crops only if Product retires the id entirely.
 3. **Supersede interim guesses** — delete or strike the matching [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md) row and scrub “until Q*” wording elsewhere.
 4. **Tests** assert the decided behavior when the feature already exists; otherwise the new spec text is the DoR input for the next slice.
+
+When a sketch or Product change **retires** a question (UI gone, renamed card, layout replaced):
+
+1. Tag it **OBSOLETE** on the HQ ledger (one-line note; keep the crop so old docx wording is not re-opened).
+2. Sync [OPEN_QUESTIONS.md](../context/OPEN_QUESTIONS.md) / [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md) so they do not still list the retired chrome as an open Product ask.
+3. Do **not** invent replacement formulas for the new UI until Product answers.
 
 Do **not** leave a **Resolved** row parked on an open-questions table. Agents: see `.cursor/rules/resolve-open-questions.mdc`.
 

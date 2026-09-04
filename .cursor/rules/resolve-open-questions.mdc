@@ -1,25 +1,34 @@
 ---
-description: Resolved open questions leave the open lists and become spec requirements
+description: Resolved open questions leave OPEN_QUESTIONS tables; HQ keeps ANSWERED/OBSOLETE notes
 alwaysApply: true
 ---
 
 # Resolve open questions → specs
 
-When Product (or the user) **answers** an open question — HQ ledger or [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) — do **not** leave it as Resolved on an open list.
+When Product (or the user) **answers** an open question — HQ ledger or [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) — do **not** leave it as **Resolved** on an open list.
 
 ## Same-turn checklist
 
 1. **Write the decision into the owning specs** as product truth (e.g. INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, VIEW_DATA_REQUIREMENTS, co-located `*.spec.md`, format docs). Prefer normative wording (“does / does not”), not “until Q*”.
-2. **Remove** the question from the open list(s):
-   - [HQ_OPEN_QUESTIONS.md](docs/context/HQ_OPEN_QUESTIONS.md) — delete the Q block, crop embed, and `docs/context/visual/hq` manifest/`qN.png` if that id was HQ-only; renumber only when mid-list gaps remain.
-   - [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) — delete the P0/P1/P2 table row; optional one-line **resolution log** entry pointing at the specs (not at HQ).
+2. **Update the open list(s)** in the **same change**:
+   - [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) — **delete** the P0/P1/P2 table row; optional one-line **resolution log** entry pointing at the specs (not at HQ).
+   - [HQ_OPEN_QUESTIONS.md](docs/context/HQ_OPEN_QUESTIONS.md) — **keep** the Q block; tag **ANSWERED** (and **Implemented** when shipped). Do not leave a bare Open/Interim answer only in chat.
 3. **Clear dependents** in the same change: strike matching [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md) rows; drop “until Q*” / “blocked on Q*” wording in docs, specs, and code comments.
 4. **Tests** — if behavior is already implemented, assert the decided rule; if not, leave the spec as the requirement for the next slice.
 
+## Obsolete (sketch / product retired the ask)
+
+When UI chrome is removed or renamed (e.g. v930 refresh):
+
+1. Tag the retired ask **OBSOLETE** on the HQ ledger (one-line note; keep crop).
+2. Sync OPEN_QUESTIONS / INTERIM so they do not still treat the old chrome as an open Product ask.
+3. Do not invent formulas for replacement labels until Product answers the new question.
+
 ## Do not
 
-- Leave a **Resolved** row sitting in an open-questions table
-- Answer only in chat or only in the HQ ledger
+- Leave a **Resolved** row sitting in an OPEN_QUESTIONS table
+- Answer only in chat without specs + list sync
 - Keep interim “guess until Product answers” text after Product answered
+- Re-open **OBSOLETE** layout questions (ask the new labels instead)
 
 Canonical process: [DEVELOPMENT.md](docs/process/DEVELOPMENT.md) § Resolving open questions.

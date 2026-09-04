@@ -16,6 +16,7 @@ Design mockups: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md) · one annotated crop
 - **INTERIM** — we already ship a rule in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md); Product can still override.
 - **PARTIAL** — field name known, but a value or a product decision is still missing.
 - **OPEN** — not derivable from the current docs or sample.
+- **OBSOLETE** — sketch/product UI no longer asks this; keep a one-line note so old crops/docx wording are not re-opened. Do not block implementation.
 
 Resolved right-panel mappings (进程 / 算子类型 / Blocks, Task Duration, measured I/O BW, ICache Miss, L2↔L1, NA handling) live in [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
 
@@ -29,7 +30,7 @@ DATA = file/field/formula mapping from report data → visualized number/series/
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q1.png" alt="Q1 8 次迭代 / 核" width="600" height="370">
+<img src="visual/hq/q1.png" alt="Q1 8 次迭代 / 核" width="880" height="380">
 
 1. The line **N 次迭代 / 核** (N iterations / core) — which field? (Is it `Block Dim`?)
    - **ANSWERED** — Label = `OpBasicInfo.csv` → `Block Dim` / *core count*, where core count depends on `OpBasicInfo.csv` → `Op Type`:
@@ -42,7 +43,7 @@ DATA = file/field/formula mapping from report data → visualized number/series/
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q2.png" alt="Q2 172 measured TFLOPS" width="600" height="370">
+<img src="visual/hq/q2.png" alt="Q2 172 measured TFLOPS" width="880" height="400">
 
 2. **172** (measured TFLOPS) — which file, which field(s), and the formula?
    - **ANSWERED (PARTIAL)** — Compute **cube** and **vector** separately (two columns per Q33). Product formulas (MFU / measured TFLOPS — accuracy TBD):
@@ -55,7 +56,7 @@ DATA = file/field/formula mapping from report data → visualized number/series/
 
 ---
 
-<img src="visual/hq/q3.png" alt="Q3 320 peak TFLOPS" width="600" height="370">
+<img src="visual/hq/q3.png" alt="Q3 320 peak TFLOPS" width="880" height="400">
 
 3. **320** (peak TFLOPS) — which file and field? Or a fixed number per chip?
    - **ANSWERED (PARTIAL)** — Product will supply **fixed theoretical peak** values per chip (not in report CSV). Interim formula until constants arrive: cube and vector peaks per Q2 (`HardwareInfo.jsonl` core counts + frequency + dtype).
@@ -63,61 +64,66 @@ DATA = file/field/formula mapping from report data → visualized number/series/
 
 ---
 
-<img src="visual/hq/q4.png" alt="Q4 90% score" width="600" height="370">
+<img src="visual/hq/q4.png" alt="Q4 90% score" width="880" height="400">
 
 4. **90** (score) — what is the formula? Is it `measured / peak × 100`?
    - **ANSWERED** — Yes: `score = measured / peak × 100%` per side (cube / vector). Peak from Q3.
    - **Implemented** — `computeCard` score + bar in `StatsAside.vue` (slice 3).
 
-### 输入带宽 / 输出带宽 (Input / output bandwidth)
+### 输入带宽 / 输出带宽 → 带宽利用率
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
+Sketch (v930 refresh): one **带宽利用率** card with **读 \| 写**.
+**OBSOLETE (layout):** separate **输入带宽** / **输出带宽** cards with **aic \| aiv** columns — do not re-ask Product for that chrome; peak/score/`Report.csv` questions below still apply to the single 读\|写 card.
 On real data, `0.08 / 1.6` is about **5%**, not 81. So the score formula is unclear.
 
-<img src="visual/hq/q5.png" alt="Q5 1.6 TB/s peak" width="900" height="225">
+<img src="visual/hq/q5.png" alt="Q5 1.6 TB/s peak" width="880" height="400">
 
 5. **1.6 TB/s** (peak) — which file and field?
    - **OPEN** — no peak-bandwidth field in any file; the doc's 内存负载 "理论值" column is empty for every row.
 
 ---
 
-<img src="visual/hq/q6.png" alt="Q6 peak on aic, aiv, input, and output" width="900" height="225">
+<img src="visual/hq/q6.png" alt="Q6 peak on 读 and 写" width="880" height="400">
 
-6. Is the peak the same for aic, aiv, input, and output? Yes or no. If no, give each peak.
+6. Is the peak the same for **读** and **写**? Yes or no. If no, give each peak.
    - **OPEN** — depends on Q5.
+   - **OBSOLETE (former):** four-way aic/aiv × input/output peaks — layout retired with the 读\|写 card.
 
 ---
 
-<img src="visual/hq/q7.png" alt="Q7 score 81" width="900" height="225">
+<img src="visual/hq/q7.png" alt="Q7 score 81" width="880" height="400">
 
 7. **81** (score) — what is the formula? It is not `0.08 / 1.6`.
     - **OPEN** — no "score" concept; the doc maps raw bandwidth values only.
 
 ---
 
-<img src="visual/hq/q8.png" alt="Q8 I/O bandwidth cards" width="900" height="225">
+<img src="visual/hq/q8.png" alt="Q8 带宽利用率 card" width="880" height="400">
 
-8. Do these cards come from `Report.csv` instead? If yes, list the column names.
+8. Does this card come from `Report.csv` instead? If yes, list the column names.
     - **OPEN** — the doc names `Report.csv` once ("SOL / 平均带宽") but never lists columns, and it is absent from `example.rep`. Interim I-Q6g uses `Memory.csv`, not `Report.csv`.
 
-### 平均核利用率 (Average core utilization)
+### AICore 并行使用率 (AICore parallel utilization)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-This card is hidden until we have answers.
+Sketch (v930 refresh): dual columns **并行使用率** | **负载均衡度**.
+**OBSOLETE (card):** former **平均核利用率** single-score card (docx §4 / old Q9 “82%”) — replaced by this dual-column card; ask formulas for the new labels only.
 
-<img src="visual/hq/q9.png" alt="Q9 82% utilization" width="590" height="370">
+<img src="visual/hq/q9.png" alt="Q9 并行使用率" width="880" height="380">
 
-9. **82%** — which file, which field, and the formula?
-    - **OPEN** — the doc's 平均核利用率 table is blank; no field or formula.
+9. **并行使用率** (e.g. sketch **81%**) — which file, which field, and the formula?
+    - **OPEN** — no Product formula yet (docx 平均核利用率 table was blank).
 
 ---
 
-<img src="visual/hq/q10.png" alt="Q10 启用 24/24 核" width="590" height="370">
+<img src="visual/hq/q10.png" alt="Q10 负载均衡度" width="880" height="380">
 
-10. **24/24** in **启用 n/m 核** (enabled n/m cores) — which field is *n*? Which field is *m*?
-    - **OPEN** — no "enabled cores" field. Sample `ai_core_count` = 36 (not 24); `Block Dim` = 8.
+10. **负载均衡度** (e.g. sketch **90%**) — which file, which field, and the formula?
+    - **OPEN** — no Product formula.
+    - **OBSOLETE (former):** **启用 n/m 核** secondary line — removed in the v930 refresh sketch; do not map n/m core fields for this card.
 
 ### Roofline 瓶颈分析 (Roofline bottleneck analysis)
 
@@ -310,7 +316,7 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q32.png" alt="Q32 duration bar" width="600" height="370">
+<img src="visual/hq/q32.png" alt="Q32 duration bar" width="880" height="380">
 
 32. The bar — is it only decoration, or a real percent? If a percent: percent of what? Give the field and formula.
     - **ANSWERED** — Real percent: `Block Dim / core_count × 100%` (core_count per Q1 from `HardwareInfo.jsonl`). Clamp display at **100%** when ratio exceeds 1.
@@ -320,17 +326,17 @@ UI/UX = presentation, missing-input behavior, layout, units, gestures.
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q33.png" alt="Q33 one number, not aic|aiv columns" width="600" height="370">
+<img src="visual/hq/q33.png" alt="Q33 Cube|Vector columns" width="880" height="400">
 
-33. One number for the whole op, or two columns (**aic** and **aiv**), like the bandwidth cards?
-    - **ANSWERED** — **Separate columns** (cube \| vector / aic \| aiv), same layout as bandwidth cards.
-    - **Implemented** — `computeCard` aic \| aiv columns in `StatsAside.vue` (slice 3).
+33. One number for the whole op, or two columns (**Cube** and **Vector** / aic and aiv), like the bandwidth cards?
+    - **ANSWERED** — **Separate columns** (cube \| vector), same dual-column pattern as bandwidth (Product: 分开统计 like bandwidth). Sketch labels **Cube \| Vector**.
+    - **Implemented** — `computeCard` Cube \| Vector columns in `StatsAside.vue` (slice 3).
 
-### 输入带宽 / 输出带宽 (Input / output bandwidth)
+### 带宽利用率 (Bandwidth utilization)
 
 **Design:** [`v930/report-stats-open`](../ui/source/v930/report-stats-open.jpeg) · [`summary-cards.png`](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 
-<img src="visual/hq/q34.png" alt="Q34 TB/s unit on the I/O footer" width="900" height="225">
+<img src="visual/hq/q34.png" alt="Q34 TB/s unit on the bandwidth footer" width="880" height="400">
 
 34. If the measured value is small (for example `15.8 GB/s`), show **GB/s** or **TB/s**?
     - **ANSWERED** — Always **GB/s** (not TB/s).

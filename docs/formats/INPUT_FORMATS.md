@@ -372,5 +372,5 @@ See prioritized product-owner list: [OPEN_QUESTIONS.md](../context/OPEN_QUESTION
 | UB↔GM field names | Product `MemoryUB.csv` first; sample `Memory.csv` fallback |
 | L0C → UB edge | 待确定; no sample column |
 | Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
-| Report-stat derived cards | 算力 / 平均核利用率 still empty; 输入/输出 **measured** confirmed; peak/score → [I-Q6g](../context/INTERIM_DECISIONS.md) |
+| Report-stat derived cards | **Compute** interim I-Q6h; **AICore parallel** still empty (HQ 9–10); **带宽利用率** measured confirmed, peak/score → [I-Q6g](../context/INTERIM_DECISIONS.md). **Obsolete:** 平均核利用率 / dual 输入·输出 aic\|aiv cards |
 | Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |

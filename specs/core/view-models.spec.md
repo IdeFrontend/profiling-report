@@ -12,11 +12,11 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Behavior
 
-**Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (**confirmed** `Task Duration(us)`), `pid` from `Pid` / `PID`, `blockDim` from `Block Dim`, `coreCount` from `HardwareInfo.jsonl` by op type (HQ 1). **算力情况** is `computeCard` (I-Q6h / HQ 2–4, Q33) when ArithmeticUtilization + peak inputs yield at least one aic/aiv side. Avg core utilization stays unset. I/O bandwidth cards are `bandwidthCards` (I-Q6g): **measured columns confirmed**; peak/score still interim.
+**Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (**confirmed** `Task Duration(us)`), `pid` from `Pid` / `PID`, `blockDim` from `Block Dim`, `coreCount` from `HardwareInfo.jsonl` by op type (HQ 1). **算力情况** is `computeCard` (I-Q6h / HQ 2–4, Q33) when ArithmeticUtilization + peak inputs yield at least one aic/aiv side. **AICore 并行使用率** stays unset on the model until HQ 9–10 (UI **N/A** via I-Q6a). I/O bandwidth cards are `bandwidthCards` (I-Q6g): **measured columns confirmed**; peak/score still interim.
 
-**Compute card (I-Q6h).** From `ArithmeticUtilization.csv` + peak inputs: measured TFLOPS per aic/aiv side (`fops / timeUs / 1e6`); peak from `HardwareInfo.jsonl` core counts and frequency (or OpBasicInfo freq fallback) per HQ 2–3 interim formulas. Omit a side without both measured and peak; omit `computeCard` when no sides. UI shows the card only when `taskDurationUs` is present (I-Q6a).
+**Compute card (I-Q6h).** From `ArithmeticUtilization.csv` + peak inputs: measured TFLOPS per Cube/Vector side (`fops / timeUs / 1e6`; adapter sides `aic`/`aiv`); peak from `HardwareInfo.jsonl` core counts and frequency (or OpBasicInfo freq fallback) per HQ 2–3 interim formulas. Omit a side without both measured and peak; omit `computeCard` when no sides. UI shows **Cube \| Vector** labels; card only when `taskDurationUs` is present (I-Q6a).
 
-**I/O bandwidth (I-Q6g).** From `Memory.csv`: mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_main_mem_{read|write}_bw(GB/s)` (first matching header only; also accepts headers without the `(GB/s)` suffix). Peak = **1600 GB/s** for every side. UI displays **GB/s** (HQ 34). Omit a side when all-NA; omit the card when both sides NA; omit `bandwidthCards` when Memory.csv is missing.
+**Bandwidth (I-Q6g).** From `Memory.csv`: mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_main_mem_{read|write}_bw(GB/s)` (first matching header only; also accepts headers without the `(GB/s)` suffix). Peak = **1600 GB/s**. UI displays **GB/s** (HQ 34). Sketch target: one **带宽利用率** card with **读 \| 写**. Omit a side when all-NA; omit the card when both sides NA; omit `bandwidthCards` when Memory.csv is missing.
 
 **Aside meta (shell).** v930 header is **进程** / **算子类型** / **Blocks** from `pid`, `opType`, `blockDim`. Hide a segment when unset; hide the row when all three are empty. Do **not** put 核数, aic频率, or NPU ARCH on this row. `currentFreq` / `ratedFreq` stay on the model for the hardware overlay fallback; they are not shell fields. Overlay `chip_info` / `arch_info` stay in `hardwareDetails`.
 
@@ -51,7 +51,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 11. **PR-VM-012** — Topology labels come only from the requested `block_id`; first labelled block is used for the adapter snapshot.
 12. **PR-VM-013** — `bandwidthCards` from Memory.csv mean non-NA main-mem BW; peak 1600 GB/s; omit NA sides/cards (I-Q6g). Also covers unmodified `out.rep` (aiv-only; peak 1600).
 13. **PR-VM-014** — `summary.coreCount` from `HardwareInfo.jsonl` by op type (cube/vector/mix); omit when jsonl or field missing.
-14. **PR-VM-015** — `computeCard` from ArithmeticUtilization measured TFLOPS + HardwareInfo peak per aic/aiv (I-Q6h); omit when no side has both.
+14. **PR-VM-015** — `computeCard` from ArithmeticUtilization + HardwareInfo peaks (I-Q6h).
 
 ## Edge Cases
 
@@ -72,6 +72,7 @@ I-Q6a, I-Q6b, I-Q6c, I-Q6d, I-Q6f, I-Q6g, I-Q5+, I-Q7a, I-Q11a–f. [rep-format]
 Q6 — Product-final summary formulas (compute / avg util still open; bandwidth I-Q6g). Q11 — Product-final roofline.
 
 ## Changelog
+- **2026-09-04** — Sketch refresh: compute **Cube \| Vector** labels; bandwidth sketch **读 \| 写**; AICore parallel placeholder (PR-VM-015 / I-Q6h).
 - **2026-09-02** — `computeCard` (I-Q6h / HQ 2–4, Q33) from ArithmeticUtilization + HardwareInfo peaks (PR-VM-015).
 - **2026-09-01** — `summary.coreCount` from `HardwareInfo.jsonl` by op type for duration bar/secondary (HQ 1/32, PR-VM-014).
 - **2026-08-25** — Aside meta is 进程 / 算子类型 / Blocks (`pid` / `opType` / `blockDim`); `coreCount` is not a meta-row field.

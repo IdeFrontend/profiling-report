@@ -5,83 +5,83 @@
 images:
   q1:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 270, w: 600, h: 370 }
+    crop: { x: 40, y: 280, w: 880, h: 380 }
     maxWidth: 900
     highlights:
       - label: "Q1 次迭代/核"
-        box: { x: 28, y: 298, w: 340, h: 52 }
+        box: { x: 32, y: 300, w: 340, h: 52 }
 
   q2:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 630, y: 270, w: 600, h: 370 }
+    crop: { x: 40, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "Q2 172"
-        box: { x: 28, y: 298, w: 140, h: 52 }
+        box: { x: 32, y: 320, w: 160, h: 52 }
 
   q3:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 630, y: 270, w: 600, h: 370 }
+    crop: { x: 40, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "Q3 320"
-        box: { x: 160, y: 298, w: 280, h: 52 }
+        box: { x: 180, y: 320, w: 200, h: 52 }
 
   q4:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 630, y: 270, w: 600, h: 370 }
+    crop: { x: 40, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
-      - label: "Q4 90%"
-        box: { x: 28, y: 130, w: 180, h: 80 }
+      - label: "Q4 90"
+        box: { x: 32, y: 140, w: 180, h: 80 }
 
   q5:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "Q5 1.6 peak"
-        box: { x: 20, y: 288, w: 850, h: 58 }
+        box: { x: 32, y: 320, w: 400, h: 52 }
 
   q6:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "Q6 all peaks"
-        box: { x: 20, y: 288, w: 1730, h: 58 }
+        box: { x: 32, y: 320, w: 800, h: 52 }
 
   q7:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "Q7 81"
-        box: { x: 20, y: 100, w: 850, h: 140 }
+        box: { x: 32, y: 120, w: 280, h: 100 }
 
   q8:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
-      - label: "Q8 I/O cards"
-        box: { x: 8, y: 8, w: 1794, h: 384 }
+      - label: "Q8 带宽利用率"
+        box: { x: 8, y: 8, w: 864, h: 384 }
 
   q9:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 1240, y: 270, w: 590, h: 370 }
+    crop: { x: 940, y: 280, w: 880, h: 380 }
     maxWidth: 900
     highlights:
-      - label: "Q9 82%"
-        box: { x: 24, y: 138, w: 200, h: 72 }
+      - label: "Q9 并行使用率"
+        box: { x: 32, y: 140, w: 280, h: 80 }
 
   q10:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 1240, y: 270, w: 590, h: 370 }
+    crop: { x: 940, y: 280, w: 880, h: 380 }
     maxWidth: 900
     highlights:
-      - label: "Q10 启用核"
-        box: { x: 24, y: 298, w: 420, h: 52 }
+      - label: "Q10 负载均衡度"
+        box: { x: 420, y: 140, w: 280, h: 80 }
 
   q11:
     source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
@@ -233,27 +233,27 @@ images:
 
   q32:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 270, w: 600, h: 370 }
+    crop: { x: 40, y: 280, w: 880, h: 380 }
     maxWidth: 900
     highlights:
       - label: "Q32 bar"
-        box: { x: 28, y: 240, w: 340, h: 38 }
+        box: { x: 32, y: 220, w: 400, h: 40 }
 
   q33:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 630, y: 270, w: 600, h: 370 }
+    crop: { x: 40, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
-      - label: "Q33 one number"
-        box: { x: 20, y: 90, w: 540, h: 150 }
+      - label: "Q33 Cube|Vector"
+        box: { x: 20, y: 100, w: 840, h: 220 }
 
   q34:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "Q34 TB/s"
-        box: { x: 20, y: 288, w: 850, h: 58 }
+        box: { x: 32, y: 320, w: 400, h: 52 }
 
   q35:
     source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
