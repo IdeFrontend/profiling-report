@@ -252,13 +252,14 @@ export function gutterBarsForCard(
   return toBars(raw, metric);
 }
 
-/** PyPTO average-line position (% of 110px track). Util = 50; clockCycle = mean barWidth. */
+/** PyPTO average-line position (% of 110px track). Util = 50; clockCycle = mean barWidth (zeros count). */
 export function averageBarWidthForCard(
   bars: Map<string, GutterBarDisplay>,
   metric: GutterMetric,
 ): number | undefined {
   if (metric === 'utilization') return 50;
-  const widths = [...bars.values()].map((b) => b.barWidth).filter((w) => w > 0);
+  // Include barWidth 0 — a zero-width filled slot is still a bar (≠ empty util slot).
+  const widths = [...bars.values()].map((b) => b.barWidth);
   if (widths.length < 2) return undefined;
   return widths.reduce((a, b) => a + b, 0) / widths.length;
 }

@@ -1800,6 +1800,15 @@ describe('SwimlaneView', () => {
     opt!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(wrapper.emitted('update:gutter-metric')).toEqual([[{ cardId: 'card0', metric: 'utilization' }]]);
     expect(wrapper.emitted('toggle-group')).toBeUndefined();
+
+    // Keyboard on the metric control must not collapse the Card (Enter/Space).
+    await wrapper.get('[data-testid="card-metric-select"] .pr-metric-select__trigger').trigger('keydown', {
+      key: 'Enter',
+    });
+    await wrapper.get('[data-testid="card-metric-select"] .pr-metric-select__trigger').trigger('keydown', {
+      key: ' ',
+    });
+    expect(wrapper.emitted('toggle-group')).toBeUndefined();
   });
 
   it('PR-SWIMVIEW-012: per-Card metric selection is independent', () => {

@@ -375,6 +375,13 @@ function onMetricChange(cardId: string, metric: GutterMetric) {
   emit('update:gutter-metric', { cardId, metric });
 }
 
+/** Collapse/expand only when the activation target is the strip itself — not the metric select. */
+function onCardStripActivate(cardId: string, e: Event) {
+  const t = e.target;
+  if (t instanceof Element && t.closest('.pr-metric-select')) return;
+  emit('toggle-group', cardId);
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
@@ -531,9 +538,9 @@ defineExpose({
           :aria-label="strip.name"
           :style="{ top: `${strip.top}px` }"
           @pointerenter="clearCursor"
-          @click="emit('toggle-group', strip.id)"
-          @keydown.enter.prevent="emit('toggle-group', strip.id)"
-          @keydown.space.prevent="emit('toggle-group', strip.id)"
+          @click="onCardStripActivate(strip.id, $event)"
+          @keydown.enter.prevent="onCardStripActivate(strip.id, $event)"
+          @keydown.space.prevent="onCardStripActivate(strip.id, $event)"
           @wheel="onStripWheel"
         >
           <span class="pr-card-strip__label">
