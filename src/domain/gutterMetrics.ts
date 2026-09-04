@@ -72,10 +72,9 @@ function leafRawValue(
   switch (metric) {
     case 'clockCycle':
       return cycleByKey.get(key);
-    case 'utilization': {
-      const u = computeThreadUtilization(thread, model.minTime, model.maxTime);
-      return u > 0 ? u : undefined;
-    }
+    case 'utilization':
+      // Include 0 so idle lanes paint `0%` and folder means count idle children.
+      return computeThreadUtilization(thread, model.minTime, model.maxTime);
     default:
       return undefined;
   }
