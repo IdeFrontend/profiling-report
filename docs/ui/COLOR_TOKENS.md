@@ -69,8 +69,10 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
   --pr-color-scalar: #1a743e;
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
-  --pr-color-bandwidth-bar: #3078f0;
   --pr-color-duration-bar: #5ec8d8;
+  --pr-color-card-bar-primary: #5ec8d8;
+  --pr-color-card-bar-secondary: #5ed8a8;
+  --pr-color-bandwidth-bar: #5ec8d8; /* alias of card-bar-primary */
   --pr-color-playhead: #3078f0;
   --pr-bg-deep: #1f1f1f;
   --pr-bg-aside: #1a1a1a;
