@@ -327,8 +327,8 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     let onUpdate: ((v: number) => void) | null = null;
     let onDone: (() => void) | null = null;
     vi.spyOn(anim, 'animateProgress').mockImplementation((opts) => {
-      onUpdate = opts.onUpdate;
-      onDone = opts.onDone;
+      onUpdate = opts.onUpdate ?? null;
+      onDone = opts.onDone ?? null;
       return () => {};
     });
 
