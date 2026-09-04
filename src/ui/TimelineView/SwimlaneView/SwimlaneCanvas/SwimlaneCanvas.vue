@@ -482,6 +482,7 @@ function applyViewState(forceModel = false): void {
   backend.setSearchQuery(props.searchQuery);
   if (useWebGl.value) {
     overlay.setLayout(backend.getLayout());
+    overlay.setCollapseAnim(props.collapseAnim ?? null);
     overlay.setView(props.view);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setHoveredLane(hoveredLaneId.value);

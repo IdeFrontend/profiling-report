@@ -45,7 +45,7 @@ function folderModel(): SwimlaneModel {
   };
 }
 
-describe('applyCollapseAnim (PR-RENDER-023)', () => {
+describe('applyCollapseAnim (PR-RENDER-024)', () => {
   it('groupBottomY locates the fold just below a folder row', () => {
     const layout = rebuildLayout(folderModel());
     expect(groupBottomY(layout, 'core')).toBe(84 + LANE_HEIGHT);

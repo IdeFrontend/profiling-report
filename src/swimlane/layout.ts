@@ -122,6 +122,69 @@ export function groupBottomY(layout: SwimlaneLayout, groupId: string): number {
 }
 
 /**
+ * Per-frame collapse/expand transform, computed once per state from the expanded base
+ * layout and applied inline in the paint loops (no per-frame layout materialization).
+ */
+export interface CollapseTransform {
+  active: boolean;
+  /** Fold line: content Y just below the group header/folder row. */
+  foldY: number;
+  /** Content Y of the group's top edge (header/folder row). */
+  groupTop: number;
+  /** Content Y just past the last subtree row at full expansion. */
+  subtreeEnd: number;
+  /** 0..1 visibility of the collapsing subtree. */
+  visible: number;
+  /** Gap close amount for rows after the subtree (`hiddenHeight × (1 − visible)`). */
+  shift: number;
+}
+
+export const IDLE_COLLAPSE: CollapseTransform = {
+  active: false,
+  foldY: 0,
+  groupTop: 0,
+  subtreeEnd: 0,
+  visible: 1,
+  shift: 0,
+};
+
+/** Build the collapse transform for `state` (or IDLE when settled / group absent). */
+export function collapseTransform(
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+): CollapseTransform {
+  if (!state || state.hiddenHeight <= 0 || state.visible >= 1) return IDLE_COLLAPSE;
+  const edges = groupEdges(layout, state.groupId);
+  if (!edges) return IDLE_COLLAPSE;
+  return {
+    active: true,
+    foldY: edges.foldY,
+    groupTop: edges.top,
+    subtreeEnd: edges.foldY + state.hiddenHeight,
+    visible: state.visible,
+    shift: state.hiddenHeight * (1 - state.visible),
+  };
+}
+
+/**
+ * Slide the collapse in two regions (see `applyCollapseAnim`): subtree rows tuck toward
+ * the group's top edge; rows after the subtree shift up to close the gap.
+ */
+export function collapseShiftY(y: number, t: CollapseTransform): number {
+  if (!t.active) return y;
+  if (y < t.foldY) return y; // parent + above: untouched
+  if (y < t.subtreeEnd) return t.groupTop + (y - t.groupTop) * t.visible;
+  return y - t.shift;
+}
+
+/** Fade the collapsing subtree; everything else stays opaque. */
+export function collapseAlpha(y: number, t: CollapseTransform): number {
+  if (!t.active) return 1;
+  if (y < t.foldY || y >= t.subtreeEnd) return 1;
+  return Math.max(0, Math.min(1, t.visible));
+}
+
+/**
  * Slide + fade the collapse. Two regions, so a **nested** folder's rows tuck into the
  * parent group lane (never past it into the lanes above) while only the rows *after*
  * the subtree close the gap:
@@ -135,28 +198,20 @@ export function applyCollapseAnim(
   layout: SwimlaneLayout,
   state: CollapseAnimState | null,
 ): SwimlaneLayout {
-  if (!state || state.hiddenHeight <= 0 || state.visible >= 1) return layout;
-  const edges = groupEdges(layout, state.groupId);
-  if (!edges) return layout;
-
-  const visible = state.visible;
-  const shift = state.hiddenHeight * (1 - visible);
-  const subtreeEnd = edges.foldY + state.hiddenHeight;
+  const t = collapseTransform(layout, state);
+  if (!t.active) return layout;
 
   const lanes = layout.lanes.map((l) => {
-    if (l.y < edges.foldY) return l; // parent + above: untouched
-    if (l.y < subtreeEnd) {
-      // Collapsing subtree: tuck toward the parent top, fade out.
-      return {
-        ...l,
-        y: edges.top + (l.y - edges.top) * visible,
-        alpha: Math.max(0, Math.min(1, visible)),
-      };
-    }
-    // Rows after the subtree: close the gap, stay opaque.
-    return { ...l, y: l.y - shift };
+    const y = collapseShiftY(l.y, t);
+    if (y === l.y) return l; // parent + above, or no-op rows after subtree when shift 0
+    const next = { ...l, y };
+    if (l.y < t.subtreeEnd) next.alpha = collapseAlpha(l.y, t);
+    return next;
   });
-  const headers = layout.headers.map((h) => (h.y < edges.foldY ? h : { ...h, y: h.y - shift }));
+  const headers = layout.headers.map((h) => {
+    const y = collapseShiftY(h.y, t);
+    return y === h.y ? h : { ...h, y };
+  });
 
   // Events track their lane's animated Y (a lane's events all share that lane's `y`).
   const events = layout.events.map((e) => {

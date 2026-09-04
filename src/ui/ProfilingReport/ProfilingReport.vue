@@ -117,6 +117,9 @@ let layoutResizeObserver: ResizeObserver | null = null;
 const collapsedGroupIds = ref<string[]>([]);
 /** In-flight collapse/expand tween; null when settled. */
 const collapseAnim = ref<CollapseAnimState | null>(null);
+/** Group id forced expanded while its tween runs (kept separate from `visible` so the
+ *  display model does not re-derive every frame). */
+const animGroupId = ref<string | null>(null);
 let cancelCollapseAnim: () => void = () => {};
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
 const operators = ref<ReportOperator[]>([]);
@@ -166,12 +169,14 @@ const laneGroups = computed(() =>
   })),
 );
 
-/** Collapse set with the in-flight group forced EXPANDED so the tween can interpolate. */
-const visualCollapsedIds = computed(() => {
-  const anim = collapseAnim.value;
-  if (!anim) return collapsedGroupIds.value;
-  return collapsedGroupIds.value.filter((id) => id !== anim.groupId);
-});
+/** Collapse set with the in-flight group forced EXPANDED so the tween can interpolate.
+ *  Depends only on `animGroupId` (stable across frames), not `collapseAnim.visible`, so
+ *  `displaySwim` stays cached for the whole tween and the canvas never rebuilds meshes. */
+const visualCollapsedIds = computed(() =>
+  animGroupId.value
+    ? collapsedGroupIds.value.filter((id) => id !== animGroupId.value)
+    : collapsedGroupIds.value,
+);
 
 /** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
 const displaySwim = computed((): SwimlaneModel | null => {
@@ -246,6 +251,9 @@ function resetViewFromModel(
   opts?: { preservePanelWidths?: boolean },
 ): void {
   stopViewWindowAnim();
+  cancelCollapseAnim();
+  collapseAnim.value = null;
+  animGroupId.value = null;
   const next = createViewState(model);
   next.asideVisible = showAsidePanel;
   viewState.value = next;
@@ -324,11 +332,13 @@ function onToggleGroup(groupId: string): void {
 
   cancelCollapseAnim();
   if (hiddenHeight <= 0 || prefersReducedMotion()) {
+    animGroupId.value = null;
     collapsedGroupIds.value = target;
     clampScrollAfterCollapse();
     return;
   }
 
+  animGroupId.value = groupId;
   collapseAnim.value = { groupId, visible: collapsing ? 1 : 0, hiddenHeight };
   cancelCollapseAnim = animateProgress({
     from: collapsing ? 1 : 0,
@@ -339,6 +349,7 @@ function onToggleGroup(groupId: string): void {
     },
     onDone: () => {
       collapseAnim.value = null;
+      animGroupId.value = null;
       collapsedGroupIds.value = target;
       clampScrollAfterCollapse();
     },
@@ -485,6 +496,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
   cancelCollapseAnim();
+  collapseAnim.value = null;
+  animGroupId.value = null;
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onMeasureKeydown);
 });
