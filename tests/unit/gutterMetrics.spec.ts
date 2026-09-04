@@ -177,16 +177,31 @@ describe('PR-GMET: gutter metrics', () => {
           name: 'Card0',
           threads: [
             {
-              id: 'l1',
-              name: 'Lane',
-              events: [{ id: 'e1', name: 'busy', startTime: 0, duration: 400 }],
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [
+                {
+                  id: 'busy',
+                  name: 'LaneBusy',
+                  events: [{ id: 'e1', name: 'busy', startTime: 0, duration: 400 }],
+                },
+                {
+                  id: 'idle',
+                  name: 'LaneIdle',
+                  events: [],
+                },
+              ],
             },
           ],
         },
       ],
     };
     const bars = gutterBarsForCard(model, [], 'utilization', 'card0');
-    expect(bars.get('l1')).toMatchObject({ barWidth: 40, label: '40%', thresholdColor: true });
+    expect(bars.get('busy')).toMatchObject({ barWidth: 40, label: '40%', thresholdColor: true });
+    expect(bars.get('idle')).toMatchObject({ barWidth: 0, label: '0%', thresholdColor: true });
+    // Folder mean includes idle child: (0.4 + 0) / 2 = 0.2 → 20%
+    expect(bars.get('folder')).toMatchObject({ barWidth: 20, label: '20%' });
   });
 
   it('PR-GMET-005: clockCycle folder rollup means child values', () => {

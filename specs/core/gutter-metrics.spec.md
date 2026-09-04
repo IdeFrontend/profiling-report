@@ -95,7 +95,7 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 
 ### utilization (summary)
 
-`barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0. **label** = `` `${barWidth}%` ``. **thresholdColor** = true (red when **&lt; 50%**, gray when ≥ 50% — matches LaneGutter `barWidth < 50`). Midline fixed at **50%**. Full rules: [utilization.spec.md](./utilization.spec.md).
+`barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0; **`0` when coverage is 0** (idle lanes keep a defined bar, not an empty slot). **label** = `` `${barWidth}%` ``. **thresholdColor** = true (red when **&lt; 50%**, gray when ≥ 50% — matches LaneGutter `barWidth < 50`). Midline fixed at **50%**. Folder means include idle children. Full rules: [utilization.spec.md](./utilization.spec.md).
 
 ### Fill / midline (both metrics)
 
@@ -111,7 +111,7 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 3. **PR-GMET-003** — clockCycle barWidth normalizes to max lane in Card.
 4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring.
 5. **PR-GMET-005** — Folder rollups mean child values for clockCycle.
-6. **PR-GMET-006** — Ignores `NA` CSV cells; means `*_time(us)` across `block_id` rows (I-Q6b pattern / I-Q6f quantity).
+6. **PR-GMET-006** — Ignores `NA` CSV cells; means `*_time(us)` across `block_id` rows (DATA-33b pattern / DATA-33f quantity).
 7. **PR-GMET-007** — `averageBarWidthForCard`: 50 for utilization; mean barWidth for clockCycle when ≥2 lanes.
 8. **PR-GMET-008** — `clockCycle` labels: integer when `|raw| ≥ 0.5`; otherwise two decimals (or `toPrecision(2)` when `raw < 0.01`); always suffix **`µs`**; never uses cycle-count columns.
 
@@ -123,13 +123,13 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 | Empty Card subtree | No bars; selector hidden when no modes |
 | Flat CTEF (no nested children) | Metrics apply to depth-0 pipe leaves |
 | Lane with no matching CSV key | Empty bar slot (no fill, no label) for clockCycle |
+| Idle utilization leaf (coverage 0) | `0%` bar (not an empty slot); included in folder mean |
 | MIX op with both aic and aiv columns for one key | Mean of per-column means (e.g. mte2, scalar) |
 | Fractional time mean &lt; 0.5 | Label shows decimals with unit (e.g. `0.31µs`), not `0` or bare `0.31` |
 | `*_total_cycles` present in CSV | **Ignored** for gutter clockCycle |
 
 ## Dependencies
 
-<<<<<<< HEAD
 [utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [DATA-33b / DATA-33f / DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-45a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-45](../../docs/context/questions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
 ## Open
@@ -137,18 +137,9 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 **Product confirmation pending** — formula and **`µs`** presentation are **Interim** engineering defaults ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-45a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-45](../../docs/context/questions/UI.md)). Until Product answers DATA-38 / UI-45: keep the column map, mean-across-blocks `*_time(us)` raw, relative barWidth, and `µs` labels as specified above. MIX keys that share one `laneColorKey` keep mean-of-column-means until Product defines another blend.
 
 ## Changelog
+- **2026-09-04** — Utilization idle leaves (`coverage = 0`) keep a `0%` bar and count in folder means (PR-GMET-004).
+- **2026-09-04** — Remap interim ask to **DATA-38** / **UI-45** (was Q24 / HQ 39–40) after open-question ID unify; avoid collision with timeline CPU clocks (old OPEN Q23 / HQ 38).
 - **2026-09-04** — Mark clockCycle formula + `µs` labels as Interim pending Product via DATA-38 / UI-45 / DATA-38a / UI-45a.
-=======
-[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [INTERIM_DECISIONS.md](../../docs/context/INTERIM_DECISIONS.md) (I-Q6b, I-Q6f, **I-Q6h**, **I-Q6i**), [OPEN_QUESTIONS.md](../../docs/context/OPEN_QUESTIONS.md) (**Q24**), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
-
-## Open
-
-**Product / HQ confirmation pending** — formula and **`µs`** presentation are **Interim** engineering defaults ([I-Q6h](../../docs/context/INTERIM_DECISIONS.md), [I-Q6i](../../docs/context/INTERIM_DECISIONS.md), [Q24](../../docs/context/OPEN_QUESTIONS.md) / HQ 39–40). Until Product answers Q24: keep the column map, mean-across-blocks `*_time(us)` raw, relative barWidth, and `µs` labels as specified above. MIX keys that share one `laneColorKey` keep mean-of-column-means until Product defines another blend.
-
-## Changelog
-- **2026-09-04** — Renumber interim ask to **Q24** / HQ 39–40 (avoid collision with OPEN Q23 / HQ 38 timeline clocks on another PR).
-- **2026-09-04** — Mark clockCycle formula + `µs` labels as Interim pending HQ via Q24 / I-Q6h / I-Q6i.
->>>>>>> 4aa05ee (fix: stop metric-select keys collapsing Card; renumber Q24/HQ 39-40)
 - **2026-09-03** — Normative clockCycle formula: `*_time(us)` only (µs); explicit column map; forbid cycle-count columns; resolve name-vs-quantity wording.
 - **2026-09-03** — Drop `cacheHit` and `task`; only `clockCycle` + `utilization`.
 - **2026-09-03** — `clockCycle` labels append `µs` so mean `*_time(us)` is not read as % / ratio (PR-GMET-008).
