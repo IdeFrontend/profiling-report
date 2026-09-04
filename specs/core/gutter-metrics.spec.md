@@ -20,7 +20,7 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 - **clockCycle** raw values and labels are **microseconds** of pipe active time (`*_time(us)`), never cycle counts and never percents. Label always ends with **`µs`** (same glyph as `formatTime`).
 - **utilization** labels use **`%`** of event coverage over the model span.
 - Time window for **utilization** is the swimlane model span `[minTime, maxTime]` (full trace), not the visible viewport.
-- CSV aggregations ignore `NA` tokens. Mean-across-`block_id` uses the same aggregation **pattern** as pipe occupancy ([I-Q6b](../../docs/context/INTERIM_DECISIONS.md)); for clockCycle the averaged cells are **`*_time(us)`**, matching aside absolute time ([I-Q6f](../../docs/context/INTERIM_DECISIONS.md): mean non-`NA` `*_time(us)`, **not cycles**).
+- CSV aggregations ignore `NA` tokens. Mean-across-`block_id` uses the same aggregation **pattern** as pipe occupancy ([DATA-33b](../../docs/context/decisions/interim/DATA.md)); for clockCycle the averaged cells are **`*_time(us)`**, matching aside absolute time ([DATA-33f](../../docs/context/decisions/interim/DATA.md): mean non-`NA` `*_time(us)`, **not cycles**).
 
 ## Behavior
 
@@ -129,13 +129,14 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 
 ## Dependencies
 
-[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [INTERIM_DECISIONS.md](../../docs/context/INTERIM_DECISIONS.md) (I-Q6b, I-Q6f), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
+[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [DATA-33b / DATA-33f / DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-45a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-45](../../docs/context/questions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
 ## Open
 
-None for clockCycle quantity (µs from `*_time(us)` is locked). MIX keys that share one `laneColorKey` keep the mean-of-column-means rule above until Product defines another blend.
+**Product confirmation pending** — formula and **`µs`** presentation are **Interim** engineering defaults ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-45a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-45](../../docs/context/questions/UI.md)). Until Product answers DATA-38 / UI-45: keep the column map, mean-across-blocks `*_time(us)` raw, relative barWidth, and `µs` labels as specified above. MIX keys that share one `laneColorKey` keep mean-of-column-means until Product defines another blend.
 
 ## Changelog
+- **2026-09-04** — Mark clockCycle formula + `µs` labels as Interim pending Product via DATA-38 / UI-45 / DATA-38a / UI-45a.
 - **2026-09-03** — Normative clockCycle formula: `*_time(us)` only (µs); explicit column map; forbid cycle-count columns; resolve name-vs-quantity wording.
 - **2026-09-03** — Drop `cacheHit` and `task`; only `clockCycle` + `utilization`.
 - **2026-09-03** — `clockCycle` labels append `µs` so mean `*_time(us)` is not read as % / ratio (PR-GMET-008).

@@ -45,9 +45,13 @@ IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker in place
 | `I-Q4` | `DATA-31a` |
 | `I-Q5+` | `DATA-32a` |
 | `I-Q6a–g` | `DATA-33a…DATA-33g` |
+| `I-Q6h` | `DATA-38a` |
+| `I-Q6i` | `UI-45a` |
 | `I-Q7a` | `DATA-34a` |
 | `I-Q9` | `DATA-36a` |
 | `I-Q11a–f` | `DATA-37a…DATA-37f` |
 | `I-Q14` | `UI-40a` |
 | `I-Q16–19` | `PKG-1a…PKG-3a`, `UI-41a` |
+| `Q24` / `HQ 39` | `DATA-38` |
+| `HQ 40` | `UI-45` |
 | `D-PIN-FOLDER` | `UI-44` |

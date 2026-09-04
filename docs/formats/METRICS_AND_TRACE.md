@@ -88,7 +88,7 @@ Per-Card dropdown on swimlane Card strips. Normative formula: [gutter-metrics.sp
 | 时钟周期 (`clockCycle`) | Mean pipe **active time (µs)** — UI label says “Clock Cycle”, values are **not** cycle counts | `PipeUtilization.csv` mapped `*_time(us)` only (see gutter-metrics column map) | Label suffix **`µs`**; hide when no mappable time data; **ignore** `*_total_cycles` |
 | 利用率 (`utilization`) | Event coverage % over model time span | `trace.json` | Always when trace exists |
 
-Default: **时钟周期** when available, else **利用率**. Aside PIPE **ratio** bars stay I-Q6b; aside in-bar absolute times stay I-Q6f (same `*_time(us)` means as gutter clockCycle raw, different UI).
+Default: **时钟周期** when available, else **利用率**. Aside PIPE **ratio** bars stay [DATA-33b](../context/decisions/interim/DATA.md); aside in-bar absolute times stay [DATA-33f](../context/decisions/interim/DATA.md) (same `*_time(us)` means as gutter clockCycle raw, different UI). **Product confirmation:** [DATA-38](../context/questions/DATA.md), [DATA-38a](../context/decisions/interim/DATA.md), [UI-45](../context/questions/UI.md), [UI-45a](../context/decisions/interim/UI.md).
 
 **Fill / midline:** utilization — red when ≤ 50%, dash at 50%. clockCycle — red on max lane(s) only (all gray when tied); dash at `(mean raw ÷ max raw) × 100`.
 

@@ -19,3 +19,11 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Interim:** Follow [PACKAGING_SUGGESTIONS](../../PACKAGING_SUGGESTIONS.md) as if accepted for scaffold: wheel/slider/drag MVP; W/S/A/D P2.
 **Implement / test as:** wheel/slider/drag MVP; W/S/A/D P2
 **Superseded when:** Product confirm/change UI-41
+
+### UI-45a — Card gutter 时钟周期 label units
+
+**Status:** `interim`
+**Question:** [UI-45](../../questions/UI.md)
+**Interim:** Labels always suffix **`µs`** (same glyph as `formatTime`) so values are not read as `%` or bare ratios. Formatting: integer when \(\lvert raw\rvert\ge 0.5\); else two decimals / `toPrecision(2)` when tiny (`PR-GMET-008`).
+**Implement / test as:** `formatClockCycleLabel`, LaneGutter thick/tip labels
+**Superseded when:** Product confirms unit glyph, locale wording, or cycle-count display ([UI-45](../../questions/UI.md))
