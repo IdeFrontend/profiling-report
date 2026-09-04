@@ -8,17 +8,18 @@ Single source of truth for unanswered product / engineering questions, stored **
 | [UI.md](UI.md) | `UI-*` | Presentation / UX |
 | [PROC.md](PROC.md) | `PROC-*` | Process / tooling / acceptance |
 | [PKG.md](PKG.md) | `PKG-*` | Packaging / distribution |
+| [deferred.md](deferred.md) | any | Parked (backlog) questions — status `deferred` |
 
 **Statuses (single enum):** `open` | `partial` | `interim` | `deferred` | `resolved`
 
-- `open` / `partial` — live here (this folder).
-- `interim` — engineering default only; the rule lives in [INTERIM_DECISIONS](../INTERIM_DECISIONS.md) under a sub-letter id (e.g. `DATA-33b`). The question row stays here.
-- `deferred` — Product-confirmed out of this iteration, marked `DEFERRED` in place (never renumbered).
+- `open` / `partial` — live here (the per-prefix files).
+- `interim` — engineering default only; the rule lives in [../decisions/interim/](../decisions/interim/) under a sub-letter id (e.g. `DATA-33b`). The question row stays here.
+- `deferred` — Product-confirmed out of this iteration; parked in [deferred.md](deferred.md) (backlog), never renumbered.
 - `resolved` — Product-final; the entry lives in [../decisions/](../decisions/), keeping the **same bare id**.
 
 **When resolved:** write the decision into the owning specs **and** file a [../decisions/](../decisions/) entry in the **same change**; remove the row here. Process: [DEVELOPMENT.md § Resolving open questions](../../process/DEVELOPMENT.md#resolving-open-questions).
 
-**Scope.** This folder is the **question ledger** — what is open and what Product still owes us: each question, its status, and the answer so far. It does **not** hold interim rule text, implement/test mapping, or the MVP build checklist — those are engineering execution, not question content, and live in [INTERIM_DECISIONS](../INTERIM_DECISIONS.md). A question with status `interim` keeps its row here and points at the sub-letter rule there (e.g. `DATA-33b`).
+**Scope.** This folder is the **question ledger** — what is open and what Product still owes us: each question, its status, and the answer so far. It does **not** hold interim rule text, implement/test mapping, or the MVP build checklist — those are engineering execution, not question content, and live in [../decisions/interim/](../decisions/interim/). A question with status `interim` keeps its row here and points at the sub-letter rule there (e.g. `DATA-33b`).
 
 ## ID prefix taxonomy (closed set)
 

@@ -22,7 +22,7 @@ With no parameters at all the column shows an empty note rather than disappearin
 
 Keys are not translated: they are producer field names (`Code`, `Pc_addr`, `Process_bytes` in the sketch) and renaming them would break the link back to the trace.
 
-`event_id` and `dependencies` are dropped: under [DATA-36a](../../../../docs/context/INTERIM_DECISIONS.md) they are the dependency transport, already shown as the Relevent graph, and the sketch's parameter list holds only producer fields. `cat` goes with them: the Chrome Trace adapter copies the event category into `args`, and DetailSummary already reads it for the type pill — it is not a producer parameter.
+`event_id` and `dependencies` are dropped: under [DATA-36a](../../../../docs/context/decisions/interim/DATA.md) they are the dependency transport, already shown as the Relevent graph, and the sketch's parameter list holds only producer fields. `cat` goes with them: the Chrome Trace adapter copies the event category into `args`, and DetailSummary already reads it for the type pill — it is not a producer parameter.
 
 ## Acceptance Criteria
 

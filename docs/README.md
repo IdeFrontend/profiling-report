@@ -8,7 +8,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 2. **[context/DOMAIN_AND_USERS.md](context/DOMAIN_AND_USERS.md)** — OP developers, pain points, glossary, link to UX scenarios
 3. **[context/MARKET_AND_COMPETITORS.md](context/MARKET_AND_COMPETITORS.md)** — NVIDIA Nsight analogues, competitors, market frame
 4. **[context/questions/](context/questions/)** — open questions (DATA/UI/PROC/PKG ids). Resolved answers: **[context/decisions/](context/decisions/)**
-5. **[context/INTERIM_DECISIONS.md](context/INTERIM_DECISIONS.md)** — engineering defaults that unblock MVP coding (not Product-final)
+5. **[context/decisions/interim/](context/decisions/interim/)** — engineering defaults that unblock MVP coding (not Product-final)
 6. **[process/DEVELOPMENT.md](process/DEVELOPMENT.md)** — top-down workflow: docs → specs → tests → code
 7. **[process/roadmap/](process/roadmap/)** — delivery milestones to full UI (dates, tasks, blockers)
 7. **[process/PROJECT_STRUCTURE.md](process/PROJECT_STRUCTURE.md)** — canonical project layout: spec locations, per-component folders, test ID conventions, traceability
@@ -40,7 +40,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 | [context/MARKET_AND_COMPETITORS.md](context/MARKET_AND_COMPETITORS.md) | NVIDIA Nsight analogues and competitor landscape |
 | [context/questions/](context/questions/) | Open questions — DATA/UI/PROC/PKG ids, single status enum |
 | [context/decisions/](context/decisions/) | Product-final decisions (resolved open questions, provenance) |
-| [context/INTERIM_DECISIONS.md](context/INTERIM_DECISIONS.md) | Interim engineering defaults for MVP coding |
+| [context/decisions/interim/](context/decisions/interim/) | Interim engineering defaults for MVP coding |
 | [context/PACKAGING_SUGGESTIONS.md](context/PACKAGING_SUGGESTIONS.md) | PKG-1 … PKG-3, UI-41 suggestions (interim until Product confirms) |
 | [process/DEVELOPMENT.md](process/DEVELOPMENT.md) | Spec-driven TDD workflow, slice order, Definition of Done |
 | [process/roadmap/](process/roadmap/) | Delivery milestones M1–M3 (dates, swimlane vs other views, tasks, blockers) |

@@ -372,5 +372,5 @@ See prioritized product-owner list: [questions](../context/questions/).
 | UB↔GM field names | Product `MemoryUB.csv` first; sample `Memory.csv` fallback |
 | L0C → UB edge | 待确定; no sample column |
 | Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
-| Report-stat derived cards | 算力 / 平均核利用率 still empty; 输入/输出 **measured** confirmed; peak/score → [DATA-33g](../context/INTERIM_DECISIONS.md) |
+| Report-stat derived cards | 算力 / 平均核利用率 still empty; 输入/输出 **measured** confirmed; peak/score → [DATA-33g](../context/decisions/interim/DATA.md) |
 | Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |

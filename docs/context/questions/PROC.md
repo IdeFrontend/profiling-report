@@ -8,7 +8,7 @@ Open **PROC** questions (process / tooling / acceptance). Status enum, prefix ta
 
 **Question:** `.ncrep` vs `.rep`?
 
-**Interim:** Same layout/alias — [`PROC-2a`](../INTERIM_DECISIONS.md).
+**Interim:** Same layout/alias — [`PROC-2a`](../decisions/interim/PROC.md).
 
 ### PROC-5 — acceptance owner (was: Q21)
 

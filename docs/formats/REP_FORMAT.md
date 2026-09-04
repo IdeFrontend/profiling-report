@@ -11,7 +11,7 @@ Interim normative description of the binary report container used by profiling-r
 | `.rep` | Generic CANN report container (sample: `data/out.rep`) |
 | `.ncrep` | Product alias for OP profiling reports (UI sketches: `report.ncrep`) |
 
-Both use the same binary layout and magic (**Interim [PROC-2a](../context/INTERIM_DECISIONS.md)** until Product defines divergence). Hosts should open either extension with the profiling-report viewer.
+Both use the same binary layout and magic (**Interim [PROC-2a](../context/decisions/interim/PROC.md)** until Product defines divergence). Hosts should open either extension with the profiling-report viewer.
 
 ### Product `npu-rep` container
 

@@ -192,7 +192,7 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/MET
 ## Related docs
 
 - [PROJECT_GOALS.md](PROJECT_GOALS.md) — product goals and non-goals
-- [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) — MVP engineering defaults (not Product-final)
+- [decisions/interim/](decisions/interim/) — MVP engineering defaults (not Product-final)
 - [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md) — NVIDIA Nsight analogues and competitor landscape
 - [questions](questions/) — unresolved producer / fixture / formula questions
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios S1–S9 and sync model

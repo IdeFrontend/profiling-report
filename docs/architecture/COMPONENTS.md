@@ -77,7 +77,7 @@ OP-report analytics bundle: `summary`, `bandwidthCards[]` (DATA-33g), `pipeOccup
 
 ### `SummaryMetrics` (M)
 
-Op name/type, task duration, optional raw frequency fields. Compute / avg util remain optional and **unset under [DATA-33a](../context/INTERIM_DECISIONS.md)**. I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/INTERIM_DECISIONS.md)), not `summary.ioBandwidth`.
+Op name/type, task duration, optional raw frequency fields. Compute / avg util remain optional and **unset under [DATA-33a](../context/decisions/interim/DATA.md)**. I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/decisions/interim/DATA.md)), not `summary.ioBandwidth`.
 
 **Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns plus documented DATA-33g guesses.
 
@@ -209,7 +209,7 @@ Hierarchical folder/leaf labels and utilization mini-bars, scroll-synced with th
 
 ### `TimeAxis` (M)
 
-Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**. **Two-tier auto ([UI-40a](../context/INTERIM_DECISIONS.md)):** axis/cursor chrome from viewport/density `timeScaleUnit`; tooltip/detail/Δt use per-value magnitude. No manual unit dropdown; no clock-cycle mode yet.
+Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**. **Two-tier auto ([UI-40a](../context/decisions/interim/UI.md)):** axis/cursor chrome from viewport/density `timeScaleUnit`; tooltip/detail/Δt use per-value magnitude. No manual unit dropdown; no clock-cycle mode yet.
 
 **Why:** Shared alignment for overview charts and swimlane; playhead per INTERACTIONS.
 

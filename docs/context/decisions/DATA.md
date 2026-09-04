@@ -13,7 +13,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-01
 - **Question:** The **N 次迭代 / 核** (N iterations / core) line — which field?
 - **Decision:** Label = `OpBasicInfo.csv` `Block Dim` / *core count*, where core count depends on `Op Type`: **cube** → `HardwareInfo.jsonl` `aic_cube_count` (also `ai_cube_count`); **vector** → `ai_vector_count` (also `aic_vector_count`); **mix** → `ai_core_count`.
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INTERIM_DECISIONS](../INTERIM_DECISIONS.md) `DATA-33e`
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](../decisions/interim/) `DATA-33e`
 - **Source:** Product answer doc `355b2688f3684479b0b2b038a3b64513.docx` (2026-08-31); implemented in `summary.coreCount` + secondary `{blockDim} / {coreCount}` (`StatsAside.vue`).
 
 ---
@@ -33,7 +33,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** The number **inside** the PIPE bar — time or cycles?
 - **Decision:** Show **cost time**: mean of non-`NA` `*_time(us)` for the same family/side as the ratio (`PipeUtilization.csv`). Not cycles.
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INTERIM_DECISIONS](../INTERIM_DECISIONS.md) `DATA-33f`
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](../decisions/interim/) `DATA-33f`
 - **Source:** Product answer doc (2026-08-31).
 
 ---
@@ -52,7 +52,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-07-31
 - **Question:** Overview charts data source?
 - **Decision:** **Hide** overview charts until `OverviewSeries` (C). Adapter returns `[]`.
-- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [INTERIM_DECISIONS](../INTERIM_DECISIONS.md) `DATA-32a`
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [decisions/interim/](../decisions/interim/) `DATA-32a`
 
 ---
 
@@ -61,7 +61,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-20
 - **Question:** Hardware details sidebar source?
 - **Decision:** **`HardwareInfo.jsonl`** is the details source. Not required to open Timeline; **更多** always opens the overlay — show `hardwareDetails` when present, else **缺少 hardware info**. Aside meta is **进程** / **算子类型** / **Blocks**.
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INTERIM_DECISIONS](../INTERIM_DECISIONS.md) `DATA-34a`
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](../decisions/interim/) `DATA-34a`
 
 ---
 

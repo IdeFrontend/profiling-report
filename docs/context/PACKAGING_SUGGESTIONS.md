@@ -1,6 +1,6 @@
 # Packaging and Process Suggestions (PKG-1 … PKG-3, UI-41)
 
-**Status:** **Interim** for MVP scaffold — treat as accepted until Product confirms or changes. Tracked in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) (PKG-1a … PKG-3a, UI-41a) and [questions](questions/).
+**Status:** **Interim** for MVP scaffold — treat as accepted until Product confirms or changes. Tracked in [decisions/interim/](decisions/interim/) (PKG-1a … PKG-3a, UI-41a) and [questions](questions/).
 
 ## PKG-1 — Package identity
 

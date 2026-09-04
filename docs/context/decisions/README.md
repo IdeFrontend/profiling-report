@@ -1,6 +1,13 @@
-# Decisions (resolved open questions)
+# Decisions
 
-Product-final answers that have left the open list, stored **one file per ID prefix**.
+Decision records, stored by kind. The question ledger is [questions/](../questions/); decisions record the answers that have left it.
+
+| Kind | Folder | Status | Contents |
+|------|--------|--------|----------|
+| **Resolved** | this folder | `resolved` | Product-final answers, one file per ID prefix |
+| **Interim** | [interim/](interim/) | `interim` | Provisional engineering defaults (sub-letter ids, e.g. `DATA-33b`) |
+
+**Resolved** decisions are stored one file per ID prefix:
 
 | File | Prefix | Contents |
 |------|--------|----------|
@@ -9,9 +16,9 @@ Product-final answers that have left the open list, stored **one file per ID pre
 | [PROC.md](PROC.md) | `PROC-*` | Process / tooling / acceptance |
 | [PKG.md](PKG.md) | `PKG-*` | Packaging / distribution |
 
-Each entry keeps the **same bare id** as its question in [questions/](../questions/), plus a `Was` reference to the pre-merge id.
+Each resolved entry keeps the **same bare id** as its question in [questions/](../questions/), plus a `Was` reference to the pre-merge id.
 
-## Format
+## Resolved entry format
 
 - **ID** — same bare id as the question + `(was: <old HQ n / Qn>)`
 - **Resolved** — date
@@ -20,6 +27,6 @@ Each entry keeps the **same bare id** as its question in [questions/](../questio
 - **Specs** — owning docs updated in the same change (normative truth lives here, not in this log)
 - **Source** — Product answer reference (docx hash / PR # / doc)
 
-**Status:** `resolved` is the only status recorded in this folder; see [questions/](../questions/) for the full enum.
+**Status:** `resolved` is the only status recorded in this folder; `interim` lives in [interim/](interim/); see [questions/](../questions/) for the full enum.
 
 Process: [DEVELOPMENT.md § Resolving open questions](../../process/DEVELOPMENT.md#resolving-open-questions).

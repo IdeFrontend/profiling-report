@@ -144,7 +144,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** On the summary bars, do we average all blocks? On **详情**, do we show only the selected block?
 
-**Interim:** summary PIPE bars = mean of non-`NA` ratios across `block_id` ([`DATA-33b`](../INTERIM_DECISIONS.md)); **详情** / memory / metrics = selected block ([`DATA-33c`](../INTERIM_DECISIONS.md)). Product note: summary view is missing a **block selector** label.
+**Interim:** summary PIPE bars = mean of non-`NA` ratios across `block_id` ([`DATA-33b`](../decisions/interim/DATA.md)); **详情** / memory / metrics = selected block ([`DATA-33c`](../decisions/interim/DATA.md)). Product note: summary view is missing a **block selector** label.
 
 ### DATA-20 — Peak(%) box colors
 
@@ -230,7 +230,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** A CSV often has many `block_id` rows. For summary numbers, **mean**, **max**, **first block**, or **selected block**?
 
-**Interim:** [`DATA-33b`](../INTERIM_DECISIONS.md): mean of non-`NA` values across `block_id` for summary PIPE / I/O measured BW. Product note: request a **general aggregation description document**.
+**Interim:** [`DATA-33b`](../decisions/interim/DATA.md): mean of non-`NA` values across `block_id` for summary PIPE / I/O measured BW. Product note: request a **general aggregation description document**.
 
 ### DATA-29 — same rule for every widget?
 
@@ -240,7 +240,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** Same aggregation rule for every widget (cards, PIPE, Roofline, memory diagram)?
 
-**Interim:** [`DATA-33c`](../INTERIM_DECISIONS.md): summary PIPE (and measured BW) stay mean-across-blocks; **详情** / memory diagram / metrics lists are the selected block. Roofline aggregates like [`DATA-33b`](../INTERIM_DECISIONS.md).
+**Interim:** [`DATA-33c`](../decisions/interim/DATA.md): summary PIPE (and measured BW) stay mean-across-blocks; **详情** / memory diagram / metrics lists are the selected block. Roofline aggregates like [`DATA-33b`](../decisions/interim/DATA.md).
 
 ### DATA-31 — authoritative MVP fixture shape (was: Q4)
 
@@ -248,7 +248,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** Authoritative MVP fixture shape?
 
-**Answer so far:** Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [`DATA-31a`](../INTERIM_DECISIONS.md).
+**Answer so far:** Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [`DATA-31a`](../decisions/interim/DATA.md).
 
 ### DATA-33 — report summary formulas (was: Q6)
 
@@ -256,7 +256,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** Report summary formulas?
 
-**Answer so far (interim):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read|write}_bw`; I/O display **GB/s**. Compute TFLOPS and avg core util stay in the sketch grid as **title + `N/A`** until formulas exist. PIPE = mean non-`NA`. MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score**, `block_id` mean vs max vs selected block. Interims: [`DATA-33a…DATA-33g`](../INTERIM_DECISIONS.md).
+**Answer so far (interim):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read|write}_bw`; I/O display **GB/s**. Compute TFLOPS and avg core util stay in the sketch grid as **title + `N/A`** until formulas exist. PIPE = mean non-`NA`. MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score**, `block_id` mean vs max vs selected block. Interims: [`DATA-33a…DATA-33g`](../decisions/interim/DATA.md).
 
 ### DATA-36 — dependencies encoding (was: Q9)
 
@@ -264,7 +264,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** Dependencies encoding?
 
-**Interim:** [`DATA-36a`](../INTERIM_DECISIONS.md) successor-list encoding via Chrome Trace `args`.
+**Interim:** [`DATA-36a`](../decisions/interim/DATA.md) successor-list encoding via Chrome Trace `args`.
 
 ### DATA-37 — roofline formulas (was: Q11)
 
@@ -272,4 +272,4 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** Roofline formulas?
 
-**Interim:** [`DATA-37a…DATA-37f`](../INTERIM_DECISIONS.md).
+**Interim:** [`DATA-37a…DATA-37f`](../decisions/interim/DATA.md).

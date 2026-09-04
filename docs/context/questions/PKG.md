@@ -8,7 +8,7 @@ Open **PKG** questions (packaging / distribution). Status enum, prefix taxonomy,
 
 **Question:** Package identity?
 
-**Interim:** [PACKAGING_SUGGESTIONS](../PACKAGING_SUGGESTIONS.md) / [`PKG-1a`](../INTERIM_DECISIONS.md).
+**Interim:** [PACKAGING_SUGGESTIONS](../PACKAGING_SUGGESTIONS.md) / [`PKG-1a`](../decisions/interim/PKG.md).
 
 ### PKG-2 — design system / i18n (was: Q17)
 
@@ -16,7 +16,7 @@ Open **PKG** questions (packaging / distribution). Status enum, prefix taxonomy,
 
 **Question:** Design system / i18n?
 
-**Interim:** [PACKAGING_SUGGESTIONS](../PACKAGING_SUGGESTIONS.md) / [`PKG-2a`](../INTERIM_DECISIONS.md).
+**Interim:** [PACKAGING_SUGGESTIONS](../PACKAGING_SUGGESTIONS.md) / [`PKG-2a`](../decisions/interim/PKG.md).
 
 ### PKG-3 — PyPTO copy-paste license (was: Q18)
 
@@ -24,4 +24,4 @@ Open **PKG** questions (packaging / distribution). Status enum, prefix taxonomy,
 
 **Question:** PyPTO copy-paste license?
 
-**Interim:** [PACKAGING_SUGGESTIONS](../PACKAGING_SUGGESTIONS.md) / [`PKG-3a`](../INTERIM_DECISIONS.md) — Legal before verbatim paste.
+**Interim:** [PACKAGING_SUGGESTIONS](../PACKAGING_SUGGESTIONS.md) / [`PKG-3a`](../decisions/interim/PKG.md) — Legal before verbatim paste.

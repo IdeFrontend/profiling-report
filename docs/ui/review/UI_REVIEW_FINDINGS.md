@@ -39,7 +39,7 @@ Fixed on `spec/ui-review` unless noted. Sub-items are numbered as in each findin
 | AC-16 | Fixed | Pointer on event blocks, overview track, time axis, and the CSV select; swimlane empty space uses default arrow |
 | AC-17 | Partial | Card expander at 40px with 14px/700 label. Category-row typography and the chevron column are still open — see below |
 | AC-18 | Open | New capability (per-card clock-cycle metric dropdown), not polish |
-| AC-19 | Partial | .1 landed with the pin slice (#51); .2 label lift fixed. Folder/group pin **deferred** this iteration ([D-PIN-FOLDER](../../context/INTERIM_DECISIONS.md)); leaf-only remains shipped — see below |
+| AC-19 | Partial | .1 landed with the pin slice (#51); .2 label lift fixed. Folder/group pin **deferred** this iteration ([UI-44](../../context/questions/deferred.md)); leaf-only remains shipped — see below |
 | AC-20 | Fixed | .1 .2 .3 .5 fixed; .6 fixed on the second pass — the native spinner takes no styling, so the field carries a custom stepper; .4 needed no change — the design panel samples `#363636` and its input `#404040`, both already shipped |
 | AC-21 | Fixed | .1 and .2 were already satisfied (menu opens below the trigger; no checkbox); .3 retinted |
 | AC-22 | Closed | Dev-harness only — the strip is the playground header and never ships |
@@ -277,7 +277,7 @@ Design: [page 1001698](https://octo-g.hdesign.huawei.com/developerPreview/develo
 
 Bullet 2 was never implemented — the row label stayed `#b0b0b0` through hover. Sampling this crop, a resting label peaks at ~`#b0b0b0` while the hovered row's peaks at pure white, so hover now lifts the label to `#fff`. The pin tooltip moved onto the raised-surface chrome at the same time: its spec says to follow EventTooltip, but named that chrome by value (`#2a2a2a` / `#555`), which went stale when AC-09 retinted the tooltip. This crop's bubble measures `#363636`, agreeing with the token.
 
-**Product (2026-09-04) — [D-PIN-FOLDER](../../context/INTERIM_DECISIONS.md):** do **not** ship folder/group pin in the current iteration. Shipped behavior remains **leaf lanes only** (`#51`). Folder + subtree strip is implemented on `feat/pin-grouping-nodes` (PR [#69](https://github.com/IdeFrontend/profiling-report/pull/69) closed unmerged; branch kept) for a later iteration.
+**Product (2026-09-04) — [UI-44](../../context/questions/deferred.md):** do **not** ship folder/group pin in the current iteration. Shipped behavior remains **leaf lanes only** (`#51`). Folder + subtree strip is implemented on `feat/pin-grouping-nodes` (PR [#69](https://github.com/IdeFrontend/profiling-report/pull/69) closed unmerged; branch kept) for a later iteration.
 
 ### AC-20 — Dialog chrome / copy
 

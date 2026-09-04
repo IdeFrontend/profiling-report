@@ -39,7 +39,7 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 
 ## Success criteria (MVP)
 
-Under [INTERIM_DECISIONS](INTERIM_DECISIONS.md) until Product/data spec completes:
+Under [decisions/interim/](decisions/interim/) until Product/data spec completes:
 
 - Unpack and interpret sample [`data/out.rep`](../../data/out.rep) (CSVs + Chrome Trace).
 - Render timeline swimlane with hierarchical lanes (producer names), time axis, zoom/pan, hover tooltip, and single-event selection details.
@@ -58,7 +58,7 @@ Under [INTERIM_DECISIONS](INTERIM_DECISIONS.md) until Product/data spec complete
 - Domain / users / glossary: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md)
 - Market / competitors (NVIDIA Nsight analogues): [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md)
 - Packaging proposals (PKG-1 … PKG-3, UI-41): [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md)
-- **Interim MVP defaults:** [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) (not Product-final)
+- **Interim MVP defaults:** [decisions/interim/](decisions/interim/) (not Product-final)
 - UI sketches: [`docs/ui/source/v930/`](../ui/source/v930/) — index [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md)
 - Color tokens: [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md)
 - View data requirements: [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md)

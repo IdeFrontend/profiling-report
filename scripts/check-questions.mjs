@@ -6,7 +6,7 @@
  * Invariants (see docs/context/questions/):
  *   1. No `resolved` status row is left on the open list.
  *   2. Every DATA-/UI-/PROC-/PKG- id cited in the repo resolves to a known id in
- *      docs/context/questions/ ∪ INTERIM_DECISIONS.md ∪ docs/context/decisions/.
+ *      docs/context/questions/ ∪ docs/context/decisions/ (resolved + interim).
  *   3. Every decision entry (in docs/context/decisions/*.md) links at least one owning spec.
  *   4. Only the canonical status enum (open|partial|interim|deferred) is used on the open list.
  */
@@ -20,7 +20,9 @@ const ROOT = resolve(__dirname, '..');
 
 const QUESTIONS_DIR = resolve(ROOT, 'docs/context/questions');
 const QUESTION_FILES = ['DATA.md', 'UI.md', 'PROC.md', 'PKG.md'];
-const INTERIM = resolve(ROOT, 'docs/context/INTERIM_DECISIONS.md');
+const DEFERRED = resolve(QUESTIONS_DIR, 'deferred.md');
+const INTERIM_DIR = resolve(ROOT, 'docs/context/decisions/interim');
+const INTERIM_FILES = ['DATA.md', 'UI.md', 'PROC.md', 'PKG.md'];
 const DECISIONS_DIR = resolve(ROOT, 'docs/context/decisions');
 const DECISION_FILES = ['DATA.md', 'UI.md', 'PROC.md', 'PKG.md'];
 
@@ -36,12 +38,18 @@ function definedIds() {
     const q = readFileSync(join(QUESTIONS_DIR, file), 'utf8');
     for (const m of q.matchAll(/^###\s+((?:DATA|UI|PROC|PKG)-\d+)\b/gm)) set.add(m[1]);
   }
+  if (existsSync(DEFERRED)) {
+    const d = readFileSync(DEFERRED, 'utf8');
+    for (const m of d.matchAll(/^###\s+((?:DATA|UI|PROC|PKG)-\d+)\b/gm)) set.add(m[1]);
+  }
   for (const file of DECISION_FILES) {
     const dec = readFileSync(join(DECISIONS_DIR, file), 'utf8');
     for (const m of dec.matchAll(/^##\s+((?:DATA|UI|PROC|PKG)-\d+)\b/gm)) set.add(m[1]);
   }
-  const interim = readFileSync(INTERIM, 'utf8');
-  for (const m of interim.matchAll(/\*\*((?:DATA|UI|PROC|PKG)-\d+[a-z]?)\*\*/g)) set.add(m[1]);
+  for (const file of INTERIM_FILES) {
+    const i = readFileSync(join(INTERIM_DIR, file), 'utf8');
+    for (const m of i.matchAll(/^###\s+((?:DATA|UI|PROC|PKG)-\d+[a-z]?)\b/gm)) set.add(m[1]);
+  }
   return set;
 }
 
@@ -49,15 +57,18 @@ function definedIds() {
 function checkOpenStatus() {
   const allowed = new Set(['open', 'partial', 'interim', 'deferred']);
   let count = 0;
-  for (const file of QUESTION_FILES) {
-    const q = readFileSync(join(QUESTIONS_DIR, file), 'utf8');
+  const files = [...QUESTION_FILES.map((f) => join(QUESTIONS_DIR, f))];
+  if (existsSync(DEFERRED)) files.push(DEFERRED);
+  for (const path of files) {
+    const q = readFileSync(path, 'utf8');
+    const name = path.slice(QUESTIONS_DIR.length + 1);
     for (const line of q.split('\n')) {
       if (!line.includes('**Status:**')) continue;
       count++;
       const ticks = [...line.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
       for (const t of ticks) {
         if (!allowed.has(t)) {
-          errors.push(`${file}: status \`${t}\` is not in the open-list enum (open|partial|interim|deferred) — ${line.trim()}`);
+          errors.push(`${name}: status \`${t}\` is not in the open-list enum (open|partial|interim|deferred) — ${line.trim()}`);
         }
       }
     }
@@ -96,7 +107,6 @@ function walk(dir, acc) {
     if (SKIP_DIRS.has(name)) continue;
     if (rel === 'docs/archive') continue;
     if (rel.startsWith('docs/context/questions/')) continue;
-    if (rel === 'docs/context/INTERIM_DECISIONS.md') continue;
     if (rel.startsWith('docs/context/decisions/')) continue;
     let st;
     try {

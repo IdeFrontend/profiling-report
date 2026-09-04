@@ -26,7 +26,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
-| Task display unit (auto s/ms/µs/ns) | M | Two-tier ([UI-40a](../context/INTERIM_DECISIONS.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Cycle mode deferred |
+| Task display unit (auto s/ms/µs/ns) | M | Two-tier ([UI-40a](../context/decisions/interim/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Cycle mode deferred |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
 | Settings | P2 | |
 
@@ -46,7 +46,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | ProfilerStep background bands | P2 | Needs data |
 | Dependency bezier links | P2 | `source/v930/entry.jpeg` |
-| Pin lane (gutter pushpin) | P2 | Leaf only this iteration (`#51`). **Folder pin deferred** — [D-PIN-FOLDER](../context/INTERIM_DECISIONS.md); parked on `feat/pin-grouping-nodes` (PR #69). Sketch: `source/v930/hardware-more-detail.jpeg` |
+| Pin lane (gutter pushpin) | P2 | Leaf only this iteration (`#51`). **Folder pin deferred** — [UI-44](../context/questions/deferred.md); parked on `feat/pin-grouping-nodes` (PR #69). Sketch: `source/v930/hardware-more-detail.jpeg` |
 | Pin lane / context menu | P2 | `source/v930/task-context-menu.jpeg` (Pin row + Ctrl+P; separate from gutter icon) |
 | Multi-select time slice summary | P2 | `source/v930/entry.jpeg` |
 
@@ -66,14 +66,14 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Report summary (time, compute, BW, util) | M | **Interim:** duration [DATA-33a](../context/INTERIM_DECISIONS.md); **I/O BW cards** [DATA-33g](../context/INTERIM_DECISIONS.md); compute / avg-util **N/A placeholders** until DATA-33 — [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
+| Report summary (time, compute, BW, util) | M | **Interim:** duration [DATA-33a](../context/decisions/interim/DATA.md); **I/O BW cards** [DATA-33g](../context/decisions/interim/DATA.md); compute / avg-util **N/A placeholders** until DATA-33 — [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | Aside shell (title, close, meta, 更多) | M | Close hides aside; meta hide-if-missing; 更多 opens hardware overlay (DATA-34a) — [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md), [INTERACTIONS](INTERACTIONS.md) |
-| PIPE occupancy bars | M | From PipeUtilization.csv; mean non-`NA` ([DATA-33b](../context/INTERIM_DECISIONS.md)); **hide** if missing |
+| PIPE occupancy bars | M | From PipeUtilization.csv; mean non-`NA` ([DATA-33b](../context/decisions/interim/DATA.md)); **hide** if missing |
 | Cube \| Vector PIPE toggle (MIX only) | M1 | [`v930/compute-load`](./source/v930/compute-load.jpeg); non-MIX shows relevant side only |
 | Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists (filter + highlight) |
-| Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [DATA-33c](../context/INTERIM_DECISIONS.md); 查看全部 [DATA-33d](../context/INTERIM_DECISIONS.md) (#4); searchable field lists (filter + highlight) |
+| Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [DATA-33c](../context/decisions/interim/DATA.md); 查看全部 [DATA-33d](../context/decisions/interim/DATA.md) (#4); searchable field lists (filter + highlight) |
 | Roofline bottleneck chart | M2 | `source/v930/report-stats-open.jpeg` / [milestone-2](../process/roadmap/milestone-2.md) |
-| Hardware info details | M1 | **Source confirmed:** `HardwareInfo.jsonl`; OpBasicInfo fallback ([DATA-34a](../context/INTERIM_DECISIONS.md)). Hide overlay if both absent |
+| Hardware info details | M1 | **Source confirmed:** `HardwareInfo.jsonl`; OpBasicInfo fallback ([DATA-34a](../context/decisions/interim/DATA.md)). Hide overlay if both absent |
 | Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([UI-38](../context/decisions/UI.md), changelog #5) |
 
 ## Selection details
@@ -93,7 +93,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 | i18n hooks (EN/ZH) | M | Host `locale` prop; catalog in `src/i18n` — [LOCALIZATION.md](LOCALIZATION.md) |
 | Dense-trace WebGL path | M | Hybrid implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas fallback when WebGL2 unavailable — [SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) |
 | Canvas 2D renderer | M | Fallback / forced via `preferRenderer: 'canvas'` |
-| Visual regression fixtures | P2 | First functional fixture: `data/out.rep` ([DATA-31a](../context/INTERIM_DECISIONS.md)); sketch-faithful golden later |
+| Visual regression fixtures | P2 | First functional fixture: `data/out.rep` ([DATA-31a](../context/decisions/interim/DATA.md)); sketch-faithful golden later |
 
 ## Explicitly out of MVP (still may be later)
 

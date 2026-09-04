@@ -24,7 +24,7 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Question:** Time units UX?
 
-**Answer so far:** Two-tier auto — [`UI-40a`](../INTERIM_DECISIONS.md). Cycles deferred.
+**Answer so far:** Two-tier auto — [`UI-40a`](../decisions/interim/UI.md). Cycles deferred.
 
 ### UI-41 — gesture parity (was: Q19)
 
@@ -32,4 +32,4 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Question:** Gesture parity?
 
-**Interim:** Wheel/slider/drag MVP; W/S/A/D P2 — [`UI-41a`](../INTERIM_DECISIONS.md).
+**Interim:** Wheel/slider/drag MVP; W/S/A/D P2 — [`UI-41a`](../decisions/interim/UI.md).

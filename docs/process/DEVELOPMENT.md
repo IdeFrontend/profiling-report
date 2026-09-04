@@ -92,7 +92,7 @@ When Product answers a question:
 
 1. **Convert to a spec requirement** in the owning docs/specs (INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, VIEW_DATA_REQUIREMENTS, format docs, co-located `*.spec.md`, etc.). Write normative product truth — not “open until Q*” / “blocked on Q*”.
 2. **File the decision** in the matching `docs/context/decisions/<PREFIX>.md` (DATA/UI/PROC/PKG) — same bare id as the question, with `Was`, date, decision, specs, source — and **remove** the row from [questions](../context/questions/) in the **same change**. For open-question crops, drop the matching `docs/context/visual/questions` manifest entry and PNG. IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker, never delete or renumber.
-3. **Supersede interim guesses** — delete or strike the matching [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md) row and scrub “until Q*” wording elsewhere.
+3. **Supersede interim guesses** — delete or strike the matching [decisions/interim/](../context/decisions/interim/) row and scrub “until Q*” wording elsewhere.
 4. **Tests** assert the decided behavior when the feature already exists; otherwise the new spec text is the DoR input for the next slice.
 
 Do **not** leave a `resolved` row parked on the open-questions list. Agents: see `.cursor/rules/resolve-open-questions.mdc`.

@@ -33,7 +33,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-01
 - **Question:** The duration bar — decoration or a real percent? Of what?
 - **Decision:** Real percent: `Block Dim / core_count × 100%` (core_count per DATA-1). Clamp display at **100%** when ratio exceeds 1.
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INTERIM_DECISIONS](../INTERIM_DECISIONS.md) `DATA-33e`
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](../decisions/interim/) `DATA-33e`
 - **Source:** Product answer doc (2026-08-31); implemented in `StatsAside.vue`.
 
 ---
@@ -53,7 +53,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** If measured I/O is small (e.g. `15.8 GB/s`), show **GB/s** or **TB/s**?
 - **Decision:** Always **GB/s** (not TB/s).
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INTERIM_DECISIONS](../INTERIM_DECISIONS.md) `DATA-33g`
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](../decisions/interim/) `DATA-33g`
 - **Source:** Product answer doc (2026-08-31); implemented via `formatGBs()` in `StatsAside.vue`.
 
 ---

@@ -14,7 +14,7 @@ Start here: **[docs/README.md](docs/README.md)**
 | Domain & users | [docs/context/DOMAIN_AND_USERS.md](docs/context/DOMAIN_AND_USERS.md) (pain points, glossary, UX link) |
 | Market & competitors | [docs/context/MARKET_AND_COMPETITORS.md](docs/context/MARKET_AND_COMPETITORS.md) (NVIDIA Nsight analogues) |
 | Open questions | [docs/context/questions/](docs/context/questions/) (blockers; resolution log) |
-| Interim MVP defaults | [docs/context/INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md) (engineering, not Product-final) |
+| Interim MVP defaults | [docs/context/decisions/interim/](docs/context/decisions/interim/) (engineering, not Product-final) |
 | View data requirements | [docs/formats/VIEW_DATA_REQUIREMENTS.md](docs/formats/VIEW_DATA_REQUIREMENTS.md) |
 | Development process | [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) (docs → specs → tests → code) |
 | Delivery roadmap | [docs/process/roadmap/](docs/process/roadmap/) (M1–M3 to full UI) |
@@ -72,7 +72,7 @@ Library timeline MVP (engineering milestones 1–4) is green on `master` (`npm r
 
 **Next:** [Milestone 2](docs/process/roadmap/milestone-2.md) — MSTT host + selection/deps + details + memory graph + roofline + timeline time-range measure, target **2026-08-25**.
 
-Interim product defaults: [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md). See [specs/README.md](specs/README.md) for the spec index and `npm run check:specs` for traceability validation.
+Interim product defaults: [decisions/interim/](docs/context/decisions/interim/). See [specs/README.md](specs/README.md) for the spec index and `npm run check:specs` for traceability validation.
 
 ```bash
 npm install

@@ -78,7 +78,7 @@ Performance results tree file click
   └─ .rep / .ncrep → profiling-report Vue panel
 ```
 
-`.rep` and `.ncrep` share the same container semantics (**Interim [PROC-2a](../context/INTERIM_DECISIONS.md)** — product alias until divergence is defined). Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
+`.rep` and `.ncrep` share the same container semantics (**Interim [PROC-2a](../context/decisions/interim/PROC.md)** — product alias until divergence is defined). Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
 
 | Axis | Insight operator | `.rep` / profiling-report | PyPTO swimlane |
 |------|------------------|---------------------------|----------------|

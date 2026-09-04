@@ -76,7 +76,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak GB/s` — **DATA-33g** / UI-34 (hide side/card when NA). Same card chrome as 整体耗时. |
 | 平均核利用率 card | Percentage bar + enabled cores fraction — until DATA-33: **title + `N/A`** placeholder (no invented values) |
 
-Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [DATA-33g](../context/INTERIM_DECISIONS.md).
+Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [DATA-33g](../context/decisions/interim/DATA.md).
 
 ### Interim DATA-33g (input / output bandwidth)
 
@@ -184,9 +184,9 @@ Hide `RooflinePanel` when no GM point can be derived.
 ### Visualization logic
 
 - Horizontal 0–100% tracks with a percent scale above the rows; solid fill = ratio; hatched remainder to 100%.
-- In-bar absolute (DATA-18, [DATA-33f](../context/INTERIM_DECISIONS.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
+- In-bar absolute (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
 - **详情** opens the compute CSV overlay (`CsvFieldListPanel`) and emits `open-pipe-details`.
-- Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([DATA-33b](../context/INTERIM_DECISIONS.md)); detail tabs are block-scoped ([DATA-33c](../context/INTERIM_DECISIONS.md)).
+- Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([DATA-33b](../context/decisions/interim/DATA.md)); detail tabs are block-scoped ([DATA-33c](../context/decisions/interim/DATA.md)).
 - Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).
 
 ---
@@ -203,7 +203,7 @@ Detail surface uses **tabs** ([`v930/compute-load-detail`](./source/v930/compute
 | `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
 | `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
 
-Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-33c](../context/INTERIM_DECISIONS.md)):
+Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-33c](../context/decisions/interim/DATA.md)):
 
 - AIC group: cycles, `*_time(us)`, `*_ratio`, active BW, ICache miss, scalar stall/wait breakdowns.
 - AIV group: same pattern; display `NA` when absent.
@@ -252,7 +252,7 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
 - Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
 - Overlay **Peak (%)** utilization on units only when a field mapping exists (still open for many units).
-- Labels are **block-scoped** via the same block switcher as memory details ([DATA-33c](../context/INTERIM_DECISIONS.md)).
+- Labels are **block-scoped** via the same block switcher as memory details ([DATA-33c](../context/decisions/interim/DATA.md)).
 
 ---
 
@@ -263,8 +263,8 @@ Memory detail controls ([`v930/memory-load-detail`](./source/v930/memory-load-de
 | Control | Behavior |
 | --- | --- |
 | Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent |
-| Block switcher | Filter rows to selected `block_id` ([DATA-33c](../context/INTERIM_DECISIONS.md)); default = first block |
-| 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/INTERIM_DECISIONS.md)) |
+| Block switcher | Filter rows to selected `block_id` ([DATA-33c](../context/decisions/interim/DATA.md)); default = first block |
+| 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/decisions/interim/DATA.md)) |
 
 Searchable key–value / table of columns for the active tab + block. Show `NA` when present.
 

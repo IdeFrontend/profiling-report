@@ -48,7 +48,7 @@ neighborsOf(
 
 ## Dependencies
 
-[swimlane-model](swimlane-model.spec.md) for `EventRef` and the traversal shape; `DependencyMode` / `normalizeDependencyDepth` from `domain/types`, shared with the swimlane [dependency curves](swimlane-renderer.spec.md). Interim [DATA-36a](../../docs/context/INTERIM_DECISIONS.md) — the Chrome Trace `args` id convention while DATA-36 is open.
+[swimlane-model](swimlane-model.spec.md) for `EventRef` and the traversal shape; `DependencyMode` / `normalizeDependencyDepth` from `domain/types`, shared with the swimlane [dependency curves](swimlane-renderer.spec.md). Interim [DATA-36a](../../docs/context/decisions/interim/DATA.md) — the Chrome Trace `args` id convention while DATA-36 is open.
 
 ## Open
 

@@ -4,7 +4,7 @@
 |----------------|
 | PR-CURSOR-*    |
 
-Playhead time bubble on the viewport time axis. Shows the cursor position as a scalar timestamp relative to `minTime` via `formatDisplayTime` in the **viewport** `timeScaleUnit` (spatial chrome). May **differ** from tooltip/detail Start, which use per-value magnitude units ([UI-40a](../../../../../docs/context/INTERIM_DECISIONS.md) two-tier).
+Playhead time bubble on the viewport time axis. Shows the cursor position as a scalar timestamp relative to `minTime` via `formatDisplayTime` in the **viewport** `timeScaleUnit` (spatial chrome). May **differ** from tooltip/detail Start, which use per-value magnitude units ([UI-40a](../../../../../docs/context/decisions/interim/UI.md) two-tier).
 
 ## Inputs
 

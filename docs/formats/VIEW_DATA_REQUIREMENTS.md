@@ -2,7 +2,7 @@
 
 Normative **required vs optional inputs** for each Timeline surface. Missing optional data → **hide** that panel/region (not hard error). See [decisions](../context/decisions/) (DATA-30).
 
-**MVP coding defaults:** [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md) — Interim ≠ Product-final.
+**MVP coding defaults:** [decisions/interim/](../context/decisions/interim/) — Interim ≠ Product-final.
 
 **Related:** [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) · [COMPONENTS.md](../architecture/COMPONENTS.md) · [UX_SPEC.md](../ui/UX_SPEC.md) · [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
 
@@ -45,7 +45,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-------|-------------|
 | `SwimlaneModel.minTime` / `maxTime` (ns) | **Required** |
 | `SwimlaneViewState` visible window | **Required** (defaults to full range) |
-| Display unit preference (ms / µs / ns) | **Optional** — configurable ([UI-40](../context/questions/UI.md)); **Interim MVP:** ms / µs / ns only, default **ms**; no clock-cycle mode ([UI-40a](../context/INTERIM_DECISIONS.md)) |
+| Display unit preference (ms / µs / ns) | **Optional** — configurable ([UI-40](../context/questions/UI.md)); **Interim MVP:** ms / µs / ns only, default **ms**; no clock-cycle mode ([UI-40a](../context/decisions/interim/UI.md)) |
 
 ---
 
@@ -57,7 +57,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 **Product decision (DATA-32):** If no `OverviewSeries` → **hide** the chart region entirely. Do **not** invent series from `PipeUtilization` ratios.
 
-**Interim ([DATA-32a](../context/INTERIM_DECISIONS.md)):** Adapter returns `overviewSeries: []` on current fixtures; charts stay hidden until a producer fills series.
+**Interim ([DATA-32a](../context/decisions/interim/DATA.md)):** Adapter returns `overviewSeries: []` on current fixtures; charts stay hidden until a producer fills series.
 
 ---
 
@@ -69,7 +69,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Hierarchy Card → 通信/计算/储存HBM → `CoreN.*` → pipes | **Producer- or stress-defined nodes** (DATA-35: no viewer heuristics inventing Card/Core from flat AIV names). Nested `SwimThread.children` when present; flat CTEF remains valid |
 | `SwimThread.utilization` (0..1) | **Optional** — omit mini-bars if absent; folders and leaves may both carry util |
 
-**Target fidelity (DATA-31):** Product aims at sketch Card → Core → pipe Gantt. **Interim fixture ([DATA-31a](../context/INTERIM_DECISIONS.md)):** CI uses `data/out.rep` (flat AIV); playground stress presets emit nested Card tree for sketch fidelity. Do not fail MVP acceptance on `out.rep` pixel-parity.
+**Target fidelity (DATA-31):** Product aims at sketch Card → Core → pipe Gantt. **Interim fixture ([DATA-31a](../context/decisions/interim/DATA.md)):** CI uses `data/out.rep` (flat AIV); playground stress presets emit nested Card tree for sketch fidelity. Do not fail MVP acceptance on `out.rep` pixel-parity.
 
 ---
 
@@ -100,9 +100,9 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-----------------|---------------|-------------|
 | Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Bar/secondary per DATA-33e (DATA-1, UI-32). Op type is not a separate card. `opName` / `blockDim` feed duration secondary; `coreCount` from `HardwareInfo.jsonl` |
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
-| Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Placeholder** until DATA-33 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [DATA-33a](../context/INTERIM_DECISIONS.md) |
+| Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization` (+ peaks TBD) | **Placeholder** until DATA-33 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [DATA-33a](../context/decisions/interim/DATA.md) |
 | I/O bandwidth tiles | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | **Measured confirmed.** Show when a side has non-`NA`; hide card if both NA. Display **GB/s** (UI-34). Peak 1600 GB/s still DATA-33g guess |
-| Avg core util % | PipeUtilization / OpBasicInfo TBD | **Placeholder** until DATA-33 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [DATA-33a](../context/INTERIM_DECISIONS.md) |
+| Avg core util % | PipeUtilization / OpBasicInfo TBD | **Placeholder** until DATA-33 / data spec — title + `N/A` when duration is present (do not invent values); omit when BW-only — [DATA-33a](../context/decisions/interim/DATA.md) |
 | Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
 
@@ -115,8 +115,8 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | Input | Requirement |
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
-| Aggregation | **Interim ([DATA-33b](../context/INTERIM_DECISIONS.md)):** mean of non-`NA` ratios per pipe family |
-| Absolute in-bar | **Confirmed (DATA-18, [DATA-33f](../context/INTERIM_DECISIONS.md)):** mean non-`NA` `*_time(us)` for the family/side; omit when all NA |
+| Aggregation | **Interim ([DATA-33b](../context/decisions/interim/DATA.md)):** mean of non-`NA` ratios per pipe family |
+| Absolute in-bar | **Confirmed (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)):** mean non-`NA` `*_time(us)` for the family/side; omit when all NA |
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
 | ICache Miss | **Confirmed:** `aic_icache_miss_rate` / `aiv_icache_miss_rate` when the mean is present |
@@ -132,7 +132,7 @@ Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 | Input | Requirement |
 |-------|-------------|
 | Tabs | `PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio` CSVs |
-| Selected `block_id` | **Required** — [DATA-33c](../context/INTERIM_DECISIONS.md) |
+| Selected `block_id` | **Required** — [DATA-33c](../context/decisions/interim/DATA.md) |
 | Search query | UI-only |
 
 Hide tab when CSV missing. Show `NA` values.
@@ -170,8 +170,8 @@ Hide when no usable GM point. M3 swaps formulas when Product closes DATA-37.
 | Input | Requirement |
 |-------|-------------|
 | Tabs | Memory L1 (`Memory.csv`), L2Cache, Memory L0, Memory UB |
-| Block switcher | [DATA-33c](../context/INTERIM_DECISIONS.md) |
-| 查看全部 | Emit full CSV open ([DATA-33d](../context/INTERIM_DECISIONS.md)) |
+| Block switcher | [DATA-33c](../context/decisions/interim/DATA.md) |
+| 查看全部 | Emit full CSV open ([DATA-33d](../context/decisions/interim/DATA.md)) |
 
 Hide tab when CSV missing.
 
