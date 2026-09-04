@@ -6,8 +6,8 @@
  * Invariants (see docs/context/OPEN_QUESTIONS.md):
  *   1. No `resolved` status row is left on the open list.
  *   2. Every DATA-/UI-/PROC-/PKG- id cited in the repo resolves to a known id in
- *      OPEN_QUESTIONS.md ∪ INTERIM_DECISIONS.md ∪ DECISIONS.md.
- *   3. Every DECISIONS.md entry links at least one owning spec.
+ *      OPEN_QUESTIONS.md ∪ INTERIM_DECISIONS.md ∪ docs/context/decisions/.
+ *   3. Every decision entry (in docs/context/decisions/*.md) links at least one owning spec.
  *   4. Only the canonical status enum (open|partial|interim|deferred) is used on the open list.
  */
 
@@ -20,7 +20,8 @@ const ROOT = resolve(__dirname, '..');
 
 const OPEN = resolve(ROOT, 'docs/context/OPEN_QUESTIONS.md');
 const INTERIM = resolve(ROOT, 'docs/context/INTERIM_DECISIONS.md');
-const DECISIONS = resolve(ROOT, 'docs/context/DECISIONS.md');
+const DECISIONS_DIR = resolve(ROOT, 'docs/context/decisions');
+const DECISION_FILES = ['DATA.md', 'UI.md', 'PROC.md', 'PKG.md'];
 
 const errors = [];
 const warnings = [];
@@ -32,8 +33,10 @@ function definedIds() {
   const set = new Set();
   const open = readFileSync(OPEN, 'utf8');
   for (const m of open.matchAll(/^###\s+((?:DATA|UI|PROC|PKG)-\d+)\b/gm)) set.add(m[1]);
-  const dec = readFileSync(DECISIONS, 'utf8');
-  for (const m of dec.matchAll(/^##\s+((?:DATA|UI|PROC|PKG)-\d+)\b/gm)) set.add(m[1]);
+  for (const file of DECISION_FILES) {
+    const dec = readFileSync(join(DECISIONS_DIR, file), 'utf8');
+    for (const m of dec.matchAll(/^##\s+((?:DATA|UI|PROC|PKG)-\d+)\b/gm)) set.add(m[1]);
+  }
   const interim = readFileSync(INTERIM, 'utf8');
   for (const m of interim.matchAll(/\*\*((?:DATA|UI|PROC|PKG)-\d+[a-z]?)\*\*/g)) set.add(m[1]);
   return set;
@@ -59,18 +62,20 @@ function checkOpenStatus() {
 
 // ---- Check 3: decision → spec link ----
 function checkDecisionLinks() {
-  const dec = readFileSync(DECISIONS, 'utf8');
-  const sections = dec.split(/\n##\s+/).slice(1); // drop preamble
-  for (const section of sections) {
-    const id = section.match(/^(DATA|UI|PROC|PKG)-\d+/)?.[0];
-    if (!id) {
-      warnings.push(`DECISIONS.md: section with no parseable id: ${section.split('\n')[0]}`);
-      continue;
+  for (const file of DECISION_FILES) {
+    const dec = readFileSync(join(DECISIONS_DIR, file), 'utf8');
+    const sections = dec.split(/\n##\s+/).slice(1); // drop preamble
+    for (const section of sections) {
+      const id = section.match(/^(DATA|UI|PROC|PKG)-\d+/)?.[0];
+      if (!id) {
+        warnings.push(`${file}: section with no parseable id: ${section.split('\n')[0]}`);
+        continue;
+      }
+      const hasSpecs = section.includes('**Specs:**');
+      const hasLink = /\*\*Specs:\*\*[^\n]*\]\([^)]+\)/.test(section);
+      if (!hasSpecs) errors.push(`${file}: ${id} has no \`**Specs:**\` field`);
+      else if (!hasLink) errors.push(`${file}: ${id} \`**Specs:**\` field has no markdown link`);
     }
-    const hasSpecs = section.includes('**Specs:**');
-    const hasLink = /\*\*Specs:\*\*[^\n]*\]\([^)]+\)/.test(section);
-    if (!hasSpecs) errors.push(`DECISIONS.md: ${id} has no \`**Specs:**\` field`);
-    else if (!hasLink) errors.push(`DECISIONS.md: ${id} \`**Specs:**\` field has no markdown link`);
   }
 }
 
@@ -87,7 +92,7 @@ function walk(dir, acc) {
     if (rel === 'docs/archive') continue;
     if (rel === 'docs/context/OPEN_QUESTIONS.md') continue;
     if (rel === 'docs/context/INTERIM_DECISIONS.md') continue;
-    if (rel === 'docs/context/DECISIONS.md') continue;
+    if (rel.startsWith('docs/context/decisions/')) continue;
     let st;
     try {
       st = statSync(full);

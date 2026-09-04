@@ -1,6 +1,6 @@
 # View and Chart Data Requirements
 
-Normative **required vs optional inputs** for each Timeline surface. Missing optional data → **hide** that panel/region (not hard error). See [DECISIONS](../context/DECISIONS.md) (DATA-30).
+Normative **required vs optional inputs** for each Timeline surface. Missing optional data → **hide** that panel/region (not hard error). See [decisions](../context/decisions/) (DATA-30).
 
 **MVP coding defaults:** [INTERIM_DECISIONS.md](../context/INTERIM_DECISIONS.md) — Interim ≠ Product-final.
 

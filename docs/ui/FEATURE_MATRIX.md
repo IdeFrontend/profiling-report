@@ -9,7 +9,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
 | Open `.rep` / `.ncrep` in panel | H / M | Host opens; library renders |
-| Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([PROC-3](../context/DECISIONS.md)) |
+| Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([PROC-3](../context/decisions/PROC.md)) |
 | Timeline secondary tab | M | Primary view |
 | OP算子 / 源码 / 详情 / 缓存 tabs | P2 | msinsight-like parity |
 | Host explorer / performance tree | H | `source/v930/entry.jpeg` left rail |
@@ -35,8 +35,8 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
 | Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([UI-40](../context/OPEN_QUESTIONS.md)) |
-| Cube / Vector overview charts | M | **Hide** until `OverviewSeries` ([DATA-32](../context/DECISIONS.md)) |
-| Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/DECISIONS.md)); flat CTEF still valid |
+| Cube / Vector overview charts | M | **Hide** until `OverviewSeries` ([DATA-32](../context/decisions/DATA.md)) |
+| Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/decisions/DATA.md)); flat CTEF still valid |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |
 | Colored event rectangles | M | Normative colors [COLOR_TOKENS](COLOR_TOKENS.md) |
 | Event labels when wide enough | M | Vertically centered in block; horizontally centered in visible (clipped) event rect |
@@ -74,7 +74,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 | Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [DATA-33c](../context/INTERIM_DECISIONS.md); 查看全部 [DATA-33d](../context/INTERIM_DECISIONS.md) (#4); searchable field lists (filter + highlight) |
 | Roofline bottleneck chart | M2 | `source/v930/report-stats-open.jpeg` / [milestone-2](../process/roadmap/milestone-2.md) |
 | Hardware info details | M1 | **Source confirmed:** `HardwareInfo.jsonl`; OpBasicInfo fallback ([DATA-34a](../context/INTERIM_DECISIONS.md)). Hide overlay if both absent |
-| Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([UI-38](../context/DECISIONS.md), changelog #5) |
+| Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([UI-38](../context/decisions/UI.md), changelog #5) |
 
 ## Selection details
 

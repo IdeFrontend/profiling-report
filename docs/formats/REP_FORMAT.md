@@ -2,7 +2,7 @@
 
 Interim normative description of the binary report container used by profiling-report. Derived from [`data/pack_rep.py`](../../data/pack_rep.py), [`data/unpack_rep.py`](../../data/unpack_rep.py), and sample [`data/out.rep`](../../data/out.rep).
 
-**Producer status ([PROC-1](../context/DECISIONS.md)):** The producing tool is still under development. Until an official producer format specification is published, treat this document + sample data as the implementation source of truth, and expect additive updates when the producer spec lands.
+**Producer status ([PROC-1](../context/decisions/PROC.md)):** The producing tool is still under development. Until an official producer format specification is published, treat this document + sample data as the implementation source of truth, and expect additive updates when the producer spec lands.
 
 ## Extensions
 

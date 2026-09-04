@@ -7,11 +7,11 @@
 | Rule | Detail |
 |------|--------|
 | Status label | `interim` — never write as `resolved` product truth |
-| Supersede | When Product or the format/data spec answers the linked question: write the decision into owning specs, **remove** the row from [OPEN_QUESTIONS](OPEN_QUESTIONS.md) and file a [DECISIONS](DECISIONS.md) entry, delete or strike this interim row, and scrub “until Q*” wording — all in the **same change**. See [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions). |
+| Supersede | When Product or the format/data spec answers the linked question: write the decision into owning specs, **remove** the row from [OPEN_QUESTIONS](OPEN_QUESTIONS.md) and file a [decisions/](decisions/) entry, delete or strike this interim row, and scrub “until Q*” wording — all in the **same change**. See [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions). |
 | Tests | Assert interim behavior; titles may note `(interim)` |
     10|| Code comments | Prefer linking this file / the question id over inventing silent TBDs |
 
-Canonical Product answers live in the owning **specs** after resolution (see [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions)). The open list holds unanswered items only: [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md); Product-final decisions: [DECISIONS.md](DECISIONS.md). Packaging proposals that Product has not confirmed: [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md) (also interim until accepted).
+Canonical Product answers live in the owning **specs** after resolution (see [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions)). The open list holds unanswered items only: [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md); Product-final decisions: [decisions/](decisions/). Packaging proposals that Product has not confirmed: [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md) (also interim until accepted).
 
 ---
 

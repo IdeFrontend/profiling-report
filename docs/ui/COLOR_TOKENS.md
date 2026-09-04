@@ -1,6 +1,6 @@
 # Color Tokens (Normative from Sketches)
 
-Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([UI-39](../context/DECISIONS.md)). Extracted from [`source/v930/`](./source/v930/) (`entry.jpeg` and related frames). Roundings are ±4–8 in RGB from sampled pixels.
+Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([UI-39](../context/decisions/UI.md)). Extracted from [`source/v930/`](./source/v930/) (`entry.jpeg` and related frames). Roundings are ±4–8 in RGB from sampled pixels.
 
 Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MSTT theme may tint chrome; **category hues below stay fixed** unless Product revises this file.
 

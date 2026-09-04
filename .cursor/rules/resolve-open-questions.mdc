@@ -12,7 +12,7 @@ Status enum: `open` | `partial` | `interim` | `deferred` | `resolved`. Only `res
 ## Same-turn checklist
 
 1. **Write the decision into the owning specs** as product truth (e.g. INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, VIEW_DATA_REQUIREMENTS, format docs, co-located `*.spec.md`). Prefer normative wording ("does / does not"), not "until Q*".
-2. **File the decision** in [DECISIONS.md](docs/context/DECISIONS.md) — same bare id as the question, with `Was`, date, decision, specs, source — and **remove** the row from [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) in the same change. IDs are **permanent**: retire with a `WITHDRAWN` / `DEFERRED` marker in place, never delete or renumber.
+2. **File the decision** in the matching [decisions/](docs/context/decisions/) file (`DATA.md` / `UI.md` / `PROC.md` / `PKG.md`) — same bare id as the question, with `Was`, date, decision, specs, source — and **remove** the row from [OPEN_QUESTIONS.md](docs/context/OPEN_QUESTIONS.md) in the same change. IDs are **permanent**: retire with a `WITHDRAWN` / `DEFERRED` marker in place, never delete or renumber.
 3. **Clear dependents** in the same change: strike matching [INTERIM_DECISIONS.md](docs/context/INTERIM_DECISIONS.md) rows; drop "until Q*" / "blocked on Q*" wording in docs, specs, and code comments.
 4. **Tests** — if behavior is already implemented, assert the decided rule; if not, leave the spec as the requirement for the next slice.
 

@@ -7,9 +7,9 @@ Single source of truth for unanswered product / engineering questions. **Status 
 - `open` / `partial` — live here (this file).
 - `interim` — engineering default only; the rule lives in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md) under a sub-letter id (e.g. `DATA-33b`). The question row stays here.
 - `deferred` — Product-confirmed out of this iteration, marked `DEFERRED` in place (never renumbered).
-- `resolved` — Product-final; the entry lives in [DECISIONS.md](DECISIONS.md), keeping the **same bare id**.
+- `resolved` — Product-final; the entry lives in [decisions/](decisions/), keeping the **same bare id**.
 
-**When resolved:** write the decision into the owning specs **and** file a [DECISIONS.md](DECISIONS.md) entry in the **same change**; remove the row here. Process: [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions).
+**When resolved:** write the decision into the owning specs **and** file a [decisions/](decisions/) entry in the **same change**; remove the row here. Process: [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions).
 
 **Scope.** This file is the **question ledger** — what is open and what Product still owes us: each question, its status, and the answer so far. It does **not** hold interim rule text, implement/test mapping, or the MVP build checklist — those are engineering execution, not question content, and live in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md). A question with status `interim` keeps its row here and points at the sub-letter rule there (e.g. `DATA-33b`).
 

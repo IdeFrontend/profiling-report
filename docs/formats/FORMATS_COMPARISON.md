@@ -37,8 +37,8 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 | **Source ↔ instruction** | First-class Source heatmap (line ↔ insn, PC, cycles, conflicts) | **Not** in sample embeds | Not swimlane core (may jump to compute graph via hashes) |
 | **Deps / sync** | SET_FLAG / WAIT_FLAG between pipes | Only if encoded in `trace.json` args or side embeds ([DATA-36](../context/OPEN_QUESTIONS.md)) | Flow events (`s`/`f`), `dyn_topo.txt`, and/or `deps.json` |
 | **Conflicts / stalls** | Source UB conflicts; wait cycles in Details | `ResourceConflictRatio.csv` (Phase 2+) | Stall/conflict if present in event args or PMU |
-| **Host / NPU inventory** | May appear in Insight detail chrome | Not in sample `.rep` ([DATA-34](../context/DECISIONS.md)) | Not typical |
-| **Counters / step metrics** | Optional MTE throughput-style counters on Timeline | Not first-class in sample (overview charts data source open — [DATA-32](../context/DECISIONS.md)) | Chrome Trace `ph: C` lanes (e.g. ready counts, mem usage) |
+| **Host / NPU inventory** | May appear in Insight detail chrome | Not in sample `.rep` ([DATA-34](../context/decisions/DATA.md)) | Not typical |
+| **Counters / step metrics** | Optional MTE throughput-style counters on Timeline | Not first-class in sample (overview charts data source open — [DATA-32](../context/decisions/DATA.md)) | Chrome Trace `ph: C` lanes (e.g. ready counts, mem usage) |
 | **Primary product question** | “What did this kernel do on the pipes, and how does it map to source?” | “Give me a portable OP report: summary panels + a swimlane-friendly timeline.” | “How did tasks schedule across cores (and AICPU), with deps and optional PMU?” |
 
 ## Why they differ
@@ -64,7 +64,7 @@ Semantic **overlap** (timed lanes, pipe util concepts, op identity) justifies a 
 
 - **Aim to cover:** op identity, pipe utilization aggregates, memory/L2 aggregates, timed lane activity for a swimlane UI.
 - **Do not claim by default:** bit-parity with Insight instruction-level Source/Cache graphs or PyPTO AICPU/Mix/wrap schedule features.
-- **Sample gap:** current [`data/out.rep`](../../data/out.rep) `trace.json` is pipe-state busy intervals, thinner than product **target** (sketch-like multi-core instruction Gantt — [DATA-31](../context/OPEN_QUESTIONS.md)). Use sample until a sketch-faithful golden arrives; lane naming follows **producer fixed names** ([DATA-35](../context/DECISIONS.md)).
+- **Sample gap:** current [`data/out.rep`](../../data/out.rep) `trace.json` is pipe-state busy intervals, thinner than product **target** (sketch-like multi-core instruction Gantt — [DATA-31](../context/OPEN_QUESTIONS.md)). Use sample until a sketch-faithful golden arrives; lane naming follows **producer fixed names** ([DATA-35](../context/decisions/DATA.md)).
 
 ## Delivery note (MSTT viewers)
 
@@ -74,7 +74,7 @@ Semantic payloads above are delivered differently in MSTT:
 Performance results tree file click
   ├─ .csv          → CsvEditorProvider (raw table; not this comparison)
   ├─ .bin          → MindStudio Insight (operator semantics above)
-  ├─ .json         → profiling-report when Chrome Trace ([PROC-3](../context/DECISIONS.md))
+  ├─ .json         → profiling-report when Chrome Trace ([PROC-3](../context/decisions/PROC.md))
   └─ .rep / .ncrep → profiling-report Vue panel
 ```
 

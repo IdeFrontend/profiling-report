@@ -75,9 +75,9 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 **MVP aggregation ([DATA-33b](../context/INTERIM_DECISIONS.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md). Superseded when DATA-33 / data spec says otherwise.
 
-**Overview Cube/Vector charts:** Product decision ([DATA-32](../context/DECISIONS.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
+**Overview Cube/Vector charts:** Product decision ([DATA-32](../context/decisions/DATA.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
 
-**Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/DECISIONS.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
+**Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 
 ---
 
@@ -101,7 +101,7 @@ Used for summary “computing power” tiles and later **roofline** category poi
 | `MemoryUB.csv` | UB vector/scalar R/W BW |
 | `L2Cache.csv` | Write/read hits, miss-allocate, hit rates (%) |
 
-Phase 2 memory diagram (`source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg`): **static SVG** topology with **data-driven edge labels** from these fields ([UI-38](../context/DECISIONS.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
+Phase 2 memory diagram (`source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg`): **static SVG** topology with **data-driven edge labels** from these fields ([UI-38](../context/decisions/UI.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
 
 ---
 
@@ -155,11 +155,11 @@ The sample `out.rep` trace is a **single-channel AIV pipe-state busy timeline**,
 
 | Expectation | Sample reality | Spec stance |
 |-------------|----------------|-------------|
-| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([DATA-31](../context/OPEN_QUESTIONS.md)); stress emits it; flat CTEF uses **producer names** as-is ([DATA-35](../context/DECISIONS.md)) |
+| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([DATA-31](../context/OPEN_QUESTIONS.md)); stress emits it; flat CTEF uses **producer names** as-is ([DATA-35](../context/decisions/DATA.md)) |
 | Instruction names on bars | Marker / busy names | Show event `name`; richer labels when future traces include them |
 | ProfilerStep bands | Not in sample | Phase 2 / when args or counter tracks exist |
 | Dependencies | Not in sample | Phase 2; parse when predecessor/successor args appear |
-| Overview Cube/Vector series | Not in sample | **Hide** charts ([DATA-32](../context/DECISIONS.md)) |
+| Overview Cube/Vector series | Not in sample | **Hide** charts ([DATA-32](../context/decisions/DATA.md)) |
 
 Writers of `.rep` files should eventually emit nested models matching the Card hierarchy. Until then, the viewer remains useful on pipe-state traces like the fixture.
 

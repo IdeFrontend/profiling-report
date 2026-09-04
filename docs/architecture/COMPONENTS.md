@@ -103,7 +103,7 @@ Op name/type, task duration, optional raw frequency fields. Compute / avg util r
 
 `{ id, label, points: { t, v }[] }` for Cube/Vector overview charts.
 
-**Why:** Isolates [DATA-32](../context/DECISIONS.md) (time-series source). `OverviewCharts` hides when the array is empty instead of blocking MVP.
+**Why:** Isolates [DATA-32](../context/decisions/DATA.md) (time-series source). `OverviewCharts` hides when the array is empty instead of blocking MVP.
 
 ### `SwimlaneViewState` (M / M2)
 
@@ -269,7 +269,7 @@ Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops
 
 ### `MemoryTopologyPanel` (M2)
 
-Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/DECISIONS.md), changelog #5). Mounted on the stacked 报告统计 below PIPE; **详情** opens the memory CSV overlay.
+Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5). Mounted on the stacked 报告统计 below PIPE; **详情** opens the memory CSV overlay.
 
 **Why:** Geometry stays in the SVG asset; labels from adapter mapping table.
 

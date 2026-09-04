@@ -119,7 +119,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Steps** | Open hardware details; read chip / core / memory inventory |
 | **Success** | User knows which NPU configuration produced the report |
 | **Sketches** | `source/v930/hardware-more-detail.jpeg`, `source/v930/entry.jpeg` annotations |
-| **Depends** | **Out of MVP** until further specs ([DATA-34](../context/DECISIONS.md)) |
+| **Depends** | **Out of MVP** until further specs ([DATA-34](../context/decisions/DATA.md)) |
 
 ### S8 — Follow dependencies / multi-select (P2)
 
@@ -274,8 +274,8 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S6–S9 (P2)
 
-- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/DECISIONS.md)) → optional details list.
-- **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/DECISIONS.md)).
+- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → optional details list.
+- **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/decisions/DATA.md)).
 - **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
 - **S9:** Click 源码 / 详情 / 缓存 / OP算子 → different main surface; return to 时间线 restores view state.
 
@@ -285,7 +285,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 | Condition | UX |
 |-----------|-----|
-| No `OverviewSeries` | Hide `OverviewCharts` ([DATA-32](../context/DECISIONS.md)) |
+| No `OverviewSeries` | Hide `OverviewCharts` ([DATA-32](../context/decisions/DATA.md)) |
 | Optional CSV / panel inputs missing | Hide related surface ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)); Timeline still works if trace present |
 | Summary formula unknown (DATA-33) | **Interim [DATA-33a](../context/INTERIM_DECISIONS.md):** duration from OpBasicInfo; **[DATA-33g](../context/INTERIM_DECISIONS.md)** I/O BW cards; compute / avg-util as title + `N/A` |
 | Trace missing / invalid | Error state on root; emit `error`; do not show broken swimlane |
