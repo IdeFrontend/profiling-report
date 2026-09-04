@@ -41,13 +41,25 @@ interval array:
 
 ### Edge / truncation policy
 
-  eventRange = last event end - first event start  (across the whole lane)
+  Fake edge gap = `EDGE_GAP` (1e12 model time units) — a huge constant so a thin
+  edge / single-event lane saturates the extension margin. (Do **not** use
+  `last.end − first.start`: that degenerates to the event duration on a
+  one-event lane and suppresses extension.)
 
-  - First event of the line: gapPrev = eventRange (no predecessor)
-  - Last event of the line (final chunk): gapNext = eventRange (no-successor)
+  - First event of the lane: gapPrev = EDGE_GAP (no predecessor)
+  - Last event of the lane: gapNext = EDGE_GAP (no successor)
   - When a chunk is truncated (intermediate chunk boundary), the last event
     still has a real neighbor, so gapNext is computed normally
-  - Detection: `gi * 2 + 2 >= pairs.length` — true only for the true last event
+  - Detection: `gi === 0` / `gi * 2 + 2 >= pairs.length` — true only for the
+    true first / last event of the **whole lane**
+
+### Emphasis / search / selection layers
+
+Search and selection paint per-`dim` mesh layers. Each layer packs only the
+events in that bucket, but gaps are still read from the **full sorted lane**
+via lane indices into whole-lane `pairs` (`createChunksFromIndices`). A muted
+event next to a selected one must see that selected neighbor — not the next
+muted event in the same bucket.
 
 This keeps edge events extendable when their one real neighboring gap is large.
 
@@ -116,4 +128,5 @@ No change to the fragment shader was required.
 
   shaders.ts                 — SWIMLANE_VS: aData input, extension logic, uExtendParameters uniform
   WebGlSwimlaneRenderer.ts   — setVbSquareWithGaps, 6-float vertex layout (stride 24),
-                               gap computation in createChunksFromPairs, aData attrib binding
+                               createChunksFromPairs (base) + createChunksFromIndices (emphasis),
+                               aData attrib binding

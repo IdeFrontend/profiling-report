@@ -183,23 +183,22 @@ export function setVbSquareWithGaps(
 }
 
 /**
- * Build a swimlane mesh chunk from `pairs` (full lane of [x0,x1] intervals in event coords,
- * relative to timeBase), starting at pair offset `off`. Gaps are read straight from `pairs` via
- * the global index (`eventGapPrev` / `eventGapNext`) — no per-chunk copy or gap array is made,
- * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
- * (pos, uv, data) enables branchless extension in the vertex shader.
+ * Build a swimlane mesh chunk from whole-lane `pairs` ([x0,x1] in event coords relative to
+ * timeBase). `laneIndexAt(localI)` maps each packed quad to a **global lane** index so gaps
+ * always use real neighbors (`eventGapPrev` / `eventGapNext`) — contiguous base meshes and
+ * sparse emphasis buckets share this path. Allocations are only the vertex/index buffers.
  */
 function createChunk(
   gl: WebGL2RenderingContext,
   pairs: number[],
-  off: number,
+  laneIndexAt: (localI: number) => number,
   pairCount: number,
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
   const vb = new Float32Array(numSquares * 24);
   const ib = new Uint16Array(numSquares * 6);
   for (let i = 0; i < numSquares; i++) {
-    const gi = off + i;
+    const gi = laneIndexAt(i);
     setVbSquareWithGaps(
       i * 24,
       pairs[gi * 2]!,
@@ -268,17 +267,49 @@ export function eventGapNext(pairs: number[], gi: number): number {
 }
 
 /**
- * Build mesh chunks from per-event encoded intervals. Each chunk reads its events (and their
- * gaps) straight from the full `pairs` array by global index, so boundary events resolve real
- * neighbors across the chunk split — `gapPrev` back and `gapNext` forward — with no per-chunk
- * copies or gap arrays.
+ * Gaps that `createChunksFromIndices` packs for each lane index — always whole-lane neighbors,
+ * never same-bucket subsequence neighbors. Exported so PR-RENDER-025 can assert without a GL context.
+ */
+export function gapsForIndices(
+  pairs: number[],
+  indices: readonly number[],
+): { gapPrev: number; gapNext: number }[] {
+  return indices.map((gi) => ({
+    gapPrev: eventGapPrev(pairs, gi),
+    gapNext: eventGapNext(pairs, gi),
+  }));
+}
+
+/**
+ * Build mesh chunks from a full-lane `pairs` array (contiguous events). Each chunk reads gaps via
+ * global index so boundary events resolve real neighbors across the chunk split.
  */
 function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): MeshChunk[] {
   const chunks: MeshChunk[] = [];
   const totalPairs = pairs.length / 2;
   for (let off = 0; off < totalPairs; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, totalPairs - off);
-    chunks.push(createChunk(gl, pairs, off, count));
+    const base = off;
+    chunks.push(createChunk(gl, pairs, (i) => base + i, count));
+  }
+  return chunks;
+}
+
+/**
+ * Build mesh chunks for a sparse subset of a lane (emphasis / search / selection layers).
+ * `indices` are positions into the **full** `pairs` array; gaps always use whole-lane neighbors
+ * so a muted event next to a selected one does not skip it.
+ */
+function createChunksFromIndices(
+  gl: WebGL2RenderingContext,
+  pairs: number[],
+  indices: readonly number[],
+): MeshChunk[] {
+  const chunks: MeshChunk[] = [];
+  for (let off = 0; off < indices.length; off += MAX_QUADS_PER_MESH) {
+    const count = Math.min(MAX_QUADS_PER_MESH, indices.length - off);
+    const base = off;
+    chunks.push(createChunk(gl, pairs, (i) => indices[base + i]!, count));
   }
   return chunks;
 }
@@ -705,24 +736,34 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     for (let idx = 0; idx < this.laneMeshes.length; idx++) {
       const meshes = this.laneMeshes[idx]!;
       const events = byLane.get(idx) ?? [];
-      const byKey = new Map<string, { rgb: [number, number, number]; dim: number; pairs: number[] }>();
+      // Full-lane pairs so isolated-event gaps use real neighbors, not same-dim subsequences.
+      const lanePairs: number[] = [];
       for (const item of events) {
+        const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+        lanePairs.push(a, b);
+      }
+      const byKey = new Map<string, { rgb: [number, number, number]; dim: number; indices: number[] }>();
+      for (let i = 0; i < events.length; i++) {
+        const item = events[i]!;
         const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
         const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
         const rgb = muted ? mutedRgb : meshes.color;
         const key = `${muted ? 1 : 0}|${alpha}`;
         let bucket = byKey.get(key);
         if (!bucket) {
-          bucket = { rgb, dim: alpha, pairs: [] };
+          bucket = { rgb, dim: alpha, indices: [] };
           byKey.set(key, bucket);
         }
-        const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-        bucket.pairs.push(a, b);
+        bucket.indices.push(i);
       }
       // Dimmer layers first so full-bright selection/matches paint on top.
       meshes.emphasisLayers = [...byKey.values()]
         .sort((a, b) => a.dim - b.dim)
-        .map(({ rgb, dim, pairs }) => ({ rgb, dim, chunks: createChunksFromPairs(gl, pairs) }));
+        .map(({ rgb, dim, indices }) => ({
+          rgb,
+          dim,
+          chunks: createChunksFromIndices(gl, lanePairs, indices),
+        }));
     }
   }
 
