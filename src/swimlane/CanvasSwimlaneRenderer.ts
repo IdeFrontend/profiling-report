@@ -17,10 +17,13 @@ import {
   type DependencyLink,
 } from './dependencyLinks';
 import {
-  applyCollapseAnim,
-  BAND_FILL,
+  collapseAlpha,
+  collapseShiftY,
+  collapseTransform,
   EMPTY_LAYOUT,
   eventPaintRect,
+  eventRadius,
+  IDLE_COLLAPSE,
   LANE_FILL,
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
@@ -40,6 +43,7 @@ import {
   SUMMARY_LABEL_COLOR,
   snapEventRect,
   type CollapseAnimState,
+  type CollapseTransform,
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
@@ -142,6 +146,7 @@ export class SwimlaneOverlayPainter {
   private ctx: CanvasRenderingContext2D | null = null;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
+  private collapse: CollapseTransform = IDLE_COLLAPSE;
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
@@ -174,6 +179,12 @@ export class SwimlaneOverlayPainter {
   setLayout(layout: SwimlaneLayout): void {
     if (layout === this.layout) return;
     this.layout = layout;
+    this.collapse = IDLE_COLLAPSE;
+  }
+
+  /** Per-frame collapse/expand transform (see layout.collapseTransform). */
+  setCollapseAnim(state: CollapseAnimState | null): void {
+    this.collapse = collapseTransform(this.layout, state);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -226,9 +237,11 @@ export class SwimlaneOverlayPainter {
       if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
         continue;
       }
+      const laneY = collapseShiftY(item.y, this.collapse);
+      const laneAlpha = collapseAlpha(item.y, this.collapse);
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const metrics = eventBlockMetrics(item.y, this.view.scrollY);
+      const metrics = eventBlockMetrics(laneY, this.view.scrollY);
       const y = metrics.y * dpr;
       const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
@@ -268,7 +281,6 @@ export class SwimlaneOverlayPainter {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const laneAlpha = this.layout.lanes[item.laneIndex]?.alpha ?? 1;
       const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
         bright.has(item.id) || item.id === this.hoveredId,
@@ -324,6 +336,7 @@ export class SwimlaneOverlayPainter {
     this.canvas = null;
     this.ctx = null;
     this.layout = EMPTY_LAYOUT;
+    this.collapse = IDLE_COLLAPSE;
     this.neighborIds = new Set();
   }
 }
@@ -336,6 +349,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private baseLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
+  private collapse: CollapseTransform = IDLE_COLLAPSE;
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
@@ -370,12 +384,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   setModel(model: SwimlaneModel): void {
     this.baseLayout = rebuildLayout(model);
     this.layout = this.baseLayout;
+    this.collapse = IDLE_COLLAPSE;
     this.refreshDepCache();
   }
 
-  /** Per-frame collapse/expand transform applied to the expanded base layout. */
+  /** Per-frame collapse/expand transform applied inline in `render` (no layout rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
-    this.layout = applyCollapseAnim(this.baseLayout, state);
+    this.collapse = collapseTransform(this.baseLayout, state);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -468,7 +483,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const dpr = this.dpr;
 
     for (const header of this.layout.headers) {
-      const headerTop = (header.y - this.view.scrollY) * dpr;
+      const headerTop = (collapseShiftY(header.y, this.collapse) - this.view.scrollY) * dpr;
       const headerH = LANE_GROUP_HEADER_HEIGHT * dpr;
       if (headerTop + headerH > 0 && headerTop < this.height) {
         ctx.fillStyle = LANE_GROUP_HEADER_FILL;
@@ -483,10 +498,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
-      const y = (lane.y - this.view.scrollY) * dpr;
+      const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
       const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > this.height) continue;
-      ctx.globalAlpha = lane.alpha ?? 1;
+      ctx.globalAlpha = collapseAlpha(lane.y, this.collapse);
       ctx.fillStyle = lane.thread.id === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
       ctx.fillRect(0, y, this.width, laneH);
       ctx.strokeStyle = '#3a3a3a';
@@ -522,7 +537,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const metrics = eventBlockMetrics(item.y, this.view.scrollY);
+      const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
       const y = metrics.y * dpr;
       const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
@@ -554,14 +569,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const laneAlpha = this.layout.lanes[item.laneIndex]?.alpha ?? 1;
       const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
         bright.has(item.id) || item.id === this.hoveredId,
         hasSearch,
         hasSelection,
       );
-      const alpha = emphAlpha * laneAlpha;
+      const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
       const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
       const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
       ctx.globalAlpha = alpha;
@@ -612,6 +626,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.ctx = null;
     this.baseLayout = EMPTY_LAYOUT;
     this.layout = EMPTY_LAYOUT;
+    this.collapse = IDLE_COLLAPSE;
     this.neighborIds = new Set();
     this.depLinks = [];
   }

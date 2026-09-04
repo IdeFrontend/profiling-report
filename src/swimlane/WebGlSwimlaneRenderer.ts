@@ -8,8 +8,11 @@ import {
   type SwimlaneViewWindow,
 } from '../domain/types';
 import {
-  applyCollapseAnim,
+  collapseAlpha,
+  collapseShiftY,
+  collapseTransform,
   EMPTY_LAYOUT,
+  IDLE_COLLAPSE,
   LANE_FILL,
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
@@ -33,6 +36,7 @@ import {
   SUMMARY_EVENT_FILL,
   snapEventRect,
   type CollapseAnimState,
+  type CollapseTransform,
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
@@ -409,6 +413,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private baseLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
+  private collapse: CollapseTransform = IDLE_COLLAPSE;
   /** Subtracted from event times before float32 upload (model.minTime). */
   private timeBase = 0;
   private searchQuery = '';
@@ -486,6 +491,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   setModel(model: SwimlaneModel): void {
     this.baseLayout = rebuildLayout(model);
     this.layout = this.baseLayout;
+    this.collapse = IDLE_COLLAPSE;
     this.timeBase = model?.minTime ?? 0;
     this.refreshDepCache();
     this.rebuildMeshes();
@@ -495,9 +501,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     if (this.gl) this.atlas?.clear(this.gl);
   }
 
-  /** Per-frame collapse/expand transform applied to the expanded base layout. */
+  /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
-    this.layout = applyCollapseAnim(this.baseLayout, state);
+    this.collapse = collapseTransform(this.baseLayout, state);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -614,7 +620,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const divider = 0x3a / 255;
 
     for (const header of this.layout.headers) {
-      const headerTop = (header.y - this.view.scrollY) * dpr;
+      const headerTop = (collapseShiftY(header.y, this.collapse) - this.view.scrollY) * dpr;
       const headerH = LANE_GROUP_HEADER_HEIGHT * dpr;
       if (headerTop + headerH > 0 && headerTop < devH) {
         this.drawSolidRect(solid, unit, 0, headerTop, devW, headerH, headerBg);
@@ -628,10 +634,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
-      const y = (lane.y - this.view.scrollY) * dpr;
+      const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
       const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > devH) continue;
-      const alpha = lane.alpha ?? 1;
+      const alpha = collapseAlpha(lane.y, this.collapse);
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
       this.drawSolidRect(solid, unit, 0, y, devW, laneH, bg, alpha);
       this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider], alpha);
@@ -675,11 +681,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     for (let i = 0; i < this.laneMeshes.length; i++) {
       const lane = this.layout.lanes[i];
       const meshes = this.laneMeshes[i];
-      if (!meshes) continue;
-      const laneAlpha = lane?.alpha ?? 1;
+      if (!lane || !meshes) continue;
+      const laneAlpha = collapseAlpha(lane.y, this.collapse);
 
       for (const row of meshes.rows) {
-        const { y: topRaw, h: bandHRaw } = eventBlockMetrics(row.y, this.view.scrollY);
+        const { y: topRaw, h: bandHRaw } = eventBlockMetrics(
+          collapseShiftY(row.y, this.collapse),
+          this.view.scrollY,
+        );
         const top = topRaw * dpr;
         const bandH = bandHRaw * dpr;
         const snapped = snapEventRect(0, top, 1, bandH);
@@ -774,6 +783,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.canvas = null;
     this.baseLayout = EMPTY_LAYOUT;
     this.layout = EMPTY_LAYOUT;
+    this.collapse = IDLE_COLLAPSE;
     this.neighborIds = new Set();
     this.depLinks = [];
   }
