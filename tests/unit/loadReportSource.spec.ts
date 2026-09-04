@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadReportSource, parseRep } from '../../src/index';
 import { operatorsFromNestedNames } from '../../src/adapters/loadReportSource';
 import { packNpuRep160, NPU160_TYPE_CSV, NPU160_TYPE_JSON, NPU160_TYPE_NESTED } from '../../playground/packNpuRep160';
-import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes, loadResultNpuRepBytes } from '../helpers/fixtures';
+import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes, loadResultNpuRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 
 describe('PR-JSON: standalone Chrome Trace', () => {
   it('PR-JSON-001: loads CTEF JSON without report aside data (PROC-3)', () => {
@@ -70,6 +70,27 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.reportModel.memoryTables.length).toBeGreaterThan(0);
     expect(adapted.reportModel.hardwareDetails).toBeDefined();
     expect(adapted.operators).toBeUndefined();
+  });
+
+  it('PR-NPU-010: product npu-rep with PipeTrace.json + Summary.jsonl renders timeline and op identity', () => {
+    // vector_muladd_plain.npu-rep uses the product timeline/summary names:
+    // PipeTrace.json (timeline, µs) and Summary.jsonl (OpInfoSummary).
+    const adapted = loadReportSource(loadVectorMuladdNpuRepBytes());
+
+    expect(adapted.operators).toBeUndefined();
+    expect(adapted.swimlaneModel).not.toBeNull();
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
+    // Timeline is µs → ns: ~12.2 µs span becomes ~12,190 ns.
+    expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
+    expect(adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime).toBeGreaterThan(10_000);
+
+    expect(adapted.reportModel.summary.opName).toBe('vector_muladd_plain');
+    expect(adapted.reportModel.summary.opType).toBe('vector');
+    expect(adapted.reportModel.summary.taskDurationUs).toBeCloseTo(51.701);
+    expect(adapted.reportModel.summary.blockDim).toBe(64);
+    expect(adapted.reportModel.summary.pid).toBe('112112');
+    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    expect(adapted.reportModel.hardwareDetails).toBeDefined();
   });
 
   it('PR-NPU-008: loadReportSource routes nested 160-byte container to multi-op report', () => {
