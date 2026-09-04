@@ -468,11 +468,13 @@ describe('SwimlaneView', () => {
           {
             id: 'card0',
             name: 'Card0',
+            utilMidlinePercent: 50,
             lanes: [{ id: 'l1', name: 'A', color: '#f00', utilization: 0.5 }],
           },
           {
             id: 'card1',
             name: 'Card1',
+            utilMidlinePercent: 75,
             lanes: [{ id: 'l2', name: 'B', color: '#0f0', utilization: 0.5 }],
           },
         ],
@@ -500,13 +502,17 @@ describe('SwimlaneView', () => {
         searchQuery: '',
       },
     });
-    const pinnedLanes = wrapper
-      .get('[data-testid="pinned-gutter"]')
-      .findAll('[data-testid^="gutter-lane-"]');
+    const pinnedGutter = wrapper.get('[data-testid="pinned-gutter"]');
+    const pinnedLanes = pinnedGutter.findAll('[data-testid^="gutter-lane-"]');
     expect(pinnedLanes.map((n) => n.attributes('data-testid'))).toEqual([
       'gutter-lane-l2',
       'gutter-lane-l1',
     ]);
+    // Same chrome as originals: each pin row gets its source Card's util midline %.
+    const mids = pinnedGutter.findAll('.pr-gutter__util-mid');
+    expect(mids).toHaveLength(2);
+    expect(mids[0]!.attributes('style')).toContain('left: 75%');
+    expect(mids[1]!.attributes('style')).toContain('left: 50%');
   });
 
   it('PR-SWIMVIEW-018: measure magnet routes by pointer Y across pin strip and body', () => {

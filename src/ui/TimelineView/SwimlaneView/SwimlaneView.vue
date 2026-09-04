@@ -428,6 +428,7 @@ defineExpose({
           :pinned-lane-ids="pinnedLaneIds"
           :hovered-lane-id="hoveredLaneId"
           :locale="locale"
+          :util-midline-percent="row.utilMidlinePercent"
           @pin-lane="emit('pin-lane', $event)"
           @unpin-lane="emit('unpin-lane', $event)"
         />
