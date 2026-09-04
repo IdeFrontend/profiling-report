@@ -145,7 +145,7 @@ function linkCurveProgram(gl: WebGL2RenderingContext): CurveProgram {
 }
 
 /** Sudu setVbSquareWithGaps: 6 floats/vertex — adds gapPrev,gapNext per vertex (aData). */
-function setVbSquareWithGaps(
+export function setVbSquareWithGaps(
   p: number,
   x0: number,
   x1: number,
@@ -183,7 +183,7 @@ function setVbSquareWithGaps(
 /**
  * Build a swimlane mesh chunk. `pairs` stores [x0,x1] event intervals in event coordinates
  * (relative to timeBase) and `gaps` stores the matching [gapPrev,gapNext] distance per event
- * in the same coordinate space. Edge events use the line's eventRange as a large fake gap.
+ * in the same coordinate space. Edge events use `EDGE_GAP` as a large fake gap.
  * The 6-float vertex format (pos, uv, data) enables branchless extension in the vertex shader.
  */
 function createChunk(
@@ -235,38 +235,43 @@ function createChunk(
   return { vao, vbo, ibo, indexCount: numSquares * 6 };
 }
 
+/** Edge fake-gap for the first/last event of a lane (model time units). A huge constant so an
+ * isolated/thin edge event is treated as having plenty of empty space on the boundary side and
+ * always saturates the extension margin. A degenerate `eventRange` (a single-event lane) would
+ * otherwise suppress the extension. */
+export const EDGE_GAP = 1e12;
+
+/** Per-event `[gapPrev, gapNext]` for a full lane of encoded interval pairs, in event coords.
+ * Boundary sides use `EDGE_GAP`; interior gaps are the exact nearest-neighbor distance. */
+export function computeChunkGaps(pairs: number[]): Float32Array {
+  const totalPairs = pairs.length / 2;
+  const gaps = new Float32Array(totalPairs * 2);
+  for (let gi = 0; gi < totalPairs; gi++) {
+    const x0 = pairs[gi * 2]!;
+    const x1 = pairs[gi * 2 + 1]!;
+    const gapPrev = gi === 0 ? EDGE_GAP : x0 - pairs[gi * 2 - 1]!;
+    const last = gi * 2 + 2 >= pairs.length;
+    const gapNext = last ? EDGE_GAP : pairs[gi * 2 + 2]! - x1;
+    gaps[gi * 2] = gapPrev;
+    gaps[gi * 2 + 1] = gapNext;
+  }
+  return gaps;
+}
+
 /**
- * Build mesh chunks from per-event encoded intervals. Nearest-neighbor gaps are computed here
- * (in event coords) and packed beside each quad. For edge events the missing-side gap uses the
- * line's eventRange (distance from first event start to last event end); when a later chunk is
- * the final chunk (mesh truncation), the last event's gapNext is computed from a real neighbor
- * when one exists.
+ * Build mesh chunks from per-event encoded intervals. Nearest-neighbor gaps are computed once
+ * across the whole lane (`computeChunkGaps`) and sliced per chunk, so a truncated chunk still
+ * carries its last event's real `gapNext` from the next neighbor.
  */
 function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): MeshChunk[] {
   const chunks: MeshChunk[] = [];
   const totalPairs = pairs.length / 2;
-  // Edge fake-gap for the first/last event of a lane: a huge constant (model time units) so an
-  // isolated/thin edge event is treated as having plenty of empty space on the boundary side and
-  // always saturates the extension margin. (eventRange degenerates to a thin value for a single
-  // event, which would suppress the extension.)
-  const edgeGap = 1e12;
+  const gaps = computeChunkGaps(pairs);
   for (let off = 0; off < totalPairs; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, totalPairs - off);
     const slice = new Float32Array(pairs.slice(off * 2, (off + count) * 2));
-    const gaps = new Float32Array(count * 2);
-    for (let i = 0; i < count; i++) {
-      const gi = off + i;
-      const x0 = pairs[gi * 2]!;
-      const x1 = pairs[gi * 2 + 1]!;
-      // gapPrev = distance from prev event end (huge fake gap for first event of the line)
-      const gapPrev = gi === 0 ? edgeGap : x0 - pairs[gi * 2 - 1]!;
-      // gapNext = distance to next event start; edge of a non-final chunk still has a neighbor
-      const last = gi * 2 + 2 >= pairs.length;
-      const gapNext = last ? edgeGap : pairs[gi * 2 + 2]! - x1;
-      gaps[i * 2] = gapPrev;
-      gaps[i * 2 + 1] = gapNext;
-    }
-    chunks.push(createChunk(gl, slice, gaps, count));
+    const gapSlice = gaps.subarray(off * 2, off * 2 + count * 2);
+    chunks.push(createChunk(gl, slice, gapSlice, count));
   }
   return chunks;
 }

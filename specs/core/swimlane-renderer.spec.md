@@ -76,6 +76,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-020b**: WebGL overlay underpaint for non-resting blocks uses `LANE_HOVER_FILL` when that event's lane is the hovered row (else `LANE_FILL`), so a dimmed state fill composites over the same lane chrome Canvas uses.
 1. **PR-RENDER-021**: `setSelection(selected, hovered)` paints each block the OKLCH state fill for its winning state, and each label the contrast colour of the fill beneath it.
 1. **PR-RENDER-022**: Dependency curve stroke width is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (`max(1, round(2 × dpr))` device px = 2 CSS px), applied by both Canvas and WebGL; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom.
+1. **PR-RENDER-024**: `computeChunkGaps` assigns per-event `[gapPrev, gapNext]` from full-lane neighbors, `EDGE_GAP` on boundary sides, and real neighbors across chunk truncation; `setVbSquareWithGaps` writes one 6-float/vertex quad carrying both gaps per vertex.
 
 ## Edge Cases
 
@@ -92,6 +93,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-04** — Extracted `computeChunkGaps` / `EDGE_GAP` and exported `setVbSquareWithGaps` so the isolated-event gap math and vertex packing are unit-testable without a GL context (PR-RENDER-024).
 - **2026-09-02** — Dependency curve stroke is dpr-scaled via the shared `dependencyStrokeWidth(dpr)` helper (2 CSS px, min 1 device px), so Canvas and WebGL match the 2 CSS px selection stroke at any dpr; WebGL re-uploads curve instances on `dpr` change so curves re-anchor on browser zoom. (PR-RENDER-022)
 - **2026-09-02** — PR-RENDER-020b: overlay underpaint respects `hoveredLaneId` (`LANE_HOVER_FILL` vs `LANE_FILL`) so dimmed state fills match Canvas over a hovered row.
 - **2026-09-02** — Experiment: hover and selected share `L + 0.33`; selection still gets `C × 1.05` and the white ring.
