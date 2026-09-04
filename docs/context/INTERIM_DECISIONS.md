@@ -2,6 +2,8 @@
 
 **These are not Product-final decisions.** They exist so MVP implementation and tests can proceed while producer / data specs are incomplete.
 
+**Scope.** This file is the **engineering execution table**, not the question ledger. The questions themselves live in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md); a question with status `interim` keeps its row there and points at a sub-letter rule here (e.g. `DATA-33b`). This file holds the interim rule text plus the implement/test mapping, supersede conditions, the deferral ledger, and the MVP scope checklist — content that does not belong in a product-facing question list.
+
 | Rule | Detail |
 |------|--------|
 | Status label | `interim` — never write as `resolved` product truth |

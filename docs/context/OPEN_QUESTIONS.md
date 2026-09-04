@@ -11,6 +11,8 @@ Single source of truth for unanswered product / engineering questions. **Status 
 
 **When resolved:** write the decision into the owning specs **and** file a [DECISIONS.md](DECISIONS.md) entry in the **same change**; remove the row here. Process: [DEVELOPMENT.md § Resolving open questions](../process/DEVELOPMENT.md#resolving-open-questions).
 
+**Scope.** This file is the **question ledger** — what is open and what Product still owes us: each question, its status, and the answer so far. It does **not** hold interim rule text, implement/test mapping, or the MVP build checklist — those are engineering execution, not question content, and live in [INTERIM_DECISIONS.md](INTERIM_DECISIONS.md). A question with status `interim` keeps its row here and points at the sub-letter rule there (e.g. `DATA-33b`).
+
 ## ID prefix taxonomy (closed set)
 
 - `DATA-*` — file/field/formula data mapping (report data → visualized number/series/edge).
