@@ -6,7 +6,7 @@
 
 **Goal:** Playground on [`data/out.rep`](../../../data/out.rep) surfaces every usable embed. Timeline shell only (no secondary tabs). No MSTT.
 
-**Principle:** Raw / clearly labeled fixture fields only — no invented Q6 tiles, overview series, or roofline.
+**Principle:** Raw / clearly labeled fixture fields only — no invented DATA-33 tiles, overview series, or roofline.
 
 Index: [README.md](README.md)
 
@@ -16,7 +16,7 @@ Index: [README.md](README.md)
 |------|--------|----------|
 | Shell + toolbar | **Keep** | Open `out.rep` / `out.trace.json`; aside toggle; search; zoom / zoom-to-fit; time unit ms/µs/ns |
 | Time axis + overview brush | **Keep** | Linked to visible window |
-| Cube/Vector overview charts | **Stay hidden** | No `OverviewSeries` in fixture (Q5) |
+| Cube/Vector overview charts | **Stay hidden** | No `OverviewSeries` in fixture (DATA-32) |
 | Lane gutter | **Keep** | Hierarchy from fixture names; util mini-bars when mapped |
 | Canvas + tooltip + compact detail strip | **Keep** | Hover (name/start/dur/end); single-select → strip; clear on empty click |
 | Deps / multiselect / context menu / ProfilerStep / W/S/A/D | **Out** | Selection + deps + details → [M2](milestone-2.md); rest → [M3](milestone-3.md) |
@@ -30,9 +30,9 @@ Design frames: [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg) (Cu
 | View | Status | Features |
 |------|--------|----------|
 | Report summary | **Extend** | All non-empty `OpBasicInfo` columns in fixture. Hide synthetic TFLOPS / BW / avg-util |
-| PIPE occupancy | **Extend** | Mean non-`NA` pipe-family bars (I-Q6b); **Cube \| Vector toggle for MIX** ops (#2); non-MIX shows relevant side only; hide if missing/all NA |
+| PIPE occupancy | **Extend** | Mean non-`NA` pipe-family bars (DATA-33b); **Cube \| Vector toggle for MIX** ops (#2); non-MIX shows relevant side only; hide if missing/all NA |
 | PIPE / compute details | **New** | Detail tabs: `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists; show `NA` |
-| Memory (field list) | **New** | Tabs: Memory L1 / L2Cache / Memory L0 / Memory UB (#4); **block** switcher (I-Q6c); **查看全部** opens full CSV in new tab (I-Q6d) |
+| Memory (field list) | **New** | Tabs: Memory L1 / L2Cache / Memory L0 / Memory UB (#4); **block** switcher (DATA-33c); **查看全部** opens full CSV in new tab (DATA-33d) |
 | Memory graph / topology chart | **Out** | → [M2](milestone-2.md) (`MemoryTopologyPanel`, changelog #5) |
 | Cache | **New** | Covered by memory detail **L2Cache** tab (aside mode may alias) |
 | Metrics | **New** | Covered by compute detail **ArithmeticUtilization** + **ResourceConflictRatio** tabs |
@@ -55,10 +55,10 @@ Design frames: [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg) (Cu
 | Blocker | Impact | Mitigation |
 |---------|--------|------------|
 | No column semantics / units for many CSV fields (producer spec WIP) | Labels may be raw header names only | Ship raw headers + values; polish labels when format spec arrives |
-| Which rows to show (per `block_id` vs aggregate) | Wrong UX for multi-block fixture | **I-Q6c**: mean bars + block-scoped details with picker |
+| Which rows to show (per `block_id` vs aggregate) | Wrong UX for multi-block fixture | **DATA-33c**: mean bars + block-scoped details with picker |
 | Sketches for pipe/memory **lists** exist; Metrics/Cache aside chrome less specified | Layout guesswork | Mirror changelog tabs + `source/v930/compute-load-detail.jpeg` list pattern |
-| Q6 still interim — cannot show TFLOPS/BW tiles | Summary incomplete vs sketches | Explicitly out of M1; do not invent formulas |
-| Q5 — no `OverviewSeries` in fixture | Overview charts stay empty | Keep hidden (already decided) |
+| DATA-33 still interim — cannot show TFLOPS/BW tiles | Summary incomplete vs sketches | Explicitly out of M1; do not invent formulas |
+| DATA-32 — no `OverviewSeries` in fixture | Overview charts stay empty | Keep hidden (already decided) |
 | Dense/wide CSVs may hurt aside UX | Scroll/search only | Search + virtualize if needed; no chart derivation in M1 |
 
 ## Exit criteria

@@ -4,7 +4,7 @@ import { operatorsFromNestedNames } from '../../src/adapters/loadReportSource';
 import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes } from '../helpers/fixtures';
 
 describe('PR-JSON: standalone Chrome Trace', () => {
-  it('PR-JSON-001: loads CTEF JSON without report aside data (Q15)', () => {
+  it('PR-JSON-001: loads CTEF JSON without report aside data (PROC-3)', () => {
     const adapted = loadReportSource(loadOutTraceBytes());
     expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel.minTime).toBeLessThan(adapted.swimlaneModel.maxTime);

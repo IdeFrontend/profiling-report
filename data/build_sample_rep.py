@@ -152,7 +152,7 @@ CODE_PATHS = [
 
 
 def producer_params(pipe, name, rand, seq, dur, *, rich=True):
-    """Synthetic producer args for DetailParameter (not I-Q9 transport).
+    """Synthetic producer args for DetailParameter (not DATA-36a transport).
 
     `rich=True` (op1): includes Code paths for the Parameter column.
     `rich=False` (op2): compact fields only — keeps the large fixture near ~30 MB.

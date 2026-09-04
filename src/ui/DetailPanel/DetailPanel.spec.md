@@ -57,7 +57,7 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 - **2026-09-02** — Expanded dock height is `min(var(--pr-dock-h), 60vh)` so a short host cannot lose the timeline; the free-drag path used to leave `innerHeight - 160` for the same reason.
 - **2026-09-01** — Identity track becomes `min-content` in both the three- and two-column layouts, so the card fits its figures instead of cropping them at 290px. Behaviour is specified in DetailSummary (`PR-DSUM-005`).
 - **2026-09-01** — PR-DPANEL-005 recast: the drag handle becomes the sketch's centred expander and the dock's free height range becomes two fixed heights (247 / 407), measured off the v930 pair. Adds PR-DPANEL-006 (underline on the rule) and PR-DPANEL-007 (animated height, `PrIcon` close). The stale `45vh` cap in this spec was never implemented and is gone with the range.
-- **2026-08-28** — Drop phantom `unit` input; summary times are per-value auto (two-tier I-Q14).
+- **2026-08-28** — Drop phantom `unit` input; summary times are per-value auto (two-tier UI-40a).
 - **2026-08-20** — PR-DPANEL-005: the dock's top edge is a drag handle. **height** is a prop and **update:height** an emit, so the root owns the size the way it owns the gutter and aside widths; the drag reuses `panelResize` on the vertical axis and clamps against the viewport so the dock can never swallow the timeline.
 - **2026-08-20** — Dock height 247px, the sketch's proportion at 1920 wide.
 - **2026-08-20** — Relays `dependencyMode` / `dependencyDepth` instead of `level`: the dock's direction and depth controls now drive the swimlane curves too.

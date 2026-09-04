@@ -23,7 +23,7 @@ function toValues(value: unknown): string[] {
 }
 
 /**
- * Not producer parameters: `event_id` / `dependencies` are the I-Q9 transport, already
+ * Not producer parameters: `event_id` / `dependencies` are the DATA-36a transport, already
  * rendered as the Relevent graph, and `cat` is the Chrome Trace category the adapter
  * copies into `args` — DetailSummary already shows it in the type pill.
  */

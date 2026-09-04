@@ -46,12 +46,12 @@ const BANDWIDTH_COLUMNS = {
 
 const ALL_MAIN_MEM_BW_COLUMNS = Object.values(BANDWIDTH_COLUMNS).flatMap((d) => [...d.aic, ...d.aiv]);
 
-/** I-Q6g: sketch 1600 GB/s hardware guess for all four aic/aiv × in/out slots. */
+/** DATA-33g: sketch 1600 GB/s hardware guess for all four aic/aiv × in/out slots. */
 const BANDWIDTH_PEAK_GBS = 1600;
 
-/** I-Q11d fallback when Memory BW columns are all NA. */
+/** DATA-37d fallback when Memory BW columns are all NA. */
 const ROOFLINE_PEAK_BW_FALLBACK_GBS = 100;
-/** I-Q11d sketch-like compute plateau (TOps/s). */
+/** DATA-37d sketch-like compute plateau (TOps/s). */
 const ROOFLINE_PEAK_COMPUTE_TOPS = 1;
 
 function decodeUtf8(bytes: Uint8Array): string {
@@ -185,8 +185,8 @@ function mixLabelsFromRows(
 }
 
 /**
- * Interim I-Q11a–e: GM roofline point + mix labels from ArithmeticUtilization + Memory.
- * Returns undefined when undecidable (I-Q11c L2 omitted).
+ * Interim DATA-37a–e: GM roofline point + mix labels from ArithmeticUtilization + Memory.
+ * Returns undefined when undecidable (DATA-37c L2 omitted).
  */
 function rooflineFromCsv(
   arithPayload?: Uint8Array,
@@ -258,7 +258,7 @@ function bandwidthSide(
   return { side, measuredGBs, peakGBs: BANDWIDTH_PEAK_GBS };
 }
 
-/** I-Q6g: mean non-NA Memory.csv main-mem BW; peak = sketch 1600 GB/s. */
+/** DATA-33g: mean non-NA Memory.csv main-mem BW; peak = sketch 1600 GB/s. */
 function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
   if (!payload) return [];
   const { rows } = parseCsv(decodeUtf8(payload));
@@ -296,7 +296,7 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
-/** HQ 1: numeric fields from HardwareInfo.jsonl (accepts `ai_*` and `aic_*` keys). */
+/** DATA-1: numeric fields from HardwareInfo.jsonl (accepts `ai_*` and `aic_*` keys). */
 function hardwareNumericFieldsFromJsonl(text: string): Record<string, number> {
   const fields: Record<string, number> = {};
   for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
@@ -323,7 +323,7 @@ function pickPositiveField(fields: Record<string, number>, keys: string[]): numb
   return undefined;
 }
 
-/** HQ 1: core count for duration bar / secondary from op type + HardwareInfo.jsonl. */
+/** DATA-1: core count for duration bar / secondary from op type + HardwareInfo.jsonl. */
 function coreCountForOpType(fields: Record<string, number>, opType?: string): number | undefined {
   const t = (opType ?? '').trim().toLowerCase();
   if (t === 'mix') return pickPositiveField(fields, ['ai_core_count', 'aic_core_count']);
@@ -534,7 +534,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   };
 }
 
-/** Empty analytics model for Chrome Trace–only loads (Q15). */
+/** Empty analytics model for Chrome Trace–only loads (PROC-3). */
 export function emptyReportViewModel(): ReportViewModel {
   return {
     summary: {},

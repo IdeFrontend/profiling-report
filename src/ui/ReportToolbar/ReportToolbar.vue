@@ -1047,7 +1047,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 }
 
 /* Only a number field lives here — the manual ms/µs/ns <select> was removed with
-   auto-scaling units (I-Q14), so its dropdown chevron went with it. */
+   auto-scaling units (UI-40a), so its dropdown chevron went with it. */
 .pr-toolbar__display-stepper {
   position: relative;
   display: block;

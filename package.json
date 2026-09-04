@@ -40,8 +40,9 @@
     "check:specs": "node scripts/check-spec-coverage.mjs",
     "check:design": "node scripts/check-design-assets.mjs",
     "check:sample": "node scripts/check-sample-rep.mjs",
-    "render:hq-visuals": "node scripts/render-hq-visuals.mjs",
-    "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run check:design && npm run check:sample && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
+    "render:question-visuals": "node scripts/render-question-visuals.mjs",
+    "check:questions": "node scripts/check-questions.mjs",
+    "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run check:design && npm run check:questions && npm run check:sample && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
     "ci:tdd": "npm run ci && npm run test:e2e:feature"
   },
   "peerDependencies": {

@@ -27,7 +27,7 @@ resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
 
 **Internal representation.** All time values throughout the system use nanoseconds internally. Conversion to display units happens only at the formatting layer.
 
-**Two-tier auto scale** ([I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale)). Wall-time labels use `TimeScaleUnit` (`s` / `ms` / `us` / `ns`).
+**Two-tier auto scale** ([UI-40a](../../docs/context/decisions/interim/UI.md)). Wall-time labels use `TimeScaleUnit` (`s` / `ms` / `us` / `ns`).
 
 - **Spatial chrome** (viewport axis, cursor timestamp, overview axis): share a viewport / density unit — `resolveTimeUnitFromVisibleRange(end − start)` for viewport chrome; overview / total axis uses major-tick step from span×width (`resolveTimeUnitFromAxisDensity` in axisRuler) — brush window must not change overview unit.
 - **Absolute event times** (tooltip / detail Start·End·Duration) and **measure / gap Δt**: each value picks its own unit via `timeScaleUnitFromMagnitude` / `formatTimeAuto` (PyPTO-like) — **independent of zoom**. Start and Duration may use different units.
@@ -59,7 +59,7 @@ Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTimeAuto(0)` 
 
 ## Dependencies
 
-I-Q14 — Time (auto scale); see [INTERIM_DECISIONS I-Q14](../../docs/context/INTERIM_DECISIONS.md#i-q14--time-auto-scale).
+UI-40a — Time (auto scale); see [UI-40a](../../docs/context/decisions/interim/UI.md).
 
 ## Changelog
 - **2026-08-28** — Document uniform digit chrome for event times (no size/tint-by-unit); unit via suffix.

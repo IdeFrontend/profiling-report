@@ -85,7 +85,7 @@ function key(pid: number | string | undefined, tid: number | string | undefined)
 }
 
 /**
- * Interim I-Q9 encoding: an X event may carry a producer-stable `args.event_id`
+ * Interim DATA-36a encoding: an X event may carry a producer-stable `args.event_id`
  * and `args.dependencies` (successor ids). Without `event_id` the adapter's own
  * `e-<seq>` id stays authoritative and dependency ids cannot resolve.
  *
@@ -406,7 +406,7 @@ function seenSet(map: Map<SwimEvent, Set<string>>, event: SwimEvent): Set<string
 }
 
 /**
- * Interim I-Q9: `args.dependencies` names successor event ids, which only become
+ * Interim DATA-36a: `args.dependencies` names successor event ids, which only become
  * positions once every thread is sorted. Targets the model does not contain are
  * dropped — a dangling id would otherwise render as a link to nothing.
  */

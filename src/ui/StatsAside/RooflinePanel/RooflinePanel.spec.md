@@ -4,7 +4,7 @@
 |----------------|
 | PR-ROOF-*      |
 
-Log-log roofline bottleneck chart (M2 interim I-Q11*).
+Log-log roofline bottleneck chart (M2 interim DATA-37*).
 
 ## Inputs
 
@@ -14,7 +14,7 @@ Log-log roofline bottleneck chart (M2 interim I-Q11*).
 
 Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws the theoretical roof (`min(peakCompute, peakBW_GBs * intensity / 1000)`), measured points (solid/hollow), and op-mix labels. Hover on a point shows intensity + performance. Parent hides the panel when there are no points — empty `points` renders an empty root (no chart chrome).
 
-Tabs (内存单元 / 通路 / 搬运) are omitted (I-Q11f).
+Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 
 ## Acceptance Criteria
 
@@ -27,7 +27,7 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (I-Q11f).
 
 ## Visual
 
-Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Cross-check raised card + under-roof wash against [`v930/detail-strip-raised`](../../../../docs/ui/source/v930/detail-strip-raised.jpeg). Tabs in the crop are **omitted** (I-Q11f).
+Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Cross-check raised card + under-roof wash against [`v930/detail-strip-raised`](../../../../docs/ui/source/v930/detail-strip-raised.jpeg). Tabs in the crop are **omitted** (DATA-37f).
 
 | Token | Value |
 |-------|--------|
@@ -48,7 +48,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Dependencies
 
-[view-models](../../../../specs/core/view-models.spec.md), I-Q11a–f, [VIEW_DATA_MAPPING §11.2.4](../../../../docs/ui/VIEW_DATA_MAPPING.md).
+[view-models](../../../../specs/core/view-models.spec.md), DATA-37a–f, [VIEW_DATA_MAPPING §11.2.4](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
 
@@ -68,5 +68,5 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 - **2026-08-27** — Sketch pixel pass: GM/L2 header, roof vertex markers, mix `toFixed(6)`, softer ridge-anchored wash.
 - **2026-08-26** — Re-tuned gradient (ridge-anchored alpha curve) + chart type sizes from detail-strip-raised samples; raised card `#161616`.
 - **2026-08-26** — Raised chart card + under-roof accent gradient (detail-strip-raised / report-stats); roof accent `#3078f0`.
-- **2026-08-13** — Crop token table; tabs remain omitted (I-Q11f).
+- **2026-08-13** — Crop token table; tabs remain omitted (DATA-37f).
 - **2026-08-10** — Initial M2 interim panel.

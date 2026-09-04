@@ -29,7 +29,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
 | `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
 | `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
-| `Memory.csv` | Optional summary I/O bandwidth tiles (I-Q6g) | Memory topology diagram + field drill-down |
+| `Memory.csv` | Optional summary I/O bandwidth tiles (DATA-33g) | Memory topology diagram + field drill-down |
 | `MemoryL0.csv` | — | L0 path details on memory diagram |
 | `MemoryUB.csv` | — | UB path details |
 | `L2Cache.csv` | — | Cache tab / L2 hit-rate panels |
@@ -49,7 +49,7 @@ Sample row (abridged):
 | Op Name | `add_custom` | Title / breadcrumb |
 | Op Type | `vector` | Badge / filter |
 | Task Duration(us) | `1.800036` | Total time |
-| Block Dim | `8` | Aside **Blocks**; duration secondary + bar util (I-Q6e / HQ 1–32) |
+| Block Dim | `8` | Aside **Blocks**; duration secondary + bar util (DATA-33e / DATA-1–32) |
 | Mix Block Dim | `NA` | Mix mode (later) |
 | Device Id | `0` | Device label |
 | Pid | process id | Aside **进程** |
@@ -73,11 +73,11 @@ Important AIV columns (sample is vector-heavy):
 
 AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cube / FixPipe bars when present.
 
-**MVP aggregation ([I-Q6b](../context/INTERIM_DECISIONS.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md). Superseded when Q6 / data spec says otherwise.
+**MVP aggregation ([DATA-33b](../context/decisions/interim/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md). Superseded when DATA-33 / data spec says otherwise.
 
-**Overview Cube/Vector charts:** Product decision ([Q5](../context/OPEN_QUESTIONS.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
+**Overview Cube/Vector charts:** Product decision ([DATA-32](../context/decisions/DATA.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
 
-**Lane hierarchy:** Use producer `thread_name` / process names as-is ([Q8](../context/OPEN_QUESTIONS.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
+**Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 
 ---
 
@@ -101,7 +101,7 @@ Used for summary “computing power” tiles and later **roofline** category poi
 | `MemoryUB.csv` | UB vector/scalar R/W BW |
 | `L2Cache.csv` | Write/read hits, miss-allocate, hit rates (%) |
 
-Phase 2 memory diagram (`source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg`): **static SVG** topology with **data-driven edge labels** from these fields ([Q12](../context/OPEN_QUESTIONS.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
+Phase 2 memory diagram (`source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg`): **static SVG** topology with **data-driven edge labels** from these fields ([UI-38](../context/decisions/UI.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
 
 ---
 
@@ -155,11 +155,11 @@ The sample `out.rep` trace is a **single-channel AIV pipe-state busy timeline**,
 
 | Expectation | Sample reality | Spec stance |
 |-------------|----------------|-------------|
-| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([Q4](../context/OPEN_QUESTIONS.md)); stress emits it; flat CTEF uses **producer names** as-is ([Q8](../context/OPEN_QUESTIONS.md)) |
+| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([DATA-31](../context/questions/DATA.md)); stress emits it; flat CTEF uses **producer names** as-is ([DATA-35](../context/decisions/DATA.md)) |
 | Instruction names on bars | Marker / busy names | Show event `name`; richer labels when future traces include them |
 | ProfilerStep bands | Not in sample | Phase 2 / when args or counter tracks exist |
 | Dependencies | Not in sample | Phase 2; parse when predecessor/successor args appear |
-| Overview Cube/Vector series | Not in sample | **Hide** charts ([Q5](../context/OPEN_QUESTIONS.md)) |
+| Overview Cube/Vector series | Not in sample | **Hide** charts ([DATA-32](../context/decisions/DATA.md)) |
 
 Writers of `.rep` files should eventually emit nested models matching the Card hierarchy. Until then, the viewer remains useful on pipe-state traces like the fixture.
 

@@ -18,7 +18,7 @@ Parsing validates the magic at offset 0 and throws if it doesn't match. It reads
 
 **Embedded file conventions.** CSV metrics are keyed by `block_id`/`sub_block_id`, with `NA` for missing values. `aic_*`/`aiv_*` prefix distinguishes Cube/Vector counters. Time values in microseconds, bandwidth in GB/s.
 
-**Golden fixture.** CI uses `data/out.rep` (I-Q4). Contains 9 embedded files: `OpBasicInfo.csv`, `PipeUtilization.csv`, `ArithmeticUtilization.csv`, `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv`, `ResourceConflictRatio.csv`, `trace.json`.
+**Golden fixture.** CI uses `data/out.rep` (DATA-31a). Contains 9 embedded files: `OpBasicInfo.csv`, `PipeUtilization.csv`, `ArithmeticUtilization.csv`, `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv`, `ResourceConflictRatio.csv`, `trace.json`.
 
 ## Acceptance Criteria
 
@@ -32,11 +32,11 @@ Parsing validates the magic at offset 0 and throws if it doesn't match. It reads
 
 ## Dependencies
 
-I-Q2 (`.rep`/`.ncrep` share layout), I-Q4 (CI golden fixture).
+PROC-2a (`.rep`/`.ncrep` share layout), DATA-31a (CI golden fixture).
 
 ## Open
 
-Q1 — Producer status; format may evolve.
+PROC-1 — Producer status; format may evolve.
 
 ## Design sketches
 

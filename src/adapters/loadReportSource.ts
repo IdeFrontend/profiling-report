@@ -77,7 +77,7 @@ function adaptNpuRep(bytes: Uint8Array): AdaptedReport {
 
 /**
  * Load either a `.rep` / `.ncrep` / `.npu-rep` container or standalone Chrome Trace JSON bytes.
- * Q15 / VIEW_DATA_REQUIREMENTS: JSON path hides analytics aside (empty ReportViewModel).
+ * PROC-3 / VIEW_DATA_REQUIREMENTS: JSON path hides analytics aside (empty ReportViewModel).
  */
 export function loadReportSource(source: ArrayBuffer | Uint8Array): AdaptedReport {
   const bytes = toBytes(source);

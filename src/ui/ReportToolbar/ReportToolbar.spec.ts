@@ -179,7 +179,7 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(
       /\.pr-toolbar__display-field input\[type='number'\][\s\S]*?border-radius:\s*6px/,
     );
-    // No manual unit <select> exists any more (I-Q14 auto-scaling units).
+    // No manual unit <select> exists any more (UI-40a auto-scaling units).
     expect(src).not.toMatch(/\.pr-toolbar__display-field select/);
   });
 

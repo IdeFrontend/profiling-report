@@ -46,7 +46,7 @@ describe('DetailParameter', () => {
     expect(values[0].attributes('title')).toContain('dav_c220000000');
   });
 
-  it('PR-DPARAM-004: drops the I-Q9 transport keys and the adapter-injected cat', () => {
+  it('PR-DPARAM-004: drops the DATA-36a transport keys and the adapter-injected cat', () => {
     const wrapper = mount(DetailParameter, {
       props: {
         args: {

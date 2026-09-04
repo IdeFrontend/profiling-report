@@ -1,5 +1,5 @@
 /**
- * Synthetic dependency demo (interim I-Q9): `out.rep` and `out.trace.json` carry
+ * Synthetic dependency demo (interim DATA-36a): `out.rep` and `out.trace.json` carry
  * no edges, so the Relevent column has nothing to show on the real fixtures.
  * Chain mirrors `v930/task-click-detail`: two ProfilerStep predecessors, the
  * selected MOV_OUT task, two ProfilerStep successors.

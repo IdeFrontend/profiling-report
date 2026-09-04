@@ -20,11 +20,11 @@ Report container contract and embedded file conventions shared with [rep-format]
 
 ## Dependencies
 
-I-Q6b (pipe aggregation: mean of non-NA ratios per family). Shared `PR-FMT-*` with [rep-format](./rep-format.spec.md).
+DATA-33b (pipe aggregation: mean of non-NA ratios per family). Shared `PR-FMT-*` with [rep-format](./rep-format.spec.md).
 
 ## Open
 
-Q5 — Overview series returns empty array per I-Q5+.
+DATA-32 — Overview series returns empty array per DATA-32a.
 
 ## Design sketches
 
