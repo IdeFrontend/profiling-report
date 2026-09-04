@@ -294,7 +294,7 @@ export interface SelectedEvent {
 export type TimeScaleUnit = 's' | 'ms' | 'us' | 'ns';
 
 /**
- * User preference (I-Q14): wall time with auto s/ms/µs/ns, or CPU clocks.
+ * User preference (UI-40a): wall time with auto s/ms/µs/ns, or CPU clocks.
  * Clocks require OpBasicInfo currentFreq/ratedFreq (MHz).
  */
 export type TimeDisplayMode = 'time' | 'cycles';

@@ -136,6 +136,35 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(select.findAll('option').map((o) => o.attributes('value'))).toContain('cycles');
   });
 
+  it('PR-UI-011: toolbar cycles survives freq change when host prop is omitted', async () => {
+    const emptySwim: SwimlaneModel = { processes: [], minTime: 0, maxTime: 1 };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: emptySwim,
+        reportModel: { ...emptyReportViewModel(), summary: { currentFreq: 1650 } },
+      },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="toggle-display-control"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="time-display-mode"]').setValue('cycles');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="time-display-mode"]').attributes('value')).toBe('cycles');
+
+    // Operator switch / reload updates freq to another valid MHz — keep cycles.
+    await wrapper.setProps({
+      reportModel: { ...emptyReportViewModel(), summary: { currentFreq: 1800 } },
+    });
+    await flushPromises();
+    expect(wrapper.get('[data-testid="time-display-mode"]').attributes('value')).toBe('cycles');
+
+    // Freq disappears → fall back to wall time (UI-40a).
+    await wrapper.setProps({ reportModel: emptyReportViewModel() });
+    await flushPromises();
+    expect(wrapper.get('[data-testid="time-display-mode"]').attributes('value')).toBe('time');
+  });
+
   it('PR-UI-004: zoom-to-fit resets time window', async () => {
     stubReducedMotion();
     const adapted = adaptRep(parseRep(loadOutRepBytes()));

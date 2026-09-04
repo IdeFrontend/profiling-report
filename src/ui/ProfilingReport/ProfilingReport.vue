@@ -449,17 +449,21 @@ function onMeasureKeydown(e: KeyboardEvent) {
 }
 
 /**
- * Effective display mode = host request clamped to wall time when no clock freq is
- * available. One combined watcher (immediate) covers every path: mount with a host
- * `'cycles'` prop while freq is missing, a later host change, and freq appearing or
- * disappearing (e.g. an auto-loaded report resolving its OpBasicInfo summary).
+ * Effective display mode: host prop when set, else the toolbar's local choice.
+ * Clamp `'cycles'` → `'time'` only when OpBasicInfo freq is missing — never treat
+ * an omitted host prop as an explicit `'time'` write (that would wipe a toolbar
+ * cycles selection on every freq change, e.g. operator switch / report reload).
  */
 watch(
   [() => props.timeDisplayMode, clockFreqMHz],
   ([mode, freq]) => {
-    const requested = mode ?? 'time';
-    localTimeDisplayMode.value =
-      requested === 'cycles' && freq == null ? 'time' : requested;
+    if (mode != null) {
+      localTimeDisplayMode.value = mode === 'cycles' && freq == null ? 'time' : mode;
+      return;
+    }
+    if (localTimeDisplayMode.value === 'cycles' && freq == null) {
+      localTimeDisplayMode.value = 'time';
+    }
   },
   { immediate: true },
 );
