@@ -54,6 +54,12 @@ describe('PR-NPU160: product 160-byte npu-rep parse', () => {
     badMagic[0] = 0x58; // 'X'
     expect(() => parseNpuRep160(badMagic)).toThrow(/magic/);
 
+    // Exact 8-byte magic: a valid `npu-rep` prefix with a wrong trailing byte
+    // (not NUL) must also be rejected (Python `MAGIC = b"npu-rep\0"`).
+    const badNul = new Uint8Array(bytes);
+    badNul[7] = 0x58; // 'X' where the NUL terminator must be
+    expect(() => parseNpuRep160(badNul)).toThrow(/magic/);
+
     const badVersion = new Uint8Array(bytes);
     new DataView(badVersion.buffer, badVersion.byteOffset, badVersion.byteLength).setUint32(
       8,
@@ -68,6 +74,17 @@ describe('PR-NPU160: product 160-byte npu-rep parse', () => {
     const badOrigin = new Uint8Array(bytes);
     new DataView(badOrigin.buffer, badOrigin.byteOffset, badOrigin.byteLength).setUint16(12, 0, true);
     expect(() => parseNpuRep160(badOrigin)).toThrow(/origin/);
+  });
+
+  it('PR-NPU-007: rejects a non-null-terminated embed name', () => {
+    // Build a valid leaf then overwrite the entire 128-byte name field so no NUL
+    // terminator remains (Python decode_name throws in this case).
+    const packed = packNpuRep160([
+      { name: 'a.csv', type: NPU160_TYPE_CSV, data: new TextEncoder().encode('x') },
+    ]);
+    const nameOffset = 36 + 8; // head + FileInfo magic
+    packed.fill(0x61, nameOffset, nameOffset + 128); // 'a' × 128, no NUL
+    expect(() => parseNpuRep160(packed)).toThrow(/null-terminated/);
   });
 
   it('PR-NPU-007: round-trips packNpuRep160 → parseNpuRep160', () => {
