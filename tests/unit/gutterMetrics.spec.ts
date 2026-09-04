@@ -157,6 +157,14 @@ describe('PR-GMET: gutter metrics', () => {
     expect(averageBarWidthForCard(utilBars, 'utilization')).toBe(50);
     const cycleBars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
     expect(averageBarWidthForCard(cycleBars, 'clockCycle')).toBeCloseTo(75, 5);
+
+    // Zero-width bar still counts toward ≥2 lanes (mean includes 0 → 50).
+    const withZero = parsePipeRows(
+      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,10,0'].join('\n'),
+    );
+    const zeroBars = gutterBarsForCard(model, withZero, 'clockCycle', 'card0');
+    expect(zeroBars.get('sc')?.barWidth).toBe(0);
+    expect(averageBarWidthForCard(zeroBars, 'clockCycle')).toBeCloseTo(50, 5);
   });
 
   it('PR-GMET-004: utilization uses event coverage and threshold flag', () => {

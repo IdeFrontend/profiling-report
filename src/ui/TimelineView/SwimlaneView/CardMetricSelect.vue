@@ -71,6 +71,18 @@ function onDocPointerDown(e: PointerEvent) {
 }
 
 function onKeydown(e: KeyboardEvent) {
+  // Always stop so Enter/Space never bubble to the Card strip (PR-SWIMVIEW-011).
+  if (
+    e.key === 'Escape' ||
+    e.key === 'ArrowDown' ||
+    e.key === 'ArrowUp' ||
+    e.key === 'Home' ||
+    e.key === 'End' ||
+    e.key === 'Enter' ||
+    e.key === ' '
+  ) {
+    e.stopPropagation();
+  }
   if (!open.value) return;
   const n = props.options.length;
   if (n === 0) return;
@@ -155,6 +167,7 @@ watch(
     :data-value="modelValue"
     @click.stop
     @pointerdown.stop
+    @keydown.stop
   >
     <button
       ref="triggerRef"
