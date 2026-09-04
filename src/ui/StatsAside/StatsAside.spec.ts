@@ -265,7 +265,7 @@ describe('StatsAside', () => {
     expect(viaMeta.emitted('open-hardware-details')).toBeTruthy();
   });
 
-  it('PR-STATS-009: duration card has sketch chrome', () => {
+  it('PR-STATS-009: duration card has sketch chrome (bar removed per NPU-Compute Q32)', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 4600 } }),
@@ -277,7 +277,8 @@ describe('StatsAside', () => {
     expect(card.get('.pr-card__num').text()).toBe('4.60');
     expect(card.get('.pr-card__unit').text()).toBe('ms');
     expect(card.get('[data-testid="stats-duration-value"]').attributes('title')).toBe('4.6 ms');
-    expect(card.find('[data-testid="stats-duration-bar"]').exists()).toBe(true);
+    // Bar dropped (Q32): show `blockDim / core count` text instead.
+    expect(card.find('[data-testid="stats-duration-bar"]').exists()).toBe(false);
   });
 
   it('PR-STATS-009c: duration rounds to 2 dp; tooltip keeps full value', () => {
@@ -339,7 +340,7 @@ describe('StatsAside', () => {
     });
     const secondary = withDim.get('[data-testid="stats-duration-secondary"]').text();
     expect(secondary).toMatch(/8/);
-    expect(secondary).toMatch(/次迭代|iterations/);
+    expect(secondary).toMatch(/Blocks/);
     expect(secondary).not.toContain('relu');
 
     const withCore = mount(StatsAside, {
@@ -361,7 +362,7 @@ describe('StatsAside', () => {
     expect(bare.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-031: duration bar util % from blockDim/coreCount; clamps at 100%', () => {
+  it('PR-STATS-031: duration secondary shows `{blockDim} Blocks / {coreCount} 核` (bar removed)', () => {
     const util = mount(StatsAside, {
       props: {
         report: report({
@@ -369,59 +370,65 @@ describe('StatsAside', () => {
         }),
       },
     });
-    const fill = util.get('.pr-card__bar-fill--duration');
-    expect(fill.attributes('style')).toMatch(/width:\s*11\.111/);
+    // No decorative/percent bar (Q32), and the secondary names both numbers.
+    expect(util.find('.pr-card__bar-fill--duration').exists()).toBe(false);
+    const secondary = util.get('[data-testid="stats-duration-secondary"]').text();
+    expect(secondary).toContain('8');
+    expect(secondary).toContain('72');
 
-    const clamped = mount(StatsAside, {
-      props: {
-        report: report({
-          summary: { taskDurationUs: 1000, blockDim: 40, coreCount: 36, opType: 'mix' },
-        }),
-      },
-    });
-    expect(clamped.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 100%');
-
-    const decorative = mount(StatsAside, {
+    const blockOnly = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 1000, blockDim: 8 } }),
       },
     });
-    expect(decorative.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 15%');
-
-    const zero = mount(StatsAside, {
-      props: {
-        report: report({
-          summary: { taskDurationUs: 1000, blockDim: 0, coreCount: 72, opType: 'vector' },
-        }),
-      },
-    });
-    expect(zero.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 0%');
+    expect(blockOnly.get('[data-testid="stats-duration-secondary"]').text()).toContain('8');
+    expect(blockOnly.get('[data-testid="stats-duration-secondary"]').text()).toContain('Blocks');
   });
 
-  it('PR-STATS-011: compute/util are N/A placeholders; BW not from summary.ioBandwidth', () => {
+  it('PR-STATS-011: compute/util are N/A when derived fields absent', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
-          summary: {
-            taskDurationUs: 1000,
-            computeTflops: 172,
-            ioBandwidth: 0.08,
-            avgCoreUtil: 0.69,
-          },
+          summary: { taskDurationUs: 1000 },
         }),
       },
     });
     const compute = wrapper.get('[data-testid="stats-compute-card"]');
     expect(compute.text()).toMatch(/算力情况|Computing power/);
     expect(compute.text()).toContain('N/A');
-    expect(compute.text()).not.toMatch(/172|90\s*%/);
     const core = wrapper.get('[data-testid="stats-core-util-card"]');
-    expect(core.text()).toMatch(/平均核利用率|Average core/);
+    expect(core.text()).toMatch(/并行使用率|parallel utilization/);
     expect(core.text()).toContain('N/A');
-    expect(core.text()).not.toMatch(/0\.69|82\s*%|24\/24/);
     expect(wrapper.find('[data-testid="stats-bandwidth-input"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-bandwidth-output"]').exists()).toBe(false);
-    expect(wrapper.text()).not.toMatch(/输入带宽|Input bandwidth/);
+  });
+
+  it('PR-STATS-011c: compute/util render real values from summary.jsonl derived fields', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            taskDurationUs: 1000,
+            aicFlops: 100,
+            aivFlops: 80,
+            aicFlopsTheoretical: 200,
+            aivFlopsTheoretical: 160,
+            parallelUtilization: 0.981418,
+            parallelBalance: 0.933769,
+          },
+        }),
+      },
+    });
+    const compute = wrapper.get('[data-testid="stats-compute-card"]');
+    expect(compute.text()).toContain('100.00');
+    expect(compute.text()).toContain('80.00');
+    expect(compute.text()).toContain('aic');
+    expect(compute.text()).toContain('aiv');
+    const core = wrapper.get('[data-testid="stats-core-util-card"]');
+    expect(core.text()).toMatch(/并行使用率|parallel utilization/);
+    expect(core.text()).toContain('98.14%');
+    expect(core.text()).toMatch(/负载均衡度|Load balance/);
+    expect(core.text()).toContain('93.38%');
   });
 
   it('PR-STATS-011b: BW-only summary hides compute/util placeholders', () => {

@@ -8,7 +8,12 @@ import type {
   ReportViewModel,
 } from '../../domain/types';
 import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
+import {
+  SUMMARY_COMPUTE_CATEGORIES,
+  SUMMARY_MEMORY_CATEGORIES,
+} from '../../adapters/adaptRep';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
+import SummaryCategoryList from './SummaryCategoryList/SummaryCategoryList.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
@@ -57,8 +62,38 @@ const bandwidthView = computed(() =>
   })),
 );
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
-const showCompute = computed(() => (props.report?.computeTables?.length ?? 0) > 0);
-const showMemory = computed(() => (props.report?.memoryTables?.length ?? 0) > 0);
+
+/** Product (NPU-Compute) detail surface: summary.jsonl categories (block-mean). */
+const summaryCategories = computed(() => props.report?.summaryCategories ?? []);
+const computeCategories = computed(() =>
+  summaryCategories.value.filter((c) =>
+    (SUMMARY_COMPUTE_CATEGORIES as readonly string[]).includes(c.id),
+  ),
+);
+const memoryCategories = computed(() =>
+  summaryCategories.value.filter((c) =>
+    (SUMMARY_MEMORY_CATEGORIES as readonly string[]).includes(c.id),
+  ),
+);
+const activeCategory = ref('');
+
+watch(
+  () => [computeCategories.value, memoryCategories.value] as const,
+  ([compute, memory]) => {
+    const first = compute[0]?.id ?? memory[0]?.id ?? '';
+    if (!(compute.some((c) => c.id === activeCategory.value) || memory.some((c) => c.id === activeCategory.value))) {
+      activeCategory.value = first;
+    }
+  },
+  { immediate: true },
+);
+
+const showCompute = computed(
+  () => (props.report?.computeTables?.length ?? 0) > 0 || computeCategories.value.length > 0,
+);
+const showMemory = computed(
+  () => (props.report?.memoryTables?.length ?? 0) > 0 || memoryCategories.value.length > 0,
+);
 const showRoofline = computed(() => (props.report?.roofline?.points?.length ?? 0) > 0);
 const hasHardwareDetails = computed(
   () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
@@ -117,36 +152,53 @@ function numericBlockDim(blockDim: string | number | undefined): number | undefi
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** UI-32: Block Dim / core_count × 100%, clamped 0–100. Null when inputs missing. */
-const durationCoreUtilPercent = computed(() => {
-  const s = summary.value;
-  const block = numericBlockDim(s?.blockDim);
-  const cores = s?.coreCount;
-  if (block == null || cores == null || cores <= 0) return null;
-  return Math.min(100, Math.max(0, (block / cores) * 100));
-});
-
-const durationBarWidthPercent = computed(() => {
-  const util = durationCoreUtilPercent.value;
-  if (util == null) return 15;
-  return Math.round(util * 1000) / 1000;
-});
-
+/** UI-32 (NPU-Compute): drop the bar; secondary = `{blockDim} Blocks / {coreCount} 核`. */
 const durationSecondary = computed(() => {
   const s = summary.value;
   if (!s) return null;
   const block = numericBlockDim(s.blockDim);
   if (block != null && s.coreCount != null && s.coreCount > 0) {
-    return t('iterationsPerCoreRatio', props.locale)
+    return t('blocksPerCores', props.locale)
       .replace('{blockDim}', String(block))
       .replace('{coreCount}', String(s.coreCount));
   }
   if (s.blockDim != null && s.blockDim !== '') {
-    return t('iterationsPerCore', props.locale).replace('{n}', String(s.blockDim));
+    return t('blocksOnly', props.locale).replace('{n}', String(s.blockDim));
   }
   if (s.opName) return s.opName;
   return null;
 });
+
+/** Compute power (算力情况): measured/theoretical TFLOPS split aic | aiv. */
+const computeSides = computed(() => {
+  const s = summary.value;
+  const sides: { side: 'aic' | 'aiv'; measured: number; theoretical?: number }[] = [];
+  if (s?.aicFlops != null) sides.push({ side: 'aic', measured: s.aicFlops, theoretical: s.aicFlopsTheoretical });
+  if (s?.aivFlops != null) sides.push({ side: 'aiv', measured: s.aivFlops, theoretical: s.aivFlopsTheoretical });
+  return sides;
+});
+
+const hasCompute = computed(() => computeSides.value.length > 0);
+
+function computeScore(side: { measured: number; theoretical?: number }): number | null {
+  if (side.theoretical == null || side.theoretical <= 0) return null;
+  return Math.min(100, Math.max(0, Math.round((side.measured / side.theoretical) * 100)));
+}
+
+function formatTflops(v: number): string {
+  return v.toFixed(2);
+}
+
+/** AI Core 并行使用率 (parallel utilization) + 负载均衡度 (balance). */
+const parallelUtilPercent = computed(() => {
+  const v = summary.value?.parallelUtilization;
+  return v == null ? null : v * 100;
+});
+const parallelBalancePercent = computed(() => {
+  const v = summary.value?.parallelBalance;
+  return v == null ? null : v * 100;
+});
+const hasParallel = computed(() => parallelUtilPercent.value != null);
 
 const hasMeta = computed(() => {
   const s = summary.value;
@@ -411,7 +463,15 @@ function backToReport() {
       data-testid="stats-compute"
       class="pr-aside__detail"
     >
+      <SummaryCategoryList
+        v-if="computeCategories.length > 0"
+        :categories="computeCategories"
+        :active-id="activeCategory"
+        :locale="locale"
+        @update:active-id="activeCategory = $event"
+      />
       <CsvFieldListPanel
+        v-else
         :tables="report?.computeTables ?? []"
         :csv-texts="report?.csvTexts ?? {}"
         :locale="locale"
@@ -425,7 +485,15 @@ function backToReport() {
       data-testid="stats-memory"
       class="pr-aside__detail"
     >
+      <SummaryCategoryList
+        v-if="memoryCategories.length > 0"
+        :categories="memoryCategories"
+        :active-id="activeCategory"
+        :locale="locale"
+        @update:active-id="activeCategory = $event"
+      />
       <CsvFieldListPanel
+        v-else
         :tables="report?.memoryTables ?? []"
         :csv-texts="report?.csvTexts ?? {}"
         :locale="locale"
@@ -461,19 +529,6 @@ function backToReport() {
             <span class="pr-card__unit">{{ durationParts.unit }}</span>
           </div>
           <div
-            class="pr-card__bar-track"
-            data-testid="stats-duration-bar"
-          >
-            <span
-              class="pr-card__bar-hatch"
-              aria-hidden="true"
-            />
-            <span
-              class="pr-card__bar-fill pr-card__bar-fill--duration"
-              :style="{ width: `${durationBarWidthPercent}%` }"
-            />
-          </div>
-          <div
             v-if="durationSecondary"
             class="pr-card__sub"
             data-testid="stats-duration-secondary"
@@ -484,26 +539,63 @@ function backToReport() {
         </div>
         <div
           v-if="hasDuration"
-          class="pr-card pr-card--top pr-card--na"
+          class="pr-card pr-card--top"
           data-testid="stats-compute-card"
         >
           <div class="pr-card__label">
             {{ t('computePower', locale) }}
           </div>
-          <div class="pr-card__value">
+          <div
+            v-if="hasCompute"
+            class="pr-bw-cols"
+          >
+            <div
+              v-for="side in computeSides"
+              :key="side.side"
+              class="pr-bw-col"
+            >
+              <div class="pr-bw-col__head">
+                <span class="pr-card__value">{{ formatTflops(side.measured) }}</span>
+                <span class="pr-bw-col__side">{{ side.side }}</span>
+              </div>
+              <div class="pr-card__sub">
+                <span v-if="side.theoretical != null">{{ formatTflops(side.theoretical) }} TFLOPS</span>
+                <span v-if="computeScore(side) != null"> · {{ computeScore(side) }}%</span>
+              </div>
+            </div>
+          </div>
+          <div
+            v-else
+            class="pr-card__value"
+          >
             {{ t('notAvailable', locale) }}
           </div>
         </div>
         <div
           v-if="hasDuration"
-          class="pr-card pr-card--top pr-card--na"
+          class="pr-card pr-card--top"
           data-testid="stats-core-util-card"
         >
           <div class="pr-card__label">
-            {{ t('avgCoreUtil', locale) }}
+            {{ t('parallelUtilization', locale) }}
           </div>
-          <div class="pr-card__value">
+          <div
+            v-if="hasParallel"
+            class="pr-card__value"
+          >
+            {{ (parallelUtilPercent ?? 0).toFixed(2) }}%
+          </div>
+          <div
+            v-else
+            class="pr-card__value"
+          >
             {{ t('notAvailable', locale) }}
+          </div>
+          <div
+            v-if="parallelBalancePercent != null"
+            class="pr-card__sub"
+          >
+            {{ t('parallelBalance', locale) }} {{ parallelBalancePercent.toFixed(2) }}%
           </div>
         </div>
         <div

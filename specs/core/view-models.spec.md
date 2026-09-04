@@ -12,9 +12,11 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Behavior
 
-**Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (**confirmed** `Task Duration(us)`), `pid` from `Pid` / `PID`, `blockDim` from `Block Dim`, `coreCount` from `HardwareInfo.jsonl` by op type (DATA-1). Compute TFLOPS and core utilization stay unset. I/O bandwidth cards are `bandwidthCards` (DATA-33g): **measured columns confirmed**; peak/score still interim.
+**Report summary.** Extracts op identity from `OpBasicInfo.csv` (classic `.rep`) or `Summary.jsonl` `OpInfoSummary` (product `npu-rep`): op name, op type, task duration (**confirmed** `Task Duration(us)`), `pid` from `Pid` / `PID`, `blockDim` from `Block Dim`, `coreCount` from `HardwareInfo.jsonl` by op type (DATA-1; spaced keys `ai core count` etc. normalized). Product reports additionally carry derived fields from `OpInfoSummary`: `aicFlops` / `aivFlops` / `aicFlopsTheoretical` / `aivFlopsTheoretical` (compute), `gmBwTheoreticalGBs` / `gmReadBw` / `gmWriteBw` / `gmBwUsageRate` (bandwidth), and `parallelUtilization` / `parallelBalance` (AI Core 并行使用率).
 
-**I/O bandwidth (DATA-33g).** From `Memory.csv`: mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_main_mem_{read|write}_bw(GB/s)` (first matching header only; also accepts headers without the `(GB/s)` suffix). Peak = **1600 GB/s** for every side. UI displays **GB/s** (UI-34). Omit a side when all-NA; omit the card when both sides NA; omit `bandwidthCards` when Memory.csv is missing.
+**I/O bandwidth.** Prefer `summary.jsonl` (`OpInfoSummary` peak `aicore_gm_bw_theoretical(GB/s)` = SOL 1600 + `Memory` category per-side `*_main_mem_read/write_bw`); fall back to `Memory.csv` mean of non-`NA` `aic/aiv_main_mem_{read|write}_bw(GB/s)` with peak **1600 GB/s**. UI displays **GB/s** (UI-34). Omit a side when all-NA; omit the card when both sides NA.
+
+**Compute power.** When `summary.jsonl` provides `aicFlops`/`aivFlops`, show measured/theoretical TFLOPS split aic | aiv with score = measured/theoretical × 100% (UI-33, DATA-4). N/A when absent.
 
 **Aside meta (shell).** v930 header is **进程** / **算子类型** / **Blocks** from `pid`, `opType`, `blockDim`. Hide a segment when unset; hide the row when all three are empty. Do **not** put 核数, aic频率, or NPU ARCH on this row. `currentFreq` / `ratedFreq` stay on the model for the hardware overlay fallback; they are not shell fields. Overlay `chip_info` / `arch_info` stay in `hardwareDetails`.
 
@@ -22,11 +24,13 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **CSV detail tables (M1).** Builds `CsvTableModel` entries for compute tabs (`PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio`) and memory tabs (`Memory.csv`, `L2Cache`, `MemoryL0`, `MemoryUB`). Each table includes headers, rows, and distinct `blockIds` in fixture order (DATA-33c). Missing embeds are omitted. Raw CSV text is stored in `csvTexts[fileName]` for 查看全部 (DATA-33d).
 
-**Swimlane model.** Extracts `trace.json` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'ns'`.
+**Swimlane model.** Extracts the timeline via `chromeTraceToSwimlane`: `trace.json` with `sourceTimeUnit: 'ns'` (classic `.rep`), or `PipeTrace.json` with `sourceTimeUnit: 'us'` (product `npu-rep`; its `displayTimeUnit: "ns"` label is misleading — ts/dur are microseconds).
 
-**Overview series.** Empty array per DATA-32a.
+**Overview series.** Empty array per DATA-32a (the product `Sampling.json` `ph:C` counter source remains deferred).
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (PROC-3).
+
+**Summary detail categories (product).** When `summary.jsonl` is present, build `summaryCategories` from its metric category lines (block-mean, per spec "默认显示 summary.jsonl 分组数据"), excluding `OpInfoSummary`. The detail surface renders these when present, falling back to raw CSV tables + block switcher otherwise.
 
 **Roofline (M2 interim DATA-37*).** When `ArithmeticUtilization.csv` and `Memory.csv` yield a GM point: set `reportModel.roofline` and include `'roofline'` in `capabilities`. Omit `roofline` (and the capability) when undecidable. L2 omitted (DATA-37c). Tabs omitted (DATA-37f).
 
@@ -36,7 +40,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Acceptance Criteria
 
-1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration, pid, blockDim, optional coreCount (DATA-1); compute/util unset per DATA-33a.
+1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration, pid, blockDim, optional coreCount (DATA-1). Classic `.rep` leaves compute/util unset (no `summary.jsonl`). Product `npu-rep` fills `aicFlops` / `parallelUtilization` from `OpInfoSummary` (DATA-2, DATA-9, DATA-33).
 2. **PR-VM-002** — PipeOccupancy aggregates mean of non-NA ratios per pipe family per DATA-33b; optional absoluteValue from mean `*_time(us)` (DATA-33f).
 3. **PR-VM-003** — Overview series returns empty array per DATA-32a.
 4. **PR-VM-005** — Pipe items are side-specific (`aic_*` vs `aiv_*`); no blended AIC/AIV family ratio.
@@ -47,7 +51,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 9. **PR-VM-010** — `hardwareDetails` from HardwareInfo.jsonl (preferred) or OpBasicInfo fallback; omit when empty; capability `hardwareDetails` when present. StatsAside shows missing-hardware copy when omitted (UI-30, UI-31).
 10. **PR-VM-011** — `memoryTopology` from Memory* CSVs; `out.rep` UB/Vec/GM 2:1 and `from→to`; L2↔L1 from Memory.csv; UB product names first; hide NA, show 0.
 11. **PR-VM-012** — Topology labels come only from the requested `block_id`; first labelled block is used for the adapter snapshot.
-12. **PR-VM-013** — `bandwidthCards` from Memory.csv mean non-NA main-mem BW; peak 1600 GB/s; omit NA sides/cards (DATA-33g). Also covers unmodified `out.rep` (aiv-only; peak 1600).
+12. **PR-VM-013** — `bandwidthCards` prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = 1600); fall back to Memory.csv mean non-NA main-mem BW with peak 1600 GB/s; omit NA sides/cards (DATA-5, DATA-33). Also covers unmodified `out.rep` (aiv-only; peak 1600).
 13. **PR-VM-014** — `summary.coreCount` from `HardwareInfo.jsonl` by op type (cube/vector/mix); omit when jsonl or field missing.
 
 ## Edge Cases
@@ -61,14 +65,15 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Dependencies
 
-DATA-33a, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-33g, DATA-32a, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
+DATA-33, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-32a, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
 
 ## Open
 
-DATA-33 — Product-final summary formulas (compute / avg util still open; bandwidth DATA-33g). DATA-37 — Product-final roofline.
+DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; compute formula given but no chart-axis spec).
 
 ## Changelog
-- **2026-09-01** — `summary.coreCount` from `HardwareInfo.jsonl` by op type for duration bar/secondary (DATA-1, UI-32, PR-VM-014).
+- **2026-09-04** — NPU-Compute: `summary.jsonl` is the canonical source — `OpInfoSummary` derived fields (compute/BW/parallel utilization), summary-first detail categories, `PipeTrace.json` µs timeline, spaced HardwareInfo key normalization, peak 1600 GB/s (SOL), compute score = measured/theoretical (DATA-2, DATA-3, DATA-5, DATA-9, DATA-33, UI-32).
+- **2026-09-01** — `summary.coreCount` from `HardwareInfo.jsonl` by op type for duration secondary (DATA-1, UI-32, PR-VM-014).
 - **2026-08-25** — Aside meta is 进程 / 算子类型 / Blocks (`pid` / `opType` / `blockDim`); `coreCount` is not a meta-row field.
 - **2026-08-21** — UB/Vec arrows: `ub_read_*` = leaving UB (`out.rep` add 2:1, PR-VM-011).
 - **2026-08-20** — npu-compute 0818: duration / measured BW / ICache / HardwareInfo.jsonl / L2↔L1 / NA-hide confirmed; UB product names first (PR-VM-010/011).

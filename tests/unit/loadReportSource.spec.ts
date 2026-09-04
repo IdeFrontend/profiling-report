@@ -93,6 +93,32 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.reportModel.hardwareDetails).toBeDefined();
   });
 
+  it('PR-NPU-011: product npu-rep derives compute/BW/utilization + summary categories', () => {
+    const adapted = loadReportSource(loadVectorMuladdNpuRepBytes());
+    const { summary, bandwidthCards, summaryCategories } = adapted.reportModel;
+
+    // Core count resolves from spaced HardwareInfo keys (`ai vector count`).
+    expect(summary.coreCount).toBe(72);
+
+    // Bandwidth cards prefer summary.jsonl (Memory category) with peak from OpInfoSummary.
+    expect(summary.gmBwTheoreticalGBs).toBe(1600);
+    expect(summary.gmReadBw).toBeCloseTo(20.365732, 4);
+    expect(summary.gmWriteBw).toBeCloseTo(6.786368, 4);
+    expect(bandwidthCards?.map((c) => c.id)).toEqual(['input', 'output']);
+
+    // Parallel utilization / balance (OpInfoSummary derived).
+    expect(summary.parallelUtilization).toBeCloseTo(0.981418, 4);
+    expect(summary.parallelBalance).toBeCloseTo(0.933769, 4);
+
+    // Detail surface categories from summary.jsonl (OpInfoSummary excluded).
+    const ids = summaryCategories?.map((c) => c.id) ?? [];
+    expect(ids).toContain('PipeUtilization');
+    expect(ids).toContain('Memory');
+    expect(ids).not.toContain('OpInfoSummary');
+    const pipeCat = summaryCategories!.find((c) => c.id === 'PipeUtilization')!;
+    expect(pipeCat.fields.some((f) => f.key === 'aiv_vec_ratio')).toBe(true);
+  });
+
   it('PR-NPU-008: loadReportSource routes nested 160-byte container to multi-op report', () => {
     const payloads = parseRep(loadOutRepBytes()).payloads;
     const toEntries = () =>
