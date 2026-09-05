@@ -27,7 +27,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | Embedded file | Feeds (MVP) | Feeds (Phase 2+) |
 |---------------|-------------|------------------|
 | `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
-| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
+| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter (pipe-ratio legacy default); **时钟周期** gutter mode | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
 | `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
 | `Memory.csv` | Optional summary I/O bandwidth tiles (DATA-33g) | Memory topology diagram + field drill-down |
 | `MemoryL0.csv` | — | L0 path details on memory diagram |
@@ -65,7 +65,7 @@ Important AIV columns (sample is vector-heavy):
 
 | Column | Role |
 |--------|------|
-| `aiv_time(us)`, `aiv_total_cycles` | Block duration / cycles |
+| `aiv_time(us)`, `aiv_total_cycles` | Block duration / cycles — **`*_total_cycles` is not used** for Card gutter **时钟周期** (that mode uses pipe `*_time(us)` only; see [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)) |
 | `aiv_vec_time(us)`, `aiv_vec_ratio` | Vector pipe |
 | `aiv_mte2_*`, `aiv_mte3_*` | MTE pipes + active BW |
 | `aiv_scalar_*` | Scalar time, stalls, waits |
@@ -78,6 +78,19 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 **Overview Cube/Vector charts:** Product decision ([DATA-32](../context/decisions/DATA.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
 
 **Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
+
+### Gutter metric modes (Card-header selector)
+
+Per-Card dropdown on swimlane Card strips. Normative formula: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md) § **clockCycle formula**.
+
+| Mode | Quantity | Primary embed | Notes |
+|------|----------|---------------|-------|
+| 时钟周期 (`clockCycle`) | Mean pipe **active time (µs)** — UI label says “Clock Cycle”, values are **not** cycle counts | `PipeUtilization.csv` mapped `*_time(us)` only (see gutter-metrics column map) | Label suffix **`µs`**; hide when no mappable time data; **ignore** `*_total_cycles` |
+| 利用率 (`utilization`) | Event coverage % over model time span | `trace.json` | Always when trace exists |
+
+Default: **时钟周期** when available, else **利用率**. Aside PIPE **ratio** bars stay [DATA-33b](../context/decisions/interim/DATA.md); aside in-bar absolute times stay [DATA-33f](../context/decisions/interim/DATA.md) (same `*_time(us)` means as gutter clockCycle raw, different UI). **Product confirmation:** [DATA-38](../context/questions/DATA.md), [DATA-38a](../context/decisions/interim/DATA.md), [UI-46](../context/questions/UI.md), [UI-46a](../context/decisions/interim/UI.md).
+
+**Fill / midline:** utilization — red when < 50%, dash at 50%. clockCycle — red on max lane(s) only (all gray when tied); dash at `(mean raw ÷ max raw) × 100`.
 
 ---
 

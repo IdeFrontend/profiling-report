@@ -273,3 +273,11 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 **Question:** Roofline formulas?
 
 **Interim:** [`DATA-37a…DATA-37f`](../decisions/interim/DATA.md).
+
+### DATA-38 — Card gutter 时钟周期 formula (was: Q24 / HQ 39)
+
+**Status:** `interim`
+
+**Question:** Card-header **时钟周期 / Clock Cycle** gutter bars — which file, fields, and formula? Is the value cycle counts, pipe `*_time(us)`, or derived from swimlane events?
+
+**Answer so far (interim):** Quantity = **mean non-`NA` mapped `PipeUtilization.csv` `*_time(us)`** across `block_id`, keyed by `laneColorKey` (not `*_total_cycles`, not per-event average). Relative bar within Card; max-lane red. Selector modes: **clockCycle** + **utilization** only. Interim: [`DATA-38a`](../decisions/interim/DATA.md). Label units: [`UI-46`](UI.md) / [`UI-46a`](../decisions/interim/UI.md). Spec: [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md). **Not** timeline CPU-clocks display (separate PR; old OPEN Q23 / HQ 38).

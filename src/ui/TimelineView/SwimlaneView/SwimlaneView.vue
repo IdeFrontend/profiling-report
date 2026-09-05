@@ -30,8 +30,10 @@ import {
   startHorizontalResize,
 } from '../../panelResize';
 import Chevron from '../../Chevron.vue';
+import type { GutterMetric } from '../../../domain/gutterMetrics';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
+import CardMetricSelect from './CardMetricSelect.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import { t } from '../../../i18n';
 
@@ -58,6 +60,10 @@ const props = withDefaults(
     dependencyDepth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
     gutterWidth?: number;
+    /** Per-Card selected gutter metric (parent-owned). */
+    gutterMetricByCard?: Record<string, GutterMetric>;
+    /** Per-Card available metrics; omit or empty → hide selector on that Card. */
+    gutterMetricOptionsByCard?: Record<string, GutterMetric[]>;
     /** Shared playhead x from parent (axis hover + canvas); drives the swim vertical bar. */
     cursorXRatio?: number | null;
     /** True when the cursor is magnetized to an event edge (gray the swim vertical bar). */
@@ -86,6 +92,7 @@ const emit = defineEmits<{
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
   'suppress-measure-dt': [suppress: boolean];
+  'update:gutter-metric': [payload: { cardId: string; metric: GutterMetric }];
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
@@ -355,6 +362,26 @@ function clearEdgeSnapHighlight() {
   pinnedCanvasRef.value?.clearEdgeSnapHighlight();
 }
 
+
+function metricOptionsForCard(cardId: string): GutterMetric[] {
+  return props.gutterMetricOptionsByCard?.[cardId] ?? [];
+}
+
+function selectedMetricForCard(cardId: string): GutterMetric | undefined {
+  return props.gutterMetricByCard?.[cardId];
+}
+
+function onMetricChange(cardId: string, metric: GutterMetric) {
+  emit('update:gutter-metric', { cardId, metric });
+}
+
+/** Collapse/expand only when the activation target is the strip itself — not the metric select. */
+function onCardStripActivate(cardId: string, e: Event) {
+  const t = e.target;
+  if (t instanceof Element && t.closest('.pr-metric-select')) return;
+  emit('toggle-group', cardId);
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
@@ -401,6 +428,7 @@ defineExpose({
           :pinned-lane-ids="pinnedLaneIds"
           :hovered-lane-id="hoveredLaneId"
           :locale="locale"
+          :util-midline-percent="row.utilMidlinePercent"
           @pin-lane="emit('pin-lane', $event)"
           @unpin-lane="emit('unpin-lane', $event)"
         />
@@ -500,17 +528,20 @@ defineExpose({
           '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
         }"
       >
-        <button
+        <div
           v-for="strip in visibleCardStrips"
           :key="strip.id"
-          type="button"
+          role="button"
+          tabindex="0"
           class="pr-card-strip"
           :data-testid="`card-strip-${strip.id}`"
           :aria-expanded="strip.expanded"
           :aria-label="strip.name"
           :style="{ top: `${strip.top}px` }"
           @pointerenter="clearCursor"
-          @click="emit('toggle-group', strip.id)"
+          @click="onCardStripActivate(strip.id, $event)"
+          @keydown.enter.prevent="onCardStripActivate(strip.id, $event)"
+          @keydown.space.prevent="onCardStripActivate(strip.id, $event)"
           @wheel="onStripWheel"
         >
           <span class="pr-card-strip__label">
@@ -519,8 +550,16 @@ defineExpose({
               :expanded="strip.expanded"
             />
             <span class="pr-card-strip__name">{{ strip.name }}</span>
+            <CardMetricSelect
+              v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"
+              :model-value="selectedMetricForCard(strip.id) ?? metricOptionsForCard(strip.id)[0]!"
+              :options="metricOptionsForCard(strip.id)"
+              :locale="locale"
+              :ariaLabel="t('gutterMetricFor', locale).replace('{name}', strip.name)"
+              @update:model-value="onMetricChange(strip.id, $event)"
+            />
           </span>
-        </button>
+        </div>
       </div>
     </div>
   </div>

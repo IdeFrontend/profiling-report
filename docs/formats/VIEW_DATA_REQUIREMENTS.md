@@ -67,8 +67,8 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-------|-------------|
 | `SwimProcess` / `SwimThread` names | **Required** (from trace metadata / events / synthetic model) |
 | Hierarchy Card → 通信/计算/储存HBM → `CoreN.*` → pipes | **Producer- or stress-defined nodes** (DATA-35: no viewer heuristics inventing Card/Core from flat AIV names). Nested `SwimThread.children` when present; flat CTEF remains valid |
-| `SwimThread.utilization` (0..1) | **Optional** — omit mini-bars if absent; folders and leaves may both carry util |
-
+| Gutter metric selection (per Card) | **Optional** — Card-header dropdown when modes available ([gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)); default **时钟周期** when mappable `PipeUtilization.csv` `*_time(us)` means exist, else **利用率**. clockCycle quantity = µs (not cycle counts) |
+| `SwimThread.utilization` or computed **bar** | **Optional** — omit mini-bars when absent; folders and leaves may both carry bars. **bar** shape: `{ barWidth, label, thresholdColor? }` per active metric |
 **Target fidelity (DATA-31):** Product aims at sketch Card → Core → pipe Gantt. **Interim fixture ([DATA-31a](../context/decisions/interim/DATA.md)):** CI uses `data/out.rep` (flat AIV); playground stress presets emit nested Card tree for sketch fidelity. Do not fail MVP acceptance on `out.rep` pixel-parity.
 
 ---

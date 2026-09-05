@@ -53,10 +53,18 @@ import {
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
-import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
+import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
 import { animateViewWindow } from '../TimelineView/animateViewWindow';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
+import {
+  availableGutterMetrics,
+  averageBarWidthForCard,
+  defaultGutterMetric,
+  gutterBarsForCard,
+  type GutterBarDisplay,
+  type GutterMetric,
+} from '../../domain/gutterMetrics';
 
 const props = withDefaults(defineProps<{
   title?: string;
@@ -119,6 +127,8 @@ const operators = ref<ReportOperator[]>([]);
 /** Shallow: avoid deep-proxying every swim event in every operator pack. */
 const operatorReports = shallowRef<Record<string, AdaptedReport>>({});
 const selectedOperatorId = ref<string | null>(null);
+/** Per-Card gutter metric selection (session-only; reset on report swap). */
+const gutterMetricByCard = ref<Record<string, GutterMetric>>({});
 
 const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
 const report = computed(() => props.reportModel ?? internalReport.value);
@@ -140,27 +150,74 @@ const asideAvailable = computed(() => reportHasAsideContent(report.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
 
-function toGutterLane(thread: SwimThread): GutterLane {
-  const lane: GutterLane = {
-    id: thread.id,
-    name: thread.name,
-    utilization: thread.utilization,
-    color: colorVarForLaneName(thread.name),
-    categoryKey: thread.categoryKey,
-  };
-  if (thread.children !== undefined) {
-    lane.children = thread.children.map(toGutterLane);
-  }
-  return lane;
+const pipeUtilRows = computed(() => {
+  const table = report.value?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
+  return table?.rows ?? [];
+});
+
+function lanesWithBars(
+  threads: SwimThread[],
+  bars: Map<string, GutterBarDisplay>,
+): GutterLane[] {
+  return threads.map((t) => {
+    const lane: GutterLane = {
+      id: t.id,
+      name: t.name,
+      color: colorVarForLaneName(t.name),
+      categoryKey: t.categoryKey,
+    };
+    const bar = bars.get(t.id);
+    if (bar) lane.bar = bar;
+    if (t.children !== undefined) {
+      lane.children = lanesWithBars(t.children, bars);
+    }
+    return lane;
+  });
 }
 
-const laneGroups = computed(() =>
-  (swim.value?.processes ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    lanes: p.threads.map(toGutterLane),
-  })),
-);
+function initGutterMetrics(model: SwimlaneModel | null): void {
+  if (!model) {
+    gutterMetricByCard.value = {};
+    return;
+  }
+  const rows = pipeUtilRows.value;
+  const next: Record<string, GutterMetric> = {};
+  for (const p of model.processes) {
+    const avail = availableGutterMetrics(model, rows, p.id);
+    let metric = gutterMetricByCard.value[p.id] ?? defaultGutterMetric(avail);
+    if (!avail.includes(metric)) metric = defaultGutterMetric(avail);
+    next[p.id] = metric;
+  }
+  gutterMetricByCard.value = next;
+}
+
+const gutterMetricOptionsByCard = computed(() => {
+  const m = swim.value;
+  if (!m) return {} as Record<string, GutterMetric[]>;
+  const rows = pipeUtilRows.value;
+  const out: Record<string, GutterMetric[]> = {};
+  for (const p of m.processes) {
+    out[p.id] = availableGutterMetrics(m, rows, p.id);
+  }
+  return out;
+});
+
+const laneGroups = computed((): GutterGroup[] => {
+  const m = swim.value;
+  if (!m) return [];
+  const rows = pipeUtilRows.value;
+  return m.processes.map((p) => {
+    const options = gutterMetricOptionsByCard.value[p.id] ?? [];
+    const metric = gutterMetricByCard.value[p.id] ?? defaultGutterMetric(options);
+    const bars = gutterBarsForCard(m, rows, metric, p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      utilMidlinePercent: averageBarWidthForCard(bars, metric),
+      lanes: lanesWithBars(p.threads, bars),
+    };
+  });
+});
 
 /** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
 const displaySwim = computed((): SwimlaneModel | null => {
@@ -247,6 +304,7 @@ function resetViewFromModel(
   collapsedGroupIds.value = Array.isArray(fromMeta)
     ? fromMeta.filter((id): id is string => typeof id === 'string')
     : [];
+  initGutterMetrics(model);
   if (showTimeline.value) void bindLayoutFit();
 }
 
@@ -312,6 +370,10 @@ function onPinLane(laneId: string): void {
 
 function onUnpinLane(laneId: string): void {
   viewState.value = unpinLane(viewState.value, laneId);
+}
+
+function onGutterMetricChange(payload: { cardId: string; metric: GutterMetric }): void {
+  gutterMetricByCard.value = { ...gutterMetricByCard.value, [payload.cardId]: payload.metric };
 }
 
 /**
@@ -711,6 +773,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :cursor="cursor"
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"
+          :gutter-metric-by-card="gutterMetricByCard"
+          :gutter-metric-options-by-card="gutterMetricOptionsByCard"
           :prefer-renderer="preferRenderer ?? 'auto'"
           :locale="locale"
           @update:gutter-width="onGutterWidth"
@@ -719,6 +783,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @toggle-group="onToggleGroup"
           @pin-lane="onPinLane"
           @unpin-lane="onUnpinLane"
+          @update:gutter-metric="onGutterMetricChange"
           @select="onSelect"
           @hover="onHover"
           @cursor="onCursor"

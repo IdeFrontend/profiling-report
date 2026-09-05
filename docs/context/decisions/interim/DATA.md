@@ -76,6 +76,14 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Implement / test as:** `bandwidthCards`, `PR-VM-013`, `PR-STATS-024`
 **Superseded when:** Product peak source, score formula vs sketch 81, aggregation, `Report.csv`
 
+### DATA-38a — Card gutter 时钟周期 quantity / formula
+
+**Status:** `interim`
+**Question:** [DATA-38](../../questions/DATA.md)
+**Interim:** **Not** cycle counts and **not** a mean over swimlane events. Raw = mean of non-`NA` mapped `PipeUtilization.csv` `*_time(us)` across `block_id` (DATA-33b pattern; same quantity family as DATA-33f), keyed by `laneColorKey(thread.name)` per the column map in [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md). Folders = mean of child raws. Bar width = \((\mathrm{raw}/\max)\times 100\) within the Card; red = max lane only. Dropdown offers only **clockCycle** + **utilization** (`cacheHit` / `task` withdrawn). Ignore `*_total_cycles`.
+**Implement / test as:** `gutterMetrics.ts`, `PR-GMET-*`
+**Superseded when:** Product confirms quantity (µs vs cycles), column map, or event-based formula ([DATA-38](../../questions/DATA.md))
+
 ### DATA-34a — Hardware details panel
 
 **Status:** `interim`

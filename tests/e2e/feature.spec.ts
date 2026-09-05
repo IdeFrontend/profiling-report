@@ -134,7 +134,8 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('pipe-occupancy')).toHaveCount(0);
     await expect(page.getByTestId('stats-summary')).toHaveCount(0);
-    await expect(page.getByTestId('lane-util')).toHaveCount(0);
+    // Trace-only still shows task/util gutter bars from events (no pipe CSV).
+    await expect(page.getByTestId('lane-util').first()).toBeVisible();
   });
 
   test('PR-E2E-006: time overview and mouse cursor line (sketch parity)', async ({ page }) => {

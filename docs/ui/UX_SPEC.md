@@ -85,9 +85,9 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Spot imbalanced cores or pipes |
 | **Trigger** | Viewing gutter util bars and PIPE aside |
-| **Steps** | Read % bars in gutter; compare PIPE ranking in aside; expand a core to see child pipes |
-| **Success** | User can point to hottest / coldest lanes |
-| **Sketches** | Util bars in `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
+| **Steps** | Read util bars in gutter; optionally switch Card-header metric (时钟周期 / 利用率) to compare alternate views; compare PIPE ranking in aside; expand a core to see child pipes |
+| **Success** | User can point to hottest / coldest lanes under the chosen metric |
+| **Sketches** | Util bars + metric dropdown in `source/v930/entry.jpeg`; [`SwimlaneView/visual/metric-dropdown-closed.png`](../../src/ui/TimelineView/SwimlaneView/visual/metric-dropdown-closed.png) |
 
 ### S5 — Drill into PIPE / compute / memory metrics (M1)
 

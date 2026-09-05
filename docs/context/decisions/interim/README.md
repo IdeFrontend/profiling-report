@@ -37,6 +37,8 @@ Not required for first MVP merge:
 
 ## Related specs to keep in sync
 
+High-level product/process docs shared by many interim rules. Detailed `specs/**` links belong on the interim entry and the owning spec — not here.
+
 - [VIEW_DATA_REQUIREMENTS.md](../../../formats/VIEW_DATA_REQUIREMENTS.md)
 - [FEATURE_MATRIX.md](../../../ui/FEATURE_MATRIX.md)
 - [METRICS_AND_TRACE.md](../../../formats/METRICS_AND_TRACE.md)

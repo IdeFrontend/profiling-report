@@ -1,3 +1,4 @@
+import type { GutterMetric } from '../domain/gutterMetrics';
 import type { LaneCategoryKey } from '../domain/types';
 
 export type LocaleCode = 'zh-CN' | 'en';
@@ -100,6 +101,9 @@ const messages = {
     memoryTopology: '内存拓扑',
     phase2: 'Phase 2',
     focusMeasureRange: '聚焦度量范围',
+    gutterMetricClockCycle: '时钟周期',
+    gutterMetricUtilization: '利用率',
+    gutterMetricFor: '{name} 的泳道指标',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -194,6 +198,9 @@ const messages = {
     memoryTopology: 'Memory topology',
     phase2: 'Phase 2',
     focusMeasureRange: 'Focus measure range',
+    gutterMetricClockCycle: 'Clock Cycle',
+    gutterMetricUtilization: 'Utilization',
+    gutterMetricFor: 'Gutter metric for {name}',
   },
 } as const;
 
@@ -219,6 +226,11 @@ const LANE_CATEGORY_MESSAGE: Record<LaneCategoryKey, MessageKey> = {
   hbm: 'laneHbm',
 };
 
+const GUTTER_METRIC_MESSAGE: Record<GutterMetric, MessageKey> = {
+  clockCycle: 'gutterMetricClockCycle',
+  utilization: 'gutterMetricUtilization',
+};
+
 /** Localized card-category label, or `fallbackName` when no categoryKey. */
 export function laneCategoryLabel(
   categoryKey: LaneCategoryKey | undefined,
@@ -227,4 +239,9 @@ export function laneCategoryLabel(
 ): string {
   if (!categoryKey) return fallbackName;
   return t(LANE_CATEGORY_MESSAGE[categoryKey], locale);
+}
+
+/** Localized Card-header gutter metric option label. */
+export function gutterMetricLabel(metric: GutterMetric, locale?: string): string {
+  return t(GUTTER_METRIC_MESSAGE[metric], locale);
 }

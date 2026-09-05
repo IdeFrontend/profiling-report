@@ -19,6 +19,7 @@ import CursorTimestamp from './TimeAxis/CursorTimestamp/CursorTimestamp.vue';
 import MeasureDtArrow from './MeasureDtArrow.vue';
 import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
+import type { GutterMetric } from '../../domain/gutterMetrics';
 import {
   CURSOR_LABEL_MIN_WIDTH_PX,
   MEASURE_ARROW_HEAD_PX,
@@ -55,6 +56,8 @@ const props = withDefaults(
     gutterWidth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
     locale?: string;
+    gutterMetricByCard?: Record<string, GutterMetric>;
+    gutterMetricOptionsByCard?: Record<string, GutterMetric[]>;
   }>(),
   {
     dependencyMode: 'all',
@@ -77,6 +80,7 @@ const emit = defineEmits<{
   'set-playhead': [time: number];
   'update:measure-range': [range: MeasureRange | null];
   'focus-measure': [];
+  'update:gutter-metric': [payload: { cardId: string; metric: GutterMetric }];
 }>();
 
 const timeAxisRef = ref<HTMLElement | null>(null);
@@ -596,11 +600,14 @@ defineExpose({
       :cursor-x-ratio="cursor?.xRatio ?? null"
       :cursor-snapped="cursor?.snapped ?? false"
       :locale="locale"
+      :gutter-metric-by-card="gutterMetricByCard"
+      :gutter-metric-options-by-card="gutterMetricOptionsByCard"
       @update:scroll-y="emit('update:scrollY', $event)"
       @update:gutter-width="onGutterWidth"
       @toggle-group="emit('toggle-group', $event)"
       @pin-lane="emit('pin-lane', $event)"
       @unpin-lane="emit('unpin-lane', $event)"
+      @update:gutter-metric="emit('update:gutter-metric', $event)"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
       @cursor="emit('cursor', $event)"

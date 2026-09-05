@@ -20,7 +20,7 @@ Library has **no** persisted language preference and **no** mandatory in-panel l
 
 | Surface | Owner |
 |---------|-------|
-| Toolbar, aside titles, detail dock chrome, tooltips, gutter pin, a11y labels for resize handles | Library catalog |
+| Toolbar, aside titles, detail dock chrome, tooltips, gutter pin, Card metric selector, a11y labels for resize handles | Library catalog |
 | Panel / editor tab title, load errors, explorer tree | **MSTT** (host i18n) |
 | CSV column names, kernel / event / arg names | **Pass-through** from producer — never rewritten |
 | Hardware tokens (Cube, Vector, MTE, PIPE, HBM, Ops/Byte, TOps/s) | English in **both** locales |
@@ -38,6 +38,17 @@ Card folders `通信` / `计算` / `储存HBM` use a stable `categoryKey` on `Sw
 | `hbm` | `laneHbm` | 储存HBM | HBM storage |
 
 Gutter (and any UI that shows those rows) calls `t(lane*, locale)` when `categoryKey` is set; otherwise shows `name` (flat CTEF threads, producer names). Domain logic that finds the compute folder should prefer `categoryKey === 'compute'` (name match remains a fallback for older fixtures).
+
+## Card gutter metric labels
+
+Card-header metric dropdown options use `gutterMetricLabel(metric, locale)` (`src/i18n`):
+
+| `GutterMetric` | Message key | zh-CN | en |
+|----------------|-------------|-------|-----|
+| `clockCycle` | `gutterMetricClockCycle` | 时钟周期 | Clock Cycle |
+| `utilization` | `gutterMetricUtilization` | 利用率 | Utilization |
+
+Aria label for the control: `gutterMetricFor` (`{name} 的泳道指标` / `Gutter metric for {name}`).
 
 ## MSTT host handoff
 
