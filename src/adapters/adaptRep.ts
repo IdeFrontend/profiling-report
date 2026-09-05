@@ -2,6 +2,8 @@ import type {
   AdaptedReport,
   BandwidthCardModel,
   BandwidthSideRow,
+  ComputeCardModel,
+  ComputeSideRow,
   CsvTableModel,
   HardwareDetailsModel,
   HardwareSection,
@@ -275,6 +277,99 @@ function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
   return cards;
 }
 
+/** ponytail: FP16 dtype until op dtype is in CSV (DATA-2 cube peak formula). */
+const COMPUTE_DTYPE_BYTES_DEFAULT = 2;
+
+interface HardwareComputeInputs {
+  cubeCores?: number;
+  vectorCores?: number;
+  freqMhz?: number;
+}
+
+function numericFieldsFromJsonObject(obj: Record<string, unknown>): Record<string, number> {
+  const fields: Record<string, number> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === 'category') continue;
+    const n = typeof value === 'number' ? value : Number(value);
+    if (Number.isFinite(n)) fields[key] = n;
+  }
+  return fields;
+}
+
+function hardwareComputeInputsFromJsonl(text: string): HardwareComputeInputs {
+  const out: HardwareComputeInputs = {};
+  for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (!String(obj.category ?? '').toLowerCase().includes('ai core')) continue;
+    const fields = numericFieldsFromJsonObject(obj);
+    out.cubeCores = pickPositiveField(fields, ['ai_cube_count', 'aic_cube_count']);
+    out.vectorCores = pickPositiveField(fields, ['ai_vector_count', 'aic_vector_count']);
+    const freq = obj.ai_core_frequency_MHZ;
+    if (Array.isArray(freq) && freq.length > 0) {
+      const n = Number(freq[0]);
+      if (Number.isFinite(n) && n > 0) out.freqMhz = n;
+    } else if (typeof freq === 'number' && freq > 0) {
+      out.freqMhz = freq;
+    }
+  }
+  return out;
+}
+
+function measuredTflopsForSide(
+  rows: Record<string, string>[],
+  side: ComputeSideRow['side'],
+): number | undefined {
+  const fopsCols = side === 'aic' ? ['aic_cube_fops'] : ['aiv_vec_fops'];
+  const timeCols = side === 'aic' ? ['aic_time(us)'] : ['aiv_time(us)'];
+  const fops = meanFamily(rows, fopsCols);
+  const timeUs = meanFamily(rows, timeCols);
+  if (fops == null || timeUs == null || !(timeUs > 0)) return undefined;
+  return fops / timeUs / 1e6;
+}
+
+function peakTflopsForSide(
+  side: ComputeSideRow['side'],
+  hw: HardwareComputeInputs,
+  summary: SummaryMetrics,
+): number | undefined {
+  const freqMhz = hw.freqMhz ?? summary.ratedFreq ?? summary.currentFreq;
+  if (freqMhz == null || !(freqMhz > 0)) return undefined;
+  const freqGhz = freqMhz / 1000;
+  if (side === 'aic') {
+    const cores = hw.cubeCores;
+    if (cores == null || !(cores > 0)) return undefined;
+    return (16 * COMPUTE_DTYPE_BYTES_DEFAULT * 16 * cores * freqGhz * 2) / 1000;
+  }
+  const cores = hw.vectorCores;
+  if (cores == null || !(cores > 0)) return undefined;
+  return (128 * cores * freqGhz * 2) / 1000;
+}
+
+/** DATA-2..4 / UI-33: ArithmeticUtilization measured + HardwareInfo peak per aic/aiv side. */
+function computeCardFromPayloads(
+  arithPayload: Uint8Array | undefined,
+  hwPayload: Uint8Array | undefined,
+  summary: SummaryMetrics,
+): ComputeCardModel | undefined {
+  if (!arithPayload) return undefined;
+  const { rows } = parseCsv(decodeUtf8(arithPayload));
+  if (rows.length === 0) return undefined;
+  const hw = hwPayload ? hardwareComputeInputsFromJsonl(decodeUtf8(hwPayload)) : {};
+  const sides: ComputeSideRow[] = [];
+  for (const side of ['aic', 'aiv'] as const) {
+    const measuredTflops = measuredTflopsForSide(rows, side);
+    const peakTflops = peakTflopsForSide(side, hw, summary);
+    if (measuredTflops == null || peakTflops == null || !(peakTflops > 0)) continue;
+    sides.push({ side, measuredTflops, peakTflops });
+  }
+  return sides.length > 0 ? { sides } : undefined;
+}
+
 function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   if (!payload) return {};
   const { rows } = parseCsv(decodeUtf8(payload));
@@ -520,6 +615,11 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     summaryFromOpBasicInfo(payloads['OpBasicInfo.csv']),
     payloads,
   );
+  const computeCard = computeCardFromPayloads(
+    payloads['ArithmeticUtilization.csv'],
+    payloads['HardwareInfo.jsonl'],
+    summary,
+  );
   return {
     summary,
     pipeOccupancy: pipeOccupancyFromCsv(payloads['PipeUtilization.csv']),
@@ -528,6 +628,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     memoryTables: memory.tables,
     csvTexts: { ...compute.texts, ...memory.texts },
     ...(bandwidthCards.length > 0 ? { bandwidthCards } : {}),
+    ...(computeCard ? { computeCard } : {}),
     ...(roofline ? { roofline } : {}),
     ...(hardwareDetails ? { hardwareDetails } : {}),
     ...(memoryTopology ? { memoryTopology } : {}),

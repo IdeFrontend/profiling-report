@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { t } from '../../i18n';
+import { t, type MessageKey } from '../../i18n';
 import type {
-  BandwidthSideRow,
+  BandwidthCardModel,
+  ComputeSideRow,
   PipeOccupancyItem,
   ReportCapability,
   ReportViewModel,
@@ -45,15 +46,36 @@ const COLOR: Record<string, string> = {
 
 const hasDuration = computed(() => props.report?.summary.taskDurationUs != null);
 const bandwidthCards = computed(() => props.report?.bandwidthCards ?? []);
-const hasSummary = computed(() => hasDuration.value || bandwidthCards.value.length > 0);
+const computeCard = computed(() => props.report?.computeCard);
+const showComputeCard = computed(
+  () => hasDuration.value && (computeCard.value?.sides.length ?? 0) > 0,
+);
+const showComputePlaceholder = computed(() => hasDuration.value && !showComputeCard.value);
+const showAicorePlaceholder = computed(() => hasDuration.value);
+const bandwidthUtilSides = computed(() => bandwidthUtilFromCards(bandwidthCards.value));
+const hasSummary = computed(
+  () => hasDuration.value || bandwidthUtilSides.value.length > 0,
+);
 const bandwidthView = computed(() =>
-  bandwidthCards.value.map((card) => ({
-    id: card.id,
-    sides: card.sides.map((row) => ({
-      side: row.side,
-      score: bandwidthScore(row),
-      sub: `${formatGBs(row.measuredGBs)} / ${formatGBs(row.peakGBs)} GB/s`,
-    })),
+  bandwidthUtilSides.value.map((row, i) => ({
+    dir: row.dir,
+    labelKey: (row.dir === 'read' ? 'bwRead' : 'bwWrite') as MessageKey,
+    score: bandwidthScore(row),
+    barTone: i === 0 ? 'primary' : 'secondary',
+    ratio: `${formatGBs(row.measuredGBs)} / ${formatGBs(row.peakGBs)}`,
+    unit: 'GB/s',
+    title: `${row.measuredGBs} / ${row.peakGBs} GB/s`,
+  })),
+);
+const computeView = computed(() =>
+  (computeCard.value?.sides ?? []).map((row, i) => ({
+    side: row.side,
+    label: row.side === 'aic' ? 'Cube' : 'Vector',
+    score: computeScore(row),
+    barTone: i === 0 ? 'primary' : 'secondary',
+    ratio: `${formatTflops(row.measuredTflops)} / ${formatTflops(row.peakTflops)}`,
+    unit: 'TFLOPS',
+    title: `${row.measuredTflops} / ${row.peakTflops} TFLOPS`,
   })),
 );
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
@@ -218,9 +240,38 @@ function formatGBs(gbs: number): string {
   return gbs.toFixed(4);
 }
 
-function bandwidthScore(row: BandwidthSideRow): number {
+function bandwidthScore(row: { measuredGBs: number; peakGBs: number }): number {
   if (!(row.peakGBs > 0)) return 0;
   return Math.min(100, Math.max(0, Math.round((row.measuredGBs / row.peakGBs) * 100)));
+}
+
+function computeScore(row: ComputeSideRow): number {
+  if (!(row.peakTflops > 0)) return 0;
+  return Math.min(100, Math.max(0, Math.round((row.measuredTflops / row.peakTflops) * 100)));
+}
+
+/** Sketch 读|写: collapse input/output × aic|aiv into one mean per direction (DATA-33g). */
+function bandwidthUtilFromCards(
+  cards: BandwidthCardModel[],
+): { dir: 'read' | 'write'; measuredGBs: number; peakGBs: number }[] {
+  const out: { dir: 'read' | 'write'; measuredGBs: number; peakGBs: number }[] = [];
+  for (const id of ['input', 'output'] as const) {
+    const card = cards.find((c) => c.id === id);
+    if (!card || card.sides.length === 0) continue;
+    const measuredGBs =
+      card.sides.reduce((a, s) => a + s.measuredGBs, 0) / card.sides.length;
+    const peakGBs = card.sides[0]!.peakGBs;
+    out.push({ dir: id === 'input' ? 'read' : 'write', measuredGBs, peakGBs });
+  }
+  return out;
+}
+
+/** DATA-2..4: magnitude rounding for measured / peak TFLOPS subtitle. */
+function formatTflops(tflops: number): string {
+  if (tflops >= 10) return tflops.toFixed(1);
+  if (tflops >= 0.01) return tflops.toFixed(2);
+  if (tflops >= 0.001) return tflops.toFixed(3);
+  return tflops.toFixed(4);
 }
 
 const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
@@ -446,7 +497,7 @@ function backToReport() {
       >
         <div
           v-if="hasDuration && durationParts"
-          class="pr-card pr-card--top"
+          class="pr-card"
           data-testid="stats-duration-card"
         >
           <div class="pr-card__label">
@@ -483,8 +534,66 @@ function backToReport() {
           </div>
         </div>
         <div
-          v-if="hasDuration"
-          class="pr-card pr-card--top pr-card--na"
+          v-if="showAicorePlaceholder"
+          class="pr-card pr-card--na"
+          data-testid="stats-core-util-card"
+        >
+          <div class="pr-card__label">
+            {{ t('aicoreParallel', locale) }}
+          </div>
+          <div class="pr-card__value">
+            {{ t('notAvailable', locale) }}
+          </div>
+        </div>
+        <div
+          v-if="showComputeCard"
+          class="pr-card"
+          data-testid="stats-compute-card"
+        >
+          <div class="pr-card__label">
+            {{ t('computePower', locale) }}
+          </div>
+          <div class="pr-bw-cols">
+            <div
+              v-for="row in computeView"
+              :key="row.side"
+              class="pr-bw-col"
+              :data-testid="`stats-compute-${row.side}`"
+            >
+              <div class="pr-bw-col__head">
+                <span
+                  class="pr-card__value"
+                  :data-testid="`stats-compute-${row.side}-score`"
+                >
+                  <span class="pr-card__num">{{ row.score }}</span>
+                </span>
+                <span class="pr-bw-col__side">{{ row.label }}</span>
+              </div>
+              <div class="pr-card__bar-track">
+                <span
+                  class="pr-card__bar-hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-card__bar-fill"
+                  :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
+                  :style="{ width: `${row.score}%` }"
+                  :data-testid="`stats-compute-${row.side}-bar`"
+                />
+              </div>
+              <div
+                class="pr-card__sub"
+                :title="row.title"
+              >
+                <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
+                <span class="pr-card__sub-unit">{{ row.unit }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          v-else-if="showComputePlaceholder"
+          class="pr-card pr-card--na"
           data-testid="stats-compute-card"
         >
           <div class="pr-card__label">
@@ -495,39 +604,29 @@ function backToReport() {
           </div>
         </div>
         <div
-          v-if="hasDuration"
-          class="pr-card pr-card--top pr-card--na"
-          data-testid="stats-core-util-card"
+          v-if="bandwidthView.length > 0"
+          class="pr-card"
+          data-testid="stats-bandwidth-card"
         >
           <div class="pr-card__label">
-            {{ t('avgCoreUtil', locale) }}
-          </div>
-          <div class="pr-card__value">
-            {{ t('notAvailable', locale) }}
-          </div>
-        </div>
-        <div
-          v-for="card in bandwidthView"
-          :key="card.id"
-          class="pr-card pr-card--bw"
-          :data-testid="`stats-bandwidth-${card.id}`"
-        >
-          <div class="pr-card__label">
-            {{ t(card.id === 'input' ? 'inputBandwidth' : 'outputBandwidth', locale) }}
+            {{ t('bandwidthUtil', locale) }}
           </div>
           <div class="pr-bw-cols">
             <div
-              v-for="row in card.sides"
-              :key="row.side"
+              v-for="row in bandwidthView"
+              :key="row.dir"
               class="pr-bw-col"
-              :data-testid="`stats-bandwidth-${card.id}-${row.side}`"
+              :data-testid="`stats-bandwidth-${row.dir}`"
             >
               <div class="pr-bw-col__head">
                 <span
                   class="pr-card__value"
-                  :data-testid="`stats-bandwidth-${card.id}-${row.side}-score`"
-                >{{ row.score }}</span>
-                <span class="pr-bw-col__side">{{ row.side }}</span>
+                  :data-testid="`stats-bandwidth-${row.dir}-score`"
+                >
+                  <span class="pr-card__num">{{ row.score }}</span>
+                  <span class="pr-card__unit">%</span>
+                </span>
+                <span class="pr-bw-col__side">{{ t(row.labelKey, locale) }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -535,16 +634,18 @@ function backToReport() {
                   aria-hidden="true"
                 />
                 <span
-                  class="pr-card__bar-fill pr-card__bar-fill--bw"
+                  class="pr-card__bar-fill"
+                  :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
                   :style="{ width: `${row.score}%` }"
-                  :data-testid="`stats-bandwidth-${card.id}-${row.side}-bar`"
+                  :data-testid="`stats-bandwidth-${row.dir}-bar`"
                 />
               </div>
               <div
                 class="pr-card__sub"
-                :title="row.sub"
+                :title="row.title"
               >
-                {{ row.sub }}
+                <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
+                <span class="pr-card__sub-unit">{{ row.unit }}</span>
               </div>
             </div>
           </div>
@@ -992,12 +1093,12 @@ function backToReport() {
 }
 
 /*
- * Sketch: 3+2 grid on six columns; bottom pad only so tile edges align with
- * stack islands below (horizontal edges share the aside body column).
+ * Sketch: 2×2 equal tiles (duration | AICore; compute | bandwidth).
+ * Bottom pad only so tile edges align with stack islands below.
  */
 .pr-cards {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 0 0 8px;
   border-radius: 0;
@@ -1012,14 +1113,6 @@ function backToReport() {
   border: 0;
   border-radius: 8px;
   padding: 12px 14px;
-}
-
-.pr-card--top {
-  grid-column: span 2;
-}
-
-.pr-card--bw {
-  grid-column: span 3;
 }
 
 .pr-card--na {
@@ -1037,6 +1130,16 @@ function backToReport() {
   font-size: 11px;
   color: #999999;
   margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.pr-card__sub {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8a8a8a;
+  white-space: nowrap;
+  overflow: visible;
 }
 
 .pr-card__value {
@@ -1051,9 +1154,7 @@ function backToReport() {
 }
 
 .pr-card__num {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 0 1 auto;
   white-space: nowrap;
 }
 
@@ -1098,39 +1199,64 @@ function backToReport() {
   background: var(--pr-color-duration-bar);
 }
 
-.pr-card__bar-fill--bw {
+.pr-card__bar-fill--primary {
   min-width: 0;
-  background: var(--pr-color-bandwidth-bar);
+  background: var(--pr-color-card-bar-primary);
+}
+
+.pr-card__bar-fill--secondary {
+  min-width: 0;
+  background: var(--pr-color-card-bar-secondary);
 }
 
 .pr-bw-cols {
   display: flex;
-  gap: 8px;
+  gap: 24px;
 }
 
 .pr-bw-col {
   flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .pr-bw-col__head {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.pr-bw-col__head > .pr-card__value {
+  flex: 0 0 auto;
 }
 
 .pr-bw-col__side {
+  flex: 0 0 auto;
   font-size: 11px;
   color: #999999;
+  white-space: nowrap;
 }
 
-.pr-card__sub {
+.pr-bw-col .pr-card__sub {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   margin-top: 6px;
   font-size: 11px;
   color: #8a8a8a;
+  line-height: 1.3;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.pr-card__sub-ratio,
+.pr-card__sub-unit {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 /* Section titles sit on the aside shell; grey islands wrap chart bodies only. */

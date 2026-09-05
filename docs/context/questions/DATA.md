@@ -4,7 +4,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 ### DATA-2 — 172 measured TFLOPS
 
-<img src="../visual/questions/data-2.png" alt="DATA-2 172 measured TFLOPS" width="600" height="370">
+<img src="../visual/questions/data-2.png" alt="DATA-2 172 measured TFLOPS" width="880" height="400">
 
 **Status:** `partial`
 
@@ -18,9 +18,11 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 - **Vector peak (theoretical):** `128 × core_count × frequency × 2 / 1000` TFLOPS.
 - Inputs: `PipeUtilization.csv` `aic_time(us)` / `aiv_time(us)`; `HardwareInfo.jsonl` core counts + frequency; dtype from op context.
 
+**Implemented (interim [`DATA-33h`](../decisions/interim/DATA.md)):** measured = mean `ArithmeticUtilization.csv` `*_fops` / mean `*_time(us)` → TFLOPS; peak per DATA-2/DATA-3 formulas with FP16 `sizeof` default.
+
 ### DATA-3 — 320 peak TFLOPS
 
-<img src="../visual/questions/data-3.png" alt="DATA-3 320 peak TFLOPS" width="600" height="370">
+<img src="../visual/questions/data-3.png" alt="DATA-3 320 peak TFLOPS" width="880" height="400">
 
 **Status:** `partial`
 
@@ -28,54 +30,63 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Answer so far:** Product will supply **fixed theoretical peak** values per chip (not in report CSV). Interim formula until constants arrive: cube and vector peaks per DATA-2 (`HardwareInfo.jsonl` core counts + frequency + dtype).
 
+**Implemented (interim [`DATA-33h`](../decisions/interim/DATA.md)):** peak from DATA-2 formulas + `HardwareInfo.jsonl` / OpBasicInfo freq.
+
 ### DATA-5 — 1.6 TB/s peak bandwidth
 
-<img src="../visual/questions/data-5.png" alt="DATA-5 1.6 TB/s peak" width="900" height="225">
+<img src="../visual/questions/data-5.png" alt="DATA-5 1.6 TB/s peak" width="880" height="400">
 
 **Status:** `open`
 
-**Question:** **1.6 TB/s** (peak) — which file and field?
+**Question:** **1.6 TB/s** (peak) on the **带宽利用率** 读\|写 card — which file and field?
 
-### DATA-6 — peak same for aic / aiv / input / output?
+**Note:** Sketch (v930 refresh) is one **带宽利用率** card with **读 \| 写**. Former separate 输入/输出 × aic\|aiv card layout is retired (do not re-ask that chrome). Peak/score still apply to the 读\|写 card. Interim [`DATA-33g`](../decisions/interim/DATA.md).
 
-<img src="../visual/questions/data-6.png" alt="DATA-6 peak on aic, aiv, input, and output" width="900" height="225">
+### DATA-6 — peak same for 读 / 写?
+
+<img src="../visual/questions/data-6.png" alt="DATA-6 peak on 读 and 写" width="880" height="400">
 
 **Status:** `open`
 
-**Question:** Is the peak the same for aic, aiv, input, and output? If no, give each peak. (Depends on DATA-5.)
+**Question:** Is the peak the same for **读** and **写**? If no, give each peak. (Depends on DATA-5.)
+
+**Note:** Former four-way aic/aiv × input/output peaks question is retired with the 读\|写 layout.
 
 ### DATA-7 — 81 score
 
-<img src="../visual/questions/data-7.png" alt="DATA-7 score 81" width="900" height="225">
+<img src="../visual/questions/data-7.png" alt="DATA-7 score 81" width="880" height="400">
 
 **Status:** `open`
 
-**Question:** **81** (score) — what is the formula? It is not `0.08 / 1.6`.
+**Question:** **81** (score) on the bandwidth card — what is the formula? It is not `0.08 / 1.6`.
 
-### DATA-8 — I/O bandwidth cards from `Report.csv`?
+### DATA-8 — 带宽利用率 from `Report.csv`?
 
-<img src="../visual/questions/data-8.png" alt="DATA-8 I/O bandwidth cards" width="900" height="225">
-
-**Status:** `open`
-
-**Question:** Do these cards come from `Report.csv` instead? If yes, list the column names. (Interim `DATA-33g` uses `Memory.csv`, not `Report.csv`.)
-
-### DATA-9 — 82% average core utilization
-
-<img src="../visual/questions/data-9.png" alt="DATA-9 82% utilization" width="590" height="370">
+<img src="../visual/questions/data-8.png" alt="DATA-8 带宽利用率 card" width="880" height="400">
 
 **Status:** `open`
 
-**Question:** **82%** — which file, which field, and the formula?
+**Question:** Does this **带宽利用率** card come from `Report.csv` instead? If yes, list the column names. (Interim [`DATA-33g`](../decisions/interim/DATA.md) uses `Memory.csv`, not `Report.csv`.)
 
-### DATA-10 — 24/24 enabled cores
+### DATA-9 — AICore 并行使用率
 
-<img src="../visual/questions/data-10.png" alt="DATA-10 24/24 启用核" width="590" height="370">
+<img src="../visual/questions/data-9.png" alt="DATA-9 并行使用率" width="880" height="380">
 
 **Status:** `open`
 
-**Question:** **24/24** in **启用 n/m 核** — which field is *n*? Which field is *m*?
+**Question:** **并行使用率** (e.g. sketch **81%**) — which file, which field, and the formula?
 
+**Note:** Sketch (v930 refresh) dual columns **并行使用率** \| **负载均衡度** replace the former **平均核利用率** card. Ask formulas for the new labels only. UI ships title + `N/A` via [`DATA-33a`](../decisions/interim/DATA.md).
+
+### DATA-10 — 负载均衡度
+
+<img src="../visual/questions/data-10.png" alt="DATA-10 负载均衡度" width="880" height="380">
+
+**Status:** `open`
+
+**Question:** **负载均衡度** (e.g. sketch **90%**) — which file, which field, and the formula?
+
+**Note:** Former **启用 n/m 核** secondary line is gone from the v930 refresh sketch — do not map n/m core fields for this card.
 ### DATA-11 — Roofline axes vs pipe busy rates
 
 <img src="../visual/questions/data-11.png" alt="DATA-11 Roofline chart — not pipe busy rates" width="900" height="655">
@@ -256,7 +267,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** Report summary formulas?
 
-**Answer so far (interim):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read|write}_bw`; I/O display **GB/s**. Compute TFLOPS and avg core util stay in the sketch grid as **title + `N/A`** until formulas exist. PIPE = mean non-`NA`. MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score**, `block_id` mean vs max vs selected block. Interims: [`DATA-33a…DATA-33g`](../decisions/interim/DATA.md).
+**Answer so far (interim):** duration = `OpBasicInfo.csv` `Task Duration(us)` ([`DATA-33e`](../decisions/interim/DATA.md)); compute Cube\|Vector when `computeCard` exists ([`DATA-33h`](../decisions/interim/DATA.md)); bandwidth **measured** + 读\|写 card ([`DATA-33g`](../decisions/interim/DATA.md)); I/O display **GB/s** (UI-34). AICore **并行使用率** / **负载均衡度** stay **N/A** until DATA-9/DATA-10. PIPE = mean non-`NA` ([`DATA-33b`](../decisions/interim/DATA.md)). MIX Cube\|Vector + ICache Miss confirmed. **Open:** bandwidth peak/score/aggregation (DATA-5–8); compute MFU/chip peaks/dtype (DATA-2/3); `block_id` roll-up (DATA-28/29). Interims: [`DATA-33a…DATA-33h`](../decisions/interim/DATA.md).
 
 ### DATA-36 — dependencies encoding (was: Q9)
 

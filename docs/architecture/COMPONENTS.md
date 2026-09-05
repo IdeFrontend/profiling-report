@@ -71,21 +71,27 @@ Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), o
 
 ### `ReportViewModel` (M)
 
-OP-report analytics bundle: `summary`, `bandwidthCards[]` (DATA-33g), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
+OP-report analytics bundle: `summary`, optional `computeCard` (DATA-33h), optional `bandwidthCards[]` (DATA-33g), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
 
 **Why:** Separates Ascend OP report chrome from the timeline. PyPTO-only hosts can omit it; `.rep` adapter always fills what CSVs allow.
 
 ### `SummaryMetrics` (M)
 
-Op name/type, task duration, optional raw frequency fields. Compute / avg util remain optional and **unset under [DATA-33a](../context/decisions/interim/DATA.md)**. I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/decisions/interim/DATA.md)), not `summary.ioBandwidth`.
+Op name/type, task duration, optional raw frequency / `coreCount` / meta fields. **Do not** put compute TFLOPS or AICore-parallel scores on `summary` — those live on `computeCard` (DATA-33h) and the AICore parallel placeholder (DATA-33a). I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/decisions/interim/DATA.md)), not `summary.ioBandwidth`.
 
-**Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns plus documented DATA-33g guesses.
+**Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns plus documented DATA-33g / DATA-33h guesses.
 
 ### `BandwidthCardModel` (M, DATA-33g)
 
-`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1600 GB/s constant until Product supplies a field. UI displays GB/s (UI-34). Optional on `ReportViewModel` (omit when unused).
+`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1600 GB/s constant until Product supplies a field. UI displays GB/s (UI-34). Optional on `ReportViewModel` (omit when unused). UI collapses to one **带宽利用率** card with **读 \| 写** (aggregation OPEN).
 
-**Why:** Dual aic \| aiv columns match `summary-cards.png`; hide-if-NA per side. Same card chrome as duration.
+**Why:** Hide-if-NA per side. Same card chrome as duration. Layout follows refreshed `summary-cards.png`.
+
+### `ComputeCardModel` (M, DATA-33h)
+
+`{ sides: { side: 'aic' | 'aiv', measuredTflops, peakTflops }[] }`. UI labels **Cube** / **Vector**. Optional on `ReportViewModel`.
+
+**Why:** Separate cube/vector columns per UI-33 / Product “分开统计”.
 
 ### `PipeOccupancyItem` (M)
 
@@ -239,7 +245,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** → open interim `HardwareDetailsPanel` when data exists (DATA-34a) and emit `open-hardware-details`. **Stacked report:** duration card, I/O bandwidth cards (DATA-33g) when `bandwidthCards` non-empty, Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore parallel placeholder, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 

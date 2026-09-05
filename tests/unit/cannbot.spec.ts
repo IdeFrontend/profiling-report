@@ -17,6 +17,9 @@ function makeFullReport(): ReportViewModel {
       'Other.csv': 'other csv text',
     },
     bandwidthCards: [{ id: 'input', sides: [{ side: 'aic', measuredGBs: 12, peakGBs: 34 }] }],
+    computeCard: {
+      sides: [{ side: 'aic', measuredTflops: 172, peakTflops: 320 }],
+    },
     roofline: { points: [], mixLabels: [], peakComputeTops: 256, peakBandwidthGBs: 1200 },
     hardwareDetails: { sections: [] },
     memoryTopology: { nodes: [], edges: [] },
@@ -62,6 +65,7 @@ describe('PR-CANNBOT: payload assembly', () => {
     const summaryPayload = buildCannbotPayload('summary', report);
     expect(Object.keys(summaryPayload.data).sort()).toEqual([
       'bandwidthCards',
+      'computeCard',
       'hardwareDetails',
       'memoryTopology',
       'pipeOccupancy',
@@ -70,6 +74,7 @@ describe('PR-CANNBOT: payload assembly', () => {
     ]);
     expect(summaryPayload.data.summary).toBe(report.summary);
     expect(summaryPayload.data.bandwidthCards).toBe(report.bandwidthCards);
+    expect(summaryPayload.data.computeCard).toBe(report.computeCard);
     expect(summaryPayload.data.roofline).toBe(report.roofline);
     expect(summaryPayload.data.pipeOccupancy).toBe(report.pipeOccupancy);
     expect(summaryPayload.data.memoryTopology).toBe(report.memoryTopology);

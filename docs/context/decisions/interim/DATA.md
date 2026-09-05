@@ -24,10 +24,9 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-33](../../questions/DATA.md)
-**Interim:** Show **confirmed** duration from `OpBasicInfo.csv` `Task Duration(us)`. When duration is present, compute TFLOPS and avg core util tiles stay in the sketch grid as **title + `N/A`** (do not bind guessed values); omit those placeholders when the summary is BW-only so the grid stays rectangular. Duration uses sketch card chrome (bar still DATA-33e). Op type is **not** a separate card. I/O BW → **DATA-33g**.
-**Implement / test as:** Thin duration card + N/A placeholders in `StatsAside`
-**Superseded when:** Data/format spec defines compute / avg-util formulas (DATA-33)
-
+**Interim:** Show **confirmed** duration from `OpBasicInfo.csv` `Task Duration(us)`. Sketch **2×2** (`summary-cards.png` v930 refresh): **整体耗时** \| **AICore 并行使用率**; **算力情况** \| **带宽利用率**. When duration is present, **算力情况** → **DATA-33h** when `computeCard` exists; else title + `N/A`. **AICore 并行使用率** stays **title + `N/A`** until Product defines 并行使用率 / 负载均衡度 (DATA-9/DATA-10; former 平均核利用率 / 启用 n/m retired). Omit duration-gated placeholders when the summary is BW-only. Duration chrome → DATA-33e. Op type is **not** a separate card. Bandwidth → **DATA-33g**.
+**Implement / test as:** Thin duration + placeholders in `StatsAside`
+**Superseded when:** Product AICore-parallel formulas (DATA-9/DATA-10)
 ### DATA-33b — PIPE aggregation
 
 **Status:** `interim`
@@ -68,13 +67,21 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Implement / test as:** `PR-STATS-013`, adapter unit tests
 **Superseded when:** Product changes in-bar metric
 
-### DATA-33g — I/O bandwidth cards
+### DATA-33g — Bandwidth card
 
 **Status:** `interim`
 **Question:** [DATA-33](../../questions/DATA.md)
-**Interim:** **Measured (confirmed):** mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_*` on `Memory.csv` (first matching header only; also accept headers without `(GB/s)`). **Peak (still guess):** **1600 GB/s** for all four aic/aiv × in/out slots — **not** max of measured columns. **Score (still guess):** `round(measured/peak×100)` clamped 0–100 (sketch dummy 81 ≠ ratio). **Bar:** fill = score % of track (8px pill). **Display:** **GB/s** (UI-34; magnitude rounding). **Layout:** same raised card chrome as duration; aic | aiv columns; sketch **3+2 grid** with duration. **NA side:** omit that aic/aiv column; omit card if both NA. `Report.csv` unused (no schema).
+**Interim:** **Sketch (v930 refresh):** one **带宽利用率** card with **读 \| 写** columns (score **with** `%`, bar, `measured / peak` subtitle). **Measured (confirmed columns):** mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_*` on `Memory.csv` (first matching header; also accept headers without `(GB/s)`). UI collapses each input/output card’s aic\|aiv sides to a **mean** for 读/写 (aggregation still OPEN — DATA-5–8). **Peak (still guess):** **1600 GB/s** — **not** max of measured. **Score (still guess):** `round(measured/peak×100)` clamped 0–100. **Display:** **GB/s** (UI-34; sketch still shows TB/s). `Report.csv` unused.
 **Implement / test as:** `bandwidthCards`, `PR-VM-013`, `PR-STATS-024`
-**Superseded when:** Product peak source, score formula vs sketch 81, aggregation, `Report.csv`
+**Superseded when:** Product peak, 读/写 aggregation, score vs sketch 81
+
+### DATA-33h — 算力情况 card
+
+**Status:** `interim`
+**Question:** [DATA-33](../../questions/DATA.md)
+**Interim:** **Measured (DATA-2, interim):** mean `ArithmeticUtilization.csv` `aic_cube_fops`/`aiv_vec_fops` ÷ mean `aic_time(us)`/`aiv_time(us)` → TFLOPS (`/ 1e6`). **Peak (DATA-3 partial):** cube `16×sizeof(dtype)×16×core×freq×2/1000`; vector `128×core×freq×2/1000` with `ai_*_count` from `HardwareInfo.jsonl`, freq from jsonl `ai_core_frequency_MHZ` or OpBasicInfo `Rated Freq`/`Current Freq`, `sizeof(dtype)` = **2** (FP16) until dtype in CSV. **Score (DATA-4):** `round(measured/peak×100)` clamped 0–100. **Layout (UI-33 / sketch):** one card, inner **Cube \| Vector** columns (adapter sides `aic`/`aiv`). Subtitle `measured / peak` with `TFLOPS` on the next line. Omit a side without both measured and peak; omit card when no sides; else DATA-33a `N/A` placeholder.
+**Implement / test as:** `computeCard`, `PR-VM-015`, `PR-STATS-032`
+**Superseded when:** Product MFU formulas (M×K×N), fixed chip peaks, dtype source
 
 ### DATA-34a — Hardware details panel
 

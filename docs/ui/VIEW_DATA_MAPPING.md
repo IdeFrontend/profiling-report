@@ -59,10 +59,9 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 2 | 算子类型 | `OpType` / `Op Type` | `OpBasicInfo.csv` | e.g. `vector`, `MIX` |
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | **Confirmed** (npu-compute 0818). Shown as ms in mockup (unit conversion in UI) |
-| 5 | 算力情况 | — | — | **Unspecified in docx** |
-| 6 | 输入带宽 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **Measured confirmed.** Peak / score still **DATA-33g** (1600 GB/s guess; sketch 81 ≠ ratio) |
-| 7 | 输出带宽 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | same as #6 |
-| 8 | 平均核利用率 | — | — | **Unspecified in docx** |
+| 5 | 算力情况 | measured / peak TFLOPS | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` | **Interim DATA-33h** (DATA-2..4, UI-33). Sketch: **Cube \| Vector** columns |
+| 6 | 带宽利用率 | main-mem read / write BW | `Memory.csv` | Sketch: one card **读 \| 写**. Measured columns confirmed; peak / score / aic↔读·写 aggregation still **DATA-33g** |
+| 7 | AICore 并行使用率 | — | — | Sketch: **并行使用率** \| **负载均衡度**. Formulas **OPEN** (replaces former 平均核利用率) |
 
 ### Visualization logic (from mockup)
 
@@ -71,24 +70,36 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
 | Meta row | **进程** / **算子类型** / **Blocks** / **更多** / CANNBot. `OpBasicInfo.csv` → `Pid` (also `PID`) / `Op Type` / `Block Dim`. Hide a segment when unset. Meta row stays visible on the report shell so **更多** is always reachable (UI-30, UI-31). Not 核数, aic频率, or NPU ARCH. `Current Freq` / `Rated Freq` stay off this shell (hardware overlay / OpBasicInfo dump). Overlay `chip_info` / `arch_info` are Device Info names, not a header ARCH value. |
 | 更多 | **Always** on the report shell (UI-30, UI-31). Opens hardware overlay and emits `open-hardware-details`. Render `HardwareDetailsPanel` when `hardwareDetails` is present (`HardwareInfo.jsonl` preferred; OpBasicInfo fallback per DATA-34a); else show **缺少 hardware info** / Missing hardware info. |
+| Grid | Sketch **2×2**: top 整体耗时 \| AICore 并行使用率; bottom 算力情况 \| 带宽利用率 |
 | 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + progress bar = `min(100%, Block Dim / core_count × 100%)` when adapter sets `summary.coreCount` (UI-32); else decorative ~15% fill (DATA-33e). Secondary: `{blockDim} / {coreCount}` iterations/core when both set (DATA-1); else `blockDim` only; else `opName`; else omit. No standalone op-type card. |
-| 算力情况 card | Score / ratio bar + absolute TFLOPS vs peak — until DATA-33: **title + `N/A`** placeholder (no invented values) |
-| 输入/输出带宽 card | Dual aic \| aiv columns: large score (no %), bar = score% of track, `measured / peak GB/s` — **DATA-33g** / UI-34 (hide side/card when NA). Same card chrome as 整体耗时. |
-| 平均核利用率 card | Percentage bar + enabled cores fraction — until DATA-33: **title + `N/A`** placeholder (no invented values) |
+| 算力情况 card | **Cube \| Vector** columns (UI-33): large score (no `%`), bar = `round(measured/peak×100)` %, subtitle `measured / peak` with `TFLOPS` on the next line — **DATA-33h** (DATA-2..4). Omit side without both measured + peak; **N/A** placeholder when duration present but `computeCard` absent. |
+| 带宽利用率 card | **读 \| 写** columns: large score **with** `%`, bar = score% of track, `measured / peak` — **DATA-33g** / UI-34 GB/s (sketch TB/s). Same card chrome as 整体耗时. |
+| AICore 并行使用率 card | Sketch: dual **并行使用率** \| **负载均衡度** with `%` bars — until Product formulas: **title + `N/A`** (no invented values) |
 
-Do **not** invent formulas for cards 5 and 8 until product defines fields. Cards 6–7 **measured** columns are product-confirmed; peak and score stay [DATA-33g](../context/decisions/interim/DATA.md).
+AICore parallel stays a placeholder until Product defines fields. Card 5 uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formulas still partial). Bandwidth **measured** columns are product-confirmed; peak, score, and 读/写 aggregation stay [DATA-33g](../context/decisions/interim/DATA.md).
 
-### Interim DATA-33g (input / output bandwidth)
+### Interim DATA-33h (算力情况)
 
 | Slot | Interim |
 | --- | --- |
-| Measured | **Confirmed:** mean of non-`NA` matching Memory.csv column(s) across `block_id` (same as DATA-33b) |
-| Peak | 1600 GB/s (1.6 TB/s) for every aic/aiv × in/out slot — sketch HW guess, **not** max of measured columns |
+| Measured | Mean `aic_cube_fops` / `aiv_vec_fops` ÷ mean `aic_time(us)` / `aiv_time(us)` on `ArithmeticUtilization.csv` → TFLOPS (`/ 1e6`) — same basis as roofline DATA-37a |
+| Peak | Cube: `16×sizeof(dtype)×16×core×freq×2/1000`; Vector: `128×core×freq×2/1000`. Cores from `HardwareInfo.jsonl`; freq from jsonl `ai_core_frequency_MHZ` or OpBasicInfo `Rated Freq` / `Current Freq`; `sizeof(dtype)` = **2** (FP16) until dtype in CSV |
+| Score | `round(measured/peak×100)` clamped 0–100 |
+| Display | TFLOPS with same magnitude rounding as DATA-33g GB/s |
+| Layout | Same raised card chrome as duration. Inner **Cube \| Vector** columns (UI-33; adapter `aic`/`aiv`). Requires `taskDurationUs`; BW-only summary omits this card |
+| NA | Omit side without both measured and peak; **N/A** placeholder when duration present but no computable sides |
+
+### Interim DATA-33g (带宽利用率)
+
+| Slot | Interim |
+| --- | --- |
+| Measured | **Confirmed columns:** mean of non-`NA` matching Memory.csv main-mem read/write BW across `block_id` (same as DATA-33b). Sketch shows **读 \| 写**; aic/aiv → 读/写 aggregation **OPEN** |
+| Peak | 1600 GB/s (1.6 TB/s) — sketch HW guess, **not** max of measured columns |
 | Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
-| Display | **GB/s** with magnitude rounding: ≥10 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 |
-| Layout | Same raised card chrome as 整体耗时. Inner aic \| aiv columns; `aic`/`aiv` to the right of the score (no `%`). Outer sketch **3+2 grid** with duration (six columns: duration span 2, each BW span 3) |
-| Bar | Fill width = score % of track (`--pr-color-bandwidth-bar`); same 8px pill hatched track as duration; 0% fill has no 2px sliver |
-| NA | Omit that aic/aiv column; omit the card if both sides NA |
+| Display | **GB/s** with magnitude rounding: ≥10 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 (UI-34; sketch may still print TB/s) |
+| Layout | Sketch: one card, **读 \| 写** columns, score **with** `%`. UI mean-collapses aic\|aiv per direction |
+| Bar | Fill width = score % of track (`--pr-color-card-bar-primary` / `--pr-color-card-bar-secondary`; legacy alias `--pr-color-bandwidth-bar`); same 8px pill hatched track as duration; 0% fill has no 2px sliver |
+| NA | Omit that column; omit the card if both sides NA |
 | `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused |
 
 ---

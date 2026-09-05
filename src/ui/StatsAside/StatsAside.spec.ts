@@ -272,7 +272,8 @@ describe('StatsAside', () => {
       },
     });
     const card = wrapper.get('[data-testid="stats-duration-card"]');
-    expect(card.classes()).toContain('pr-card--top');
+    expect(card.classes()).toContain('pr-card');
+    expect(card.classes()).not.toContain('pr-card--bw');
     expect(card.text()).toMatch(/整体耗时|Total time/);
     expect(card.get('.pr-card__num').text()).toBe('4.60');
     expect(card.get('.pr-card__unit').text()).toBe('ms');
@@ -292,7 +293,7 @@ describe('StatsAside', () => {
     expect(value.attributes('title')).toBe('1.800123 µs');
   });
 
-  it('PR-STATS-009b: summary cards use sketch 3+2 grid spans', () => {
+  it('PR-STATS-009b: summary cards use sketch 2x2 grid', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -311,11 +312,12 @@ describe('StatsAside', () => {
       },
     });
     expect(wrapper.get('[data-testid="stats-summary"]').classes()).toContain('pr-cards');
-    expect(wrapper.get('[data-testid="stats-duration-card"]').classes()).toContain('pr-card--top');
-    expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).toContain('pr-card--top');
-    expect(wrapper.get('[data-testid="stats-core-util-card"]').classes()).toContain('pr-card--top');
-    expect(wrapper.get('[data-testid="stats-bandwidth-input"]').classes()).toContain('pr-card--bw');
-    expect(wrapper.get('[data-testid="stats-bandwidth-output"]').classes()).toContain('pr-card--bw');
+    expect(wrapper.find('[data-testid="stats-duration-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-core-util-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-compute-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-bandwidth-input"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-bandwidth-output"]').exists()).toBe(false);
   });
 
   it('PR-STATS-010: no type card; secondary from blockDim or opName', () => {
@@ -398,6 +400,29 @@ describe('StatsAside', () => {
     expect(zero.get('.pr-card__bar-fill--duration').attributes('style')).toContain('width: 0%');
   });
 
+  it('PR-STATS-032: compute card Cube|Vector columns, score bar, TFLOPS subtitle (DATA-2..4, UI-33)', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, opType: 'mix' },
+          computeCard: {
+            sides: [
+              { side: 'aic', measuredTflops: 172, peakTflops: 320 },
+              { side: 'aiv', measuredTflops: 15.8, peakTflops: 30 },
+            ],
+          },
+        }),
+      },
+    });
+    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').text()).toBe('54');
+    expect(wrapper.get('[data-testid="stats-compute-aiv-score"]').text()).toBe('53');
+    expect(wrapper.get('[data-testid="stats-compute-aic-bar"]').attributes('style')).toContain('width: 54%');
+    expect(wrapper.get('[data-testid="stats-compute-aic"]').text()).toMatch(/Cube/);
+    expect(wrapper.get('[data-testid="stats-compute-aiv"]').text()).toMatch(/Vector/);
+    expect(wrapper.text()).toMatch(/172.*320.*TFLOPS/);
+    expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
+  });
+
   it('PR-STATS-011: compute/util are N/A placeholders; BW not from summary.ioBandwidth', () => {
     const wrapper = mount(StatsAside, {
       props: {
@@ -416,12 +441,12 @@ describe('StatsAside', () => {
     expect(compute.text()).toContain('N/A');
     expect(compute.text()).not.toMatch(/172|90\s*%/);
     const core = wrapper.get('[data-testid="stats-core-util-card"]');
-    expect(core.text()).toMatch(/平均核利用率|Average core/);
+    expect(core.text()).toMatch(/AICore 并行使用率|AICore parallel/);
     expect(core.text()).toContain('N/A');
     expect(core.text()).not.toMatch(/0\.69|82\s*%|24\/24/);
-    expect(wrapper.find('[data-testid="stats-bandwidth-input"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="stats-bandwidth-output"]').exists()).toBe(false);
-    expect(wrapper.text()).not.toMatch(/输入带宽|Input bandwidth/);
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-bandwidth-read"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toMatch(/带宽利用率|Bandwidth utilization/);
   });
 
   it('PR-STATS-011b: BW-only summary hides compute/util placeholders', () => {
@@ -429,6 +454,9 @@ describe('StatsAside', () => {
       props: {
         report: report({
           summary: {},
+          computeCard: {
+            sides: [{ side: 'aiv', measuredTflops: 15, peakTflops: 30 }],
+          },
           bandwidthCards: [
             {
               id: 'input',
@@ -446,11 +474,12 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-duration-card"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-compute-card"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-core-util-card"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="stats-bandwidth-input"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="stats-bandwidth-output"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-bandwidth-read"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-bandwidth-write"]').exists()).toBe(true);
   });
 
-  it('PR-STATS-024: I/O bandwidth cards with aic|aiv columns, duration chrome, GB/s, bar = score%', () => {
+  it('PR-STATS-024: bandwidth util card with 读|写 columns, GB/s, bar = score%', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -471,39 +500,31 @@ describe('StatsAside', () => {
         }),
       },
     });
-    const input = wrapper.get('[data-testid="stats-bandwidth-input"]');
-    expect(input.classes()).toContain('pr-card');
-    expect(input.text()).toMatch(/输入带宽|Input bandwidth/);
-    expect(input.find('.pr-bw-cols').exists()).toBe(true);
-    expect(input.get('[data-testid="stats-bandwidth-input-aic"]').text()).toMatch(/aic/);
-    expect(input.get('[data-testid="stats-bandwidth-input-aic"]').text()).toMatch(/80\.0 \/ 1600\.0 GB\/s/);
-    const aicScore = input.get('[data-testid="stats-bandwidth-input-aic-score"]');
-    expect(aicScore.classes()).toContain('pr-card__value');
-    expect(aicScore.text()).toBe('5');
-    expect(input.get('[data-testid="stats-bandwidth-input-aic-bar"]').attributes('style')).toMatch(
+    const card = wrapper.get('[data-testid="stats-bandwidth-card"]');
+    expect(card.classes()).toContain('pr-card');
+    expect(card.text()).toMatch(/带宽利用率|Bandwidth utilization/);
+    expect(card.find('.pr-bw-cols').exists()).toBe(true);
+    const read = card.get('[data-testid="stats-bandwidth-read"]');
+    expect(read.text()).toMatch(/读|Read/);
+    // mean(80, 90) = 85 → score 5
+    expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/5/);
+    expect(read.text()).toMatch(/85\.0 \/ 1600\.0\s*GB\/s/);
+    expect(read.get('.pr-card__sub').attributes('title')).toBe('85 / 1600 GB/s');
+    expect(read.get('[data-testid="stats-bandwidth-read-bar"]').attributes('style')).toMatch(
       /width:\s*5%/,
     );
-    expect(input.get('[data-testid="stats-bandwidth-input-aiv-score"]').text()).toBe('6');
-    expect(input.get('[data-testid="stats-bandwidth-input-aiv"]').text()).toMatch(/90\.0 \/ 1600\.0 GB\/s/);
-    expect(input.get('[data-testid="stats-bandwidth-input-aiv-bar"]').attributes('style')).toMatch(
-      /width:\s*6%/,
-    );
-
-    const output = wrapper.get('[data-testid="stats-bandwidth-output"]');
-    expect(output.classes()).toContain('pr-card');
-    expect(output.text()).toMatch(/输出带宽|Output bandwidth/);
-    expect(output.find('[data-testid="stats-bandwidth-output-aic"]').exists()).toBe(false);
-    expect(output.get('[data-testid="stats-bandwidth-output-aiv"]').text()).toMatch(/1\.56 \/ 1600\.0 GB\/s/);
+    const write = card.get('[data-testid="stats-bandwidth-write"]');
+    expect(write.text()).toMatch(/写|Write/);
+    expect(write.text()).toMatch(/1\.56 \/ 1600\.0\s*GB\/s/);
   });
 
   it('PR-STATS-024: out.rep cards use 1600 GB/s peak (~1% score), not max of measured', () => {
     const { reportModel } = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(StatsAside, { props: { report: reportModel } });
-    const aiv = wrapper.get('[data-testid="stats-bandwidth-input-aiv"]');
-    expect(aiv.get('[data-testid="stats-bandwidth-input-aiv-score"]').text()).toBe('1');
-    expect(aiv.text()).toMatch(/GB\/s/);
-    expect(aiv.text()).not.toMatch(/TB\/s/);
-    expect(wrapper.find('[data-testid="stats-bandwidth-input-aic"]').exists()).toBe(false);
+    const read = wrapper.get('[data-testid="stats-bandwidth-read"]');
+    expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/1/);
+    expect(read.text()).toMatch(/GB\/s/);
+    expect(read.text()).not.toMatch(/TB\/s/);
   });
 
   it('PR-STATS-012: PIPE scale and hatched bars', () => {

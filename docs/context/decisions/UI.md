@@ -42,9 +42,9 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-08-31
 - **Question:** Compute card — one number, or two columns (aic | aiv)?
-- **Decision:** **Separate columns** (cube \| vector / aic \| aiv), same layout as the bandwidth cards.
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md)
-- **Source:** Product answer doc (2026-08-31).
+- **Decision:** **Separate columns** (cube \| vector), same dual-column pattern as bandwidth. Sketch labels **Cube \| Vector** (adapter sides `aic`/`aiv`).
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](interim/) `DATA-33h`
+- **Source:** Product answer doc (2026-08-31); implemented in `StatsAside.vue`.
 
 ---
 
