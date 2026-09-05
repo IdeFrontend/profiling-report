@@ -6,11 +6,13 @@ import {
   formatTimePartsAuto,
 } from '../../../domain/formatTime';
 import { t } from '../../../i18n';
-import type { SelectedEvent } from '../../../domain/types';
+import type { SelectedEvent, TimeDisplayMode } from '../../../domain/types';
 
 const props = withDefaults(
   defineProps<{
     selected: SelectedEvent;
+    timeDisplayMode: TimeDisplayMode;
+    clockFreqMHz?: number;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
@@ -32,7 +34,16 @@ const kind = computed(() => {
   return null;
 });
 
-const displayOpts = { significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS };
+const displayOpts = computed(() => ({
+  significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS,
+  mode: props.timeDisplayMode,
+  clockFreqMHz: props.clockFreqMHz,
+}));
+
+const fullOpts = computed(() => ({
+  mode: props.timeDisplayMode,
+  clockFreqMHz: props.clockFreqMHz,
+}));
 
 /** Value+unit on one line; caption below is Start / Duration / End only. */
 const metrics = computed(() => {
@@ -44,18 +55,18 @@ const metrics = computed(() => {
   ];
   return rows.map(([key, ns, relative]) => {
     const compact = relative
-      ? formatDisplayTimePartsAuto(ns, origin, displayOpts)
-      : formatTimePartsAuto(ns, displayOpts);
+      ? formatDisplayTimePartsAuto(ns, origin, displayOpts.value)
+      : formatTimePartsAuto(ns, displayOpts.value);
     const detailed = relative
-      ? formatDisplayTimePartsAuto(ns, origin)
-      : formatTimePartsAuto(ns);
+      ? formatDisplayTimePartsAuto(ns, origin, fullOpts.value)
+      : formatTimePartsAuto(ns, fullOpts.value);
     return {
       key,
       value: compact.value,
       unit: compact.unit,
       label: t(key, props.locale),
       // Cell shows 4 significant digits; hover title keeps full precision + unit.
-      title: `${detailed.value} ${detailed.unit}`,
+      title: detailed.unit ? `${detailed.value} ${detailed.unit}` : detailed.value,
     };
   });
 });
@@ -153,7 +164,10 @@ const metrics = computed(() => {
           :title="metric.title"
         >
           <span class="pr-detail-summary__number">{{ metric.value }}</span>
-          <span class="pr-detail-summary__unit">{{ metric.unit }}</span>
+          <span
+            v-if="metric.unit"
+            class="pr-detail-summary__unit"
+          >{{ metric.unit }}</span>
         </dt>
         <dd
           class="pr-detail-summary__label"

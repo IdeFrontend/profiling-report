@@ -23,7 +23,7 @@ crops:
     box: { x: 4820, y: 365, w: 112, h: 120 }
   display-control.png:
     source: v930/hardware-more-detail
-    region: "显示控制 popover under layers icon (task display unit)"
+    region: "显示控制 popover under layers icon — 任务显示单位 (Time vs CPU clocks) + 任务连接层级"
     box: { x: 4528, y: 500, w: 950, h: 520 }
   op-selector.png:
     source: v930/entry

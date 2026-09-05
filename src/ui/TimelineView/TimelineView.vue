@@ -114,6 +114,11 @@ function onGutterWidth(w: number) {
   emit('update:gutterWidth', w);
 }
 
+const cursorLabel = computed(() => {
+  if (!props.cursor) return '';
+  return formatDisplayTime(props.cursor.time, props.bounds.minTime, props.timeScaleUnit);
+});
+
 const viewportRuler = computed(() =>
   buildAxisRulerTicks({
     rangeStart: props.view.startTime,
@@ -224,8 +229,8 @@ const cursorLabelAbove = computed(() => {
   const cursor = props.cursor;
   const axisW = timeAxisWidth.value;
   if (!axis || !layout || !cursor || axisW <= 0) return false;
-  const cursorLabel = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit);
-  const cursorLabelW = estimateAxisLabelWidth(cursorLabel, CURSOR_LABEL_MIN_WIDTH_PX);
+  const cursorLabelText = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit);
+  const cursorLabelW = estimateAxisLabelWidth(cursorLabelText, CURSOR_LABEL_MIN_WIDTH_PX);
   const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
   const dtPlacement =
     layout.mode === 'inline'
@@ -537,7 +542,7 @@ defineExpose({
         <CursorTimestamp
           v-if="cursor"
           :x-ratio="cursor.xRatio"
-          :label="formatDisplayTime(cursor.time, bounds.minTime, timeScaleUnit)"
+          :label="cursorLabel"
           :label-above="cursorLabelAbove"
           :snapped="cursor.snapped ?? false"
         />

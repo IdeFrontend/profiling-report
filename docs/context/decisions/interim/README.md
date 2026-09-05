@@ -33,7 +33,6 @@ Not required for first MVP merge:
 - Full report stats tiles (compute / avg util) — I/O BW shipped under DATA-33g
 - Overview charts with real series
 - Product-final hardware inventory beyond DATA-34a; roofline tabs / L2 series beyond DATA-37*; memory SVG; deps; secondary tabs
-- Clock-cycle display mode
 
 ## Related specs to keep in sync
 
