@@ -73,23 +73,23 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('op1 and op2 carry distinct traces with distinct event counts', () => {
-    expect(collectLeafEventsFromModel(op1.swimlaneModel).length).toBeLessThan(
-      collectLeafEventsFromModel(op2.swimlaneModel).length,
+    expect(collectLeafEventsFromModel(op1.swimlaneModel!).length).toBeLessThan(
+      collectLeafEventsFromModel(op2.swimlaneModel!).length,
     );
     // op2 is the large rendering-performance fixture (~150k X events).
-    expect(collectLeafEventsFromModel(op2.swimlaneModel).length).toBeGreaterThanOrEqual(140_000);
-    expect(collectLeafEventsFromModel(op2.swimlaneModel).length).toBeLessThanOrEqual(160_000);
+    expect(collectLeafEventsFromModel(op2.swimlaneModel!).length).toBeGreaterThanOrEqual(140_000);
+    expect(collectLeafEventsFromModel(op2.swimlaneModel!).length).toBeLessThanOrEqual(160_000);
   });
 
   it('both operators expose dependency connections', () => {
     expect(op1.capabilities).toContain('dependencies');
     expect(op2.capabilities).toContain('dependencies');
-    expect(connectionRefCount(op1.swimlaneModel)).toBeGreaterThan(0);
-    expect(connectionRefCount(op2.swimlaneModel)).toBeGreaterThan(0);
+    expect(connectionRefCount(op1.swimlaneModel!)).toBeGreaterThan(0);
+    expect(connectionRefCount(op2.swimlaneModel!)).toBeGreaterThan(0);
   });
 
   it('op1 gives every event 3–8 dependency neighbors', () => {
-    const deg = dependencyDegrees(op1.swimlaneModel);
+    const deg = dependencyDegrees(op1.swimlaneModel!);
     expect(deg.size).toBeGreaterThan(50);
     for (const [id, n] of deg) {
       expect(n, id).toBeGreaterThanOrEqual(3);
@@ -98,7 +98,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('op2 exposes scaled dependency connections after hydrate', () => {
-    expect(connectionRefCount(op2.swimlaneModel)).toBeGreaterThan(200_000);
+    expect(connectionRefCount(op2.swimlaneModel!)).toBeGreaterThan(200_000);
   });
 
   it('op1 and op2 carry different CSV content', () => {
@@ -123,9 +123,9 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('nests Card → 计算 → Core0.Cube → pipe leaves', () => {
-    expect(op1.swimlaneModel.metadata?.nestCardTree).toBe(true);
+    expect(op1.swimlaneModel!.metadata?.nestCardTree).toBe(true);
     for (const report of [op1, op2]) {
-      const card = report.swimlaneModel.processes[0]!;
+      const card = report.swimlaneModel!.processes[0]!;
       expect(card.threads.map((t) => t.name)).toEqual(['通信', '计算', '储存HBM']);
       const compute = card.threads.find((t) => t.name === '计算')!;
       expect(isFolderNode(compute)).toBe(true);
@@ -144,7 +144,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('nested Vec0/MTE3 gutter util uses mte3 ratio, not vector', () => {
-    const compute = op1.swimlaneModel.processes[0]!.threads.find((t) => t.name === '计算')!;
+    const compute = op1.swimlaneModel!.processes[0]!.threads.find((t) => t.name === '计算')!;
     const vec0 = compute.children!.find((c) => c.name === 'Core0.Vec0')!;
     const mte3 = vec0.children!.find((c) => c.name === 'MTE3')!;
     const all = vec0.children!.find((c) => c.name === 'ALL');
@@ -161,25 +161,25 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('op1/op2 include ProfilerStep bands (stress-style group labels)', () => {
-    expect(op1.swimlaneModel.bands?.map((b) => b.name)).toEqual([
+    expect(op1.swimlaneModel!.bands?.map((b) => b.name)).toEqual([
       'ProfilerStep#1',
       'ProfilerStep#2',
       'ProfilerStep#3',
     ]);
-    expect(op2.swimlaneModel.bands?.map((b) => b.name)).toEqual([
+    expect(op2.swimlaneModel!.bands?.map((b) => b.name)).toEqual([
       'ProfilerStep#1',
       'ProfilerStep#2',
       'ProfilerStep#3',
       'ProfilerStep#4',
       'ProfilerStep#5',
     ]);
-    expect(op2.swimlaneModel.bands![0]!.startTime).toBe(0);
-    const last = op2.swimlaneModel.bands![op2.swimlaneModel.bands!.length - 1]!;
+    expect(op2.swimlaneModel!.bands![0]!.startTime).toBe(0);
+    const last = op2.swimlaneModel!.bands![op2.swimlaneModel!.bands!.length - 1]!;
     expect(last.startTime + last.duration).toBe(1_000_000_000);
   });
 
   it('events carry producer Parameter fields (Code / Pc_addr / …)', () => {
-    const events = collectLeafEventsFromModel(op1.swimlaneModel);
+    const events = collectLeafEventsFromModel(op1.swimlaneModel!);
     expect(events.length).toBeGreaterThan(0);
     const withParams = events.filter(
       (e) => e.args?.Pc_addr != null && e.args?.Detail != null && e.args?.Code != null,

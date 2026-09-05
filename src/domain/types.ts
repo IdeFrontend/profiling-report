@@ -88,14 +88,37 @@ export interface SummaryMetrics {
   ratedFreq?: number;
   /** OpBasicInfo `Pid` / `PID` — aside meta **进程**. */
   pid?: string;
-  /** OpBasicInfo `Block Dim` — aside meta **Blocks**, duration bar (UI-32), and secondary (DATA-1). */
+  /** OpBasicInfo `Block Dim` — aside meta **Blocks** and duration secondary (DATA-1, UI-32). */
   blockDim?: string | number;
   /** DATA-1: `HardwareInfo.jsonl` core count for `Op Type` (cube/vector/mix). */
   coreCount?: number;
-  /** Interim DATA-33a: leave unset until Product formulas exist */
-  computeTflops?: number;
-  ioBandwidth?: number;
-  avgCoreUtil?: number;
+  /** Product (NPU-Compute): AIC measured compute, TFLOPS (summary.jsonl `aic_flops`). */
+  aicFlops?: number;
+  /** Product (NPU-Compute): AIV measured compute, TFLOPS (summary.jsonl `aiv_flops`). */
+  aivFlops?: number;
+  /** Product (NPU-Compute): AIC theoretical compute, TFLOPS. */
+  aicFlopsTheoretical?: number;
+  /** Product (NPU-Compute): AIV theoretical compute, TFLOPS. */
+  aivFlopsTheoretical?: number;
+  /** Product (NPU-Compute): GM theoretical bandwidth, GB/s (SOL 1600). */
+  gmBwTheoreticalGBs?: number;
+  /** Product (NPU-Compute): GM measured read bandwidth, GB/s. */
+  gmReadBw?: number;
+  /** Product (NPU-Compute): GM measured write bandwidth, GB/s. */
+  gmWriteBw?: number;
+  /** Product (NPU-Compute): GM bandwidth usage rate, %. */
+  gmBwUsageRate?: number;
+  /** Product (NPU-Compute): AI Core parallel utilization, fraction 0..1. */
+  parallelUtilization?: number;
+  /** Product (NPU-Compute): AI Core load balance, fraction 0..1. */
+  parallelBalance?: number;
+}
+
+/** Product (NPU-Compute) summary.jsonl category: flat field list per metric group. */
+export interface SummaryCategory {
+  id: string;
+  title: string;
+  fields: { key: string; value: string }[];
 }
 
 /** DATA-33g: one AIC/AIV row on an I/O bandwidth card. Values in GB/s; UI shows GB/s (UI-34). */
@@ -221,6 +244,8 @@ export interface ReportViewModel {
   hardwareDetails?: HardwareDetailsModel;
   /** M2 memory topology (change-log #5); omit when no label data. */
   memoryTopology?: MemoryTopologyModel;
+  /** Product (NPU-Compute): summary.jsonl metric categories (block-mean) for the detail surface. */
+  summaryCategories?: SummaryCategory[];
 }
 
 export type ViewFullCsvPayload = {
@@ -270,7 +295,8 @@ export interface ReportOperator {
 }
 
 export interface AdaptedReport {
-  swimlaneModel: SwimlaneModel;
+  /** `null` when the source has no timeline (metrics-only pack, no `trace.json`). */
+  swimlaneModel: SwimlaneModel | null;
   reportModel: ReportViewModel;
   capabilities?: ReportCapability[];
   /** Multi-operator packs only: selectable operators (omit for single-op sources). */

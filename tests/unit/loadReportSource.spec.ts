@@ -1,18 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { loadReportSource } from '../../src/index';
+import { loadReportSource, parseRep } from '../../src/index';
 import { operatorsFromNestedNames } from '../../src/adapters/loadReportSource';
-import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes } from '../helpers/fixtures';
+import { packNpuRep160, NPU160_TYPE_CSV, NPU160_TYPE_JSON, NPU160_TYPE_NESTED } from '../../playground/packNpuRep160';
+import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes, loadResultNpuRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 
 describe('PR-JSON: standalone Chrome Trace', () => {
   it('PR-JSON-001: loads CTEF JSON without report aside data (PROC-3)', () => {
     const adapted = loadReportSource(loadOutTraceBytes());
-    expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
-    expect(adapted.swimlaneModel.minTime).toBeLessThan(adapted.swimlaneModel.maxTime);
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
+    expect(adapted.swimlaneModel!.minTime).toBeLessThan(adapted.swimlaneModel!.maxTime);
     expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
     expect(adapted.reportModel.overviewSeries).toEqual([]);
-    expect(adapted.swimlaneModel.processes[0]?.threads[0]?.utilization).toBeUndefined();
-    expect(adapted.swimlaneModel.bands).toBeUndefined();
+    expect(adapted.swimlaneModel!.processes[0]?.threads[0]?.utilization).toBeUndefined();
+    expect(adapted.swimlaneModel!.bands).toBeUndefined();
   });
 
   it('PR-JSON-002: loadReportSource still accepts .rep bytes', () => {
@@ -27,7 +28,7 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.operators?.map((o) => o.label)).toEqual(['op1', 'op2']);
     expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
-    expect(adapted.swimlaneModel.processes.length).toBeGreaterThan(0);
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.operatorReports?.['op2.npu.rep']?.reportModel.summary.opName).toBe('add_custom');
   });
 
@@ -39,5 +40,106 @@ describe('PR-JSON: standalone Chrome Trace', () => {
       { id: 'op1.npu.rep', label: 'op1' },
       { id: 'op2.npu.rep', label: 'op2' },
     ]);
+  });
+
+  it('PR-NPU-008: loadReportSource routes 160-byte leaf to a full single-op report', () => {
+    // Build a flat 160-byte leaf from out.rep payloads (adds the trace.json the
+    // committed data/result.npu-rep omits).
+    const payloads = parseRep(loadOutRepBytes()).payloads;
+    const entries = Object.entries(payloads).map(([name, data]) => ({
+      name,
+      type: name.endsWith('.csv') ? NPU160_TYPE_CSV : NPU160_TYPE_JSON,
+      data,
+    }));
+    const leaf = packNpuRep160(entries);
+
+    const adapted = loadReportSource(leaf);
+    expect(adapted.operators).toBeUndefined();
+    expect(adapted.reportModel.summary.opName).toBe('add_custom');
+    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
+  });
+
+  it('PR-NPU-009: metrics-only 160-byte sample adapts with a null swimlane (no hard error)', () => {
+    // data/result.npu-rep is a partial metric pack (no trace.json / OpBasicInfo):
+    // it must adapt to a metrics-only report (null swimlane + populated aside)
+    // rather than throwing, so the viewer can render the aside without a timeline.
+    const adapted = loadReportSource(loadResultNpuRepBytes());
+    expect(adapted.swimlaneModel).toBeNull();
+    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    expect(adapted.reportModel.memoryTables.length).toBeGreaterThan(0);
+    expect(adapted.reportModel.hardwareDetails).toBeDefined();
+    expect(adapted.operators).toBeUndefined();
+  });
+
+  it('PR-NPU-010: product npu-rep with PipeTrace.json + Summary.jsonl renders timeline and op identity', () => {
+    // vector_muladd_plain.npu-rep uses the product timeline/summary names:
+    // PipeTrace.json (timeline, µs) and Summary.jsonl (OpInfoSummary).
+    const adapted = loadReportSource(loadVectorMuladdNpuRepBytes());
+
+    expect(adapted.operators).toBeUndefined();
+    expect(adapted.swimlaneModel).not.toBeNull();
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
+    // Timeline is µs → ns: ~12.2 µs span becomes ~12,190 ns.
+    expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
+    expect(adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime).toBeGreaterThan(10_000);
+
+    expect(adapted.reportModel.summary.opName).toBe('vector_muladd_plain');
+    expect(adapted.reportModel.summary.opType).toBe('vector');
+    expect(adapted.reportModel.summary.taskDurationUs).toBeCloseTo(51.701);
+    expect(adapted.reportModel.summary.blockDim).toBe(64);
+    expect(adapted.reportModel.summary.pid).toBe('112112');
+    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    expect(adapted.reportModel.hardwareDetails).toBeDefined();
+  });
+
+  it('PR-NPU-011: product npu-rep derives compute/BW/utilization + summary categories', () => {
+    const adapted = loadReportSource(loadVectorMuladdNpuRepBytes());
+    const { summary, bandwidthCards, summaryCategories } = adapted.reportModel;
+
+    // Core count resolves from spaced HardwareInfo keys (`ai vector count`).
+    expect(summary.coreCount).toBe(72);
+
+    // Bandwidth cards prefer summary.jsonl (Memory category) with peak from OpInfoSummary.
+    expect(summary.gmBwTheoreticalGBs).toBe(1600);
+    expect(summary.gmReadBw).toBeCloseTo(20.365732, 4);
+    expect(summary.gmWriteBw).toBeCloseTo(6.786368, 4);
+    expect(bandwidthCards?.map((c) => c.id)).toEqual(['input', 'output']);
+
+    // Parallel utilization / balance (OpInfoSummary derived).
+    expect(summary.parallelUtilization).toBeCloseTo(0.981418, 4);
+    expect(summary.parallelBalance).toBeCloseTo(0.933769, 4);
+
+    // Detail surface categories from summary.jsonl (OpInfoSummary excluded).
+    const ids = summaryCategories?.map((c) => c.id) ?? [];
+    expect(ids).toContain('PipeUtilization');
+    expect(ids).toContain('Memory');
+    expect(ids).not.toContain('OpInfoSummary');
+    const pipeCat = summaryCategories!.find((c) => c.id === 'PipeUtilization')!;
+    expect(pipeCat.fields.some((f) => f.key === 'aiv_vec_ratio')).toBe(true);
+  });
+
+  it('PR-NPU-008: loadReportSource routes nested 160-byte container to multi-op report', () => {
+    const payloads = parseRep(loadOutRepBytes()).payloads;
+    const toEntries = () =>
+      Object.entries(payloads).map(([name, data]) => ({
+        name,
+        type: name.endsWith('.csv') ? NPU160_TYPE_CSV : NPU160_TYPE_JSON,
+        data,
+      }));
+
+    const op1 = packNpuRep160(toEntries());
+    const op2 = packNpuRep160(toEntries());
+    const outer = packNpuRep160([
+      { name: 'op1.npu.rep', type: NPU160_TYPE_NESTED, data: op1 },
+      { name: 'op2.npu.rep', type: NPU160_TYPE_NESTED, data: op2 },
+    ]);
+
+    const adapted = loadReportSource(outer);
+    expect(adapted.operators?.map((o) => o.id)).toEqual(['op1.npu.rep', 'op2.npu.rep']);
+    expect(adapted.operators?.map((o) => o.label)).toEqual(['op1', 'op2']);
+    expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
+    expect(adapted.reportModel.summary.opName).toBe('add_custom');
+    expect(adapted.operatorReports?.['op2.npu.rep']?.reportModel.summary.opName).toBe('add_custom');
   });
 });

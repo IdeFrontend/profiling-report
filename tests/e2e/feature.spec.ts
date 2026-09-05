@@ -96,6 +96,17 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('overview-charts')).toHaveCount(0);
   });
 
+  test('PR-E2E-011: playground loads the product 160-byte npu-rep sample (in-browser parse)', async ({ page }) => {
+    await page.goto('/?fixture=npu160');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
+    await expect(page.getByTestId('pipe-occupancy')).toBeVisible();
+    await expect(page.getByTestId('stats-summary')).toBeVisible();
+    // No error: the 160-byte container parsed and adapted in-browser.
+    await expect(page.getByTestId('load-error')).toHaveCount(0);
+  });
+
   test('PR-E2E-002: hover shows tooltip (UX S3)', async ({ page }) => {
     await page.goto('/');
     const canvas = page.getByTestId('swimlane-canvas');

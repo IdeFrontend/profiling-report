@@ -2,79 +2,13 @@
 
 Open **DATA** questions (file/field/formula data mapping). Status enum, prefix taxonomy, and migration map: [README.md](README.md).
 
-### DATA-2 — 172 measured TFLOPS
-
-<img src="../visual/questions/data-2.png" alt="DATA-2 172 measured TFLOPS" width="600" height="370">
-
-**Status:** `partial`
-
-**Question:** **172** (measured TFLOPS) — which file, which field(s), and the formula?
-
-**Answer so far:** Compute **cube** and **vector** separately (two columns per UI-33). Product formulas (MFU / measured TFLOPS — accuracy TBD):
-
-- **Cube measured:** `MFU = (M×K×N) × 2 / aic_time(us)` (may run high; needs confirmation). Ops basis: `Cycle × 16 × sizeof(dataType) × 16 × 2`.
-- **Cube peak (theoretical):** `16 × sizeof(dataType) × 16 × core_count × frequency × 2 / 1000` TFLOPS.
-- **Vector measured:** `MFU = M×N / aiv_time(us)` (may run high). Ops basis: `Cycle × 16 × sizeof(dataType) × 16 × 2` (fp32/f16 separately).
-- **Vector peak (theoretical):** `128 × core_count × frequency × 2 / 1000` TFLOPS.
-- Inputs: `PipeUtilization.csv` `aic_time(us)` / `aiv_time(us)`; `HardwareInfo.jsonl` core counts + frequency; dtype from op context.
-
-### DATA-3 — 320 peak TFLOPS
-
-<img src="../visual/questions/data-3.png" alt="DATA-3 320 peak TFLOPS" width="600" height="370">
-
-**Status:** `partial`
-
-**Question:** **320** (peak TFLOPS) — which file and field? Or a fixed number per chip?
-
-**Answer so far:** Product will supply **fixed theoretical peak** values per chip (not in report CSV). Interim formula until constants arrive: cube and vector peaks per DATA-2 (`HardwareInfo.jsonl` core counts + frequency + dtype).
-
-### DATA-5 — 1.6 TB/s peak bandwidth
-
-<img src="../visual/questions/data-5.png" alt="DATA-5 1.6 TB/s peak" width="900" height="225">
-
-**Status:** `open`
-
-**Question:** **1.6 TB/s** (peak) — which file and field?
-
-### DATA-6 — peak same for aic / aiv / input / output?
-
-<img src="../visual/questions/data-6.png" alt="DATA-6 peak on aic, aiv, input, and output" width="900" height="225">
-
-**Status:** `open`
-
-**Question:** Is the peak the same for aic, aiv, input, and output? If no, give each peak. (Depends on DATA-5.)
-
-### DATA-7 — 81 score
-
-<img src="../visual/questions/data-7.png" alt="DATA-7 score 81" width="900" height="225">
-
-**Status:** `open`
-
-**Question:** **81** (score) — what is the formula? It is not `0.08 / 1.6`.
-
 ### DATA-8 — I/O bandwidth cards from `Report.csv`?
 
 <img src="../visual/questions/data-8.png" alt="DATA-8 I/O bandwidth cards" width="900" height="225">
 
 **Status:** `open`
 
-**Question:** Do these cards come from `Report.csv` instead? If yes, list the column names. (Interim `DATA-33g` uses `Memory.csv`, not `Report.csv`.)
-
-### DATA-9 — 82% average core utilization
-
-<img src="../visual/questions/data-9.png" alt="DATA-9 82% utilization" width="590" height="370">
-
-**Status:** `open`
-
-**Question:** **82%** — which file, which field, and the formula?
-
-### DATA-10 — 24/24 enabled cores
-
-<img src="../visual/questions/data-10.png" alt="DATA-10 24/24 启用核" width="590" height="370">
-
-**Status:** `open`
-
-**Question:** **24/24** in **启用 n/m 核** — which field is *n*? Which field is *m*?
+**Question:** Do these cards come from `Report.csv` instead? If yes, list the column names. (Resolved `DATA-33` uses `summary.jsonl` `Memory` / `Memory.csv`, not `Report.csv`.)
 
 ### DATA-11 — Roofline axes vs pipe busy rates
 
@@ -154,17 +88,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** **Peak (%)** color on each memory-diagram box — which file and field for each box?
 
-**Answer so far:** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (read/write/total × AIC/AIV still per DATA-21). Other boxes (GM, L1, L0*, Cube, FixP, UB, Vec, Scalar) — still no Product mapping.
-
-### DATA-21 — L2Cache Hit Rate on GM↔L2 arrow
-
-<img src="../visual/questions/data-21.png" alt="DATA-21 L2Cache Hit Rate on the GM↔L2 arrows" width="900" height="900">
-
-**Status:** `interim`
-
-**Question:** **L2Cache Hit Rate** on the GM↔L2 arrow — read, write, or total? AIC, AIV, or both?
-
-**Interim:** adapter uses the first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, `aic_read_hit_rate(%)`, `aiv_read_hit_rate(%)`. Product has not picked read/write/total × AIC/AIV.
+**Answer so far:** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)). Other boxes (GM, L1, L0*, Cube, FixP, UB, Vec, Scalar) — still no Product mapping.
 
 ### DATA-22 — UB → L2/GM arrow
 
@@ -206,22 +130,6 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Interim:** show `Memory.csv` → `L0C_to_GM_datas(KB)` when present. Same **LOC** node as DATA-24.
 
-### DATA-26 — L0C → UB
-
-<img src="../visual/questions/data-26.png" alt="DATA-26 L0C to UB" width="900" height="900">
-
-**Status:** `open`
-
-**Question:** **L0C → UB** — show it? Which field? (None in the sample.)
-
-### DATA-27 — Dual-Die / Remote memory
-
-<img src="../visual/questions/data-27.png" alt="DATA-27 leftover _XN_IMM — no Dual-Die arrows" width="900" height="944">
-
-**Status:** `open`
-
-**Question:** Dual-Die / Remote memory — show those arrows? Which fields? (Docx mentions remote/close-far access, but sample `L2Cache.csv` uses `r0`/`r1`.)
-
 ### DATA-28 — summary aggregation (mean / max / first / selected)
 
 <img src="../visual/questions/data-28.png" alt="DATA-28 summary mean percent column" width="900" height="524">
@@ -249,14 +157,6 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 **Question:** Authoritative MVP fixture shape?
 
 **Answer so far:** Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [`DATA-31a`](../decisions/interim/DATA.md).
-
-### DATA-33 — report summary formulas (was: Q6)
-
-**Status:** `interim`
-
-**Question:** Report summary formulas?
-
-**Answer so far (interim):** duration = `OpBasicInfo.csv` `Task Duration(us)`; I/O **measured** = `Memory.csv` `ai*_main_mem_{read|write}_bw`; I/O display **GB/s**. Compute TFLOPS and avg core util stay in the sketch grid as **title + `N/A`** until formulas exist. PIPE = mean non-`NA`. MIX Cube\|Vector + ICache Miss rows confirmed. **Open:** bandwidth **peak / score**, `block_id` mean vs max vs selected block. Interims: [`DATA-33a…DATA-33g`](../decisions/interim/DATA.md).
 
 ### DATA-36 — dependencies encoding (was: Q9)
 

@@ -22,16 +22,16 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-33a — Summary tiles
 
-**Status:** `interim`
-**Question:** [DATA-33](../../questions/DATA.md)
-**Interim:** Show **confirmed** duration from `OpBasicInfo.csv` `Task Duration(us)`. When duration is present, compute TFLOPS and avg core util tiles stay in the sketch grid as **title + `N/A`** (do not bind guessed values); omit those placeholders when the summary is BW-only so the grid stays rectangular. Duration uses sketch card chrome (bar still DATA-33e). Op type is **not** a separate card. I/O BW → **DATA-33g**.
-**Implement / test as:** Thin duration card + N/A placeholders in `StatsAside`
-**Superseded when:** Data/format spec defines compute / avg-util formulas (DATA-33)
+**Status:** `interim` — **SUPERSEDED** 2026-09-04
+**Question:** [DATA-33](../DATA.md)
+**Interim:** ~~Show confirmed duration from `OpBasicInfo.csv` `Task Duration(us)`. Compute TFLOPS and avg core util tiles stay **title + `N/A`**.~~ Product (NPU-Compute): compute/util come from `summary.jsonl` `OpInfoSummary` (`aic_flops` / `aiv_flops` + theoretical; **AI Core 并行使用率**). See [DATA-33](../DATA.md), [DATA-2](../DATA.md), [DATA-9](../DATA.md).
+**Implement / test as:** Compute/parallel-util cards in `StatsAside`
+**Superseded when:** — already superseded by NPU-Compute.md / DATA-33.
 
 ### DATA-33b — PIPE aggregation
 
 **Status:** `interim`
-**Question:** [DATA-33](../../questions/DATA.md)
+**Question:** [DATA-33](../DATA.md)
 **Interim:** **Mean of non-`NA` ratios** per pipe family across `block_id`.
 **Implement / test as:** `PipeOccupancyPanel` unit tests
 **Superseded when:** DATA-33 / data spec overrides aggregation
@@ -39,7 +39,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 ### DATA-33c — Block scope vs aggregate
 
 **Status:** `interim`
-**Question:** [DATA-33](../../questions/DATA.md)
+**Question:** [DATA-33](../DATA.md)
 **Interim:** Summary **PIPE bars** stay DATA-33b (mean across blocks). **Detail / memory / metrics** views are **block-scoped** via the block switcher ([`v930/memory-load-detail`](../../../../docs/ui/source/v930/memory-load-detail.jpeg)). Default selected block = first `block_id` in fixture order.
 **Implement / test as:** Aside detail tabs + block picker tests
 **Superseded when:** Product defines block vs aggregate UX
@@ -47,34 +47,34 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 ### DATA-33d — 查看全部 CSV
 
 **Status:** `interim`
-**Question:** [DATA-33](../../questions/DATA.md)
+**Question:** [DATA-33](../DATA.md)
 **Interim:** Library emits `view-full-csv` with `{ fileName, text }` (or blob URL). Playground / MSTT host opens the full CSV in a **new tab** (blob URL or editor tab).
 **Implement / test as:** Emit + host/playground open
 **Superseded when:** Product specifies host chrome
 
 ### DATA-33e — Duration card chrome
 
-**Status:** `interim`
-**Question:** [DATA-33](../../questions/DATA.md)
-**Interim:** **Product confirmed (DATA-1 + UI-32):** `summary.coreCount` from `HardwareInfo.jsonl` by `Op Type` (cube → `ai_cube_count`/`aic_cube_count`; vector → `ai_vector_count`/`aic_vector_count`; mix → `ai_core_count`). Secondary: `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`. Bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` present; else decorative ~15% fill.
+**Status:** `interim` — **SUPERSEDED** 2026-09-04
+**Question:** [DATA-33](../DATA.md)
+**Interim:** ~~Bar = `min(100%, Block Dim / core_count × 100%)`.~~ Product (NPU-Compute / UI-32): **bar removed**. Secondary = `{blockDim} Blocks / {coreCount} 核` when both set; else `{blockDim} Blocks`; else `opName`. Core count still DATA-1.
 **Implement / test as:** `PR-STATS-009`–`011`, `PR-STATS-031`
-**Superseded when:** Product changes duration-bar formula
+**Superseded when:** — already superseded by NPU-Compute.md / UI-32.
 
 ### DATA-33f — PIPE in-bar absolute
 
 **Status:** `interim`
-**Question:** [DATA-33](../../questions/DATA.md)
+**Question:** [DATA-33](../DATA.md)
 **Interim:** **Product confirmed (DATA-18):** `absoluteValue` = **mean of non-`NA` `*_time(us)`** for the same family/side as the ratio (DATA-33b). Omit when all NA. Not cycles.
 **Implement / test as:** `PR-STATS-013`, adapter unit tests
 **Superseded when:** Product changes in-bar metric
 
 ### DATA-33g — I/O bandwidth cards
 
-**Status:** `interim`
-**Question:** [DATA-33](../../questions/DATA.md)
-**Interim:** **Measured (confirmed):** mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_*` on `Memory.csv` (first matching header only; also accept headers without `(GB/s)`). **Peak (still guess):** **1600 GB/s** for all four aic/aiv × in/out slots — **not** max of measured columns. **Score (still guess):** `round(measured/peak×100)` clamped 0–100 (sketch dummy 81 ≠ ratio). **Bar:** fill = score % of track (8px pill). **Display:** **GB/s** (UI-34; magnitude rounding). **Layout:** same raised card chrome as duration; aic | aiv columns; sketch **3+2 grid** with duration. **NA side:** omit that aic/aiv column; omit card if both NA. `Report.csv` unused (no schema).
+**Status:** `interim` — **SUPERSEDED** 2026-09-04
+**Question:** [DATA-33](../DATA.md)
+**Interim:** ~~Peak/score still a guess (1600 GB/s; `round(measured/peak×100)`).~~ Product (NPU-Compute / DATA-5, DATA-6, DATA-7): measured read/write BW from `summary.jsonl` `Memory` category; peak = `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = **SOL 1600 GB/s**; score = `measured / peak × 100%`. Fall back to `Memory.csv` mean when `summary.jsonl` is absent. Display **GB/s** (UI-34).
 **Implement / test as:** `bandwidthCards`, `PR-VM-013`, `PR-STATS-024`
-**Superseded when:** Product peak source, score formula vs sketch 81, aggregation, `Report.csv`
+**Superseded when:** — already superseded by NPU-Compute.md / DATA-33.
 
 ### DATA-34a — Hardware details panel
 

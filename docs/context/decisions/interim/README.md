@@ -24,13 +24,13 @@ Allowed to implement now:
 3. Standalone Chrome Trace `.json` open path
 4. Timeline shell, axis, gutter, swimlane, tooltip, select → detail
 5. PIPE bars when `PipeUtilization` present
-6. Thin summary (name / type / duration only)
-7. Hide overview, undecidable summary tiles, missing panels
+6. Thin summary (name / type / duration) plus NPU-Compute compute / parallel-util / I/O BW cards when `summary.jsonl` is present (DATA-33)
+7. Hide overview, missing panels
 
 Not required for first MVP merge:
 
 - Sketch-faithful multi-core golden
-- Full report stats tiles (compute / avg util) — I/O BW shipped under DATA-33g
+- Overview charts with real series
 - Overview charts with real series
 - Product-final hardware inventory beyond DATA-34a; roofline tabs / L2 series beyond DATA-37*; memory SVG; deps; secondary tabs
 
