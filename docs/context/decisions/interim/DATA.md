@@ -80,9 +80,9 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-38](../../questions/DATA.md)
-**Interim:** **Not** cycle counts and **not** a mean over swimlane events. Raw = mean of non-`NA` mapped `PipeUtilization.csv` `*_time(us)` across `block_id` (DATA-33b pattern; same quantity family as DATA-33f), keyed by `laneColorKey(thread.name)` per the column map in [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md). Folders = mean of child raws. Bar width = \((\mathrm{raw}/\max)\times 100\) within the Card; red = max lane only. Dropdown offers only **clockCycle** + **utilization** (`cacheHit` / `task` withdrawn). Ignore `*_total_cycles`.
+**Interim:** **Not** cycle counts and **not** a mean over swimlane events. Raw = mean of non-`NA` mapped `PipeUtilization.csv` `*_time(us)` across `block_id` (DATA-33b pattern; same quantity family as DATA-33f), keyed by `laneColorKey(thread.name)` per the column map in [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md). Folders = mean of child raws. Bar width = \((\mathrm{raw}/\max)\times 100\) within the Card; red = max lane only. Dropdown offers only **clockCycle** + **utilization** (`cacheHit` / `task` withdrawn). Ignore `*_total_cycles`. **Why not PyPTO sum-of-cycles:** PyPTO joins `tilefwk_prof_pmu.csv` → `event.pmu_info['total cycle']` then sums per thread; that input is missing from NPU-Compute embeds and scanned `.npu-rep` / PR #74 fixtures (event-level PMU absent, not merely undocumented).
 **Implement / test as:** `gutterMetrics.ts`, `PR-GMET-*`
-**Superseded when:** Product confirms quantity (µs vs cycles), column map, or event-based formula ([DATA-38](../../questions/DATA.md))
+**Superseded when:** Product confirms quantity (µs vs cycles), column map, or event-based / PMU formula ([DATA-38](../../questions/DATA.md)) — and producer ships the required join data
 
 ### DATA-34a — Hardware details panel
 

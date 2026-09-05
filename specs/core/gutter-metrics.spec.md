@@ -134,9 +134,18 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 
 ## Open
 
-**Product confirmation pending** — formula and **`µs`** presentation are **Interim** engineering defaults ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-46a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-46](../../docs/context/questions/UI.md)). Until Product answers DATA-38 / UI-46: keep the column map, mean-across-blocks `*_time(us)` raw, relative barWidth, and `µs` labels as specified above. MIX keys that share one `laneColorKey` keep mean-of-column-means until Product defines another blend.
+**Product confirmation pending** — formula and **`µs`** presentation are **Interim** engineering defaults ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-46a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-46](../../docs/context/questions/UI.md)).
+
+**PyPTO true formula (reference only):** load sibling `tilefwk_prof_pmu.csv`, join onto swimlane events by `seqNo`/`sub task id`, then per AIC_/AIV_ thread **sum** `event.pmu_info['total cycle']` (bare integer label; bar = raw/max). That path needs event-level PMU. It is **not** available in current `.npu-rep` / `.rep` samples:
+
+- [NPU-Compute.md](https://gitcode.com/wk0911/npu-tools/blob/main/npu-compute/NPU-Compute.md) lists `PipeUtilization.csv` / `trace.json` / `sampling.json` — no `tilefwk_prof_pmu.csv`, no event-arg `pmu_info` / `total cycle` schema.
+- Scanned fixtures (`data/example.npu.rep`, PR #74 `example160.npu-rep` / `vector_muladd_plain.npu-rep` / `result.npu-rep`): **zero** event `pmu_info` or `"total cycle"`; block-level `aic_total_cycles` / `aiv_total_cycles` appear only as CSV columns (ignored here).
+- PR #74 (160-byte `npu-rep` parse) does not add PMU embeds or on-event cycles.
+
+Until Product answers DATA-38 / UI-46 **or** the producer ships PMU join data: keep the column map, mean-across-blocks `*_time(us)` raw, relative barWidth, and `µs` labels as specified above. MIX keys that share one `laneColorKey` keep mean-of-column-means until Product defines another blend.
 
 ## Changelog
+- **2026-09-05** — Document PyPTO PMU sum-of-`total cycle` as reference; note NPU-Compute.md, PR #74, and scanned fixtures lack event-level PMU (interim stays `*_time(us)`).
 - **2026-09-05** — Remap gutter label-units ask to **UI-46** / **UI-46a** (do not reuse the id reserved on PR #23 for timeline CPU clocks).
 - **2026-09-04** — Utilization idle leaves (`coverage = 0`) keep a `0%` bar and count in folder means (PR-GMET-004).
 - **2026-09-04** — Remap interim ask to **DATA-38** / **UI-46** (was Q24 / HQ 39–40) after open-question ID unify; avoid collision with timeline CPU clocks (old OPEN Q23 / HQ 38).
