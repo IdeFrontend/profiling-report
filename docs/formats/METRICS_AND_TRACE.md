@@ -52,7 +52,7 @@ Sample row (abridged):
 | Block Dim | `8` | Aside **Blocks**; duration secondary + bar util (DATA-33e / DATA-1–32) |
 | Mix Block Dim | `NA` | Mix mode (later) |
 | Device Id | `0` | Device label |
-| Pid | process id | Debug |
+| Pid | process id | Aside **进程** |
 | Current Freq / Rated Freq | e.g. `1650` | Freq in summary / hardware panel; **CPU clocks** display mode ([UI-40a](../context/decisions/interim/UI.md)) uses `currentFreq` when valid, else `ratedFreq` (MHz) as `cycles = ns × freqMHz / 1000`. When `PipeUtilization` has both `*_time(us)` and `*_total_cycles`, their ratio matches Current Freq on `out.rep` (1650). **Open:** true vs derived cycle source — [UI-45](../context/questions/UI.md). |
 
 ---
