@@ -40,7 +40,7 @@ Not required for first MVP merge:
 - [VIEW_DATA_REQUIREMENTS.md](../../../formats/VIEW_DATA_REQUIREMENTS.md)
 - [FEATURE_MATRIX.md](../../../ui/FEATURE_MATRIX.md)
 - [METRICS_AND_TRACE.md](../../../formats/METRICS_AND_TRACE.md)
-- [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) (DATA-38a / UI-45a / DATA-38)
+- [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) (DATA-38a / UI-46a / DATA-38)
 - [REP_FORMAT.md](../../../formats/REP_FORMAT.md)
 - [TESTING.md](../../../process/TESTING.md)
 - [DEVELOPMENT.md](../../../process/DEVELOPMENT.md)

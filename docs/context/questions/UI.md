@@ -34,10 +34,10 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Interim:** Wheel/slider/drag MVP; W/S/A/D P2 — [`UI-41a`](../decisions/interim/UI.md).
 
-### UI-45 — Card gutter 时钟周期 label units (was: HQ 40)
+### UI-46 — Card gutter 时钟周期 label units (was: HQ 40)
 
 **Status:** `interim`
 
 **Question:** Should gutter **时钟周期** labels show a time unit (e.g. **`µs`**), bare numbers, or cycle counts?
 
-**Answer so far (interim):** Labels always suffix **`µs`**. Interim: [`UI-45a`](../decisions/interim/UI.md). Formula: [`DATA-38`](DATA.md) / [`DATA-38a`](../decisions/interim/DATA.md).
+**Answer so far (interim):** Labels always suffix **`µs`**. Interim: [`UI-46a`](../decisions/interim/UI.md). Formula: [`DATA-38`](DATA.md) / [`DATA-38a`](../decisions/interim/DATA.md).
