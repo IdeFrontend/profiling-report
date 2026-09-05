@@ -32,7 +32,7 @@ import {
   type SwimlaneLayout,
 } from './layout';
 import { dependencyGraph, dependencyStrokeWidth, glLinkTime, type DependencyLink } from './dependencyLinks';
-import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, minRR, maxRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
+import { CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, extendMargin1Css, extendMargin2Css, extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 interface GlProgram {
   program: WebGLProgram;
@@ -43,6 +43,7 @@ interface GlProgram {
   uColor: WebGLUniformLocation;
   uYBounds: WebGLUniformLocation | null;
   uRR: WebGLUniformLocation | null;
+  uExtendParameters: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -98,6 +99,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
   gl.attachShader(program, fs);
   gl.bindAttribLocation(program, 0, 'aPos');
   if (vsSrc.includes('aTex')) gl.bindAttribLocation(program, 1, 'aTex');
+  if (vsSrc.includes('aData')) gl.bindAttribLocation(program, 2, 'aData');
   gl.linkProgram(program);
   gl.deleteShader(vs);
   gl.deleteShader(fs);
@@ -118,6 +120,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uColor,
     uYBounds: gl.getUniformLocation(program, 'uYBounds'),
     uRR: gl.getUniformLocation(program, 'uRR'),
+    uExtendParameters: gl.getUniformLocation(program, 'uExtendParameters'),
   };
 }
 
@@ -143,37 +146,68 @@ function linkCurveProgram(gl: WebGL2RenderingContext): CurveProgram {
   return { program, uResolution, uView, uHalfWidth };
 }
 
-/** Sudu setVbSquare: encode opposite edge in aTex. */
-function setVbSquare(p: number, x0: number, x1: number, vb: Float32Array): void {
-  // x1,-1, x0,1 | x1,1, x0,1 | x0,-1, x1,0 | x0,1, x1,0
+/** Sudu setVbSquareWithGaps: 6 floats/vertex — adds gapPrev,gapNext per vertex (aData). */
+export function setVbSquareWithGaps(
+  p: number,
+  x0: number,
+  x1: number,
+  gapPrev: number,
+  gapNext: number,
+  vb: Float32Array,
+): void {
+  // x1,-1, x0,1, gapPrev,gapNext | x1,1, x0,1, gapPrev,gapNext | x0,-1, x1,0, gapPrev,gapNext | x0,1, x1,0, gapPrev,gapNext
   vb[p] = x1;
   vb[p + 1] = -1;
   vb[p + 2] = x0;
   vb[p + 3] = 1;
-  vb[p + 4] = x1;
-  vb[p + 5] = 1;
-  vb[p + 6] = x0;
+  vb[p + 4] = gapPrev;
+  vb[p + 5] = gapNext;
+  vb[p + 6] = x1;
   vb[p + 7] = 1;
   vb[p + 8] = x0;
-  vb[p + 9] = -1;
-  vb[p + 10] = x1;
-  vb[p + 11] = 0;
+  vb[p + 9] = 1;
+  vb[p + 10] = gapPrev;
+  vb[p + 11] = gapNext;
   vb[p + 12] = x0;
-  vb[p + 13] = 1;
+  vb[p + 13] = -1;
   vb[p + 14] = x1;
   vb[p + 15] = 0;
+  vb[p + 16] = gapPrev;
+  vb[p + 17] = gapNext;
+  vb[p + 18] = x0;
+  vb[p + 19] = 1;
+  vb[p + 20] = x1;
+  vb[p + 21] = 0;
+  vb[p + 22] = gapPrev;
+  vb[p + 23] = gapNext;
 }
 
+/**
+ * Build a swimlane mesh chunk from `pairs` (full lane of [x0,x1] intervals in event coords,
+ * relative to timeBase), starting at pair offset `off`. Gaps are read straight from `pairs` via
+ * the global index (`eventGapPrev` / `eventGapNext`) — no per-chunk copy or gap array is made,
+ * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
+ * (pos, uv, data) enables branchless extension in the vertex shader.
+ */
 function createChunk(
   gl: WebGL2RenderingContext,
-  pairs: Float32Array,
+  pairs: number[],
+  off: number,
   pairCount: number,
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
-  const vb = new Float32Array(numSquares * 16);
+  const vb = new Float32Array(numSquares * 24);
   const ib = new Uint16Array(numSquares * 6);
   for (let i = 0; i < numSquares; i++) {
-    setVbSquare(i * 16, pairs[i * 2]!, pairs[i * 2 + 1]!, vb);
+    const gi = off + i;
+    setVbSquareWithGaps(
+      i * 24,
+      pairs[gi * 2]!,
+      pairs[gi * 2 + 1]!,
+      eventGapPrev(pairs, gi),
+      eventGapNext(pairs, gi),
+      vb,
+    );
     const n = i * 4;
     const p = i * 6;
     ib[p] = n;
@@ -193,9 +227,11 @@ function createChunk(
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
   gl.bufferData(gl.ARRAY_BUFFER, vb, gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 16, 0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0);
   gl.enableVertexAttribArray(1);
-  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 16, 8);
+  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8);
+  gl.enableVertexAttribArray(2);
+  gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 24, 16);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
   gl.bindVertexArray(null);
@@ -203,12 +239,46 @@ function createChunk(
   return { vao, vbo, ibo, indexCount: numSquares * 6 };
 }
 
+/** Edge fake-gap for the first/last event of a lane (model time units). A huge constant so an
+ * isolated/thin edge event is treated as having plenty of empty space on the boundary side and
+ * always saturates the extension margin. A degenerate `eventRange` (a single-event lane) would
+ * otherwise suppress the extension. */
+export const EDGE_GAP = 1e12;
+
+/**
+ * Distance from the previous event's end to event `gi`'s start, in event coords.
+ *
+ * `gi` indexes the **whole lane** (not a chunk), so the first event of any non-first chunk reads
+ * a real gap back into the previous chunk's last event. Only the lane's true first event uses
+ * `EDGE_GAP`. Scalar (no allocation) so the mesh-build loop can call it per event.
+ */
+export function eventGapPrev(pairs: number[], gi: number): number {
+  return gi === 0 ? EDGE_GAP : pairs[gi * 2]! - pairs[gi * 2 - 1]!;
+}
+
+/**
+ * Distance from event `gi`'s end to the next event's start, in event coords.
+ *
+ * `gi` indexes the **whole lane** (not a chunk), so the last event of any non-final chunk reads a
+ * real gap forward into the next chunk's first event. Only the lane's true last event uses
+ * `EDGE_GAP`. Scalar (no allocation) so the mesh-build loop can call it per event.
+ */
+export function eventGapNext(pairs: number[], gi: number): number {
+  return gi * 2 + 2 >= pairs.length ? EDGE_GAP : pairs[gi * 2 + 2]! - pairs[gi * 2 + 1]!;
+}
+
+/**
+ * Build mesh chunks from per-event encoded intervals. Each chunk reads its events (and their
+ * gaps) straight from the full `pairs` array by global index, so boundary events resolve real
+ * neighbors across the chunk split — `gapPrev` back and `gapNext` forward — with no per-chunk
+ * copies or gap arrays.
+ */
 function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): MeshChunk[] {
   const chunks: MeshChunk[] = [];
-  for (let off = 0; off < pairs.length / 2; off += MAX_QUADS_PER_MESH) {
-    const count = Math.min(MAX_QUADS_PER_MESH, pairs.length / 2 - off);
-    const slice = new Float32Array(pairs.slice(off * 2, (off + count) * 2));
-    chunks.push(createChunk(gl, slice, count));
+  const totalPairs = pairs.length / 2;
+  for (let off = 0; off < totalPairs; off += MAX_QUADS_PER_MESH) {
+    const count = Math.min(MAX_QUADS_PER_MESH, totalPairs - off);
+    chunks.push(createChunk(gl, pairs, off, count));
   }
   return chunks;
 }
@@ -460,6 +530,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, devW, devH);
+    // Extension params are CSS px (shaders.extendTargetSizeCss/extendMargin1Css/extendMargin2Css),
+    // converted to device px (× dpr) so they track the browser's dpr; unless the uniform was
+    // optimized out of an empty/legacy shader (then it stays null and extension is off).
+    if (swim.uExtendParameters)
+      gl.uniform3f(
+        swim.uExtendParameters,
+        extendTargetSizeCss * dpr,
+        extendMargin1Css * dpr,
+        extendMargin2Css * dpr,
+      );
     // Corner policy is CSS px (shaders.minRR/maxRR/rrSwitchThreshold). Painted radii (uRR.xy)
     // scale ×dpr and round to integer device px; the comparison threshold (uRR.z) stays unrounded
     // so the `rawW < 4 CSS px` cutoff matches the true CSS boundary, not a rounded device px.
