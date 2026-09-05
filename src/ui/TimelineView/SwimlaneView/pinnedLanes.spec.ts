@@ -43,12 +43,10 @@ describe('pinnedLanes', () => {
     const rows = resolvePinnedGutterLanes(
       [
         {
-          id: 'card0',
           lanes: [{ id: 'a', name: 'A', color: '#f00', utilization: 0.5 }],
           utilMidlinePercent: 50,
         },
         {
-          id: 'card1',
           lanes: [{ id: 'b', name: 'B', color: '#0f0', bar: { barWidth: 80, label: '8µs' } }],
           utilMidlinePercent: 75,
         },
