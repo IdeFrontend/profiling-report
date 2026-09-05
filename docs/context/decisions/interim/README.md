@@ -37,10 +37,11 @@ Not required for first MVP merge:
 
 ## Related specs to keep in sync
 
+High-level product/process docs shared by many interim rules. Detailed `specs/**` links belong on the interim entry and the owning spec — not here.
+
 - [VIEW_DATA_REQUIREMENTS.md](../../../formats/VIEW_DATA_REQUIREMENTS.md)
 - [FEATURE_MATRIX.md](../../../ui/FEATURE_MATRIX.md)
 - [METRICS_AND_TRACE.md](../../../formats/METRICS_AND_TRACE.md)
-- [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) (DATA-38a / UI-46a / DATA-38)
 - [REP_FORMAT.md](../../../formats/REP_FORMAT.md)
 - [TESTING.md](../../../process/TESTING.md)
 - [DEVELOPMENT.md](../../../process/DEVELOPMENT.md)
