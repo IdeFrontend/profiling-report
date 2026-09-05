@@ -1739,4 +1739,22 @@ describe('SwimlaneCanvas', () => {
       /\.pr-swim-canvas-wrap--measure\s+\.pr-swim-canvas\s*\{[^}]*cursor:\s*col-resize/,
     );
   });
+
+  it('PR-CANVAS-065: Ctrl+left-drag still pans (PyPTO combined pan)', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointermove', {
+      clientX: 160,
+      clientY: y,
+      pointerId: 1,
+      buttons: 1,
+      ctrlKey: true,
+    });
+    await canvas.trigger('pointerup', { clientX: 160, clientY: y, pointerId: 1, ctrlKey: true });
+    const pan = wrapper.emitted('pan');
+    expect(pan).toBeTruthy();
+    expect(pan!.length).toBeGreaterThan(0);
+    wrapper.unmount();
+  });
 });

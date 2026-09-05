@@ -36,6 +36,8 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
+**Shortcut help (PyPTO parity).** A **keyboard** glyph button sits **first** in the action-icon list — immediately after the zoom pill, before zoom-to-fit / measure / display-control / aside. It opens a floating **快捷键说明** popover (`data-testid="shortcut-help"`) mirroring PyPTO's `swimGraphShortCutKeyDescripiton` panel: **450px** card, **16px** radius; **鼠标操作** and **键盘操作** side-by-side (mouse: vertical movement = wheel glyph, single/box selection = left-click glyph; keyboard: zoom W|S and pan A|D as horizontal pairs); **组合操作** full-width below (scaling = wheel+Ctrl; pan = left-click+Ctrl; box select = left-click; time measurement = left-click+Alt). Bindings render as PyPTO 24×24 multi-color SVG glyphs (`img[data-shortcut-icon]`) — not text `<kbd>` keycaps. Trackpad/gesture alternatives are omitted (unsupported here). The panel is **teleported to `body`** with `position: fixed` (right-aligned under the trigger, clamped into the viewport) so toolbar `overflow-x: clip` cannot crop it. The panel closes via the X, a second press of the trigger, a pointerdown outside the wrap (trigger + panel), or **Escape** — the same dismiss contract as 显示控制. The `help` icon remains reserved for the connection-level tooltip; the shortcut action uses a distinct `keyboard` glyph.
+
 ## Visual
 
 Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg) (device px @ dump resolution). Control height **~28–29 px** CSS. Chrome strip is **min-height 60px** on one row; when tabs + toolbar no longer fit side-by-side the **whole** `.pr-toolbar` (search, zoom, actions) wraps to a second row together and the corner wash stretches with the taller chrome. If the second row is still too narrow, trailing icon actions crop (`overflow-x: clip`) while search and zoom stay visible; cropped trailing controls are marked `inert` so they leave the tab order.
@@ -157,6 +159,7 @@ not serve.
 | `display-config` | `泳道图显示配置.svg` | 显示控制 trigger |
 | `help` | `帮助.svg` | 任务连接层级 help (AC-20.2) |
 | `close` | `ic_public_close.svg` | 显示控制 close (AC-20.5) |
+| `keyboard` | `icon.svg` | 快捷键说明 trigger (PR-TOOLBAR-021) |
 
 Zoom-to-fit keeps its hand-drawn frame glyph — no design export was supplied for it.
 
@@ -187,6 +190,9 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 19. **PR-TOOLBAR-018** — The corner wash is the strip's first child, painting above the strip background and below the tabs, pinned with `top: 0; bottom: 0` so it fills the full `.pr-chrome` height (including when the toolbar wraps). Radial horizontal radius is **59%** so opacity reaches 0 at the 208px right edge (no hard seam into `#1f1f1f`). `.pr-chrome` is `position: relative` with **no** `z-index` or `isolation`: a stacking context there would trap the OP menu and 显示控制 popover inside the strip. `.pr-tabs` is positioned so labels paint over the wash.
 20. **PR-TOOLBAR-019** — The depth field's own stepper buttons emit `update:dependencyDepth` ±1 through `normalizeDependencyDepth`, disable at each clamp, and stay out of the tab order and the accessibility tree.
 21. **PR-TOOLBAR-020** — Trailing toolbar icon actions (`zoom-to-fit`, measure, display-control, aside) carry `data-toolbar-clip`; when `overflow-x: clip` crops them past the toolbar's right edge they receive `inert` so keyboard focus cannot land on an invisible control. Search and zoom are never marked.
+22. **PR-TOOLBAR-021** — The shortcut-help action renders **first** in the action list (immediately after the zoom pill, before `zoom-to-fit`), using the `keyboard` glyph (`data-testid="toggle-shortcuts"`, `data-toolbar-clip`).
+23. **PR-TOOLBAR-022** — Clicking the shortcut-help trigger opens the `shortcut-help` popover listing mouse / keyboard / combined bindings (W/S/A/D, Ctrl+wheel, Ctrl+drag, Alt+click); it closes via the X, a second press, an outside pointerdown, or Escape.
+24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below.
 
 ## Edge Cases
 
@@ -210,6 +216,9 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-09-04** — Shortcut-help popover teleports to `body` (fixed) so toolbar `overflow-x: clip` cannot crop the 450px card.
+- **2026-09-04** — Shortcut-help popover matches PyPTO layout (Mouse‖Keyboard + Combined) and 24×24 SVG glyphs (`PR-TOOLBAR-023`).
+- **2026-09-03** — Shortcut-help action (`keyboard` glyph, first in the action list) + 快捷键说明 popover (`PR-TOOLBAR-021` / `022` / `023`).
 - **2026-09-03** — Chrome `padding: 8px` so a wrapped toolbar row is not flush with the tabs or the axis (`PR-TOOLBAR-009`).
 - **2026-09-03** — Display-control closes on Escape (`PR-TOOLBAR-010`); clipped trailing icon actions get `inert` so they leave the tab order (`PR-TOOLBAR-020`).
 - **2026-09-02** — Whole toolbar wraps to a second row together; wash stretches with `top/bottom: 0`; second-row overflow still crops trailing icons (`PR-TOOLBAR-009` / `018`).

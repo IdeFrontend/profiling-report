@@ -35,6 +35,8 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Pan.** `panBy` shifts the viewport by delta time units. Positive delta moves later times into view. With bounds, the window is clamped to stay within bounds edges.
 
+**Keyboard navigation (W/S/A/D).** `keyboardPanStepTime(span, trackWidth)` converts a fixed **30 px** pan step (PyPTO `moveStep`) into a time delta: `KEYBOARD_PAN_STEP_PX / trackWidth × span`. `trackWidth` (and `span`) are clamped to a minimum of 1 so the step is always positive and finite. The parent maps `W`/`S` to zoom-in/out around the cursor (viewport center when no cursor is set) and `A`/`D` to `panBy(±step)`; the default `key` values are `w`/`s`/`a`/`d` (PyPTO `ZoomInShortcut` / `ZoomOutShortcut` / `leftmoveShortcut` / `rightmoveShortcut`).
+
 **Zoom-to-fit.** `zoomToFitWindow` spans `[model.minTime, model.maxTime]` (data span). Display labels use `minTime` as origin so the left edge reads `0`, matching PyPTO / Perfetto Timecode defaults.
 
 **Bounds protection.** The caller adds a +1 guard when `maxTime === minTime` to prevent division by zero during zoom calculations.
@@ -55,6 +57,8 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 12. **PR-VIEW-013** — createViewState initializes empty **pinnedLaneIds**.
 13. **PR-VIEW-014** — pinLane appends id when absent.
 14. **PR-VIEW-015** — unpinLane removes id when present.
+15. **PR-VIEW-016** — `keyboardPanStepTime` maps `KEYBOARD_PAN_STEP_PX` (30 px) to a time delta proportional to the visible span: `30 / trackWidth × span`.
+16. **PR-VIEW-017** — `keyboardPanStepTime` clamps `trackWidth ≤ 0` and `span ≤ 0` to a minimum of 1, returning a positive finite step (no NaN / division by zero).
 
 ## Edge Cases
 
@@ -62,6 +66,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 - Degenerate `minTime === maxTime` → zoomToFitWindow returns `{startTime: minTime, endTime: minTime + MIN_WINDOW}` (aligned with ProfilingReport bounds `minTime + 1`).
 - Zoom factor ≤0 → span clamped to MIN_WINDOW=1.
 - Pan beyond bounds → clamped to edges.
+- `keyboardPanStepTime` with a zero/negative `trackWidth` or `span` → clamped to a positive step (no NaN).
 - pinLane on already-pinned id → unchanged order (idempotent).
 - unpinLane on absent id → no-op.
 - Pin id persists in **pinnedLaneIds** while its row is hidden (collapsed ancestor); **pinned strip stays visible** (built from the full swim model, not collapse-filtered `displaySwim`).
@@ -75,6 +80,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 Multi-touch pinch zoom (P2). M2 measure fields.
 
 ## Changelog
+- **2026-09-03** — Keyboard navigation (W/S/A/D): `keyboardPanStepTime` + `KEYBOARD_PAN_STEP_PX` (`PR-VIEW-016` / `017`). Resolves Q19 gesture parity.
 - **2026-08-31** — Pinned strip stays visible under ancestor collapse (full swim as pin source).
 - **2026-08-31** — Renumber pin ACs to `PR-VIEW-013`…`015` (avoid collision with #31 `PR-VIEW-012`).
 - **2026-08-27** — Gutter pushpin and context-menu Pin row share **pinnedLaneIds**.

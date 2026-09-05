@@ -466,4 +466,74 @@ describe('ReportToolbar', () => {
 
     wrapper.unmount();
   });
+
+  it('PR-TOOLBAR-021: shortcut-help action renders first, before zoom-to-fit, with the keyboard glyph', () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const actions = wrapper.findAll('[data-toolbar-clip]');
+    expect(actions[0].attributes('data-testid')).toBe('toggle-shortcuts');
+    expect(actions[1].attributes('data-testid')).toBe('zoom-to-fit');
+    expect(wrapper.find('[data-testid="toggle-shortcuts"] .pr-icon--keyboard').exists()).toBe(true);
+    // Not open by default (teleported panel lives on document.body when open).
+    expect(document.querySelector('[data-testid="shortcut-help"]')).toBeNull();
+  });
+
+  it('PR-TOOLBAR-022: shortcut-help popover opens and closes via X / toggle / outside / Escape', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps, attachTo: document.body });
+    const trigger = wrapper.find('[data-testid="toggle-shortcuts"]');
+    const panelEl = () => document.querySelector('[data-testid="shortcut-help"]');
+
+    await trigger.trigger('click');
+    expect(panelEl()).not.toBeNull();
+
+    const closeBtn = document.querySelector('[data-testid="shortcut-help-close"]');
+    expect(closeBtn).not.toBeNull();
+    (closeBtn as HTMLElement).click();
+    await flushPromises();
+    expect(panelEl()).toBeNull();
+
+    await trigger.trigger('click');
+    expect(panelEl()).not.toBeNull();
+    await trigger.trigger('click');
+    expect(panelEl()).toBeNull();
+
+    await trigger.trigger('click');
+    expect(panelEl()).not.toBeNull();
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    await flushPromises();
+    expect(panelEl()).toBeNull();
+
+    await trigger.trigger('click');
+    expect(panelEl()).not.toBeNull();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await flushPromises();
+    expect(panelEl()).toBeNull();
+
+    wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-023: popover lists SVG glyphs and i18n section labels', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps, attachTo: document.body });
+    await wrapper.find('[data-testid="toggle-shortcuts"]').trigger('click');
+    await flushPromises();
+    const panel = document.querySelector('[data-testid="shortcut-help"]');
+    expect(panel).not.toBeNull();
+    const icons = panel!.querySelectorAll('[data-shortcut-icon]');
+    expect(icons.length).toBeGreaterThanOrEqual(8);
+    const kinds = [...icons].map((el) => el.getAttribute('data-shortcut-icon'));
+    expect(kinds).toContain('key-w');
+    expect(kinds).toContain('key-s');
+    expect(kinds).toContain('key-a');
+    expect(kinds).toContain('key-d');
+    expect(kinds).toContain('mouse-wheel');
+    expect(kinds).toContain('mouse-click');
+    expect(kinds).toContain('key-ctrl');
+    expect(kinds).toContain('key-alt');
+    expect(panel!.querySelector('.pr-toolbar__shortcut-mouse-key')).not.toBeNull();
+    expect(panel!.querySelector('.pr-toolbar__shortcut-column--combined')).not.toBeNull();
+    const text = panel!.textContent ?? '';
+    expect(text).toContain(t('mouseControl'));
+    expect(text).toContain(t('keyboardControl'));
+    expect(text).toContain(t('combinedControl'));
+    wrapper.unmount();
+  });
 });

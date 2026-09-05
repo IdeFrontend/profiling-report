@@ -299,7 +299,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 - **DOM:** gutter labels, toolbar, aside panels, tooltips, detail strip — keyboard-focusable where practical.
 - **Canvas/WebGL:** interval glyphs only; not the sole carrier of text.
-- **MVP input:** mouse + wheel + toolbar. Full shortcut parity with PyPTO (W/S/A/D) is P2 ([UI-41](../context/questions/UI.md)).
+- **Input:** mouse + wheel + toolbar, plus W/S/A/D zoom/pan and a shortcut-help popover (PyPTO parity; [UI-41](../context/decisions/UI.md)).
 - **Density:** support zoom from full-trace overview to ns-scale intervals; labels appear when block width allows (FEATURE_MATRIX).
 
 ---
@@ -331,4 +331,3 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 | Summary formulas | DATA-33 / [DATA-33a](../context/decisions/interim/DATA.md) / [DATA-33g](../context/decisions/interim/DATA.md) | Duration + guessed I/O BW; compute / avg-util N/A placeholders |
 | Hardware aside | DATA-34 | S7 blocked |
 | Dependencies | DATA-36 | S8 dep flows blocked |
-| Gestures | UI-41 | MVP uses wheel/slider only |

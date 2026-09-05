@@ -1,6 +1,8 @@
-# Packaging and Process Suggestions (PKG-1 … PKG-3, UI-41)
+# Packaging and Process Suggestions (PKG-1 … PKG-3)
 
-**Status:** **Interim** for MVP scaffold — treat as accepted until Product confirms or changes. Tracked in [decisions/interim/](decisions/interim/) (PKG-1a … PKG-3a, UI-41a) and [questions](questions/).
+**Status:** **Interim** for MVP scaffold — treat as accepted until Product confirms or changes. Tracked in [decisions/interim/](decisions/interim/) (PKG-1a … PKG-3a) and [questions](questions/).
+
+Former **UI-41** (gesture parity) is **resolved** — see [decisions/UI.md](decisions/UI.md).
 
 ## PKG-1 — Package identity
 
@@ -28,14 +30,6 @@
 | Blocker | **Legal/OSL clearance** before pasting substantial PyPTO source verbatim — treat as Required before large copy PRs |
 | Attribution | Note non-trivial ports in PR description; no runtime dependency on pypto_toolkit |
 
-## UI-41 — Gesture parity
-
-| Choice | Suggestion |
-|--------|------------|
-| MVP | Wheel scroll, Ctrl/Cmd+wheel zoom, drag pan, toolbar zoom / zoom-to-fit (**keep current INTERACTIONS**) |
-| P2 | PyPTO W/S/A/D (and shortcut help panel) |
-| Rationale | Unblocks MVP without blocking on keyboard parity; power users get shortcuts in Phase 2 |
-
 ## Ask Product to confirm
 
-Reply with accept / change per row (PKG-1 … PKG-3, UI-41). Until then, implementers follow the **Suggestion** column.
+Reply with accept / change per row (PKG-1 … PKG-3). Until then, implementers follow the **Suggestion** column.
