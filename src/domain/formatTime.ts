@@ -1,4 +1,4 @@
-import type { TimeScaleUnit } from './types';
+import type { SummaryMetrics, TimeDisplayMode, TimeScaleUnit } from './types';
 
 const GROUP_MIN = 1000;
 
@@ -66,6 +66,73 @@ export function resolveTimeUnitFromVisibleRange(spanNs: number): TimeScaleUnit {
 export function timeScaleUnitFromMagnitude(ns: number): TimeScaleUnit {
   if (!Number.isFinite(ns)) return 'ns';
   return timeScaleUnitFromNsQuantum(Math.abs(ns));
+}
+
+/**
+ * Interim UI-40a — OpBasicInfo MHz for ns→cycles display.
+ * Prefer Current Freq over Rated Freq; see docs/context/decisions/interim/UI.md.
+ * Returns undefined when missing/invalid so clocks UI can hide.
+ */
+export function resolveClockFreqMHz(summary?: SummaryMetrics | null): number | undefined {
+  const current = summary?.currentFreq;
+  if (current != null && Number.isFinite(current) && current > 0) return current;
+  const rated = summary?.ratedFreq;
+  if (rated != null && Number.isFinite(rated) && rated > 0) return rated;
+  return undefined;
+}
+
+/**
+ * Exact derived cycles as a BigInt (UI-40a): `round(ns) × round(freqMHz) / 1000`,
+ * rounded half-up. BigInt keeps the integer exact past `Number.MAX_SAFE_INTEGER`,
+ * where `ns × freqMHz` as a double loses its low digits (a 708 s trace at 1650 MHz
+ * is ~1.17e18 cycles, whose double ULP is ~256).
+ *
+ * `ns` is always a non-negative trace-relative time here (tooltip/detail subtract
+ * `model.minTime`; cursor clamps to ≥ 0), so half-up rounding is safe.
+ */
+function wholeCyclesExact(ns: number, clockFreqMHz: number): bigint {
+  const nsInt = BigInt(Math.round(ns));
+  const freqInt = BigInt(Math.round(clockFreqMHz));
+  return (nsInt * freqInt + 500n) / 1000n;
+}
+
+/**
+ * Display cycles from wall time (UI-40a): `cycles = ns × freqMHz / 1000`.
+ * Exact within `Number.MAX_SAFE_INTEGER`; callers that format the label use the
+ * BigInt path directly so grouped digits stay exact for long traces.
+ * Not per-event `*_total_cycles`; assumes timeline ns shares the AIC clock domain.
+ */
+export function nsToCycles(ns: number, clockFreqMHz: number): number {
+  return Number(wholeCyclesExact(ns, clockFreqMHz));
+}
+
+function hasClockFreq(
+  opts: FormatTimeOpts | undefined,
+): opts is FormatTimeOpts & { clockFreqMHz: number } {
+  const f = opts?.clockFreqMHz;
+  return f != null && f > 0 && Number.isFinite(f);
+}
+
+/**
+ * Space-group every 3 digits with no leading zeroes (`10 325`, `1 000 000`, `325`).
+ */
+function formatCyclesValue(value: bigint): string {
+  return groupIntegerDigits(value.toString());
+}
+
+/** Derived CPU-clock label — number only (no `cyc` / `cycles` suffix). */
+function formatCycles(ns: number, opts: FormatTimeOpts | undefined): string {
+  if (!Number.isFinite(ns) || !hasClockFreq(opts)) return '—';
+  return formatCyclesValue(wholeCyclesExact(ns, opts.clockFreqMHz));
+}
+
+/** Cycles for the detail card — value only, empty unit (no `cycles` label). */
+function formatCyclesParts(ns: number, opts: FormatTimeOpts | undefined): { value: string; unit: string } {
+  if (!Number.isFinite(ns) || !hasClockFreq(opts)) return { value: '—', unit: '' };
+  return {
+    value: formatCyclesValue(wholeCyclesExact(ns, opts.clockFreqMHz)),
+    unit: '',
+  };
 }
 
 function nsToUnitValue(ns: number, unit: TimeScaleUnit): number {
@@ -147,6 +214,10 @@ export const EVENT_TIME_SIGNIFICANT_DIGITS = 4;
 export type FormatTimeOpts = {
   /** When set, format the unit magnitude with this many significant digits. */
   significantDigits?: number;
+  /** `cycles` renders CPU clocks instead of wall time (UI-40a). */
+  mode?: TimeDisplayMode;
+  /** AIC frequency in MHz — required when `mode` is `cycles`. */
+  clockFreqMHz?: number;
 };
 
 /**
@@ -174,7 +245,10 @@ export function formatAxisTime(
  * Cursor / playhead label as `MM:SS.mmm` in the resolved time scale
  * (sketch: 4.456ms → `00:04.456`).
  */
-export function formatCursorTime(ns: number, unit: TimeScaleUnit = 'ms'): string {
+export function formatCursorTime(
+  ns: number,
+  unit: TimeScaleUnit = 'ms',
+): string {
   if (!Number.isFinite(ns)) return '00:00.000';
   const value = Math.max(0, nsToUnitValue(ns, unit));
   const totalThousandths = Math.round(value * 1000);
@@ -222,11 +296,13 @@ export function formatTime(ns: number, unit: TimeScaleUnit = 'ms', opts?: Format
 
 /** Tooltip / detail / Δt — unit from this value's magnitude, not viewport zoom. */
 export function formatTimePartsAuto(ns: number, opts?: FormatTimeOpts): { value: string; unit: string } {
+  if (opts?.mode === 'cycles') return formatCyclesParts(ns, opts);
   return formatTimeParts(ns, timeScaleUnitFromMagnitude(ns), opts);
 }
 
 /** Joined {@link formatTimePartsAuto}. */
 export function formatTimeAuto(ns: number, opts?: FormatTimeOpts): string {
+  if (opts?.mode === 'cycles') return formatCycles(ns, opts);
   if (!Number.isFinite(ns)) return '—';
   const parts = formatTimePartsAuto(ns, opts);
   return `${parts.value} ${parts.unit}`;
@@ -249,8 +325,9 @@ export function formatDisplayTime(
   ns: number,
   origin: number,
   unit: TimeScaleUnit = 'ms',
+  opts?: FormatTimeOpts,
 ): string {
-  return formatTime(ns - origin, unit);
+  return formatTime(ns - origin, unit, opts);
 }
 
 /** Like {@link formatTimeParts} but relative to `origin` (start/end columns). */
@@ -258,8 +335,9 @@ export function formatDisplayTimeParts(
   ns: number,
   origin: number,
   unit: TimeScaleUnit = 'ms',
+  opts?: FormatTimeOpts,
 ): { value: string; unit: string } {
-  return formatTimeParts(ns - origin, unit);
+  return formatTimeParts(ns - origin, unit, opts);
 }
 
 /** Per-value display time (tooltip / detail start·end). */

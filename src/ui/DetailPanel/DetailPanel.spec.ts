@@ -14,7 +14,7 @@ const neighbors: DependencyNeighbors = {
 describe('DetailPanel', () => {
   it('PR-DPANEL-001: renders shell with summary', () => {
     const wrapper = mount(DetailPanel, {
-      props: { selected },
+      props: { selected, timeDisplayMode: 'time' as const },
     });
 
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
@@ -25,7 +25,7 @@ describe('DetailPanel', () => {
 
   it('PR-DPANEL-002: close button emits close', async () => {
     const wrapper = mount(DetailPanel, {
-      props: { selected },
+      props: { selected, timeDisplayMode: 'time' as const },
     });
 
     await wrapper.find('[data-testid="detail-panel-close"]').trigger('click');
@@ -33,14 +33,16 @@ describe('DetailPanel', () => {
   });
 
   it('PR-DPANEL-003: Relevent column renders only with neighbors', () => {
-    const without = mount(DetailPanel, { props: { selected } });
+    const without = mount(DetailPanel, {
+      props: { selected, timeDisplayMode: 'time' as const },
+    });
     expect(without.find('[data-testid="detail-relevant"]').exists()).toBe(false);
     expect(without.find('.pr-detail-panel__body').classes()).toContain(
       'pr-detail-panel__body--no-relevant',
     );
 
     const withDeps = mount(DetailPanel, {
-      props: { selected, neighbors },
+      props: { selected, timeDisplayMode: 'time' as const, neighbors },
     });
     expect(withDeps.find('[data-testid="detail-relevant"]').exists()).toBe(true);
     expect(withDeps.find('.pr-detail-panel__body').classes()).not.toContain(
@@ -51,7 +53,12 @@ describe('DetailPanel', () => {
 
   it('PR-DPANEL-004: forwards dependency mode updates', async () => {
     const wrapper = mount(DetailPanel, {
-      props: { selected, neighbors, dependencyMode: 'all' },
+      props: {
+        selected,
+        timeDisplayMode: 'time' as const,
+        neighbors,
+        dependencyMode: 'all',
+      },
     });
 
     // Depth lives in 显示控制 and drives the swimlane graph, not this column.
@@ -64,7 +71,9 @@ describe('DetailPanel', () => {
   });
 
   it('PR-DPANEL-005: the expander toggles the dock between its two sketch heights', async () => {
-    const wrapper = mount(DetailPanel, { props: { selected } });
+    const wrapper = mount(DetailPanel, {
+      props: { selected, timeDisplayMode: 'time' as const },
+    });
     const dock = wrapper.find('[data-testid="detail-panel"]');
     const expander = wrapper.find('[data-testid="detail-panel-expander"]');
     expect(expander.exists()).toBe(true);
@@ -97,7 +106,7 @@ describe('DetailPanel', () => {
   });
 
   it('PR-DPANEL-007: dock height animates, and the close control is the design icon', async () => {
-    const wrapper = mount(DetailPanel, { props: { selected } });
+    const wrapper = mount(DetailPanel, { props: { selected, timeDisplayMode: 'time' as const } });
     expect(wrapper.find('[data-testid="detail-panel-close"] .pr-icon--close').exists()).toBe(true);
 
     const src = (await import('./DetailPanel.vue?raw')).default as string;

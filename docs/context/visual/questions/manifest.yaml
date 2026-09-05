@@ -268,3 +268,10 @@ images:
     highlights:
       - label: "UI-36 GB/s"
         box: { x: 310, y: 1070, w: 180, h: 160 }
+
+  ui-45:
+    source_file: src/ui/ReportToolbar/visual/display-control.png
+    maxWidth: 900
+    highlights:
+      - label: "UI-45 任务显示单位"
+        box: { x: 24, y: 88, w: 427, h: 120 }

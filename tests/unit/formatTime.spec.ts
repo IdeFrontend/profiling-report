@@ -7,6 +7,8 @@ import {
   formatTimeAuto,
   formatTimeParts,
   formatTimePartsAuto,
+  nsToCycles,
+  resolveClockFreqMHz,
   resolveTimeUnitFromVisibleRange,
   timeScaleUnitFromMagnitude,
   timeScaleUnitFromNsQuantum,
@@ -107,5 +109,40 @@ describe('PR-TIME: auto-scale time labels', () => {
     });
     // Full precision remains the default (detail hover titles).
     expect(formatTimePartsAuto(500_000)).toEqual({ value: '500.000', unit: 'µs' });
+  });
+
+  it('PR-TIME-010: cycles conversion, freq resolve, and space-grouped cycle formatting', () => {
+    expect(nsToCycles(1000, 1000)).toBe(1000);
+    const opts = { mode: 'cycles' as const, clockFreqMHz: 1000 };
+    expect(formatTimeAuto(10325, opts)).toBe('10 325');
+    expect(formatTimeAuto(0, opts)).toBe('0');
+    expect(formatTimeAuto(5000, opts)).toBe('5 000');
+    expect(formatTimeAuto(325, opts)).toBe('325');
+    // No `cycles` unit in any surface.
+    expect(formatTimeAuto(1000, { mode: 'cycles' })).toBe('—');
+    expect(formatTimePartsAuto(10325, opts)).toEqual({ value: '10 325', unit: '' });
+    // Larger values group without leading zeroes.
+    expect(formatTimeAuto(1_000_000, opts)).toBe('1 000 000');
+    // Long trace: BigInt path keeps the low digits exact where a double drifts.
+    expect(formatTimeAuto(708_421_242_123_456, { mode: 'cycles' as const, clockFreqMHz: 1650 })).toBe(
+      '1 168 895 049 503 702',
+    );
+    expect(resolveClockFreqMHz({ currentFreq: 1800 })).toBe(1800);
+    expect(resolveClockFreqMHz({ ratedFreq: 1500 })).toBe(1500);
+    expect(resolveClockFreqMHz({ currentFreq: 1800, ratedFreq: 1500 })).toBe(1800);
+    // Present-but-invalid Current Freq defers to Rated, not hides the option.
+    expect(resolveClockFreqMHz({ currentFreq: 0, ratedFreq: 1500 })).toBe(1500);
+    expect(resolveClockFreqMHz({ currentFreq: 0 })).toBeUndefined();
+    expect(resolveClockFreqMHz({})).toBeUndefined();
+  });
+
+  it('PR-TIME-010b: chrome formatters never render cycles', () => {
+    const cycles = { mode: 'cycles' as const, clockFreqMHz: 1000 };
+    // formatTime / formatTimeParts accept opts (significantDigits) but ignore `mode`.
+    expect(formatTime(1_000_000, 'ms', cycles)).toBe('1.000 ms');
+    expect(formatTimeParts(1_000_000, 'ms', cycles)).toEqual({ value: '1.000', unit: 'ms' });
+    // Axis / cursor take no mode at all; they stay wall-time.
+    expect(formatAxisTime(1_000_000, 'ms')).toContain('ms');
+    expect(formatCursorTime(1_000_000, 'ms')).toContain(':');
   });
 });

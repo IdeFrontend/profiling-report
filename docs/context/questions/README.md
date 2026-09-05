@@ -51,3 +51,4 @@ IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker in place
 | `I-Q14` | `UI-40a` |
 | `I-Q16–19` | `PKG-1a…PKG-3a`, `UI-41a` |
 | `D-PIN-FOLDER` | `UI-44` |
+| `Q23` / `HQ 38` | `UI-45` |

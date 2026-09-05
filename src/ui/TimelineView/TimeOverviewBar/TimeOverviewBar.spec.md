@@ -8,7 +8,7 @@ Full timeline preview bar with a draggable/resizable window indicator representi
 
 ## Inputs
 
-The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). Overview wall-time unit is derived internally from total span × track width via `resolveTimeUnitFromAxisDensity` (brush window must not change it). No host unit / display-mode props.
+The component receives the full timeline bounds (**minTime**, **maxTime**) and the current visible window (**startTime**, **endTime**) in the parent's internal time units (nanoseconds). Overview wall-time unit is derived internally from total span × track width via `resolveTimeUnitFromAxisDensity` (brush window must not change it). Overview axis ticks are **always wall time** — the CPU clocks mode does not reach the overview axis.
 
 ## Outputs
 

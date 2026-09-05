@@ -10,6 +10,7 @@ describe('ReportToolbar', () => {
     asideVisible: false,
     asideAvailable: true,
     zoomPercent: 100,
+    timeDisplayMode: 'time' as const,
     dependencyDepth: 1,
   } as const;
 
@@ -38,15 +39,17 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('zoom-to-fit')).toBeTruthy();
   });
 
-  it('PR-TOOLBAR-005: layers opens display control with dependency depth', async () => {
+  it('PR-TOOLBAR-005: layers opens display control with time mode select', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
-    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="time-display-mode"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
 
     await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="dependency-depth"]').exists()).toBe(true);
+    const select = wrapper.find('[data-testid="time-display-mode"]');
+    expect(select.exists()).toBe(true);
+    await select.setValue('time');
+    expect(wrapper.emitted('update:timeDisplayMode')).toEqual([['time']]);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
   });
 
@@ -179,8 +182,13 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(
       /\.pr-toolbar__display-field input\[type='number'\][\s\S]*?border-radius:\s*6px/,
     );
-    // No manual unit <select> exists any more (UI-40a auto-scaling units).
-    expect(src).not.toMatch(/\.pr-toolbar__display-field select/);
+    // Time display unit <select> shares the field family: #404040 bg, 6px radius.
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?background-color:\s*#404040/);
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?border-radius:\s*6px/);
+    // And carries a design chevron (native select chrome is removed).
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?appearance:\s*none/);
+    expect(src).toMatch(/\.pr-toolbar__display-select-chevron/);
+
   });
 
   it('PR-TOOLBAR-009c: action icon rest/hover/pressed match sketch', async () => {
