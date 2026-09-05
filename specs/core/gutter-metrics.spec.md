@@ -130,16 +130,17 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 
 ## Dependencies
 
-[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [DATA-33b / DATA-33f / DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-45a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-45](../../docs/context/questions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
+[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [DATA-33b / DATA-33f / DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-46a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-46](../../docs/context/questions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
 ## Open
 
-**Product confirmation pending** — formula and **`µs`** presentation are **Interim** engineering defaults ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-45a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-45](../../docs/context/questions/UI.md)). Until Product answers DATA-38 / UI-45: keep the column map, mean-across-blocks `*_time(us)` raw, relative barWidth, and `µs` labels as specified above. MIX keys that share one `laneColorKey` keep mean-of-column-means until Product defines another blend.
+**Product confirmation pending** — formula and **`µs`** presentation are **Interim** engineering defaults ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-46a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-46](../../docs/context/questions/UI.md)). Until Product answers DATA-38 / UI-46: keep the column map, mean-across-blocks `*_time(us)` raw, relative barWidth, and `µs` labels as specified above. MIX keys that share one `laneColorKey` keep mean-of-column-means until Product defines another blend.
 
 ## Changelog
+- **2026-09-05** — Remap gutter label-units ask to **UI-46** / **UI-46a** (do not reuse the id reserved on PR #23 for timeline CPU clocks).
 - **2026-09-04** — Utilization idle leaves (`coverage = 0`) keep a `0%` bar and count in folder means (PR-GMET-004).
-- **2026-09-04** — Remap interim ask to **DATA-38** / **UI-45** (was Q24 / HQ 39–40) after open-question ID unify; avoid collision with timeline CPU clocks (old OPEN Q23 / HQ 38).
-- **2026-09-04** — Mark clockCycle formula + `µs` labels as Interim pending Product via DATA-38 / UI-45 / DATA-38a / UI-45a.
+- **2026-09-04** — Remap interim ask to **DATA-38** / **UI-46** (was Q24 / HQ 39–40) after open-question ID unify; avoid collision with timeline CPU clocks (old OPEN Q23 / HQ 38).
+- **2026-09-04** — Mark clockCycle formula + `µs` labels as Interim pending Product via DATA-38 / UI-46 / DATA-38a / UI-46a.
 - **2026-09-03** — Normative clockCycle formula: `*_time(us)` only (µs); explicit column map; forbid cycle-count columns; resolve name-vs-quantity wording.
 - **2026-09-03** — Drop `cacheHit` and `task`; only `clockCycle` + `utilization`.
 - **2026-09-03** — `clockCycle` labels append `µs` so mean `*_time(us)` is not read as % / ratio (PR-GMET-008).
