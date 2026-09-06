@@ -98,6 +98,8 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 62. **PR-CANVAS-062** — While pinned, Alt+click any event sets that event as a new ephemeral anchor and drops the pinned overlay until a new target is chosen.
 63. **PR-CANVAS-063** — A pinned measure clears on empty-canvas click, Esc, or a visible-range change (`startTime` / `endTime` / `scrollY`). Collapsing a Card/folder or pinning/unpinning lanes also clears the session (handled by the parent swim view).
 64. **PR-CANVAS-064** — Default CSS cursor on `.pr-swim-canvas` is `default` (arrow, not `crosshair` / `pointer`); hovering an event applies `pointer`; with `measureMode` the wrap applies `col-resize`.
+65. **PR-CANVAS-065** — The event-edge magnet (`nearestEventEdgeAtPoint`) snaps only to edges in the sub-row under the pointer; a multi-row leaf does not snap across sub-rows.
+66. **PR-CANVAS-066** — The hover-gap measure (`findHoverGap`) computes an idle gap only within the sub-row under the pointer; the vertical padding check and the left/right neighbour scan are sub-row-scoped.
 
 ## Edge Cases
 
@@ -130,6 +132,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-03** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-065`/`066`).
 - **2026-09-02** — Default swim-canvas CSS cursor is `default` (arrow); event hover uses `pointer`; measure mode keeps `col-resize` (`PR-CANVAS-064`).
 - **2026-09-02** — Alt-measure chrome and the pin↔body dashed bridge stack at `z-index: 9` with the swim cursor (above Card strips at 8), so the cross-lane connector no longer disappears under Card headers (`PR-CANVAS-050` / `PR-SWIMVIEW-004`).
 - **2026-09-01** — Refuse to pin on Δt = 0; suppress hover-gap under Alt during pan; keep event hover while Alt-retargeting (`PR-CANVAS-049`/`053`/`060`).

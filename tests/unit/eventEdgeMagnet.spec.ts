@@ -52,11 +52,26 @@ describe('nearestEventEdgeAtPoint / measureRangeExactEdgeMarks', () => {
     expect(hit!.xPx).toBe(100);
   });
 
-  it('snaps to end when closer than start', () => {
+  it('snaps to end when closer than start (sub-row 1)', () => {
     const layout = rebuildLayout(model());
-    // e-short end at 150; pointer at 148.
-    const hit = nearestEventEdgeAtPoint(layout, view, width, 148, yLane, 10);
+    // e-short (100..150) lives in sub-row 1; its end is at 150, pointer at 148.
+    const yRow1 = LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT + 11;
+    const hit = nearestEventEdgeAtPoint(layout, view, width, 148, yRow1, 10);
     expect(hit).toMatchObject({ time: 150, edge: 'end', eventId: 'e-short', xPx: 150 });
+  });
+
+  it('PR-CANVAS-065: magnet snaps only within the sub-row under the pointer', () => {
+    const layout = rebuildLayout(model());
+    // e-long (100..500) is sub-row 0; e-short (100..150) is sub-row 1.
+    const yRow1 = LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT + 11;
+    // Near e-long's end (500) but in sub-row 1 → no cross-sub-row snap.
+    expect(nearestEventEdgeAtPoint(layout, view, width, 495, yRow1, 10)).toBeNull();
+    // Same time in sub-row 0 snaps to e-long's end.
+    expect(nearestEventEdgeAtPoint(layout, view, width, 495, yLane, 10)).toMatchObject({
+      time: 500,
+      edge: 'end',
+      eventId: 'e-long',
+    });
   });
 
   it('returns null outside threshold', () => {
@@ -272,5 +287,39 @@ describe('findHoverGap', () => {
       rightStart: 6802,
       laneY: LANE_GROUP_HEADER_HEIGHT,
     });
+  });
+
+  it('PR-CANVAS-066: hover gap is computed within the sub-row under the pointer', () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'eA', name: 'a', startTime: 100, duration: 200 }, // 100..300, row 0
+                { id: 'eB', name: 'b', startTime: 200, duration: 300 }, // 200..500, row 1
+                { id: 'eC', name: 'c', startTime: 600, duration: 100 }, // 600..700, row 0
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(m);
+    const yRow1 = LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT + 11;
+    // Sub-row 0: gap between eA (300) and eC (600); pointer at 400.
+    expect(findHoverGap(layout, view, width, 400, yLane, 10)).toEqual({
+      leftEnd: 300,
+      rightStart: 600,
+      laneY: LANE_GROUP_HEADER_HEIGHT,
+    });
+    // Sub-row 1: pointer at 400 sits inside eB (200..500) → tooltip wins, no gap.
+    expect(findHoverGap(layout, view, width, 400, yRow1, 10)).toBeNull();
   });
 });

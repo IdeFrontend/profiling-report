@@ -448,7 +448,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
       const y = (lane.y - this.view.scrollY) * dpr;
-      const laneH = LANE_HEIGHT * dpr;
+      const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > this.height) continue;
       ctx.fillStyle = lane.thread.id === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
       ctx.fillRect(0, y, this.width, laneH);

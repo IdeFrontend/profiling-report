@@ -39,6 +39,7 @@ import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../doma
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
+import { leafRowCount } from '../../swimlane/layout';
 import {
   collectLeafEventsFromModel,
   filterCollapsedTree,
@@ -154,6 +155,8 @@ function toGutterLane(thread: SwimThread): GutterLane {
   };
   if (thread.children !== undefined) {
     lane.children = thread.children.map(toGutterLane);
+  } else {
+    lane.rowCount = leafRowCount(thread);
   }
   return lane;
 }

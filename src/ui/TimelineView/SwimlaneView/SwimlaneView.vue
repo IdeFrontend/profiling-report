@@ -213,7 +213,9 @@ const altMeasureCrossBridge = computed(() => {
     height: Math.abs(y2 - y1),
   };
 });
-const pinnedStripHeight = computed(() => pinnedRows.value.length * LANE_HEIGHT);
+const pinnedStripHeight = computed(() =>
+  pinnedRows.value.reduce((h, row) => h + (row.lane.rowCount ?? 1) * LANE_HEIGHT, 0),
+);
 const pinnedView = computed(() => ({
   startTime: props.view.startTime,
   endTime: props.view.endTime,

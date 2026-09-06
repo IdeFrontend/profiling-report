@@ -69,11 +69,17 @@ const CURVE_SEGMENTS = 24;
 const CURVE_STRIP_VERTS = (CURVE_SEGMENTS + 1) * 2;
 const CURVE_INSTANCE_FLOATS = 10;
 
-interface LaneMeshes {
-  color: [number, number, number];
+interface SubRowMesh {
+  /** Content-space Y of this sub-row's lane band (lane.y + rowIndex * LANE_HEIGHT). */
+  y: number;
   chunks: MeshChunk[];
   /** When search and/or selection is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
+}
+
+interface LaneMeshes {
+  color: [number, number, number];
+  rows: SubRowMesh[];
 }
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
@@ -445,7 +451,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
       const y = (lane.y - this.view.scrollY) * dpr;
-      const laneH = LANE_HEIGHT * dpr;
+      const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > devH) continue;
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
       this.drawSolidRect(solid, unit, 0, y, devW, laneH, bg);
@@ -477,39 +483,40 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const px = -1 + (2 * (this.timeBase - this.view.startTime)) / span;
 
     for (let i = 0; i < this.laneMeshes.length; i++) {
-      const lane = this.layout.lanes[i];
       const meshes = this.laneMeshes[i];
-      if (!lane || !meshes) continue;
+      if (!meshes) continue;
 
-      const { y: topRaw, h: bandHRaw } = eventBlockMetrics(lane.y, this.view.scrollY);
-      const top = topRaw * dpr;
-      const bandH = bandHRaw * dpr;
-      const snapped = snapEventRect(0, top, 1, bandH);
-      const topSnapped = snapped.y;
-      const bandHSnapped = snapped.h;
-      if (topSnapped + bandHSnapped < 0 || topSnapped > devH) continue;
+      for (const row of meshes.rows) {
+        const { y: topRaw, h: bandHRaw } = eventBlockMetrics(row.y, this.view.scrollY);
+        const top = topRaw * dpr;
+        const bandH = bandHRaw * dpr;
+        const snapped = snapEventRect(0, top, 1, bandH);
+        const topSnapped = snapped.y;
+        const bandHSnapped = snapped.h;
+        if (topSnapped + bandHSnapped < 0 || topSnapped > devH) continue;
 
-      const sy = bandHSnapped / devH;
-      const py = 1 - (topSnapped * 2 + bandHSnapped) / devH;
+        const sy = bandHSnapped / devH;
+        const py = 1 - (topSnapped * 2 + bandHSnapped) / devH;
 
-      gl.uniform4f(swim.uSizePos, sx, sy, px, py);
-      if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
+        gl.uniform4f(swim.uSizePos, sx, sy, px, py);
+        if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
-      const drawChunks = (chunks: MeshChunk[], rgb: [number, number, number], dim: number): void => {
-        // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
-        gl.uniform4f(swim.uColor, rgb[0] * dim, rgb[1] * dim, rgb[2] * dim, dim);
-        for (const chunk of chunks) {
-          gl.bindVertexArray(chunk.vao);
-          gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
+        const drawChunks = (chunks: MeshChunk[], rgb: [number, number, number], dim: number): void => {
+          // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
+          gl.uniform4f(swim.uColor, rgb[0] * dim, rgb[1] * dim, rgb[2] * dim, dim);
+          for (const chunk of chunks) {
+            gl.bindVertexArray(chunk.vao);
+            gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
+          }
+        };
+
+        if (row.emphasisLayers) {
+          for (const layer of row.emphasisLayers) {
+            drawChunks(layer.chunks, layer.rgb, layer.dim);
+          }
+        } else {
+          drawChunks(row.chunks, meshes.color, 1);
         }
-      };
-
-      if (meshes.emphasisLayers) {
-        for (const layer of meshes.emphasisLayers) {
-          drawChunks(layer.chunks, layer.rgb, layer.dim);
-        }
-      } else {
-        drawChunks(meshes.chunks, meshes.color, 1);
       }
     }
 
@@ -580,25 +587,30 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     if (!gl) return;
     this.disposeMeshes();
 
-    const byLane = new Map<number, LaidOutEvent[]>();
+    const byRow = new Map<string, LaidOutEvent[]>();
     for (const ev of this.layout.events) {
-      const list = byLane.get(ev.laneIndex) ?? [];
+      const key = `${ev.laneIndex}:${ev.rowIndex}`;
+      const list = byRow.get(key) ?? [];
       list.push(ev);
-      byLane.set(ev.laneIndex, list);
+      byRow.set(key, list);
     }
 
     this.laneMeshes = this.layout.lanes.map((lane: FlatLane, idx: number) => {
-      const events = byLane.get(idx) ?? [];
-      const pairs: number[] = [];
-      for (const item of events) {
-        const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-        pairs.push(a, b);
+      const rows: SubRowMesh[] = [];
+      for (let r = 0; r < lane.rowCount; r++) {
+        const events = byRow.get(`${idx}:${r}`) ?? [];
+        const pairs: number[] = [];
+        for (const item of events) {
+          const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+          pairs.push(a, b);
+        }
+        rows.push({
+          y: lane.y + r * LANE_HEIGHT,
+          chunks: createChunksFromPairs(gl, pairs),
+          emphasisLayers: null,
+        });
       }
-      return {
-        color: hexToRgb(lane.color),
-        chunks: createChunksFromPairs(gl, pairs),
-        emphasisLayers: null,
-      };
+      return { color: hexToRgb(lane.color), rows };
     });
     this.rebuildEmphasisSplit();
   }
@@ -615,44 +627,56 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const hasSelection = this.paintDependencies && sel != null;
     const bright = this.neighborIds;
     const mutedRgb = hexToRgb(SELECTION_MUTED_FILL);
-    const byLane = new Map<number, LaidOutEvent[]>();
+    const byLane = new Map<number, Map<number, LaidOutEvent[]>>();
     for (const ev of this.layout.events) {
-      const list = byLane.get(ev.laneIndex) ?? [];
+      let byRow = byLane.get(ev.laneIndex);
+      if (!byRow) {
+        byRow = new Map();
+        byLane.set(ev.laneIndex, byRow);
+      }
+      const list = byRow.get(ev.rowIndex) ?? [];
       list.push(ev);
-      byLane.set(ev.laneIndex, list);
+      byRow.set(ev.rowIndex, list);
     }
 
     for (let idx = 0; idx < this.laneMeshes.length; idx++) {
       const meshes = this.laneMeshes[idx]!;
-      const events = byLane.get(idx) ?? [];
-      const byKey = new Map<string, { rgb: [number, number, number]; dim: number; pairs: number[] }>();
-      for (const item of events) {
-        const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
-        const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
-        const rgb = muted ? mutedRgb : meshes.color;
-        const key = `${muted ? 1 : 0}|${alpha}`;
-        let bucket = byKey.get(key);
-        if (!bucket) {
-          bucket = { rgb, dim: alpha, pairs: [] };
-          byKey.set(key, bucket);
+      const byRow = byLane.get(idx);
+      if (!byRow) continue;
+      for (const [rowIndex, events] of byRow) {
+        const row = meshes.rows[rowIndex];
+        if (!row) continue;
+        const byKey = new Map<string, { rgb: [number, number, number]; dim: number; pairs: number[] }>();
+        for (const item of events) {
+          const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
+          const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
+          const rgb = muted ? mutedRgb : meshes.color;
+          const key = `${muted ? 1 : 0}|${alpha}`;
+          let bucket = byKey.get(key);
+          if (!bucket) {
+            bucket = { rgb, dim: alpha, pairs: [] };
+            byKey.set(key, bucket);
+          }
+          const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+          bucket.pairs.push(a, b);
         }
-        const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-        bucket.pairs.push(a, b);
+        // Dimmer layers first so full-bright selection/matches paint on top.
+        row.emphasisLayers = [...byKey.values()]
+          .sort((a, b) => a.dim - b.dim)
+          .map(({ rgb, dim, pairs }) => ({ rgb, dim, chunks: createChunksFromPairs(gl, pairs) }));
       }
-      // Dimmer layers first so full-bright selection/matches paint on top.
-      meshes.emphasisLayers = [...byKey.values()]
-        .sort((a, b) => a.dim - b.dim)
-        .map(({ rgb, dim, pairs }) => ({ rgb, dim, chunks: createChunksFromPairs(gl, pairs) }));
     }
   }
 
   private disposeEmphasisSplit(): void {
     for (const lane of this.laneMeshes) {
-      if (lane.emphasisLayers) {
-        for (const layer of lane.emphasisLayers) {
-          for (const c of layer.chunks) this.deleteChunk(c);
+      for (const row of lane.rows) {
+        if (row.emphasisLayers) {
+          for (const layer of row.emphasisLayers) {
+            for (const c of layer.chunks) this.deleteChunk(c);
+          }
+          row.emphasisLayers = null;
         }
-        lane.emphasisLayers = null;
       }
     }
   }
@@ -660,7 +684,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private disposeMeshes(): void {
     this.disposeEmphasisSplit();
     for (const lane of this.laneMeshes) {
-      for (const c of lane.chunks) this.deleteChunk(c);
+      for (const row of lane.rows) {
+        for (const c of row.chunks) this.deleteChunk(c);
+      }
     }
     this.laneMeshes = [];
   }

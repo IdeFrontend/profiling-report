@@ -381,4 +381,22 @@ describe('LaneGutter', () => {
     expect(tip).toMatch(/--pr-surface-raised, #363636/);
     expect(tip).not.toMatch(/#555/);
   });
+
+  it('PR-GUTTER-016: multi-row leaf renders one tall title cell', () => {
+    const wrapper = mount(LaneGutter, {
+      props: {
+        groups: [
+          {
+            id: 'p1',
+            name: 'P',
+            lanes: [{ id: 'l1', name: 'Thread A', color: '#f00', rowCount: 2 }],
+          },
+        ],
+      },
+    });
+    const lane = wrapper.get('[data-testid="gutter-lane-l1"]');
+    expect(lane.attributes('style')).toContain('height: 44px');
+    // One title cell, not one per sub-row.
+    expect(wrapper.findAll('[data-testid^="gutter-lane-"]')).toHaveLength(1);
+  });
 });
