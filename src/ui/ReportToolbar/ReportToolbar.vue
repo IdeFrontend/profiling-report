@@ -57,6 +57,7 @@ const emit = defineEmits<{
   'zoom-in': [];
   'zoom-out': [];
   'update:zoomPercent': [value: number];
+  'open-user-guide': [url: string];
 }>();
 
 function onDepthChange(event: Event) {
@@ -72,7 +73,9 @@ function stepDepth(by: 1 | -1) {
 }
 
 function openUserGuide() {
-  window.open(props.userGuideUrl, '_blank', 'noopener,noreferrer');
+  const url = props.userGuideUrl;
+  emit('open-user-guide', url);
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 const atDepthMax = computed(() => props.dependencyDepth >= MAX_DEPENDENCY_DEPTH);

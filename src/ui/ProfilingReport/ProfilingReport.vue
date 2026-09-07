@@ -95,6 +95,7 @@ const emit = defineEmits<{
   'open-hardware-details': [];
   'open-pipe-details': [];
   'cannbot-request': [payload: CannbotPayload];
+  'open-user-guide': [url: string];
 }>();
 
 const internalSwim = ref<SwimlaneModel | null>(null);
@@ -729,6 +730,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @zoom-to-fit="onZoomToFit"
       @zoom-in="onZoomIn"
       @zoom-out="onZoomOut"
+      @open-user-guide="emit('open-user-guide', $event)"
     />
 
     <p
@@ -773,6 +775,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom-to-fit="onZoomToFit"
           @zoom-in="onZoomIn"
           @zoom-out="onZoomOut"
+          @open-user-guide="emit('open-user-guide', $event)"
         />
         <TimelineView
           v-if="showTimeline"

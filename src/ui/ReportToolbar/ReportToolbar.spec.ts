@@ -564,11 +564,13 @@ describe('ReportToolbar', () => {
     expect(wrapper.find('[data-testid="open-user-guide"] .pr-icon--help').exists()).toBe(true);
 
     await wrapper.find('[data-testid="open-user-guide"]').trigger('click');
+    expect(wrapper.emitted('open-user-guide')).toEqual([[DEFAULT_USER_GUIDE_URL]]);
     expect(openSpy).toHaveBeenCalledWith(DEFAULT_USER_GUIDE_URL, '_blank', 'noopener,noreferrer');
     openSpy.mockClear();
 
     await wrapper.setProps({ userGuideUrl: 'https://example.test/guide/' });
     await wrapper.find('[data-testid="open-user-guide"]').trigger('click');
+    expect(wrapper.emitted('open-user-guide')?.at(-1)).toEqual(['https://example.test/guide/']);
     expect(openSpy).toHaveBeenCalledWith('https://example.test/guide/', '_blank', 'noopener,noreferrer');
     openSpy.mockRestore();
   });

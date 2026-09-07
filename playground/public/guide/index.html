@@ -34,6 +34,11 @@
       margin: 0 auto;
       padding: 24px 20px 64px;
     }
+    .guide-header-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
     h1 {
       margin: 0 0 8px;
       font-size: 1.6rem;
@@ -86,7 +91,7 @@
 </head>
 <body>
   <header>
-    <main style="padding-top: 0; padding-bottom: 0;">
+    <div class="guide-header-inner">
       <h1>Profiling Report 用户指南</h1>
       <p class="lede">
         在 MSTT 中打开 <code>.npu-rep</code> 算子性能报告后，用时间线与侧栏回答：整体耗时多久、哪些 PIPE 更忙、哪一段最值得优化。
@@ -102,7 +107,7 @@
         <a href="#shortcuts">快捷键</a>
         <a href="#later">尚未覆盖</a>
       </nav>
-    </main>
+    </div>
   </header>
 
   <main>

@@ -111,7 +111,7 @@ Resting fill from `v930/entry` actions strip; hover/pressed from `v930/hardware-
 
 Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, help). MVP implements fit, measure (caliper), **layers → 显示控制**, and **help → user guide**; remaining icons (chart, flag, deps) stay visual-reference until their capabilities land.
 
-**User guide.** A **help** glyph button sits **last** in the action-icon list (after aside when present). It opens `userGuideUrl` (default `https://profiling-report.vercel.app/guide/`) via `window.open` in a new tab. Distinct from the connection-level tip inside 显示控制, which also uses the `help` glyph.
+**User guide.** A **help** glyph button sits **last** in the action-icon list (after aside when present). It emits `open-user-guide` with `userGuideUrl` (default `https://profiling-report.vercel.app/guide/`) and also calls `window.open` in a new tab. Distinct from the connection-level tip inside 显示控制, which also uses the `help` glyph.
 
 ### Display control popover
 
@@ -195,7 +195,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 22. **PR-TOOLBAR-021** — The shortcut-help action renders **first** in the action list (immediately after the zoom pill, before `zoom-to-fit`), using the `keyboard` glyph (`data-testid="toggle-shortcuts"`, `data-toolbar-clip`).
 23. **PR-TOOLBAR-022** — Clicking the shortcut-help trigger opens the `shortcut-help` popover listing mouse / keyboard / combined bindings (W/S/A/D, Ctrl+wheel, Ctrl+drag, Alt+click); it closes via the X, a second press, an outside pointerdown, or Escape.
 24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt, single-finger, double-finger, box-select) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below; Combined scaling/pan/box-select rows include `/`-separated trackpad/gesture stand-ins.
-25. **PR-TOOLBAR-024** — The user-guide action renders **last** among `data-toolbar-clip` actions (`data-testid="open-user-guide"`, `help` glyph). Click opens `userGuideUrl` (default `DEFAULT_USER_GUIDE_URL`) with `window.open(…, '_blank', 'noopener,noreferrer')`.
+25. **PR-TOOLBAR-024** — The user-guide action renders **last** among `data-toolbar-clip` actions (`data-testid="open-user-guide"`, `help` glyph). Click emits `open-user-guide` with `userGuideUrl` (default `DEFAULT_USER_GUIDE_URL`) and calls `window.open(…, '_blank', 'noopener,noreferrer')`.
 
 ## Edge Cases
 

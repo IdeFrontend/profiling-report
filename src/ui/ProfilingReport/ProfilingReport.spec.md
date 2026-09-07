@@ -12,7 +12,7 @@ The component works in two modes. In **auto-loading mode**, provide **source** �
 
 ## Outputs
 
-Lifecycle events: **ready** fires once the report is loaded and the timeline is rendered. **select** fires with a `SelectedEvent` (id, name, startTime, duration, endTime) when the user clicks an event on the swimlane, or `null` when they click empty space. **error** fires with `{ message, cause? }` on load or parse failure. **open-hardware-details** is forwarded from StatsAside when the user clicks 更多 (aside also opens interim HardwareDetailsPanel when data exists, DATA-34a). **open-pipe-details** is forwarded when the user clicks PIPE 详情 (aside navigates to CSV details). **view-full-csv** forwards `{ fileName, text }` for 查看全部 (DATA-33d). **cannbot-request** fires when a section cannbot icon is clicked, with the `CannbotPayload` assembled from the current reportModel + reportMeta (version/scope/report_name/report_id/report_path/op_name/collected_at/data/prompt). Aside **close** is handled internally (`asideVisible = false`); it is not a root emit. The component does not expose internal view state — viewport, hover, and cursor are managed internally.
+Lifecycle events: **ready** fires once the report is loaded and the timeline is rendered. **select** fires with a `SelectedEvent` (id, name, startTime, duration, endTime) when the user clicks an event on the swimlane, or `null` when they click empty space. **error** fires with `{ message, cause? }` on load or parse failure. **open-hardware-details** is forwarded from StatsAside when the user clicks 更多 (aside also opens interim HardwareDetailsPanel when data exists, DATA-34a). **open-pipe-details** is forwarded when the user clicks PIPE 详情 (aside navigates to CSV details). **view-full-csv** forwards `{ fileName, text }` for 查看全部 (DATA-33d). **cannbot-request** fires when a section cannbot icon is clicked, with the `CannbotPayload` assembled from the current reportModel + reportMeta (version/scope/report_name/report_id/report_path/op_name/collected_at/data/prompt). **open-user-guide** forwards the guide URL from the toolbar help button (toolbar also attempts `window.open`). Aside **close** is handled internally (`asideVisible = false`); it is not a root emit. The component does not expose internal view state — viewport, hover, and cursor are managed internally.
 
 ## Interaction flows
 
@@ -201,7 +201,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
-- **2026-09-07** — Optional `userGuideUrl` (default demo guide) forwarded to the toolbar help button.
+- **2026-09-07** — Optional `userGuideUrl` (default demo guide) forwarded to the toolbar help button; toolbar emits `open-user-guide` (and `window.open`) for host `openExternal`.
 - **2026-09-04** — Host `timeDisplayMode: 'cycles'` falls back to wall time when OpBasicInfo freq is missing (combined immediate watcher); omitted host prop no longer resets a toolbar cycles choice on freq change (PR-UI-009/010/011).
 - **2026-09-03** — Operator switch preserves `asideVisible` and session gutter/aside widths (closing or resizing the sidebar then changing OP no longer reopens it or snaps width back to 480; PR-ROOT-005).
 - **2026-09-02** — Added `timeDisplayMode` host prop (`'time' | 'cycles'`); CPU-clocks mode derived from OpBasicInfo freq per UI-40a.
