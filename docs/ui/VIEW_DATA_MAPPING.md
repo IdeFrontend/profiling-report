@@ -254,7 +254,8 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 | L2 → UB | `aiv_ub_write_bw_gm(GB/s)` then `aiv_gm_to_ub_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | Product name first (unverified; absent from sample); sample fallback |
 | Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | `ub_read_*` = leaving UB (`out.rep` add 2:1) |
 | UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
-| L2Cache Hit Rate | first `*_hit_rate(%)` | `L2Cache.csv` | AIC/AIV column choice TBD |
+| L2Cache Hit Rate | first `*_hit_rate(%)` | `L2Cache.csv` | AIC/AIV column choice TBD (DATA-21 interim) |
+| **L2 Peak(%)** | same hit-rate columns as above | `L2Cache.csv` | **DATA-20:** L2 box only = hit rate. Other units still unmapped |
 
 **NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
 
@@ -262,7 +263,8 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
 - Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
-- Overlay **Peak (%)** utilization on units only when a field mapping exists (still open for many units).
+- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (hit rate, DATA-20; sketch has no “Peak” word and no fill tint). Other units stay without Peak until Product maps them.
+- **Right-click (UI-35):** open memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0), same as **详情**.
 - Labels are **block-scoped** via the same block switcher as memory details ([DATA-33c](../context/decisions/interim/DATA.md)).
 
 ---
@@ -359,8 +361,8 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Roofline tab names vs pipe-ratio fields; missing axis formulas | Contradictory / incomplete |
 | Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |
 | Dual-Die remote memory right-click details | Explicit product question |
-| Memory Peak (%) per unit | No field mapping |
-| L2 hit-rate column choice | Incomplete |
+| Memory Peak (%) per unit | **L2 = hit rate (DATA-20).** Other units still unmapped |
+| L2 hit-rate column choice | Incomplete (DATA-21 interim) |
 | L0C → UB edge | 待确定 |
 | UB↔GM | Product `MemoryUB.csv` names first; sample `Memory.csv` fallback |
 | Statistical analysis series schema | Placeholder only |

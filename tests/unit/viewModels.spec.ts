@@ -374,6 +374,38 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(first?.model.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
   });
 
+  it('PR-VM-012b: L2 Peak(%) from first non-NA hit-rate column (DATA-20 / DATA-21)', () => {
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.0' }],
+        blockIds: ['0'],
+      },
+      {
+        fileName: 'L2Cache.csv',
+        headers: [
+          'block_id',
+          'aic_total_hit_rate(%)',
+          'aiv_total_hit_rate(%)',
+          'aic_read_hit_rate(%)',
+        ],
+        rows: [
+          {
+            block_id: '0',
+            'aic_total_hit_rate(%)': 'NA',
+            'aiv_total_hit_rate(%)': '81.25',
+            'aic_read_hit_rate(%)': '10',
+          },
+        ],
+        blockIds: ['0'],
+      },
+    ];
+    const model = buildMemoryTopology(tables, '0');
+    expect(model?.nodes.find((n) => n.id === 'l2')?.peakPct).toBe(81.25);
+    expect(model?.edges.find((e) => e.id === 'l2-hit')?.label).toBe('81.25%');
+  });
+
   it('PR-VM-016: OpBasicInfo identity keeps Summary.jsonl derived FLOPS/util overlay', () => {
     const parsed = parseRep(loadOutRepBytes());
     parsed.payloads['OpBasicInfo.csv'] = new TextEncoder().encode(
@@ -401,5 +433,4 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(computeCard?.sides.map((s) => s.side).sort()).toEqual(['aic', 'aiv']);
     expect(computeCard!.sides.find((s) => s.side === 'aic')!.measuredTflops).toBe(10);
   });
-
 });

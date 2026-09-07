@@ -8,6 +8,10 @@ const props = defineProps<{
   locale?: string;
 }>();
 
+const emit = defineEmits<{
+  'open-details': [];
+}>();
+
 const show = computed(() => {
   const m = props.model;
   return Boolean(m && m.nodes.length > 0 && m.edges.some((e) => e.label != null && e.label !== ''));
@@ -15,6 +19,14 @@ const show = computed(() => {
 
 function label(id: string): string | undefined {
   return props.model?.edges.find((e) => e.id === id)?.label;
+}
+
+/** DATA-20: L2 Peak(%) from node.peakPct (hit rate). Sketch shows `{n}%` under L2 Cache — no tint. */
+const l2PeakPct = computed(() => props.model?.nodes.find((n) => n.id === 'l2')?.peakPct);
+
+function onContextMenu(e: MouseEvent) {
+  e.preventDefault();
+  emit('open-details');
 }
 
 /** Pillars + clusters leave GM↔L2 and L2↔cluster corridors for rotated GB/s labels. */
@@ -42,6 +54,7 @@ function rot(x: number, y: number): string {
     v-if="show"
     class="pr-topo"
     data-testid="memory-topology-panel"
+    @contextmenu="onContextMenu"
   >
     <svg
       class="pr-topo__svg"
@@ -60,7 +73,7 @@ function rot(x: number, y: number): string {
         >
           <path
             d="M0,0 L6,3 L0,6 Z"
-            fill="#4a8ec8"
+            fill="#3978f9"
           />
         </marker>
         <marker
@@ -73,7 +86,7 @@ function rot(x: number, y: number): string {
         >
           <path
             d="M0,0 L6,3 L0,6 Z"
-            fill="#e8c040"
+            fill="#3978f9"
           />
         </marker>
       </defs>
@@ -95,7 +108,7 @@ function rot(x: number, y: number): string {
         class="pr-topo__pillar-label"
       >GM</text>
 
-      <!-- L2 pillar -->
+      <!-- L2 pillar (DATA-20 Peak(%) as in-box `{n}%`, flat fill per sketch) -->
       <rect
         :x="L2.x"
         :y="L2.y"
@@ -103,16 +116,26 @@ function rot(x: number, y: number): string {
         :height="L2.h"
         rx="3"
         class="pr-topo__l2"
+        data-testid="node-l2"
       />
       <text
         :x="L2.x + L2.w / 2"
-        y="248"
+        :y="l2PeakPct != null ? 230 : 248"
         text-anchor="middle"
-        :transform="rot(L2.x + L2.w / 2, 248)"
+        :transform="rot(L2.x + L2.w / 2, l2PeakPct != null ? 230 : 248)"
         class="pr-topo__pillar-label"
       >L2 Cache</text>
       <text
-        v-if="label('l2-hit')"
+        v-if="l2PeakPct != null"
+        :x="L2.x + L2.w / 2"
+        y="268"
+        text-anchor="middle"
+        :transform="rot(L2.x + L2.w / 2, 268)"
+        class="pr-topo__peak"
+        data-testid="node-l2-peak"
+      >{{ l2PeakPct.toFixed(2) }}%</text>
+      <text
+        v-if="label('l2-hit') && l2PeakPct == null"
         :x="L2.x + L2.w / 2"
         y="486"
         text-anchor="middle"
@@ -381,7 +404,7 @@ function rot(x: number, y: number): string {
         :y="ry('aic', 95)"
         text-anchor="middle"
         class="pr-topo__tiny"
-      >L0C</text>
+      >LOC</text>
       <rect
         :x="clx(108)"
         :y="ry('aic', 44)"
@@ -395,14 +418,14 @@ function rot(x: number, y: number): string {
         :y="ry('aic', 76)"
         text-anchor="middle"
         class="pr-topo__node"
-      >Cube</text>
+      >CUBE</text>
       <rect
         :x="clx(176)"
         :y="ry('aic', 44)"
         width="44"
         height="28"
         rx="2"
-        class="pr-topo__compute"
+        class="pr-topo__fixp"
       />
       <text
         :x="clx(198)"
@@ -653,9 +676,10 @@ function rot(x: number, y: number): string {
 </template>
 
 <style scoped>
+/* Fills sampled from visual/memory-topology.png (v930/report-stats-scrolled). */
 .pr-topo {
   min-width: 0;
-  background: #1a1a1a;
+  background: #262626;
   border-radius: 4px;
   padding: 6px;
 }
@@ -668,30 +692,46 @@ function rot(x: number, y: number): string {
 }
 
 .pr-topo__gm {
-  fill: #3a3a3a;
+  fill: #4d4d4d;
 }
 
 .pr-topo__l2 {
-  fill: #4a6a8a;
+  fill: #657294;
+}
+
+.pr-topo__peak {
+  fill: #f0f0f0;
+  font-size: 8px;
+  letter-spacing: 0.02em;
 }
 
 .pr-topo__muted {
-  fill: #4a4a4a;
+  fill: #4d4d4d;
 }
 
 .pr-topo__cache {
-  fill: #3d6a9a;
+  fill: #668cf7;
+  stroke: #85a3f9;
+  stroke-width: 1;
 }
 
 .pr-topo__compute {
-  fill: #2e7a3a;
+  fill: #37c18d;
+  stroke: #5ecda3;
+  stroke-width: 1;
+}
+
+.pr-topo__fixp {
+  fill: #657294;
+  stroke: #848ea9;
+  stroke-width: 1;
 }
 
 .pr-topo__cluster {
   fill: none;
-  stroke: #6a6a6a;
+  stroke: #e8e8e8;
   stroke-width: 1;
-  stroke-dasharray: 4 3;
+  stroke-dasharray: 5 5;
 }
 
 .pr-topo__pillar-label,
@@ -702,24 +742,23 @@ function rot(x: number, y: number): string {
 }
 
 .pr-topo__tiny {
-  fill: #d8d8d8;
+  fill: #e8e8e8;
   font-size: 7px;
 }
 
-.pr-topo__edge,
-.pr-topo__pct {
-  fill: #e8c040;
+.pr-topo__edge {
+  fill: #f9b665;
   font-size: 8px;
 }
 
-.pr-topo__arrow-write {
-  stroke: #4a8ec8;
-  stroke-width: 1.5;
-  fill: none;
+.pr-topo__pct {
+  fill: #f0f0f0;
+  font-size: 8px;
 }
 
+.pr-topo__arrow-write,
 .pr-topo__arrow-read {
-  stroke: #e8c040;
+  stroke: #3978f9;
   stroke-width: 1.5;
   fill: none;
 }

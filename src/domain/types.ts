@@ -225,6 +225,8 @@ export interface MemoryTopologyNode {
   id: string;
   /** Display label, e.g. GM, L2 Cache, Cube, UB, Vec. */
   label: string;
+  /** DATA-20: unit Peak(%). L2 only — hit rate from L2Cache.csv (DATA-21 interim). */
+  peakPct?: number;
 }
 
 /** M2 memory-topology buffer link (change-log #5). */

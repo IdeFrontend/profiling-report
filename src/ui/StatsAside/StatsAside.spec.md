@@ -52,7 +52,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 
 **Roofline (M2 interim).** When `report.roofline.points` is non-empty, mount `RooflinePanel` on the stack after the summary cards (DATA-37a–f). Hide on overlays and when absent. No tabs until DATA-37f superseded.
 
-**Topology (M2).** When labelled edges exist, mount `MemoryTopologyPanel` below PIPE with title **内存负载分析** and **详情**. **详情** opens the memory CSV overlay. If memory tables exist but the current block has no labelled edges, still show the section chrome + **详情** (no diagram) so the overlay stays reachable. Labels are block-scoped: parent owns `selectedBlockId` and rebuilds via `buildMemoryTopology`. Hide the diagram when the model is absent. On **report** change, re-pick `selectedBlockId` via `firstLabelledMemoryTopology` (do not keep a stale id that is unlabelled in the new file).
+**Topology (M2).** When labelled edges exist, mount `MemoryTopologyPanel` below PIPE with title **内存负载分析** and **详情**. **详情** and **right-click** on the diagram (UI-35) open the memory CSV overlay. If memory tables exist but the current block has no labelled edges, still show the section chrome + **详情** (no diagram) so the overlay stays reachable. Labels are block-scoped: parent owns `selectedBlockId` and rebuilds via `buildMemoryTopology`. L2 Peak(%) comes from `l2.peakPct` (DATA-20 hit rate). Hide the diagram when the model is absent. On **report** change, re-pick `selectedBlockId` via `firstLabelledMemoryTopology` (do not keep a stale id that is unlabelled in the new file).
 
 **CSV-only fallback.** If duration, bandwidth, PIPE, roofline, and topology are all absent but compute/memory tables exist, show those CSV lists on the stack (no overlay required).
 
@@ -84,6 +84,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 17. **PR-STATS-015** — Roofline section when `roofline.points` present; hidden when absent.
 18. **PR-STATS-016** — PIPE 详情 opens compute overlay when compute tables exist and emits open-pipe-details.
 19. **PR-STATS-017** — Topology 详情 shows memory CSV overlay when tables present.
+19b. **PR-STATS-017b** — Topology right-click opens the same memory CSV overlay (UI-35).
 20. **PR-STATS-018** — 更多 navigates to hardware overlay when hardwareDetails present; back returns.
 21. **PR-STATS-018b** — OpBasicInfo fallback still renders `HardwareDetailsPanel` (not missing copy).
 22. **PR-STATS-019** — Topology section when `memoryTopology` has labelled edges; hidden when absent.

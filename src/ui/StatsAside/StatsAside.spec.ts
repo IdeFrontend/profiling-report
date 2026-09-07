@@ -724,6 +724,28 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
   });
 
+  it('PR-STATS-017b: topology right-click opens memory CSV overlay (UI-35)', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+        }),
+      },
+    });
+    expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
+  });
+
   it('PR-STATS-018: 更多 navigates to hardware when hardwareDetails present', async () => {
     const wrapper = mount(StatsAside, {
       props: {
