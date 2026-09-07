@@ -174,6 +174,7 @@ describe('swimTree + nested layout', () => {
         duration: 10,
         taskCount: 1,
         laneName: 'MTE1',
+        sourceEvent: { id: 'e1', name: 'busy', startTime: 0, duration: 10 },
       },
     ]);
     // Expanded folder has no summary.

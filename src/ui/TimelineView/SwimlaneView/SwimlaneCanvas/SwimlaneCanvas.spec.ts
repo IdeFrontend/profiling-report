@@ -1740,8 +1740,8 @@ describe('SwimlaneCanvas', () => {
     );
   });
 
-  it('PR-CANVAS-065: clicking a collapsed summary bar emits toggle-group, not select', async () => {
-    const model = {
+  it('PR-CANVAS-065: summary click expands, clears hover, and selects sole leaf or clears selection', async () => {
+    const multi = {
       minTime: 0,
       maxTime: 1000,
       processes: [
@@ -1765,7 +1765,7 @@ describe('SwimlaneCanvas', () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
-        model,
+        model: multi,
         view: { startTime: 0, endTime: 1000, scrollY: 0 },
         preferRenderer: 'canvas' as const,
       },
@@ -1782,8 +1782,7 @@ describe('SwimlaneCanvas', () => {
     Object.defineProperty(el, 'getBoundingClientRect', {
       value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
     });
-    // Model watch → resize/attach so the summary bar is laid out for hit-testing.
-    await wrapper.setProps({ model: { ...model } });
+    await wrapper.setProps({ model: { ...multi } });
 
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
@@ -1797,13 +1796,75 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
 
     expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['folder']);
-    // Summary bars are never selected; clear any prior selection like an empty-canvas click.
+    // Multi-task summary: clear any prior selection.
     expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
-    // Summary bar is gone after expand — clear hover so the "N tasks" tooltip dismisses.
-    const hover = wrapper.emitted('hover');
-    expect(hover).toBeTruthy();
-    expect(hover!.at(-1)?.[0]).toBeNull();
+    expect(wrapper.emitted('hover')!.at(-1)?.[0]).toBeNull();
     wrapper.unmount();
+
+    const leaf = { id: 'e1', name: 'busy', startTime: 0, duration: 1000 };
+    const single = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [],
+              summaryEvents: [
+                {
+                  id: 'folder/summary/0',
+                  name: 'busy',
+                  startTime: 0,
+                  duration: 1000,
+                  taskCount: 1,
+                  laneName: 'MTE1',
+                  sourceEvent: leaf,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const one = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: single,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const oneWrap = one.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(oneWrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(oneWrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(oneWrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const oneCanvas = one.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(oneCanvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await one.setProps({ model: { ...single } });
+
+    const oneVm = one.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const oneRect = oneVm.eventScreenRect('folder/summary/0');
+    expect(oneRect).toBeTruthy();
+    const ox = oneRect!.x + oneRect!.w / 2;
+    const oy = oneRect!.y + oneRect!.h / 2;
+    await oneCanvas.trigger('pointerdown', { clientX: ox, clientY: oy, pointerId: 1 });
+    await oneCanvas.trigger('pointerup', { clientX: ox, clientY: oy, pointerId: 1 });
+
+    expect(one.emitted('toggle-group')?.[0]).toEqual(['folder']);
+    expect(one.emitted('select')?.at(-1)).toEqual([leaf]);
+    one.unmount();
   });
 
   it('PR-CANVAS-066: Alt+click / Alt+hover treats summary bars as measure endpoints', async () => {

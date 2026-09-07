@@ -26,6 +26,11 @@ export interface SwimEvent {
    * can show which hidden lane the event came from.
    */
   laneName?: string;
+  /**
+   * Underlying leaf event when `taskCount === 1` — used to select that event on
+   * summary-bar expand (the summary id itself is never selected).
+   */
+  sourceEvent?: SwimEvent;
 }
 
 /** Stable card-category key for i18n (通信 / 计算 / 储存HBM). */

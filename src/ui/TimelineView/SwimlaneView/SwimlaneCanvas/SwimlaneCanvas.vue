@@ -1666,8 +1666,8 @@ function onPointerUp(e: PointerEvent): void {
           // Drop the summary tooltip — that bar disappears as the folder expands.
           emit('hover', null, e.clientX, e.clientY);
           emit('toggle-group', groupId);
-          // Clear any prior selection (summary bars are never themselves selected).
-          emit('select', null);
+          // Single-leaf group → select that event; otherwise clear prior selection.
+          emit('select', ev.sourceEvent ?? null);
           return;
         }
         snapMeasureToEvent(ev);
@@ -1739,8 +1739,8 @@ function onPointerUp(e: PointerEvent): void {
     // Drop the summary tooltip — that bar disappears as the folder expands.
     emit('hover', null, e.clientX, e.clientY);
     emit('toggle-group', groupId);
-    // Clear any prior selection (summary bars are never themselves selected).
-    emit('select', null);
+    // Single-leaf group → select that event; otherwise clear prior selection.
+    emit('select', clicked?.sourceEvent ?? null);
     return;
   }
   emit('select', clicked);

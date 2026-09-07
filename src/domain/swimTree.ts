@@ -201,7 +201,8 @@ export function filterCollapsedTree(
             duration: r.duration,
             taskCount: r.count,
           };
-          // Single-leaf union: keep the real event name + source lane for the tooltip.
+          // Single-leaf union: keep the real event name + source lane for the tooltip,
+          // and the leaf itself for select-on-expand.
           if (r.count === 1) {
             const src = sources.find(
               (s) =>
@@ -210,6 +211,7 @@ export function filterCollapsedTree(
             if (src) {
               base.name = src.event.name;
               base.laneName = src.laneName;
+              base.sourceEvent = src.event;
             }
           }
           return base;
