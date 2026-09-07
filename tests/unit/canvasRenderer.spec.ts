@@ -628,6 +628,15 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(/const gx = Math\.round\(anchor\.cx - glyph\.width \/ 2\)/);
     expect(webglSrc).toMatch(/const gy = Math\.round\(cy - glyph\.height \/ 2\)/);
   });
+
+  it('PR-RENDER-040: ClearType label pass skips summary bars (overlay owns "N tasks")', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // Summary bars get their dimmed "N tasks" label from the overlay, not the ClearType pass.
+    // The label loop must skip `item.summary` before it reaches the `atlas.get(gl, ev.name, …)`
+    // rasterization, so a colored additive quad and `ev.name` never show through.
+    expect(webglSrc).toMatch(/if \(item\.summary\) continue;/);
+  });
 });
 
 describe('PR-RENDER: SwimlaneRenderer surface', () => {

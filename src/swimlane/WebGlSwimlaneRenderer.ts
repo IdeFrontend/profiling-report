@@ -783,6 +783,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.enable(gl.SCISSOR_TEST);
 
     for (const item of this.layout.events) {
+      // Collapsed-folder summary bars carry their own dimmed "N tasks" label via the overlay
+      // (`taskCountLabel` in `SUMMARY_LABEL_COLOR`); the ClearType pass must not rasterize `ev.name`
+      // (empty for multi-task unions, the leaf title for a single-event union) over it with a
+      // colored additive backdrop.
+      if (item.summary) continue;
       const ev = item.event;
       if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
         continue;
