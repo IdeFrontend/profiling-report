@@ -1740,7 +1740,7 @@ describe('SwimlaneCanvas', () => {
     );
   });
 
-  it('PR-CANVAS-065: Ctrl+left-drag still pans (PyPTO combined pan)', async () => {
+  it('PR-CANVAS-067: Ctrl+left-drag still pans (PyPTO combined pan)', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 1, ctrlKey: true });
@@ -1758,7 +1758,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-066: horizontal-dominant wheel pans (incl. with ctrlKey); vertical scrolls', async () => {
+  it('PR-CANVAS-068: horizontal-dominant wheel pans (incl. with ctrlKey); vertical scrolls', async () => {
     const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
     // view 0–1000 over 400px → deltaX 50 → pan +125
     await canvas.trigger('wheel', { clientX: 200, clientY: 40, deltaX: 50, deltaY: 0 });

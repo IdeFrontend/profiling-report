@@ -197,10 +197,15 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*color:\s*#b3b3b3/);
     expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*border-radius:\s*6px/);
     expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*outline:\s*none/);
-    expect(src).toMatch(/\.pr-toolbar__icon-btn:focus[\s\S]*?outline:\s*none/);
-    expect(src).toMatch(/\.pr-toolbar__icon-btn:focus-visible[\s\S]*?outline:\s*none/);
+    expect(src).toMatch(/\.pr-toolbar__icon-btn:focus\s*\{[^}]*outline:\s*none/);
+    expect(src).toMatch(
+      /\.pr-toolbar__icon-btn:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--pr-playhead/,
+    );
     expect(src).toMatch(/\.pr-toolbar__zoom-btn\s*\{[^}]*outline:\s*none/);
-    expect(src).toMatch(/\.pr-toolbar__zoom-btn:focus[\s\S]*?outline:\s*none/);
+    expect(src).toMatch(/\.pr-toolbar__zoom-btn:focus\s*\{[^}]*outline:\s*none/);
+    expect(src).toMatch(
+      /\.pr-toolbar__zoom-btn:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--pr-playhead/,
+    );
     expect(src).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?background:\s*#1e2a3e/);
     expect(src).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?color:\s*#2d70e3/);
   });

@@ -1193,9 +1193,13 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   line-height: 0;
 }
 
-.pr-toolbar__zoom-btn:focus,
-.pr-toolbar__zoom-btn:focus-visible {
+.pr-toolbar__zoom-btn:focus {
   outline: none;
+}
+
+.pr-toolbar__zoom-btn:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
 }
 
 .pr-toolbar__zoom-btn:hover {
@@ -1256,7 +1260,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   border: 0;
 }
 
-/* Square action icon buttons — no focus ring (sketch chrome; active = --on tint). */
+/* Square action icon buttons — no mouse-click focus ring; keyboard Tab keeps :focus-visible. */
 .pr-toolbar__icon-btn {
   box-sizing: border-box;
   margin: 0;
@@ -1277,9 +1281,13 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   line-height: 0;
 }
 
-.pr-toolbar__icon-btn:focus,
-.pr-toolbar__icon-btn:focus-visible {
+.pr-toolbar__icon-btn:focus {
   outline: none;
+}
+
+.pr-toolbar__icon-btn:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
 }
 
 .pr-toolbar__icon-btn:hover,

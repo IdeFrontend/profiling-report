@@ -80,7 +80,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 M2 measure fields.
 
 ## Changelog
-- **2026-09-07** — Trackpad pinch zoom / two-finger horizontal pan via native `wheel` (PyPTO parity; see SwimlaneCanvas `PR-CANVAS-066`).
+- **2026-09-07** — Trackpad pinch zoom / two-finger horizontal pan via native `wheel` (PyPTO parity; see SwimlaneCanvas `PR-CANVAS-068`).
 - **2026-09-03** — Keyboard navigation (W/S/A/D): `keyboardPanStepTime` + `KEYBOARD_PAN_STEP_PX` (`PR-VIEW-016` / `017`). Resolves Q19 gesture parity.
 - **2026-08-31** — Pinned strip stays visible under ancestor collapse (full swim as pin source).
 - **2026-08-31** — Renumber pin ACs to `PR-VIEW-013`…`015` (avoid collision with #31 `PR-VIEW-012`).
