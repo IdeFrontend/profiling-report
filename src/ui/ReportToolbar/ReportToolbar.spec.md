@@ -103,7 +103,7 @@ Resting fill from `v930/entry` actions strip; hover/pressed from `v930/hardware-
 |-------|--------|
 | Size | Square `28×28`; glyph `16×16` |
 | Radius | `6px` |
-| Border | none (no stroke ring) |
+| Border | none (no stroke ring; no `:focus` / `:focus-visible` outline) |
 | Background (rest) | `#363636` (not transparent) |
 | Icon (rest) | `#b3b3b3` |
 | Hover / `:active` / `--on` / `aria-pressed` / `aria-expanded` | bg `#1e2a3e`; icon `#2d70e3` |
@@ -216,6 +216,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-09-07** — Toolbar icon / zoom buttons suppress `:focus` / `:focus-visible` outlines (active state stays `--on` tint only).
 - **2026-09-07** — Shortcut-help Combined rows add PyPTO trackpad/gesture stand-ins (single-finger, double-finger, box-select) with `/` separators (`PR-TOOLBAR-023`).
 - **2026-09-04** — Shortcut-help popover teleports to `body` (fixed) so toolbar `overflow-x: clip` cannot crop the 450px card.
 - **2026-09-04** — Shortcut-help popover matches PyPTO layout (Mouse‖Keyboard + Combined) and 24×24 SVG glyphs (`PR-TOOLBAR-023`).

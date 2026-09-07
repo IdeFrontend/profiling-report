@@ -1183,6 +1183,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   padding: 4px 6px;
   border: 0;
   border-radius: 0;
+  outline: none;
   background: transparent;
   color: #c8c8c8;
   cursor: pointer;
@@ -1190,6 +1191,11 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   align-items: center;
   justify-content: center;
   line-height: 0;
+}
+
+.pr-toolbar__zoom-btn:focus,
+.pr-toolbar__zoom-btn:focus-visible {
+  outline: none;
 }
 
 .pr-toolbar__zoom-btn:hover {
@@ -1250,7 +1256,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   border: 0;
 }
 
-/* Square action icon buttons */
+/* Square action icon buttons — no focus ring (sketch chrome; active = --on tint). */
 .pr-toolbar__icon-btn {
   box-sizing: border-box;
   margin: 0;
@@ -1261,6 +1267,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   min-height: 28px;
   border: 0;
   border-radius: 6px;
+  outline: none;
   background: #363636;
   color: #b3b3b3;
   cursor: pointer;
@@ -1268,6 +1275,11 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   align-items: center;
   justify-content: center;
   line-height: 0;
+}
+
+.pr-toolbar__icon-btn:focus,
+.pr-toolbar__icon-btn:focus-visible {
+  outline: none;
 }
 
 .pr-toolbar__icon-btn:hover,
