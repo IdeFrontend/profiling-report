@@ -27,12 +27,17 @@ const displayOpts = computed(() => ({
   clockFreqMHz: props.clockFreqMHz,
 }));
 
-/** Summary bars show "N tasks" as the title instead of an empty name. */
-const title = computed(() =>
-  props.event.taskCount != null
-    ? taskCountLabel(props.event.taskCount, props.locale)
-    : props.event.name,
-);
+/**
+ * Multi-task summary bars title as "N tasks".
+ * A single-event summary keeps the real event name (and shows `laneName` below).
+ */
+const title = computed(() => {
+  const { taskCount, name } = props.event;
+  if (taskCount != null && !(taskCount === 1 && name)) {
+    return taskCountLabel(taskCount, props.locale);
+  }
+  return name;
+});
 </script>
 
 <template>
@@ -43,6 +48,13 @@ const title = computed(() =>
   >
     <div class="pr-tooltip__name">
       {{ title }}
+    </div>
+    <div
+      v-if="event.laneName"
+      class="pr-tooltip__lane"
+      data-testid="event-tooltip-lane"
+    >
+      {{ event.laneName }}
     </div>
     <div>
       {{ t('start', locale) }}:
@@ -74,6 +86,12 @@ const title = computed(() =>
 
 .pr-tooltip__name {
   font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pr-tooltip__lane {
+  color: #969696;
+  margin-top: -2px;
   margin-bottom: 4px;
 }
 </style>

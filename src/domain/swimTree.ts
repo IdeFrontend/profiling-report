@@ -118,6 +118,21 @@ export function collectLeafEvents(threads: SwimThread[]): SwimEvent[] {
   return out;
 }
 
+/** Leaf events with their owning lane display name (for single-event summary tooltips). */
+function collectLeafEventSources(
+  threads: SwimThread[],
+): { event: SwimEvent; laneName: string }[] {
+  const out: { event: SwimEvent; laneName: string }[] = [];
+  const walk = (nodes: SwimThread[]) => {
+    for (const n of nodes) {
+      if (isFolderNode(n)) walk(n.children ?? []);
+      else for (const event of n.events) out.push({ event, laneName: n.name });
+    }
+  };
+  walk(threads);
+  return out;
+}
+
 /**
  * Disjoint union of event intervals: sort by start and merge overlapping *and touching*
  * spans (`next.start <= cur.end`) into the minimal set of non-overlapping ranges.
@@ -177,15 +192,28 @@ export function filterCollapsedTree(
     nodes.map((n) => {
       if (!isFolderNode(n)) return n;
       if (collapsed.has(n.id)) {
-        const summaryEvents = unionEventIntervals(collectLeafEvents(n.children ?? [])).map(
-          (r, i) => ({
+        const sources = collectLeafEventSources(n.children ?? []);
+        const summaryEvents = unionEventIntervals(sources.map((s) => s.event)).map((r, i) => {
+          const base: SwimEvent = {
             id: `${n.id}/summary/${i}`,
             name: '',
             startTime: r.startTime,
             duration: r.duration,
             taskCount: r.count,
-          }),
-        );
+          };
+          // Single-leaf union: keep the real event name + source lane for the tooltip.
+          if (r.count === 1) {
+            const src = sources.find(
+              (s) =>
+                s.event.startTime === r.startTime && s.event.duration === r.duration,
+            );
+            if (src) {
+              base.name = src.event.name;
+              base.laneName = src.laneName;
+            }
+          }
+          return base;
+        });
         return { ...n, children: [], events: [], summaryEvents };
       }
       return { ...n, children: filterThreads(n.children ?? []) };

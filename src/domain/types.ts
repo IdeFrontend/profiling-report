@@ -21,6 +21,11 @@ export interface SwimEvent {
   args?: Record<string, unknown>;
   /** Collapsed-folder summary bar: number of leaf tasks this union interval covers. */
   taskCount?: number;
+  /**
+   * Source leaf lane display name — set on single-event summary bars so the tooltip
+   * can show which hidden lane the event came from.
+   */
+  laneName?: string;
 }
 
 /** Stable card-category key for i18n (通信 / 计算 / 储存HBM). */

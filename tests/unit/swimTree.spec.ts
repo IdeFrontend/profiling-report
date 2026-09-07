@@ -167,7 +167,14 @@ describe('swimTree + nested layout', () => {
     const compute = collapsed.processes[0]!.threads[1]!;
     const cube = compute.children!.find((c) => c.id === 'cube')!;
     expect(cube.summaryEvents).toEqual([
-      { id: 'cube/summary/0', name: '', startTime: 0, duration: 10, taskCount: 1 },
+      {
+        id: 'cube/summary/0',
+        name: 'busy',
+        startTime: 0,
+        duration: 10,
+        taskCount: 1,
+        laneName: 'MTE1',
+      },
     ]);
     // Expanded folder has no summary.
     const vec0 = compute.children!.find((c) => c.id === 'vec0')!;

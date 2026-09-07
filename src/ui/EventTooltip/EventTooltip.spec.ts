@@ -44,7 +44,7 @@ describe('EventTooltip', () => {
     expect(text).toContain('2.001 ms'); // end 2_000_500 → ms
   });
 
-  it('PR-TOOLTIP-003: summary event shows an "N tasks" title instead of its empty name', () => {
+  it('PR-TOOLTIP-003: multi-task summary titles as "N tasks"; single-event keeps the real name', () => {
     const many = mount(EventTooltip, {
       props: {
         event: makeEvent({ name: '', taskCount: 4 }),
@@ -56,11 +56,23 @@ describe('EventTooltip', () => {
 
     const one = mount(EventTooltip, {
       props: {
-        event: makeEvent({ name: '', taskCount: 1 }),
+        event: makeEvent({ name: 'matmul_kernel', taskCount: 1, laneName: 'MTE1' }),
         stylePos: { left: '0px', top: '0px' },
         timeDisplayMode: 'time' as const,
       },
     });
-    expect(one.text()).toContain('1 task');
+    expect(one.text()).toContain('matmul_kernel');
+    expect(one.text()).not.toContain('1 task');
+  });
+
+  it('PR-TOOLTIP-004: single-event summary shows the source lane title', () => {
+    const wrapper = mount(EventTooltip, {
+      props: {
+        event: makeEvent({ name: 'busy', taskCount: 1, laneName: 'MTE1' }),
+        stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
+      },
+    });
+    expect(wrapper.find('[data-testid="event-tooltip-lane"]').text()).toBe('MTE1');
   });
 });
