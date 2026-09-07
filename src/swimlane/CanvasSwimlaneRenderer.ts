@@ -449,6 +449,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     return this.hitLayout;
   }
 
+  /** Expanded base layout for overlay paint (collapse applied via setCollapseAnim). */
+  getBaseLayout(): SwimlaneLayout {
+    return this.baseLayout;
+  }
+
   getNeighborIds(): Set<string> {
     return this.neighborIds;
   }

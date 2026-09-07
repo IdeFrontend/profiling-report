@@ -116,5 +116,7 @@ describe('applyCollapseAnim (PR-RENDER-027)', () => {
 
     const hitLane = renderer.getLayout().lanes.find((l) => l.thread.id === 'mte1');
     expect(hitLane?.y).toBe(95);
+    // Overlay paint input stays on the expanded base (collapse applied separately).
+    expect(renderer.getBaseLayout().lanes.find((l) => l.thread.id === 'mte1')?.y).toBe(106);
   });
 });

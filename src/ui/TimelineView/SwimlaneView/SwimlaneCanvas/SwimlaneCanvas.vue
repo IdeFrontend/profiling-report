@@ -520,7 +520,9 @@ function applyViewState(forceModel = false): void {
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   if (useWebGl.value) {
-    overlay.setLayout(backend.getLayout());
+    // Overlay paints with collapseShiftY against the expanded base — do not pass
+    // getLayout() (already shifted for hit-test) or the tween would apply twice.
+    overlay.setLayout(backend.getBaseLayout());
     overlay.setCollapseAnim(props.collapseAnim ?? null);
     overlay.setView(props.view);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
