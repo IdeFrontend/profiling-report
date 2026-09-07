@@ -2,6 +2,10 @@
 
 How we build profiling-report: **docs → specs → tests → code**.
 
+For multi-agent slices, the **AI Factory** assigns each stage to an isolated role (labels + PR
+comment handoffs): [FACTORY.md](../FACTORY.md) (operator) and [AI_FACTORY.md](AI_FACTORY.md)
+(normative).
+
 ## Principles
 
 1. **Specs before code.** Product behavior lives in spec files — root-level [`specs/`](../../specs/) for core and architecture, co-located `.spec.md` files per Vue component. See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for the canonical layout. Code implements the specs; it does not invent undocumented behavior.

@@ -1,0 +1,143 @@
+# Factory bus — labels from trusted PR comments, expected-red check, optional perf check.
+#
+# Does not write specs, tests, or implementation. Cursor Automations start the next role.
+# Handoff bus = structured PR comments (<!-- factory-handoff -->), not repo files.
+
+name: Factory bus
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+
+concurrency:
+  group: factory-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  comment:
+    name: factory-comment
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Classify comment
+        id: classify
+        env:
+          COMMENT: ${{ github.event.comment.body }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$COMMENT" > /tmp/factory-comment.txt
+          N="${{ github.event.issue.number }}"
+          CURRENT=$(gh pr view "$N" --repo "${{ github.repository }}" --json labels --jq '[.labels[].name] | join(",")')
+          FACTORY_CURRENT_LABELS="$CURRENT" node scripts/factory/comment.mjs --body-file /tmp/factory-comment.txt > /tmp/factory-comment.json
+          cat /tmp/factory-comment.json
+
+      - name: Apply labels from comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TYPE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/factory-comment.json','utf8')).type)")
+          N="${{ github.event.issue.number }}"
+          if [ "$TYPE" = "ignore" ]; then
+            echo "untrusted or unmatched comment; no-op"
+            exit 0
+          fi
+          if [ "$TYPE" = "handoff-invalid" ]; then
+            ERR=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/factory-comment.json','utf8')).error)")
+            gh pr comment "$N" --repo "${{ github.repository }}" --body "Factory handoff rejected: \`${ERR}\`"
+            exit 0
+          fi
+          if [ "$TYPE" = "continue-slice" ]; then
+            NN=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/factory-comment.json','utf8')).n)")
+            gh pr comment "$N" --repo "${{ github.repository }}" --body "Continue-to-slice **${NN}** is permission to open a new \`slice/\` branch. This PR is not resumed."
+            exit 0
+          fi
+          if [ "$TYPE" = "accept-perf-baseline" ]; then
+            gh pr comment "$N" --repo "${{ github.repository }}" --body "Perf baseline bump unlocked for this PR (Approved. Accept perf baseline.)."
+            exit 0
+          fi
+          if [ "$TYPE" = "kickoff" ]; then
+            ROLE_LABEL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/factory-comment.json','utf8')).labels[1])")
+            for L in start "$ROLE_LABEL" awaiting-spec awaiting-architect awaiting-tests awaiting-dev awaiting-fixer awaiting-consistency awaiting-perf awaiting-review hitl done stage-red stage-implement; do
+              gh label create "$L" --repo "${{ github.repository }}" --color "5319E7" --description "factory bus" 2>/dev/null || true
+            done
+            gh pr edit "$N" --repo "${{ github.repository }}" --remove-label "start" || true
+            gh pr edit "$N" --repo "${{ github.repository }}" --add-label "$ROLE_LABEL"
+            exit 0
+          fi
+          if [ "$TYPE" = "proceed-to-code" ]; then
+            gh label create "awaiting-dev" --repo "${{ github.repository }}" --color "5319E7" --description "factory bus" 2>/dev/null || true
+            gh pr edit "$N" --repo "${{ github.repository }}" --add-label "awaiting-dev"
+            gh pr edit "$N" --repo "${{ github.repository }}" --remove-label "hitl" || true
+            exit 0
+          fi
+          if [ "$TYPE" = "handoff" ]; then
+            ADD=$(node -e "console.log((JSON.parse(require('fs').readFileSync('/tmp/factory-comment.json','utf8')).add||[]).join('\n'))")
+            REM=$(node -e "console.log((JSON.parse(require('fs').readFileSync('/tmp/factory-comment.json','utf8')).remove||[]).join('\n'))")
+            echo "$REM" | while read -r L; do
+              [ -z "$L" ] && continue
+              gh pr edit "$N" --repo "${{ github.repository }}" --remove-label "$L" || true
+            done
+            echo "$ADD" | while read -r L; do
+              [ -z "$L" ] && continue
+              gh label create "$L" --repo "${{ github.repository }}" --color "5319E7" --description "factory bus" 2>/dev/null || true
+              gh pr edit "$N" --repo "${{ github.repository }}" --add-label "$L"
+            done
+            exit 0
+          fi
+
+  red_stage:
+    name: red-stage
+    if: github.event_name == 'pull_request' && contains(join(github.event.pull_request.labels.*.name, ','), 'stage-red')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Vitest JSON (failure expected)
+        run: |
+          set +e
+          npx vitest run --reporter=json --outputFile=/tmp/vitest-red.json
+          echo "vitest_exit=$?" >> "$GITHUB_ENV"
+
+      - name: Assertion-mismatch classifier
+        run: node scripts/factory/check-red-stage.mjs --json /tmp/vitest-red.json
+
+  perf:
+    name: perf
+    if: github.event_name == 'pull_request' && contains(join(github.event.pull_request.labels.*.name, ','), 'awaiting-review')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Bench vs baseline
+        run: npm run bench:perf

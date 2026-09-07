@@ -58,6 +58,12 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 
 When Product answers a question: write it into the owning specs, file it in [`docs/context/decisions/`](docs/context/decisions/), and **remove** it from [`docs/context/questions/`](docs/context/questions/) in the same change. Do not leave a `resolved` row on the open list. Process: [`docs/process/DEVELOPMENT.md`](docs/process/DEVELOPMENT.md) § Resolving open questions; Cursor rule `.cursor/rules/resolve-open-questions.mdc`.
 
+## AI Factory
+
+Role-based development crew (Spec → Architect → Test → Spec coverage → Dev → … → Reviewer → Fixer-on-fail → Human) coordinated by PR labels and structured PR handoff comments. Operator page: [`docs/FACTORY.md`](docs/FACTORY.md). Normative: [`docs/process/AI_FACTORY.md`](docs/process/AI_FACTORY.md). Role skills: `.agents/skills/{spec-author,architect,test-author,developer,fixer,consistency,performance,reviewer}/`. Automation prompt copies: `.cursor/factory-automations/`.
+
+Do **not** enable Autopilot on factory PRs. Do **not** resume the previous role’s agent — each role is a fresh run.
+
 ## Skills (on demand)
 
 Do **not** load these into every turn. Use only when the user asks or the trigger matches. Playbooks: `.agents/skills/*/SKILL.md` (see `skills-lock.json`).
@@ -66,5 +72,6 @@ Do **not** load these into every turn. Use only when the user asks or the trigge
 |---|---|---|
 | **caveman** | "caveman mode", "talk like caveman", "use caveman", "less tokens", `/caveman`, or token-efficient replies | Self-contained in `.agents/skills/caveman/` |
 | **cavecrew** | "delegate to subagent", "use cavecrew", "spawn investigator/builder/reviewer", "save context" | Decision guide only. Subagent defs (`cavecrew-investigator` / `builder` / `reviewer`) are **not** in this repo — they need a full `JuliusBrussee/caveman` install. Without them, use vanilla Explore / edit / reviewer. |
+| **spec-author** / **architect** / **test-author** / **developer** / **fixer** / **consistency** / **performance** / **reviewer** | Factory Automations or explicit role request | Path ACLs and exit rules in each `SKILL.md`; see AI Factory |
 
 Read the matching `SKILL.md` only for that turn/session.

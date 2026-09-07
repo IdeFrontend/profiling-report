@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -21,35 +25,63 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Detect factory stage-red
+        id: factory
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LABELS=$(gh pr view "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --json labels --jq '[.labels[].name] | join(",")')
+          echo "labels=$LABELS" >> "$GITHUB_OUTPUT"
+          if echo "$LABELS" | grep -q 'stage-red'; then
+            echo "stage_red=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stage_red=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Playwright Chromium
+        if: steps.factory.outputs.stage_red != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Lint
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run lint
 
       - name: Typecheck
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run typecheck
 
       - name: Check spec coverage
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run check:specs
 
       - name: Check design assets
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run check:design
 
       - name: Check open questions
         run: npm run check:questions
 
       - name: Check sample fixture
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run check:sample
 
       - name: Scaffold unit/component tests (must pass)
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run test:scaffold
 
       - name: Scaffold e2e (must pass)
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run test:e2e:scaffold
 
       - name: Feature unit/component tests
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run test:feature
 
       - name: Feature e2e
+        if: steps.factory.outputs.stage_red != 'true'
         run: npm run test:e2e:feature
+
+      - name: stage-red — skip green CI
+        if: steps.factory.outputs.stage_red == 'true'
+        run: echo "stage-red present; default green tests skipped (see factory red-stage check)"
