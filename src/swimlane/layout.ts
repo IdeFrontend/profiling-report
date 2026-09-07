@@ -279,6 +279,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
           event: ev,
           laneIndex: lanes.length - 1,
           y,
+          rowIndex: 0,
           color: SUMMARY_EVENT_FILL,
           summary: true,
         };
@@ -372,7 +373,7 @@ export function laneIdAtPoint(
   return lane.thread.id;
 }
 
-/** Prefer shorter nested events (same as Canvas MVP). `width`/`x`/`y` are device pixels. */
+/** Prefer shorter duration when multiple blocks share a pixel (tie-break only; sub-rows make true overlaps rare). `width`/`x`/`y` are device pixels. */
 export function hitTestLayout(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
