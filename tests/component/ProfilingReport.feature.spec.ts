@@ -474,4 +474,58 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     await flushPromises();
     wrapper.unmount();
   });
+
+  it('PR-UI-014: mid-tween re-click reverses from the current visible', async () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'card0/core-a',
+              name: 'CoreA',
+              events: [],
+              children: [
+                { id: 'card0/core-a/p0', name: 'P0', events: [{ id: 'e1', name: 'a', startTime: 0, duration: 10 }] },
+                { id: 'card0/core-a/p1', name: 'P1', events: [{ id: 'e2', name: 'b', startTime: 20, duration: 10 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const runs: { from: number; to: number }[] = [];
+    let onUpdate: ((v: number) => void) | null = null;
+    vi.spyOn(anim, 'animateProgress').mockImplementation((opts) => {
+      runs.push({ from: opts.from, to: opts.to });
+      onUpdate = opts.onUpdate ?? null;
+      return () => {};
+    });
+
+    const wrapper = mount(ProfilingReport, {
+      props: { swimlaneModel: model, reportModel: emptyReportViewModel() },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="gutter-folder-card0/core-a"]').trigger('click');
+    await flushPromises();
+    expect(runs).toEqual([{ from: 1, to: 0 }]);
+
+    onUpdate!(0.4);
+    await flushPromises();
+
+    // Second click mid-collapse must expand from 0.4 → 1, not restart 1 → 0.
+    await wrapper.get('[data-testid="gutter-folder-card0/core-a"]').trigger('click');
+    await flushPromises();
+    expect(runs).toEqual([
+      { from: 1, to: 0 },
+      { from: 0.4, to: 1 },
+    ]);
+
+    wrapper.unmount();
+  });
 });

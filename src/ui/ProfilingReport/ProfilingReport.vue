@@ -144,6 +144,8 @@ const collapseAnim = ref<CollapseAnimState | null>(null);
 /** Group id forced expanded while its tween runs (kept separate from `visible` so the
  *  display model does not re-derive every frame). */
 const animGroupId = ref<string | null>(null);
+/** True while the in-flight tween is collapsing (1→0); false when expanding (0→1). */
+const animCollapsing = ref(false);
 let cancelCollapseAnim: () => void = () => {};
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
 const operators = ref<ReportOperator[]>([]);
@@ -396,6 +398,43 @@ function onAsideWidth(w: number): void {
 }
 
 function onToggleGroup(groupId: string): void {
+  const m = swim.value;
+
+  // Mid-tween re-click on the same group reverses from the current visible.
+  if (animGroupId.value === groupId && collapseAnim.value) {
+    const { visible, hiddenHeight } = collapseAnim.value;
+    const nowCollapsing = !animCollapsing.value;
+    const target = nowCollapsing
+      ? [...new Set([...collapsedGroupIds.value, groupId])]
+      : collapsedGroupIds.value.filter((id) => id !== groupId);
+    cancelCollapseAnim();
+    if (hiddenHeight <= 0 || prefersReducedMotion()) {
+      animGroupId.value = null;
+      collapseAnim.value = null;
+      collapsedGroupIds.value = target;
+      clampScrollAfterCollapse();
+      return;
+    }
+    animCollapsing.value = nowCollapsing;
+    animGroupId.value = groupId;
+    collapseAnim.value = { groupId, visible, hiddenHeight };
+    cancelCollapseAnim = animateProgress({
+      from: visible,
+      to: nowCollapsing ? 0 : 1,
+      durationMs: 200,
+      onUpdate: (v) => {
+        collapseAnim.value = { groupId, visible: v, hiddenHeight };
+      },
+      onDone: () => {
+        collapseAnim.value = null;
+        animGroupId.value = null;
+        collapsedGroupIds.value = target;
+        clampScrollAfterCollapse();
+      },
+    });
+    return;
+  }
+
   const set = new Set(collapsedGroupIds.value);
   const collapsing = !set.has(groupId);
   if (collapsing) set.add(groupId);
@@ -405,7 +444,6 @@ function onToggleGroup(groupId: string): void {
   // Height of the descendants being hidden/shown (expanded − collapsed content height).
   const collapsedIds = collapsing ? target : collapsedGroupIds.value;
   const expandedIds = collapsing ? collapsedGroupIds.value : target;
-  const m = swim.value;
   if (!m) {
     collapsedGroupIds.value = target;
     clearHoverAfterCollapse();
@@ -416,11 +454,13 @@ function onToggleGroup(groupId: string): void {
   cancelCollapseAnim();
   if (hiddenHeight <= 0 || prefersReducedMotion()) {
     animGroupId.value = null;
+    collapseAnim.value = null;
     collapsedGroupIds.value = target;
     clampScrollAfterCollapse();
     return;
   }
 
+  animCollapsing.value = collapsing;
   animGroupId.value = groupId;
   collapseAnim.value = { groupId, visible: collapsing ? 1 : 0, hiddenHeight };
   cancelCollapseAnim = animateProgress({

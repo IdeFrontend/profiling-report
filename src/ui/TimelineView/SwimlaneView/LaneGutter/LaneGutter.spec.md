@@ -181,6 +181,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 ## Changelog
 - **2026-09-08** — Multi-row leaf renders one tall title cell `rowCount × LANE_HEIGHT` (`PR-GUTTER-018`).
 - **2026-09-07** — Whole-lane hover (AC-07): gutter leaf/folder `pointerenter`/`pointerleave` emit `lane-hover` so the track paints `#363636` with the header; folders participate in both directions.
+- **2026-09-07** — Renumber collapse-wrapper AC to `PR-GUTTER-017` (open #45 claims `PR-GUTTER-016` for the thin util value tooltip).
 - **2026-09-03** — PR-GUTTER-017: descendant rows wrapped in `.pr-gutter__collapse` so the collapse tween animates inline height + opacity; overflow hidden only while animating.
 - **2026-09-02** — Thin util value tip: full-lane hit target, 400ms delay, cursor-follow (+12/+12) (`PR-GUTTER-016`).
 - **2026-09-01** — PR-GUTTER-015: row hover moves `#252525` → `--pr-surface-raised` (`#363636`) and lifts the label to `#fff`. Both UCD crops (AC-07, AC-19) measure `#363636`, and AC-19 calls out the label change the pin slice did not implement. The pin tooltip's chrome was specified as "EventTooltip chrome: `#2a2a2a` / `#555`", which AC-09 moved out from under it; it now names the raised-surface values directly. (Numbered 015 so master's `categoryKey` keeps `PR-GUTTER-014`.)

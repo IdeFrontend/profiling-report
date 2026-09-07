@@ -20,6 +20,7 @@ import {
   collapseAlpha,
   collapseShiftY,
   collapseTransform,
+  applyCollapseTransform,
   EMPTY_LAYOUT,
   eventPaintRect,
   eventRadius,
@@ -345,9 +346,11 @@ export class SwimlaneOverlayPainter {
 export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
-  /** Expanded layout the collapse tween interpolates from; `layout` is its transform. */
+  /** Expanded layout the collapse tween interpolates from; paint uses this + `collapse`. */
   private baseLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
+  /** Shifted layout for hit-test / magnetize / eventScreenRect (matches paint). */
+  private hitLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private collapse: CollapseTransform = IDLE_COLLAPSE;
   private selectedId: string | null = null;
@@ -384,6 +387,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   setModel(model: SwimlaneModel): void {
     this.baseLayout = rebuildLayout(model);
     this.layout = this.baseLayout;
+    this.hitLayout = this.baseLayout;
     this.collapse = IDLE_COLLAPSE;
     this.refreshDepCache();
   }
@@ -391,6 +395,9 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   /** Per-frame collapse/expand transform applied inline in `render` (no layout rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
     this.collapse = collapseTransform(this.baseLayout, state);
+    this.hitLayout = this.collapse.active
+      ? applyCollapseTransform(this.baseLayout, this.collapse)
+      : this.baseLayout;
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -439,7 +446,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   getLayout(): SwimlaneLayout {
-    return this.layout;
+    return this.hitLayout;
   }
 
   getNeighborIds(): Set<string> {
@@ -452,13 +459,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
-    const item = findLaidOutEvent(this.layout, eventId);
+    const item = findLaidOutEvent(this.hitLayout, eventId);
     if (!item) return null;
     return eventScreenRect(item, this.view, this.width, this.dpr);
   }
 
   hitTest(x: number, y: number): string | null {
-    return hitTestLayout(this.layout, this.view, this.width, x, y, this.dpr);
+    return hitTestLayout(this.hitLayout, this.view, this.width, x, y, this.dpr);
   }
 
   findEvent(id: string): SwimEvent | null {
@@ -626,6 +633,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.ctx = null;
     this.baseLayout = EMPTY_LAYOUT;
     this.layout = EMPTY_LAYOUT;
+    this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
     this.neighborIds = new Set();
     this.depLinks = [];

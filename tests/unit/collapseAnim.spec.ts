@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyCollapseAnim,
+  eventBlockMetrics,
   groupBottomY,
   LANE_HEIGHT,
   rebuildLayout,
 } from '../../src/swimlane/layout';
+import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import type { SwimlaneModel } from '../../src/domain/types';
 
 /**
@@ -90,5 +92,29 @@ describe('applyCollapseAnim (PR-RENDER-027)', () => {
     const layout = rebuildLayout(folderModel());
     const out = applyCollapseAnim(layout, { groupId: 'core', visible: 1, hiddenHeight: 44 });
     expect(out).toBe(layout);
+  });
+
+  it('hitTest / getLayout / eventScreenRect follow the shifted paint Y during the tween', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.setModel(folderModel());
+    renderer.resize(200, 400, 1);
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    renderer.setCollapseAnim({ groupId: 'core', visible: 0.5, hiddenHeight: 44 });
+
+    // Painted mte1 Y = 95 (see above); hit the event block center there.
+    const painted = renderer.eventScreenRect('e1');
+    expect(painted).toBeTruthy();
+    const m = eventBlockMetrics(95, 0);
+    expect(painted!.y).toBeCloseTo(m.y, 5);
+    expect(renderer.hitTest(painted!.x + 1, painted!.y + painted!.h / 2)).toBe('e1');
+
+    // Base (unshifted) Y for mte1 is 106 — must not hit there while collapsed mid-tween.
+    const baseM = eventBlockMetrics(106, 0);
+    expect(renderer.hitTest(painted!.x + 1, baseM.y * 1 + baseM.h / 2)).not.toBe('e1');
+
+    const hitLane = renderer.getLayout().lanes.find((l) => l.thread.id === 'mte1');
+    expect(hitLane?.y).toBe(95);
   });
 });

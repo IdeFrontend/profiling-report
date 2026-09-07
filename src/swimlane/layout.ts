@@ -198,11 +198,10 @@ export function collapseAlpha(y: number, t: CollapseTransform): number {
  *   `hiddenHeight × (1 − visible)` to close the gap, staying opaque.
  * Pure — returns a new layout; renderers hold the expanded base and call this per frame.
  */
-export function applyCollapseAnim(
+export function applyCollapseTransform(
   layout: SwimlaneLayout,
-  state: CollapseAnimState | null,
+  t: CollapseTransform,
 ): SwimlaneLayout {
-  const t = collapseTransform(layout, state);
   if (!t.active) return layout;
 
   const lanes = layout.lanes.map((l) => {
@@ -228,6 +227,13 @@ export function applyCollapseAnim(
   for (const e of events) eventsByLane[e.laneIndex]?.push(e);
 
   return { ...layout, lanes, headers, events, eventsById, lanesByTid, eventsByLane };
+}
+
+export function applyCollapseAnim(
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+): SwimlaneLayout {
+  return applyCollapseTransform(layout, collapseTransform(layout, state));
 }
 
 /**
@@ -552,9 +558,15 @@ export function laneIdAtPoint(
   y: number,
 ): string | null {
   const contentY = y + view.scrollY;
-  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT);
-  if (!lane) return null;
-  return lane.thread.id;
+  // Prefer the last matching leaf when collapse tucks a subtree into its parent lane.
+  let leaf: FlatLane | undefined;
+  let folder: FlatLane | undefined;
+  for (const l of layout.lanes) {
+    if (!(contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT)) continue;
+    if (l.folder) folder = l;
+    else leaf = l;
+  }
+  return (leaf ?? folder)?.thread.id ?? null;
 }
 
 /** Prefer shorter duration when multiple blocks share a pixel (tie-break only; sub-rows make true overlaps rare). `width`/`x`/`y` are device pixels. */
@@ -567,13 +579,28 @@ export function hitTestLayout(
   dpr = 1,
 ): string | null {
   const contentYCss = y / dpr + view.scrollY;
-  const lane = layout.lanes.find(
-    (l) => contentYCss >= l.y && contentYCss < l.y + l.rowCount * LANE_HEIGHT,
-  );
-  if (!lane) return null;
-  // Folder lanes carry only summary bars (collapsed) or nothing (expanded) — both
-  // resolve through eventsByLane, so a folder with no summary events still hits nothing.
-  const laneIndex = layout.lanes.indexOf(lane);
+  // Prefer the last matching leaf when collapse tucks into a parent band; otherwise
+  // allow folder lanes so collapsed summary bars stay hit-testable.
+  let lane: FlatLane | undefined;
+  let laneIndex = -1;
+  let folder: FlatLane | undefined;
+  let folderIndex = -1;
+  for (let i = 0; i < layout.lanes.length; i++) {
+    const l = layout.lanes[i]!;
+    if (!(contentYCss >= l.y && contentYCss < l.y + l.rowCount * LANE_HEIGHT)) continue;
+    if (l.folder) {
+      folder = l;
+      folderIndex = i;
+    } else {
+      lane = l;
+      laneIndex = i;
+    }
+  }
+  if (!lane && folder) {
+    lane = folder;
+    laneIndex = folderIndex;
+  }
+  if (!lane || laneIndex < 0) return null;
   const span = Math.max(1, view.endTime - view.startTime);
   const candidates: { id: string; duration: number }[] = [];
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
