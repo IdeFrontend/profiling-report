@@ -73,7 +73,7 @@ function rot(x: number, y: number): string {
         >
           <path
             d="M0,0 L6,3 L0,6 Z"
-            fill="#406cef"
+            fill="#3978f9"
           />
         </marker>
         <marker
@@ -86,7 +86,7 @@ function rot(x: number, y: number): string {
         >
           <path
             d="M0,0 L6,3 L0,6 Z"
-            fill="#406cef"
+            fill="#3978f9"
           />
         </marker>
       </defs>
@@ -676,9 +676,10 @@ function rot(x: number, y: number): string {
 </template>
 
 <style scoped>
+/* Fills sampled from visual/memory-topology.png (v930/report-stats-scrolled). */
 .pr-topo {
   min-width: 0;
-  background: #1a1a1a;
+  background: #262626;
   border-radius: 4px;
   padding: 6px;
 }
@@ -691,11 +692,11 @@ function rot(x: number, y: number): string {
 }
 
 .pr-topo__gm {
-  fill: #4c4c4c;
+  fill: #4d4d4d;
 }
 
 .pr-topo__l2 {
-  fill: #657193;
+  fill: #657294;
 }
 
 .pr-topo__peak {
@@ -705,19 +706,25 @@ function rot(x: number, y: number): string {
 }
 
 .pr-topo__muted {
-  fill: #4c4c4c;
+  fill: #4d4d4d;
 }
 
 .pr-topo__cache {
-  fill: #6f92f7;
+  fill: #668cf7;
+  stroke: #85a3f9;
+  stroke-width: 1;
 }
 
 .pr-topo__compute {
-  fill: #3fc391;
+  fill: #37c18d;
+  stroke: #5ecda3;
+  stroke-width: 1;
 }
 
 .pr-topo__fixp {
-  fill: #657293;
+  fill: #657294;
+  stroke: #848ea9;
+  stroke-width: 1;
 }
 
 .pr-topo__cluster {
@@ -740,7 +747,7 @@ function rot(x: number, y: number): string {
 }
 
 .pr-topo__edge {
-  fill: #f8b664;
+  fill: #f9b665;
   font-size: 8px;
 }
 
@@ -751,7 +758,7 @@ function rot(x: number, y: number): string {
 
 .pr-topo__arrow-write,
 .pr-topo__arrow-read {
-  stroke: #406cef;
+  stroke: #3978f9;
   stroke-width: 1.5;
   fill: none;
 }

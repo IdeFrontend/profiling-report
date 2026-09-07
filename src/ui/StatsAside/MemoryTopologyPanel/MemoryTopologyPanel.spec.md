@@ -39,18 +39,16 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 
 Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-topology.png`](./visual/memory-topology.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Normative colors from `v930/report-stats-scrolled` / change-log buffer-links.
 
-| Token | Value |
+| Token | Value (sampled from `memory-topology.png`) |
 |-------|--------|
-| Panel bg | `#1a1a1a` |
-| GM pillar | `#4c4c4c` |
-| L2 pillar | `#657193` (flat; no Peak tint) |
-| Cache / UB / L1 / L0 / SIMT | `#6f92f7` |
-| Compute (CUBE / Vec / Scalar) | `#3fc391` |
-| FixP | `#657293` (muted, not compute green) |
-| DCache / XN_IMM | `#4c4c4c` |
+| Panel bg | `#262626` |
+| GM / muted | `#4d4d4d` |
+| L2 / FixP | `#657294` (+ FixP stroke `#848ea9`) |
+| Cache / UB / L1 / L0 / SIMT | `#668cf7` (+ stroke `#85a3f9`) |
+| Compute (CUBE / Vec / Scalar) | `#37c18d` (+ stroke `#5ecda3`) |
 | Cluster dash | `#e8e8e8` `1px` dashed `5 5` |
-| Edge label | `#f8b664` `8px`; GM↔L2 / L2↔cluster rotated −90° in corridors |
-| Corridor arrows | `#406cef` (read and write) |
+| Edge label | `#f9b665` `8px`; GM↔L2 / L2↔cluster rotated −90° in corridors |
+| Corridor arrows | `#3978f9` (read and write) |
 | L2 Peak(%) | DATA-20: `{n}%` under L2 Cache; white |
 
 ## Design sketches
