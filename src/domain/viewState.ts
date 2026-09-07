@@ -10,6 +10,23 @@ const MIN_WINDOW = 1;
 /** Shared zoom-in floor (same as `zoomAt`); export for tests / slider mapping. */
 export const MIN_VIEW_WINDOW = MIN_WINDOW;
 
+/**
+ * Keyboard pan step in CSS px — PyPTO's `moveStep` (see
+ * `swimGraphThreadEvents.vue` in the pypto_toolkit source). One A/D press shifts the
+ * viewport by this many screen pixels.
+ */
+export const KEYBOARD_PAN_STEP_PX = 30;
+
+/**
+ * Time to shift the viewport for one keyboard pan step of `KEYBOARD_PAN_STEP_PX`
+ * across a `trackWidth`-px track. Clamps `trackWidth` and `span` to a minimum of 1 so
+ * the result is always positive and finite (never NaN / division by zero) — the caller
+ * passes a real measured track width, this only guards the degenerate case.
+ */
+export function keyboardPanStepTime(span: number, trackWidth: number): number {
+  return (KEYBOARD_PAN_STEP_PX / Math.max(1, trackWidth)) * Math.max(1, span);
+}
+
 /** Max zoom ratio for a trace: fullSpan / MIN_WINDOW (≥ 1). */
 export function maxZoomRatio(fullSpan: number): number {
   const full = Math.max(MIN_WINDOW, fullSpan);

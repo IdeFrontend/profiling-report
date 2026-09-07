@@ -16,7 +16,8 @@ export type PrIconName =
   | 'measure'
   | 'display-config'
   | 'help'
-  | 'close';
+  | 'close'
+  | 'keyboard';
 
 defineProps<{ name: PrIconName }>();
 </script>
@@ -77,5 +78,10 @@ defineProps<{ name: PrIconName }>();
 .pr-icon--close {
   -webkit-mask-image: url('./icons/close.svg');
   mask-image: url('./icons/close.svg');
+}
+
+.pr-icon--keyboard {
+  -webkit-mask-image: url('./icons/keyboard.svg');
+  mask-image: url('./icons/keyboard.svg');
 }
 </style>
