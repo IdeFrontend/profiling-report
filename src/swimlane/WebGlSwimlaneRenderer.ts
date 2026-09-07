@@ -465,7 +465,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.viewport(0, 0, this.width, this.height);
     // Curve Y is baked into the instance buffer as `link.y0 * dpr`; re-upload so a browser-zoom
     // dpr change (which also changes scrollY's device-px offset) keeps curves on their anchors.
-    if (dprChanged) this.rebuildCurveInstances();
+    // A dpr change also mints a new `fontPx` key for every label, so clear the atlas to free the
+    // old-glyph textures now instead of leaving them to LRU eviction.
+    if (dprChanged) {
+      this.rebuildCurveInstances();
+      this.atlas?.clear(gl);
+    }
   }
 
   setModel(model: SwimlaneModel): void {

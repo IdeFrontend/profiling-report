@@ -646,6 +646,14 @@ describe('PR-RENDER: lane chrome color', () => {
     // scissor, leaking the label into a different event.
     expect(webglSrc).toMatch(/if \(sRight <= sLeft \|\| sBottom <= sTop\) continue;/);
   });
+
+  it('PR-RENDER-038: resize clears the atlas on a dpr change (new fontPx invalidates glyphs)', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // A browser-zoom dpr change mints a new `fontPx` key for every cached glyph; resize must
+    // free the old-font textures (inside `if (dprChanged)`) instead of leaving them to the LRU.
+    expect(webglSrc).toMatch(/if \(dprChanged\) \{[\s\S]*?this\.atlas\?\.clear\(gl\);/);
+  });
 });
 
 describe('PR-RENDER: SwimlaneRenderer surface', () => {
