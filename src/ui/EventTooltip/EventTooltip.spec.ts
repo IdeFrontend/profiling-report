@@ -49,6 +49,7 @@ describe('EventTooltip', () => {
       props: {
         event: makeEvent({ name: '', taskCount: 4 }),
         stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
       },
     });
     expect(many.text()).toContain('4 tasks');
@@ -57,6 +58,7 @@ describe('EventTooltip', () => {
       props: {
         event: makeEvent({ name: '', taskCount: 1 }),
         stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
       },
     });
     expect(one.text()).toContain('1 task');

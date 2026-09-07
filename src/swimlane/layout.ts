@@ -73,7 +73,7 @@ export function eventPaintRect(
 /** @deprecated Use EVENT_MARGIN_DEVICE — kept as alias for older call sites during migration. */
 export const EVENT_MARGIN = EVENT_MARGIN_DEVICE;
 
-/** Fill for collapsed-folder summary bars (gray, non-interactive). */
+/** Fill for collapsed-folder summary bars (gray). */
 export const SUMMARY_EVENT_FILL = '#2c2c2c';
 /** Dimmed foreground for summary bar task-count labels (matches old ProfilerStep labels). */
 export const SUMMARY_LABEL_COLOR = '#555555';
@@ -102,7 +102,7 @@ export interface LaidOutEvent {
   laneIndex: number;
   y: number;
   color: string;
-  /** Collapsed-folder summary bar: gray, non-interactive, never labeled/dimmed. */
+  /** Collapsed-folder summary bar: gray, interactive (hover/label/click-to-expand), never selected/ringed. */
   summary?: boolean;
 }
 

@@ -649,7 +649,8 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     expect(findExactEdgeMatches(layout, 10, 50)).toEqual([]);
   });
 
-  it('PR-RENDER-026: summary bars render a gray fill with a dimmed task-count label and a hover lift', () => {    const { canvas, fills, texts } = recordingCanvas();
+  it('PR-RENDER-026: summary bars render a gray fill with a dimmed task-count label and a hover lift', () => {
+    const { canvas, fills, texts } = recordingCanvas();
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
     renderer.resize(400, 120, 1);
