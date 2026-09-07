@@ -21,9 +21,9 @@ Operators:
   op1 — machine-view style (~100 X events): a few Core/pipe lanes with bursty
         irregular occupancy and cross-pipe `args.event_id` / dependencies
         connections + baseline `add_custom` CSVs from `data/out.rep`.
-        Intentionally nests a call-stack on Core0.Cube/SCALAR (3 sub-rows) so
-        the default playground sample demos multi-height lanes; other op1
-        leaves stay exclusive.
+        Intentionally plants call-stack nests across SCALAR (depth 3), MTE2 and
+        ALL (depth 2) so the default playground sample demos multi-height lanes
+        throughout the timeline; CUBE / FIXP / MTE1 / MTE3 stay exclusive.
   op2 — ~150k-event Card/core/pipe stress-style trace for rendering performance
         demos, with sparse pipeline deps + transformed CSVs (different op name,
         block range, scaled metrics, synthesized Cube aic_* values). Exclusive
@@ -360,36 +360,65 @@ def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
                 break
 
 
-def inject_scalar_multiheight_nest(pid, tid, pipe, emitted, rand, id_prefix):
-    """
-    Carve a fixed early window on SCALAR and place a 3-deep call-stack nest.
+# Multi-height demo: plant call-stack nests on select op1 lanes. Keys are pipe
+# names from `lanes` below. `starts` are nest window origins (ns); `width` is
+# each window; `depth` is the greedy first-fit rowCount target (2 or 3).
+OP1_MULTIHEIGHT = {
+    "SCALAR": {"depth": 3, "width": 900, "starts": (500, 4500, 9500, 15500, 22000)},
+    "MTE2": {"depth": 2, "width": 1400, "starts": (2000, 8000, 14000, 21000)},
+    "ALL": {"depth": 2, "width": 1100, "starts": (3000, 12000, 24000)},
+}
 
-    Greedy first-fit needs three concurrent spans for rowCount 3:
-      outer  [t0, t0+800)
-      mid    [t0+100, t0+700)
-      inner_a [t0+150, t0+350)  → sub-row 2
-      inner_b [t0+400, t0+650)  → still sub-row 2 (sibling after inner_a)
 
-    Burst events that intersect [t0, t0+800) are dropped so the nest is visible.
-    Demo-only exception to the usual .rep exclusivity guarantee (other lanes stay exclusive).
-    """
-    t0 = 500
-    nest_end = t0 + 800
-    kept = [(eid, s, e, ev) for eid, s, e, ev in emitted if e <= t0 or s >= nest_end]
-    nest_specs = [
-        ("PIPE_S_busy", t0, 800),
-        ("SCALAR_helper", t0 + 100, 600),
-        ("marker_nest_a", t0 + 150, 200),
-        ("marker_nest_b", t0 + 400, 250),
+def _nest_specs(pipe, t0, width, depth):
+    """Fixed nest geometry for one window. depth=3 → 3 concurrent rows; depth=2 → 2."""
+    primary = PIPE_PROFILE[pipe]["names"][0]
+    mid_name = PIPE_PROFILE[pipe]["names"][1] if len(PIPE_PROFILE[pipe]["names"]) > 1 else f"{pipe}_helper"
+    w = width
+    if depth >= 3:
+        return [
+            (primary, t0, w),
+            (mid_name, t0 + int(0.10 * w), int(0.75 * w)),
+            (f"marker_{pipe}_a", t0 + int(0.15 * w), int(0.25 * w)),
+            (f"marker_{pipe}_b", t0 + int(0.50 * w), int(0.30 * w)),
+        ]
+    # depth 2: outer + two sequential children on sub-row 1
+    return [
+        (primary, t0, w),
+        (mid_name, t0 + int(0.12 * w), int(0.35 * w)),
+        (f"marker_{pipe}_c", t0 + int(0.55 * w), int(0.35 * w)),
     ]
+
+
+def inject_multiheight_nests(pid, tid, pipe, emitted, rand, id_prefix, plan):
+    """
+    Carve nest windows out of a bursty exclusive lane and fill each with a
+    call-stack nest so layout assigns `plan['depth']` sub-rows.
+
+    Demo-only exception to the usual .rep exclusivity guarantee.
+    """
+    depth = plan["depth"]
+    width = plan["width"]
+    windows = [(t0, t0 + width) for t0 in plan["starts"]]
+
+    def overlaps_window(s, e):
+        for w0, w1 in windows:
+            if s < w1 and e > w0:
+                return True
+        return False
+
+    kept = [(eid, s, e, ev) for eid, s, e, ev in emitted if not overlaps_window(s, e)]
     nest = []
-    for i, (name, start, dur) in enumerate(nest_specs):
-        eid = f"{id_prefix}-nest-{i}"
-        ev = _x(
-            pid, tid, name, start, dur, event_id=eid,
-            extra=producer_params(pipe, name, rand, 9000 + i, dur),
-        )
-        nest.append((eid, start, start + dur, ev))
+    seq = 0
+    for nest_i, (t0, _end) in enumerate(windows):
+        for name, start, dur in _nest_specs(pipe, t0, width, depth):
+            eid = f"{id_prefix}-nest-{nest_i}-{seq}"
+            ev = _x(
+                pid, tid, name, start, dur, event_id=eid,
+                extra=producer_params(pipe, name, rand, 9000 + seq, dur),
+            )
+            nest.append((eid, start, start + dur, ev))
+            seq += 1
     merged = nest + kept
     merged.sort(key=lambda x: (x[1], x[2], x[0]))
     return merged
@@ -401,7 +430,8 @@ def small_trace():
     irregular occupancy, Ascend-style op names, and dense 3–6 connections
     per event (cross-pipe when timing allows).
 
-    SCALAR carries an intentional overlapping call-stack nest (multi-height demo).
+    SCALAR / MTE2 / ALL carry intentional overlapping call-stack nests
+    (multi-height demo) spaced across the timeline.
     """
     rand = mulberry32(0xA11CE)
     # Calibrated so emit_bursty_lane yields ~100 X events across 7 lanes.
@@ -423,9 +453,10 @@ def small_trace():
         emitted = emit_bursty_lane(
             1, tid, pipe, time_span, lane_rand, id_prefix=f"op1-{pipe}",
         )
-        if pipe == "SCALAR":
-            emitted = inject_scalar_multiheight_nest(
-                1, tid, pipe, emitted, lane_rand, id_prefix=f"op1-{pipe}",
+        plan = OP1_MULTIHEIGHT.get(pipe)
+        if plan:
+            emitted = inject_multiheight_nests(
+                1, tid, pipe, emitted, lane_rand, id_prefix=f"op1-{pipe}", plan=plan,
             )
         pipe_map[pipe] = emitted
         for _eid, _s, _e, ev in emitted:
