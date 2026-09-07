@@ -304,11 +304,18 @@ function onToggleGroup(groupId: string): void {
   if (set.has(groupId)) set.delete(groupId);
   else set.add(groupId);
   collapsedGroupIds.value = [...set];
+  // Collapse/expand rebuilds the visible tree — clear a hover that may point at a
+  // vanished summary bar (or any other event that just left the filtered model).
+  hovered.value = null;
   // Keep scroll within new content height
   const el = timelineRef.value?.gutterRoot;
-  if (el) {
-    viewState.value = { ...viewState.value, scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) };
-  }
+  viewState.value = {
+    ...viewState.value,
+    hoveredEventId: null,
+    ...(el
+      ? { scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) }
+      : {}),
+  };
 }
 
 function onPinLane(laneId: string): void {
@@ -328,49 +335,60 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
   if (!rm) return false;
   const hasDuration = rm.summary.taskDurationUs != null;
   const hasBandwidth = (rm.bandwidthCards ?? []).length > 0;
+  const hasComputeCard = (rm.computeCard?.sides.length ?? 0) > 0;
   const hasPipe = rm.pipeOccupancy.length > 0;
   const hasComputeTables = rm.computeTables.length > 0;
   const hasMemoryTables = rm.memoryTables.length > 0;
+  const hasSummaryCategories = (rm.summaryCategories?.length ?? 0) > 0;
   const hasRoofline = (rm.roofline?.points?.length ?? 0) > 0;
   const hasHardware = (rm.hardwareDetails?.sections.length ?? 0) > 0;
   const hasTopology = (rm.memoryTopology?.edges.some((e) => e.label) ?? false);
   return (
     hasDuration ||
     hasBandwidth ||
+    hasComputeCard ||
     hasPipe ||
     hasComputeTables ||
     hasMemoryTables ||
+    hasSummaryCategories ||
     hasRoofline ||
     hasHardware ||
     hasTopology
   );
 }
 
+function applyAdapted(adapted: AdaptedReport) {
+  operators.value = adapted.operators ?? [];
+  operatorReports.value = adapted.operatorReports ?? {};
+  selectedOperatorId.value = adapted.selectedOperatorId ?? null;
+  internalSwim.value = adapted.swimlaneModel;
+  internalReport.value = adapted.reportModel;
+  internalCapabilities.value = adapted.capabilities ?? null;
+  resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
+  loadError.value = null;
+  emit('ready');
+}
+
+function failLoad(cause: unknown) {
+  operators.value = [];
+  operatorReports.value = {};
+  selectedOperatorId.value = null;
+  internalSwim.value = null;
+  internalReport.value = null;
+  internalCapabilities.value = null;
+  selected.value = null;
+  selectedEvent.value = null;
+  hovered.value = null;
+  viewState.value = createViewState(null);
+  loadError.value = cause instanceof Error ? cause.message : String(cause);
+  emit('error', { message: loadError.value, cause });
+}
+
 function loadFromSource(source: ArrayBuffer | Uint8Array) {
   try {
-    const adapted = loadReportSource(source);
-    operators.value = adapted.operators ?? [];
-    operatorReports.value = adapted.operatorReports ?? {};
-    selectedOperatorId.value = adapted.selectedOperatorId ?? null;
-    internalSwim.value = adapted.swimlaneModel;
-    internalReport.value = adapted.reportModel;
-    internalCapabilities.value = adapted.capabilities ?? null;
-    resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
-    loadError.value = null;
-    emit('ready');
+    applyAdapted(loadReportSource(source));
   } catch (cause) {
-    operators.value = [];
-    operatorReports.value = {};
-    selectedOperatorId.value = null;
-    internalSwim.value = null;
-    internalReport.value = null;
-    internalCapabilities.value = null;
-    selected.value = null;
-    selectedEvent.value = null;
-    hovered.value = null;
-    viewState.value = createViewState(null);
-    loadError.value = cause instanceof Error ? cause.message : String(cause);
-    emit('error', { message: loadError.value, cause });
+    failLoad(cause);
   }
 }
 
@@ -723,16 +741,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       {{ loadError }}
     </p>
 
-    <p
-      v-else-if="!showTimeline"
-      class="pr-error"
-      data-testid="no-timeline"
-    >
-      {{ t('noTimeline', locale) }}
-    </p>
-
     <ReportLayout
-      v-else
+      v-else-if="showTimeline || showAside"
       ref="layoutRef"
       :show-aside="showAside"
       :aside-width="asideWidth"
@@ -741,6 +751,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     >
       <template #main>
         <ReportToolbar
+          v-if="showTimeline"
           :title="title"
           :search-query="viewState.searchQuery"
           :aside-visible="viewState.asideVisible"
@@ -765,6 +776,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom-out="onZoomOut"
         />
         <TimelineView
+          v-if="showTimeline"
           ref="timelineRef"
           :bounds="bounds"
           :view="viewState"
@@ -796,6 +808,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:measure-range="onMeasureRange"
           @focus-measure="onFocusMeasure"
         />
+        <p
+          v-if="!showTimeline"
+          class="pr-error"
+          data-testid="no-timeline"
+        >
+          {{ t('noTimeline', locale) }}
+        </p>
       </template>
 
       <template #aside>
@@ -811,6 +830,14 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         />
       </template>
     </ReportLayout>
+
+    <p
+      v-else
+      class="pr-error"
+      data-testid="no-timeline"
+    >
+      {{ t('noTimeline', locale) }}
+    </p>
 
     <Transition name="pr-dock">
       <DetailPanel

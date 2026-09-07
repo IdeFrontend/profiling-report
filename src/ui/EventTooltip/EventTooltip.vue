@@ -5,7 +5,7 @@ import {
   formatDisplayTimeAuto,
   formatTimeAuto,
 } from '../../domain/formatTime';
-import { t } from '../../i18n';
+import { t, taskCountLabel } from '../../i18n';
 import type { SwimEvent, TimeDisplayMode } from '../../domain/types';
 
 const props = withDefaults(
@@ -26,6 +26,18 @@ const displayOpts = computed(() => ({
   mode: props.timeDisplayMode,
   clockFreqMHz: props.clockFreqMHz,
 }));
+
+/**
+ * Multi-task summary bars title as "N tasks".
+ * A single-event summary keeps the real event name (and shows `laneName` below).
+ */
+const title = computed(() => {
+  const { taskCount, name } = props.event;
+  if (taskCount != null && !(taskCount === 1 && name)) {
+    return taskCountLabel(taskCount, props.locale);
+  }
+  return name;
+});
 </script>
 
 <template>
@@ -35,7 +47,14 @@ const displayOpts = computed(() => ({
     :style="stylePos"
   >
     <div class="pr-tooltip__name">
-      {{ event.name }}
+      {{ title }}
+    </div>
+    <div
+      v-if="event.laneName"
+      class="pr-tooltip__lane"
+      data-testid="event-tooltip-lane"
+    >
+      {{ event.laneName }}
     </div>
     <div>
       {{ t('start', locale) }}:
@@ -67,6 +86,12 @@ const displayOpts = computed(() => ({
 
 .pr-tooltip__name {
   font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pr-tooltip__lane {
+  color: #969696;
+  margin-top: -2px;
   margin-bottom: 4px;
 }
 </style>

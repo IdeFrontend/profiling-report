@@ -2,14 +2,6 @@
 
 Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and migration map: [README.md](README.md).
 
-### UI-36 — KB vs GB/s units on the memory diagram
-
-<img src="../visual/questions/ui-36.png" alt="UI-36 GB/s on GM↔L2 arrows" width="900" height="900">
-
-**Status:** `open`
-
-**Question:** Some labels are **KB**, some **GB/s**. Keep both, or convert to one unit? (KB would be L0C datas.)
-
 ### UI-37 — Source / Details / Cache tabs (was: Q10)
 
 **Status:** `open`
@@ -55,3 +47,17 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 **Answer so far (interim):** Labels always suffix **`µs`**. Interim: [`UI-46a`](../decisions/interim/UI.md). Formula: [`DATA-38`](DATA.md) / [`DATA-38a`](../decisions/interim/DATA.md).
 
 **Specs when answered:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md) (label formatting ACs arrive with PR #45).
+
+### UI-47 — Gutter mid-row 统计 control
+
+<img src="../visual/questions/ui-47.png" alt="UI-47 MTE1 bar-chart hover 统计 tooltip" width="450" height="180">
+
+**Status:** `open`
+
+**Question:** What does the hover bar-chart control between the lane title and utilization bar do on click? Which rows show it (all leaves / pipes only / folders too)? What is the English (and confirmed Chinese) tooltip — bare **统计**, or something else?
+
+**Sketch evidence:** [`v930/hardware-more-detail`](../../ui/source/v930/hardware-more-detail.jpeg) — MTE1 row; tooltip **统计**. Distinct from left-edge pin (**置顶**, [UI-44](deferred.md) / INTERACTIONS pin section).
+
+**Not:** toolbar aside toggle (`t('stats')` → **报告**), StatsAside **报告统计**, or Card **时钟周期** ([UI-46](UI.md) / [DATA-38](DATA.md)).
+
+**Specs when answered:** [INTERACTIONS](../../ui/INTERACTIONS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [LOCALIZATION](../../ui/LOCALIZATION.md) / `src/i18n/index.ts`.

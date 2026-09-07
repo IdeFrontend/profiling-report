@@ -30,6 +30,7 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   snapEventRect,
+  SUMMARY_EVENT_FILL,
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
@@ -48,6 +49,7 @@ interface GlProgram {
   uYBounds: WebGLUniformLocation | null;
   uRR: WebGLUniformLocation | null;
   uExtendParameters: WebGLUniformLocation | null;
+  uSrcOver: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -88,6 +90,8 @@ interface LaneMeshes {
   chunks: MeshChunk[];
   /** When search and/or selection is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
+  /** Collapsed-folder summary lane: drawn source-over (exact color), never additive. */
+  summary?: boolean;
 }
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
@@ -134,6 +138,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uYBounds: gl.getUniformLocation(program, 'uYBounds'),
     uRR: gl.getUniformLocation(program, 'uRR'),
     uExtendParameters: gl.getUniformLocation(program, 'uExtendParameters'),
+    uSrcOver: gl.getUniformLocation(program, 'uSrcOver'),
   };
 }
 
@@ -641,6 +646,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         rrToDevicePx(maxRR, this.dpr),
         rrSwitchThreshold * this.dpr,
       );
+    if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).
@@ -666,6 +672,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       gl.uniform4f(swim.uSizePos, sx, sy, px, py);
       if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
+      // Summary bars composite source-over so their exact fill lands without adding onto
+      // the lane background (additive would lighten #2c2c2c to #4b4b4b over #1f1f1f).
+      if (meshes.summary) {
+        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
+      }
+
       const drawChunks = (chunks: MeshChunk[], rgb: [number, number, number], dim: number): void => {
         // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
         gl.uniform4f(swim.uColor, rgb[0] * dim, rgb[1] * dim, rgb[2] * dim, dim);
@@ -681,6 +694,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         }
       } else {
         drawChunks(meshes.chunks, meshes.color, 1);
+      }
+
+      if (meshes.summary) {
+        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
+        if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
       }
     }
 
@@ -875,10 +893,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
         pairs.push(a, b);
       }
+      // Folder lanes carry only summary bars — paint the whole mesh in the summary gray.
+      const summary = events.length > 0 && events.every((e) => e.summary);
       return {
-        color: hexToRgb(lane.color),
+        color: hexToRgb(summary ? SUMMARY_EVENT_FILL : lane.color),
         chunks: createChunksFromPairs(gl, pairs),
         emphasisLayers: null,
+        summary,
       };
     });
     this.rebuildEmphasisSplit();
@@ -908,6 +929,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const events = byLane.get(idx) ?? [];
       const byKey = new Map<string, { rgb: [number, number, number]; dim: number; pairs: number[] }>();
       for (const item of events) {
+        if (item.summary) continue;
         const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
         const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
         const rgb = muted ? mutedRgb : meshes.color;
@@ -920,10 +942,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
         bucket.pairs.push(a, b);
       }
-      // Dimmer layers first so full-bright selection/matches paint on top.
-      meshes.emphasisLayers = [...byKey.values()]
-        .sort((a, b) => a.dim - b.dim)
-        .map(({ rgb, dim, pairs }) => ({ rgb, dim, chunks: createChunksFromPairs(gl, pairs) }));
+      // Dimmer layers first so full-bright selection/matches paint on top. Lanes with no
+      // non-summary events keep the base mesh (summary bars) full-bright.
+      meshes.emphasisLayers =
+        byKey.size === 0
+          ? null
+          : [...byKey.values()]
+              .sort((a, b) => a.dim - b.dim)
+              .map(({ rgb, dim, pairs }) => ({ rgb, dim, chunks: createChunksFromPairs(gl, pairs) }));
     }
   }
 

@@ -23,6 +23,7 @@ import {
   leafLaneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
+  summaryFolderId,
   type ExactEdgeMatch,
   type HoverGap,
 } from '../../../../swimlane/layout';
@@ -106,6 +107,8 @@ const emit = defineEmits<{
   'update:measureRange': [range: MeasureRange | null];
   /** Hide axis Δt arrow/label during appear/clear (view↔range) tweens only. */
   'suppress-measure-dt': [suppress: boolean];
+  /** Click on a collapsed-group summary bar — expand that grouping node. */
+  'toggle-group': [groupId: string];
 }>();
 
 /**
@@ -1136,6 +1139,12 @@ function eventAtPointer(localX: number, localY: number, magnetEventId: string | 
   return id ? backend.findEvent(id) : null;
 }
 
+/** Grouping-node id when `eventId` is a collapsed summary bar, else null. */
+function summaryGroupIdFor(eventId: string | null): string | null {
+  if (!eventId) return null;
+  return summaryFolderId(backend.getLayout(), eventId);
+}
+
 function localFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
   const target = activeCanvas() ?? wrapRef.value;
   if (!target) return null;
@@ -1599,7 +1608,10 @@ function onPointerMove(e: PointerEvent): void {
     hoverGap.value = null;
     const surface = thisAltMeasureSurface();
     const anchorEvent = findAltMeasureEvent(altMeasure.anchorId);
-    if (mag.eventId && mag.eventId !== altMeasure.anchorId) {
+    if (
+      mag.eventId &&
+      mag.eventId !== altMeasure.anchorId
+    ) {
       // Stuck to a border → explicit target edge.
       altMeasure.target = { eventId: mag.eventId, time: mag.time, surface };
     } else {
@@ -1649,6 +1661,16 @@ function onPointerUp(e: PointerEvent): void {
     ) {
       const ev = eventAtPointer(x, y, mag.eventId);
       if (ev) {
+        // Summary bars expand their group instead of snapping the measure range.
+        const groupId = summaryGroupIdFor(ev.id);
+        if (groupId != null) {
+          // Drop the summary tooltip — that bar disappears as the folder expands.
+          emit('hover', null, e.clientX, e.clientY);
+          emit('toggle-group', groupId);
+          // Single-leaf group → select that event; otherwise clear prior selection.
+          emit('select', ev.sourceEvent ?? null);
+          return;
+        }
         snapMeasureToEvent(ev);
         emit('select', ev);
       } else {
@@ -1712,7 +1734,17 @@ function onPointerUp(e: PointerEvent): void {
 
   // Non-Alt click elsewhere clears a pinned (or lingering) Alt measure.
   if (altMeasure.pinned || altMeasure.anchorId) clearAltMeasure();
-  emit('select', eventAtPointer(x, y, mag.eventId));
+  const clicked = eventAtPointer(x, y, mag.eventId);
+  const groupId = summaryGroupIdFor(clicked?.id ?? null);
+  if (groupId != null) {
+    // Drop the summary tooltip — that bar disappears as the folder expands.
+    emit('hover', null, e.clientX, e.clientY);
+    emit('toggle-group', groupId);
+    // Single-leaf group → select that event; otherwise clear prior selection.
+    emit('select', clicked?.sourceEvent ?? null);
+    return;
+  }
+  emit('select', clicked);
 }
 
 function onPointerLeave(e: PointerEvent): void {
