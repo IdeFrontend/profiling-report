@@ -31,7 +31,7 @@ describe('MemoryTopologyPanel', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('L2 Cache');
-    expect(wrapper.text()).toContain('Cube');
+    expect(wrapper.text()).toContain('CUBE');
   });
 
   it('PR-MEMTOP-002: renders data-driven edge labels', () => {
@@ -124,11 +124,17 @@ describe('MemoryTopologyPanel', () => {
         model: {
           ...model,
           nodes: model.nodes.map((n) => (n.id === 'l2' ? { ...n, peakPct: 81.25 } : n)),
+          edges: [
+            ...model.edges,
+            { id: 'l2-hit', from: 'l2', to: 'l2', label: '81.25%' },
+          ],
         },
       },
     });
-    expect(wrapper.get('[data-testid="node-l2-peak"]').text()).toMatch(/Peak\s*81\.25\s*%/);
-    expect(wrapper.get('[data-testid="node-l2"]').attributes('style')).toMatch(/color-mix/);
+    expect(wrapper.get('[data-testid="node-l2-peak"]').text()).toBe('81.25%');
+    expect(wrapper.text()).not.toMatch(/\bPeak\b/);
+    expect(wrapper.find('[data-testid="edge-l2-hit"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="node-l2"]').classes()).toContain('pr-topo__l2');
   });
 
   it('PR-MEMTOP-007b: omits Peak chrome when peakPct absent', () => {

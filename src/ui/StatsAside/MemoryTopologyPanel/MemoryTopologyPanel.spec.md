@@ -21,7 +21,7 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 3. Labels follow the **model** the parent passes; when the parent rebuilds for a new `block_id`, labels update.
 4. Edge thickness stays static (not data-driven).
 5. Hide the diagram (empty root) when `model` is absent or has no labelled edges.
-6. **L2 Peak(%) (DATA-20):** when the `l2` node has `peakPct`, show a rotated two-line Peak label (`Peak` then `{n} %` with a space before `%`) below **L2 Cache**, with enough center gap that the strings do not collide; tint the pillar fill toward warm orange (cool `#4a6a8a` → warm `#c45c2a`). Other units have no Peak until Product maps them. Hit-rate edge label (`l2-hit`) stays as the DATA-21 corridor/% readout.
+6. **L2 Peak(%) (DATA-20):** when the `l2` node has `peakPct`, show `{n}%` under **L2 Cache** on the pillar (sketch: no “Peak” word, no warm tint; flat L2 fill). Hide the separate `l2-hit` edge label when Peak is shown (same value). Other units have no Peak until Product maps them.
 7. **Right-click (UI-35):** `contextmenu` on the diagram emits `open-details` (prevent default). Parent opens the memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0).
 
 ## Acceptance Criteria
@@ -32,26 +32,26 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 4. **PR-MEMTOP-004** — Hides the diagram when `model` is null/empty.
 5. **PR-MEMTOP-005** — Edge labels update when `model.edges` labels change.
 6. **PR-MEMTOP-006** — GM↔L2 labels sit between GM and L2; L2↔cluster labels sit between L2 and the AIV/AIC cluster (rotated).
-7. **PR-MEMTOP-007** — When `l2.peakPct` is set, shows Peak + `{n} %` (spaced) and tints the L2 pillar; omit Peak chrome when `peakPct` is absent.
+7. **PR-MEMTOP-007** — When `l2.peakPct` is set, shows `{n}%` under L2 Cache (no “Peak” word) and uses flat L2 fill; omit Peak chrome when `peakPct` is absent.
 8. **PR-MEMTOP-008** — Right-click emits `open-details`.
 
 ## Visual
 
-Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-topology.png`](./visual/memory-topology.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-topology.png`](./visual/memory-topology.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Normative colors from `v930/report-stats-scrolled` / change-log buffer-links.
 
 | Token | Value |
 |-------|--------|
 | Panel bg | `#1a1a1a` |
-| GM pillar | `#3a3a3a` |
-| L2 pillar | `#4a6a8a` base; Peak tint `color-mix(#c45c2a, #4a6a8a)` by `peakPct` |
-| Cache / UB / SIMT | `#3d6a9a` |
-| Compute (Cube / Vec / Scalar) | `#2e7a3a` |
-| DCache / XN_IMM | `#4a4a4a` |
-| Cluster dash | `#6a6a6a` `1px` dashed |
-| Edge label | `#e8c040` `8px`; GM↔L2 / L2↔cluster rotated −90° in corridors |
-| Write arrows (L2→GM) | `#4a8ec8` |
-| Read arrows (GM→L2) | `#e8c040` |
-| L2 Peak(%) | DATA-20: hit rate on L2 node only; two-line `Peak` / `{n} %` + tint |
+| GM pillar | `#4c4c4c` |
+| L2 pillar | `#657193` (flat; no Peak tint) |
+| Cache / UB / L1 / L0 / SIMT | `#6f92f7` |
+| Compute (CUBE / Vec / Scalar) | `#3fc391` |
+| FixP | `#657293` (muted, not compute green) |
+| DCache / XN_IMM | `#4c4c4c` |
+| Cluster dash | `#e8e8e8` `1px` dashed `5 5` |
+| Edge label | `#f8b664` `8px`; GM↔L2 / L2↔cluster rotated −90° in corridors |
+| Corridor arrows | `#406cef` (read and write) |
+| L2 Peak(%) | DATA-20: `{n}%` under L2 Cache; white |
 
 ## Design sketches
 
@@ -65,6 +65,7 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 DATA-20 (L2 Peak), DATA-21, DATA-33c, UI-35, UI-38, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
+- **2026-09-07** — Match `report-stats-scrolled` colors (cache/compute/L2/arrows/dash); L2 Peak as `{n}%` without tint; CUBE/LOC/FixP roles.
 - **2026-09-07** — L2 Peak(%) from `peakPct` (DATA-20) + right-click `open-details` (UI-35).
 - **2026-08-21** — GM↔L2 arrows: read = leaving GM (GM→L2 gold), write = arriving at GM (L2→GM blue).
 - **2026-08-20** — Product NA rule (hide NA, show 0) lives in the adapter; panel still omits edges with no `label`. UB prefers MemoryUB names then Memory.csv.

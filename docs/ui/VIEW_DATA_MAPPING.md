@@ -263,7 +263,7 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
 - Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
-- Overlay **Peak (%)** on the **L2** unit from hit rate (DATA-20); other units stay without Peak until Product maps them.
+- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (hit rate, DATA-20; sketch has no “Peak” word and no fill tint). Other units stay without Peak until Product maps them.
 - **Right-click (UI-35):** open memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0), same as **详情**.
 - Labels are **block-scoped** via the same block switcher as memory details ([DATA-33c](../context/decisions/interim/DATA.md)).
 

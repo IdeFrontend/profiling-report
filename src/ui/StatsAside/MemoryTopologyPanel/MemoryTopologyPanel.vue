@@ -21,14 +21,8 @@ function label(id: string): string | undefined {
   return props.model?.edges.find((e) => e.id === id)?.label;
 }
 
-/** DATA-20: L2 Peak(%) from node.peakPct (hit rate). */
+/** DATA-20: L2 Peak(%) from node.peakPct (hit rate). Sketch shows `{n}%` under L2 Cache — no tint. */
 const l2PeakPct = computed(() => props.model?.nodes.find((n) => n.id === 'l2')?.peakPct);
-
-function l2Fill(peak: number | undefined): string {
-  if (peak == null) return '#4a6a8a';
-  const amount = Math.min(100, Math.max(0, peak)) / 100;
-  return `color-mix(in srgb, #c45c2a ${Math.round(amount * 70)}%, #4a6a8a)`;
-}
 
 function onContextMenu(e: MouseEvent) {
   e.preventDefault();
@@ -79,7 +73,7 @@ function rot(x: number, y: number): string {
         >
           <path
             d="M0,0 L6,3 L0,6 Z"
-            fill="#4a8ec8"
+            fill="#406cef"
           />
         </marker>
         <marker
@@ -92,7 +86,7 @@ function rot(x: number, y: number): string {
         >
           <path
             d="M0,0 L6,3 L0,6 Z"
-            fill="#e8c040"
+            fill="#406cef"
           />
         </marker>
       </defs>
@@ -114,7 +108,7 @@ function rot(x: number, y: number): string {
         class="pr-topo__pillar-label"
       >GM</text>
 
-      <!-- L2 pillar (DATA-20 Peak(%) tint when peakPct set) -->
+      <!-- L2 pillar (DATA-20 Peak(%) as in-box `{n}%`, flat fill per sketch) -->
       <rect
         :x="L2.x"
         :y="L2.y"
@@ -123,37 +117,25 @@ function rot(x: number, y: number): string {
         rx="3"
         class="pr-topo__l2"
         data-testid="node-l2"
-        :style="{ fill: l2Fill(l2PeakPct) }"
       />
       <text
         :x="L2.x + L2.w / 2"
-        :y="l2PeakPct != null ? 210 : 248"
+        :y="l2PeakPct != null ? 230 : 248"
         text-anchor="middle"
-        :transform="rot(L2.x + L2.w / 2, l2PeakPct != null ? 210 : 248)"
+        :transform="rot(L2.x + L2.w / 2, l2PeakPct != null ? 230 : 248)"
         class="pr-topo__pillar-label"
       >L2 Cache</text>
-      <g
-        v-if="l2PeakPct != null"
-        data-testid="node-l2-peak"
-      >
-        <!-- Rotated stack: keep centers far enough apart that "L2 Cache" and Peak don't collide. -->
-        <text
-          :x="L2.x + L2.w / 2"
-          y="268"
-          text-anchor="middle"
-          :transform="rot(L2.x + L2.w / 2, 268)"
-          class="pr-topo__peak"
-        >Peak</text>
-        <text
-          :x="L2.x + L2.w / 2"
-          y="292"
-          text-anchor="middle"
-          :transform="rot(L2.x + L2.w / 2, 292)"
-          class="pr-topo__peak"
-        >{{ l2PeakPct.toFixed(2) }} %</text>
-      </g>
       <text
-        v-if="label('l2-hit')"
+        v-if="l2PeakPct != null"
+        :x="L2.x + L2.w / 2"
+        y="268"
+        text-anchor="middle"
+        :transform="rot(L2.x + L2.w / 2, 268)"
+        class="pr-topo__peak"
+        data-testid="node-l2-peak"
+      >{{ l2PeakPct.toFixed(2) }}%</text>
+      <text
+        v-if="label('l2-hit') && l2PeakPct == null"
         :x="L2.x + L2.w / 2"
         y="486"
         text-anchor="middle"
@@ -422,7 +404,7 @@ function rot(x: number, y: number): string {
         :y="ry('aic', 95)"
         text-anchor="middle"
         class="pr-topo__tiny"
-      >L0C</text>
+      >LOC</text>
       <rect
         :x="clx(108)"
         :y="ry('aic', 44)"
@@ -436,14 +418,14 @@ function rot(x: number, y: number): string {
         :y="ry('aic', 76)"
         text-anchor="middle"
         class="pr-topo__node"
-      >Cube</text>
+      >CUBE</text>
       <rect
         :x="clx(176)"
         :y="ry('aic', 44)"
         width="44"
         height="28"
         rx="2"
-        class="pr-topo__compute"
+        class="pr-topo__fixp"
       />
       <text
         :x="clx(198)"
@@ -709,36 +691,40 @@ function rot(x: number, y: number): string {
 }
 
 .pr-topo__gm {
-  fill: #3a3a3a;
+  fill: #4c4c4c;
 }
 
 .pr-topo__l2 {
-  fill: #4a6a8a;
+  fill: #657193;
 }
 
 .pr-topo__peak {
   fill: #f0f0f0;
-  font-size: 7px;
-  letter-spacing: 0.04em;
+  font-size: 8px;
+  letter-spacing: 0.02em;
 }
 
 .pr-topo__muted {
-  fill: #4a4a4a;
+  fill: #4c4c4c;
 }
 
 .pr-topo__cache {
-  fill: #3d6a9a;
+  fill: #6f92f7;
 }
 
 .pr-topo__compute {
-  fill: #2e7a3a;
+  fill: #3fc391;
+}
+
+.pr-topo__fixp {
+  fill: #657293;
 }
 
 .pr-topo__cluster {
   fill: none;
-  stroke: #6a6a6a;
+  stroke: #e8e8e8;
   stroke-width: 1;
-  stroke-dasharray: 4 3;
+  stroke-dasharray: 5 5;
 }
 
 .pr-topo__pillar-label,
@@ -749,24 +735,23 @@ function rot(x: number, y: number): string {
 }
 
 .pr-topo__tiny {
-  fill: #d8d8d8;
+  fill: #e8e8e8;
   font-size: 7px;
 }
 
-.pr-topo__edge,
-.pr-topo__pct {
-  fill: #e8c040;
+.pr-topo__edge {
+  fill: #f8b664;
   font-size: 8px;
 }
 
-.pr-topo__arrow-write {
-  stroke: #4a8ec8;
-  stroke-width: 1.5;
-  fill: none;
+.pr-topo__pct {
+  fill: #f0f0f0;
+  font-size: 8px;
 }
 
+.pr-topo__arrow-write,
 .pr-topo__arrow-read {
-  stroke: #e8c040;
+  stroke: #406cef;
   stroke-width: 1.5;
   fill: none;
 }
