@@ -8,6 +8,7 @@ import type {
   ReportViewModel,
 } from '../../domain/types';
 import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
+import { pipeOccupancyFromRows } from '../../adapters/adaptRep';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import SummaryCategoryList from './SummaryCategoryList/SummaryCategoryList.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
@@ -115,11 +116,34 @@ const hasHardwareDetails = computed(
 
 const asideSurface = ref<AsideSurface>('report');
 const selectedBlockId = ref('');
+/** DATA-19 / DATA-33b: empty string = All blocks (mean); else filter PIPE to that block_id. */
+const summaryBlockId = ref('');
+
+const summaryBlockIds = computed(() => {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const table of [
+    ...(props.report?.computeTables ?? []),
+    ...(props.report?.memoryTables ?? []),
+  ]) {
+    for (const id of table.blockIds) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+});
+
+const showSummaryBlockSwitcher = computed(
+  () => showPipe.value && summaryBlockIds.value.length > 1,
+);
 
 watch(
   () => props.report,
   (report) => {
     asideSurface.value = 'report';
+    summaryBlockId.value = '';
     const tables = report?.memoryTables ?? [];
     const ids = tables.flatMap((t) => t.blockIds);
     selectedBlockId.value =
@@ -127,6 +151,20 @@ watch(
   },
   { immediate: true },
 );
+
+function onSummaryBlockChange(id: string) {
+  summaryBlockId.value = id;
+  if (id) selectedBlockId.value = id;
+}
+
+const scopedPipeOccupancy = computed(() => {
+  const all = props.report?.pipeOccupancy ?? [];
+  if (!summaryBlockId.value) return all;
+  const table = props.report?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
+  if (!table) return all;
+  const rows = table.rows.filter((r) => r['block_id'] === summaryBlockId.value);
+  return pipeOccupancyFromRows(rows);
+});
 
 watch(
   () => [showCompute.value, showMemory.value] as const,
@@ -229,7 +267,7 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
 }
 
 const visiblePipes = computed(() => {
-  const all = props.report?.pipeOccupancy ?? [];
+  const all = scopedPipeOccupancy.value;
   if (isMix.value) return all.filter((p) => matchesSide(p, pipeSide.value));
   if (knownSide.value == null) return all;
   return all.filter((p) => matchesSide(p, knownSide.value!));
@@ -722,6 +760,30 @@ function backToReport() {
           </div>
         </div>
         <div class="pr-panel pr-panel--pipe">
+          <div
+            v-if="showSummaryBlockSwitcher"
+            class="pr-pipe-block"
+            data-testid="pipe-block-switcher"
+          >
+            <span>{{ t('block', locale) }}</span>
+            <select
+              :value="summaryBlockId"
+              data-testid="pipe-block"
+              :aria-label="t('block', locale)"
+              @change="onSummaryBlockChange(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">
+                {{ t('blockAll', locale) }}
+              </option>
+              <option
+                v-for="id in summaryBlockIds"
+                :key="id"
+                :value="id"
+              >
+                {{ id }}
+              </option>
+            </select>
+          </div>
           <div
             v-if="isMix"
             class="pr-pipe-toggle"
@@ -1334,6 +1396,24 @@ function backToReport() {
 
 .pr-panel--pipe {
   padding: 12px 10px 10px;
+}
+
+.pr-pipe-block {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #b8b8b8;
+}
+
+.pr-pipe-block select {
+  background: #2a2a2a;
+  color: #e8e8e8;
+  border: 1px solid #3a3a3a;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
 }
 
 .pr-pipe-toggle {

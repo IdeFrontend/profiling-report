@@ -65,6 +65,50 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('75');
   });
 
+  it('PR-STATS-014b: summary PIPE block All vs id scopes bars', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.2' },
+                { block_id: '1', aiv_vec_ratio: '0.8' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+              rows: [
+                { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.0' },
+                { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '2.0' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+        }),
+      },
+    });
+
+    expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+
+    await wrapper.get('[data-testid="pipe-block"]').setValue('1');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
+
+    await wrapper.get('[data-testid="pipe-block"]').setValue('0');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20%');
+  });
+
   it('PR-STATS-003: Cube|Vector toggle only for MIX and filters by side', async () => {
     const pipes = [
       { id: 'cube', label: 'Cube', ratio: 0.8, colorKey: 'cube', side: 'cube' as const },

@@ -32,8 +32,8 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-33](../DATA.md)
-**Interim:** **Mean of non-`NA` ratios** per pipe family across `block_id`.
-**Implement / test as:** `PipeOccupancyPanel` unit tests
+**Interim:** Default **All** = **mean of non-`NA` ratios** per pipe family across `block_id`. Summary block control may scope PIPE to one `block_id` (DATA-19).
+**Implement / test as:** `StatsAside` PIPE + `pipeOccupancyFromRows`; PR-STATS-014b
 **Superseded when:** DATA-33 / data spec overrides aggregation
 
 ### DATA-33c — Block scope vs aggregate

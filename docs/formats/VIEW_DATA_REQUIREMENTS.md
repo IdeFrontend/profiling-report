@@ -117,8 +117,8 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | Input | Requirement |
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
-| Aggregation | **Interim ([DATA-33b](../context/decisions/interim/DATA.md)):** mean of non-`NA` ratios per pipe family |
-| Absolute in-bar | **Confirmed (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)):** mean non-`NA` `*_time(us)` for the family/side; omit when all NA |
+| Aggregation | **Interim ([DATA-33b](../context/decisions/interim/DATA.md)):** default **All** = mean of non-`NA` ratios per pipe family across `block_id`. Summary **block** control (when >1 block): pick a `block_id` → PIPE uses that block only |
+| Absolute in-bar | **Confirmed (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)):** mean non-`NA` `*_time(us)` for the family/side (same block scope as Aggregation); omit when all NA |
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
 | ICache Miss | **Confirmed:** `aic_icache_miss_rate` / `aiv_icache_miss_rate` when the mean is present |
@@ -126,6 +126,16 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | 详情 | Navigate to compute `CsvFieldListPanel` + emit `open-pipe-details` |
 
 Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
+
+### 8.1 Block scope matrix (DATA-28 / DATA-29 / DATA-33b / DATA-33c)
+
+| Surface | Default | When summary block = `block_id` |
+|---------|---------|----------------------------------|
+| Summary PIPE bars | Mean across blocks (All) | That block only |
+| Summary cards (duration / compute / BW / AICore) | Mean / adapter rules (unchanged) | Unchanged (still All-scope) |
+| Roofline | Mean-style aggregate (DATA-33b) | Unchanged |
+| Memory topology + edge labels | Selected block ([DATA-33c](../context/decisions/interim/DATA.md)) | Syncs to the picked summary block when not All |
+| Compute / memory CSV **详情** overlays | Selected block switcher | Independent overlay switcher (memory); compute has no block picker |
 
 ---
 
