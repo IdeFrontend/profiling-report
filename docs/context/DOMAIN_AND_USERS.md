@@ -31,7 +31,7 @@ Developers write **Ascend / CANN operators** — device kernels that implement m
 Profiling artifacts they open today:
 
 - **`.bin`** — rich Insight operator dump (instruction / Source / Cache depth) — stays in **MindStudio Insight**
-- **`.rep` / `.ncrep`** — portable **report pack** (metric CSVs + Chrome Trace) — target of **profiling-report**
+- **`.npu-rep`** — portable **report pack** (metric CSVs + Chrome Trace) — target of **profiling-report** ([PROC-2](decisions/PROC.md))
 
 ---
 
@@ -42,14 +42,14 @@ flowchart LR
   Write["Write / tune OP"] --> Build["Build and run with profiling"]
   Build --> Tree["MSTT performance results tree"]
   Tree --> Bin[".bin → Insight"]
-  Tree --> Rep[".rep / .ncrep → ProfilingReport"]
+  Tree --> Rep[".npu-rep → ProfilingReport"]
   Rep --> Diagnose["Overview + swimlane + PIPE"]
   Diagnose --> Write
 ```
 
 1. Author or edit the OP (C++ / Ascend C / tiling, etc.).
 2. Run a profiled case; MSTT shows results under the performance tree.
-3. Open **`.rep` / `.ncrep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)).
+3. Open **`.npu-rep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)).
 4. Answer “how long?”, “which pipes?”, “what’s busy when?” → change code → repeat.
 5. For instruction-level Source / Cache / flag sync, open **`.bin`** in Insight (sibling path, not this library).
 
@@ -127,7 +127,7 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/MET
 | **MSTT** | OP DevTools (VS Code): primary host for this library |
 | **MindStudio Insight (msinsight)** | External viewer for rich operator **`.bin`** (and system modes out of scope here) |
 | **PyPTO / pypto-tools** | Schedule-centric toolkit with swimlane UX; reference for interactions and optional later consumer |
-| **profiling-report** | This Vue 3 library: swimlane + report panels for **`.rep` / `.ncrep`** |
+| **profiling-report** | This Vue 3 library: swimlane + report panels for **`.npu-rep`** |
 
 ### Platform
 
@@ -172,8 +172,8 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/MET
 | Term | Meaning |
 |------|---------|
 | **Swimlane** | Multi-lane Gantt of timed intervals (processes → threads → events) |
-| **Chrome Trace** | `trace.json` event format (`ph`, `ts`, `dur`, …) embedded in `.rep` |
-| **`.rep` / `.ncrep`** | CANN report container: CSVs + trace ([REP_FORMAT](../formats/REP_FORMAT.md)); product alias for OP reports |
+| **Chrome Trace** | `trace.json` event format (`ph`, `ts`, `dur`, …) embedded in `.npu-rep` |
+| **`.npu-rep`** | Official product report container: CSVs + trace ([REP_FORMAT](../formats/REP_FORMAT.md), [PROC-2](decisions/PROC.md)) |
 | **`.bin`** | Insight operator profiling dump — not parsed by this library |
 | **OverviewSeries** | Time-series points for Cube/Vector overview charts (not the same as PIPE bar ratios) |
 | **Capability** | Feature flag (`roofline`, `dependencies`, …) so UI hides surfaces the format/host cannot fill |

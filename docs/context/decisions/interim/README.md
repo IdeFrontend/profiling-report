@@ -20,7 +20,7 @@ Canonical Product answers live in the owning **specs** after resolution (see [DE
 Allowed to implement now:
 
 1. Tooling scaffold (Vitest, Playwright, playground)
-2. `.rep` / `.ncrep` parse (alias) + Chrome Trace → `SwimlaneModel`
+2. `.npu-rep` parse + Chrome Trace → `SwimlaneModel` (classic `cann-rep` / sample `.rep` remain engineering fixtures; [PROC-2](../PROC.md))
 3. Standalone Chrome Trace `.json` open path
 4. Timeline shell, axis, gutter, swimlane, tooltip, select → detail
 5. PIPE bars when `PipeUtilization` present
