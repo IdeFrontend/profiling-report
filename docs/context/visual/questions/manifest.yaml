@@ -213,3 +213,10 @@ images:
     highlights:
       - label: "DATA-39 统计分析"
         box: { x: 8, y: 8, w: 360, h: 400 }
+
+  ui-47:
+    source_file: src/ui/TimelineView/SwimlaneView/LaneGutter/visual/stats-hover-tooltip.png
+    maxWidth: 900
+    highlights:
+      - label: "UI-47 统计"
+        box: { x: 140, y: 5, w: 110, h: 165 }
