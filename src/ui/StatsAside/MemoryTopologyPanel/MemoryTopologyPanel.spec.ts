@@ -127,7 +127,7 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    expect(wrapper.get('[data-testid="node-l2-peak"]').text()).toBe('Peak 81.25%');
+    expect(wrapper.get('[data-testid="node-l2-peak"]').text()).toMatch(/Peak\s*81\.25\s*%/);
     expect(wrapper.get('[data-testid="node-l2"]').attributes('style')).toMatch(/color-mix/);
   });
 

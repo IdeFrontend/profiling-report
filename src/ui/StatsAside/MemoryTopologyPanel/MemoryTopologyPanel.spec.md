@@ -21,7 +21,7 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 3. Labels follow the **model** the parent passes; when the parent rebuilds for a new `block_id`, labels update.
 4. Edge thickness stays static (not data-driven).
 5. Hide the diagram (empty root) when `model` is absent or has no labelled edges.
-6. **L2 Peak(%) (DATA-20):** when the `l2` node has `peakPct`, show `Peak {n}%` on the L2 pillar and tint the pillar fill toward warm orange (cool `#4a6a8a` → warm `#c45c2a`). Other units have no Peak until Product maps them. Hit-rate edge label (`l2-hit`) stays as the DATA-21 corridor/% readout.
+6. **L2 Peak(%) (DATA-20):** when the `l2` node has `peakPct`, show a rotated two-line Peak label (`Peak` then `{n} %` with a space before `%`) below **L2 Cache**, with enough center gap that the strings do not collide; tint the pillar fill toward warm orange (cool `#4a6a8a` → warm `#c45c2a`). Other units have no Peak until Product maps them. Hit-rate edge label (`l2-hit`) stays as the DATA-21 corridor/% readout.
 7. **Right-click (UI-35):** `contextmenu` on the diagram emits `open-details` (prevent default). Parent opens the memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0).
 
 ## Acceptance Criteria
@@ -32,7 +32,7 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 4. **PR-MEMTOP-004** — Hides the diagram when `model` is null/empty.
 5. **PR-MEMTOP-005** — Edge labels update when `model.edges` labels change.
 6. **PR-MEMTOP-006** — GM↔L2 labels sit between GM and L2; L2↔cluster labels sit between L2 and the AIV/AIC cluster (rotated).
-7. **PR-MEMTOP-007** — When `l2.peakPct` is set, shows `Peak {n}%` and tints the L2 pillar; omit Peak chrome when `peakPct` is absent.
+7. **PR-MEMTOP-007** — When `l2.peakPct` is set, shows Peak + `{n} %` (spaced) and tints the L2 pillar; omit Peak chrome when `peakPct` is absent.
 8. **PR-MEMTOP-008** — Right-click emits `open-details`.
 
 ## Visual
@@ -51,7 +51,7 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 | Edge label | `#e8c040` `8px`; GM↔L2 / L2↔cluster rotated −90° in corridors |
 | Write arrows (L2→GM) | `#4a8ec8` |
 | Read arrows (GM→L2) | `#e8c040` |
-| L2 Peak(%) | DATA-20: hit rate on L2 node only; `Peak {n}%` + tint |
+| L2 Peak(%) | DATA-20: hit rate on L2 node only; two-line `Peak` / `{n} %` + tint |
 
 ## Design sketches
 

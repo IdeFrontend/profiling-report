@@ -127,20 +127,31 @@ function rot(x: number, y: number): string {
       />
       <text
         :x="L2.x + L2.w / 2"
-        y="248"
+        :y="l2PeakPct != null ? 210 : 248"
         text-anchor="middle"
-        :transform="rot(L2.x + L2.w / 2, 248)"
+        :transform="rot(L2.x + L2.w / 2, l2PeakPct != null ? 210 : 248)"
         class="pr-topo__pillar-label"
       >L2 Cache</text>
-      <text
+      <g
         v-if="l2PeakPct != null"
-        :x="L2.x + L2.w / 2"
-        y="272"
-        text-anchor="middle"
-        :transform="rot(L2.x + L2.w / 2, 272)"
-        class="pr-topo__peak"
         data-testid="node-l2-peak"
-      >Peak {{ l2PeakPct.toFixed(2) }}%</text>
+      >
+        <!-- Rotated stack: keep centers far enough apart that "L2 Cache" and Peak don't collide. -->
+        <text
+          :x="L2.x + L2.w / 2"
+          y="268"
+          text-anchor="middle"
+          :transform="rot(L2.x + L2.w / 2, 268)"
+          class="pr-topo__peak"
+        >Peak</text>
+        <text
+          :x="L2.x + L2.w / 2"
+          y="292"
+          text-anchor="middle"
+          :transform="rot(L2.x + L2.w / 2, 292)"
+          class="pr-topo__peak"
+        >{{ l2PeakPct.toFixed(2) }} %</text>
+      </g>
       <text
         v-if="label('l2-hit')"
         :x="L2.x + L2.w / 2"
@@ -708,6 +719,7 @@ function rot(x: number, y: number): string {
 .pr-topo__peak {
   fill: #f0f0f0;
   font-size: 7px;
+  letter-spacing: 0.04em;
 }
 
 .pr-topo__muted {
