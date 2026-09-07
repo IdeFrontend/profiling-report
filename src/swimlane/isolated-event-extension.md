@@ -41,15 +41,17 @@ interval array:
 
 ### Edge / truncation policy
 
-  eventRange = last event end - first event start  (across the whole lane)
+  EDGE_GAP = 1e12  (model time units) — a huge constant, not `first..last` range,
+  so a single-thin-event lane (whose own range would be tiny) still extends.
 
-  - First event of the line: gapPrev = eventRange (no predecessor)
-  - Last event of the line (final chunk): gapNext = eventRange (no-successor)
+  - First event of the line: gapPrev = EDGE_GAP (no predecessor)
+  - Last event of the line (final chunk): gapNext = EDGE_GAP (no successor)
   - When a chunk is truncated (intermediate chunk boundary), the last event
     still has a real neighbor, so gapNext is computed normally
   - Detection: `gi * 2 + 2 >= pairs.length` — true only for the true last event
 
-This keeps edge events extendable when their one real neighboring gap is large.
+This keeps edge events extendable when their one real neighboring gap is large,
+and always treats the lane boundaries as unbounded empty space.
 
 ## Vertex shader extension (branchless)
 
