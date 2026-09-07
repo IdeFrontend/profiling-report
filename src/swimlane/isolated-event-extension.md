@@ -68,7 +68,7 @@ Consequences (accepted for the product):
     across a large gap and both extend as if isolated.
 
 We intentionally do NOT compute gaps against the full lane (index map / mask) here:
-emphasiizing/selection is an overlay pass, so treating each bucket as its own lane is
+emphasizing/selection is an overlay pass, so treating each bucket as its own lane is
 a deliberate, acceptable simplification for the current product scope.
 
 ## Vertex shader extension (branchless)
