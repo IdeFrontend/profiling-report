@@ -141,4 +141,32 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     atlas.clear(gl);
     expect(deleted).toContain(a.texture); // remaining glyphs deleted on clear
   });
+
+  it('PR-RENDER-027: caches skip misses so the probe is not re-allocated each frame', () => {
+    // A counting OffscreenCanvas reveals how many 2D probe contexts get allocated.
+    let allocs = 0;
+    class CountingCanvas {
+      width: number;
+      height: number;
+      constructor(width: number, height: number) {
+        this.width = width;
+        this.height = height;
+        allocs += 1;
+      }
+      getContext(): FakeCtx {
+        return new FakeCtx();
+      }
+    }
+    vi.stubGlobal('OffscreenCanvas', CountingCanvas);
+
+    const atlas = new TextAtlas(1000);
+    const long = 'x'.repeat(100); // measured width 100; maxWidth 10 → ratio 0.1 → skip
+    expect(atlas.get(gl, long, 12, 10)).toBeNull();
+    const allocsAfterFirst = allocs; // platform probe + fit probe (2 allocations)
+    expect(allocsAfterFirst).toBeGreaterThan(0);
+
+    // The same (static-viewport) key now short-circuits before any OffscreenCanvas probe.
+    expect(atlas.get(gl, long, 12, 10)).toBeNull();
+    expect(allocs).toBe(allocsAfterFirst);
+  });
 });

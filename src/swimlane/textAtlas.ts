@@ -120,11 +120,19 @@ export function clearTypeRasterSupported(): boolean {
 /** Upper bound on cached label texture memory (RGBA bytes); least-recently-used glyphs are evicted beyond it. */
 export const DEFAULT_MAX_GLYPH_BYTES = 16 * 1024 * 1024; // 16 MiB
 
+/** Upper bound on cached "skip" misses (labels too narrow to draw at all). */
+export const DEFAULT_MAX_MISSES = 4096;
+
 export class TextAtlas {
   private glyphs = new Map<string, TextGlyph>();
   private bytes = 0;
+  /** Cached `fitEventLabel` skips — a label that can't fit is remembered so it isn't re-probed each frame. */
+  private misses = new Set<string>();
 
-  constructor(private readonly maxBytes = DEFAULT_MAX_GLYPH_BYTES) {}
+  constructor(
+    private readonly maxBytes = DEFAULT_MAX_GLYPH_BYTES,
+    private readonly maxMisses = DEFAULT_MAX_MISSES,
+  ) {}
 
   static isSupported(): boolean {
     return clearTypeRasterSupported();
@@ -132,8 +140,8 @@ export class TextAtlas {
 
   /**
    * Rasterize + upload `text`, cached by `(sizePx, maxWidth, text)`. Returns null when the
-   * platform lacks `OffscreenCanvas` (jsdom, older browsers) — callers must fall back to the
-   * grayscale Canvas2D overlay.
+   * platform lacks `OffscreenCanvas` (jsdom, older browsers) or the label is too narrow to draw
+   * (a cached miss) — callers must fall back to the grayscale Canvas2D overlay.
    */
   get(
     gl: WebGL2RenderingContext,
@@ -150,6 +158,9 @@ export class TextAtlas {
       this.glyphs.set(key, cached);
       return cached;
     }
+    // Cached skip: return before the OffscreenCanvas probe/platform check — a static viewport
+    // otherwise re-runs `clearTypeRasterSupported` + `fitEventLabel` for this label every frame.
+    if (this.misses.has(key)) return null;
     if (!clearTypeRasterSupported()) return null;
 
     const probe = new OffscreenCanvas(16, 16);
@@ -157,7 +168,10 @@ export class TextAtlas {
     probeCtx.font = eventLabelFont(fontSizePx);
     // Fit policy: draw as-is / horizontal-shrink / truncate / skip (see `fitEventLabel`).
     const fit = fitEventLabel(probeCtx, text, maxWidth);
-    if (fit.kind === 'skip') return null;
+    if (fit.kind === 'skip') {
+      this.cacheMiss(key);
+      return null;
+    }
     const scaleX = fit.kind === 'shrink' ? fit.scaleX : 1;
     const measured = Math.ceil(probeCtx.measureText(fit.text).width * scaleX);
     const drawW = Math.max(1, measured);
@@ -206,6 +220,17 @@ export class TextAtlas {
     return glyph;
   }
 
+  /** Remember a skip so the next frame short-circuits before the probe; FIFO-evict beyond the cap. */
+  private cacheMiss(key: string): void {
+    if (this.misses.has(key)) return;
+    this.misses.add(key);
+    while (this.misses.size > this.maxMisses) {
+      const oldest = this.misses.values().next().value as string | undefined;
+      if (oldest === undefined) break;
+      this.misses.delete(oldest);
+    }
+  }
+
   /** Evict least-recently-used glyphs until the byte budget is met. */
   private evictOverBudget(gl: WebGL2RenderingContext): void {
     while (this.bytes > this.maxBytes && this.glyphs.size > 0) {
@@ -224,6 +249,7 @@ export class TextAtlas {
   clear(gl: WebGL2RenderingContext): void {
     for (const g of this.glyphs.values()) gl.deleteTexture(g.texture);
     this.glyphs.clear();
+    this.misses.clear();
     this.bytes = 0;
   }
 
