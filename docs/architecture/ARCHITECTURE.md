@@ -79,7 +79,7 @@ The diagram below is the **first adapter path**. Other adapters would produce th
 
 ```mermaid
 flowchart LR
-  RepFile[".rep / .ncrep bytes"] --> RepAdapter["adapters: .rep"]
+  RepFile[".npu-rep bytes"] --> RepAdapter["adapters: npu-rep"]
   RepAdapter --> CSVs["CSV tables"]
   RepAdapter --> Trace["trace.json"]
   CSVs --> ViewModel["ReportViewModel"]
@@ -95,7 +95,7 @@ flowchart LR
 - Read file from disk / remote into `ArrayBuffer` or `Uint8Array`
 - Create VS Code `WebviewPanel`, CSP, asset URIs
 - Inject theme / locale
-- Route open events for `.rep` / `.ncrep` (leave `.bin` to Insight)
+- Route open events for `.npu-rep` (leave `.bin` to Insight; [PROC-2](../context/decisions/PROC.md))
 - Optional: persist UI state (zoom, selected event id)
 - Pass `capabilities` appropriate to the opened format
 

@@ -10,7 +10,7 @@ Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **timeDisplayMode** (`'time' | 'cycles'`) selects the current display unit in the 显示控制 popover, **clockFreqMHz** (optional) shows the **CPU clocks** option when set, **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only).
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **timeDisplayMode** (`'time' | 'cycles'`) selects the current display unit in the 显示控制 popover, **clockFreqMHz** (optional) shows the **CPU clocks** option when set, **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only). Optional **userGuideUrl** overrides the default guide URL opened by the trailing help button.
 
 ## Outputs
 
@@ -109,7 +109,9 @@ Resting fill from `v930/entry` actions strip; hover/pressed from `v930/hardware-
 | Hover / `:active` / `--on` / `aria-pressed` / `aria-expanded` | bg `#1e2a3e`; icon `#2d70e3` |
 | Gap between buttons | `4px` |
 
-Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, help). MVP implements fit, measure (caliper), and **layers → 显示控制**; remaining icons (chart, flag, deps, help) stay visual-reference until their capabilities land.
+Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, help). MVP implements fit, measure (caliper), **layers → 显示控制**, and **help → user guide**; remaining icons (chart, flag, deps) stay visual-reference until their capabilities land.
+
+**User guide.** A **help** glyph button sits **last** in the action-icon list (after aside when present). It opens `userGuideUrl` (default `https://profiling-report.vercel.app/guide/`) via `window.open` in a new tab. Distinct from the connection-level tip inside 显示控制, which also uses the `help` glyph.
 
 ### Display control popover
 
@@ -157,7 +159,7 @@ not serve.
 | `stats` | `性能统计.svg` | Aside toggle (AC-04) |
 | `measure` | `measure_icon.svg` | Measure toggle |
 | `display-config` | `泳道图显示配置.svg` | 显示控制 trigger |
-| `help` | `帮助.svg` | 任务连接层级 help (AC-20.2) |
+| `help` | `帮助.svg` | 任务连接层级 help (AC-20.2); user-guide action (PR-TOOLBAR-024) |
 | `close` | `ic_public_close.svg` | 显示控制 close (AC-20.5) |
 | `keyboard` | `icon.svg` | 快捷键说明 trigger (PR-TOOLBAR-021) |
 
@@ -189,10 +191,11 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 18. **PR-TOOLBAR-017** — The 任务连接层级 help control is a `<button type="button">` with a CSS hover/focus bubble (`data-testid="connection-level-help"`), not a native `title`. The tip has `role="tooltip"` and is linked from the button via `aria-describedby`; the button's `aria-label` is the short `helpConnectionLevel` name (distinct from the tip's `connectionLevelHelp` text) so AT does not announce the explanation twice.
 19. **PR-TOOLBAR-018** — The corner wash is the strip's first child, painting above the strip background and below the tabs, pinned with `top: 0; bottom: 0` so it fills the full `.pr-chrome` height (including when the toolbar wraps). Radial horizontal radius is **59%** so opacity reaches 0 at the 208px right edge (no hard seam into `#1f1f1f`). `.pr-chrome` is `position: relative` with **no** `z-index` or `isolation`: a stacking context there would trap the OP menu and 显示控制 popover inside the strip. `.pr-tabs` is positioned so labels paint over the wash.
 20. **PR-TOOLBAR-019** — The depth field's own stepper buttons emit `update:dependencyDepth` ±1 through `normalizeDependencyDepth`, disable at each clamp, and stay out of the tab order and the accessibility tree.
-21. **PR-TOOLBAR-020** — Trailing toolbar icon actions (`zoom-to-fit`, measure, display-control, aside) carry `data-toolbar-clip`; when `overflow-x: clip` crops them past the toolbar's right edge they receive `inert` so keyboard focus cannot land on an invisible control. Search and zoom are never marked.
+21. **PR-TOOLBAR-020** — Trailing toolbar icon actions (`zoom-to-fit`, measure, display-control, aside, user-guide) carry `data-toolbar-clip`; when `overflow-x: clip` crops them past the toolbar's right edge they receive `inert` so keyboard focus cannot land on an invisible control. Search and zoom are never marked.
 22. **PR-TOOLBAR-021** — The shortcut-help action renders **first** in the action list (immediately after the zoom pill, before `zoom-to-fit`), using the `keyboard` glyph (`data-testid="toggle-shortcuts"`, `data-toolbar-clip`).
 23. **PR-TOOLBAR-022** — Clicking the shortcut-help trigger opens the `shortcut-help` popover listing mouse / keyboard / combined bindings (W/S/A/D, Ctrl+wheel, Ctrl+drag, Alt+click); it closes via the X, a second press, an outside pointerdown, or Escape.
 24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt, single-finger, double-finger, box-select) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below; Combined scaling/pan/box-select rows include `/`-separated trackpad/gesture stand-ins.
+25. **PR-TOOLBAR-024** — The user-guide action renders **last** among `data-toolbar-clip` actions (`data-testid="open-user-guide"`, `help` glyph). Click opens `userGuideUrl` (default `DEFAULT_USER_GUIDE_URL`) with `window.open(…, '_blank', 'noopener,noreferrer')`.
 
 ## Edge Cases
 
@@ -216,6 +219,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-09-07** — User-guide action (rightmost `help` glyph) opens `userGuideUrl` (`PR-TOOLBAR-024`); sketch trailing help claimed.
 - **2026-09-07** — Toolbar icon / zoom buttons: no `:focus` ring on mouse click; restore `:focus-visible` outline for keyboard Tab.
 - **2026-09-07** — Shortcut-help Combined rows add PyPTO trackpad/gesture stand-ins (single-finger, double-finger, box-select) with `/` separators (`PR-TOOLBAR-023`).
 - **2026-09-04** — Shortcut-help popover teleports to `body` (fixed) so toolbar `overflow-x: clip` cannot crop the 450px card.

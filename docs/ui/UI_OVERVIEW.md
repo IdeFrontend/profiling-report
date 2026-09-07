@@ -8,7 +8,7 @@ For usage scenarios, static vs interactive surfaces, and cross-view sync, see **
 
 Sketches place the viewer inside a VS Code–like IDE with:
 
-- File tab: `report.ncrep` (active), sometimes beside `trace.json`
+- File tab: report filename (e.g. `result.npu-rep`; active), sometimes beside `trace.json`
 - Secondary nav: **OP算子** | **时间线** (Timeline) | **源码** | **详情** | **缓存**
 - Left activity bar / explorer (host-owned in MSTT; not part of the Vue library shell)
 
@@ -116,6 +116,6 @@ On event select (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`):
 |----------------------|------------------|
 | VS Code tab title, explorer tree | Secondary Timeline tabs (when implemented) |
 | Theme CSS variables injection | Toolbar inside report |
-| Opening `.rep` / `.ncrep` / Chrome Trace `.json` | All layout regions above |
+| Opening `.npu-rep` / Chrome Trace `.json` | All layout regions above |
 
 Explorer annotation in `source/v930/entry.jpeg` (anomaly detection / performance tuning folders) is **host tree UX**, not part of the Vue report component.

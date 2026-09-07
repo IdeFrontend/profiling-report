@@ -59,6 +59,7 @@ import type { GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterT
 import { animateViewWindow } from '../TimelineView/animateViewWindow';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
+import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 
 const props = withDefaults(defineProps<{
   title?: string;
@@ -78,9 +79,12 @@ const props = withDefaults(defineProps<{
    *  source) apply; pass an array to override them. Exposed as a data attribute for
    *  CSS/test hooking and read by the aside. */
   capabilities?: ReportCapability[];
+  /** End-user guide URL for the toolbar help button. */
+  userGuideUrl?: string;
 }>(), {
   dependencyMode: 'all',
   dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+  userGuideUrl: DEFAULT_USER_GUIDE_URL,
 });
 
 const emit = defineEmits<{
@@ -713,6 +717,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :measure-mode="viewState.measureMode"
       :operators="operators"
       :selected-operator-id="selectedOperatorId"
+      :user-guide-url="userGuideUrl"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
@@ -757,6 +762,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :measure-mode="viewState.measureMode"
           :operators="operators"
           :selected-operator-id="selectedOperatorId"
+          :user-guide-url="userGuideUrl"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"

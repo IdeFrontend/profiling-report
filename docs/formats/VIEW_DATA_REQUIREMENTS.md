@@ -31,7 +31,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Input | Source | Requirement |
 |-------|--------|-------------|
 | Report bytes or prebuilt models | Host / adapter | **Required** to mount |
-| `SwimlaneModel` (`processes`, `minTime`, `maxTime`) | `trace.json` inside `.rep` / `.ncrep`, or standalone Chrome Trace `.json` | **Required** for Timeline |
+| `SwimlaneModel` (`processes`, `minTime`, `maxTime`) | `trace.json` inside `.npu-rep` (or classic fixture `.rep`), or standalone Chrome Trace `.json` | **Required** for Timeline |
 | `ReportViewModel` | CSV embeds via `RepAdapter` | **Optional** — Timeline works without aside analytics |
 | `capabilities` | Host / adapter | **Optional** — gates P2 surfaces |
 

@@ -15,7 +15,7 @@ Developers who write **custom device operators / kernels** typically need two co
 | **System / timeline** | Where does wall time go across host, queues, and devices? | Timeline / swimlane tools (e.g. Nsight Systems) |
 | **Kernel / microarchitecture** | Why is *this* kernel slow — occupancy, memory, pipes, source? | Kernel report tools (e.g. Nsight Compute) |
 
-On **Ascend**, those roles are split across **MindStudio Insight**, **MSTT**, **PyPTO**, and now a portable **`.rep` / `.ncrep`** report path visualized by this library. Many OP engineers already know the **NVIDIA Nsight** split, so it is the natural **role analogue** for explaining this project.
+On **Ascend**, those roles are split across **MindStudio Insight**, **MSTT**, **PyPTO**, and now a portable **`.npu-rep`** report path visualized by this library. Many OP engineers already know the **NVIDIA Nsight** split, so it is the natural **role analogue** for explaining this project.
 
 ```text
 Industry (NVIDIA-shaped mental model)
@@ -47,7 +47,7 @@ NVIDIA does **not** ship an Ascend `.rep` viewer. The relationship is **intent a
 - **Developer use:** After isolating a kernel, explain pipe/memory/compute limits and map back toward source.
 - **Ascend analogue:**
   - **Deep path:** MindStudio Insight on operator **`.bin`** (instruction Gantt, Source, Cache, roofline).
-  - **Portable path:** **`.rep` / `.ncrep`** metrics + Chrome Trace → **profiling-report** (summary, PIPE util, swimlane; later memory/roofline panels).
+  - **Portable path:** **`.npu-rep`** metrics + Chrome Trace → **profiling-report** (summary, PIPE util, swimlane; later memory/roofline panels).
 
 ### Conceptual mapping (NVIDIA → Ascend / this project)
 
@@ -72,7 +72,7 @@ These partition Ascend OP tooling; they are **ecosystem neighbors**, not externa
 
 | Product | Role vs profiling-report |
 |---------|---------------------------|
-| **MSTT** | Host IDE; opens `.rep` into this library; keeps `.bin` → Insight |
+| **MSTT** | Host IDE; opens `.npu-rep` into this library; keeps `.bin` → Insight |
 | **MindStudio Insight** | Legacy / deep operator viewer for `.bin`; system modes stay there |
 | **PyPTO Toolkit** | Swimlane UX/algorithm reference; optional later consumer via adapter |
 | **CANN / msprof-class producers** | Write profiling artifacts (producer of `.rep` still tracked in [questions](questions/) PROC-1) |
