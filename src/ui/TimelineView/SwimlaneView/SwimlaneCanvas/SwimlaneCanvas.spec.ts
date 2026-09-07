@@ -1801,6 +1801,87 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-066: Alt+click / Alt+hover skips summary bars as measure endpoints', async () => {
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'leaf',
+              name: 'T',
+              events: [{ id: 'e1', name: 'a', startTime: 0, duration: 100 }],
+            },
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 'folder/summary/0', name: '', startTime: 200, duration: 400, taskCount: 3 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 160, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 160, right: 400, bottom: 160 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 160, right: 400, bottom: 160 }),
+    });
+    await wrapper.setProps({ model: { ...model } });
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const summary = vm.eventScreenRect('folder/summary/0');
+    expect(summary).toBeTruthy();
+    const sx = summary!.x + summary!.w / 2;
+    const sy = summary!.y + summary!.h / 2;
+
+    // Alt+click on a summary bar must not start an Alt-measure session (and must not expand).
+    await canvas.trigger('pointerdown', { clientX: sx, clientY: sy, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: sx, clientY: sy, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
+    expect(wrapper.emitted('toggle-group')).toBeFalsy();
+
+    const leaf = vm.eventScreenRect('e1');
+    expect(leaf).toBeTruthy();
+    const lx = leaf!.x + leaf!.w / 2;
+    const ly = leaf!.y + leaf!.h / 2;
+
+    // Real event can still be an Alt-measure anchor.
+    await canvas.trigger('pointerdown', { clientX: lx, clientY: ly, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: lx, clientY: ly, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+
+    // Alt+hover over a summary bar must not retarget onto it (free-cursor instead).
+    await canvas.trigger('pointermove', { clientX: sx, clientY: sy, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-measure-cursor-line"]').exists()).toBe(true);
+
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-067: Ctrl+left-drag still pans (PyPTO combined pan)', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);

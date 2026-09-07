@@ -29,7 +29,9 @@ const displayOpts = computed(() => ({
 
 /** Summary bars show "N tasks" as the title instead of an empty name. */
 const title = computed(() =>
-  props.event.taskCount != null ? taskCountLabel(props.event.taskCount) : props.event.name,
+  props.event.taskCount != null
+    ? taskCountLabel(props.event.taskCount, props.locale)
+    : props.event.name,
 );
 </script>
 
