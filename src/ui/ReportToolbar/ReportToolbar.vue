@@ -9,6 +9,7 @@ import {
   normalizeDependencyDepth,
 } from '../../domain/types';
 import { t } from '../../i18n';
+import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 /* PyPTO multi-color glyphs — img, not PrIcon masks (masks kill #5291FF accents). */
 import shortcutMouseWheel from '../icons/shortcuts/mouse-scrollwheel-dark.svg';
 import shortcutMouseClick from '../icons/shortcuts/mouse-leftclick-dark.svg';
@@ -22,21 +23,28 @@ import shortcutSingleFinger from '../icons/shortcuts/single-finger-dark.svg';
 import shortcutDoubleFinger from '../icons/shortcuts/double-finger-dark.svg';
 import shortcutBoxSelect from '../icons/shortcuts/boxselect-sign-dark.svg';
 
-const props = defineProps<{
-  searchQuery: string;
-  asideVisible: boolean;
-  asideAvailable: boolean;
-  zoomPercent: number;
-  timeDisplayMode: TimeDisplayMode;
-  /** When set, CPU clocks option is shown. */
-  clockFreqMHz?: number;
-  dependencyDepth: number;
-  locale?: string;
-  title?: string;
-  measureMode?: boolean;
-  operators?: ReportOperator[];
-  selectedOperatorId?: string | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    searchQuery: string;
+    asideVisible: boolean;
+    asideAvailable: boolean;
+    zoomPercent: number;
+    timeDisplayMode: TimeDisplayMode;
+    /** When set, CPU clocks option is shown. */
+    clockFreqMHz?: number;
+    dependencyDepth: number;
+    locale?: string;
+    title?: string;
+    measureMode?: boolean;
+    operators?: ReportOperator[];
+    selectedOperatorId?: string | null;
+    /** Opens in a new tab from the trailing help button. */
+    userGuideUrl?: string;
+  }>(),
+  {
+    userGuideUrl: DEFAULT_USER_GUIDE_URL,
+  },
+);
 
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
@@ -49,6 +57,7 @@ const emit = defineEmits<{
   'zoom-in': [];
   'zoom-out': [];
   'update:zoomPercent': [value: number];
+  'open-user-guide': [url: string];
 }>();
 
 function onDepthChange(event: Event) {
@@ -61,6 +70,12 @@ function onDepthChange(event: Event) {
 /** Step buttons go through the same clamp as typing, so neither can leave the range. */
 function stepDepth(by: 1 | -1) {
   emit('update:dependencyDepth', normalizeDependencyDepth(props.dependencyDepth + by));
+}
+
+function openUserGuide() {
+  const url = props.userGuideUrl;
+  emit('open-user-guide', url);
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 const atDepthMax = computed(() => props.dependencyDepth >= MAX_DEPENDENCY_DEPTH);
@@ -915,6 +930,18 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         @click="emit('update:asideVisible', !asideVisible)"
       >
         <PrIcon name="stats" />
+      </button>
+
+      <button
+        type="button"
+        class="pr-toolbar__icon-btn"
+        data-testid="open-user-guide"
+        data-toolbar-clip
+        :aria-label="t('userGuide', locale)"
+        :title="t('userGuide', locale)"
+        @click="openUserGuide"
+      >
+        <PrIcon name="help" />
       </button>
     </div>
   </div>

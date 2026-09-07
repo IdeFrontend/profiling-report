@@ -18,6 +18,8 @@ describe('i18n', () => {
     expect(t('hardwareInfoMissing', 'zh-CN')).toBe('缺少 hardware info');
     expect(t('focusMeasureRange', 'en')).toBe('Focus measure range');
     expect(t('focusMeasureRange', 'zh-CN')).toBe('聚焦度量范围');
+    expect(t('userGuide', 'zh-CN')).toBe('用户指南');
+    expect(t('userGuide', 'en')).toBe('User guide');
   });
 
   it('localizes lane category labels when categoryKey is set', () => {
