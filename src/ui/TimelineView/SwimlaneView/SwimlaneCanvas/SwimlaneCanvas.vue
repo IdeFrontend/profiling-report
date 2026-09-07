@@ -134,6 +134,8 @@ function applyLaneHover(id: string | null): void {
   backend.setHoveredLane?.(id);
   // Overlay underpaint must see the same hovered row as the GL background pass.
   if (useWebGl.value) overlay.setHoveredLane(id);
+  // Canvas pointer path paints via onPointerMove; gutter-driven updates need an explicit paint.
+  schedulePaint();
 }
 
 function emitLaneHover(localY: number | null): void {

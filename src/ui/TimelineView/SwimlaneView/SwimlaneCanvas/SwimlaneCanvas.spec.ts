@@ -1989,15 +1989,32 @@ describe('SwimlaneCanvas', () => {
 
   it('PR-CANVAS-069: inbound hoveredLaneId calls setHoveredLane without re-emitting', async () => {
     const setHoveredLane = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setHoveredLane');
+    const render = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'render');
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    });
     const wrapper = mount(SwimlaneCanvas, {
       props: { ...nullProps, preferRenderer: 'canvas' as const },
     });
     await nextTick();
+    // Force paint gate open — RO stub may leave lastDeviceW at 0 in this mount.
+    Object.defineProperty(wrapper.get('[data-testid="swimlane"]').element, 'clientWidth', {
+      value: 200,
+      configurable: true,
+    });
+    Object.defineProperty(wrapper.get('[data-testid="swimlane"]').element, 'clientHeight', {
+      value: 100,
+      configurable: true,
+    });
+    await fireAllDeviceRo();
     setHoveredLane.mockClear();
+    render.mockClear();
 
     await wrapper.setProps({ hoveredLaneId: 'lane-1' });
     await nextTick();
     expect(setHoveredLane).toHaveBeenCalledWith('lane-1');
+    expect(render).toHaveBeenCalled();
     expect(wrapper.emitted('lane-hover')).toBeUndefined();
 
     await wrapper.setProps({ hoveredLaneId: null });
