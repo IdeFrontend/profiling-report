@@ -38,3 +38,6 @@ crops:
     source: v930/hardware-more-detail
     region: "Core2.Vec1 row — blue pin hover + 置顶 tooltip"
     box: { x: 5050, y: 1875, w: 382, h: 105 }
+  stats-hover-tooltip.png:
+    source: v930/hardware-more-detail
+    region: "MTE1 row — bar-chart hover + 统计 tooltip (between title and util bar); tight UI crop"
