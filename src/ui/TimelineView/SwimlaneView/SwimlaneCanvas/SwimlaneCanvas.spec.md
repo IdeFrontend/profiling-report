@@ -99,7 +99,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 63. **PR-CANVAS-063** — A pinned measure clears on empty-canvas click, Esc, or a visible-range change (`startTime` / `endTime` / `scrollY`). Collapsing a Card/folder or pinning/unpinning lanes also clears the session (handled by the parent swim view).
 64. **PR-CANVAS-064** — Default CSS cursor on `.pr-swim-canvas` is `default` (arrow, not `crosshair` / `pointer`); hovering an event applies `pointer`; with `measureMode` the wrap applies `col-resize`.
 65. **PR-CANVAS-065** — Clicking a collapsed-group summary bar emits `toggle-group` with the folder id and does **not** emit `select` (in both default and measure modes).
-66. **PR-CANVAS-066** — Alt+click / Alt+hover on a collapsed-group summary bar does **not** set or retarget an Alt-measure session (summary bars are skipped as measure endpoints; expand stays on the non-Alt paths).
+66. **PR-CANVAS-066** — Alt+click / Alt+hover on a collapsed-group summary bar treats it as a normal measure endpoint (anchor / retarget / pin); non-Alt click still emits `toggle-group` (expand) instead of `select`.
 67. **PR-CANVAS-067** — Ctrl+left-drag still pans the viewport (emits `pan`) — the PyPTO "combined" horizontal pan works because pan is not gated on the modifier.
 68. **PR-CANVAS-068** — Horizontal-dominant wheel (`|deltaX| > |deltaY|`) emits `pan` (pixel→time, same formula as drag), including when `ctrlKey` is set; vertical-dominant non-ctrl wheel still emits `scroll-y`; Ctrl/Cmd+vertical wheel still zooms.
 
@@ -134,7 +134,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
-- **2026-09-07** — Alt+click / Alt+hover skips collapsed-group summary bars as measure endpoints (`PR-CANVAS-066`).
+- **2026-09-07** — Summary-bar borders are magnetizable; Alt-measure treats summary bars as endpoints (`PR-CANVAS-066`); non-Alt click still expands.
 - **2026-09-07** — Renumber Ctrl+drag / trackpad pan ACs to `PR-CANVAS-067` / `068` (free `065` for open #70 summary-bar toggle).
 - **2026-09-07** — Trackpad two-finger horizontal pan + pinch-as-ctrl-wheel zoom priority (`PR-CANVAS-068`).
 - **2026-09-03** — Ctrl+left-drag pan locked in as the PyPTO combined-pan binding (`PR-CANVAS-067`).

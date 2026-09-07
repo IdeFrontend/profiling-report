@@ -1609,20 +1609,13 @@ function onPointerMove(e: PointerEvent): void {
     const anchorEvent = findAltMeasureEvent(altMeasure.anchorId);
     if (
       mag.eventId &&
-      mag.eventId !== altMeasure.anchorId &&
-      summaryGroupIdFor(mag.eventId) == null
+      mag.eventId !== altMeasure.anchorId
     ) {
       // Stuck to a border → explicit target edge.
       altMeasure.target = { eventId: mag.eventId, time: mag.time, surface };
     } else {
       const ev = eventAtPointer(x, y, null);
-      // Summary bars are not measure endpoints — treat like empty (free cursor).
-      if (
-        ev &&
-        ev.id !== altMeasure.anchorId &&
-        summaryGroupIdFor(ev.id) == null &&
-        anchorEvent
-      ) {
+      if (ev && ev.id !== altMeasure.anchorId && anchorEvent) {
         // Hovering another event → auto edge by relation.
         const t = eventMeasureTargetTime(anchorEvent, ev);
         altMeasure.target = t != null ? { eventId: ev.id, time: t, surface } : null;
@@ -1690,8 +1683,7 @@ function onPointerUp(e: PointerEvent): void {
     altMeasure.altKeyHeld = true;
     const ev = eventAtPointer(x, y, mag.eventId);
     const surface = thisAltMeasureSurface();
-    // Summary bars are not Alt-measure endpoints (expand stays on the non-Alt paths).
-    if (!ev || summaryGroupIdFor(ev.id) != null) {
+    if (!ev) {
       clearAltMeasure();
       return;
     }

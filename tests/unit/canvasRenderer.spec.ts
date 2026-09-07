@@ -8,6 +8,7 @@ import {
   eventRadius,
   findExactEdgeMatches,
   hitTestLayout,
+  nearestEventEdgeAtPoint,
   rebuildLayout,
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
@@ -629,7 +630,7 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     };
   }
 
-  it('PR-RENDER-025: summary events lay out gray, are hit-testable, excluded from edge matches', () => {
+  it('PR-RENDER-025: summary events lay out gray, are hit-testable, and magnetize like leaf events', () => {
     const layout = rebuildLayout(summaryModel(4));
     const summary = layout.events.find((e) => e.id === 'folder/summary/0');
     expect(summary).toBeTruthy();
@@ -645,8 +646,14 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     expect(summaryFolderId(layout, 'folder/summary/0')).toBe('folder');
     expect(summaryFolderId(layout, 'no-such-id')).toBeNull();
 
-    // Excluded from exact-edge magnet/measure matches (summary start 10 / end 50).
-    expect(findExactEdgeMatches(layout, 10, 50)).toEqual([]);
+    // Edge magnet + exact-edge matches treat summary borders like leaf events (start 10 / end 50).
+    const startX = (10 / 100) * 400;
+    const mag = nearestEventEdgeAtPoint(layout, view, 400, startX + 2, y, 10);
+    expect(mag).toEqual({ time: 10, edge: 'start', eventId: 'folder/summary/0', xPx: startX });
+    expect(findExactEdgeMatches(layout, 10, 50).map((m) => m.eventId)).toEqual([
+      'folder/summary/0',
+      'folder/summary/0',
+    ]);
   });
 
   it('PR-RENDER-026: summary bars render a gray fill with a dimmed task-count label and a hover lift', () => {

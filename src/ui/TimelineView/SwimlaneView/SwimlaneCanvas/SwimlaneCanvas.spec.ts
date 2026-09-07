@@ -1801,7 +1801,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-066: Alt+click / Alt+hover skips summary bars as measure endpoints', async () => {
+  it('PR-CANVAS-066: Alt+click / Alt+hover treats summary bars as measure endpoints', async () => {
     const model = {
       minTime: 0,
       maxTime: 1000,
@@ -1858,10 +1858,10 @@ describe('SwimlaneCanvas', () => {
     const sx = summary!.x + summary!.w / 2;
     const sy = summary!.y + summary!.h / 2;
 
-    // Alt+click on a summary bar must not start an Alt-measure session (and must not expand).
+    // Alt+click on a summary bar starts an Alt-measure session (does not expand).
     await canvas.trigger('pointerdown', { clientX: sx, clientY: sy, pointerId: 1, altKey: true });
     await canvas.trigger('pointerup', { clientX: sx, clientY: sy, pointerId: 1, altKey: true });
-    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
     expect(wrapper.emitted('toggle-group')).toBeFalsy();
 
     const leaf = vm.eventScreenRect('e1');
@@ -1869,15 +1869,10 @@ describe('SwimlaneCanvas', () => {
     const lx = leaf!.x + leaf!.w / 2;
     const ly = leaf!.y + leaf!.h / 2;
 
-    // Real event can still be an Alt-measure anchor.
-    await canvas.trigger('pointerdown', { clientX: lx, clientY: ly, pointerId: 1, altKey: true });
-    await canvas.trigger('pointerup', { clientX: lx, clientY: ly, pointerId: 1, altKey: true });
-    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
-
-    // Alt+hover over a summary bar must not retarget onto it (free-cursor instead).
-    await canvas.trigger('pointermove', { clientX: sx, clientY: sy, pointerId: 1, altKey: true });
-    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="alt-measure-cursor-line"]').exists()).toBe(true);
+    // Alt+hover a leaf event retargets onto it from the summary anchor.
+    await canvas.trigger('pointermove', { clientX: lx, clientY: ly, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
 
     wrapper.unmount();
   });

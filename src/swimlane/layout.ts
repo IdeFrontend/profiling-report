@@ -358,7 +358,7 @@ export interface NearestEventEdge {
   xPx: number;
 }
 
-/** Magnet: nearest start/end on the leaf lane under (x,y), if within thresholdPx. */
+/** Magnet: nearest start/end on the lane under (x,y), if within thresholdPx (leaf or collapsed-folder summary bars). */
 export function nearestEventEdgeAtPoint(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
@@ -369,7 +369,7 @@ export function nearestEventEdgeAtPoint(
 ): NearestEventEdge | null {
   const contentY = y + view.scrollY;
   const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
-  if (!lane || lane.folder) return null;
+  if (!lane) return null;
   const laneIndex = layout.lanes.indexOf(lane);
   const span = Math.max(1, view.endTime - view.startTime);
   const w = Math.max(1, width);
@@ -414,8 +414,9 @@ export interface HoverGap {
  * Adjacent-event gap under the pointer (default mode hover measure).
  * Returns null when the pointer is over an event block, within the magnet edge band
  * of either neighbouring edge (magnet/tooltip wins when the gap is wide enough),
- * in the lane vertical padding above/below event blocks, on a folder/header, or when
+ * in the lane vertical padding above/below event blocks, on a Card header, or when
  * no left-and-right pair brackets the pointer on this lane.
+ * Applies to leaf lanes and collapsed-folder lanes that carry summary bars.
  * When the gap is narrower than 2×thresholdPx the edge band shrinks so a Δt overlay
  * can still appear in the middle of sub-pixel gaps at high zoom.
  */
@@ -429,7 +430,7 @@ export function findHoverGap(
 ): HoverGap | null {
   const contentY = y + view.scrollY;
   const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
-  if (!lane || lane.folder) return null;
+  if (!lane) return null;
   const { y: blockY, h: blockH } = eventBlockMetrics(lane.y, view.scrollY);
   if (y < blockY || y > blockY + blockH) return null;
   // Tooltip wins when a visible block is under the pointer (same rule as hitTest).
@@ -567,7 +568,6 @@ export function findExactEdgeMatches(
   const bounds = new Set([rangeStart, rangeEnd]);
   const out: ExactEdgeMatch[] = [];
   for (const item of layout.events) {
-    if (item.summary) continue;
     const ev = item.event;
     const end = ev.startTime + ev.duration;
     if (bounds.has(ev.startTime)) {
@@ -587,7 +587,6 @@ export function findExactEdgeMatchesAt(
 ): ExactEdgeMatch[] {
   const out: ExactEdgeMatch[] = [];
   for (const item of layout.events) {
-    if (item.summary) continue;
     const ev = item.event;
     if (ev.startTime === time) {
       out.push({ eventId: item.id, edge: 'start', time, laneY: item.y });
