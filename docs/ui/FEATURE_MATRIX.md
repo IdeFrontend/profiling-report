@@ -74,7 +74,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 | Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [DATA-33c](../context/decisions/interim/DATA.md); 查看全部 [DATA-33d](../context/decisions/interim/DATA.md) (#4); searchable field lists (filter + highlight) |
 | Roofline bottleneck chart | M2 | `source/v930/report-stats-open.jpeg` / [milestone-2](../process/roadmap/milestone-2.md) |
 | Hardware info details | M1 | **Source confirmed:** `HardwareInfo.jsonl`; OpBasicInfo fallback ([DATA-34a](../context/decisions/interim/DATA.md)). **更多** always opens; show details when present, else **缺少 hardware info** (UI-30, UI-31) |
-| Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([UI-38](../context/decisions/UI.md), changelog #5) |
+| Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([UI-38](../context/decisions/UI.md), changelog #5); L2 Peak(%) ([DATA-20](../context/questions/DATA.md)); **详情** and right-click open memory CSV overlay ([UI-35](../context/decisions/UI.md), PR-MEMTOP-008 / PR-STATS-017b) |
 
 ## Selection details
 

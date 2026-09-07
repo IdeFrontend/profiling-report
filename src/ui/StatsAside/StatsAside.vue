@@ -833,6 +833,7 @@ function backToReport() {
           <MemoryTopologyPanel
             :model="topologyModel"
             :locale="locale"
+            @open-details="openMemoryDetails"
           />
         </div>
       </div>
