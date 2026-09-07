@@ -288,7 +288,7 @@ export function eventScreenRect(
   return { x, y: m.y * dpr, w, h: m.h * dpr };
 }
 
-/** Leaf lane id under canvas-local CSS Y, or null on folders / empty. */
+/** Lane id (leaf or folder) under canvas-local CSS Y, or null on empty / header gap. */
 export function leafLaneIdAtPoint(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
@@ -296,7 +296,7 @@ export function leafLaneIdAtPoint(
 ): string | null {
   const contentY = y + view.scrollY;
   const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
-  if (!lane || lane.folder) return null;
+  if (!lane) return null;
   return lane.thread.id;
 }
 
