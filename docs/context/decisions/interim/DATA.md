@@ -40,7 +40,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-33](../DATA.md)
-**Interim:** Summary **PIPE bars** stay DATA-33b (mean across blocks). **Detail / memory / metrics** views are **block-scoped** via the block switcher ([`v930/memory-load-detail`](../../../../docs/ui/source/v930/memory-load-detail.jpeg)). Default selected block = first `block_id` in fixture order.
+**Interim:** Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id` ([DATA-33b](#data-33b--pipe-aggregation), DATA-19). **Detail / memory / metrics** views are **block-scoped** via the block switcher ([`v930/memory-load-detail`](../../../../docs/ui/source/v930/memory-load-detail.jpeg)). Picking a summary block id syncs topology `selectedBlockId`. Default selected block = first `block_id` in fixture order.
 **Implement / test as:** Aside detail tabs + block picker tests
 **Superseded when:** Product defines block vs aggregate UX
 

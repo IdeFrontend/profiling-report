@@ -68,7 +68,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 |---------|------:|------------------|
 | Report summary (time, compute, BW, util) | M | **Interim 2×2:** duration [DATA-33a](../context/decisions/interim/DATA.md)/[DATA-33e](../context/decisions/interim/DATA.md); compute Cube\|Vector [DATA-33h](../context/decisions/interim/DATA.md); bandwidth 读\|写 [DATA-33g](../context/decisions/interim/DATA.md); AICore parallel **N/A** until Product formulas — [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | Aside shell (title, close, meta, 更多) | M | Close hides aside; meta hide-if-missing; **更多** always opens (UI-30, UI-31) — [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md), [INTERACTIONS](INTERACTIONS.md) |
-| PIPE occupancy bars | M | From PipeUtilization.csv; mean non-`NA` ([DATA-33b](../context/decisions/interim/DATA.md)); **hide** if missing |
+| PIPE occupancy bars | M | From PipeUtilization.csv; default mean non-`NA` ([DATA-33b](../context/decisions/interim/DATA.md)); All \| block switcher when >1 block (PR-STATS-014b); **hide** if missing |
 | Cube \| Vector PIPE toggle (MIX only) | M1 | [`v930/compute-load`](./source/v930/compute-load.jpeg); non-MIX shows relevant side only |
 | Compute-load detail tabs | M1 | `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists (filter + highlight) |
 | Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [DATA-33c](../context/decisions/interim/DATA.md); 查看全部 [DATA-33d](../context/decisions/interim/DATA.md) (#4); searchable field lists (filter + highlight) |

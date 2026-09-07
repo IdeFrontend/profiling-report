@@ -107,6 +107,9 @@ describe('StatsAside', () => {
 
     await wrapper.get('[data-testid="pipe-block"]').setValue('0');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20%');
+
+    await wrapper.get('[data-testid="pipe-block"]').setValue('');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
   });
 
   it('PR-STATS-003: Cube|Vector toggle only for MIX and filters by side', async () => {
