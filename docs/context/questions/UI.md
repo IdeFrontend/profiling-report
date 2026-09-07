@@ -51,3 +51,13 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 **Why open:** embeds have block `aic`/`aiv_total_cycles` only — no event cycle positions for axis/gaps/measure.
 
 **Specs when answered:** METRICS_AND_TRACE, VIEW_DATA_REQUIREMENTS, FEATURE_MATRIX, format-time / INTERACTIONS.
+
+### UI-46 — Card gutter 时钟周期 label units (was: HQ 40)
+
+**Status:** `interim`
+
+**Question:** Should gutter **时钟周期** labels show a time unit (e.g. **`µs`**), bare numbers, or cycle counts?
+
+**Answer so far (interim):** Labels always suffix **`µs`**. Interim: [`UI-46a`](../decisions/interim/UI.md). Formula: [`DATA-38`](DATA.md) / [`DATA-38a`](../decisions/interim/DATA.md).
+
+**Specs when answered:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md) (label formatting ACs arrive with PR #45).
