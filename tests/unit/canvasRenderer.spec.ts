@@ -577,7 +577,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(canvasSrc).not.toMatch(/strokeStyle\s*=\s*'#ffffff'/);
   });
 
-  it('PR-RENDER-024: ClearType mode still labels hovered/selected blocks via the overlay', async () => {
+  it('PR-RENDER-035: ClearType mode still labels hovered/selected blocks via the overlay', async () => {
     const { eventFill, labelColorOn, colorForThread } = await import('../../src/domain/laneColors');
     const { SwimlaneOverlayPainter } = await import('../../src/swimlane/CanvasSwimlaneRenderer');
     const { rebuildLayout } = await import('../../src/swimlane/layout');
@@ -603,7 +603,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
   });
 
-  it('PR-RENDER-025: ClearType label backdrop matches the fill and mutes to gray', async () => {
+  it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     // The label pass carries its own hovered-row chrome (#363636) and bakes it into the opaque
@@ -614,7 +614,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(/hexToRgb\(SELECTION_MUTED_LABEL\)/);
   });
 
-  it('PR-RENDER-028: ClearType label quad origin snaps to integer device px', async () => {
+  it('PR-RENDER-039: ClearType label quad origin snaps to integer device px', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     // Glyph quads draw 1:1 with NEAREST sampling; a half-pixel origin (odd visible width or the

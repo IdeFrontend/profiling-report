@@ -16,43 +16,43 @@ function lanePairs(n: number): number[] {
 }
 
 describe('eventGapPrev', () => {
-  it('PR-RENDER-029: the first event uses EDGE_GAP (no predecessor)', () => {
+  it('PR-RENDER-024: the first event uses EDGE_GAP (no predecessor)', () => {
     expect(eventGapPrev(lanePairs(3), 0)).toBe(EDGE_GAP);
   });
 
-  it('PR-RENDER-029: interior and later-chunk events read the real previous distance', () => {
+  it('PR-RENDER-024: interior and later-chunk events read the real previous distance', () => {
     const pairs = lanePairs(3);
     // [0,5],[10,15],[20,25]: gapPrev[1] = 10-5 = 5, gapPrev[2] = 20-15 = 5.
     expect(eventGapPrev(pairs, 1)).toBe(5);
     expect(eventGapPrev(pairs, 2)).toBe(5);
   });
 
-  it('PR-RENDER-029: the first event of a non-first chunk reads back across the split', () => {
+  it('PR-RENDER-024: the first event of a non-first chunk reads back across the split', () => {
     const pairs = lanePairs(MAX_QUADS_PER_MESH + 2);
     expect(eventGapPrev(pairs, MAX_QUADS_PER_MESH)).toBe(5);
   });
 });
 
 describe('eventGapNext', () => {
-  it('PR-RENDER-029: the last event uses EDGE_GAP (no successor)', () => {
+  it('PR-RENDER-024: the last event uses EDGE_GAP (no successor)', () => {
     expect(eventGapNext(lanePairs(3), 2)).toBe(EDGE_GAP);
   });
 
-  it('PR-RENDER-029: interior and earlier-chunk events read the real next distance', () => {
+  it('PR-RENDER-024: interior and earlier-chunk events read the real next distance', () => {
     const pairs = lanePairs(3);
     // [0,5],[10,15],[20,25]: gapNext[0] = 10-5 = 5, gapNext[1] = 20-15 = 5.
     expect(eventGapNext(pairs, 0)).toBe(5);
     expect(eventGapNext(pairs, 1)).toBe(5);
   });
 
-  it('PR-RENDER-029: the last event of a non-final chunk reads forward across the split', () => {
+  it('PR-RENDER-024: the last event of a non-final chunk reads forward across the split', () => {
     const pairs = lanePairs(MAX_QUADS_PER_MESH + 2);
     expect(eventGapNext(pairs, MAX_QUADS_PER_MESH - 1)).toBe(5);
   });
 });
 
 describe('setVbSquareWithGaps', () => {
-  it('PR-RENDER-029: writes one 6-float/vertex quad with per-quad gaps', () => {
+  it('PR-RENDER-024: writes one 6-float/vertex quad with per-quad gaps', () => {
     const vb = new Float32Array(24);
     setVbSquareWithGaps(0, 10, 20, 100, 200, vb);
     expect(Array.from(vb)).toEqual([
@@ -65,7 +65,7 @@ describe('setVbSquareWithGaps', () => {
 });
 
 describe('extension constants', () => {
-  it('PR-RENDER-029: pin the edge gap and CSS-px extension policy', () => {
+  it('PR-RENDER-024: pin the edge gap and CSS-px extension policy', () => {
     expect(EDGE_GAP).toBe(1e12);
     expect(extendTargetSizeCss).toBe(1);
     expect(extendMargin1Css).toBe(2);

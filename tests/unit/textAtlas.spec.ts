@@ -3,22 +3,22 @@ import { CLEARTYPE_TEXT_POW, GRAYSCALE_TEXT_POW, TEXT_CLEARTYPE_FS, TEXT_GRAY_FS
 import { centeredTextBaseline, clearTypeRasterSupported, eventLabelFont, fitEventLabel, fitTextWidth, TextAtlas } from '../../src/swimlane/textAtlas';
 
 describe('PR-RENDER: ClearType text atlas', () => {
-  it('PR-RENDER-026: text shaders export sudu gamma constants', () => {
+  it('PR-RENDER-037: text shaders export sudu gamma constants', () => {
     expect(CLEARTYPE_TEXT_POW).toBe(2.25);
     expect(GRAYSCALE_TEXT_POW).toBe(0.625);
     expect(TEXT_CLEARTYPE_FS).toContain('mix(uBgColor.rgb, uColor.rgb');
     expect(TEXT_GRAY_FS).toContain('texture(sDiffuse, textureUV).a');
   });
 
-  it('PR-RENDER-026: eventLabelFont uses shared CSS px size', () => {
+  it('PR-RENDER-037: eventLabelFont uses shared CSS px size', () => {
     expect(eventLabelFont(12)).toMatch(/^400 12px /);
   });
 
-  it('PR-RENDER-026: clearTypeRasterSupported is false in jsdom', () => {
+  it('PR-RENDER-037: clearTypeRasterSupported is false in jsdom', () => {
     expect(clearTypeRasterSupported()).toBe(false);
   });
 
-  it('PR-RENDER-026: fitTextWidth truncates over-wide labels with ellipsis', () => {
+  it('PR-RENDER-037: fitTextWidth truncates over-wide labels with ellipsis', () => {
     // Monospace measurer: width == char count.
     const mono = { measureText: (s: string) => ({ width: s.length }) };
     expect(fitTextWidth(mono, 'short', 10)).toBe('short');
@@ -27,7 +27,7 @@ describe('PR-RENDER: ClearType text atlas', () => {
     expect(cut.length).toBeLessThanOrEqual(8);
   });
 
-  it('PR-RENDER-026: fitTextWidth strips a trailing space/underscore before the ellipsis', () => {
+  it('PR-RENDER-037: fitTextWidth strips a trailing space/underscore before the ellipsis', () => {
     const mono = { measureText: (s: string) => ({ width: s.length }) };
     // Cut lands on a trailing '_' → dropped, ellipsis follows the word.
     expect(fitTextWidth(mono, 'a_bcdef', 5)).toBe('a...');
@@ -35,7 +35,7 @@ describe('PR-RENDER: ClearType text atlas', () => {
     expect(fitTextWidth(mono, 'a bcdef', 5)).toBe('a...');
   });
 
-  it('PR-RENDER-026: fitEventLabel picks draw/shrink/truncate/skip by width ratio', () => {
+  it('PR-RENDER-037: fitEventLabel picks draw/shrink/truncate/skip by width ratio', () => {
     const mono = { measureText: (s: string) => ({ width: s.length }) };
     const ten = 'abcdefghij'; // measured width 10
     // Fits the rect → draw as-is.
@@ -49,7 +49,7 @@ describe('PR-RENDER: ClearType text atlas', () => {
     expect(fitEventLabel(mono, ten, 2)).toEqual({ kind: 'skip' });
   });
 
-  it('PR-RENDER-026: centeredTextBaseline centers ink and falls back to middle', () => {
+  it('PR-RENDER-037: centeredTextBaseline centers ink and falls back to middle', () => {
     // Ink metrics present → alphabetic baseline shifted by ascent/2 (descent ignored).
     expect(centeredTextBaseline({ width: 10, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 3 }, 20)).toEqual({
       baselineY: 24.5,
@@ -114,7 +114,7 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     nextId = 0;
   });
 
-  it('PR-RENDER-027: evicts least-recently-used glyphs beyond the byte budget', () => {
+  it('PR-RENDER-038: evicts least-recently-used glyphs beyond the byte budget', () => {
     vi.stubGlobal('OffscreenCanvas', FakeCanvas);
     // 3-char label at 12px: w = (3 + 2*2) = 7, h = ceil(12*1.5) = 18 → 7*18*4 = 504 bytes each.
     const atlas = new TextAtlas(1000); // holds one glyph (504); the second evicts the first
@@ -127,7 +127,7 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(c.width).toBeGreaterThan(0);
   });
 
-  it('PR-RENDER-027: cache hit refreshes recency and clear() deletes all', () => {
+  it('PR-RENDER-038: cache hit refreshes recency and clear() deletes all', () => {
     vi.stubGlobal('OffscreenCanvas', FakeCanvas);
     const atlas = new TextAtlas(1600); // holds three glyphs (1512); the fourth evicts the oldest
     const a = atlas.get(gl, 'aaa', 12, 100)!;
@@ -142,7 +142,7 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(deleted).toContain(a.texture); // remaining glyphs deleted on clear
   });
 
-  it('PR-RENDER-027: caches skip misses so the probe is not re-allocated each frame', () => {
+  it('PR-RENDER-038: caches skip misses so the probe is not re-allocated each frame', () => {
     // A counting OffscreenCanvas reveals how many 2D probe contexts get allocated.
     let allocs = 0;
     class CountingCanvas {
@@ -170,7 +170,7 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(allocs).toBe(allocsAfterFirst);
   });
 
-  it('PR-RENDER-027: rounds maxWidth so sub-pixel pan/zoom deltas reuse the glyph', () => {
+  it('PR-RENDER-038: rounds maxWidth so sub-pixel pan/zoom deltas reuse the glyph', () => {
     vi.stubGlobal('OffscreenCanvas', FakeCanvas);
     const atlas = new TextAtlas(1600);
     const a = atlas.get(gl, 'aaa', 12, 100.2)!;
