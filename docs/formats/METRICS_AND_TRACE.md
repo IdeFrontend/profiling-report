@@ -79,6 +79,8 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 **Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 
+**Card gutter 时钟周期 (open — [DATA-38](../context/questions/DATA.md) / [UI-46](../context/questions/UI.md)):** interim quantity is **µs** from mean mapped pipe `*_time(us)` ([DATA-38a](../context/decisions/interim/DATA.md)); labels suffix **`µs`** ([UI-46a](../context/decisions/interim/UI.md)). PyPTO’s sum of event `pmu_info['total cycle']` (via `tilefwk_prof_pmu.csv`) is not present in current npu-rep embeds/fixtures. Full domain acceptance criteria ship with PR [#45](https://github.com/IdeFrontend/profiling-report/pull/45).
+
 ---
 
 ## ArithmeticUtilization.csv
