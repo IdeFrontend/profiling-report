@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CLEARTYPE_TEXT_POW, GRAYSCALE_TEXT_POW, TEXT_CLEARTYPE_FS, TEXT_GRAY_FS } from '../../src/swimlane/shaders';
-import { centeredTextBaseline, clearTypeRasterSupported, eventLabelFont, fitEventLabel, fitTextWidth } from '../../src/swimlane/textAtlas';
+import { centeredTextBaseline, clearTypeRasterSupported, eventLabelFont, fitEventLabel, fitTextWidth, TextAtlas } from '../../src/swimlane/textAtlas';
 
 describe('PR-RENDER: ClearType text atlas', () => {
   it('PR-RENDER-026: text shaders export sudu gamma constants', () => {
@@ -67,5 +67,78 @@ describe('PR-RENDER: ClearType text atlas', () => {
       baselineY: 20,
       baseline: 'middle',
     });
+  });
+});
+
+describe('PR-RENDER: TextAtlas cache bounds', () => {
+  /** Minimal OffscreenCanvas stub so TextAtlas can rasterize in jsdom. */
+  class FakeCtx {
+    font = '';
+    textAlign = 'center';
+    textBaseline = 'alphabetic';
+    fillStyle = '#000000';
+    measureText(text: string): { width: number; actualBoundingBoxAscent: number; actualBoundingBoxDescent: number } {
+      // Monospace: width == char count; symmetric ink so centeredTextBaseline takes the alphabetic branch.
+      return { width: text.length, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 3 };
+    }
+    fillRect(): void {}
+    fillText(): void {}
+    save(): void {}
+    translate(): void {}
+    scale(): void {}
+    restore(): void {}
+  }
+  class FakeCanvas {
+    constructor(public width: number, public height: number) {}
+    getContext(): FakeCtx {
+      return new FakeCtx();
+    }
+  }
+
+  const deleted: unknown[] = [];
+  let nextId = 0;
+  const gl = {
+    createTexture: () => ({ id: ++nextId }),
+    bindTexture: () => {},
+    pixelStorei: () => {},
+    texImage2D: () => {},
+    texParameteri: () => {},
+    deleteTexture: (t: unknown) => {
+      deleted.push(t);
+    },
+  } as unknown as WebGL2RenderingContext;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    deleted.length = 0;
+    nextId = 0;
+  });
+
+  it('PR-RENDER-027: evicts least-recently-used glyphs beyond the byte budget', () => {
+    vi.stubGlobal('OffscreenCanvas', FakeCanvas);
+    // 3-char label at 12px: w = (3 + 2*2) = 7, h = ceil(12*1.5) = 18 → 7*18*4 = 504 bytes each.
+    const atlas = new TextAtlas(1000); // holds one glyph (504); the second evicts the first
+    const a = atlas.get(gl, 'aaa', 12, 100)!;
+    const b = atlas.get(gl, 'bbb', 12, 100)!;
+    expect(deleted).toContain(a.texture); // 'aaa' evicted once 'bbb' pushed bytes to 1008 > 1000
+    const c = atlas.get(gl, 'ccc', 12, 100)!;
+    expect(deleted).toContain(b.texture); // 'bbb' evicted on the third insert
+    expect(deleted).not.toContain(c.texture);
+    expect(c.width).toBeGreaterThan(0);
+  });
+
+  it('PR-RENDER-027: cache hit refreshes recency and clear() deletes all', () => {
+    vi.stubGlobal('OffscreenCanvas', FakeCanvas);
+    const atlas = new TextAtlas(1600); // holds three glyphs (1512); the fourth evicts the oldest
+    const a = atlas.get(gl, 'aaa', 12, 100)!;
+    const b = atlas.get(gl, 'bbb', 12, 100)!;
+    atlas.get(gl, 'aaa', 12, 100); // hit → 'aaa' becomes most-recent, 'bbb' is now LRU
+    atlas.get(gl, 'ccc', 12, 100); // 1512 ≤ 1600, no eviction
+    atlas.get(gl, 'ddd', 12, 100); // 2016 > 1600 → evict LRU ('bbb'), not 'aaa'
+    expect(deleted).toContain(b.texture);
+    expect(deleted).not.toContain(a.texture);
+
+    atlas.clear(gl);
+    expect(deleted).toContain(a.texture); // remaining glyphs deleted on clear
   });
 });

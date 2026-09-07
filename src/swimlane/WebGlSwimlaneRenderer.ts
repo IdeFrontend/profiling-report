@@ -399,6 +399,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
     this.rebuildMeshes();
     this.rebuildCurveInstances();
+    // A new model invalidates every cached label glyph (names/widths differ); free the GPU
+    // textures now instead of waiting for the atlas LRU budget to evict them.
+    if (this.gl) this.atlas?.clear(this.gl);
   }
 
   setView(view: SwimlaneViewWindow): void {

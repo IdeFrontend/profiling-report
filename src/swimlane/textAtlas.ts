@@ -117,8 +117,14 @@ export function clearTypeRasterSupported(): boolean {
   return Boolean(probe.getContext('2d', { alpha: false }));
 }
 
+/** Upper bound on cached label texture memory (RGBA bytes); least-recently-used glyphs are evicted beyond it. */
+export const DEFAULT_MAX_GLYPH_BYTES = 16 * 1024 * 1024; // 16 MiB
+
 export class TextAtlas {
   private glyphs = new Map<string, TextGlyph>();
+  private bytes = 0;
+
+  constructor(private readonly maxBytes = DEFAULT_MAX_GLYPH_BYTES) {}
 
   static isSupported(): boolean {
     return clearTypeRasterSupported();
@@ -138,7 +144,12 @@ export class TextAtlas {
   ): TextGlyph | null {
     const key = `${fontSizePx}|${maxWidth}|${text}`;
     const cached = this.glyphs.get(key);
-    if (cached) return cached;
+    if (cached) {
+      // Re-insert at the tail so the Map's insertion order tracks recency (LRU).
+      this.glyphs.delete(key);
+      this.glyphs.set(key, cached);
+      return cached;
+    }
     if (!clearTypeRasterSupported()) return null;
 
     const probe = new OffscreenCanvas(16, 16);
@@ -190,11 +201,33 @@ export class TextAtlas {
 
     const glyph = { texture, width: w, height: h };
     this.glyphs.set(key, glyph);
+    this.bytes += w * h * 4;
+    this.evictOverBudget(gl);
     return glyph;
   }
 
-  dispose(gl: WebGL2RenderingContext): void {
+  /** Evict least-recently-used glyphs until the byte budget is met. */
+  private evictOverBudget(gl: WebGL2RenderingContext): void {
+    while (this.bytes > this.maxBytes && this.glyphs.size > 0) {
+      const oldestKey = this.glyphs.keys().next().value as string | undefined;
+      if (oldestKey === undefined) break;
+      const glyph = this.glyphs.get(oldestKey);
+      this.glyphs.delete(oldestKey);
+      if (glyph) {
+        this.bytes -= glyph.width * glyph.height * 4;
+        gl.deleteTexture(glyph.texture);
+      }
+    }
+  }
+
+  /** Delete every cached texture and reset the budget (a new model invalidates every label). */
+  clear(gl: WebGL2RenderingContext): void {
     for (const g of this.glyphs.values()) gl.deleteTexture(g.texture);
     this.glyphs.clear();
+    this.bytes = 0;
+  }
+
+  dispose(gl: WebGL2RenderingContext): void {
+    this.clear(gl);
   }
 }
