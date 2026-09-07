@@ -96,4 +96,24 @@ describe('ReportLayout', () => {
     expect(src).toMatch(/\.pr-aside-leave-to[^}]*opacity:\s*0/s);
     expect(src).toMatch(/prefers-reduced-motion:\s*reduce/);
   });
+
+  it('PR-LAYOUT-008: grid-track transition start/end toggles asideTrackAnimating for the swimlane', async () => {
+    const src = (await import('./ReportLayout.vue?raw')).default as string;
+    expect(src).toMatch(/ASIDE_TRACK_ANIMATING_KEY/);
+    expect(src).toMatch(/provide\(ASIDE_TRACK_ANIMATING_KEY/);
+    expect(src).toMatch(/@transitionstart="onTrackTransitionStart"/);
+    expect(src).toMatch(/@transitionend="onTrackTransitionEnd"/);
+    expect(src).toMatch(/propertyName !== 'grid-template-columns'/);
+
+    const wrapper = mount(ReportLayout, {
+      props: { showAside: true, asideWidth: ASIDE_WIDTH_DEFAULT },
+      slots: { main: '<div>main</div>', aside: '<div>aside</div>' },
+    });
+    expect(wrapper.attributes('data-aside-track-animating')).toBe('false');
+    await wrapper.trigger('transitionstart', { propertyName: 'grid-template-columns' });
+    expect(wrapper.attributes('data-aside-track-animating')).toBe('true');
+    await wrapper.trigger('transitionend', { propertyName: 'grid-template-columns' });
+    expect(wrapper.attributes('data-aside-track-animating')).toBe('false');
+    wrapper.unmount();
+  });
 });

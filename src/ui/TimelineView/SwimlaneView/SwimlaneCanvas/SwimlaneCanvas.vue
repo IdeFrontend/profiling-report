@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { ASIDE_TRACK_ANIMATING_KEY } from '../../../asideTrackAnimating';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -90,6 +91,11 @@ const props = withDefaults(
     hoveredLaneId?: string | null;
     /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
     collapseAnim?: CollapseAnimState | null;
+    /**
+     * Freeze the device backing store and CSS-stretch the bitmap (aside track tween).
+     * When omitted, follows ReportLayout's provided `ASIDE_TRACK_ANIMATING_KEY`.
+     */
+    freezeBackingStore?: boolean;
   }>(),
   {
     dependencyMode: 'all',
@@ -102,6 +108,11 @@ const props = withDefaults(
     hoveredLaneId: null,
     collapseAnim: null,
   },
+);
+
+const asideTrackAnimating = inject(ASIDE_TRACK_ANIMATING_KEY, undefined);
+const freezeBackingStore = computed(
+  () => props.freezeBackingStore === true || asideTrackAnimating?.value === true,
 );
 
 const emit = defineEmits<{
@@ -242,6 +253,9 @@ let lastH = 0;
 /** Device-pixel buffer size from RO; stay 0 until a positive box arrives — no paint until then. */
 let lastDeviceW = 0;
 let lastDeviceH = 0;
+/** Latest RO device box seen while frozen — applied once on thaw. */
+let pendingDeviceW = 0;
+let pendingDeviceH = 0;
 let lastDpr = 0;
 /** Single CSS-pixel width for pointer→time, xRatio, and CSS-space layout helpers. */
 let trackWidth = 1;
@@ -662,6 +676,8 @@ function ensureAttach(): void {
 /**
  * Apply CSS layout bookkeeping always; apply device buffer + paint only after
  * ResizeObserver delivers a positive device-pixel box (no HTML 300×150 / css×dpr default).
+ * While the aside grid track is tweening, keep the backing store frozen and let CSS
+ * stretch the bitmap — one real resize runs when the track settles.
  */
 function resize(entries: ResizeObserverEntry[] | null = null): void {
   const wrap = wrapRef.value;
@@ -677,43 +693,94 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   ensureAttach();
   if (!attached) return;
 
+  const freeze = freezeBackingStore.value;
   let deviceW = lastDeviceW;
   let deviceH = lastDeviceH;
   if (entries && entries.length > 0) {
     const box = readDeviceBoxFromRo(entries, w, h, dpr);
     if (!box) return;
-    deviceW = box.deviceW;
-    deviceH = box.deviceH;
+    if (freeze && lastDeviceW >= 1 && lastDeviceH >= 1) {
+      // Record the target size; keep painting into the frozen buffer.
+      pendingDeviceW = box.deviceW;
+      pendingDeviceH = box.deviceH;
+    } else {
+      deviceW = box.deviceW;
+      deviceH = box.deviceH;
+      pendingDeviceW = 0;
+      pendingDeviceH = 0;
+    }
   } else if (lastDeviceW < 1 || lastDeviceH < 1) {
     // Wait for ResizeObserver — do not invent a buffer size.
     return;
   }
 
-  const sizeChanged =
-    w !== lastW ||
-    h !== lastH ||
-    deviceW !== lastDeviceW ||
-    deviceH !== lastDeviceH ||
-    dpr !== lastDpr;
-  if (sizeChanged) {
+  const cssChanged = w !== lastW || h !== lastH || dpr !== lastDpr;
+  const bufferChanged =
+    !freeze &&
+    (deviceW !== lastDeviceW || deviceH !== lastDeviceH || dpr !== lastDpr);
+
+  if (cssChanged || bufferChanged) {
     lastW = w;
     lastH = h;
-    lastDeviceW = deviceW;
-    lastDeviceH = deviceH;
     lastDpr = dpr;
     resizeTick.value += 1;
+  }
+  if (bufferChanged) {
+    lastDeviceW = deviceW;
+    lastDeviceH = deviceH;
     backend.resize(deviceW, deviceH, dpr);
     if (useWebGl.value) overlay.resize(deviceW, deviceH, dpr);
   }
   applyViewState();
-  if (sizeChanged) flushPaint();
-  else schedulePaint();
+  // Frozen CSS-only reflows stretch the existing bitmap — skip a wasted redraw.
+  if (bufferChanged) flushPaint();
+  else if (!freeze) schedulePaint();
   const maxY = maxScrollY();
   if (localScrollY > maxY) {
     localScrollY = maxY;
     emit('scroll-y', localScrollY);
   }
 }
+
+/** Apply the pending RO size after the aside track tween ends. */
+function thawBackingStore(): void {
+  const dpr = currentDpr();
+  let deviceW = pendingDeviceW;
+  let deviceH = pendingDeviceH;
+  pendingDeviceW = 0;
+  pendingDeviceH = 0;
+  if (deviceW < 1 || deviceH < 1) {
+    // No RO sample while frozen — derive from the current CSS box.
+    const wrap = wrapRef.value;
+    const w = wrap?.clientWidth || lastW;
+    const h = wrap?.clientHeight || lastH;
+    if (w < 1 || h < 1) return;
+    deviceW = Math.max(1, Math.round(w * dpr));
+    deviceH = Math.max(1, Math.round(h * dpr));
+  }
+  if (deviceW === lastDeviceW && deviceH === lastDeviceH && dpr === lastDpr) {
+    applyViewState();
+    schedulePaint();
+    return;
+  }
+  lastW = wrapRef.value?.clientWidth || lastW;
+  lastH = Math.max(1, wrapRef.value?.clientHeight || lastH);
+  syncTrackWidth();
+  lastDeviceW = deviceW;
+  lastDeviceH = deviceH;
+  lastDpr = dpr;
+  resizeTick.value += 1;
+  ensureAttach();
+  if (!attached) return;
+  backend.resize(deviceW, deviceH, dpr);
+  if (useWebGl.value) overlay.resize(deviceW, deviceH, dpr);
+  applyViewState();
+  flushPaint();
+}
+
+watch(freezeBackingStore, (frozen, wasFrozen) => {
+  if (wasFrozen && !frozen) thawBackingStore();
+});
 
 function bindResizeObserver(): void {
   resizeObserver?.disconnect();

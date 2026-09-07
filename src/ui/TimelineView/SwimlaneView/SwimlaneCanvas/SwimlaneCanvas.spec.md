@@ -16,7 +16,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 
 ## Behavior
 
-**Canvas lifecycle.** On mount, probe WebGL once (off-DOM) and mount **only** the active canvas set: WebGL fill + Canvas2D overlay, or a single Canvas2D fallback — unused backends are not kept hidden in the DOM. The renderer attaches but backing stores stay **0×0** until `ResizeObserver` delivers a size — no HTML default 300×150 and no speculative `css × devicePixelRatio` buffer. Observe the **main** canvas with `{ box: 'device-pixel-content-box' }`; on each callback read `devicePixelContentBoxSize` (`inlineSize` / `blockSize`) and call `resize(deviceW, deviceH, window.devicePixelRatio)` on each active renderer. Until `lastDeviceW` / `lastDeviceH` are both ≥ 1, paint is skipped. `.pr-swim-canvas` CSS is constant `position: absolute; left/top: 0; width/height: 100%` of the wrap — JS never sets `canvas.style` width/height. If the entry lacks `devicePixelContentBoxSize`, derive from `contentBoxSize × dpr` in that same RO callback only. After a buffer resize (which clears pixels), paint runs in the same turn — not deferred to the next animation frame — so gutter/aside drag does not flash a blank swimlane.
+**Canvas lifecycle.** On mount, probe WebGL once (off-DOM) and mount **only** the active canvas set: WebGL fill + Canvas2D overlay, or a single Canvas2D fallback — unused backends are not kept hidden in the DOM. The renderer attaches but backing stores stay **0×0** until `ResizeObserver` delivers a size — no HTML default 300×150 and no speculative `css × devicePixelRatio` buffer. Observe the **main** canvas with `{ box: 'device-pixel-content-box' }`; on each callback read `devicePixelContentBoxSize` (`inlineSize` / `blockSize`) and call `resize(deviceW, deviceH, window.devicePixelRatio)` on each active renderer. Until `lastDeviceW` / `lastDeviceH` are both ≥ 1, paint is skipped. `.pr-swim-canvas` CSS is constant `position: absolute; left/top: 0; width/height: 100%` of the wrap — JS never sets `canvas.style` width/height. If the entry lacks `devicePixelContentBoxSize`, derive from `contentBoxSize × dpr` in that same RO callback only. After a buffer resize (which clears pixels), paint runs in the same turn — not deferred to the next animation frame — so gutter/aside drag does not flash a blank swimlane. While ReportLayout's aside grid track is tweening (`asideTrackAnimating` / `freezeBackingStore`), the device buffer stays frozen and the CSS box stretches the existing bitmap; one real `resize` + paint runs when the track settles.
 
 **Track width.** `cursor` `xRatio` and `time` derive from CSS wrap `clientWidth` / bounding rect. Hit-testing uses device pixels: `hitTest(localX * dpr, localY * dpr)`.
 
@@ -102,6 +102,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 66. **PR-CANVAS-066** — Alt+click / Alt+hover on a collapsed-group summary bar treats it as a normal measure endpoint (anchor / retarget / pin); non-Alt click still expands (`toggle-group` + `select` leaf/`null` per PR-CANVAS-065).
 67. **PR-CANVAS-067** — Ctrl+left-drag still pans the viewport (emits `pan`) — the PyPTO "combined" horizontal pan works because pan is not gated on the modifier.
 68. **PR-CANVAS-068** — Horizontal-dominant wheel (`|deltaX| > |deltaY|`) emits `pan` (pixel→time, same formula as drag), including when `ctrlKey` is set; vertical-dominant non-ctrl wheel still emits `scroll-y`; Ctrl/Cmd+vertical wheel still zooms.
+69. **PR-CANVAS-069** — While `freezeBackingStore` is true, ResizeObserver CSS-box changes do not realloc the device buffer; thawing applies one resize to the pending size.
 71. **PR-CANVAS-071** — Inbound `hoveredLaneId` prop calls renderer `setHoveredLane` (and WebGL overlay when active) without re-emitting `lane-hover` (gutter→track half of AC-07).
 72. **PR-CANVAS-072** — The event-edge magnet (`nearestEventEdgeAtPoint`) snaps only to edges in the sub-row under the pointer; a multi-row leaf does not snap across sub-rows.
 73. **PR-CANVAS-073** — The hover-gap measure (`findHoverGap`) computes an idle gap only within the sub-row under the pointer; the vertical padding check and the left/right neighbour scan are sub-row-scoped.
@@ -137,8 +138,9 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
-- **2026-09-08** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-072`/`073`; 069/070 reserved for #71).
-- **2026-09-07** — Inbound `hoveredLaneId` drives track `setHoveredLane` without re-emitting (gutter→track AC-07); PR-CANVAS-071 (069/070 reserved for open #71 freezeBackingStore).
+- **2026-09-08** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-072`/`073`; 070 reserved for #71 frozen hit-scale).
+- **2026-09-07** — Inbound `hoveredLaneId` drives track `setHoveredLane` without re-emitting (gutter→track AC-07); PR-CANVAS-071.
+- **2026-09-07** — Freeze device backing store while the aside grid track tweens; CSS-stretch then one thaw resize (`PR-CANVAS-069`).
 - **2026-09-07** — Summary-bar expand selects the sole leaf when `taskCount === 1` (`sourceEvent`); multi-task summaries still clear selection (`PR-CANVAS-065`).
 - **2026-09-07** — Summary-bar click clears selection (`select` null) as well as hover after expand (`PR-CANVAS-065`).
 - **2026-09-07** — Summary-bar click clears hover so the "N tasks" tooltip does not linger after expand (`PR-CANVAS-065`).

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, provide, ref } from 'vue';
 import { t } from '../../i18n';
+import { ASIDE_TRACK_ANIMATING_KEY } from '../asideTrackAnimating';
 import {
   ASIDE_WIDTH_DEFAULT,
   ASIDE_WIDTH_MAX,
@@ -34,6 +35,57 @@ const layoutStyle = computed(
 
 /** Suppress the grid-track transition while the user drags the resize handle. */
 const isResizing = ref(false);
+
+/**
+ * True while `grid-template-columns` is tweening. SwimlaneCanvas freezes its
+ * backing store and CSS-stretches the bitmap until the track settles (avoids
+ * per-frame WebGL buffer realloc during the 200ms aside open/close).
+ */
+const asideTrackAnimating = ref(false);
+provide(ASIDE_TRACK_ANIMATING_KEY, asideTrackAnimating);
+
+/** Fallback if `transitionend` is skipped (interrupted/reduced-motion edge cases). */
+let trackAnimFallback: ReturnType<typeof setTimeout> | null = null;
+
+function clearTrackAnimFallback(): void {
+  if (trackAnimFallback == null) return;
+  clearTimeout(trackAnimFallback);
+  trackAnimFallback = null;
+}
+
+function beginTrackAnim(): void {
+  asideTrackAnimating.value = true;
+  clearTrackAnimFallback();
+  trackAnimFallback = setTimeout(() => {
+    asideTrackAnimating.value = false;
+    trackAnimFallback = null;
+  }, 250);
+}
+
+function endTrackAnim(): void {
+  clearTrackAnimFallback();
+  asideTrackAnimating.value = false;
+}
+
+function isAsideTrackTransition(e: TransitionEvent): boolean {
+  if (e.propertyName !== 'grid-template-columns') return false;
+  // Own track tween only — ignore nested opacity transitions bubbling from the aside.
+  return e.target === rootEl.value || e.currentTarget === rootEl.value;
+}
+
+function onTrackTransitionStart(e: TransitionEvent): void {
+  if (!isAsideTrackTransition(e)) return;
+  beginTrackAnim();
+}
+
+function onTrackTransitionEnd(e: TransitionEvent): void {
+  if (!isAsideTrackTransition(e)) return;
+  endTrackAnim();
+}
+
+onBeforeUnmount(() => {
+  clearTrackAnimFallback();
+});
 
 let session: ReturnType<typeof startHorizontalResize> | null = null;
 
@@ -73,6 +125,10 @@ defineExpose({ rootEl });
     class="pr-layout"
     :class="{ 'pr-layout--resizing': isResizing }"
     :style="layoutStyle"
+    :data-aside-track-animating="asideTrackAnimating ? 'true' : 'false'"
+    @transitionstart="onTrackTransitionStart"
+    @transitionend="onTrackTransitionEnd"
+    @transitioncancel="onTrackTransitionEnd"
   >
     <section class="pr-main">
       <slot name="main" />
