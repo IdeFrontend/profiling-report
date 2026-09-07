@@ -14,9 +14,11 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-axis-tick` | `#343434` | Viewport/overview axis major bars + minor ticks (v930 sample ≈ `rgb(52,52,52)`) |
 | `--pr-axis-tick-muted` | `#272727` | Axis ticks outside the selected overview window (v930 sample ≈ `rgb(39,39,39)`) |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
-| `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card decorative bar (report-stats cyan) |
+| `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card bar (report-stats cyan) |
+| `--pr-color-card-bar-primary` | `#5EC8D8` | Left dual-column bars (Cube / 读 / 并行使用率) |
+| `--pr-color-card-bar-secondary` | `#5ED8A8` | Right dual-column bars (Vector / 写 / 负载均衡度) |
 | `--pr-color-overview-cube` | `#3078F0` | Overview Cube series fill |
-| `--pr-color-bandwidth-bar` | `#3078F0` | DATA-33g I/O bandwidth card bar fill (same hex, separate so Cube series edits do not repaint cards) |
+| `--pr-color-bandwidth-bar` | `#5EC8D8` | Alias for card primary bar (legacy name; DATA-33g 读\|写 bars) |
 
 ### Toolbar controls (hardcoded; not CSS vars)
 
@@ -67,8 +69,10 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
   --pr-color-scalar: #1a743e;
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
-  --pr-color-bandwidth-bar: #3078f0;
   --pr-color-duration-bar: #5ec8d8;
+  --pr-color-card-bar-primary: #5ec8d8;
+  --pr-color-card-bar-secondary: #5ed8a8;
+  --pr-color-bandwidth-bar: #5ec8d8; /* alias of card-bar-primary */
   --pr-color-playhead: #3078f0;
   --pr-bg-deep: #1f1f1f;
   --pr-bg-aside: #1a1a1a;

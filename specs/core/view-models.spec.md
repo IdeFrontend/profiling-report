@@ -12,9 +12,11 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Behavior
 
-**Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (**confirmed** `Task Duration(us)`), `pid` from `Pid` / `PID`, `blockDim` from `Block Dim`, `coreCount` from `HardwareInfo.jsonl` by op type (DATA-1). Compute TFLOPS and core utilization stay unset. I/O bandwidth cards are `bandwidthCards` (DATA-33g): **measured columns confirmed**; peak/score still interim.
+**Report summary.** Extracts `OpBasicInfo.csv` into `ReportViewModel.summary`: op name, op type, task duration (**confirmed** `Task Duration(us)`), `pid` from `Pid` / `PID`, `blockDim` from `Block Dim`, `coreCount` from `HardwareInfo.jsonl` by op type (DATA-1). **算力情况** is `computeCard` (DATA-33h / DATA-2..4, UI-33) when ArithmeticUtilization + peak inputs yield at least one aic/aiv side. **AICore 并行使用率** stays unset on the model until Product formulas (UI **N/A** via DATA-33a). I/O bandwidth cards are `bandwidthCards` (DATA-33g): **measured columns confirmed**; peak/score still interim.
 
-**I/O bandwidth (DATA-33g).** From `Memory.csv`: mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_main_mem_{read|write}_bw(GB/s)` (first matching header only; also accepts headers without the `(GB/s)` suffix). Peak = **1600 GB/s** for every side. UI displays **GB/s** (UI-34). Omit a side when all-NA; omit the card when both sides NA; omit `bandwidthCards` when Memory.csv is missing.
+**Compute card (DATA-33h).** From `ArithmeticUtilization.csv` + peak inputs: measured TFLOPS per Cube/Vector side (`fops / timeUs / 1e6`; adapter sides `aic`/`aiv`); peak from `HardwareInfo.jsonl` core counts and frequency (or OpBasicInfo freq fallback) per DATA-2..4 interim formulas. Omit a side without both measured and peak; omit `computeCard` when no sides. UI shows **Cube \| Vector** labels; card only when `taskDurationUs` is present (DATA-33a).
+
+**Bandwidth (DATA-33g).** From `Memory.csv`: mean of non-`NA` `aic_main_mem_{read|write}_bw(GB/s)` / `aiv_main_mem_{read|write}_bw(GB/s)` (first matching header only; also accepts headers without the `(GB/s)` suffix). Peak = **1600 GB/s**. UI displays **GB/s** (UI-34). Sketch target: one **带宽利用率** card with **读 \| 写**. Omit a side when all-NA; omit the card when both sides NA; omit `bandwidthCards` when Memory.csv is missing.
 
 **Aside meta (shell).** v930 header is **进程** / **算子类型** / **Blocks** from `pid`, `opType`, `blockDim`. Hide a segment when unset; hide the row when all three are empty. Do **not** put 核数, aic频率, or NPU ARCH on this row. `currentFreq` / `ratedFreq` stay on the model for the hardware overlay fallback; they are not shell fields. Overlay `chip_info` / `arch_info` stay in `hardwareDetails`.
 
@@ -36,7 +38,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Acceptance Criteria
 
-1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration, pid, blockDim, optional coreCount (DATA-1); compute/util unset per DATA-33a.
+1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration, pid, blockDim, optional coreCount (DATA-1); AICore-parallel unset per DATA-33a; compute via optional `computeCard` (DATA-33h).
 2. **PR-VM-002** — PipeOccupancy aggregates mean of non-NA ratios per pipe family per DATA-33b; optional absoluteValue from mean `*_time(us)` (DATA-33f).
 3. **PR-VM-003** — Overview series returns empty array per DATA-32a.
 4. **PR-VM-005** — Pipe items are side-specific (`aic_*` vs `aiv_*`); no blended AIC/AIV family ratio.
@@ -49,6 +51,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 11. **PR-VM-012** — Topology labels come only from the requested `block_id`; first labelled block is used for the adapter snapshot.
 12. **PR-VM-013** — `bandwidthCards` from Memory.csv mean non-NA main-mem BW; peak 1600 GB/s; omit NA sides/cards (DATA-33g). Also covers unmodified `out.rep` (aiv-only; peak 1600).
 13. **PR-VM-014** — `summary.coreCount` from `HardwareInfo.jsonl` by op type (cube/vector/mix); omit when jsonl or field missing.
+14. **PR-VM-015** — `computeCard` from ArithmeticUtilization + HardwareInfo peaks (DATA-33h).
 
 ## Edge Cases
 
@@ -58,16 +61,19 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 - Chrome Trace with no X events → throws (chromeTraceToSwimlane behavior).
 - Missing Memory.csv or all-NA main-mem BW → `bandwidthCards` omitted.
 - Missing HardwareInfo and empty OpBasicInfo → no `hardwareDetails` field.
+- Missing ArithmeticUtilization or peak inputs → no `computeCard` field.
 
 ## Dependencies
 
-DATA-33a, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-33g, DATA-32a, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
+DATA-33a, DATA-33b, DATA-33c, DATA-33d, DATA-33e, DATA-33f, DATA-33g, DATA-33h, DATA-32a, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
 
 ## Open
 
-DATA-33 — Product-final summary formulas (compute / avg util still open; bandwidth DATA-33g). DATA-37 — Product-final roofline.
+DATA-33 — Product-final summary formulas (AICore parallel still open; compute DATA-33h + bandwidth DATA-33g interim). DATA-37 — Product-final roofline.
 
 ## Changelog
+- **2026-09-04** — Sketch refresh: compute **Cube \| Vector** labels; bandwidth sketch **读 \| 写**; AICore parallel placeholder (PR-VM-015 / DATA-33h).
+- **2026-09-02** — `computeCard` (DATA-33h / DATA-2..4, UI-33) from ArithmeticUtilization + HardwareInfo peaks (PR-VM-015).
 - **2026-09-01** — `summary.coreCount` from `HardwareInfo.jsonl` by op type for duration bar/secondary (DATA-1, UI-32, PR-VM-014).
 - **2026-08-25** — Aside meta is 进程 / 算子类型 / Blocks (`pid` / `opType` / `blockDim`); `coreCount` is not a meta-row field.
 - **2026-08-21** — UB/Vec arrows: `ub_read_*` = leaving UB (`out.rep` add 2:1, PR-VM-011).
