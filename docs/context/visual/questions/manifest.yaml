@@ -206,3 +206,10 @@ images:
     highlights:
       - label: "UI-45 任务显示单位"
         box: { x: 24, y: 88, w: 427, h: 120 }
+
+  data-39:
+    source_file: src/ui/TimelineView/OverviewCharts/visual/overview-charts.png
+    maxWidth: 900
+    highlights:
+      - label: "DATA-39 统计分析"
+        box: { x: 8, y: 8, w: 360, h: 400 }
