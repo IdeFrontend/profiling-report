@@ -48,11 +48,11 @@ neighborsOf(
 
 ## Dependencies
 
-[swimlane-model](swimlane-model.spec.md) for `EventRef` and the traversal shape; `DependencyMode` / `normalizeDependencyDepth` from `domain/types`, shared with the swimlane [dependency curves](swimlane-renderer.spec.md). Interim [I-Q9](../../docs/context/INTERIM_DECISIONS.md) — the Chrome Trace `args` id convention while Q9 is open.
+[swimlane-model](swimlane-model.spec.md) for `EventRef` and the traversal shape; `DependencyMode` / `normalizeDependencyDepth` from `domain/types`, shared with the swimlane [dependency curves](swimlane-renderer.spec.md). Interim [DATA-36a](../../docs/context/decisions/interim/DATA.md) — the Chrome Trace `args` id convention while DATA-36 is open.
 
 ## Open
 
-Q9 — the producer's real dependency encoding. When it lands, only the adapter changes; the graph and UI contracts stay.
+DATA-36 — the producer's real dependency encoding. When it lands, only the adapter changes; the graph and UI contracts stay.
 
 ## Changelog
 - **2026-08-20** — Dropped the id graph: `neighborsOf` walks `SwimEvent.dependencies` refs from the selected event, taking master's `DependencyMode` and normalized hop depth, so the dock and the swimlane curves share one traversal contract. `buildDependencyGraph`, `DependencyGraph` and `DependencyDirection` are gone; PR-DEPGRAPH-003 returns for the mode filter.

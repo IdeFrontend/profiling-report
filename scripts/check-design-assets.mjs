@@ -6,7 +6,7 @@
  * - each component visual/ crop is listed in provenance.yaml
  * - each provenance source id resolves via source/manifest.yaml
  * - markdown links to design images under src/ui, docs/ui, and docs/context resolve
- * - HQ open-questions annotated crops in docs/context/visual/hq/ match manifest.yaml
+ * - open-question annotated crops in docs/context/visual/questions/ match manifest.yaml
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -21,8 +21,8 @@ const UI_DIR = resolve(ROOT, 'src/ui');
 const SWIM_DIR = resolve(ROOT, 'src/swimlane');
 const DOCS_UI = resolve(ROOT, 'docs/ui');
 const DOCS_CONTEXT = resolve(ROOT, 'docs/context');
-const HQ_MANIFEST = resolve(DOCS_CONTEXT, 'visual/hq/manifest.yaml');
-const HQ_OUT_DIR = resolve(DOCS_CONTEXT, 'visual/hq');
+const HQ_MANIFEST = resolve(DOCS_CONTEXT, 'visual/questions/manifest.yaml');
+const HQ_OUT_DIR = resolve(DOCS_CONTEXT, 'visual/questions');
 
 const IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i;
 const MD_LINK_RE = /!\[[^\]]*\]\(([^)]+)\)|\[[^\]]*\]\(([^)]+\.(?:png|jpe?g|webp|gif)(?:#[^)]*)?)\)/gi;
@@ -323,7 +323,7 @@ function checkHqVisuals(maps) {
   const images = hq.images ?? {};
   const ids = Object.keys(images);
   if (!ids.length) {
-    fail('docs/context/visual/hq/manifest.yaml: no images defined');
+    fail('docs/context/visual/questions/manifest.yaml: no images defined');
     return;
   }
 
@@ -331,7 +331,7 @@ function checkHqVisuals(maps) {
     const meta = images[id] ?? {};
     const outPath = join(HQ_OUT_DIR, `${id}.png`);
     if (!existsSync(outPath)) {
-      fail(`hq visual missing output: ${relative(ROOT, outPath)} (run npm run render:hq-visuals)`);
+      fail(`question visual missing output: ${relative(ROOT, outPath)} (run npm run render:question-visuals)`);
     }
 
     const n = (meta.highlights ?? []).length;

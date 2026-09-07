@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import PrIcon from '../PrIcon.vue';
-import type { ReportOperator } from '../../domain/types';
+import type { ReportOperator, TimeDisplayMode } from '../../domain/types';
 import Chevron from '../Chevron.vue';
 import {
   MAX_DEPENDENCY_DEPTH,
@@ -9,12 +9,27 @@ import {
   normalizeDependencyDepth,
 } from '../../domain/types';
 import { t } from '../../i18n';
+/* PyPTO multi-color glyphs — img, not PrIcon masks (masks kill #5291FF accents). */
+import shortcutMouseWheel from '../icons/shortcuts/mouse-scrollwheel-dark.svg';
+import shortcutMouseClick from '../icons/shortcuts/mouse-leftclick-dark.svg';
+import shortcutKeyW from '../icons/shortcuts/W-dark-key.svg';
+import shortcutKeyA from '../icons/shortcuts/A-dark-key.svg';
+import shortcutKeyS from '../icons/shortcuts/S-dark-key.svg';
+import shortcutKeyD from '../icons/shortcuts/D-dark-key.svg';
+import shortcutKeyCtrl from '../icons/shortcuts/Ctrl-dark-key.svg';
+import shortcutKeyAlt from '../icons/shortcuts/Alt-dark-key.svg';
+import shortcutSingleFinger from '../icons/shortcuts/single-finger-dark.svg';
+import shortcutDoubleFinger from '../icons/shortcuts/double-finger-dark.svg';
+import shortcutBoxSelect from '../icons/shortcuts/boxselect-sign-dark.svg';
 
 const props = defineProps<{
   searchQuery: string;
   asideVisible: boolean;
   asideAvailable: boolean;
   zoomPercent: number;
+  timeDisplayMode: TimeDisplayMode;
+  /** When set, CPU clocks option is shown. */
+  clockFreqMHz?: number;
   dependencyDepth: number;
   locale?: string;
   title?: string;
@@ -26,6 +41,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:asideVisible': [value: boolean];
+  'update:timeDisplayMode': [value: TimeDisplayMode];
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
   'update:selectedOperatorId': [id: string];
@@ -53,6 +69,16 @@ const atDepthMin = computed(() => props.dependencyDepth <= MIN_DEPENDENCY_DEPTH)
 const displayControlOpen = ref(false);
 /** Wrap owns the trigger and the panel, so an outside hit is anything not in here. */
 const displayWrapRef = ref<HTMLElement | null>(null);
+/** Shortcut-help (快捷键说明) popover state — same dismiss contract as display control. */
+const shortcutHelpOpen = ref(false);
+const shortcutWrapRef = ref<HTMLElement | null>(null);
+const shortcutTriggerRef = ref<HTMLButtonElement | null>(null);
+const shortcutHelpRef = ref<HTMLElement | null>(null);
+/** Fixed coords — panel teleports to body to escape toolbar `overflow-x: clip`. */
+const shortcutHelpStyle = ref<Record<string, string>>({});
+const SHORTCUT_HELP_WIDTH_PX = 450;
+const SHORTCUT_HELP_GAP_PX = 6;
+const SHORTCUT_HELP_MARGIN_PX = 8;
 const opMenuOpen = ref(false);
 const activeOptionIndex = ref(0);
 const opMenuId = useId();
@@ -113,6 +139,61 @@ watch(displayControlOpen, (open) => {
   }
 });
 
+function toggleShortcutHelp() {
+  shortcutHelpOpen.value = !shortcutHelpOpen.value;
+}
+
+function closeShortcutHelp() {
+  shortcutHelpOpen.value = false;
+}
+
+/** Anchor under the trigger, right-aligned; clamp so the 450px card stays in the viewport. */
+function positionShortcutHelp() {
+  const trigger = shortcutTriggerRef.value;
+  if (!trigger) return;
+  const r = trigger.getBoundingClientRect();
+  const width = SHORTCUT_HELP_WIDTH_PX;
+  const margin = SHORTCUT_HELP_MARGIN_PX;
+  let left = r.right - width;
+  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+  left = Math.min(Math.max(left, margin), maxLeft);
+  shortcutHelpStyle.value = {
+    position: 'fixed',
+    top: `${r.bottom + SHORTCUT_HELP_GAP_PX}px`,
+    left: `${left}px`,
+    right: 'auto',
+    zIndex: '1000',
+  };
+}
+
+/** Same APG dialog dismiss as 显示控制; panel is teleported, so check wrap + panel. */
+function onShortcutOutsidePointerDown(e: PointerEvent) {
+  if (!(e.target instanceof Node)) return;
+  if (shortcutWrapRef.value?.contains(e.target)) return;
+  if (shortcutHelpRef.value?.contains(e.target)) return;
+  closeShortcutHelp();
+}
+
+function onShortcutEscape(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return;
+  e.preventDefault();
+  closeShortcutHelp();
+}
+
+watch(shortcutHelpOpen, async (open) => {
+  if (open) {
+    await nextTick();
+    positionShortcutHelp();
+    document.addEventListener('pointerdown', onShortcutOutsidePointerDown);
+    document.addEventListener('keydown', onShortcutEscape);
+    window.addEventListener('resize', positionShortcutHelp);
+  } else {
+    document.removeEventListener('pointerdown', onShortcutOutsidePointerDown);
+    document.removeEventListener('keydown', onShortcutEscape);
+    window.removeEventListener('resize', positionShortcutHelp);
+  }
+});
+
 const toolbarRef = ref<HTMLElement | null>(null);
 let toolbarClipRo: ResizeObserver | null = null;
 
@@ -151,6 +232,9 @@ watch(
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onDisplayOutsidePointerDown);
   document.removeEventListener('keydown', onDisplayEscape);
+  document.removeEventListener('pointerdown', onShortcutOutsidePointerDown);
+  document.removeEventListener('keydown', onShortcutEscape);
+  window.removeEventListener('resize', positionShortcutHelp);
   toolbarClipRo?.disconnect();
   toolbarClipRo = null;
 });
@@ -399,6 +483,255 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         </button>
       </div>
 
+      <div
+        ref="shortcutWrapRef"
+        class="pr-toolbar__shortcut-wrap"
+      >
+        <button
+          ref="shortcutTriggerRef"
+          type="button"
+          class="pr-toolbar__icon-btn"
+          data-testid="toggle-shortcuts"
+          data-toolbar-clip
+          :aria-expanded="shortcutHelpOpen"
+          :aria-pressed="shortcutHelpOpen"
+          :class="{ 'pr-toolbar__icon-btn--on': shortcutHelpOpen }"
+          :title="t('shortcuts', locale)"
+          @click="toggleShortcutHelp"
+        >
+          <PrIcon name="keyboard" />
+        </button>
+
+        <Teleport to="body">
+          <div
+            v-if="shortcutHelpOpen"
+            ref="shortcutHelpRef"
+            class="pr-toolbar__shortcut-help"
+            data-testid="shortcut-help"
+            role="dialog"
+            :aria-label="t('shortcuts', locale)"
+            :style="shortcutHelpStyle"
+          >
+          <div class="pr-toolbar__shortcut-head">
+            <span class="pr-toolbar__shortcut-title">{{ t('shortcuts', locale) }}</span>
+            <button
+              type="button"
+              class="pr-toolbar__shortcut-close"
+              data-testid="shortcut-help-close"
+              :title="t('closePanel', locale)"
+              @click="closeShortcutHelp"
+            >
+              <PrIcon name="close" />
+            </button>
+          </div>
+
+          <div class="pr-toolbar__shortcut-information">
+            <div class="pr-toolbar__shortcut-mouse-key">
+              <div class="pr-toolbar__shortcut-column">
+                <div class="pr-toolbar__shortcut-section-title">
+                  {{ t('mouseControl', locale) }}
+                </div>
+                <div class="pr-toolbar__shortcut-row">
+                  <span>{{ t('verticalMovement', locale) }}</span>
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="mouse-wheel"
+                    :src="shortcutMouseWheel"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                </div>
+                <div class="pr-toolbar__shortcut-row">
+                  <span>{{ t('singleBoxSelection', locale) }}</span>
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="mouse-click"
+                    :src="shortcutMouseClick"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                </div>
+              </div>
+
+              <div class="pr-toolbar__shortcut-column">
+                <div class="pr-toolbar__shortcut-section-title">
+                  {{ t('keyboardControl', locale) }}
+                </div>
+                <div class="pr-toolbar__shortcut-pair-row">
+                  <div class="pr-toolbar__shortcut-pair">
+                    <span>{{ t('zoomIn', locale) }}</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="key-w"
+                      :src="shortcutKeyW"
+                      alt="W"
+                      width="24"
+                      height="24"
+                    >
+                  </div>
+                  <div class="pr-toolbar__shortcut-pair">
+                    <span>{{ t('zoomOut', locale) }}</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="key-s"
+                      :src="shortcutKeyS"
+                      alt="S"
+                      width="24"
+                      height="24"
+                    >
+                  </div>
+                </div>
+                <div class="pr-toolbar__shortcut-pair-row">
+                  <div class="pr-toolbar__shortcut-pair">
+                    <span>{{ t('panLeft', locale) }}</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="key-a"
+                      :src="shortcutKeyA"
+                      alt="A"
+                      width="24"
+                      height="24"
+                    >
+                  </div>
+                  <div class="pr-toolbar__shortcut-pair">
+                    <span>{{ t('panRight', locale) }}</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="key-d"
+                      :src="shortcutKeyD"
+                      alt="D"
+                      width="24"
+                      height="24"
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pr-toolbar__shortcut-column pr-toolbar__shortcut-column--combined">
+              <div class="pr-toolbar__shortcut-section-title">
+                {{ t('combinedControl', locale) }}
+              </div>
+              <div class="pr-toolbar__shortcut-row">
+                <span>{{ t('scaling', locale) }}</span>
+                <span class="pr-toolbar__shortcut-glyphs">
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="mouse-wheel"
+                    :src="shortcutMouseWheel"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="key-ctrl"
+                    :src="shortcutKeyCtrl"
+                    alt="Ctrl"
+                    width="24"
+                    height="24"
+                  >
+                  <span
+                    class="pr-toolbar__shortcut-sep"
+                    aria-hidden="true"
+                  >/</span>
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="single-finger"
+                    :src="shortcutSingleFinger"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                </span>
+              </div>
+              <div class="pr-toolbar__shortcut-row">
+                <span>{{ t('dragPan', locale) }}</span>
+                <span class="pr-toolbar__shortcut-glyphs">
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="mouse-click"
+                    :src="shortcutMouseClick"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="key-ctrl"
+                    :src="shortcutKeyCtrl"
+                    alt="Ctrl"
+                    width="24"
+                    height="24"
+                  >
+                  <span
+                    class="pr-toolbar__shortcut-sep"
+                    aria-hidden="true"
+                  >/</span>
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="double-finger"
+                    :src="shortcutDoubleFinger"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                </span>
+              </div>
+              <div class="pr-toolbar__shortcut-row">
+                <span>{{ t('boxSelect', locale) }}</span>
+                <span class="pr-toolbar__shortcut-glyphs">
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="mouse-click"
+                    :src="shortcutMouseClick"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                  <span
+                    class="pr-toolbar__shortcut-sep"
+                    aria-hidden="true"
+                  >/</span>
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="box-select"
+                    :src="shortcutBoxSelect"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                </span>
+              </div>
+              <div class="pr-toolbar__shortcut-row">
+                <span>{{ t('timeMeasurement', locale) }}</span>
+                <span class="pr-toolbar__shortcut-glyphs">
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="mouse-click"
+                    :src="shortcutMouseClick"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="key-alt"
+                    :src="shortcutKeyAlt"
+                    alt="Alt"
+                    width="24"
+                    height="24"
+                  >
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        </Teleport>
+      </div>
+
       <button
         type="button"
         data-testid="zoom-to-fit"
@@ -487,6 +820,28 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
               <PrIcon name="close" />
             </button>
           </div>
+          <label class="pr-toolbar__display-field">
+            <span class="pr-toolbar__display-label">{{ t('taskDisplayUnit', locale) }}</span>
+            <span class="pr-toolbar__display-select">
+              <select
+                data-testid="time-display-mode"
+                :value="timeDisplayMode"
+                @change="emit('update:timeDisplayMode', ($event.target as HTMLSelectElement).value as TimeDisplayMode)"
+              >
+                <option value="time">{{ t('displayModeTime', locale) }}</option>
+                <option
+                  v-if="clockFreqMHz != null"
+                  value="cycles"
+                >
+                  {{ t('displayModeCycles', locale) }}
+                </option>
+              </select>
+              <span
+                class="pr-toolbar__display-select-chevron"
+                aria-hidden="true"
+              />
+            </span>
+          </label>
           <label class="pr-toolbar__display-field">
             <span class="pr-toolbar__display-label">
               {{ t('connectionLevel', locale) }}
@@ -770,7 +1125,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 .pr-toolbar__search,
 .pr-toolbar__zoom-pill,
 .pr-toolbar__icon-btn,
-.pr-toolbar__display-wrap {
+.pr-toolbar__display-wrap,
+.pr-toolbar__shortcut-wrap {
   flex-shrink: 0;
 }
 
@@ -827,6 +1183,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   padding: 4px 6px;
   border: 0;
   border-radius: 0;
+  outline: none;
   background: transparent;
   color: #c8c8c8;
   cursor: pointer;
@@ -834,6 +1191,15 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   align-items: center;
   justify-content: center;
   line-height: 0;
+}
+
+.pr-toolbar__zoom-btn:focus {
+  outline: none;
+}
+
+.pr-toolbar__zoom-btn:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
 }
 
 .pr-toolbar__zoom-btn:hover {
@@ -894,7 +1260,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   border: 0;
 }
 
-/* Square action icon buttons */
+/* Square action icon buttons — no mouse-click focus ring; keyboard Tab keeps :focus-visible. */
 .pr-toolbar__icon-btn {
   box-sizing: border-box;
   margin: 0;
@@ -905,6 +1271,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   min-height: 28px;
   border: 0;
   border-radius: 6px;
+  outline: none;
   background: #363636;
   color: #b3b3b3;
   cursor: pointer;
@@ -912,6 +1279,15 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   align-items: center;
   justify-content: center;
   line-height: 0;
+}
+
+.pr-toolbar__icon-btn:focus {
+  outline: none;
+}
+
+.pr-toolbar__icon-btn:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
 }
 
 .pr-toolbar__icon-btn:hover,
@@ -1046,8 +1422,62 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   opacity: 1;
 }
 
-/* Only a number field lives here — the manual ms/µs/ns <select> was removed with
-   auto-scaling units (I-Q14), so its dropdown chevron went with it. */
+/* Time display unit <select> matches the depth input field family (dark #404040,
+   radius 6px, 32px, white text) plus a design chevron on the right. The native
+   `<select>` cannot host child elements, so the chevron is an overlaid span that
+   lets clicks fall through to the field. */
+.pr-toolbar__display-select {
+  position: relative;
+  display: block;
+}
+
+.pr-toolbar__display-field select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  /* Right padding clears the overlaid chevron. */
+  padding: 0 32px 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background-color: #404040;
+  color: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.pr-toolbar__display-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  color: #b3b3b3;
+}
+
+/* Same border-triangle glyph as Chevron.vue, drawn down. */
+.pr-toolbar__display-select-chevron::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 1.2px 1.2px 0;
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+}
+
+/* The depth field's own ±1 stepper; the separate 任务显示单位 select above carries
+   its own chevron. */
+
 .pr-toolbar__display-stepper {
   position: relative;
   display: block;
@@ -1144,13 +1574,15 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
    keyboard entry, so suppress the default and re-add it for :focus-visible only. */
 .pr-toolbar__search input:focus,
 .pr-toolbar__slider:focus,
-.pr-toolbar__display-field input[type='number']:focus {
+.pr-toolbar__display-field input[type='number']:focus,
+.pr-toolbar__display-field select:focus {
   outline: none;
 }
 
 .pr-toolbar__search input:focus-visible,
 .pr-toolbar__slider:focus-visible,
-.pr-toolbar__display-field input[type='number']:focus-visible {
+.pr-toolbar__display-field input[type='number']:focus-visible,
+.pr-toolbar__display-field select:focus-visible {
   outline: 2px solid var(--pr-playhead, #3078f0);
   outline-offset: 1px;
 }
@@ -1161,5 +1593,132 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+/* Shortcut-help (快捷键说明) — PyPTO layout/glyphs; dismiss matches 显示控制. */
+.pr-toolbar__shortcut-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.pr-toolbar__shortcut-help {
+  box-sizing: border-box;
+  width: 450px;
+  padding: 16px 20px 20px;
+  background: #363636;
+  border: 1px solid #5e5e5e;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  color: #e8e8e8;
+}
+
+.pr-toolbar__shortcut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pr-toolbar__shortcut-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.pr-toolbar__shortcut-close {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: #b3b3b3;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.pr-toolbar__shortcut-close:hover {
+  color: #ffffff;
+}
+
+.pr-toolbar__shortcut-information {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.pr-toolbar__shortcut-mouse-key {
+  display: flex;
+  flex-direction: row;
+  gap: 40px;
+}
+
+.pr-toolbar__shortcut-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pr-toolbar__shortcut-column--combined {
+  flex: none;
+  width: 100%;
+}
+
+.pr-toolbar__shortcut-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e8e8e8;
+  line-height: 1.2;
+}
+
+.pr-toolbar__shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #b2b2b2;
+}
+
+.pr-toolbar__shortcut-pair-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.pr-toolbar__shortcut-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #b2b2b2;
+}
+
+.pr-toolbar__shortcut-glyphs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pr-toolbar__shortcut-sep {
+  color: #b2b2b2;
+  font-size: 13px;
+  line-height: 1;
+  user-select: none;
+}
+
+.pr-toolbar__shortcut-glyph {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
 }
 </style>

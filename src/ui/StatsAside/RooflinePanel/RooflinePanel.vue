@@ -57,7 +57,7 @@ function yToPx(perf: number): number {
   return PAD.t + (1 - t) * plotH;
 }
 
-/** I-Q11d: roof TOps/s at intensity. */
+/** DATA-37d: roof TOps/s at intensity. */
 function roofPerf(intensity: number): number {
   const bwLimited = (props.model.peakBandwidthGBs * intensity) / 1000;
   return Math.min(props.model.peakComputeTops, bwLimited);

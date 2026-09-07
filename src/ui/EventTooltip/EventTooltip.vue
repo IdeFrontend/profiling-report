@@ -1,16 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import {
   EVENT_TIME_SIGNIFICANT_DIGITS,
   formatDisplayTimeAuto,
   formatTimeAuto,
 } from '../../domain/formatTime';
 import { t } from '../../i18n';
-import type { SwimEvent } from '../../domain/types';
+import type { SwimEvent, TimeDisplayMode } from '../../domain/types';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     event: SwimEvent;
     stylePos: { left: string; top: string };
+    timeDisplayMode: TimeDisplayMode;
+    clockFreqMHz?: number;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
     locale?: string;
@@ -18,7 +21,11 @@ withDefaults(
   { timeOrigin: 0 },
 );
 
-const displayOpts = { significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS };
+const displayOpts = computed(() => ({
+  significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS,
+  mode: props.timeDisplayMode,
+  clockFreqMHz: props.clockFreqMHz,
+}));
 </script>
 
 <template>

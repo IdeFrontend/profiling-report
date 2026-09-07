@@ -24,6 +24,9 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-UI-006**: Standalone CTEF renders timeline without aside panel.
 1. **PR-UI-007**: Time overview brush emits window update events.
 1. **PR-UI-008**: CSV-only report (compute/memory tables, no summary/pipe) auto-opens aside and shows toggle.
+1. **PR-UI-009**: Host `timeDisplayMode: 'cycles'` falls back to wall time (select value `time`, cycles option hidden) when OpBasicInfo freq is missing.
+1. **PR-UI-010**: Host `timeDisplayMode: 'cycles'` holds when OpBasicInfo freq is present (select value `cycles`, option shown).
+1. **PR-UI-011**: With no host `timeDisplayMode`, a toolbar cycles choice survives a freq change to another valid MHz; falls back to time only when freq becomes missing.
 
 ### E2E (PR-E2E)
 

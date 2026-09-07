@@ -2,7 +2,7 @@
 
 Host-driven bilingual chrome for the profiling-report Vue library. No `vue-i18n` — typed catalog + `locale` prop.
 
-**Default locale:** `zh-CN` (interim [Q17](../context/OPEN_QUESTIONS.md) / [PACKAGING_SUGGESTIONS](../context/PACKAGING_SUGGESTIONS.md)). Product has not closed Q17; do not treat English as the product default until then.
+**Default locale:** `zh-CN` (interim [PKG-2](../context/questions/PKG.md) / [PACKAGING_SUGGESTIONS](../context/PACKAGING_SUGGESTIONS.md)). Product has not closed PKG-2; do not treat English as the product default until then.
 
 ## Contract
 

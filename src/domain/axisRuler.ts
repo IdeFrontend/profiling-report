@@ -254,6 +254,7 @@ export function buildAxisRulerTicks(opts: BuildAxisRulerTicksOptions): AxisRuler
   const mute = opts.muteOutside;
   const origin = opts.origin;
   const unit = opts.timeScaleUnit;
+  // Coarse base + remainder chrome is a wall-time concept.
   const base =
     opts.useViewportBase === true
       ? resolveAxisBaseOffset(opts.rangeStart, origin, unit)

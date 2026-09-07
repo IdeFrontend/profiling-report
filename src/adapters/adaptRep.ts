@@ -2,6 +2,8 @@ import type {
   AdaptedReport,
   BandwidthCardModel,
   BandwidthSideRow,
+  ComputeCardModel,
+  ComputeSideRow,
   CsvTableModel,
   HardwareDetailsModel,
   HardwareSection,
@@ -46,12 +48,12 @@ const BANDWIDTH_COLUMNS = {
 
 const ALL_MAIN_MEM_BW_COLUMNS = Object.values(BANDWIDTH_COLUMNS).flatMap((d) => [...d.aic, ...d.aiv]);
 
-/** I-Q6g: sketch 1600 GB/s hardware guess for all four aic/aiv × in/out slots. */
+/** DATA-33g: sketch 1600 GB/s hardware guess for all four aic/aiv × in/out slots. */
 const BANDWIDTH_PEAK_GBS = 1600;
 
-/** I-Q11d fallback when Memory BW columns are all NA. */
+/** DATA-37d fallback when Memory BW columns are all NA. */
 const ROOFLINE_PEAK_BW_FALLBACK_GBS = 100;
-/** I-Q11d sketch-like compute plateau (TOps/s). */
+/** DATA-37d sketch-like compute plateau (TOps/s). */
 const ROOFLINE_PEAK_COMPUTE_TOPS = 1;
 
 function decodeUtf8(bytes: Uint8Array): string {
@@ -185,8 +187,8 @@ function mixLabelsFromRows(
 }
 
 /**
- * Interim I-Q11a–e: GM roofline point + mix labels from ArithmeticUtilization + Memory.
- * Returns undefined when undecidable (I-Q11c L2 omitted).
+ * Interim DATA-37a–e: GM roofline point + mix labels from ArithmeticUtilization + Memory.
+ * Returns undefined when undecidable (DATA-37c L2 omitted).
  */
 function rooflineFromCsv(
   arithPayload?: Uint8Array,
@@ -258,7 +260,7 @@ function bandwidthSide(
   return { side, measuredGBs, peakGBs: BANDWIDTH_PEAK_GBS };
 }
 
-/** I-Q6g: mean non-NA Memory.csv main-mem BW; peak = sketch 1600 GB/s. */
+/** DATA-33g: mean non-NA Memory.csv main-mem BW; peak = sketch 1600 GB/s. */
 function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
   if (!payload) return [];
   const { rows } = parseCsv(decodeUtf8(payload));
@@ -273,6 +275,101 @@ function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
     if (sides.length > 0) cards.push({ id, sides });
   }
   return cards;
+}
+
+/** ponytail: FP16 dtype until op dtype is in CSV (DATA-2 cube peak formula). */
+const COMPUTE_DTYPE_BYTES_DEFAULT = 2;
+
+interface HardwareComputeInputs {
+  cubeCores?: number;
+  vectorCores?: number;
+  freqMhz?: number;
+}
+
+function numericFieldsFromJsonObject(obj: Record<string, unknown>): Record<string, number> {
+  const fields: Record<string, number> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === 'category') continue;
+    const n = typeof value === 'number' ? value : Number(value);
+    if (Number.isFinite(n)) fields[key] = n;
+  }
+  return fields;
+}
+
+function hardwareComputeInputsFromJsonl(text: string): HardwareComputeInputs {
+  const out: HardwareComputeInputs = {};
+  for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (!String(obj.category ?? '').toLowerCase().includes('ai core')) continue;
+    const fields = numericFieldsFromJsonObject(obj);
+    out.cubeCores = pickPositiveField(fields, ['ai_cube_count', 'aic_cube_count']);
+    out.vectorCores = pickPositiveField(fields, ['ai_vector_count', 'aic_vector_count']);
+    const freq = obj.ai_core_frequency_MHZ;
+    if (Array.isArray(freq) && freq.length > 0) {
+      const n = Number(freq[0]);
+      if (Number.isFinite(n) && n > 0) out.freqMhz = n;
+    } else if (typeof freq === 'number' && freq > 0) {
+      out.freqMhz = freq;
+    }
+  }
+  return out;
+}
+
+function measuredTflopsForSide(
+  rows: Record<string, string>[],
+  side: ComputeSideRow['side'],
+): number | undefined {
+  const fopsCols = side === 'aic' ? ['aic_cube_fops'] : ['aiv_vec_fops'];
+  const timeCols = side === 'aic' ? ['aic_time(us)'] : ['aiv_time(us)'];
+  const fops = meanFamily(rows, fopsCols);
+  const timeUs = meanFamily(rows, timeCols);
+  if (fops == null || timeUs == null || !(timeUs > 0)) return undefined;
+  return fops / timeUs / 1e6;
+}
+
+function peakTflopsForSide(
+  side: ComputeSideRow['side'],
+  hw: HardwareComputeInputs,
+  summary: SummaryMetrics,
+): number | undefined {
+  // ponytail: OpBasicInfo Rated/Current Freq treated as MHz (same as ai_core_frequency_MHZ).
+  // Units unconfirmed — if reports emit Hz/GHz, peak is off by 1000× (DATA-3). Prefer jsonl MHZ.
+  const freqMhz = hw.freqMhz ?? summary.ratedFreq ?? summary.currentFreq;
+  if (freqMhz == null || !(freqMhz > 0)) return undefined;
+  const freqGhz = freqMhz / 1000;
+  if (side === 'aic') {
+    const cores = hw.cubeCores;
+    if (cores == null || !(cores > 0)) return undefined;
+    return (16 * COMPUTE_DTYPE_BYTES_DEFAULT * 16 * cores * freqGhz * 2) / 1000;
+  }
+  const cores = hw.vectorCores;
+  if (cores == null || !(cores > 0)) return undefined;
+  return (128 * cores * freqGhz * 2) / 1000;
+}
+
+/** DATA-2..4 / UI-33: ArithmeticUtilization measured + HardwareInfo peak per aic/aiv side. */
+function computeCardFromPayloads(
+  arithPayload: Uint8Array | undefined,
+  hwPayload: Uint8Array | undefined,
+  summary: SummaryMetrics,
+): ComputeCardModel | undefined {
+  if (!arithPayload) return undefined;
+  const { rows } = parseCsv(decodeUtf8(arithPayload));
+  if (rows.length === 0) return undefined;
+  const hw = hwPayload ? hardwareComputeInputsFromJsonl(decodeUtf8(hwPayload)) : {};
+  const sides: ComputeSideRow[] = [];
+  for (const side of ['aic', 'aiv'] as const) {
+    const measuredTflops = measuredTflopsForSide(rows, side);
+    const peakTflops = peakTflopsForSide(side, hw, summary);
+    if (measuredTflops == null || peakTflops == null || !(peakTflops > 0)) continue;
+    sides.push({ side, measuredTflops, peakTflops });
+  }
+  return sides.length > 0 ? { sides } : undefined;
 }
 
 function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
@@ -296,7 +393,7 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
-/** HQ 1: numeric fields from HardwareInfo.jsonl (accepts `ai_*` and `aic_*` keys). */
+/** DATA-1: numeric fields from HardwareInfo.jsonl (accepts `ai_*` and `aic_*` keys). */
 function hardwareNumericFieldsFromJsonl(text: string): Record<string, number> {
   const fields: Record<string, number> = {};
   for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
@@ -323,7 +420,7 @@ function pickPositiveField(fields: Record<string, number>, keys: string[]): numb
   return undefined;
 }
 
-/** HQ 1: core count for duration bar / secondary from op type + HardwareInfo.jsonl. */
+/** DATA-1: core count for duration bar / secondary from op type + HardwareInfo.jsonl. */
 function coreCountForOpType(fields: Record<string, number>, opType?: string): number | undefined {
   const t = (opType ?? '').trim().toLowerCase();
   if (t === 'mix') return pickPositiveField(fields, ['ai_core_count', 'aic_core_count']);
@@ -520,6 +617,11 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     summaryFromOpBasicInfo(payloads['OpBasicInfo.csv']),
     payloads,
   );
+  const computeCard = computeCardFromPayloads(
+    payloads['ArithmeticUtilization.csv'],
+    payloads['HardwareInfo.jsonl'],
+    summary,
+  );
   return {
     summary,
     pipeOccupancy: pipeOccupancyFromCsv(payloads['PipeUtilization.csv']),
@@ -528,13 +630,14 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     memoryTables: memory.tables,
     csvTexts: { ...compute.texts, ...memory.texts },
     ...(bandwidthCards.length > 0 ? { bandwidthCards } : {}),
+    ...(computeCard ? { computeCard } : {}),
     ...(roofline ? { roofline } : {}),
     ...(hardwareDetails ? { hardwareDetails } : {}),
     ...(memoryTopology ? { memoryTopology } : {}),
   };
 }
 
-/** Empty analytics model for Chrome Trace–only loads (Q15). */
+/** Empty analytics model for Chrome Trace–only loads (PROC-3). */
 export function emptyReportViewModel(): ReportViewModel {
   return {
     summary: {},

@@ -86,7 +86,7 @@ async function probeSwimlaneDepCurves(
  */
 
 test.describe('PR-E2E feature paths', () => {
-  test('PR-E2E-001: playground loads sample.lite.rep timeline (UX S1, interim I-Q4)', async ({ page }) => {
+  test('PR-E2E-001: playground loads sample.lite.rep timeline (UX S1, interim DATA-31a)', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
     await expect(page.getByTestId('profiling-report')).toBeVisible();
@@ -128,7 +128,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
   });
 
-  test('PR-E2E-005: standalone Chrome Trace hides aside (Q15)', async ({ page }) => {
+  test('PR-E2E-005: standalone Chrome Trace hides aside (PROC-3)', async ({ page }) => {
     await page.goto('/?fixture=ffn_dense');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
     await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });

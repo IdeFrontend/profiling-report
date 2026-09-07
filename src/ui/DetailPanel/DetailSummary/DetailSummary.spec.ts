@@ -12,6 +12,7 @@ describe('DetailSummary', () => {
     const wrapper = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'test_op', startTime: 100, duration: 100, endTime: 200 },
+        timeDisplayMode: 'time' as const,
       },
     });
 
@@ -23,6 +24,7 @@ describe('DetailSummary', () => {
     const wrapper = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'op', startTime: 1_000_000, duration: 500_000, endTime: 1_500_000 },
+        timeDisplayMode: 'time' as const,
       },
     });
 
@@ -59,6 +61,7 @@ describe('DetailSummary', () => {
           endTime: 10,
           args: { op_type: 'MOV_OUT_TO_L1_MULTI_ND2NZ' },
         },
+        timeDisplayMode: 'time' as const,
       },
     });
     expect(withType.find('[data-testid="detail-summary-kind"]').text()).toBe(
@@ -68,6 +71,7 @@ describe('DetailSummary', () => {
     const without = mount(DetailSummary, {
       props: {
         selected: { id: '1', name: 'FIX_LOC_TO_DST', startTime: 0, duration: 10, endTime: 10 },
+        timeDisplayMode: 'time' as const,
       },
     });
     expect(without.find('[data-testid="detail-summary-kind"]').exists()).toBe(false);
@@ -85,6 +89,7 @@ describe('DetailSummary', () => {
           endTime: 708_421_242_164_456,
           args: { op_type: 'event' },
         },
+        timeDisplayMode: 'time' as const,
       },
     });
 

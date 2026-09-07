@@ -4,7 +4,7 @@
 |----------------|
 | PR-MEMTOP-*    |
 
-Static memory-path topology diagram with **data-driven Buffer-link labels** (change-log #5, Q12).
+Static memory-path topology diagram with **data-driven Buffer-link labels** (change-log #5, UI-38).
 
 ## Inputs
 
@@ -58,7 +58,7 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 
 ## Dependencies
 
-I-Q6c, Q12, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
+DATA-33c, UI-38, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
 - **2026-08-21** — GM↔L2 arrows: read = leaving GM (GM→L2 gold), write = arriving at GM (L2→GM blue).

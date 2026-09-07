@@ -10,12 +10,18 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 |-------|----------|-------|
 | Mouse wheel over swimlane | Vertical scroll of lanes | MVP |
 | Ctrl/Cmd + wheel | Zoom time axis around cursor | MVP |
+| Trackpad pinch (browser `wheel` + `ctrlKey`) | Zoom time axis around cursor (same path as Ctrl/Cmd+wheel) | M3 |
+| Trackpad two-finger horizontal (`\|deltaX\| > \|deltaY\|`) | Pan time | M3 |
+| Trackpad two-finger vertical | Vertical scroll of lanes | M3 |
 | Drag on time axis / empty swimlane (with modifier if needed) | Pan time | MVP |
 | Zoom slider / + / − | Zoom | MVP |
 | Zoom to fit | Fit full `[minTime, maxTime]` in view (animated, same easing as Δt focus) | MVP |
+| `W` / `S` | Zoom in / out around the cursor (viewport center when no cursor) | M3 |
+| `A` / `D` | Pan left / right by a fixed 30 px step | M3 |
+| `Ctrl`+left-drag | Horizontal pan | M3 |
 | Click lane header expand/collapse | Toggle children | MVP |
 
-**MVP gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, drag pan, toolbar zoom / zoom-to-fit (table above). PyPTO keyboard shortcuts (W/S zoom, A/D pan) are **Phase 2** unless [Q19](../context/OPEN_QUESTIONS.md) resolves otherwise — do not treat them as MVP parity.
+**Gestures:** wheel scroll, Ctrl/Cmd+wheel / trackpad-pinch zoom, drag / Ctrl+drag / two-finger-horizontal pan, toolbar zoom / zoom-to-fit, and W/S/A/D keyboard zoom/pan (PyPTO parity; [UI-41](../context/decisions/UI.md)). Horizontal-dominant wheel pans before ctrl-zoom (PyPTO order). The toolbar **快捷键说明** action opens a popover listing these bindings (including trackpad stand-in glyphs). Search jump-to-match (Enter / prev-next) remains **Phase 2** (separate branch).
 
 **CSS cursors (timeline):** swimlane canvas empty space uses `default` (arrow; not `crosshair` or hand `pointer`). Hovering an event uses `pointer`. Viewport time axis uses `pointer`. Measure mode / measure edge bars use `col-resize`. Overview brush uses `grab` / `grabbing` / `ew-resize` on handles.
 
@@ -23,7 +29,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 
 Sketch: `source/v930/task-hover.jpeg`
 
-- Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Times use **per-value** auto units (`formatDisplayTimeAuto` / `formatTimeAuto`, 4 significant digits) — independent of viewport zoom ([I-Q14](../context/INTERIM_DECISIONS.md)). No host `timeUnit` prop.
+- Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Times use **per-value** auto units (`formatDisplayTimeAuto` / `formatTimeAuto`, 4 significant digits) — independent of viewport zoom ([UI-40a](../context/decisions/interim/UI.md)). No host `timeUnit` prop.
 - Highlight the hovered rectangle by **lifting its own fill**, not by outlining it: `eventFill()` derives every state from the lane's base colour in OKLCH (`hover` and `selected` both `L+0.33`, with `selected` also `C×1.05`). Ringing on hover as well as selection is what made the two read as one state — the defect AC-08 reported — so the ring is selection's alone and rides over its fill. A block that is both keeps the selected fill. Both lifts clear the `L 0.6` label flip, so **a label inverts as the pointer crosses it**. A hovered block keeps full opacity under a selection — without that, dark text on a light fill washed by the selection dim is unreadable.
 - The two compose: a hovered selected event shows the lifted fill *and* the ring.
 - No selection change on hover alone.
@@ -57,7 +63,7 @@ Sketch: `source/v930/entry.jpeg`
 
 Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (Core2.Cube expanded gutter)
 
-**Product (2026-09-04) — [D-PIN-FOLDER](../context/INTERIM_DECISIONS.md):** folder/group pin is **deferred** out of the current iteration. Shipped behavior remains **leaf lanes only**. Folder + subtree strip is parked on `feat/pin-grouping-nodes` (PR [#69](https://github.com/IdeFrontend/profiling-report/pull/69) closed unmerged).
+**Product (2026-09-04) — [UI-44](../context/questions/deferred.md):** folder/group pin is **deferred** out of the current iteration. Shipped behavior remains **leaf lanes only**. Folder + subtree strip is parked on `feat/pin-grouping-nodes` (PR [#69](https://github.com/IdeFrontend/profiling-report/pull/69) closed unmerged).
 
 - **Leaf lanes only:** unpinned pushpin appears on **gutter row hover** only (not when hovering the events chart); **pinned pushpin stays visible** on the original row and sticky-strip duplicate. Flush to the **left edge** of the gutter (not depth-indented). Outline `#a8a8a8` unpinned; solid `#4a90e2` when pinned or when hovering the pin. Full gutter row highlight `#252525` on gutter hover **or** when the pointer is over that leaf’s events-chart band (header hint only — no highlight painted on the swimlane itself). Tooltip **置顶**.
 - Click unpinned pushpin → parent appends lane id to **pinnedLaneIds**; click pinned → remove. Context-menu **Pin row** (Ctrl+P) toggles the same **pinnedLaneIds** — one pin state, two affordances.
@@ -120,15 +126,15 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 ## Right panel coordination
 
 - Aside **close** clears `asideVisible` (equivalent to toolbar stats toggle off). See [StatsAside.spec.md](../../src/ui/StatsAside/StatsAside.spec.md).
-- **更多** / More opens interim `HardwareDetailsPanel` (I-Q7a) when data exists and emits `open-hardware-details`.
+- **更多** / More opens interim `HardwareDetailsPanel` (DATA-34a) when data exists and emits `open-hardware-details`.
 - Stacked 报告统计 (M2): summary cards (duration + compute/util `N/A` placeholders + I/O BW), roofline, PIPE, topology — no mode-tab switcher. PIPE **详情** opens compute CSV overlay; topology **详情** opens memory CSV overlay; back control returns to the stack.
-- PIPE bars remain global mean aggregates ([I-Q6b](../context/INTERIM_DECISIONS.md)); measure range does not change them.
-- Detail / memory lists are **block-scoped** via block switcher ([I-Q6c](../context/INTERIM_DECISIONS.md)); topology labels use the same `selectedBlockId`.
+- PIPE bars remain global mean aggregates ([DATA-33b](../context/decisions/interim/DATA.md)); measure range does not change them.
+- Detail / memory lists are **block-scoped** via block switcher ([DATA-33c](../context/decisions/interim/DATA.md)); topology labels use the same `selectedBlockId`.
 - Cube \| Vector toggle on PIPE for MIX ops only.
 - PIPE section **详情** navigates to compute CSV overlay + emits `open-pipe-details`.
-- Roofline (M2 interim I-Q11*): shown on the stack after the duration card when `report.roofline.points` non-empty; tabs omitted.
+- Roofline (M2 interim DATA-37*): shown on the stack after the duration card when `report.roofline.points` non-empty; tabs omitted.
 - Compute details overlay: tabs PipeUtilization | ArithmeticUtilization | ResourceConflictRatio.
-- Memory details overlay: tabs Memory L1 | L2Cache | Memory L0 | Memory UB; **查看全部** opens full CSV ([I-Q6d](../context/INTERIM_DECISIONS.md)).
+- Memory details overlay: tabs Memory L1 | L2Cache | Memory L0 | Memory UB; **查看全部** opens full CSV ([DATA-33d](../context/decisions/interim/DATA.md)).
 - Selecting a lane or event may filter lists later (still open); do not invent until Product confirms.
 
 ## Accessibility and robustness

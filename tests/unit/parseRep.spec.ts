@@ -25,7 +25,7 @@ describe('PR-FMT: .rep container parse', () => {
     });
   });
 
-  it('PR-FMT-002: embed list and payloads match data/out.rep (interim I-Q4)', () => {
+  it('PR-FMT-002: embed list and payloads match data/out.rep (interim DATA-31a)', () => {
     const parsed = parseRep(loadOutRepBytes());
     const names = parsed.files.map((f) => f.name);
 

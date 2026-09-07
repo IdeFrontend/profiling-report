@@ -65,7 +65,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     });
   });
 
-  it('PR-UI-003: hides optional panels when data missing (Q3 / interim)', async () => {
+  it('PR-UI-003: hides optional panels when data missing (DATA-30 / interim)', async () => {
     const emptyReport = emptyReportViewModel();
     const emptySwim: SwimlaneModel = {
       processes: [],
@@ -97,6 +97,72 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(full.find('[data-testid="stats-summary"]').exists()).toBe(true);
     expect(full.find('[data-testid="overview-charts"]').exists()).toBe(false);
     expect(full.find('[data-testid="stats-compute"]').exists()).toBe(false);
+  });
+
+  it('PR-UI-009: host cycles mode falls back to time when freq is missing', async () => {
+    const emptySwim: SwimlaneModel = { processes: [], minTime: 0, maxTime: 1 };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: emptySwim,
+        reportModel: emptyReportViewModel(), // summary {} → no OpBasicInfo freq
+        timeDisplayMode: 'cycles',
+      },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="toggle-display-control"]').trigger('click');
+    await flushPromises();
+    const select = wrapper.get('[data-testid="time-display-mode"]');
+    // Fallback to wall time: the select value is `time`, and the cycles option hides.
+    expect(select.attributes('value')).toBe('time');
+    expect(select.findAll('option').map((o) => o.attributes('value'))).not.toContain('cycles');
+  });
+
+  it('PR-UI-010: host cycles mode holds when freq is present', async () => {
+    const emptySwim: SwimlaneModel = { processes: [], minTime: 0, maxTime: 1 };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: emptySwim,
+        reportModel: { ...emptyReportViewModel(), summary: { currentFreq: 1650 } },
+        timeDisplayMode: 'cycles',
+      },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="toggle-display-control"]').trigger('click');
+    await flushPromises();
+    const select = wrapper.get('[data-testid="time-display-mode"]');
+    expect(select.attributes('value')).toBe('cycles');
+    expect(select.findAll('option').map((o) => o.attributes('value'))).toContain('cycles');
+  });
+
+  it('PR-UI-011: toolbar cycles survives freq change when host prop is omitted', async () => {
+    const emptySwim: SwimlaneModel = { processes: [], minTime: 0, maxTime: 1 };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: emptySwim,
+        reportModel: { ...emptyReportViewModel(), summary: { currentFreq: 1650 } },
+      },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="toggle-display-control"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="time-display-mode"]').setValue('cycles');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="time-display-mode"]').attributes('value')).toBe('cycles');
+
+    // Operator switch / reload updates freq to another valid MHz — keep cycles.
+    await wrapper.setProps({
+      reportModel: { ...emptyReportViewModel(), summary: { currentFreq: 1800 } },
+    });
+    await flushPromises();
+    expect(wrapper.get('[data-testid="time-display-mode"]').attributes('value')).toBe('cycles');
+
+    // Freq disappears → fall back to wall time (UI-40a).
+    await wrapper.setProps({ reportModel: emptyReportViewModel() });
+    await flushPromises();
+    expect(wrapper.get('[data-testid="time-display-mode"]').attributes('value')).toBe('time');
   });
 
   it('PR-UI-004: zoom-to-fit resets time window', async () => {
@@ -142,7 +208,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(vm.viewState.searchQuery).toBe('PIPE_V');
   });
 
-  it('PR-UI-006: Chrome Trace source hides analytics aside (Q15)', async () => {
+  it('PR-UI-006: Chrome Trace source hides analytics aside (PROC-3)', async () => {
     const { loadOutTraceBuffer } = await import('../helpers/fixtures');
     const wrapper = mount(ProfilingReport, {
       props: { source: loadOutTraceBuffer(), locale: 'en' },

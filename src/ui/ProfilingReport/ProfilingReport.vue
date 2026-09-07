@@ -5,6 +5,7 @@ import {
   applyWindow,
   clearMeasure,
   createViewState,
+  keyboardPanStepTime,
   measureFocusWindow,
   panBy,
   pinLane,
@@ -31,12 +32,13 @@ import {
   type SwimlaneViewState,
   type SwimThread,
   type TimeScaleUnit,
+  type TimeDisplayMode,
   type ViewFullCsvPayload,
 } from '../../domain/types';
 import { buildCannbotPayload } from '../../domain/cannbot';
 import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../domain/cannbot';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
-import { resolveTimeUnitFromVisibleRange } from '../../domain/formatTime';
+import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import {
   collectLeafEventsFromModel,
@@ -67,6 +69,7 @@ const props = withDefaults(defineProps<{
   reportMeta?: CannbotReportMeta;
   theme?: 'light' | 'dark';
   locale?: string;
+  timeDisplayMode?: TimeDisplayMode;
   dependencyMode?: DependencyMode;
   dependencyDepth?: number;
   /** Force swimlane backend for perf A/B (`auto` prefers WebGL2). */
@@ -100,10 +103,11 @@ const selected = ref<SelectedEvent | null>(null);
 /** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
 const selectedEvent = ref<SwimEvent | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
+const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
-const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
+const timelineRef = ref<{ gutterRoot: HTMLElement | null; trackWidth?: number } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
@@ -133,6 +137,7 @@ const caps = computed<ReportCapability[]>(() => {
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );
+const clockFreqMHz = computed(() => resolveClockFreqMHz(report.value?.summary));
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
@@ -317,7 +322,7 @@ function onUnpinLane(laneId: string): void {
 /**
  * Aside has content when any of: duration card, I/O bandwidth cards,
  * pipe occupancy, compute/memory CSV tables, roofline points, or hardware details are present.
- * Name/type alone do not open the aside (I-Q6a). Must stay in sync with StatsAside.
+ * Name/type alone do not open the aside (DATA-33a). Must stay in sync with StatsAside.
  */
 function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
   if (!rm) return false;
@@ -424,7 +429,7 @@ watch(showAside, () => {
 });
 
 onMounted(() => {
-  window.addEventListener('keydown', onMeasureKeydown);
+  window.addEventListener('keydown', onGlobalKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
@@ -435,14 +440,67 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
   stopLayoutFitObserver();
-  window.removeEventListener('keydown', onMeasureKeydown);
+  window.removeEventListener('keydown', onGlobalKeydown);
 });
 
-function onMeasureKeydown(e: KeyboardEvent) {
+function onGlobalKeydown(e: KeyboardEvent) {
+  // Escape clears an active measure session / range first (existing M2 contract).
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
+    return;
+  }
+  if (!showTimeline.value) return;
+  // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
+  // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const target = e.target as HTMLElement | null;
+  // Ignore while typing — the search box and the dependency-depth field are <input>s.
+  if (
+    target &&
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable)
+  ) {
+    return;
+  }
+  const key = e.key.toLowerCase();
+  if (key === 'w' || key === 's') {
+    // Zoom around the cursor (PyPTO anchors on the pointer); center when none is set.
+    const anchor =
+      cursor.value?.time ?? (viewState.value.startTime + viewState.value.endTime) / 2;
+    e.preventDefault();
+    onZoom(key === 'w' ? 1.25 : 1 / 1.25, anchor);
+  } else if (key === 'a' || key === 'd') {
+    const span = viewState.value.endTime - viewState.value.startTime;
+    // Nominal 1000 px when the track hasn't measured yet — PyPTO's 30 px step on a
+    // ~1000 px canvas ≈ 3% of the visible span.
+    const trackWidth = timelineRef.value?.trackWidth ?? 0;
+    const step = keyboardPanStepTime(span, trackWidth > 0 ? trackWidth : 1000);
+    e.preventDefault();
+    onPan(key === 'd' ? step : -step);
   }
 }
+
+/**
+ * Effective display mode: host prop when set, else the toolbar's local choice.
+ * Clamp `'cycles'` → `'time'` only when OpBasicInfo freq is missing — never treat
+ * an omitted host prop as an explicit `'time'` write (that would wipe a toolbar
+ * cycles selection on every freq change, e.g. operator switch / report reload).
+ */
+watch(
+  [() => props.timeDisplayMode, clockFreqMHz],
+  ([mode, freq]) => {
+    if (mode != null) {
+      localTimeDisplayMode.value = mode === 'cycles' && freq == null ? 'time' : mode;
+      return;
+    }
+    if (localTimeDisplayMode.value === 'cycles' && freq == null) {
+      localTimeDisplayMode.value = 'time';
+    }
+  },
+  { immediate: true },
+);
 
 watch(
   () => props.dependencyMode,
@@ -583,6 +641,10 @@ function onMeasureRange(range: MeasureRange | null) {
   viewState.value = setMeasureRange(viewState.value, range);
 }
 
+function onTimeDisplayMode(mode: TimeDisplayMode) {
+  localTimeDisplayMode.value = mode;
+}
+
 function onDependencyMode(mode: DependencyMode) {
   localDependencyMode.value = mode;
 }
@@ -632,6 +694,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :aside-visible="viewState.asideVisible"
       :aside-available="asideAvailable"
       :zoom-percent="zoomPercent"
+      :time-display-mode="localTimeDisplayMode"
+      :clock-freq-m-hz="clockFreqMHz"
       :dependency-mode="localDependencyMode"
       :dependency-depth="localDependencyDepth"
       :locale="locale"
@@ -641,6 +705,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
+      @update:time-display-mode="onTimeDisplayMode"
       @update:dependency-mode="onDependencyMode"
       @update:dependency-depth="onDependencyDepth"
       @update:zoom-percent="onZoomPercent"
@@ -681,6 +746,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :aside-visible="viewState.asideVisible"
           :aside-available="asideAvailable"
           :zoom-percent="zoomPercent"
+          :time-display-mode="localTimeDisplayMode"
+          :clock-freq-m-hz="clockFreqMHz"
           :dependency-depth="localDependencyDepth"
           :locale="locale"
           :measure-mode="viewState.measureMode"
@@ -689,6 +756,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
+          @update:time-display-mode="onTimeDisplayMode"
           @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
@@ -748,6 +816,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       <DetailPanel
         v-if="selected && showTimeline"
         :selected="selected"
+        :time-display-mode="localTimeDisplayMode"
+        :clock-freq-m-hz="clockFreqMHz"
         :time-origin="bounds.minTime"
         :locale="locale"
         :neighbors="dependencyNeighbors"
@@ -763,6 +833,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       v-if="hovered && showTimeline"
       :event="hovered"
       :style-pos="tooltipStyle"
+      :time-display-mode="localTimeDisplayMode"
+      :clock-freq-m-hz="clockFreqMHz"
       :time-origin="bounds.minTime"
       :locale="locale"
     />

@@ -5,7 +5,7 @@ import { loadOutRepBytes } from '../helpers/fixtures';
 import type { CsvTableModel } from '../../src/domain/types';
 
 describe('PR-VM: report view-models (interim)', () => {
-  it('PR-VM-001 (interim I-Q6a): OpBasicInfo → thin summary only', () => {
+  it('PR-VM-001 (interim DATA-33a): OpBasicInfo → thin summary only', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const { summary } = adapted.reportModel;
 
@@ -23,7 +23,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.avgCoreUtil).toBeUndefined();
   });
 
-  it('PR-VM-013 (interim I-Q6g): Memory.csv → bandwidthCards mean non-NA; peak 1600 GB/s', () => {
+  it('PR-VM-013 (interim DATA-33g): Memory.csv → bandwidthCards mean non-NA; peak 1600 GB/s', () => {
     const fixture = adaptRep(parseRep(loadOutRepBytes())).reportModel.bandwidthCards;
     expect(fixture).toBeDefined();
     expect(fixture!.map((c) => c.id)).toEqual(['input', 'output']);
@@ -65,7 +65,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(adaptRep(parsed).reportModel.bandwidthCards).toBeUndefined();
   });
 
-  it('PR-VM-002 (interim I-Q6b): PipeUtilization → PIPE bars mean of non-NA', () => {
+  it('PR-VM-002 (interim DATA-33b): PipeUtilization → PIPE bars mean of non-NA', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const vectorPipes = adapted.reportModel.pipeOccupancy.filter((p) => p.side === 'vector');
     const byId = Object.fromEntries(vectorPipes.map((p) => [p.id, p]));
@@ -89,7 +89,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(pipeLane?.utilization).toBeCloseTo(byId.vector.ratio, 5);
   });
 
-  it('PR-VM-003 (interim I-Q5+): overviewSeries empty — not invented from PipeUtilization', () => {
+  it('PR-VM-003 (interim DATA-32a): overviewSeries empty — not invented from PipeUtilization', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     expect(adapted.reportModel.overviewSeries).toEqual([]);
   });
@@ -159,7 +159,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(icache?.absoluteValue).toBeUndefined();
   });
 
-  it('PR-VM-009 (interim I-Q11*): GM roofline + mix labels; capability when points exist', () => {
+  it('PR-VM-009 (interim DATA-37*): GM roofline + mix labels; capability when points exist', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const roof = adapted.reportModel.roofline;
     expect(roof).toBeDefined();
@@ -188,7 +188,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(adapted.capabilities ?? []).not.toContain('roofline');
   });
 
-  it('PR-VM-009: zero Vector fops falls back to Cube (I-Q11a)', () => {
+  it('PR-VM-009: zero Vector fops falls back to Cube (DATA-37a)', () => {
     const parsed = parseRep(loadOutRepBytes());
     parsed.payloads['ArithmeticUtilization.csv'] = new TextEncoder().encode(
       [
@@ -232,7 +232,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(byKey['Current Freq']).toBe('1650');
   });
 
-  it('PR-VM-014: summary.coreCount from HardwareInfo.jsonl by op type (HQ 1)', () => {
+  it('PR-VM-014: summary.coreCount from HardwareInfo.jsonl by op type (DATA-1)', () => {
     const parsed = parseRep(loadOutRepBytes());
     parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
       '{"category":"AI Core Information","ai_core_count":36,"ai_cube_count":36,"ai_vector_count":72}',
@@ -259,6 +259,27 @@ describe('PR-VM: report view-models (interim)', () => {
       'Op Name,Op Type,Task Duration(us),Block Dim\nx,cube,1,8\n',
     );
     expect(adaptRep(parsed).reportModel.summary.coreCount).toBe(24);
+  });
+
+  it('PR-VM-015: computeCard from ArithmeticUtilization + HardwareInfo (HQ 2–4, Q33)', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    expect(adaptRep(parsed).reportModel.computeCard).toBeUndefined();
+
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      '{"category":"AI Core Information","ai_cube_count":36,"ai_vector_count":72,"ai_core_frequency_MHZ":[1650]}',
+    );
+    const card = adaptRep(parsed).reportModel.computeCard;
+    expect(card).toBeDefined();
+    expect(card!.sides.map((s) => s.side)).toEqual(['aiv']);
+    const aiv = card!.sides[0]!;
+    expect(aiv.measuredTflops).toBeCloseTo(2240 / 0.97962125 / 1e6, 5);
+    expect(aiv.peakTflops).toBeCloseTo((128 * 72 * 1.65 * 2) / 1000, 3);
+
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      '{"category":"AI Core Information","ai_vector_count":72}',
+    );
+    const ratedOnly = adaptRep(parsed).reportModel.computeCard!.sides[0]!;
+    expect(ratedOnly.peakTflops).toBeCloseTo((128 * 72 * 1.65 * 2) / 1000, 3);
   });
 
   it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {

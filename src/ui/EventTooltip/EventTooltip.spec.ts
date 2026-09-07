@@ -17,6 +17,7 @@ describe('EventTooltip', () => {
       props: {
         event: makeEvent(),
         stylePos: { left: '10px', top: '20px' },
+        timeDisplayMode: 'time' as const,
       },
     });
 
@@ -32,6 +33,7 @@ describe('EventTooltip', () => {
           duration: 500,
         }),
         stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
         timeOrigin: 0,
       },
     });

@@ -10,6 +10,7 @@ describe('ReportToolbar', () => {
     asideVisible: false,
     asideAvailable: true,
     zoomPercent: 100,
+    timeDisplayMode: 'time' as const,
     dependencyDepth: 1,
   } as const;
 
@@ -38,15 +39,17 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('zoom-to-fit')).toBeTruthy();
   });
 
-  it('PR-TOOLBAR-005: layers opens display control with dependency depth', async () => {
+  it('PR-TOOLBAR-005: layers opens display control with time mode select', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
-    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="time-display-mode"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(false);
 
     await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="time-unit"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="dependency-depth"]').exists()).toBe(true);
+    const select = wrapper.find('[data-testid="time-display-mode"]');
+    expect(select.exists()).toBe(true);
+    await select.setValue('time');
+    expect(wrapper.emitted('update:timeDisplayMode')).toEqual([['time']]);
     expect(wrapper.find('[data-testid="display-control"]').exists()).toBe(true);
   });
 
@@ -179,8 +182,13 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(
       /\.pr-toolbar__display-field input\[type='number'\][\s\S]*?border-radius:\s*6px/,
     );
-    // No manual unit <select> exists any more (I-Q14 auto-scaling units).
-    expect(src).not.toMatch(/\.pr-toolbar__display-field select/);
+    // Time display unit <select> shares the field family: #404040 bg, 6px radius.
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?background-color:\s*#404040/);
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?border-radius:\s*6px/);
+    // And carries a design chevron (native select chrome is removed).
+    expect(src).toMatch(/\.pr-toolbar__display-field select[\s\S]*?appearance:\s*none/);
+    expect(src).toMatch(/\.pr-toolbar__display-select-chevron/);
+
   });
 
   it('PR-TOOLBAR-009c: action icon rest/hover/pressed match sketch', async () => {
@@ -188,6 +196,16 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*background:\s*#363636/);
     expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*color:\s*#b3b3b3/);
     expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*border-radius:\s*6px/);
+    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*outline:\s*none/);
+    expect(src).toMatch(/\.pr-toolbar__icon-btn:focus\s*\{[^}]*outline:\s*none/);
+    expect(src).toMatch(
+      /\.pr-toolbar__icon-btn:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--pr-playhead/,
+    );
+    expect(src).toMatch(/\.pr-toolbar__zoom-btn\s*\{[^}]*outline:\s*none/);
+    expect(src).toMatch(/\.pr-toolbar__zoom-btn:focus\s*\{[^}]*outline:\s*none/);
+    expect(src).toMatch(
+      /\.pr-toolbar__zoom-btn:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--pr-playhead/,
+    );
     expect(src).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?background:\s*#1e2a3e/);
     expect(src).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?color:\s*#2d70e3/);
   });
@@ -456,6 +474,80 @@ describe('ReportToolbar', () => {
     expect(layers.hasAttribute('inert')).toBe(true);
     expect(aside.hasAttribute('inert')).toBe(true);
 
+    wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-021: shortcut-help action renders first, before zoom-to-fit, with the keyboard glyph', () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const actions = wrapper.findAll('[data-toolbar-clip]');
+    expect(actions[0].attributes('data-testid')).toBe('toggle-shortcuts');
+    expect(actions[1].attributes('data-testid')).toBe('zoom-to-fit');
+    expect(wrapper.find('[data-testid="toggle-shortcuts"] .pr-icon--keyboard').exists()).toBe(true);
+    // Not open by default (teleported panel lives on document.body when open).
+    expect(document.querySelector('[data-testid="shortcut-help"]')).toBeNull();
+  });
+
+  it('PR-TOOLBAR-022: shortcut-help popover opens and closes via X / toggle / outside / Escape', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps, attachTo: document.body });
+    const trigger = wrapper.find('[data-testid="toggle-shortcuts"]');
+    const panelEl = () => document.querySelector('[data-testid="shortcut-help"]');
+
+    await trigger.trigger('click');
+    expect(panelEl()).not.toBeNull();
+
+    const closeBtn = document.querySelector('[data-testid="shortcut-help-close"]');
+    expect(closeBtn).not.toBeNull();
+    (closeBtn as HTMLElement).click();
+    await flushPromises();
+    expect(panelEl()).toBeNull();
+
+    await trigger.trigger('click');
+    expect(panelEl()).not.toBeNull();
+    await trigger.trigger('click');
+    expect(panelEl()).toBeNull();
+
+    await trigger.trigger('click');
+    expect(panelEl()).not.toBeNull();
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    await flushPromises();
+    expect(panelEl()).toBeNull();
+
+    await trigger.trigger('click');
+    expect(panelEl()).not.toBeNull();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await flushPromises();
+    expect(panelEl()).toBeNull();
+
+    wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-023: popover lists SVG glyphs and i18n section labels', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps, attachTo: document.body });
+    await wrapper.find('[data-testid="toggle-shortcuts"]').trigger('click');
+    await flushPromises();
+    const panel = document.querySelector('[data-testid="shortcut-help"]');
+    expect(panel).not.toBeNull();
+    const icons = panel!.querySelectorAll('[data-shortcut-icon]');
+    expect(icons.length).toBeGreaterThanOrEqual(8);
+    const kinds = [...icons].map((el) => el.getAttribute('data-shortcut-icon'));
+    expect(kinds).toContain('key-w');
+    expect(kinds).toContain('key-s');
+    expect(kinds).toContain('key-a');
+    expect(kinds).toContain('key-d');
+    expect(kinds).toContain('mouse-wheel');
+    expect(kinds).toContain('mouse-click');
+    expect(kinds).toContain('key-ctrl');
+    expect(kinds).toContain('key-alt');
+    expect(kinds).toContain('single-finger');
+    expect(kinds).toContain('double-finger');
+    expect(kinds).toContain('box-select');
+    expect(panel!.querySelector('.pr-toolbar__shortcut-mouse-key')).not.toBeNull();
+    expect(panel!.querySelector('.pr-toolbar__shortcut-column--combined')).not.toBeNull();
+    expect(panel!.querySelectorAll('.pr-toolbar__shortcut-sep').length).toBeGreaterThanOrEqual(3);
+    const text = panel!.textContent ?? '';
+    expect(text).toContain(t('mouseControl'));
+    expect(text).toContain(t('keyboardControl'));
+    expect(text).toContain(t('combinedControl'));
     wrapper.unmount();
   });
 });

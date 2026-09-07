@@ -4,17 +4,17 @@
 |----------------|
 | PR-TOOLBAR-*   |
 
-Top toolbar with search, zoom controls, display-control popover (dependency depth), measure (bars + Δt arrow) toggle, and aside panel toggle.
+Top toolbar with search, zoom controls, display-control popover (task display unit + dependency depth), measure (bars + Δt arrow) toggle, and aside panel toggle.
 
-Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png), [`visual/measure-active.png`](./visual/measure-active.png), [`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png), [`visual/measure-active.png`](./visual/measure-active.png), [`visual/display-control.png`](./visual/display-control.png), [`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only).
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **timeDisplayMode** (`'time' | 'cycles'`) selects the current display unit in the 显示控制 popover, **clockFreqMHz** (optional) shows the **CPU clocks** option when set, **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only).
 
 ## Outputs
 
-The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector.
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeDisplayMode** carries the selected display mode (`'time'` or `'cycles'`). **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector.
 
 ## Behavior
 
@@ -24,9 +24,9 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Aside toggle.** Visible only when `asideAvailable` is true. Square icon button with panel SVG.
 
-**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with **任务连接层级** (`data-testid="dependency-depth"`, `update:dependencyDepth`): how many hops the swimlane dependency graph walks, `-1` for the whole chain, normalized through `normalizeDependencyDepth` so a cleared field yields the shared default rather than `NaN`. It commits on `change`, not per keystroke — a half-typed number must not rebuild the graph. Close via the **X**, a second press of the layers button, a pointerdown anywhere outside the wrap (trigger + panel), or **Escape**.
+**Display control.** Not an inline toolbar `<select>`. A **layers** icon button (`data-testid="toggle-display-control"`) opens a floating **显示控制** popover (`data-testid="display-control"`) with two fields. **任务显示单位** (`data-testid="time-display-mode"`, `update:timeDisplayMode`) is a `<select>` of **时间（自动）** (`'time'`) and — when `clockFreqMHz != null` — **CPU 时钟周期** (`'cycles'`), per [UI-40a](../../../docs/context/decisions/interim/UI.md); the clocks option hides when no OpBasicInfo freq is present. **任务连接层级** (`data-testid="dependency-depth"`, `update:dependencyDepth`) sets how many hops the swimlane dependency graph walks, `-1` for the whole chain, normalized through `normalizeDependencyDepth` so a cleared field yields the shared default rather than `NaN`; it commits on `change`, not per keystroke — a half-typed number must not rebuild the graph. Close via the **X**, a second press of the layers button, a pointerdown anywhere outside the wrap (trigger + panel), or **Escape**. In `'time'` mode wall-time units auto-scale from viewport span and overview axis density (no manual ms/µs/ns dropdown). Dependency *direction* is not here: it filters what the selected event shows, so it lives in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
 
-**Stepper.** The field carries its own ±1 buttons, inset at its right edge. Chrome's native spinner is not usable here — `appearance: none` does not remove it, it renders as a light-mode block on the dark field, and it takes no styling — so the pair is ours: two half-height buttons behind a hairline, in the same hover and active tints as the operator menu's rows. Both go through `normalizeDependencyDepth`, so a step cannot leave the range that typing cannot, and each disables on reaching its clamp (`MIN_DEPENDENCY_DEPTH` / `MAX_DEPENDENCY_DEPTH`) rather than silently no-opping. They are `aria-hidden` and out of the tab order on purpose: a number input already steps on ArrowUp / ArrowDown, so exposing them would announce a second copy of a control assistive tech can already reach. There is no press-and-hold repeat; the useful values are small and the rest is faster to type. Time units auto-scale from viewport span and overview axis density per [I-Q14](../../../docs/context/INTERIM_DECISIONS.md) — there is **no** manual ms/µs/ns dropdown (sketch may show 时钟周期; MVP does **not** offer cycle mode). Dependency *direction* is not here: it filters what the selected event shows, so it lives in the detail dock's [Relevent](../DetailPanel/DetailRelevant/DetailRelevant.spec.md) toolbar.
+**Stepper.** The field carries its own ±1 buttons, inset at its right edge. Chrome's native spinner is not usable here — `appearance: none` does not remove it, it renders as a light-mode block on the dark field, and it takes no styling — so the pair is ours: two half-height buttons behind a hairline, in the same hover and active tints as the operator menu's rows. Both go through `normalizeDependencyDepth`, so a step cannot leave the range that typing cannot, and each disables on reaching its clamp (`MIN_DEPENDENCY_DEPTH` / `MAX_DEPENDENCY_DEPTH`) rather than silently no-opping. They are `aria-hidden` and out of the tab order on purpose: a number input already steps on ArrowUp / ArrowDown, so exposing them would announce a second copy of a control assistive tech can already reach. There is no press-and-hold repeat; the useful values are small and the rest is faster to type.
 
 **Measure (M2).** A measure icon button between zoom-to-fit and display-control toggles measure mode. The button reflects the `measureMode` prop via `aria-pressed` and the `--on` class (shared with the other active action-icon states) and emits `update:measureMode` with the new boolean on click.
 
@@ -35,6 +35,8 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 **OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** label (e.g. `op1` / `op2`); menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
+
+**Shortcut help (PyPTO parity).** A **keyboard** glyph button sits **first** in the action-icon list — immediately after the zoom pill, before zoom-to-fit / measure / display-control / aside. It opens a floating **快捷键说明** popover (`data-testid="shortcut-help"`) mirroring PyPTO's `swimGraphShortCutKeyDescripiton` panel: **450px** card, **16px** radius; **鼠标操作** and **键盘操作** side-by-side (mouse: vertical movement = wheel glyph, single/box selection = left-click glyph; keyboard: zoom W|S and pan A|D as horizontal pairs); **组合操作** full-width below (scaling = wheel+Ctrl `/` single-finger; pan = left-click+Ctrl `/` double-finger; box select = left-click `/` box-select gesture; time measurement = left-click+Alt). Bindings render as PyPTO 24×24 multi-color SVG glyphs (`img[data-shortcut-icon]`) — not text `<kbd>` keycaps. Trackpad stand-ins (single-finger = pinch→ctrl-wheel zoom; double-finger = two-finger horizontal pan) match PyPTO's Combined rows. The panel is **teleported to `body`** with `position: fixed` (right-aligned under the trigger, clamped into the viewport) so toolbar `overflow-x: clip` cannot crop it. The panel closes via the X, a second press of the trigger, a pointerdown outside the wrap (trigger + panel), or **Escape** — the same dismiss contract as 显示控制. The `help` icon remains reserved for the connection-level tooltip; the shortcut action uses a distinct `keyboard` glyph.
 
 ## Visual
 
@@ -101,7 +103,7 @@ Resting fill from `v930/entry` actions strip; hover/pressed from `v930/hardware-
 |-------|--------|
 | Size | Square `28×28`; glyph `16×16` |
 | Radius | `6px` |
-| Border | none (no stroke ring) |
+| Border | none (no stroke ring); `:focus` has no outline (mouse click); `:focus-visible` uses playhead outline for keyboard Tab |
 | Background (rest) | `#363636` (not transparent) |
 | Icon (rest) | `#b3b3b3` |
 | Hover / `:active` / `--on` / `aria-pressed` / `aria-expanded` | bg `#1e2a3e`; icon `#2d70e3` |
@@ -125,6 +127,8 @@ Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardwa
 | Close | `close` design icon, `#b3b3b3` |
 | Section label | `12px` / `#b2b2b2` |
 | Help | `help` design icon as a `<button type="button">` (so clicks do not activate the depth field label); tip referenced via `aria-describedby`; hover/focus bubble on `--pr-surface-raised`, `11px` / `#e6e6e6`, above the icon |
+| Time unit select | `#404040` bg, radius `6px`, height `32px`, text `#ffffff`, `appearance: none` |
+| Time unit chevron | Down triangle on the select's right (`right: 12px`), `#b3b3b3`, `pointer-events: none` so clicks reach the field |
 | Depth input bg | `#404040` |
 | Depth input radius | `6px` |
 | Depth input height | `32px`; text `#ffffff`; `40px` right padding to clear the stepper |
@@ -155,6 +159,7 @@ not serve.
 | `display-config` | `泳道图显示配置.svg` | 显示控制 trigger |
 | `help` | `帮助.svg` | 任务连接层级 help (AC-20.2) |
 | `close` | `ic_public_close.svg` | 显示控制 close (AC-20.5) |
+| `keyboard` | `icon.svg` | 快捷键说明 trigger (PR-TOOLBAR-021) |
 
 Zoom-to-fit keeps its hand-drawn frame glyph — no design export was supplied for it.
 
@@ -168,7 +173,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 2. **PR-TOOLBAR-002** — Emits zoom-in on button click.
 3. **PR-TOOLBAR-003** — Emits `zoom-out` on button click.
 4. **PR-TOOLBAR-004** — Emits `zoom-to-fit` on button click.
-5. **PR-TOOLBAR-005** — Layers button opens 显示控制 with `dependency-depth` field; `time-unit` select is absent; popover is not visible until open.
+5. **PR-TOOLBAR-005** — Layers button opens 显示控制 with a `time-display-mode` select and a `dependency-depth` field; the popover is not visible until open; the select emits `update:timeDisplayMode`.
 6. **PR-TOOLBAR-006** — Emits `update:asideVisible` on toggle.
 7. **PR-TOOLBAR-007** — Measure toggle (`toggle-measure`) renders the `measure` icon (`data-testid="measure-icon"`); emits `update:measureMode` on click.
 8. **PR-TOOLBAR-007b** — Active measure toggle uses `aria-pressed="true"` and `--on`.
@@ -185,6 +190,9 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 19. **PR-TOOLBAR-018** — The corner wash is the strip's first child, painting above the strip background and below the tabs, pinned with `top: 0; bottom: 0` so it fills the full `.pr-chrome` height (including when the toolbar wraps). Radial horizontal radius is **59%** so opacity reaches 0 at the 208px right edge (no hard seam into `#1f1f1f`). `.pr-chrome` is `position: relative` with **no** `z-index` or `isolation`: a stacking context there would trap the OP menu and 显示控制 popover inside the strip. `.pr-tabs` is positioned so labels paint over the wash.
 20. **PR-TOOLBAR-019** — The depth field's own stepper buttons emit `update:dependencyDepth` ±1 through `normalizeDependencyDepth`, disable at each clamp, and stay out of the tab order and the accessibility tree.
 21. **PR-TOOLBAR-020** — Trailing toolbar icon actions (`zoom-to-fit`, measure, display-control, aside) carry `data-toolbar-clip`; when `overflow-x: clip` crops them past the toolbar's right edge they receive `inert` so keyboard focus cannot land on an invisible control. Search and zoom are never marked.
+22. **PR-TOOLBAR-021** — The shortcut-help action renders **first** in the action list (immediately after the zoom pill, before `zoom-to-fit`), using the `keyboard` glyph (`data-testid="toggle-shortcuts"`, `data-toolbar-clip`).
+23. **PR-TOOLBAR-022** — Clicking the shortcut-help trigger opens the `shortcut-help` popover listing mouse / keyboard / combined bindings (W/S/A/D, Ctrl+wheel, Ctrl+drag, Alt+click); it closes via the X, a second press, an outside pointerdown, or Escape.
+24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt, single-finger, double-finger, box-select) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below; Combined scaling/pan/box-select rows include `/`-separated trackpad/gesture stand-ins.
 
 ## Edge Cases
 
@@ -208,6 +216,11 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-09-07** — Toolbar icon / zoom buttons: no `:focus` ring on mouse click; restore `:focus-visible` outline for keyboard Tab.
+- **2026-09-07** — Shortcut-help Combined rows add PyPTO trackpad/gesture stand-ins (single-finger, double-finger, box-select) with `/` separators (`PR-TOOLBAR-023`).
+- **2026-09-04** — Shortcut-help popover teleports to `body` (fixed) so toolbar `overflow-x: clip` cannot crop the 450px card.
+- **2026-09-04** — Shortcut-help popover matches PyPTO layout (Mouse‖Keyboard + Combined) and 24×24 SVG glyphs (`PR-TOOLBAR-023`).
+- **2026-09-03** — Shortcut-help action (`keyboard` glyph, first in the action list) + 快捷键说明 popover (`PR-TOOLBAR-021` / `022` / `023`).
 - **2026-09-03** — Chrome `padding: 8px` so a wrapped toolbar row is not flush with the tabs or the axis (`PR-TOOLBAR-009`).
 - **2026-09-03** — Display-control closes on Escape (`PR-TOOLBAR-010`); clipped trailing icon actions get `inert` so they leave the tab order (`PR-TOOLBAR-020`).
 - **2026-09-02** — Whole toolbar wraps to a second row together; wash stretches with `top/bottom: 0`; second-row overflow still crops trailing icons (`PR-TOOLBAR-009` / `018`).
@@ -220,7 +233,8 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - **2026-09-01** — PR-TOOLBAR-019: the depth field gets a custom stepper. AC-20.6 dropped Chrome's native spinner because it renders as a light-mode block on the dark field; the field was then left with no step affordance at all, which Product asked to restore. `Chevron` gains a `direction` prop so the pair reuses the existing glyph, and `MIN_DEPENDENCY_DEPTH` replaces the `-1` literal that the clamp, the markup and the disabled state would otherwise each repeat.
 - **2026-09-01** — Corner wash moved here from the report root, where `.pr-main` covered it (PR-TOOLBAR-018; PR-ROOT-006 withdrawn).
 - **2026-09-01** — HDesign icons for search / zoom / stats / measure / 显示控制 / help / close via `PrIcon` masks at `16×16`; help gains a CSS hover bubble (PR-TOOLBAR-016/017). PR-TOOLBAR-007c withdrawn with the hand-drawn measure glyph.
-- **2026-08-27** — Removed manual time-unit dropdown from 显示控制; wall-time labels auto-scale per I-Q14; PR-TOOLBAR-005 restated.
+- **2026-09-02** — Added 任务显示单位 (Time auto vs CPU clocks) dropdown to 显示控制, gated on `clockFreqMHz`; PR-TOOLBAR-005 restated for `time-display-mode`.
+- **2026-08-27** — Removed manual time-unit dropdown from 显示控制; wall-time labels auto-scale per UI-40a; PR-TOOLBAR-005 restated.
 - **2026-08-21** — Reset `opMenuOpen` when OP selector unmounts (single-op swap).
 - **2026-08-21** — OP menu: `useId` + menu ref for focus; restore trigger focus on Escape/select.
 - **2026-08-21** — OP selector trigger shows selected operator label (not fixed OP算子).

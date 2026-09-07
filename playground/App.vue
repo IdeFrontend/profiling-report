@@ -79,7 +79,7 @@ const title = computed(() => {
     const n = stats ? `${stats.eventCount.toLocaleString()} events` : '…';
     return `stress (${stressPreset.value}, ${n})`;
   }
-  if (kind === 'deps') return 'deps demo (I-Q9)';
+  if (kind === 'deps') return 'deps demo (DATA-36a)';
   return FILE_FIXTURES[kind].name;
 });
 
@@ -148,7 +148,7 @@ function loadStress(preset: StressSwimlanePreset): void {
   });
 }
 
-/** I-Q9 demo: synthetic CTEF trace with known edges, through the real load path. */
+/** DATA-36a demo: synthetic CTEF trace with known edges, through the real load path. */
 function loadDeps(): void {
   status.value = 'loading';
   error.value = null;
@@ -208,7 +208,7 @@ async function onFileChosen(e: Event): Promise<void> {
   }
 }
 
-/** I-Q6d: open full CSV text in a new browser tab. */
+/** DATA-33d: open full CSV text in a new browser tab. */
 function onViewFullCsv(payload: { fileName: string; text: string }): void {
   const blob = new Blob([payload.text], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
