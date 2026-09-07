@@ -18,9 +18,10 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.blockDim).toBe(8);
     expect(summary.coreCount).toBeUndefined();
 
-    expect(summary.computeTflops).toBeUndefined();
-    expect(summary.ioBandwidth).toBeUndefined();
-    expect(summary.avgCoreUtil).toBeUndefined();
+    // Classic `.rep` has no summary.jsonl → no derived compute/BW/utilization fields.
+    expect(summary.aicFlops).toBeUndefined();
+    expect(summary.aivFlops).toBeUndefined();
+    expect(summary.parallelUtilization).toBeUndefined();
   });
 
   it('PR-VM-013 (interim DATA-33g): Memory.csv → bandwidthCards mean non-NA; peak 1600 GB/s', () => {
@@ -83,7 +84,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(adapted.reportModel.pipeOccupancy.filter((p) => p.side === 'cube')).toEqual([]);
 
     // Gutter util comes from PIPE ratios, not busy-fraction heuristics
-    const pipeLane = adapted.swimlaneModel.processes
+    const pipeLane = adapted.swimlaneModel!.processes
       .flatMap((p) => p.threads)
       .find((t) => t.name.includes('PIPE_V'));
     expect(pipeLane?.utilization).toBeCloseTo(byId.vector.ratio, 5);
@@ -372,4 +373,33 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(first?.blockId).toBe('1');
     expect(first?.model.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
   });
+
+  it('PR-VM-016: OpBasicInfo identity keeps Summary.jsonl derived FLOPS/util overlay', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    parsed.payloads['OpBasicInfo.csv'] = new TextEncoder().encode(
+      ['Op Name,Op Type,Task Duration(us),Pid,Block Dim', 'hybrid,vector,12.5,99,8'].join('\n'),
+    );
+    parsed.payloads['Summary.jsonl'] = new TextEncoder().encode(
+      JSON.stringify({
+        category: 'OpInfoSummary',
+        'Op Name': 'from-jsonl',
+        aic_flops: 10,
+        aic_flops_theoretical: 20,
+        aiv_flops: 5,
+        aiv_flops_theoretical: 10,
+        aicore_parallel_utilization: 0.5,
+        aicore_parallel_balance: 0.9,
+        'aicore_gm_bw_theoretical(GB/s)': 1600,
+      }) + '\n',
+    );
+    const { summary, computeCard } = adaptRep(parsed).reportModel;
+    expect(summary.opName).toBe('hybrid'); // OpBasicInfo wins identity
+    expect(summary.taskDurationUs).toBe(12.5);
+    expect(summary.aicFlops).toBe(10);
+    expect(summary.aivFlops).toBe(5);
+    expect(summary.parallelUtilization).toBe(0.5);
+    expect(computeCard?.sides.map((s) => s.side).sort()).toEqual(['aic', 'aiv']);
+    expect(computeCard!.sides.find((s) => s.side === 'aic')!.measuredTflops).toBe(10);
+  });
+
 });

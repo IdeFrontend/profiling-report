@@ -30,11 +30,11 @@ Format and statuses: [README.md](README.md).
 
 ## UI-32 (was: HQ 32)
 
-- **Resolved:** 2026-09-01
+- **Resolved:** 2026-09-04 (updated; first answered 2026-09-01)
 - **Question:** The duration bar — decoration or a real percent? Of what?
-- **Decision:** Real percent: `Block Dim / core_count × 100%` (core_count per DATA-1). Clamp display at **100%** when ratio exceeds 1.
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](../decisions/interim/) `DATA-33e`
-- **Source:** Product answer doc (2026-08-31); implemented in `StatsAside.vue`.
+- **Decision:** **Remove the bar.** Show `{blockDim} Blocks / {coreCount} 核` as text (core count per DATA-1). If only `blockDim` is set, `{blockDim} Blocks`; else `opName`.
+- **Specs:** [view-models](../../../specs/core/view-models.spec.md), [npu-rep](../../../specs/core/npu-rep.spec.md)
+- **Source:** NPU-Compute.md (2026-09-04); implemented in `StatsAside.vue` (`PR-STATS-009`, `PR-STATS-031`).
 
 ---
 
@@ -65,6 +65,16 @@ Format and statuses: [README.md](README.md).
 - **Decision:** **Yes.** Show full CSV tables: **Memory**, **L2Cache**, **MemoryUB**, **MemoryL0** (block-scoped).
 - **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md)
 - **Source:** Product answer doc (2026-08-31).
+
+---
+
+## UI-36 (was: HQ 36)
+
+- **Resolved:** 2026-09-04
+- **Question:** Some labels are **KB**, some **GB/s**. Keep both, or convert to one unit?
+- **Decision:** Keep **GB/s** on bandwidth arrows; L0C datas (`L0C_to_L1_datas(KB)` etc.) keep KB.
+- **Specs:** [npu-rep](../../../specs/core/npu-rep.spec.md)
+- **Source:** NPU-Compute.md (2026-09-04).
 
 ---
 

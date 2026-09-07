@@ -98,7 +98,7 @@ Sample `data/out.rep` contains:
 | `ResourceConflictRatio.csv` | csv | default | Wait / conflict ratios |
 | `trace.json` | json | profile | Chrome Trace Event Format timeline |
 
-Future reports may add or omit files. The parser must tolerate missing optional CSVs and surface clear errors if `trace.json` (or equivalent swimlane source) is absent when timeline is required.
+Future reports may add or omit files. The parser must tolerate missing optional CSVs. When `trace.json` (or an equivalent swimlane source) is absent, the report adapts to a **metrics-only** view: the swimlane is `null` and the aside (PIPE / memory / hardware / CSV tabs) still renders — this is not a hard error.
 
 ## Versioning
 

@@ -9,6 +9,7 @@ import type {
 } from '../../domain/types';
 import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
+import SummaryCategoryList from './SummaryCategoryList/SummaryCategoryList.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
@@ -50,7 +51,7 @@ const showComputeCard = computed(
   () => hasDuration.value && (computeCard.value?.sides.length ?? 0) > 0,
 );
 const showComputePlaceholder = computed(() => hasDuration.value && !showComputeCard.value);
-const showAicorePlaceholder = computed(() => hasDuration.value);
+const showAicoreCard = computed(() => hasDuration.value);
 const bandwidthUtilSides = computed(() => bandwidthUtilFromCards(bandwidthCards.value));
 const hasSummary = computed(
   () => hasDuration.value || bandwidthUtilSides.value.length > 0,
@@ -79,9 +80,34 @@ const computeView = computed(() =>
     title: `${row.measuredTflops} / ${row.peakTflops} TFLOPS`,
   })),
 );
+const computeCategories = computed(() =>
+  (props.report?.summaryCategories ?? []).filter((c) =>
+    (['PipeUtilization', 'ArithmeticUtilization', 'ResourceConflictRatio'] as const).includes(
+      c.id as 'PipeUtilization' | 'ArithmeticUtilization' | 'ResourceConflictRatio',
+    ),
+  ),
+);
+const memoryCategories = computed(() =>
+  (props.report?.summaryCategories ?? []).filter((c) =>
+    (['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const).includes(
+      c.id as 'MemoryL0' | 'L2Cache' | 'Memory' | 'MemoryUB',
+    ),
+  ),
+);
+const activeCategory = ref('');
+watch(
+  () => [computeCategories.value, memoryCategories.value] as const,
+  () => {
+    activeCategory.value = '';
+  },
+);
 const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
-const showCompute = computed(() => (props.report?.computeTables?.length ?? 0) > 0);
-const showMemory = computed(() => (props.report?.memoryTables?.length ?? 0) > 0);
+const showCompute = computed(
+  () => (props.report?.computeTables?.length ?? 0) > 0 || computeCategories.value.length > 0,
+);
+const showMemory = computed(
+  () => (props.report?.memoryTables?.length ?? 0) > 0 || memoryCategories.value.length > 0,
+);
 const showRoofline = computed(() => (props.report?.roofline?.points?.length ?? 0) > 0);
 const hasHardwareDetails = computed(
   () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
@@ -140,36 +166,32 @@ function numericBlockDim(blockDim: string | number | undefined): number | undefi
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** UI-32: Block Dim / core_count × 100%, clamped 0–100. Null when inputs missing. */
-const durationCoreUtilPercent = computed(() => {
-  const s = summary.value;
-  const block = numericBlockDim(s?.blockDim);
-  const cores = s?.coreCount;
-  if (block == null || cores == null || cores <= 0) return null;
-  return Math.min(100, Math.max(0, (block / cores) * 100));
-});
-
-const durationBarWidthPercent = computed(() => {
-  const util = durationCoreUtilPercent.value;
-  if (util == null) return 15;
-  return Math.round(util * 1000) / 1000;
-});
-
+/** UI-32 (NPU-Compute): drop the bar; secondary = `{blockDim} Blocks / {coreCount} 核`. */
 const durationSecondary = computed(() => {
   const s = summary.value;
   if (!s) return null;
   const block = numericBlockDim(s.blockDim);
   if (block != null && s.coreCount != null && s.coreCount > 0) {
-    return t('iterationsPerCoreRatio', props.locale)
+    return t('blocksPerCores', props.locale)
       .replace('{blockDim}', String(block))
       .replace('{coreCount}', String(s.coreCount));
   }
   if (s.blockDim != null && s.blockDim !== '') {
-    return t('iterationsPerCore', props.locale).replace('{n}', String(s.blockDim));
+    return t('blocksOnly', props.locale).replace('{n}', String(s.blockDim));
   }
   if (s.opName) return s.opName;
   return null;
 });
+
+const parallelUtilPercent = computed(() => {
+  const v = summary.value?.parallelUtilization;
+  return v == null ? null : v * 100;
+});
+const parallelBalancePercent = computed(() => {
+  const v = summary.value?.parallelBalance;
+  return v == null ? null : v * 100;
+});
+const hasParallel = computed(() => parallelUtilPercent.value != null);
 
 const hasMeta = computed(() => {
   const s = summary.value;
@@ -452,12 +474,19 @@ function backToReport() {
       data-testid="stats-compute"
       class="pr-aside__detail"
     >
+      <SummaryCategoryList
+        v-if="computeCategories.length > 0"
+        :categories="computeCategories"
+        :active-id="activeCategory"
+        @update:active-id="activeCategory = $event"
+      />
       <CsvFieldListPanel
+        v-else
         :tables="report?.computeTables ?? []"
         :csv-texts="report?.csvTexts ?? {}"
-        :locale="locale"
         :show-block-switcher="false"
         :show-view-all="false"
+        :locale="locale"
       />
     </div>
 
@@ -466,11 +495,18 @@ function backToReport() {
       data-testid="stats-memory"
       class="pr-aside__detail"
     >
+      <SummaryCategoryList
+        v-if="memoryCategories.length > 0"
+        :categories="memoryCategories"
+        :active-id="activeCategory"
+        @update:active-id="activeCategory = $event"
+      />
       <CsvFieldListPanel
+        v-else
         :tables="report?.memoryTables ?? []"
         :csv-texts="report?.csvTexts ?? {}"
-        :locale="locale"
         :selected-block-id="selectedBlockId"
+        :locale="locale"
         @update:selected-block-id="selectedBlockId = $event"
         @view-full-csv="emit('view-full-csv', $event)"
       />
@@ -502,19 +538,6 @@ function backToReport() {
             <span class="pr-card__unit">{{ durationParts.unit }}</span>
           </div>
           <div
-            class="pr-card__bar-track"
-            data-testid="stats-duration-bar"
-          >
-            <span
-              class="pr-card__bar-hatch"
-              aria-hidden="true"
-            />
-            <span
-              class="pr-card__bar-fill pr-card__bar-fill--duration"
-              :style="{ width: `${durationBarWidthPercent}%` }"
-            />
-          </div>
-          <div
             v-if="durationSecondary"
             class="pr-card__sub"
             data-testid="stats-duration-secondary"
@@ -524,15 +547,31 @@ function backToReport() {
           </div>
         </div>
         <div
-          v-if="showAicorePlaceholder"
-          class="pr-card pr-card--na"
+          v-if="showAicoreCard"
+          class="pr-card"
+          :class="{ 'pr-card--na': !hasParallel }"
           data-testid="stats-core-util-card"
         >
           <div class="pr-card__label">
             {{ t('aicoreParallel', locale) }}
           </div>
-          <div class="pr-card__value">
+          <div
+            v-if="hasParallel"
+            class="pr-card__value"
+          >
+            {{ (parallelUtilPercent ?? 0).toFixed(2) }}%
+          </div>
+          <div
+            v-else
+            class="pr-card__value"
+          >
             {{ t('notAvailable', locale) }}
+          </div>
+          <div
+            v-if="parallelBalancePercent != null"
+            class="pr-card__sub"
+          >
+            {{ t('parallelBalance', locale) }} {{ parallelBalancePercent.toFixed(2) }}%
           </div>
         </div>
         <div
@@ -819,12 +858,19 @@ function backToReport() {
               <CannbotIcon />
             </button>
           </div>
+          <SummaryCategoryList
+            v-if="computeCategories.length > 0"
+            :categories="computeCategories"
+            :active-id="activeCategory"
+            @update:active-id="activeCategory = $event"
+          />
           <CsvFieldListPanel
+            v-else
             :tables="report?.computeTables ?? []"
             :csv-texts="report?.csvTexts ?? {}"
-            :locale="locale"
             :show-block-switcher="false"
             :show-view-all="false"
+            :locale="locale"
           />
         </div>
         <div
@@ -847,11 +893,18 @@ function backToReport() {
               <CannbotIcon />
             </button>
           </div>
+          <SummaryCategoryList
+            v-if="memoryCategories.length > 0"
+            :categories="memoryCategories"
+            :active-id="activeCategory"
+            @update:active-id="activeCategory = $event"
+          />
           <CsvFieldListPanel
+            v-else
             :tables="report?.memoryTables ?? []"
             :csv-texts="report?.csvTexts ?? {}"
-            :locale="locale"
             :selected-block-id="selectedBlockId"
+            :locale="locale"
             @update:selected-block-id="selectedBlockId = $event"
             @view-full-csv="emit('view-full-csv', $event)"
           />

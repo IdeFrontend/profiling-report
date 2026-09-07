@@ -93,7 +93,12 @@ Payloads are addressed by absolute byte offsets from the start of the container.
 
 ### 1.6 Shipped `npu-rep` layout (nested operators)
 
-The product container ships as `npu-rep` (not `cann-rep`). Concrete layout confirmed against `data/example.npu.rep` (two operators):
+The product container ships as `npu-rep` (not `cann-rep`). There are **two** FileInfo layouts sharing the same head, disambiguated by the head's `fileInfoLength` field:
+
+- **Product 160-byte layout** (`fileInfoLength = 160`, `origin = 1`) — the current format produced by `npu-compute` tooling (see `data/scripts/pack_rep.py` / `unpack_rep.py`). Sample: `data/result.npu-rep`. Parsed in-browser by `parseNpuRep160`.
+- **Interim 164-byte sample layout** (`fileInfoLength = 164`) — the repo's own sample packer (`data/build_sample_rep.py`), used by `data/example.npu.rep` / `data/sample.lite.rep`. Parsed by `parseNpuRep`.
+
+#### Product 160-byte layout
 
 **Head (36 bytes):**
 
@@ -101,12 +106,39 @@ The product container ships as `npu-rep` (not `cann-rep`). Concrete layout confi
 | --- | --- | --- | --- | --- |
 | 0 | 8 | `char[8]` | `magic` | `npu-rep` + NUL |
 | 8 | 4 | `uint32` | `version` | `0x00010000` |
-| 12 | 2 | `uint16` | `orgin` | `0` |
+| 12 | 2 | `uint16` | `origin` | `1` (profile) |
 | 14 | 2 | `uint16` | `repHeadLength` | `36` |
 | 16 | 4 | `uint32` | `fileInfoCount` | number of embeds |
-| 20 | 4 | `uint32` | `fileInflLength` | `164` (FileInfo stride) |
-| 24 | 4 | `uint32` | `resv` | `0` |
+| 20 | 4 | `uint32` | `fileInfoLength` | `160` (FileInfo stride) |
+| 24 | 4 | `uint32` | `reserved` | `0` |
 | 28 | 8 | `uint64` | `npuRepLength` | total container length |
+
+**FileInfo (160 bytes):**
+
+| Offset | Size | Type | Field |
+| --- | --- | --- | --- |
+| 0 | 8 | `char[8]` | `magic` (`npu-rep` + NUL) |
+| 8 | 128 | `char[128]` | `name` (NUL-padded) |
+| 136 | 2 | `uint16` | `type` |
+| 138 | 2 | `uint16` | `reserved` (`0`) |
+| 140 | 4 | `uint32` | `reserved1` (`0`) |
+| 144 | 8 | `uint64` | `fileLength` |
+| 152 | 8 | `uint64` | `fileRepOffset` |
+
+Payloads are contiguous — no gaps between entries and no unreferenced trailing bytes.
+
+**Type enum (160-byte layout):**
+
+| Value | Meaning |
+| --- | --- |
+| 1 | **nested operator archive** (`.npu.rep`) |
+| 2 | `json` |
+| 3 | `jsonl` |
+| 4 | `csv` |
+| 5 | `sqlite3` |
+| 6 | `protobuf` |
+
+#### Interim 164-byte sample layout (repo packer)
 
 **FileInfo (164 bytes):**
 
@@ -120,7 +152,7 @@ The product container ships as `npu-rep` (not `cann-rep`). Concrete layout confi
 | 148 | 8 | `uint64` | `length` |
 | 156 | 8 | `uint64` | `offset` |
 
-**Type enum (npu-rep):**
+**Type enum (164-byte layout):**
 
 | Value | Meaning |
 | --- | --- |
@@ -128,7 +160,7 @@ The product container ships as `npu-rep` (not `cann-rep`). Concrete layout confi
 | 2 | `json` / `jsonl` |
 | 6 | **nested operator archive** (`.npu.rep`) |
 
-**Operator nesting.** An outer `npu-rep` packs one FileInfo per operator; each payload is itself an `npu-rep` leaf archive containing `trace.json` + metric CSVs (types 1/2). The viewer lists these nested archives in the top-left OP selector and adapts each leaf independently. A container with no `type 6` embeds is treated as a flat single-operator leaf pack.
+**Operator nesting.** An outer `npu-rep` packs one FileInfo per operator; each payload is itself an `npu-rep` leaf archive containing `trace.json` + metric CSVs. The viewer lists these nested archives in the top-left OP selector and adapts each leaf independently. A container with no nested embeds is treated as a flat single-operator leaf pack.
 
 ---
 

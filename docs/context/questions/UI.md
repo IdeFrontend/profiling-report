@@ -2,14 +2,6 @@
 
 Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and migration map: [README.md](README.md).
 
-### UI-36 — KB vs GB/s units on the memory diagram
-
-<img src="../visual/questions/ui-36.png" alt="UI-36 GB/s on GM↔L2 arrows" width="900" height="900">
-
-**Status:** `open`
-
-**Question:** Some labels are **KB**, some **GB/s**. Keep both, or convert to one unit? (KB would be L0C datas.)
-
 ### UI-37 — Source / Details / Cache tabs (was: Q10)
 
 **Status:** `open`
