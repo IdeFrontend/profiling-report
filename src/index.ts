@@ -18,10 +18,14 @@ export {
   emptyReportViewModel,
   isNpuRep,
   isNestedNpuArchive,
+  isNpuRep160,
+  isNestedNpuArchive160,
   loadReportSource,
+  NPU_REP_TYPE_NESTED,
   NPU_TYPE_NESTED_ARCHIVE,
   npuArchiveStem,
   parseNpuRep,
+  parseNpuRep160,
   parseRep,
 } from './adapters';
 

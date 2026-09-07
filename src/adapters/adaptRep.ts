@@ -13,6 +13,7 @@ import type {
   ReportViewModel,
   RooflineMixLabel,
   RooflineViewModel,
+  SummaryCategory,
   SummaryMetrics,
   SwimlaneModel,
 } from '../domain/types';
@@ -58,6 +59,41 @@ const ROOFLINE_PEAK_COMPUTE_TOPS = 1;
 
 function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
+}
+
+/**
+ * Case-insensitive payload lookup. The product `npu-rep` spec names embeds
+ * `trace.json` / `summary.jsonl` / `sampling.json` (lowercase), but the shipped
+ * sample uses `PipeTrace.json` / `Summary.jsonl` / `Sampling.json` (capital),
+ * and `PipeTrace.json` replaces `trace.json` as the timeline source. This maps
+ * any of the accepted spellings to the present payload.
+ */
+function payloadByName(
+  payloads: Record<string, Uint8Array>,
+  names: readonly string[],
+): Uint8Array | undefined {
+  for (const name of names) {
+    const exact = payloads[name];
+    if (exact) return exact;
+  }
+  const lower = new Map(
+    Object.entries(payloads).map(([k, v]) => [k.toLowerCase(), v] as const),
+  );
+  for (const name of names) {
+    const hit = lower.get(name.toLowerCase());
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
+/** `ai core count` / `AI Core Count` / `ai_core_count` → `ai_core_count` (space/underscore + case). */
+function normalizeFieldKey(key: string): string {
+  return key
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[\s-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
 }
 
 function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
@@ -289,9 +325,11 @@ interface HardwareComputeInputs {
 function numericFieldsFromJsonObject(obj: Record<string, unknown>): Record<string, number> {
   const fields: Record<string, number> = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (key === 'category') continue;
-    const n = typeof value === 'number' ? value : Number(value);
-    if (Number.isFinite(n)) fields[key] = n;
+    const norm = normalizeFieldKey(key);
+    if (norm === 'category') continue;
+    const raw = Array.isArray(value) && value.length > 0 ? value[0] : value;
+    const n = typeof raw === 'number' ? raw : Number(raw);
+    if (Number.isFinite(n)) fields[norm] = n;
   }
   return fields;
 }
@@ -305,17 +343,18 @@ function hardwareComputeInputsFromJsonl(text: string): HardwareComputeInputs {
     } catch {
       continue;
     }
-    if (!String(obj.category ?? '').toLowerCase().includes('ai core')) continue;
+    if (!normalizeFieldKey(String(obj.category ?? '')).includes('ai_core')) continue;
     const fields = numericFieldsFromJsonObject(obj);
     out.cubeCores = pickPositiveField(fields, ['ai_cube_count', 'aic_cube_count']);
     out.vectorCores = pickPositiveField(fields, ['ai_vector_count', 'aic_vector_count']);
-    const freq = obj.ai_core_frequency_MHZ;
-    if (Array.isArray(freq) && freq.length > 0) {
-      const n = Number(freq[0]);
-      if (Number.isFinite(n) && n > 0) out.freqMhz = n;
-    } else if (typeof freq === 'number' && freq > 0) {
-      out.freqMhz = freq;
-    }
+    const freq =
+      pickPositiveField(fields, [
+        'ai_core_frequency_mhz',
+        'ai_cube_frequency_mhz',
+        'ai_vector_frequency_mhz',
+        'aic_core_frequency_mhz',
+      ]) ?? undefined;
+    if (freq != null) out.freqMhz = freq;
   }
   return out;
 }
@@ -352,6 +391,35 @@ function peakTflopsForSide(
   return (128 * cores * freqGhz * 2) / 1000;
 }
 
+
+/** Product OpInfoSummary → computeCard sides (measured/theoretical TFLOPS). */
+function computeCardFromSummaryMetrics(summary: SummaryMetrics): ComputeCardModel | undefined {
+  const sides: ComputeSideRow[] = [];
+  if (
+    summary.aicFlops != null &&
+    summary.aicFlopsTheoretical != null &&
+    summary.aicFlopsTheoretical > 0
+  ) {
+    sides.push({
+      side: 'aic',
+      measuredTflops: summary.aicFlops,
+      peakTflops: summary.aicFlopsTheoretical,
+    });
+  }
+  if (
+    summary.aivFlops != null &&
+    summary.aivFlopsTheoretical != null &&
+    summary.aivFlopsTheoretical > 0
+  ) {
+    sides.push({
+      side: 'aiv',
+      measuredTflops: summary.aivFlops,
+      peakTflops: summary.aivFlopsTheoretical,
+    });
+  }
+  return sides.length > 0 ? { sides } : undefined;
+}
+
 /** DATA-2..4 / UI-33: ArithmeticUtilization measured + HardwareInfo peak per aic/aiv side. */
 function computeCardFromPayloads(
   arithPayload: Uint8Array | undefined,
@@ -370,6 +438,67 @@ function computeCardFromPayloads(
     sides.push({ side, measuredTflops, peakTflops });
   }
   return sides.length > 0 ? { sides } : undefined;
+}
+
+/**
+ * Product bandwidth cards from `summary.jsonl` (spec Q5–Q7): `OpInfoSummary`
+ * provides the SOL peak (`aicore_gm_bw_theoretical(GB/s)`, default 1600) and the
+ * `Memory` category provides per-side measured read/write BW. Falls back to the
+ * `Memory.csv` path when `summary.jsonl` is absent.
+ */
+function bandwidthCardsFromSummary(payload?: Uint8Array): BandwidthCardModel[] {
+  if (!payload) return [];
+  let peakGBs = BANDWIDTH_PEAK_GBS;
+  const mem: Record<string, number> = {};
+  const stripUnit = (key: string): string => key.replace(/\([^)]*\)/g, '');
+  for (const line of decodeUtf8(payload).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const category = obj.category;
+    if (category === 'OpInfoSummary') {
+      const peak = typeof obj['aicore_gm_bw_theoretical(GB/s)'] === 'number'
+        ? (obj['aicore_gm_bw_theoretical(GB/s)'] as number)
+        : Number(obj['aicore_gm_bw_theoretical(GB/s)']);
+      if (Number.isFinite(peak) && peak > 0) peakGBs = peak;
+      continue;
+    }
+    if (category !== 'Memory') continue;
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === 'category') continue;
+      const n = typeof value === 'number' ? value : Number(value);
+      if (Number.isFinite(n)) mem[stripUnit(key)] = n;
+    }
+  }
+
+  const side = (
+    sideKind: BandwidthSideRow['side'],
+    keys: readonly string[],
+  ): BandwidthSideRow | undefined => {
+    for (const k of keys) {
+      const v = mem[k];
+      if (v != null) return { side: sideKind, measuredGBs: v, peakGBs };
+    }
+    return undefined;
+  };
+
+  const cards: BandwidthCardModel[] = [];
+  const input: BandwidthSideRow[] = [];
+  const output: BandwidthSideRow[] = [];
+  const aicRead = side('aic', ['aic_main_mem_read_bw']);
+  const aivRead = side('aiv', ['aiv_main_mem_read_bw']);
+  const aicWrite = side('aic', ['aic_main_mem_write_bw']);
+  const aivWrite = side('aiv', ['aiv_main_mem_write_bw']);
+  if (aicRead) input.push(aicRead);
+  if (aivRead) input.push(aivRead);
+  if (aicWrite) output.push(aicWrite);
+  if (aivWrite) output.push(aivWrite);
+  if (input.length > 0) cards.push({ id: 'input', sides: input });
+  if (output.length > 0) cards.push({ id: 'output', sides: output });
+  return cards;
 }
 
 function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
@@ -393,7 +522,94 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
-/** DATA-1: numeric fields from HardwareInfo.jsonl (accepts `ai_*` and `aic_*` keys). */
+/**
+ * Product `npu-rep` summary source: `Summary.jsonl`. Op identity lives in the
+ * `OpInfoSummary` category (same field names as `OpBasicInfo.csv`, but JSON
+ * typed values with `null` for absent fields), plus the derived compute /
+ * bandwidth / utilization fields computed by `summarize_npu_rep.py`.
+ */
+function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
+  if (!payload) return {};
+  for (const line of decodeUtf8(payload).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (obj.category !== 'OpInfoSummary') continue;
+
+    const text = (v: unknown): string | undefined => {
+      if (v == null) return undefined;
+      const s = String(v).trim();
+      return s === '' ? undefined : s;
+    };
+    const num = (v: unknown): number | undefined => {
+      if (v == null) return undefined;
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+
+    return {
+      opName: text(obj['Op Name']),
+      opType: text(obj['Op Type']),
+      taskDurationUs: num(obj['Task Duration(us)']),
+      currentFreq: num(obj['Current Freq']),
+      ratedFreq: num(obj['Rated Freq']),
+      pid: text(obj['Pid']),
+      blockDim: num(obj['Block Dim']) ?? text(obj['Block Dim']),
+      // Derived compute / bandwidth / utilization (absent when the producer did not emit them).
+      aicFlops: num(obj['aic_flops']),
+      aivFlops: num(obj['aiv_flops']),
+      aicFlopsTheoretical: num(obj['aic_flops_theoretical']),
+      aivFlopsTheoretical: num(obj['aiv_flops_theoretical']),
+      gmBwTheoreticalGBs: num(obj['aicore_gm_bw_theoretical(GB/s)']),
+      gmReadBw: num(obj['aicore_gm_read_bw(GB/s)']),
+      gmWriteBw: num(obj['aicore_gm_write_bw(GB/s)']),
+      gmBwUsageRate: num(obj['aicore_gm_bw_usage_rate(%)']),
+      parallelUtilization: num(obj['aicore_parallel_utilization']),
+      parallelBalance: num(obj['aicore_parallel_balance']),
+    };
+  }
+  return {};
+}
+
+/** Metric categories surfaced by the detail panels (summary.jsonl). */
+export const SUMMARY_COMPUTE_CATEGORIES = ['PipeUtilization', 'ArithmeticUtilization', 'ResourceConflictRatio'] as const;
+export const SUMMARY_MEMORY_CATEGORIES = ['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const;
+
+/**
+ * Product `npu-rep` detail source: `Summary.jsonl` category lines (block-mean,
+ * per spec "默认显示 summary.jsonl 分组数据"). OpInfoSummary is excluded (it is
+ * the summary card, not a detail group).
+ */
+function summaryCategoriesFromSummaryJsonl(payload?: Uint8Array): SummaryCategory[] {
+  if (!payload) return [];
+  const seen = new Set<string>();
+  const categories: SummaryCategory[] = [];
+  for (const line of decodeUtf8(payload).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const category = typeof obj.category === 'string' ? obj.category : undefined;
+    if (!category || category === 'OpInfoSummary') continue;
+    if (seen.has(category)) continue;
+    seen.add(category);
+
+    const fields = Object.entries(obj)
+      .filter(([k]) => k !== 'category')
+      .map(([key, value]) => ({ key, value: value == null ? '' : String(value) }))
+      .filter((f) => f.value !== '');
+    if (fields.length === 0) continue;
+    categories.push({ id: category, title: category, fields });
+  }
+  return categories;
+}
+
+/** DATA-1: numeric fields from HardwareInfo.jsonl. Keys normalized so `ai core count` / `ai_core_count` resolve alike. */
 function hardwareNumericFieldsFromJsonl(text: string): Record<string, number> {
   const fields: Record<string, number> = {};
   for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
@@ -404,9 +620,10 @@ function hardwareNumericFieldsFromJsonl(text: string): Record<string, number> {
       continue;
     }
     for (const [key, value] of Object.entries(obj)) {
-      if (key === 'category') continue;
+      const norm = normalizeFieldKey(key);
+      if (norm === 'category') continue;
       const n = typeof value === 'number' ? value : Number(value);
-      if (Number.isFinite(n)) fields[key] = n;
+      if (Number.isFinite(n)) fields[norm] = n;
     }
   }
   return fields;
@@ -437,7 +654,7 @@ function summaryWithHardwareCoreCount(
   summary: SummaryMetrics,
   payloads: Record<string, Uint8Array>,
 ): SummaryMetrics {
-  const jsonl = payloads['HardwareInfo.jsonl'];
+  const jsonl = payloadByName(payloads, ['HardwareInfo.jsonl', 'hardwareinfo.jsonl']);
   if (!jsonl) return summary;
   const coreCount = coreCountForOpType(
     hardwareNumericFieldsFromJsonl(decodeUtf8(jsonl)),
@@ -606,25 +823,50 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   const compute = collectCsvTables(payloads, COMPUTE_CSV_FILES);
   const memory = collectCsvTables(payloads, MEMORY_CSV_FILES);
   const roofline = rooflineFromCsv(
-    payloads['ArithmeticUtilization.csv'],
-    payloads['Memory.csv'],
+    payloadByName(payloads, ['ArithmeticUtilization.csv']),
+    payloadByName(payloads, ['Memory.csv']),
   );
   const hardwareDetails = hardwareDetailsFromPayloads(payloads);
   const labelled = firstLabelledMemoryTopology(memory.tables);
   const memoryTopology = labelled?.model;
-  const bandwidthCards = bandwidthCardsFromMemory(payloads['Memory.csv']);
+  const summaryJsonl = payloadByName(payloads, ['summary.jsonl', 'Summary.jsonl', 'SUMMARY.jsonl']);
+  const summaryCategories = summaryCategoriesFromSummaryJsonl(summaryJsonl);
+  const bandwidthCards = summaryJsonl
+    ? bandwidthCardsFromSummary(summaryJsonl)
+    : bandwidthCardsFromMemory(payloadByName(payloads, ['Memory.csv']));
+  // Identity prefers OpBasicInfo.csv when present; Product derived FLOPS / BW /
+  // parallel util always overlay from Summary.jsonl OpInfoSummary (review: do not
+  // drop jsonl metrics when both embeds exist).
+  const fromCsv = summaryFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
+  const fromJsonl = summaryFromSummaryJsonl(summaryJsonl);
+  const hasCsvIdentity = Object.keys(fromCsv).length > 0;
   const summary = summaryWithHardwareCoreCount(
-    summaryFromOpBasicInfo(payloads['OpBasicInfo.csv']),
+    {
+      ...(hasCsvIdentity ? fromCsv : fromJsonl),
+      aicFlops: fromJsonl.aicFlops,
+      aivFlops: fromJsonl.aivFlops,
+      aicFlopsTheoretical: fromJsonl.aicFlopsTheoretical,
+      aivFlopsTheoretical: fromJsonl.aivFlopsTheoretical,
+      gmBwTheoreticalGBs: fromJsonl.gmBwTheoreticalGBs,
+      gmReadBw: fromJsonl.gmReadBw,
+      gmWriteBw: fromJsonl.gmWriteBw,
+      gmBwUsageRate: fromJsonl.gmBwUsageRate,
+      parallelUtilization: fromJsonl.parallelUtilization,
+      parallelBalance: fromJsonl.parallelBalance,
+    },
     payloads,
   );
-  const computeCard = computeCardFromPayloads(
-    payloads['ArithmeticUtilization.csv'],
-    payloads['HardwareInfo.jsonl'],
-    summary,
-  );
+  // Prefer Product OpInfoSummary FLOPS when present; else interim ArithmeticUtilization.
+  const computeCard =
+    computeCardFromSummaryMetrics(summary) ??
+    computeCardFromPayloads(
+      payloadByName(payloads, ['ArithmeticUtilization.csv']),
+      payloadByName(payloads, ['HardwareInfo.jsonl', 'hardwareinfo.jsonl']),
+      summary,
+    );
   return {
     summary,
-    pipeOccupancy: pipeOccupancyFromCsv(payloads['PipeUtilization.csv']),
+    pipeOccupancy: pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv'])),
     overviewSeries: [],
     computeTables: compute.tables,
     memoryTables: memory.tables,
@@ -634,6 +876,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     ...(roofline ? { roofline } : {}),
     ...(hardwareDetails ? { hardwareDetails } : {}),
     ...(memoryTopology ? { memoryTopology } : {}),
+    ...(summaryCategories.length > 0 ? { summaryCategories } : {}),
   };
 }
 
@@ -651,12 +894,12 @@ export function emptyReportViewModel(): ReportViewModel {
 
 /** HardwareInfo.jsonl categories (product source); else OpBasicInfo flat fields. */
 function hardwareDetailsFromPayloads(payloads: Record<string, Uint8Array>): HardwareDetailsModel | undefined {
-  const jsonl = payloads['HardwareInfo.jsonl'];
+  const jsonl = payloadByName(payloads, ['HardwareInfo.jsonl', 'hardwareinfo.jsonl']);
   if (jsonl) {
     const sections = hardwareSectionsFromJsonl(decodeUtf8(jsonl));
     if (sections.length > 0) return { sections };
   }
-  const op = payloads['OpBasicInfo.csv'];
+  const op = payloadByName(payloads, ['OpBasicInfo.csv']);
   if (!op) return undefined;
   const { headers, rows } = parseCsv(decodeUtf8(op));
   const row = rows[0];
@@ -697,21 +940,36 @@ function hardwareSectionsFromJsonl(text: string): HardwareSection[] {
   }
   return sections;
 }
-function swimlaneFromPayloads(payloads: Record<string, Uint8Array>, pipes: PipeOccupancyItem[]): SwimlaneModel {
-  const bytes = payloads['trace.json'];
+function swimlaneFromPayloads(
+  payloads: Record<string, Uint8Array>,
+  pipes: PipeOccupancyItem[],
+): SwimlaneModel | null {
+  // Two timeline sources, two units:
+  //  - `trace.json` (classic `.rep`) stores genuine nanoseconds (Ascend producer convention).
+  //  - `PipeTrace.json` (product `npu-rep`) stores microseconds despite its
+  //    `displayTimeUnit: "ns"` label — verified: every ts/dur × the 1650 MHz rated
+  //    frequency is an exact integer cycle count.
+  const traceJson = payloadByName(payloads, ['trace.json']);
+  const pipeTraceJson = payloadByName(payloads, ['PipeTrace.json', 'pipetrace.json']);
+  const isPipeTrace = traceJson == null && pipeTraceJson != null;
+  const bytes = traceJson ?? pipeTraceJson;
   if (!bytes) {
-    throw new Error(
-      '[profiling-report] adaptRep: trace.json missing — timeline requires a swimlane source',
-    );
+    // Metrics-only pack: no timeline source. Return null so the caller renders
+    // the aside without a swimlane instead of hard-erroring (VIEW_DATA_REQUIREMENTS).
+    return null;
   }
   let trace: unknown;
   try {
     trace = JSON.parse(decodeUtf8(bytes)) as unknown;
   } catch (cause) {
-    throw new Error('[profiling-report] adaptRep: trace.json is not valid JSON', { cause });
+    const embedName =
+      (isPipeTrace
+        ? Object.keys(payloads).find((k) => k.toLowerCase() === 'pipetrace.json')
+        : Object.keys(payloads).find((k) => k.toLowerCase() === 'trace.json')) ??
+      (isPipeTrace ? 'PipeTrace.json' : 'trace.json');
+    throw new Error(`[profiling-report] adaptRep: ${embedName} is not valid JSON`, { cause });
   }
-  // Ascend `.rep` embeds store ts/dur in nanoseconds (producer convention, not CTEF).
-  const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: 'ns' });
+  const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: isPipeTrace ? 'us' : 'ns' });
   // Util on flat names first (`laneColorKey` uses Core.*/PIPE suffix); nest keeps leaf util.
   // Nesting is producer opt-in (`nestCardTree` in trace.json) — never invent for arbitrary .rep.
   const withUtil = withPipeLaneUtilizations(model, pipes);
@@ -733,7 +991,7 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
-  if (hasDependencies(swimlaneModel)) capabilities.push('dependencies');
+  if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   return {
     swimlaneModel,
     reportModel,
