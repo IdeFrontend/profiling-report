@@ -41,7 +41,7 @@ Relevant existing MSTT touchpoints (paths may drift; search symbols):
 3. **Panel registration:** flavor/constants panel type id; contribute to `package.json` views/commands as needed.
 4. **Dependency:** workspace package or npm link to profiling-report; Vite resolves Vue SFC from the library.
 5. **i18n:** host-owned strings for “Profiling report”, load errors, etc. Map IDE/extension language → `locale` (`zh-CN` \| `en`, or `zh*` / `en*` prefixes) and pass it into the library. Library chrome uses [`src/i18n`](../../src/i18n/index.ts); see [LOCALIZATION.md](../ui/LOCALIZATION.md).
-6. **User guide:** optional `userGuideUrl` on `<ProfilingReport>` overrides the library default (`https://profiling-report.vercel.app/guide/`). Prefer host `openExternal` if the webview blocks `window.open`.
+6. **User guide:** optional `userGuideUrl` on `<ProfilingReport>` overrides the library default (`https://profiling-report.vercel.app/guide/`, Chinese-only today). Prefer host `openExternal` if the webview blocks `window.open`. English hosts should pass their own guide URL until a locale-aware page exists.
 
 ## Message split (optional)
 
