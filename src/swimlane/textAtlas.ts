@@ -150,7 +150,13 @@ export class TextAtlas {
     maxWidth: number,
     pad = 2,
   ): TextGlyph | null {
-    const key = `${fontSizePx}|${maxWidth}|${text}`;
+    // Bucket the width to integer device px before it enters the key or `fitEventLabel`.
+    // `eventLabelAnchor` supplies a continuous float (`visibleW - 8`), so a pan/zoom nudging a
+    // partially-clipped label a fraction of a pixel would otherwise mint a fresh texture every
+    // frame and churn the 16 MiB LRU. Rounding collapses sub-pixel drift into one key and keeps
+    // the fit decision consistent with the cached texture.
+    const widthPx = Math.round(maxWidth);
+    const key = `${fontSizePx}|${widthPx}|${text}`;
     const cached = this.glyphs.get(key);
     if (cached) {
       // Re-insert at the tail so the Map's insertion order tracks recency (LRU).
@@ -167,7 +173,7 @@ export class TextAtlas {
     const probeCtx = probe.getContext('2d', { alpha: false })!;
     probeCtx.font = eventLabelFont(fontSizePx);
     // Fit policy: draw as-is / horizontal-shrink / truncate / skip (see `fitEventLabel`).
-    const fit = fitEventLabel(probeCtx, text, maxWidth);
+    const fit = fitEventLabel(probeCtx, text, widthPx);
     if (fit.kind === 'skip') {
       this.cacheMiss(key);
       return null;

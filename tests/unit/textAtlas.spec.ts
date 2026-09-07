@@ -169,4 +169,15 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(atlas.get(gl, long, 12, 10)).toBeNull();
     expect(allocs).toBe(allocsAfterFirst);
   });
+
+  it('PR-RENDER-027: rounds maxWidth so sub-pixel pan/zoom deltas reuse the glyph', () => {
+    vi.stubGlobal('OffscreenCanvas', FakeCanvas);
+    const atlas = new TextAtlas(1600);
+    const a = atlas.get(gl, 'aaa', 12, 100.2)!;
+    // 100.4 rounds to the same integer bucket as 100.2 → cache hit (same glyph object).
+    expect(atlas.get(gl, 'aaa', 12, 100.4)).toBe(a);
+    // A width that lands in the next bucket mints a new glyph.
+    const c = atlas.get(gl, 'aaa', 12, 101.4)!;
+    expect(c).not.toBe(a);
+  });
 });
