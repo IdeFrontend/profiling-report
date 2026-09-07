@@ -53,6 +53,24 @@ interval array:
 This keeps edge events extendable when their one real neighboring gap is large,
 and always treats the lane boundaries as unbounded empty space.
 
+### Accepted behavior: emphasis-bucket gaps (product decision)
+
+`rebuildEmphasisSplit` builds each emphasis layer (search-hit/selection dim buckets)
+from a **same-dim subsequence** of the lane and calls the same `createChunksFromPairs`
+on that subsequence — i.e. gaps are measured against the **bucket**, not the full lane.
+
+Consequences (accepted for the product):
+
+  - A muted event whose real neighbor is a bright (selected) event skips it and
+    measures the gap to the next muted event, so it can over-extend toward/across
+    the selected event.
+  - Two bright matches with muted events between them see each other as neighbors
+    across a large gap and both extend as if isolated.
+
+We intentionally do NOT compute gaps against the full lane (index map / mask) here:
+emphasiizing/selection is an overlay pass, so treating each bucket as its own lane is
+a deliberate, acceptable simplification for the current product scope.
+
 ## Vertex shader extension (branchless)
 
 The vertex shader converts the gap distances to device pixels, then smoothly
