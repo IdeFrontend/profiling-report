@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profiling Report 用户指南</title>
+  <style>
+    :root {
+      --bg: #1f1f1f;
+      --surface: #363636;
+      --border: #3a3a3a;
+      --text: #e0e0e0;
+      --muted: #b3b3b3;
+      --accent: #2d70e3;
+      --code: #2a2a2a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 28px 24px 20px;
+      background:
+        radial-gradient(59% 100.4% at 41% 0%, rgba(44, 41, 175, 0.2) 0%, rgba(0, 0, 0, 0) 100%),
+        linear-gradient(90deg, rgba(0, 90, 219, 0.1) 3.6%, rgba(0, 2, 172, 0) 76.5%),
+        var(--bg);
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 20px 64px;
+    }
+    .guide-header-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+    h2 {
+      margin: 2rem 0 0.6rem;
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #fff;
+    }
+    p, li { color: var(--muted); }
+    p strong, li strong { color: var(--text); font-weight: 600; }
+    .lede { color: var(--text); margin: 0; max-width: 42em; }
+    nav {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+    }
+    nav a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    nav a:hover { text-decoration: underline; }
+    code, .kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.88em;
+      background: var(--code);
+      border-radius: 4px;
+      padding: 0.1em 0.35em;
+    }
+    .kbd {
+      border: 1px solid #5e5e5e;
+      padding: 0.05em 0.4em;
+    }
+    ul { padding-left: 1.25rem; }
+    li { margin: 0.35rem 0; }
+    .note {
+      margin-top: 2.5rem;
+      padding: 14px 16px;
+      background: var(--surface);
+      border-radius: 8px;
+      border: 1px solid #5e5e5e;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="guide-header-inner">
+      <h1>Profiling Report 用户指南</h1>
+      <p class="lede">
+        在 MSTT 中打开 <code>.npu-rep</code> 算子性能报告后，用时间线与侧栏回答：整体耗时多久、哪些 PIPE 更忙、哪一段最值得优化。
+      </p>
+      <nav aria-label="目录">
+        <a href="#open">打开报告</a>
+        <a href="#layout">界面布局</a>
+        <a href="#navigate">缩放与平移</a>
+        <a href="#inspect">搜索与选中</a>
+        <a href="#measure">度量</a>
+        <a href="#display">显示控制</a>
+        <a href="#aside">报告侧栏</a>
+        <a href="#shortcuts">快捷键</a>
+        <a href="#later">尚未覆盖</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h2 id="open">1. 打开报告</h2>
+    <p>
+      在 MSTT 性能结果树中打开 <strong><code>.npu-rep</code></strong> 文件（产品正式扩展名）。插件会挂载 Profiling Report 面板；
+      <code>.bin</code> 仍由 MindStudio Insight 打开。也可打开独立的 Chrome Trace <code>.json</code>（无 CSV 包时侧栏分析会隐藏）。
+    </p>
+
+    <h2 id="layout">2. 界面布局</h2>
+    <ul>
+      <li><strong>顶栏</strong> — 搜索、缩放、快捷键说明、适应窗口、度量、显示控制、报告侧栏开关、用户指南。</li>
+      <li><strong>主区</strong> — 概览刷选条 + 泳道时间线（左侧泳道标签，右侧事件块）。</li>
+      <li><strong>右侧栏</strong> — 报告统计、PIPE 占用等（有数据时显示）。</li>
+      <li><strong>底栏详情</strong> — 选中事件后显示名称与起止时间等。</li>
+    </ul>
+
+    <h2 id="navigate">3. 缩放与平移</h2>
+    <ul>
+      <li><strong>滚轮</strong> — 纵向滚动泳道。</li>
+      <li><strong>Ctrl / Cmd + 滚轮</strong>（触控板捏合同路径）— 以光标为中心缩放时间轴。</li>
+      <li><strong>拖拽</strong> / <strong>Ctrl + 左键拖拽</strong> / 触控板双指横向 — 平移时间。</li>
+      <li>顶栏缩放滑条与 <strong>适应窗口</strong> — 缩放到可见全量时间范围。</li>
+      <li>键盘：<span class="kbd">W</span>/<span class="kbd">S</span> 缩放，<span class="kbd">A</span>/<span class="kbd">D</span> 平移。</li>
+    </ul>
+
+    <h2 id="inspect">4. 搜索、悬停与选中</h2>
+    <ul>
+      <li><strong>搜索</strong> — 顶栏按事件名过滤高亮。</li>
+      <li><strong>悬停</strong> — 提示名称、开始、持续、结束；相邻空档可显示瞬时 Δt（默认模式）。</li>
+      <li><strong>单击</strong> — 选中事件并打开详情；单击空白处取消选中。</li>
+      <li><strong>Alt + 单击</strong> — 设置度量锚点（不改变选中）；按住 Alt 悬停可测到另一事件边或光标。</li>
+    </ul>
+
+    <h2 id="measure">5. 度量模式</h2>
+    <p>
+      顶栏<strong>度量</strong>（卡尺图标）进入时间范围度量：在泳道上拖出区间，显示阴影带与 Δt。
+      度量只是本地面板叠加，不会按区间重算侧栏统计。再次点击度量按钮退出。
+    </p>
+
+    <h2 id="display">6. 显示控制</h2>
+    <p>
+      顶栏<strong>图层</strong>图标打开「显示控制」：
+    </p>
+    <ul>
+      <li><strong>任务显示单位</strong> — 「时间（自动）」或（有频率数据时）「CPU 时钟周期」。</li>
+      <li><strong>任务连接层级</strong> — 依赖图向前/后走多少跳；<code>-1</code> 表示不限跳数（每侧有上限）。图标旁的问号为字段说明，不是本指南。</li>
+    </ul>
+
+    <h2 id="aside">7. 报告侧栏</h2>
+    <ul>
+      <li><strong>摘要</strong> — 整体耗时、算力、带宽、并行利用率等（有数据时显示）。</li>
+      <li><strong>PIPE</strong> — 各 PIPE 占用；MIX 算子可切换 Cube / Vector。</li>
+      <li><strong>更多</strong> — 计算负载、内存负载、硬件信息等详情入口。</li>
+      <li>侧栏开关在顶栏最右侧附近的「报告」图标；无分析数据时可能隐藏。</li>
+    </ul>
+
+    <h2 id="shortcuts">8. 快捷键说明</h2>
+    <p>
+      顶栏<strong>键盘</strong>图标打开「快捷键说明」浮层，列出鼠标 / 键盘 / 组合操作（含触控板示意）。
+      完整手势以浮层为准，此处不重复逐条。
+    </p>
+
+    <h2 id="later">9. 本指南尚未覆盖</h2>
+    <p>
+      依赖连线完整交互、多选汇总、右键菜单、源码 / 缓存等次级页签、Roofline 与内存拓扑图等仍在后续阶段；界面上若未出现，表示当前报告或版本尚未提供。
+    </p>
+
+    <p class="note">
+      正式报告扩展名为 <code>.npu-rep</code>。工程样例中的经典 <code>.rep</code> 仅用于开发与测试，不是插件对外支持的产品别名。
+    </p>
+  </main>
+</body>
+</html>

@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import ReportToolbar from './ReportToolbar.vue';
 import { MAX_DEPENDENCY_DEPTH, MIN_DEPENDENCY_DEPTH } from '../../domain/types';
 import { t } from '../../i18n';
+import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 
 describe('ReportToolbar', () => {
   const defaultProps = {
@@ -439,12 +440,14 @@ describe('ReportToolbar', () => {
     const measure = wrapper.find('[data-testid="toggle-measure"]').element as HTMLElement;
     const layers = wrapper.find('[data-testid="toggle-display-control"]').element as HTMLElement;
     const aside = wrapper.find('[data-testid="toggle-aside"]').element as HTMLElement;
+    const guide = wrapper.find('[data-testid="open-user-guide"]').element as HTMLElement;
     const search = wrapper.find('.pr-toolbar__search').element as HTMLElement;
 
     expect(fit.hasAttribute('data-toolbar-clip')).toBe(true);
     expect(measure.hasAttribute('data-toolbar-clip')).toBe(true);
     expect(layers.hasAttribute('data-toolbar-clip')).toBe(true);
     expect(aside.hasAttribute('data-toolbar-clip')).toBe(true);
+    expect(guide.hasAttribute('data-toolbar-clip')).toBe(true);
     expect(search.hasAttribute('data-toolbar-clip')).toBe(false);
 
     const rect = (left: number, right: number, width = right - left) =>
@@ -467,12 +470,14 @@ describe('ReportToolbar', () => {
     vi.spyOn(measure, 'getBoundingClientRect').mockReturnValue(rect(90, 118));
     vi.spyOn(layers, 'getBoundingClientRect').mockReturnValue(rect(120, 148));
     vi.spyOn(aside, 'getBoundingClientRect').mockReturnValue(rect(150, 178));
+    vi.spyOn(guide, 'getBoundingClientRect').mockReturnValue(rect(180, 208));
 
     (wrapper.vm as { syncToolbarClipInert: () => void }).syncToolbarClipInert();
     expect(fit.hasAttribute('inert')).toBe(false);
     expect(measure.hasAttribute('inert')).toBe(true);
     expect(layers.hasAttribute('inert')).toBe(true);
     expect(aside.hasAttribute('inert')).toBe(true);
+    expect(guide.hasAttribute('inert')).toBe(true);
 
     wrapper.unmount();
   });
@@ -549,5 +554,24 @@ describe('ReportToolbar', () => {
     expect(text).toContain(t('keyboardControl'));
     expect(text).toContain(t('combinedControl'));
     wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-024: user-guide is last clip action and opens userGuideUrl', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const actions = wrapper.findAll('[data-toolbar-clip]');
+    expect(actions[actions.length - 1].attributes('data-testid')).toBe('open-user-guide');
+    expect(wrapper.find('[data-testid="open-user-guide"] .pr-icon--help').exists()).toBe(true);
+
+    await wrapper.find('[data-testid="open-user-guide"]').trigger('click');
+    expect(wrapper.emitted('open-user-guide')).toEqual([[DEFAULT_USER_GUIDE_URL]]);
+    expect(openSpy).toHaveBeenCalledWith(DEFAULT_USER_GUIDE_URL, '_blank', 'noopener,noreferrer');
+    openSpy.mockClear();
+
+    await wrapper.setProps({ userGuideUrl: 'https://example.test/guide/' });
+    await wrapper.find('[data-testid="open-user-guide"]').trigger('click');
+    expect(wrapper.emitted('open-user-guide')?.at(-1)).toEqual(['https://example.test/guide/']);
+    expect(openSpy).toHaveBeenCalledWith('https://example.test/guide/', '_blank', 'noopener,noreferrer');
+    openSpy.mockRestore();
   });
 });

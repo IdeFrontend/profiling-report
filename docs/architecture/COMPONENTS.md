@@ -197,7 +197,7 @@ Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel
 
 ### `ReportToolbar` (M / M2)
 
-Search, zoom slider, zoom-to-fit, toggle stats aside. **M2:** measure-mode (度量模式) caliper toggle.
+Search, zoom slider, zoom-to-fit, toggle stats aside, shortcut-help popover, trailing user-guide help button (`open-user-guide` + `window.open`). **M2:** measure-mode (度量模式) caliper toggle.
 
 **Why:** Chrome must not sit inside the canvas hit-test path; matches FEATURE_MATRIX toolbar.
 

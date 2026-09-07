@@ -31,6 +31,8 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 24. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
 25. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
+End-user guide (shipped with the demo): [https://profiling-report.vercel.app/guide/](https://profiling-report.vercel.app/guide/) (`playground/public/guide/`).
+
 ## Process
 
 | Doc | Role |
