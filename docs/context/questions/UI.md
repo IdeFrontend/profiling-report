@@ -42,15 +42,17 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Question:** Must timeline “CPU clocks” (event tooltip / detail strip) use **true** cycle-domain timestamps/counters from the producer, or is **derived** `ns × OpBasicInfo freq` acceptable? Should cycles also apply to the axis, cursor, or measure Δt?
 
-- **A (interim / shipping):** derived via [`UI-40a`](../decisions/interim/UI.md) — `cycles = ns × freqMHz / 1000` (`currentFreq` when valid, else `ratedFreq`), integer, space-grouped, no suffix, no leading zeroes; scope = tooltip + detail only.
-- **B:** drop the derived cycles mode; show real `*_total_cycles` only where present.
+**Freq source (interim A).** Derived mode reads frequency from the `.rep` embed [`OpBasicInfo.csv`](../../formats/INPUT_FORMATS.md#31-opbasicinfocsv) columns **`Current Freq`** / **`Rated Freq`** (MHz) — see also [METRICS_AND_TRACE — OpBasicInfo.csv](../../formats/METRICS_AND_TRACE.md#opbasicinfocsv) and [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) (Current / rated frequency). The adapter maps them to `SummaryMetrics.currentFreq` / `ratedFreq`; display uses `currentFreq` when valid, else `ratedFreq` ([`UI-40a`](../decisions/interim/UI.md)). Not from [`HardwareInfo.jsonl`](../../formats/INPUT_FORMATS.md#32-hardwareinfojsonl) `ai_core_frequency_MHZ`.
+
+- **A (interim / shipping):** derived via [`UI-40a`](../decisions/interim/UI.md) — `cycles = ns × freqMHz / 1000` using the OpBasicInfo columns above, integer, space-grouped, no suffix, no leading zeroes; scope = tooltip + detail only.
+- **B:** drop the derived cycles mode; show real `*_total_cycles` only where present (e.g. block counters in [`PipeUtilization.csv`](../../formats/METRICS_AND_TRACE.md#pipeutilizationcsv)).
 - **C:** producer adds per-event cycle timestamps (`start_cycles`/`end_cycles` or cycle-tick `ts`/`dur`).
 
 **Interim:** time measurement / range Δt (and axis + cursor) always stay in wall time (`ms`/`µs`/`ns`), never cycles.
 
 **Why open:** embeds have block `aic`/`aiv_total_cycles` only — no event cycle positions for axis/gaps/measure.
 
-**Specs when answered:** METRICS_AND_TRACE, VIEW_DATA_REQUIREMENTS, FEATURE_MATRIX, format-time / INTERACTIONS.
+**Specs when answered:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), FEATURE_MATRIX, format-time / INTERACTIONS.
 
 ### UI-46 — Card gutter 时钟周期 label units (was: HQ 40)
 
