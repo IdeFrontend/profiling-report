@@ -43,7 +43,7 @@ When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim bo
 | Scroll | Main body `scrollY` does not move the pinned strip; pinned strip height reduces the scroll viewport (`bodyViewportH − pinnedHeight`) |
 | Unpin | Click filled pushpin on duplicate or original → parent removes id from **pinnedLaneIds**; strip row removed |
 | Collapse | Pinned strip **keeps** duplicates when an ancestor Card/folder is collapsed; originals hide in the scroll body. Requires unfiltered `pinSourceModel` (not `displaySwim`). |
-| Dependencies | Pinned-strip canvas omits Bezier curves (`showDependencies=false`) but still runs selection gray-muting for non-selected/non-neighbor events (same `#2C2C2C` / `#969696` as the body). Neighbor ids are computed for mute exemption; curve geometry is not painted in strip Y space. Main scroll canvas unchanged. |
+| Dependencies | Pinned-strip canvas omits Bezier curves (`showDependencies=false`) but still runs selection gray-muting for non-selected/non-neighbor events (same `#2C2C2C` / `#969696` as the body). Neighbor ids come from the **strip layout** (pinned leaves only — strip-local mute; a multi-hop neighbor reached only via an unpinned lane can false-mute on the strip). Curve geometry is not painted in strip Y space. Main scroll canvas unchanged. |
 | Cross-card | Any leaf id may be pinned regardless of Card/process; strip lists duplicates in **pin order** (may interleave Cards). |
 
 Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
@@ -105,7 +105,7 @@ Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.m
 10. **PR-SWIMVIEW-013** — Non-empty **pinnedLaneIds** renders sticky pinned strip above scroll body.
 11. **PR-SWIMVIEW-014** — Pinned strip duplicates preserve lane ids and pin order.
 12. **PR-SWIMVIEW-015** — Original leaf rows remain in tree order below; unpin removes duplicate only.
-13. **PR-SWIMVIEW-016** — Pinned-strip canvas omits dependency link rendering (selection muting still applies).
+13. **PR-SWIMVIEW-016** — Pinned-strip canvas omits dependency link rendering (selection muting still applies; mute neighbors are strip-layout-local).
 14. **PR-SWIMVIEW-017** — `pinnedLaneIds` may span multiple Cards/groups; strip order follows pin order.
 15. **PR-SWIMVIEW-018** — Measure magnet follows the canvas under the pointer across pin strip and body (create/resize may start on one and snap on the other).
 16. **PR-SWIMVIEW-019** — Pinned strip stays populated when an ancestor of a pinned leaf is collapsed (`pinSourceModel` / full swim); scroll-body originals hide.

@@ -417,6 +417,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     return this.neighborIds;
   }
 
+  /** Cached curve geometry; empty when `setPaintDependencies(false)` (pinned-strip pass). */
+  getDepLinks(): readonly DependencyLink[] {
+    return this.depLinks;
+  }
+
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
     const item = findLaidOutEvent(this.layout, eventId);
     if (!item) return null;

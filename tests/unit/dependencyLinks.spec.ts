@@ -434,12 +434,15 @@ describe('PR-DEPS: dependency links', () => {
     renderer.setModel(model);
     renderer.setSelection('e-parent', null);
     expect(renderer.getNeighborIds().size).toBeGreaterThan(0);
+    expect(renderer.getDepLinks().length).toBeGreaterThan(0);
     renderer.setPaintDependencies(false);
-    // Neighbor ids stay for selection muting; only curve geometry is dropped.
+    // Neighbor ids stay for selection muting; curve geometry is dropped.
     expect(renderer.getNeighborIds().has('e-parent')).toBe(true);
+    expect(renderer.getDepLinks()).toHaveLength(0);
     renderer.render();
     // Re-enable restores curves for the main canvas pass.
     renderer.setPaintDependencies(true);
     expect(renderer.getNeighborIds().has('e-parent')).toBe(true);
+    expect(renderer.getDepLinks().length).toBeGreaterThan(0);
   });
 });
