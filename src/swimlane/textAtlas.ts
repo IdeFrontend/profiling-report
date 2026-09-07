@@ -48,16 +48,20 @@ export interface TextMetricsLike {
  * Vertical placement that centers a label's ink, not its em-box. `textBaseline='middle'` centers
  * the em square, leaving text visibly high/low for fonts with asymmetric ascent/descent
  * (system-ui). When ink bounds are available, return an `alphabetic` baseline shifted by
- * (ascent − descent)/2 so the ink midpoint lands on `centerY`; otherwise fall back to `middle`.
+ * `ascent / 2` so the above-baseline ink centers on `centerY`; otherwise fall back to `middle`.
+ *
+ * The descent is clamped to 0: per-glyph ink below the baseline (an underscore, `g`, `y`)
+ * inflates `actualBoundingBoxDescent`, which would shift the whole body up and put labels with
+ * an underscore on a different baseline than labels without. Ignoring it keeps every label's
+ * letter body on the same line.
  */
 export function centeredTextBaseline(
   metrics: TextMetricsLike,
   centerY: number,
 ): { baselineY: number; baseline: 'middle' | 'alphabetic' } {
   const ascent = metrics.actualBoundingBoxAscent ?? 0;
-  const descent = metrics.actualBoundingBoxDescent ?? 0;
-  if (ascent > 0 || descent > 0) {
-    return { baselineY: centerY + (ascent - descent) / 2, baseline: 'alphabetic' };
+  if (ascent > 0) {
+    return { baselineY: centerY + ascent / 2, baseline: 'alphabetic' };
   }
   return { baselineY: centerY, baseline: 'middle' };
 }

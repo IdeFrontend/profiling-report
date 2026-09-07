@@ -50,14 +50,20 @@ describe('PR-RENDER: ClearType text atlas', () => {
   });
 
   it('PR-RENDER-026: centeredTextBaseline centers ink and falls back to middle', () => {
-    // Ink metrics present → alphabetic baseline shifted so ink midpoint lands on centerY.
+    // Ink metrics present → alphabetic baseline shifted by ascent/2 (descent ignored).
     expect(centeredTextBaseline({ width: 10, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 3 }, 20)).toEqual({
-      baselineY: 23,
+      baselineY: 24.5,
+      baseline: 'alphabetic',
+    });
+    // Below-baseline ink (an underscore / descender) must not shift the body: same ascent,
+    // different descent → identical baseline.
+    expect(centeredTextBaseline({ width: 10, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 0 }, 20)).toEqual({
+      baselineY: 24.5,
       baseline: 'alphabetic',
     });
     // No ink metrics (jsdom stub) → middle baseline, unshifted.
     expect(centeredTextBaseline({ width: 10 }, 20)).toEqual({ baselineY: 20, baseline: 'middle' });
-    expect(centeredTextBaseline({ width: 10, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 0 }, 20)).toEqual({
+    expect(centeredTextBaseline({ width: 10, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 3 }, 20)).toEqual({
       baselineY: 20,
       baseline: 'middle',
     });
