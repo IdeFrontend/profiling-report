@@ -611,22 +611,52 @@ export function eventScreenRect(
   return { x, y: m.y * dpr, w, h: m.h * dpr };
 }
 
+/** Leaf lane id under canvas-local CSS Y, or null on folders / empty. */
+export function leafLaneIdAtPoint(
+  layout: SwimlaneLayout,
+  view: SwimlaneViewWindow,
+  y: number,
+): string | null {
+  const hit = laneAtContentY(layout, y + view.scrollY);
+  return hit && !hit.lane.folder ? hit.lane.thread.id : null;
+}
+
 /** Lane id (leaf or folder) under canvas-local CSS Y, or null on empty / header gap. */
 export function laneIdAtPoint(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
   y: number,
 ): string | null {
-  const contentY = y + view.scrollY;
-  // Prefer the last matching leaf when collapse tucks a subtree into its parent lane.
+  return laneAtContentY(layout, y + view.scrollY)?.lane.thread.id ?? null;
+}
+
+/**
+ * Lane under content-space Y. Prefers the last matching leaf when collapse tucks a
+ * subtree into its parent; otherwise the last matching folder. Skips `alpha === 0`.
+ */
+export function laneAtContentY(
+  layout: SwimlaneLayout,
+  contentY: number,
+): { lane: FlatLane; index: number } | null {
   let leaf: FlatLane | undefined;
+  let leafIndex = -1;
   let folder: FlatLane | undefined;
-  for (const l of layout.lanes) {
+  let folderIndex = -1;
+  for (let i = 0; i < layout.lanes.length; i++) {
+    const l = layout.lanes[i]!;
+    if (l.alpha === 0) continue;
     if (!(contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT)) continue;
-    if (l.folder) folder = l;
-    else leaf = l;
+    if (l.folder) {
+      folder = l;
+      folderIndex = i;
+    } else {
+      leaf = l;
+      leafIndex = i;
+    }
   }
-  return (leaf ?? folder)?.thread.id ?? null;
+  if (leaf && leafIndex >= 0) return { lane: leaf, index: leafIndex };
+  if (folder && folderIndex >= 0) return { lane: folder, index: folderIndex };
+  return null;
 }
 
 /** Prefer shorter duration when multiple blocks share a pixel (tie-break only; sub-rows make true overlaps rare). `width`/`x`/`y` are device pixels. */
@@ -639,29 +669,9 @@ export function hitTestLayout(
   dpr = 1,
 ): string | null {
   const contentYCss = y / dpr + view.scrollY;
-  // Prefer the last matching leaf when collapse tucks into a parent band; otherwise
-  // allow folder lanes so collapsed summary bars stay hit-testable.
-  let lane: FlatLane | undefined;
-  let laneIndex = -1;
-  let folder: FlatLane | undefined;
-  let folderIndex = -1;
-  for (let i = 0; i < layout.lanes.length; i++) {
-    const l = layout.lanes[i]!;
-    if (l.alpha === 0) continue; // faded-out collapse subtree — let folder summaries win
-    if (!(contentYCss >= l.y && contentYCss < l.y + l.rowCount * LANE_HEIGHT)) continue;
-    if (l.folder) {
-      folder = l;
-      folderIndex = i;
-    } else {
-      lane = l;
-      laneIndex = i;
-    }
-  }
-  if (!lane && folder) {
-    lane = folder;
-    laneIndex = folderIndex;
-  }
-  if (!lane || laneIndex < 0) return null;
+  const hit = laneAtContentY(layout, contentYCss);
+  if (!hit) return null;
+  const { index: laneIndex } = hit;
   const span = Math.max(1, view.endTime - view.startTime);
   const candidates: { id: string; duration: number }[] = [];
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
@@ -716,17 +726,17 @@ export function nearestEventEdgeAtPoint(
   thresholdPx: number,
 ): NearestEventEdge | null {
   const contentY = y + view.scrollY;
-  const lane = layout.lanes.find(
-    (l) => contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT,
-  );
-  if (!lane) return null;
-  const laneIndex = layout.lanes.indexOf(lane);
+  const hit = laneAtContentY(layout, contentY);
+  if (!hit) return null;
+  const lane = hit.lane;
+  const laneIndex = hit.index;
   const rowIndex = Math.floor((contentY - lane.y) / LANE_HEIGHT);
   const span = Math.max(1, view.endTime - view.startTime);
   const w = Math.max(1, width);
   let best: NearestEventEdge | null = null;
   let bestDist = Infinity;
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
+    if (item.alpha === 0) continue;
     if (item.rowIndex !== rowIndex) continue;
     const ev = item.event;
     const end = ev.startTime + ev.duration;
@@ -781,11 +791,10 @@ export function findHoverGap(
   thresholdPx: number,
 ): HoverGap | null {
   const contentY = y + view.scrollY;
-  const lane = layout.lanes.find(
-    (l) => contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT,
-  );
-  if (!lane) return null;
-  const laneIndex = layout.lanes.indexOf(lane);
+  const hit = laneAtContentY(layout, contentY);
+  if (!hit) return null;
+  const lane = hit.lane;
+  const laneIndex = hit.index;
   const rowIndex = Math.floor((contentY - lane.y) / LANE_HEIGHT);
   const subRowY = lane.y + rowIndex * LANE_HEIGHT;
   const { y: blockY, h: blockH } = eventBlockMetrics(subRowY, view.scrollY);
@@ -799,6 +808,7 @@ export function findHoverGap(
   let leftEnd: number | null = null;
   let rightStart: number | null = null;
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
+    if (item.alpha === 0) continue;
     if (item.rowIndex !== rowIndex) continue;
     const ev = item.event;
     const end = ev.startTime + ev.duration;

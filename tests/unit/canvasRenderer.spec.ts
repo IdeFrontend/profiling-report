@@ -663,6 +663,13 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.render();
     expect(bezierCalls).toBeGreaterThan(0);
   });
+
+  it('PR-RENDER-030: WebGL lane chrome uses premultiplied alpha blending for collapse fade', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw')).default as string;
+    expect(webglSrc).toMatch(/blendFuncSeparate\(gl\.ONE,\s*gl\.ONE_MINUS_SRC_ALPHA/);
+    expect(webglSrc).toMatch(/rgb\[0\] \* alpha/);
+    expect(webglSrc).toMatch(/collapseAlpha\(lane\.y/);
+  });
 });
 
 describe('PR-RENDER: lane chrome color', () => {

@@ -1248,9 +1248,42 @@ function eventAtPointer(localX: number, localY: number, magnetEventId: string | 
     const ev = backend.findEvent(magnetEventId);
     if (ev) return ev;
   }
-  const dpr = currentDpr();
-  const id = backend.hitTest(localX * dpr, localY * dpr);
+  const { x, y } = cssToHitDevice(localX, localY);
+  const id = backend.hitTest(x, y);
   return id ? backend.findEvent(id) : null;
+}
+
+/**
+ * Map CSS-local pointer into the renderer's device-pixel hit space.
+ * While the aside freeze stretches a frozen bitmap, CSS width ≠ buffer/dpr —
+ * scale into frozen buffer coords so picks track the painted blocks.
+ */
+function cssToHitDevice(localX: number, localY: number): { x: number; y: number } {
+  const cssW = Math.max(1, syncTrackWidth());
+  const cssH = Math.max(1, lastH || wrapRef.value?.clientHeight || 1);
+  if (freezeBackingStore.value && lastDeviceW >= 1 && lastDeviceH >= 1) {
+    return {
+      x: localX * (lastDeviceW / cssW),
+      y: localY * (lastDeviceH / cssH),
+    };
+  }
+  const dpr = currentDpr();
+  return { x: localX * dpr, y: localY * dpr };
+}
+
+/** CSS-pixel screen rect for an event (renderers report device-pixel rects). */
+function eventScreenRectCss(eventId: string): { x: number; y: number; w: number; h: number } | null {
+  const rect = backend.eventScreenRect(eventId);
+  if (!rect) return null;
+  const cssW = Math.max(1, syncTrackWidth());
+  const cssH = Math.max(1, lastH || wrapRef.value?.clientHeight || 1);
+  if (freezeBackingStore.value && lastDeviceW >= 1 && lastDeviceH >= 1) {
+    const sx = cssW / lastDeviceW;
+    const sy = cssH / lastDeviceH;
+    return { x: rect.x * sx, y: rect.y * sy, w: rect.w * sx, h: rect.h * sy };
+  }
+  const dpr = currentDpr();
+  return { x: rect.x / dpr, y: rect.y / dpr, w: rect.w / dpr, h: rect.h / dpr };
 }
 
 /** Grouping-node id when `eventId` is a collapsed summary bar, else null. */
@@ -1411,14 +1444,6 @@ const gapMeasureGeometry = computed(() => {
     arrowLayout: { mode: 'inline' as const, side: 'right' as const, style },
   };
 });
-
-/** CSS-pixel screen rect for an event (renderers report device-pixel rects scaled by dpr). */
-function eventScreenRectCss(eventId: string): { x: number; y: number; w: number; h: number } | null {
-  const rect = backend.eventScreenRect(eventId);
-  if (!rect) return null;
-  const dpr = currentDpr();
-  return { x: rect.x / dpr, y: rect.y / dpr, w: rect.w / dpr, h: rect.h / dpr };
-}
 
 /** Alt-measure anchor highlight while session active. */
 const altMeasureAnchorHighlight = computed(() => {

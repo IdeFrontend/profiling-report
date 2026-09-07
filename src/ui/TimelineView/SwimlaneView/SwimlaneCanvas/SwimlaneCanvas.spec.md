@@ -103,6 +103,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 67. **PR-CANVAS-067** — Ctrl+left-drag still pans the viewport (emits `pan`) — the PyPTO "combined" horizontal pan works because pan is not gated on the modifier.
 68. **PR-CANVAS-068** — Horizontal-dominant wheel (`|deltaX| > |deltaY|`) emits `pan` (pixel→time, same formula as drag), including when `ctrlKey` is set; vertical-dominant non-ctrl wheel still emits `scroll-y`; Ctrl/Cmd+vertical wheel still zooms.
 69. **PR-CANVAS-069** — While `freezeBackingStore` is true, ResizeObserver CSS-box changes do not realloc the device buffer; thawing applies one resize to the pending size.
+70. **PR-CANVAS-070** — While `freezeBackingStore` is true, pointer hit-test and `eventScreenRect` CSS mapping scale between the live CSS box and the frozen device buffer so picks track the stretched bitmap.
 71. **PR-CANVAS-071** — Inbound `hoveredLaneId` prop calls renderer `setHoveredLane` (and WebGL overlay when active) without re-emitting `lane-hover` (gutter→track half of AC-07).
 72. **PR-CANVAS-072** — The event-edge magnet (`nearestEventEdgeAtPoint`) snaps only to edges in the sub-row under the pointer; a multi-row leaf does not snap across sub-rows.
 73. **PR-CANVAS-073** — The hover-gap measure (`findHoverGap`) computes an idle gap only within the sub-row under the pointer; the vertical padding check and the left/right neighbour scan are sub-row-scoped.
@@ -138,8 +139,9 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
-- **2026-09-08** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-072`/`073`; 070 reserved for #71 frozen hit-scale).
+- **2026-09-08** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-072`/`073`).
 - **2026-09-07** — Inbound `hoveredLaneId` drives track `setHoveredLane` without re-emitting (gutter→track AC-07); PR-CANVAS-071.
+- **2026-09-07** — Frozen hit-test / eventScreenRect map CSS↔device buffer (`PR-CANVAS-070`).
 - **2026-09-07** — Freeze device backing store while the aside grid track tweens; CSS-stretch then one thaw resize (`PR-CANVAS-069`).
 - **2026-09-07** — Summary-bar expand selects the sole leaf when `taskCount === 1` (`sourceEvent`); multi-task summaries still clear selection (`PR-CANVAS-065`).
 - **2026-09-07** — Summary-bar click clears selection (`select` null) as well as hover after expand (`PR-CANVAS-065`).

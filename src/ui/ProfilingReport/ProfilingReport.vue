@@ -148,6 +148,8 @@ const collapseAnim = ref<CollapseAnimState | null>(null);
 const animGroupId = ref<string | null>(null);
 /** True while the in-flight tween is collapsing (1→0); false when expanding (0→1). */
 const animCollapsing = ref(false);
+/** Settled `collapsedGroupIds` the in-flight tween will commit on `onDone`. */
+let pendingCollapseTarget: string[] | null = null;
 let cancelCollapseAnim: () => void = () => {};
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
 const operators = ref<ReportOperator[]>([]);
@@ -338,6 +340,7 @@ function resetViewFromModel(
   cancelCollapseAnim();
   collapseAnim.value = null;
   animGroupId.value = null;
+  pendingCollapseTarget = null;
   const next = createViewState(model);
   next.asideVisible = showAsidePanel;
   viewState.value = next;
@@ -413,12 +416,14 @@ function onToggleGroup(groupId: string): void {
     if (hiddenHeight <= 0 || prefersReducedMotion()) {
       animGroupId.value = null;
       collapseAnim.value = null;
+      pendingCollapseTarget = null;
       collapsedGroupIds.value = target;
       clampScrollAfterCollapse();
       return;
     }
     animCollapsing.value = nowCollapsing;
     animGroupId.value = groupId;
+    pendingCollapseTarget = target;
     collapseAnim.value = { groupId, visible, hiddenHeight, summaryEvents };
     cancelCollapseAnim = animateProgress({
       from: visible,
@@ -430,12 +435,22 @@ function onToggleGroup(groupId: string): void {
       onDone: () => {
         collapseAnim.value = null;
         animGroupId.value = null;
+        pendingCollapseTarget = null;
         collapsedGroupIds.value = target;
         clampScrollAfterCollapse();
       },
     });
     return;
   }
+
+  // Different group (or idle): commit any in-flight tween's target before starting anew.
+  if (animGroupId.value && pendingCollapseTarget) {
+    collapsedGroupIds.value = pendingCollapseTarget;
+    pendingCollapseTarget = null;
+  }
+  cancelCollapseAnim();
+  animGroupId.value = null;
+  collapseAnim.value = null;
 
   const set = new Set(collapsedGroupIds.value);
   const collapsing = !set.has(groupId);
@@ -457,10 +472,8 @@ function onToggleGroup(groupId: string): void {
   const summaries =
     summaryEvents && summaryEvents.length > 0 ? summaryEvents : undefined;
 
-  cancelCollapseAnim();
   if (hiddenHeight <= 0 || prefersReducedMotion()) {
-    animGroupId.value = null;
-    collapseAnim.value = null;
+    pendingCollapseTarget = null;
     collapsedGroupIds.value = target;
     clampScrollAfterCollapse();
     return;
@@ -468,6 +481,7 @@ function onToggleGroup(groupId: string): void {
 
   animCollapsing.value = collapsing;
   animGroupId.value = groupId;
+  pendingCollapseTarget = target;
   collapseAnim.value = {
     groupId,
     visible: collapsing ? 1 : 0,
@@ -489,6 +503,7 @@ function onToggleGroup(groupId: string): void {
     onDone: () => {
       collapseAnim.value = null;
       animGroupId.value = null;
+      pendingCollapseTarget = null;
       collapsedGroupIds.value = target;
       clampScrollAfterCollapse();
     },
@@ -679,6 +694,7 @@ onBeforeUnmount(() => {
   cancelCollapseAnim();
   collapseAnim.value = null;
   animGroupId.value = null;
+  pendingCollapseTarget = null;
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onGlobalKeydown);
 });

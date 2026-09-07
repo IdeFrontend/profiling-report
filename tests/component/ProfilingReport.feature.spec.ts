@@ -528,4 +528,72 @@ describe('PR-UI: ProfilingReport feature contract', () => {
 
     wrapper.unmount();
   });
+
+  it('PR-UI-015: different-group toggle mid-tween commits the in-flight target', async () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'card0/core-a',
+              name: 'CoreA',
+              events: [],
+              children: [
+                { id: 'card0/core-a/p0', name: 'P0', events: [{ id: 'e1', name: 'a', startTime: 0, duration: 10 }] },
+              ],
+            },
+            {
+              id: 'card0/core-b',
+              name: 'CoreB',
+              events: [],
+              children: [
+                { id: 'card0/core-b/p0', name: 'P0', events: [{ id: 'e2', name: 'b', startTime: 0, duration: 10 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    let onDoneA: (() => void) | null = null;
+    let run = 0;
+    vi.spyOn(anim, 'animateProgress').mockImplementation((opts) => {
+      run += 1;
+      if (run === 1) onDoneA = opts.onDone ?? null;
+      return () => {};
+    });
+
+    const wrapper = mount(ProfilingReport, {
+      props: { swimlaneModel: model, reportModel: emptyReportViewModel() },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-testid="gutter-folder-card0/core-a"]').trigger('click');
+    await flushPromises();
+    expect(onDoneA).toBeTruthy();
+
+    // Toggle B before A's onDone — A must still end up collapsed.
+    await wrapper.get('[data-testid="gutter-folder-card0/core-b"]').trigger('click');
+    await flushPromises();
+
+    // Settled collapse set includes A even though A's onDone never ran.
+    const gutterA = wrapper.get('[data-testid="gutter-folder-card0/core-a"]');
+    // Collapsed folders keep a row; children pruned — assert via display: A's child gone from gutter.
+    expect(wrapper.find('[data-testid="gutter-lane-card0/core-a/p0"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="gutter-lane-card0/core-b/p0"]').exists()).toBe(true); // B still tweening expanded
+    void gutterA;
+    // Finish B's tween so both settle collapsed.
+    // Second animateProgress's onDone is the latest mock call's onDone — re-click settle via force:
+    // After B starts, pending for B is set; call B's onDone by getting the last mock.
+    const lastOpts = (anim.animateProgress as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0];
+    lastOpts?.onDone?.();
+    await flushPromises();
+    expect(wrapper.find('[data-testid="gutter-lane-card0/core-b/p0"]').exists()).toBe(false);
+
+    wrapper.unmount();
+  });
 });

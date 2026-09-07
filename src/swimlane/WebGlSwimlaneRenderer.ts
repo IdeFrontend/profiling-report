@@ -625,8 +625,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.clearColor(0x25 / 255, 0x25 / 255, 0x25 / 255, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // Uniform lane chrome + 1px dividers aligned with LaneGutter borders (no blend)
-    gl.disable(gl.BLEND);
+    // Uniform lane chrome + 1px dividers aligned with LaneGutter borders.
+    // Premultiplied alpha blending so collapseAlpha fades subtree chrome (matches Canvas).
+    gl.enable(gl.BLEND);
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(solid.program);
     const laneBg = hexToRgb(LANE_FILL);
     const laneHoverBg = hexToRgb(LANE_HOVER_FILL);
@@ -928,7 +930,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const px = -1 + (2 * x + w) / devW;
     const py = 1 - (2 * y + h) / devH;
     gl.uniform4f(prog.uSizePos, sx, sy, px, py);
-    gl.uniform4f(prog.uColor, rgb[0], rgb[1], rgb[2], alpha);
+    // Premultiply so SRC_ALPHA blending fades toward the cleared background.
+    gl.uniform4f(prog.uColor, rgb[0] * alpha, rgb[1] * alpha, rgb[2] * alpha, alpha);
     gl.bindVertexArray(unit.vao);
     gl.drawElements(gl.TRIANGLES, unit.indexCount, gl.UNSIGNED_SHORT, 0);
   }

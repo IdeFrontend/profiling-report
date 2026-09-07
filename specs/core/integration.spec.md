@@ -30,7 +30,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-UI-012**: Metrics-only source (no `trace.json`) renders the aside with no swimlane and no load error.
 1. **PR-UI-013**: Collapsing/expanding a folder starts a tween without re-deriving the display model per frame — `filterCollapsedTree` runs once at tween start (for the forced-expanded visual set) and stays stable across tween steps.
 1. **PR-UI-014**: Re-clicking the same folder mid-tween reverses direction from the current `visible` (does not restart collapse from 1).
-
+1. **PR-UI-015**: Starting a collapse/expand on a *different* group while a tween is in flight commits the in-flight target `collapsedGroupIds` before cancelling, so the first toggle is not discarded.
 ### E2E (PR-E2E)
 
 1. **PR-E2E-001**: Playground loads `data/out.rep` and renders timeline.
@@ -50,6 +50,7 @@ Outside-in tests verifying the full component tree and playground render correct
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-09-07** — PR-UI-015: different-group toggle mid-tween commits the in-flight collapse target before starting the new tween.
 - **2026-09-07** — PR-UI-014: mid-tween re-click on the same folder reverses from the current `visible`.
 - **2026-09-04** — PR-UI-013: collapse/expand tween keeps the display model identity stable (no per-frame `filterCollapsedTree` / WebGL mesh rebuild).
 - **2026-09-03** — PR-UI-012: metrics-only report (no `trace.json`) renders the aside without a timeline instead of a hard error.

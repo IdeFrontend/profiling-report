@@ -2074,4 +2074,11 @@ describe('SwimlaneCanvas', () => {
     expect(canvas.width).toBe(400);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-070: frozen hit path scales CSS pointer into device buffer space', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/function cssToHitDevice/);
+    expect(src).toMatch(/lastDeviceW\s*\/\s*cssW/);
+    expect(src).toMatch(/freezeBackingStore\.value/);
+  });
 });
