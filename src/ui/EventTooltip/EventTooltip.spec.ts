@@ -43,4 +43,36 @@ describe('EventTooltip', () => {
     expect(text).toContain('500.0 ns'); // duration → ns (4 sig digits)
     expect(text).toContain('2.001 ms'); // end 2_000_500 → ms
   });
+
+  it('PR-TOOLTIP-003: multi-task summary titles as "N tasks"; single-event keeps the real name', () => {
+    const many = mount(EventTooltip, {
+      props: {
+        event: makeEvent({ name: '', taskCount: 4 }),
+        stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
+      },
+    });
+    expect(many.text()).toContain('4 tasks');
+
+    const one = mount(EventTooltip, {
+      props: {
+        event: makeEvent({ name: 'matmul_kernel', taskCount: 1, laneName: 'MTE1' }),
+        stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
+      },
+    });
+    expect(one.text()).toContain('matmul_kernel');
+    expect(one.text()).not.toContain('1 task');
+  });
+
+  it('PR-TOOLTIP-004: single-event summary shows the source lane title', () => {
+    const wrapper = mount(EventTooltip, {
+      props: {
+        event: makeEvent({ name: 'busy', taskCount: 1, laneName: 'MTE1' }),
+        stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
+      },
+    });
+    expect(wrapper.find('[data-testid="event-tooltip-lane"]').text()).toBe('MTE1');
+  });
 });

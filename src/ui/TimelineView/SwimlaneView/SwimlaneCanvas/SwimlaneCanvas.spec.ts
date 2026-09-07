@@ -1740,6 +1740,209 @@ describe('SwimlaneCanvas', () => {
     );
   });
 
+  it('PR-CANVAS-065: summary click expands, clears hover, and selects sole leaf or clears selection', async () => {
+    const multi = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 'folder/summary/0', name: '', startTime: 0, duration: 1000, taskCount: 4 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: multi,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...multi } });
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('folder/summary/0');
+    expect(rect).toBeTruthy();
+    const x = rect!.x + rect!.w / 2;
+    const y = rect!.y + rect!.h / 2;
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+
+    expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['folder']);
+    // Multi-task summary: clear any prior selection.
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+    expect(wrapper.emitted('hover')!.at(-1)?.[0]).toBeNull();
+    wrapper.unmount();
+
+    const leaf = { id: 'e1', name: 'busy', startTime: 0, duration: 1000 };
+    const single = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [],
+              summaryEvents: [
+                {
+                  id: 'folder/summary/0',
+                  name: 'busy',
+                  startTime: 0,
+                  duration: 1000,
+                  taskCount: 1,
+                  laneName: 'MTE1',
+                  sourceEvent: leaf,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const one = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: single,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const oneWrap = one.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(oneWrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(oneWrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(oneWrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const oneCanvas = one.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(oneCanvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await one.setProps({ model: { ...single } });
+
+    const oneVm = one.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const oneRect = oneVm.eventScreenRect('folder/summary/0');
+    expect(oneRect).toBeTruthy();
+    const ox = oneRect!.x + oneRect!.w / 2;
+    const oy = oneRect!.y + oneRect!.h / 2;
+    await oneCanvas.trigger('pointerdown', { clientX: ox, clientY: oy, pointerId: 1 });
+    await oneCanvas.trigger('pointerup', { clientX: ox, clientY: oy, pointerId: 1 });
+
+    expect(one.emitted('toggle-group')?.[0]).toEqual(['folder']);
+    expect(one.emitted('select')?.at(-1)).toEqual([leaf]);
+    one.unmount();
+  });
+
+  it('PR-CANVAS-066: Alt+click / Alt+hover treats summary bars as measure endpoints', async () => {
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'leaf',
+              name: 'T',
+              events: [{ id: 'e1', name: 'a', startTime: 0, duration: 100 }],
+            },
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 'folder/summary/0', name: '', startTime: 200, duration: 400, taskCount: 3 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 160, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 160, right: 400, bottom: 160 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 160, right: 400, bottom: 160 }),
+    });
+    await wrapper.setProps({ model: { ...model } });
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const summary = vm.eventScreenRect('folder/summary/0');
+    expect(summary).toBeTruthy();
+    const sx = summary!.x + summary!.w / 2;
+    const sy = summary!.y + summary!.h / 2;
+
+    // Alt+click on a summary bar starts an Alt-measure session (does not expand).
+    await canvas.trigger('pointerdown', { clientX: sx, clientY: sy, pointerId: 1, altKey: true });
+    await canvas.trigger('pointerup', { clientX: sx, clientY: sy, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-anchor"]').exists()).toBe(true);
+    expect(wrapper.emitted('toggle-group')).toBeFalsy();
+
+    const leaf = vm.eventScreenRect('e1');
+    expect(leaf).toBeTruthy();
+    const lx = leaf!.x + leaf!.w / 2;
+    const ly = leaf!.y + leaf!.h / 2;
+
+    // Alt+hover a leaf event retargets onto it from the summary anchor.
+    await canvas.trigger('pointermove', { clientX: lx, clientY: ly, pointerId: 1, altKey: true });
+    expect(wrapper.find('[data-testid="alt-measure-target"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="alt-event-measure"]').exists()).toBe(true);
+
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-067: Ctrl+left-drag still pans (PyPTO combined pan)', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);

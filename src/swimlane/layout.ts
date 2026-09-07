@@ -1,4 +1,4 @@
-import type { SwimEvent, SwimlaneBand, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
+import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
 import { walkVisibleRows } from '../domain/swimTree';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
@@ -73,8 +73,10 @@ export function eventPaintRect(
 /** @deprecated Use EVENT_MARGIN_DEVICE — kept as alias for older call sites during migration. */
 export const EVENT_MARGIN = EVENT_MARGIN_DEVICE;
 
-/** Fill for ProfilerStep-style group bands (v930 sketch ~#2c2c2c on #1f1f1f lanes). */
-export const BAND_FILL = '#2c2c2c';
+/** Fill for collapsed-folder summary bars (gray). */
+export const SUMMARY_EVENT_FILL = '#2c2c2c';
+/** Dimmed foreground for summary bar task-count labels (matches old ProfilerStep labels). */
+export const SUMMARY_LABEL_COLOR = '#555555';
 
 /** Max quads per mesh (ushort indices: 65536 / 4 vertices). */
 export const MAX_QUADS_PER_MESH = 0x1_00_00 / 4;
@@ -100,17 +102,17 @@ export interface LaidOutEvent {
   laneIndex: number;
   y: number;
   color: string;
+  /** Collapsed-folder summary bar: gray, interactive (hover/label/click-to-expand), never selected/ringed. */
+  summary?: boolean;
 }
 
 export interface SwimlaneLayout {
   lanes: FlatLane[];
   headers: GroupHeader[];
   events: LaidOutEvent[];
-  /** Shared phase bands; empty when model omits them. */
-  bands: SwimlaneBand[];
   eventsById: Map<string, LaidOutEvent>;
   lanesByTid: Map<string, FlatLane>;
-  /** Events for each lane index (contiguous groups from rebuild); folders are `[]`. */
+  /** Events for each lane index (contiguous groups from rebuild); expanded folders are `[]`, collapsed folders hold their summary bars. */
   eventsByLane: LaidOutEvent[][];
 }
 
@@ -118,16 +120,10 @@ export const EMPTY_LAYOUT: SwimlaneLayout = {
   lanes: [],
   headers: [],
   events: [],
-  bands: [],
   eventsById: new Map(),
   lanesByTid: new Map(),
   eventsByLane: [],
 };
-
-/** Folder rows and depth-0 spacer leaves (通信 / 储存HBM) show ProfilerStep bands. */
-export function showsProfilerStepBands(lane: FlatLane): boolean {
-  return lane.folder === true || (lane.depth === 0 && lane.thread.events.length === 0);
-}
 
 export function contentHeightFromLayout(layout: SwimlaneLayout): number {
   if (layout.headers.length === 0 && layout.lanes.length === 0) {
@@ -183,7 +179,6 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       lanes: [],
       headers: [],
       events: [],
-      bands: [],
       eventsById: new Map(),
       lanesByTid: new Map(),
       eventsByLane: [],
@@ -195,7 +190,6 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   const eventsById = new Map<string, LaidOutEvent>();
   const lanesByTid = new Map<string, FlatLane>();
   const eventsByLane: LaidOutEvent[][] = [];
-  const bands = model.bands ?? [];
 
   let y = 0;
   /** Sticky pin strip: flat leaf rows only — no Card header chrome. */
@@ -213,7 +207,25 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       const lane: FlatLane = { thread, y, color, folder: true, depth: row.depth };
       lanes.push(lane);
       lanesByTid.set(thread.id, lane);
-      eventsByLane.push([]);
+      const laneEvents: LaidOutEvent[] = [];
+      // Collapsed folders carry gray summary bars (disjoint union of descendants).
+      const summaries = [...(thread.summaryEvents ?? [])].sort(
+        (a, b) => a.startTime - b.startTime,
+      );
+      for (const ev of summaries) {
+        const item: LaidOutEvent = {
+          id: ev.id,
+          event: ev,
+          laneIndex: lanes.length - 1,
+          y,
+          color: SUMMARY_EVENT_FILL,
+          summary: true,
+        };
+        events.push(item);
+        eventsById.set(ev.id, item);
+        laneEvents.push(item);
+      }
+      eventsByLane.push(laneEvents);
       y += LANE_HEIGHT;
       continue;
     }
@@ -231,7 +243,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     eventsByLane.push(laneEvents);
     y += LANE_HEIGHT;
   }
-  return { lanes, headers, events, bands, eventsById, lanesByTid, eventsByLane };
+  return { lanes, headers, events, eventsById, lanesByTid, eventsByLane };
 }
 
 /** Event block height and Y, vertically centered in the lane between row dividers. */
@@ -299,7 +311,9 @@ export function hitTestLayout(
 ): string | null {
   const contentYCss = y / dpr + view.scrollY;
   const lane = layout.lanes.find((l) => contentYCss >= l.y && contentYCss < l.y + LANE_HEIGHT);
-  if (!lane || lane.folder) return null;
+  if (!lane) return null;
+  // Folder lanes carry only summary bars (collapsed) or nothing (expanded) — both
+  // resolve through eventsByLane, so a folder with no summary events still hits nothing.
   const laneIndex = layout.lanes.indexOf(lane);
   const span = Math.max(1, view.endTime - view.startTime);
   const candidates: { id: string; duration: number }[] = [];
@@ -320,6 +334,13 @@ export function hitTestLayout(
   return candidates[0]!.id;
 }
 
+/** Folder id a summary bar belongs to, or null when `eventId` is not a summary event. */
+export function summaryFolderId(layout: SwimlaneLayout, eventId: string): string | null {
+  const item = layout.eventsById.get(eventId);
+  if (!item?.summary) return null;
+  return layout.lanes[item.laneIndex]?.thread.id ?? null;
+}
+
 export function findLaidOutEvent(layout: SwimlaneLayout, id: string): LaidOutEvent | undefined {
   return layout.eventsById.get(id);
 }
@@ -337,7 +358,7 @@ export interface NearestEventEdge {
   xPx: number;
 }
 
-/** Magnet: nearest start/end on the leaf lane under (x,y), if within thresholdPx. */
+/** Magnet: nearest start/end on the lane under (x,y), if within thresholdPx (leaf or collapsed-folder summary bars). */
 export function nearestEventEdgeAtPoint(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
@@ -348,7 +369,7 @@ export function nearestEventEdgeAtPoint(
 ): NearestEventEdge | null {
   const contentY = y + view.scrollY;
   const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
-  if (!lane || lane.folder) return null;
+  if (!lane) return null;
   const laneIndex = layout.lanes.indexOf(lane);
   const span = Math.max(1, view.endTime - view.startTime);
   const w = Math.max(1, width);
@@ -393,8 +414,9 @@ export interface HoverGap {
  * Adjacent-event gap under the pointer (default mode hover measure).
  * Returns null when the pointer is over an event block, within the magnet edge band
  * of either neighbouring edge (magnet/tooltip wins when the gap is wide enough),
- * in the lane vertical padding above/below event blocks, on a folder/header, or when
+ * in the lane vertical padding above/below event blocks, on a Card header, or when
  * no left-and-right pair brackets the pointer on this lane.
+ * Applies to leaf lanes and collapsed-folder lanes that carry summary bars.
  * When the gap is narrower than 2×thresholdPx the edge band shrinks so a Δt overlay
  * can still appear in the middle of sub-pixel gaps at high zoom.
  */
@@ -408,7 +430,7 @@ export function findHoverGap(
 ): HoverGap | null {
   const contentY = y + view.scrollY;
   const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
-  if (!lane || lane.folder) return null;
+  if (!lane) return null;
   const { y: blockY, h: blockH } = eventBlockMetrics(lane.y, view.scrollY);
   if (y < blockY || y > blockY + blockH) return null;
   // Tooltip wins when a visible block is under the pointer (same rule as hitTest).

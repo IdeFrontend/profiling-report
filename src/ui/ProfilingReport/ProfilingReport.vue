@@ -304,11 +304,18 @@ function onToggleGroup(groupId: string): void {
   if (set.has(groupId)) set.delete(groupId);
   else set.add(groupId);
   collapsedGroupIds.value = [...set];
+  // Collapse/expand rebuilds the visible tree — clear a hover that may point at a
+  // vanished summary bar (or any other event that just left the filtered model).
+  hovered.value = null;
   // Keep scroll within new content height
   const el = timelineRef.value?.gutterRoot;
-  if (el) {
-    viewState.value = { ...viewState.value, scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) };
-  }
+  viewState.value = {
+    ...viewState.value,
+    hoveredEventId: null,
+    ...(el
+      ? { scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) }
+      : {}),
+  };
 }
 
 function onPinLane(laneId: string): void {

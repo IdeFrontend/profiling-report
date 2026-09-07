@@ -148,20 +148,13 @@ describe('PR-STRESS: generateStressSwimlane', () => {
     expect(Array.isArray(model.metadata?.defaultCollapsedIds)).toBe(true);
   });
 
-  it('PR-STRESS-008: stress emits ProfilerStep bands by preset', () => {
+  it('PR-STRESS-008: stress emits no bands (summary bars are viewer-computed)', () => {
     const small = generateStressSwimlane({ eventsPerThread: 1 }, 'small');
     const medium = generateStressSwimlane({ eventsPerThread: 1 }, 'medium');
     const large = generateStressSwimlane({ eventsPerThread: 1 }, 'large');
-    expect(small.bands?.map((b) => b.name)).toEqual([
-      'ProfilerStep#1',
-      'ProfilerStep#2',
-      'ProfilerStep#3',
-    ]);
-    expect(medium.bands).toHaveLength(5);
-    expect(large.bands).toHaveLength(8);
-    expect(medium.bands![0]!.startTime).toBe(0);
-    const last = medium.bands![medium.bands!.length - 1]!;
-    expect(last.startTime + last.duration).toBe(medium.maxTime);
+    expect('bands' in small).toBe(false);
+    expect('bands' in medium).toBe(false);
+    expect('bands' in large).toBe(false);
   });
 
   it('PR-STRESS-009: same-core deps are bidirectional and time-ordered', () => {

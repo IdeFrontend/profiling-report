@@ -118,6 +118,47 @@ export function collectLeafEvents(threads: SwimThread[]): SwimEvent[] {
   return out;
 }
 
+/** Leaf events with their owning lane display name (for single-event summary tooltips). */
+function collectLeafEventSources(
+  threads: SwimThread[],
+): { event: SwimEvent; laneName: string }[] {
+  const out: { event: SwimEvent; laneName: string }[] = [];
+  const walk = (nodes: SwimThread[]) => {
+    for (const n of nodes) {
+      if (isFolderNode(n)) walk(n.children ?? []);
+      else for (const event of n.events) out.push({ event, laneName: n.name });
+    }
+  };
+  walk(threads);
+  return out;
+}
+
+/**
+ * Disjoint union of event intervals: sort by start and merge overlapping *and touching*
+ * spans (`next.start <= cur.end`) into the minimal set of non-overlapping ranges.
+ * Each range carries `count` = the number of source events merged into it.
+ */
+export function unionEventIntervals(
+  events: SwimEvent[],
+): { startTime: number; duration: number; count: number }[] {
+  const sorted = [...events].sort(
+    (a, b) => a.startTime - b.startTime || b.duration - a.duration,
+  );
+  const out: { startTime: number; duration: number; count: number }[] = [];
+  for (const ev of sorted) {
+    const start = ev.startTime;
+    const end = ev.startTime + ev.duration;
+    const last = out[out.length - 1];
+    if (last && start <= last.startTime + last.duration) {
+      last.duration = Math.max(last.startTime + last.duration, end) - last.startTime;
+      last.count += 1;
+    } else {
+      out.push({ startTime: start, duration: Math.max(0, end - start), count: 1 });
+    }
+  }
+  return out;
+}
+
 export function collectLeafEventsFromModel(model: SwimlaneModel): SwimEvent[] {
   return model.processes.flatMap((p) => collectLeafEvents(p.threads));
 }
@@ -151,7 +192,31 @@ export function filterCollapsedTree(
     nodes.map((n) => {
       if (!isFolderNode(n)) return n;
       if (collapsed.has(n.id)) {
-        return { ...n, children: [], events: [] };
+        const sources = collectLeafEventSources(n.children ?? []);
+        const summaryEvents = unionEventIntervals(sources.map((s) => s.event)).map((r, i) => {
+          const base: SwimEvent = {
+            id: `${n.id}/summary/${i}`,
+            name: '',
+            startTime: r.startTime,
+            duration: r.duration,
+            taskCount: r.count,
+          };
+          // Single-leaf union: keep the real event name + source lane for the tooltip,
+          // and the leaf itself for select-on-expand.
+          if (r.count === 1) {
+            const src = sources.find(
+              (s) =>
+                s.event.startTime === r.startTime && s.event.duration === r.duration,
+            );
+            if (src) {
+              base.name = src.event.name;
+              base.laneName = src.laneName;
+              base.sourceEvent = src.event;
+            }
+          }
+          return base;
+        });
+        return { ...n, children: [], events: [], summaryEvents };
       }
       return { ...n, children: filterThreads(n.children ?? []) };
     });
