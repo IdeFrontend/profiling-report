@@ -433,6 +433,7 @@ defineExpose({
         @zoom="(f, a) => emit('zoom', f, a)"
         @update:measure-range="emit('update:measure-range', $event)"
         @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+        @toggle-group="emit('toggle-group', $event)"
       />
     </div>
 
@@ -490,6 +491,7 @@ defineExpose({
         @scroll-y="onScrollY"
         @update:measure-range="emit('update:measure-range', $event)"
         @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+        @toggle-group="emit('toggle-group', $event)"
       />
 
       <div

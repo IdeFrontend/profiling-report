@@ -40,6 +40,9 @@ const messages = {
     start: 'Start',
     dur: 'Duration',
     end: 'End',
+    // Summary-bar / tooltip title — English in both locales, same as start/dur/end.
+    taskOne: '1 task',
+    taskMany: '{n} tasks',
     name: 'Name',
     tabOp: 'OP算子',
     tabTimeline: '时间线',
@@ -157,6 +160,9 @@ const messages = {
     start: 'Start',
     dur: 'Duration',
     end: 'End',
+    // Summary-bar / tooltip title — English in both locales, same as start/dur/end.
+    taskOne: '1 task',
+    taskMany: '{n} tasks',
     name: 'Name',
     tabOp: 'OP',
     tabTimeline: 'Timeline',
@@ -265,4 +271,13 @@ export function laneCategoryLabel(
 ): string {
   if (!categoryKey) return fallbackName;
   return t(LANE_CATEGORY_MESSAGE[categoryKey], locale);
+}
+
+/**
+ * Summary bar label and tooltip title: "1 task" / "N tasks".
+ * Routes through `t()` so a future locale pass stays consistent with Start/Duration/End.
+ */
+export function taskCountLabel(count: number, locale?: string): string {
+  if (count === 1) return t('taskOne', locale);
+  return t('taskMany', locale).replace('{n}', String(count));
 }
