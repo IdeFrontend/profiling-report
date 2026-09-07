@@ -41,7 +41,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 | [context/questions/](context/questions/) | Open questions — DATA/UI/PROC/PKG ids, single status enum |
 | [context/decisions/](context/decisions/) | Product-final decisions (resolved open questions, provenance) |
 | [context/decisions/interim/](context/decisions/interim/) | Interim engineering defaults for MVP coding |
-| [context/PACKAGING_SUGGESTIONS.md](context/PACKAGING_SUGGESTIONS.md) | PKG-1 … PKG-3, UI-41 suggestions (interim until Product confirms) |
+| [context/PACKAGING_SUGGESTIONS.md](context/PACKAGING_SUGGESTIONS.md) | PKG-1 … PKG-3 suggestions (interim until Product confirms); UI-41 resolved in [decisions/UI.md](context/decisions/UI.md) |
 | [process/DEVELOPMENT.md](process/DEVELOPMENT.md) | Spec-driven TDD workflow, slice order, Definition of Done |
 | [process/roadmap/](process/roadmap/) | Delivery milestones M1–M3 (dates, swimlane vs other views, tasks, blockers) |
 | [process/TESTING.md](process/TESTING.md) | Unit / component / e2e stack and fixture rules |

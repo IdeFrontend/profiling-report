@@ -5,6 +5,7 @@ import {
   applyWindow,
   clearMeasure,
   createViewState,
+  keyboardPanStepTime,
   measureFocusWindow,
   panBy,
   pinLane,
@@ -106,7 +107,7 @@ const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
-const timelineRef = ref<{ gutterRoot: HTMLElement | null } | null>(null);
+const timelineRef = ref<{ gutterRoot: HTMLElement | null; trackWidth?: number } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
@@ -428,7 +429,7 @@ watch(showAside, () => {
 });
 
 onMounted(() => {
-  window.addEventListener('keydown', onMeasureKeydown);
+  window.addEventListener('keydown', onGlobalKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
@@ -439,12 +440,45 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
   stopLayoutFitObserver();
-  window.removeEventListener('keydown', onMeasureKeydown);
+  window.removeEventListener('keydown', onGlobalKeydown);
 });
 
-function onMeasureKeydown(e: KeyboardEvent) {
+function onGlobalKeydown(e: KeyboardEvent) {
+  // Escape clears an active measure session / range first (existing M2 contract).
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
+    return;
+  }
+  if (!showTimeline.value) return;
+  // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
+  // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const target = e.target as HTMLElement | null;
+  // Ignore while typing — the search box and the dependency-depth field are <input>s.
+  if (
+    target &&
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable)
+  ) {
+    return;
+  }
+  const key = e.key.toLowerCase();
+  if (key === 'w' || key === 's') {
+    // Zoom around the cursor (PyPTO anchors on the pointer); center when none is set.
+    const anchor =
+      cursor.value?.time ?? (viewState.value.startTime + viewState.value.endTime) / 2;
+    e.preventDefault();
+    onZoom(key === 'w' ? 1.25 : 1 / 1.25, anchor);
+  } else if (key === 'a' || key === 'd') {
+    const span = viewState.value.endTime - viewState.value.startTime;
+    // Nominal 1000 px when the track hasn't measured yet — PyPTO's 30 px step on a
+    // ~1000 px canvas ≈ 3% of the visible span.
+    const trackWidth = timelineRef.value?.trackWidth ?? 0;
+    const step = keyboardPanStepTime(span, trackWidth > 0 ? trackWidth : 1000);
+    e.preventDefault();
+    onPan(key === 'd' ? step : -step);
   }
 }
 

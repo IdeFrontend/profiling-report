@@ -12,7 +12,7 @@ Index: [README.md](README.md) · Previous: [milestone-2.md](milestone-2.md)
 |------|--------|----------|
 | Multiselect + context menu / pin | **New** | Rubber-band / additive select; pin row |
 | ProfilerStep bands | **New** | When data exists |
-| Keyboard W/S/A/D + shortcut help | **New** | |
+| Keyboard W/S/A/D + shortcut help | **Done** | W/S zoom around cursor, A/D 30 px pan, `keyboard`-glyph 快捷键说明 popover |
 | Dense-trace WebGL | **New** | If Canvas stress fails |
 | Toolbar markers / layer control / settings | **New** | |
 | Product-final DATA-36 | **Replace** | Swap interim dep encoding when Product resolves |

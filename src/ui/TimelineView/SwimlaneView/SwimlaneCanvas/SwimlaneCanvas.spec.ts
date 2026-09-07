@@ -1739,4 +1739,47 @@ describe('SwimlaneCanvas', () => {
       /\.pr-swim-canvas-wrap--measure\s+\.pr-swim-canvas\s*\{[^}]*cursor:\s*col-resize/,
     );
   });
+
+  it('PR-CANVAS-067: Ctrl+left-drag still pans (PyPTO combined pan)', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointermove', {
+      clientX: 160,
+      clientY: y,
+      pointerId: 1,
+      buttons: 1,
+      ctrlKey: true,
+    });
+    await canvas.trigger('pointerup', { clientX: 160, clientY: y, pointerId: 1, ctrlKey: true });
+    const pan = wrapper.emitted('pan');
+    expect(pan).toBeTruthy();
+    expect(pan!.length).toBeGreaterThan(0);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-068: horizontal-dominant wheel pans (incl. with ctrlKey); vertical scrolls', async () => {
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    // view 0–1000 over 400px → deltaX 50 → pan +125
+    await canvas.trigger('wheel', { clientX: 200, clientY: 40, deltaX: 50, deltaY: 0 });
+    const pan = wrapper.emitted('pan')!.at(-1)!;
+    expect(pan[0]).toBeCloseTo(125, 5);
+    expect(wrapper.emitted('zoom')).toBeFalsy();
+
+    await canvas.trigger('wheel', {
+      clientX: 200,
+      clientY: 40,
+      deltaX: 40,
+      deltaY: 10,
+      ctrlKey: true,
+    });
+    expect(wrapper.emitted('pan')!.length).toBe(2);
+    expect(wrapper.emitted('zoom')).toBeFalsy();
+
+    await canvas.trigger('wheel', { clientX: 200, clientY: 40, deltaX: 0, deltaY: 30 });
+    const scroll = wrapper.emitted('scroll-y');
+    expect(scroll).toBeTruthy();
+    expect(scroll!.length).toBeGreaterThan(0);
+    wrapper.unmount();
+  });
 });
