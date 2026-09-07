@@ -219,4 +219,4 @@ images:
     maxWidth: 900
     highlights:
       - label: "UI-47 统计"
-        box: { x: 110, y: 0, w: 65, h: 68 }
+        box: { x: 140, y: 5, w: 110, h: 165 }

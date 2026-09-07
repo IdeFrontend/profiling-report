@@ -40,4 +40,5 @@ crops:
     box: { x: 5050, y: 1875, w: 382, h: 105 }
   stats-hover-tooltip.png:
     source: v930/hardware-more-detail
-    region: "MTE1 row — bar-chart hover + 统计 tooltip (between title and util bar); tight UI crop"
+    region: "MTE1 row — bar-chart hover + 统计 tooltip (between title and util bar)"
+    box: { x: 330, y: 2350, w: 450, h: 180 }

@@ -50,7 +50,7 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 ### UI-47 — Gutter mid-row 统计 control
 
-<img src="../visual/questions/ui-47.png" alt="UI-47 MTE1 bar-chart hover 统计 tooltip" width="280" height="76">
+<img src="../visual/questions/ui-47.png" alt="UI-47 MTE1 bar-chart hover 统计 tooltip" width="450" height="180">
 
 **Status:** `open`
 
