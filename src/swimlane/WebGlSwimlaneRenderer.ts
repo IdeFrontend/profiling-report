@@ -42,7 +42,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
-import { dependencyGraph, dependencyStrokeWidth, glLinkTime, type DependencyLink } from './dependencyLinks';
+import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint, glLinkTime, type DependencyLink } from './dependencyLinks';
 import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, extendMargin1Css, extendMargin2Css, extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 import { TextAtlas, EVENT_LABEL_FONT_CSS_PX } from './textAtlas';
 
@@ -417,8 +417,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private hitLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private collapse: CollapseTransform = IDLE_COLLAPSE;
-  /** Non-null while a collapse/expand tween runs — suppresses dependency curves. */
-  private collapseState: CollapseAnimState | null = null;
   /** Subtracted from event times before float32 upload (model.minTime). */
   private timeBase = 0;
   private searchQuery = '';
@@ -498,7 +496,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = this.baseLayout;
     this.hitLayout = this.baseLayout;
     this.collapse = IDLE_COLLAPSE;
-    this.collapseState = null;
     this.timeBase = model?.minTime ?? 0;
     this.refreshDepCache();
     this.rebuildMeshes();
@@ -510,9 +507,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
-    this.collapseState = state;
     this.collapse = collapseTransform(this.baseLayout, state);
     this.hitLayout = state ? applyCollapseAnim(this.baseLayout, state) : this.baseLayout;
+    // Endpoint Y / visibility change with the tween — refresh instance buffer.
+    this.rebuildCurveInstances();
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -753,7 +751,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.drawEventLabels();
 
     // Curves draw last, above event labels — re-enable blend (labels render opaque with no blend).
-    if (this.paintDependencies && this.collapseState == null) {
+    if (this.paintDependencies) {
       gl.enable(gl.BLEND);
       this.drawDependencyCurves(gl);
     }
@@ -764,8 +762,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     // Playwright PR-E2E-007: jsdom never reaches render(), so unit tests cannot assert this.
     const out = this.canvas;
     if (out) {
-      // Report painted curves (0 while a collapse/expand tween is in flight).
-      out.dataset.depCurves = String(this.collapseState ? 0 : this.curveCount);
+      out.dataset.depCurves = String(this.curveCount);
       out.dataset.depGraphGen = String(this.depGraphGen);
     }
   }
@@ -802,7 +799,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = EMPTY_LAYOUT;
     this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
-    this.collapseState = null;
     this.neighborIds = new Set();
     this.depLinks = [];
   }
@@ -1103,7 +1099,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const gl = this.gl;
     const buf = this.curveInstanceBuf;
     if (!gl || !buf) return;
-    const links = this.depLinks;
+    const links = depLinksForCollapsePaint(this.depLinks, this.collapse);
     this.curveCount = links.length;
     const dpr = this.dpr;
     const data = new Float32Array(links.length * CURVE_INSTANCE_FLOATS);

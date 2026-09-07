@@ -12,6 +12,7 @@ import {
   cubicControlPull,
   dependencyGraph,
   dependencyStrokeWidth,
+  depLinksForCollapsePaint,
   linkIntersectsTimeView,
   linkToScreen,
   type DependencyLink,
@@ -705,8 +706,14 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     }
 
     // Dependency curves draw above event labels.
-    if (this.paintDependencies && this.collapseState == null) {
-      paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
+    if (this.paintDependencies) {
+      paintDependencyLinksDevice(
+        ctx,
+        depLinksForCollapsePaint(this.depLinks, this.collapse),
+        this.view,
+        this.width,
+        this.dpr,
+      );
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
