@@ -18,6 +18,9 @@ import shortcutKeyS from '../icons/shortcuts/S-dark-key.svg';
 import shortcutKeyD from '../icons/shortcuts/D-dark-key.svg';
 import shortcutKeyCtrl from '../icons/shortcuts/Ctrl-dark-key.svg';
 import shortcutKeyAlt from '../icons/shortcuts/Alt-dark-key.svg';
+import shortcutSingleFinger from '../icons/shortcuts/single-finger-dark.svg';
+import shortcutDoubleFinger from '../icons/shortcuts/double-finger-dark.svg';
+import shortcutBoxSelect from '../icons/shortcuts/boxselect-sign-dark.svg';
 
 const props = defineProps<{
   searchQuery: string;
@@ -630,6 +633,18 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
                     width="24"
                     height="24"
                   >
+                  <span
+                    class="pr-toolbar__shortcut-sep"
+                    aria-hidden="true"
+                  >/</span>
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="single-finger"
+                    :src="shortcutSingleFinger"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
                 </span>
               </div>
               <div class="pr-toolbar__shortcut-row">
@@ -651,18 +666,44 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
                     width="24"
                     height="24"
                   >
+                  <span
+                    class="pr-toolbar__shortcut-sep"
+                    aria-hidden="true"
+                  >/</span>
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="double-finger"
+                    :src="shortcutDoubleFinger"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
                 </span>
               </div>
               <div class="pr-toolbar__shortcut-row">
                 <span>{{ t('boxSelect', locale) }}</span>
-                <img
-                  class="pr-toolbar__shortcut-glyph"
-                  data-shortcut-icon="mouse-click"
-                  :src="shortcutMouseClick"
-                  alt=""
-                  width="24"
-                  height="24"
-                >
+                <span class="pr-toolbar__shortcut-glyphs">
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="mouse-click"
+                    :src="shortcutMouseClick"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                  <span
+                    class="pr-toolbar__shortcut-sep"
+                    aria-hidden="true"
+                  >/</span>
+                  <img
+                    class="pr-toolbar__shortcut-glyph"
+                    data-shortcut-icon="box-select"
+                    :src="shortcutBoxSelect"
+                    alt=""
+                    width="24"
+                    height="24"
+                  >
+                </span>
               </div>
               <div class="pr-toolbar__shortcut-row">
                 <span>{{ t('timeMeasurement', locale) }}</span>
@@ -1645,6 +1686,13 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.pr-toolbar__shortcut-sep {
+  color: #b2b2b2;
+  font-size: 13px;
+  line-height: 1;
+  user-select: none;
 }
 
 .pr-toolbar__shortcut-glyph {

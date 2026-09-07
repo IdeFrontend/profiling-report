@@ -1766,6 +1766,14 @@ function onWheel(e: WheelEvent): void {
     lastHoverLocalX = x;
     lastHoverLocalY = y;
   }
+  // PyPTO order: horizontal-dominant trackpad pan first (even with ctrlKey), then
+  // ctrl/meta zoom (pinch + Ctrl+wheel), else vertical lane scroll.
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX !== 0) {
+    const w = Math.max(1, rect.width);
+    const span = Math.max(1, props.view.endTime - props.view.startTime);
+    emit('pan', -(e.deltaX / w) * span);
+    return;
+  }
   if (e.ctrlKey || e.metaKey) {
     const mag = magnetizeLocal(x, y);
     const anchor = stuckMeasureEdgeTime() ?? mag.time;

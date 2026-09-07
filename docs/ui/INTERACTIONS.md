@@ -10,6 +10,9 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 |-------|----------|-------|
 | Mouse wheel over swimlane | Vertical scroll of lanes | MVP |
 | Ctrl/Cmd + wheel | Zoom time axis around cursor | MVP |
+| Trackpad pinch (browser `wheel` + `ctrlKey`) | Zoom time axis around cursor (same path as Ctrl/Cmd+wheel) | M3 |
+| Trackpad two-finger horizontal (`\|deltaX\| > \|deltaY\|`) | Pan time | M3 |
+| Trackpad two-finger vertical | Vertical scroll of lanes | M3 |
 | Drag on time axis / empty swimlane (with modifier if needed) | Pan time | MVP |
 | Zoom slider / + / − | Zoom | MVP |
 | Zoom to fit | Fit full `[minTime, maxTime]` in view (animated, same easing as Δt focus) | MVP |
@@ -18,7 +21,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 | `Ctrl`+left-drag | Horizontal pan | M3 |
 | Click lane header expand/collapse | Toggle children | MVP |
 
-**Gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, drag / Ctrl+drag pan, toolbar zoom / zoom-to-fit, and W/S/A/D keyboard zoom/pan (PyPTO parity; [UI-41](../context/decisions/UI.md)). The toolbar **快捷键说明** action opens a popover listing these bindings. Search jump-to-match (Enter / prev-next) remains **Phase 2** (separate branch).
+**Gestures:** wheel scroll, Ctrl/Cmd+wheel / trackpad-pinch zoom, drag / Ctrl+drag / two-finger-horizontal pan, toolbar zoom / zoom-to-fit, and W/S/A/D keyboard zoom/pan (PyPTO parity; [UI-41](../context/decisions/UI.md)). Horizontal-dominant wheel pans before ctrl-zoom (PyPTO order). The toolbar **快捷键说明** action opens a popover listing these bindings (including trackpad stand-in glyphs). Search jump-to-match (Enter / prev-next) remains **Phase 2** (separate branch).
 
 **CSS cursors (timeline):** swimlane canvas empty space uses `default` (arrow; not `crosshair` or hand `pointer`). Hovering an event uses `pointer`. Viewport time axis uses `pointer`. Measure mode / measure edge bars use `col-resize`. Overview brush uses `grab` / `grabbing` / `ew-resize` on handles.
 

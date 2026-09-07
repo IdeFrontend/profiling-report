@@ -1757,4 +1757,29 @@ describe('SwimlaneCanvas', () => {
     expect(pan!.length).toBeGreaterThan(0);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-066: horizontal-dominant wheel pans (incl. with ctrlKey); vertical scrolls', async () => {
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    // view 0–1000 over 400px → deltaX 50 → pan −125
+    await canvas.trigger('wheel', { clientX: 200, clientY: 40, deltaX: 50, deltaY: 0 });
+    const pan = wrapper.emitted('pan')!.at(-1)!;
+    expect(pan[0]).toBeCloseTo(-125, 5);
+    expect(wrapper.emitted('zoom')).toBeFalsy();
+
+    await canvas.trigger('wheel', {
+      clientX: 200,
+      clientY: 40,
+      deltaX: 40,
+      deltaY: 10,
+      ctrlKey: true,
+    });
+    expect(wrapper.emitted('pan')!.length).toBe(2);
+    expect(wrapper.emitted('zoom')).toBeFalsy();
+
+    await canvas.trigger('wheel', { clientX: 200, clientY: 40, deltaX: 0, deltaY: 30 });
+    const scroll = wrapper.emitted('scroll-y');
+    expect(scroll).toBeTruthy();
+    expect(scroll!.length).toBeGreaterThan(0);
+    wrapper.unmount();
+  });
 });

@@ -528,8 +528,12 @@ describe('ReportToolbar', () => {
     expect(kinds).toContain('mouse-click');
     expect(kinds).toContain('key-ctrl');
     expect(kinds).toContain('key-alt');
+    expect(kinds).toContain('single-finger');
+    expect(kinds).toContain('double-finger');
+    expect(kinds).toContain('box-select');
     expect(panel!.querySelector('.pr-toolbar__shortcut-mouse-key')).not.toBeNull();
     expect(panel!.querySelector('.pr-toolbar__shortcut-column--combined')).not.toBeNull();
+    expect(panel!.querySelectorAll('.pr-toolbar__shortcut-sep').length).toBeGreaterThanOrEqual(3);
     const text = panel!.textContent ?? '';
     expect(text).toContain(t('mouseControl'));
     expect(text).toContain(t('keyboardControl'));
