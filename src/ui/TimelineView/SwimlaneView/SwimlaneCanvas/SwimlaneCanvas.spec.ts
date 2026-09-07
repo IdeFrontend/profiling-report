@@ -1797,7 +1797,8 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
 
     expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['folder']);
-    expect(wrapper.emitted('select')).toBeFalsy();
+    // Summary bars are never selected; clear any prior selection like an empty-canvas click.
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
     // Summary bar is gone after expand — clear hover so the "N tasks" tooltip dismisses.
     const hover = wrapper.emitted('hover');
     expect(hover).toBeTruthy();
