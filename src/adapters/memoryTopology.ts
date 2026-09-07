@@ -1,6 +1,6 @@
 import type { CsvTableModel, MemoryTopologyModel } from '../domain/types';
 
-const NODES: MemoryTopologyModel['nodes'] = [
+const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'gm', label: 'GM' },
   { id: 'l2', label: 'L2 Cache' },
   { id: 'xn_imm', label: 'XN_IMM' },
@@ -18,6 +18,14 @@ const NODES: MemoryTopologyModel['nodes'] = [
   { id: 'simd', label: 'SIMD' },
   { id: 'aiv_scalar', label: 'Scalar' },
 ];
+
+/** DATA-21 interim column order for L2 hit rate (= L2 Peak%, DATA-20). */
+const L2_HIT_RATE_COLUMNS = [
+  'aic_total_hit_rate(%)',
+  'aiv_total_hit_rate(%)',
+  'aic_read_hit_rate(%)',
+  'aiv_read_hit_rate(%)',
+] as const;
 
 type Unit = 'GB/s' | 'KB' | '%';
 
@@ -160,12 +168,7 @@ const EDGE_MAP: {
     from: 'l2',
     to: 'l2',
     unit: '%',
-    sources: [
-      {
-        file: 'L2Cache.csv',
-        columns: ['aic_total_hit_rate(%)', 'aiv_total_hit_rate(%)', 'aic_read_hit_rate(%)', 'aiv_read_hit_rate(%)'],
-      },
-    ],
+    sources: [{ file: 'L2Cache.csv', columns: [...L2_HIT_RATE_COLUMNS] }],
   },
 ];
 
@@ -216,7 +219,22 @@ export function buildMemoryTopology(
   }
 
   if (!edges.some((e) => e.label != null)) return undefined;
-  return { nodes: NODES, edges };
+
+  // DATA-20: L2 Peak(%) = hit rate (DATA-21 interim column order).
+  let peakPct: number | undefined;
+  const l2Row = rowForBlock(byFile.get('L2Cache.csv'), blockId);
+  if (l2Row) {
+    for (const col of L2_HIT_RATE_COLUMNS) {
+      peakPct = parseNumber(l2Row[col]);
+      if (peakPct != null) break;
+    }
+  }
+
+  const nodes = NODE_DEFS.map((n) =>
+    n.id === 'l2' && peakPct != null ? { ...n, peakPct } : { ...n },
+  );
+
+  return { nodes, edges };
 }
 
 function blockIdsInOrder(tables: CsvTableModel[]): string[] {

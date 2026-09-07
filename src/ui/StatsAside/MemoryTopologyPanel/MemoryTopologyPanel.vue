@@ -8,6 +8,10 @@ const props = defineProps<{
   locale?: string;
 }>();
 
+const emit = defineEmits<{
+  'open-details': [];
+}>();
+
 const show = computed(() => {
   const m = props.model;
   return Boolean(m && m.nodes.length > 0 && m.edges.some((e) => e.label != null && e.label !== ''));
@@ -15,6 +19,20 @@ const show = computed(() => {
 
 function label(id: string): string | undefined {
   return props.model?.edges.find((e) => e.id === id)?.label;
+}
+
+/** DATA-20: L2 Peak(%) from node.peakPct (hit rate). */
+const l2PeakPct = computed(() => props.model?.nodes.find((n) => n.id === 'l2')?.peakPct);
+
+function l2Fill(peak: number | undefined): string {
+  if (peak == null) return '#4a6a8a';
+  const amount = Math.min(100, Math.max(0, peak)) / 100;
+  return `color-mix(in srgb, #c45c2a ${Math.round(amount * 70)}%, #4a6a8a)`;
+}
+
+function onContextMenu(e: MouseEvent) {
+  e.preventDefault();
+  emit('open-details');
 }
 
 /** Pillars + clusters leave GM↔L2 and L2↔cluster corridors for rotated GB/s labels. */
@@ -42,6 +60,7 @@ function rot(x: number, y: number): string {
     v-if="show"
     class="pr-topo"
     data-testid="memory-topology-panel"
+    @contextmenu="onContextMenu"
   >
     <svg
       class="pr-topo__svg"
@@ -95,7 +114,7 @@ function rot(x: number, y: number): string {
         class="pr-topo__pillar-label"
       >GM</text>
 
-      <!-- L2 pillar -->
+      <!-- L2 pillar (DATA-20 Peak(%) tint when peakPct set) -->
       <rect
         :x="L2.x"
         :y="L2.y"
@@ -103,6 +122,8 @@ function rot(x: number, y: number): string {
         :height="L2.h"
         rx="3"
         class="pr-topo__l2"
+        data-testid="node-l2"
+        :style="{ fill: l2Fill(l2PeakPct) }"
       />
       <text
         :x="L2.x + L2.w / 2"
@@ -111,6 +132,15 @@ function rot(x: number, y: number): string {
         :transform="rot(L2.x + L2.w / 2, 248)"
         class="pr-topo__pillar-label"
       >L2 Cache</text>
+      <text
+        v-if="l2PeakPct != null"
+        :x="L2.x + L2.w / 2"
+        y="272"
+        text-anchor="middle"
+        :transform="rot(L2.x + L2.w / 2, 272)"
+        class="pr-topo__peak"
+        data-testid="node-l2-peak"
+      >Peak {{ l2PeakPct.toFixed(2) }}%</text>
       <text
         v-if="label('l2-hit')"
         :x="L2.x + L2.w / 2"
@@ -673,6 +703,11 @@ function rot(x: number, y: number): string {
 
 .pr-topo__l2 {
   fill: #4a6a8a;
+}
+
+.pr-topo__peak {
+  fill: #f0f0f0;
+  font-size: 7px;
 }
 
 .pr-topo__muted {

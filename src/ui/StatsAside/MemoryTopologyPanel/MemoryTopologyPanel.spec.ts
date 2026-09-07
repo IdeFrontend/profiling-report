@@ -117,4 +117,28 @@ describe('MemoryTopologyPanel', () => {
     expect(l1X).toBeLessThan(clusterLeft);
     expect(l2l1.attributes('transform') ?? '').toMatch(/rotate/);
   });
+
+  it('PR-MEMTOP-007: shows L2 Peak(%) when peakPct set', () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          nodes: model.nodes.map((n) => (n.id === 'l2' ? { ...n, peakPct: 81.25 } : n)),
+        },
+      },
+    });
+    expect(wrapper.get('[data-testid="node-l2-peak"]').text()).toBe('Peak 81.25%');
+    expect(wrapper.get('[data-testid="node-l2"]').attributes('style')).toMatch(/color-mix/);
+  });
+
+  it('PR-MEMTOP-007b: omits Peak chrome when peakPct absent', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    expect(wrapper.find('[data-testid="node-l2-peak"]').exists()).toBe(false);
+  });
+
+  it('PR-MEMTOP-008: right-click emits open-details', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toHaveLength(1);
+  });
 });
