@@ -112,7 +112,7 @@ export interface SwimlaneLayout {
   events: LaidOutEvent[];
   eventsById: Map<string, LaidOutEvent>;
   lanesByTid: Map<string, FlatLane>;
-  /** Events for each lane index (contiguous groups from rebuild); folders are `[]`. */
+  /** Events for each lane index (contiguous groups from rebuild); expanded folders are `[]`, collapsed folders hold their summary bars. */
   eventsByLane: LaidOutEvent[][];
 }
 
