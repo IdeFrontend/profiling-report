@@ -178,7 +178,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   });
 
   it('op1 demos multi-height nests across SCALAR / MTE2 / ALL', () => {
-    const compute = op1.swimlaneModel.processes[0]!.threads.find((t) => t.name === '计算')!;
+    const compute = op1.swimlaneModel!.processes[0]!.threads.find((t) => t.name === '计算')!;
     const cube = compute.children!.find((c) => c.name === 'Core0.Cube')!;
     const vec0 = compute.children!.find((c) => c.name === 'Core0.Vec0')!;
     const scalar = cube.children!.find((c) => c.name === 'SCALAR')!;
