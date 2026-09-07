@@ -18,7 +18,7 @@ None — curves are not hit-tested. Pointer events stay on the swimlane canvas.
 
 On selection, curves run from each predecessor's right-mid to the selected event's left-mid, and from the selected event's right-mid to each successor's left-mid, filtered by **dependencyMode** and walked **dependencyDepth** hops along that direction (`-1` walks until the graph or the per-side link budget ends). Chrome Trace s/f pairs do not require `pred.end <= succ.start` (a long parent can enclose a shorter worker), so `t0` may exceed `t1`; the curve still leaves the predecessor's right edge and enters the successor's left edge, and the gradient still runs predecessor fill → successor fill. Stroke is 2 CSS px (`DEP_STROKE_WIDTH` × `dpr` in device px). WebGL evaluates the same cubic as Canvas (`pull = sign(x1−x0) × max(24, |x1−x0|×0.4)`, `sign(0) = +1`), one instance per link. Handles point toward the other endpoint so a reversed-time link is an S-curve, not an outward loop. Linked events in the active mode and depth keep their original fill and label color; other events render solid dark-gray (`#2C2C2C`). No selection, or an event with no `dependencies`, yields no curves. Refs whose events are missing from layout (collapsed lanes) are skipped; off-screen endpoints still draw so the curve can leave the viewport, except Canvas omits links wholly outside the time window.
 
-**Pinned-lane strip.** Dependency curves apply to the main swimlane layout pass only. The pinned-lane sticky strip (duplicate rows at the top — see [`SwimlaneView.spec.md`](../SwimlaneView.spec.md)) is excluded: that pass paints events/labels only, not beziers.
+**Pinned-lane strip.** Dependency curves apply to the main swimlane layout pass only. The pinned-lane sticky strip (duplicate rows at the top — see [`SwimlaneView.spec.md`](../SwimlaneView.spec.md)) skips Bezier painting (`setPaintDependencies(false)`), but still computes neighbor ids and applies the same selection gray-muting as the body.
 
 ## Acceptance Criteria
 
@@ -33,7 +33,7 @@ On selection, curves run from each predecessor's right-mid to the selected event
 1. **PR-DEPS-009** — WebGL computes `dependencyGraph` once per selection/layout/mode/depth change; `setSearchQuery` does not recompute it.
 1. **PR-DEPS-010** — WebGL overlay uses the renderer’s cached neighbor ids and does not recompute the graph.
 1. **PR-DEPS-011** — When `pred.end > succ.start`, `t0 > t1`; cubic handles still point toward the other endpoint; gradient stays predecessor → successor.
-1. **PR-DEPS-012** — No dependency curves are painted in the pinned-lane strip pass.
+1. **PR-DEPS-012** — No dependency curves are painted in the pinned-lane strip pass (neighbor ids remain for selection muting).
 
 ## Visual
 
@@ -49,6 +49,7 @@ Crops: [`visual/dependency-links.png`](./visual/dependency-links.png) — [`visu
 [swimlane-model](../../../../../specs/core/swimlane-model.spec.md), [swimlane-renderer](../../../../../specs/core/swimlane-renderer.spec.md).
 
 ## Changelog
+- **2026-09-07** — Pinned strip keeps selection gray-muting; `PR-DEPS-012` only excludes Bezier curves.
 - **2026-09-02** — Curve stroke restored to 2 CSS px (dpr-scaled) to match pre-device-pixel rendering; both backends use the shared `dependencyStrokeWidth(dpr)` helper (Canvas `lineWidth`, WebGL `uHalfWidth = dependencyStrokeWidth(dpr) / 2`).
 - **2026-08-27** — Pinned-lane strip excluded from dependency curves (`PR-DEPS-012`).
 - **2026-08-19** — Curve stroke 2px.

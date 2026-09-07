@@ -553,14 +553,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   private refreshDepCache(): void {
     this.depGraphGen += 1;
-    if (!this.paintDependencies) {
-      this.neighborIds = new Set();
-      this.depLinks = [];
-      return;
-    }
+    // Neighbor ids drive selection muting on every surface (including the pinned strip).
+    // Curves stay body-only: drop link geometry when paintDependencies is false.
     const graph = dependencyGraph(this.layout, this.selectedId, this.depMode, this.depDepth);
     this.neighborIds = graph.ids;
-    this.depLinks = graph.links;
+    this.depLinks = this.paintDependencies ? graph.links : [];
   }
 
   getLayout(): SwimlaneLayout {
@@ -926,7 +923,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     if (!gl || (!q && !sel)) return;
 
     const hasSearch = q.length > 0;
-    const hasSelection = this.paintDependencies && sel != null;
+    const hasSelection = sel != null;
     const bright = this.neighborIds;
     const mutedRgb = hexToRgb(SELECTION_MUTED_FILL);
     const byLane = new Map<number, LaidOutEvent[]>();
