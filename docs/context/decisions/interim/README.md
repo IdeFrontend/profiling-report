@@ -24,13 +24,13 @@ Allowed to implement now:
 3. Standalone Chrome Trace `.json` open path
 4. Timeline shell, axis, gutter, swimlane, tooltip, select → detail
 5. PIPE bars when `PipeUtilization` present
-6. Thin summary (name / type / duration only)
+6. Summary **2×2** (duration; AICore parallel **N/A**; compute DATA-33h; bandwidth DATA-33g)
 7. Hide overview, undecidable summary tiles, missing panels
 
 Not required for first MVP merge:
 
 - Sketch-faithful multi-core golden
-- Full report stats tiles (compute / avg util) — I/O BW shipped under DATA-33g
+- Product-final AICore parallel / BW peak-score / compute MFU (interim cards ship)
 - Overview charts with real series
 - Product-final hardware inventory beyond DATA-34a; roofline tabs / L2 series beyond DATA-37*; memory SVG; deps; secondary tabs
 

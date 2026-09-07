@@ -545,7 +545,7 @@ def transform_op_basic_info(text, *, op_name="matmul_mock", op_type="mix",
     return header + "\n" + row + "\n"
 
 
-def hardware_info(chip_info, ai_core_count, ai_vector_count):
+def hardware_info(chip_info, ai_core_count, ai_vector_count, freq_mhz=1650):
     lines = [
         {"category": "Host Info", "cpu_physical_count": 2, "cpu_logical_count": 46,
          "memory_total_size_MB": 461897260, "disk_total_size_GB": 2879978960},
@@ -554,7 +554,7 @@ def hardware_info(chip_info, ai_core_count, ai_vector_count):
          "ai_cpu_frequency_MHZ": 1500},
         {"category": "AI Core Information", "ai_core_count": ai_core_count,
          "ai_cube_count": ai_core_count, "ai_vector_count": ai_vector_count,
-         "ai_core_frequency_MHZ": [100, 100]},
+         "ai_core_frequency_MHZ": [freq_mhz, freq_mhz]},
         {"category": "Memory Information", "hbm_total_MB": 131072,
          "hbm_used_MB": 5190.55, "hbm_frequency_MHZ": 3200},
     ]
@@ -610,7 +610,12 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
         payloads.append((name, typ, text.encode("utf-8")))
 
     payloads.append(("HardwareInfo.jsonl", TYPE_JSON,
-                     hardware_info(chip_info, ai_core_count, ai_vector_count).encode("utf-8")))
+                     hardware_info(
+                         chip_info,
+                         ai_core_count,
+                         ai_vector_count,
+                         freq_mhz=int((op_basic or {}).get("freq", 1650)),
+                     ).encode("utf-8")))
     payloads.append(("statistical_utilization.json", TYPE_JSON,
                      json.dumps({"operator": sub_label}).encode("utf-8")))
 

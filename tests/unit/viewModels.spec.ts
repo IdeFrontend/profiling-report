@@ -261,6 +261,27 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(adaptRep(parsed).reportModel.summary.coreCount).toBe(24);
   });
 
+  it('PR-VM-015: computeCard from ArithmeticUtilization + HardwareInfo (HQ 2–4, Q33)', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    expect(adaptRep(parsed).reportModel.computeCard).toBeUndefined();
+
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      '{"category":"AI Core Information","ai_cube_count":36,"ai_vector_count":72,"ai_core_frequency_MHZ":[1650]}',
+    );
+    const card = adaptRep(parsed).reportModel.computeCard;
+    expect(card).toBeDefined();
+    expect(card!.sides.map((s) => s.side)).toEqual(['aiv']);
+    const aiv = card!.sides[0]!;
+    expect(aiv.measuredTflops).toBeCloseTo(2240 / 0.97962125 / 1e6, 5);
+    expect(aiv.peakTflops).toBeCloseTo((128 * 72 * 1.65 * 2) / 1000, 3);
+
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      '{"category":"AI Core Information","ai_vector_count":72}',
+    );
+    const ratedOnly = adaptRep(parsed).reportModel.computeCard!.sides[0]!;
+    expect(ratedOnly.peakTflops).toBeCloseTo((128 * 72 * 1.65 * 2) / 1000, 3);
+  });
+
   it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const topo = adapted.reportModel.memoryTopology;

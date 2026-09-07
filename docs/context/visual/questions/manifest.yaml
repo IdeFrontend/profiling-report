@@ -3,85 +3,69 @@
 # regenerate: npm run render:question-visuals
 
 images:
-  data-1:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 270, w: 600, h: 370 }
-    maxWidth: 900
-    highlights:
-      - label: "DATA-1 次迭代/核"
-        box: { x: 28, y: 298, w: 340, h: 52 }
-
   data-2:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 630, y: 270, w: 600, h: 370 }
+    crop: { x: 40, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "DATA-2 172"
-        box: { x: 28, y: 298, w: 140, h: 52 }
+        box: { x: 32, y: 320, w: 160, h: 52 }
 
   data-3:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 630, y: 270, w: 600, h: 370 }
+    crop: { x: 40, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "DATA-3 320"
-        box: { x: 160, y: 298, w: 280, h: 52 }
-
-  data-4:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 630, y: 270, w: 600, h: 370 }
-    maxWidth: 900
-    highlights:
-      - label: "DATA-4 90%"
-        box: { x: 28, y: 130, w: 180, h: 80 }
+        box: { x: 180, y: 320, w: 200, h: 52 }
 
   data-5:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "DATA-5 1.6 peak"
-        box: { x: 20, y: 288, w: 850, h: 58 }
+        box: { x: 32, y: 320, w: 400, h: 52 }
 
   data-6:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "DATA-6 all peaks"
-        box: { x: 20, y: 288, w: 1730, h: 58 }
+        box: { x: 32, y: 320, w: 800, h: 52 }
 
   data-7:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
       - label: "DATA-7 81"
-        box: { x: 20, y: 100, w: 850, h: 140 }
+        box: { x: 32, y: 120, w: 280, h: 100 }
 
   data-8:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
+    crop: { x: 940, y: 700, w: 880, h: 400 }
     maxWidth: 900
     highlights:
-      - label: "DATA-8 I/O cards"
-        box: { x: 8, y: 8, w: 1794, h: 384 }
+      - label: "DATA-8 带宽利用率"
+        box: { x: 8, y: 8, w: 864, h: 384 }
 
   data-9:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 1240, y: 270, w: 590, h: 370 }
+    crop: { x: 940, y: 280, w: 880, h: 380 }
     maxWidth: 900
     highlights:
-      - label: "DATA-9 82%"
-        box: { x: 24, y: 138, w: 200, h: 72 }
+      - label: "DATA-9 并行使用率"
+        box: { x: 32, y: 140, w: 280, h: 80 }
 
   data-10:
     source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 1240, y: 270, w: 590, h: 370 }
+    crop: { x: 940, y: 280, w: 880, h: 380 }
     maxWidth: 900
     highlights:
-      - label: "DATA-10 启用核"
-        box: { x: 24, y: 298, w: 420, h: 52 }
+      - label: "DATA-10 负载均衡度"
+        box: { x: 420, y: 140, w: 280, h: 80 }
 
   data-11:
     source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
@@ -131,13 +115,6 @@ images:
     highlights:
       - label: "DATA-17 tabs"
         box: { x: 10, y: 195, w: 1000, h: 90 }
-
-  data-18:
-    source_file: src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-18 in-bar"
-        box: { x: 250, y: 275, w: 280, h: 50 }
 
   data-19:
     source_file: src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png
@@ -215,52 +192,6 @@ images:
     highlights:
       - label: "DATA-29 selected block"
         box: { x: 1140, y: 370, w: 495, h: 70 }
-
-  ui-30:
-    source_file: src/ui/StatsAside/HardwareDetailsPanel/visual/hardware-detail.png
-    maxWidth: 900
-    highlights:
-      - label: "UI-30 overlay"
-        box: { x: 0, y: 0, w: 1850, h: 110 }
-
-  ui-31:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 0, y: 0, w: 1850, h: 220 }
-    maxWidth: 900
-    highlights:
-      - label: "UI-31 更多"
-        box: { x: 910, y: 148, w: 170, h: 62 }
-
-  ui-32:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 270, w: 600, h: 370 }
-    maxWidth: 900
-    highlights:
-      - label: "UI-32 bar"
-        box: { x: 28, y: 240, w: 340, h: 38 }
-
-  ui-33:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 630, y: 270, w: 600, h: 370 }
-    maxWidth: 900
-    highlights:
-      - label: "UI-33 one number"
-        box: { x: 20, y: 90, w: 540, h: 150 }
-
-  ui-34:
-    source_file: src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png
-    crop: { x: 20, y: 710, w: 1810, h: 400 }
-    maxWidth: 900
-    highlights:
-      - label: "UI-34 TB/s"
-        box: { x: 20, y: 288, w: 850, h: 58 }
-
-  ui-35:
-    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
-    maxWidth: 900
-    highlights:
-      - label: "UI-35 diagram (no right-click UI)"
-        box: { x: 160, y: 80, w: 1780, h: 1860 }
 
   ui-36:
     source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png

@@ -56,7 +56,7 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 
 ## Resolving open questions
 
-When Product answers a question: write it into the owning specs and **remove** it from the open lists in the same change. Do not leave a Resolved row on an open list. Process: [`docs/process/DEVELOPMENT.md`](docs/process/DEVELOPMENT.md) § Resolving open questions; Cursor rule `.cursor/rules/resolve-open-questions.mdc`.
+When Product answers a question: write it into the owning specs, file it in [`docs/context/decisions/`](docs/context/decisions/), and **remove** it from [`docs/context/questions/`](docs/context/questions/) in the same change. Do not leave a `resolved` row on the open list. Process: [`docs/process/DEVELOPMENT.md`](docs/process/DEVELOPMENT.md) § Resolving open questions; Cursor rule `.cursor/rules/resolve-open-questions.mdc`.
 
 ## Skills (on demand)
 

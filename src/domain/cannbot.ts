@@ -67,6 +67,7 @@ export function buildCannbotPayload(
     if (scope === 'summary') {
       data.summary = report.summary;
       put('bandwidthCards', report.bandwidthCards);
+      put('computeCard', report.computeCard);
       put('roofline', report.roofline);
       data.pipeOccupancy = report.pipeOccupancy;
       put('memoryTopology', report.memoryTopology);
