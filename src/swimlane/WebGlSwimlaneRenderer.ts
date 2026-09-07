@@ -417,6 +417,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private hitLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private collapse: CollapseTransform = IDLE_COLLAPSE;
+  /** Non-null while a collapse/expand tween runs — suppresses dependency curves. */
+  private collapseState: CollapseAnimState | null = null;
   /** Subtracted from event times before float32 upload (model.minTime). */
   private timeBase = 0;
   private searchQuery = '';
@@ -496,6 +498,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = this.baseLayout;
     this.hitLayout = this.baseLayout;
     this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
     this.timeBase = model?.minTime ?? 0;
     this.refreshDepCache();
     this.rebuildMeshes();
@@ -507,6 +510,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
+    this.collapseState = state;
     this.collapse = collapseTransform(this.baseLayout, state);
     this.hitLayout = state ? applyCollapseAnim(this.baseLayout, state) : this.baseLayout;
   }
@@ -747,7 +751,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.drawEventLabels();
 
     // Curves draw last, above event labels — re-enable blend (labels render opaque with no blend).
-    if (this.paintDependencies) {
+    if (this.paintDependencies && this.collapseState == null) {
       gl.enable(gl.BLEND);
       this.drawDependencyCurves(gl);
     }
@@ -758,7 +762,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     // Playwright PR-E2E-007: jsdom never reaches render(), so unit tests cannot assert this.
     const out = this.canvas;
     if (out) {
-      out.dataset.depCurves = String(this.curveCount);
+      // Report painted curves (0 while a collapse/expand tween is in flight).
+      out.dataset.depCurves = String(this.collapseState ? 0 : this.curveCount);
       out.dataset.depGraphGen = String(this.depGraphGen);
     }
   }
@@ -795,6 +800,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = EMPTY_LAYOUT;
     this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
     this.neighborIds = new Set();
     this.depLinks = [];
   }

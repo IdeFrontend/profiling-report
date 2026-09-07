@@ -633,6 +633,36 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
 
     expect(curveLineWidth).toBe(dependencyStrokeWidth(2));
   });
+
+  it('PR-RENDER-029: dependency curves are suppressed while collapse anim is in flight', () => {
+    const canvas = document.createElement('canvas');
+    const ctx = mock2dContext();
+    let bezierCalls = 0;
+    ctx.bezierCurveTo = () => {
+      bezierCalls += 1;
+    };
+    vi.spyOn(canvas, 'getContext').mockReturnValue(ctx);
+
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(depModel());
+    renderer.setSelection('e-parent', null);
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    renderer.render();
+    expect(bezierCalls).toBeGreaterThan(0);
+
+    bezierCalls = 0;
+    // Any in-flight tween (incl. visible=1 on collapse start) must hide curves immediately.
+    renderer.setCollapseAnim({ groupId: 'p-1', visible: 1, hiddenHeight: 22 });
+    renderer.render();
+    expect(bezierCalls).toBe(0);
+
+    bezierCalls = 0;
+    renderer.setCollapseAnim(null);
+    renderer.render();
+    expect(bezierCalls).toBeGreaterThan(0);
+  });
 });
 
 describe('PR-RENDER: lane chrome color', () => {

@@ -705,7 +705,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     }
 
     // Dependency curves draw above event labels.
-    if (this.paintDependencies) {
+    if (this.paintDependencies && this.collapseState == null) {
       paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
     }
 
