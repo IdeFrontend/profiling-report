@@ -103,6 +103,11 @@ export interface CollapseAnimState {
   groupId: string;
   visible: number;
   hiddenHeight: number;
+  /**
+   * Folder-only: precomputed summary bars painted as ghosts at alpha `1 − visible`
+   * while the expanded subtree fades with `visible` (dissolve / re-aggregate).
+   */
+  summaryEvents?: readonly SwimEvent[];
 }
 
 /**
@@ -233,7 +238,60 @@ export function applyCollapseAnim(
   layout: SwimlaneLayout,
   state: CollapseAnimState | null,
 ): SwimlaneLayout {
-  return applyCollapseTransform(layout, collapseTransform(layout, state));
+  const shifted = applyCollapseTransform(layout, collapseTransform(layout, state));
+  return mergeCollapseSummaries(shifted, state);
+}
+
+/**
+ * Ghost summary bars for the in-flight folder tween: laid out on the folder lane at
+ * alpha `1 − visible`. Empty when there is nothing to paint.
+ */
+export function collapseGhostSummaries(
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+): LaidOutEvent[] {
+  const summaries = state?.summaryEvents;
+  if (!state || !summaries?.length) return [];
+  const alpha = Math.max(0, Math.min(1, 1 - state.visible));
+  if (alpha <= 0) return [];
+  const laneIndex = layout.lanes.findIndex((l) => l.thread.id === state.groupId);
+  if (laneIndex < 0) return [];
+  const lane = layout.lanes[laneIndex]!;
+  if (!lane.folder) return [];
+
+  return [...summaries]
+    .sort((a, b) => a.startTime - b.startTime)
+    .map((ev) => ({
+      id: ev.id,
+      event: ev,
+      laneIndex,
+      y: lane.y,
+      rowIndex: 0,
+      color: SUMMARY_EVENT_FILL,
+      summary: true as const,
+      alpha,
+    }));
+}
+
+/**
+ * Merge ghost summaries into a (possibly shifted) layout for hit-test / getLayout.
+ * Pure — returns `layout` unchanged when there is nothing to add.
+ */
+export function mergeCollapseSummaries(
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+): SwimlaneLayout {
+  const ghosts = collapseGhostSummaries(layout, state);
+  if (ghosts.length === 0) return layout;
+  const laneIndex = ghosts[0]!.laneIndex;
+
+  const events = layout.events.concat(ghosts);
+  const eventsById = new Map(layout.eventsById);
+  for (const g of ghosts) eventsById.set(g.id, g);
+  const eventsByLane = layout.eventsByLane.map((laneEvts, i) =>
+    i === laneIndex ? laneEvts.concat(ghosts) : laneEvts,
+  );
+  return { ...layout, events, eventsById, eventsByLane };
 }
 
 /**
@@ -269,6 +327,8 @@ export interface LaidOutEvent {
   color: string;
   /** Collapsed-folder summary bar: gray, interactive (hover/label/click-to-expand), never selected/ringed. */
   summary?: boolean;
+  /** 0..1 opacity for collapse-tween ghost summaries (default fully opaque). */
+  alpha?: number;
 }
 
 export interface SwimlaneLayout {
@@ -587,6 +647,7 @@ export function hitTestLayout(
   let folderIndex = -1;
   for (let i = 0; i < layout.lanes.length; i++) {
     const l = layout.lanes[i]!;
+    if (l.alpha === 0) continue; // faded-out collapse subtree — let folder summaries win
     if (!(contentYCss >= l.y && contentYCss < l.y + l.rowCount * LANE_HEIGHT)) continue;
     if (l.folder) {
       folder = l;
@@ -604,6 +665,7 @@ export function hitTestLayout(
   const span = Math.max(1, view.endTime - view.startTime);
   const candidates: { id: string; duration: number }[] = [];
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
+    if (item.alpha === 0) continue;
     const ev = item.event;
     if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
     const ex = ((ev.startTime - view.startTime) / span) * widthDevice;

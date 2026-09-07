@@ -5,8 +5,10 @@ import {
   groupBottomY,
   LANE_HEIGHT,
   rebuildLayout,
+  SUMMARY_EVENT_FILL,
 } from '../../src/swimlane/layout';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import { buildFolderSummaryEvents, findThreadById } from '../../src/domain/swimTree';
 import type { SwimlaneModel } from '../../src/domain/types';
 
 /**
@@ -117,5 +119,58 @@ describe('applyCollapseAnim (PR-RENDER-027)', () => {
     expect(hitLane?.y).toBe(95);
     // Overlay paint input stays on the expanded base (collapse applied separately).
     expect(renderer.getBaseLayout().lanes.find((l) => l.thread.id === 'mte1')?.y).toBe(106);
+  });
+});
+
+describe('collapse summary dissolve (PR-RENDER-028)', () => {
+  it('merges ghost summaries at alpha 1 − visible on the folder lane', () => {
+    const model = folderModel();
+    const core = findThreadById(model, 'core')!;
+    const summaryEvents = buildFolderSummaryEvents(core);
+    expect(summaryEvents.length).toBeGreaterThan(0);
+
+    const layout = rebuildLayout(model);
+    const mid = applyCollapseAnim(layout, {
+      groupId: 'core',
+      visible: 0.5,
+      hiddenHeight: 44,
+      summaryEvents,
+    });
+    const ghosts = mid.events.filter((e) => e.summary);
+    expect(ghosts).toHaveLength(summaryEvents.length);
+    expect(ghosts.every((g) => g.alpha === 0.5)).toBe(true);
+    expect(ghosts.every((g) => g.y === 84)).toBe(true);
+    expect(ghosts.every((g) => g.color === SUMMARY_EVENT_FILL)).toBe(true);
+
+    const open = applyCollapseAnim(layout, {
+      groupId: 'core',
+      visible: 1,
+      hiddenHeight: 44,
+      summaryEvents,
+    });
+    expect(open.events.some((e) => e.summary)).toBe(false);
+  });
+
+  it('hit-test prefers ghost summaries when faded children share the folder Y', () => {
+    const model = folderModel();
+    const summaryEvents = buildFolderSummaryEvents(findThreadById(model, 'core')!);
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.setModel(model);
+    renderer.resize(200, 400, 1);
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    renderer.setCollapseAnim({
+      groupId: 'core',
+      visible: 0,
+      hiddenHeight: 44,
+      summaryEvents,
+    });
+
+    const ghost = renderer.getLayout().events.find((e) => e.summary);
+    expect(ghost).toBeTruthy();
+    const rect = renderer.eventScreenRect(ghost!.id);
+    expect(rect).toBeTruthy();
+    expect(renderer.hitTest(rect!.x + 1, rect!.y + rect!.h / 2)).toBe(ghost!.id);
   });
 });

@@ -43,8 +43,10 @@ import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz } from '../../doma
 import { colorVarForLaneName } from '../../domain/laneColors';
 import { leafRowCount } from '../../swimlane/layout';
 import {
+  buildFolderSummaryEvents,
   collectLeafEventsFromModel,
   filterCollapsedTree,
+  findThreadById,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
@@ -402,7 +404,7 @@ function onToggleGroup(groupId: string): void {
 
   // Mid-tween re-click on the same group reverses from the current visible.
   if (animGroupId.value === groupId && collapseAnim.value) {
-    const { visible, hiddenHeight } = collapseAnim.value;
+    const { visible, hiddenHeight, summaryEvents } = collapseAnim.value;
     const nowCollapsing = !animCollapsing.value;
     const target = nowCollapsing
       ? [...new Set([...collapsedGroupIds.value, groupId])]
@@ -417,13 +419,13 @@ function onToggleGroup(groupId: string): void {
     }
     animCollapsing.value = nowCollapsing;
     animGroupId.value = groupId;
-    collapseAnim.value = { groupId, visible, hiddenHeight };
+    collapseAnim.value = { groupId, visible, hiddenHeight, summaryEvents };
     cancelCollapseAnim = animateProgress({
       from: visible,
       to: nowCollapsing ? 0 : 1,
       durationMs: 200,
       onUpdate: (v) => {
-        collapseAnim.value = { groupId, visible: v, hiddenHeight };
+        collapseAnim.value = { groupId, visible: v, hiddenHeight, summaryEvents };
       },
       onDone: () => {
         collapseAnim.value = null;
@@ -450,6 +452,10 @@ function onToggleGroup(groupId: string): void {
     return;
   }
   const hiddenHeight = collapseHiddenHeight(m, expandedIds, collapsedIds);
+  const folder = findThreadById(m, groupId);
+  const summaryEvents = folder ? buildFolderSummaryEvents(folder) : undefined;
+  const summaries =
+    summaryEvents && summaryEvents.length > 0 ? summaryEvents : undefined;
 
   cancelCollapseAnim();
   if (hiddenHeight <= 0 || prefersReducedMotion()) {
@@ -462,13 +468,23 @@ function onToggleGroup(groupId: string): void {
 
   animCollapsing.value = collapsing;
   animGroupId.value = groupId;
-  collapseAnim.value = { groupId, visible: collapsing ? 1 : 0, hiddenHeight };
+  collapseAnim.value = {
+    groupId,
+    visible: collapsing ? 1 : 0,
+    hiddenHeight,
+    summaryEvents: summaries,
+  };
   cancelCollapseAnim = animateProgress({
     from: collapsing ? 1 : 0,
     to: collapsing ? 0 : 1,
     durationMs: 200,
     onUpdate: (visible) => {
-      collapseAnim.value = { groupId, visible, hiddenHeight };
+      collapseAnim.value = {
+        groupId,
+        visible,
+        hiddenHeight,
+        summaryEvents: summaries,
+      };
     },
     onDone: () => {
       collapseAnim.value = null;

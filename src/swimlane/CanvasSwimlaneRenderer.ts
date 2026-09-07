@@ -20,7 +20,8 @@ import {
   collapseAlpha,
   collapseShiftY,
   collapseTransform,
-  applyCollapseTransform,
+  applyCollapseAnim,
+  collapseGhostSummaries,
   EMPTY_LAYOUT,
   eventPaintRect,
   IDLE_COLLAPSE,
@@ -136,6 +137,55 @@ function roundRectPath(
   ctx.closePath();
 }
 
+/** Paint folder summary ghosts during collapse/expand (dissolve / re-aggregate). */
+function paintCollapseGhostSummaries(
+  ctx: CanvasRenderingContext2D,
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+  view: SwimlaneViewWindow,
+  width: number,
+  height: number,
+  dpr: number,
+  selectedId: string | null,
+  hoveredId: string | null,
+): void {
+  const ghosts = collapseGhostSummaries(layout, state);
+  if (ghosts.length === 0) return;
+  const span = Math.max(1, view.endTime - view.startTime);
+  for (const item of ghosts) {
+    const ev = item.event;
+    const alpha = item.alpha ?? 1;
+    if (alpha <= 0) continue;
+    if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
+    const x = ((ev.startTime - view.startTime) / span) * width;
+    const w = Math.max(2, (ev.duration / span) * width);
+    const metrics = eventBlockMetrics(item.y, view.scrollY);
+    const y = metrics.y * dpr;
+    const h = metrics.h * dpr;
+    if (y + h < 0 || y > height) continue;
+    const fr = eventPaintRect(x, y, w, h, dpr);
+    const eventState = eventStateOf(item.id, selectedId, hoveredId);
+    const fill = eventFill(item.color, eventState);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = fill;
+    roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
+    ctx.fill();
+    drawEventLabel(
+      ctx,
+      taskCountLabel(ev.taskCount ?? 0),
+      fr.x,
+      fr.y,
+      fr.w,
+      fr.h,
+      width,
+      alpha,
+      SUMMARY_LABEL_COLOR,
+      dpr,
+    );
+    ctx.globalAlpha = 1;
+  }
+}
+
 /**
  * Canvas2D overlay: labels and hover/selection state fills.
  * Used on top of WebGL interval fills (hybrid path).
@@ -158,6 +208,8 @@ export class SwimlaneOverlayPainter {
   private width = 0;
   private height = 0;
   private dpr = 1;
+  /** Full collapse state — ghost summaryEvents painted during the tween. */
+  private collapseState: CollapseAnimState | null = null;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -179,10 +231,12 @@ export class SwimlaneOverlayPainter {
     if (layout === this.layout) return;
     this.layout = layout;
     this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
   }
 
   /** Per-frame collapse/expand transform (see layout.collapseTransform). */
   setCollapseAnim(state: CollapseAnimState | null): void {
+    this.collapseState = state;
     this.collapse = collapseTransform(this.layout, state);
   }
 
@@ -328,6 +382,19 @@ export class SwimlaneOverlayPainter {
       }
     }
 
+    // Folder summary ghosts dissolve/aggregate over the fading subtree (PR-RENDER-028).
+    paintCollapseGhostSummaries(
+      ctx,
+      this.layout,
+      this.collapseState,
+      this.view,
+      this.width,
+      this.height,
+      dpr,
+      this.selectedId,
+      this.hoveredId,
+    );
+
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
   }
 
@@ -336,6 +403,7 @@ export class SwimlaneOverlayPainter {
     this.ctx = null;
     this.layout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
     this.neighborIds = new Set();
   }
 }
@@ -363,6 +431,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private width = 0;
   private height = 0;
   private dpr = 1;
+  private collapseState: CollapseAnimState | null = null;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -387,15 +456,15 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = this.baseLayout;
     this.hitLayout = this.baseLayout;
     this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
     this.refreshDepCache();
   }
 
   /** Per-frame collapse/expand transform applied inline in `render` (no layout rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
+    this.collapseState = state;
     this.collapse = collapseTransform(this.baseLayout, state);
-    this.hitLayout = this.collapse.active
-      ? applyCollapseTransform(this.baseLayout, this.collapse)
-      : this.baseLayout;
+    this.hitLayout = state ? applyCollapseAnim(this.baseLayout, state) : this.baseLayout;
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -606,6 +675,18 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       });
     }
 
+    paintCollapseGhostSummaries(
+      ctx,
+      this.baseLayout,
+      this.collapseState,
+      this.view,
+      this.width,
+      this.height,
+      dpr,
+      this.selectedId,
+      this.hoveredId,
+    );
+
     for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
       if (matches) {
         drawEventLabel(
@@ -638,6 +719,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = EMPTY_LAYOUT;
     this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
     this.neighborIds = new Set();
     this.depLinks = [];
   }

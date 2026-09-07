@@ -11,7 +11,7 @@ import {
   collapseAlpha,
   collapseShiftY,
   collapseTransform,
-  applyCollapseTransform,
+  applyCollapseAnim,
   EMPTY_LAYOUT,
   IDLE_COLLAPSE,
   LANE_FILL,
@@ -508,9 +508,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
     this.collapse = collapseTransform(this.baseLayout, state);
-    this.hitLayout = this.collapse.active
-      ? applyCollapseTransform(this.baseLayout, this.collapse)
-      : this.baseLayout;
+    this.hitLayout = state ? applyCollapseAnim(this.baseLayout, state) : this.baseLayout;
   }
 
   setView(view: SwimlaneViewWindow): void {
