@@ -725,8 +725,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const cy = r.y + r.h / 2;
-      const gx = anchor.cx - glyph.width / 2;
-      const gy = cy - glyph.height / 2;
+      // Snap the quad origin to device pixels: glyphs are drawn 1:1 with NEAREST sampling, so a
+      // half-pixel origin (odd visible width or the event's -0.5 optical nudge) shifts the baked
+      // ClearType subpixel RGB off the display grid and leaves the fringe colored/soft.
+      const gx = Math.round(anchor.cx - glyph.width / 2);
+      const gy = Math.round(cy - glyph.height / 2);
       gl.uniform4f(
         prog.uSizePos,
         glyph.width / devW,
