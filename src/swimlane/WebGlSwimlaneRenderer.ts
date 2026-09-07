@@ -753,8 +753,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const bright = this.neighborIds;
     // Lane backgrounds — the event fill composites over these, not the clear color. The
     // hovered row's chrome is `LANE_HOVER_FILL`, so its label backdrop must match that too.
-    const laneBg = 0x1f / 255;
-    const laneHoverBg = 0x36 / 255;
+    const laneBg = hexToRgb(LANE_FILL);
+    const laneHoverBg = hexToRgb(LANE_HOVER_FILL);
     const fontPx = Math.max(8, Math.round(EVENT_LABEL_FONT_CSS_PX * dpr));
 
     gl.disable(gl.BLEND);
@@ -793,9 +793,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       // (non-selected, non-neighbor) event swaps in `SELECTION_MUTED_FILL`/`SELECTION_MUTED_LABEL`.
       const [lr, lg, lb] = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
-      const fr = Math.min(1, bg + lr);
-      const fg = Math.min(1, bg + lg);
-      const fb = Math.min(1, bg + lb);
+      const fr = Math.min(1, bg[0] + lr);
+      const fg = Math.min(1, bg[1] + lg);
+      const fb = Math.min(1, bg[2] + lb);
       gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
       if (muted) {
         const [mr, mg, mb] = hexToRgb(SELECTION_MUTED_LABEL);

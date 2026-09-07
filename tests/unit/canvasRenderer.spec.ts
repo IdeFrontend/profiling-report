@@ -609,8 +609,8 @@ describe('PR-RENDER: lane chrome color', () => {
     // The label pass carries its own hovered-row chrome (#363636) and bakes it into the opaque
     // backdrop via the same `bg + rgb` additive formula the fill pass uses, so the label rect
     // reads as the event rect; a muted event swaps in the gray fill/label colors instead.
-    expect(webglSrc).toMatch(/laneHoverBg = 0x36 \/ 255/);
-    expect(webglSrc).toMatch(/Math\.min\(1, bg \+ lr\)/);
+    expect(webglSrc).toMatch(/laneHoverBg = hexToRgb\(LANE_HOVER_FILL\)/);
+    expect(webglSrc).toMatch(/Math\.min\(1, bg\[0\] \+ lr\)/);
     expect(webglSrc).toMatch(/hexToRgb\(SELECTION_MUTED_LABEL\)/);
   });
 
