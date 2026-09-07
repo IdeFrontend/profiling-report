@@ -21,9 +21,13 @@ Operators:
   op1 — machine-view style (~100 X events): a few Core/pipe lanes with bursty
         irregular occupancy and cross-pipe `args.event_id` / dependencies
         connections + baseline `add_custom` CSVs from `data/out.rep`.
+        Intentionally nests a call-stack on Core0.Cube/SCALAR (3 sub-rows) so
+        the default playground sample demos multi-height lanes; other op1
+        leaves stay exclusive.
   op2 — ~150k-event Card/core/pipe stress-style trace for rendering performance
         demos, with sparse pipeline deps + transformed CSVs (different op name,
-        block range, scaled metrics, synthesized Cube aic_* values).
+        block range, scaled metrics, synthesized Cube aic_* values). Exclusive
+        leaf spans (no multi-height).
 
 Both keep the full 11-leaf payload set so the right sidebar stays available.
 Traces deliberately avoid uniform grids — timings mimic real Ascend pipe-state /
@@ -356,11 +360,48 @@ def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
                 break
 
 
+def inject_scalar_multiheight_nest(pid, tid, pipe, emitted, rand, id_prefix):
+    """
+    Carve a fixed early window on SCALAR and place a 3-deep call-stack nest.
+
+    Greedy first-fit needs three concurrent spans for rowCount 3:
+      outer  [t0, t0+800)
+      mid    [t0+100, t0+700)
+      inner_a [t0+150, t0+350)  → sub-row 2
+      inner_b [t0+400, t0+650)  → still sub-row 2 (sibling after inner_a)
+
+    Burst events that intersect [t0, t0+800) are dropped so the nest is visible.
+    Demo-only exception to the usual .rep exclusivity guarantee (other lanes stay exclusive).
+    """
+    t0 = 500
+    nest_end = t0 + 800
+    kept = [(eid, s, e, ev) for eid, s, e, ev in emitted if e <= t0 or s >= nest_end]
+    nest_specs = [
+        ("PIPE_S_busy", t0, 800),
+        ("SCALAR_helper", t0 + 100, 600),
+        ("marker_nest_a", t0 + 150, 200),
+        ("marker_nest_b", t0 + 400, 250),
+    ]
+    nest = []
+    for i, (name, start, dur) in enumerate(nest_specs):
+        eid = f"{id_prefix}-nest-{i}"
+        ev = _x(
+            pid, tid, name, start, dur, event_id=eid,
+            extra=producer_params(pipe, name, rand, 9000 + i, dur),
+        )
+        nest.append((eid, start, start + dur, ev))
+    merged = nest + kept
+    merged.sort(key=lambda x: (x[1], x[2], x[0]))
+    return merged
+
+
 def small_trace():
     """
     Machine-view style (~100 X events): a few Core/pipe lanes with bursty
     irregular occupancy, Ascend-style op names, and dense 3–6 connections
     per event (cross-pipe when timing allows).
+
+    SCALAR carries an intentional overlapping call-stack nest (multi-height demo).
     """
     rand = mulberry32(0xA11CE)
     # Calibrated so emit_bursty_lane yields ~100 X events across 7 lanes.
@@ -382,6 +423,10 @@ def small_trace():
         emitted = emit_bursty_lane(
             1, tid, pipe, time_span, lane_rand, id_prefix=f"op1-{pipe}",
         )
+        if pipe == "SCALAR":
+            emitted = inject_scalar_multiheight_nest(
+                1, tid, pipe, emitted, lane_rand, id_prefix=f"op1-{pipe}",
+            )
         pipe_map[pipe] = emitted
         for _eid, _s, _e, ev in emitted:
             evs.append(ev)
