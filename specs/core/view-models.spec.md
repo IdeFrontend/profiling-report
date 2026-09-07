@@ -55,6 +55,8 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 11. **PR-VM-012** — Topology labels come only from the requested `block_id`; first labelled block is used for the adapter snapshot.
 12. **PR-VM-013** — `bandwidthCards` prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = 1600); fall back to Memory.csv mean non-NA main-mem BW with peak 1600 GB/s; omit NA sides/cards (DATA-5, DATA-33). Also covers unmodified `out.rep` (aiv-only; peak 1600).
 13. **PR-VM-014** — `summary.coreCount` from `HardwareInfo.jsonl` by op type (cube/vector/mix); omit when jsonl or field missing.
+14. **PR-VM-015** — `computeCard` from Product `OpInfoSummary` FLOPS when present; else ArithmeticUtilization + HardwareInfo peaks (DATA-33h); omit when no side has measured + peak.
+15. **PR-VM-016** — When both OpBasicInfo.csv and Summary.jsonl exist, identity comes from OpBasicInfo and OpInfoSummary derived FLOPS/util overlay onto summary + computeCard.
 
 ## Edge Cases
 

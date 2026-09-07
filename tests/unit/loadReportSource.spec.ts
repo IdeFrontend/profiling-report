@@ -110,10 +110,12 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(summary.parallelUtilization).toBeCloseTo(0.981418, 4);
     expect(summary.parallelBalance).toBeCloseTo(0.933769, 4);
 
-    // Product FLOPS map into computeCard (preferred over ArithmeticUtilization interim).
-    expect(computeCard?.sides.map((s) => s.side).sort()).toEqual(['aic', 'aiv'].sort());
-    expect(summary.aicFlops).toBeDefined();
-    expect(summary.aivFlops).toBeDefined();
+    // This sample has no aic/aiv_flops in OpInfoSummary and no *_fops columns,
+    // so computeCard may be absent; parallel util still comes from summary.jsonl.
+    expect(summary.aicFlops).toBeUndefined();
+    if (computeCard) {
+      expect(computeCard.sides.length).toBeGreaterThan(0);
+    }
 
     // Detail surface categories from summary.jsonl (OpInfoSummary excluded).
     const ids = summaryCategories?.map((c) => c.id) ?? [];

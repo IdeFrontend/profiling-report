@@ -90,6 +90,7 @@ function payloadByName(
 function normalizeFieldKey(key: string): string {
   return key
     .toLowerCase()
+    .replace(/\([^)]*\)/g, '')
     .replace(/[\s-]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
@@ -326,7 +327,8 @@ function numericFieldsFromJsonObject(obj: Record<string, unknown>): Record<strin
   for (const [key, value] of Object.entries(obj)) {
     const norm = normalizeFieldKey(key);
     if (norm === 'category') continue;
-    const n = typeof value === 'number' ? value : Number(value);
+    const raw = Array.isArray(value) && value.length > 0 ? value[0] : value;
+    const n = typeof raw === 'number' ? raw : Number(raw);
     if (Number.isFinite(n)) fields[norm] = n;
   }
   return fields;
@@ -346,14 +348,13 @@ function hardwareComputeInputsFromJsonl(text: string): HardwareComputeInputs {
     out.cubeCores = pickPositiveField(fields, ['ai_cube_count', 'aic_cube_count']);
     out.vectorCores = pickPositiveField(fields, ['ai_vector_count', 'aic_vector_count']);
     const freq =
-      obj.ai_core_frequency_MHZ ??
-      obj[Object.keys(obj).find((k) => normalizeFieldKey(k) === 'ai_core_frequency_mhz') ?? ''];
-    if (Array.isArray(freq) && freq.length > 0) {
-      const n = Number(freq[0]);
-      if (Number.isFinite(n) && n > 0) out.freqMhz = n;
-    } else if (typeof freq === 'number' && freq > 0) {
-      out.freqMhz = freq;
-    }
+      pickPositiveField(fields, [
+        'ai_core_frequency_mhz',
+        'ai_cube_frequency_mhz',
+        'ai_vector_frequency_mhz',
+        'aic_core_frequency_mhz',
+      ]) ?? undefined;
+    if (freq != null) out.freqMhz = freq;
   }
   return out;
 }
@@ -437,6 +438,7 @@ function computeCardFromPayloads(
     sides.push({ side, measuredTflops, peakTflops });
   }
   return sides.length > 0 ? { sides } : undefined;
+}
 
 /**
  * Product bandwidth cards from `summary.jsonl` (spec Q5–Q7): `OpInfoSummary`
@@ -449,7 +451,14 @@ function bandwidthCardsFromSummary(payload?: Uint8Array): BandwidthCardModel[] {
   let peakGBs = BANDWIDTH_PEAK_GBS;
   const mem: Record<string, number> = {};
   const stripUnit = (key: string): string => key.replace(/\([^)]*\)/g, '');
-  for (const line of decodeUtf8(payload).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {    const category = obj.category;
+  for (const line of decodeUtf8(payload).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const category = obj.category;
     if (category === 'OpInfoSummary') {
       const peak = typeof obj['aicore_gm_bw_theoretical(GB/s)'] === 'number'
         ? (obj['aicore_gm_bw_theoretical(GB/s)'] as number)

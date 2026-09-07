@@ -341,7 +341,7 @@ describe('StatsAside', () => {
     });
     const secondary = withDim.get('[data-testid="stats-duration-secondary"]').text();
     expect(secondary).toMatch(/8/);
-    expect(secondary).toMatch(/次迭代|iterations/);
+    expect(secondary).toMatch(/Blocks/);
     expect(secondary).not.toContain('relu');
 
     const withCore = mount(StatsAside, {
@@ -443,15 +443,12 @@ describe('StatsAside', () => {
     ).toContain('pr-card__bar-fill--secondary');
   });
 
-  it('PR-STATS-011: compute/util are N/A placeholders; BW not from summary.ioBandwidth', () => {
+  it('PR-STATS-011: compute/util are N/A placeholders when derived fields absent', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
           summary: {
             taskDurationUs: 1000,
-            computeTflops: 172,
-            ioBandwidth: 0.08,
-            avgCoreUtil: 0.69,
           },
         }),
       },
