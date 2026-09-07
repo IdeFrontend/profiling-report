@@ -1660,7 +1660,7 @@ function onPointerUp(e: PointerEvent): void {
     ) {
       const ev = eventAtPointer(x, y, mag.eventId);
       if (ev) {
-        // Summary bars expand their group instead of measuring/selecting.
+        // Summary bars expand their group instead of snapping the measure range.
         const groupId = summaryGroupIdFor(ev.id);
         if (groupId != null) {
           // Drop the summary tooltip — that bar disappears as the folder expands.
