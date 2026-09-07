@@ -580,15 +580,16 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     await wrapper.get('[data-testid="gutter-folder-card0/core-b"]').trigger('click');
     await flushPromises();
 
+    // Cross-group commit clears hover in the same turn (`clampScrollAfterCollapse`).
+    const src = (await import('../../src/ui/ProfilingReport/ProfilingReport.vue?raw')).default as string;
+    expect(src).toMatch(
+      /pendingCollapseTarget\)\s*\{[^}]*clampScrollAfterCollapse\(\)/s,
+    );
+
     // Settled collapse set includes A even though A's onDone never ran.
-    const gutterA = wrapper.get('[data-testid="gutter-folder-card0/core-a"]');
-    // Collapsed folders keep a row; children pruned — assert via display: A's child gone from gutter.
     expect(wrapper.find('[data-testid="gutter-lane-card0/core-a/p0"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="gutter-lane-card0/core-b/p0"]').exists()).toBe(true); // B still tweening expanded
-    void gutterA;
     // Finish B's tween so both settle collapsed.
-    // Second animateProgress's onDone is the latest mock call's onDone — re-click settle via force:
-    // After B starts, pending for B is set; call B's onDone by getting the last mock.
     const lastOpts = (anim.animateProgress as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0];
     lastOpts?.onDone?.();
     await flushPromises();

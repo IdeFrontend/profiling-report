@@ -447,6 +447,9 @@ function onToggleGroup(groupId: string): void {
   if (animGroupId.value && pendingCollapseTarget) {
     collapsedGroupIds.value = pendingCollapseTarget;
     pendingCollapseTarget = null;
+    // Rows may have just left the filtered tree — drop stale hover / clamp scroll now,
+    // not only when the *new* tween's onDone fires (~200ms later).
+    clampScrollAfterCollapse();
   }
   cancelCollapseAnim();
   animGroupId.value = null;
