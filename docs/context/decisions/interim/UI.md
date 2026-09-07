@@ -23,15 +23,6 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Caveats.** Interim choice **A** under [UI-45](../../questions/UI.md) (true vs derived). Assumes swimlane timestamps share the AIC clock domain as OpBasicInfo freq.
 **Implement / test as:** Formatter + toolbar mode + host `timeDisplayMode` prop; `formatTimeAuto` for absolute times
 **Superseded when:** Product answers [UI-45](../../questions/UI.md) (true vs derived cycles) and/or refines freq/labels
-<<<<<<< HEAD
-
-### UI-41a — Gesture parity
-
-**Status:** `interim`
-**Question:** [UI-41](../../questions/UI.md)
-**Interim:** Follow [PACKAGING_SUGGESTIONS](../../PACKAGING_SUGGESTIONS.md) as if accepted for scaffold: wheel/slider/drag MVP; W/S/A/D P2.
-**Implement / test as:** wheel/slider/drag MVP; W/S/A/D P2
-**Superseded when:** Product confirm/change UI-41
 
 ### UI-46a — Card gutter 时钟周期 label units
 
@@ -40,5 +31,3 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Interim:** Labels always suffix **`µs`** (same glyph as `formatTime`) so values are not read as `%` or bare ratios. Formatting intent (`PR-GMET-008` on PR #45): integer when \(\lvert raw\rvert\ge 0.5\); else two decimals / `toPrecision(2)` when tiny.
 **Implement / test as:** shipping on PR [#45](https://github.com/IdeFrontend/profiling-report/pull/45) — `formatClockCycleLabel`, LaneGutter thick/tip labels
 **Superseded when:** Product confirms unit glyph, locale wording, or cycle-count display ([UI-46](../../questions/UI.md))
-=======
->>>>>>> 05b66e18 (feat: PyPTO keyboard shortcuts and shortcut-help toolbar action)
