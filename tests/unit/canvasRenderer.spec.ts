@@ -637,6 +637,15 @@ describe('PR-RENDER: lane chrome color', () => {
     // rasterization, so a colored additive quad and `ev.name` never show through.
     expect(webglSrc).toMatch(/if \(item\.summary\) continue;/);
   });
+
+  it('PR-RENDER-041: empty scissor box skips the label draw (no stale-clip leak)', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // An event clipped to an empty box must not draw: the scissor is only updated for a
+    // non-degenerate rect, and drawing anyway would reuse the previous event's (or frame's)
+    // scissor, leaking the label into a different event.
+    expect(webglSrc).toMatch(/if \(sRight <= sLeft \|\| sBottom <= sTop\) continue;/);
+  });
 });
 
 describe('PR-RENDER: SwimlaneRenderer surface', () => {

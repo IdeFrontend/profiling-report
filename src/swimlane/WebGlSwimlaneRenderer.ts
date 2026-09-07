@@ -846,9 +846,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const sTop = Math.max(0, Math.floor(r.y));
       const sRight = Math.min(devW, Math.ceil(r.x + r.w));
       const sBottom = Math.min(devH, Math.ceil(r.y + r.h));
-      if (sRight > sLeft && sBottom > sTop) {
-        gl.scissor(sLeft, devH - sBottom, sRight - sLeft, sBottom - sTop);
-      }
+      // An event that barely intersects the viewport can clamp to an empty box; scissor() would
+      // not be called, yet the draw below would still run with the previous event's (or the
+      // prior frame's) scissor, leaking a label into a different event. Skip the draw entirely.
+      if (sRight <= sLeft || sBottom <= sTop) continue;
+      gl.scissor(sLeft, devH - sBottom, sRight - sLeft, sBottom - sTop);
       gl.bindTexture(gl.TEXTURE_2D, glyph.texture);
       gl.bindVertexArray(quad.vao);
       gl.drawElements(gl.TRIANGLES, quad.indexCount, gl.UNSIGNED_SHORT, 0);
