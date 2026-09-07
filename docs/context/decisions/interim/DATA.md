@@ -15,10 +15,10 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 ### DATA-32a — Overview series
 
 **Status:** `interim`
-**Question:** [DATA-32](../DATA.md)
+**Question:** [DATA-39](../../questions/DATA.md) (hide-if-empty already decided: [DATA-32](../DATA.md))
 **Interim:** Adapter returns `overviewSeries: []`; UI **hides** charts (aligns with Product DATA-32).
 **Implement / test as:** No fake series from CSV
-**Superseded when:** Producer defines `OverviewSeries` source
+**Superseded when:** Product answers DATA-39 (defines `OverviewSeries` source)
 
 ### DATA-33a — Summary tiles
 

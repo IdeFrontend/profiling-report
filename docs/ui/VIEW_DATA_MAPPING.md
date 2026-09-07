@@ -298,7 +298,7 @@ Treat as illustrative only (invalid JSON / stub series).
 
 - Collapsible section with synchronized **Cube** and **Vector** area charts over time.
 - Shared time axis with a vertical scrubber aligned to the Kernel timeline below.
-- Series provenance not specified in docx; candidates: aggregated pipe busy from timeline events, or derived block time series. Mark as **TBD** until product defines the series file.
+- Series provenance not specified in docx; candidates: aggregated pipe busy from timeline events, or derived block time series (e.g. product `Sampling.json` `ph:"C"`). Open question: **[DATA-39](../context/questions/DATA.md)** — which embed/fields fill `OverviewSeries` (hide-if-empty remains [DATA-32](../context/decisions/DATA.md) / interim [DATA-32a](../context/decisions/interim/DATA.md)).
 
 ---
 

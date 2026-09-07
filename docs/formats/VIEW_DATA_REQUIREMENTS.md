@@ -57,7 +57,9 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 **Product decision (DATA-32):** If no `OverviewSeries` → **hide** the chart region entirely. Do **not** invent series from `PipeUtilization` ratios.
 
-**Interim ([DATA-32a](../context/decisions/interim/DATA.md)):** Adapter returns `overviewSeries: []` on current fixtures; charts stay hidden until a producer fills series.
+**Open ([DATA-39](../context/questions/DATA.md)):** Producer embed/fields for Cube / Vector (and any 通信) overview series — event shape, name→label map, units, swimlane time alignment — still unanswered.
+
+**Interim ([DATA-32a](../context/decisions/interim/DATA.md)):** Adapter returns `overviewSeries: []` on current fixtures; charts stay hidden until Product answers DATA-39.
 
 ---
 
@@ -215,7 +217,7 @@ Data contracts still open (UI-37). Do not block Timeline MVP.
 | `Memory*.csv` | Memory detail tabs; M2 topology edge labels; DATA-33g I/O bandwidth cards |
 | `L2Cache.csv` | Memory detail L2Cache tab; topology hit-rate label |
 | `ResourceConflictRatio.csv` | Compute detail tab |
-| `OverviewSeries` (TBD producer) | Overview charts |
+| `OverviewSeries` (producer TBD — [DATA-39](../context/questions/DATA.md)) | Overview charts |
 | Host metadata | Theme, locale, time-unit prefs; 查看全部 CSV tab; future hardware |
 
 ---
