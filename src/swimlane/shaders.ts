@@ -16,6 +16,16 @@ export const minRR = 1;
 export const maxRR = 2;
 export const rrSwitchThreshold = 4;
 
+/**
+ * Isolated-event extension policy, in CSS px (single source of truth shared with the swim vertex
+ * shader's `uExtendParameters` vec3 uniform): an event narrower than `extendTargetSizeCss` is
+ * grown toward that target width, ramping in via per-side gap factors; no extension below
+ * `extendMargin1Css`, full extension at/above `extendMargin2Css`.
+ */
+export const extendTargetSizeCss = 1;
+export const extendMargin1Css = 2;
+export const extendMargin2Css = 4;
+
 /** Scale a CSS-px corner/width value to integer device px: `* dpr`, then round `((x+0.5)|0)`. */
 export function rrToDevicePx(cssPx: number, dpr: number): number {
   return (cssPx * dpr + 0.5) | 0;
@@ -26,9 +36,11 @@ precision highp float;
 
 uniform vec4 uSizePos;
 uniform vec2 uResolution;
+uniform vec3 uExtendParameters; // xyz = targetSize, margin1, margin2, all in device px (CSS px × dpr); targetSize 0 disables
 
 in vec2 aPos;
 in vec2 aTex;
+in vec2 aData; // x = distance to prev event end, y = distance to next event start (event coords)
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
@@ -48,14 +60,34 @@ void main() {
   float lPx = glToPixelX(translateScaleX(lX));
   float rPx = glToPixelX(translateScaleX(rX));
 
-  float screenX = glToPixelX(pos.x);
+  // Gap to prev event end / next event start, in device pixels (distances, not positions,
+  // so scale only — no translation, no clip-space offset).
+  float gapPrevPx = aData.x * uSizePos.x * 0.5 * uResolution.x;
+  float gapNextPx = aData.y * uSizePos.x * 0.5 * uResolution.x;
+
+  // Branchless smooth extension of isolated thin events; parameters are a uniform
+  // (targetSize, margin1, margin2 — device px = CSS px × dpr; targetSize 0 disables).
+  float targetSize = uExtendParameters.x;
+  float margin1 = uExtendParameters.y;
+  float margin2 = uExtendParameters.z;
+  float eventSize = rPx - lPx;
+  float extendMax = max(0.0, (targetSize - eventSize) * 0.5);
+  float factorL = clamp(
+    (gapPrevPx - margin1) / (margin2 - margin1), 0.0, 1.0);
+  float factorR = clamp(
+    (gapNextPx - margin1) / (margin2 - margin1), 0.0, 1.0);
+  float factor = (factorL + factorR) * 0.5;
+  float extend = extendMax * factor;
+  float extendedL = lPx - extend;
+  float extendedR = rPx + extend;
+
   float screenY = glToPixelY(pos.y);
-  // Extend this vertex's edge to the left/right pixel bound (sudu).
-  screenX = mix(floor(screenX), ceil(screenX), aTex.y);
+  // Extend this vertex's edge to the pixel bound of the EXTENDED event (sudu).
+  float screenX = mix(floor(extendedL), ceil(extendedR), aTex.y);
   pos.x = pixelToGlX(screenX);
 
   vScreenPos = vec2(screenX, screenY);
-  vLrScreen = vec2(lPx, rPx);
+  vLrScreen = vec2(extendedL, extendedR);
   gl_Position = vec4(pos, 0.0, 1.0);
 }
 `;
