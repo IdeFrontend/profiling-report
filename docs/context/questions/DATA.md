@@ -30,7 +30,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Answer so far:** Product will supply **fixed theoretical peak** values per chip (not in report CSV). Interim formula until constants arrive: cube and vector peaks per DATA-2 (`HardwareInfo.jsonl` core counts + frequency + dtype).
 
-**Implemented (interim [`DATA-33h`](../decisions/interim/DATA.md)):** peak from DATA-2 formulas + `HardwareInfo.jsonl` / OpBasicInfo freq.
+**Implemented (interim [`DATA-33h`](../decisions/interim/DATA.md)):** peak from DATA-2 formulas + `HardwareInfo.jsonl` / OpBasicInfo freq. **Open:** OpBasicInfo `Rated Freq` / `Current Freq` units (adapter assumes **MHz** like `ai_core_frequency_MHZ`; Hz/GHz would skew peak ×1000).
 
 ### DATA-5 — 1.6 TB/s peak bandwidth
 

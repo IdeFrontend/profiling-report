@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue';
 import { t, type MessageKey } from '../../i18n';
 import type {
   BandwidthCardModel,
-  ComputeSideRow,
   PipeOccupancyItem,
   ReportCapability,
   ReportViewModel,
@@ -57,23 +56,25 @@ const hasSummary = computed(
   () => hasDuration.value || bandwidthUtilSides.value.length > 0,
 );
 const bandwidthView = computed(() =>
-  bandwidthUtilSides.value.map((row, i) => ({
+  bandwidthUtilSides.value.map((row) => ({
     dir: row.dir,
     labelKey: (row.dir === 'read' ? 'bwRead' : 'bwWrite') as MessageKey,
-    score: bandwidthScore(row),
-    barTone: i === 0 ? 'primary' : 'secondary',
-    ratio: `${formatGBs(row.measuredGBs)} / ${formatGBs(row.peakGBs)}`,
+    score: utilScore(row.measuredGBs, row.peakGBs),
+    // COLOR_TOKENS: primary=读, secondary=写 (semantic, not array order).
+    barTone: row.dir === 'write' ? 'secondary' : 'primary',
+    ratio: `${formatMagnitude(row.measuredGBs)} / ${formatMagnitude(row.peakGBs)}`,
     unit: 'GB/s',
     title: `${row.measuredGBs} / ${row.peakGBs} GB/s`,
   })),
 );
 const computeView = computed(() =>
-  (computeCard.value?.sides ?? []).map((row, i) => ({
+  (computeCard.value?.sides ?? []).map((row) => ({
     side: row.side,
     label: row.side === 'aic' ? 'Cube' : 'Vector',
-    score: computeScore(row),
-    barTone: i === 0 ? 'primary' : 'secondary',
-    ratio: `${formatTflops(row.measuredTflops)} / ${formatTflops(row.peakTflops)}`,
+    score: utilScore(row.measuredTflops, row.peakTflops),
+    // COLOR_TOKENS: primary=Cube, secondary=Vector (semantic, not array order).
+    barTone: row.side === 'aiv' ? 'secondary' : 'primary',
+    ratio: `${formatMagnitude(row.measuredTflops)} / ${formatMagnitude(row.peakTflops)}`,
     unit: 'TFLOPS',
     title: `${row.measuredTflops} / ${row.peakTflops} TFLOPS`,
   })),
@@ -232,22 +233,17 @@ function formatPipeAbsolute(v: number): string {
   return v.toFixed(5);
 }
 
-/** UI-34: display measured/peak in GB/s (magnitude rounding). */
-function formatGBs(gbs: number): string {
-  if (gbs >= 10) return gbs.toFixed(1);
-  if (gbs >= 0.01) return gbs.toFixed(2);
-  if (gbs >= 0.001) return gbs.toFixed(3);
-  return gbs.toFixed(4);
+/** UI-34 / DATA-33h: magnitude rounding for GB/s and TFLOPS subtitles. */
+function formatMagnitude(n: number): string {
+  if (n >= 10) return n.toFixed(1);
+  if (n >= 0.01) return n.toFixed(2);
+  if (n >= 0.001) return n.toFixed(3);
+  return n.toFixed(4);
 }
 
-function bandwidthScore(row: { measuredGBs: number; peakGBs: number }): number {
-  if (!(row.peakGBs > 0)) return 0;
-  return Math.min(100, Math.max(0, Math.round((row.measuredGBs / row.peakGBs) * 100)));
-}
-
-function computeScore(row: ComputeSideRow): number {
-  if (!(row.peakTflops > 0)) return 0;
-  return Math.min(100, Math.max(0, Math.round((row.measuredTflops / row.peakTflops) * 100)));
+function utilScore(measured: number, peak: number): number {
+  if (!(peak > 0)) return 0;
+  return Math.min(100, Math.max(0, Math.round((measured / peak) * 100)));
 }
 
 /** Sketch 读|写: collapse input/output × aic|aiv into one mean per direction (DATA-33g). */
@@ -260,18 +256,12 @@ function bandwidthUtilFromCards(
     if (!card || card.sides.length === 0) continue;
     const measuredGBs =
       card.sides.reduce((a, s) => a + s.measuredGBs, 0) / card.sides.length;
+    // ponytail: peak from sides[0] only — safe while DATA-33g peak is the constant 1600 GB/s.
+    // When DATA-5/6 ship per-side peaks, mean/max/pick needs an explicit Product rule.
     const peakGBs = card.sides[0]!.peakGBs;
     out.push({ dir: id === 'input' ? 'read' : 'write', measuredGBs, peakGBs });
   }
   return out;
-}
-
-/** DATA-2..4: magnitude rounding for measured / peak TFLOPS subtitle. */
-function formatTflops(tflops: number): string {
-  if (tflops >= 10) return tflops.toFixed(1);
-  if (tflops >= 0.01) return tflops.toFixed(2);
-  if (tflops >= 0.001) return tflops.toFixed(3);
-  return tflops.toFixed(4);
 }
 
 const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;

@@ -423,6 +423,39 @@ describe('StatsAside', () => {
     expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
   });
 
+  it('PR-STATS-032b: Vector-only / write-only columns use secondary bar hue', () => {
+    const computeOnly = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          computeCard: {
+            sides: [{ side: 'aiv', measuredTflops: 15, peakTflops: 30 }],
+          },
+        }),
+      },
+    });
+    expect(
+      computeOnly.get('[data-testid="stats-compute-aiv-bar"]').classes(),
+    ).toContain('pr-card__bar-fill--secondary');
+
+    const writeOnly = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          bandwidthCards: [
+            {
+              id: 'output',
+              sides: [{ side: 'aiv', measuredGBs: 90, peakGBs: 1600 }],
+            },
+          ],
+        }),
+      },
+    });
+    expect(
+      writeOnly.get('[data-testid="stats-bandwidth-write-bar"]').classes(),
+    ).toContain('pr-card__bar-fill--secondary');
+  });
+
   it('PR-STATS-011: compute/util are N/A placeholders; BW not from summary.ioBandwidth', () => {
     const wrapper = mount(StatsAside, {
       props: {

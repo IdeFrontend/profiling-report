@@ -83,7 +83,7 @@ AICore parallel stays a placeholder until Product defines fields. Card 5 uses in
 | Slot | Interim |
 | --- | --- |
 | Measured | Mean `aic_cube_fops` / `aiv_vec_fops` ÷ mean `aic_time(us)` / `aiv_time(us)` on `ArithmeticUtilization.csv` → TFLOPS (`/ 1e6`) — same basis as roofline DATA-37a |
-| Peak | Cube: `16×sizeof(dtype)×16×core×freq×2/1000`; Vector: `128×core×freq×2/1000`. Cores from `HardwareInfo.jsonl`; freq from jsonl `ai_core_frequency_MHZ` or OpBasicInfo `Rated Freq` / `Current Freq`; `sizeof(dtype)` = **2** (FP16) until dtype in CSV |
+| Peak | Cube: `16×sizeof(dtype)×16×core×freq×2/1000`; Vector: `128×core×freq×2/1000`. Cores from `HardwareInfo.jsonl`; freq from jsonl `ai_core_frequency_MHZ` (confirmed MHz) or OpBasicInfo `Rated Freq` / `Current Freq` **assumed MHz** until Product confirms units (DATA-3); `sizeof(dtype)` = **2** (FP16) until dtype in CSV |
 | Score | `round(measured/peak×100)` clamped 0–100 |
 | Display | TFLOPS with same magnitude rounding as DATA-33g GB/s |
 | Layout | Same raised card chrome as duration. Inner **Cube \| Vector** columns (UI-33; adapter `aic`/`aiv`). Requires `taskDurationUs`; BW-only summary omits this card |

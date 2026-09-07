@@ -337,6 +337,8 @@ function peakTflopsForSide(
   hw: HardwareComputeInputs,
   summary: SummaryMetrics,
 ): number | undefined {
+  // ponytail: OpBasicInfo Rated/Current Freq treated as MHz (same as ai_core_frequency_MHZ).
+  // Units unconfirmed — if reports emit Hz/GHz, peak is off by 1000× (DATA-3). Prefer jsonl MHZ.
   const freqMhz = hw.freqMhz ?? summary.ratedFreq ?? summary.currentFreq;
   if (freqMhz == null || !(freqMhz > 0)) return undefined;
   const freqGhz = freqMhz / 1000;

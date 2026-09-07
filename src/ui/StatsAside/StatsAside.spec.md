@@ -101,6 +101,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 34. **PR-STATS-029** — Stacked body scrolls vertically only (`overflow-x: hidden; overflow-y: auto`); a vertical scrollbar gutter or DPR subpixel must not open a horizontal scrollbar.
 35. **PR-STATS-031** — Duration bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` set; secondary `{blockDim} / {coreCount}`; decorative 15% when `coreCount` absent.
 36. **PR-STATS-032** — Compute card Cube|Vector score bar and TFLOPS subtitle.
+36b. **PR-STATS-032b** — Lone Vector / write columns use secondary bar hue (COLOR_TOKENS semantic, not index).
 
 ## Edge Cases
 
