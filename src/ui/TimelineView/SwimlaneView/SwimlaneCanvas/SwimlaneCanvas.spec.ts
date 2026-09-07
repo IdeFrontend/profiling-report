@@ -1798,6 +1798,10 @@ describe('SwimlaneCanvas', () => {
 
     expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['folder']);
     expect(wrapper.emitted('select')).toBeFalsy();
+    // Summary bar is gone after expand — clear hover so the "N tasks" tooltip dismisses.
+    const hover = wrapper.emitted('hover');
+    expect(hover).toBeTruthy();
+    expect(hover!.at(-1)?.[0]).toBeNull();
     wrapper.unmount();
   });
 

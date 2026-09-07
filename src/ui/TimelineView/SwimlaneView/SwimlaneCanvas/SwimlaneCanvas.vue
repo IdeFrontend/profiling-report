@@ -1663,6 +1663,8 @@ function onPointerUp(e: PointerEvent): void {
         // Summary bars expand their group instead of measuring/selecting.
         const groupId = summaryGroupIdFor(ev.id);
         if (groupId != null) {
+          // Drop the summary tooltip — that bar disappears as the folder expands.
+          emit('hover', null, e.clientX, e.clientY);
           emit('toggle-group', groupId);
           return;
         }
@@ -1732,6 +1734,8 @@ function onPointerUp(e: PointerEvent): void {
   const clicked = eventAtPointer(x, y, mag.eventId);
   const groupId = summaryGroupIdFor(clicked?.id ?? null);
   if (groupId != null) {
+    // Drop the summary tooltip — that bar disappears as the folder expands.
+    emit('hover', null, e.clientX, e.clientY);
     emit('toggle-group', groupId);
     return;
   }
