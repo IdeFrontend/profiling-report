@@ -32,7 +32,8 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 4. **PR-MEMTOP-004** — Hides the diagram when `model` is null/empty.
 5. **PR-MEMTOP-005** — Edge labels update when `model.edges` labels change.
 6. **PR-MEMTOP-006** — GM↔L2 labels sit between GM and L2; L2↔cluster labels sit between L2 and the AIV/AIC cluster (rotated).
-7. **PR-MEMTOP-007** — When `l2.peakPct` is set, shows `{n}%` under L2 Cache (no “Peak” word) and uses flat L2 fill; omit Peak chrome when `peakPct` is absent.
+7. **PR-MEMTOP-007** — When `l2.peakPct` is set, shows `{n}%` under L2 Cache (no “Peak” word) and uses flat L2 fill.
+7b. **PR-MEMTOP-007b** — Omits Peak chrome when `peakPct` is absent.
 8. **PR-MEMTOP-008** — Right-click emits `open-details`.
 
 ## Visual

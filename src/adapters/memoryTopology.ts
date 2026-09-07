@@ -198,6 +198,7 @@ export function buildMemoryTopology(
 ): MemoryTopologyModel | undefined {
   const byFile = new Map(tables.map((t) => [t.fileName, t]));
   const edges: MemoryTopologyModel['edges'] = [];
+  const edgeValues = new Map<string, number>();
 
   for (const spec of EDGE_MAP) {
     let value: number | undefined;
@@ -210,6 +211,7 @@ export function buildMemoryTopology(
       }
       if (value != null) break;
     }
+    if (value != null) edgeValues.set(spec.id, value);
     edges.push({
       id: spec.id,
       from: spec.from,
@@ -220,16 +222,8 @@ export function buildMemoryTopology(
 
   if (!edges.some((e) => e.label != null)) return undefined;
 
-  // DATA-20: L2 Peak(%) = hit rate (DATA-21 interim column order).
-  let peakPct: number | undefined;
-  const l2Row = rowForBlock(byFile.get('L2Cache.csv'), blockId);
-  if (l2Row) {
-    for (const col of L2_HIT_RATE_COLUMNS) {
-      peakPct = parseNumber(l2Row[col]);
-      if (peakPct != null) break;
-    }
-  }
-
+  // DATA-20: L2 Peak(%) = same hit-rate value as the `l2-hit` edge (DATA-21 interim order).
+  const peakPct = edgeValues.get('l2-hit');
   const nodes = NODE_DEFS.map((n) =>
     n.id === 'l2' && peakPct != null ? { ...n, peakPct } : { ...n },
   );
