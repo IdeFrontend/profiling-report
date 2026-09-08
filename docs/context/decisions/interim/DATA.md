@@ -14,11 +14,19 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-32a — Overview series
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** by [DATA-39a](#data-39a--overviewseries-from-samplingjson)
 **Question:** [DATA-39](../../questions/DATA.md) (hide-if-empty already decided: [DATA-32](../DATA.md))
-**Interim:** Adapter returns `overviewSeries: []`; UI **hides** charts (aligns with Product DATA-32).
+**Interim:** ~~Adapter returns `overviewSeries: []`; UI **hides** charts (aligns with Product DATA-32).~~ Superseded: map `Sampling.json` `ph:C` counters per DATA-39a; still `[]` (and hide) when Sampling absent / no counters (DATA-32).
 **Implement / test as:** No fake series from CSV
-**Superseded when:** Product answers DATA-39 (defines `OverviewSeries` source)
+**Superseded when:** — already superseded by DATA-39a
+
+### DATA-39a — OverviewSeries from Sampling.json
+
+**Status:** `interim`
+**Question:** [DATA-39](../../questions/DATA.md)
+**Interim:** Producer embed = product `Sampling.json` (case variants). Emit **one** `OverviewSeries` per distinct Chrome Trace `ph:"C"` counter `name` present (`id` = `label` = `name`). Points: `{ t: ts×1e3 (µs→canonical ns), v: args.value }` for events with a finite `args.value`; points sorted by `t`; series order = first-seen name order. No embed / no `ph:C` → `[]` → hide (DATA-32). Do **not** invent from `PipeUtilization`. Do **not** rename CUBE→Cube / invent Vector or 通信 until Product maps labels.
+**Implement / test as:** `overviewSeriesFromSampling` in adapter; PR-VM-003; `OverviewCharts` tracks
+**Superseded when:** Product confirms name→label map, units, and which counter names are first-class UI tracks
 
 ### DATA-33a — Summary tiles
 

@@ -190,14 +190,14 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 <img src="../visual/questions/data-39.png" alt="DATA-39 OverviewSeries / 统计分析 tracks" width="900" height="225">
 
-**Status:** `open` + `interim`
+**Status:** `interim`
 
 **Question:** Which `.npu-rep` embed and fields produce `ReportViewModel.overviewSeries` for the 统计分析 tracks (Cube / Vector, and any third track such as 通信)? Confirm event shape, name→label map, value units, and time alignment with the swimlane.
 
 **Answer so far:**
 - **Hide if empty** is already decided ([DATA-32](../decisions/DATA.md)); do not invent series from `PipeUtilization` ratios.
-- Interim: adapter returns `overviewSeries: []` ([DATA-32a](../decisions/interim/DATA.md)).
-- Candidate (not Product-confirmed): product `Sampling.json` Chrome Trace `ph:"C"` counters (`cat:"util"`, `args.value`). In [`vector_muladd_plain.npu-rep`](../../../data/vector_muladd_plain.npu-rep): `CUBE` / `SCALAR` / `MTE1` / `MTE2` / `FIXP` present; **no** `Vector` or 通信 series.
-- VIEW_DATA_MAPPING §11.2.7 docx stubs are illustrative only; provenance open under this question.
+- **Source (Product):** product `Sampling.json` Chrome Trace `ph:"C"` counters (`args.value`).
+- **Tracks (interim [DATA-39a](../decisions/interim/DATA.md)):** one series per distinct counter `name` present (`id`/`label` = name; `t` = `ts` µs→ns). Fixture [`vector_muladd_plain.npu-rep`](../../../data/vector_muladd_plain.npu-rep) yields `CUBE` / `SCALAR` / `MTE1` / `MTE2` / `FIXP` — **no** `Vector` or 通信 until Product maps labels.
+- Still open: display name glossary (CUBE→Cube?), units of `args.value`, whether 通信 is a first-class track.
 
 **Specs when answered:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §3, [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.7, [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [view-models](../../../specs/core/view-models.spec.md).

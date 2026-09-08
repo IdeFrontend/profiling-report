@@ -107,9 +107,9 @@ Op name/type, task duration, optional raw frequency / `coreCount` / meta fields.
 
 ### `OverviewSeries` (M)
 
-`{ id, label, points: { t, v }[] }` for Cube/Vector overview charts.
+`{ id, label, points: { t, v }[] }` for overview chart tracks. Filled from product `Sampling.json` `ph:C` counters ([DATA-39a](../context/decisions/interim/DATA.md)) — one series per counter name.
 
-**Why:** Isolates [DATA-32](../context/decisions/DATA.md) (time-series source). `OverviewCharts` hides when the array is empty instead of blocking MVP.
+**Why:** Isolates the time-series source from PIPE ratios ([DATA-32](../context/decisions/DATA.md)). `OverviewCharts` hides when the array is empty.
 
 ### `SwimlaneViewState` (M / M2)
 
@@ -221,9 +221,9 @@ Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times a
 
 ### `OverviewCharts` (M)
 
-Renders `OverviewSeries` (Cube/Vector); **hidden** when empty.
+Renders `OverviewSeries` (one track per series); **hidden** when empty ([DATA-32](../context/decisions/DATA.md) / [DATA-39a](../context/decisions/interim/DATA.md)).
 
-**Why:** MVP feature in sketches; hiding when empty avoids blocking on unresolved series math (DATA-32).
+**Why:** MVP feature in sketches; Sampling counters drive tracks when present.
 
 ### `SwimlaneCanvas` (M / M2)
 

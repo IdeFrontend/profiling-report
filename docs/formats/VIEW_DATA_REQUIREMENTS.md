@@ -57,9 +57,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 **Product decision (DATA-32):** If no `OverviewSeries` → **hide** the chart region entirely. Do **not** invent series from `PipeUtilization` ratios.
 
-**Open ([DATA-39](../context/questions/DATA.md)):** Producer embed/fields for Cube / Vector (and any 通信) overview series — event shape, name→label map, units, swimlane time alignment — still unanswered.
-
-**Interim ([DATA-32a](../context/decisions/interim/DATA.md)):** Adapter returns `overviewSeries: []` on current fixtures; charts stay hidden until Product answers DATA-39.
+**Producer ([DATA-39](../context/questions/DATA.md) / interim [DATA-39a](../context/decisions/interim/DATA.md)):** Fill `overviewSeries` from product `Sampling.json` Chrome Trace `ph:"C"` counters — **one track per distinct `name`**, `id`/`label` = `name`, `points[{t,v}]` from `ts` (µs→canonical ns) and `args.value`. Empty when Sampling absent or no counters. Display-name glossary / units / 通信 still open under DATA-39.
 
 ---
 
@@ -227,7 +225,7 @@ Data contracts still open (UI-37). Do not block Timeline MVP.
 | `Memory*.csv` | Memory detail tabs; M2 topology edge labels; DATA-33g I/O bandwidth cards |
 | `L2Cache.csv` | Memory detail L2Cache tab; topology hit-rate label |
 | `ResourceConflictRatio.csv` | Compute detail tab |
-| `OverviewSeries` (producer TBD — [DATA-39](../context/questions/DATA.md)) | Overview charts |
+| `Sampling.json` → `OverviewSeries` ([DATA-39a](../context/decisions/interim/DATA.md)) | Overview charts |
 | Host metadata | Theme, locale, time-unit prefs; 查看全部 CSV tab; future hardware |
 
 ---

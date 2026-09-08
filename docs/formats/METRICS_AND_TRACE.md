@@ -75,7 +75,7 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 **MVP aggregation ([DATA-33b](../context/decisions/interim/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md). Superseded when DATA-33 / data spec says otherwise.
 
-**Overview Cube/Vector charts:** Product decision ([DATA-32](../context/decisions/DATA.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
+**Overview charts:** Fill `OverviewSeries` from product `Sampling.json` `ph:"C"` counters — one track per distinct `name` ([DATA-39a](../context/decisions/interim/DATA.md)). **Hide** when empty ([DATA-32](../context/decisions/DATA.md)). Do **not** derive from PipeUtilization ratios.
 
 **Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 
@@ -174,7 +174,7 @@ The sample `out.rep` trace is a **single-channel AIV pipe-state busy timeline**,
 | Instruction names on bars | Marker / busy names | Show event `name`; richer labels when future traces include them |
 | ProfilerStep bands | Not in sample | Phase 2 / when args or counter tracks exist |
 | Dependencies | Not in sample | Phase 2; parse when predecessor/successor args appear |
-| Overview Cube/Vector series | Not in sample | **Hide** charts ([DATA-32](../context/decisions/DATA.md)) |
+| Overview Cube/Vector series | `Sampling.json` `ph:C` when present ([DATA-39a](../context/decisions/interim/DATA.md)); else hide ([DATA-32](../context/decisions/DATA.md)) | Map counters → tracks; hide if empty |
 
 Writers of `.rep` files should eventually emit nested models matching the Card hierarchy. Until then, the viewer remains useful on pipe-state traces like the fixture.
 

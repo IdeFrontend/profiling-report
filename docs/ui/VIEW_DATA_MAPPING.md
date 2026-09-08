@@ -298,9 +298,9 @@ Treat as illustrative only (invalid JSON / stub series).
 
 ### Visualization logic
 
-- Collapsible section with synchronized **Cube** and **Vector** area charts over time.
+- Collapsible section with synchronized area charts over time (one track per series).
 - Shared time axis with a vertical scrubber aligned to the Kernel timeline below.
-- Series provenance not specified in docx; candidates: aggregated pipe busy from timeline events, or derived block time series (e.g. product `Sampling.json` `ph:"C"`). Open question: **[DATA-39](../context/questions/DATA.md)** — which embed/fields fill `OverviewSeries` (hide-if-empty remains [DATA-32](../context/decisions/DATA.md) / interim [DATA-32a](../context/decisions/interim/DATA.md)).
+- **Producer (interim [DATA-39a](../context/decisions/interim/DATA.md)):** product `Sampling.json` `ph:"C"` counters → `OverviewSeries` (one track per counter `name`; hide if empty — [DATA-32](../context/decisions/DATA.md)). Display labels / 通信 / units still open under [DATA-39](../context/questions/DATA.md).
 
 ---
 

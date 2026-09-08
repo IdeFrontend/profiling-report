@@ -46,7 +46,7 @@ Toolbar sits **only** above the timeline (main column). StatsAside starts at the
 - Vertical playhead / scrubber with precise timestamp (e.g. `00:06.456`)
 - **统计分析**: stacked area/line charts for **Cube** (blue) and **Vector** (teal), time-aligned with the swimlane
 
-**MVP:** time axis + zoom-linked overview charts **only when** `OverviewSeries` is present; otherwise **hide** the chart region (Product [DATA-32](../context/decisions/DATA.md)). See [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md).
+**MVP:** time axis + zoom-linked overview charts from `Sampling.json` `ph:C` ([DATA-39a](../context/decisions/interim/DATA.md)) when `OverviewSeries` is present; otherwise **hide** ([DATA-32](../context/decisions/DATA.md)). See [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md).
 
 ### 3. Left lane hierarchy
 

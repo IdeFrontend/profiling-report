@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { adaptRep, parseRep } from '../../src/index';
+import { adaptPayloads, adaptRep, loadReportSource, parseNpuRep160, parseRep } from '../../src/index';
 import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../src/adapters/memoryTopology';
-import { loadOutRepBytes } from '../helpers/fixtures';
+import { loadOutRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import type { CsvTableModel } from '../../src/domain/types';
 
 describe('PR-VM: report view-models (interim)', () => {
@@ -90,9 +90,34 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(pipeLane?.utilization).toBeCloseTo(byId.vector.ratio, 5);
   });
 
-  it('PR-VM-003 (interim DATA-32a): overviewSeries empty — not invented from PipeUtilization', () => {
-    const adapted = adaptRep(parseRep(loadOutRepBytes()));
-    expect(adapted.reportModel.overviewSeries).toEqual([]);
+  it('PR-VM-003 (DATA-39a): Sampling.json ph:C → one track per name; empty without Sampling; not from PipeUtilization', () => {
+    const without = adaptRep(parseRep(loadOutRepBytes()));
+    expect(without.reportModel.overviewSeries).toEqual([]);
+
+    const withSampling = loadReportSource(loadVectorMuladdNpuRepBytes());
+    const series = withSampling.reportModel.overviewSeries;
+    expect(series.length).toBeGreaterThan(0);
+    expect(series.map((s) => s.id)).toEqual(expect.arrayContaining(['CUBE']));
+    expect(series.every((s) => s.id === s.label)).toBe(true);
+
+    const cube = series.find((s) => s.id === 'CUBE')!;
+    expect(cube.points.length).toBeGreaterThan(0);
+    for (const p of cube.points) {
+      expect(Number.isFinite(p.t)).toBe(true);
+      expect(Number.isFinite(p.v)).toBe(true);
+    }
+    // Sampling ts is µs (same as PipeTrace); overview t is canonical ns.
+    expect(cube.points.some((p) => p.t >= 1000)).toBe(true);
+
+    const swim = withSampling.swimlaneModel!;
+    const maxT = Math.max(...series.flatMap((s) => s.points.map((p) => p.t)));
+    expect(maxT).toBeLessThanOrEqual(swim.maxTime * 1.05 + 1);
+
+    // Stripping Sampling must not invent series from remaining PipeUtilization.
+    const payloads = { ...parseNpuRep160(loadVectorMuladdNpuRepBytes()).payloads };
+    delete payloads['Sampling.json'];
+    delete payloads['sampling.json'];
+    expect(adaptPayloads(payloads).reportModel.overviewSeries).toEqual([]);
   });
 
   it('PR-VM-005: pipe occupancy items are side-specific (no AIC/AIV blend)', () => {
