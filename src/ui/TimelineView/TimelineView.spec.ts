@@ -95,6 +95,32 @@ describe('TimelineView', () => {
     );
   });
 
+  it('PR-OV-003: overview charts mount above swimlane (axis → overview → swim)', () => {
+    const wrapper = mount(TimelineView, {
+      props: {
+        ...baseProps(),
+        showOverviewCharts: true,
+        overviewSeries: [
+          { id: 'CUBE', label: 'CUBE', points: [{ t: 0, v: 1 }, { t: 1000, v: 2 }] },
+        ],
+      },
+    });
+    const root = wrapper.get('[data-testid="timeline-view"]').element;
+    const axis = wrapper.get('[data-testid="time-axis"]').element;
+    const overview = wrapper.get('[data-testid="overview-charts"]').element;
+    const swim = wrapper.get('[data-testid="swimlane"]').element;
+    const kids = [...root.children] as HTMLElement[];
+    // Axis lives inside a head row; find the top-level rows that contain each.
+    const axisRow = kids.find((el) => el.contains(axis));
+    const overviewRow = kids.find((el) => el === overview || el.contains(overview));
+    const swimRow = kids.find((el) => el === swim || el.contains(swim));
+    expect(axisRow).toBeTruthy();
+    expect(overviewRow).toBeTruthy();
+    expect(swimRow).toBeTruthy();
+    expect(kids.indexOf(axisRow!)).toBeLessThan(kids.indexOf(overviewRow!));
+    expect(kids.indexOf(overviewRow!)).toBeLessThan(kids.indexOf(swimRow!));
+  });
+
   it('PR-TIMELINE-002: measure mode keeps overview and draws axis bars + arrow', () => {
     stubAxisWidth(400);
     const view = createViewState({
