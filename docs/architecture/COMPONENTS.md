@@ -245,7 +245,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore parallel placeholder, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore parallel placeholder, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
@@ -275,7 +275,7 @@ Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops
 
 ### `MemoryTopologyPanel` (M2)
 
-Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5). Mounted on the stacked 报告统计 below PIPE; **详情** opens the memory CSV overlay.
+Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5). Mounted on the stacked 报告统计 below PIPE and again in the root **全屏** overlay; stacked **详情** / right-click open the memory CSV overlay; overlay right-click does not.
 
 **Why:** Geometry stays in the SVG asset; labels from adapter mapping table.
 

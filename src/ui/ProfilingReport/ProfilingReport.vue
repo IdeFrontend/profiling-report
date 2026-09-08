@@ -23,6 +23,7 @@ import {
   type AdaptedReport,
   type DependencyMode,
   type MeasureRange,
+  type MemoryTopologyModel,
   type ReportCapability,
   type ReportOperator,
   type ReportViewModel,
@@ -55,6 +56,7 @@ import {
 import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
+import MemoryTopologyPanel from '../StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
 import { animateViewWindow } from '../TimelineView/animateViewWindow';
 import TimelineView from '../TimelineView/TimelineView.vue';
@@ -128,6 +130,9 @@ const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const dockExpanded = ref(false);
+const topologyFullscreen = ref(false);
+const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
+const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
@@ -308,6 +313,7 @@ function resetViewFromModel(
   selected.value = null;
   selectedEvent.value = null;
   hovered.value = null;
+  closeTopologyFullscreen();
   // Operator switches keep session gutter/aside preferences; fresh loads reset them.
   if (!opts?.preservePanelWidths) resetPanelWidthsToDefaults();
   const fromMeta = model?.metadata?.defaultCollapsedIds;
@@ -436,6 +442,17 @@ function applyAdapted(adapted: AdaptedReport) {
   emit('ready');
 }
 
+function closeTopologyFullscreen() {
+  topologyFullscreen.value = false;
+  fullscreenTopology.value = null;
+}
+
+function onOpenTopologyFullscreen(model: MemoryTopologyModel) {
+  fullscreenTopology.value = model;
+  topologyFullscreen.value = true;
+  void nextTick(() => fullscreenBackRef.value?.focus());
+}
+
 function failLoad(cause: unknown) {
   operators.value = [];
   operatorReports.value = {};
@@ -447,6 +464,7 @@ function failLoad(cause: unknown) {
   selectedEvent.value = null;
   hovered.value = null;
   viewState.value = createViewState(null);
+  closeTopologyFullscreen();
   loadError.value = cause instanceof Error ? cause.message : String(cause);
   emit('error', { message: loadError.value, cause });
 }
@@ -488,6 +506,7 @@ watch(
     internalSwim.value = null;
     internalReport.value = null;
     internalCapabilities.value = null;
+    closeTopologyFullscreen();
   },
   { immediate: true },
 );
@@ -498,6 +517,13 @@ watch(
     if (m && !props.source) {
       resetViewFromModel(m, reportHasAsideContent(props.reportModel ?? report.value));
     }
+  },
+);
+
+watch(
+  report,
+  () => {
+    closeTopologyFullscreen();
   },
 );
 
@@ -534,6 +560,13 @@ function onGlobalKeydown(e: KeyboardEvent) {
     viewState.value = clearMeasure(viewState.value);
     return;
   }
+  if (e.key === 'Escape' && topologyFullscreen.value) {
+    e.preventDefault();
+    closeTopologyFullscreen();
+    return;
+  }
+  // Overlay covers the timeline; WASD must not pan/zoom the hidden view.
+  if (topologyFullscreen.value) return;
   if (!showTimeline.value) return;
   // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
   // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
@@ -901,6 +934,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @open-hardware-details="emit('open-hardware-details')"
           @open-pipe-details="emit('open-pipe-details')"
           @open-cannbot="onCannbot"
+          @open-topology-fullscreen="onOpenTopologyFullscreen"
         />
       </template>
     </ReportLayout>
@@ -912,6 +946,58 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     >
       {{ t('noTimeline', locale) }}
     </p>
+
+    <div
+      v-if="topologyFullscreen && fullscreenTopology"
+      class="pr-topo-fs"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pr-topo-fs-title"
+      data-testid="topology-fullscreen-overlay"
+    >
+      <div class="pr-topo-fs__head">
+        <button
+          ref="fullscreenBackRef"
+          type="button"
+          class="pr-topo-fs__back"
+          data-testid="topology-fullscreen-back"
+          :aria-label="t('back', locale)"
+          :title="t('back', locale)"
+          @click="closeTopologyFullscreen"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            aria-hidden="true"
+          >
+            <path
+              d="M10 3.5L4.5 8 10 12.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M5 8h8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+        <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
+      </div>
+      <div class="pr-topo-fs__body">
+        <MemoryTopologyPanel
+          :model="fullscreenTopology"
+          :locale="locale"
+          :open-details-on-contextmenu="false"
+        />
+      </div>
+    </div>
 
     <Transition name="pr-dock">
       <DetailPanel
@@ -965,5 +1051,76 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   padding: 6px 10px;
   color: #f88;
   flex: 0 0 auto;
+}
+
+.pr-topo-fs {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 12px;
+  background: var(--pr-bg-deep);
+}
+
+.pr-topo-fs__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.pr-topo-fs__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #ffffff;
+}
+
+.pr-topo-fs__back {
+  appearance: none;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #e6e6e6;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.pr-topo-fs__back:hover {
+  color: #ffffff;
+}
+
+.pr-topo-fs__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pr-topo-fs__body :deep(.pr-topo) {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.pr-topo-fs__body :deep(.pr-topo__svg) {
+  width: 100%;
+  height: 100%;
 }
 </style>

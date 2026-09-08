@@ -1,16 +1,25 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, useId } from 'vue';
 import type { MemoryTopologyModel } from '../../../domain/types';
 import { t } from '../../../i18n';
 
-const props = defineProps<{
-  model: MemoryTopologyModel | null | undefined;
-  locale?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    model: MemoryTopologyModel | null | undefined;
+    locale?: string;
+    /** UI-35: stacked diagram right-click. Fullscreen overlay turns this off. */
+    openDetailsOnContextmenu?: boolean;
+  }>(),
+  { openDetailsOnContextmenu: true },
+);
 
 const emit = defineEmits<{
   'open-details': [];
 }>();
+
+const uid = useId().replace(/[^A-Za-z0-9_-]/g, '');
+const writeMarker = `pr-topo-write-${uid}`;
+const readMarker = `pr-topo-read-${uid}`;
 
 const show = computed(() => {
   const m = props.model;
@@ -26,7 +35,7 @@ const l2PeakPct = computed(() => props.model?.nodes.find((n) => n.id === 'l2')?.
 
 function onContextMenu(e: MouseEvent) {
   e.preventDefault();
-  emit('open-details');
+  if (props.openDetailsOnContextmenu) emit('open-details');
 }
 
 /** Pillars + clusters leave GM↔L2 and L2↔cluster corridors for rotated GB/s labels. */
@@ -64,7 +73,7 @@ function rot(x: number, y: number): string {
     >
       <defs>
         <marker
-          id="pr-topo-write"
+          :id="writeMarker"
           markerWidth="6"
           markerHeight="6"
           refX="5"
@@ -77,7 +86,7 @@ function rot(x: number, y: number): string {
           />
         </marker>
         <marker
-          id="pr-topo-read"
+          :id="readMarker"
           markerWidth="6"
           markerHeight="6"
           refX="5"
@@ -176,12 +185,12 @@ function rot(x: number, y: number): string {
       <path
         :d="`M ${GM.x + GM.w} 176 L ${L2.x} 176`"
         class="pr-topo__arrow-read"
-        marker-end="url(#pr-topo-read)"
+        :marker-end="`url(#${readMarker})`"
       />
       <path
         :d="`M ${L2.x} 252 L ${GM.x + GM.w} 252`"
         class="pr-topo__arrow-write"
-        marker-end="url(#pr-topo-write)"
+        :marker-end="`url(#${writeMarker})`"
       />
       <text
         v-if="label('gm-l2-read')"
@@ -291,12 +300,12 @@ function rot(x: number, y: number): string {
       <path
         :d="`M ${L2.x + L2.w} ${ry('aiv0', 72)} L ${CL.x} ${ry('aiv0', 72)}`"
         class="pr-topo__arrow-write"
-        marker-end="url(#pr-topo-write)"
+        :marker-end="`url(#${writeMarker})`"
       />
       <path
         :d="`M ${CL.x} ${ry('aiv0', 100)} L ${L2.x + L2.w} ${ry('aiv0', 100)}`"
         class="pr-topo__arrow-read"
-        marker-end="url(#pr-topo-read)"
+        :marker-end="`url(#${readMarker})`"
       />
       <text
         v-if="label('l2-ub')"
@@ -450,12 +459,12 @@ function rot(x: number, y: number): string {
       <path
         :d="`M ${L2.x + L2.w} ${ry('aic', 72)} L ${CL.x} ${ry('aic', 72)}`"
         class="pr-topo__arrow-write"
-        marker-end="url(#pr-topo-write)"
+        :marker-end="`url(#${writeMarker})`"
       />
       <path
         :d="`M ${CL.x} ${ry('aic', 100)} L ${L2.x + L2.w} ${ry('aic', 100)}`"
         class="pr-topo__arrow-read"
-        marker-end="url(#pr-topo-read)"
+        :marker-end="`url(#${readMarker})`"
       />
       <text
         v-if="label('l2-l1-read')"
@@ -630,12 +639,12 @@ function rot(x: number, y: number): string {
       <path
         :d="`M ${L2.x + L2.w} ${ry('aiv1', 72)} L ${CL.x} ${ry('aiv1', 72)}`"
         class="pr-topo__arrow-write"
-        marker-end="url(#pr-topo-write)"
+        :marker-end="`url(#${writeMarker})`"
       />
       <path
         :d="`M ${CL.x} ${ry('aiv1', 100)} L ${L2.x + L2.w} ${ry('aiv1', 100)}`"
         class="pr-topo__arrow-read"
-        marker-end="url(#pr-topo-read)"
+        :marker-end="`url(#${readMarker})`"
       />
       <text
         v-if="label('l2-ub')"

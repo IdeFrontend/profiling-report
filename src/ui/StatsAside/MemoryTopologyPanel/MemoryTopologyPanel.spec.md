@@ -8,11 +8,11 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 
 ## Inputs
 
-**model** — `MemoryTopologyModel` (`nodes` + `edges`; each edge carries an optional data-driven `label`). Optional **locale**. Parent `StatsAside` owns block switching and rebuilds **model** via `buildMemoryTopology`.
+**model** — `MemoryTopologyModel` (`nodes` + `edges`; each edge carries an optional data-driven `label`). Optional **locale**. Optional **openDetailsOnContextmenu** (default true): stacked diagram keeps UI-35; the root fullscreen overlay passes `false`. Parent `StatsAside` owns block switching and rebuilds **model** via `buildMemoryTopology`.
 
 ## Outputs
 
-**open-details** — UI-35: right-click on the diagram opens the parent memory CSV overlay (same as **详情**).
+**open-details** — UI-35: right-click on the stacked diagram opens the parent memory CSV overlay (same as **详情**). Not emitted when `openDetailsOnContextmenu` is false (fullscreen overlay).
 
 ## Behavior
 
@@ -22,7 +22,8 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 4. Edge thickness stays static (not data-driven).
 5. Hide the diagram (empty root) when `model` is absent or has no labelled edges.
 6. **L2 Peak(%) (DATA-20):** when the `l2` node has `peakPct`, show `{n}%` under **L2 Cache** on the pillar (sketch: no “Peak” word, no warm tint; flat L2 fill). Hide the separate `l2-hit` edge label when Peak is shown (same value). Other units have no Peak until Product maps them.
-7. **Right-click (UI-35):** `contextmenu` on the diagram emits `open-details` (prevent default). Parent opens the memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0).
+7. **Right-click (UI-35):** `contextmenu` on the diagram prevent-defaults. When `openDetailsOnContextmenu` is true (stacked aside), emit `open-details` so the parent opens the memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0). When false (root fullscreen overlay), do not emit; overlay stays open.
+8. Fullscreen chrome (Back, **全屏** control) lives on `ProfilingReport` / `StatsAside`; this panel stays presentational.
 
 ## Acceptance Criteria
 
@@ -35,6 +36,7 @@ Static memory-path topology diagram with **data-driven Buffer-link labels** (cha
 7. **PR-MEMTOP-007** — When `l2.peakPct` is set, shows `{n}%` under L2 Cache (no “Peak” word) and uses flat L2 fill.
 7b. **PR-MEMTOP-007b** — Omits Peak chrome when `peakPct` is absent.
 8. **PR-MEMTOP-008** — Right-click emits `open-details`.
+8b. **PR-MEMTOP-008b** — Right-click does not emit when `openDetailsOnContextmenu` is false.
 
 ## Visual
 
@@ -64,6 +66,7 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 DATA-20 (L2 Peak), DATA-21, DATA-33c, UI-35, UI-38, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
+- **2026-09-08** — Same panel in the root fullscreen overlay; overlay passes `openDetailsOnContextmenu: false` so right-click does not emit (PR-MEMTOP-008b).
 - **2026-09-07** — Match `report-stats-scrolled` colors (cache/compute/L2/arrows/dash); L2 Peak as `{n}%` without tint; CUBE/LOC/FixP roles.
 - **2026-09-07** — L2 Peak(%) from `peakPct` (DATA-20) + right-click `open-details` (UI-35).
 - **2026-08-21** — GM↔L2 arrows: read = leaving GM (GM→L2 gold), write = arriving at GM (L2→GM blue).

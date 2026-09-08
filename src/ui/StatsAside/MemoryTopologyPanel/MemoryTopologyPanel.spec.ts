@@ -147,4 +147,12 @@ describe('MemoryTopologyPanel', () => {
     await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
     expect(wrapper.emitted('open-details')).toHaveLength(1);
   });
+
+  it('PR-MEMTOP-008b: right-click does not emit when openDetailsOnContextmenu is false', async () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model, openDetailsOnContextmenu: false },
+    });
+    await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toBeUndefined();
+  });
 });

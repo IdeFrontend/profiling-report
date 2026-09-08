@@ -43,6 +43,22 @@ function depsModel(): SwimlaneModel {
   };
 }
 
+function topologyReport() {
+  return {
+    ...emptyReportViewModel(),
+    summary: { taskDurationUs: 1 },
+    memoryTables: [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+        blockIds: ['0'],
+      },
+    ],
+    csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+  };
+}
+
 describe('ProfilingReport scaffold', () => {
   it('PR-ROOT-001, PR-SCAFFOLD-003: mounts report root with timeline chrome', () => {
     const wrapper = mount(ProfilingReport, {
@@ -448,6 +464,97 @@ describe('ProfilingReport scaffold', () => {
     const summaryPayload = all[1]![0] as CannbotPayload;
     expect(summaryPayload.scope).toBe('summary');
     expect((summaryPayload.data.summary as { opName?: string }).opName).toBe('matmul_v3');
+  });
+
+  it('PR-ROOT-009: topology 全屏 covers .pr-root; Back closes; layout stays mounted', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'topo-fs',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(topologyReport()),
+      },
+    });
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    expect(wrapper.get('[data-testid="profiling-report"]').element.contains(overlay.element)).toBe(
+      true,
+    );
+    expect(overlay.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-layout').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="no-timeline"]')).toHaveLength(0);
+    const markerIds = wrapper
+      .findAll('[data-testid="memory-topology-panel"] marker')
+      .map((m) => m.attributes('id'));
+    expect(wrapper.findAll('[data-testid="memory-topology-panel"]').length).toBe(2);
+    expect(markerIds.length).toBeGreaterThan(1);
+    expect(new Set(markerIds).size).toBe(markerIds.length);
+    await wrapper.get('[data-testid="topology-fullscreen-back"]').trigger('click');
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    expect(wrapper.find('.pr-layout').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="no-timeline"]')).toHaveLength(0);
+
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+    await wrapper.setProps({
+      reportModel: markRaw({ ...topologyReport(), summary: { taskDurationUs: 99 } }),
+    });
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-010: overlay right-click stays fullscreen and does not open memory CSV', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'topo-fs-details',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(topologyReport()),
+      },
+    });
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    await wrapper
+      .get('[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]')
+      .trigger('contextmenu');
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-011: overlay dialog Escape closes; WASD leave the viewport idle', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const wrapper = mount(ProfilingReport, {
+      attachTo: host,
+      props: {
+        title: 'topo-fs-keys',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(topologyReport()),
+      },
+    });
+    try {
+      await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+      await nextTick();
+      const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+      expect(overlay.attributes('role')).toBe('dialog');
+      expect(overlay.attributes('aria-modal')).toBe('true');
+      expect(overlay.attributes('aria-labelledby')).toBe('pr-topo-fs-title');
+      expect(document.activeElement).toBe(
+        wrapper.get('[data-testid="topology-fullscreen-back"]').element,
+      );
+
+      const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
+      expect(span()).toBe(1000);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+      await nextTick();
+      expect(span()).toBe(1000);
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await nextTick();
+      expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    } finally {
+      wrapper.unmount();
+      host.remove();
+    }
   });
 
   it('PR-VIEW-016/017: W/S/A/D keys zoom and pan the timeline', async () => {

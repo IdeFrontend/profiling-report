@@ -1048,6 +1048,78 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('MemoryL1');
   });
 
+  it('PR-STATS-033: 全屏 next to 详情 when topology shown; hidden when diagram hidden', () => {
+    const withTopo = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+        }),
+      },
+    });
+    const actions = withTopo.get('[data-testid="stats-topology"] .pr-pipe-head__actions');
+    const fullscreen = withTopo.get('[data-testid="topology-fullscreen"]');
+    expect(actions.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
+      'cannbot-memory',
+      'topology-fullscreen',
+      'topology-details',
+    ]);
+    expect(fullscreen.find('svg').exists()).toBe(true);
+    expect(fullscreen.attributes('aria-label')).toBe('全屏');
+
+    const without = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': 'NA' }],
+              blockIds: ['0'],
+            },
+          ],
+        }),
+      },
+    });
+    expect(without.find('[data-testid="topology-fullscreen"]').exists()).toBe(false);
+    expect(without.find('[data-testid="topology-details"]').exists()).toBe(true);
+  });
+
+  it('PR-STATS-034: 全屏 emits open-topology-fullscreen; does not open CSV overlay', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    const emitted = wrapper.emitted('open-topology-fullscreen');
+    expect(emitted).toHaveLength(1);
+    expect(emitted![0]![0]).toMatchObject({
+      edges: expect.arrayContaining([expect.objectContaining({ label: expect.any(String) })]),
+    });
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(false);
+  });
+
   it('PR-STATS-025: aside shell is black; roofline / PIPE / topology islands are grey', async () => {
     const src = (await import('./StatsAside.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-aside\s*\{[^}]*background:\s*var\(--pr-bg-aside\)/s);
