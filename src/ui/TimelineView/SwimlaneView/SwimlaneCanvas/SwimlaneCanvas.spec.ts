@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
+import { CanvasSwimlaneRenderer } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
 
 /** ResizeObservers created during a test — call `fireAllDeviceRo()` after setting wrap client size. */
@@ -1983,6 +1984,43 @@ describe('SwimlaneCanvas', () => {
     const scroll = wrapper.emitted('scroll-y');
     expect(scroll).toBeTruthy();
     expect(scroll!.length).toBeGreaterThan(0);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-071: inbound hoveredLaneId calls setHoveredLane without re-emitting', async () => {
+    const setHoveredLane = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setHoveredLane');
+    const render = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'render');
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    });
+    const wrapper = mount(SwimlaneCanvas, {
+      props: { ...nullProps, preferRenderer: 'canvas' as const },
+    });
+    await nextTick();
+    // Force paint gate open — RO stub may leave lastDeviceW at 0 in this mount.
+    Object.defineProperty(wrapper.get('[data-testid="swimlane"]').element, 'clientWidth', {
+      value: 200,
+      configurable: true,
+    });
+    Object.defineProperty(wrapper.get('[data-testid="swimlane"]').element, 'clientHeight', {
+      value: 100,
+      configurable: true,
+    });
+    await fireAllDeviceRo();
+    setHoveredLane.mockClear();
+    render.mockClear();
+
+    await wrapper.setProps({ hoveredLaneId: 'lane-1' });
+    await nextTick();
+    expect(setHoveredLane).toHaveBeenCalledWith('lane-1');
+    expect(render).toHaveBeenCalled();
+    expect(wrapper.emitted('lane-hover')).toBeUndefined();
+
+    await wrapper.setProps({ hoveredLaneId: null });
+    await nextTick();
+    expect(setHoveredLane).toHaveBeenCalledWith(null);
+    expect(wrapper.emitted('lane-hover')).toBeUndefined();
     wrapper.unmount();
   });
 });

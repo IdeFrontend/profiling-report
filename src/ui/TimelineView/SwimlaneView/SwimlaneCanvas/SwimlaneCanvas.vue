@@ -20,7 +20,7 @@ import {
   findExactEdgeMatchesAt,
   findHoverGap,
   LANE_HEIGHT,
-  leafLaneIdAtPoint,
+  laneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
   summaryFolderId,
@@ -82,6 +82,11 @@ const props = withDefaults(
     altMeasureRole?: 'body' | 'strip' | 'solo';
     /** Leaf lane ids currently in the sticky strip (informational; ownership uses surfaces). */
     pinnedLaneIds?: string[];
+    /**
+     * Shared whole-lane hover from parent (gutter pointer or sibling canvas).
+     * Track paint follows this when it differs from the local pointer hit.
+     */
+    hoveredLaneId?: string | null;
   }>(),
   {
     dependencyMode: 'all',
@@ -91,13 +96,14 @@ const props = withDefaults(
     cursorSnapped: false,
     altMeasureRole: 'solo',
     pinnedLaneIds: () => [],
+    hoveredLaneId: null,
   },
 );
 
 const emit = defineEmits<{
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
-  /** Leaf lane under pointer Y — gutter header highlight only (not pin). */
+  /** Lane under pointer Y — gutter header highlight (not pin). */
   'lane-hover': [laneId: string | null];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
@@ -114,21 +120,37 @@ const emit = defineEmits<{
 /**
  * Track-side half of the lane hover (AC-07); the gutter row is the other half.
  *
- * Held here rather than round-tripped through the parent because the renderers need it
- * on the same pointermove that emits it, and painted by them rather than laid over the
- * canvas as a DOM band: an overlay would tint the events it crosses, and hover on an
- * event already means something else (AC-08's lifted fill).
+ * Canvas pointer updates this locally on the same pointermove (renderers need it
+ * immediately), then emits to the parent for the gutter. Gutter pointer updates
+ * arrive via the `hoveredLaneId` prop and apply without re-emitting.
+ * Painted by the renderers rather than a DOM band over the canvas: an overlay
+ * would tint the events it crosses, and hover on an event already means something
+ * else (AC-08's lifted fill).
  */
-const hoveredLaneId = ref<string | null>(null);
+const trackHoveredLaneId = ref<string | null>(null);
 
-function emitLaneHover(localY: number | null): void {
-  const id = localY == null ? null : leafLaneIdAtPoint(backend.getLayout(), props.view, localY);
-  hoveredLaneId.value = id;
+function applyLaneHover(id: string | null): void {
+  trackHoveredLaneId.value = id;
   backend.setHoveredLane?.(id);
   // Overlay underpaint must see the same hovered row as the GL background pass.
   if (useWebGl.value) overlay.setHoveredLane(id);
+}
+
+function emitLaneHover(localY: number | null): void {
+  const id = localY == null ? null : laneIdAtPoint(backend.getLayout(), props.view, localY);
+  applyLaneHover(id);
   emit('lane-hover', id);
 }
+
+watch(
+  () => props.hoveredLaneId ?? null,
+  (id) => {
+    if (id === trackHoveredLaneId.value) return;
+    applyLaneHover(id);
+    // Pointer path already paints in onPointerMove; gutter-driven updates need an explicit paint.
+    schedulePaint();
+  },
+);
 
 const wrapRef = ref<HTMLDivElement | null>(null);
 const glCanvasRef = ref<HTMLCanvasElement | null>(null);
@@ -476,7 +498,7 @@ function applyViewState(forceModel = false): void {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
-    overlay.setHoveredLane(hoveredLaneId.value);
+    overlay.setHoveredLane(trackHoveredLaneId.value);
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSelectionMuted(true);
     overlay.setSearchQuery(props.searchQuery);
