@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { OverviewSeries } from '../../../domain/types';
 import { t } from '../../../i18n';
+import PinIcon from '../../PinIcon.vue';
 import { areaPathFromVertices, stepAfterVertices, strokePathFromVertices } from './stepPath';
 
 const props = withDefaults(
@@ -13,15 +14,36 @@ const props = withDefaults(
     /** Match TimelineView / Swimlane gutter column width. */
     gutterWidth?: number;
     locale?: string;
+    /** Series ids currently pinned (filled pushpin + sticky strip). */
+    pinnedOverviewIds?: string[];
+    /**
+     * `section` — 统计分析 block under the time axis (header + all series).
+     * `strip` — sticky duplicates below pinned lanes (no header; pins always visible).
+     */
+    variant?: 'section' | 'strip';
   }>(),
-  { gutterWidth: 280, locale: 'zh-CN' },
+  {
+    gutterWidth: 280,
+    locale: 'zh-CN',
+    pinnedOverviewIds: () => [],
+    variant: 'section',
+  },
 );
+
+const emit = defineEmits<{
+  'pin-overview': [seriesId: string];
+  'unpin-overview': [seriesId: string];
+}>();
 
 /** v930: single overview track paint height (CSS px). */
 const TRACK_H = 16;
 const VIEW_W = 1000;
 
 const sectionTitle = computed(() => t('overviewStats', props.locale));
+const pinLabel = computed(() => t('pin', props.locale));
+const pinned = computed(() => new Set(props.pinnedOverviewIds ?? []));
+const isStrip = computed(() => props.variant === 'strip');
+const pinHoverId = ref<string | null>(null);
 
 /** Map counter name → stroke CSS color (fill uses same with opacity). */
 function colorForName(name: string): string {
@@ -48,7 +70,12 @@ const x1 = computed(() => {
 const tracks = computed(() =>
   props.series.map((s) => {
     const maxV = Math.max(0, ...s.points.map((p) => p.v), 1);
-    return { ...s, maxV, color: colorForName(s.id) };
+    return {
+      ...s,
+      maxV,
+      color: colorForName(s.id),
+      isPinned: pinned.value.has(s.id),
+    };
   }),
 );
 
@@ -70,17 +97,27 @@ function strokePath(points: { t: number; v: number }[], maxV: number): string {
   const { toX, toY } = pathHelpers(maxV);
   return strokePathFromVertices(verts, toX, toY);
 }
+
+function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
+  e.stopPropagation();
+  if (isPinned) emit('unpin-overview', seriesId);
+  else emit('pin-overview', seriesId);
+}
 </script>
 
 <template>
   <div
-    data-testid="overview-charts"
+    :data-testid="isStrip ? 'pinned-overview-charts' : 'overview-charts'"
     class="pr-overview-charts"
+    :class="{ 'pr-overview-charts--strip': isStrip }"
     role="group"
-    :aria-label="sectionTitle"
+    :aria-label="isStrip ? undefined : sectionTitle"
     :style="{ '--pr-overview-gutter': `${gutterWidth}px` }"
   >
-    <div class="pr-overview-header">
+    <div
+      v-if="!isStrip"
+      class="pr-overview-header"
+    >
       <div class="pr-overview-gutter-cell pr-overview-gutter-cell--header">
         <span
           class="pr-overview-chevron"
@@ -98,9 +135,29 @@ function strokePath(points: { t: number; v: number }[], maxV: number): string {
       v-for="track in tracks"
       :key="track.id"
       class="pr-overview-track"
+      :class="{ 'pr-overview-track--pinned': track.isPinned }"
       :data-series-id="track.id"
     >
       <div class="pr-overview-gutter-cell">
+        <button
+          type="button"
+          class="pr-overview-pin"
+          data-testid="overview-pin"
+          :aria-label="pinLabel"
+          :aria-pressed="track.isPinned"
+          @click="onPinClick(track.id, track.isPinned, $event)"
+          @pointerenter="pinHoverId = track.id"
+          @pointerleave="pinHoverId = null"
+          @focus="pinHoverId = track.id"
+          @blur="pinHoverId = null"
+        >
+          <PinIcon :filled="track.isPinned || pinHoverId === track.id" />
+          <span
+            v-if="pinHoverId === track.id"
+            class="pr-overview-pin-tip"
+            role="tooltip"
+          >{{ pinLabel }}</span>
+        </button>
         <span class="pr-overview-label">{{ track.label }}</span>
       </div>
       <svg
@@ -136,6 +193,12 @@ function strokePath(points: { t: number; v: number }[], maxV: number): string {
   padding-bottom: 4px;
 }
 
+.pr-overview-charts--strip {
+  /* Sticky strip sits under lane pins; keep a light separator only. */
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
 .pr-overview-header,
 .pr-overview-track {
   display: grid;
@@ -163,6 +226,7 @@ function strokePath(points: { t: number; v: number }[], maxV: number): string {
 .pr-overview-gutter-cell {
   display: flex;
   align-items: center;
+  position: relative;
   padding: 0 12px 0 28px;
   min-width: 0;
   border-right: 1px solid var(--pr-divider, #3a3a3a);
@@ -173,6 +237,54 @@ function strokePath(points: { t: number; v: number }[], maxV: number): string {
 .pr-overview-gutter-cell--header {
   padding-left: 12px;
   gap: 6px;
+}
+
+.pr-overview-pin {
+  box-sizing: border-box;
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.pr-overview-track:hover .pr-overview-pin,
+.pr-overview-track--pinned .pr-overview-pin,
+.pr-overview-charts--strip .pr-overview-pin,
+.pr-overview-pin:focus-visible {
+  visibility: visible;
+  opacity: 1;
+}
+
+.pr-overview-pin-tip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 2;
+  padding: 4px 8px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  line-height: 1.2;
+  color: #e8e8e8;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .pr-overview-chevron {

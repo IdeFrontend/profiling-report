@@ -626,6 +626,62 @@ describe('SwimlaneView', () => {
     expect(mids[1]!.attributes('style')).toContain('left: 50%');
   });
 
+  it('PR-SWIMVIEW-028: pinnedOverviewIds render sticky overview below lane pin strip', () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const overviewSeries = [
+      { id: 'CUBE', label: 'CUBE', points: [{ t: 0, v: 1 }, { t: 1000, v: 2 }] },
+      { id: 'SCALAR', label: 'SCALAR', points: [{ t: 0, v: 3 }, { t: 1000, v: 4 }] },
+    ];
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            utilMidlinePercent: 50,
+            lanes: [{ id: 'l1', name: 'A', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        pinnedLaneIds: ['l1'],
+        pinnedOverviewIds: ['SCALAR', 'CUBE'],
+        overviewSeries,
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l1', name: 'A', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    expect(wrapper.find('[data-testid="pinned-strip"]').exists()).toBe(true);
+    const pinnedOv = wrapper.get('[data-testid="pinned-overview-charts"]');
+    const ids = pinnedOv.findAll('[data-series-id]').map((n) => n.attributes('data-series-id'));
+    expect(ids).toEqual(['SCALAR', 'CUBE']);
+    const stackChildren = [...wrapper.get('.pr-swim-stack').element.children] as HTMLElement[];
+    const pinnedStripIdx = stackChildren.findIndex((el) => el.getAttribute('data-testid') === 'pinned-strip');
+    const pinnedOvIdx = stackChildren.findIndex(
+      (el) => el.getAttribute('data-testid') === 'pinned-overview-charts',
+    );
+    const bodyIdx = stackChildren.findIndex((el) => el.classList.contains('pr-swim-row--body'));
+    expect(pinnedStripIdx).toBeGreaterThanOrEqual(0);
+    expect(pinnedOvIdx).toBeGreaterThan(pinnedStripIdx);
+    expect(bodyIdx).toBeGreaterThan(pinnedOvIdx);
+  });
+
   it('PR-SWIMVIEW-018: measure magnet routes by pointer Y across pin strip and body', () => {
     const view = createViewState({
       minTime: 0,

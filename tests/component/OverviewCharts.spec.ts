@@ -46,4 +46,35 @@ describe('OverviewCharts', () => {
       expect(svg.attributes('viewBox')).toBe('0 0 1000 16');
     }
   });
+
+  it('PR-OV-005: pin click emits pin-overview / unpin-overview', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: {
+        series,
+        startTime: 0,
+        endTime: 2000,
+        pinnedOverviewIds: ['CUBE'],
+      },
+    });
+    const pins = wrap.findAll('[data-testid="overview-pin"]');
+    expect(pins).toHaveLength(2);
+    await pins[1]!.trigger('click');
+    expect(wrap.emitted('pin-overview')?.[0]).toEqual(['SCALAR']);
+    await pins[0]!.trigger('click');
+    expect(wrap.emitted('unpin-overview')?.[0]).toEqual(['CUBE']);
+  });
+
+  it('PR-OV-005: strip variant omits section header and uses sticky test id', () => {
+    const wrap = mount(OverviewCharts, {
+      props: {
+        series: [series[0]!],
+        startTime: 0,
+        endTime: 2000,
+        pinnedOverviewIds: ['CUBE'],
+        variant: 'strip',
+      },
+    });
+    expect(wrap.find('[data-testid="pinned-overview-charts"]').exists()).toBe(true);
+    expect(wrap.text()).not.toContain('统计分析');
+  });
 });

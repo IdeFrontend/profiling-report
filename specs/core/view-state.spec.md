@@ -10,6 +10,8 @@ Pure functions managing swimlane viewport — zoom, pan, window boundaries, zoom
 createViewState(model: SwimlaneModel | null | undefined): SwimlaneViewState
 pinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState
 unpinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState
+pinOverview(state: SwimlaneViewState, seriesId: string): SwimlaneViewState
+unpinOverview(state: SwimlaneViewState, seriesId: string): SwimlaneViewState
 zoomAt(view: SwimlaneViewWindow, factor: number, anchorTime: number, bounds?: Bounds): SwimlaneViewWindow
 panBy(view: SwimlaneViewWindow, deltaTime: number, bounds?: Bounds): SwimlaneViewWindow
 zoomToFitWindow(model: SwimlaneModel | null | undefined): SwimlaneViewWindow
@@ -23,9 +25,11 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Immutability.** All functions return new objects. The parent ProfilingReport uses `{ ...viewState.value, ...patch }` to trigger Vue reactivity — mutating in place would prevent the deep watcher in SwimlaneCanvas from detecting changes.
 
-**Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty **pinnedLaneIds**, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
+**Initialization.** `createViewState` initializes from a SwimlaneModel, defaulting to zoom-to-fit with zero scroll, no selection/hover, empty **pinnedLaneIds**, empty **pinnedOverviewIds**, empty search, aside visible, no playhead, `measureMode: false`, `measureRange: null`.
 
 **Pinned lanes.** **pinnedLaneIds** holds globally unique leaf lane ids in pin order (session-local). No Card/process grouping in state — pins may span multiple Cards or groups; cross-card pin order is preserved in the array. Gutter pushpin and context-menu **Pin row** (Ctrl+P) are alternate affordances for the same list — not separate pin state. `pinLane` appends an id when absent (idempotent). `unpinLane` removes an id when present. Neither mutates the swim tree — duplicates are a view concern ([`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)).
+
+**Pinned overview series.** **pinnedOverviewIds** holds `OverviewSeries.id` values in pin order (session-local; PyPTO counter-thread pin parity). `pinOverview` / `unpinOverview` mirror lane helpers. Sticky duplicates render **below** the pinned-lane strip and **above** the scrolling swim body; originals remain in the 统计分析 section ([`OverviewCharts.spec.md`](../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md)).
 
 **Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only — does not drive aside recompute. `measureFocusWindow` centers a measured range so it spans half the visible width (25% padding each side), clamps to bounds, and fits the full bounds when 2× duration exceeds the trace.
 
@@ -59,7 +63,8 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 14. **PR-VIEW-015** — unpinLane removes id when present.
 15. **PR-VIEW-016** — `keyboardPanStepTime` maps `KEYBOARD_PAN_STEP_PX` (30 px) to a time delta proportional to the visible span: `30 / trackWidth × span`.
 16. **PR-VIEW-017** — `keyboardPanStepTime` clamps `trackWidth ≤ 0` and `span ≤ 0` to a minimum of 1, returning a positive finite step (no NaN / division by zero).
-
+17. **PR-VIEW-018** — createViewState initializes empty **pinnedOverviewIds**.
+18. **PR-VIEW-019** — pinOverview appends id when absent; unpinOverview removes when present.
 ## Edge Cases
 
 - null/undefined model → zoomToFitWindow returns {startTime:0, endTime:1, scrollY:0}.
@@ -70,6 +75,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 - pinLane on already-pinned id → unchanged order (idempotent).
 - unpinLane on absent id → no-op.
 - Pin id persists in **pinnedLaneIds** while its row is hidden (collapsed ancestor); **pinned strip stays visible** (built from the full swim model, not collapse-filtered `displaySwim`).
+- pinOverview / unpinOverview same idempotent / no-op rules as lanes.
 
 ## Dependencies
 
@@ -80,8 +86,8 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 M2 measure fields.
 
 ## Changelog
-- **2026-09-07** — Trackpad pinch zoom / two-finger horizontal pan via native `wheel` (PyPTO parity; see SwimlaneCanvas `PR-CANVAS-068`).
-- **2026-09-03** — Keyboard navigation (W/S/A/D): `keyboardPanStepTime` + `KEYBOARD_PAN_STEP_PX` (`PR-VIEW-016` / `017`). Resolves Q19 gesture parity.
+- **2026-09-08** — **pinnedOverviewIds** + pinOverview/unpinOverview (`PR-VIEW-018` / `019`); PyPTO counter-pin parity.
+- **2026-09-07** — Trackpad pinch zoom / two-finger horizontal pan via native `wheel` (PyPTO parity; see SwimlaneCanvas `PR-CANVAS-068`).- **2026-09-03** — Keyboard navigation (W/S/A/D): `keyboardPanStepTime` + `KEYBOARD_PAN_STEP_PX` (`PR-VIEW-016` / `017`). Resolves Q19 gesture parity.
 - **2026-08-31** — Pinned strip stays visible under ancestor collapse (full swim as pin source).
 - **2026-08-31** — Renumber pin ACs to `PR-VIEW-013`…`015` (avoid collision with #31 `PR-VIEW-012`).
 - **2026-08-27** — Gutter pushpin and context-menu Pin row share **pinnedLaneIds**.

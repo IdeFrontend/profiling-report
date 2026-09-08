@@ -4,6 +4,7 @@ import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
   type MeasureRange,
+  type OverviewSeries,
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
@@ -32,6 +33,7 @@ import {
 } from '../../panelResize';
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
+import OverviewCharts from '../OverviewCharts/OverviewCharts.vue';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import CardMetricSelect from './CardMetricSelect.vue';
@@ -51,6 +53,10 @@ const props = withDefaults(
      * Pass the full tree so pins survive ancestor collapse.
      */
     pinSourceModel?: SwimlaneModel | null;
+    /** Full overview series; sticky strip filters by pinnedOverviewIds. */
+    overviewSeries?: OverviewSeries[];
+    /** Overview series ids in pin order (PyPTO counter pin). */
+    pinnedOverviewIds?: string[];
     view: SwimlaneViewState;
     selectedEventId: string | null;
     hoveredEventId: string | null;
@@ -79,6 +85,8 @@ const props = withDefaults(
     cursorXRatio: null,
     cursorSnapped: false,
     collapseAnim: null,
+    overviewSeries: () => [],
+    pinnedOverviewIds: () => [],
   },
 );
 
@@ -88,6 +96,8 @@ const emit = defineEmits<{
   'toggle-group': [groupId: string];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
+  'pin-overview': [seriesId: string];
+  'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -149,10 +159,19 @@ watch(
 const collapsed = computed(() => new Set(props.collapsedIds));
 
 const pinnedLaneIds = computed(() => props.pinnedLaneIds ?? []);
+const pinnedOverviewIds = computed(() => props.pinnedOverviewIds ?? []);
 const pinnedRows = computed(() => resolvePinnedGutterLanes(props.groups, pinnedLaneIds.value));
 const pinnedModel = computed(() =>
   buildPinnedSwimModel(props.pinSourceModel ?? props.model, pinnedLaneIds.value),
 );
+/** Sticky overview tracks in pin order (skip ids missing from current series). */
+const pinnedOverviewSeries = computed(() => {
+  const byId = new Map((props.overviewSeries ?? []).map((s) => [s.id, s]));
+  return pinnedOverviewIds.value
+    .map((id) => byId.get(id))
+    .filter((s): s is OverviewSeries => s != null);
+});
+
 
 /** Shared Alt-measure session so pin-strip ↔ body can measure across sticky and scroll lanes. */
 const altMeasureShared = createAltMeasureShared();
@@ -482,6 +501,19 @@ defineExpose({
         />
       </div>
     </Transition>
+
+    <OverviewCharts
+      v-if="pinnedOverviewSeries.length"
+      variant="strip"
+      :series="pinnedOverviewSeries"
+      :pinned-overview-ids="pinnedOverviewIds"
+      :start-time="view.startTime"
+      :end-time="view.endTime"
+      :gutter-width="localGutterWidth"
+      :locale="locale"
+      @pin-overview="emit('pin-overview', $event)"
+      @unpin-overview="emit('unpin-overview', $event)"
+    />
 
     <div
       ref="bodyRef"

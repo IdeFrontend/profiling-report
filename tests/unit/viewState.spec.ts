@@ -9,9 +9,11 @@ import {
   MIN_VIEW_WINDOW,
   panBy,
   pinLane,
+  pinOverview,
   setMeasureRange,
   spanFromZoomPercent,
   unpinLane,
+  unpinOverview,
   zoomAt,
   zoomPercentFromSpan,
   zoomToFitWindow,
@@ -157,6 +159,24 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(dropped.pinnedLaneIds).toEqual(['b']);
     expect(unpinLane(dropped, 'missing').pinnedLaneIds).toEqual(['b']);
     expect(pinned.pinnedLaneIds).toEqual(['a', 'b']);
+  });
+
+  it('PR-VIEW-018: createViewState initializes pinnedOverviewIds empty', () => {
+    expect(createViewState(model).pinnedOverviewIds).toEqual([]);
+    expect(createViewState(null).pinnedOverviewIds).toEqual([]);
+  });
+
+  it('PR-VIEW-019: pinOverview / unpinOverview append and remove in pin order', () => {
+    const base = createViewState(model);
+    const one = pinOverview(base, 'CUBE');
+    expect(one.pinnedOverviewIds).toEqual(['CUBE']);
+    expect(base.pinnedOverviewIds).toEqual([]);
+    const two = pinOverview(one, 'SCALAR');
+    expect(two.pinnedOverviewIds).toEqual(['CUBE', 'SCALAR']);
+    expect(pinOverview(two, 'CUBE').pinnedOverviewIds).toEqual(['CUBE', 'SCALAR']);
+    const dropped = unpinOverview(two, 'CUBE');
+    expect(dropped.pinnedOverviewIds).toEqual(['SCALAR']);
+    expect(unpinOverview(dropped, 'missing').pinnedOverviewIds).toEqual(['SCALAR']);
   });
 
   it('PR-VIEW-016: keyboardPanStepTime maps KEYBOARD_PAN_STEP_PX to a time delta', () => {

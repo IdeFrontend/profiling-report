@@ -56,6 +56,8 @@ const props = withDefaults(
     collapseAnim?: CollapseAnimState | null;
     /** From view.pinnedLaneIds — sticky strip. */
     pinnedLaneIds?: string[];
+    /** From view.pinnedOverviewIds — sticky overview below lane pins. */
+    pinnedOverviewIds?: string[];
     cursor: { time: number; xRatio: number; snapped?: boolean } | null;
     showOverviewCharts?: boolean;
     overviewSeries?: OverviewSeries[];
@@ -79,6 +81,8 @@ const emit = defineEmits<{
   'toggle-group': [groupId: string];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
+  'pin-overview': [seriesId: string];
+  'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -599,10 +603,13 @@ defineExpose({
     <OverviewCharts
       v-if="showOverviewCharts && (overviewSeries?.length ?? 0) > 0"
       :series="overviewSeries!"
+      :pinned-overview-ids="pinnedOverviewIds ?? view.pinnedOverviewIds"
       :start-time="view.startTime"
       :end-time="view.endTime"
       :gutter-width="localGutterWidth"
       :locale="locale"
+      @pin-overview="emit('pin-overview', $event)"
+      @unpin-overview="emit('unpin-overview', $event)"
     />
 
     <SwimlaneView
@@ -610,6 +617,8 @@ defineExpose({
       :groups="groups"
       :collapsed-ids="collapsedIds"
       :pinned-lane-ids="pinnedLaneIds ?? view.pinnedLaneIds"
+      :pinned-overview-ids="pinnedOverviewIds ?? view.pinnedOverviewIds"
+      :overview-series="overviewSeries ?? []"
       :model="displaySwim"
       :pin-source-model="pinSourceModel"
       :view="view"
@@ -633,6 +642,8 @@ defineExpose({
       @toggle-group="emit('toggle-group', $event)"
       @pin-lane="emit('pin-lane', $event)"
       @unpin-lane="emit('unpin-lane', $event)"
+      @pin-overview="emit('pin-overview', $event)"
+      @unpin-overview="emit('unpin-overview', $event)"
       @update:gutter-metric="emit('update:gutter-metric', $event)"
       @select="emit('select', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
