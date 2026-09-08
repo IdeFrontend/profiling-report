@@ -624,6 +624,11 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(texts.get('other_evt')).toBe(SELECTION_MUTED_LABEL);
     expect(fills).toContain(eventFill(base, 'selected'));
     expect(texts.get('selected_evt')).toBe(labelColorOn(eventFill(base, 'selected')));
+
+    // ClearType label pass must mute on pin strip too (not gate on paintDependencies).
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).not.toMatch(/hasSelection = this\.paintDependencies &&/);
   });
 
   it('PR-RENDER-035: ClearType mode still labels hovered/selected blocks via the overlay', async () => {

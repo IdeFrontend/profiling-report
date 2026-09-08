@@ -769,7 +769,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
-    const hasSelection = this.paintDependencies && this.selectedId != null;
+    const hasSelection = this.selectedId != null;
     const bright = this.neighborIds;
     // Lane backgrounds — the event fill composites over these, not the clear color. The
     // hovered row's chrome is `LANE_HOVER_FILL`, so its label backdrop must match that too.
