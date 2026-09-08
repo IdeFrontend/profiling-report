@@ -34,6 +34,7 @@ import {
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import OverviewCharts from '../OverviewCharts/OverviewCharts.vue';
+import { overviewSectionHeightPx } from '../OverviewCharts/overviewLayout';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import CardMetricSelect from './CardMetricSelect.vue';
@@ -55,6 +56,8 @@ const props = withDefaults(
     pinSourceModel?: SwimlaneModel | null;
     /** Full overview series; sticky strip filters by pinnedOverviewIds. */
     overviewSeries?: OverviewSeries[];
+    /** When false, hide scrollable + sticky overview charts. */
+    showOverviewCharts?: boolean;
     /** Overview series ids in pin order (PyPTO counter pin). */
     pinnedOverviewIds?: string[];
     view: SwimlaneViewState;
@@ -87,6 +90,7 @@ const props = withDefaults(
     collapseAnim: null,
     overviewSeries: () => [],
     pinnedOverviewIds: () => [],
+    showOverviewCharts: true,
   },
 );
 
@@ -134,11 +138,18 @@ const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 const cursorXRatio = ref<number | null>(props.cursorXRatio ?? null);
 /** Gray the swim vertical bar while the cursor is magnetized to an event edge. */
 const cursorSnapped = ref(props.cursorSnapped ?? false);
+/** Canonical ns under the cursor — overview value tooltips. */
+const cursorTimeNs = ref<number | null>(null);
 
 watch(
   () => props.cursorXRatio,
   (v) => {
     cursorXRatio.value = v ?? null;
+    if (v == null) cursorTimeNs.value = null;
+    else {
+      const span = props.view.endTime - props.view.startTime;
+      cursorTimeNs.value = props.view.startTime + v * span;
+    }
   },
 );
 
@@ -171,6 +182,17 @@ const pinnedOverviewSeries = computed(() => {
     .map((id) => byId.get(id))
     .filter((s): s is OverviewSeries => s != null);
 });
+
+/** Scrollable 统计分析 block (all series); scrolls away with lanes unless pinned copies stay sticky. */
+const scrollOverviewSeries = computed(() =>
+  props.showOverviewCharts !== false && (props.overviewSeries?.length ?? 0) > 0
+    ? (props.overviewSeries ?? [])
+    : [],
+);
+
+const overviewContentPad = computed(() =>
+  overviewSectionHeightPx(scrollOverviewSeries.value.length),
+);
 
 
 /** Shared Alt-measure session so pin-strip ↔ body can measure across sticky and scroll lanes. */
@@ -279,12 +301,13 @@ const cardHeaders = computed(() => {
 
 const visibleCardStrips = computed(() => {
   const scrollY = props.view.scrollY;
+  const pad = overviewContentPad.value;
   // 0 until ResizeObserver / mount measures the body; show all and let overflow:hidden clip.
   const viewportH = bodyViewportH.value > 0 ? bodyViewportH.value : Number.POSITIVE_INFINITY;
   return cardHeaders.value
     .map((h) => ({
       ...h,
-      top: h.y - scrollY,
+      top: h.y + pad - scrollY,
     }))
     .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < viewportH);
 });
@@ -360,6 +383,7 @@ function onGutterResizePointerUp() {
 function onCursor(payload: { time: number; xRatio: number; snapped?: boolean } | null) {
   cursorXRatio.value = payload?.xRatio ?? null;
   cursorSnapped.value = payload?.snapped ?? false;
+  cursorTimeNs.value = payload?.time ?? null;
   emit('cursor', payload);
 }
 
@@ -368,7 +392,12 @@ function clearCursor() {
   if (cursorXRatio.value == null && !cursorSnapped.value) return;
   cursorXRatio.value = null;
   cursorSnapped.value = false;
+  cursorTimeNs.value = null;
   emit('cursor', null);
+}
+
+function onOverviewScrollDelta(delta: number) {
+  onScrollY(props.view.scrollY + delta);
 }
 
 /** Keep scroll/zoom working over full-width Card chrome. */
@@ -511,14 +540,37 @@ defineExpose({
       :end-time="view.endTime"
       :gutter-width="localGutterWidth"
       :locale="locale"
+      :cursor-x-ratio="cursorXRatio"
+      :cursor-snapped="cursorSnapped"
+      :cursor-time="cursorTimeNs"
       @pin-overview="emit('pin-overview', $event)"
       @unpin-overview="emit('unpin-overview', $event)"
+      @cursor="onCursor"
     />
 
     <div
       ref="bodyRef"
       class="pr-swim-row pr-swim-row--body"
     >
+      <OverviewCharts
+        v-if="scrollOverviewSeries.length"
+        class="pr-body-overview"
+        :style="{ transform: `translateY(${-view.scrollY}px)` }"
+        :series="scrollOverviewSeries"
+        :pinned-overview-ids="pinnedOverviewIds"
+        :start-time="view.startTime"
+        :end-time="view.endTime"
+        :gutter-width="localGutterWidth"
+        :locale="locale"
+        :cursor-x-ratio="cursorXRatio"
+        :cursor-snapped="cursorSnapped"
+        :cursor-time="cursorTimeNs"
+        @pin-overview="emit('pin-overview', $event)"
+        @unpin-overview="emit('unpin-overview', $event)"
+        @cursor="onCursor"
+        @scroll-y-delta="onOverviewScrollDelta"
+      />
+
       <button
         type="button"
         class="pr-gutter-resize"
@@ -532,6 +584,8 @@ defineExpose({
 
       <LaneGutter
         ref="gutterRef"
+        class="pr-body-gutter"
+        :style="{ paddingTop: `${overviewContentPad}px` }"
         :groups="groups"
         :collapsed-ids="collapsedIds"
         :pinned-lane-ids="pinnedLaneIds"
@@ -548,6 +602,7 @@ defineExpose({
         ref="canvasRef"
         :model="model"
         :view="view"
+        :content-top-pad="overviewContentPad"
         :selected-event-id="selectedEventId"
         :hovered-event-id="hoveredEventId"
         :hovered-lane-id="hoveredLaneId"
@@ -707,6 +762,19 @@ defineExpose({
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.pr-body-overview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  will-change: transform;
+}
+
+.pr-body-gutter {
+  box-sizing: border-box;
 }
 
 /* Pin to used gutter column so the handle stays on the seam when the column shrinks. */

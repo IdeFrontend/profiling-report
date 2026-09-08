@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stepAfterVertices } from '../../src/ui/TimelineView/OverviewCharts/stepPath';
+import { stepAfterVertices, stepValueAt } from '../../src/ui/TimelineView/OverviewCharts/stepPath';
 
 describe('stepAfterVertices', () => {
   it('PR-OV-004: holds prior value until next sample then jumps', () => {
@@ -38,5 +38,19 @@ describe('stepAfterVertices', () => {
       { t: 150, v: 20 },
       { t: 200, v: 20 },
     ]);
+  });
+});
+
+describe('stepValueAt', () => {
+  it('PR-OV-006: returns held step value at cursor time', () => {
+    const pts = [
+      { t: 0, v: 10 },
+      { t: 100, v: 50 },
+      { t: 200, v: 25 },
+    ];
+    expect(stepValueAt(pts, 50)).toBe(10);
+    expect(stepValueAt(pts, 100)).toBe(50);
+    expect(stepValueAt(pts, 150)).toBe(50);
+    expect(stepValueAt(pts, -1)).toBeNull();
   });
 });

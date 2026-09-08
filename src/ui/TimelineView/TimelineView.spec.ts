@@ -95,7 +95,7 @@ describe('TimelineView', () => {
     );
   });
 
-  it('PR-OV-003: overview charts mount above swimlane (axis → overview → swim)', () => {
+  it('PR-OV-003: overview charts mount in the swim body below the time axis', () => {
     const wrapper = mount(TimelineView, {
       props: {
         ...baseProps(),
@@ -108,17 +108,14 @@ describe('TimelineView', () => {
     const root = wrapper.get('[data-testid="timeline-view"]').element;
     const axis = wrapper.get('[data-testid="time-axis"]').element;
     const overview = wrapper.get('[data-testid="overview-charts"]').element;
-    const swim = wrapper.get('[data-testid="swimlane"]').element;
+    const body = wrapper.get('.pr-swim-row--body').element;
+    expect(body.contains(overview)).toBe(true);
     const kids = [...root.children] as HTMLElement[];
-    // Axis lives inside a head row; find the top-level rows that contain each.
     const axisRow = kids.find((el) => el.contains(axis));
-    const overviewRow = kids.find((el) => el === overview || el.contains(overview));
-    const swimRow = kids.find((el) => el === swim || el.contains(swim));
+    const swimStack = kids.find((el) => el.contains(body));
     expect(axisRow).toBeTruthy();
-    expect(overviewRow).toBeTruthy();
-    expect(swimRow).toBeTruthy();
-    expect(kids.indexOf(axisRow!)).toBeLessThan(kids.indexOf(overviewRow!));
-    expect(kids.indexOf(overviewRow!)).toBeLessThan(kids.indexOf(swimRow!));
+    expect(swimStack).toBeTruthy();
+    expect(kids.indexOf(axisRow!)).toBeLessThan(kids.indexOf(swimStack!));
   });
 
   it('PR-TIMELINE-002: measure mode keeps overview and draws axis bars + arrow', () => {

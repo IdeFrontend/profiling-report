@@ -3,7 +3,13 @@ import { computed, ref } from 'vue';
 import type { OverviewSeries } from '../../../domain/types';
 import { t } from '../../../i18n';
 import PinIcon from '../../PinIcon.vue';
-import { areaPathFromVertices, stepAfterVertices, strokePathFromVertices } from './stepPath';
+import {
+  areaPathFromVertices,
+  stepAfterVertices,
+  stepValueAt,
+  strokePathFromVertices,
+} from './stepPath';
+import { OVERVIEW_TRACK_H } from './overviewLayout';
 
 const props = withDefaults(
   defineProps<{
@@ -17,33 +23,45 @@ const props = withDefaults(
     /** Series ids currently pinned (filled pushpin + sticky strip). */
     pinnedOverviewIds?: string[];
     /**
-     * `section` — 统计分析 block under the time axis (header + all series).
+     * `section` — scrollable 统计分析 block (header + series).
      * `strip` — sticky duplicates below pinned lanes (no header; pins always visible).
      */
     variant?: 'section' | 'strip';
+    /** Shared playhead x (0…1) — vertical cursor over chart tracks. */
+    cursorXRatio?: number | null;
+    /** Gray the cursor when magnetized on the swimlane. */
+    cursorSnapped?: boolean;
+    /** Canonical ns under the cursor (for value tooltips). */
+    cursorTime?: number | null;
   }>(),
   {
     gutterWidth: 280,
     locale: 'zh-CN',
     pinnedOverviewIds: () => [],
     variant: 'section',
+    cursorXRatio: null,
+    cursorSnapped: false,
+    cursorTime: null,
   },
 );
 
 const emit = defineEmits<{
   'pin-overview': [seriesId: string];
   'unpin-overview': [seriesId: string];
+  cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
+  'scroll-y-delta': [delta: number];
 }>();
 
-/** v930: single overview track paint height (CSS px). */
-const TRACK_H = 16;
 const VIEW_W = 1000;
+const TRACK_H = OVERVIEW_TRACK_H;
 
 const sectionTitle = computed(() => t('overviewStats', props.locale));
 const pinLabel = computed(() => t('pin', props.locale));
 const pinned = computed(() => new Set(props.pinnedOverviewIds ?? []));
 const isStrip = computed(() => props.variant === 'strip');
 const pinHoverId = ref<string | null>(null);
+const hoverSeriesId = ref<string | null>(null);
+const tipPos = ref({ left: '0px', top: '0px' });
 
 /** Map counter name → stroke CSS color (fill uses same with opacity). */
 function colorForName(name: string): string {
@@ -103,6 +121,50 @@ function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
   if (isPinned) emit('unpin-overview', seriesId);
   else emit('pin-overview', seriesId);
 }
+
+function timeAtClientX(clientX: number, el: HTMLElement): { time: number; xRatio: number } {
+  const rect = el.getBoundingClientRect();
+  const xRatio = rect.width > 0 ? Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)) : 0;
+  const time = x0.value + xRatio * (x1.value - x0.value);
+  return { time, xRatio };
+}
+
+function onTrackPointerMove(seriesId: string, e: PointerEvent) {
+  const chart = (e.currentTarget as HTMLElement).querySelector(
+    '.pr-overview-svg',
+  ) as HTMLElement | null;
+  const el = chart ?? (e.currentTarget as HTMLElement);
+  const { time, xRatio } = timeAtClientX(e.clientX, el);
+  hoverSeriesId.value = seriesId;
+  tipPos.value = { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` };
+  emit('cursor', { time, xRatio, snapped: false });
+}
+
+function onTrackPointerLeave() {
+  hoverSeriesId.value = null;
+}
+
+function onChartsWheel(e: WheelEvent) {
+  if (e.ctrlKey || e.metaKey) return;
+  if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+  e.preventDefault();
+  emit('scroll-y-delta', e.deltaY);
+}
+
+const tipTrack = computed(() => {
+  const id = hoverSeriesId.value;
+  if (!id) return null;
+  return tracks.value.find((tr) => tr.id === id) ?? null;
+});
+
+const tipValue = computed(() => {
+  const track = tipTrack.value;
+  const time = props.cursorTime;
+  if (!track || time == null) return null;
+  return stepValueAt(track.points, time);
+});
+
+const showTip = computed(() => tipTrack.value != null && tipValue.value != null);
 </script>
 
 <template>
@@ -113,6 +175,7 @@ function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
     role="group"
     :aria-label="isStrip ? undefined : sectionTitle"
     :style="{ '--pr-overview-gutter': `${gutterWidth}px` }"
+    @wheel="onChartsWheel"
   >
     <div
       v-if="!isStrip"
@@ -137,6 +200,8 @@ function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
       class="pr-overview-track"
       :class="{ 'pr-overview-track--pinned': track.isPinned }"
       :data-series-id="track.id"
+      @pointermove="onTrackPointerMove(track.id, $event)"
+      @pointerleave="onTrackPointerLeave"
     >
       <div class="pr-overview-gutter-cell">
         <button
@@ -160,30 +225,58 @@ function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
         </button>
         <span class="pr-overview-label">{{ track.label }}</span>
       </div>
-      <svg
-        class="pr-overview-svg"
-        :viewBox="`0 0 ${VIEW_W} ${TRACK_H}`"
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <path
-          class="pr-overview-fill"
-          :d="areaPath(track.points, track.maxV)"
-          :fill="track.color"
-        />
-        <path
-          class="pr-overview-stroke"
-          :d="strokePath(track.points, track.maxV)"
-          :stroke="track.color"
-          fill="none"
-        />
-      </svg>
+      <div class="pr-overview-chart-col">
+        <svg
+          class="pr-overview-svg"
+          :viewBox="`0 0 ${VIEW_W} ${TRACK_H}`"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path
+            class="pr-overview-fill"
+            :d="areaPath(track.points, track.maxV)"
+            :fill="track.color"
+          />
+          <path
+            class="pr-overview-stroke"
+            :d="strokePath(track.points, track.maxV)"
+            :stroke="track.color"
+            fill="none"
+          />
+        </svg>
+      </div>
     </div>
+
+    <div
+      v-if="cursorXRatio != null"
+      class="pr-overview-cursor-layer"
+      aria-hidden="true"
+    >
+      <div
+        class="pr-overview-cursor"
+        data-testid="overview-cursor"
+        :class="{ 'pr-overview-cursor--snapped': cursorSnapped }"
+        :style="{ left: `${cursorXRatio * 100}%` }"
+      />
+    </div>
+
+    <Teleport to="body">
+      <div
+        v-if="showTip && tipTrack"
+        class="pr-tooltip pr-overview-value-tip"
+        data-testid="overview-value-tooltip"
+        :style="tipPos"
+      >
+        <div class="pr-tooltip__name">{{ tipTrack.label }}</div>
+        <div>{{ tipValue }}</div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .pr-overview-charts {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
@@ -194,9 +287,9 @@ function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
 }
 
 .pr-overview-charts--strip {
-  /* Sticky strip sits under lane pins; keep a light separator only. */
   padding-top: 4px;
   padding-bottom: 4px;
+  z-index: 6;
 }
 
 .pr-overview-header,
@@ -212,7 +305,6 @@ function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
   min-height: 28px;
 }
 
-/* v930: 16px chart + 8px gap between tracks */
 .pr-overview-track {
   height: 16px;
   min-height: 16px;
@@ -312,6 +404,12 @@ function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
   height: 100%;
 }
 
+.pr-overview-chart-col {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+}
+
 .pr-overview-svg {
   display: block;
   width: 100%;
@@ -328,5 +426,52 @@ function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
   stroke-linejoin: miter;
   stroke-linecap: butt;
   vector-effect: non-scaling-stroke;
+}
+
+.pr-overview-cursor-layer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--pr-overview-gutter, 280px);
+  pointer-events: none;
+  z-index: 9;
+}
+
+.pr-overview-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #317af7;
+  transform: translateX(-50%);
+}
+
+.pr-overview-cursor--snapped {
+  background: #4c4c4c;
+}
+</style>
+
+<style>
+/* Teleported tip — match EventTooltip chrome (unscoped). */
+.pr-overview-value-tip.pr-tooltip {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  line-height: 1.45;
+  min-width: 120px;
+  color: #e8e8e8;
+}
+
+.pr-overview-value-tip .pr-tooltip__name {
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 </style>

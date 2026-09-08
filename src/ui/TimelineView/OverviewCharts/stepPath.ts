@@ -52,6 +52,20 @@ export function stepAfterVertices(
   return out;
 }
 
+/**
+ * Step-after sample at time `t`: last point with `point.t <= t`, else null if `t`
+ * is before the first sample.
+ */
+export function stepValueAt(points: readonly StepPoint[], t: number): number | null {
+  if (points.length === 0) return null;
+  let hold: number | null = null;
+  for (const p of points) {
+    if (p.t <= t) hold = p.v;
+    else break;
+  }
+  return hold;
+}
+
 export function strokePathFromVertices(
   vertices: readonly StepPoint[],
   toX: (t: number) => number,

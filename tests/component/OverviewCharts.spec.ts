@@ -77,4 +77,25 @@ describe('OverviewCharts', () => {
     expect(wrap.find('[data-testid="pinned-overview-charts"]').exists()).toBe(true);
     expect(wrap.text()).not.toContain('统计分析');
   });
+
+  it('PR-OV-006: draws cursor line and value tip on track hover', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: {
+        series,
+        startTime: 0,
+        endTime: 2000,
+        cursorXRatio: 0.5,
+        cursorTime: 1000,
+      },
+      attachTo: document.body,
+    });
+    expect(wrap.find('[data-testid="overview-cursor"]').exists()).toBe(true);
+    const track = wrap.get('[data-series-id="CUBE"]');
+    await track.trigger('pointermove', { clientX: 400, clientY: 100 });
+    expect(wrap.emitted('cursor')?.length).toBeGreaterThan(0);
+    expect(document.querySelector('[data-testid="overview-value-tooltip"]')?.textContent).toContain(
+      'CUBE',
+    );
+    wrap.unmount();
+  });
 });

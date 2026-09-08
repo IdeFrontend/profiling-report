@@ -18,7 +18,6 @@ import TimeOverviewBar from './TimeOverviewBar/TimeOverviewBar.vue';
 import AxisRuler from './TimeAxis/AxisRuler/AxisRuler.vue';
 import CursorTimestamp from './TimeAxis/CursorTimestamp/CursorTimestamp.vue';
 import MeasureDtArrow from './MeasureDtArrow.vue';
-import OverviewCharts from './OverviewCharts/OverviewCharts.vue';
 import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
 import type { CollapseAnimState } from '../../swimlane/layout';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
@@ -600,18 +599,6 @@ defineExpose({
       </div>
     </div>
 
-    <OverviewCharts
-      v-if="showOverviewCharts && (overviewSeries?.length ?? 0) > 0"
-      :series="overviewSeries!"
-      :pinned-overview-ids="pinnedOverviewIds ?? view.pinnedOverviewIds"
-      :start-time="view.startTime"
-      :end-time="view.endTime"
-      :gutter-width="localGutterWidth"
-      :locale="locale"
-      @pin-overview="emit('pin-overview', $event)"
-      @unpin-overview="emit('unpin-overview', $event)"
-    />
-
     <SwimlaneView
       ref="swimlaneRef"
       :groups="groups"
@@ -619,6 +606,7 @@ defineExpose({
       :pinned-lane-ids="pinnedLaneIds ?? view.pinnedLaneIds"
       :pinned-overview-ids="pinnedOverviewIds ?? view.pinnedOverviewIds"
       :overview-series="overviewSeries ?? []"
+      :show-overview-charts="showOverviewCharts !== false"
       :model="displaySwim"
       :pin-source-model="pinSourceModel"
       :view="view"

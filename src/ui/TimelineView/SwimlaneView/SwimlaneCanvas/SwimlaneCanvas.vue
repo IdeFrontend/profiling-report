@@ -96,6 +96,11 @@ const props = withDefaults(
      * When omitted, follows ReportLayout's provided `ASIDE_TRACK_ANIMATING_KEY`.
      */
     freezeBackingStore?: boolean;
+    /**
+     * Extra content above lane y=0 (scrollable overview block). Lanes project with
+     * `scrollY - contentTopPad` so they sit below the overview until scrolled away.
+     */
+    contentTopPad?: number;
   }>(),
   {
     dependencyMode: 'all',
@@ -107,6 +112,7 @@ const props = withDefaults(
     pinnedLaneIds: () => [],
     hoveredLaneId: null,
     collapseAnim: null,
+    contentTopPad: 0,
   },
 );
 
@@ -152,7 +158,7 @@ function applyLaneHover(id: string | null): void {
 }
 
 function emitLaneHover(localY: number | null): void {
-  const id = localY == null ? null : laneIdAtPoint(backend.getLayout(), props.view, localY);
+  const id = localY == null ? null : laneIdAtPoint(backend.getLayout(), paintView(), localY);
   applyLaneHover(id);
   emit('lane-hover', id);
 }
@@ -335,7 +341,17 @@ function modelContentHeight(): number {
 
 function maxScrollY(): number {
   const viewH = wrapRef.value?.clientHeight ?? 0;
-  return Math.max(0, modelContentHeight() - viewH);
+  const pad = props.contentTopPad ?? 0;
+  return Math.max(0, modelContentHeight() + pad - viewH);
+}
+
+/** View window for paint/hit-test — scrollY shifted by overview pad. */
+function paintView(): SwimlaneViewWindow {
+  return {
+    startTime: props.view.startTime,
+    endTime: props.view.endTime,
+    scrollY: props.view.scrollY - (props.contentTopPad ?? 0),
+  };
 }
 
 function clampScrollY(y: number): number {
@@ -379,7 +395,7 @@ function capturePanHover(
   }
   panCaptureHoverGap = findHoverGap(
     backend.getLayout(),
-    props.view,
+    paintView(),
     w,
     localX,
     localY,
@@ -437,7 +453,7 @@ function updateHoverGap(localX: number, localY: number, w: number): void {
   }
   hoverGap.value = findHoverGap(
     backend.getLayout(),
-    props.view,
+    paintView(),
     w,
     localX,
     localY,
@@ -466,7 +482,7 @@ function refreshHoverGapAtLastPointer(): void {
   const w = Math.max(1, wrapRef.value?.clientWidth || 1);
   hoverGap.value = findHoverGap(
     backend.getLayout(),
-    props.view,
+    paintView(),
     w,
     lastHoverLocalX,
     lastHoverLocalY,
@@ -513,7 +529,7 @@ function applyViewState(forceModel = false): void {
     snapExactEdgeMatches = []; // lane Ys may have moved — drop live snap marks
     invalidateExactMatchCache();
   }
-  backend.setView(props.view);
+  backend.setView(paintView());
   backend.setDependencyMode?.(props.dependencyMode);
   backend.setDependencyDepth?.(props.dependencyDepth);
   backend.setPaintDependencies?.(props.showDependencies !== false);
@@ -524,7 +540,7 @@ function applyViewState(forceModel = false): void {
     // getLayout() (already shifted for hit-test) or the tween would apply twice.
     overlay.setLayout(backend.getBaseLayout());
     overlay.setCollapseAnim(props.collapseAnim ?? null);
-    overlay.setView(props.view);
+    overlay.setView(paintView());
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setHoveredLane(trackHoveredLaneId.value);
     overlay.setNeighborIds(backend.getNeighborIds());
@@ -579,11 +595,7 @@ function refreshMeasureExactEdgeMarks(forceRescan = false): void {
   const viewportH = wrapRef.value?.clientHeight || 0;
   measureExactEdgeMarks.value = projectExactEdgeMarks(
     cachedExactEdgeMatches,
-    {
-      startTime: props.view.startTime,
-      endTime: props.view.endTime,
-      scrollY: props.view.scrollY,
-    },
+    paintView(),
     w,
     viewportH > 0 ? viewportH : Infinity,
   );
@@ -608,11 +620,7 @@ function refreshSnapExactEdgeMarks(): void {
   const viewportH = wrapRef.value?.clientHeight || 0;
   snapExactEdgeMarks.value = projectExactEdgeMarks(
     snapExactEdgeMatches,
-    {
-      startTime: props.view.startTime,
-      endTime: props.view.endTime,
-      scrollY: props.view.scrollY,
-    },
+    paintView(),
     w,
     viewportH > 0 ? viewportH : Infinity,
   );
@@ -626,11 +634,7 @@ function exactMarksAtTime(time: number | null) {
   const viewportH = wrapRef.value?.clientHeight || 0;
   return projectExactEdgeMarks(
     exactMatchesAt(time),
-    {
-      startTime: props.view.startTime,
-      endTime: props.view.endTime,
-      scrollY: props.view.scrollY,
-    },
+    paintView(),
     w,
     viewportH > 0 ? viewportH : Infinity,
   );
@@ -864,7 +868,7 @@ watch(
 
 /** Refresh snap marks + hover gap when the window moves (zoom / pan / scroll). */
 watch(
-  [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY],
+  [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY, () => props.contentTopPad],
   () => {
     // Pinned measure dismisses on any visible-range change; ephemeral keeps tracking.
     if (altMeasure.pinned) clearAltMeasure();
@@ -1225,7 +1229,7 @@ function magnetizeLocal(
   const w = syncTrackWidth();
   const hit = nearestEventEdgeAtPoint(
     backend.getLayout(),
-    props.view,
+    paintView(),
     w,
     localX,
     localY,
@@ -1425,7 +1429,7 @@ const gapMeasureGeometry = computed(() => {
   const arrowRight = xAtTime(visEnd);
 
   const label = formatTimeAuto(rightStart - leftEnd);
-  const top = gap.laneY - props.view.scrollY;
+  const top = gap.laneY - paintView().scrollY;
 
   const leftPct = (arrowLeft / w) * 100;
   const widthPct = ((arrowRight - arrowLeft) / w) * 100;
@@ -1451,7 +1455,7 @@ const altMeasureAnchorHighlight = computed(() => {
   // Track the view window so the highlight stays glued to the anchored event on scroll/pan/zoom.
   void props.view.startTime;
   void props.view.endTime;
-  void props.view.scrollY;
+  void props.view.scrollY; void props.contentTopPad;
   if (!altMeasureSessionActive() || !altMeasure.anchorId) return null;
   if (!ownsAltMeasureEndpoint(altMeasure.anchorId, altMeasure.anchorSurface)) return null;
   return eventScreenRectCss(altMeasure.anchorId);
@@ -1462,7 +1466,7 @@ const altMeasureTargetHighlight = computed(() => {
   void resizeTick.value;
   void props.view.startTime;
   void props.view.endTime;
-  void props.view.scrollY;
+  void props.view.scrollY; void props.contentTopPad;
   if (!altMeasureSessionActive()) return null;
   const target = altMeasure.target;
   if (!target || target.eventId === null || target.eventId === altMeasure.anchorId) return null;
@@ -1543,7 +1547,7 @@ const altEventMeasureGeometry = computed(() => {
       const gap = computeAltMeasureGap(layout, anchorId, target.time, null);
       if (gap) {
         showDt = true;
-        anchorLaneTop = gap.leftLaneY - props.view.scrollY;
+        anchorLaneTop = gap.leftLaneY - paintView().scrollY;
         showAnchor = gap.anchorRefTime >= viewStart && gap.anchorRefTime <= viewEnd;
       }
     }
@@ -1574,7 +1578,7 @@ const altEventMeasureGeometry = computed(() => {
     if (!gap) return null;
 
     if (gap.sameLane) {
-      const top = gap.leftLaneY - props.view.scrollY;
+      const top = gap.leftLaneY - paintView().scrollY;
       return {
         mode: 'same' as const,
         top,
@@ -1588,8 +1592,8 @@ const altEventMeasureGeometry = computed(() => {
       };
     }
 
-    const leftLaneTop = gap.leftLaneY - props.view.scrollY;
-    const rightLaneTop = gap.rightLaneY - props.view.scrollY;
+    const leftLaneTop = gap.leftLaneY - paintView().scrollY;
+    const rightLaneTop = gap.rightLaneY - paintView().scrollY;
     const laneCenterY = (y: number) => y + LANE_HEIGHT / 2;
     const vertX = right;
 
@@ -1632,7 +1636,7 @@ const altEventMeasureGeometry = computed(() => {
 
   return {
     mode: 'split' as const,
-    top: localItem.y - props.view.scrollY,
+    top: localItem.y - paintView().scrollY,
     height: LANE_HEIGHT,
     left,
     right,
