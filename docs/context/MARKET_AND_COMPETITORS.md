@@ -57,10 +57,10 @@ NVIDIA does **not** ship an Ascend `.npu-rep` viewer. The relationship is **inte
 | SM / warp occupancy & pipeline util | PIPE occupancy bars; lane gutter util (Cube / Vector / MTE / …) |
 | Memory workload chart | `Memory*.csv` + memory topology (P2) |
 | Roofline | `ArithmeticUtilization` + `RooflinePanel` (P2) |
-| Source ↔ SASS / instruction mix | Insight Source on `.bin`; secondary tabs S9 (P2) — not MVP for `.rep` |
+| Source ↔ SASS / instruction mix | Insight Source on `.bin`; secondary tabs S9 (P2) — not MVP for `.npu-rep` |
 | Guided rules / expert tips | Not in scope for v1 library |
 | Nsight Systems multi-lane timeline | Swimlane from embedded Chrome Trace; PyPTO-like interactions |
-| `ncu` / `nsys` CLI + proprietary reports | CANN / msprof-style producers + `.rep` container; MSTT opens file |
+| `ncu` / `nsys` CLI + proprietary reports | CANN / msprof-style producers + `.npu-rep` container; MSTT opens file |
 
 **Takeaway:** Users familiar with **Nsight Compute** will expect summary → util/memory/roofline → source. This library covers the **portable report + swimlane** slice inside MSTT; **Insight remains** the deep `.bin` analogue to Compute’s source/instruction depth.
 
@@ -77,7 +77,7 @@ These partition Ascend OP tooling; they are **ecosystem neighbors**, not externa
 | **PyPTO Toolkit** | Swimlane UX/algorithm reference; optional later consumer via adapter |
 | **CANN / msprof-class producers** | Write profiling artifacts (producer of `.rep` still tracked in [questions](questions/) PROC-1) |
 
-Semantics across Insight / `.rep` / PyPTO: [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md). User workflow: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
+Semantics across Insight / `.npu-rep` / PyPTO: [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md). User workflow: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
 
 ---
 
@@ -89,11 +89,11 @@ Semantics across Insight / `.rep` / PyPTO: [FORMATS_COMPARISON.md](../formats/FO
 | **NVIDIA Nsight Systems** | App / system tuners | NVIDIA GPU + CPU | System timeline | Analogue for “find where”; not MVP scope here |
 | **AMD ROCm** (rocprof / Omnitrace-class) | HIP / ROCm kernel authors | AMD GPU | Kernel + system profiling on AMD | Same *category* of competitor tooling; different ISA/stack |
 | **Intel VTune / oneAPI GPU tools** | CPU & Intel GPU | Intel | Hotspots, GPU offload analysis | Same category; different hardware |
-| **Perfetto / Chrome Trace UIs** | Cross-platform | Format-centric | Timeline UX on CTEF | **Format/UX relative** — `.rep` embeds Chrome Trace |
+| **Perfetto / Chrome Trace UIs** | Cross-platform | Format-centric | Timeline UX on CTEF | **Format/UX relative** — `.npu-rep` embeds Chrome Trace |
 | **TensorBoard / PyTorch Profiler** | Framework / training | Multi | Graph- and op-level training timelines | Different grain; not Ascend pipe CSV reports |
 | **Generic IDE profilers** | General app | CPU-first | Sampling / tracing | Weak analogue for NPU pipe models |
 
-No other vendor today ships an Ascend **`.rep`** consumer that replaces MSTT + this library. Competition is for **developer mindshare and workflow habits** (especially NVIDIA), not for the same on-disk Ascend report format.
+No other vendor today ships an Ascend **`.npu-rep`** consumer that replaces MSTT + this library. Competition is for **developer mindshare and workflow habits** (especially NVIDIA), not for the same on-disk Ascend report format.
 
 ---
 
@@ -103,7 +103,7 @@ No other vendor today ships an Ascend **`.rep`** consumer that replaces MSTT + t
 |-------------|--------------------------------|
 | Nsight Compute sets expectations for **kernel reports** | MVP prioritizes overview + PIPE + swimlane; Phase 2+ adds memory, roofline, richer details ([FEATURE_MATRIX](../ui/FEATURE_MATRIX.md), [UX_SPEC](../ui/UX_SPEC.md)) |
 | Nsight Systems / PyPTO set expectations for **timeline navigation** | Zoom/pan/select/hover are MVP; system-wide multi-device profiling is out of scope |
-| Differentiation is **Ascend-native** | Cube / Vector / MTE pipes, Block Dim, AIC/AIV counters, portable `.rep` without Insight `profiler_server` |
+| Differentiation is **Ascend-native** | Cube / Vector / MTE pipes, Block Dim, AIC/AIV counters, portable `.npu-rep` without Insight `profiler_server` |
 | Packaging | Vue library in MSTT webviews — not a standalone Nsight-style desktop suite |
 | Explicit non-goals | Compete on CUDA; replace Insight `.bin` depth in v1; become a system-wide `nsys` clone; parse NVIDIA / AMD report formats |
 
@@ -113,7 +113,7 @@ No other vendor today ships an Ascend **`.rep`** consumer that replaces MSTT + t
 
 - [PROJECT_GOALS.md](PROJECT_GOALS.md) — goals and non-goals
 - [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md) — OP developers, pain points, glossary
-- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.rep` vs PyPTO semantics
+- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.npu-rep` vs PyPTO semantics
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios S1–S9
 - [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs Phase 2+
 - [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) — shared UI + adapters

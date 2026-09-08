@@ -57,7 +57,7 @@ Built for **schedule orchestration**: processes/threads/events, dependencies, op
 ```text
 Insight operator report semantics  +  PyPTO-like timeline UX
                 ↘                      ↙
-                 .rep  →  Vue library
+                 .npu-rep  →  Vue library
 ```
 
 Semantic **overlap** (timed lanes, pipe util concepts, op identity) justifies a **shared Vue swimlane/report UI**. Semantic **differences** (instruction vs task vs pipe-busy grain; CSV packs vs schedule/PMU side files; Insight Source/Cache depth) justify **per-format adapters** into canonical models — not merging all on-disk formats into one uber component. Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) (shared UI + adapters).
@@ -91,6 +91,6 @@ The official product host extension is **`.npu-rep`** ([PROC-2](../context/decis
 - [DOMAIN_AND_USERS.md](../context/DOMAIN_AND_USERS.md) — OP developer context, pain points, glossary
 - [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — per-view required inputs / hide rules
 - [REP_FORMAT.md](REP_FORMAT.md) — container binary layout
-- [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.rep` embeds → UI panels
+- [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.npu-rep` embeds → UI panels
 - [questions](../context/questions/) — remaining blockers (esp. DATA-33)
 - [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — renderer tech, not data semantics
