@@ -114,15 +114,15 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('2.00 GB/s');
     expect(wrapper.text()).not.toContain('1.00 GB/s');
 
+    // All must restore default topology from a non-default pick (not via an intervening `0`).
+    await wrapper.get('[data-testid="pipe-block"]').setValue('');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    expect(wrapper.text()).toContain('1.00 GB/s');
+    expect(wrapper.text()).not.toContain('2.00 GB/s');
+
     await wrapper.get('[data-testid="pipe-block"]').setValue('0');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20%');
     expect(wrapper.text()).toContain('1.00 GB/s');
-
-    await wrapper.get('[data-testid="pipe-block"]').setValue('');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
-    // All restores default topology block (first labelled = 0), not the last pick.
-    expect(wrapper.text()).toContain('1.00 GB/s');
-    expect(wrapper.text()).not.toContain('2.00 GB/s');
   });
 
   it('PR-STATS-003: Cube|Vector toggle only for MIX and filters by side', async () => {
