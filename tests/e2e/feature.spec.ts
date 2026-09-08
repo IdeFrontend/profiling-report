@@ -288,10 +288,11 @@ test.describe('PR-E2E feature paths', () => {
         maxLanes: 8,
         predicate: async () => {
           if ((await inCount.count()) === 0) return false;
-          // textContent waits for attached (not visible); timeout 0 so a detached race
-          // returns false and the probe keeps scanning instead of burning the test budget.
+          // textContent waits for attached (not visible). A short timeout turns a detached
+          // race into TimeoutError → false so the probe keeps scanning (timeout: 0 means
+          // wait forever in Playwright — do not use it here).
           try {
-            const text = await inCount.textContent({ timeout: 0 });
+            const text = await inCount.textContent({ timeout: 1000 });
             return text != null && Number(text) >= 2;
           } catch {
             return false;

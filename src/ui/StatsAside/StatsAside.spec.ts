@@ -553,11 +553,11 @@ describe('StatsAside', () => {
     expect(core.text()).toMatch(/AICore 并行使用率|AICore parallel/);
     expect(wrapper.get('[data-testid="stats-aicore-util-score"]').text()).toMatch(/98\.14\s*%/);
     expect(wrapper.get('[data-testid="stats-aicore-util-score"]').attributes('title')).toBe(
-      `${0.981418 * 100}%`,
+      '98.1418%',
     );
     expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').text()).toMatch(/93\.38\s*%/);
     expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').attributes('title')).toBe(
-      `${0.933769 * 100}%`,
+      '93.3769%',
     );
     expect(wrapper.get('[data-testid="stats-aicore-util"]').text()).toMatch(
       /并行使用率|Parallel utilization/,
@@ -585,13 +585,13 @@ describe('StatsAside', () => {
     });
     const utilScore = wrapper.get('[data-testid="stats-aicore-util-score"]');
     expect(utilScore.get('.pr-card__num').text()).toBe('100.00');
-    expect(utilScore.attributes('title')).toBe(`${1.5 * 100}%`);
+    expect(utilScore.attributes('title')).toBe('150%');
     expect(wrapper.get('[data-testid="stats-aicore-util-bar"]').attributes('style')).toMatch(
       /width:\s*100%/,
     );
     const balScore = wrapper.get('[data-testid="stats-aicore-balance-score"]');
     expect(balScore.get('.pr-card__num').text()).toBe('0.00');
-    expect(balScore.attributes('title')).toBe(`${-0.42 * 100}%`);
+    expect(balScore.attributes('title')).toBe('-42%');
     expect(wrapper.get('[data-testid="stats-aicore-balance-bar"]').attributes('style')).toMatch(
       /width:\s*0%/,
     );

@@ -89,7 +89,9 @@ function aicorePercent(fraction: number): { score: number; title: string } {
   const raw = fraction * 100;
   // Clamp both ends so label and bar agree — balance = 1−σ/μ can go negative; util can exceed 1.
   const score = Number(Math.min(100, Math.max(0, raw)).toFixed(2));
-  return { score, title: `${raw}%` };
+  // Strip binary-float residue while keeping sub-percent detail beyond the 2dp label.
+  const title = `${Number(raw.toPrecision(12))}%`;
+  return { score, title };
 }
 const aicoreView = computed(() => {
   const s = props.report?.summary;
