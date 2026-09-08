@@ -39,6 +39,7 @@ import {
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
+import { EVENT_LABEL_FONT_CSS_PX, centeredTextBaseline, fitEventLabel } from './textAtlas';
 
 function drawEventLabel(
   ctx: CanvasRenderingContext2D,
@@ -57,10 +58,23 @@ function drawEventLabel(
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.font = `${Math.max(8, Math.round(10 * dpr))}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `400 ${Math.max(8, Math.round(EVENT_LABEL_FONT_CSS_PX * dpr))}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(name, anchor.cx, y + h / 2, anchor.maxWidth);
+  const fit = fitEventLabel(ctx, name, anchor.maxWidth);
+  if (fit.kind === 'skip') {
+    ctx.restore();
+    return;
+  }
+  const { baselineY, baseline } = centeredTextBaseline(ctx.measureText(fit.text), y + h / 2);
+  ctx.textBaseline = baseline;
+  if (fit.kind === 'shrink') {
+    // Horizontal-only shrink around the label center; vertical metrics are untouched.
+    ctx.translate(anchor.cx, baselineY);
+    ctx.scale(fit.scaleX, 1);
+    ctx.fillText(fit.text, 0, 0);
+  } else {
+    ctx.fillText(fit.text, anchor.cx, baselineY);
+  }
   ctx.restore();
 }
 
@@ -131,6 +145,8 @@ export class SwimlaneOverlayPainter {
   private searchQuery = '';
   /** When false, selection does not mute non-neighbors (pinned-strip pass). */
   private selectionMuted = true;
+  /** When false, the WebGL backend owns event labels (ClearType); overlay skips them. */
+  private drawEventLabels = true;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -181,6 +197,11 @@ export class SwimlaneOverlayPainter {
 
   setSearchQuery(query: string): void {
     this.searchQuery = query.trim().toLowerCase();
+  }
+
+  /** WebGL ClearType path draws its own event labels; overlay must not double-draw. */
+  setDrawEventLabels(enabled: boolean): void {
+    this.drawEventLabels = enabled;
   }
 
 
@@ -271,7 +292,10 @@ export class SwimlaneOverlayPainter {
       }
 
       // Same visibility as Canvas fills: search misses omit labels; muted events gray the rest.
-      if (matches) {
+      // When the WebGL backend owns labels (ClearType), non-resting blocks still get their label
+      // here: the opaque state fill painted above covers the GL label, and the label's contrast
+      // must match that fill.
+      if (matches && (this.drawEventLabels || state !== 'normal')) {
         drawEventLabel(
           ctx,
           ev.name,
@@ -538,10 +562,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       });
     }
 
-    if (this.paintDependencies) {
-      paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
-    }
-
     for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
       if (matches) {
         drawEventLabel(
@@ -557,6 +577,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
           dpr,
         );
       }
+    }
+
+    // Dependency curves draw above event labels.
+    if (this.paintDependencies) {
+      paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.

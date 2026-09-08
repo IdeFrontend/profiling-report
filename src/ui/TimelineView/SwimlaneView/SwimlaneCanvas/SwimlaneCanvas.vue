@@ -608,6 +608,7 @@ function ensureAttach(): void {
     if (glBackend.attach(gl)) {
       backend = glBackend;
       overlay.attach(ov);
+      overlay.setDrawEventLabels(!glBackend.hasClearTypeLabels());
       attached = true;
       zeroBackingStores();
       return;
