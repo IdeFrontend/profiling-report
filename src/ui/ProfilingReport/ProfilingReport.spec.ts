@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { markRaw, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
+import TimelineView from '../TimelineView/TimelineView.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
@@ -587,13 +588,13 @@ describe('ProfilingReport scaffold', () => {
     });
     await nextTick();
 
-    // Source-level toRaw: swim, displaySwim, and leaf events are not Proxies.
-    expect(isReactive(wrapper.vm.swim)).toBe(false);
-    expect(isReactive(wrapper.vm.displaySwim)).toBe(false);
-    const leaf = wrapper.vm.displaySwim!.processes[0]!.threads[0]!.events[0]!;
-    expect(isReactive(leaf)).toBe(false);
-    // Nothing collapsed → filterCollapsedTree returns the same raw reference (pin/body share identity).
-    expect(wrapper.vm.displaySwim).toBe(wrapper.vm.swim);
+    // Source-level toRaw: what the timeline actually receives is not a Proxy.
+    const timeline = wrapper.findComponent(TimelineView);
+    const display = timeline.props('displaySwim')!;
+    expect(isReactive(display)).toBe(false);
+    expect(isReactive(display.processes[0]!.threads[0]!.events[0]!)).toBe(false);
+    // Nothing collapsed → pin strip and body share one raw model.
+    expect(display).toBe(timeline.props('pinSourceModel'));
   });
 
   it('PR-VIEW-016/017: W/S/A/D keys zoom and pan the timeline', async () => {

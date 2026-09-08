@@ -240,7 +240,6 @@ const laneGroups = computed((): GutterGroup[] => {
 });
 
 /** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
-/** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
