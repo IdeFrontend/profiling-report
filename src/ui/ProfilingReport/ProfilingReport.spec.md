@@ -160,6 +160,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Dependency state.** `dependencyMode` and `dependencyDepth` are one pair of values, held here and read by both dependency surfaces: the swimlane curves and the detail dock's Relevent column, which walk the same `SwimEvent.dependencies` refs with the same filter. The dock's Relevent toolbar is where the user edits them; the props seed them and a change re-walks in place. `hasDependencies` gates the walk, so a model without edges hands the dock no neighbours and the column never mounts. Neighbour semantics — cap, ordering, cycles — belong to [dependencies](../../../specs/core/dependencies.spec.md).
 
+**Topology fullscreen.** StatsAside **全屏** (fit-window icon; `title`/`aria-label` = Full screen) emits `open-topology-fullscreen` with the current `MemoryTopologyModel`. The root covers `.pr-root` (toolbar + timeline + aside) with an opaque overlay: Back (`t('back')`) + title **内存拓扑** / Memory topology, then `MemoryTopologyPanel` scaled to the remaining box. `ReportLayout` stays mounted. Back restores the stacked report (aside open/width/scroll unchanged). Overlay right-click does not open the memory CSV overlay and does not close fullscreen (browser context menu is suppressed). Stacked-diagram UI-35 is unchanged. A report / operator change closes the overlay. Not the browser Fullscreen API.
+
 ## Visual
 
 (Orchestration only — component chrome lives in child specs. Panel clamps: [`ReportLayout.spec.md`](../ReportLayout/ReportLayout.spec.md).)
@@ -173,6 +175,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models and capabilities; re-select is a no-op; closing the aside then switching operator keeps the aside closed; a manually resized aside keeps its preferred width across operator switches (does not reset to 480).
 6. **PR-ROOT-006** — *WITHDRAWN (2026-09-01)* — the corner wash moved to the toolbar strip, which now owns it; at the root it was occluded by `.pr-main`.
 7. **PR-ROOT-008** — cannbot-request emits assembled payload with reportMeta.
+8. **PR-ROOT-009** — Topology 全屏 covers `.pr-root`; Back closes; layout stays mounted; no spurious no-timeline; report change closes overlay.
+9. **PR-ROOT-010** — Overlay right-click stays fullscreen and does not open memory CSV.
 
 ## Edge Cases
 
@@ -183,6 +187,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 | `.rep` missing `trace.json` | Swimlane stays null, error displayed |
 | Standalone CTEF | Swimlane renders, aside auto-hides, no error |
 | `maxTime === minTime` | Bounds clamp adds +1 to prevent division by zero |
+| Topology fullscreen open, report replaced | Overlay closes; stacked report remains |
 
 ## Design sketches
 
@@ -201,6 +206,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-09-08** — Topology **全屏** covers `.pr-root` with Back + scaled diagram (PR-ROOT-009); overlay right-click does not open memory CSV (PR-ROOT-010).
 - **2026-09-07** — Optional `userGuideUrl` (default demo guide) forwarded to the toolbar help button; toolbar emits `open-user-guide` (and `window.open`) for host `openExternal`.
 - **2026-09-04** — Host `timeDisplayMode: 'cycles'` falls back to wall time when OpBasicInfo freq is missing (combined immediate watcher); omitted host prop no longer resets a toolbar cycles choice on freq change (PR-UI-009/010/011).
 - **2026-09-03** — Operator switch preserves `asideVisible` and session gutter/aside widths (closing or resizing the sidebar then changing OP no longer reopens it or snaps width back to 480; PR-ROOT-005).

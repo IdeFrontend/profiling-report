@@ -106,7 +106,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Understand bandwidth / path load across L1/L2/UB/GM |
 | **Trigger** | After S1; topology is on the stacked 报告统计 scroll |
-| **Steps** | View topology under PIPE; 详情 opens memory CSV field list; correlate with timeline window |
+| **Steps** | View topology under PIPE; **全屏** covers the report with the same diagram; **详情** opens memory CSV field list; correlate with timeline window |
 | **Success** | User identifies memory-bound paths |
 | **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` |
 
@@ -274,7 +274,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S6–S9 (P2)
 
-- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → optional details list.
+- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → optional **全屏** overlay or details list.
 - **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/decisions/DATA.md)).
 - **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
 - **S9:** Click 源码 / 详情 / 缓存 / OP算子 → different main surface; return to 时间线 restores view state.

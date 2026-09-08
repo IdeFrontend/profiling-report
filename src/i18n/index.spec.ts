@@ -14,6 +14,8 @@ describe('i18n', () => {
     expect(t('searchPlaceholder', 'en')).toBe('Search');
     expect(t('resizeLaneGutter', 'en')).toBe('Resize lane gutter');
     expect(t('memoryTopology', 'zh-CN')).toBe('内存拓扑');
+    expect(t('fullscreen', 'zh-CN')).toBe('全屏');
+    expect(t('fullscreen', 'en')).toBe('Full screen');
     expect(t('hardwareInfoMissing', 'en')).toBe('Missing hardware info');
     expect(t('hardwareInfoMissing', 'zh-CN')).toBe('缺少 hardware info');
     expect(t('focusMeasureRange', 'en')).toBe('Focus measure range');
