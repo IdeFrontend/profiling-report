@@ -197,5 +197,5 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/MET
 - [questions](questions/) — unresolved producer / fixture / formula questions
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios S1–S9 and sync model
 - [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist
-- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.rep` vs PyPTO semantics
+- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.npu-rep` vs PyPTO semantics
 - [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) — shared UI + adapters
