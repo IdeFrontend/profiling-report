@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
 import type { AdaptedReport, SwimlaneModel, SwimThread } from '../../src/domain/types';
 import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
+import { leafRowCount } from '../../src/swimlane/layout';
 import { loadOutRepBytes, loadSampleRepBytes, liteSampleRepByteLength } from '../helpers/fixtures';
 
 function walkThreads(threads: SwimThread[], visit: (thread: SwimThread) => void): void {
@@ -174,5 +175,22 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(withParams.length).toBe(events.length);
     expect(String(withParams[0]!.args!.Pc_addr)).toMatch(/^0x[0-9a-f]+$/i);
     expect(Array.isArray(withParams[0]!.args!.Code)).toBe(true);
+  });
+
+  it('op1 demos multi-height nests across SCALAR / MTE2 / ALL', () => {
+    const compute = op1.swimlaneModel!.processes[0]!.threads.find((t) => t.name === '计算')!;
+    const cube = compute.children!.find((c) => c.name === 'Core0.Cube')!;
+    const vec0 = compute.children!.find((c) => c.name === 'Core0.Vec0')!;
+    const scalar = cube.children!.find((c) => c.name === 'SCALAR')!;
+    const mte2 = cube.children!.find((c) => c.name === 'MTE2')!;
+    const mte1 = cube.children!.find((c) => c.name === 'MTE1')!;
+    const all = vec0.children!.find((c) => c.name === 'ALL')!;
+    expect(leafRowCount(scalar)).toBe(3);
+    expect(leafRowCount(mte2)).toBe(2);
+    expect(leafRowCount(all)).toBe(2);
+    expect(leafRowCount(mte1)).toBe(1);
+    // Several nest windows spaced across the timeline (not a single early stack).
+    const nestIds = scalar.events.filter((e) => e.id.includes('-nest-'));
+    expect(nestIds.length).toBeGreaterThanOrEqual(15);
   });
 });

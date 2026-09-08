@@ -88,6 +88,8 @@ export interface FlatLane {
   /** Nested folder row: reserves height, no events painted. */
   folder?: boolean;
   depth: number;
+  /** Sub-rows for a leaf with overlapping events; 1 for folders and spacer leaves. */
+  rowCount: number;
 }
 
 export interface GroupHeader {
@@ -100,7 +102,10 @@ export interface LaidOutEvent {
   id: string;
   event: SwimEvent;
   laneIndex: number;
+  /** Sub-row top (lane.y + rowIndex * LANE_HEIGHT); block is centered in this band. */
   y: number;
+  /** Sub-row index within the leaf lane (0-based). */
+  rowIndex: number;
   color: string;
   /** Collapsed-folder summary bar: gray, interactive (hover/label/click-to-expand), never selected/ringed. */
   summary?: boolean;
@@ -125,6 +130,86 @@ export const EMPTY_LAYOUT: SwimlaneLayout = {
   eventsByLane: [],
 };
 
+/** event id → sub-row index (0-based). */
+interface RowAssignment {
+  rows: Map<string, number>;
+  /** Number of sub-rows (≥ 1). */
+  count: number;
+}
+
+/**
+ * Memo of `computeRows` keyed on the events-array identity. No invalidation: mutating
+ * `thread.events` in place after the first call (e.g. `push` / `sort`) leaves a stale
+ * assignment. Safe for current producers because `chromeTraceToSwimlane` finishes
+ * mutating during adaptation, before any layout.
+ */
+const rowCache = new WeakMap<readonly SwimEvent[], RowAssignment>();
+
+/**
+ * Greedy first-fit on `startTime` (longest `duration` first on ties): place each event
+ * into the first sub-row whose last event ends at or before it (`end <= start` counts as
+ * fitting — touching endpoints are siblings). Overlapping events land on distinct sub-rows.
+ * `ponytail:` O(n·k) scan (n events, k sub-rows); fine because k ≤ n and lanes are small,
+ * and the result is memoized per events-array. Upgrade to an interval tree if lanes grow
+ * to stress-lane event counts.
+ */
+function computeRows(events: readonly SwimEvent[]): RowAssignment {
+  const cached = rowCache.get(events);
+  if (cached) return cached;
+  const sorted = [...events].sort((a, b) => a.startTime - b.startTime || b.duration - a.duration);
+  const rows = new Map<string, number>();
+  const rowEnds: number[] = [];
+  for (const ev of sorted) {
+    if (rows.has(ev.id)) {
+      throw new Error(`duplicate event id within lane: ${ev.id}`);
+    }
+    const end = ev.startTime + ev.duration;
+    let row = -1;
+    for (let i = 0; i < rowEnds.length; i++) {
+      if (ev.startTime >= rowEnds[i]!) {
+        row = i;
+        rowEnds[i] = end;
+        break;
+      }
+    }
+    if (row === -1) {
+      row = rowEnds.length;
+      rowEnds.push(end);
+    }
+    rows.set(ev.id, row);
+  }
+  const result: RowAssignment = { rows, count: Math.max(1, rowEnds.length) };
+  rowCache.set(events, result);
+  return result;
+}
+
+/** event id → sub-row index (0-based), by greedy first-fit on `startTime`. */
+export function assignEventRows(events: SwimEvent[]): Map<string, number> {
+  return computeRows(events).rows;
+}
+
+/** Number of sub-rows a leaf thread needs; 1 when it has no events (or no overlaps). */
+export function leafRowCount(thread: SwimThread): number {
+  if (thread.events.length === 0) return 1;
+  return computeRows(thread.events).count;
+}
+
+/** Leaf events must already be `startTime` asc / longest `duration` first (adapter contract). */
+function assertLeafEventsOrdered(events: readonly SwimEvent[]): void {
+  for (let i = 1; i < events.length; i++) {
+    const prev = events[i - 1]!;
+    const next = events[i]!;
+    if (
+      next.startTime < prev.startTime ||
+      (next.startTime === prev.startTime && next.duration > prev.duration)
+    ) {
+      throw new Error(
+        `leaf events must be sorted startTime asc, longest duration first (at ${next.id})`,
+      );
+    }
+  }
+}
+
 export function contentHeightFromLayout(layout: SwimlaneLayout): number {
   if (layout.headers.length === 0 && layout.lanes.length === 0) {
     return LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT;
@@ -134,7 +219,7 @@ export function contentHeightFromLayout(layout: SwimlaneLayout): number {
     bottom = Math.max(bottom, h.y + LANE_GROUP_HEADER_HEIGHT);
   }
   for (const l of layout.lanes) {
-    bottom = Math.max(bottom, l.y + LANE_HEIGHT);
+    bottom = Math.max(bottom, l.y + l.rowCount * LANE_HEIGHT);
   }
   return bottom;
 }
@@ -149,14 +234,17 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
       if (!skipHeaders) h += LANE_GROUP_HEADER_HEIGHT;
       continue;
     }
-    h += LANE_HEIGHT;
+    // Folders are always one band (`rebuildLayout` hardcodes `rowCount: 1`); do not use
+    // `leafRowCount` here — a folder that somehow carried events would desync DOM Card strips.
+    h += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
   }
   return Math.max(skipHeaders ? LANE_HEIGHT : 120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
 
 /**
- * Card header Y positions only — same row walk as `rebuildLayout`, without sorting/pushing events.
- * Use for DOM Card strips so collapse toggles are not O(events).
+ * Card header Y positions only — same row walk as `rebuildLayout`. Folders contribute one
+ * `LANE_HEIGHT`; leaves use `leafRowCount` (memoized on events-array identity — first call
+ * is O(events); collapse toggles that keep leaf arrays by reference stay O(rows)).
  */
 export function layoutHeaders(model: SwimlaneModel | null): GroupHeader[] {
   if (!model) return [];
@@ -167,7 +255,7 @@ export function layoutHeaders(model: SwimlaneModel | null): GroupHeader[] {
       headers.push({ id: row.process.id, name: row.process.name, y });
       y += LANE_GROUP_HEADER_HEIGHT;
     } else {
-      y += LANE_HEIGHT;
+      y += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
     }
   }
   return headers;
@@ -204,7 +292,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     const thread = row.thread;
     const color = colorForThread(thread.name);
     if (row.kind === 'folder') {
-      const lane: FlatLane = { thread, y, color, folder: true, depth: row.depth };
+      const lane: FlatLane = { thread, y, color, folder: true, depth: row.depth, rowCount: 1 };
       lanes.push(lane);
       lanesByTid.set(thread.id, lane);
       const laneEvents: LaidOutEvent[] = [];
@@ -218,6 +306,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
           event: ev,
           laneIndex: lanes.length - 1,
           y,
+          rowIndex: 0,
           color: SUMMARY_EVENT_FILL,
           summary: true,
         };
@@ -229,19 +318,33 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       y += LANE_HEIGHT;
       continue;
     }
-    const lane: FlatLane = { thread, y, color, depth: row.depth };
+    const rowCount = leafRowCount(thread);
+    const lane: FlatLane = { thread, y, color, depth: row.depth, rowCount };
     lanes.push(lane);
     lanesByTid.set(thread.id, lane);
     const laneEvents: LaidOutEvent[] = [];
-    const sorted = [...thread.events].sort((a, b) => a.startTime - b.startTime);
-    for (const ev of sorted) {
-      const item: LaidOutEvent = { id: ev.id, event: ev, laneIndex: lanes.length - 1, y, color };
+    const rowIndexById = assignEventRows(thread.events);
+    // Trust adapter/host order (no defensive re-sort); WebGL gap math consumes eventsByLane as-is.
+    assertLeafEventsOrdered(thread.events);
+    for (const ev of thread.events) {
+      const rowIndex = rowIndexById.get(ev.id);
+      if (rowIndex === undefined) {
+        throw new Error(`missing row assignment for event ${ev.id}`);
+      }
+      const item: LaidOutEvent = {
+        id: ev.id,
+        event: ev,
+        laneIndex: lanes.length - 1,
+        y: y + rowIndex * LANE_HEIGHT,
+        rowIndex,
+        color,
+      };
       events.push(item);
       eventsById.set(ev.id, item);
       laneEvents.push(item);
     }
     eventsByLane.push(laneEvents);
-    y += LANE_HEIGHT;
+    y += rowCount * LANE_HEIGHT;
   }
   return { lanes, headers, events, eventsById, lanesByTid, eventsByLane };
 }
@@ -295,12 +398,12 @@ export function laneIdAtPoint(
   y: number,
 ): string | null {
   const contentY = y + view.scrollY;
-  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
+  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT);
   if (!lane) return null;
   return lane.thread.id;
 }
 
-/** Prefer shorter nested events (same as Canvas MVP). `width`/`x`/`y` are device pixels. */
+/** Prefer shorter duration when multiple blocks share a pixel (tie-break only; sub-rows make true overlaps rare). `width`/`x`/`y` are device pixels. */
 export function hitTestLayout(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
@@ -310,7 +413,9 @@ export function hitTestLayout(
   dpr = 1,
 ): string | null {
   const contentYCss = y / dpr + view.scrollY;
-  const lane = layout.lanes.find((l) => contentYCss >= l.y && contentYCss < l.y + LANE_HEIGHT);
+  const lane = layout.lanes.find(
+    (l) => contentYCss >= l.y && contentYCss < l.y + l.rowCount * LANE_HEIGHT,
+  );
   if (!lane) return null;
   // Folder lanes carry only summary bars (collapsed) or nothing (expanded) — both
   // resolve through eventsByLane, so a folder with no summary events still hits nothing.
@@ -368,14 +473,18 @@ export function nearestEventEdgeAtPoint(
   thresholdPx: number,
 ): NearestEventEdge | null {
   const contentY = y + view.scrollY;
-  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
+  const lane = layout.lanes.find(
+    (l) => contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT,
+  );
   if (!lane) return null;
   const laneIndex = layout.lanes.indexOf(lane);
+  const rowIndex = Math.floor((contentY - lane.y) / LANE_HEIGHT);
   const span = Math.max(1, view.endTime - view.startTime);
   const w = Math.max(1, width);
   let best: NearestEventEdge | null = null;
   let bestDist = Infinity;
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
+    if (item.rowIndex !== rowIndex) continue;
     const ev = item.event;
     const end = ev.startTime + ev.duration;
     if (end < view.startTime || ev.startTime > view.endTime) continue;
@@ -429,13 +538,17 @@ export function findHoverGap(
   thresholdPx: number,
 ): HoverGap | null {
   const contentY = y + view.scrollY;
-  const lane = layout.lanes.find((l) => contentY >= l.y && contentY < l.y + LANE_HEIGHT);
+  const lane = layout.lanes.find(
+    (l) => contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT,
+  );
   if (!lane) return null;
-  const { y: blockY, h: blockH } = eventBlockMetrics(lane.y, view.scrollY);
+  const laneIndex = layout.lanes.indexOf(lane);
+  const rowIndex = Math.floor((contentY - lane.y) / LANE_HEIGHT);
+  const subRowY = lane.y + rowIndex * LANE_HEIGHT;
+  const { y: blockY, h: blockH } = eventBlockMetrics(subRowY, view.scrollY);
   if (y < blockY || y > blockY + blockH) return null;
   // Tooltip wins when a visible block is under the pointer (same rule as hitTest).
   if (hitTestLayout(layout, view, width, x, y)) return null;
-  const laneIndex = layout.lanes.indexOf(lane);
   const span = Math.max(1, view.endTime - view.startTime);
   const w = Math.max(1, width);
   const t = view.startTime + (x / w) * span;
@@ -443,6 +556,7 @@ export function findHoverGap(
   let leftEnd: number | null = null;
   let rightStart: number | null = null;
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
+    if (item.rowIndex !== rowIndex) continue;
     const ev = item.event;
     const end = ev.startTime + ev.duration;
     if (end <= t && (leftEnd == null || end > leftEnd)) leftEnd = end;
@@ -460,7 +574,7 @@ export function findHoverGap(
   const edgeBand = Math.min(thresholdPx, Math.max(0, gapPx / 2 - 0.5));
   if (Math.abs(xLeft - x) < edgeBand || Math.abs(xRight - x) < edgeBand) return null;
 
-  return { leftEnd, rightStart, laneY: lane.y };
+  return { leftEnd, rightStart, laneY: subRowY };
 }
 
 /**

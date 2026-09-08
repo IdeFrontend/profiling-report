@@ -71,6 +71,7 @@ Reference: `source/v930/entry.jpeg`, `source/v930/hardware-more-detail.jpeg` (ex
 ### 4. Swimlane surface
 
 - Color-coded duration rectangles on each lane, vertically centered between gutter-aligned row dividers
+- **Multi-height lanes:** a titled leaf lane whose events overlap in time splits into non-overlapping **sub-rows** under one title (`source/v930/task-multi-height.jpeg` — “Task 存在多个时，高度加高”); the lane grows to `rowCount × 22px`, each event vertically centered in its own sub-row band, one gutter title cell spanning them all
 - Labels on blocks when width allows (`DC_PRELOAD_XN_IMM`, Aten ops, …): vertically centered in the block; horizontally centered in the on-screen (clipped) event rect
 - Uniform lane background for all event-sequence rows (no zebra striping); horizontal dividers continue from the left gutter across each lane
 - **Pin lane (P2):** leaf-row pushpin in gutter (`source/v930/hardware-more-detail.jpeg`); pinned duplicates in sticky strip at top (events only, no dep links; cross-card pin order) — see [`INTERACTIONS.md`](INTERACTIONS.md)

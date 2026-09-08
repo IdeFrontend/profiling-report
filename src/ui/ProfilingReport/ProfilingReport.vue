@@ -41,6 +41,7 @@ import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../doma
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
+import { leafRowCount } from '../../swimlane/layout';
 import {
   collectLeafEventsFromModel,
   filterCollapsedTree,
@@ -185,6 +186,8 @@ function lanesWithBars(
     if (bar) lane.bar = bar;
     if (t.children !== undefined) {
       lane.children = lanesWithBars(t.children, bars);
+    } else {
+      lane.rowCount = leafRowCount(t);
     }
     return lane;
   });
