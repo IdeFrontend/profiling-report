@@ -790,6 +790,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :pin-source-model="swim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
+          :overview-series="report?.overviewSeries ?? []"
           :gutter-width="gutterWidth"
           :prefer-renderer="preferRenderer ?? 'auto'"
           :locale="locale"

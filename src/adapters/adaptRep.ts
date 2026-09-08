@@ -636,7 +636,7 @@ export function overviewSeriesFromSampling(payload?: Uint8Array): OverviewSeries
     if (!raw || typeof raw !== 'object') continue;
     const ev = raw as Record<string, unknown>;
     if (ev.ph !== 'C') continue;
-    if (ev.cat != null && String(ev.cat) !== 'util') continue;
+    if (String(ev.cat ?? '') !== 'util') continue;
     const name = typeof ev.name === 'string' ? ev.name : '';
     const meta = OVERVIEW_COUNTER_MAP[name];
     if (!meta) continue;
@@ -922,9 +922,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   return {
     summary,
     pipeOccupancy: pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv'])),
-    overviewSeries: overviewSeriesFromSampling(
-      payloadByName(payloads, ['Sampling.json', 'sampling.json']),
-    ),
+    overviewSeries: overviewSeriesFromSampling(payloadByName(payloads, ['Sampling.json'])),
     computeTables: compute.tables,
     memoryTables: memory.tables,
     csvTexts: { ...compute.texts, ...memory.texts },
