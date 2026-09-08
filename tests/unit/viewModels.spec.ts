@@ -90,14 +90,17 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(pipeLane?.utilization).toBeCloseTo(byId.vector.ratio, 5);
   });
 
-  it('PR-VM-003 (DATA-39a): Sampling.json ph:C → one track per name; empty without Sampling; not from PipeUtilization', () => {
+  it('PR-VM-003 (DATA-39): Sampling.json ph:C → one track per name present; empty without Sampling; not from PipeUtilization', () => {
     const without = adaptRep(parseRep(loadOutRepBytes()));
     expect(without.reportModel.overviewSeries).toEqual([]);
 
     const withSampling = loadReportSource(loadVectorMuladdNpuRepBytes());
     const series = withSampling.reportModel.overviewSeries;
     expect(series.length).toBeGreaterThan(0);
-    expect(series.map((s) => s.id)).toEqual(expect.arrayContaining(['CUBE']));
+    // DATA-39: render every distinct ph:C counter name present in Sampling.json
+    expect(series.map((s) => s.id).sort()).toEqual(
+      ['CUBE', 'FIXP', 'MTE1', 'MTE2', 'SCALAR'].sort(),
+    );
     expect(series.every((s) => s.id === s.label)).toBe(true);
 
     const cube = series.find((s) => s.id === 'CUBE')!;

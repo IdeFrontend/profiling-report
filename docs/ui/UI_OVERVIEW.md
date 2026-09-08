@@ -44,9 +44,10 @@ Toolbar sits **only** above the timeline (main column). StatsAside starts at the
 
 - Horizontal time ruler in milliseconds (sketches: ~0–18 ms)
 - Vertical playhead / scrubber with precise timestamp (e.g. `00:06.456`)
-- **统计分析**: stacked area/line charts for **Cube** (blue) and **Vector** (teal), time-aligned with the swimlane
+- **统计分析** (`OverviewCharts`): stacked **area** charts (bright stroke + darker fill) for each `OverviewSeries` track, **directly under the time axis and above the swimlane**, time-aligned with the viewport window
+- **Geometry (v930):** each chart track **16px** tall; **8px** vertical margin between tracks; gutter column width matches `LaneGutter`
 
-**MVP:** time axis + zoom-linked overview charts from `Sampling.json` `ph:C` ([DATA-39a](../context/decisions/interim/DATA.md)) when `OverviewSeries` is present; otherwise **hide** ([DATA-32](../context/decisions/DATA.md)). See [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md).
+**MVP:** time axis + zoom-linked overview charts from `Sampling.json` `ph:C` ([DATA-39](../context/decisions/DATA.md)) when `OverviewSeries` is present; otherwise **hide** ([DATA-32](../context/decisions/DATA.md)). See [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md). Visual: [`OverviewCharts/visual/`](../../src/ui/TimelineView/OverviewCharts/visual/).
 
 ### 3. Left lane hierarchy
 

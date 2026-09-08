@@ -298,9 +298,10 @@ Treat as illustrative only (invalid JSON / stub series).
 
 ### Visualization logic
 
-- Collapsible section with synchronized area charts over time (one track per series).
-- Shared time axis with a vertical scrubber aligned to the Kernel timeline below.
-- **Producer (interim [DATA-39a](../context/decisions/interim/DATA.md)):** product `Sampling.json` `ph:"C"` counters → `OverviewSeries` (one track per counter `name`; hide if empty — [DATA-32](../context/decisions/DATA.md)). Display labels / 通信 / units still open under [DATA-39](../context/questions/DATA.md).
+- Collapsible **统计分析** section **above** the Kernel swimlane (under the time axis), with synchronized area charts over time (one track per `OverviewSeries`).
+- Shared time axis with the swimlane viewport; gutter column width matches lane gutter.
+- **Geometry (v930):** track height **16px**; **8px** margin between tracks; bright stroke + darker fill (see [`OverviewCharts/visual/`](../../src/ui/TimelineView/OverviewCharts/visual/)).
+- **Producer ([DATA-39](../context/decisions/DATA.md)):** product `Sampling.json` `ph:"C"` counters → `OverviewSeries` (**one track per counter `name` present**; hide if empty — [DATA-32](../context/decisions/DATA.md)).
 
 ---
 

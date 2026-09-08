@@ -45,7 +45,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 | `mte3` | `#A44830` | PIPE MTE3 (rust / red-brown) |
 | `scalar` | `#1A743E` | PIPE Scalar bar in `compute-load.jpeg`. Swimlane greens in `entry.jpeg` sample closer to `#38702C`; one token per rule 1. |
 
-**Overview chart accent (brighter Cube sparkline):** `#3078F0` — use for filled overview “Cube” series when distinct from bar cyan is desired; keep `vector` series on `#007464` / teal family.
+**Overview chart accent (brighter Cube sparkline):** `#3078F0` — stroke for filled overview “Cube” series; keep fill at ~0.45 opacity of the stroke color. Vector / Scalar / MTE / FixP overview strokes use the pipe tokens above; 通信 uses `mov` purple when present.
 
 ## Swimlane event accents (non-pipe)
 

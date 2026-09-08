@@ -286,7 +286,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="no-timeline"]').exists()).toBe(true);
   });
 
-  it('DATA-39a: product Sampling.json shows overview chart tracks', async () => {
+  it('DATA-39: product Sampling.json shows overview chart tracks for all counters', async () => {
     const wrapper = mount(ProfilingReport, {
       props: { source: loadVectorMuladdNpuRepBytes() },
     });

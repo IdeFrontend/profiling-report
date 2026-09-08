@@ -107,7 +107,7 @@ Op name/type, task duration, optional raw frequency / `coreCount` / meta fields.
 
 ### `OverviewSeries` (M)
 
-`{ id, label, points: { t, v }[] }` for overview chart tracks. Filled from product `Sampling.json` `ph:C` counters ([DATA-39a](../context/decisions/interim/DATA.md)) — one series per counter name.
+`{ id, label, points: { t, v }[] }` for overview chart tracks. Filled from product `Sampling.json` `ph:C` counters ([DATA-39](../context/decisions/DATA.md)) — one series per counter name present.
 
 **Why:** Isolates the time-series source from PIPE ratios ([DATA-32](../context/decisions/DATA.md)). `OverviewCharts` hides when the array is empty.
 
@@ -221,9 +221,11 @@ Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times a
 
 ### `OverviewCharts` (M)
 
-Renders `OverviewSeries` (one track per series); **hidden** when empty ([DATA-32](../context/decisions/DATA.md) / [DATA-39a](../context/decisions/interim/DATA.md)).
+Renders `OverviewSeries` as the **统计分析** block **above** the swimlane (below the time axis); **hidden** when empty ([DATA-32](../context/decisions/DATA.md) / [DATA-39](../context/decisions/DATA.md)).
 
-**Why:** MVP feature in sketches; Sampling counters drive tracks when present.
+**Geometry / style (v930/entry):** track height **16px**; **8px** gap between tracks; gutter labels share Timeline gutter width; area fill (~0.45 opacity) + bright stroke polyline per [COLOR_TOKENS](../ui/COLOR_TOKENS.md).
+
+**Why:** Matches sketch density above Card/core swimlanes; Sampling counters drive tracks when present.
 
 ### `SwimlaneCanvas` (M / M2)
 

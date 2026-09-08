@@ -152,7 +152,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-07-31
 - **Question:** Overview charts data source?
 - **Decision:** **Hide** overview charts until `OverviewSeries` (C). Adapter returns `[]`.
-- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [decisions/interim/](../decisions/interim/) `DATA-32a`
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [DATA-39](./DATA.md)
 
 ---
 
@@ -181,3 +181,14 @@ Format and statuses: [README.md](README.md).
 - **Question:** Lane hierarchy mapping?
 - **Decision:** Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children`.
 - **Specs:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md)
+
+---
+
+## DATA-39
+
+- **Resolved:** 2026-09-08
+- **Was:** open question DATA-39 (OverviewSeries producer)
+- **Question:** OverviewSeries producer for 统计分析 tracks?
+- **Decision:** Product embed = `Sampling.json` (case variants). Emit **one** `OverviewSeries` track for **every** distinct Chrome Trace `ph:"C"` counter `name` present (`id` = `label` = counter `name` as shipped — no rename / invent Vector or 通信). Points: `{ t: ts×1e3 (µs→canonical ns), v: args.value }` for events with a finite `args.value`; points sorted by `t`; series order = first-seen name order. No embed / no `ph:C` → `[]` → **hide** ([DATA-32](./DATA.md)). Do **not** invent series from `PipeUtilization`.
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §3, [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.7, [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-003, [OverviewCharts](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md)
+- **Source:** Product (2026-09-08). Supersedes interim [`DATA-39a`](interim/DATA.md) and [`DATA-32a`](interim/DATA.md).

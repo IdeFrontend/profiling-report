@@ -829,7 +829,7 @@ function withPipeLaneUtilizations(
 const SAMPLING_US_TO_NS = 1e3;
 
 /**
- * DATA-39a: one OverviewSeries per distinct Chrome Trace `ph:"C"` counter name.
+ * DATA-39: one OverviewSeries per distinct Chrome Trace `ph:"C"` counter name in Sampling.json.
  * Empty when payload missing, invalid JSON, or no usable counters.
  */
 export function overviewSeriesFromSampling(payload: Uint8Array | undefined): OverviewSeries[] {

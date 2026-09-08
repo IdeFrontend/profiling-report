@@ -24,7 +24,7 @@ DATA-33b (pipe aggregation: mean of non-NA ratios per family). Shared `PR-FMT-*`
 
 ## Open
 
-DATA-39 — OverviewSeries display-name glossary / units / 通信 (interim [DATA-39a](../context/decisions/interim/DATA.md) maps Sampling `ph:C` → one track per name).
+—
 
 ## Design sketches
 

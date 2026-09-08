@@ -596,6 +596,15 @@ defineExpose({
       </div>
     </div>
 
+    <OverviewCharts
+      v-if="showOverviewCharts && (overviewSeries?.length ?? 0) > 0"
+      :series="overviewSeries!"
+      :start-time="view.startTime"
+      :end-time="view.endTime"
+      :gutter-width="localGutterWidth"
+      :locale="locale"
+    />
+
     <SwimlaneView
       ref="swimlaneRef"
       :groups="groups"
@@ -633,13 +642,6 @@ defineExpose({
       @zoom="(f, a) => emit('zoom', f, a)"
       @update:measure-range="emit('update:measure-range', $event)"
       @suppress-measure-dt="suppressMeasureDt = $event"
-    />
-
-    <OverviewCharts
-      v-if="showOverviewCharts && (overviewSeries?.length ?? 0) > 0"
-      :series="overviewSeries!"
-      :start-time="view.startTime"
-      :end-time="view.endTime"
     />
   </div>
 </template>
