@@ -92,6 +92,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-029**: During a collapse/expand tween, dependency curves whose either endpoint lies in the animating subtree (`foldY ≤ y < foldY + hiddenHeight`) are not painted; other curves still draw, with endpoint Y shifted by `collapseShiftY` so after-subtree connectors track the gap close. When the tween settles, all selected curves paint normally again.
 1. **PR-RENDER-030**: WebGL lane-chrome / divider pass uses premultiplied alpha blending with `collapseAlpha`, matching Canvas `globalAlpha` fade of the collapsing subtree (blending was previously disabled, so alpha had no effect).
 1. **PR-RENDER-031**: `nearestEventEdgeAtPoint` / `findHoverGap` / `leafLaneIdAtPoint` resolve the lane under the pointer the same way as `hitTestLayout` (last matching leaf when collapse tucks into a parent; skip `alpha === 0`).
+1. **PR-RENDER-032**: WebGL ClearType `drawEventLabels` places titles with `collapseShiftY(item.y, …)` (same Y as interval fills) and skips / fades by `collapseAlpha` so resting labels do not linger on the expanded-base row while blocks slide for ~200ms.
 1. **PR-RENDER-035**: ClearType mode still labels hovered/selected blocks via the overlay (correct contrast over the lifted fill).
 1. **PR-RENDER-036**: ClearType label backdrop uses the same `bg + rgb` additive formula as the fill (the hovered row's `LANE_HOVER_FILL` when that event's lane is hovered), and a muted event swaps in `SELECTION_MUTED_FILL`/`SELECTION_MUTED_LABEL`, so the label rect matches the event rect.
 1. **PR-RENDER-037**: Text shaders export the sudu gamma constant (`CLEARTYPE_TEXT_POW` 2.25); `eventLabelFont` uses the shared CSS px size; `clearTypeRasterSupported` is false without an opaque 2D context; `fitTextWidth` truncates an over-wide label with a trailing `...` (longest fitting prefix) and strips a trailing space/`_` from the cut text; `fitEventLabel` picks draw / horizontal-shrink / truncate / skip from the measured width vs the available width (≥80% shrinks, 30–80% truncates, <30% skips).
@@ -120,6 +121,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-08** — PR-RENDER-032: WebGL ClearType labels follow `collapseShiftY` / `collapseAlpha` during the lane collapse tween.
 - **2026-09-08** — Multi-row lanes: overlapping leaf events split into non-overlapping sub-rows (greedy first-fit), leaf height `rowCount × LANE_HEIGHT`, hit-test/mesh per sub-row; restores the additive-fill invariant for overlapping standalone Chrome-trace lanes. (PR-RENDER-042–046; after ClearType 041 / #71 collapse 027–032)
 - **2026-09-07** — Pinned-strip pass (`setPaintDependencies(false)`) keeps selection gray-muting; only Bezier curves are skipped (`PR-RENDER-023b`).
 - **2026-09-07** — PR-RENDER-031: edge magnet / hover-gap / leaf-lane pick use the same last-leaf tuck rule as hit-test.

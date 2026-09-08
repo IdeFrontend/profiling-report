@@ -173,4 +173,14 @@ describe('collapse summary dissolve (PR-RENDER-028)', () => {
     expect(rect).toBeTruthy();
     expect(renderer.hitTest(rect!.x + 1, rect!.y + rect!.h / 2)).toBe(ghost!.id);
   });
+
+  it('PR-RENDER-032: ClearType drawEventLabels shifts/fades with collapse tween', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(resolve(__dirname, '../../src/swimlane/WebGlSwimlaneRenderer.ts'), 'utf8');
+    const draw = src.slice(src.indexOf('private drawEventLabels'), src.indexOf('private drawSolidRect'));
+    expect(draw).toMatch(/collapseShiftY\(item\.y,\s*this\.collapse\)/);
+    expect(draw).toMatch(/collapseAlpha\(item\.y,\s*this\.collapse\)/);
+    expect(draw).toMatch(/labelAlpha\s*<=\s*0/);
+  });
 });

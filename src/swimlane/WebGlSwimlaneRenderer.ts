@@ -843,7 +843,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
       const x = ((ev.startTime - this.view.startTime) / span) * devW;
       const w = Math.max(2, (ev.duration / span) * devW);
-      const m = eventBlockMetrics(item.y, this.view.scrollY);
+      // Match interval fills: shift with the tween and skip fully-faded subtree rows so
+      // ClearType titles do not linger on the expanded-base Y while blocks slide away.
+      const labelAlpha = collapseAlpha(item.y, this.collapse);
+      if (labelAlpha <= 0) continue;
+      const m = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
       const y = m.y * dpr;
       const h = m.h * dpr;
       if (y + h < 0 || y > devH) continue;
@@ -868,12 +872,19 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const fr = Math.min(1, bg[0] + lr);
       const fg = Math.min(1, bg[1] + lg);
       const fb = Math.min(1, bg[2] + lb);
-      gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
+      gl.uniform4f(prog.uBgColor, fr, fg, fb, labelAlpha);
       if (muted) {
         const [mr, mg, mb] = hexToRgb(SELECTION_MUTED_LABEL);
-        gl.uniform4f(prog.uColor, mr, mg, mb, 1);
+        gl.uniform4f(prog.uColor, mr, mg, mb, labelAlpha);
       } else {
-        gl.uniform4f(prog.uColor, 1, 1, 1, 1);
+        gl.uniform4f(prog.uColor, 1, 1, 1, labelAlpha);
+      }
+
+      if (labelAlpha < 1) {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      } else {
+        gl.disable(gl.BLEND);
       }
 
       const cy = r.y + r.h / 2;
