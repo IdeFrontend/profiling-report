@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { markRaw, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
+import TimelineView from '../TimelineView/TimelineView.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
@@ -555,6 +556,45 @@ describe('ProfilingReport scaffold', () => {
       wrapper.unmount();
       host.remove();
     }
+  });
+
+  it('PR-ROOT-012: host deep-reactive swimlaneModel is consumed raw (shallow)', async () => {
+    const { isReactive, reactive } = await import('vue');
+    const model = reactive({
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [{ id: 'e', name: 'ev', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 10,
+    });
+    expect(isReactive(model)).toBe(true);
+
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'shallow-swim',
+        swimlaneModel: model,
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    await nextTick();
+
+    // Source-level toRaw: what the timeline actually receives is not a Proxy.
+    const timeline = wrapper.findComponent(TimelineView);
+    const display = timeline.props('displaySwim')!;
+    expect(isReactive(display)).toBe(false);
+    expect(isReactive(display.processes[0]!.threads[0]!.events[0]!)).toBe(false);
+    // Nothing collapsed → pin strip and body share one raw model.
+    expect(display).toBe(timeline.props('pinSourceModel'));
   });
 
   it('PR-VIEW-016/017: W/S/A/D keys zoom and pan the timeline', async () => {
