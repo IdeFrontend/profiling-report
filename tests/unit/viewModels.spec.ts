@@ -104,6 +104,8 @@ describe('PR-VM: report view-models (interim)', () => {
           { name: 'VECTOR', cat: 'util', ph: 'C', ts: 2.0, pid: 1, args: { value: 55 } },
           { name: 'SCALAR', cat: 'util', ph: 'C', ts: 1.0, pid: 1, args: { value: 99 } },
           { name: 'CUBE', cat: 'util', ph: 'C', ts: 0.5, pid: 1, args: { value: 10 } },
+          // Missing cat — excluded per DATA-39 contract.
+          { name: 'CUBE', ph: 'C', ts: 3.0, pid: 1, args: { value: 80 } },
         ],
       }),
     );

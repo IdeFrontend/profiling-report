@@ -897,6 +897,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :pin-source-model="swim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
+          :overview-series="report?.overviewSeries ?? []"
           :gutter-width="gutterWidth"
           :gutter-metric-by-card="gutterMetricByCard"
           :gutter-metric-options-by-card="gutterMetricOptionsByCard"
