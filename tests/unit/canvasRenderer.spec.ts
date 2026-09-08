@@ -108,6 +108,7 @@ function mock2dContext(): CanvasRenderingContext2D {
   ]) {
     ctx[m] = () => {};
   }
+  ctx.measureText = () => ({ width: 0 });
   ctx.createLinearGradient = () => ({ addColorStop: () => {} });
   return ctx as unknown as CanvasRenderingContext2D;
 }
@@ -579,6 +580,79 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     expect(canvasSrc).not.toMatch(/strokeRoundedEvent/);
     expect(canvasSrc).not.toMatch(/strokeStyle\s*=\s*'#ffffff'/);
+  });
+
+  it('PR-RENDER-035: ClearType mode still labels hovered/selected blocks via the overlay', async () => {
+    const { eventFill, labelColorOn, colorForThread } = await import('../../src/domain/laneColors');
+    const { SwimlaneOverlayPainter } = await import('../../src/swimlane/CanvasSwimlaneRenderer');
+    const { rebuildLayout } = await import('../../src/swimlane/layout');
+    const base = colorForThread('AIV0/PIPE_V/status');
+
+    const paint = (hovered: string | null) => {
+      const { canvas, texts } = recordingCanvas();
+      const overlay = new SwimlaneOverlayPainter();
+      overlay.attach(canvas);
+      overlay.resize(400, 120, 1);
+      overlay.setLayout(rebuildLayout(tinyModel()));
+      overlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+      overlay.setDrawEventLabels(false); // WebGL ClearType owns the resting labels
+      overlay.setSelection(null, hovered);
+      overlay.render();
+      return texts;
+    };
+
+    // Resting: the overlay draws no labels (the WebGL ClearType pass owns them).
+    expect(paint(null).get('PIPE_V_busy')).toBeUndefined();
+
+    // Hovered: the overlay still draws the label over the lifted state fill, in that fill's contrast.
+    expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
+  });
+
+  it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // The label pass carries its own hovered-row chrome (#363636) and bakes it into the opaque
+    // backdrop via the same `bg + rgb` additive formula the fill pass uses, so the label rect
+    // reads as the event rect; a muted event swaps in the gray fill/label colors instead.
+    expect(webglSrc).toMatch(/laneHoverBg = hexToRgb\(LANE_HOVER_FILL\)/);
+    expect(webglSrc).toMatch(/Math\.min\(1, bg\[0\] \+ lr\)/);
+    expect(webglSrc).toMatch(/hexToRgb\(SELECTION_MUTED_LABEL\)/);
+  });
+
+  it('PR-RENDER-039: ClearType label quad origin snaps to integer device px', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // Glyph quads draw 1:1 with NEAREST sampling; a half-pixel origin (odd visible width or the
+    // event's -0.5 optical nudge) shifts the baked ClearType subpixel RGB off the display grid.
+    // Both axes must round the quad origin to a whole device pixel.
+    expect(webglSrc).toMatch(/const gx = Math\.round\(anchor\.cx - glyph\.width \/ 2\)/);
+    expect(webglSrc).toMatch(/const gy = Math\.round\(cy - glyph\.height \/ 2\)/);
+  });
+
+  it('PR-RENDER-040: ClearType label pass skips summary bars (overlay owns "N tasks")', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // Summary bars get their dimmed "N tasks" label from the overlay, not the ClearType pass.
+    // The label loop must skip `item.summary` before it reaches the `atlas.get(gl, ev.name, …)`
+    // rasterization, so a colored additive quad and `ev.name` never show through.
+    expect(webglSrc).toMatch(/if \(item\.summary\) continue;/);
+  });
+
+  it('PR-RENDER-041: empty scissor box skips the label draw (no stale-clip leak)', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // An event clipped to an empty box must not draw: the scissor is only updated for a
+    // non-degenerate rect, and drawing anyway would reuse the previous event's (or frame's)
+    // scissor, leaking the label into a different event.
+    expect(webglSrc).toMatch(/if \(sRight <= sLeft \|\| sBottom <= sTop\) continue;/);
+  });
+
+  it('PR-RENDER-038: resize clears the atlas on a dpr change (new fontPx invalidates glyphs)', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // A browser-zoom dpr change mints a new `fontPx` key for every cached glyph; resize must
+    // free the old-font textures (inside `if (dprChanged)`) instead of leaving them to the LRU.
+    expect(webglSrc).toMatch(/if \(dprChanged\) \{[\s\S]*?this\.atlas\?\.clear\(gl\);/);
   });
 });
 
