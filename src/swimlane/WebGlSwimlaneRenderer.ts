@@ -907,10 +907,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const rows: SubRowMesh[] = [];
       const allEvents: LaidOutEvent[] = [];
       for (let r = 0; r < lane.rowCount; r++) {
-        // Chronological order so createChunksFromPairs → eventGapPrev/Next see time neighbors.
-        const events = [...(byRow.get(`${idx}:${r}`) ?? [])].sort(
-          (a, b) => a.event.startTime - b.event.startTime,
-        );
+        // layout.events is startTime-ordered per lane; grouping preserves that within a sub-row.
+        const events = byRow.get(`${idx}:${r}`) ?? [];
         allEvents.push(...events);
         const pairs: number[] = [];
         for (const item of events) {
@@ -966,9 +964,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const row = meshes.rows[rowIndex];
         if (!row) continue;
         const byKey = new Map<string, { rgb: [number, number, number]; dim: number; pairs: number[] }>();
-        // Same chronological order as rebuildMeshes (gap math in createChunksFromPairs).
-        const sorted = [...events].sort((a, b) => a.event.startTime - b.event.startTime);
-        for (const item of sorted) {
+        for (const item of events) {
           if (item.summary) continue;
           const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
           const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);

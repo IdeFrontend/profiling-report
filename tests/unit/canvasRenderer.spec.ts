@@ -344,6 +344,36 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
       processes: [m.processes[0]!, { id: 'p2', name: 'P2', threads: [] }],
     };
     expect(layoutHeaders(m2)[1]!.y).toBe(LANE_GROUP_HEADER_HEIGHT + 2 * LANE_HEIGHT);
+
+    // Folders stay one band even if they somehow carry overlapping events (DOM/layout stay aligned).
+    const withFolderEvents: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'F',
+              events: [
+                { id: 'fa', name: 'fa', startTime: 0, duration: 100 },
+                { id: 'fb', name: 'fb', startTime: 50, duration: 100 },
+              ],
+              children: [{ id: 'leaf', name: 'L', events: [] }],
+            },
+          ],
+        },
+        { id: 'p2', name: 'P2', threads: [] },
+      ],
+    };
+    const folderLayout = rebuildLayout(withFolderEvents);
+    expect(folderLayout.lanes.find((l) => l.folder)!.rowCount).toBe(1);
+    expect(contentHeightFromLayout(folderLayout)).toBe(contentHeightFromModel(withFolderEvents));
+    expect(layoutHeaders(withFolderEvents)[1]!.y).toBe(
+      LANE_GROUP_HEADER_HEIGHT + 2 * LANE_HEIGHT, // folder + leaf
+    );
   });
 
   it('PR-RENDER-044: event block Y lands in its own sub-row band', () => {
@@ -353,6 +383,8 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(long.rowIndex).toBe(0);
     expect(short.rowIndex).toBe(1);
     expect(short.y - long.y).toBe(LANE_HEIGHT);
+    const leaf = layout.lanes.find((l) => !l.folder)!;
+    expect(leaf.rowCount * LANE_HEIGHT).toBe(2 * LANE_HEIGHT);
     // The lane background spans rowCount × LANE_HEIGHT in both renderers.
     return Promise.all([
       import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'),
@@ -378,12 +410,63 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
   });
 
   it('PR-RENDER-046: WebGL builds one mesh per (lane, sub-row)', async () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'a', name: 'a', startTime: 0, duration: 100 },
+                { id: 'b', name: 'b', startTime: 50, duration: 100 },
+                { id: 'c', name: 'c', startTime: 100, duration: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(m);
+    const leafIdx = layout.lanes.findIndex((l) => !l.folder);
+    const leaf = layout.lanes[leafIdx]!;
+    const byRow = new Map<number, typeof layout.events>();
+    for (const ev of layout.events) {
+      if (ev.laneIndex !== leafIdx) continue;
+      const list = byRow.get(ev.rowIndex) ?? [];
+      list.push(ev);
+      byRow.set(ev.rowIndex, list);
+    }
+    expect(byRow.size).toBe(leaf.rowCount);
+    for (const group of byRow.values()) {
+      expect(group.length).toBeGreaterThan(0);
+      for (let i = 1; i < group.length; i++) {
+        const prev = group[i - 1]!;
+        const next = group[i]!;
+        expect(prev.event.startTime + prev.event.duration).toBeLessThanOrEqual(next.event.startTime);
+      }
+    }
+    // Chronological eventsByLane (no duration-desc reorder).
+    expect(layout.eventsByLane[leafIdx]!.map((e) => e.id)).toEqual(['a', 'b', 'c']);
+
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     // Interval meshes are grouped by laneIndex + rowIndex and drawn per sub-row Y.
     expect(webglSrc).toMatch(/\$\{ev\.laneIndex\}:\$\{ev\.rowIndex\}/);
     expect(webglSrc).toMatch(/lane\.y \+ r \* LANE_HEIGHT/);
     expect(webglSrc).toMatch(/for \(const row of meshes\.rows\)/);
+  });
+
+  it('duplicate event ids within a lane throw', () => {
+    const events: SwimEvent[] = [
+      { id: 'dup', name: 'a', startTime: 0, duration: 100 },
+      { id: 'dup', name: 'b', startTime: 50, duration: 100 },
+    ];
+    expect(() => assignEventRows(events)).toThrow(/duplicate event id/);
   });
 });
 

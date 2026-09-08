@@ -138,6 +138,14 @@ interface RowAssignment {
 }
 
 /**
+ * Memo of `computeRows` keyed on the events-array identity. No invalidation: mutating
+ * `thread.events` in place after the first call (e.g. `push` / `sort`) leaves a stale
+ * assignment. Safe for current producers because `chromeTraceToSwimlane` finishes
+ * mutating during adaptation, before any layout.
+ */
+const rowCache = new WeakMap<readonly SwimEvent[], RowAssignment>();
+
+/**
  * Greedy first-fit on `startTime` (longest `duration` first on ties): place each event
  * into the first sub-row whose last event ends at or before it (`end <= start` counts as
  * fitting — touching endpoints are siblings). Overlapping events land on distinct sub-rows.
@@ -145,8 +153,6 @@ interface RowAssignment {
  * and the result is memoized per events-array. Upgrade to an interval tree if lanes grow
  * to stress-lane event counts.
  */
-const rowCache = new WeakMap<readonly SwimEvent[], RowAssignment>();
-
 function computeRows(events: readonly SwimEvent[]): RowAssignment {
   const cached = rowCache.get(events);
   if (cached) return cached;
@@ -154,6 +160,9 @@ function computeRows(events: readonly SwimEvent[]): RowAssignment {
   const rows = new Map<string, number>();
   const rowEnds: number[] = [];
   for (const ev of sorted) {
+    if (rows.has(ev.id)) {
+      throw new Error(`duplicate event id within lane: ${ev.id}`);
+    }
     const end = ev.startTime + ev.duration;
     let row = -1;
     for (let i = 0; i < rowEnds.length; i++) {
@@ -209,15 +218,17 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
       if (!skipHeaders) h += LANE_GROUP_HEADER_HEIGHT;
       continue;
     }
-    // Folders always have empty events, so leafRowCount returns 1 for them.
-    h += leafRowCount(row.thread) * LANE_HEIGHT;
+    // Folders are always one band (`rebuildLayout` hardcodes `rowCount: 1`); do not use
+    // `leafRowCount` here — a folder that somehow carried events would desync DOM Card strips.
+    h += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
   }
   return Math.max(skipHeaders ? LANE_HEIGHT : 120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
 
 /**
- * Card header Y positions only — same row walk as `rebuildLayout`, without sorting/pushing events.
- * Use for DOM Card strips so collapse toggles are not O(events).
+ * Card header Y positions only — same row walk as `rebuildLayout`. Folders contribute one
+ * `LANE_HEIGHT`; leaves use `leafRowCount` (memoized on events-array identity — first call
+ * is O(events); collapse toggles that keep leaf arrays by reference stay O(rows)).
  */
 export function layoutHeaders(model: SwimlaneModel | null): GroupHeader[] {
   if (!model) return [];
@@ -228,7 +239,7 @@ export function layoutHeaders(model: SwimlaneModel | null): GroupHeader[] {
       headers.push({ id: row.process.id, name: row.process.name, y });
       y += LANE_GROUP_HEADER_HEIGHT;
     } else {
-      y += leafRowCount(row.thread) * LANE_HEIGHT;
+      y += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
     }
   }
   return headers;
@@ -297,10 +308,12 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     lanesByTid.set(thread.id, lane);
     const laneEvents: LaidOutEvent[] = [];
     const rowIndexById = assignEventRows(thread.events);
-    // Paint longest-first so shorter nested siblings draw on top within a sub-row.
-    const sorted = [...thread.events].sort((a, b) => b.duration - a.duration);
-    for (const ev of sorted) {
-      const rowIndex = rowIndexById.get(ev.id) ?? 0;
+    // Keep startTime ascending (model contract) so eventsByLane / WebGL pairs stay chronological.
+    for (const ev of thread.events) {
+      const rowIndex = rowIndexById.get(ev.id);
+      if (rowIndex === undefined) {
+        throw new Error(`missing row assignment for event ${ev.id}`);
+      }
       const item: LaidOutEvent = {
         id: ev.id,
         event: ev,
