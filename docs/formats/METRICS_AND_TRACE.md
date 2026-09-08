@@ -75,7 +75,7 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 **MVP aggregation ([DATA-33b](../context/decisions/interim/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md). Superseded when DATA-33 / data spec says otherwise.
 
-**Overview Cube/Vector charts:** Product decision ([DATA-32](../context/decisions/DATA.md)) — **hide** until `OverviewSeries` is supplied by a future producer/data spec. Do **not** derive from PipeUtilization ratios.
+**Overview Cube/Vector charts:** Hide when `OverviewSeries` is empty ([DATA-32](../context/decisions/DATA.md)). Producer is product `Sampling.json` Chrome Trace counters (`ph: "C"`, `cat: "util"`, `args.value` %) mapped `CUBE`/`VECTOR` → Cube/Vector series ([DATA-39](../context/decisions/DATA.md)). Do **not** derive from PipeUtilization ratios.
 
 **Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 

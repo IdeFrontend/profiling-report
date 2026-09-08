@@ -90,9 +90,32 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(pipeLane?.utilization).toBeCloseTo(byId.vector.ratio, 5);
   });
 
-  it('PR-VM-003 (interim DATA-32a): overviewSeries empty — not invented from PipeUtilization', () => {
+  it('PR-VM-003 (DATA-39): overviewSeries empty without Sampling.json — not invented from PipeUtilization', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     expect(adapted.reportModel.overviewSeries).toEqual([]);
+  });
+
+  it('PR-VM-003 / PR-VM-017: Sampling.json CUBE/VECTOR util counters → overviewSeries (µs→ns)', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    parsed.payloads['Sampling.json'] = new TextEncoder().encode(
+      JSON.stringify({
+        traceEvents: [
+          { name: 'CUBE', cat: 'util', ph: 'C', ts: 1.5, pid: 1, args: { value: 40 } },
+          { name: 'VECTOR', cat: 'util', ph: 'C', ts: 2.0, pid: 1, args: { value: 55 } },
+          { name: 'SCALAR', cat: 'util', ph: 'C', ts: 1.0, pid: 1, args: { value: 99 } },
+          { name: 'CUBE', cat: 'util', ph: 'C', ts: 0.5, pid: 1, args: { value: 10 } },
+        ],
+      }),
+    );
+    const series = adaptRep(parsed).reportModel.overviewSeries;
+    expect(series.map((s) => s.id)).toEqual(['cube', 'vector']);
+    expect(series[0]!.label).toBe('Cube');
+    expect(series[1]!.label).toBe('Vector');
+    expect(series[0]!.points).toEqual([
+      { t: 500, v: 10 },
+      { t: 1500, v: 40 },
+    ]);
+    expect(series[1]!.points).toEqual([{ t: 2000, v: 55 }]);
   });
 
   it('PR-VM-005: pipe occupancy items are side-specific (no AIC/AIV blend)', () => {

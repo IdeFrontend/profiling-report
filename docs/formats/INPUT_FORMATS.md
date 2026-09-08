@@ -95,8 +95,8 @@ Payloads are addressed by absolute byte offsets from the start of the container.
 
 The product container ships as `npu-rep` (not `cann-rep`). There are **two** FileInfo layouts sharing the same head, disambiguated by the head's `fileInfoLength` field:
 
-- **Product 160-byte layout** (`fileInfoLength = 160`, `origin = 1`) — the current format produced by `npu-compute` tooling (see `data/scripts/pack_rep.py` / `unpack_rep.py`). Sample: `data/result.npu-rep`. Parsed in-browser by `parseNpuRep160`.
-- **Interim 164-byte sample layout** (`fileInfoLength = 164`) — the repo's own sample packer (`data/build_sample_rep.py`), used by `data/example.npu.rep` / `data/sample.lite.rep`. Parsed by `parseNpuRep`.
+- **Product 160-byte layout** (`fileInfoLength = 160`, `origin = 1`) — the current format produced by `npu-compute` tooling (see `data/scripts/pack_rep.py` / `unpack_rep.py`). Samples: `data/result.npu-rep`, `data/vector_muladd_plain.npu-rep`, multi-op `data/sample.lite.rep`. Parsed in-browser by `parseNpuRep160`.
+- **Interim 164-byte sample layout** (`fileInfoLength = 164`) — older sample packs (`data/example.npu.rep`). Parsed by `parseNpuRep`.
 
 #### Product 160-byte layout
 
@@ -178,7 +178,9 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 | `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / Scalar; GM↔UB product names here, sample fallback `Memory.csv` |
 | `L2Cache.csv` | CSV | block / sub-block | L2 hit-rate overlay |
 | `MemoryL1.csv` | CSV | (docx mockup annotation only) | L2→L1 path — **not in sample** |
+| `Sampling.json` | JSON (Chrome Trace) | Operator | 统计分析 Cube/Vector overview (`ph:C` util counters; [DATA-39](../context/decisions/DATA.md)) |
 | Timeline / kernel events | (unspecified in tables) | Block / pipe event | Kernel block timeline + event details |
+| `Summary.jsonl` | JSONL | Operator + category means | Report statistics + detail panels (product) |
 
 ### 2.2 Present in local sample `data/out.rep`
 
