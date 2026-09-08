@@ -243,6 +243,7 @@ const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
   // toRaw: host may pass a deep-reactive model; walking Proxies freezes collapse on large traces.
+  // Shallow identity only — replace swimlaneModel (or toggle collapse) to refresh; in-place nested edits do not.
   return filterCollapsedTree(toRaw(m), collapsedGroupIds.value);
 });
 

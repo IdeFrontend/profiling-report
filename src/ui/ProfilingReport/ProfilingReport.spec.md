@@ -144,6 +144,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
 
+**Swim model identity.** The loaded/host `swimlaneModel` is held shallow (not deep-proxied) so collapse/expand stays fast on large traces. Host-managed callers must **replace the `swimlaneModel` reference** to refresh the canvas — in-place nested `event` / `thread` mutations do not invalidate the display tree.
+
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
 **Viewport time axis.** Shares `AxisRuler` chrome with the overview strip. Tokens: [`AxisRuler.spec.md`](../AxisRuler/AxisRuler.spec.md).
@@ -209,6 +211,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-09-08** — Swim model is shallow: host must replace `swimlaneModel` (not mutate nested events in place) to refresh the canvas; keeps collapse/expand fast on large traces.
 - **2026-09-08** — Topology **全屏** covers `.pr-root` with Back + scaled diagram (PR-ROOT-009); overlay right-click does not open memory CSV (PR-ROOT-010); Escape closes and WASD stay idle (PR-ROOT-011).
 - **2026-09-07** — Product host files are `.npu-rep` ([PROC-2](../../docs/context/decisions/PROC.md)); classic `.rep` remains an engineering fixture path.
 - **2026-09-07** — Optional `userGuideUrl` (default demo guide) forwarded to the toolbar help button; toolbar emits `open-user-guide` (and `window.open`) for host `openExternal`.
