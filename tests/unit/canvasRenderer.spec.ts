@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  assignEventRows,
+  contentHeightFromLayout,
+  contentHeightFromModel,
   encodeIntervalPair,
   EVENT_MARGIN,
   eventEmphasis,
@@ -9,6 +12,8 @@ import {
   findExactEdgeMatches,
   hitTestLayout,
   nearestEventEdgeAtPoint,
+  layoutHeaders,
+  leafRowCount,
   rebuildLayout,
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
@@ -160,7 +165,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(id).toBe('e-short');
   });
 
-  it('PR-RENDER-002: prefers shorter nested event on overlap', () => {
+  it('PR-RENDER-002: overlapping events split into sub-rows; hitTest per sub-row', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
@@ -168,8 +173,12 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     renderer.setModel(tinyModel());
     renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
 
+    // e-long (0..800) and e-short (0..1) overlap → separate sub-rows, separate Y.
     const long = renderer.eventScreenRect('e-long')!;
-    expect(renderer.hitTest(long.x + 1, long.y + long.h / 2)).toBe('e-short');
+    const short = renderer.eventScreenRect('e-short')!;
+    expect(short.y).not.toBe(long.y);
+    expect(renderer.hitTest(long.x + 1, long.y + long.h / 2)).toBe('e-long');
+    expect(renderer.hitTest(short.x + 1, short.y + short.h / 2)).toBe('e-short');
   });
 
   it('PR-RENDER-003: render accepts cursor and rounded event path without throw', () => {
@@ -199,8 +208,11 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
   it('PR-RENDER-005: shared hitTestLayout matches canvas', () => {
     const layout = rebuildLayout(tinyModel());
     const view = { startTime: 0, endTime: 1000, scrollY: 0 };
-    const id = hitTestLayout(layout, view, 400, 1, LANE_GROUP_HEADER_HEIGHT + 11);
-    expect(id).toBe('e-short');
+    // e-long in sub-row 0, e-short in sub-row 1 (both start at 0, long first).
+    const id0 = hitTestLayout(layout, view, 400, 1, LANE_GROUP_HEADER_HEIGHT + 11);
+    expect(id0).toBe('e-long');
+    const id1 = hitTestLayout(layout, view, 400, 1, LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT + 11);
+    expect(id1).toBe('e-short');
   });
 
   it('PR-RENDER-017: eventRadius is CSS-px policy × dpr (device-px radius)', () => {
@@ -270,6 +282,215 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(clippedLeft).toEqual({ cx: 25, maxWidth: 42 });
     const tooNarrow = eventLabelAnchor(-30, 50, 400);
     expect(tooNarrow).toBeNull();
+  });
+
+  it('PR-RENDER-042: assignEventRows greedy first-fit splits only overlaps', () => {
+    const events: SwimEvent[] = [
+      { id: 'a', name: 'a', startTime: 0, duration: 100 }, // 0..100
+      { id: 'b', name: 'b', startTime: 50, duration: 100 }, // 50..150 (overlaps a)
+      { id: 'c', name: 'c', startTime: 100, duration: 100 }, // 100..200 (touches a)
+    ];
+    const rows = assignEventRows(events);
+    expect(rows.get('a')).toBe(0);
+    expect(rows.get('b')).toBe(1);
+    expect(rows.get('c')).toBe(0); // 100 >= 100, sibling not overlap
+    expect(leafRowCount({ id: 't', name: 'T', events })).toBe(2);
+
+    // Non-overlapping (touching) events stay on one sub-row.
+    const seq = leafRowCount({
+      id: 't2',
+      name: 'T2',
+      events: [
+        { id: 'x', name: 'x', startTime: 0, duration: 10 },
+        { id: 'y', name: 'y', startTime: 10, duration: 10 },
+      ],
+    });
+    expect(seq).toBe(1);
+    expect(leafRowCount({ id: 't3', name: 'T3', events: [] })).toBe(1);
+  });
+
+  it('PR-RENDER-043: rowCount sizes leaf lanes and content height', () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'a', name: 'a', startTime: 0, duration: 100 },
+                { id: 'b', name: 'b', startTime: 50, duration: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(m);
+    const leaf = layout.lanes.find((l) => !l.folder)!;
+    expect(leaf.rowCount).toBe(2);
+    // header (40) + one 2-row leaf (2 × 22); layout height is what the renderer scrolls.
+    expect(contentHeightFromLayout(layout)).toBe(LANE_GROUP_HEADER_HEIGHT + 2 * LANE_HEIGHT);
+    // Model height (no Card chrome, no 120px floor) scales by rowCount too.
+    expect(contentHeightFromModel({ ...m, skipCardHeaders: true })).toBe(2 * LANE_HEIGHT);
+    expect(layoutHeaders(m)[0]!.y).toBe(0);
+    // Card header Y after the 2-row leaf: 40 + 44.
+    const m2: SwimlaneModel = {
+      ...m,
+      processes: [m.processes[0]!, { id: 'p2', name: 'P2', threads: [] }],
+    };
+    expect(layoutHeaders(m2)[1]!.y).toBe(LANE_GROUP_HEADER_HEIGHT + 2 * LANE_HEIGHT);
+
+    // Folders stay one band even if they somehow carry overlapping events (DOM/layout stay aligned).
+    const withFolderEvents: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'F',
+              events: [
+                { id: 'fa', name: 'fa', startTime: 0, duration: 100 },
+                { id: 'fb', name: 'fb', startTime: 50, duration: 100 },
+              ],
+              children: [{ id: 'leaf', name: 'L', events: [] }],
+            },
+          ],
+        },
+        { id: 'p2', name: 'P2', threads: [] },
+      ],
+    };
+    const folderLayout = rebuildLayout(withFolderEvents);
+    expect(folderLayout.lanes.find((l) => l.folder)!.rowCount).toBe(1);
+    expect(contentHeightFromLayout(folderLayout)).toBe(contentHeightFromModel(withFolderEvents));
+    expect(layoutHeaders(withFolderEvents)[1]!.y).toBe(
+      LANE_GROUP_HEADER_HEIGHT + 2 * LANE_HEIGHT, // folder + leaf
+    );
+  });
+
+  it('PR-RENDER-044: event block Y lands in its own sub-row band', () => {
+    const layout = rebuildLayout(tinyModel());
+    const long = layout.eventsById.get('e-long')!;
+    const short = layout.eventsById.get('e-short')!;
+    expect(long.rowIndex).toBe(0);
+    expect(short.rowIndex).toBe(1);
+    expect(short.y - long.y).toBe(LANE_HEIGHT);
+    const leaf = layout.lanes.find((l) => !l.folder)!;
+    expect(leaf.rowCount * LANE_HEIGHT).toBe(2 * LANE_HEIGHT);
+    // The lane background spans rowCount × LANE_HEIGHT in both renderers.
+    return Promise.all([
+      import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'),
+      import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'),
+    ]).then(([canvasSrc, webglSrc]) => {
+      expect((canvasSrc as { default: string }).default).toMatch(/lane\.rowCount \* LANE_HEIGHT \* dpr/);
+      expect((webglSrc as { default: string }).default).toMatch(/lane\.rowCount \* LANE_HEIGHT \* dpr/);
+    });
+  });
+
+  it('PR-RENDER-045: hitTestLayout never hits across sub-rows', () => {
+    const layout = rebuildLayout(tinyModel());
+    const view = { startTime: 0, endTime: 1000, scrollY: 0 };
+    // e-short (sub-row 1) is at time 0..1; pointer in sub-row 0 at time 0 must hit e-long.
+    const top = hitTestLayout(layout, view, 400, 1, LANE_GROUP_HEADER_HEIGHT + 11);
+    expect(top).toBe('e-long');
+    // Pointer in sub-row 1 over the same time hits e-short.
+    const bottom = hitTestLayout(layout, view, 400, 1, LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT + 11);
+    expect(bottom).toBe('e-short');
+    // Pointer in sub-row 1 at a time only e-long spans (past e-short's 1ns) hits nothing.
+    const pastShort = hitTestLayout(layout, view, 400, 200, LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT + 11);
+    expect(pastShort).toBeNull();
+  });
+
+  it('PR-RENDER-046: WebGL builds one mesh per (lane, sub-row)', async () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'a', name: 'a', startTime: 0, duration: 100 },
+                { id: 'b', name: 'b', startTime: 50, duration: 100 },
+                { id: 'c', name: 'c', startTime: 100, duration: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(m);
+    const leafIdx = layout.lanes.findIndex((l) => !l.folder);
+    const leaf = layout.lanes[leafIdx]!;
+    const byRow = new Map<number, typeof layout.events>();
+    for (const ev of layout.events) {
+      if (ev.laneIndex !== leafIdx) continue;
+      const list = byRow.get(ev.rowIndex) ?? [];
+      list.push(ev);
+      byRow.set(ev.rowIndex, list);
+    }
+    expect(byRow.size).toBe(leaf.rowCount);
+    for (const group of byRow.values()) {
+      expect(group.length).toBeGreaterThan(0);
+      for (let i = 1; i < group.length; i++) {
+        const prev = group[i - 1]!;
+        const next = group[i]!;
+        expect(prev.event.startTime + prev.event.duration).toBeLessThanOrEqual(next.event.startTime);
+      }
+    }
+    // Chronological eventsByLane (no duration-desc reorder).
+    expect(layout.eventsByLane[leafIdx]!.map((e) => e.id)).toEqual(['a', 'b', 'c']);
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    // Interval meshes are grouped by laneIndex + rowIndex and drawn per sub-row Y.
+    expect(webglSrc).toMatch(/\$\{ev\.laneIndex\}:\$\{ev\.rowIndex\}/);
+    expect(webglSrc).toMatch(/lane\.y \+ r \* LANE_HEIGHT/);
+    expect(webglSrc).toMatch(/for \(const row of meshes\.rows\)/);
+  });
+
+  it('duplicate event ids within a lane throw', () => {
+    const events: SwimEvent[] = [
+      { id: 'dup', name: 'a', startTime: 0, duration: 100 },
+      { id: 'dup', name: 'b', startTime: 50, duration: 100 },
+    ];
+    expect(() => assignEventRows(events)).toThrow(/duplicate event id/);
+  });
+
+  it('rebuildLayout throws when leaf events are out of startTime order', () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'late', name: 'late', startTime: 100, duration: 10 },
+                { id: 'early', name: 'early', startTime: 0, duration: 10 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(() => rebuildLayout(m)).toThrow(/sorted startTime asc/);
   });
 });
 
