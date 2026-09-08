@@ -82,6 +82,8 @@ const hoverTimeNs = ref<number | null>(null);
 /** Local x ratio for the value dot (full 24px lane hit target, not parent echo). */
 const hoverXRatio = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
+/** Paint box in viewport coords — value-dot is teleported so overview `transform` cannot clip it. */
+const paintRect = ref<{ left: number; top: number; width: number; height: number } | null>(null);
 /** Chart-column drag-pan (mirrors SwimlaneCanvas non-measure drag). */
 const dragging = ref(false);
 let lastDragX = 0;
@@ -168,6 +170,13 @@ function updateChartHover(seriesId: string, e: PointerEvent) {
   hoverTimeNs.value = time;
   hoverXRatio.value = xRatio;
   tipPos.value = { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` };
+  const paint = el.querySelector('.pr-overview-paint') as HTMLElement | null;
+  if (paint) {
+    const r = paint.getBoundingClientRect();
+    paintRect.value = { left: r.left, top: r.top, width: r.width, height: r.height };
+  } else {
+    paintRect.value = null;
+  }
   emit('cursor', { time, xRatio, snapped: false });
 }
 
@@ -204,6 +213,7 @@ function clearTipOnly() {
   hoverSeriesId.value = null;
   hoverTimeNs.value = null;
   hoverXRatio.value = null;
+  paintRect.value = null;
 }
 
 function onChartPointerLeave(e: PointerEvent) {
@@ -264,12 +274,29 @@ const tipValue = computed(() => {
 
 const showTip = computed(() => tipTrack.value != null && tipValue.value != null);
 
-const dotXRatio = computed(() => hoverXRatio.value ?? props.cursorXRatio ?? null);
-
 function dotTopPercent(track: { maxV: number }, value: number): number {
   const maxV = track.maxV > 0 ? track.maxV : 1;
   return (1 - value / maxV) * 100;
 }
+
+/** Fixed-position styles for the teleported value-dot (avoids transform clipping). */
+const valueDotStyle = computed(() => {
+  const track = tipTrack.value;
+  const value = tipValue.value;
+  const xRatio = hoverXRatio.value;
+  const rect = paintRect.value;
+  if (!track || value == null || xRatio == null || !rect || rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
+  const yPct = dotTopPercent(track, value) / 100;
+  return {
+    left: `${rect.left + xRatio * rect.width}px`,
+    top: `${rect.top + yPct * rect.height}px`,
+    background: track.color,
+  };
+});
+
+const showValueDot = computed(() => valueDotStyle.value != null);
 </script>
 
 <template>
@@ -380,20 +407,6 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
                 fill="none"
               />
             </svg>
-            <div
-              v-if="
-                hoverSeriesId === track.id &&
-                  tipValue != null &&
-                  dotXRatio != null
-              "
-              class="pr-overview-value-dot"
-              data-testid="overview-value-dot"
-              :style="{
-                left: `${dotXRatio * 100}%`,
-                top: `${dotTopPercent(track, tipValue)}%`,
-                background: track.color,
-              }"
-            />
           </div>
         </div>
       </div>
@@ -409,6 +422,13 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
         <div class="pr-tooltip__name">{{ tipTrack.label }}</div>
         <div>{{ tipValue }}</div>
       </div>
+      <!-- Fixed outside the transformed overview stack so v≈0 is not clipped. -->
+      <div
+        v-if="showValueDot && valueDotStyle"
+        class="pr-overview-value-dot"
+        data-testid="overview-value-dot"
+        :style="valueDotStyle"
+      />
     </Teleport>
   </div>
 </template>
@@ -586,18 +606,6 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
   stroke-linecap: butt;
   vector-effect: non-scaling-stroke;
 }
-
-.pr-overview-value-dot {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 2;
-}
 </style>
 
 <style>
@@ -621,5 +629,19 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
 .pr-overview-value-tip .pr-tooltip__name {
   font-weight: 600;
   margin-bottom: 4px;
+}
+
+/* Teleported value-dot — fixed so overview translateY / parent overflow cannot crop it. */
+.pr-overview-value-dot {
+  position: fixed;
+  z-index: 19;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-sizing: border-box;
 }
 </style>

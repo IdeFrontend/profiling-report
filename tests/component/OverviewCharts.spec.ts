@@ -102,30 +102,85 @@ describe('OverviewCharts', () => {
       attachTo: document.body,
     });
     const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    const paint = wrap.get('[data-series-id="CUBE"] .pr-overview-paint').element as HTMLElement;
     const el = col.element as HTMLElement;
-    el.getBoundingClientRect = () =>
-      ({
-        left: 0,
-        width: 1000,
-        top: 0,
-        height: 16,
-        right: 1000,
-        bottom: 16,
-        x: 0,
-        y: 0,
-        toJSON() {
-          return {};
-        },
-      }) as DOMRect;
+    const rect = {
+      left: 0,
+      width: 1000,
+      top: 0,
+      height: 16,
+      right: 1000,
+      bottom: 16,
+      x: 0,
+      y: 0,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect;
+    el.getBoundingClientRect = () => rect;
+    paint.getBoundingClientRect = () => rect;
     await col.trigger('pointermove', { clientX: 500, clientY: 8 });
     const payload = wrap.emitted('cursor')?.at(-1)?.[0] as { xRatio: number; time: number };
     expect(payload.xRatio).toBeCloseTo(0.5);
     expect(payload.time).toBeCloseTo(1000);
-    expect(wrap.find('[data-testid="overview-value-dot"]').exists()).toBe(true);
+    const dot = document.querySelector('[data-testid="overview-value-dot"]') as HTMLElement | null;
+    expect(dot).toBeTruthy();
+    expect(dot!.classList.contains('pr-overview-value-dot')).toBe(true);
+    // Fixed viewport coords from paint rect (teleported outside overview transform).
+    // CUBE at t=1000 holds v=50 (= max) → stroke at the top of the paint box.
+    expect(dot!.style.left).toBe('500px');
+    expect(dot!.style.top).toBe('0px');
     expect(document.querySelector('[data-testid="overview-value-tooltip"]')?.textContent).toContain(
       'CUBE',
     );
     wrap.unmount();
+    document.querySelectorAll('[data-testid="overview-value-dot"]').forEach((n) => n.remove());
+    document.querySelectorAll('[data-testid="overview-value-tooltip"]').forEach((n) => n.remove());
+  });
+
+  it('PR-OV-006: value-dot at v=0 uses fixed paint coords (not clipped by overview)', async () => {
+    document.querySelectorAll('[data-testid="overview-value-dot"]').forEach((n) => n.remove());
+    const zeroSeries: OverviewSeries[] = [
+      {
+        id: 'FIXP',
+        label: 'FIXP',
+        points: [
+          { t: 0, v: 0 },
+          { t: 2000, v: 0 },
+        ],
+      },
+    ];
+    const wrap = mount(OverviewCharts, {
+      props: { series: zeroSeries, startTime: 0, endTime: 2000 },
+      attachTo: document.body,
+    });
+    const col = wrap.get('[data-series-id="FIXP"] [data-testid="overview-chart-col"]');
+    const paint = wrap.get('[data-series-id="FIXP"] .pr-overview-paint').element as HTMLElement;
+    const rect = {
+      left: 100,
+      width: 400,
+      top: 200,
+      height: 16,
+      right: 500,
+      bottom: 216,
+      x: 100,
+      y: 200,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect;
+    (col.element as HTMLElement).getBoundingClientRect = () => rect;
+    paint.getBoundingClientRect = () => rect;
+    await col.trigger('pointermove', { clientX: 300, clientY: 208 });
+    const dot = document.querySelector('[data-testid="overview-value-dot"]') as HTMLElement | null;
+    expect(dot).toBeTruthy();
+    // Center on the stroke at v=0 → bottom of the 16px paint (top + height).
+    expect(dot!.style.left).toBe('300px');
+    expect(dot!.style.top).toBe('216px');
+    // Must not be a descendant of the overview root (would be clipped by translateY).
+    expect(wrap.element.contains(dot)).toBe(false);
+    wrap.unmount();
+    document.querySelectorAll('[data-testid="overview-value-dot"]').forEach((n) => n.remove());
   });
 
   it('PR-OV-006: header-track emits cursor; gutter does not', async () => {
