@@ -673,6 +673,18 @@ defineExpose({
         </div>
       </div>
     </div>
+    <div
+      v-if="cursorXRatio != null"
+      class="pr-stack-cursor-layer"
+      data-testid="stack-cursor"
+      aria-hidden="true"
+    >
+      <div
+        class="pr-stack-cursor"
+        :class="{ 'pr-stack-cursor--snapped': cursorSnapped }"
+        :style="{ left: `${cursorXRatio * 100}%` }"
+      />
+    </div>
   </div>
 </template>
 
@@ -860,5 +872,30 @@ defineExpose({
   font-weight: 700;
   line-height: 22px;
   letter-spacing: 0;
+}
+
+/* Full-height playhead over the chart column (above overview z-index 4) so the
+ * line stays continuous through 统计分析 header/tracks down to the swim bottom. */
+.pr-stack-cursor-layer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--pr-gutter-width, 280px);
+  pointer-events: none;
+  z-index: 9;
+  overflow: hidden;
+}
+
+.pr-stack-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #317af7;
+}
+
+.pr-stack-cursor--snapped {
+  background: #4c4c4c;
 }
 </style>

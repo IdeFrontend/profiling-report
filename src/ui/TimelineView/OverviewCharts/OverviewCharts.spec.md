@@ -23,7 +23,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 - **Gap:** **8px** margin between consecutive tracks.
 - **Style:** **step-after** area + stroke (hold each sample value until the next counter event, then jump). Fill `fill-opacity ≈ 0.45` under a bright stroke. Colors from [COLOR_TOKENS](../../../../docs/ui/COLOR_TOKENS.md) by counter name (`cube` → `--pr-color-overview-cube`, etc.).
 - **Time domain:** shared with swimlane visible `[startTime, endTime]` (canonical ns).
-- **Cursor:** shared playhead vertical line (`#317af7`) over the chart column; hover on a track shows an EventTooltip-styled tip with the step value at the cursor time.
+- **Cursor:** shared playhead (stack + axis stem, `#317af7`) continuous through the chart column from the time axis through 统计分析 down to the swim bottom. Hover on a **chart** column (not section header / gutter labels) drives the playhead, shows an EventTooltip-styled tip with the step value, and a round value dot on the series at cursor x.
 - **Pin (PyPTO parity):** each track gutter has a **置顶** pushpin (hover-reveal unpinned; always visible when pinned / in sticky strip). Click toggles `pinnedOverviewIds`.
 
 ## Acceptance Criteria
@@ -33,7 +33,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 3. **PR-OV-003** — Mounted in the swim body below the time axis (DOM: axis → swimlane containing overview).
 4. **PR-OV-004** — Series paths are step-after: value stays constant until the next sample time, then jumps (no diagonal interpolation between samples).
 5. **PR-OV-005** — Track pushpin emits `pin-overview` / `unpin-overview`; sticky strip (`variant=strip`) shows pinned series in pin order **below** the lane pin strip.
-6. **PR-OV-006** — Shared cursor x draws a vertical line over chart tracks; hovering a track shows the step value at cursor time in an EventTooltip-styled tip.
+6. **PR-OV-006** — Shared cursor x draws a continuous vertical playhead over the chart column (not gutter). Hovering a chart column emits `cursor` and shows the step value tip plus a round value dot at the series value; hovering the section header or gutter labels does not emit `cursor`.
 ## Visual
 
 - [`visual/overview-charts.png`](./visual/overview-charts.png) — full 统计分析 block

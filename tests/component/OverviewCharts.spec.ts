@@ -78,7 +78,7 @@ describe('OverviewCharts', () => {
     expect(wrap.text()).not.toContain('统计分析');
   });
 
-  it('PR-OV-006: draws cursor line and value tip on track hover', async () => {
+  it('PR-OV-006: chart hover emits cursor, value tip, and value dot', async () => {
     const wrap = mount(OverviewCharts, {
       props: {
         series,
@@ -89,13 +89,42 @@ describe('OverviewCharts', () => {
       },
       attachTo: document.body,
     });
-    expect(wrap.find('[data-testid="overview-cursor"]').exists()).toBe(true);
-    const track = wrap.get('[data-series-id="CUBE"]');
-    await track.trigger('pointermove', { clientX: 400, clientY: 100 });
-    expect(wrap.emitted('cursor')?.length).toBeGreaterThan(0);
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    const el = col.element as HTMLElement;
+    el.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        width: 1000,
+        top: 0,
+        height: 16,
+        right: 1000,
+        bottom: 16,
+        x: 0,
+        y: 0,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    await col.trigger('pointermove', { clientX: 500, clientY: 8 });
+    const payload = wrap.emitted('cursor')?.at(-1)?.[0] as { xRatio: number; time: number };
+    expect(payload.xRatio).toBeCloseTo(0.5);
+    expect(payload.time).toBeCloseTo(1000);
+    expect(wrap.find('[data-testid="overview-value-dot"]').exists()).toBe(true);
     expect(document.querySelector('[data-testid="overview-value-tooltip"]')?.textContent).toContain(
       'CUBE',
     );
     wrap.unmount();
+  });
+
+  it('PR-OV-006: header and gutter hover do not emit cursor', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+    });
+    await wrap.get('.pr-overview-header').trigger('pointermove', { clientX: 10, clientY: 10 });
+    await wrap.get('.pr-overview-header-track').trigger('pointermove', { clientX: 400, clientY: 10 });
+    await wrap
+      .get('[data-series-id="CUBE"] .pr-overview-gutter-cell')
+      .trigger('pointermove', { clientX: 10, clientY: 20 });
+    expect(wrap.emitted('cursor')).toBeUndefined();
   });
 });

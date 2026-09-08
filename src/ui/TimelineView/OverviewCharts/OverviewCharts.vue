@@ -61,6 +61,8 @@ const pinned = computed(() => new Set(props.pinnedOverviewIds ?? []));
 const isStrip = computed(() => props.variant === 'strip');
 const pinHoverId = ref<string | null>(null);
 const hoverSeriesId = ref<string | null>(null);
+/** Local ns under chart pointer — tip/dot without waiting for parent echo. */
+const hoverTimeNs = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
 
 /** Map counter name → stroke CSS color (fill uses same with opacity). */
@@ -129,19 +131,26 @@ function timeAtClientX(clientX: number, el: HTMLElement): { time: number; xRatio
   return { time, xRatio };
 }
 
-function onTrackPointerMove(seriesId: string, e: PointerEvent) {
-  const chart = (e.currentTarget as HTMLElement).querySelector(
-    '.pr-overview-svg',
-  ) as HTMLElement | null;
-  const el = chart ?? (e.currentTarget as HTMLElement);
+/** Chart column only — gutter / section header must not drive the playhead. */
+function onChartPointerMove(seriesId: string, e: PointerEvent) {
+  const el = e.currentTarget as HTMLElement;
   const { time, xRatio } = timeAtClientX(e.clientX, el);
   hoverSeriesId.value = seriesId;
+  hoverTimeNs.value = time;
   tipPos.value = { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` };
   emit('cursor', { time, xRatio, snapped: false });
 }
 
-function onTrackPointerLeave() {
+function onChartPointerLeave(e: PointerEvent) {
+  const next = e.relatedTarget as Node | null;
+  const root = (e.currentTarget as HTMLElement).closest('.pr-overview-charts');
+  // Moving into another chart column — keep playhead; next move updates tip.
+  if (next && root?.contains(next) && (next as Element).closest?.('.pr-overview-chart-col')) {
+    return;
+  }
   hoverSeriesId.value = null;
+  hoverTimeNs.value = null;
+  emit('cursor', null);
 }
 
 function onChartsWheel(e: WheelEvent) {
@@ -159,12 +168,17 @@ const tipTrack = computed(() => {
 
 const tipValue = computed(() => {
   const track = tipTrack.value;
-  const time = props.cursorTime;
+  const time = hoverTimeNs.value ?? props.cursorTime;
   if (!track || time == null) return null;
   return stepValueAt(track.points, time);
 });
 
 const showTip = computed(() => tipTrack.value != null && tipValue.value != null);
+
+function dotTopPercent(track: { maxV: number }, value: number): number {
+  const maxV = track.maxV > 0 ? track.maxV : 1;
+  return (1 - value / maxV) * 100;
+}
 </script>
 
 <template>
@@ -200,8 +214,6 @@ const showTip = computed(() => tipTrack.value != null && tipValue.value != null)
       class="pr-overview-track"
       :class="{ 'pr-overview-track--pinned': track.isPinned }"
       :data-series-id="track.id"
-      @pointermove="onTrackPointerMove(track.id, $event)"
-      @pointerleave="onTrackPointerLeave"
     >
       <div class="pr-overview-gutter-cell">
         <button
@@ -225,7 +237,12 @@ const showTip = computed(() => tipTrack.value != null && tipValue.value != null)
         </button>
         <span class="pr-overview-label">{{ track.label }}</span>
       </div>
-      <div class="pr-overview-chart-col">
+      <div
+        class="pr-overview-chart-col"
+        data-testid="overview-chart-col"
+        @pointermove="onChartPointerMove(track.id, $event)"
+        @pointerleave="onChartPointerLeave"
+      >
         <svg
           class="pr-overview-svg"
           :viewBox="`0 0 ${VIEW_W} ${TRACK_H}`"
@@ -244,20 +261,21 @@ const showTip = computed(() => tipTrack.value != null && tipValue.value != null)
             fill="none"
           />
         </svg>
+        <div
+          v-if="
+            hoverSeriesId === track.id &&
+              tipValue != null &&
+              cursorXRatio != null
+          "
+          class="pr-overview-value-dot"
+          data-testid="overview-value-dot"
+          :style="{
+            left: `${cursorXRatio * 100}%`,
+            top: `${dotTopPercent(track, tipValue)}%`,
+            background: track.color,
+          }"
+        />
       </div>
-    </div>
-
-    <div
-      v-if="cursorXRatio != null"
-      class="pr-overview-cursor-layer"
-      aria-hidden="true"
-    >
-      <div
-        class="pr-overview-cursor"
-        data-testid="overview-cursor"
-        :class="{ 'pr-overview-cursor--snapped': cursorSnapped }"
-        :style="{ left: `${cursorXRatio * 100}%` }"
-      />
     </div>
 
     <Teleport to="body">
@@ -428,27 +446,16 @@ const showTip = computed(() => tipTrack.value != null && tipValue.value != null)
   vector-effect: non-scaling-stroke;
 }
 
-.pr-overview-cursor-layer {
+.pr-overview-value-dot {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: var(--pr-overview-gutter, 280px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
   pointer-events: none;
-  z-index: 9;
-}
-
-.pr-overview-cursor {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: #317af7;
-  transform: translateX(-50%);
-}
-
-.pr-overview-cursor--snapped {
-  background: #4c4c4c;
+  z-index: 2;
 }
 </style>
 

@@ -36,8 +36,10 @@ withDefaults(
 .pr-cursor {
   position: absolute;
   top: 0;
-  /* Extend through axis border-bottom so the stem meets the canvas line (no 1px gap). */
-  bottom: -1px;
+  /* Extend through overview + swim below the axis so the playhead is continuous
+   * (axis cell is only ~20px; overflow:visible on the head row lets the stem paint down). */
+  bottom: auto;
+  height: 100vh;
   width: 1px;
   pointer-events: none;
   /*

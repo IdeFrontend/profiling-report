@@ -237,8 +237,13 @@ describe('SwimlaneView', () => {
     expect(wrapper.get('[data-testid="swim-cursor"]').attributes('style')).toMatch(
       /left:\s*30%/,
     );
+    expect(wrapper.find('[data-testid="stack-cursor"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="stack-cursor"] .pr-stack-cursor').attributes('style')).toMatch(
+      /left:\s*30%/,
+    );
     await wrapper.setProps({ cursorXRatio: null });
     expect(wrapper.find('[data-testid="swim-cursor"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stack-cursor"]').exists()).toBe(false);
   });
 
   it('PR-SWIMVIEW-009: snapped cursor grays the swim vertical bar', async () => {

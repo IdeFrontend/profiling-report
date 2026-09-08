@@ -60,7 +60,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 4. **PR-SWIMVIEW-004** — Stacking: measure borders below Card strips (`z-index: 8`); swim cursor and Alt-measure chrome (`z-index: 9`) above Card strips; blue edge marks (`z-index: 10–11`) above the cursor / Alt-measure band; pin↔body Alt-measure bridge also at `z-index: 9`.
 5. **PR-SWIMVIEW-005** — `pointerenter` on a Card strip clears the swim cursor and emits `cursor` `null` immediately.
 6. **PR-SWIMVIEW-006** — Card strip fill/hover use `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` CSS vars (no hardcoded `rgb(42…)` / `rgb(50…)`).
-7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar (axis hover / shared playhead).
+7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar and the stack-level chart-column playhead (`stack-cursor`) so the line stays continuous through overview chrome.
 8. **PR-SWIMVIEW-008** — Gutter resize handle pins to used grid column (`grid-column: 1 / 2`); track column uses `minmax(80px, 1fr)`.
 9. **PR-SWIMVIEW-009** — When the cursor is magnetized (`cursorSnapped`), the swim vertical bar renders gray (`.pr-swim-cursor--snapped`).
 10. **PR-SWIMVIEW-010** — Expanded Card with available modes shows metric select in gutter column; collapsed hides it.
