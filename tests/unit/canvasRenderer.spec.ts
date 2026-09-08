@@ -468,6 +468,30 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     ];
     expect(() => assignEventRows(events)).toThrow(/duplicate event id/);
   });
+
+  it('rebuildLayout throws when leaf events are out of startTime order', () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'late', name: 'late', startTime: 100, duration: 10 },
+                { id: 'early', name: 'early', startTime: 0, duration: 10 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(() => rebuildLayout(m)).toThrow(/sorted startTime asc/);
+  });
 });
 
 const hasWebGl2 = WebGlSwimlaneRenderer.isSupported();

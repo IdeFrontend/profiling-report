@@ -194,6 +194,22 @@ export function leafRowCount(thread: SwimThread): number {
   return computeRows(thread.events).count;
 }
 
+/** Leaf events must already be `startTime` asc / longest `duration` first (adapter contract). */
+function assertLeafEventsOrdered(events: readonly SwimEvent[]): void {
+  for (let i = 1; i < events.length; i++) {
+    const prev = events[i - 1]!;
+    const next = events[i]!;
+    if (
+      next.startTime < prev.startTime ||
+      (next.startTime === prev.startTime && next.duration > prev.duration)
+    ) {
+      throw new Error(
+        `leaf events must be sorted startTime asc, longest duration first (at ${next.id})`,
+      );
+    }
+  }
+}
+
 export function contentHeightFromLayout(layout: SwimlaneLayout): number {
   if (layout.headers.length === 0 && layout.lanes.length === 0) {
     return LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT;
@@ -308,7 +324,8 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     lanesByTid.set(thread.id, lane);
     const laneEvents: LaidOutEvent[] = [];
     const rowIndexById = assignEventRows(thread.events);
-    // Keep startTime ascending (model contract) so eventsByLane / WebGL pairs stay chronological.
+    // Trust adapter/host order (no defensive re-sort); WebGL gap math consumes eventsByLane as-is.
+    assertLeafEventsOrdered(thread.events);
     for (const ev of thread.events) {
       const rowIndex = rowIndexById.get(ev.id);
       if (rowIndex === undefined) {
