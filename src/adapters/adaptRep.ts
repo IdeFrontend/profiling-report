@@ -762,9 +762,9 @@ const PIPE_COLUMNS: {
   },
 ];
 
-function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
-  if (!payload) return [];
-  const { rows } = parseCsv(decodeUtf8(payload));
+/** DATA-33b: mean non-NA ratios (and times) over the given PipeUtilization rows. */
+export function pipeOccupancyFromRows(rows: Record<string, string>[]): PipeOccupancyItem[] {
+  if (rows.length === 0) return [];
   const items: PipeOccupancyItem[] = [];
   for (const pipe of PIPE_COLUMNS) {
     const ratio = meanFamily(rows, pipe.ratioColumns);
@@ -782,6 +782,11 @@ function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
     });
   }
   return items;
+}
+
+function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
+  if (!payload) return [];
+  return pipeOccupancyFromRows(parseCsv(decodeUtf8(payload)).rows);
 }
 
 /**

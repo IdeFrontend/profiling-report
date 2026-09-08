@@ -78,7 +78,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** On the summary bars, do we average all blocks? On **详情**, do we show only the selected block?
 
-**Interim:** summary PIPE bars = mean of non-`NA` ratios across `block_id` ([`DATA-33b`](../decisions/interim/DATA.md)); **详情** / memory / metrics = selected block ([`DATA-33c`](../decisions/interim/DATA.md)). Product note: summary view is missing a **block selector** label.
+**Interim:** summary PIPE bars default to mean of non-`NA` ratios across `block_id` ([`DATA-33b`](../decisions/interim/DATA.md)); summary **block** control (All \| `block_id`) scopes PIPE when >1 block. **详情** / memory / metrics = selected block ([`DATA-33c`](../decisions/interim/DATA.md)). Matrix: [VIEW_DATA_REQUIREMENTS §8.1](../../formats/VIEW_DATA_REQUIREMENTS.md).
 
 ### DATA-20 — Peak(%) box colors
 
