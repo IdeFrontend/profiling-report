@@ -288,8 +288,14 @@ test.describe('PR-E2E feature paths', () => {
         maxLanes: 8,
         predicate: async () => {
           if ((await inCount.count()) === 0) return false;
-          const text = await inCount.evaluate((el) => el.textContent).catch(() => null);
-          return text != null && Number(text) >= 2;
+          // textContent waits for attached (not visible); timeout 0 so a detached race
+          // returns false and the probe keeps scanning instead of burning the test budget.
+          try {
+            const text = await inCount.textContent({ timeout: 0 });
+            return text != null && Number(text) >= 2;
+          } catch {
+            return false;
+          }
         },
       }),
     ).toBe(true);

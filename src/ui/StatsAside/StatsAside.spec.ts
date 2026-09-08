@@ -552,7 +552,13 @@ describe('StatsAside', () => {
     const core = wrapper.get('[data-testid="stats-core-util-card"]');
     expect(core.text()).toMatch(/AICore 并行使用率|AICore parallel/);
     expect(wrapper.get('[data-testid="stats-aicore-util-score"]').text()).toMatch(/98\.14\s*%/);
+    expect(wrapper.get('[data-testid="stats-aicore-util-score"]').attributes('title')).toBe(
+      `${0.981418 * 100}%`,
+    );
     expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').text()).toMatch(/93\.38\s*%/);
+    expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').attributes('title')).toBe(
+      `${0.933769 * 100}%`,
+    );
     expect(wrapper.get('[data-testid="stats-aicore-util"]').text()).toMatch(
       /并行使用率|Parallel utilization/,
     );
@@ -562,6 +568,32 @@ describe('StatsAside', () => {
     );
     expect(wrapper.get('[data-testid="stats-aicore-balance-bar"]').classes()).toContain(
       'pr-card__bar-fill--secondary',
+    );
+  });
+
+  it('PR-STATS-011c: AICore clamps out-of-range fractions for score and bar', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            taskDurationUs: 1,
+            parallelUtilization: 1.5,
+            parallelBalance: -0.42,
+          },
+        }),
+      },
+    });
+    const utilScore = wrapper.get('[data-testid="stats-aicore-util-score"]');
+    expect(utilScore.get('.pr-card__num').text()).toBe('100.00');
+    expect(utilScore.attributes('title')).toBe(`${1.5 * 100}%`);
+    expect(wrapper.get('[data-testid="stats-aicore-util-bar"]').attributes('style')).toMatch(
+      /width:\s*100%/,
+    );
+    const balScore = wrapper.get('[data-testid="stats-aicore-balance-score"]');
+    expect(balScore.get('.pr-card__num').text()).toBe('0.00');
+    expect(balScore.attributes('title')).toBe(`${-0.42 * 100}%`);
+    expect(wrapper.get('[data-testid="stats-aicore-balance-bar"]').attributes('style')).toMatch(
+      /width:\s*0%/,
     );
   });
 

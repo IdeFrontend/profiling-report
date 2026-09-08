@@ -61,7 +61,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | **Confirmed** (npu-compute 0818). Shown as ms in mockup (unit conversion in UI) |
 | 5 | 算力情况 | measured / peak TFLOPS | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` | **Interim DATA-33h** (DATA-2..4, UI-33). Sketch: **Cube \| Vector** columns |
 | 6 | 带宽利用率 | main-mem read / write BW | `Memory.csv` | Sketch: one card **读 \| 写**. Measured columns confirmed; peak / score / aic↔读·写 aggregation still **DATA-33g** |
-| 7 | AICore 并行使用率 | — | — | Sketch: **并行使用率** \| **负载均衡度**. Formulas **OPEN** (replaces former 平均核利用率) |
+| 7 | AICore 并行使用率 | `aicore_parallel_utilization` / `aicore_parallel_balance` | `summary.jsonl` | **DATA-9 / DATA-10**. Sketch: **并行使用率** \| **负载均衡度** |
 
 ### Visualization logic (from mockup)
 
@@ -74,9 +74,9 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + progress bar = `min(100%, Block Dim / core_count × 100%)` when adapter sets `summary.coreCount` (UI-32); else decorative ~15% fill (DATA-33e). Secondary: `{blockDim} / {coreCount}` iterations/core when both set (DATA-1); else `blockDim` only; else `opName`; else omit. No standalone op-type card. |
 | 算力情况 card | **Cube \| Vector** columns (UI-33): large score (no `%`), bar = `round(measured/peak×100)` %, subtitle `measured / peak` with `TFLOPS` on the next line — **DATA-33h** (DATA-2..4). Omit side without both measured + peak; **N/A** placeholder when duration present but `computeCard` absent. |
 | 带宽利用率 card | **读 \| 写** columns: large score **with** `%`, bar = score% of track, `measured / peak` — **DATA-33g** / UI-34 GB/s (sketch TB/s). Same card chrome as 整体耗时. |
-| AICore 并行使用率 card | Sketch: dual **并行使用率** \| **负载均衡度** with `%` bars — until Product formulas: **title + `N/A`** (no invented values) |
+| AICore 并行使用率 card | Dual **并行使用率** \| **负载均衡度** from `summary.parallelUtilization` / `parallelBalance` (**DATA-9 / DATA-10**): 2dp `%` scores, bars = clamped score % of track ([0, 100]), unrounded percent in value `title`. Hide a column when its field is absent; **title + `N/A`** when duration present but both absent. |
 
-AICore parallel stays a placeholder until Product defines fields. Card 5 uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formulas still partial). Bandwidth **measured** columns are product-confirmed; peak, score, and 读/写 aggregation stay [DATA-33g](../context/decisions/interim/DATA.md).
+Compute uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formulas still partial). Bandwidth **measured** columns are product-confirmed; peak, score, and 读/写 aggregation stay [DATA-33g](../context/decisions/interim/DATA.md). AICore parallel fields are product-confirmed (**DATA-9 / DATA-10**).
 
 ### Interim DATA-33h (算力情况)
 

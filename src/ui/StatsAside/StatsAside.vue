@@ -84,7 +84,13 @@ const computeView = computed(() =>
   })),
 );
 
-/** DATA-9 / DATA-10: dual 并行使用率 | 负载均衡度 columns (fractions 0–1 → %). */
+/** DATA-9 / DATA-10: dual 并行使用率 | 负载均衡度 columns (fractions → %; clamp [0, 100]). */
+function aicorePercent(fraction: number): { score: number; title: string } {
+  const raw = fraction * 100;
+  // Clamp both ends so label and bar agree — balance = 1−σ/μ can go negative; util can exceed 1.
+  const score = Number(Math.min(100, Math.max(0, raw)).toFixed(2));
+  return { score, title: `${raw}%` };
+}
 const aicoreView = computed(() => {
   const s = props.report?.summary;
   const rows: {
@@ -95,23 +101,23 @@ const aicoreView = computed(() => {
     title: string;
   }[] = [];
   if (s?.parallelUtilization != null) {
-    const score = Number((s.parallelUtilization * 100).toFixed(2));
+    const { score, title } = aicorePercent(s.parallelUtilization);
     rows.push({
       id: 'util',
       labelKey: 'parallelUtil',
       score,
       barTone: 'primary',
-      title: `${score.toFixed(2)}%`,
+      title,
     });
   }
   if (s?.parallelBalance != null) {
-    const score = Number((s.parallelBalance * 100).toFixed(2));
+    const { score, title } = aicorePercent(s.parallelBalance);
     rows.push({
       id: 'balance',
       labelKey: 'parallelBalance',
       score,
       barTone: 'secondary',
-      title: `${score.toFixed(2)}%`,
+      title,
     });
   }
   return rows;
@@ -647,7 +653,7 @@ function backToReport() {
                 <span
                   class="pr-card__bar-fill"
                   :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
-                  :style="{ width: `${Math.min(100, row.score)}%` }"
+                  :style="{ width: `${row.score}%` }"
                   :data-testid="`stats-aicore-${row.id}-bar`"
                 />
               </div>

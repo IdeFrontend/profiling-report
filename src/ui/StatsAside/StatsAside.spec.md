@@ -41,7 +41,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 
 **Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.60` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Progress bar = `min(100%, Block Dim / core_count × 100%)` when `summary.coreCount` is set (UI-32); else decorative ~15% cyan fill (DATA-33e). Secondary (DATA-1): `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`; omit if neither.
 
-**AICore 并行使用率 (DATA-9 / DATA-10).** Dual columns **并行使用率** | **负载均衡度** from `summary.parallelUtilization` / `parallelBalance` (fractions 0–1 → `%`). Large score **with** `%`, bar = score % of track (capped at 100%), column label beside the score (same chrome as BW 读\|写). Hide a column when its field is absent; title + `N/A` when duration is present but both absent. Omit the card when BW-only (no `taskDurationUs`). Do not bind `summary.avgCoreUtil`.
+**AICore 并行使用率 (DATA-9 / DATA-10).** Dual columns **并行使用率** | **负载均衡度** from `summary.parallelUtilization` / `parallelBalance` (fractions → `%`). Large score **with** `%` at **2 decimal places** (fraction fields keep sub-percent precision; unlike compute/BW integer `utilScore` ratios). Bar = same clamped score % of track. Clamp display score to **[0, 100]** so label and bar stay in lockstep when balance `1−σ/μ` goes negative or util exceeds 1; value-cell `title` keeps the **unrounded** `fraction×100` percent (same pattern as duration). Column label beside the score (same chrome as BW 读\|写). Hide a column when its field is absent; title + `N/A` when duration is present but both absent. Omit the card when BW-only (no `taskDurationUs`). Do not bind `summary.avgCoreUtil`.
 
 **算力情况 (DATA-33h).** `computeCard` from adapter. Inner **Cube \| Vector** columns (UI-33; adapter sides `aic`/`aiv`). Large score (**no** `%`), bar fill = score % of track (8px pill hatched track; `min-width: 0` at 0%; distinct fill hues per side in the sketch), subtitle `measured / peak` with `TFLOPS` on the next line. Requires `taskDurationUs`. Hide a side when measured or peak is missing; show **N/A** when duration is present but `computeCard` is absent. Do not bind `summary.computeTflops`.
 
@@ -79,7 +79,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 12. **PR-STATS-010** — No type card; secondary hide-if-missing.
 13. **PR-STATS-011** — Duration present, no `computeCard` / parallel fields: compute + AICore-parallel placeholders are `N/A`; BW not from `summary.ioBandwidth`.
 13b. **PR-STATS-011b** — BW-only summary omits duration-gated placeholders.
-13c. **PR-STATS-011c** — `parallelUtilization` / `parallelBalance` render dual AICore columns with `%` scores and bars (DATA-9 / DATA-10); a lone field yields a single column.
+13c. **PR-STATS-011c** — `parallelUtilization` / `parallelBalance` render dual AICore columns with 2dp `%` scores and bars (DATA-9 / DATA-10); a lone field yields a single column; out-of-range fractions clamp the visible score + bar to [0, 100] while `title` keeps the unrounded percent.
 14. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent.
 15. **PR-STATS-013** — Absolute time is a track sibling.
 16. **PR-STATS-014** — Details emit open-pipe-details.
@@ -253,6 +253,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 ## Changelog
 
 - **2026-09-08** — AICore dual **并行使用率** \| **负载均衡度** columns with `%` bars (DATA-9 / DATA-10, PR-STATS-011c).
+- **2026-09-08** — AICore score/bar clamp to [0, 100]; unrounded percent in value `title`; 2dp display precision documented.
 - **2026-09-08** — Topology **全屏** is a fit-window icon emitting `open-topology-fullscreen` for the root overlay (PR-STATS-033/034); hidden when the diagram is hidden.
 - **2026-09-04** — UI matches v930 summary-cards **2×2**: AICore parallel placeholder; compute Cube\|Vector; single **带宽利用率** 读\|写 (mean of aic\|aiv per direction); primary/secondary bar hues.
 - **2026-09-04** — v930 summary-cards refresh: sketch **2×2** (duration \| AICore 并行使用率; 算力情况 Cube\|Vector \| 带宽利用率 读\|写). Remap former 平均核利用率 / dual I/O cards.
