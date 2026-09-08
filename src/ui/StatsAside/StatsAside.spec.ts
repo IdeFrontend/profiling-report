@@ -65,7 +65,7 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('75');
   });
 
-  it('PR-STATS-014b: summary PIPE block All vs id scopes bars', async () => {
+  it('PR-STATS-014b: summary PIPE block All vs id scopes bars and syncs topology', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -91,25 +91,38 @@ describe('StatsAside', () => {
               rows: [
                 { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.0' },
                 { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '2.0' },
+                { block_id: '2', 'aiv_main_mem_read_bw(GB/s)': '9.0' },
               ],
-              blockIds: ['0', '1'],
+              blockIds: ['0', '1', '2'],
             },
           ],
         }),
       },
     });
 
+    const options = wrapper
+      .findAll('[data-testid="pipe-block"] option')
+      .map((o) => (o.element as HTMLOptionElement).value);
+    expect(options).toEqual(['', '0', '1']);
+
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    expect(wrapper.text()).toContain('1.00 GB/s');
 
     await wrapper.get('[data-testid="pipe-block"]').setValue('1');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(wrapper.text()).toContain('2.00 GB/s');
+    expect(wrapper.text()).not.toContain('1.00 GB/s');
 
     await wrapper.get('[data-testid="pipe-block"]').setValue('0');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20%');
+    expect(wrapper.text()).toContain('1.00 GB/s');
 
     await wrapper.get('[data-testid="pipe-block"]').setValue('');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    // All restores default topology block (first labelled = 0), not the last pick.
+    expect(wrapper.text()).toContain('1.00 GB/s');
+    expect(wrapper.text()).not.toContain('2.00 GB/s');
   });
 
   it('PR-STATS-003: Cube|Vector toggle only for MIX and filters by side', async () => {

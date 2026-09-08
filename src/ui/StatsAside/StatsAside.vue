@@ -119,20 +119,15 @@ const selectedBlockId = ref('');
 /** DATA-19 / DATA-33b: empty string = All blocks (mean); else filter PIPE to that block_id. */
 const summaryBlockId = ref('');
 
+function defaultTopologyBlockId(tables: NonNullable<ReportViewModel['memoryTables']>): string {
+  const ids = tables.flatMap((t) => t.blockIds);
+  return ids.length === 0 ? '' : (firstLabelledMemoryTopology(tables)?.blockId ?? ids[0]!);
+}
+
+/** Switcher options come from PipeUtilization only — memory-only blocks must not blank PIPE. */
 const summaryBlockIds = computed(() => {
-  const ids: string[] = [];
-  const seen = new Set<string>();
-  for (const table of [
-    ...(props.report?.computeTables ?? []),
-    ...(props.report?.memoryTables ?? []),
-  ]) {
-    for (const id of table.blockIds) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      ids.push(id);
-    }
-  }
-  return ids;
+  const table = props.report?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
+  return table?.blockIds ?? [];
 });
 
 const showSummaryBlockSwitcher = computed(
@@ -144,10 +139,7 @@ watch(
   (report) => {
     asideSurface.value = 'report';
     summaryBlockId.value = '';
-    const tables = report?.memoryTables ?? [];
-    const ids = tables.flatMap((t) => t.blockIds);
-    selectedBlockId.value =
-      ids.length === 0 ? '' : (firstLabelledMemoryTopology(tables)?.blockId ?? ids[0]!);
+    selectedBlockId.value = defaultTopologyBlockId(report?.memoryTables ?? []);
   },
   { immediate: true },
 );
@@ -155,6 +147,7 @@ watch(
 function onSummaryBlockChange(id: string) {
   summaryBlockId.value = id;
   if (id) selectedBlockId.value = id;
+  else selectedBlockId.value = defaultTopologyBlockId(props.report?.memoryTables ?? []);
 }
 
 const scopedPipeOccupancy = computed(() => {
@@ -163,7 +156,8 @@ const scopedPipeOccupancy = computed(() => {
   const table = props.report?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
   if (!table) return all;
   const rows = table.rows.filter((r) => r['block_id'] === summaryBlockId.value);
-  return pipeOccupancyFromRows(rows);
+  // Empty filter (stale id / missing rows) keeps the All aggregate rather than blanking PIPE.
+  return rows.length === 0 ? all : pipeOccupancyFromRows(rows);
 });
 
 watch(

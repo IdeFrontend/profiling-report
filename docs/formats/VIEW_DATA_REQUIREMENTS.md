@@ -134,7 +134,7 @@ Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 | Summary PIPE bars | Mean across blocks (All) | That block only |
 | Summary cards (duration / compute / BW / AICore) | Mean / adapter rules (unchanged) | Unchanged (still All-scope) |
 | Roofline | Mean-style aggregate (DATA-33b) | Unchanged |
-| Memory topology + edge labels | Selected block ([DATA-33c](../context/decisions/interim/DATA.md)) | Syncs to the picked summary block when not All |
+| Memory topology + edge labels | Selected block ([DATA-33c](../context/decisions/interim/DATA.md)); default = first labelled / first id | Syncs to the picked summary block; **All** restores the default topology block |
 | Compute / memory CSV **详情** overlays | Selected block switcher | Independent overlay switcher (memory); compute has no block picker |
 
 ---
