@@ -36,7 +36,7 @@ describe('OverviewCharts', () => {
     expect(wrap.find('.pr-overview-fill').exists()).toBe(true);
   });
 
-  it('PR-OV-002: SVG viewBox height is 16; tracks use 1px lane-style splitters', async () => {
+  it('PR-OV-002: SVG is 16px in a 24px lane with 8px top gap; 1px splitters', async () => {
     const wrap = mount(OverviewCharts, {
       props: { series, startTime: 0, endTime: 2000 },
     });
@@ -48,7 +48,12 @@ describe('OverviewCharts', () => {
     const src = (await import('../../src/ui/TimelineView/OverviewCharts/OverviewCharts.vue?raw'))
       .default as string;
     expect(src).toMatch(/\.pr-overview-track\s*\{[^}]*border-bottom:\s*1px solid/);
-    expect(src).not.toMatch(/\.pr-overview-track\s*\{[^}]*margin-bottom:\s*8px/);
+    expect(src).toMatch(/--pr-overview-lane-h/);
+    expect(src).toMatch(/--pr-overview-track-gap/);
+    const layout = await import('../../src/ui/TimelineView/OverviewCharts/overviewLayout');
+    expect(layout.OVERVIEW_LANE_H).toBe(24);
+    expect(layout.OVERVIEW_TRACK_GAP).toBe(8);
+    expect(layout.overviewSectionHeightPx(2)).toBe(40 + 48);
   });
 
   it('PR-OV-005: pin click emits pin-overview / unpin-overview', async () => {

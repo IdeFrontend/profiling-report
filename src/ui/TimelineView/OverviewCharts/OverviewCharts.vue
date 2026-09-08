@@ -14,7 +14,7 @@ import {
   stepValueAt,
   strokePathFromVertices,
 } from './stepPath';
-import { OVERVIEW_HEADER_H, OVERVIEW_TRACK_H } from './overviewLayout';
+import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H, OVERVIEW_TRACK_GAP, OVERVIEW_TRACK_H } from './overviewLayout';
 
 const props = withDefaults(
   defineProps<{
@@ -78,7 +78,7 @@ const pinHoverId = ref<string | null>(null);
 const hoverSeriesId = ref<string | null>(null);
 /** Local ns under chart pointer — tip/dot without waiting for parent echo. */
 const hoverTimeNs = ref<number | null>(null);
-/** Local x ratio for the value dot (full 16px hit target, not parent echo). */
+/** Local x ratio for the value dot (full 24px lane hit target, not parent echo). */
 const hoverXRatio = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
 /** Chart-column drag-pan (mirrors SwimlaneCanvas non-measure drag). */
@@ -297,6 +297,9 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
       '--pr-overview-header-fill': LANE_GROUP_HEADER_FILL,
       '--pr-overview-header-hover': LANE_GROUP_HEADER_HOVER,
       '--pr-overview-header-h': `${OVERVIEW_HEADER_H}px`,
+      '--pr-overview-lane-h': `${OVERVIEW_LANE_H}px`,
+      '--pr-overview-track-h': `${OVERVIEW_TRACK_H}px`,
+      '--pr-overview-track-gap': `${OVERVIEW_TRACK_GAP}px`,
     }"
     @wheel="onChartsWheel"
   >
@@ -367,38 +370,41 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
           @pointercancel="onChartPointerUp"
           @pointerleave="onChartPointerLeave"
         >
-          <svg
-            class="pr-overview-svg"
-            :viewBox="`0 0 ${VIEW_W} ${TRACK_H}`"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path
-              class="pr-overview-fill"
-              :d="areaPath(track.points, track.maxV)"
-              :fill="track.color"
+          <!-- 8px top gap is intentional empty hit area; paint sits in the bottom 16px. -->
+          <div class="pr-overview-paint">
+            <svg
+              class="pr-overview-svg"
+              :viewBox="`0 0 ${VIEW_W} ${TRACK_H}`"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path
+                class="pr-overview-fill"
+                :d="areaPath(track.points, track.maxV)"
+                :fill="track.color"
+              />
+              <path
+                class="pr-overview-stroke"
+                :d="strokePath(track.points, track.maxV)"
+                :stroke="track.color"
+                fill="none"
+              />
+            </svg>
+            <div
+              v-if="
+                hoverSeriesId === track.id &&
+                  tipValue != null &&
+                  dotXRatio != null
+              "
+              class="pr-overview-value-dot"
+              data-testid="overview-value-dot"
+              :style="{
+                left: `${dotXRatio * 100}%`,
+                top: `${dotTopPercent(track, tipValue)}%`,
+                background: track.color,
+              }"
             />
-            <path
-              class="pr-overview-stroke"
-              :d="strokePath(track.points, track.maxV)"
-              :stroke="track.color"
-              fill="none"
-            />
-          </svg>
-          <div
-            v-if="
-              hoverSeriesId === track.id &&
-                tipValue != null &&
-                dotXRatio != null
-            "
-            class="pr-overview-value-dot"
-            data-testid="overview-value-dot"
-            :style="{
-              left: `${dotXRatio * 100}%`,
-              top: `${dotTopPercent(track, tipValue)}%`,
-              background: track.color,
-            }"
-          />
+          </div>
         </div>
       </div>
     </template>
@@ -456,8 +462,8 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
 }
 
 .pr-overview-track {
-  height: 16px;
-  min-height: 16px;
+  height: var(--pr-overview-lane-h, 24px);
+  min-height: var(--pr-overview-lane-h, 24px);
   border-bottom: 1px solid var(--pr-divider, #3a3a3a);
 }
 
@@ -555,16 +561,28 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
   position: relative;
   min-width: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  /* Top 8px of the 24px lane is empty but still the hit target for this series. */
   touch-action: none;
   cursor: default;
+}
+
+.pr-overview-paint {
+  position: relative;
+  flex: 0 0 var(--pr-overview-track-h, 16px);
+  height: var(--pr-overview-track-h, 16px);
+  min-height: var(--pr-overview-track-h, 16px);
+  pointer-events: none;
 }
 
 .pr-overview-svg {
   display: block;
   width: 100%;
-  height: 16px;
+  height: 100%;
   overflow: visible;
-  /* Hit target is the 16px chart column — not only painted fill/stroke pixels. */
   pointer-events: none;
 }
 
