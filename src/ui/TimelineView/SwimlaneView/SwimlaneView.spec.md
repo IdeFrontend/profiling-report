@@ -74,7 +74,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 22. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
 23. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 24. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
-25. **PR-SWIMVIEW-027** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
+27. **PR-SWIMVIEW-027** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
 
 ## Visual
 
@@ -100,8 +100,8 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-08** — Pinned-strip height and body content height account for multi-row leaf `rowCount` (`PR-SWIMVIEW-027`; 025/026 reserved for #71 pin/collapse tweens).
 - **2026-09-07** — Pinned strip applies selection gray-muting like the body; only dependency Beziers stay body-only (`PR-SWIMVIEW-016`).
-- **2026-09-03** — Pinned-strip height and body content height account for multi-row leaf `rowCount` (`PR-SWIMVIEW-027`; 025/026 reserved for #71 pin/collapse tweens).
 - **2026-09-03** — Card metric selector offers only **时钟周期** / **利用率** (cacheHit and task removed).
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
