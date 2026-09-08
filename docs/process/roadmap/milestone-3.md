@@ -22,10 +22,12 @@ Index: [README.md](README.md) · Previous: [milestone-2.md](milestone-2.md)
 | Item | Status | Features |
 |------|--------|----------|
 | Overview charts | **New** | When producer supplies `OverviewSeries` (DATA-32) |
-| Summary DATA-33 tiles | **New** | Compute / BW / avg-util when formulas exist |
+| Summary DATA-33 tiles | **Partial** | Duration + compute + BW measured shipped; AICore / BW peak-score **gated on DATA-5–10** |
 | Roofline (Product-final DATA-37) | **Replace** | Swap [M2](milestone-2.md) interim formulas/peaks when DATA-37 resolves |
 | Secondary tabs | **New** | 源码 / 详情 / 缓存 (UI-37); hardware aside if DATA-34 |
 | Visual regression / sketch golden | **New** | DATA-31 golden when available |
+| HQ slice 6 BW peak/score | **Gated** | DATA-5–8 still `open` — keep DATA-33g |
+| HQ slice 7 AICore 并行\|负载 | **Gated** | DATA-9–10 still `open` — keep DATA-33a N/A |
 
 ## Implementation tasks
 

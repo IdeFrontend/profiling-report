@@ -128,8 +128,8 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 - Aside **close** clears `asideVisible` (equivalent to toolbar stats toggle off). See [StatsAside.spec.md](../../src/ui/StatsAside/StatsAside.spec.md).
 - **更多** / More opens interim `HardwareDetailsPanel` (DATA-34a) when data exists and emits `open-hardware-details`.
 - Stacked 报告统计 (M2): summary cards (duration + compute/util `N/A` placeholders + I/O BW), roofline, PIPE, topology — no mode-tab switcher. PIPE **详情** opens compute CSV overlay; topology **详情** and **right-click** (UI-35) open memory CSV overlay; back control returns to the stack.
-- PIPE bars remain global mean aggregates ([DATA-33b](../context/decisions/interim/DATA.md)); measure range does not change them.
-- Detail / memory lists are **block-scoped** via block switcher ([DATA-33c](../context/decisions/interim/DATA.md)); topology labels use the same `selectedBlockId`.
+- PIPE bars default to mean aggregates ([DATA-33b](../context/decisions/interim/DATA.md)); when `PipeUtilization.csv` has >1 block, summary **block** control (All \| id) scopes PIPE (PR-STATS-014b). Measure range does not change them.
+- Detail / memory lists are **block-scoped** via block switcher ([DATA-33c](../context/decisions/interim/DATA.md)); topology labels use the same `selectedBlockId` (synced when the summary block control picks an id; **All** restores the default topology block).
 - Cube \| Vector toggle on PIPE for MIX ops only.
 - PIPE section **详情** navigates to compute CSV overlay + emits `open-pipe-details`.
 - Roofline (M2 interim DATA-37*): shown on the stack after the duration card when `report.roofline.points` non-empty; tabs omitted.
