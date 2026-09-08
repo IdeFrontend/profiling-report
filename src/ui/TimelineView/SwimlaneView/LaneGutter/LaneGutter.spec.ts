@@ -548,7 +548,7 @@ describe('LaneGutter', () => {
     vi.useRealTimers();
   });
 
-  it('PR-GUTTER-017: multi-row leaf renders one tall title cell', () => {
+  it('PR-GUTTER-018: multi-row leaf renders one tall title cell', () => {
     const wrapper = mount(LaneGutter, {
       props: {
         groups: [

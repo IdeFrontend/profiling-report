@@ -284,7 +284,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(tooNarrow).toBeNull();
   });
 
-  it('PR-RENDER-030: assignEventRows greedy first-fit splits only overlaps', () => {
+  it('PR-RENDER-042: assignEventRows greedy first-fit splits only overlaps', () => {
     const events: SwimEvent[] = [
       { id: 'a', name: 'a', startTime: 0, duration: 100 }, // 0..100
       { id: 'b', name: 'b', startTime: 50, duration: 100 }, // 50..150 (overlaps a)
@@ -309,7 +309,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(leafRowCount({ id: 't3', name: 'T3', events: [] })).toBe(1);
   });
 
-  it('PR-RENDER-031: rowCount sizes leaf lanes and content height', () => {
+  it('PR-RENDER-043: rowCount sizes leaf lanes and content height', () => {
     const m: SwimlaneModel = {
       minTime: 0,
       maxTime: 1000,
@@ -346,7 +346,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(layoutHeaders(m2)[1]!.y).toBe(LANE_GROUP_HEADER_HEIGHT + 2 * LANE_HEIGHT);
   });
 
-  it('PR-RENDER-032: event block Y lands in its own sub-row band', () => {
+  it('PR-RENDER-044: event block Y lands in its own sub-row band', () => {
     const layout = rebuildLayout(tinyModel());
     const long = layout.eventsById.get('e-long')!;
     const short = layout.eventsById.get('e-short')!;
@@ -363,7 +363,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     });
   });
 
-  it('PR-RENDER-033: hitTestLayout never hits across sub-rows', () => {
+  it('PR-RENDER-045: hitTestLayout never hits across sub-rows', () => {
     const layout = rebuildLayout(tinyModel());
     const view = { startTime: 0, endTime: 1000, scrollY: 0 };
     // e-short (sub-row 1) is at time 0..1; pointer in sub-row 0 at time 0 must hit e-long.
@@ -377,7 +377,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(pastShort).toBeNull();
   });
 
-  it('PR-RENDER-034: WebGL builds one mesh per (lane, sub-row)', async () => {
+  it('PR-RENDER-046: WebGL builds one mesh per (lane, sub-row)', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     // Interval meshes are grouped by laneIndex + rowIndex and drawn per sub-row Y.

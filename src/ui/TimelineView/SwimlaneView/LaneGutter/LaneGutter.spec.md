@@ -141,7 +141,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 14. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
 15. **PR-GUTTER-015** — A hovered lane row (gutter pointer, folder or leaf, or inbound `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; gutter pointer emits `lane-hover` so the track paints to match; the pin tooltip carries EventTooltip chrome.
 16. **PR-GUTTER-016** — Hovering **anywhere on a leaf lane row** that has a **thin** filled util bar shows the metric **label** after a **400ms** delay. Tooltip uses EventTooltip / pin chrome, is teleported to `body`, and follows the cursor at **+12px / +12px** (same offset as event hover). Thick bars keep the in-track label and do **not** show this tip. Leave cancels a pending delay and hides the tip.
-17. **PR-GUTTER-017** — A leaf with `rowCount` renders one title cell `rowCount × LANE_HEIGHT` (name + util + pin vertically centered) with a single bottom border — no per-sub-row gutter rows.
+17. **PR-GUTTER-018** — A leaf with `rowCount` renders one title cell `rowCount × LANE_HEIGHT` (name + util + pin vertically centered) with a single bottom border — no per-sub-row gutter rows.
 
 ## Edge Cases
 
@@ -179,7 +179,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 
 ## Changelog
 - **2026-09-07** — Whole-lane hover (AC-07): gutter leaf/folder `pointerenter`/`pointerleave` emit `lane-hover` so the track paints `#363636` with the header; folders participate in both directions.
-- **2026-09-03** — Multi-row leaf renders one tall title cell `rowCount × LANE_HEIGHT` (`PR-GUTTER-017`).
+- **2026-09-03** — Multi-row leaf renders one tall title cell `rowCount × LANE_HEIGHT` (`PR-GUTTER-018`; 017 reserved for #71 collapse wrapper).
 - **2026-09-02** — Thin util value tip: full-lane hit target, 400ms delay, cursor-follow (+12/+12) (`PR-GUTTER-016`).
 - **2026-09-01** — PR-GUTTER-015: row hover moves `#252525` → `--pr-surface-raised` (`#363636`) and lifts the label to `#fff`. Both UCD crops (AC-07, AC-19) measure `#363636`, and AC-19 calls out the label change the pin slice did not implement. The pin tooltip's chrome was specified as "EventTooltip chrome: `#2a2a2a` / `#555`", which AC-09 moved out from under it; it now names the raised-surface values directly. (Numbered 015 so master's `categoryKey` keeps `PR-GUTTER-014`.)
 - **2026-09-01** — Card strip 40px with `14px` / `700` / `22px` / `#e6e6e6` label (AC-17); gutter spacer and `LANE_GROUP_HEADER_HEIGHT` follow.
