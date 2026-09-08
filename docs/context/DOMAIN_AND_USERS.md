@@ -78,11 +78,11 @@ MVP is deliberately scoped to the **highest-frequency questions** after opening 
 
 ```text
 Pain: need Insight-like OP metrics + PyPTO-like timeline
-         without Insight stack for .rep
+         without Insight stack for .npu-rep
                     ↓
      Swimlane-first main pane  +  report analytics aside
                     ↓
-     Shared Vue UI + .rep adapter  (not an uber-viewer)
+     Shared Vue UI + .npu-rep adapter  (not an uber-viewer)
 ```
 
 | Design choice | Domain rationale |
@@ -93,7 +93,7 @@ Pain: need Insight-like OP metrics + PyPTO-like timeline
 | **Hierarchical gutter** | Cores → pipes mirrors how developers reason about Block Dim and pipe children |
 | **Color consistency** | Same Cube / Vector / MTE language across bars, lanes, and charts |
 | **Keep Insight for `.bin`** | Instruction / Source / Cache depth is a different product question |
-| **MVP before Source tabs** | Portable `.rep` may not carry Insight-grade source mapping yet |
+| **MVP before Source tabs** | Portable `.npu-rep` may not carry Insight-grade source mapping yet |
 | **Vue library, not sealed HTML** | MSTT already owns webview panels; library must compose ([ARCHITECTURE](../architecture/ARCHITECTURE.md)) |
 
 Sketches under [`docs/ui/`](../ui/) encode this composition: dense dark timeline + right-rail analytics.

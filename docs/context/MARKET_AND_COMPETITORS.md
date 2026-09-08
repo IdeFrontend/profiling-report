@@ -25,14 +25,14 @@ Industry (NVIDIA-shaped mental model)
 Ascend OP stack (simplified)
   Insight system modes / other timelines  ≈  “find where” (out of this library’s MVP)
   Insight operator .bin  ≈  deep “explain this kernel”
-  .rep + profiling-report  ≈  portable “explain this OP” + swimlane timeline in MSTT
+  .npu-rep + profiling-report  ≈  portable “explain this OP” + swimlane timeline in MSTT
 ```
 
 ---
 
 ## 2. NVIDIA analogue map
 
-NVIDIA does **not** ship an Ascend `.rep` viewer. The relationship is **intent and UX role**, not interoperability.
+NVIDIA does **not** ship an Ascend `.npu-rep` viewer. The relationship is **intent and UX role**, not interoperability.
 
 ### Nsight Systems (`nsys`)
 
