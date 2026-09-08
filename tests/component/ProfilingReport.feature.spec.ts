@@ -364,7 +364,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const wrapper = mount(ProfilingReport, {
       props: {
-        swimlaneModel: adapted.swimlaneModel,
+        swimlaneModel: adapted.swimlaneModel!,
         reportModel: adapted.reportModel,
       },
     });

@@ -260,13 +260,14 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('mte2')?.label).toBe('55µs');
 
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    expect(adapted.swimlaneModel).not.toBeNull();
     const table = adapted.reportModel.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
     expect(table).toBeDefined();
     const fixtureRows = table!.rows;
     const metrics = availableGutterMetrics(
-      adapted.swimlaneModel,
+      adapted.swimlaneModel!,
       fixtureRows,
-      adapted.swimlaneModel.processes[0]!.id,
+      adapted.swimlaneModel!.processes[0]!.id,
     );
     expect(metrics).toEqual(expect.arrayContaining(['clockCycle', 'utilization']));
     expect(metrics).not.toContain('cacheHit');
