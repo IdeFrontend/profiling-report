@@ -1133,6 +1133,13 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
     expect(() => renderer.render()).not.toThrow();
     renderer.dispose();
   });
+
+  it('WebGL keeps search and selection dim levels in separate layers', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/const key = `\$\{fill\}:\$\{dim\}`;/);
+    expect(webglSrc).toMatch(/byKey\.get\(key\)/);
+  });
 });
 
 describe('PR-RENDER: marquee hit collection', () => {
@@ -1230,6 +1237,19 @@ describe('PR-RENDER: collapsed-group summary events', () => {
       'folder/summary/0',
       'folder/summary/0',
     ]);
+  });
+
+  it('marquee ignores summary bars', () => {
+    const layout = rebuildLayout(summaryModel(4));
+    const view = { startTime: 0, endTime: 100, scrollY: 0 };
+    expect(
+      eventsIntersectingRect(layout, view, 400, {
+        x0: 0,
+        y0: LANE_GROUP_HEADER_HEIGHT,
+        x1: 400,
+        y1: LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT,
+      }),
+    ).toEqual([]);
   });
 
   it('PR-RENDER-026: summary bars render a gray fill with a dimmed task-count label and a hover lift', () => {

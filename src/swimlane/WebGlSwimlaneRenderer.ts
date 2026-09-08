@@ -1039,10 +1039,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           const keepBright = bright.has(item.id) || multi.has(item.id);
           const dim = eventEmphasisDim(matches, keepBright, hasSearch, hasSelection || hasMulti);
           const fill = dim < 1 ? SELECTION_MUTED_FILL : item.color;
-          let entry = byKey.get(fill);
+          const key = `${fill}:${dim}`;
+          let entry = byKey.get(key);
           if (!entry) {
             entry = { rgb: hexToRgb(fill), dim, pairs: [] };
-            byKey.set(fill, entry);
+            byKey.set(key, entry);
           }
           const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
           entry.pairs.push(a, b);
