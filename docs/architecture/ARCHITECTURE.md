@@ -12,7 +12,7 @@ This supersedes the webview-bundle recommendation in the archived [SWIMLANE_WEBV
 
 ## Integration strategy: shared UI + adapters
 
-MSTT and PyPTO both want a **pypto-like timeline UX**, but their on-disk semantics differ (see [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md)). This project does **not** build a single uber-viewer that natively understands Insight `.bin`, full PyPTO schedule payloads, and `.rep` as equal first-class modes.
+MSTT and PyPTO both want a **pypto-like timeline UX**, but their on-disk semantics differ (see [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md)). This project does **not** build a single uber-viewer that natively understands Insight `.bin`, full PyPTO schedule payloads, and `.npu-rep` as equal first-class modes.
 
 **Decision:** share **Vue swimlane/report components and the renderer** behind canonical models; use **per-format adapters** and **capability flags** for what each host/format can supply.
 
@@ -20,7 +20,7 @@ MSTT and PyPTO both want a **pypto-like timeline UX**, but their on-disk semanti
 
 ```mermaid
 flowchart LR
-  Rep[".rep adapter"] --> Models["SwimlaneModel + ReportViewModel"]
+  Rep["npu-rep adapter"] --> Models["SwimlaneModel + ReportViewModel"]
   Pypto["PyPTO adapter later"] --> Models
   Models --> SharedUI["Shared Vue swimlane + panels"]
   SharedUI --> MsttHost["MSTT host"]
@@ -39,7 +39,7 @@ Adapters must not call `useViewServer()`, `window.vscode`, or host routers. Capa
 
 **Phasing**
 
-1. **v1:** `.rep` adapter + MSTT host only; copy PyPTO render algorithms as needed without changing pypto-tools.
+1. **v1:** `npu-rep` adapter + MSTT host only; copy PyPTO render algorithms as needed without changing pypto-tools. Classic `cann-rep` / sample `.rep` remain engineering fixtures.
 2. **Later (optional):** PyPTO adapter feeding the same models/UI if that host adopts the package — not required for MVP.
 
 **Explicit non-goal:** parsing or rendering MindStudio Insight `.bin` inside this library.
@@ -51,7 +51,7 @@ Prefer **one package at the repo root** (matches [DEVELOPMENT.md](../process/DEV
 ```text
 profiling-report/
   src/
-    adapters/       # .rep / CTEF parse → canonical models
+    adapters/       # npu-rep / CTEF parse → canonical models (classic cann-rep fixtures too)
     domain/         # types, viewState, utilization, formatTime, laneColors
     i18n/           # message catalogs
     swimlane/       # CanvasSwimlaneRenderer + SwimlaneCanvas.vue
@@ -66,20 +66,20 @@ Logical names used in docs:
 
 | Module | Responsibility |
 |--------|-----------------|
-| **adapters** | Format adapters — v1: `.rep` reader, CSV → `ReportViewModel`, Chrome Trace → `SwimlaneModel` |
+| **adapters** | Format adapters — v1: `npu-rep` reader (+ classic `cann-rep` fixtures), CSV → `ReportViewModel`, Chrome Trace → `SwimlaneModel` |
 | **domain** | Format-agnostic models and pure helpers (time, view window, colors, utilization) |
 | **swimlane** | Timeline renderer + Vue canvas wrapper; no VS Code APIs |
 | **ui** | Vue components composing the report shell |
 
 Normative inventory of models, adapters, renderer APIs, and Vue components (with design justifications): **[COMPONENTS.md](COMPONENTS.md)**.
 
-## Data flow (v1: `.rep` adapter)
+## Data flow (v1: `npu-rep` adapter)
 
-The diagram below is the **first adapter path**. Other adapters would produce the same models and skip the `.rep`-specific parse.
+The diagram below is the **product adapter path**. Classic `cann-rep` fixtures and other adapters produce the same models and skip the product-container-specific parse.
 
 ```mermaid
 flowchart LR
-  RepFile[".rep / .ncrep bytes"] --> RepAdapter["adapters: .rep"]
+  RepFile[".npu-rep bytes"] --> RepAdapter["adapters: npu-rep"]
   RepAdapter --> CSVs["CSV tables"]
   RepAdapter --> Trace["trace.json"]
   CSVs --> ViewModel["ReportViewModel"]
@@ -95,13 +95,13 @@ flowchart LR
 - Read file from disk / remote into `ArrayBuffer` or `Uint8Array`
 - Create VS Code `WebviewPanel`, CSP, asset URIs
 - Inject theme / locale
-- Route open events for `.rep` / `.ncrep` (leave `.bin` to Insight)
+- Route open events for `.npu-rep` (leave `.bin` to Insight; [PROC-2](../context/decisions/PROC.md))
 - Optional: persist UI state (zoom, selected event id)
 - Pass `capabilities` appropriate to the opened format
 
 ### Library responsibilities
 
-- Run the selected adapter (v1: `.rep`)
+- Run the selected adapter (v1: `npu-rep`; classic `cann-rep` fixtures still parse)
 - Build canonical view-models
 - Render shared swimlane and panels according to capabilities
 - Emit events: `ready`, `select`, `error` (canonical set in [COMPONENTS.md](COMPONENTS.md); host persistence of zoom/selection is optional via props/state, not a required `configChange` emit)
@@ -109,7 +109,7 @@ flowchart LR
 ### Suggested public API (illustrative)
 
 ```ts
-// Props — prefer feeding models after adapt, or raw source for the .rep adapter
+// Props — prefer feeding models after adapt, or raw source for the npu-rep adapter
 interface ProfilingReportProps {
   source?: ArrayBuffer | Uint8Array | ParsedReport;
   swimlaneModel?: SwimlaneModel;
@@ -131,7 +131,7 @@ Library must **not** depend on `useViewServer()`, `window.vscode`, or PyPTO DevU
 
 ## Canonical models (library-owned)
 
-Align swimlane DTO with the reuse report’s TraceModel spirit. **Adapters converge here**; UI never branches on “is this PyPTO vs .rep” except via capabilities and optional `args`.
+Align swimlane DTO with the reuse report’s TraceModel spirit. **Adapters converge here**; UI never branches on “is this PyPTO vs npu-rep” except via capabilities and optional `args`.
 
 ```ts
 interface SwimlaneModel {
@@ -166,7 +166,7 @@ interface SwimEvent {
 }
 ```
 
-`ReportViewModel` aggregates OpBasicInfo + pipe/memory/arithmetic summaries for the right panel (primarily the `.rep` adapter).
+`ReportViewModel` aggregates OpBasicInfo + pipe/memory/arithmetic summaries for the right panel (primarily the `npu-rep` adapter).
 
 ## Renderer strategy
 

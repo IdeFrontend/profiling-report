@@ -2,7 +2,7 @@
 
 Reusable **Vue 3** library for Ascend / CANN operator profiling visualization and analysis.
 
-Primary goal: unify the MSTT (OP DevTools) profiling UX with a pypto-like swimlane experience for the new **`.rep` / `.ncrep`** report format, while keeping MindStudio Insight for legacy **`.bin`** dumps.
+Primary goal: unify the MSTT (OP DevTools) profiling UX with a pypto-like swimlane experience for the product **`.npu-rep`** report format ([PROC-2](docs/context/decisions/PROC.md)), while keeping MindStudio Insight for legacy **`.bin`** dumps.
 
 ## Documentation
 
@@ -19,7 +19,7 @@ Start here: **[docs/README.md](docs/README.md)**
 | Development process | [docs/process/DEVELOPMENT.md](docs/process/DEVELOPMENT.md) (docs → specs → tests → code) |
 | Delivery roadmap | [docs/process/roadmap/](docs/process/roadmap/) (M1–M3 to full UI) |
 | Testing | [docs/process/TESTING.md](docs/process/TESTING.md) |
-| Data formats | [docs/formats/FORMATS_COMPARISON.md](docs/formats/FORMATS_COMPARISON.md) (semantic: Insight / `.rep` / PyPTO) |
+| Data formats | [docs/formats/FORMATS_COMPARISON.md](docs/formats/FORMATS_COMPARISON.md) (semantic: Insight / `.npu-rep` / PyPTO) |
 | UI & MVP scope | [docs/ui/FEATURE_MATRIX.md](docs/ui/FEATURE_MATRIX.md) |
 | UX specification | [docs/ui/UX_SPEC.md](docs/ui/UX_SPEC.md) |
 | Architecture | [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) (shared UI + adapters) |

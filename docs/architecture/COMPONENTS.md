@@ -43,7 +43,7 @@ Full tree with visual-pack marks: [`src/ui/COMPONENT_TREE.md`](../../src/ui/COMP
 
 ## Design principles
 
-1. **Models are format-agnostic; adapters are format-specific.** UI never switches on “`.rep` vs PyPTO”.
+1. **Models are format-agnostic; adapters are format-specific.** UI never switches on “`npu-rep` vs PyPTO”.
 2. **One interactive timeline surface** (`SwimlaneRenderer`). Lane labels, tooltips, and gutters stay DOM where possible (a11y, i18n, hit-testing simplicity).
 3. **Report panels consume view-models**, not CSV column names or raw Chrome Trace events.
 4. **Compose small components** — avoid a god-root like PyPTO `swimGraphComplete.vue`.
@@ -73,7 +73,7 @@ Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), o
 
 OP-report analytics bundle: `summary`, optional `computeCard` (DATA-33h), optional `bandwidthCards[]` (DATA-33g), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
 
-**Why:** Separates Ascend OP report chrome from the timeline. PyPTO-only hosts can omit it; `.rep` adapter always fills what CSVs allow.
+**Why:** Separates Ascend OP report chrome from the timeline. PyPTO-only hosts can omit it; the `npu-rep` adapter always fills what CSVs allow.
 
 ### `SummaryMetrics` (M)
 

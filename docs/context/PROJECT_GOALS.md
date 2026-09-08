@@ -12,7 +12,7 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 
 ## Goals
 
-1. Provide a **reusable Vue 3 library** (shared UI + `.rep` adapter first) that renders Ascend / CANN operator profiling reports (`.rep` / `.ncrep`).
+1. Provide a **reusable Vue 3 library** (shared UI + `npu-rep` adapter first) that renders Ascend / CANN operator profiling reports (`.npu-rep`).
 2. Align visual and interaction patterns with **PyPTO swimlane** (timeline, lanes, zoom/pan, selection, detail panels) while matching the product sketches in [`docs/ui/`](../ui/).
 3. Integrate first into **MSTT** as a first-party webview panel, sibling to Insight — not injected into Insight iframes.
 4. Keep **msinsight** as the viewer for legacy **`.bin`** (and existing Insight JSON/DB workflows) until those formats are retired separately.
@@ -33,7 +33,7 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 
 | Consumer | Priority | Integration style |
 |----------|----------|-------------------|
-| **MSTT** (`mstt`) | Primary | Import Vue components into existing Vite webview panels; open `.rep`/`.ncrep` from performance results tree |
+| **MSTT** (`mstt`) | Primary | Import Vue components into existing Vite webview panels; open `.npu-rep` from performance results tree |
 | **pypto-tools** | Optional later | May consume the library or remain on its own swimGraph; no pypto changes required for this project’s MVP |
 | Standalone / browser demo | Nice-to-have | Host can feed `ArrayBuffer` or parsed models without VS Code APIs |
 
@@ -44,7 +44,7 @@ Under [decisions/interim/](decisions/interim/) until Product/data spec completes
 - Unpack and interpret sample [`data/out.rep`](../../data/out.rep) (CSVs + Chrome Trace).
 - Render timeline swimlane with hierarchical lanes (producer names), time axis, zoom/pan, hover tooltip, and single-event selection details.
 - Show thin report summary (op identity + duration) and PIPE occupancy when CSV data exists; hide undecidable tiles and overview charts without series.
-- MSTT can open `.rep` / `.ncrep` / Chrome Trace `.json` into a profiling-report panel while `.bin` continues to open Insight.
+- MSTT can open `.npu-rep` / Chrome Trace `.json` into a profiling-report panel while `.bin` continues to open Insight.
 
 ## Phasing
 

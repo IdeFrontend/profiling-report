@@ -14,8 +14,8 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 7. **[process/PROJECT_STRUCTURE.md](process/PROJECT_STRUCTURE.md)** — canonical project layout: spec locations, per-component folders, test ID conventions, traceability
 8. **[process/TESTING.md](process/TESTING.md)** — Vitest / Playwright pyramid, fixtures, matrix → test ids
 9. **[process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md)** — checklist before implementing a slice
-10. **[formats/FORMATS_COMPARISON.md](formats/FORMATS_COMPARISON.md)** — semantic data comparison: Insight operator vs `.rep` vs PyPTO
-11. **[formats/REP_FORMAT.md](formats/REP_FORMAT.md)** — CANN `.rep` / `.ncrep` container layout
+10. **[formats/FORMATS_COMPARISON.md](formats/FORMATS_COMPARISON.md)** — semantic data comparison: Insight operator vs `.npu-rep` vs PyPTO
+11. **[formats/REP_FORMAT.md](formats/REP_FORMAT.md)** — `.npu-rep` product container + classic `cann-rep` fixture layout
 12. **[formats/METRICS_AND_TRACE.md](formats/METRICS_AND_TRACE.md)** — embedded CSVs and `trace.json`
 13. **[formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md)** — required inputs per chart/view; hide-if-missing rules
 14. **[ui/DESIGN_INDEX.md](ui/DESIGN_INDEX.md)** — design image hierarchy (sources → screens → component crops)
@@ -28,7 +28,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 21. **[ui/INTERACTIONS.md](ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
 22. **[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
 23. **[architecture/COMPONENTS.md](architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
-24. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.rep` / `.json` beside Insight
+24. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.npu-rep` / `.json` beside Insight
 25. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
 End-user guide (shipped with the demo): [https://profiling-report.vercel.app/guide/](https://profiling-report.vercel.app/guide/) (`playground/public/guide/`).

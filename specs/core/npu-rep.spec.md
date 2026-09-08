@@ -6,6 +6,8 @@
 
 Parse the product `npu-rep` binary container (including nested per-operator archives) into file entries, and adapt each operator into the canonical swimlane + report view-models.
 
+**Host extension ([PROC-2](../../docs/context/decisions/PROC.md)):** the official product / MSTT plugin file extension is **`.npu-rep`**. Nested leaf names inside the container (e.g. `op1.npu.rep`) are FileInfo names, not the host extension. Classic `cann-rep` / sample `.rep` packs remain engineering fixtures only.
+
 ```ts
 parseNpuRep(bytes: Uint8Array): ParsedNpuRep           // interim sample (164-byte)
 parseNpuRep160(bytes: Uint8Array): ParsedNpuRep160     // product layout (160-byte)
@@ -47,6 +49,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
+- **2026-09-07** — Product host extension is `.npu-rep` only ([PROC-2](../../docs/context/decisions/PROC.md)); nested FileInfo names unchanged.
 - **2026-09-04** — PR-NPU-011: full NPU-Compute support — case-insensitive embed names (`PipeTrace.json`/`trace.json`, `Summary.jsonl`/`summary.jsonl`), spaced `HardwareInfo.jsonl` keys, `OpInfoSummary` compute/BW/utilization fields, summary-first detail categories, and the spec's resolved Product answers (compute power, bandwidth peak/score, parallel utilization, duration `{blockDim} Blocks / {coreCount} 核`).
 - **2026-09-03** — PR-NPU-007/008: product 160-byte layout (`parseNpuRep160` + routing by `fileInfoLength`); 164-byte layout re-labeled as the interim sample format.
 - **2026-08-26** — PR-NPU-006: rename to `sample.lite.rep`; op2 trace generated at hydrate time; generator in `playground/`.

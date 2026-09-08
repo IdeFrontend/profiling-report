@@ -8,7 +8,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Open `.rep` / `.ncrep` in panel | H / M | Host opens; library renders |
+| Open `.npu-rep` in panel | H / M | Host opens; library renders ([PROC-2](../context/decisions/PROC.md)) |
 | Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([PROC-3](../context/decisions/PROC.md)) |
 | Timeline secondary tab | M | Primary view |
 | OP算子 / 源码 / 详情 / 缓存 tabs | P2 | msinsight-like parity |

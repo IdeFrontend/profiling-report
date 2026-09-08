@@ -1,6 +1,6 @@
 # Metrics CSVs and Trace Semantics
 
-How embedded files inside a `.rep` / `.ncrep` map to UI panels, and what the sample `trace.json` actually contains.
+How embedded files inside a `.npu-rep` (or classic sample `.rep`) map to UI panels, and what the sample `trace.json` actually contains.
 
 ## Common CSV conventions
 

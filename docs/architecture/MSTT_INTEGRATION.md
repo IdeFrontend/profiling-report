@@ -9,7 +9,7 @@ How the profiling-report Vue library plugs into Huawei OP DevTools (`mstt`) besi
 | `.csv` | Existing `CsvEditorProvider` |
 | `.bin` | **MindStudio Insight** (`InsightDataViewerPanel` + `profiler_server`) — unchanged |
 | `.json` | **profiling-report** when the file is Chrome Trace (same swimlane path as embedded `trace.json`; analytics aside hidden without CSV pack). Non-trace JSON policy: host decides; default do not send opaque Insight JSON here. |
-| `.rep` / `.ncrep` | **profiling-report** panel (new) |
+| `.npu-rep` | **profiling-report** panel ([PROC-2](../context/decisions/PROC.md)) |
 
 Do **not** inject the library into Insight iframes. Insight remains a sealed third-party shell.
 
@@ -36,8 +36,8 @@ Relevant existing MSTT touchpoints (paths may drift; search symbols):
 
 ## Required MSTT changes (implementation phase)
 
-1. **Scan / tree:** include `.rep` / `.ncrep` in performance result file discovery (`PerformanceRunData.scanSubFiles` or equivalent).
-2. **Open dispatch:** branch `openPerformanceFile` / `ViewOpener` for `.rep` / `.ncrep` **and** Chrome Trace `.json` → profiling-report panel; keep `.bin` → `openInsight`.
+1. **Scan / tree:** include `.npu-rep` in performance result file discovery (`PerformanceRunData.scanSubFiles` or equivalent).
+2. **Open dispatch:** branch `openPerformanceFile` / `ViewOpener` for `.npu-rep` **and** Chrome Trace `.json` → profiling-report panel; keep `.bin` → `openInsight`. Do **not** register `.rep` / `.ncrep` as product open types ([PROC-2](../context/decisions/PROC.md)).
 3. **Panel registration:** flavor/constants panel type id; contribute to `package.json` views/commands as needed.
 4. **Dependency:** workspace package or npm link to profiling-report; Vite resolves Vue SFC from the library.
 5. **i18n:** host-owned strings for “Profiling report”, load errors, etc. Map IDE/extension language → `locale` (`zh-CN` \| `en`, or `zh*` / `en*` prefixes) and pass it into the library. Library chrome uses [`src/i18n`](../../src/i18n/index.ts); see [LOCALIZATION.md](../ui/LOCALIZATION.md).
@@ -70,7 +70,7 @@ MVP/M1 host can pass `[]` or omit; library shows summary, PIPE, M1 detail tabs, 
 
 ## Success check
 
-From an OP project with `opprof` (or `fileMapList`) containing a `.ncrep` / `.rep`:
+From an OP project with `opprof` (or `fileMapList`) containing a `.npu-rep`:
 
 1. File appears in Performance results tree.
 2. Click opens profiling-report panel (not Insight).
