@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import SwimlaneView from './SwimlaneView.vue';
@@ -467,11 +468,13 @@ describe('SwimlaneView', () => {
           {
             id: 'card0',
             name: 'Card0',
+            utilMidlinePercent: 50,
             lanes: [{ id: 'l1', name: 'A', color: '#f00', utilization: 0.5 }],
           },
           {
             id: 'card1',
             name: 'Card1',
+            utilMidlinePercent: 75,
             lanes: [{ id: 'l2', name: 'B', color: '#0f0', utilization: 0.5 }],
           },
         ],
@@ -499,13 +502,17 @@ describe('SwimlaneView', () => {
         searchQuery: '',
       },
     });
-    const pinnedLanes = wrapper
-      .get('[data-testid="pinned-gutter"]')
-      .findAll('[data-testid^="gutter-lane-"]');
+    const pinnedGutter = wrapper.get('[data-testid="pinned-gutter"]');
+    const pinnedLanes = pinnedGutter.findAll('[data-testid^="gutter-lane-"]');
     expect(pinnedLanes.map((n) => n.attributes('data-testid'))).toEqual([
       'gutter-lane-l2',
       'gutter-lane-l1',
     ]);
+    // Same chrome as originals: each pin row gets its source Card's util midline %.
+    const mids = pinnedGutter.findAll('.pr-gutter__util-mid');
+    expect(mids).toHaveLength(2);
+    expect(mids[0]!.attributes('style')).toContain('left: 75%');
+    expect(mids[1]!.attributes('style')).toContain('left: 50%');
   });
 
   it('PR-SWIMVIEW-018: measure magnet routes by pointer Y across pin strip and body', () => {
@@ -1735,5 +1742,155 @@ describe('SwimlaneView', () => {
     );
     // Collapsed Card spacer only in body — no original leaf row.
     expect(wrapper.get('.pr-swim-row--body').find('[data-testid="gutter-lane-l1"]').exists()).toBe(false);
+  });
+
+  it('PR-SWIMVIEW-010: expanded Card shows metric select; collapsed hides it', () => {
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const baseProps = {
+      groups: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          lanes: [{ id: 'l1', name: 'Lane', color: '#f00' }],
+        },
+      ],
+      model: {
+        minTime: 0,
+        maxTime: 1000,
+        processes: [{ id: 'card0', name: 'Card0', threads: [{ id: 'l1', name: 'Lane', events: [] }] }],
+      },
+      view,
+      selectedEventId: null,
+      hoveredEventId: null,
+      searchQuery: '',
+      gutterMetricOptionsByCard: { card0: ['clockCycle', 'utilization'] as GutterMetric[] },
+      gutterMetricByCard: { card0: 'clockCycle' as GutterMetric },
+    };
+
+    const expanded = mount(SwimlaneView, { props: { ...baseProps, collapsedIds: [] } });
+    expect(expanded.find('[data-testid="card-metric-select"]').exists()).toBe(true);
+
+    const collapsed = mount(SwimlaneView, { props: { ...baseProps, collapsedIds: ['card0'] } });
+    expect(collapsed.find('[data-testid="card-metric-select"]').exists()).toBe(false);
+  });
+
+  it('PR-SWIMVIEW-011: metric select emits update:gutter-metric without toggle-group', async () => {
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00' }],
+          },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'card0', name: 'Card0', threads: [{ id: 'l1', name: 'Lane', events: [] }] }],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        gutterMetricOptionsByCard: { card0: ['clockCycle', 'utilization'] as GutterMetric[] },
+        gutterMetricByCard: { card0: 'clockCycle' as GutterMetric },
+      },
+    });
+
+    await wrapper.get('[data-testid="card-metric-select"] .pr-metric-select__trigger').trigger('click');
+    const opt = document.querySelector('[data-testid="card-metric-option-utilization"]') as HTMLElement | null;
+    expect(opt).toBeTruthy();
+    opt!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(wrapper.emitted('update:gutter-metric')).toEqual([[{ cardId: 'card0', metric: 'utilization' }]]);
+    expect(wrapper.emitted('toggle-group')).toBeUndefined();
+
+    // Keyboard on the metric control must not collapse the Card (Enter/Space).
+    await wrapper.get('[data-testid="card-metric-select"] .pr-metric-select__trigger').trigger('keydown', {
+      key: 'Enter',
+    });
+    await wrapper.get('[data-testid="card-metric-select"] .pr-metric-select__trigger').trigger('keydown', {
+      key: ' ',
+    });
+    expect(wrapper.emitted('toggle-group')).toBeUndefined();
+  });
+
+  it('PR-SWIMVIEW-012: per-Card metric selection is independent', () => {
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          { id: 'card0', name: 'Card0', lanes: [] },
+          { id: 'card1', name: 'Card1', lanes: [] },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            { id: 'card0', name: 'Card0', threads: [] },
+            { id: 'card1', name: 'Card1', threads: [] },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        gutterMetricOptionsByCard: {
+          card0: ['utilization'] as GutterMetric[],
+          card1: ['clockCycle', 'utilization'] as GutterMetric[],
+        },
+        gutterMetricByCard: { card0: 'utilization' as GutterMetric, card1: 'clockCycle' as GutterMetric },
+      },
+    });
+
+    const selects = wrapper.findAll('[data-testid="card-metric-select"]');
+    expect(selects).toHaveLength(2);
+    expect(selects[0]!.attributes('data-value')).toBe('utilization');
+    expect(selects[1]!.attributes('data-value')).toBe('clockCycle');
+  });
+
+  it('localizes Card metric selector labels for en locale', async () => {
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: 'Card0',
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00' }],
+          },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'card0', name: 'Card0', threads: [{ id: 'l1', name: 'Lane', events: [] }] }],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        locale: 'en',
+        gutterMetricOptionsByCard: {
+          card0: ['clockCycle', 'utilization'] as GutterMetric[],
+        },
+        gutterMetricByCard: { card0: 'clockCycle' as GutterMetric },
+      },
+    });
+
+    const select = wrapper.get('[data-testid="card-metric-select"]');
+    expect(select.text()).toContain('Clock Cycle');
+    expect(select.get('.pr-metric-select__trigger').attributes('aria-label')).toBe(
+      'Gutter metric for Card0',
+    );
+    await select.get('.pr-metric-select__trigger').trigger('click');
+    expect(document.querySelector('[data-testid="card-metric-option-cacheHit"]')).toBeNull();
+    expect(document.querySelector('[data-testid="card-metric-option-task"]')).toBeNull();
+    expect(document.querySelector('[data-testid="card-metric-option-utilization"]')?.textContent).toBe(
+      'Utilization',
+    );
   });
 });

@@ -51,7 +51,7 @@ IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker in place
 | `I-Q9` | `DATA-36a` |
 | `I-Q11a–f` | `DATA-37a…DATA-37f` |
 | `I-Q14` | `UI-40a` |
-| `I-Q16–19` | `PKG-1a…PKG-3a`, `UI-41a` |
+| `I-Q16–19` | `PKG-1a…PKG-3a` (I-Q19 → resolved [UI-41](../decisions/UI.md)) |
 | `D-PIN-FOLDER` | `UI-44` |
 | `Q23` / `HQ 38` | `UI-45` |
 | `Q24` / `HQ 39` | `DATA-38` |
