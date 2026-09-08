@@ -277,14 +277,20 @@ test.describe('PR-E2E feature paths', () => {
     expect(box).toBeTruthy();
 
     // Select MOV_OUT: the one task with two predecessors and two successors.
+    // Read the count via evaluate — locator.innerText() waits for visibility and can
+    // burn the whole test timeout when the badge is in the DOM but not actionable yet
+    // (dock animating / scrolled).
     const inCount = page.getByTestId('detail-relevant-incoming-count');
     expect(
       await probeSwimlane(page, box!, {
         action: 'click',
         expectTestId: 'detail-panel',
         maxLanes: 8,
-        predicate: async () =>
-          (await inCount.count()) > 0 && Number(await inCount.innerText()) >= 2,
+        predicate: async () => {
+          if ((await inCount.count()) === 0) return false;
+          const text = await inCount.evaluate((el) => el.textContent).catch(() => null);
+          return text != null && Number(text) >= 2;
+        },
       }),
     ).toBe(true);
 
