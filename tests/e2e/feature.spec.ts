@@ -93,7 +93,9 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
     await expect(page.getByTestId('pipe-occupancy')).toBeVisible();
-    await expect(page.getByTestId('overview-charts')).toHaveCount(0);
+    // sample.lite.rep embeds Sampling.json (CUBE/VECTOR) → overview tracks (DATA-39).
+    await expect(page.getByTestId('overview-charts')).toBeVisible();
+    await expect(page.locator('[data-testid="overview-charts"] [data-series-id="CUBE"]')).toBeVisible();
   });
 
   test('PR-E2E-011: playground loads the product 160-byte npu-rep sample (in-browser parse)', async ({ page }) => {
