@@ -179,7 +179,7 @@ function findEventInModel(model: SwimlaneModel | null | undefined, id: string): 
     let found: SwimEvent | null = null;
     walkThreads(p.threads, (t) => {
       if (found) return;
-      const ev = t.events.find((e) => e.id === id);
+      const ev = t.events.find((e) => e.id === id) ?? t.summaryEvents?.find((e) => e.id === id);
       if (ev) found = ev;
     });
     if (found) return found;

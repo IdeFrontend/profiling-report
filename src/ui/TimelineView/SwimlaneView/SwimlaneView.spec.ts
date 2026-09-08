@@ -27,6 +27,52 @@ describe('SwimlaneView', () => {
     expect(wrapper.find('.pr-swim-row--body').exists()).toBe(true);
   });
 
+  it('PR-SWIMVIEW-020: Alt-measure findEvent resolves collapsed-folder summaryEvents', async () => {
+    const { ALT_MEASURE_FIND_EVENT_KEY } = await import('./altMeasureShared');
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const summary = { id: 'folder/summary/0', name: '', startTime: 10, duration: 50 };
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: ['folder'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [
+                {
+                  id: 'folder',
+                  name: 'Folder',
+                  events: [],
+                  children: [{ id: 'leaf', name: 'Leaf', events: [] }],
+                  summaryEvents: [summary],
+                },
+              ],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const find = (
+      wrapper.vm as unknown as {
+        $: { provides: Record<symbol, (id: string) => { id: string } | null> };
+      }
+    ).$.provides[ALT_MEASURE_FIND_EVENT_KEY as symbol];
+    expect(find('folder/summary/0')?.id).toBe('folder/summary/0');
+    expect(find('missing')).toBeNull();
+  });
+
   it('PR-SWIMVIEW-002: Card strip covers full width and emits toggle-group', async () => {
     const view = createViewState({
       minTime: 0,
