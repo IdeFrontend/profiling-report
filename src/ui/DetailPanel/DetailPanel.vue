@@ -25,6 +25,7 @@ const props = withDefaults(
     expanded?: boolean;
   }>(),
   {
+    clockFreqMHz: undefined,
     expanded: false,
     locale: undefined,
     neighbors: undefined,

@@ -33,7 +33,7 @@ import {
   LANE_HEIGHT,
   contentHeightFromLayout,
   eventBlockMetrics,
-  eventEmphasis,
+  eventEmphasisDim,
   eventLabelAnchor,
   eventScreenRect,
   findEvent,
@@ -201,6 +201,7 @@ export class SwimlaneOverlayPainter {
   private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
+  private multiIds = new Set<string>();
   private searchQuery = '';
   /** When false, skip selection gray-muting (tests / overlays that opt out). */
   private selectionMuted = true;
@@ -273,6 +274,10 @@ export class SwimlaneOverlayPainter {
     this.drawEventLabels = enabled;
   }
 
+  setMultiSelection(ids: string[]): void {
+    this.multiIds = new Set(ids);
+  }
+
 
   render(): void {
     const ctx = this.ctx;
@@ -283,6 +288,7 @@ export class SwimlaneOverlayPainter {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectionMuted && this.selectedId != null;
+    const hasMulti = this.multiIds.size > 0;
     const bright = this.neighborIds;
     const dpr = this.dpr;
 
@@ -335,13 +341,10 @@ export class SwimlaneOverlayPainter {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const { alpha: emphAlpha, muted } = eventEmphasis(
-        matches,
-        bright.has(item.id) || item.id === this.hoveredId,
-        hasSearch,
-        hasSelection,
-      );
-      const alpha = emphAlpha * laneAlpha;
+      const keepBright = bright.has(item.id) || item.id === this.hoveredId || this.multiIds.has(item.id);
+      const dim = eventEmphasisDim(matches, keepBright, hasSearch, hasSelection || hasMulti);
+      const muted = dim < 1;
+      const alpha = (dim < 0.5 ? 0.25 : 1) * laneAlpha;
 
       // The GL pass laid down the resting fill at this block's own emphasis. Painting a
       // semi-transparent state fill on top of that would double-composite — Canvas
@@ -406,6 +409,7 @@ export class SwimlaneOverlayPainter {
     this.collapse = IDLE_COLLAPSE;
     this.collapseState = null;
     this.neighborIds = new Set();
+    this.multiIds = new Set();
   }
 }
 
@@ -424,6 +428,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
+  private multiIds = new Set<string>();
   private depLinks: DependencyLink[] = [];
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
@@ -506,6 +511,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     if (enabled === this.paintDependencies) return;
     this.paintDependencies = enabled;
     this.refreshDepCache();
+  }
+
+  setMultiSelection(ids: string[]): void {
+    this.multiIds = new Set(ids);
   }
 
 
@@ -596,6 +605,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
+    // Marquee selection dims the rest with the same factor as a single click.
+    const hasMulti = this.multiIds.size > 0;
     const bright = this.neighborIds;
     const visible: {
       item: LaidOutEvent;
@@ -649,13 +660,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const { alpha: emphAlpha, muted } = eventEmphasis(
-        matches,
-        bright.has(item.id) || item.id === this.hoveredId,
-        hasSearch,
-        hasSelection,
-      );
-      const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
+      const keepBright = bright.has(item.id) || item.id === this.hoveredId || this.multiIds.has(item.id);
+      const dim = eventEmphasisDim(matches, keepBright, hasSearch, hasSelection || hasMulti);
+      const muted = dim < 1;
+      const alpha = (dim < 0.5 ? 0.25 : 1) * collapseAlpha(item.y, this.collapse);
       const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
       const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
       ctx.globalAlpha = alpha;
@@ -728,6 +736,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.collapse = IDLE_COLLAPSE;
     this.collapseState = null;
     this.neighborIds = new Set();
+    this.multiIds = new Set();
     this.depLinks = [];
   }
 }

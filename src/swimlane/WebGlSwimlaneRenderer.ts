@@ -24,6 +24,7 @@ import {
   encodeIntervalPair,
   eventBlockMetrics,
   eventEmphasis,
+  eventEmphasisDim,
   eventLabelAnchor,
   eventPaintRect,
   eventScreenRect,
@@ -426,6 +427,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private paintDependencies = true;
   private neighborIds = new Set<string>();
+  private multiIds = new Set<string>();
   private depLinks: DependencyLink[] = [];
   private width = 0;
   private height = 0;
@@ -560,6 +562,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();
+  }
+
+  setMultiSelection(ids: string[]): void {
+    if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
+    this.multiIds = new Set(ids);
+    this.rebuildEmphasisSplit();
   }
 
   contentHeight(): number {
@@ -800,6 +808,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
     this.neighborIds = new Set();
+    this.multiIds = new Set();
     this.depLinks = [];
   }
 
@@ -817,6 +826,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
+    const hasMulti = this.multiIds.size > 0;
     const bright = this.neighborIds;
     // Lane backgrounds — the event fill composites over these, not the clear color. The
     // hovered row's chrome is `LANE_HOVER_FILL`, so its label backdrop must match that too.
@@ -854,7 +864,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const r = eventPaintRect(x, y, w, h, dpr);
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       if (!matches) continue;
-      const { muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
+      const { muted } = eventEmphasis(
+        matches,
+        bright.has(item.id) || this.multiIds.has(item.id),
+        hasSearch,
+        hasSelection || hasMulti,
+      );
       const anchor = eventLabelAnchor(r.x, r.w, devW);
       if (!anchor) continue;
       const glyph = atlas.get(gl, ev.name, fontPx, anchor.maxWidth);
@@ -991,12 +1006,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.disposeEmphasisSplit();
     const q = this.searchQuery;
     const sel = this.selectedId;
-    if (!gl || (!q && !sel)) return;
+    const multi = this.multiIds;
+    if (!gl || (!q && !sel && multi.size === 0)) return;
 
     const hasSearch = q.length > 0;
     const hasSelection = sel != null;
+    const hasMulti = multi.size > 0;
     const bright = this.neighborIds;
-    const mutedRgb = hexToRgb(SELECTION_MUTED_FILL);
     const byLane = new Map<number, Map<number, LaidOutEvent[]>>();
     for (const ev of this.layout.events) {
       let byRow = byLane.get(ev.laneIndex);
@@ -1020,16 +1036,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         for (const item of events) {
           if (item.summary) continue;
           const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
-          const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
-          const rgb = muted ? mutedRgb : meshes.color;
-          const key = `${muted ? 1 : 0}|${alpha}`;
-          let bucket = byKey.get(key);
-          if (!bucket) {
-            bucket = { rgb, dim: alpha, pairs: [] };
-            byKey.set(key, bucket);
+          const keepBright = bright.has(item.id) || multi.has(item.id);
+          const dim = eventEmphasisDim(matches, keepBright, hasSearch, hasSelection || hasMulti);
+          const fill = dim < 1 ? SELECTION_MUTED_FILL : item.color;
+          let entry = byKey.get(fill);
+          if (!entry) {
+            entry = { rgb: hexToRgb(fill), dim, pairs: [] };
+            byKey.set(fill, entry);
           }
           const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-          bucket.pairs.push(a, b);
+          entry.pairs.push(a, b);
         }
         // Dimmer layers first so full-bright selection/matches paint on top. Rows with only
         // summary bars keep the base mesh full-bright.

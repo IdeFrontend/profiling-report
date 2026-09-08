@@ -4,14 +4,18 @@ import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
   clearMeasure,
+  clearSelection,
   createViewState,
   keyboardPanStepTime,
   measureFocusWindow,
+  normalizeMeasureRange,
   panBy,
   pinLane,
   pinOverview,
   setMeasureMode,
   setMeasureRange,
+  setMultiSelection,
+  setSelectedEvent,
   spanFromZoomPercent,
   unpinLane,
   unpinOverview,
@@ -53,8 +57,10 @@ import {
 import { t } from '../../i18n';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
+import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
+  DOCK_HEIGHT_EXPANDED,
   fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
@@ -98,9 +104,19 @@ const props = withDefaults(defineProps<{
   /** End-user guide URL for the toolbar help button. */
   userGuideUrl?: string;
 }>(), {
+  title: undefined,
+  source: undefined,
+  swimlaneModel: undefined,
+  reportModel: undefined,
+  reportMeta: undefined,
+  theme: undefined,
+  locale: undefined,
+  timeDisplayMode: undefined,
   dependencyMode: 'all',
   dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
   userGuideUrl: DEFAULT_USER_GUIDE_URL,
+  preferRenderer: undefined,
+  capabilities: undefined,
 });
 
 const emit = defineEmits<{
@@ -124,6 +140,13 @@ const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
 /** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
 const selectedEvent = ref<SwimEvent | null>(null);
+/** Marquee capture; mutually exclusive with `selected` (only one dock mounts). */
+const multiSelected = ref<SwimEvent[]>([]);
+/**
+ * Δt span shown on the axis for the marquee: the live drag extent while dragging, then
+ * the committed selection hull. Cleared with the selection.
+ */
+const multiSelectSpan = ref<MeasureRange | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
@@ -136,11 +159,12 @@ const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
-const dockExpanded = ref(false);
-const topologyFullscreen = ref(false);
-const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
-const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
-let layoutResizeObserver: ResizeObserver | null = null;
+  const dockExpanded = ref(false);
+  const topologyFullscreen = ref(false);
+  const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
+  const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
+  const dockHeight = ref(DOCK_HEIGHT_EXPANDED);
+  let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 /** In-flight collapse/expand tween; null when settled. */
@@ -332,9 +356,7 @@ function animateToWindow(window: { startTime: number; endTime: number; scrollY: 
   });
 }
 
-function onFocusMeasure() {
-  const range = viewState.value.measureRange;
-  if (!range) return;
+function onFocusMeasure(range: MeasureRange) {
   const target = measureFocusWindow(range, bounds.value, viewState.value.scrollY);
   animateToWindow(target);
 }
@@ -361,6 +383,8 @@ function resetViewFromModel(
   viewState.value = next;
   selected.value = null;
   selectedEvent.value = null;
+  multiSelected.value = [];
+  multiSelectSpan.value = null;
   hovered.value = null;
   closeTopologyFullscreen();
   // Operator switches keep session gutter/aside preferences; fresh loads reset them.
@@ -711,7 +735,7 @@ watch(showAside, () => {
 });
 
 onMounted(() => {
-  window.addEventListener('keydown', onGlobalKeydown);
+  window.addEventListener('keydown', onRootKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
@@ -726,11 +750,11 @@ onBeforeUnmount(() => {
   animGroupId.value = null;
   pendingCollapseTarget = null;
   stopLayoutFitObserver();
-  window.removeEventListener('keydown', onGlobalKeydown);
+  window.removeEventListener('keydown', onRootKeydown);
 });
 
-function onGlobalKeydown(e: KeyboardEvent) {
-  // Escape clears an active measure session / range first (existing M2 contract).
+/** Escape drops the measure overlay and the marquee multi-selection alike. */
+function onRootKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
     return;
@@ -774,6 +798,9 @@ function onGlobalKeydown(e: KeyboardEvent) {
     e.preventDefault();
     onPan(key === 'd' ? step : -step);
   }
+  if (multiSelected.value.length > 0) {
+    onSelect(null);
+  }
 }
 
 /**
@@ -811,10 +838,12 @@ watch(
 );
 
 function onSelect(ev: SwimEvent | null) {
+  multiSelected.value = [];
+  multiSelectSpan.value = null;
   if (!ev) {
     selected.value = null;
     selectedEvent.value = null;
-    viewState.value = { ...viewState.value, selectedEventId: null };
+    viewState.value = clearSelection(viewState.value);
     emit('select', null);
     return;
   }
@@ -828,8 +857,43 @@ function onSelect(ev: SwimEvent | null) {
   };
   selected.value = payload;
   selectedEvent.value = ev;
-  viewState.value = { ...viewState.value, selectedEventId: ev.id };
+  viewState.value = setSelectedEvent(viewState.value, ev.id);
   emit('select', payload);
+}
+
+/**
+ * Marquee commit. Both branches emit `select(null)`: an empty rect clears everything,
+ * a non-empty one dismisses the single selection in favor of the multi-selection — so
+ * hosts read `select(null)` as "no single selection", not "nothing is selected"
+ * (contract in ProfilingReport.spec.md Outputs). The axis Δt switches from the live
+ * drag extent to the committed selection hull and persists until the selection clears.
+ */
+function onMultiSelect(events: SwimEvent[]) {
+  if (events.length === 0) {
+    onSelect(null);
+    return;
+  }
+  selected.value = null;
+  selectedEvent.value = null;
+  multiSelected.value = events;
+  multiSelectSpan.value = normalizeMeasureRange(
+    Math.min(...events.map((e) => e.startTime)),
+    Math.max(...events.map((e) => e.startTime + e.duration)),
+  );
+  viewState.value = setMultiSelection(
+    viewState.value,
+    events.map((e) => e.id),
+  );
+  emit('select', null);
+}
+
+/**
+ * Live marquee extent during the drag. The canvas nulls it on pointerup/Escape; on a
+ * commit `onMultiSelect` runs right after and swaps in the hull, so a cancel is the only
+ * path that leaves it cleared.
+ */
+function onMultiSelectSpan(span: MeasureRange | null) {
+  multiSelectSpan.value = span;
 }
 
 function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
@@ -1071,6 +1135,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :pin-source-model="swim"
           :collapse-anim="collapseAnim"
           :cursor="cursor"
+          :multi-select-span="multiSelectSpan"
           :show-overview-charts="showOverview"
           :overview-series="report?.overviewSeries ?? []"
           :gutter-width="gutterWidth"
@@ -1088,6 +1153,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @unpin-overview="onUnpinOverview"
           @update:gutter-metric="onGutterMetricChange"
           @select="onSelect"
+          @multi-select="onMultiSelect"
+          @multi-select-span="onMultiSelectSpan"
           @hover="onHover"
           @cursor="onCursor"
           @set-playhead="onSetPlayhead"
@@ -1120,13 +1187,36 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </template>
     </ReportLayout>
 
-    <p
-      v-else
-      class="pr-error"
-      data-testid="no-timeline"
-    >
-      {{ t('noTimeline', locale) }}
-    </p>
+    <!-- Mutually exclusive docks: multi-select wins, then single-select, else neither. -->
+    <MultiSelectSummary
+      v-if="multiSelected.length && showTimeline"
+      :selected-events="multiSelected"
+      :model="swim"
+      :locale="locale"
+      :height="dockHeight"
+      @close="onSelect(null)"
+      @select-single="onSelect"
+      @update:height="dockHeight = $event"
+    />
+
+    <Transition name="pr-dock">
+      <DetailPanel
+        v-if="!multiSelected.length && selected && showTimeline"
+        :selected="selected"
+        :time-display-mode="localTimeDisplayMode"
+        :clock-freq-m-hz="clockFreqMHz"
+        :time-origin="bounds.minTime"
+        :locale="locale"
+        :neighbors="dependencyNeighbors"
+        :dependency-mode="localDependencyMode"
+        :expanded="dockExpanded"
+        :height="dockHeight"
+        @close="onSelect(null)"
+        @update:expanded="dockExpanded = $event"
+        @update:height="dockHeight = $event"
+        @update:dependency-mode="onDependencyMode"
+      />
+    </Transition>
 
     <Transition
       name="pr-topo-fs"
@@ -1202,7 +1292,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         @update:dependency-mode="onDependencyMode"
       />
     </Transition>
-
     <EventTooltip
       v-if="hovered && showTimeline"
       :event="hovered"
