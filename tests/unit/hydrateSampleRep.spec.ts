@@ -13,9 +13,8 @@ describe('hydrateSampleRep', () => {
     expect(hydrateSampleRep(out)).toEqual(out);
   });
 
-  it('passes the 160-byte product npu-rep through unchanged (no 164-byte parse)', () => {
+  it('passes flat 160-byte product npu-rep through unchanged (no op2 to hydrate)', () => {
     const result = loadResultNpuRepBytes();
-    // Must not throw on the 160-byte FileInfo layout, and must not mutate the bytes.
     expect(hydrateSampleRep(result)).toEqual(result);
   });
 

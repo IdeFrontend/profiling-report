@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
+import { parseNpuRep160 } from '../../src/adapters/parseNpuRep160';
 import type { AdaptedReport, SwimlaneModel, SwimThread } from '../../src/domain/types';
 import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
 import { leafRowCount } from '../../src/swimlane/layout';
@@ -106,6 +107,45 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(op1.reportModel.summary.opName).toBe('add_custom');
     expect(op2.reportModel.summary.opName).toBe('matmul_mock');
     expect(op1.reportModel.summary.blockDim).not.toBe(op2.reportModel.summary.blockDim);
+  });
+
+  it('both operators expose product Summary.jsonl util / compute / bandwidth (demo cards)', () => {
+    for (const report of [op1, op2]) {
+      const { summary, computeCard, bandwidthCards } = report.reportModel;
+      expect(summary.parallelUtilization).toBeGreaterThan(0.8);
+      expect(summary.parallelBalance).toBeGreaterThan(0.8);
+      expect(computeCard?.sides.length).toBeGreaterThanOrEqual(2);
+      for (const side of computeCard!.sides) {
+        expect(side.measuredTflops).toBeGreaterThan(5);
+        expect(side.peakTflops).toBeGreaterThan(side.measuredTflops);
+        expect(side.measuredTflops / side.peakTflops).toBeGreaterThan(0.25);
+      }
+      expect(bandwidthCards?.length).toBeGreaterThan(0);
+      for (const card of bandwidthCards!) {
+        for (const side of card.sides) {
+          expect(side.measuredGBs).toBeGreaterThan(200);
+          expect(side.peakGBs).toBe(1600);
+        }
+      }
+      // Chart mapping is PR #98 — adapter must not invent overviewSeries here.
+      expect(report.reportModel.overviewSeries).toEqual([]);
+    }
+  });
+
+  it('both operators embed Sampling.json with CUBE/VECTOR util counters (for PR #98)', () => {
+    const container = parseNpuRep160(loadSampleRepBytes());
+    for (const opName of ['op1.npu.rep', 'op2.npu.rep'] as const) {
+      const leaf = parseNpuRep160(container.payloads[opName]!);
+      const raw = leaf.payloads['Sampling.json'];
+      expect(raw, `${opName} missing Sampling.json`).toBeDefined();
+      const { traceEvents } = JSON.parse(new TextDecoder().decode(raw)) as {
+        traceEvents: Array<{ name: string; cat?: string; ph: string; args?: { value?: number } }>;
+      };
+      const counters = traceEvents.filter((e) => e.ph === 'C' && e.cat === 'util');
+      expect(counters.length).toBeGreaterThan(10);
+      expect(new Set(counters.map((e) => e.name))).toEqual(new Set(['CUBE', 'VECTOR']));
+      expect(counters.every((e) => typeof e.args?.value === 'number')).toBe(true);
+    }
   });
 
   it('both operators expose Cube-side pipe occupancy (MIX Cube tab)', () => {
