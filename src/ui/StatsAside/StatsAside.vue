@@ -95,7 +95,7 @@ const aicoreView = computed(() => {
     title: string;
   }[] = [];
   if (s?.parallelUtilization != null) {
-    const score = s.parallelUtilization * 100;
+    const score = Number((s.parallelUtilization * 100).toFixed(2));
     rows.push({
       id: 'util',
       labelKey: 'parallelUtil',
@@ -105,7 +105,7 @@ const aicoreView = computed(() => {
     });
   }
   if (s?.parallelBalance != null) {
-    const score = s.parallelBalance * 100;
+    const score = Number((s.parallelBalance * 100).toFixed(2));
     rows.push({
       id: 'balance',
       labelKey: 'parallelBalance',
@@ -632,6 +632,7 @@ function backToReport() {
                 <span
                   class="pr-card__value"
                   :data-testid="`stats-aicore-${row.id}-score`"
+                  :title="row.title"
                 >
                   <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
                   <span class="pr-card__unit">%</span>
@@ -648,7 +649,6 @@ function backToReport() {
                   :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
                   :style="{ width: `${Math.min(100, row.score)}%` }"
                   :data-testid="`stats-aicore-${row.id}-bar`"
-                  :title="row.title"
                 />
               </div>
             </div>

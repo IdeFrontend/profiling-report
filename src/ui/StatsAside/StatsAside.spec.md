@@ -79,7 +79,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 12. **PR-STATS-010** — No type card; secondary hide-if-missing.
 13. **PR-STATS-011** — Duration present, no `computeCard` / parallel fields: compute + AICore-parallel placeholders are `N/A`; BW not from `summary.ioBandwidth`.
 13b. **PR-STATS-011b** — BW-only summary omits duration-gated placeholders.
-13c. **PR-STATS-011c** — `parallelUtilization` / `parallelBalance` render dual AICore columns with `%` scores and bars (DATA-9 / DATA-10).
+13c. **PR-STATS-011c** — `parallelUtilization` / `parallelBalance` render dual AICore columns with `%` scores and bars (DATA-9 / DATA-10); a lone field yields a single column.
 14. **PR-STATS-012** — PIPE scale, chart well, hatched bars, in-track percent.
 15. **PR-STATS-013** — Absolute time is a track sibling.
 16. **PR-STATS-014** — Details emit open-pipe-details.

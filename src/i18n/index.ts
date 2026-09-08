@@ -157,7 +157,7 @@ const messages = {
     duration: 'Total time',
     computePower: 'Computing power',
     aicoreParallel: 'AICore parallel utilization',
-    parallelUtil: 'Parallel util',
+    parallelUtil: 'Parallel utilization',
     parallelBalance: 'Load balance',
     bandwidthUtil: 'Bandwidth utilization',
     bwRead: 'Read',
