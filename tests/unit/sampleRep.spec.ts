@@ -107,6 +107,32 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(op1.reportModel.summary.blockDim).not.toBe(op2.reportModel.summary.blockDim);
   });
 
+  it('both operators expose product Summary.jsonl util / compute / bandwidth (demo cards)', () => {
+    for (const report of [op1, op2]) {
+      const { summary, computeCard, bandwidthCards, overviewSeries } = report.reportModel;
+      expect(summary.parallelUtilization).toBeGreaterThan(0.8);
+      expect(summary.parallelBalance).toBeGreaterThan(0.8);
+      expect(computeCard?.sides.length).toBeGreaterThanOrEqual(2);
+      for (const side of computeCard!.sides) {
+        expect(side.measuredTflops).toBeGreaterThan(5);
+        expect(side.peakTflops).toBeGreaterThan(side.measuredTflops);
+        expect(side.measuredTflops / side.peakTflops).toBeGreaterThan(0.25);
+      }
+      expect(bandwidthCards?.length).toBeGreaterThan(0);
+      for (const card of bandwidthCards!) {
+        for (const side of card.sides) {
+          expect(side.measuredGBs).toBeGreaterThan(200);
+          expect(side.peakGBs).toBe(1600);
+        }
+      }
+      expect(overviewSeries.map((s) => s.id).sort()).toEqual(['cube', 'vector']);
+      for (const series of overviewSeries) {
+        expect(series.points.length).toBeGreaterThan(10);
+        expect(series.points.every((p) => p.t >= 0 && p.v >= 0 && p.v <= 100)).toBe(true);
+      }
+    }
+  });
+
   it('both operators expose Cube-side pipe occupancy (MIX Cube tab)', () => {
     for (const report of [op1, op2]) {
       expect(report.reportModel.summary.opType?.toLowerCase()).toBe('mix');

@@ -28,7 +28,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Swimlane model.** Extracts the timeline via `chromeTraceToSwimlane`: `trace.json` with `sourceTimeUnit: 'ns'` (classic `.rep`), or `PipeTrace.json` with `sourceTimeUnit: 'us'` (product `npu-rep`; its `displayTimeUnit: "ns"` label is misleading — ts/dur are microseconds).
 
-**Overview series.** Empty array per DATA-32a (the product `Sampling.json` `ph:C` counter source remains deferred).
+**Overview series.** From product `Sampling.json` Chrome Trace counters (`ph: "C"`, `cat: "util"`, `args.value` 0–100 %): `CUBE` → Cube series, `VECTOR` → Vector series ([DATA-39](../context/decisions/DATA.md)). Sampling `ts` is µs → `points[].t` in ns. Other util names ignored. Empty when embed missing or no matching counters ([DATA-32](../context/decisions/DATA.md) hide-if-empty).
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (PROC-3).
 
@@ -44,7 +44,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration, pid, blockDim, optional coreCount (DATA-1). Classic `.rep` leaves compute/util unset (no `summary.jsonl`). Product `npu-rep` fills `aicFlops` / `parallelUtilization` from `OpInfoSummary` (DATA-2, DATA-9, DATA-33).
 2. **PR-VM-002** — PipeOccupancy aggregates mean of non-NA ratios per pipe family per DATA-33b; optional absoluteValue from mean `*_time(us)` (DATA-33f).
-3. **PR-VM-003** — Overview series returns empty array per DATA-32a.
+3. **PR-VM-003** — Overview series from `Sampling.json` `ph:C`/`cat:util` (`CUBE`/`VECTOR` → Cube/Vector); empty when absent (DATA-39, DATA-32).
 4. **PR-VM-005** — Pipe items are side-specific (`aic_*` vs `aiv_*`); no blended AIC/AIV family ratio.
 5. **PR-VM-006** — `computeTables` includes PipeUtilization, ArithmeticUtilization, ResourceConflictRatio with non-empty headers/rows and blockIds `0`…`7` on `out.rep`.
 6. **PR-VM-007** — `memoryTables` includes Memory.csv, L2Cache.csv, MemoryL0.csv, MemoryUB.csv with blockIds; `csvTexts` has raw text for each present table fileName.
@@ -57,6 +57,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 13. **PR-VM-014** — `summary.coreCount` from `HardwareInfo.jsonl` by op type (cube/vector/mix); omit when jsonl or field missing.
 14. **PR-VM-015** — `computeCard` from Product `OpInfoSummary` FLOPS when present; else ArithmeticUtilization + HardwareInfo peaks (DATA-33h); omit when no side has measured + peak.
 15. **PR-VM-016** — When both OpBasicInfo.csv and Summary.jsonl exist, identity comes from OpBasicInfo and OpInfoSummary derived FLOPS/util overlay onto summary + computeCard.
+16. **PR-VM-017** — Sampling `ts` (µs) converts to ns on `OverviewSeries.points[].t`; non-CUBE/VECTOR util counters do not create overview series.
 
 ## Edge Cases
 
@@ -69,13 +70,14 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Dependencies
 
-DATA-33, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-32a, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
+DATA-33, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-39, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
 
 ## Open
 
 DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; compute formula given but no chart-axis spec).
 
 ## Changelog
+- **2026-09-08** — DATA-39: `Sampling.json` util counters → Cube/Vector `overviewSeries` (PR-VM-003 / PR-VM-017); supersedes DATA-32a empty-array interim.
 - **2026-09-04** — NPU-Compute: `summary.jsonl` is the canonical source — `OpInfoSummary` derived fields (compute/BW/parallel utilization), summary-first detail categories, `PipeTrace.json` µs timeline, spaced HardwareInfo key normalization, peak 1600 GB/s (SOL), compute score = measured/theoretical (DATA-2, DATA-3, DATA-5, DATA-9, DATA-33, UI-32).
 - **2026-09-01** — `summary.coreCount` from `HardwareInfo.jsonl` by op type for duration secondary (DATA-1, UI-32, PR-VM-014).
 - **2026-08-25** — Aside meta is 进程 / 算子类型 / Blocks (`pid` / `opType` / `blockDim`); `coreCount` is not a meta-row field.

@@ -298,7 +298,7 @@ Treat as illustrative only (invalid JSON / stub series).
 
 - Collapsible section with synchronized **Cube** and **Vector** area charts over time.
 - Shared time axis with a vertical scrubber aligned to the Kernel timeline below.
-- Series provenance not specified in docx; candidates: aggregated pipe busy from timeline events, or derived block time series (e.g. product `Sampling.json` `ph:"C"`). Open question: **[DATA-39](../context/questions/DATA.md)** — which embed/fields fill `OverviewSeries` (hide-if-empty remains [DATA-32](../context/decisions/DATA.md) / interim [DATA-32a](../context/decisions/interim/DATA.md)).
+- **Source ([DATA-39](../context/decisions/DATA.md)):** `Sampling.json` `ph:"C"` / `cat:"util"` counters; `CUBE` → Cube series, `VECTOR` → Vector series; `args.value` is utilization % (0–100); `ts` µs → `OverviewSeries.points[].t` in ns. Hide when empty ([DATA-32](../context/decisions/DATA.md)).
 
 ---
 

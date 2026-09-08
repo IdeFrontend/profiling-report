@@ -1,47 +1,44 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Generate `data/sample.lite.rep`: a nested multi-operator `npu-rep` container with
-two *distinct* operators (leaves `data/example.npu.rep` untouched).
+Generate `data/sample.lite.rep`: a nested multi-operator product `npu-rep`
+(160-byte FileInfo, origin=1) with two *distinct* operators.
 
 op2 omits trace.json (~30 MB); playground/tests hydrate via generateSampleOp2Trace().
 Not standalone-valid — hydrate before loadReportSource.
 
-Layout (little-endian), matches `src/adapters/parseNpuRep.ts`:
+Layout (little-endian), matches `src/adapters/parseNpuRep160.ts` /
+`data/scripts/pack_rep.py`:
 
-  Head (36 bytes): magic[8]="npu-rep\\0", version:u32=0x00010000, orgin:u16,
-                   repHeadLength:u16=36, fileInfoCount:u32, fileInflLength:u32=164,
-                   resv:u32, npuRepLength:u64
-  FileInfo (164 bytes): magic[8]="npu-rep\\0", name[128], type:u32, resv:u32,
-                        pad:u32, length:u64, offset:u64
+  Head (36 bytes): magic[8]="npu-rep\\0", version:u32=0x00010000, origin:u16=1,
+                   repHeadLength:u16=36, fileInfoCount:u32, fileInfoLength:u32=160,
+                   reserved:u32=0, npuRepLength:u64
+  FileInfo (160 bytes): magic[8], name[128], type:u16, reserved:u16=0,
+                        reserved1:u32=0, length:u64, offset:u64
 
-  type 6 = nested operator archive (.npu.rep); type 1 = csv; type 2 = json/jsonl.
+  type 1 = nested operator archive; 2 = json; 3 = jsonl; 4 = csv.
 
 Operators:
-  op1 — machine-view style (~100 X events): a few Core/pipe lanes with bursty
-        irregular occupancy and cross-pipe `args.event_id` / dependencies
-        connections + baseline `add_custom` CSVs from `data/out.rep`.
-  op2 — ~150k-event Card/core/pipe stress-style trace for rendering performance
-        demos, with sparse pipeline deps + transformed CSVs (different op name,
-        block range, scaled metrics, synthesized Cube aic_* values).
-
-Both keep the full 11-leaf payload set so the right sidebar stays available.
-Traces deliberately avoid uniform grids — timings mimic real Ascend pipe-state /
-machine-view samples (`out.trace.json`, `ffn_dense.trace.json`).
+  op1 — machine-view style (~100 X events) + product Summary.jsonl / Sampling.json
+        + demo-worthy FLOPS/BW/parallel util.
+  op2 — CSVs/Summary/Sampling only; ~150k-event stress trace injected at hydrate.
 """
 
 import json
+import math
 import os
 import struct
 
 MAGIC = b"npu-rep\x00"
 VERSION = 0x00010000
+ORIGIN = 1
 HEAD_SIZE = 36
-FILEINFO_SIZE = 164
+FILEINFO_SIZE = 160
 
-TYPE_CSV = 1
+TYPE_NESTED = 1
 TYPE_JSON = 2
-TYPE_NESTED = 6
+TYPE_JSONL = 3
+TYPE_CSV = 4
 
 STRESS_PIPES = ["ALL", "SCALAR", "FLOWCTRL", "MTE1", "CUBE", "FIXP", "MTE2", "MTE3", "CACHEMISS"]
 STRESS_CORES = ["Core0.Cube", "Core0.Vec0", "Core0.Vec1"]
@@ -63,7 +60,7 @@ PIPE_PROFILE = {
 
 
 def pack_npu_rep(entries):
-    """entries: list of (name: str, type: int, data: bytes). Returns bytes."""
+    """entries: list of (name: str, type: int, data: bytes). Returns product 160-byte npu-rep."""
     n = len(entries)
     data_start = HEAD_SIZE + n * FILEINFO_SIZE
     layout = []
@@ -75,7 +72,7 @@ def pack_npu_rep(entries):
 
     head = struct.pack(
         "<8sIHHIIIQ",
-        MAGIC, VERSION, 0, HEAD_SIZE, n, FILEINFO_SIZE, 0, total,
+        MAGIC, VERSION, ORIGIN, HEAD_SIZE, n, FILEINFO_SIZE, 0, total,
     )
     assert len(head) == HEAD_SIZE, f"head size {len(head)} != {HEAD_SIZE}"
 
@@ -87,7 +84,7 @@ def pack_npu_rep(entries):
         else:
             name_bytes = name_bytes.ljust(128, b"\x00")
         info = struct.pack(
-            "<8s128sIIIQQ",
+            "<8s128sHHIQQ",
             MAGIC, name_bytes, typ, 0, 0, length, offset,
         )
         assert len(info) == FILEINFO_SIZE, f"fileinfo size {len(info)} != {FILEINFO_SIZE}"
@@ -451,7 +448,8 @@ AIC_ARITH_BASES = {
     "aic_cube_ratio": 0.58,
     "aic_cube_fp16_ratio": 0.41,
     "aic_cube_int8_ratio": 0.17,
-    "aic_cube_fops": 48000,
+    # fops ≈ measured_TFLOPS * time_us * 1e6  (≈25 TFLOPS @ 1.25 µs → 3.125e7)
+    "aic_cube_fops": 31_250_000,
     "aic_cube_total_instr_number": 1200,
     "aic_cube_fp_instr_number": 850,
     "aic_cube_int_instr_number": 350,
@@ -546,19 +544,208 @@ def transform_op_basic_info(text, *, op_name="matmul_mock", op_type="mix",
 
 
 def hardware_info(chip_info, ai_core_count, ai_vector_count, freq_mhz=1650):
+    """Product-style spaced HardwareInfo.jsonl keys."""
     lines = [
-        {"category": "Host Info", "cpu_physical_count": 2, "cpu_logical_count": 46,
-         "memory_total_size_MB": 461897260, "disk_total_size_GB": 2879978960},
-        {"category": "Device Info", "npu_count": 1, "chip_info": chip_info, "arch_info": "3510"},
-        {"category": "CPU Information", "control_cpu_count": 1, "ai_cpu_count": 6,
-         "ai_cpu_frequency_MHZ": 1500},
-        {"category": "AI Core Information", "ai_core_count": ai_core_count,
-         "ai_cube_count": ai_core_count, "ai_vector_count": ai_vector_count,
-         "ai_core_frequency_MHZ": [freq_mhz, freq_mhz]},
-        {"category": "Memory Information", "hbm_total_MB": 131072,
-         "hbm_used_MB": 5190.55, "hbm_frequency_MHZ": 3200},
+        {"category": "Host Info", "cpu physical count": 2, "cpu logical count": 46,
+         "memory total size(MB)": 515563.11, "disk total size(GB)": 5864.53},
+        {"category": "Device Info", "npu count": 1, "chip info": chip_info, "arch info": "3510"},
+        {"category": "CPU Information", "control cpu count": 1, "ai cpu count": 6,
+         "ai cpu frequency(MHZ)": 1500},
+        {"category": "AI Core Information", "ai core count": ai_core_count,
+         "ai cube count": ai_core_count, "ai vector count": ai_vector_count,
+         "ai cube frequency(MHZ)": freq_mhz, "ai vector frequency(MHZ)": freq_mhz},
+        {"category": "Memory Information", "hbm total(MB)": 131072,
+         "hbm used(MB)": 5190.55, "hbm frequency(MHZ)": 3200},
     ]
-    return "\n".join(json.dumps(x) for x in lines) + "\n"
+    return "\n".join(json.dumps(x, ensure_ascii=False) for x in lines) + "\n"
+
+
+def rename_memory_ub_scalar_to_gm(text):
+    return text.replace("aiv_ub_read_bw_scalar(GB/s)", "aiv_ub_read_bw_gm(GB/s)").replace(
+        "aiv_ub_write_bw_scalar(GB/s)", "aiv_ub_write_bw_gm(GB/s)"
+    )
+
+
+def scale_column_values(text, column_names, scale):
+    """Multiply named CSV columns by scale (skip NA/empty)."""
+    lines = text.rstrip("\n").split("\n")
+    if not lines:
+        return text
+    headers = [h.strip() for h in lines[0].split(",")]
+    idx = [i for i, h in enumerate(headers) if h in column_names]
+    if not idx:
+        return text
+    out = [lines[0]]
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        cells = line.split(",")
+        while len(cells) < len(headers):
+            cells.append("")
+        cells = cells[:len(headers)]
+        for i in idx:
+            c = cells[i].strip()
+            if c in ("", "NA"):
+                continue
+            try:
+                cells[i] = _fmt(float(c) * scale)
+            except ValueError:
+                pass
+        out.append(",".join(cells))
+    return "\n".join(out) + "\n"
+
+
+def set_column_constant(text, column_name, value_fn):
+    """Set column to value_fn(row_index) for every data row (or fill NA)."""
+    lines = text.rstrip("\n").split("\n")
+    if not lines:
+        return text
+    headers = [h.strip() for h in lines[0].split(",")]
+    if column_name not in headers:
+        return text
+    j = headers.index(column_name)
+    out = [lines[0]]
+    for row_i, line in enumerate(lines[1:]):
+        if not line.strip():
+            continue
+        cells = line.split(",")
+        while len(cells) < len(headers):
+            cells.append("")
+        cells = cells[:len(headers)]
+        cells[j] = _fmt(value_fn(row_i))
+        out.append(",".join(cells))
+    return "\n".join(out) + "\n"
+
+
+def csv_column_mean(text, column_name):
+    lines = text.rstrip("\n").split("\n")
+    if len(lines) < 2:
+        return None
+    headers = [h.strip() for h in lines[0].split(",")]
+    if column_name not in headers:
+        return None
+    j = headers.index(column_name)
+    vals = []
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        cells = line.split(",")
+        if j >= len(cells):
+            continue
+        c = cells[j].strip()
+        if c in ("", "NA"):
+            continue
+        try:
+            vals.append(float(c))
+        except ValueError:
+            pass
+    if not vals:
+        return None
+    return sum(vals) / len(vals)
+
+
+def category_means_from_csv(category, text):
+    """Build a Summary.jsonl category object as mean of numeric columns (skip block ids)."""
+    lines = text.rstrip("\n").split("\n")
+    if len(lines) < 2:
+        return {"category": category}
+    headers = [h.strip() for h in lines[0].split(",")]
+    sums = {}
+    counts = {}
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        cells = line.split(",")
+        for i, h in enumerate(headers):
+            if h in ("block_id", "sub_block_id") or i >= len(cells):
+                continue
+            c = cells[i].strip()
+            if c in ("", "NA"):
+                continue
+            try:
+                v = float(c)
+            except ValueError:
+                continue
+            sums[h] = sums.get(h, 0.0) + v
+            counts[h] = counts.get(h, 0) + 1
+    obj = {"category": category}
+    for h, total in sums.items():
+        obj[h] = total / counts[h]
+    return obj
+
+
+def build_summary_jsonl(texts, *, op_basic, demo):
+    """OpInfoSummary + category means for product detail panels."""
+    cats = [
+        "PipeUtilization",
+        "ArithmeticUtilization",
+        "ResourceConflictRatio",
+        "Memory",
+        "MemoryL0",
+        "MemoryUB",
+        "L2Cache",
+    ]
+    lines = []
+    for cat in cats:
+        name = f"{cat}.csv"
+        if name in texts:
+            lines.append(category_means_from_csv(cat, texts[name]))
+
+    mem = next((o for o in lines if o.get("category") == "Memory"), {})
+    read_bw = mem.get("aic_main_mem_read_bw(GB/s)") or mem.get("aiv_main_mem_read_bw(GB/s)") or demo["gm_read"]
+    write_bw = mem.get("aic_main_mem_write_bw(GB/s)") or mem.get("aiv_main_mem_write_bw(GB/s)") or demo["gm_write"]
+    usage = ((read_bw + write_bw) / 2.0) / 1600.0 * 100.0
+
+    op_info = {
+        "category": "OpInfoSummary",
+        "Op Name": op_basic["op_name"],
+        "Op Type": op_basic["op_type"],
+        "Task Duration(us)": float(op_basic["duration"]),
+        "Block Dim": int(op_basic["block_dim"]),
+        "Mix Block Dim": int(op_basic["mix_dim"]) if op_basic.get("mix_dim") not in (None, "", "NA") else None,
+        "Device Id": 0,
+        "Pid": 3073000,
+        "Current Freq": int(op_basic["freq"]),
+        "Rated Freq": int(op_basic["freq"]),
+        "aicore_parallel_utilization": demo["parallel_util"],
+        "aicore_parallel_balance": demo["parallel_balance"],
+        "aicore_gm_bw_theoretical(GB/s)": 1600,
+        "aicore_gm_read_bw(GB/s)": read_bw,
+        "aicore_gm_write_bw(GB/s)": write_bw,
+        "aicore_gm_bw_usage_rate(%)": usage,
+        "aic_flops": demo["aic_flops"],
+        "aiv_flops": demo["aiv_flops"],
+        "aic_flops_theoretical": demo["aic_flops_theoretical"],
+        "aiv_flops_theoretical": demo["aiv_flops_theoretical"],
+    }
+    lines.append(op_info)
+    return "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in lines)
+
+
+def build_sampling_json(seed, duration_us, n_points=64):
+    """Compact Sampling.json with CUBE + VECTOR util waves (ts in µs)."""
+    rand = mulberry32(seed)
+    events = [
+        {"name": "Accelerator", "pid": 1, "tid": 0, "ph": "M", "cat": "__metadata",
+         "args": {"name": "AI Accelerator"}},
+        {"name": "CUBE", "pid": 1, "tid": 1, "ph": "M", "cat": "__metadata",
+         "args": {"name": "CUBE Unit"}},
+        {"name": "VECTOR", "pid": 1, "tid": 2, "ph": "M", "cat": "__metadata",
+         "args": {"name": "VECTOR Unit"}},
+    ]
+    for i in range(n_points):
+        ts = duration_us * (i / max(n_points - 1, 1))
+        cube = 35 + 45 * (0.5 + 0.5 * math.sin(i / 5.0)) + 8 * (rand() - 0.5)
+        vec = 30 + 40 * (0.5 + 0.5 * math.cos(i / 4.0)) + 8 * (rand() - 0.5)
+        events.append({
+            "name": "CUBE", "cat": "util", "ph": "C", "ts": round(ts, 6), "pid": 1,
+            "args": {"value": round(max(0.0, min(100.0, cube)), 3)},
+        })
+        events.append({
+            "name": "VECTOR", "cat": "util", "ph": "C", "ts": round(ts, 6), "pid": 1,
+            "args": {"value": round(max(0.0, min(100.0, vec)), 3)},
+        })
+    return json.dumps({"traceEvents": events}, separators=(",", ":")) + "\n"
 
 
 # -------------------------------------------------------------------- build
@@ -573,21 +760,25 @@ METRIC_SCALES = {
     "ResourceConflictRatio.csv": 1.8,
 }
 
+# Scale Memory main-mem BW so cards show ~30–40% of 1600 GB/s peak.
+BW_COLUMNS = (
+    "aic_main_mem_read_bw(GB/s)",
+    "aic_main_mem_write_bw(GB/s)",
+    "aiv_main_mem_read_bw(GB/s)",
+    "aiv_main_mem_write_bw(GB/s)",
+)
+
 
 def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
                  ai_core_count, ai_vector_count, block_offset, n_rows,
-                 aic_seed, aic_scale, op_basic=None, include_trace=True):
+                 aic_seed, aic_scale, op_basic, demo, include_trace=True,
+                 sampling_seed=0x51A1):
     texts = {}
     for name, data in out_rep.items():
         if name == "trace.json":
             continue
         if name == "OpBasicInfo.csv":
-            text = data.decode("utf-8")
-            if op_basic is not None:
-                text = transform_op_basic_info(text, **op_basic)
-            elif transform:
-                text = transform_op_basic_info(text)
-            texts[name] = text
+            texts[name] = transform_op_basic_info(data.decode("utf-8"), **op_basic)
             continue
         if name in METRIC_SCALES:
             text = data.decode("utf-8")
@@ -599,25 +790,64 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
         else:
             texts[name] = data.decode("utf-8")
 
-    # out.rep is vector-only (all aic_* = NA); synthesize Cube-side values for the MIX tab.
     enrich_cube_csvs(texts, seed=aic_seed, scale=aic_scale)
+
+    # Align vector fops with demo aiv TFLOPS (fops = TFLOPS * time_us * 1e6).
+    if "ArithmeticUtilization.csv" in texts:
+        aiv_time = csv_column_mean(texts["ArithmeticUtilization.csv"], "aiv_time(us)") or 1.0
+        target_vec_fops = demo["aiv_flops"] * aiv_time * 1e6
+        texts["ArithmeticUtilization.csv"] = set_column_constant(
+            texts["ArithmeticUtilization.csv"],
+            "aiv_vec_fops",
+            lambda row_i: target_vec_fops * (0.92 + 0.16 * ((row_i * 13) % 5) / 4.0),
+        )
+        aic_time = csv_column_mean(texts["ArithmeticUtilization.csv"], "aic_time(us)") or 1.25
+        target_cube_fops = demo["aic_flops"] * aic_time * 1e6
+        texts["ArithmeticUtilization.csv"] = set_column_constant(
+            texts["ArithmeticUtilization.csv"],
+            "aic_cube_fops",
+            lambda row_i: target_cube_fops * (0.92 + 0.16 * ((row_i * 7) % 5) / 4.0),
+        )
+
+    if "Memory.csv" in texts:
+        # Boost main-mem BW into the demo GB/s band (~480–640).
+        texts["Memory.csv"] = scale_column_values(texts["Memory.csv"], BW_COLUMNS, 28.0)
+        # Ensure aic main-mem columns are populated (out.rep leaves aic as NA).
+        for col, target in (
+            ("aic_main_mem_read_bw(GB/s)", demo["gm_read"]),
+            ("aic_main_mem_write_bw(GB/s)", demo["gm_write"]),
+            ("aiv_main_mem_read_bw(GB/s)", demo["gm_read"] * 0.95),
+            ("aiv_main_mem_write_bw(GB/s)", demo["gm_write"] * 0.95),
+        ):
+            texts["Memory.csv"] = set_column_constant(
+                texts["Memory.csv"], col,
+                lambda row_i, t=target: t * (0.9 + 0.2 * ((row_i * 3) % 4) / 3.0),
+            )
+
+    if "MemoryUB.csv" in texts:
+        texts["MemoryUB.csv"] = rename_memory_ub_scalar_to_gm(texts["MemoryUB.csv"])
+
+    texts["HardwareInfo.jsonl"] = hardware_info(
+        chip_info, ai_core_count, ai_vector_count, freq_mhz=int(op_basic.get("freq", 1650)),
+    )
+    texts["statistical_utilization.json"] = json.dumps({"operator": sub_label}) + "\n"
+    texts["Summary.jsonl"] = build_summary_jsonl(texts, op_basic=op_basic, demo=demo)
+    texts["Sampling.json"] = build_sampling_json(
+        sampling_seed, float(op_basic["duration"]) * 8.0, n_points=48,
+    )
 
     payloads = []
     if include_trace and trace is not None:
         payloads.append(("trace.json", TYPE_JSON, trace))
-    for name, text in texts.items():
-        typ = TYPE_CSV if name.endswith(".csv") else TYPE_JSON
-        payloads.append((name, typ, text.encode("utf-8")))
 
-    payloads.append(("HardwareInfo.jsonl", TYPE_JSON,
-                     hardware_info(
-                         chip_info,
-                         ai_core_count,
-                         ai_vector_count,
-                         freq_mhz=int((op_basic or {}).get("freq", 1650)),
-                     ).encode("utf-8")))
-    payloads.append(("statistical_utilization.json", TYPE_JSON,
-                     json.dumps({"operator": sub_label}).encode("utf-8")))
+    for name, text in texts.items():
+        if name.endswith(".csv"):
+            typ = TYPE_CSV
+        elif name.endswith(".jsonl"):
+            typ = TYPE_JSONL
+        else:
+            typ = TYPE_JSON
+        payloads.append((name, typ, text.encode("utf-8")))
 
     payloads.sort(key=lambda p: p[0])
     return payloads
@@ -626,6 +856,27 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out_rep = read_out_rep(os.path.join(here, "out.rep"))
+
+    op1_demo = {
+        "parallel_util": 0.88,
+        "parallel_balance": 0.91,
+        "aic_flops": 25.0,
+        "aiv_flops": 12.0,
+        "aic_flops_theoretical": 60.8256,
+        "aiv_flops_theoretical": 30.4128,
+        "gm_read": 560.0,
+        "gm_write": 480.0,
+    }
+    op2_demo = {
+        "parallel_util": 0.93,
+        "parallel_balance": 0.89,
+        "aic_flops": 25.0,
+        "aiv_flops": 10.0,
+        "aic_flops_theoretical": 36.864,
+        "aiv_flops_theoretical": 18.432,
+        "gm_read": 640.0,
+        "gm_write": 520.0,
+    }
 
     op1 = leaf_entries(
         out_rep,
@@ -639,9 +890,10 @@ def main():
         n_rows=8,
         aic_seed=0xC0BE01,
         aic_scale=0.85,
-        # MIX so the Cube|Vector toggle appears; Cube bars come from synthesized aic_*.
         op_basic={"op_name": "add_custom", "op_type": "mix", "duration": "1.800036",
                   "block_dim": "8", "mix_dim": "4", "freq": "1650"},
+        demo=op1_demo,
+        sampling_seed=0x51A101,
     )
     op2 = leaf_entries(
         out_rep,
@@ -657,7 +909,9 @@ def main():
         aic_scale=1.15,
         op_basic={"op_name": "matmul_mock", "op_type": "mix", "duration": "3.502000",
                   "block_dim": "16", "mix_dim": "8", "freq": "1500"},
+        demo=op2_demo,
         include_trace=False,
+        sampling_seed=0x51A102,
     )
 
     op1_bytes = pack_npu_rep(op1)
@@ -681,6 +935,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == "--pack-parity":
         # Fixed entry set for tests/unit/packNpuRep.spec.ts ↔ packNpuRep.ts parity.
+        # Note: product 160-byte layout; packNpuRep.ts (164) has its own fixtures.
         parity = pack_npu_rep([
             ("OpBasicInfo.csv", TYPE_CSV, b"a,b\n1,2"),
             ("trace.json", TYPE_JSON, b"{}"),
