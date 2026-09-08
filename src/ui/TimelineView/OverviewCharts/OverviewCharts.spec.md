@@ -20,7 +20,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 - **Placement:** scrollable section at the top of the swim **body** (moves with `scrollY`). Sticky duplicates of pinned series sit **below** the pinned-lane strip and **above** the scrolling body.
 - **Gutter column:** width = TimelineView gutter (`gutterWidth` prop); labels left-aligned; section header with chevron + localized **统计分析** / Statistical analysis.
 - **Collapsible header (v930/entry):** full-width Card-like strip (`#2a2a2a` / hover `#323232`, 40px) with `Chevron` + title; click toggles expand/collapse of all tracks (sticky pin strip stays visible).
-- **Track / lane:** **16px** paint area inside a **24px** lane with an **8px** empty gap above the chart (gap is part of the series hit target).
+- **Track / lane:** **16px** paint area inside a **24px** lane with an **8px** empty gap above the chart (gap is part of the series hit target). Pointer over gutter **or** chart column highlights the **whole track** with swimlane lane-hover fill (`LANE_HOVER_FILL` / `#363636`) and lifts the label to `#fff` (same chrome as main swim rows).
 - **Splitters:** **1px** `#3a3a3a` horizontal border under each lane (same as lane row dividers).
 - **Style:** **step-after** area + stroke (hold each sample value until the next counter event, then jump). Fill `fill-opacity ≈ 0.45` under a bright stroke. Stroke hex from `overviewSeriesStroke` ([COLOR_TOKENS](../../../../docs/ui/COLOR_TOKENS.md): Cube → `#3078F0`; other pipes → OKLCH `L+0.2` of the pipe base).
 - **Time domain:** shared with swimlane visible `[startTime, endTime]` (canonical ns).
@@ -38,6 +38,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 6. **PR-OV-006** — Shared cursor x draws a continuous vertical playhead over the chart column (not gutter). Hovering anywhere in a chart column’s 24px lane (including the 8px gap above the paint) emits `cursor` and shows the step value tip plus a round value dot; the value-dot is teleported / fixed so a zero (or near-baseline) sample on the last track is not clipped by the overview transform or parent overflow. Hovering the header-row chart band emits `cursor` with a real xRatio (no tip); gutter labels do not emit `cursor`.
 7. **PR-OV-007** — Wheel over overview emits `wheel` for swimlane scroll / trackpad pan / Ctrl+zoom; drag on a chart column emits `pan` (skipped while `measureMode`).
 8. **PR-OV-008** — Section header is a Card-like collapsible strip; click toggles `collapsed` / `update:collapsed` and hides/shows all tracks.
+9. **PR-OV-009** — Hovering a track (gutter or chart column) fills the whole 24px lane with `LANE_HOVER_FILL` (`#363636`) and lifts the series label to `#fff` (parity with swimlane whole-lane hover).
 
 ## Visual
 

@@ -275,4 +275,21 @@ describe('OverviewCharts', () => {
     expect(wrap.emitted('update:collapsed')?.[1]).toEqual([false]);
     expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
   });
+
+  it('PR-OV-009: track hover uses swimlane LANE_HOVER_FILL whole-lane chrome', async () => {
+    const { LANE_HOVER_FILL } = await import('../../src/swimlane/layout');
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+    });
+    const root = wrap.get('[data-testid="overview-charts"]');
+    expect((root.element as HTMLElement).style.getPropertyValue('--pr-overview-lane-hover')).toBe(
+      LANE_HOVER_FILL,
+    );
+    const src = (await import('../../src/ui/TimelineView/OverviewCharts/OverviewCharts.vue?raw'))
+      .default as string;
+    expect(src).toMatch(
+      /\.pr-overview-track:hover\s*\{[^}]*background:\s*var\(--pr-overview-lane-hover/,
+    );
+    expect(src).toMatch(/\.pr-overview-track:hover\s+\.pr-overview-label\s*\{[^}]*color:\s*#fff/);
+  });
 });

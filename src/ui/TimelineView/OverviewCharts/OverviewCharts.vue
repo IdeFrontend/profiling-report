@@ -8,6 +8,7 @@ import PinIcon from '../../PinIcon.vue';
 import {
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HOVER,
+  LANE_HOVER_FILL,
 } from '../../../swimlane/layout';
 import {
   areaPathFromVertices,
@@ -313,6 +314,7 @@ const showValueDot = computed(() => valueDotStyle.value != null);
       '--pr-overview-gutter': `${gutterWidth}px`,
       '--pr-overview-header-fill': LANE_GROUP_HEADER_FILL,
       '--pr-overview-header-hover': LANE_GROUP_HEADER_HOVER,
+      '--pr-overview-lane-hover': LANE_HOVER_FILL,
       '--pr-overview-header-h': `${OVERVIEW_HEADER_H}px`,
       '--pr-overview-lane-h': `${OVERVIEW_LANE_H}px`,
       '--pr-overview-track-h': `${OVERVIEW_TRACK_H}px`,
@@ -475,6 +477,15 @@ const showValueDot = computed(() => valueDotStyle.value != null);
   height: var(--pr-overview-lane-h, 24px);
   min-height: var(--pr-overview-lane-h, 24px);
   border-bottom: 1px solid var(--pr-divider, #3a3a3a);
+}
+
+/* Same whole-lane chrome as swim rows (LANE_HOVER_FILL / --pr-surface-raised). */
+.pr-overview-track:hover {
+  background: var(--pr-overview-lane-hover, var(--pr-surface-raised, #363636));
+}
+
+.pr-overview-track:hover .pr-overview-label {
+  color: #fff;
 }
 
 .pr-overview-gutter-cell {
