@@ -310,7 +310,41 @@ describe('LaneGutter', () => {
     expect(wrapper.get('[data-testid="gutter-lane-leaf"]').classes()).toContain(
       'pr-gutter__lane--lane-hover',
     );
+    await wrapper.setProps({ hoveredLaneId: 'compute' });
+    expect(wrapper.get('[data-testid="gutter-folder-compute"]').classes()).toContain(
+      'pr-gutter__lane--lane-hover',
+    );
     wrapper.unmount();
+  });
+
+  it('PR-GUTTER-015: gutter pointerenter/leave emits lane-hover for leaf and folder', async () => {
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          {
+            id: 'compute',
+            name: '计算',
+            color: '#007084',
+            utilization: 0.9,
+            children: [{ id: 'mte1', name: 'MTE1', color: '#885C00', utilization: 0.5 }],
+          },
+          { id: 'leaf', name: '通信', color: '#888', utilization: 1 },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, { props: { groups: nested } });
+
+    await wrapper.get('[data-testid="gutter-lane-leaf"]').trigger('pointerenter');
+    expect(wrapper.emitted('lane-hover')?.at(-1)).toEqual(['leaf']);
+    await wrapper.get('[data-testid="gutter-lane-leaf"]').trigger('pointerleave');
+    expect(wrapper.emitted('lane-hover')?.at(-1)).toEqual([null]);
+
+    await wrapper.get('[data-testid="gutter-folder-compute"]').trigger('pointerenter');
+    expect(wrapper.emitted('lane-hover')?.at(-1)).toEqual(['compute']);
+    await wrapper.get('[data-testid="gutter-folder-compute"]').trigger('pointerleave');
+    expect(wrapper.emitted('lane-hover')?.at(-1)).toEqual([null]);
   });
 
   it('PR-GUTTER-011: flush-left pin; outline when unpinned, solid when pinned or pin-hovered', async () => {

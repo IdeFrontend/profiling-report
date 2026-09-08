@@ -11,7 +11,7 @@ const props = defineProps<{
   collapsedIds?: string[];
   /** Leaf lane ids currently pinned (filled pushpin). */
   pinnedLaneIds?: string[];
-  /** Leaf under canvas hover — gutter row highlight only (does not show pushpin). */
+  /** Lane under canvas/gutter hover — row highlight only (does not show pushpin). */
   hoveredLaneId?: string | null;
   locale?: string;
 }>();
@@ -21,6 +21,7 @@ const emit = defineEmits<{
   'toggle-group': [groupId: string];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
+  'lane-hover': [laneId: string | null];
 }>();
 
 const root = ref<HTMLElement | null>(null);
@@ -65,6 +66,7 @@ defineExpose({ root });
           @toggle="(id) => emit('toggle-group', id)"
           @pin-lane="(id) => emit('pin-lane', id)"
           @unpin-lane="(id) => emit('unpin-lane', id)"
+          @lane-hover="(id) => emit('lane-hover', id)"
         />
       </template>
     </template>

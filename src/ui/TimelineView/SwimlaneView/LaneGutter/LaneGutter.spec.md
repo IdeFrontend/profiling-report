@@ -73,7 +73,7 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 | Unpinned (lane hover) | **Outline** pushpin; stroke `#a8a8a8` (chevron family) |
 | Pinned / pin hover | **Solid fill** accent blue `#4a90e2` (match toolbar measure-active) |
 | Tooltip | Localized **置顶** / **Pin to top** (`t('pin')`) on hover/focus over pushpin; EventTooltip chrome — `--pr-surface-raised` (`#363636`), `1px solid rgba(255,255,255,0.05)`, `0 0 16px rgba(0,0,0,0.2)`, radius `8px` |
-| Row hover | Full gutter row highlight `--pr-surface-raised` (`#363636`) when pointer over the leaf gutter row **or** that leaf’s events-chart band (`hoveredLaneId`), and the label lifts to `#fff`; the canvas paints the track half to match. Canvas band hover does **not** reveal the unpinned pushpin |
+| Row hover | Full gutter row highlight `--pr-surface-raised` (`#363636`) when pointer over the leaf **or folder** gutter row **or** that row’s events-chart band (`hoveredLaneId`), and the label lifts to `#fff`. Gutter `pointerenter`/`pointerleave` emit `lane-hover` so the canvas paints the track half to match (`setHoveredLane`). Canvas band hover does **not** reveal the unpinned pushpin |
 | Accessibility | Focusable `button`; `aria-label` **置顶**; pinned state reflected in `aria-pressed` |
 
 **Indent:** leaf and folder pad-left stay **`24px + depth×14px`** (pin does not add a column). Pin sits in the left margin to the left of chevrons/names at every depth.
@@ -139,8 +139,9 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 12. **PR-GUTTER-012** — Pushpin hover/focus shows localized pin tooltip (`置顶` / `Pin to top`).
 13. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 14. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
-15. **PR-GUTTER-015** — A hovered lane row (pointer or `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; the pin tooltip carries EventTooltip chrome.
+15. **PR-GUTTER-015** — A hovered lane row (gutter pointer, folder or leaf, or inbound `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; gutter pointer emits `lane-hover` so the track paints to match; the pin tooltip carries EventTooltip chrome.
 16. **PR-GUTTER-016** — Hovering **anywhere on a leaf lane row** that has a **thin** filled util bar shows the metric **label** after a **400ms** delay. Tooltip uses EventTooltip / pin chrome, is teleported to `body`, and follows the cursor at **+12px / +12px** (same offset as event hover). Thick bars keep the in-track label and do **not** show this tip. Leave cancels a pending delay and hides the tip.
+
 ## Edge Cases
 
 | State | Behavior |
@@ -155,7 +156,8 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 | Pin leaf inside collapsed folder | Original pin control hidden while ancestor collapsed; **pinned strip duplicate stays** (id remains in **pinnedLaneIds**) |
 | Pin across Cards | Pushpin on any visible leaf regardless of Card/process ancestry |
 | Duplicate pin click | Idempotent — no duplicate entries in `pinnedLaneIds` |
-| Events chart hover | Matching gutter leaf gets `#363636` and a `#fff` label via `hoveredLaneId`; unpinned pushpin stays hidden. The canvas paints the same `#363636` across the track half of that row (`setHoveredLane`, behind events) |
+| Events chart hover | Matching gutter leaf/folder gets `#363636` and a `#fff` label via `hoveredLaneId`; unpinned pushpin stays hidden. The canvas paints the same `#363636` across the track half of that row (`setHoveredLane`, behind events) |
+| Gutter header hover | Leaf or folder gutter `pointerenter` emits `lane-hover` with the row id; `pointerleave` emits `null` — parent drives both canvases’ track highlight |
 
 ## Design sketches
 
@@ -175,6 +177,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../SwimlaneView.spec.md).
 
 ## Changelog
+- **2026-09-07** — Whole-lane hover (AC-07): gutter leaf/folder `pointerenter`/`pointerleave` emit `lane-hover` so the track paints `#363636` with the header; folders participate in both directions.
 - **2026-09-02** — Thin util value tip: full-lane hit target, 400ms delay, cursor-follow (+12/+12) (`PR-GUTTER-016`).
 - **2026-09-01** — PR-GUTTER-015: row hover moves `#252525` → `--pr-surface-raised` (`#363636`) and lifts the label to `#fff`. Both UCD crops (AC-07, AC-19) measure `#363636`, and AC-19 calls out the label change the pin slice did not implement. The pin tooltip's chrome was specified as "EventTooltip chrome: `#2a2a2a` / `#555`", which AC-09 moved out from under it; it now names the raised-surface values directly. (Numbered 015 so master's `categoryKey` keeps `PR-GUTTER-014`.)
 - **2026-09-01** — Card strip 40px with `14px` / `700` / `22px` / `#e6e6e6` label (AC-17); gutter spacer and `LANE_GROUP_HEADER_HEIGHT` follow.

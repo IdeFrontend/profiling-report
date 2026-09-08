@@ -227,7 +227,7 @@ const pinnedView = computed(() => ({
   scrollY: 0,
 }));
 
-/** Leaf under canvas pointer — gutter row highlight only (not pushpin). */
+/** Lane under canvas or gutter pointer — whole-row highlight (not pushpin). */
 const hoveredLaneId = ref<string | null>(null);
 
 function onLaneHover(id: string | null): void {
@@ -431,6 +431,7 @@ defineExpose({
           :util-midline-percent="row.utilMidlinePercent"
           @pin-lane="emit('pin-lane', $event)"
           @unpin-lane="emit('unpin-lane', $event)"
+          @lane-hover="onLaneHover"
         />
       </div>
       <SwimlaneCanvas
@@ -442,6 +443,7 @@ defineExpose({
         :view="pinnedView"
         :selected-event-id="selectedEventId"
         :hovered-event-id="hoveredEventId"
+        :hovered-lane-id="hoveredLaneId"
         :search-query="searchQuery"
         :measure-mode="measureMode"
         :measure-range="measureRange"
@@ -491,6 +493,7 @@ defineExpose({
         @toggle-group="emit('toggle-group', $event)"
         @pin-lane="emit('pin-lane', $event)"
         @unpin-lane="emit('unpin-lane', $event)"
+        @lane-hover="onLaneHover"
       />
       <SwimlaneCanvas
         ref="canvasRef"
@@ -498,6 +501,7 @@ defineExpose({
         :view="view"
         :selected-event-id="selectedEventId"
         :hovered-event-id="hoveredEventId"
+        :hovered-lane-id="hoveredLaneId"
         :search-query="searchQuery"
         :measure-mode="measureMode"
         :measure-range="measureRange"

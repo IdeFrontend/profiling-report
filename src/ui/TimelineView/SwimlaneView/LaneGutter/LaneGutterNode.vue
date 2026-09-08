@@ -14,7 +14,7 @@ const props = defineProps<{
   depth: number;
   collapsedIds?: string[];
   pinnedLaneIds?: string[];
-  /** Leaf id under canvas hover — gutter row highlight only (not pushpin). */
+  /** Lane id under canvas/gutter hover — row highlight only (not pushpin). */
   hoveredLaneId?: string | null;
   locale?: string;
   /** Average marker position (%); omit to hide midline on this row. */
@@ -25,6 +25,8 @@ const emit = defineEmits<{
   toggle: [id: string];
   'pin-lane': [id: string];
   'unpin-lane': [id: string];
+  /** Whole-lane hover (AC-07): drive track highlight from gutter pointer. */
+  'lane-hover': [id: string | null];
 }>();
 
 const collapsed = computed(() => new Set(props.collapsedIds ?? []));
@@ -42,7 +44,7 @@ const utilTipPos = ref({ left: '0px', top: '0px' });
 let utilTipTimer: ReturnType<typeof setTimeout> | null = null;
 
 const laneExternallyHovered = computed(
-  () => !isFolder.value && props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
+  () => props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
 );
 /** Leaf/folder share the same indent; pin is absolute at gutter left. */
 const pad = computed(() => `${24 + props.depth * 14}px`);
@@ -91,6 +93,7 @@ function setUtilTipPos(clientX: number, clientY: number) {
 }
 
 function onLanePointerEnter(e: PointerEvent) {
+  emit('lane-hover', props.lane.id);
   if (!canShowUtilTip.value) return;
   setUtilTipPos(e.clientX, e.clientY);
   clearUtilTipTimer();
@@ -106,6 +109,7 @@ function onLanePointerMove(e: PointerEvent) {
 }
 
 function onLanePointerLeave() {
+  emit('lane-hover', null);
   clearUtilTipTimer();
   utilTipVisible.value = false;
 }
@@ -137,10 +141,13 @@ onBeforeUnmount(() => {
     v-if="isFolder"
     type="button"
     class="pr-gutter__lane pr-gutter__lane--folder"
+    :class="{ 'pr-gutter__lane--lane-hover': laneExternallyHovered }"
     :style="{ paddingLeft: pad }"
     :data-testid="`gutter-folder-${lane.id}`"
     :aria-expanded="!isCollapsed"
     @click="emit('toggle', lane.id)"
+    @pointerenter="emit('lane-hover', lane.id)"
+    @pointerleave="emit('lane-hover', null)"
   >
     <span class="pr-gutter__lane-main">
       <Chevron
@@ -199,6 +206,7 @@ onBeforeUnmount(() => {
       @toggle="(id) => emit('toggle', id)"
       @pin-lane="(id) => emit('pin-lane', id)"
       @unpin-lane="(id) => emit('unpin-lane', id)"
+      @lane-hover="(id) => emit('lane-hover', id)"
     />
   </template>
   <div
