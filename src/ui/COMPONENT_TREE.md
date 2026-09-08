@@ -10,10 +10,12 @@ Folder layout under `src/ui/` mirrors on-screen regions. Leaf folders with `visu
 flowchart TB
   root[ProfilingReport]
   root --> layout[ReportLayout]
+  root --> topoFs[topology fullscreen overlay]
   root --> detail[DetailPanel]
   root --> tip[EventTooltip]
   root --> menu[ContextMenu]
   root --> multi[MultiSelectSummary]
+  topoFs --> memFs[MemoryTopologyPanel]
   layout --> mainCol[main column]
   layout --> aside[StatsAside]
   mainCol --> toolbar[ReportToolbar]
@@ -74,6 +76,7 @@ src/ui/
 
 - Host IDE chrome (OP/kernel selector, OP算子/源码/详情/缓存 tabs) is out of this library tree.
 - `ReportToolbar` lives in the ReportLayout **main** column (above TimelineView), not as a full-width sibling above the aside.
+- Topology **全屏** is a root sibling of `ReportLayout` (opaque overlay on `.pr-root`); it remounts `MemoryTopologyPanel` and does not unmount the layout.
 - `CanvasSwimlaneRenderer` stays under `src/swimlane/` (imperative backend).
 - `DependencyLinksLayer/` is spec + visual pack only (no Vue file); curves are drawn by the swimlane renderer.
 - Design index: [`docs/ui/DESIGN_INDEX.md`](../../docs/ui/DESIGN_INDEX.md).

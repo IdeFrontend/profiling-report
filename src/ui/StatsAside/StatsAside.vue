@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { t, type MessageKey } from '../../i18n';
 import type {
   BandwidthCardModel,
+  MemoryTopologyModel,
   PipeOccupancyItem,
   ReportCapability,
   ReportViewModel,
@@ -28,6 +29,7 @@ const emit = defineEmits<{
   'open-hardware-details': [];
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-pipe-details': [];
+  'open-topology-fullscreen': [model: MemoryTopologyModel];
   'open-cannbot': [scope: CannbotScope];
 }>();
 
@@ -339,6 +341,11 @@ function openPipeDetails() {
 
 function openMemoryDetails() {
   if (showMemory.value) asideSurface.value = 'memory';
+}
+
+function openTopologyFullscreen() {
+  const m = topologyModel.value;
+  if (m) emit('open-topology-fullscreen', m);
 }
 
 function backToReport() {
@@ -872,6 +879,40 @@ function backToReport() {
               <CannbotIcon />
             </button>
             <button
+              v-if="showTopology"
+              type="button"
+              class="pr-cannbot"
+              data-testid="topology-fullscreen"
+              :aria-label="t('fullscreen', locale)"
+              :title="t('fullscreen', locale)"
+              @click="openTopologyFullscreen"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                width="16"
+                height="16"
+                aria-hidden="true"
+              >
+                <path
+                  d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <rect
+                  x="5"
+                  y="5"
+                  width="6"
+                  height="6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"
+                />
+              </svg>
+            </button>
+            <button
               v-if="showMemory"
               type="button"
               class="pr-pipe-details"
@@ -1140,6 +1181,7 @@ function backToReport() {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  color: #e6e6e6;
   opacity: 0.85;
 }
 
