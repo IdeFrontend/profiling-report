@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
@@ -109,7 +109,8 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
 }>();
 
-const internalSwim = ref<SwimlaneModel | null>(null);
+/** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
+const internalSwim = shallowRef<SwimlaneModel | null>(null);
 const internalReport = ref<ReportViewModel | null>(null);
 const internalCapabilities = ref<ReportCapability[] | null>(null);
 const loadError = ref<string | null>(null);
@@ -241,7 +242,8 @@ const laneGroups = computed((): GutterGroup[] => {
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
-  return filterCollapsedTree(m, collapsedGroupIds.value);
+  // toRaw: host may pass a deep-reactive model; walking Proxies freezes collapse on large traces.
+  return filterCollapsedTree(toRaw(m), collapsedGroupIds.value);
 });
 
 const bounds = computed(() => {
