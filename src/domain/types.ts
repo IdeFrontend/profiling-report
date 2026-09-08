@@ -404,7 +404,7 @@ export interface SwimlaneRenderer {
   setDependencyMode?(mode: DependencyMode): void;
   /** Optional: hosts that omit this keep default hop depth. */
   setDependencyDepth?(depth: number): void;
-  /** Optional: when false, skip dependency curves / selection muting. */
+  /** Optional: when false, skip dependency curves (selection muting still applies). */
   setPaintDependencies?(enabled: boolean): void;
   /** Optional: leaf lane under the pointer; hosts that omit this paint no row hover. */
   setHoveredLane?(laneId: string | null): void;
