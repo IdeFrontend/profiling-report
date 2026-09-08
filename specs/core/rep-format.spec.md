@@ -4,7 +4,7 @@
 |----------------|
 | PR-FMT-*       |
 
-Parse the binary `.rep` / `.ncrep` container into structured file entries with raw payloads ready for adaptation.
+Parse the classic `cann-rep` binary container (engineering / sample `.rep` fixtures) into structured file entries with raw payloads ready for adaptation. Product host files use **`.npu-rep`** — see [npu-rep.spec](./npu-rep.spec.md) and [PROC-2](../../docs/context/decisions/PROC.md).
 
 ```ts
 parseRep(bytes: Uint8Array): { header: ParseHeader; files: FileEntry[]; payloads: Record<string, Uint8Array> }
@@ -32,7 +32,7 @@ Parsing validates the magic at offset 0 and throws if it doesn't match. It reads
 
 ## Dependencies
 
-PROC-2a (`.rep`/`.ncrep` share layout), DATA-31a (CI golden fixture).
+[PROC-2](../../docs/context/decisions/PROC.md) (product host extension `.npu-rep`; this spec covers classic `cann-rep` fixtures only), DATA-31a (CI golden fixture).
 
 ## Open
 

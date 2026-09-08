@@ -1,6 +1,6 @@
-# CANN `.rep` / `.ncrep` Format
+# CANN report container format
 
-Interim normative description of the binary report container used by profiling-report. Derived from [`data/pack_rep.py`](../../data/pack_rep.py), [`data/unpack_rep.py`](../../data/unpack_rep.py), and sample [`data/out.rep`](../../data/out.rep).
+Normative description of report containers used by profiling-report. Product host files use **`.npu-rep`** ([PROC-2](../context/decisions/PROC.md)). Classic `cann-rep` / sample `.rep` layouts below remain engineering fixtures and the local packer (`data/pack_rep.py`), not the MSTT open contract.
 
 **Producer status ([PROC-1](../context/decisions/PROC.md)):** The producing tool is still under development. Until an official producer format specification is published, treat this document + sample data as the implementation source of truth, and expect additive updates when the producer spec lands.
 
@@ -8,14 +8,15 @@ Interim normative description of the binary report container used by profiling-r
 
 | Extension | Meaning |
 |-----------|---------|
-| `.rep` | Generic CANN report container (sample: `data/out.rep`) |
-| `.ncrep` | Product alias for OP profiling reports (UI sketches: `report.ncrep`) |
+| `.npu-rep` | **Official product / MSTT plugin** report file ([PROC-2](../context/decisions/PROC.md)). Magic `npu-rep`; see product container below and [npu-rep.spec](../../specs/core/npu-rep.spec.md). |
+| `.rep` | Engineering / classic `cann-rep` sample container only (e.g. `data/out.rep`). **Not** a supported product host alias. |
+| `.ncrep` | Legacy sketch label only. **Not** a supported product host alias. |
 
-Both use the same binary layout and magic (**Interim [PROC-2a](../context/decisions/interim/PROC.md)** until Product defines divergence). Hosts should open either extension with the profiling-report viewer.
+Hosts open **`.npu-rep`** (and Chrome Trace `.json` per [PROC-3](../context/decisions/PROC.md)) with the profiling-report viewer. They do **not** advertise `.rep` or `.ncrep` as product file types.
 
 ### Product `npu-rep` container
 
-The shipping product container uses the **`npu-rep`** magic (36-byte head, **164-byte** FileInfo, `type:u32`, `type 6` = nested operator archive) — see [INPUT_FORMATS §1.6](INPUT_FORMATS.md). It can pack nested per-operator archives; `loadReportSource` detects it separately from the `cann-rep` packer below and adapts each operator. This document's `cann-rep` layout remains the local sample packer (`data/pack_rep.py`).
+The shipping product container uses the **`npu-rep`** magic (36-byte head; product **160-byte** FileInfo or interim sample **164-byte** FileInfo) — see [INPUT_FORMATS §1.6](INPUT_FORMATS.md) and [npu-rep.spec](../../specs/core/npu-rep.spec.md). It can pack nested per-operator archives; `loadReportSource` detects it separately from the classic `cann-rep` packer below and adapts each operator. Nested leaf names inside the archive (e.g. `op1.npu.rep`) are FileInfo names, not the host file extension. This document's `cann-rep` layout remains the local sample packer (`data/pack_rep.py`).
 
 ## Byte order and packing
 

@@ -31,7 +31,7 @@ Developers write **Ascend / CANN operators** — device kernels that implement m
 Profiling artifacts they open today:
 
 - **`.bin`** — rich Insight operator dump (instruction / Source / Cache depth) — stays in **MindStudio Insight**
-- **`.rep` / `.ncrep`** — portable **report pack** (metric CSVs + Chrome Trace) — target of **profiling-report**
+- **`.npu-rep`** — portable **report pack** (metric CSVs + Chrome Trace) — target of **profiling-report** ([PROC-2](decisions/PROC.md))
 
 ---
 
@@ -42,14 +42,14 @@ flowchart LR
   Write["Write / tune OP"] --> Build["Build and run with profiling"]
   Build --> Tree["MSTT performance results tree"]
   Tree --> Bin[".bin → Insight"]
-  Tree --> Rep[".rep / .ncrep → ProfilingReport"]
+  Tree --> Rep[".npu-rep → ProfilingReport"]
   Rep --> Diagnose["Overview + swimlane + PIPE"]
   Diagnose --> Write
 ```
 
 1. Author or edit the OP (C++ / Ascend C / tiling, etc.).
 2. Run a profiled case; MSTT shows results under the performance tree.
-3. Open **`.rep` / `.ncrep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)).
+3. Open **`.npu-rep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)).
 4. Answer “how long?”, “which pipes?”, “what’s busy when?” → change code → repeat.
 5. For instruction-level Source / Cache / flag sync, open **`.bin`** in Insight (sibling path, not this library).
 
@@ -78,11 +78,11 @@ MVP is deliberately scoped to the **highest-frequency questions** after opening 
 
 ```text
 Pain: need Insight-like OP metrics + PyPTO-like timeline
-         without Insight stack for .rep
+         without Insight stack for .npu-rep
                     ↓
      Swimlane-first main pane  +  report analytics aside
                     ↓
-     Shared Vue UI + .rep adapter  (not an uber-viewer)
+     Shared Vue UI + .npu-rep adapter  (not an uber-viewer)
 ```
 
 | Design choice | Domain rationale |
@@ -93,7 +93,7 @@ Pain: need Insight-like OP metrics + PyPTO-like timeline
 | **Hierarchical gutter** | Cores → pipes mirrors how developers reason about Block Dim and pipe children |
 | **Color consistency** | Same Cube / Vector / MTE language across bars, lanes, and charts |
 | **Keep Insight for `.bin`** | Instruction / Source / Cache depth is a different product question |
-| **MVP before Source tabs** | Portable `.rep` may not carry Insight-grade source mapping yet |
+| **MVP before Source tabs** | Portable `.npu-rep` may not carry Insight-grade source mapping yet |
 | **Vue library, not sealed HTML** | MSTT already owns webview panels; library must compose ([ARCHITECTURE](../architecture/ARCHITECTURE.md)) |
 
 Sketches under [`docs/ui/`](../ui/) encode this composition: dense dark timeline + right-rail analytics.
@@ -127,7 +127,7 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/MET
 | **MSTT** | OP DevTools (VS Code): primary host for this library |
 | **MindStudio Insight (msinsight)** | External viewer for rich operator **`.bin`** (and system modes out of scope here) |
 | **PyPTO / pypto-tools** | Schedule-centric toolkit with swimlane UX; reference for interactions and optional later consumer |
-| **profiling-report** | This Vue 3 library: swimlane + report panels for **`.rep` / `.ncrep`** |
+| **profiling-report** | This Vue 3 library: swimlane + report panels for **`.npu-rep`** |
 
 ### Platform
 
@@ -172,8 +172,8 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/MET
 | Term | Meaning |
 |------|---------|
 | **Swimlane** | Multi-lane Gantt of timed intervals (processes → threads → events) |
-| **Chrome Trace** | `trace.json` event format (`ph`, `ts`, `dur`, …) embedded in `.rep` |
-| **`.rep` / `.ncrep`** | CANN report container: CSVs + trace ([REP_FORMAT](../formats/REP_FORMAT.md)); product alias for OP reports |
+| **Chrome Trace** | `trace.json` event format (`ph`, `ts`, `dur`, …) embedded in `.npu-rep` |
+| **`.npu-rep`** | Official product report container: CSVs + trace ([REP_FORMAT](../formats/REP_FORMAT.md), [PROC-2](decisions/PROC.md)) |
 | **`.bin`** | Insight operator profiling dump — not parsed by this library |
 | **OverviewSeries** | Time-series points for Cube/Vector overview charts (not the same as PIPE bar ratios) |
 | **Capability** | Feature flag (`roofline`, `dependencies`, …) so UI hides surfaces the format/host cannot fill |
@@ -197,5 +197,5 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/MET
 - [questions](questions/) — unresolved producer / fixture / formula questions
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios S1–S9 and sync model
 - [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs Phase 2+ checklist
-- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.rep` vs PyPTO semantics
+- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.npu-rep` vs PyPTO semantics
 - [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) — shared UI + adapters
