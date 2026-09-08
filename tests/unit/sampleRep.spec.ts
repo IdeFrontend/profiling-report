@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
+import { parseNpuRep160 } from '../../src/adapters/parseNpuRep160';
 import type { AdaptedReport, SwimlaneModel, SwimThread } from '../../src/domain/types';
 import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
 import { leafRowCount } from '../../src/swimlane/layout';
@@ -126,8 +127,24 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
           expect(side.peakGBs).toBe(1600);
         }
       }
-      // Sampling.json is embedded for PR #98; overviewSeries stays empty until that lands.
+      // Chart mapping is PR #98 — adapter must not invent overviewSeries here.
       expect(report.reportModel.overviewSeries).toEqual([]);
+    }
+  });
+
+  it('both operators embed Sampling.json with CUBE/VECTOR util counters (for PR #98)', () => {
+    const container = parseNpuRep160(loadSampleRepBytes());
+    for (const opName of ['op1.npu.rep', 'op2.npu.rep'] as const) {
+      const leaf = parseNpuRep160(container.payloads[opName]!);
+      const raw = leaf.payloads['Sampling.json'];
+      expect(raw, `${opName} missing Sampling.json`).toBeDefined();
+      const { traceEvents } = JSON.parse(new TextDecoder().decode(raw)) as {
+        traceEvents: Array<{ name: string; cat?: string; ph: string; args?: { value?: number } }>;
+      };
+      const counters = traceEvents.filter((e) => e.ph === 'C' && e.cat === 'util');
+      expect(counters.length).toBeGreaterThan(10);
+      expect(new Set(counters.map((e) => e.name))).toEqual(new Set(['CUBE', 'VECTOR']));
+      expect(counters.every((e) => typeof e.args?.value === 'number')).toBe(true);
     }
   });
 
