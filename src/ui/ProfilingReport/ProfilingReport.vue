@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch } from 'vue';
 import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
@@ -109,7 +109,8 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
 }>();
 
-const internalSwim = ref<SwimlaneModel | null>(null);
+/** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
+const internalSwim = shallowRef<SwimlaneModel | null>(null);
 const internalReport = ref<ReportViewModel | null>(null);
 const internalCapabilities = ref<ReportCapability[] | null>(null);
 const loadError = ref<string | null>(null);
@@ -145,7 +146,8 @@ const selectedOperatorId = ref<string | null>(null);
 /** Per-Card gutter metric selection (session-only; reset on report swap). */
 const gutterMetricByCard = ref<Record<string, GutterMetric>>({});
 
-const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
+/** Raw swim model for all consumers — unwrap host deep-reactive props so deps/gutter/collapse skip Proxies. */
+const swim = computed(() => toRaw(props.swimlaneModel ?? internalSwim.value));
 const report = computed(() => props.reportModel ?? internalReport.value);
 /** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
 const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
@@ -241,6 +243,7 @@ const laneGroups = computed((): GutterGroup[] => {
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
+  // Swim is already toRaw'd; replace swimlaneModel (or toggle collapse) to refresh — in-place nested edits do not.
   return filterCollapsedTree(m, collapsedGroupIds.value);
 });
 
