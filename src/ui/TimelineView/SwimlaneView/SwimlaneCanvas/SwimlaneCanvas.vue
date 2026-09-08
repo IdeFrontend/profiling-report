@@ -127,10 +127,10 @@ const emit = defineEmits<{
  * would tint the events it crosses, and hover on an event already means something
  * else (AC-08's lifted fill).
  */
-const hoveredLaneId = ref<string | null>(null);
+const trackHoveredLaneId = ref<string | null>(null);
 
 function applyLaneHover(id: string | null): void {
-  hoveredLaneId.value = id;
+  trackHoveredLaneId.value = id;
   backend.setHoveredLane?.(id);
   // Overlay underpaint must see the same hovered row as the GL background pass.
   if (useWebGl.value) overlay.setHoveredLane(id);
@@ -145,7 +145,7 @@ function emitLaneHover(localY: number | null): void {
 watch(
   () => props.hoveredLaneId ?? null,
   (id) => {
-    if (id === hoveredLaneId.value) return;
+    if (id === trackHoveredLaneId.value) return;
     applyLaneHover(id);
     // Pointer path already paints in onPointerMove; gutter-driven updates need an explicit paint.
     schedulePaint();
@@ -498,7 +498,7 @@ function applyViewState(forceModel = false): void {
     overlay.setLayout(backend.getLayout());
     overlay.setView(props.view);
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
-    overlay.setHoveredLane(hoveredLaneId.value);
+    overlay.setHoveredLane(trackHoveredLaneId.value);
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSelectionMuted(true);
     overlay.setSearchQuery(props.searchQuery);
