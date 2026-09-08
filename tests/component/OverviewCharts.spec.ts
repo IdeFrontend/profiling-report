@@ -14,8 +14,8 @@ const series: OverviewSeries[] = [
     ],
   },
   {
-    id: 'SCALAR',
-    label: 'SCALAR',
+    id: 'VECTOR',
+    label: 'VECTOR',
     points: [
       { t: 0, v: 10 },
       { t: 2000, v: 80 },
@@ -31,9 +31,12 @@ describe('OverviewCharts', () => {
     expect(wrap.find('[data-testid="overview-charts"]').exists()).toBe(true);
     expect(wrap.text()).toContain('统计分析');
     expect(wrap.find('[data-series-id="CUBE"]').text()).toContain('CUBE');
-    expect(wrap.find('[data-series-id="SCALAR"]').text()).toContain('SCALAR');
+    expect(wrap.find('[data-series-id="VECTOR"]').text()).toContain('VECTOR');
     expect(wrap.find('.pr-overview-stroke').exists()).toBe(true);
     expect(wrap.find('.pr-overview-fill').exists()).toBe(true);
+    const strokes = wrap.findAll('.pr-overview-stroke');
+    expect(strokes[0]!.attributes('stroke')?.toLowerCase()).toBe('#3078f0');
+    expect(strokes[1]!.attributes('stroke')?.toLowerCase()).toBe('#56b19f');
   });
 
   it('PR-OV-002: SVG is 16px in a 24px lane with 8px top gap; 1px splitters', async () => {
@@ -68,7 +71,7 @@ describe('OverviewCharts', () => {
     const pins = wrap.findAll('[data-testid="overview-pin"]');
     expect(pins).toHaveLength(2);
     await pins[1]!.trigger('click');
-    expect(wrap.emitted('pin-overview')?.[0]).toEqual(['SCALAR']);
+    expect(wrap.emitted('pin-overview')?.[0]).toEqual(['VECTOR']);
     await pins[0]!.trigger('click');
     expect(wrap.emitted('unpin-overview')?.[0]).toEqual(['CUBE']);
   });

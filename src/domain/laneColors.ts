@@ -137,3 +137,57 @@ export function colorVarForLaneName(name: string): string {
   if (key === 'default') return colorForThread(name);
   return `var(--pr-color-${key})`;
 }
+
+/**
+ * Overview sparkline stroke lift from a pipe/base fill, in OKLCH.
+ *
+ * Same perceptual recipe as `eventFill`, smaller step: bright stroke over a darker
+ * fill (`fill-opacity ≈ 0.45` of the stroke). Cube uses a dedicated blue accent
+ * (`OVERVIEW_CUBE_STROKE`) — lifting pipe `cube` would stay cyan, not the sketch blue.
+ * Bases already at L ≥ 0.62 (e.g. mov purple) stay unchanged.
+ */
+export const OVERVIEW_STROKE_LIFT_L = 0.2;
+
+/** Dedicated Cube overview stroke (sketch / `--pr-color-overview-cube`). */
+export const OVERVIEW_CUBE_STROKE = '#3078F0';
+
+const MOV_HEX = '#B868F8';
+
+/** Bright overview stroke from a pipe/base hex. */
+export function overviewStrokeHex(baseHex: string): string {
+  const key = `${baseHex}|overview`;
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit;
+
+  const base = hexToOklch(baseHex);
+  let out = baseHex;
+  if (base && base.L < 0.62) {
+    out = oklchToHex({
+      L: Math.min(1, base.L + OVERVIEW_STROKE_LIFT_L),
+      C: base.C,
+      h: base.h,
+    });
+  }
+  memo.set(key, out);
+  return out;
+}
+
+/**
+ * Stroke hex for an overview series id/label (`CUBE`, `VECTOR`, `通信`, …).
+ * Fill uses the same colour at ~0.45 opacity.
+ */
+export function overviewSeriesStroke(name: string): string {
+  const key = name.toLowerCase();
+  if (key === 'cube') return OVERVIEW_CUBE_STROKE;
+  if (key.includes('通信') || key === 'comm' || key === 'communication') {
+    return overviewStrokeHex(MOV_HEX);
+  }
+  if (key === 'fixpipe') return overviewStrokeHex(LANE_COLOR_HEX.fixp);
+  if (key === 'vector') return overviewStrokeHex(LANE_COLOR_HEX.vector);
+  if (key === 'scalar') return overviewStrokeHex(LANE_COLOR_HEX.scalar);
+  if (key === 'mte1') return overviewStrokeHex(LANE_COLOR_HEX.mte1);
+  if (key === 'mte2') return overviewStrokeHex(LANE_COLOR_HEX.mte2);
+  if (key === 'mte3') return overviewStrokeHex(LANE_COLOR_HEX.mte3);
+  if (key === 'fixp') return overviewStrokeHex(LANE_COLOR_HEX.fixp);
+  return overviewStrokeHex(LANE_COLOR_HEX[laneColorKey(name)]);
+}

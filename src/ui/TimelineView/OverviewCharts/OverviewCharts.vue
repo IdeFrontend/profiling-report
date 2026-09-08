@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { overviewSeriesStroke } from '../../../domain/laneColors';
 import type { OverviewSeries } from '../../../domain/types';
 import { t } from '../../../i18n';
 import Chevron from '../../Chevron.vue';
@@ -104,20 +105,9 @@ function toggleCollapsed() {
   emit('update:collapsed', next);
 }
 
-/** Map counter name → stroke CSS color (fill uses same with opacity). */
+/** Map counter name → bright stroke hex (fill uses same at ~0.45 opacity). */
 function colorForName(name: string): string {
-  const key = name.toLowerCase();
-  if (key === 'cube') return 'var(--pr-color-overview-cube)';
-  if (key === 'vector') return 'var(--pr-color-vector)';
-  if (key === 'scalar') return 'var(--pr-color-scalar)';
-  if (key === 'mte1') return 'var(--pr-color-mte1)';
-  if (key === 'mte2') return 'var(--pr-color-mte2)';
-  if (key === 'mte3') return 'var(--pr-color-mte3)';
-  if (key === 'fixp' || key === 'fixpipe') return 'var(--pr-color-fixp)';
-  if (key.includes('通信') || key === 'comm' || key === 'communication') {
-    return 'var(--pr-color-mov)';
-  }
-  return 'var(--pr-color-default)';
+  return overviewSeriesStroke(name);
 }
 
 const x0 = computed(() => props.startTime);
