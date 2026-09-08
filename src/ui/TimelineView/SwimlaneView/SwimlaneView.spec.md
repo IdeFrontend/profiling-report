@@ -59,14 +59,13 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar (axis hover / shared playhead).
 8. **PR-SWIMVIEW-008** — Gutter resize handle pins to used grid column (`grid-column: 1 / 2`); track column uses `minmax(80px, 1fr)`.
 9. **PR-SWIMVIEW-009** — When the cursor is magnetized (`cursorSnapped`), the swim vertical bar renders gray (`.pr-swim-cursor--snapped`).
-<<<<<<< HEAD
 10. **PR-SWIMVIEW-010** — Expanded Card with available modes shows metric select in gutter column; collapsed hides it.
 11. **PR-SWIMVIEW-011** — Metric select change emits `update:gutter-metric`; does not emit `toggle-group`.
 12. **PR-SWIMVIEW-012** — Per-Card metric selection is independent.
 13. **PR-SWIMVIEW-013** — Non-empty **pinnedLaneIds** renders sticky pinned strip above scroll body.
 14. **PR-SWIMVIEW-014** — Pinned strip duplicates preserve lane ids and pin order.
 15. **PR-SWIMVIEW-015** — Original leaf rows remain in tree order below; unpin removes duplicate only.
-16. **PR-SWIMVIEW-016** — Pinned-strip canvas omits dependency link rendering.
+16. **PR-SWIMVIEW-016** — Pinned-strip canvas omits dependency link rendering (selection muting still applies; mute neighbors are strip-layout-local).
 17. **PR-SWIMVIEW-017** — `pinnedLaneIds` may span multiple Cards/groups; strip order follows pin order.
 18. **PR-SWIMVIEW-018** — Measure magnet follows the canvas under the pointer across pin strip and body (create/resize may start on one and snap on the other).
 19. **PR-SWIMVIEW-019** — Pinned strip stays populated when an ancestor of a pinned leaf is collapsed (`pinSourceModel` / full swim); scroll-body originals hide.
@@ -100,24 +99,8 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
-- **2026-09-03** — Card metric selector offers only **时钟周期** / **利用率** (cacheHit and task removed).
-=======
-10. **PR-SWIMVIEW-013** — Non-empty **pinnedLaneIds** renders sticky pinned strip above scroll body.
-11. **PR-SWIMVIEW-014** — Pinned strip duplicates preserve lane ids and pin order.
-12. **PR-SWIMVIEW-015** — Original leaf rows remain in tree order below; unpin removes duplicate only.
-13. **PR-SWIMVIEW-016** — Pinned-strip canvas omits dependency link rendering (selection muting still applies; mute neighbors are strip-layout-local).
-14. **PR-SWIMVIEW-017** — `pinnedLaneIds` may span multiple Cards/groups; strip order follows pin order.
-15. **PR-SWIMVIEW-018** — Measure magnet follows the canvas under the pointer across pin strip and body (create/resize may start on one and snap on the other).
-16. **PR-SWIMVIEW-019** — Pinned strip stays populated when an ancestor of a pinned leaf is collapsed (`pinSourceModel` / full swim); scroll-body originals hide.
-17. **PR-SWIMVIEW-020** — Alt event measure shares session across pin strip and body; each endpoint records the surface it was captured on so a body click on a pinned lane draws on the body instance (not the sticky duplicate). Cross-surface pairs use split sticks + Δt.
-18. **PR-SWIMVIEW-021** — When Alt-measure endpoints span pin strip and body, a dashed vertical bridge connects the two lane centers at the later edge (still drawn when either edge is outside the current time window; re-projects on gutter/body resize).
-19. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
-20. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
-21. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
-
-## Changelog
 - **2026-09-07** — Pinned strip applies selection gray-muting like the body; only dependency Beziers stay body-only (`PR-SWIMVIEW-016`).
->>>>>>> dd443682 (fix: gray out non-selected events on pinned lanes)
+- **2026-09-03** — Card metric selector offers only **时钟周期** / **利用率** (cacheHit and task removed).
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).
 - **2026-09-01** — No-pin scroll canvas uses `solo` Alt role so leave clears ephemeral preview (`PR-SWIMVIEW-024`).
