@@ -628,8 +628,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     // Coverage-AA intervals (analytical X) — additive (ONE, ONE, ONE, ONE): the FS emits straight
     // RGB × cov with alpha constant 1.0, so SRC_ALPHA ≡ ONE and each event adds full cov·dim·rgb.
-    // Safe because events within one lane never nest/intersect (mutually exclusive spans); each
-    // device pixel accumulates the coverage of all events across lanes.
+    // Safe because each sub-row mesh is mutually exclusive (multi-row layout); each device pixel
+    // accumulates the coverage of all events across lanes / sub-rows.
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
     gl.useProgram(swim.program);
@@ -907,7 +907,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const rows: SubRowMesh[] = [];
       const allEvents: LaidOutEvent[] = [];
       for (let r = 0; r < lane.rowCount; r++) {
-        const events = byRow.get(`${idx}:${r}`) ?? [];
+        // Chronological order so createChunksFromPairs → eventGapPrev/Next see time neighbors.
+        const events = [...(byRow.get(`${idx}:${r}`) ?? [])].sort(
+          (a, b) => a.event.startTime - b.event.startTime,
+        );
         allEvents.push(...events);
         const pairs: number[] = [];
         for (const item of events) {
@@ -963,7 +966,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const row = meshes.rows[rowIndex];
         if (!row) continue;
         const byKey = new Map<string, { rgb: [number, number, number]; dim: number; pairs: number[] }>();
-        for (const item of events) {
+        // Same chronological order as rebuildMeshes (gap math in createChunksFromPairs).
+        const sorted = [...events].sort((a, b) => a.event.startTime - b.event.startTime);
+        for (const item of sorted) {
           if (item.summary) continue;
           const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
           const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
