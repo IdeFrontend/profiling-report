@@ -582,6 +582,55 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(canvasSrc).not.toMatch(/strokeStyle\s*=\s*'#ffffff'/);
   });
 
+  it('PR-RENDER-023b: pinned-strip pass (paintDependencies false) still mutes non-neighbors', async () => {
+    const { eventFill, labelColorOn, colorForThread } = await import('../../src/domain/laneColors');
+    const base = colorForThread('AIV0/PIPE_V/status');
+
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-a',
+              name: 'AIV0/PIPE_V/status',
+              events: [{ id: 'sel', name: 'selected_evt', startTime: 0, duration: 200 }],
+            },
+            {
+              id: 't-b',
+              name: 'AIV0/PIPE_V/status',
+              events: [{ id: 'other', name: 'other_evt', startTime: 0, duration: 200 }],
+            },
+          ],
+        },
+      ],
+    };
+
+    const { canvas, fills, texts } = recordingCanvas();
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(model);
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setPaintDependencies(false);
+    renderer.setSelection('sel', null);
+    renderer.render();
+
+    expect(renderer.getNeighborIds().has('sel')).toBe(true);
+    expect(fills).toContain(SELECTION_MUTED_FILL);
+    expect(texts.get('other_evt')).toBe(SELECTION_MUTED_LABEL);
+    expect(fills).toContain(eventFill(base, 'selected'));
+    expect(texts.get('selected_evt')).toBe(labelColorOn(eventFill(base, 'selected')));
+
+    // ClearType label pass must mute on pin strip too (not gate on paintDependencies).
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).not.toMatch(/hasSelection = this\.paintDependencies &&/);
+  });
+
   it('PR-RENDER-035: ClearType mode still labels hovered/selected blocks via the overlay', async () => {
     const { eventFill, labelColorOn, colorForThread } = await import('../../src/domain/laneColors');
     const { SwimlaneOverlayPainter } = await import('../../src/swimlane/CanvasSwimlaneRenderer');

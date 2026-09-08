@@ -143,7 +143,7 @@ export class SwimlaneOverlayPainter {
   private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
   private searchQuery = '';
-  /** When false, selection does not mute non-neighbors (pinned-strip pass). */
+  /** When false, skip selection gray-muting (tests / overlays that opt out). */
   private selectionMuted = true;
   /** When false, the WebGL backend owns event labels (ClearType); overlay skips them. */
   private drawEventLabels = true;
@@ -397,7 +397,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
   }
 
-  /** When false, skip dependency curves and selection muting (pinned-strip pass). */
+  /** When false, skip dependency curves (pinned-strip pass). Selection muting still applies. */
   setPaintDependencies(enabled: boolean): void {
     if (enabled === this.paintDependencies) return;
     this.paintDependencies = enabled;
@@ -417,6 +417,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     return this.neighborIds;
   }
 
+  /** Cached curve geometry; empty when `setPaintDependencies(false)` (pinned-strip pass). */
+  getDepLinks(): readonly DependencyLink[] {
+    return this.depLinks;
+  }
+
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
     const item = findLaidOutEvent(this.layout, eventId);
     if (!item) return null;
@@ -432,14 +437,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   private refreshDepCache(): void {
-    if (!this.paintDependencies) {
-      this.neighborIds = new Set();
-      this.depLinks = [];
-      return;
-    }
+    // Neighbor ids drive selection muting on every surface (including the pinned strip).
+    // Curves stay body-only: drop link geometry when paintDependencies is false.
     const graph = dependencyGraph(this.layout, this.selectedId, this.depMode, this.depDepth);
     this.neighborIds = graph.ids;
-    this.depLinks = graph.links;
+    this.depLinks = this.paintDependencies ? graph.links : [];
   }
 
   render(): void {
@@ -482,7 +484,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
-    const hasSelection = this.paintDependencies && this.selectedId != null;
+    const hasSelection = this.selectedId != null;
     const bright = this.neighborIds;
     const visible: {
       item: LaidOutEvent;

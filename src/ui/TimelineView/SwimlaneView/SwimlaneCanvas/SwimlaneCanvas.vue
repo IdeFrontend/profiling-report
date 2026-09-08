@@ -59,7 +59,7 @@ const props = withDefaults(
     measureRange?: MeasureRange | null;
     dependencyMode?: DependencyMode;
     dependencyDepth?: number;
-    /** When false, skip dependency curves and selection muting (pinned strip). */
+    /** When false, skip dependency curves (pinned strip). Selection muting still applies. */
     showDependencies?: boolean;
     /** Force backend for perf A/B. Default auto prefers WebGL2 when available. */
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
@@ -478,7 +478,7 @@ function applyViewState(forceModel = false): void {
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
     overlay.setHoveredLane(hoveredLaneId.value);
     overlay.setNeighborIds(backend.getNeighborIds());
-    overlay.setSelectionMuted(props.showDependencies !== false);
+    overlay.setSelectionMuted(true);
     overlay.setSearchQuery(props.searchQuery);
   }
   refreshMeasureExactEdgeMarks(modelChanged);
