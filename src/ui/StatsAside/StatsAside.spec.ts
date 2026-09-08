@@ -550,9 +550,17 @@ describe('StatsAside', () => {
     });
     expect(wrapper.get('[data-testid="stats-compute-aic-score"]').text()).toContain('50');
     const core = wrapper.get('[data-testid="stats-core-util-card"]');
-    expect(core.text()).toMatch(/并行使用率|parallel/);
-    expect(core.text()).toMatch(/98\.14/);
-    expect(core.text()).toMatch(/93\.38|负载均衡|Load balance/);
+    expect(core.text()).toMatch(/AICore 并行使用率|AICore parallel/);
+    expect(wrapper.get('[data-testid="stats-aicore-util-score"]').text()).toMatch(/98\.14\s*%/);
+    expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').text()).toMatch(/93\.38\s*%/);
+    expect(wrapper.get('[data-testid="stats-aicore-util"]').text()).toMatch(/并行使用率|Parallel util/);
+    expect(wrapper.get('[data-testid="stats-aicore-balance"]').text()).toMatch(/负载均衡|Load balance/);
+    expect(wrapper.get('[data-testid="stats-aicore-util-bar"]').attributes('style')).toMatch(
+      /width:\s*98\.14/,
+    );
+    expect(wrapper.get('[data-testid="stats-aicore-balance-bar"]').classes()).toContain(
+      'pr-card__bar-fill--secondary',
+    );
   });
 
   it('PR-STATS-011b: BW-only summary hides compute/util placeholders', () => {

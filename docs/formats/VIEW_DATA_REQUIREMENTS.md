@@ -102,7 +102,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` peaks | **DATA-33h** (DATA-2..4, UI-33): `computeCard` with Cube/Vector (aic/aiv) sides when both measured and peak exist; else title + `N/A` when duration present — [DATA-33a](../context/decisions/interim/DATA.md) |
 | Bandwidth utilization tile | `Memory.csv` `ai*_main_mem_{read\|write}_bw(GB/s)` | Sketch **带宽利用率** **读 \| 写**. **Measured confirmed.** Display **GB/s** (UI-34). Peak 1600 GB/s still DATA-33g guess; aic/aiv → 读/写 aggregation OPEN |
-| AICore parallel util | TBD | **Placeholder** until Product formulas — title + `N/A` when duration is present (replaces former avg core util); omit when BW-only — [DATA-33a](../context/decisions/interim/DATA.md) |
+| AICore parallel util | `summary.jsonl` `OpInfoSummary` `aicore_parallel_utilization` / `aicore_parallel_balance` | **DATA-9 / DATA-10:** dual **并行使用率** \| **负载均衡度** `%` columns; title + `N/A` when duration present but both absent; omit when BW-only |
 | Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
 
