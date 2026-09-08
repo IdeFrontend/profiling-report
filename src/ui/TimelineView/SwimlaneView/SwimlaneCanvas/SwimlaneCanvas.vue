@@ -132,7 +132,7 @@ const emit = defineEmits<{
   'multi-select': [events: SwimEvent[]];
   /** Live marquee time extent for the axis Δt chrome; null when the drag ends or cancels. */
   'multi-select-span': [span: MeasureRange | null];
-  /** Ctrl+left-click toggled a single event in/out of multi-selection. */
+  /** Shift+left-click toggled a single event in/out of multi-selection. */
   'update-multi-selected': [ids: string[]];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   /** Lane under pointer Y — gutter header highlight (not pin). */
@@ -224,8 +224,10 @@ let measureDragOccurred = false;
  * the same press cannot pan or select.
  */
 let measurePressActive = false;
-/** True from Ctrl+pointerdown until pointerup — suppresses marquee and single select. */
+/** True from Ctrl+pointerdown until pointerup — Ctrl+left-drag pans. */
 let ctrlClickPending = false;
+/** True from Shift+pointerdown until pointerup — Shift+left-click toggles multi-selection. */
+let shiftTogglePending = false;
 const MEASURE_DRAG_THRESHOLD_PX = 4;
 /** Marquee (unmodified drag) multi-select — same 4px click-vs-drag gate as measure create. */
 const marqueeRect = ref<MarqueeRect | null>(null);
@@ -1822,6 +1824,8 @@ function onPointerDown(e: PointerEvent): void {
   measureDragOccurred = false;
   // Store Ctrl state — Ctrl suppresses marquee and single select in onPointerUp.
   ctrlClickPending = e.ctrlKey && e.button === 0;
+  // Store Shift state — Shift+left-click toggles multi-selection in onPointerUp.
+  shiftTogglePending = e.shiftKey && e.button === 0;
   // Measure mode owns the unmodified drag; otherwise it starts a marquee.
   if (props.measureMode && activeCanvas()) {
     endMarquee();
@@ -1977,30 +1981,30 @@ function onPointerUp(e: PointerEvent): void {
   }
   updateHoverGap(x, y, w);
 
-  // Ctrl+left-click within threshold: toggle event in multi-selection.
-  if (ctrlClickPending && Math.abs(e.clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX) {
-    // Use the same hit-test as a plain click (shortest-overlap) so Ctrl+click picks
+  // Shift+left-click within threshold: toggle event in multi-selection.
+  if (shiftTogglePending && Math.abs(e.clientX - downX) <= MEASURE_DRAG_THRESHOLD_PX) {
+    // Use the same hit-test as a plain click (shortest-overlap) so Shift+click picks
     // the event the user is actually pointing at, not the first in layout order.
     const hit = eventAtPointer(x, y, mag.eventId);
     if (hit) {
       const eventId = hit.id;
       // Seed with both the live multi-set and the current single selection: a plain
       // click on A leaves A in `selectedEventId` (not `multiSelectedIds`), so without
-      // the seed a follow-up Ctrl+click on B would toggle only B and silently drop A.
+      // the seed a follow-up Shift+click on B would toggle only B and silently drop A.
       const ids = new Set(props.multiSelectedIds ?? []);
       if (props.selectedEventId) ids.add(props.selectedEventId);
       if (ids.has(eventId)) ids.delete(eventId); else ids.add(eventId);
       emit('update-multi-selected', [...ids]);
       // Same commit path as a marquee release: ProfilingReport's `multi-select`
       // handler turns the full toggled set into viewState.multiSelectedIds, so
-      // Ctrl+click multi-selection behaves like a region (summary dock, span
+      // Shift+click multi-selection behaves like a region (summary dock, span
       // hull, single-selection dismiss, empty set clears).
       const toggled = [...ids]
         .map((id) => backend.findEvent(id))
         .filter((ev): ev is SwimEvent => ev != null);
       emit('multi-select', toggled);
     }
-    ctrlClickPending = false;
+    shiftTogglePending = false;
     return;
   }
 
@@ -2107,8 +2111,9 @@ function onPointerLeave(e: PointerEvent): void {
   // Shared strip→body session: leave on one canvas must not blank the sibling's target mid-crossing.
   // Solo keeps clearing ephemeral live preview on leave.
   if (!altMeasure.pinned && props.altMeasureRole === 'solo') altMeasure.target = null;
-  // Drop any pending Ctrl+click so a press that leaves the canvas never misfires on the next enter.
+  // Drop any pending Ctrl/Shift+click so a press that leaves the canvas never misfires on the next enter.
   ctrlClickPending = false;
+  shiftTogglePending = false;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);

@@ -4,7 +4,7 @@
 |----------------|
 | PR-MSEL-*      |
 
-The marquee multi-select summary dock. Mounted by ProfilingReport when a marquee (or Ctrl+click toggle set) commits a non-empty multi-selection; it is mutually exclusive with the single-select DetailPanel.
+The marquee multi-select summary dock. Mounted by ProfilingReport when a marquee (or Shift+click toggle set) commits a non-empty multi-selection; it is mutually exclusive with the single-select DetailPanel.
 
 ## Inputs
 

@@ -59,7 +59,7 @@ Sketch: [`v930/task-marquee`](./source/v930/task-marquee.jpeg)
 - **Δt chrome:** the viewport time axis shows the same measure UI (blue edge bars + double-sided Δt arrow + duration) over the marquee's time extent while dragging, then over the committed selection **hull** (`[min(starts), max(ends)]`), until the selection clears. Same geometry as measure — not a second style.
 - Selected events keep full opacity; the rest dim through the same path single-click selection uses (0.45).
 - Summary table: count header + per-event Slices table ([MultiSelectSummary](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md)).
-- Additive Shift/Ctrl-click selection is **not** implemented (YAGNI); the marquee is the multi-select gesture.
+- Additive **Shift+click** toggles a single event in/out of the selection; the marquee remains the bulk multi-select gesture.
 
 **Phase 2 — implemented.**
 

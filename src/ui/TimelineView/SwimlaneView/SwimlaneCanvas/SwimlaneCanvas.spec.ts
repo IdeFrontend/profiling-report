@@ -2080,17 +2080,17 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-086: Ctrl+left-click on event toggles multi-selection (add)', async () => {
+  it('PR-CANVAS-086: Shift+left-click on event toggles multi-selection (add)', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
     };
     const rect = vm.eventScreenRect('e1')!;
     const y = rect.y + rect.h / 2;
-    // Ctrl+pointerdown
-    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    // Shift+pointerdown
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, shiftKey: true });
     // No drag (within threshold)
-    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 1, shiftKey: true });
     await wrapper.vm.$nextTick();
     // Should have emitted update-multi-selected with [['e1']]
     const emitted = wrapper.emitted('update-multi-selected') as unknown[][];
@@ -2105,24 +2105,24 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-XXX: Ctrl+left-click on selected event removes from multi-selection', async () => {
+  it('PR-CANVAS-XXX: Shift+left-click on selected event removes from multi-selection', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
     };
     const rect = vm.eventScreenRect('e1')!;
     const y = rect.y + rect.h / 2;
-    // First Ctrl+click to add
-    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
-    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    // First Shift+click to add
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, shiftKey: true });
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 1, shiftKey: true });
     await wrapper.vm.$nextTick();
     const emitted2 = wrapper.emitted('update-multi-selected') as unknown[][];
     expect(emitted2).toHaveLength(1);
     expect(emitted2[0]).toEqual([['e1']]);
-    // Second Ctrl+click to remove — simulate parent updating the prop
+    // Second Shift+click to remove — simulate parent updating the prop
     await wrapper.setProps({ multiSelectedIds: ['e1'] });
-    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 2, ctrlKey: true });
-    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 2, ctrlKey: true });
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 2, shiftKey: true });
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 2, shiftKey: true });
     await wrapper.vm.$nextTick();
     const emitted3 = wrapper.emitted('update-multi-selected') as unknown[][];
     expect(emitted3).toHaveLength(2);
@@ -2136,28 +2136,28 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-XXX: Ctrl+left-click on empty space does nothing', async () => {
+  it('PR-CANVAS-XXX: Shift+left-click on empty space does nothing', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     // Click somewhere with no event (assuming top-left corner is empty)
-    await canvas.trigger('pointerdown', { clientX: 0, clientY: 0, pointerId: 1, ctrlKey: true });
-    await canvas.trigger('pointerup', { clientX: 0, clientY: 0, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointerdown', { clientX: 0, clientY: 0, pointerId: 1, shiftKey: true });
+    await canvas.trigger('pointerup', { clientX: 0, clientY: 0, pointerId: 1, shiftKey: true });
     await wrapper.vm.$nextTick();
     const emitted = wrapper.emitted('update-multi-selected');
     expect(emitted).toBeFalsy();
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-XXX: Ctrl+down that leaves the canvas does not toggle on the next up', async () => {
+  it('PR-CANVAS-XXX: Shift+down that leaves the canvas does not toggle on the next up', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
     };
     const rect = vm.eventScreenRect('e1')!;
     const y = rect.y + rect.h / 2;
-    // Ctrl+pointerdown, then leave the canvas (no pointerup). Flag must clear.
-    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, ctrlKey: true });
+    // Shift+pointerdown, then leave the canvas (no pointerup). Flag must clear.
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, shiftKey: true });
     await canvas.trigger('pointerleave', { clientX: rect.x, clientY: y, pointerId: 1 });
-    // Next press is plain — must not be misread as Ctrl toggle.
+    // Next press is plain — must not be misread as Shift toggle.
     await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 2 });
     await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 2 });
     await wrapper.vm.$nextTick();
@@ -2165,9 +2165,9 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-087: Ctrl+left-click after a plain click seeds the multi-set with the single-selected event', async () => {
+  it('PR-CANVAS-087: Shift+left-click after a plain click seeds the multi-set with the single-selected event', async () => {
     // Two distinct events so a buggy impl (toggling only the clicked id) can be observed.
-    // The user's bug: select A (single), Ctrl+click B, expect {A,B}, get {B}.
+    // The user's bug: select A (single), Shift+click B, expect {A,B}, get {B}.
     const twoEventModel = {
       minTime: 0,
       maxTime: 1000,
@@ -2217,9 +2217,9 @@ describe('SwimlaneCanvas', () => {
     };
     const rectE2 = vm.eventScreenRect('e2')!;
     const y = rectE2.y + rectE2.h / 2;
-    // Ctrl+click e2 while e1 is the single selection. Result must include BOTH.
-    await canvas.trigger('pointerdown', { clientX: rectE2.x, clientY: y, pointerId: 1, ctrlKey: true });
-    await canvas.trigger('pointerup', { clientX: rectE2.x, clientY: y, pointerId: 1, ctrlKey: true });
+    // Shift+click e2 while e1 is the single selection. Result must include BOTH.
+    await canvas.trigger('pointerdown', { clientX: rectE2.x, clientY: y, pointerId: 1, shiftKey: true });
+    await canvas.trigger('pointerup', { clientX: rectE2.x, clientY: y, pointerId: 1, shiftKey: true });
     await wrapper.vm.$nextTick();
     const emitted = wrapper.emitted('update-multi-selected') as unknown[][];
     expect(emitted).toHaveLength(1);

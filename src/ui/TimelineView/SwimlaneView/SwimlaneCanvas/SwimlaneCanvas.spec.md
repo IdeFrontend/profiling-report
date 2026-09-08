@@ -12,7 +12,7 @@ Vue wrapper around `CanvasSwimlaneRenderer`. Translates mouse/touch events into 
 
 ## Outputs
 
-Eight interaction events: **select** fires with a `SwimEvent` (or null) on click (post-4px-gate). **multi-select** fires with the `SwimEvent[]` a marquee captured, on its pointerup; a Ctrl+left-click toggle also commits through it, with the full post-toggle set (empty when the last event is removed). **multi-select-span** fires with the live marquee's time extent while it is dragged (and `null` when it ends), so the axis can draw Δt chrome. **hover** fires on pointermove with the hovered event plus `clientX`/`clientY` for tooltip positioning. **cursor** fires with `{ time, xRatio }` for playhead placement. **pan** fires with a time-unit delta on Shift+wheel / trackpad horizontal scroll. **zoom** fires with `[factor, anchorTime]` on Ctrl+wheel. **scroll-y** fires with the vertical scroll offset. **set-playhead** fires with a time value on every pointerdown (before the 4px drag gate, before hit test). The parent ProfilingReport translates all of these into viewport state changes.
+Eight interaction events: **select** fires with a `SwimEvent` (or null) on click (post-4px-gate). **multi-select** fires with the `SwimEvent[]` a marquee captured, on its pointerup; a Shift+left-click toggle also commits through it, with the full post-toggle set (empty when the last event is removed). **multi-select-span** fires with the live marquee's time extent while it is dragged (and `null` when it ends), so the axis can draw Δt chrome. **hover** fires on pointermove with the hovered event plus `clientX`/`clientY` for tooltip positioning. **cursor** fires with `{ time, xRatio }` for playhead placement. **pan** fires with a time-unit delta on Shift+wheel / trackpad horizontal scroll. **zoom** fires with `[factor, anchorTime]` on Ctrl+wheel. **scroll-y** fires with the vertical scroll offset. **set-playhead** fires with a time value on every pointerdown (before the 4px drag gate, before hit test). The parent ProfilingReport translates all of these into viewport state changes.
 
 ## Behavior
 
@@ -116,8 +116,8 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 83. **PR-CANVAS-083** — In `measureMode`, drag measures and never marquees.
 84. **PR-CANVAS-084** — Live marquee emits its time extent as `multi-select-span`; end/cancel emits null.
 85. **PR-CANVAS-085** — While the rect is live, the events it currently covers are pushed to `setMultiSelection` so they stay bright and the rest dim; the preview is dropped on commit/cancel.
-86. **PR-CANVAS-086** — Ctrl+left-click toggles an event in/out of multi-selection and commits the full result through `multi-select` (the marquee commit path); removing the last event commits an empty array.
-87. **PR-CANVAS-087** — Ctrl+left-click after a plain single-select seeds the toggle set with the current single selection, so a user who picks A and Ctrl+clicks B ends up with {A, B} (not just B).
+86. **PR-CANVAS-086** — Shift+left-click toggles an event in/out of multi-selection and commits the full result through `multi-select` (the marquee commit path); removing the last event commits an empty array.
+87. **PR-CANVAS-087** — Shift+left-click after a plain single-select seeds the toggle set with the current single selection, so a user who picks A and Shift+clicks B ends up with {A, B} (not just B).
 
 ## Edge Cases
 
@@ -156,6 +156,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 - **2026-09-09** — Alt-measure anchor/pinned borders are white (`rgba(255,255,255)`); ephemeral hover target stays blue (`PR-CANVAS-045`/`055`/`061`).
 - **2026-09-08** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-072`/`073`).
 - **2026-09-07** — Inbound `hoveredLaneId` drives track `setHoveredLane` without re-emitting (gutter→track AC-07); PR-CANVAS-071.
+- **2026-09-08** — Multi-select toggle moved from Ctrl+left-click to Shift+left-click; Ctrl+left-drag pan unchanged (`PR-CANVAS-086`/`087`).
 - **2026-09-07** — Frozen hit-test / eventScreenRect map CSS↔device buffer (`PR-CANVAS-070`).
 - **2026-09-07** — Freeze device backing store while the aside grid track tweens; CSS-stretch then one thaw resize (`PR-CANVAS-069`).
 - **2026-09-07** — Summary-bar expand selects the sole leaf when `taskCount === 1` (`sourceEvent`); multi-task summaries still clear selection (`PR-CANVAS-065`).
