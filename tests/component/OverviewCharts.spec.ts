@@ -36,7 +36,7 @@ describe('OverviewCharts', () => {
     expect(wrap.find('.pr-overview-fill').exists()).toBe(true);
   });
 
-  it('PR-OV-002: SVG viewBox height is 16; tracks use 1px lane-style splitters', () => {
+  it('PR-OV-002: SVG viewBox height is 16; tracks use 1px lane-style splitters', async () => {
     const wrap = mount(OverviewCharts, {
       props: { series, startTime: 0, endTime: 2000 },
     });
@@ -45,12 +45,8 @@ describe('OverviewCharts', () => {
     for (const svg of svgs) {
       expect(svg.attributes('viewBox')).toBe('0 0 1000 16');
     }
-    const { readFileSync } = require('node:fs') as typeof import('node:fs');
-    const { join } = require('node:path') as typeof import('node:path');
-    const src = readFileSync(
-      join(__dirname, '../../src/ui/TimelineView/OverviewCharts/OverviewCharts.vue'),
-      'utf8',
-    );
+    const src = (await import('../../src/ui/TimelineView/OverviewCharts/OverviewCharts.vue?raw'))
+      .default as string;
     expect(src).toMatch(/\.pr-overview-track\s*\{[^}]*border-bottom:\s*1px solid/);
     expect(src).not.toMatch(/\.pr-overview-track\s*\{[^}]*margin-bottom:\s*8px/);
   });
