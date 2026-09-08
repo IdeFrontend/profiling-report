@@ -36,7 +36,7 @@ describe('OverviewCharts', () => {
     expect(wrap.find('.pr-overview-fill').exists()).toBe(true);
   });
 
-  it('PR-OV-002: SVG viewBox height is 16 (track paint height)', () => {
+  it('PR-OV-002: SVG viewBox height is 16; tracks use 1px lane-style splitters', () => {
     const wrap = mount(OverviewCharts, {
       props: { series, startTime: 0, endTime: 2000 },
     });
@@ -45,6 +45,14 @@ describe('OverviewCharts', () => {
     for (const svg of svgs) {
       expect(svg.attributes('viewBox')).toBe('0 0 1000 16');
     }
+    const { readFileSync } = require('node:fs') as typeof import('node:fs');
+    const { join } = require('node:path') as typeof import('node:path');
+    const src = readFileSync(
+      join(__dirname, '../../src/ui/TimelineView/OverviewCharts/OverviewCharts.vue'),
+      'utf8',
+    );
+    expect(src).toMatch(/\.pr-overview-track\s*\{[^}]*border-bottom:\s*1px solid/);
+    expect(src).not.toMatch(/\.pr-overview-track\s*\{[^}]*margin-bottom:\s*8px/);
   });
 
   it('PR-OV-005: pin click emits pin-overview / unpin-overview', async () => {
@@ -116,16 +124,37 @@ describe('OverviewCharts', () => {
     wrap.unmount();
   });
 
-  it('PR-OV-006: header and gutter hover do not emit cursor', async () => {
+  it('PR-OV-006: header-track emits cursor; gutter does not', async () => {
     const wrap = mount(OverviewCharts, {
       props: { series, startTime: 0, endTime: 2000 },
     });
+    const headerTrack = wrap.get('[data-testid="overview-header-track"]');
+    const el = headerTrack.element as HTMLElement;
+    el.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        width: 1000,
+        top: 0,
+        height: 28,
+        right: 1000,
+        bottom: 28,
+        x: 0,
+        y: 0,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    await headerTrack.trigger('pointermove', { clientX: 250, clientY: 10 });
+    const payload = wrap.emitted('cursor')?.at(-1)?.[0] as { xRatio: number };
+    expect(payload.xRatio).toBeCloseTo(0.25);
+    expect(wrap.find('[data-testid="overview-value-dot"]').exists()).toBe(false);
+
+    const before = wrap.emitted('cursor')!.length;
     await wrap.get('.pr-overview-header').trigger('pointermove', { clientX: 10, clientY: 10 });
-    await wrap.get('.pr-overview-header-track').trigger('pointermove', { clientX: 400, clientY: 10 });
     await wrap
       .get('[data-series-id="CUBE"] .pr-overview-gutter-cell')
       .trigger('pointermove', { clientX: 10, clientY: 20 });
-    expect(wrap.emitted('cursor')).toBeUndefined();
+    expect(wrap.emitted('cursor')!.length).toBe(before);
   });
 
   it('PR-OV-007: wheel emits wheel; chart drag emits pan', async () => {
@@ -170,5 +199,21 @@ describe('OverviewCharts', () => {
     await col.trigger('pointerdown', { clientX: 100, button: 0, pointerId: 1 });
     await col.trigger('pointermove', { clientX: 200, button: 0, pointerId: 1 });
     expect(wrap.emitted('pan')).toBeUndefined();
+  });
+
+  it('PR-OV-008: header click collapses tracks and emits update:collapsed', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+    });
+    expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
+    const header = wrap.get('[data-testid="overview-header"]');
+    expect(header.attributes('aria-expanded')).toBe('true');
+    await header.trigger('click');
+    expect(wrap.emitted('update:collapsed')?.[0]).toEqual([true]);
+    expect(wrap.findAll('[data-series-id]')).toHaveLength(0);
+    expect(header.attributes('aria-expanded')).toBe('false');
+    await header.trigger('click');
+    expect(wrap.emitted('update:collapsed')?.[1]).toEqual([false]);
+    expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
   });
 });

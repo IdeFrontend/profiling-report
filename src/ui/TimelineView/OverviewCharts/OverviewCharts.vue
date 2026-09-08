@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { OverviewSeries } from '../../../domain/types';
 import { t } from '../../../i18n';
+import Chevron from '../../Chevron.vue';
 import PinIcon from '../../PinIcon.vue';
+import {
+  LANE_GROUP_HEADER_FILL,
+  LANE_GROUP_HEADER_HOVER,
+} from '../../../swimlane/layout';
 import {
   areaPathFromVertices,
   stepAfterVertices,
   stepValueAt,
   strokePathFromVertices,
 } from './stepPath';
-import { OVERVIEW_TRACK_H } from './overviewLayout';
+import { OVERVIEW_HEADER_H, OVERVIEW_TRACK_H } from './overviewLayout';
 
 const props = withDefaults(
   defineProps<{
@@ -35,6 +40,8 @@ const props = withDefaults(
     cursorTime?: number | null;
     /** When true, drag creates measure on the swimlane — do not pan from overview. */
     measureMode?: boolean;
+    /** Controlled collapse (section variant); omit for internal default expanded. */
+    collapsed?: boolean;
   }>(),
   {
     gutterWidth: 280,
@@ -45,6 +52,7 @@ const props = withDefaults(
     cursorSnapped: false,
     cursorTime: null,
     measureMode: false,
+    collapsed: undefined,
   },
 );
 
@@ -56,6 +64,7 @@ const emit = defineEmits<{
   wheel: [event: WheelEvent];
   /** Horizontal drag-pan (same sign as swimlane canvas). */
   pan: [deltaTime: number];
+  'update:collapsed': [collapsed: boolean];
 }>();
 
 const VIEW_W = 1000;
@@ -69,10 +78,31 @@ const pinHoverId = ref<string | null>(null);
 const hoverSeriesId = ref<string | null>(null);
 /** Local ns under chart pointer — tip/dot without waiting for parent echo. */
 const hoverTimeNs = ref<number | null>(null);
+/** Local x ratio for the value dot (full 16px hit target, not parent echo). */
+const hoverXRatio = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
 /** Chart-column drag-pan (mirrors SwimlaneCanvas non-measure drag). */
 const dragging = ref(false);
 let lastDragX = 0;
+
+/** Internal collapse when parent does not control `collapsed`. */
+const localCollapsed = ref(false);
+const isCollapsed = computed(() =>
+  props.collapsed !== undefined ? props.collapsed : localCollapsed.value,
+);
+
+watch(
+  () => props.collapsed,
+  (v) => {
+    if (v !== undefined) localCollapsed.value = v;
+  },
+);
+
+function toggleCollapsed() {
+  const next = !isCollapsed.value;
+  localCollapsed.value = next;
+  emit('update:collapsed', next);
+}
 
 /** Map counter name → stroke CSS color (fill uses same with opacity). */
 function colorForName(name: string): string {
@@ -140,12 +170,13 @@ function timeAtClientX(clientX: number, el: HTMLElement): { time: number; xRatio
   return { time, xRatio };
 }
 
-/** Chart column only — gutter / section header must not drive the playhead. */
+/** Chart column only — gutter labels must not drive the playhead. */
 function updateChartHover(seriesId: string, e: PointerEvent) {
   const el = e.currentTarget as HTMLElement;
   const { time, xRatio } = timeAtClientX(e.clientX, el);
   hoverSeriesId.value = seriesId;
   hoverTimeNs.value = time;
+  hoverXRatio.value = xRatio;
   tipPos.value = { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` };
   emit('cursor', { time, xRatio, snapped: false });
 }
@@ -179,16 +210,46 @@ function onChartPointerUp(e: PointerEvent) {
   }
 }
 
-function onChartPointerLeave(e: PointerEvent) {
-  if (dragging.value) return;
-  const next = e.relatedTarget as Node | null;
-  const root = (e.currentTarget as HTMLElement).closest('.pr-overview-charts');
-  // Moving into another chart column — keep playhead; next move updates tip.
-  if (next && root?.contains(next) && (next as Element).closest?.('.pr-overview-chart-col')) {
-    return;
-  }
+function clearTipOnly() {
   hoverSeriesId.value = null;
   hoverTimeNs.value = null;
+  hoverXRatio.value = null;
+}
+
+function onChartPointerLeave(e: PointerEvent) {
+  if (dragging.value) return;
+  const next = e.relatedTarget as Element | null;
+  const root = (e.currentTarget as HTMLElement).closest('.pr-overview-charts');
+  if (next && root?.contains(next)) {
+    // Another chart column — keep tip ownership until its move handler runs.
+    if (next.closest?.('.pr-overview-chart-col')) return;
+    // Header track / inter-track gap in the chart column — keep playhead, drop tip/dot.
+    clearTipOnly();
+    if (next.closest?.('.pr-overview-gutter-cell')) {
+      emit('cursor', null);
+    }
+    return;
+  }
+  clearTipOnly();
+  emit('cursor', null);
+}
+
+/**
+ * Empty chart-column band under the axis (统计分析 header row) — drive playhead with
+ * real xRatio so the stem stays continuous; no series tip/dot.
+ */
+function onHeaderTrackPointerMove(e: PointerEvent) {
+  const el = e.currentTarget as HTMLElement;
+  const { time, xRatio } = timeAtClientX(e.clientX, el);
+  clearTipOnly();
+  emit('cursor', { time, xRatio, snapped: false });
+}
+
+function onHeaderTrackPointerLeave(e: PointerEvent) {
+  const next = e.relatedTarget as Element | null;
+  const root = (e.currentTarget as HTMLElement).closest('.pr-overview-charts');
+  if (next && root?.contains(next) && next.closest?.('.pr-overview-chart-col')) return;
+  if (next && root?.contains(next) && !next.closest?.('.pr-overview-gutter-cell')) return;
   emit('cursor', null);
 }
 
@@ -213,6 +274,8 @@ const tipValue = computed(() => {
 
 const showTip = computed(() => tipTrack.value != null && tipValue.value != null);
 
+const dotXRatio = computed(() => hoverXRatio.value ?? props.cursorXRatio ?? null);
+
 function dotTopPercent(track: { maxV: number }, value: number): number {
   const maxV = track.maxV > 0 ? track.maxV : 1;
   return (1 - value / maxV) * 100;
@@ -223,101 +286,122 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
   <div
     :data-testid="isStrip ? 'pinned-overview-charts' : 'overview-charts'"
     class="pr-overview-charts"
-    :class="{ 'pr-overview-charts--strip': isStrip }"
+    :class="{
+      'pr-overview-charts--strip': isStrip,
+      'pr-overview-charts--collapsed': !isStrip && isCollapsed,
+    }"
     role="group"
     :aria-label="isStrip ? undefined : sectionTitle"
-    :style="{ '--pr-overview-gutter': `${gutterWidth}px` }"
+    :style="{
+      '--pr-overview-gutter': `${gutterWidth}px`,
+      '--pr-overview-header-fill': LANE_GROUP_HEADER_FILL,
+      '--pr-overview-header-hover': LANE_GROUP_HEADER_HOVER,
+      '--pr-overview-header-h': `${OVERVIEW_HEADER_H}px`,
+    }"
     @wheel="onChartsWheel"
   >
     <div
       v-if="!isStrip"
       class="pr-overview-header"
+      data-testid="overview-header"
+      role="button"
+      tabindex="0"
+      :aria-expanded="!isCollapsed"
+      :aria-label="sectionTitle"
+      @click="toggleCollapsed"
+      @keydown.enter.prevent="toggleCollapsed"
+      @keydown.space.prevent="toggleCollapsed"
     >
       <div class="pr-overview-gutter-cell pr-overview-gutter-cell--header">
-        <span
+        <Chevron
           class="pr-overview-chevron"
-          aria-hidden="true"
-        >▾</span>
+          :expanded="!isCollapsed"
+        />
         <span class="pr-overview-header-label">{{ sectionTitle }}</span>
       </div>
       <div
         class="pr-overview-header-track"
+        data-testid="overview-header-track"
         aria-hidden="true"
+        @pointermove="onHeaderTrackPointerMove"
+        @pointerleave="onHeaderTrackPointerLeave"
       />
     </div>
 
-    <div
-      v-for="track in tracks"
-      :key="track.id"
-      class="pr-overview-track"
-      :class="{ 'pr-overview-track--pinned': track.isPinned }"
-      :data-series-id="track.id"
-    >
-      <div class="pr-overview-gutter-cell">
-        <button
-          type="button"
-          class="pr-overview-pin"
-          data-testid="overview-pin"
-          :aria-label="pinLabel"
-          :aria-pressed="track.isPinned"
-          @click="onPinClick(track.id, track.isPinned, $event)"
-          @pointerenter="pinHoverId = track.id"
-          @pointerleave="pinHoverId = null"
-          @focus="pinHoverId = track.id"
-          @blur="pinHoverId = null"
-        >
-          <PinIcon :filled="track.isPinned || pinHoverId === track.id" />
-          <span
-            v-if="pinHoverId === track.id"
-            class="pr-overview-pin-tip"
-            role="tooltip"
-          >{{ pinLabel }}</span>
-        </button>
-        <span class="pr-overview-label">{{ track.label }}</span>
-      </div>
+    <template v-if="isStrip || !isCollapsed">
       <div
-        class="pr-overview-chart-col"
-        data-testid="overview-chart-col"
-        @pointerdown="onChartPointerDown"
-        @pointermove="onChartPointerMove(track.id, $event)"
-        @pointerup="onChartPointerUp"
-        @pointercancel="onChartPointerUp"
-        @pointerleave="onChartPointerLeave"
+        v-for="track in tracks"
+        :key="track.id"
+        class="pr-overview-track"
+        :class="{ 'pr-overview-track--pinned': track.isPinned }"
+        :data-series-id="track.id"
       >
-        <svg
-          class="pr-overview-svg"
-          :viewBox="`0 0 ${VIEW_W} ${TRACK_H}`"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <path
-            class="pr-overview-fill"
-            :d="areaPath(track.points, track.maxV)"
-            :fill="track.color"
-          />
-          <path
-            class="pr-overview-stroke"
-            :d="strokePath(track.points, track.maxV)"
-            :stroke="track.color"
-            fill="none"
-          />
-        </svg>
+        <div class="pr-overview-gutter-cell">
+          <button
+            type="button"
+            class="pr-overview-pin"
+            data-testid="overview-pin"
+            :aria-label="pinLabel"
+            :aria-pressed="track.isPinned"
+            @click="onPinClick(track.id, track.isPinned, $event)"
+            @pointerenter="pinHoverId = track.id"
+            @pointerleave="pinHoverId = null"
+            @focus="pinHoverId = track.id"
+            @blur="pinHoverId = null"
+          >
+            <PinIcon :filled="track.isPinned || pinHoverId === track.id" />
+            <span
+              v-if="pinHoverId === track.id"
+              class="pr-overview-pin-tip"
+              role="tooltip"
+            >{{ pinLabel }}</span>
+          </button>
+          <span class="pr-overview-label">{{ track.label }}</span>
+        </div>
         <div
-          v-if="
-            hoverSeriesId === track.id &&
-              tipValue != null &&
-              cursorXRatio != null
-          "
-          class="pr-overview-value-dot"
-          data-testid="overview-value-dot"
-          :style="{
-            left: `${cursorXRatio * 100}%`,
-            top: `${dotTopPercent(track, tipValue)}%`,
-            background: track.color,
-          }"
-        />
+          class="pr-overview-chart-col"
+          data-testid="overview-chart-col"
+          @pointerdown="onChartPointerDown"
+          @pointermove="onChartPointerMove(track.id, $event)"
+          @pointerup="onChartPointerUp"
+          @pointercancel="onChartPointerUp"
+          @pointerleave="onChartPointerLeave"
+        >
+          <svg
+            class="pr-overview-svg"
+            :viewBox="`0 0 ${VIEW_W} ${TRACK_H}`"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path
+              class="pr-overview-fill"
+              :d="areaPath(track.points, track.maxV)"
+              :fill="track.color"
+            />
+            <path
+              class="pr-overview-stroke"
+              :d="strokePath(track.points, track.maxV)"
+              :stroke="track.color"
+              fill="none"
+            />
+          </svg>
+          <div
+            v-if="
+              hoverSeriesId === track.id &&
+                tipValue != null &&
+                dotXRatio != null
+            "
+            class="pr-overview-value-dot"
+            data-testid="overview-value-dot"
+            :style="{
+              left: `${dotXRatio * 100}%`,
+              top: `${dotTopPercent(track, tipValue)}%`,
+              background: track.color,
+            }"
+          />
+        </div>
       </div>
-    </div>
+    </template>
 
     <Teleport to="body">
       <div
@@ -342,12 +426,9 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
   min-height: 0;
   background: var(--pr-bg-deep, #1f1f1f);
   border-bottom: 1px solid var(--pr-divider, #3a3a3a);
-  padding-bottom: 4px;
 }
 
 .pr-overview-charts--strip {
-  padding-top: 4px;
-  padding-bottom: 4px;
   z-index: 6;
 }
 
@@ -357,21 +438,27 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
   grid-template-columns: minmax(0, var(--pr-overview-gutter, 280px)) minmax(80px, 1fr);
   align-items: center;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 .pr-overview-header {
-  height: 28px;
-  min-height: 28px;
+  height: var(--pr-overview-header-h, 40px);
+  min-height: var(--pr-overview-header-h, 40px);
+  background: var(--pr-overview-header-fill, #2a2a2a);
+  border-bottom: 1px solid var(--pr-divider, #3a3a3a);
+  color: #e6e6e6;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pr-overview-header:hover {
+  background: var(--pr-overview-header-hover, #323232);
 }
 
 .pr-overview-track {
   height: 16px;
   min-height: 16px;
-  margin-bottom: 8px;
-}
-
-.pr-overview-track:last-child {
-  margin-bottom: 8px;
+  border-bottom: 1px solid var(--pr-divider, #3a3a3a);
 }
 
 .pr-overview-gutter-cell {
@@ -386,7 +473,7 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
 }
 
 .pr-overview-gutter-cell--header {
-  padding-left: 12px;
+  padding-left: 8px;
   gap: 6px;
 }
 
@@ -439,15 +526,14 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
 }
 
 .pr-overview-chevron {
-  font-size: 10px;
-  color: #fff;
-  line-height: 1;
+  flex: 0 0 auto;
 }
 
 .pr-overview-header-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 22px;
+  color: #e6e6e6;
   white-space: nowrap;
 }
 
@@ -461,6 +547,8 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
 
 .pr-overview-header-track {
   height: 100%;
+  touch-action: none;
+  cursor: default;
 }
 
 .pr-overview-chart-col {
@@ -476,6 +564,8 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
   width: 100%;
   height: 16px;
   overflow: visible;
+  /* Hit target is the 16px chart column — not only painted fill/stroke pixels. */
+  pointer-events: none;
 }
 
 .pr-overview-fill {

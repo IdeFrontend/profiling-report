@@ -190,8 +190,10 @@ const scrollOverviewSeries = computed(() =>
     : [],
 );
 
+const overviewCollapsed = ref(false);
+
 const overviewContentPad = computed(() =>
-  overviewSectionHeightPx(scrollOverviewSeries.value.length),
+  overviewSectionHeightPx(scrollOverviewSeries.value.length, overviewCollapsed.value),
 );
 
 
@@ -570,11 +572,13 @@ defineExpose({
         :cursor-snapped="cursorSnapped"
         :cursor-time="cursorTimeNs"
         :measure-mode="measureMode"
+        :collapsed="overviewCollapsed"
         @pin-overview="emit('pin-overview', $event)"
         @unpin-overview="emit('unpin-overview', $event)"
         @cursor="onCursor"
         @wheel="onOverviewWheel"
         @pan="emit('pan', $event)"
+        @update:collapsed="overviewCollapsed = $event"
       />
 
       <button

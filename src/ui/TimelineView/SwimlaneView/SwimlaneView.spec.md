@@ -34,7 +34,7 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim body (below overview/axis chrome, above the scrolling lane body) renders **duplicate** leaf rows for each pinned id, in pin order. Original rows stay in the main scroll model at their tree positions.
 
-When **pinnedOverviewIds** is non-empty, a sticky **OverviewCharts** strip (`variant=strip`) renders **below** the lane pin strip and **above** the scrolling body, in overview pin order (PyPTO counter-thread pin parity). Unpinned 统计分析 tracks live at the top of the scroll body and move with `scrollY`. Wheel over overview (scroll or sticky) is forwarded to the body canvas `handleWheel` (same scroll / trackpad pan / Ctrl+zoom as Card strips); chart-column drag emits `pan`.
+When **pinnedOverviewIds** is non-empty, a sticky **OverviewCharts** strip (`variant=strip`) renders **below** the lane pin strip and **above** the scrolling body, in overview pin order (PyPTO counter-thread pin parity). Unpinned 统计分析 tracks live at the top of the scroll body under a Card-like collapsible header and move with `scrollY`. Wheel over overview (scroll or sticky) is forwarded to the body canvas `handleWheel` (same scroll / trackpad pan / Ctrl+zoom as Card strips); chart-column drag emits `pan`. Collapse updates body `contentTopPad`.
 
 | Concern | Behavior |
 |---------|----------|
