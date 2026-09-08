@@ -6,7 +6,6 @@ import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
   type MeasureRange,
-  type OverviewSeries,
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
@@ -21,7 +20,6 @@ import MeasureDtArrow from './MeasureDtArrow.vue';
 import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
 import type { GutterMetric } from '../../domain/gutterMetrics';
-import OverviewCharts from './OverviewCharts/OverviewCharts.vue';
 import {
   CURSOR_LABEL_MIN_WIDTH_PX,
   MEASURE_ARROW_HEAD_PX,
@@ -55,7 +53,6 @@ const props = withDefaults(
     pinnedLaneIds?: string[];
     cursor: { time: number; xRatio: number; snapped?: boolean } | null;
     showOverviewCharts?: boolean;
-    overviewSeries?: OverviewSeries[];
     gutterWidth?: number;
     preferRenderer?: 'auto' | 'webgl' | 'canvas';
     locale?: string;
@@ -65,7 +62,6 @@ const props = withDefaults(
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
-    overviewSeries: () => [],
   },
 );
 
@@ -631,12 +627,13 @@ defineExpose({
       @suppress-measure-dt="suppressMeasureDt = $event"
     />
 
-    <OverviewCharts
-      v-if="showOverviewCharts && overviewSeries.length > 0"
-      :series="overviewSeries"
-      :start-time="bounds.minTime"
-      :end-time="bounds.maxTime"
-    />
+    <div
+      v-if="showOverviewCharts"
+      data-testid="overview-charts"
+      class="pr-overview-charts"
+    >
+      Overview charts
+    </div>
   </div>
 </template>
 
@@ -729,5 +726,11 @@ defineExpose({
 
 .pr-swim-row.pr-swim-row--overview .pr-gutter--axis-spacer {
   border-bottom: none;
+}
+
+.pr-overview-charts {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  color: #888;
 }
 </style>

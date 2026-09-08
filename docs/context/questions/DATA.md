@@ -185,3 +185,19 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 **PyPTO reference (not shippable on current npu-rep):** sum of `event.pmu_info['total cycle']` after joining `tilefwk_prof_pmu.csv` onto events. Absent from [NPU-Compute.md](https://gitcode.com/wk0911/npu-tools/blob/main/npu-compute/NPU-Compute.md) embeds and from scanned fixtures (`example.npu.rep`, PR #74 packs) — event traces have no `pmu_info` / `"total cycle"`; PR #74 does not add them. Block CSV `*_total_cycles` ≠ that formula.
 
 **Specs when answered:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md).
+
+### DATA-39 — OverviewSeries producer (统计分析 Cube / Vector)
+
+<img src="../visual/questions/data-39.png" alt="DATA-39 OverviewSeries / 统计分析 tracks" width="900" height="225">
+
+**Status:** `open` + `interim`
+
+**Question:** Which `.npu-rep` embed and fields produce `ReportViewModel.overviewSeries` for the 统计分析 tracks (Cube / Vector, and any third track such as 通信)? Confirm event shape, name→label map, value units, and time alignment with the swimlane.
+
+**Answer so far:**
+- **Hide if empty** is already decided ([DATA-32](../decisions/DATA.md)); do not invent series from `PipeUtilization` ratios.
+- Interim: adapter returns `overviewSeries: []` ([DATA-32a](../decisions/interim/DATA.md)).
+- Candidate (not Product-confirmed): product `Sampling.json` Chrome Trace `ph:"C"` counters (`cat:"util"`, `args.value`). In [`vector_muladd_plain.npu-rep`](../../../data/vector_muladd_plain.npu-rep): `CUBE` / `SCALAR` / `MTE1` / `MTE2` / `FIXP` present; **no** `Vector` or 通信 series.
+- VIEW_DATA_MAPPING §11.2.7 docx stubs are illustrative only; provenance open under this question.
+
+**Specs when answered:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §3, [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.7, [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [view-models](../../../specs/core/view-models.spec.md).

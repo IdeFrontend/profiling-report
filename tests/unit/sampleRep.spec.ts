@@ -110,7 +110,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
 
   it('both operators expose product Summary.jsonl util / compute / bandwidth (demo cards)', () => {
     for (const report of [op1, op2]) {
-      const { summary, computeCard, bandwidthCards, overviewSeries } = report.reportModel;
+      const { summary, computeCard, bandwidthCards } = report.reportModel;
       expect(summary.parallelUtilization).toBeGreaterThan(0.8);
       expect(summary.parallelBalance).toBeGreaterThan(0.8);
       expect(computeCard?.sides.length).toBeGreaterThanOrEqual(2);
@@ -126,11 +126,8 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
           expect(side.peakGBs).toBe(1600);
         }
       }
-      expect(overviewSeries.map((s) => s.id).sort()).toEqual(['cube', 'vector']);
-      for (const series of overviewSeries) {
-        expect(series.points.length).toBeGreaterThan(10);
-        expect(series.points.every((p) => p.t >= 0 && p.v >= 0 && p.v <= 100)).toBe(true);
-      }
+      // Sampling.json is embedded for PR #98; overviewSeries stays empty until that lands.
+      expect(report.reportModel.overviewSeries).toEqual([]);
     }
   });
 

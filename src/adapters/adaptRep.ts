@@ -13,7 +13,6 @@ import type {
   ReportViewModel,
   RooflineMixLabel,
   RooflineViewModel,
-  OverviewSeries,
   SummaryCategory,
   SummaryMetrics,
   SwimlaneModel,
@@ -610,60 +609,6 @@ function summaryCategoriesFromSummaryJsonl(payload?: Uint8Array): SummaryCategor
   return categories;
 }
 
-/** DATA-39: Sampling.json ph:C / cat:util → Cube/Vector OverviewSeries (ts µs → ns). */
-const OVERVIEW_COUNTER_MAP: Readonly<Record<string, { id: string; label: string }>> = {
-  CUBE: { id: 'cube', label: 'Cube' },
-  VECTOR: { id: 'vector', label: 'Vector' },
-};
-
-export function overviewSeriesFromSampling(payload?: Uint8Array): OverviewSeries[] {
-  if (!payload) return [];
-  let root: unknown;
-  try {
-    root = JSON.parse(decodeUtf8(payload));
-  } catch {
-    return [];
-  }
-  const events =
-    root && typeof root === 'object' && Array.isArray((root as { traceEvents?: unknown }).traceEvents)
-      ? ((root as { traceEvents: unknown[] }).traceEvents)
-      : Array.isArray(root)
-        ? root
-        : [];
-
-  const buckets = new Map<string, { id: string; label: string; points: { t: number; v: number }[] }>();
-  for (const raw of events) {
-    if (!raw || typeof raw !== 'object') continue;
-    const ev = raw as Record<string, unknown>;
-    if (ev.ph !== 'C') continue;
-    if (String(ev.cat ?? '') !== 'util') continue;
-    const name = typeof ev.name === 'string' ? ev.name : '';
-    const meta = OVERVIEW_COUNTER_MAP[name];
-    if (!meta) continue;
-    const ts = typeof ev.ts === 'number' ? ev.ts : Number(ev.ts);
-    const args = ev.args && typeof ev.args === 'object' ? (ev.args as Record<string, unknown>) : {};
-    const value = typeof args.value === 'number' ? args.value : Number(args.value);
-    if (!Number.isFinite(ts) || !Number.isFinite(value)) continue;
-    let series = buckets.get(meta.id);
-    if (!series) {
-      series = { id: meta.id, label: meta.label, points: [] };
-      buckets.set(meta.id, series);
-    }
-    // Sampling.json ts is µs (PipeTrace family); swimlane times are ns.
-    series.points.push({ t: ts * 1000, v: value });
-  }
-
-  const order = ['cube', 'vector'];
-  return order
-    .map((id) => buckets.get(id))
-    .filter((s): s is { id: string; label: string; points: { t: number; v: number }[] } => !!s && s.points.length > 0)
-    .map((s) => ({
-      id: s.id,
-      label: s.label,
-      points: s.points.slice().sort((a, b) => a.t - b.t),
-    }));
-}
-
 /** DATA-1: numeric fields from HardwareInfo.jsonl. Keys normalized so `ai core count` / `ai_core_count` resolve alike. */
 function hardwareNumericFieldsFromJsonl(text: string): Record<string, number> {
   const fields: Record<string, number> = {};
@@ -927,7 +872,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   return {
     summary,
     pipeOccupancy: pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv'])),
-    overviewSeries: overviewSeriesFromSampling(payloadByName(payloads, ['Sampling.json'])),
+    overviewSeries: [],
     computeTables: compute.tables,
     memoryTables: memory.tables,
     csvTexts: { ...compute.texts, ...memory.texts },

@@ -14,11 +14,11 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-32a — Overview series
 
-**Status:** `interim` — **SUPERSEDED** 2026-09-08
-**Question:** [DATA-39](../DATA.md) (hide-if-empty already decided: [DATA-32](../DATA.md))
-**Interim:** ~~Adapter returns `overviewSeries: []`; UI **hides** charts (aligns with Product DATA-32).~~ Product: `Sampling.json` `ph:C` / `cat:util` → Cube/Vector `OverviewSeries` ([DATA-39](../DATA.md)).
-**Implement / test as:** `adaptRep` overviewSeries from Sampling.json (PR-VM-003 / PR-VM-017)
-**Superseded when:** — already superseded by DATA-39 (2026-09-08).
+**Status:** `interim`
+**Question:** [DATA-39](../../questions/DATA.md) (hide-if-empty already decided: [DATA-32](../DATA.md))
+**Interim:** Adapter returns `overviewSeries: []`; UI **hides** charts (aligns with Product DATA-32).
+**Implement / test as:** No fake series from CSV
+**Superseded when:** Product answers DATA-39 (defines `OverviewSeries` source)
 
 ### DATA-33a — Summary tiles
 
