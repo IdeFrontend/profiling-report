@@ -1,15 +1,15 @@
 # Profiling Formats — Semantic Comparison
 
-Compare **what data means** for OP-level profiling across three stacks: MindStudio Insight (operator path), the new **`.rep` / `.ncrep`** report pack, and PyPTO swimlane inputs.
+Compare **what data means** for OP-level profiling across three stacks: MindStudio Insight (operator path), the product **`.npu-rep`** report pack, and PyPTO swimlane inputs.
 
-This document is **not** about binary layouts. Container packing for `.rep` lives in [REP_FORMAT.md](REP_FORMAT.md). Embed → UI field mapping lives in [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md).
+This document is **not** about binary layouts. Container packing for `.npu-rep` / classic `cann-rep` lives in [REP_FORMAT.md](REP_FORMAT.md). Embed → UI field mapping lives in [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md).
 
 ## Scope
 
 | In scope | Out of scope |
 |----------|----------------|
 | Insight **operator** profiling (Timeline / Source / Details / Cache fed by MSTT `.bin` / related op dumps) | Insight **system** profiling (host↔device training/inference timelines, cluster Summary/Communication, Ascend profiler `.db` trees) |
-| `.rep` / `.ncrep` OP report semantics (metric CSVs + Chrome Trace) | Loose MSTT CSV table preview (unchanged editor) |
+| `.npu-rep` OP report semantics (metric CSVs + Chrome Trace) | Loose MSTT CSV table preview (unchanged editor) |
 | PyPTO swimlane schedule semantics (after host parse) | PyPTO compute-graph / three-column linkage payloads |
 
 ## Common semantic core
@@ -26,7 +26,7 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 
 ## Semantic matrix
 
-| Semantic area | Insight operator (`.bin` path) | `.rep` / `.ncrep` | PyPTO swimlane |
+| Semantic area | Insight operator (`.bin` path) | `.npu-rep` | PyPTO swimlane |
 |---------------|--------------------------------|------------------|----------------|
 | **Timeline grain** | Per-**instruction** Gantt on named pipes (SCALAR, FLOWCTRL, MTE1–3, CUBE, VECTOR, FIXP, CACHEMISS, …) plus SET_FLAG ↔ WAIT_FLAG sync edges | Chrome Trace → process / thread lanes. Sample fixture: **pipe busy/state** intervals on AIV pipes. Product traces may be richer (multi-core instruction-like lanes — see [questions](../context/questions/) DATA-31) | Process → thread → **duration events** (ops/tasks); optional AICPU E2E (scheduler / orchestrator) and counter lanes |
 | **Op / block identity** | Details “base info”: op name, type (`vector`/`cube`/`mix`), duration, block dim, per-block times | `OpBasicInfo.csv` | Usually light: names / args (`seqNo`, `taskId`, hints); no dedicated op-summary CSV |
@@ -46,7 +46,7 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 **Insight operator (`.bin`)**  
 Built for **single-kernel microarchitecture** analysis. The dump is rich enough for instruction PC, source mapping, pipe Gantt, cache-line events, and roofline. MSTT does not interpret the payload; Insight’s server does. That depth is why the format stays opaque and tied to the Insight stack.
 
-**`.rep` / `.ncrep`**  
+**`.npu-rep`**  
 Built as a **portable report pack**: pre-aggregated **CSV metrics** for summary / PIPE / memory / cache panels, plus a **Chrome Trace** timeline so a Vue library can render a pypto-like swimlane **without** Insight or `profiler_server`. Semantics intentionally overlap Insight’s *report* surfaces (util, memory, op info, timed lanes), not necessarily Insight’s full instruction/Source/Cache event graphs unless embeds grow.
 
 **PyPTO swimlane**  
@@ -57,7 +57,7 @@ Built for **schedule orchestration**: processes/threads/events, dependencies, op
 ```text
 Insight operator report semantics  +  PyPTO-like timeline UX
                 ↘                      ↙
-                 .rep  →  Vue library
+                 .npu-rep  →  Vue library
 ```
 
 Semantic **overlap** (timed lanes, pipe util concepts, op identity) justifies a **shared Vue swimlane/report UI**. Semantic **differences** (instruction vs task vs pipe-busy grain; CSV packs vs schedule/PMU side files; Insight Source/Cache depth) justify **per-format adapters** into canonical models — not merging all on-disk formats into one uber component. Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) (shared UI + adapters).
@@ -75,14 +75,14 @@ Performance results tree file click
   ├─ .csv          → CsvEditorProvider (raw table; not this comparison)
   ├─ .bin          → MindStudio Insight (operator semantics above)
   ├─ .json         → profiling-report when Chrome Trace ([PROC-3](../context/decisions/PROC.md))
-  └─ .rep / .ncrep → profiling-report Vue panel
+  └─ .npu-rep      → profiling-report Vue panel ([PROC-2](../context/decisions/PROC.md))
 ```
 
-`.rep` and `.ncrep` share the same container semantics (**Interim [PROC-2a](../context/decisions/interim/PROC.md)** — product alias until divergence is defined). Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
+The official product host extension is **`.npu-rep`** ([PROC-2](../context/decisions/PROC.md)). Classic `cann-rep` / sample `.rep` files are engineering fixtures only — not product aliases. Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
 
-| Axis | Insight operator | `.rep` / profiling-report | PyPTO swimlane |
-|------|------------------|---------------------------|----------------|
-| Typical on-disk trigger | `.bin` (+ Insight JSON/DB for other modes) | `.rep` / `.ncrep` container | Swimlane JSON / Chrome Trace / `perf_swimlane` (+ optional PMU/topo) |
+| Axis | Insight operator | `.npu-rep` / profiling-report | PyPTO swimlane |
+|------|------------------|-------------------------------|----------------|
+| Typical on-disk trigger | `.bin` (+ Insight JSON/DB for other modes) | `.npu-rep` container | Swimlane JSON / Chrome Trace / `perf_swimlane` (+ optional PMU/topo) |
 | Who interprets | Insight SPA + `profiler_server` | This Vue library | pypto_toolkit host + swimGraph |
 | Kept in MSTT? | Yes for `.bin` | Primary new OP report path | Not used by MSTT today (UX/code reference) |
 
@@ -91,6 +91,6 @@ Performance results tree file click
 - [DOMAIN_AND_USERS.md](../context/DOMAIN_AND_USERS.md) — OP developer context, pain points, glossary
 - [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — per-view required inputs / hide rules
 - [REP_FORMAT.md](REP_FORMAT.md) — container binary layout
-- [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.rep` embeds → UI panels
+- [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.npu-rep` embeds → UI panels
 - [questions](../context/questions/) — remaining blockers (esp. DATA-33)
 - [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — renderer tech, not data semantics

@@ -21,6 +21,26 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
   });
 
+  it('PR-JSON-003: product npu-rep magic (160 and 164) loads and is not treated as CTEF', () => {
+    // 164-byte interim sample (multi-op nested archives).
+    const sample164 = loadReportSource(loadNpuRepBytes());
+    expect(sample164.operators?.length).toBeGreaterThan(1);
+    expect(sample164.reportModel.summary).not.toEqual({});
+    expect(sample164.swimlaneModel!.processes.length).toBeGreaterThan(0);
+
+    // 160-byte product leaf packed from out.rep payloads.
+    const payloads = parseRep(loadOutRepBytes()).payloads;
+    const entries = Object.entries(payloads).map(([name, data]) => ({
+      name,
+      type: name.endsWith('.csv') ? NPU160_TYPE_CSV : NPU160_TYPE_JSON,
+      data,
+    }));
+    const leaf160 = loadReportSource(packNpuRep160(entries));
+    expect(leaf160.operators).toBeUndefined();
+    expect(leaf160.reportModel.summary.opName).toBe('add_custom');
+    expect(leaf160.swimlaneModel!.processes.length).toBeGreaterThan(0);
+  });
+
   it('PR-NPU-004: loadReportSource loads multi-op npu-rep (default first operator)', () => {
     const adapted = loadReportSource(loadNpuRepBytes());
     expect(adapted.operators?.map((o) => o.id)).toEqual(['op1.npu.rep', 'op2.npu.rep']);

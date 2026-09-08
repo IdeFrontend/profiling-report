@@ -8,7 +8,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Open `.rep` / `.ncrep` in panel | H / M | Host opens; library renders |
+| Open `.npu-rep` in panel | H / M | Host opens; library renders ([PROC-2](../context/decisions/PROC.md)) |
 | Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([PROC-3](../context/decisions/PROC.md)) |
 | Timeline secondary tab | M | Primary view |
 | OP算子 / 源码 / 详情 / 缓存 tabs | P2 | msinsight-like parity |
@@ -38,6 +38,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([UI-40](../context/questions/UI.md)) |
 | Cube / Vector overview charts | M | **Hide** until `OverviewSeries` ([DATA-32](../context/decisions/DATA.md)) |
 | Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/decisions/DATA.md)); flat CTEF still valid |
+| Card-header gutter metric selector | M | Per-Card dropdown (时钟周期 / 利用率); clockCycle = mean `*_time(us)` (µs), not cycle counts — [`gutter-metrics.spec.md`](../../specs/core/gutter-metrics.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md); sketch [`v930/entry`](./source/v930/entry.jpeg) |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |
 | Colored event rectangles | M | Normative colors [COLOR_TOKENS](COLOR_TOKENS.md) |
 | Event labels when wide enough | M | Vertically centered in block; horizontally centered in visible (clipped) event rect |

@@ -1,6 +1,6 @@
 # UX Specification — Profiling Report
 
-Complete user-experience specification for the Ascend OP profiling report viewer (`report.ncrep` / `.rep`), derived from design sketches in this folder.
+Complete user-experience specification for the Ascend OP profiling report viewer (`.npu-rep`), derived from design sketches in this folder.
 
 **Related appendices**
 
@@ -28,7 +28,7 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 
 ### In scope
 
-- Library **Timeline** report shell opened on `.ncrep` / `.rep`
+- Library **Timeline** report shell opened on `.npu-rep`
 - Right-side analytics modes shown in sketches (stats, PIPE, memory, hardware)
 - Selection / hover / zoom behaviors that coordinate multiple panes
 
@@ -54,7 +54,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | | |
 |--|--|
 | **Goal** | See total time, high-level util, PIPE occupancy, and a readable timeline at a glance |
-| **Trigger** | User opens `report.ncrep` / `.rep` from MSTT results |
+| **Trigger** | User opens a `.npu-rep` from MSTT results |
 | **Steps** | 1) Host opens panel 2) Library loads models 3) Timeline tab active 4) Aside shows summary + PIPE 5) Swimlane + overview charts fill main pane |
 | **Success** | User can answer “how long?” and “which pipes dominate?” without clicking events |
 | **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
@@ -85,9 +85,9 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Spot imbalanced cores or pipes |
 | **Trigger** | Viewing gutter util bars and PIPE aside |
-| **Steps** | Read % bars in gutter; compare PIPE ranking in aside; expand a core to see child pipes |
-| **Success** | User can point to hottest / coldest lanes |
-| **Sketches** | Util bars in `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
+| **Steps** | Read util bars in gutter; optionally switch Card-header metric (时钟周期 / 利用率) to compare alternate views; compare PIPE ranking in aside; expand a core to see child pipes |
+| **Success** | User can point to hottest / coldest lanes under the chosen metric |
+| **Sketches** | Util bars + metric dropdown in `source/v930/entry.jpeg`; [`SwimlaneView/visual/metric-dropdown-closed.png`](../../src/ui/TimelineView/SwimlaneView/visual/metric-dropdown-closed.png) |
 
 ### S5 — Drill into PIPE / compute / memory metrics (M1)
 
@@ -147,7 +147,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 
 ### Host chrome (not library)
 
-- Editor tab title: `report.ncrep` (sometimes beside `trace.json`)
+- Editor tab title: report filename (e.g. `result.npu-rep`; sometimes beside `trace.json`)
 - Explorer: performance tuning / anomaly folders (`source/v930/entry.jpeg`) — **host**
 
 ### Library chrome
@@ -246,7 +246,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S1 (M)
 
-1. Host opens `.rep` / `.ncrep` → `ProfilingReport` loads.
+1. Host opens `.npu-rep` → `ProfilingReport` loads.
 2. On success: Timeline visible; aside = summary + PIPE; overview charts shown if `OverviewSeries` present else hidden.
 3. User reads summary without further input.
 

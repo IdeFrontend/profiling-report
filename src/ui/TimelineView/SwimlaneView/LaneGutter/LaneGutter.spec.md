@@ -4,21 +4,20 @@
 |----------------|
 | PR-GUTTER-*    |
 
-Left-side vertical gutter showing Card / nested lane hierarchy, lane names, and utilization percentages. Scroll-synced with the swimlane canvas so lane labels align with event rows.
+Left-side vertical gutter showing Card / nested lane hierarchy, lane names, and metric-driven util bars. Scroll-synced with the swimlane canvas so lane labels align with event rows.
 
 Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detail.png`](./visual/expander-detail.png), [`visual/gutter-util.png`](./visual/gutter-util.png), [`visual/util-bars.png`](./visual/util-bars.png), [`visual/util-midline.png`](./visual/util-midline.png), [`visual/util-midline-detail.png`](./visual/util-midline-detail.png), [`visual/pin-lanes.png`](./visual/pin-lanes.png), [`visual/pin-icon-detail.png`](./visual/pin-icon-detail.png), [`visual/pin-hover-tooltip.png`](./visual/pin-hover-tooltip.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
-**groups** is an array of Card groups `{ id, name, lanes }` where each lane is a recursive node `{ id, name, color, utilization?, children?, categoryKey? }`.
+**groups** is an array of Card groups `{ id, name, lanes }` where each lane is a recursive node `{ id, name, color, bar?, utilization?, children?, categoryKey? }`.
 
 - **Card** (`SwimProcess`) → group header only.
-- **Nested folder** (`children` non-empty) → lane-style row with chevron + util; no canvas events.
-- **Leaf** (no children) → lane row; util optional.
+- **Nested folder** (`children` non-empty) → lane-style row with chevron + util bar; no canvas events.
+- **Leaf** (no children) → lane row; util bar optional.
 - **`categoryKey`** (`comm` \| `compute` \| `hbm`) — when set, gutter shows the localized label (`t(lane*)`) instead of raw `name`.
 
-Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneName` and reading `utilization` / `categoryKey` from each node. Flat CTEF (no `children`) still works as Card → leaf lanes.
-
+**bar** (`GutterBarDisplay`) carries `{ barWidth, label, thresholdColor? }` from the parent for the active gutter metric (see [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md)). When **bar** is absent but **utilization** (0..1) is set, render legacy pipe-ratio mode (`barWidth = utilization × 100`, label = rounded `%`, `thresholdColor = true`). Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneName`. Flat CTEF (no `children`) still works as Card → leaf lanes.
 **collapsedIds** (optional `string[]`) — ids of Cards or nested folders whose **descendants** are hidden (the collapsed node row itself stays visible for nested folders; collapsing a Card hides all its lanes). Parent owns collapse so the canvas mirrors the visible row set (`displaySwim`).
 
 **pinnedLaneIds** (optional `string[]`, read-only) — ids of **leaf** lanes currently pinned. Parent owns pin order; gutter uses this to render filled vs outline pushpin state on originals. Pinned duplicates render in `SwimlaneView`'s sticky strip (see [`SwimlaneView.spec.md`](../SwimlaneView.spec.md)).
@@ -47,9 +46,21 @@ Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneNa
 
 Clicking a **folder** lane toggles expand/collapse (`aria-expanded`). Card toggle is on the SwimlaneView strip. Collapse hides descendants; parent syncs canvas row heights.
 
-### Utilization
+### Util bars (metric-driven)
 
-Each lane **and folder** row optionally shows a utilization bar with the percentage **inside, right-aligned**. See **Visual** below.
+Each lane **and folder** row optionally shows a util bar whose **width** and **label** come from **bar** (or legacy **utilization**). Parent selects metric via Card-header dropdown ([SwimlaneView.spec.md](../SwimlaneView.spec.md)). See **Visual** below.
+
+#### Label formats per metric
+
+Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (mean `*_time(us)` → µs label; barWidth is relative track fill only).
+
+| Metric | `bar.label` (thick bars) | `barWidth` | Fill color |
+|--------|--------------------------|------------|------------|
+| 时钟周期 (clockCycle) | Formatted mean pipe active time + **`µs`** (not cycle counts; not `%`) | \((\mathrm{raw}/\max)\times 100\) within Card | Red when `relativeMax`; else gray; all gray when tied |
+| 利用率 (utilization) | `NN%` | Equals util % (0–100) | Red when &lt; 50%; gray when ≥ 50% |
+| Legacy pipe ratio | `NN%` | `utilization × 100` | true |
+
+**Thin bars** (pipe leaves) show fill width only; **omit in-track text** for all metrics — value appears in a hover tooltip (**PR-GUTTER-016**). **Thick bars** show **label** inside track, right-aligned.
 
 ### Pin (leaf lanes only)
 
@@ -78,10 +89,10 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 | Thin height | `8px` — pipe leaves under Core (`ALL`, `SCALAR`, `MTE*`, …) |
 | Shape | Rounded rect, radius by bar height: **4px** on the 16px thick bar, **2px** on the 8px thin one. Never a full capsule / `height/2` — 4px on an 8px bar rounds the ends into a stadium |
 | Track / unfilled | Gray **diagonal hatch** — repeating `-45deg` stripes `#3a3a3a` on `--pr-util-track` (`#2a2a2a`) |
-| Value fill | **Two colors only:** util &lt; 0.5 → `rgba(231,67,74,0.4)` (red); util ≥ 0.5 → `rgba(255,255,255,0.08)` (gray). Do **not** use pipe/category `lane.color`. Composited over an opaque `--pr-util-track` base so the filled portion is **solid** and the hatch stops at the filled edge, marking only what is left to fill |
-| 50% midline | `1px dashed rgba(255,255,255,0.1)` at `left: 50%` of track (full height); above fill, under % text; omit on empty util slots |
-| % text | **Thick bars only**, inside track, right-aligned, `padding-right: 6px`. **Thin bars omit %** |
-| % font | 10px, weight 600, tabular-nums, color **`#b0b0b0`** (same as lane title — not bright white) |
+| Value fill | **利用率 / legacy:** util &lt; 0.5 → `rgba(231,67,74,0.4)` (red); util ≥ 0.5 → `rgba(255,255,255,0.08)` (gray) — gray at exactly 50%. **clockCycle:** gray fill; red tint when `bar.relativeMax`; when all lanes tie, uniform gray. Never pipe/category `lane.color`. Composited over an opaque `--pr-util-track` base so the filled portion is **solid** and the hatch stops at the filled edge |
+| Midline | `1px dashed rgba(255,255,255,0.1)` at `left: 50%` for **利用率**; at `left: averageBarWidth%` for clockCycle when ≥2 lanes have bars; above fill, under text; omit on empty slots |
+| Bar text | **Thick bars only**, inside track, right-aligned, `padding-right: 6px`. **Thin bars omit text** |
+| Text font | 10px, weight 600, tabular-nums, color **`#b0b0b0`** (same as lane title — not bright white) |
 | Layout | `grid-template-columns: minmax(0,1fr) 110px` (name + util) |
 
 **Do not** place `%` to the left of the bar. Flat CTEF (all depth-0 leaves) uses thick bars only.
@@ -115,27 +126,29 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 ## Acceptance Criteria
 
 1. **PR-GUTTER-001** — Renders lane names for each group (including nested when expanded).
-2. **PR-GUTTER-002** — Shows utilization percent **inside** the util bar (right-aligned) on leaves and folders when set.
+2. **PR-GUTTER-002** — Shows bar label **inside** the util track (right-aligned) on thick bars when **bar** or **utilization** is set.
 3. **PR-GUTTER-003** — Nested folders show open-angle carets; leaf lanes have **no** chevron; folder click emits `toggle-group` with node id. Card expand UI lives on SwimlaneView strips (gutter Card is a spacer).
 4. **PR-GUTTER-004** — When a Card id is in `collapsedIds`, child lanes are hidden. When a nested folder id is collapsed, its descendants are hidden but the folder row remains.
 5. **PR-GUTTER-005** — Nested indent increases with depth; only Card uses group-header spacer chrome.
-6. **PR-GUTTER-006** — Util fills are red (`rgba(231,67,74,0.4)`) when util &lt; 0.5 and gray (`rgba(255,255,255,0.08)`) when ≥ 0.5; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the % label. The fill sits on an opaque `--pr-util-track` base (solid, unhatched), and the thin bar's radius is 2px against the thick bar's 4px.
-7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width; empty util slots do not.
+6. **PR-GUTTER-006** — **利用率 / legacy:** red (`rgba(231,67,74,0.4)`) when util &lt; 0.5 and gray (`rgba(255,255,255,0.08)`) when ≥ 0.5. **Other metrics:** red only when `bar.relativeMax` (PyPTO max-lane rule); never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the in-track label (value via hover tooltip — **PR-GUTTER-016**). The fill sits on an opaque `--pr-util-track` base (solid, unhatched); thin radius 2px / thick 4px.
+7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width for utilization, or at `averageBarWidth%` for relative metrics when computable; empty util slots do not.
 8. **PR-GUTTER-008** — Card row is a non-interactive 40px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
-9. **PR-GUTTER-010** — Leaf rows include a pushpin control (DOM); folder/Card rows omit pin. Unpinned pin hidden until leaf gutter hover (or focus); **pinned pin always visible**. Does **not** appear from events-chart hover.
-10. **PR-GUTTER-011** — Unpinned outline `#a8a8a8` on lane hover; pinned/pin-hover solid `#4a90e2`. Pin stays flush-left (not depth-indented).
-11. **PR-GUTTER-012** — Pushpin hover/focus shows localized pin tooltip (`置顶` / `Pin to top`).
-12. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
-13. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
-14. **PR-GUTTER-015** — A hovered lane row (pointer or `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; the pin tooltip carries EventTooltip chrome.
-
+9. **PR-GUTTER-009** — When **bar** is set, width and label follow active metric format; **utilization** alone keeps legacy `%` behavior.
+10. **PR-GUTTER-010** — Leaf rows include a pushpin control (DOM); folder/Card rows omit pin. Unpinned pin hidden until leaf gutter hover (or focus); **pinned pin always visible**. Does **not** appear from events-chart hover.
+11. **PR-GUTTER-011** — Unpinned outline `#a8a8a8` on lane hover; pinned/pin-hover solid `#4a90e2`. Pin stays flush-left (not depth-indented).
+12. **PR-GUTTER-012** — Pushpin hover/focus shows localized pin tooltip (`置顶` / `Pin to top`).
+13. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
+14. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
+15. **PR-GUTTER-015** — A hovered lane row (pointer or `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; the pin tooltip carries EventTooltip chrome.
+16. **PR-GUTTER-016** — Hovering **anywhere on a leaf lane row** that has a **thin** filled util bar shows the metric **label** after a **400ms** delay. Tooltip uses EventTooltip / pin chrome, is teleported to `body`, and follows the cursor at **+12px / +12px** (same offset as event hover). Thick bars keep the in-track label and do **not** show this tip. Leave cancels a pending delay and hides the tip.
 ## Edge Cases
 
 | State | Behavior |
 |---|---|
 | Empty groups array | Empty gutter |
 | Groups with zero lanes | Card spacer rendered, no lane rows |
-| Standalone CTEF (no pipe data) | All lanes show empty util slot (no %) |
+| Standalone CTEF (no pipe data) | All lanes show empty util slot (no label) |
+| Metric switch on Card | Parent recomputes **bar** on lanes under that Card only |
 | Flat CTEF (no `children`) | Card → leaf lanes only (MVP-compatible) |
 | Very long thread names | CSS text-overflow truncation |
 | Scroll position mismatch | Bidirectional sync corrects |
@@ -157,7 +170,12 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - [pin-hover-tooltip](./visual/pin-hover-tooltip.png) — from `v930/hardware-more-detail`
 - [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
 
+## Dependencies
+
+[gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../SwimlaneView.spec.md).
+
 ## Changelog
+- **2026-09-02** — Thin util value tip: full-lane hit target, 400ms delay, cursor-follow (+12/+12) (`PR-GUTTER-016`).
 - **2026-09-01** — PR-GUTTER-015: row hover moves `#252525` → `--pr-surface-raised` (`#363636`) and lifts the label to `#fff`. Both UCD crops (AC-07, AC-19) measure `#363636`, and AC-19 calls out the label change the pin slice did not implement. The pin tooltip's chrome was specified as "EventTooltip chrome: `#2a2a2a` / `#555`", which AC-09 moved out from under it; it now names the raised-surface values directly. (Numbered 015 so master's `categoryKey` keeps `PR-GUTTER-014`.)
 - **2026-09-01** — Card strip 40px with `14px` / `700` / `22px` / `#e6e6e6` label (AC-17); gutter spacer and `LANE_GROUP_HEADER_HEIGHT` follow.
 - **2026-09-01** — `categoryKey` localizes card category labels (`PR-GUTTER-014`); see [LOCALIZATION.md](../../../../../docs/ui/LOCALIZATION.md).
@@ -169,6 +187,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - **2026-08-27** — Renumber pin ACs to `PR-GUTTER-010`…`013` (reserve `009` for #45 gutter-metrics).
 - **2026-08-27** — Pin pushpin on leaf rows; crops + visual tokens from `v930/hardware-more-detail` (`PR-GUTTER-010`…`013`). Tests deferred until implementation.
 - **2026-09-01** — Util bars: thin (8px) radius drops to 2px, thick (16px) keeps 4px; the fill composites over an opaque `--pr-util-track` so it reads solid and the hatch ends at the filled edge instead of running through it.
+- **2026-08-27** — Metric-aware **bar** payload; per-metric labels and coloring; PR-GUTTER-009.
 - **2026-08-21** — Util bars: 50% dashed midline (`PR-GUTTER-007`); tight midline crops. Card spacer renumbered to `PR-GUTTER-008`.
 - **2026-08-13** — Card chrome moved to SwimlaneView full-width strips; gutter Card is spacer.
 - **2026-08-11** — Util bars: thick/thin by depth; red/gray threshold fills only.

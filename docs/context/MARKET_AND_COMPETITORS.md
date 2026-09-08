@@ -15,7 +15,7 @@ Developers who write **custom device operators / kernels** typically need two co
 | **System / timeline** | Where does wall time go across host, queues, and devices? | Timeline / swimlane tools (e.g. Nsight Systems) |
 | **Kernel / microarchitecture** | Why is *this* kernel slow — occupancy, memory, pipes, source? | Kernel report tools (e.g. Nsight Compute) |
 
-On **Ascend**, those roles are split across **MindStudio Insight**, **MSTT**, **PyPTO**, and now a portable **`.rep` / `.ncrep`** report path visualized by this library. Many OP engineers already know the **NVIDIA Nsight** split, so it is the natural **role analogue** for explaining this project.
+On **Ascend**, those roles are split across **MindStudio Insight**, **MSTT**, **PyPTO**, and now a portable **`.npu-rep`** report path visualized by this library. Many OP engineers already know the **NVIDIA Nsight** split, so it is the natural **role analogue** for explaining this project.
 
 ```text
 Industry (NVIDIA-shaped mental model)
@@ -25,14 +25,14 @@ Industry (NVIDIA-shaped mental model)
 Ascend OP stack (simplified)
   Insight system modes / other timelines  ≈  “find where” (out of this library’s MVP)
   Insight operator .bin  ≈  deep “explain this kernel”
-  .rep + profiling-report  ≈  portable “explain this OP” + swimlane timeline in MSTT
+  .npu-rep + profiling-report  ≈  portable “explain this OP” + swimlane timeline in MSTT
 ```
 
 ---
 
 ## 2. NVIDIA analogue map
 
-NVIDIA does **not** ship an Ascend `.rep` viewer. The relationship is **intent and UX role**, not interoperability.
+NVIDIA does **not** ship an Ascend `.npu-rep` viewer. The relationship is **intent and UX role**, not interoperability.
 
 ### Nsight Systems (`nsys`)
 
@@ -47,7 +47,7 @@ NVIDIA does **not** ship an Ascend `.rep` viewer. The relationship is **intent a
 - **Developer use:** After isolating a kernel, explain pipe/memory/compute limits and map back toward source.
 - **Ascend analogue:**
   - **Deep path:** MindStudio Insight on operator **`.bin`** (instruction Gantt, Source, Cache, roofline).
-  - **Portable path:** **`.rep` / `.ncrep`** metrics + Chrome Trace → **profiling-report** (summary, PIPE util, swimlane; later memory/roofline panels).
+  - **Portable path:** **`.npu-rep`** metrics + Chrome Trace → **profiling-report** (summary, PIPE util, swimlane; later memory/roofline panels).
 
 ### Conceptual mapping (NVIDIA → Ascend / this project)
 
@@ -57,10 +57,10 @@ NVIDIA does **not** ship an Ascend `.rep` viewer. The relationship is **intent a
 | SM / warp occupancy & pipeline util | PIPE occupancy bars; lane gutter util (Cube / Vector / MTE / …) |
 | Memory workload chart | `Memory*.csv` + memory topology (P2) |
 | Roofline | `ArithmeticUtilization` + `RooflinePanel` (P2) |
-| Source ↔ SASS / instruction mix | Insight Source on `.bin`; secondary tabs S9 (P2) — not MVP for `.rep` |
+| Source ↔ SASS / instruction mix | Insight Source on `.bin`; secondary tabs S9 (P2) — not MVP for `.npu-rep` |
 | Guided rules / expert tips | Not in scope for v1 library |
 | Nsight Systems multi-lane timeline | Swimlane from embedded Chrome Trace; PyPTO-like interactions |
-| `ncu` / `nsys` CLI + proprietary reports | CANN / msprof-style producers + `.rep` container; MSTT opens file |
+| `ncu` / `nsys` CLI + proprietary reports | CANN / msprof-style producers + `.npu-rep` container; MSTT opens file |
 
 **Takeaway:** Users familiar with **Nsight Compute** will expect summary → util/memory/roofline → source. This library covers the **portable report + swimlane** slice inside MSTT; **Insight remains** the deep `.bin` analogue to Compute’s source/instruction depth.
 
@@ -72,12 +72,12 @@ These partition Ascend OP tooling; they are **ecosystem neighbors**, not externa
 
 | Product | Role vs profiling-report |
 |---------|---------------------------|
-| **MSTT** | Host IDE; opens `.rep` into this library; keeps `.bin` → Insight |
+| **MSTT** | Host IDE; opens `.npu-rep` into this library; keeps `.bin` → Insight |
 | **MindStudio Insight** | Legacy / deep operator viewer for `.bin`; system modes stay there |
 | **PyPTO Toolkit** | Swimlane UX/algorithm reference; optional later consumer via adapter |
 | **CANN / msprof-class producers** | Write profiling artifacts (producer of `.rep` still tracked in [questions](questions/) PROC-1) |
 
-Semantics across Insight / `.rep` / PyPTO: [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md). User workflow: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
+Semantics across Insight / `.npu-rep` / PyPTO: [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md). User workflow: [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md).
 
 ---
 
@@ -89,11 +89,11 @@ Semantics across Insight / `.rep` / PyPTO: [FORMATS_COMPARISON.md](../formats/FO
 | **NVIDIA Nsight Systems** | App / system tuners | NVIDIA GPU + CPU | System timeline | Analogue for “find where”; not MVP scope here |
 | **AMD ROCm** (rocprof / Omnitrace-class) | HIP / ROCm kernel authors | AMD GPU | Kernel + system profiling on AMD | Same *category* of competitor tooling; different ISA/stack |
 | **Intel VTune / oneAPI GPU tools** | CPU & Intel GPU | Intel | Hotspots, GPU offload analysis | Same category; different hardware |
-| **Perfetto / Chrome Trace UIs** | Cross-platform | Format-centric | Timeline UX on CTEF | **Format/UX relative** — `.rep` embeds Chrome Trace |
+| **Perfetto / Chrome Trace UIs** | Cross-platform | Format-centric | Timeline UX on CTEF | **Format/UX relative** — `.npu-rep` embeds Chrome Trace |
 | **TensorBoard / PyTorch Profiler** | Framework / training | Multi | Graph- and op-level training timelines | Different grain; not Ascend pipe CSV reports |
 | **Generic IDE profilers** | General app | CPU-first | Sampling / tracing | Weak analogue for NPU pipe models |
 
-No other vendor today ships an Ascend **`.rep`** consumer that replaces MSTT + this library. Competition is for **developer mindshare and workflow habits** (especially NVIDIA), not for the same on-disk Ascend report format.
+No other vendor today ships an Ascend **`.npu-rep`** consumer that replaces MSTT + this library. Competition is for **developer mindshare and workflow habits** (especially NVIDIA), not for the same on-disk Ascend report format.
 
 ---
 
@@ -103,7 +103,7 @@ No other vendor today ships an Ascend **`.rep`** consumer that replaces MSTT + t
 |-------------|--------------------------------|
 | Nsight Compute sets expectations for **kernel reports** | MVP prioritizes overview + PIPE + swimlane; Phase 2+ adds memory, roofline, richer details ([FEATURE_MATRIX](../ui/FEATURE_MATRIX.md), [UX_SPEC](../ui/UX_SPEC.md)) |
 | Nsight Systems / PyPTO set expectations for **timeline navigation** | Zoom/pan/select/hover are MVP; system-wide multi-device profiling is out of scope |
-| Differentiation is **Ascend-native** | Cube / Vector / MTE pipes, Block Dim, AIC/AIV counters, portable `.rep` without Insight `profiler_server` |
+| Differentiation is **Ascend-native** | Cube / Vector / MTE pipes, Block Dim, AIC/AIV counters, portable `.npu-rep` without Insight `profiler_server` |
 | Packaging | Vue library in MSTT webviews — not a standalone Nsight-style desktop suite |
 | Explicit non-goals | Compete on CUDA; replace Insight `.bin` depth in v1; become a system-wide `nsys` clone; parse NVIDIA / AMD report formats |
 
@@ -113,7 +113,7 @@ No other vendor today ships an Ascend **`.rep`** consumer that replaces MSTT + t
 
 - [PROJECT_GOALS.md](PROJECT_GOALS.md) — goals and non-goals
 - [DOMAIN_AND_USERS.md](DOMAIN_AND_USERS.md) — OP developers, pain points, glossary
-- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.rep` vs PyPTO semantics
+- [FORMATS_COMPARISON.md](../formats/FORMATS_COMPARISON.md) — Insight vs `.npu-rep` vs PyPTO semantics
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios S1–S9
 - [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs Phase 2+
 - [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) — shared UI + adapters

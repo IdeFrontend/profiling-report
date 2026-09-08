@@ -1,0 +1,11 @@
+component: SwimlaneView
+source_primary: v930/entry
+crops:
+  metric-dropdown-closed.png:
+    source: v930/entry
+    region: "Card0 header strip with gutter metric dropdown (时钟周期)"
+    box: { x: 1280, y: 1166, w: 1040, h: 118 }
+  metric-dropdown-detail.png:
+    source: v930/entry
+    region: "Close-up of Card0 metric dropdown control"
+    box: { x: 2050, y: 1166, w: 270, h: 118 }

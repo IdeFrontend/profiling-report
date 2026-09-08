@@ -12,7 +12,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 
 | Item | Status | Features |
 |------|--------|----------|
-| MSTT open path | **New (host)** | `.rep` / `.ncrep` / Chrome Trace `.json` → profiling-report; `.bin` → Insight; tree discovers `.rep`/`.ncrep` |
+| MSTT open path | **New (host)** | `.npu-rep` / Chrome Trace `.json` → profiling-report; `.bin` → Insight; tree discovers `.npu-rep` ([PROC-2](../../context/decisions/PROC.md)) |
 | M1 swimlane runtime in host | **Ship** | Gutter, canvas, zoom/pan, search, tooltip; smoke on real OP + fixture |
 | Selection emphasis | **Extend** | Click select; dim non-selected when links shown; clear on empty; hover stays tooltip-only |
 | Prev/next dependency lines | **New** | Bezier/curves in `WebGlSwimlaneRenderer` / `CanvasSwimlaneRenderer`; track zoom/pan/scroll; toolbar mode/depth; no-op if no deps |
@@ -38,7 +38,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 4. **Memory graph:** Author/adapt static SVG topology asset; map Memory* CSV columns → edge label slots (document mapping table in VIEW_DATA_MAPPING); `MemoryTopologyPanel` in Memory aside with M1 field lists; tests on `out.rep`.
 5. **Roofline:** Spec interim point/ceiling mapping from `ArithmeticUtilization` (and peaks if present) while DATA-37 open; implement `RooflinePanel` (hover points, hide if empty); wire aside/capability; tests on `out.rep`.
 6. **Time-range measure:** Toolbar toggle + `measureMode` / `measureRange` in view-state; canvas overlay (band + Δt); pan suppressed while measuring; no aside recompute; tests.
-7. **MSTT host (separate repo):** workspace dep; scan `.rep`/`.ncrep`; open dispatch; panel mount `<ProfilingReport>`; theme/locale; open 查看全部 CSV; smoke real OP + fixture.
+7. **MSTT host (separate repo):** workspace dep; scan `.npu-rep`; open dispatch; panel mount `<ProfilingReport>`; theme/locale; open 查看全部 CSV; smoke real OP + fixture.
 8. Specs + CI for deps fixture, details panel, memory labels, roofline, measure overlay; host checklist in integration doc.
 
 ## Potential blockers
@@ -61,7 +61,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 
 ## Exit criteria
 
-- MSTT: open `.rep`/`.ncrep`/trace JSON into panel; Insight for `.bin`; M1 aside modes when data exists
+- MSTT: open `.npu-rep`/trace JSON into panel; Insight for `.bin`; M1 aside modes when data exists
 - Playground fixture with deps: select → prev/next lines + details panel with in/current/out neighbors
 - Toggle hides links; clear selection clears panel; `out.rep` without deps still safe
 - `out.rep`: Memory aside shows **graph chart** with labels from fixture Memory* CSVs

@@ -20,7 +20,7 @@ Canonical Product answers live in the owning **specs** after resolution (see [DE
 Allowed to implement now:
 
 1. Tooling scaffold (Vitest, Playwright, playground)
-2. `.rep` / `.ncrep` parse (alias) + Chrome Trace → `SwimlaneModel`
+2. `.npu-rep` parse + Chrome Trace → `SwimlaneModel` (classic `cann-rep` / sample `.rep` remain engineering fixtures; [PROC-2](../PROC.md))
 3. Standalone Chrome Trace `.json` open path
 4. Timeline shell, axis, gutter, swimlane, tooltip, select → detail
 5. PIPE bars when `PipeUtilization` present
@@ -35,6 +35,8 @@ Not required for first MVP merge:
 - Product-final hardware inventory beyond DATA-34a; roofline tabs / L2 series beyond DATA-37*; memory SVG; deps; secondary tabs
 
 ## Related specs to keep in sync
+
+High-level product/process docs shared by many interim rules. Detailed `specs/**` links belong on the interim entry and the owning spec — not here.
 
 - [VIEW_DATA_REQUIREMENTS.md](../../../formats/VIEW_DATA_REQUIREMENTS.md)
 - [FEATURE_MATRIX.md](../../../ui/FEATURE_MATRIX.md)
