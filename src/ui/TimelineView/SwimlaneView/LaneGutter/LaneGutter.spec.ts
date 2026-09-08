@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import LaneGutter from './LaneGutter.vue';
 
@@ -197,6 +197,7 @@ describe('LaneGutter', () => {
           {
             id: 'p1',
             name: 'Process 1',
+            utilMidlinePercent: 50,
             lanes: [
               { id: 'a', name: 'A', color: '#f00', utilization: 0.46 },
               { id: 'b', name: 'B', color: '#0f0' },
@@ -205,13 +206,58 @@ describe('LaneGutter', () => {
         ],
       },
     });
-    expect(
-      wrapper.get('[data-testid="gutter-lane-a"] [data-testid="lane-util"]').find('.pr-gutter__util-mid')
-        .exists(),
-    ).toBe(true);
+    const mid = wrapper.get('[data-testid="gutter-lane-a"] [data-testid="lane-util"]').find('.pr-gutter__util-mid');
+    expect(mid.exists()).toBe(true);
+    expect(mid.attributes('style')).toContain('left: 50%');
     expect(wrapper.get('[data-testid="gutter-lane-b"] .pr-gutter__util--empty').find('.pr-gutter__util-mid').exists()).toBe(
       false,
     );
+  });
+
+  it('PR-GUTTER-007: relative metric midline uses averageBarWidth', () => {
+    const wrapper = mount(LaneGutter, {
+      props: {
+        groups: [
+          {
+            id: 'p1',
+            name: 'Process 1',
+            utilMidlinePercent: 75,
+            lanes: [
+              {
+                id: 'l1',
+                name: 'Thread A',
+                color: '#f00',
+                bar: { barWidth: 100, label: '10', relativeMax: true },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const mid = wrapper.get('.pr-gutter__util-mid');
+    expect(mid.attributes('style')).toContain('left: 75%');
+  });
+
+  it('PR-GUTTER-006: relativeMax drives red fill; tied bars stay gray', () => {
+    const wrapper = mount(LaneGutter, {
+      props: {
+        groups: [
+          {
+            id: 'p1',
+            name: 'Process 1',
+            lanes: [
+              { id: 'max', name: 'Max', color: '#f00', bar: { barWidth: 100, label: '10', relativeMax: true } },
+              { id: 'other', name: 'Other', color: '#0f0', bar: { barWidth: 50, label: '5', relativeMax: false } },
+              { id: 'tie', name: 'Tie', color: '#00f', bar: { barWidth: 100, label: '10', relativeMax: false } },
+            ],
+          },
+        ],
+      },
+    });
+    const fills = wrapper.findAll('.pr-gutter__util-fill');
+    expect(fills[0]!.attributes('style')).toContain('--pr-util-fill: rgba(231, 67, 74, 0.4)');
+    expect(fills[1]!.attributes('style')).toContain('--pr-util-fill: rgba(255, 255, 255, 0.08)');
+    expect(fills[2]!.attributes('style')).toContain('--pr-util-fill: rgba(255, 255, 255, 0.08)');
   });
 
   it('PR-GUTTER-008: Card row is a non-interactive spacer', () => {
@@ -360,6 +406,31 @@ describe('LaneGutter', () => {
     expect(wrapper.emitted('unpin-lane')?.[0]).toEqual(['l1']);
   });
 
+  it('PR-GUTTER-009: bar payload drives width and label', () => {
+    const wrapper = mount(LaneGutter, {
+      props: {
+        groups: [
+          {
+            id: 'p1',
+            name: 'Process 1',
+            lanes: [
+              {
+                id: 'l1',
+                name: 'Thread A',
+                color: '#f00',
+                bar: { barWidth: 80, label: '12345', thresholdColor: false },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const util = wrapper.get('[data-testid="lane-util"]');
+    expect(util.find('.pr-gutter__util-fill').attributes('style')).toContain('width: 80%');
+    expect(util.text()).toContain('12345');
+    expect(util.text()).not.toContain('%');
+  });
+
   it('PR-GUTTER-015: row hover fills the raised surface and lifts the label to white', async () => {
     const src = (await import('./LaneGutterNode.vue?raw')).default as string;
 
@@ -376,9 +447,70 @@ describe('LaneGutter', () => {
       ),
     ).toMatch(/color:\s*#fff/);
 
-    // Pin tooltip follows EventTooltip's chrome, which AC-09 moved to the token.
-    const tip = rule(src, '\\.pr-gutter__pin-tip');
+    // Shared tip chrome (pin + util) follows EventTooltip / raised-surface token.
+    const tip = rule(src, '\\.pr-gutter__tip');
     expect(tip).toMatch(/--pr-surface-raised, #363636/);
     expect(tip).not.toMatch(/#555/);
+  });
+
+  it('PR-GUTTER-016: thin lane hover shows delayed cursor-follow value tooltip', async () => {
+    vi.useFakeTimers();
+    const nested = [
+      {
+        id: 'card0',
+        name: 'Card0',
+        lanes: [
+          {
+            id: 'cube',
+            name: 'Core0.Cube',
+            color: '#007084',
+            bar: { barWidth: 80, label: '88', thresholdColor: false },
+            children: [
+              {
+                id: 'mte1',
+                name: 'MTE1',
+                color: '#885C00',
+                bar: { barWidth: 40, label: '42', thresholdColor: false },
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const wrapper = mount(LaneGutter, {
+      props: { groups: nested, collapsedIds: [] },
+      attachTo: document.body,
+    });
+
+    const thickLane = wrapper.get('[data-testid="gutter-folder-cube"]');
+    expect(thickLane.get('[data-testid="lane-util"]').text()).toContain('88');
+    await thickLane.trigger('pointerenter', { clientX: 40, clientY: 20 });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+
+    const thinLane = wrapper.get('[data-testid="gutter-lane-mte1"]');
+    expect(thinLane.get('[data-testid="lane-util"]').classes()).toContain('pr-gutter__util--thin');
+    expect(thinLane.find('.pr-gutter__util-pct').exists()).toBe(false);
+
+    await thinLane.trigger('pointerenter', { clientX: 100, clientY: 50 });
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+    await vi.advanceTimersByTimeAsync(399);
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+
+    const tip = document.querySelector('[data-testid="lane-util-tip"]') as HTMLElement | null;
+    expect(tip).toBeTruthy();
+    expect(tip!.textContent).toBe('42');
+    expect(tip!.style.left).toBe('112px');
+    expect(tip!.style.top).toBe('62px');
+
+    await thinLane.trigger('pointermove', { clientX: 130, clientY: 70 });
+    expect(tip!.style.left).toBe('142px');
+    expect(tip!.style.top).toBe('82px');
+
+    await thinLane.trigger('pointerleave');
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+    wrapper.unmount();
+    vi.useRealTimers();
   });
 });

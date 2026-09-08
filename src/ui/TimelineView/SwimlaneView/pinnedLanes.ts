@@ -19,17 +19,24 @@ function walkGutter(
   }
 }
 
-export type PinnedGutterRow = { lane: GutterLane; depth: number };
+export type PinnedGutterRow = {
+  lane: GutterLane;
+  depth: number;
+  /** Source Card's util midline (%); pins may mix Cards so this is per-row. */
+  utilMidlinePercent?: number;
+};
 
 /** Resolve leaf gutter lanes in `ids` order (skip missing / folders). */
 export function resolvePinnedGutterLanes(
-  groups: { lanes: GutterLane[] }[],
+  groups: { lanes: GutterLane[]; utilMidlinePercent?: number }[],
   ids: readonly string[],
 ): PinnedGutterRow[] {
   const byId = new Map<string, PinnedGutterRow>();
   for (const g of groups) {
     walkGutter(g.lanes, 0, (lane, depth) => {
-      if (lane.children === undefined) byId.set(lane.id, { lane, depth });
+      if (lane.children === undefined) {
+        byId.set(lane.id, { lane, depth, utilMidlinePercent: g.utilMidlinePercent });
+      }
     });
   }
   const out: PinnedGutterRow[] = [];

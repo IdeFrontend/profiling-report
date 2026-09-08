@@ -28,6 +28,6 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [UI-46](../../questions/UI.md)
-**Interim:** Labels always suffix **`µs`** (same glyph as `formatTime`) so values are not read as `%` or bare ratios. Formatting intent (`PR-GMET-008` on PR #45): integer when \(\lvert raw\rvert\ge 0.5\); else two decimals / `toPrecision(2)` when tiny.
-**Implement / test as:** shipping on PR [#45](https://github.com/IdeFrontend/profiling-report/pull/45) — `formatClockCycleLabel`, LaneGutter thick/tip labels
+**Interim:** Labels always suffix **`µs`** (same glyph as `formatTime`) so values are not read as `%` or bare ratios. Formatting: integer when \(\lvert raw\rvert\ge 0.5\); else two decimals / `toPrecision(2)` when tiny (`PR-GMET-008`).
+**Implement / test as:** `formatClockCycleLabel`, LaneGutter thick/tip labels — [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) (`PR-GMET-008`)
 **Superseded when:** Product confirms unit glyph, locale wording, or cycle-count display ([UI-46](../../questions/UI.md))

@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { laneCategoryLabel, t } from '../../../../i18n';
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
-import type { GutterLane } from './gutterTypes';
+import type { GutterBarDisplay, GutterLane } from './gutterTypes';
+
+/** Match EventTooltip offset; delay avoids flicker while scanning the gutter. */
+const UTIL_TIP_DELAY_MS = 400;
+const UTIL_TIP_CURSOR_OFFSET_PX = 12;
 
 const props = defineProps<{
   lane: GutterLane;
@@ -13,6 +17,8 @@ const props = defineProps<{
   /** Leaf id under canvas hover — gutter row highlight only (not pushpin). */
   hoveredLaneId?: string | null;
   locale?: string;
+  /** Average marker position (%); omit to hide midline on this row. */
+  utilMidlinePercent?: number;
 }>();
 
 const emit = defineEmits<{
@@ -31,14 +37,19 @@ const displayName = computed(() =>
   laneCategoryLabel(props.lane.categoryKey, props.lane.name, props.locale),
 );
 const pinPointerHover = ref(false);
+const utilTipVisible = ref(false);
+const utilTipPos = ref({ left: '0px', top: '0px' });
+let utilTipTimer: ReturnType<typeof setTimeout> | null = null;
+
 const laneExternallyHovered = computed(
   () => !isFolder.value && props.hoveredLaneId != null && props.hoveredLaneId === props.lane.id,
 );
 /** Leaf/folder share the same indent; pin is absolute at gutter left. */
 const pad = computed(() => `${24 + props.depth * 14}px`);
 /** Thick: folders or depth-0 leaves (通信/储存HBM); thin: pipe leaves under Core. */
+const isThinUtil = computed(() => !(isFolder.value || props.depth === 0));
 const utilSizeClass = computed(() =>
-  isFolder.value || props.depth === 0 ? 'pr-gutter__util--thick' : 'pr-gutter__util--thin',
+  isThinUtil.value ? 'pr-gutter__util--thin' : 'pr-gutter__util--thick',
 );
 
 /** AC-11's tints. The bar composites them over an opaque base rather than over the
@@ -46,13 +57,64 @@ const utilSizeClass = computed(() =>
 const UTIL_RED = 'rgba(231, 67, 74, 0.4)';
 const UTIL_GRAY = 'rgba(255, 255, 255, 0.08)';
 
-function pctLabel(util: number): string {
-  return `${Math.round(util * 100)}%`;
+const displayBar = computed((): GutterBarDisplay | null => {
+  if (props.lane.bar) return props.lane.bar;
+  if (props.lane.utilization != null) {
+    const barWidth = Math.round(props.lane.utilization * 100);
+    return {
+      barWidth,
+      label: `${barWidth}%`,
+      thresholdColor: true,
+    };
+  }
+  return null;
+});
+
+const canShowUtilTip = computed(
+  () => isThinUtil.value && displayBar.value != null && displayBar.value.label.length > 0,
+);
+
+const showUtilTip = computed(() => canShowUtilTip.value && utilTipVisible.value);
+
+function clearUtilTipTimer() {
+  if (utilTipTimer != null) {
+    clearTimeout(utilTipTimer);
+    utilTipTimer = null;
+  }
 }
 
-/** Sketch: only red (&lt;50%) or gray (≥50%) — no pipe-category tint. */
-function fillColor(util: number): string {
-  return util < 0.5 ? UTIL_RED : UTIL_GRAY;
+function setUtilTipPos(clientX: number, clientY: number) {
+  utilTipPos.value = {
+    left: `${clientX + UTIL_TIP_CURSOR_OFFSET_PX}px`,
+    top: `${clientY + UTIL_TIP_CURSOR_OFFSET_PX}px`,
+  };
+}
+
+function onLanePointerEnter(e: PointerEvent) {
+  if (!canShowUtilTip.value) return;
+  setUtilTipPos(e.clientX, e.clientY);
+  clearUtilTipTimer();
+  utilTipTimer = setTimeout(() => {
+    utilTipVisible.value = true;
+    utilTipTimer = null;
+  }, UTIL_TIP_DELAY_MS);
+}
+
+function onLanePointerMove(e: PointerEvent) {
+  if (!canShowUtilTip.value) return;
+  setUtilTipPos(e.clientX, e.clientY);
+}
+
+function onLanePointerLeave() {
+  clearUtilTipTimer();
+  utilTipVisible.value = false;
+}
+
+function fillColor(bar: GutterBarDisplay): string {
+  if (bar.thresholdColor) {
+    return bar.barWidth < 50 ? UTIL_RED : UTIL_GRAY;
+  }
+  return bar.relativeMax ? UTIL_RED : UTIL_GRAY;
 }
 
 function onPinClick(e: MouseEvent) {
@@ -60,6 +122,14 @@ function onPinClick(e: MouseEvent) {
   if (isPinned.value) emit('unpin-lane', props.lane.id);
   else emit('pin-lane', props.lane.id);
 }
+
+const midlineStyle = computed(() =>
+  props.utilMidlinePercent != null ? { left: `${props.utilMidlinePercent}%` } : { display: 'none' },
+);
+
+onBeforeUnmount(() => {
+  clearUtilTipTimer();
+});
 </script>
 
 <template>
@@ -83,26 +153,30 @@ function onPinClick(e: MouseEvent) {
       >{{ displayName }}</span>
     </span>
     <span
-      v-if="lane.utilization != null"
+      v-if="displayBar"
       class="pr-gutter__util"
       :class="utilSizeClass"
       data-testid="lane-util"
     >
+      <span class="pr-gutter__util-track">
+        <span
+          class="pr-gutter__util-fill"
+          :style="{
+            width: `${Math.min(100, Math.max(0, displayBar.barWidth))}%`,
+            '--pr-util-fill': fillColor(displayBar),
+          }"
+        />
+        <span
+          v-if="utilMidlinePercent != null"
+          class="pr-gutter__util-mid"
+          :style="midlineStyle"
+          aria-hidden="true"
+        />
+      </span>
       <span
-        class="pr-gutter__util-fill"
-        :style="{
-          width: `${Math.min(100, Math.max(0, lane.utilization * 100))}%`,
-          '--pr-util-fill': fillColor(lane.utilization),
-        }"
-      />
-      <span
-        class="pr-gutter__util-mid"
-        aria-hidden="true"
-      />
-      <span
-        v-if="utilSizeClass === 'pr-gutter__util--thick'"
+        v-if="!isThinUtil"
         class="pr-gutter__util-pct"
-      >{{ pctLabel(lane.utilization) }}</span>
+      >{{ displayBar.label }}</span>
     </span>
     <span
       v-else
@@ -121,6 +195,7 @@ function onPinClick(e: MouseEvent) {
       :pinned-lane-ids="pinnedLaneIds"
       :hovered-lane-id="hoveredLaneId"
       :locale="locale"
+      :util-midline-percent="utilMidlinePercent"
       @toggle="(id) => emit('toggle', id)"
       @pin-lane="(id) => emit('pin-lane', id)"
       @unpin-lane="(id) => emit('unpin-lane', id)"
@@ -135,6 +210,9 @@ function onPinClick(e: MouseEvent) {
     }"
     :style="{ paddingLeft: pad }"
     :data-testid="`gutter-lane-${lane.id}`"
+    @pointerenter="onLanePointerEnter"
+    @pointermove="onLanePointerMove"
+    @pointerleave="onLanePointerLeave"
   >
     <button
       type="button"
@@ -151,7 +229,7 @@ function onPinClick(e: MouseEvent) {
       <PinIcon :filled="isPinned || pinPointerHover" />
       <span
         v-if="pinPointerHover"
-        class="pr-gutter__pin-tip"
+        class="pr-gutter__tip pr-gutter__pin-tip"
         role="tooltip"
       >{{ pinLabel }}</span>
     </button>
@@ -162,26 +240,31 @@ function onPinClick(e: MouseEvent) {
       >{{ displayName }}</span>
     </span>
     <span
-      v-if="lane.utilization != null"
+      v-if="displayBar"
       class="pr-gutter__util"
       :class="utilSizeClass"
       data-testid="lane-util"
+      :aria-label="canShowUtilTip ? displayBar.label : undefined"
     >
+      <span class="pr-gutter__util-track">
+        <span
+          class="pr-gutter__util-fill"
+          :style="{
+            width: `${Math.min(100, Math.max(0, displayBar.barWidth))}%`,
+            '--pr-util-fill': fillColor(displayBar),
+          }"
+        />
+        <span
+          v-if="utilMidlinePercent != null"
+          class="pr-gutter__util-mid"
+          :style="midlineStyle"
+          aria-hidden="true"
+        />
+      </span>
       <span
-        class="pr-gutter__util-fill"
-        :style="{
-          width: `${Math.min(100, Math.max(0, lane.utilization * 100))}%`,
-          '--pr-util-fill': fillColor(lane.utilization),
-        }"
-      />
-      <span
-        class="pr-gutter__util-mid"
-        aria-hidden="true"
-      />
-      <span
-        v-if="utilSizeClass === 'pr-gutter__util--thick'"
+        v-if="!isThinUtil"
         class="pr-gutter__util-pct"
-      >{{ pctLabel(lane.utilization) }}</span>
+      >{{ displayBar.label }}</span>
     </span>
     <span
       v-else
@@ -189,6 +272,15 @@ function onPinClick(e: MouseEvent) {
       :class="utilSizeClass"
       aria-hidden="true"
     />
+    <Teleport to="body">
+      <span
+        v-if="showUtilTip && displayBar"
+        class="pr-gutter__tip pr-gutter__util-tip"
+        role="tooltip"
+        data-testid="lane-util-tip"
+        :style="utilTipPos"
+      >{{ displayBar.label }}</span>
+    </Teleport>
   </div>
 </template>
 
@@ -271,15 +363,11 @@ function onPinClick(e: MouseEvent) {
   opacity: 1;
 }
 
-.pr-gutter__pin-tip {
+.pr-gutter__tip {
   position: absolute;
-  /* Pin sits flush-left; center would clip past the gutter edge. */
-  left: 0;
-  bottom: calc(100% + 6px);
   z-index: 2;
   padding: 4px 8px;
-  /* Follows EventTooltip's chrome, as the pin spec asks; that chrome moved to the
-     raised-surface token under AC-09, and the design crop measures the same #363636. */
+  /* Follows EventTooltip's chrome; raised-surface token under AC-09. */
   background: var(--pr-surface-raised, #363636);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
@@ -289,6 +377,12 @@ function onPinClick(e: MouseEvent) {
   color: #e8e8e8;
   white-space: nowrap;
   pointer-events: none;
+}
+
+.pr-gutter__pin-tip {
+  /* Pin sits flush-left; center would clip past the gutter edge. */
+  left: 0;
+  bottom: calc(100% + 6px);
 }
 
 .pr-gutter__name {
@@ -308,6 +402,14 @@ function onPinClick(e: MouseEvent) {
   display: block;
   box-sizing: border-box;
   width: 110px;
+  border-radius: 4px;
+}
+
+.pr-gutter__util-track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
   background: repeating-linear-gradient(
     -45deg,
     #3a3a3a 0,
@@ -315,13 +417,10 @@ function onPinClick(e: MouseEvent) {
     var(--pr-util-track) 1px,
     var(--pr-util-track) 4px
   );
-  border-radius: 4px;
-  overflow: hidden;
 }
 
 .pr-gutter__util-mid {
   position: absolute;
-  left: 50%;
   top: 0;
   bottom: 0;
   border-left: 1px dashed rgba(255, 255, 255, 0.1);
@@ -342,6 +441,16 @@ function onPinClick(e: MouseEvent) {
 
 .pr-gutter__util--empty {
   background: transparent;
+}
+
+.pr-gutter__util--empty .pr-gutter__util-track {
+  display: none;
+}
+
+.pr-gutter__util-tip {
+  position: fixed;
+  z-index: 20;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Opaque under the tint, so the track's hatch reads as "still to fill" and stops dead at

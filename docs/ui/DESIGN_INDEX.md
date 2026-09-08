@@ -44,6 +44,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`CursorTimestamp`](../../src/ui/TimelineView/TimeAxis/CursorTimestamp/visual/) | cursor timestamp | `v930/search-highlight` |
 | [`OverviewCharts`](../../src/ui/TimelineView/OverviewCharts/visual/) | 统计分析 tracks | `v930/entry` |
 | [`LaneGutter`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/visual/) | expanders, util bars | `v930/entry`; **pin** crops → `v930/hardware-more-detail` |
+| [`SwimlaneView`](../../src/ui/TimelineView/SwimlaneView/visual/) | Card metric dropdown | `v930/entry` |
 | [`SwimlaneCanvas`](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/visual/) | events, search, measure, multi-height, marquee, selection-dim | `v930/entry`, `task-*` |
 | [`DependencyLinksLayer`](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/visual/) | spec + visual pack; curves drawn by swimlane renderer (not a Vue overlay) | `v930/task-click-detail` |
 | [`StatsAside`](../../src/ui/StatsAside/visual/) | aside shell scrolled | `v930/report-stats-scrolled` |
@@ -60,4 +61,4 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`EventTooltip`](../../src/ui/EventTooltip/visual/) | hover tooltip | `v930/task-hover` |
 | [`ContextMenu`](../../src/ui/ContextMenu/visual/) | task context menu | `v930/task-context-menu` |
 | [`MultiSelectSummary`](../../src/ui/MultiSelectSummary/visual/) | selection, info panel | `v930/task-marquee` |
-| ProfilingReport / ReportLayout / TimelineView / SwimlaneView / TimeAxis | (shells — no visual pack) | — |
+| ProfilingReport / ReportLayout / TimelineView / TimeAxis | (shells — no visual pack) | — |

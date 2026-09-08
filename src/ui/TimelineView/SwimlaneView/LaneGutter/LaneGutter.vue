@@ -61,6 +61,7 @@ defineExpose({ root });
           :pinned-lane-ids="pinnedLaneIds"
           :hovered-lane-id="hoveredLaneId"
           :locale="locale"
+          :util-midline-percent="group.utilMidlinePercent"
           @toggle="(id) => emit('toggle-group', id)"
           @pin-lane="(id) => emit('pin-lane', id)"
           @unpin-lane="(id) => emit('unpin-lane', id)"

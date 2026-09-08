@@ -26,6 +26,7 @@ This directory contains behavioral specifications for all modules in the profili
 | [load-report-source](./core/load-report-source.spec.md) | `PR-JSON-*` | MVP | `src/adapters/loadReportSource.ts` | `tests/unit/loadReportSource.spec.ts` |
 | [npu-rep](./core/npu-rep.spec.md) | `PR-NPU-*` | MVP | `src/adapters/parseNpuRep.ts`, `src/adapters/loadReportSource.ts` | `tests/unit/parseNpuRep.spec.ts`, `tests/unit/loadReportSource.spec.ts` |
 | [utilization](./core/utilization.spec.md) | `PR-UTIL-*` | MVP | `src/domain/utilization.ts` | `tests/unit/utilization.spec.ts` |
+| [gutter-metrics](./core/gutter-metrics.spec.md) | `PR-GMET-*` | MVP | `src/domain/gutterMetrics.ts` | `tests/unit/gutterMetrics.spec.ts` |
 | [integration](./core/integration.spec.md) | `PR-UI-*`, `PR-E2E-*` | MVP | — | `tests/component/ProfilingReport.feature.spec.ts`, `tests/e2e/feature.spec.ts` |
 | [scaffold](./core/scaffold.spec.md) | `PR-SCAFFOLD-*` | MVP | — | `tests/unit/scaffold.spec.ts`, `tests/e2e/playground.spec.ts` |
 | [cannbot-payload](./core/cannbot-payload.spec.md) | `PR-CANNBOT-*` | M2 | `src/domain/cannbot.ts` | `tests/unit/cannbot.spec.ts` |
