@@ -557,6 +557,45 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
+  it('PR-ROOT-012: host deep-reactive swimlaneModel is consumed raw (shallow)', async () => {
+    const { isReactive, reactive } = await import('vue');
+    const model = reactive({
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [{ id: 'e', name: 'ev', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 10,
+    });
+    expect(isReactive(model)).toBe(true);
+
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'shallow-swim',
+        swimlaneModel: model,
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    await nextTick();
+
+    // Source-level toRaw: swim, displaySwim, and leaf events are not Proxies.
+    expect(isReactive(wrapper.vm.swim)).toBe(false);
+    expect(isReactive(wrapper.vm.displaySwim)).toBe(false);
+    const leaf = wrapper.vm.displaySwim!.processes[0]!.threads[0]!.events[0]!;
+    expect(isReactive(leaf)).toBe(false);
+    // Nothing collapsed → filterCollapsedTree returns the same raw reference (pin/body share identity).
+    expect(wrapper.vm.displaySwim).toBe(wrapper.vm.swim);
+  });
+
   it('PR-VIEW-016/017: W/S/A/D keys zoom and pan the timeline', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {

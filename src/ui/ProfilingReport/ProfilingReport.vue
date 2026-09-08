@@ -146,7 +146,8 @@ const selectedOperatorId = ref<string | null>(null);
 /** Per-Card gutter metric selection (session-only; reset on report swap). */
 const gutterMetricByCard = ref<Record<string, GutterMetric>>({});
 
-const swim = computed(() => props.swimlaneModel ?? internalSwim.value);
+/** Raw swim model for all consumers — unwrap host deep-reactive props so deps/gutter/collapse skip Proxies. */
+const swim = computed(() => toRaw(props.swimlaneModel ?? internalSwim.value));
 const report = computed(() => props.reportModel ?? internalReport.value);
 /** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
 const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
@@ -239,12 +240,12 @@ const laneGroups = computed((): GutterGroup[] => {
 });
 
 /** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
+/** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
-  // toRaw: host may pass a deep-reactive model; walking Proxies freezes collapse on large traces.
-  // Shallow identity only — replace swimlaneModel (or toggle collapse) to refresh; in-place nested edits do not.
-  return filterCollapsedTree(toRaw(m), collapsedGroupIds.value);
+  // Swim is already toRaw'd; replace swimlaneModel (or toggle collapse) to refresh — in-place nested edits do not.
+  return filterCollapsedTree(m, collapsedGroupIds.value);
 });
 
 const bounds = computed(() => {
