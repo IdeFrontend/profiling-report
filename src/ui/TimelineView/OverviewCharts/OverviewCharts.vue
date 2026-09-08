@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { OverviewSeries } from '../../../domain/types';
 import { t } from '../../../i18n';
+import { areaPathFromVertices, stepAfterVertices, strokePathFromVertices } from './stepPath';
 
 const props = withDefaults(
   defineProps<{
@@ -51,33 +52,23 @@ const tracks = computed(() =>
   }),
 );
 
-function areaPath(points: { t: number; v: number }[], maxV: number): string {
-  if (points.length === 0) return '';
+function pathHelpers(maxV: number) {
   const xSpan = x1.value - x0.value;
   const toX = (t: number) => ((t - x0.value) / xSpan) * VIEW_W;
   const toY = (v: number) => TRACK_H * (1 - v / maxV);
-  const clipped = points.filter((p) => p.t >= x0.value - xSpan && p.t <= x1.value + xSpan);
-  if (clipped.length === 0) return '';
-  let d = `M ${toX(clipped[0]!.t)} ${TRACK_H}`;
-  for (const p of clipped) {
-    d += ` L ${toX(p.t)} ${toY(p.v)}`;
-  }
-  d += ` L ${toX(clipped[clipped.length - 1]!.t)} ${TRACK_H} Z`;
-  return d;
+  return { toX, toY };
+}
+
+function areaPath(points: { t: number; v: number }[], maxV: number): string {
+  const verts = stepAfterVertices(points, x0.value, x1.value);
+  const { toX, toY } = pathHelpers(maxV);
+  return areaPathFromVertices(verts, TRACK_H, toX, toY);
 }
 
 function strokePath(points: { t: number; v: number }[], maxV: number): string {
-  if (points.length === 0) return '';
-  const xSpan = x1.value - x0.value;
-  const toX = (t: number) => ((t - x0.value) / xSpan) * VIEW_W;
-  const toY = (v: number) => TRACK_H * (1 - v / maxV);
-  const clipped = points.filter((p) => p.t >= x0.value - xSpan && p.t <= x1.value + xSpan);
-  if (clipped.length === 0) return '';
-  let d = `M ${toX(clipped[0]!.t)} ${toY(clipped[0]!.v)}`;
-  for (const p of clipped.slice(1)) {
-    d += ` L ${toX(p.t)} ${toY(p.v)}`;
-  }
-  return d;
+  const verts = stepAfterVertices(points, x0.value, x1.value);
+  const { toX, toY } = pathHelpers(maxV);
+  return strokePathFromVertices(verts, toX, toY);
 }
 </script>
 
@@ -222,8 +213,8 @@ function strokePath(points: { t: number; v: number }[], maxV: number): string {
 
 .pr-overview-stroke {
   stroke-width: 1.25;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+  stroke-linejoin: miter;
+  stroke-linecap: butt;
   vector-effect: non-scaling-stroke;
 }
 </style>

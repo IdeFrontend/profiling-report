@@ -22,7 +22,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **above**
 - **Gutter column:** width = TimelineView gutter (`gutterWidth` prop); labels left-aligned; section header with chevron + localized **统计分析** / Statistical analysis.
 - **Track height:** **16px** paint area per series.
 - **Gap:** **8px** margin between consecutive tracks.
-- **Style:** filled area (`fill-opacity ≈ 0.45`) + bright **stroke** polyline (v930: darker fill under brighter edge). Colors from [COLOR_TOKENS](../../../../docs/ui/COLOR_TOKENS.md) by counter name (`cube` → `--pr-color-overview-cube`, etc.).
+- **Style:** **step-after** area + stroke (hold each sample value until the next counter event, then jump). Fill `fill-opacity ≈ 0.45` under a bright stroke. Colors from [COLOR_TOKENS](../../../../docs/ui/COLOR_TOKENS.md) by counter name (`cube` → `--pr-color-overview-cube`, etc.).
 - **Time domain:** shared with swimlane visible `[startTime, endTime]` (canonical ns).
 
 ## Acceptance Criteria
@@ -30,6 +30,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **above**
 1. **PR-OV-001** — Renders one labeled track per `OverviewSeries` entry; section header present.
 2. **PR-OV-002** — Each track SVG is 16px tall; consecutive tracks are separated by 8px margin.
 3. **PR-OV-003** — Mounted above the swimlane in TimelineView (DOM order: time axis → overview → swimlane).
+4. **PR-OV-004** — Series paths are step-after: value stays constant until the next sample time, then jumps (no diagonal interpolation between samples).
 
 ## Visual
 
