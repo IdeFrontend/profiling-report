@@ -289,7 +289,7 @@ export function eventScreenRect(
 }
 
 /** Lane id (leaf or folder) under canvas-local CSS Y, or null on empty / header gap. */
-export function leafLaneIdAtPoint(
+export function laneIdAtPoint(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
   y: number,

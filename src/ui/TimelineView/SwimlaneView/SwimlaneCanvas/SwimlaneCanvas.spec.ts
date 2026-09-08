@@ -1987,7 +1987,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-069: inbound hoveredLaneId calls setHoveredLane without re-emitting', async () => {
+  it('PR-CANVAS-071: inbound hoveredLaneId calls setHoveredLane without re-emitting', async () => {
     const setHoveredLane = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setHoveredLane');
     const render = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'render');
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {

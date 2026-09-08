@@ -20,7 +20,7 @@ import {
   findExactEdgeMatchesAt,
   findHoverGap,
   LANE_HEIGHT,
-  leafLaneIdAtPoint,
+  laneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
   summaryFolderId,
@@ -134,12 +134,10 @@ function applyLaneHover(id: string | null): void {
   backend.setHoveredLane?.(id);
   // Overlay underpaint must see the same hovered row as the GL background pass.
   if (useWebGl.value) overlay.setHoveredLane(id);
-  // Canvas pointer path paints via onPointerMove; gutter-driven updates need an explicit paint.
-  schedulePaint();
 }
 
 function emitLaneHover(localY: number | null): void {
-  const id = localY == null ? null : leafLaneIdAtPoint(backend.getLayout(), props.view, localY);
+  const id = localY == null ? null : laneIdAtPoint(backend.getLayout(), props.view, localY);
   applyLaneHover(id);
   emit('lane-hover', id);
 }
@@ -147,7 +145,10 @@ function emitLaneHover(localY: number | null): void {
 watch(
   () => props.hoveredLaneId ?? null,
   (id) => {
-    if (id !== hoveredLaneId.value) applyLaneHover(id);
+    if (id === hoveredLaneId.value) return;
+    applyLaneHover(id);
+    // Pointer path already paints in onPointerMove; gutter-driven updates need an explicit paint.
+    schedulePaint();
   },
 );
 

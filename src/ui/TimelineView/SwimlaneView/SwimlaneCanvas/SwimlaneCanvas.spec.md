@@ -102,7 +102,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 66. **PR-CANVAS-066** — Alt+click / Alt+hover on a collapsed-group summary bar treats it as a normal measure endpoint (anchor / retarget / pin); non-Alt click still expands (`toggle-group` + `select` leaf/`null` per PR-CANVAS-065).
 67. **PR-CANVAS-067** — Ctrl+left-drag still pans the viewport (emits `pan`) — the PyPTO "combined" horizontal pan works because pan is not gated on the modifier.
 68. **PR-CANVAS-068** — Horizontal-dominant wheel (`|deltaX| > |deltaY|`) emits `pan` (pixel→time, same formula as drag), including when `ctrlKey` is set; vertical-dominant non-ctrl wheel still emits `scroll-y`; Ctrl/Cmd+vertical wheel still zooms.
-69. **PR-CANVAS-069** — Inbound `hoveredLaneId` prop calls renderer `setHoveredLane` (and WebGL overlay when active) without re-emitting `lane-hover` (gutter→track half of AC-07).
+71. **PR-CANVAS-071** — Inbound `hoveredLaneId` prop calls renderer `setHoveredLane` (and WebGL overlay when active) without re-emitting `lane-hover` (gutter→track half of AC-07).
 
 ## Edge Cases
 
@@ -135,7 +135,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
-- **2026-09-07** — Inbound `hoveredLaneId` drives track `setHoveredLane` without re-emitting (gutter→track AC-07); PR-CANVAS-069.
+- **2026-09-07** — Inbound `hoveredLaneId` drives track `setHoveredLane` without re-emitting (gutter→track AC-07); PR-CANVAS-071 (069/070 reserved for open #71 freezeBackingStore).
 - **2026-09-07** — Summary-bar expand selects the sole leaf when `taskCount === 1` (`sourceEvent`); multi-task summaries still clear selection (`PR-CANVAS-065`).
 - **2026-09-07** — Summary-bar click clears selection (`select` null) as well as hover after expand (`PR-CANVAS-065`).
 - **2026-09-07** — Summary-bar click clears hover so the "N tasks" tooltip does not linger after expand (`PR-CANVAS-065`).
