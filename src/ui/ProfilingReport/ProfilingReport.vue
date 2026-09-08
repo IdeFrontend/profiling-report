@@ -588,6 +588,9 @@ function applyAdapted(adapted: AdaptedReport) {
 
 function closeTopologyFullscreen() {
   topologyFullscreen.value = false;
+}
+
+function onTopologyFullscreenAfterLeave() {
   fullscreenTopology.value = null;
 }
 
@@ -1096,57 +1099,62 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       {{ t('noTimeline', locale) }}
     </p>
 
-    <div
-      v-if="topologyFullscreen && fullscreenTopology"
-      class="pr-topo-fs"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="pr-topo-fs-title"
-      data-testid="topology-fullscreen-overlay"
+    <Transition
+      name="pr-topo-fs"
+      @after-leave="onTopologyFullscreenAfterLeave"
     >
-      <div class="pr-topo-fs__head">
-        <button
-          ref="fullscreenBackRef"
-          type="button"
-          class="pr-topo-fs__back"
-          data-testid="topology-fullscreen-back"
-          :aria-label="t('back', locale)"
-          :title="t('back', locale)"
-          @click="closeTopologyFullscreen"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            aria-hidden="true"
+      <div
+        v-if="topologyFullscreen && fullscreenTopology"
+        class="pr-topo-fs"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pr-topo-fs-title"
+        data-testid="topology-fullscreen-overlay"
+      >
+        <div class="pr-topo-fs__head">
+          <button
+            ref="fullscreenBackRef"
+            type="button"
+            class="pr-topo-fs__back"
+            data-testid="topology-fullscreen-back"
+            :aria-label="t('back', locale)"
+            :title="t('back', locale)"
+            @click="closeTopologyFullscreen"
           >
-            <path
-              d="M10 3.5L4.5 8 10 12.5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M5 8h8"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
-        <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
+            <svg
+              viewBox="0 0 16 16"
+              width="14"
+              height="14"
+              aria-hidden="true"
+            >
+              <path
+                d="M10 3.5L4.5 8 10 12.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M5 8h8"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+          <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
+        </div>
+        <div class="pr-topo-fs__body">
+          <MemoryTopologyPanel
+            :model="fullscreenTopology"
+            :locale="locale"
+            :open-details-on-contextmenu="false"
+          />
+        </div>
       </div>
-      <div class="pr-topo-fs__body">
-        <MemoryTopologyPanel
-          :model="fullscreenTopology"
-          :locale="locale"
-          :open-details-on-contextmenu="false"
-        />
-      </div>
-    </div>
+    </Transition>
 
     <Transition name="pr-dock">
       <DetailPanel
@@ -1214,6 +1222,26 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-height: 0;
   padding: 10px 12px;
   background: var(--pr-bg-deep);
+}
+
+.pr-topo-fs-enter-active,
+.pr-topo-fs-leave-active {
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+.pr-topo-fs-enter-from,
+.pr-topo-fs-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-topo-fs-enter-active,
+  .pr-topo-fs-leave-active {
+    transition: none;
+  }
 }
 
 .pr-topo-fs__head {

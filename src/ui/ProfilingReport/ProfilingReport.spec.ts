@@ -504,6 +504,15 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-013: topology fullscreen show/hide uses a 200ms opacity+scale transition', async () => {
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    expect(src).toMatch(/<Transition[^>]*name="pr-topo-fs"/);
+    expect(src).toMatch(/\.pr-topo-fs-enter-active,\s*\.pr-topo-fs-leave-active\s*\{[^}]*opacity\s+200ms\s+ease/s);
+    expect(src).toMatch(/\.pr-topo-fs-enter-from,\s*\.pr-topo-fs-leave-to\s*\{[^}]*opacity:\s*0/s);
+    expect(src).toMatch(/\.pr-topo-fs-enter-from,\s*\.pr-topo-fs-leave-to\s*\{[^}]*scale\(0\.98\)/s);
+    expect(src).toMatch(/prefers-reduced-motion:\s*reduce[\s\S]*?\.pr-topo-fs-enter-active/);
+  });
+
   it('PR-ROOT-010: overlay right-click stays fullscreen and does not open memory CSV', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
