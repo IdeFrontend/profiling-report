@@ -520,6 +520,43 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-011: overlay dialog Escape closes; WASD leave the viewport idle', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const wrapper = mount(ProfilingReport, {
+      attachTo: host,
+      props: {
+        title: 'topo-fs-keys',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(topologyReport()),
+      },
+    });
+    try {
+      await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+      await nextTick();
+      const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+      expect(overlay.attributes('role')).toBe('dialog');
+      expect(overlay.attributes('aria-modal')).toBe('true');
+      expect(overlay.attributes('aria-labelledby')).toBe('pr-topo-fs-title');
+      expect(document.activeElement).toBe(
+        wrapper.get('[data-testid="topology-fullscreen-back"]').element,
+      );
+
+      const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
+      expect(span()).toBe(1000);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+      await nextTick();
+      expect(span()).toBe(1000);
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await nextTick();
+      expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    } finally {
+      wrapper.unmount();
+      host.remove();
+    }
+  });
+
   it('PR-VIEW-016/017: W/S/A/D keys zoom and pan the timeline', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {

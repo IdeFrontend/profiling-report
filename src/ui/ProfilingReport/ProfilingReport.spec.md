@@ -160,7 +160,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Dependency state.** `dependencyMode` and `dependencyDepth` are one pair of values, held here and read by both dependency surfaces: the swimlane curves and the detail dock's Relevent column, which walk the same `SwimEvent.dependencies` refs with the same filter. The dock's Relevent toolbar is where the user edits them; the props seed them and a change re-walks in place. `hasDependencies` gates the walk, so a model without edges hands the dock no neighbours and the column never mounts. Neighbour semantics — cap, ordering, cycles — belong to [dependencies](../../../specs/core/dependencies.spec.md).
 
-**Topology fullscreen.** StatsAside **全屏** (fit-window icon; `title`/`aria-label` = Full screen) emits `open-topology-fullscreen` with the current `MemoryTopologyModel`. The root covers `.pr-root` (toolbar + timeline + aside) with an opaque overlay: Back (`t('back')`) + title **内存拓扑** / Memory topology, then `MemoryTopologyPanel` scaled to the remaining box. `ReportLayout` stays mounted. Back restores the stacked report (aside open/width/scroll unchanged). Overlay right-click does not open the memory CSV overlay and does not close fullscreen (browser context menu is suppressed). Stacked-diagram UI-35 is unchanged. A report / operator change closes the overlay. Not the browser Fullscreen API.
+**Topology fullscreen.** StatsAside **全屏** (fit-window icon; `title`/`aria-label` = Full screen) emits `open-topology-fullscreen` with the current `MemoryTopologyModel`. The root covers `.pr-root` (toolbar + timeline + aside) with an opaque overlay: Back (`t('back')`) + title **内存拓扑** / Memory topology, then `MemoryTopologyPanel` scaled to the remaining box. The overlay is a modal dialog (`role="dialog"`, `aria-modal`); focus moves to Back on open. `ReportLayout` stays mounted. Back or Escape restores the stacked report (aside open/width/scroll unchanged). Escape still clears an active measure session first. W/S/A/D do not pan/zoom the covered timeline. Overlay right-click does not open the memory CSV overlay and does not close fullscreen (browser context menu is suppressed). Stacked-diagram UI-35 is unchanged. A report / operator change closes the overlay. Not the browser Fullscreen API.
 
 ## Visual
 
@@ -177,6 +177,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 7. **PR-ROOT-008** — cannbot-request emits assembled payload with reportMeta.
 8. **PR-ROOT-009** — Topology 全屏 covers `.pr-root`; Back closes; layout stays mounted; no spurious no-timeline; report change closes overlay.
 9. **PR-ROOT-010** — Overlay right-click stays fullscreen and does not open memory CSV.
+10. **PR-ROOT-011** — Overlay dialog: Escape closes; WASD idle.
 
 ## Edge Cases
 
@@ -188,6 +189,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 | Standalone CTEF | Swimlane renders, aside auto-hides, no error |
 | `maxTime === minTime` | Bounds clamp adds +1 to prevent division by zero |
 | Topology fullscreen open, report replaced | Overlay closes; stacked report remains |
+| Topology fullscreen open, W/S/A/D | Viewport unchanged |
+| Topology fullscreen open, Escape | Overlay closes (after measure-clear if a measure session is active) |
 
 ## Design sketches
 
@@ -206,7 +209,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
-- **2026-09-08** — Topology **全屏** covers `.pr-root` with Back + scaled diagram (PR-ROOT-009); overlay right-click does not open memory CSV (PR-ROOT-010).
+- **2026-09-08** — Topology **全屏** covers `.pr-root` with Back + scaled diagram (PR-ROOT-009); overlay right-click does not open memory CSV (PR-ROOT-010); Escape closes and WASD stay idle (PR-ROOT-011).
 - **2026-09-07** — Product host files are `.npu-rep` ([PROC-2](../../docs/context/decisions/PROC.md)); classic `.rep` remains an engineering fixture path.
 - **2026-09-07** — Optional `userGuideUrl` (default demo guide) forwarded to the toolbar help button; toolbar emits `open-user-guide` (and `window.open`) for host `openExternal`.
 - **2026-09-04** — Host `timeDisplayMode: 'cycles'` falls back to wall time when OpBasicInfo freq is missing (combined immediate watcher); omitted host prop no longer resets a toolbar cycles choice on freq change (PR-UI-009/010/011).

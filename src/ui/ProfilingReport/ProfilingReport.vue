@@ -132,6 +132,7 @@ const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const dockExpanded = ref(false);
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
+const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
@@ -449,6 +450,7 @@ function closeTopologyFullscreen() {
 function onOpenTopologyFullscreen(model: MemoryTopologyModel) {
   fullscreenTopology.value = model;
   topologyFullscreen.value = true;
+  void nextTick(() => fullscreenBackRef.value?.focus());
 }
 
 function failLoad(cause: unknown) {
@@ -558,6 +560,13 @@ function onGlobalKeydown(e: KeyboardEvent) {
     viewState.value = clearMeasure(viewState.value);
     return;
   }
+  if (e.key === 'Escape' && topologyFullscreen.value) {
+    e.preventDefault();
+    closeTopologyFullscreen();
+    return;
+  }
+  // Overlay covers the timeline; WASD must not pan/zoom the hidden view.
+  if (topologyFullscreen.value) return;
   if (!showTimeline.value) return;
   // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
   // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
@@ -941,10 +950,14 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     <div
       v-if="topologyFullscreen && fullscreenTopology"
       class="pr-topo-fs"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pr-topo-fs-title"
       data-testid="topology-fullscreen-overlay"
     >
       <div class="pr-topo-fs__head">
         <button
+          ref="fullscreenBackRef"
           type="button"
           class="pr-topo-fs__back"
           data-testid="topology-fullscreen-back"
@@ -975,7 +988,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             />
           </svg>
         </button>
-        <h3>{{ t('memoryTopology', locale) }}</h3>
+        <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
       </div>
       <div class="pr-topo-fs__body">
         <MemoryTopologyPanel
