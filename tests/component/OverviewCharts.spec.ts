@@ -127,4 +127,48 @@ describe('OverviewCharts', () => {
       .trigger('pointermove', { clientX: 10, clientY: 20 });
     expect(wrap.emitted('cursor')).toBeUndefined();
   });
+
+  it('PR-OV-007: wheel emits wheel; chart drag emits pan', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+    });
+    await wrap.get('[data-testid="overview-charts"]').trigger('wheel', {
+      deltaX: 0,
+      deltaY: 40,
+      ctrlKey: false,
+    });
+    expect(wrap.emitted('wheel')?.length).toBe(1);
+
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    const el = col.element as HTMLElement;
+    el.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        width: 1000,
+        top: 0,
+        height: 16,
+        right: 1000,
+        bottom: 16,
+        x: 0,
+        y: 0,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    await col.trigger('pointerdown', { clientX: 100, button: 0, pointerId: 1 });
+    await col.trigger('pointermove', { clientX: 200, button: 0, pointerId: 1 });
+    const pan = wrap.emitted('pan')?.at(-1)?.[0] as number;
+    expect(pan).toBeCloseTo(-0.1 * 2000);
+    wrap.unmount();
+  });
+
+  it('PR-OV-007: measureMode suppresses chart drag pan', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000, measureMode: true },
+    });
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    await col.trigger('pointerdown', { clientX: 100, button: 0, pointerId: 1 });
+    await col.trigger('pointermove', { clientX: 200, button: 0, pointerId: 1 });
+    expect(wrap.emitted('pan')).toBeUndefined();
+  });
 });

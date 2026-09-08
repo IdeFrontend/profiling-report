@@ -396,12 +396,13 @@ function clearCursor() {
   emit('cursor', null);
 }
 
-function onOverviewScrollDelta(delta: number) {
-  onScrollY(props.view.scrollY + delta);
+/** Keep scroll/zoom/pan working over full-width Card chrome and overview charts. */
+function onStripWheel(e: WheelEvent) {
+  canvasRef.value?.handleWheel(e);
 }
 
-/** Keep scroll/zoom working over full-width Card chrome. */
-function onStripWheel(e: WheelEvent) {
+/** OverviewCharts sits above the canvas — same wheel gestures as the swimlane. */
+function onOverviewWheel(e: WheelEvent) {
   canvasRef.value?.handleWheel(e);
 }
 
@@ -543,9 +544,12 @@ defineExpose({
       :cursor-x-ratio="cursorXRatio"
       :cursor-snapped="cursorSnapped"
       :cursor-time="cursorTimeNs"
+      :measure-mode="measureMode"
       @pin-overview="emit('pin-overview', $event)"
       @unpin-overview="emit('unpin-overview', $event)"
       @cursor="onCursor"
+      @wheel="onOverviewWheel"
+      @pan="emit('pan', $event)"
     />
 
     <div
@@ -565,10 +569,12 @@ defineExpose({
         :cursor-x-ratio="cursorXRatio"
         :cursor-snapped="cursorSnapped"
         :cursor-time="cursorTimeNs"
+        :measure-mode="measureMode"
         @pin-overview="emit('pin-overview', $event)"
         @unpin-overview="emit('unpin-overview', $event)"
         @cursor="onCursor"
-        @scroll-y-delta="onOverviewScrollDelta"
+        @wheel="onOverviewWheel"
+        @pan="emit('pan', $event)"
       />
 
       <button

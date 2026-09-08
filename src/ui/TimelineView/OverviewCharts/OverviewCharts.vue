@@ -33,6 +33,8 @@ const props = withDefaults(
     cursorSnapped?: boolean;
     /** Canonical ns under the cursor (for value tooltips). */
     cursorTime?: number | null;
+    /** When true, drag creates measure on the swimlane — do not pan from overview. */
+    measureMode?: boolean;
   }>(),
   {
     gutterWidth: 280,
@@ -42,6 +44,7 @@ const props = withDefaults(
     cursorXRatio: null,
     cursorSnapped: false,
     cursorTime: null,
+    measureMode: false,
   },
 );
 
@@ -49,7 +52,10 @@ const emit = defineEmits<{
   'pin-overview': [seriesId: string];
   'unpin-overview': [seriesId: string];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
-  'scroll-y-delta': [delta: number];
+  /** Forward to SwimlaneCanvas.handleWheel (scroll / trackpad pan / Ctrl+zoom). */
+  wheel: [event: WheelEvent];
+  /** Horizontal drag-pan (same sign as swimlane canvas). */
+  pan: [deltaTime: number];
 }>();
 
 const VIEW_W = 1000;
@@ -64,6 +70,9 @@ const hoverSeriesId = ref<string | null>(null);
 /** Local ns under chart pointer — tip/dot without waiting for parent echo. */
 const hoverTimeNs = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
+/** Chart-column drag-pan (mirrors SwimlaneCanvas non-measure drag). */
+const dragging = ref(false);
+let lastDragX = 0;
 
 /** Map counter name → stroke CSS color (fill uses same with opacity). */
 function colorForName(name: string): string {
@@ -132,7 +141,7 @@ function timeAtClientX(clientX: number, el: HTMLElement): { time: number; xRatio
 }
 
 /** Chart column only — gutter / section header must not drive the playhead. */
-function onChartPointerMove(seriesId: string, e: PointerEvent) {
+function updateChartHover(seriesId: string, e: PointerEvent) {
   const el = e.currentTarget as HTMLElement;
   const { time, xRatio } = timeAtClientX(e.clientX, el);
   hoverSeriesId.value = seriesId;
@@ -141,7 +150,37 @@ function onChartPointerMove(seriesId: string, e: PointerEvent) {
   emit('cursor', { time, xRatio, snapped: false });
 }
 
+function onChartPointerDown(e: PointerEvent) {
+  if (e.button !== 0 || props.measureMode) return;
+  dragging.value = true;
+  lastDragX = e.clientX;
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+}
+
+function onChartPointerMove(seriesId: string, e: PointerEvent) {
+  if (dragging.value && !props.measureMode) {
+    const el = e.currentTarget as HTMLElement;
+    const w = Math.max(1, el.getBoundingClientRect().width);
+    const span = Math.max(1, x1.value - x0.value);
+    const dx = e.clientX - lastDragX;
+    lastDragX = e.clientX;
+    if (dx !== 0) emit('pan', -(dx / w) * span);
+  }
+  updateChartHover(seriesId, e);
+}
+
+function onChartPointerUp(e: PointerEvent) {
+  if (!dragging.value) return;
+  dragging.value = false;
+  try {
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+  } catch {
+    /* already released */
+  }
+}
+
 function onChartPointerLeave(e: PointerEvent) {
+  if (dragging.value) return;
   const next = e.relatedTarget as Node | null;
   const root = (e.currentTarget as HTMLElement).closest('.pr-overview-charts');
   // Moving into another chart column — keep playhead; next move updates tip.
@@ -153,11 +192,10 @@ function onChartPointerLeave(e: PointerEvent) {
   emit('cursor', null);
 }
 
+/** Parent forwards to SwimlaneCanvas.handleWheel (PyPTO scroll / pan / zoom). */
 function onChartsWheel(e: WheelEvent) {
-  if (e.ctrlKey || e.metaKey) return;
-  if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
   e.preventDefault();
-  emit('scroll-y-delta', e.deltaY);
+  emit('wheel', e);
 }
 
 const tipTrack = computed(() => {
@@ -240,7 +278,10 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
       <div
         class="pr-overview-chart-col"
         data-testid="overview-chart-col"
+        @pointerdown="onChartPointerDown"
         @pointermove="onChartPointerMove(track.id, $event)"
+        @pointerup="onChartPointerUp"
+        @pointercancel="onChartPointerUp"
         @pointerleave="onChartPointerLeave"
       >
         <svg
@@ -426,6 +467,8 @@ function dotTopPercent(track: { maxV: number }, value: number): number {
   position: relative;
   min-width: 0;
   height: 100%;
+  touch-action: none;
+  cursor: default;
 }
 
 .pr-overview-svg {
