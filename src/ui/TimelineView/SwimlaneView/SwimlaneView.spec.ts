@@ -671,6 +671,8 @@ describe('SwimlaneView', () => {
         hoveredEventId: null,
         searchQuery: '',
       },
+      // VTU stubs Transition by default, which nests the strip and breaks direct-child order.
+      global: { stubs: { Transition: false } },
     });
     expect(wrapper.find('[data-testid="pinned-strip"]').exists()).toBe(true);
     const pinnedOv = wrapper.get('[data-testid="pinned-overview-charts"]');
