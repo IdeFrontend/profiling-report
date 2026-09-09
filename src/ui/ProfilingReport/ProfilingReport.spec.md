@@ -108,7 +108,7 @@ sequenceDiagram
     Root->>Menu: open at (x, y)
     User->>Menu: select action
     Menu->>Root: emit('action', { command, laneId, target })
-    Root->>Root: apply shared behavior (zoomToFit, hideLane, select event, toggle pin)
+    Root->>Root: apply shared behavior (zoomToFit, select event, toggle pin)
     Menu->>Root: emit('dismiss')
     Root->>Root: contextMenuContext = null
 ```
@@ -166,11 +166,9 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside availability.** `asideAvailable` is true when duration, I/O bandwidth cards (DATA-33g), PIPE, CSV tables, roofline, hardware details, or labelled topology exist. Name/type alone do not open the aside. Missing `bandwidthCards` on a host-managed model is treated as empty.
 
-**State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, aside visibility, and **hiddenLaneIds**. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
+**State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
 
 **Swim model identity (PR-ROOT-012).** The loaded/host `swimlaneModel` is held and consumed shallow (not deep-proxied) so collapse/expand, dependency walks, and gutter stay fast on large traces. Host-managed callers must **replace the `swimlaneModel` reference** to refresh — in-place nested `event` / `thread` mutations do not invalidate the display tree. Emitted `SwimEvent` payloads and pin/body canvas models share the same raw object identity.
-
-**Hidden lanes.** `hiddenLaneIds` removes hidden leaf lanes from the gutter, main body, and pinned strip. The pin id stays in `pinnedLaneIds` while the lane is hidden so restoring it brings back the row and its pinned duplicate. A UI control to unhide a hidden lane is out of scope for this change; session reset (new report / operator switch) is the current restore path.
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
@@ -208,8 +206,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 10. **PR-ROOT-011** — Overlay dialog: Escape closes; WASD idle.
 11. **PR-ROOT-012** — Host/deep-reactive `swimlaneModel` is consumed raw (shallow): collapse, deps, and gutter do not walk Proxies; in-place nested mutations do not invalidate the display tree — replace the prop reference to refresh.
 12. **PR-ROOT-013** — Owns `contextMenuContext`; forwards `context-menu` from `TimelineView` into the single `ContextMenu`; clears it on `update:scrollY`, menu `dismiss`, click outside, Escape, or item activation.
-13. **PR-ROOT-014** — Context-menu actions reuse shared state paths (`zoomToFitWindow`, `hideLane`, normal `select`, `pinLane`/`unpinLane`).
-14. **PR-ROOT-015** — `hiddenLaneIds` is owned here and passed down; hidden lanes omitted from gutter, main body, and pinned strip.
+13. **PR-ROOT-014** — Context-menu actions reuse shared state paths (`zoomToFitWindow`, normal `select`, `pinLane`/`unpinLane`).
 
 ## Edge Cases
 
@@ -241,7 +238,8 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
-- **2026-09-08** — Owns `contextMenuContext` and `hiddenLaneIds`; forwards `context-menu` from TimelineView; dismisses on `update:scrollY` (PR-ROOT-013/014/015).
+- **2026-09-09** — Trim ContextMenu scope to Reset zoom, Show, Pin; defer Hide lane (UI-50); PR-ROOT-014 drops `hideLane`.
+- **2026-09-08** — Owns `contextMenuContext`; forwards `context-menu` from TimelineView; dismisses on `update:scrollY` (PR-ROOT-013/014).
 - **2026-09-08** — Swim model is shallow (PR-ROOT-012): host must replace `swimlaneModel` (not mutate nested events in place) to refresh; `toRaw` at the swim source keeps collapse/deps/gutter off Proxies.
 - **2026-09-08** — Topology **全屏** covers `.pr-root` with Back + scaled diagram (PR-ROOT-009); overlay right-click does not open memory CSV (PR-ROOT-010); Escape closes and WASD stay idle (PR-ROOT-011).
 - **2026-09-07** — Product host files are `.npu-rep` ([PROC-2](../../docs/context/decisions/PROC.md)); classic `.rep` remains an engineering fixture path.

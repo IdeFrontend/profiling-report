@@ -71,7 +71,6 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     measureMode: false,
     measureRange: null,
     pinnedLaneIds: [],
-    hiddenLaneIds: [],
   };
 }
 
@@ -85,18 +84,6 @@ export function pinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewS
 export function unpinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
   if (!state.pinnedLaneIds.includes(laneId)) return state;
   return { ...state, pinnedLaneIds: state.pinnedLaneIds.filter((id) => id !== laneId) };
-}
-
-/** Hide a leaf lane from the rendered model; idempotent when already hidden. */
-export function hideLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
-  if (state.hiddenLaneIds.includes(laneId)) return state;
-  return { ...state, hiddenLaneIds: [...state.hiddenLaneIds, laneId] };
-}
-
-/** Unhide a leaf lane; no-op when absent. */
-export function unhideLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
-  if (!state.hiddenLaneIds.includes(laneId)) return state;
-  return { ...state, hiddenLaneIds: state.hiddenLaneIds.filter((id) => id !== laneId) };
 }
 
 export function normalizeMeasureRange(a: number, b: number): MeasureRange {

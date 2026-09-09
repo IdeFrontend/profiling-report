@@ -62,13 +62,13 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Specs when answered:** [INTERACTIONS](../../ui/INTERACTIONS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [LOCALIZATION](../../ui/LOCALIZATION.md) / `src/i18n/index.ts`.
 
-### UI-48 — Undo zoom and Reset zoom scope
+### UI-48 — Undo zoom scope
 
 **Status:** `open` + `interim`
 
-**Question:** What viewport changes form zoom history for **撤销缩放** (Undo zoom, Ctrl+Z), what does its depth badge count, and what window must **重置缩放** (Reset zoom) restore? Does Ctrl+Z conflict with an app-level undo command?
+**Question:** What viewport changes form zoom history for **撤销缩放** (Undo zoom, Ctrl+Z), and what does its depth badge count? Does Ctrl+Z conflict with an app-level undo command?
 
-**Interim:** ContextMenu omits Undo zoom and Reset zoom until Product answers. Fit to screen remains available through `zoomToFitWindow`.
+**Interim:** ContextMenu omits Undo zoom until Product answers. Reset zoom (重置缩放) ships as `zoomToFitWindow` — same as the toolbar zoom-to-fit button.
 
 **Specs when answered:** [ContextMenu.spec.md](../../../src/ui/ContextMenu/ContextMenu.spec.md), [view-state.spec.md](../../../specs/core/view-state.spec.md), [SwimlaneCanvas.spec.md](../../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md).
 
@@ -81,3 +81,13 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 **Interim:** ContextMenu omits Offset until Product answers.
 
 **Specs when answered:** [ContextMenu.spec.md](../../../src/ui/ContextMenu/ContextMenu.spec.md), [view-state.spec.md](../../../specs/core/view-state.spec.md).
+
+### UI-50 — Hide lane contract
+
+**Status:** `open` + `interim`
+
+**Question:** What does **隐藏** (Hide lane) do to the gutter, main body, and pinned strip? What is the restore path — a UI control (context menu toggle, gutter icon, panel list), or session reset only? Does hiding a lane remove its id from **pinnedLaneIds** or preserve it for later restore? Does hiding collapse the swim tree or only filter the leaf from the view?
+
+**Interim:** ContextMenu omits Hide lane until Product answers. No `hiddenLaneIds` state exists in the domain yet.
+
+**Specs when answered:** [ContextMenu.spec.md](../../../src/ui/ContextMenu/ContextMenu.spec.md), [view-state.spec.md](../../../specs/core/view-state.spec.md), [SwimlaneView.spec.md](../../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md).
