@@ -582,7 +582,8 @@ const showValueDot = computed(() => valueDotStyle.value != null);
 .pr-overview-header-track {
   height: 100%;
   touch-action: none;
-  cursor: default;
+  /* Inherit the header's hand cursor — full strip is the collapse hit target. */
+  cursor: pointer;
 }
 
 .pr-overview-chart-col {
