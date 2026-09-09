@@ -24,14 +24,8 @@
   --pr-color-fixp: #586c0c;
   --pr-color-scalar: #1a743e;
   --pr-color-mov: #b868f8;
-  /* Overview strokes: Cube is a dedicated blue accent; others = OKLCH L+0.2 of pipe base. */
+  /* Overview Cube stroke accent; other series strokes are computed in laneColors.ts. */
   --pr-color-overview-cube: #3078f0;
-  --pr-color-overview-vector: #56b19f;
-  --pr-color-overview-scalar: #5fb278;
-  --pr-color-overview-mte1: #c7984f;
-  --pr-color-overview-mte2: #da8c4e;
-  --pr-color-overview-mte3: #e8856b;
-  --pr-color-overview-fixp: #92a953;
   --pr-color-bandwidth-bar: #5ec8d8;
   --pr-color-duration-bar: #5ec8d8;
   --pr-color-card-bar-primary: #5ec8d8;

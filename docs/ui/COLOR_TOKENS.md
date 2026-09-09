@@ -18,12 +18,6 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-color-card-bar-primary` | `#5EC8D8` | Left dual-column bars (Cube / 读 / 并行使用率) |
 | `--pr-color-card-bar-secondary` | `#5ED8A8` | Right dual-column bars (Vector / 写 / 负载均衡度) |
 | `--pr-color-overview-cube` | `#3078F0` | Overview Cube series stroke (dedicated blue accent) |
-| `--pr-color-overview-vector` | `#56B19F` | Overview Vector stroke = OKLCH `L+0.2` of `--pr-color-vector` |
-| `--pr-color-overview-scalar` | `#5FB278` | Overview Scalar stroke = OKLCH `L+0.2` of `--pr-color-scalar` |
-| `--pr-color-overview-mte1` | `#C7984F` | Overview MTE1 stroke = OKLCH `L+0.2` of `--pr-color-mte1` |
-| `--pr-color-overview-mte2` | `#DA8C4E` | Overview MTE2 stroke = OKLCH `L+0.2` of `--pr-color-mte2` |
-| `--pr-color-overview-mte3` | `#E8856B` | Overview MTE3 stroke = OKLCH `L+0.2` of `--pr-color-mte3` |
-| `--pr-color-overview-fixp` | `#92A953` | Overview FixP stroke = OKLCH `L+0.2` of `--pr-color-fixp` |
 | `--pr-color-bandwidth-bar` | `#5EC8D8` | Alias for card primary bar (legacy name; DATA-33g 读\|写 bars) |
 
 ### Toolbar controls (hardcoded; not CSS vars)
@@ -51,7 +45,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 | `mte3` | `#A44830` | PIPE MTE3 (rust / red-brown) |
 | `scalar` | `#1A743E` | PIPE Scalar bar in `compute-load.jpeg`. Swimlane greens in `entry.jpeg` sample closer to `#38702C`; one token per rule 1. |
 
-**Overview chart strokes (bright sparkline):** fill uses the same colour at `fill-opacity ≈ 0.45`. Formula — OKLCH lightness lift `L+0.2` from the pipe base (`overviewStrokeHex` in `laneColors.ts`), same perceptual recipe as `eventFill` but a smaller step. **Cube exception:** dedicated blue `#3078F0` (`--pr-color-overview-cube`) — lifting pipe `cube` stays cyan, not the sketch blue. **通信** uses `mov` purple as-is (already L ≥ 0.62).
+**Overview chart strokes (bright sparkline):** fill uses the same colour at `fill-opacity ≈ 0.45`. Non-Cube strokes are **not** CSS tokens — `overviewSeriesStroke` / `overviewStrokeHex` in `laneColors.ts` compute OKLCH `L+0.2` from the pipe base at runtime (same perceptual recipe as `eventFill`, smaller step) and bind inline on the SVG paths. **Cube exception:** dedicated blue `#3078F0` (`--pr-color-overview-cube` / `OVERVIEW_CUBE_STROKE`) — lifting pipe `cube` stays cyan, not the sketch blue. **通信** uses `mov` purple as-is (already L ≥ 0.62).
 
 ## Swimlane event accents (non-pipe)
 
@@ -75,12 +69,6 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
   --pr-color-scalar: #1a743e;
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
-  --pr-color-overview-vector: #56b19f;
-  --pr-color-overview-scalar: #5fb278;
-  --pr-color-overview-mte1: #c7984f;
-  --pr-color-overview-mte2: #da8c4e;
-  --pr-color-overview-mte3: #e8856b;
-  --pr-color-overview-fixp: #92a953;
   --pr-color-duration-bar: #5ec8d8;
   --pr-color-card-bar-primary: #5ec8d8;
   --pr-color-card-bar-secondary: #5ed8a8;

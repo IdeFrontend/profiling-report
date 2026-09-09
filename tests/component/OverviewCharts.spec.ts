@@ -131,8 +131,6 @@ describe('OverviewCharts', () => {
         series,
         startTime: 0,
         endTime: 2000,
-        cursorXRatio: 0.5,
-        cursorTime: 1000,
       },
       attachTo: document.body,
     });

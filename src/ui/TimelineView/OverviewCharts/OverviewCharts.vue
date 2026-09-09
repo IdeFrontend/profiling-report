@@ -34,12 +34,6 @@ const props = withDefaults(
      * `strip` — sticky duplicates below pinned lanes (no header; pins always visible).
      */
     variant?: 'section' | 'strip';
-    /** Shared playhead x (0…1) — vertical cursor over chart tracks. */
-    cursorXRatio?: number | null;
-    /** Gray the cursor when magnetized on the swimlane. */
-    cursorSnapped?: boolean;
-    /** Canonical ns under the cursor (for value tooltips). */
-    cursorTime?: number | null;
     /** When true, drag creates measure on the swimlane — do not pan from overview. */
     measureMode?: boolean;
     /** Controlled collapse (section variant); omit for internal default expanded. */
@@ -50,9 +44,6 @@ const props = withDefaults(
     locale: 'zh-CN',
     pinnedOverviewIds: () => [],
     variant: 'section',
-    cursorXRatio: null,
-    cursorSnapped: false,
-    cursorTime: null,
     measureMode: false,
     collapsed: undefined,
   },
@@ -283,7 +274,7 @@ type TipRow = {
 
 const tipRows = computed((): TipRow[] => {
   if (hoverSeriesId.value == null) return [];
-  const time = hoverTimeNs.value ?? props.cursorTime;
+  const time = hoverTimeNs.value;
   if (time == null) return [];
   return tracks.value.map((tr) => ({
     id: tr.id,
