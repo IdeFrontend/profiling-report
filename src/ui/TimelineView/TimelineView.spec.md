@@ -49,6 +49,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 19. **PR-TIMELINE-019** — Forwards context-menu and scroll events.
 
 ## Changelog
+- **2026-09-08** — Forwards `context-menu` and `update:scrollY` events from `SwimlaneView` to `ProfilingReport`; PR-TIMELINE-019.
 - **2026-08-27** — Viewport axis coarse base + remainder ticks via `useViewportBase`; PR-TIMELINE-018.
 - **2026-08-25** — Cursor labels relative to minTime; PR-TIMELINE-015.
 - **2026-08-25** — Note continuous `fitPanelWidths` track budget (owned by ProfilingReport).

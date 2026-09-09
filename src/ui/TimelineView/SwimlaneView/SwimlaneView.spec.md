@@ -104,6 +104,7 @@ Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.m
 
 ## Changelog
 - **2026-09-08** — Forwards `context-menu` from main and pinned surfaces; hidden lanes omitted from gutter, body, and pinned strip (`PR-SWIMVIEW-025`/`026`).
+- **2026-09-08** — Pinned-strip height and body content height account for multi-row leaf `rowCount` (`PR-SWIMVIEW-027`).
 - **2026-09-07** — Pinned strip applies selection gray-muting like the body; only dependency Beziers stay body-only (`PR-SWIMVIEW-016`).
 - **2026-09-03** — Card metric selector offers only **时钟周期** / **利用率** (cacheHit and task removed).
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
