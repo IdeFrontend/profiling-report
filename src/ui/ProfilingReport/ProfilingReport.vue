@@ -797,7 +797,7 @@ function onRootKeydown(e: KeyboardEvent) {
     e.preventDefault();
     onPan(key === 'd' ? step : -step);
   }
-  if (multiSelected.value.length > 0) {
+  if (e.key === 'Escape' && multiSelected.value.length > 0) {
     onSelect(null);
   }
 }
