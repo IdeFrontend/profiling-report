@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { adaptRep, emptyReportViewModel, parseRep, ProfilingReport } from '../../src/index';
-import { loadOutRepBuffer, loadOutRepBytes, loadNpuRepBuffer, loadResultNpuRepBytes } from '../helpers/fixtures';
+import { loadOutRepBuffer, loadOutRepBytes, loadNpuRepBuffer, loadResultNpuRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import * as swimTree from '../../src/domain/swimTree';
 import * as anim from '../../src/ui/TimelineView/animateViewWindow';
 import type { SwimlaneModel } from '../../src/domain/types';
@@ -284,6 +284,15 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="no-timeline"]').exists()).toBe(true);
+  });
+
+  it('DATA-39: product Sampling.json shows overview chart tracks for all counters', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: { source: loadVectorMuladdNpuRepBytes() },
+    });
+    await flushPromises();
+    expect(wrapper.find('[data-testid="overview-charts"]').exists()).toBe(true);
+    expect(wrapper.find('[data-series-id="CUBE"]').exists()).toBe(true);
   });
 
   it('PR-ROOT-004: auto-loaded source applies the adapter capabilities, the prop overrides', async () => {

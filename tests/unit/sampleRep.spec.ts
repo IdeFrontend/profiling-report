@@ -127,8 +127,12 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
           expect(side.peakGBs).toBe(1600);
         }
       }
-      // Chart mapping is PR #98 — adapter must not invent overviewSeries here.
-      expect(report.reportModel.overviewSeries).toEqual([]);
+      // DATA-39 / PR #98: Sampling.json util counters → overviewSeries tracks.
+      expect(report.reportModel.overviewSeries.map((s) => s.id).sort()).toEqual(['CUBE', 'VECTOR']);
+      for (const series of report.reportModel.overviewSeries) {
+        expect(series.points.length).toBeGreaterThan(10);
+        expect(series.points.every((p) => Number.isFinite(p.t) && Number.isFinite(p.v))).toBe(true);
+      }
     }
   });
 

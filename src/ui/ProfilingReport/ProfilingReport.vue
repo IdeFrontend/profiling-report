@@ -9,10 +9,12 @@ import {
   measureFocusWindow,
   panBy,
   pinLane,
+  pinOverview,
   setMeasureMode,
   setMeasureRange,
   spanFromZoomPercent,
   unpinLane,
+  unpinOverview,
   zoomAt,
   zoomPercentFromSpan,
   zoomToFitWindow,
@@ -539,6 +541,14 @@ function onUnpinLane(laneId: string): void {
   viewState.value = unpinLane(viewState.value, laneId);
 }
 
+function onPinOverview(seriesId: string): void {
+  viewState.value = pinOverview(viewState.value, seriesId);
+}
+
+function onUnpinOverview(seriesId: string): void {
+  viewState.value = unpinOverview(viewState.value, seriesId);
+}
+
 function onGutterMetricChange(payload: { cardId: string; metric: GutterMetric }): void {
   gutterMetricByCard.value = { ...gutterMetricByCard.value, [payload.cardId]: payload.metric };
 }
@@ -1043,11 +1053,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :groups="laneGroups"
           :collapsed-ids="visualCollapsedIds"
           :pinned-lane-ids="viewState.pinnedLaneIds"
+          :pinned-overview-ids="viewState.pinnedOverviewIds"
           :display-swim="displaySwim"
           :pin-source-model="swim"
           :collapse-anim="collapseAnim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
+          :overview-series="report?.overviewSeries ?? []"
           :gutter-width="gutterWidth"
           :gutter-metric-by-card="gutterMetricByCard"
           :gutter-metric-options-by-card="gutterMetricOptionsByCard"
@@ -1059,6 +1071,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @toggle-group="onToggleGroup"
           @pin-lane="onPinLane"
           @unpin-lane="onUnpinLane"
+          @pin-overview="onPinOverview"
+          @unpin-overview="onUnpinOverview"
           @update:gutter-metric="onGutterMetricChange"
           @select="onSelect"
           @hover="onHover"

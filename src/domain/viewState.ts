@@ -71,6 +71,7 @@ export function createViewState(model: SwimlaneModel | null | undefined): Swimla
     measureMode: false,
     measureRange: null,
     pinnedLaneIds: [],
+    pinnedOverviewIds: [],
   };
 }
 
@@ -84,6 +85,21 @@ export function pinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewS
 export function unpinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState {
   if (!state.pinnedLaneIds.includes(laneId)) return state;
   return { ...state, pinnedLaneIds: state.pinnedLaneIds.filter((id) => id !== laneId) };
+}
+
+/** Append overview series id in pin order; idempotent when already present. */
+export function pinOverview(state: SwimlaneViewState, seriesId: string): SwimlaneViewState {
+  if (state.pinnedOverviewIds.includes(seriesId)) return state;
+  return { ...state, pinnedOverviewIds: [...state.pinnedOverviewIds, seriesId] };
+}
+
+/** Remove overview series id; no-op when absent. */
+export function unpinOverview(state: SwimlaneViewState, seriesId: string): SwimlaneViewState {
+  if (!state.pinnedOverviewIds.includes(seriesId)) return state;
+  return {
+    ...state,
+    pinnedOverviewIds: state.pinnedOverviewIds.filter((id) => id !== seriesId),
+  };
 }
 
 export function normalizeMeasureRange(a: number, b: number): MeasureRange {

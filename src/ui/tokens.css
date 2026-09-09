@@ -24,6 +24,7 @@
   --pr-color-fixp: #586c0c;
   --pr-color-scalar: #1a743e;
   --pr-color-mov: #b868f8;
+  /* Overview Cube stroke accent; other series strokes are computed in laneColors.ts. */
   --pr-color-overview-cube: #3078f0;
   --pr-color-bandwidth-bar: #5ec8d8;
   --pr-color-duration-bar: #5ec8d8;

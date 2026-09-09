@@ -384,6 +384,11 @@ export interface SwimlaneViewState {
   measureRange: MeasureRange | null;
   /** Leaf lane ids in pin order (session-local); sticky strip duplicates. */
   pinnedLaneIds: string[];
+  /**
+   * Overview series ids (`OverviewSeries.id`) in pin order (session-local).
+   * Sticky duplicates sit below the pinned-lane strip (PyPTO counter-pin parity).
+   */
+  pinnedOverviewIds: string[];
 }
 
 export interface SwimlaneViewWindow {

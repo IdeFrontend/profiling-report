@@ -7,6 +7,7 @@ import type {
   CsvTableModel,
   HardwareDetailsModel,
   HardwareSection,
+  OverviewSeries,
   ParsedRep,
   PipeOccupancyItem,
   ReportCapability,
@@ -824,6 +825,60 @@ function withPipeLaneUtilizations(
   };
 }
 
+/** Product Sampling.json `ts` is µs (same as PipeTrace); swimlane / overview use ns. */
+const SAMPLING_US_TO_NS = 1e3;
+
+/**
+ * DATA-39: one OverviewSeries per distinct Chrome Trace `ph:"C"` counter name in Sampling.json.
+ * Empty when payload missing, invalid JSON, or no usable counters.
+ */
+export function overviewSeriesFromSampling(payload: Uint8Array | undefined): OverviewSeries[] {
+  if (!payload) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(decodeUtf8(payload)) as unknown;
+  } catch {
+    return [];
+  }
+  const events: unknown[] = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray((parsed as { traceEvents?: unknown }).traceEvents)
+      ? ((parsed as { traceEvents: unknown[] }).traceEvents)
+      : [];
+  const byName = new Map<string, { t: number; v: number }[]>();
+  const order: string[] = [];
+  for (const raw of events) {
+    if (!raw || typeof raw !== 'object') continue;
+    const e = raw as {
+      ph?: string;
+      name?: string;
+      ts?: number;
+      args?: { value?: unknown };
+    };
+    if (e.ph !== 'C' || typeof e.name !== 'string' || e.name.length === 0) continue;
+    const rawV = e.args?.value;
+    // DATA-39: finite numeric args.value only — Number(null)===0 must not invent a sample.
+    if (typeof rawV !== 'number' || !Number.isFinite(rawV)) continue;
+    const ts = Number(e.ts);
+    if (!Number.isFinite(ts)) continue;
+    let points = byName.get(e.name);
+    if (!points) {
+      points = [];
+      byName.set(e.name, points);
+      order.push(e.name);
+    }
+    points.push({ t: ts * SAMPLING_US_TO_NS, v: rawV });
+  }
+  const series: OverviewSeries[] = [];
+  for (const name of order) {
+    const points = byName.get(name)!;
+    if (points.length === 0) continue;
+    points.sort((a, b) => a.t - b.t);
+    series.push({ id: name, label: name, points });
+  }
+  return series;
+}
+
 function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportViewModel {
   const compute = collectCsvTables(payloads, COMPUTE_CSV_FILES);
   const memory = collectCsvTables(payloads, MEMORY_CSV_FILES);
@@ -872,7 +927,9 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   return {
     summary,
     pipeOccupancy: pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv'])),
-    overviewSeries: [],
+    overviewSeries: overviewSeriesFromSampling(
+      payloadByName(payloads, ['Sampling.json', 'sampling.json']),
+    ),
     computeTables: compute.tables,
     memoryTables: memory.tables,
     csvTexts: { ...compute.texts, ...memory.texts },
