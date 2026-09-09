@@ -339,7 +339,7 @@ test.describe('PR-E2E feature paths', () => {
 
     const heights = async () =>
       page.evaluate(() =>
-        ['.pr-detail-panel', '.pr-detail-panel__body', '.pr-detail-summary'].map(
+        ['.pr-dock', '.pr-detail-panel__body', '.pr-detail-summary'].map(
           (sel) => document.querySelector(sel)!.getBoundingClientRect().height,
         ),
       );
@@ -386,10 +386,9 @@ test.describe('PR-E2E feature paths', () => {
     const dock = page.getByTestId('multi-select-summary');
     await expect(dock).toBeVisible();
     await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
-    // Δt persists over the committed selection hull.
-    await expect(page.getByTestId('measure-arrow')).toBeVisible();
-    await expect(page.getByTestId('measure-label')).toHaveText(/\d/);
-    // Mutually exclusive with the single-select dock.
+    // Δt is cleared on commit; only the live drag showed the measure chrome.
+    await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
+    // The shared dock shell shows multi-select content; single-select DetailPanel is hidden.
     await expect(page.getByTestId('detail-panel')).toHaveCount(0);
 
     const rows = page.locator('[data-testid^="multi-select-row-"]');

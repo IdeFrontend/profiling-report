@@ -147,9 +147,6 @@ describe('MultiSelectSummary', () => {
   it('PR-MSEL-007: dragging the top edge up grows the dock and clamps at the floor', async () => {
     const wrapper = mountPanel({ height: 247 });
     const handle = wrapper.get('[data-testid="multi-select-resize-handle"]');
-    expect(wrapper.get('[data-testid="multi-select-summary"]').attributes('style')).toContain(
-      '247px',
-    );
 
     await handle.trigger('pointerdown', { button: 0, clientY: 800 });
     await handle.trigger('pointermove', { clientY: 700 });

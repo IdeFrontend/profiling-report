@@ -114,10 +114,12 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 81. **PR-CANVAS-081** — Marquee suppresses tooltip and select; `pointerleave` does not cancel.
 82. **PR-CANVAS-082** — Escape during the drag fully releases the press flag — next plain click selects.
 83. **PR-CANVAS-083** — In `measureMode`, drag measures and never marquees.
-84. **PR-CANVAS-084** — Live marquee emits its time extent as `multi-select-span`; end/cancel emits null.
+84. **PR-CANVAS-084** — Live marquee emits its time extent as `multi-select-span`; end/cancel emits null. The root no longer replaces it with a committed selection hull.
 85. **PR-CANVAS-085** — While the rect is live, the events it currently covers are pushed to `setMultiSelection` so they stay bright and the rest dim; the preview is dropped on commit/cancel.
 86. **PR-CANVAS-086** — Shift+left-click toggles an event in/out of multi-selection and commits the full result through `multi-select` (the marquee commit path); removing the last event commits an empty array.
 87. **PR-CANVAS-087** — Shift+left-click after a plain single-select seeds the toggle set with the current single selection, so a user who picks A and Shift+clicks B ends up with {A, B} (not just B).
+88. **PR-CANVAS-088** — Shift+drag unions the new marquee rectangle with the existing single and multi selections; the committed `multi-select` event list contains every selected id exactly once.
+89. **PR-CANVAS-089** — During a marquee drag, lane hover highlight is hidden and the `cursor` event follows the pointer with `snapped: false`; the cursor is cleared when the drag ends or is cancelled.
 
 ## Edge Cases
 

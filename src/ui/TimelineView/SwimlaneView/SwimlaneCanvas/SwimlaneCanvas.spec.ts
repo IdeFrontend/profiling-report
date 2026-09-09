@@ -1323,6 +1323,40 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-089: marquee hides lane hover and cursor follows the pointer', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const rect = (
+      wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
+    ).eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointerdown', {
+      clientX: rect.x - 20,
+      clientY: rect.y - 4,
+      pointerId: 1,
+    });
+    const laneHovers = wrapper.emitted('lane-hover') ?? [];
+    expect(laneHovers.at(-1)?.[0]).toBeNull();
+
+    const moveX = rect.x + rect.w / 2;
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: moveX, clientY: y + 4, buttons: 1 }),
+    );
+    await wrapper.vm.$nextTick();
+    const cursors = wrapper.emitted('cursor');
+    const last = cursors![cursors!.length - 1][0] as { time: number; xRatio: number; snapped?: boolean };
+    expect(last.snapped).toBe(false);
+    expect(last.xRatio).toBeCloseTo(moveX / 400, 5);
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: moveX, clientY: y + 4 }),
+    );
+    await wrapper.vm.$nextTick();
+    const final = wrapper.emitted('cursor')!.at(-1)![0];
+    expect(final).toBeNull();
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-081: marquee suppresses tooltip and select; pointerleave does not cancel', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
@@ -2038,7 +2072,7 @@ describe('SwimlaneCanvas', () => {
 
     window.dispatchEvent(new PointerEvent('pointerup', { clientX: 200, clientY: 40 }));
     await wrapper.vm.$nextTick();
-    // Commit hands the span back to the root, which swaps in the selection hull.
+    // The canvas nulls the span on commit; the root does not replace it with a hull.
     expect(wrapper.emitted('multi-select-span')!.at(-1)![0]).toBeNull();
     wrapper.unmount();
   });
@@ -2102,6 +2136,61 @@ describe('SwimlaneCanvas', () => {
     expect((committed[0][0] as { id: string }[]).map((e) => e.id)).toEqual(['e1']);
     // Should not have emitted select (single selection untouched at canvas level)
     expect(wrapper.emitted('select')).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-088: Shift+drag unions the new rect with existing single and multi selections', async () => {
+    const unionModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'e1', name: 'a', startTime: 200, duration: 100 },
+                { id: 'e2', name: 'b', startTime: 350, duration: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    await wrapper.setProps({
+      model: unionModel,
+      selectedEventId: 'e1',
+      multiSelectedIds: ['e2'],
+    });
+
+    const r2 = vm.eventScreenRect('e2')!;
+    const y = r2.y + r2.h / 2;
+
+    await canvas.trigger('pointerdown', {
+      clientX: r2.x - 20,
+      clientY: r2.y - 4,
+      pointerId: 1,
+      shiftKey: true,
+    });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: r2.x + r2.w / 2, clientY: y + 4, buttons: 1 }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: r2.x + r2.w / 2, clientY: y + 4 }),
+    );
+    await wrapper.vm.$nextTick();
+
+    const ids = (wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[]).map((e) => e.id);
+    expect(ids).toContain('e1');
+    expect(ids).toContain('e2');
+    expect(new Set(ids).size).toBe(ids.length);
     wrapper.unmount();
   });
 

@@ -240,6 +240,8 @@ let marqueePressActive = false;
 /** Ids the live rect covers; overrides `multiSelectedIds` so the drag previews its own commit. */
 let marqueePreviewIds: string[] | null = null;
 let unbindMarqueeDrag: (() => void) | null = null;
+/** True if the marquee started with Shift held — the commit unions with the existing selection. */
+let marqueeShift = false;
 /** Magnet snap to nearest in-lane event start/end. */
 const EVENT_EDGE_MAGNET_PX = 10;
 /** Fast snap when clicking an event while a prior measure range exists. */
@@ -422,7 +424,6 @@ function capturePanHover(
   hoverGap.value = panCaptureHoverGap;
 }
 
-/** Restore live hover after pan capture ends. */
 function altMeasureSessionActive(): boolean {
   return (
     altMeasure.anchorId != null &&
@@ -958,6 +959,7 @@ function endMarquee(): void {
   marqueeAnchor = null;
   marqueePending = false;
   marqueePressActive = false;
+  marqueeShift = false;
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
@@ -998,8 +1000,20 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
   marqueeRect.value = rect;
   emit('multi-select-span', marqueeSpan(rect));
   // Preview the commit: covered events stay bright, the rest dim through the shared path.
-  // ponytail: rescans + re-splits every move; batch by rect-delta if a dense trace janks.
-  marqueePreviewIds = eventsInMarquee(rect).map((ev) => ev.id);
+  // Shift+drag previews the union so the existing selection does not flicker dim.
+  const previewIds = eventsInMarquee(rect).map((ev) => ev.id);
+  if (marqueeShift) {
+    const set = new Set<string>(props.multiSelectedIds ?? []);
+    if (props.selectedEventId) set.add(props.selectedEventId);
+    previewIds.forEach((id) => set.add(id));
+    marqueePreviewIds = [...set];
+  } else {
+    marqueePreviewIds = previewIds;
+  }
+  // Keep the timestamp label following the cursor and suppress lane hover highlight.
+  const w = syncTrackWidth();
+  emit('cursor', { time: timeAtX(local.x), xRatio: local.x / w, snapped: false });
+  emitLaneHover(null);
   sync();
 }
 
@@ -1025,20 +1039,44 @@ function onMarqueeDragEnd(): void {
   }
   const events = eventsInMarquee(rect);
   sync();
-  // The root swaps the live drag span for the committed hull (or clears it on an empty commit).
+  // The root clears the live drag span on commit; the committed hull is no longer drawn.
   emit('multi-select-span', null);
-  emit('multi-select', events);
+  emit('cursor', null);
+  if (marqueeShift) {
+    // Shift+drag unions the new rectangle with the existing selection (single + multi).
+    const ids = new Set<string>();
+    const ordered: string[] = [];
+    const addId = (id: string) => {
+      if (ids.has(id)) return;
+      ids.add(id);
+      ordered.push(id);
+    };
+    if (props.selectedEventId) addId(props.selectedEventId);
+    (props.multiSelectedIds ?? []).forEach(addId);
+    events.forEach((ev) => addId(ev.id));
+    const unioned = ordered
+      .map((id) => backend.findEvent(id))
+      .filter((ev): ev is SwimEvent => ev != null);
+    emit('multi-select', unioned);
+  } else {
+    emit('multi-select', events);
+  }
+  marqueeShift = false;
 }
 
-function beginMarquee(localX: number, localY: number): void {
+function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   endMeasureCreate();
   endMeasureResize();
   endMarquee();
+  marqueeShift = shiftKey;
   marqueeAnchor = { x: localX, y: localY };
   marqueePending = true;
   marqueePressActive = true;
-  // Pan capture snapshots live hover (gap + event) so the drag does not flicker chrome.
-  capturePanHover(localX, localY, Math.max(1, activeCanvas()?.getBoundingClientRect().width ?? 0), null);
+  // Hide hover chrome immediately: lane highlight, gap overlay, and tooltip.
+  hoverGap.value = null;
+  clearPanHoverCapture();
+  emit('cursor', { time: timeAtX(localX), xRatio: localX / syncTrackWidth(), snapped: false });
+  emitLaneHover(null);
   unbindMarqueeDrag = bindWindowPointerDrag({
     onMove: onMarqueeDragMove,
     onEnd: onMarqueeDragEnd,
@@ -1058,9 +1096,11 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   // stops window-level drag move/end from firing, so the next pointerup is a plain
   // click (no marquee context to suppress).
   marqueePressActive = false;
+  marqueeShift = false;
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
+  emit('cursor', null);
   sync();
 }
 
@@ -1846,7 +1886,7 @@ function onPointerDown(e: PointerEvent): void {
       lastX = e.clientX;
     } else {
       const local = localFromClient(e.clientX, e.clientY);
-      if (local) beginMarquee(local.x, local.y);
+      if (local) beginMarquee(local.x, local.y, e.shiftKey);
     }
   }
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);

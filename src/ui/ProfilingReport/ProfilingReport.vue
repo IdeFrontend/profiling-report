@@ -8,7 +8,6 @@ import {
   createViewState,
   keyboardPanStepTime,
   measureFocusWindow,
-  normalizeMeasureRange,
   panBy,
   pinLane,
   pinOverview,
@@ -60,7 +59,7 @@ import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
-  DOCK_HEIGHT_EXPANDED,
+  DOCK_HEIGHT_COLLAPSED,
   fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
@@ -142,11 +141,11 @@ const selected = ref<SelectedEvent | null>(null);
 const selectedEvent = ref<SwimEvent | null>(null);
 /** Marquee capture; mutually exclusive with `selected` (only one dock mounts). */
 const multiSelected = ref<SwimEvent[]>([]);
-/**
- * Δt span shown on the axis for the marquee: the live drag extent while dragging, then
- * the committed selection hull. Cleared with the selection.
- */
-const multiSelectSpan = ref<MeasureRange | null>(null);
+  /**
+   * Δt span shown on the axis for the marquee: the live drag extent while dragging.
+   * Cleared on commit (the axis measure control disappears when the drag ends).
+   */
+  const multiSelectSpan = ref<MeasureRange | null>(null);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
@@ -159,11 +158,11 @@ const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
-  const dockExpanded = ref(false);
-  const topologyFullscreen = ref(false);
-  const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
-  const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
-  const dockHeight = ref(DOCK_HEIGHT_EXPANDED);
+/** Shared dock height for single-select DetailPanel and multi-select summary. */
+const dockHeight = ref(DOCK_HEIGHT_COLLAPSED);
+const topologyFullscreen = ref(false);
+const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
+const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
   let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
@@ -865,8 +864,8 @@ function onSelect(ev: SwimEvent | null) {
  * Marquee commit. Both branches emit `select(null)`: an empty rect clears everything,
  * a non-empty one dismisses the single selection in favor of the multi-selection — so
  * hosts read `select(null)` as "no single selection", not "nothing is selected"
- * (contract in ProfilingReport.spec.md Outputs). The axis Δt switches from the live
- * drag extent to the committed selection hull and persists until the selection clears.
+ * (contract in ProfilingReport.spec.md Outputs). The axis Δt is cleared on commit
+ * (it only follows the live drag).
  */
 function onMultiSelect(events: SwimEvent[]) {
   if (events.length === 0) {
@@ -876,10 +875,8 @@ function onMultiSelect(events: SwimEvent[]) {
   selected.value = null;
   selectedEvent.value = null;
   multiSelected.value = events;
-  multiSelectSpan.value = normalizeMeasureRange(
-    Math.min(...events.map((e) => e.startTime)),
-    Math.max(...events.map((e) => e.startTime + e.duration)),
-  );
+  // multiSelectSpan is already cleared by the canvas before this emit.
+  multiSelectSpan.value = null;
   viewState.value = setMultiSelection(
     viewState.value,
     events.map((e) => e.id),
@@ -888,9 +885,8 @@ function onMultiSelect(events: SwimEvent[]) {
 }
 
 /**
- * Live marquee extent during the drag. The canvas nulls it on pointerup/Escape; on a
- * commit `onMultiSelect` runs right after and swaps in the hull, so a cancel is the only
- * path that leaves it cleared.
+ * Live marquee extent during the drag. The canvas nulls it on pointerup/Escape.
+ * The root does not replace it with a committed hull, so the axis Δt disappears after drag.
  */
 function onMultiSelectSpan(span: MeasureRange | null) {
   multiSelectSpan.value = span;
@@ -1187,36 +1183,39 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </template>
     </ReportLayout>
 
-    <!-- Mutually exclusive docks: multi-select wins, then single-select, else neither. -->
-    <MultiSelectSummary
-      v-if="multiSelected.length && showTimeline"
-      :selected-events="multiSelected"
-      :model="swim"
-      :locale="locale"
-      :height="dockHeight"
-      @close="onSelect(null)"
-      @select-single="onSelect"
-      @update:height="dockHeight = $event"
-    />
-
-    <Transition name="pr-dock">
+    <!-- Persistent dock shell: single/multi selection swap content, not the container.
+         The shared height survives mode switches so the panel does not animate from 0. -->
+    <footer
+      v-if="showTimeline && (selected || multiSelected.length)"
+      class="pr-dock"
+      data-testid="dock"
+      :style="{ '--pr-dock-h': `${dockHeight}px` }"
+    >
+      <MultiSelectSummary
+        v-if="multiSelected.length"
+        :selected-events="multiSelected"
+        :model="swim"
+        :locale="locale"
+        :height="dockHeight"
+        @close="onSelect(null)"
+        @select-single="onSelect"
+        @update:height="dockHeight = $event"
+      />
       <DetailPanel
-        v-if="!multiSelected.length && selected && showTimeline"
-        :selected="selected"
+        v-else
+        :selected="selected as SelectedEvent"
         :time-display-mode="localTimeDisplayMode"
         :clock-freq-m-hz="clockFreqMHz"
         :time-origin="bounds.minTime"
         :locale="locale"
         :neighbors="dependencyNeighbors"
         :dependency-mode="localDependencyMode"
-        :expanded="dockExpanded"
         :height="dockHeight"
         @close="onSelect(null)"
-        @update:expanded="dockExpanded = $event"
         @update:height="dockHeight = $event"
         @update:dependency-mode="onDependencyMode"
       />
-    </Transition>
+    </footer>
 
     <Transition
       name="pr-topo-fs"
@@ -1328,6 +1327,31 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   padding: 6px 10px;
   color: #f88;
   flex: 0 0 auto;
+}
+
+.pr-dock {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  position: relative;
+  box-sizing: border-box;
+  height: min(var(--pr-dock-h), 60vh);
+  background: var(--pr-bg-panel, #262626);
+  border-top: 1px solid #3a3a3a;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  transition: height 200ms ease;
+}
+
+.pr-dock > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-dock {
+    transition: none;
+  }
 }
 
 .pr-topo-fs {

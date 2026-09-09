@@ -36,8 +36,6 @@ const emit = defineEmits<{
   'update:height': [height: number];
 }>();
 
-const dockStyle = computed(() => ({ height: `${props.height}px` }));
-
 type SortKey = 'name' | 'duration' | 'selfTime' | 'avgDuration';
 type SortDirection = 'asc' | 'desc';
 
@@ -161,10 +159,9 @@ function onResizePointerUp() {
 </script>
 
 <template>
-  <footer
+  <div
     class="pr-multi-select"
     data-testid="multi-select-summary"
-    :style="dockStyle"
   >
     <button
       type="button"
@@ -275,18 +272,17 @@ function onResizePointerUp() {
         </tbody>
       </table>
     </div>
-  </footer>
+  </div>
 </template>
 
 <style scoped>
 .pr-multi-select {
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   position: relative;
-  /* Same dock chrome and height ownership as DetailPanel. */
-  background: var(--pr-bg-panel, #262626);
-  border-top: 1px solid #3a3a3a;
+  min-height: 0;
+  /* The shell owns background, border and height. */
 }
 
 /* Same 5px hit strip as DetailPanel's top edge. */

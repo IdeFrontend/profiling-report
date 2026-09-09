@@ -151,8 +151,8 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (2)');
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     expect(vm.viewState.selectedEventId).toBeNull();
-    // Axis Δt now describes the committed selection hull, not the drag rect.
-    expect(timeline().props('multiSelectSpan')).toEqual({ startTime: 0, endTime: 30 });
+    // Axis Δt is cleared on commit (it only followed the live drag).
+    expect(timeline().props('multiSelectSpan')).toBeNull();
     // The documented overload: a non-empty commit dismisses the single selection, so the
     // host hears select(null) even though the multi-select dock is up.
     expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
@@ -195,11 +195,11 @@ describe('ProfilingReport scaffold', () => {
     // No dock yet — the rect has not committed.
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
 
-    // The canvas nulls the drag span on pointerup; the commit supplies the hull.
+    // The canvas nulls the drag span on pointerup; the root does not replace it with a hull.
     timeline().vm.$emit('multi-select-span', null);
     timeline().vm.$emit('multi-select', depsModel().processes[0]!.threads[0]!.events);
     await nextTick();
-    expect(timeline().props('multiSelectSpan')).toEqual({ startTime: 0, endTime: 30 });
+    expect(timeline().props('multiSelectSpan')).toBeNull();
     wrapper.unmount();
   });
 
