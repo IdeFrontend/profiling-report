@@ -10,11 +10,11 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 ## Inputs
 
-**groups**, **collapsedIds**, **model**, and **view** drive gutter + canvas layout as today. **gutterMetricByCard** (optional `Record<string, GutterMetric>`) holds the selected metric per Card id; parent owns defaults and persistence. **gutterMetricOptionsByCard** (optional `Record<string, GutterMetric[]>`) lists available modes per Card (see [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md)); omit entries to hide the selector on that Card.
+**groups**, **collapsedIds**, **model**, and **view** drive gutter + canvas layout as today. **hiddenLaneIds** (optional `string[]`) filters both the gutter and the canvas body; the pinned strip also omits hidden lanes. **gutterMetricByCard** (optional `Record<string, GutterMetric>`) holds the selected metric per Card id; parent owns defaults and persistence. **gutterMetricOptionsByCard** (optional `Record<string, GutterMetric[]>`) lists available modes per Card (see [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md)); omit entries to hide the selector on that Card.
 
 ## Outputs
 
-**toggle-group** — unchanged. **update:gutter-metric** emits `{ cardId, metric }` when the user picks a different gutter metric on a Card strip. Parent recomputes gutter lane bars for that Card's subtree and passes updated **groups**.
+**toggle-group** — unchanged. **update:gutter-metric** emits `{ cardId, metric }` when the user picks a different gutter metric on a Card strip. Parent recomputes gutter lane bars for that Card's subtree and passes updated **groups**. **context-menu** forwards `context-menu` payloads from both main and pinned surfaces to `TimelineView`.
 
 ## Behavior
 
@@ -45,12 +45,13 @@ When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim bo
 | Collapse | Pinned strip **keeps** duplicates when an ancestor Card/folder is collapsed; originals hide in the scroll body. Requires unfiltered `pinSourceModel` (not `displaySwim`). |
 | Dependencies | Pinned-strip canvas omits Bezier curves (`showDependencies=false`) but still runs selection gray-muting for non-selected/non-neighbor events (same `#2C2C2C` / `#969696` as the body). Neighbor ids come from the **strip layout** (pinned leaves only — strip-local mute; a multi-hop neighbor reached only via an unpinned lane can false-mute on the strip). Curve geometry is not painted in strip Y space. Main scroll canvas unchanged. |
 | Cross-card | Any leaf id may be pinned regardless of Card/process; strip lists duplicates in **pin order** (may interleave Cards). |
+| Hidden lanes | Hidden leaf ids are removed from the gutter, main body, and pinned strip. The pin id remains in **pinnedLaneIds** while hidden so it can be restored when the lane is unhidden. |
 
 Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
 
 ## Acceptance Criteria
 
-1. **PR-SWIMVIEW-001** — Renders gutter and canvas side by side.
+1. **PR-SWIMVIEW-001** — Renders gutter and canvas side by side; hidden lanes omitted.
 2. **PR-SWIMVIEW-002** — Full-width Card strip at header Y; click emits `toggle-group`.
 3. **PR-SWIMVIEW-003** — Body hosts `gutter-resize-handle` under Card strips; body row uses `overflow: hidden` for scroll containment.
 4. **PR-SWIMVIEW-004** — Stacking: measure borders below Card strips (`z-index: 8`); swim cursor and Alt-measure chrome (`z-index: 9`) above Card strips; blue edge marks (`z-index: 10–11`) above the cursor / Alt-measure band; pin↔body Alt-measure bridge also at `z-index: 9`.
@@ -72,6 +73,8 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 20. **PR-SWIMVIEW-020** — Alt event measure shares session across pin strip and body; each endpoint records the surface it was captured on so a body click on a pinned lane draws on the body instance (not the sticky duplicate). Cross-surface pairs use split sticks + Δt.
 21. **PR-SWIMVIEW-021** — When Alt-measure endpoints span pin strip and body, a dashed vertical bridge connects the two lane centers at the later edge (still drawn when either edge is outside the current time window; re-projects on gutter/body resize).
 22. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
+25. **PR-SWIMVIEW-025** — Forwards `context-menu` from main and pinned surfaces to parent.
+26. **PR-SWIMVIEW-026** — Hidden lanes omitted from pinned strip.
 23. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 24. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
 27. **PR-SWIMVIEW-027** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
@@ -100,7 +103,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
-- **2026-09-08** — Pinned-strip height and body content height account for multi-row leaf `rowCount` (`PR-SWIMVIEW-027`; 025/026 reserved for #71 pin/collapse tweens).
+- **2026-09-08** — Forwards `context-menu` from main and pinned surfaces; hidden lanes omitted from gutter, body, and pinned strip (`PR-SWIMVIEW-025`/`026`).
 - **2026-09-07** — Pinned strip applies selection gray-muting like the body; only dependency Beziers stay body-only (`PR-SWIMVIEW-016`).
 - **2026-09-03** — Card metric selector offers only **时钟周期** / **利用率** (cacheHit and task removed).
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).

@@ -61,3 +61,23 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 **Not:** toolbar aside toggle (`t('stats')` → **报告**), StatsAside **报告统计**, or Card **时钟周期** ([UI-46](UI.md) / [DATA-38](DATA.md)).
 
 **Specs when answered:** [INTERACTIONS](../../ui/INTERACTIONS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [LOCALIZATION](../../ui/LOCALIZATION.md) / `src/i18n/index.ts`.
+
+### UI-48 — Undo zoom and Reset zoom scope
+
+**Status:** `open` + `interim`
+
+**Question:** What viewport changes form zoom history for **撤销缩放** (Undo zoom, Ctrl+Z), what does its depth badge count, and what window must **重置缩放** (Reset zoom) restore? Does Ctrl+Z conflict with an app-level undo command?
+
+**Interim:** ContextMenu omits Undo zoom and Reset zoom until Product answers. Fit to screen remains available through `zoomToFitWindow`.
+
+**Specs when answered:** [ContextMenu.spec.md](../../../src/ui/ContextMenu/ContextMenu.spec.md), [view-state.spec.md](../../../specs/core/view-state.spec.md), [SwimlaneCanvas.spec.md](../../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md).
+
+### UI-49 — Offset action contract
+
+**Status:** `open` + `interim`
+
+**Question:** What does lane **Offset** do: open an input dialog, auto-align data, or another operation? Define value units, validation, scope, and whether the menu item has a submenu.
+
+**Interim:** ContextMenu omits Offset until Product answers.
+
+**Specs when answered:** [ContextMenu.spec.md](../../../src/ui/ContextMenu/ContextMenu.spec.md), [view-state.spec.md](../../../specs/core/view-state.spec.md).

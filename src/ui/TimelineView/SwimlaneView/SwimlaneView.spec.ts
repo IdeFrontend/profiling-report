@@ -1937,4 +1937,7 @@ describe('SwimlaneView', () => {
       'Utilization',
     );
   });
+
+  it.todo('PR-SWIMVIEW-025: forwards context-menu from main and pinned surfaces to parent');
+  it.todo('PR-SWIMVIEW-026: hidden lanes omitted from pinned strip');
 });

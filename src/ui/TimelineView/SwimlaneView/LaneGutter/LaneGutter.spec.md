@@ -30,6 +30,8 @@ Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detai
 
 **pin-lane** fires with a **leaf** lane `id` when the user clicks an unpinned pushpin. **unpin-lane** fires with the same shape when the user clicks a pinned pushpin on an original row. Parent updates `pinnedLaneIds` immutably (see [`view-state.spec.md`](../../../../../specs/core/view-state.spec.md)).
 
+**context-menu** fires when a user right-clicks a leaf lane header with `{ target: null, x: number, y: number, laneId: string }`. **x** and **y** are client viewport coordinates. **laneId** is the resolved leaf id. Folder and Card headers do not open this menu; the parent combines this invocation with the canvas event-chart path.
+
 ## Behavior
 
 ### Hierarchy + expanders
@@ -65,6 +67,8 @@ Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../..
 ### Pin (leaf lanes only)
 
 Pushpin control on **leaf** rows only — not on nested folders or Card spacers. Click toggles pin state via `pin-lane` / `unpin-lane`. Duplicates render in the sticky pinned strip owned by `SwimlaneView`; originals stay in tree order below.
+
+**Leaf context menu.** Right-clicking a leaf lane header emits `context-menu` with that lane id and no event target. Folder and Card headers keep their existing interactions and do not open a context menu. Leaf context menus are forwarded up through `SwimlaneView` → `TimelineView` → `ProfilingReport` alongside canvas `context-menu` events; `ProfilingReport` owns the single `ContextMenu` instance.
 
 | Element | Visual (normative) |
 |---------|-------------------|
@@ -142,6 +146,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 15. **PR-GUTTER-015** — A hovered lane row (gutter pointer, folder or leaf, or inbound `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; gutter pointer emits `lane-hover` so the track paints to match; the pin tooltip carries EventTooltip chrome.
 16. **PR-GUTTER-016** — Hovering **anywhere on a leaf lane row** that has a **thin** filled util bar shows the metric **label** after a **400ms** delay. Tooltip uses EventTooltip / pin chrome, is teleported to `body`, and follows the cursor at **+12px / +12px** (same offset as event hover). Thick bars keep the in-track label and do **not** show this tip. Leave cancels a pending delay and hides the tip.
 18. **PR-GUTTER-018** — A leaf with `rowCount` renders one title cell `rowCount × LANE_HEIGHT` (name + util + pin vertically centered) with a single bottom border — no per-sub-row gutter rows.
+19. **PR-GUTTER-019** — Leaf header right-click emits menu.
 
 ## Edge Cases
 
@@ -159,6 +164,8 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 | Duplicate pin click | Idempotent — no duplicate entries in `pinnedLaneIds` |
 | Events chart hover | Matching gutter leaf/folder gets `#363636` and a `#fff` label via `hoveredLaneId`; unpinned pushpin stays hidden. The canvas paints the same `#363636` across the track half of that row (`setHoveredLane`, behind events) |
 | Gutter header hover | Leaf or folder gutter `pointerenter` emits `lane-hover` with the row id; `pointerleave` emits `null` — parent drives both canvases’ track highlight |
+| Folder or Card right-click | No context menu |
+| Leaf header right-click | Emits `context-menu` with `target: null` |
 
 ## Design sketches
 
@@ -178,6 +185,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../SwimlaneView.spec.md).
 
 ## Changelog
+- **2026-09-08** — Leaf header right-click emits ContextMenu invocation with client viewport coordinates; folder/Card headers omit it (`PR-GUTTER-019`).
 - **2026-09-08** — Multi-row leaf renders one tall title cell `rowCount × LANE_HEIGHT` (`PR-GUTTER-018`; 017 reserved for #71 collapse wrapper).
 - **2026-09-07** — Whole-lane hover (AC-07): gutter leaf/folder `pointerenter`/`pointerleave` emit `lane-hover` so the track paints `#363636` with the header; folders participate in both directions.
 - **2026-09-02** — Thin util value tip: full-lane hit target, 400ms delay, cursor-follow (+12/+12) (`PR-GUTTER-016`).

@@ -54,6 +54,7 @@ Specs are co-located with their components.
 | RooflinePanel | `PR-ROOF-*` | M2 | `src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md` |
 | HardwareDetailsPanel | `PR-HW-*` | M1 | `src/ui/StatsAside/HardwareDetailsPanel/HardwareDetailsPanel.spec.md` |
 | SwimlaneCanvas | `PR-CANVAS-*` | MVP | `src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md` |
+| ContextMenu | `PR-CTXM-*` | MVP subset (full P2) | `src/ui/ContextMenu/ContextMenu.spec.md` |
 
 ### Architecture
 

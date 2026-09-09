@@ -650,4 +650,14 @@ describe('ProfilingReport scaffold', () => {
     expect(span()).toBe(1000);
     wrapper.unmount();
   });
+
+  it.todo(
+    'PR-ROOT-013: owns contextMenuContext; forwards context-menu from TimelineView into ContextMenu; dismisses on update:scrollY',
+  );
+  it.todo(
+    'PR-ROOT-014: context-menu actions reuse shared state paths (zoomToFitWindow, hideLane, select, togglePin)',
+  );
+  it.todo(
+    'PR-ROOT-015: hiddenLaneIds is owned here and passed down; hidden lanes omitted from gutter, body, pinned strip',
+  );
 });

@@ -548,6 +548,8 @@ describe('LaneGutter', () => {
     vi.useRealTimers();
   });
 
+  it.todo('PR-GUTTER-019: leaf header right-click emits menu');
+
   it('PR-GUTTER-018: multi-row leaf renders one tall title cell', () => {
     const wrapper = mount(LaneGutter, {
       props: {

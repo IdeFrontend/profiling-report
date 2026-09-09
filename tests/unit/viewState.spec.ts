@@ -179,4 +179,9 @@ describe('PR-VIEW: swimlane view window', () => {
     expect(keyboardPanStepTime(-7, 1000)).toBeCloseTo(0.03, 10);
     expect(keyboardPanStepTime(-7, -3)).toBe(30);
   });
+
+  it.todo('PR-VIEW-018: createViewState initializes empty hiddenLaneIds');
+  it.todo('PR-VIEW-019: hideLane appends id when absent');
+  it.todo('PR-VIEW-020: unhideLane removes id when present');
+  it.todo('PR-VIEW-021: hiding a lane does not remove its id from pinnedLaneIds');
 });

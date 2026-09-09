@@ -2023,4 +2023,7 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('lane-hover')).toBeUndefined();
     wrapper.unmount();
   });
+
+  it.todo('PR-CANVAS-074: native context menu stays suppressed');
+  it.todo('PR-CANVAS-075: right-click emits resolved target');
 });

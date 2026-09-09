@@ -89,23 +89,32 @@ sequenceDiagram
 
 Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear. A 4px threshold on pointer-up gates selection: movement >4px between pointerdown and pointerup suppresses the click-to-select. Pan emits continuously on every move while dragging.
 
-### Search
+### Context menu
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Toolbar as ReportToolbar
+    participant Surface as SwimlaneCanvas / LaneGutterNode
+    participant Swim as SwimlaneView
+    participant Timeline as TimelineView
     participant Root as ProfilingReport
-    participant Canvas as SwimlaneCanvas
-    participant Renderer as CanvasSwimlaneRenderer
+    participant Menu as ContextMenu
 
-    User->>Toolbar: type search query
-    Toolbar->>Root: emit('update:searchQuery', query)
-    Root->>Root: viewState.searchQuery = query
-    Root->>Canvas: update searchQuery prop
-    Canvas->>Renderer: filter event names (substring, case-insensitive)
-    Renderer->>Renderer: dim non-matching events (25% alpha)
+    User->>Surface: right-click leaf lane / event
+    Surface->>Swim: emit('context-menu', payload)
+    Swim->>Timeline: emit('context-menu', payload)
+    Timeline->>Root: emit('context-menu', payload)
+    Root->>Root: contextMenuContext = payload
+    Root->>Menu: open at (x, y)
+    User->>Menu: select action
+    Menu->>Root: emit('action', command)
+    Root->>Root: apply shared behavior (zoomToFit, hideLane, select event, toggle pin)
+    Root->>Root: contextMenuContext = null
 ```
+
+`ProfilingReport` owns the single `ContextMenu` instance. It receives `context-menu` from both the main and pinned surfaces (via `SwimlaneView` and `TimelineView`), opens the menu at client viewport coordinates, and applies actions through shared state helpers so the rest of the report stays consistent. Any vertical scroll (`update:scrollY`) clears `contextMenuContext`.
+
+### Search
 
 The renderer applies event name filtering as a substring, case-insensitive match during draw. Events that match render at full opacity; non-matching events are dimmed to 25% alpha but remain visible and interactive (hover/select still work on dimmed events). Lanes with no matching events remain visible (empty lanes are not collapsed).
 
@@ -142,9 +151,11 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside availability.** `asideAvailable` is true when duration, I/O bandwidth cards (DATA-33g), PIPE, CSV tables, roofline, hardware details, or labelled topology exist. Name/type alone do not open the aside. Missing `bandwidthCards` on a host-managed model is treated as empty.
 
-**State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
+**State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, aside visibility, and **hiddenLaneIds**. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
 
 **Swim model identity (PR-ROOT-012).** The loaded/host `swimlaneModel` is held and consumed shallow (not deep-proxied) so collapse/expand, dependency walks, and gutter stay fast on large traces. Host-managed callers must **replace the `swimlaneModel` reference** to refresh — in-place nested `event` / `thread` mutations do not invalidate the display tree. Emitted `SwimEvent` payloads and pin/body canvas models share the same raw object identity.
+
+**Hidden lanes.** `hiddenLaneIds` removes hidden leaf lanes from the gutter, main body, and pinned strip. The pin id stays in `pinnedLaneIds` while the lane is hidden so restoring it brings back the row and its pinned duplicate. A UI control to unhide a hidden lane is out of scope for this change; session reset (new report / operator switch) is the current restore path.
 
 **Bounds protection.** When `maxTime === minTime`, bounds clamp adds +1 to prevent division by zero during zoom calculations.
 
@@ -181,6 +192,9 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 9. **PR-ROOT-010** — Overlay right-click stays fullscreen and does not open memory CSV.
 10. **PR-ROOT-011** — Overlay dialog: Escape closes; WASD idle.
 11. **PR-ROOT-012** — Host/deep-reactive `swimlaneModel` is consumed raw (shallow): collapse, deps, and gutter do not walk Proxies; in-place nested mutations do not invalidate the display tree — replace the prop reference to refresh.
+12. **PR-ROOT-013** — Owns `contextMenuContext`; forwards `context-menu` from `TimelineView` into the single `ContextMenu`; dismisses on `update:scrollY`.
+13. **PR-ROOT-014** — Context-menu actions reuse shared state paths (`zoomToFitWindow`, `hideLane`, normal `select`, `togglePin`).
+14. **PR-ROOT-015** — `hiddenLaneIds` is owned here and passed down; hidden lanes omitted from gutter, main body, and pinned strip.
 
 ## Edge Cases
 
@@ -212,6 +226,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-09-08** — Owns `contextMenuContext` and `hiddenLaneIds`; forwards `context-menu` from TimelineView; dismisses on `update:scrollY` (PR-ROOT-013/014/015).
 - **2026-09-08** — Swim model is shallow (PR-ROOT-012): host must replace `swimlaneModel` (not mutate nested events in place) to refresh; `toRaw` at the swim source keeps collapse/deps/gutter off Proxies.
 - **2026-09-08** — Topology **全屏** covers `.pr-root` with Back + scaled diagram (PR-ROOT-009); overlay right-click does not open memory CSV (PR-ROOT-010); Escape closes and WASD stay idle (PR-ROOT-011).
 - **2026-09-07** — Product host files are `.npu-rep` ([PROC-2](../../docs/context/decisions/PROC.md)); classic `.rep` remains an engineering fixture path.
