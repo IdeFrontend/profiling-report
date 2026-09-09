@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import SortArrows from '../SortArrows.vue';
+import SortIcon from '../SortIcon.vue';
 import { formatTimePartsAuto } from '../../domain/formatTime';
 import { collectLeafEventsFromModel } from '../../domain/swimTree';
 import type { SwimEvent, SwimlaneModel } from '../../domain/types';
@@ -132,6 +132,12 @@ function sortState(key: SortKey): 'ascending' | 'descending' | 'none' {
   return sortDirection.value === 'asc' ? 'ascending' : 'descending';
 }
 
+/** SortIcon direction for a column: active column shows asc/desc, others show null (↕). */
+function dirFor(key: SortKey): 'asc' | 'desc' | null {
+  if (sortKey.value !== key) return null;
+  return sortDirection.value ?? null;
+}
+
 let session: ReturnType<typeof startHorizontalResize> | null = null;
 
 function onResizePointerDown(e: PointerEvent) {
@@ -209,7 +215,7 @@ function onResizePointerUp() {
                 @click="toggleSort('name')"
               >
                 {{ t('name', locale) }}
-                <SortArrows />
+                <SortIcon :direction="dirFor('name')" />
               </button>
             </th>
             <th
@@ -226,7 +232,7 @@ function onResizePointerUp() {
                 @click="toggleSort(col.key)"
               >
                 {{ t(col.label, locale) }}
-                <SortArrows />
+                <SortIcon :direction="dirFor(col.key)" />
               </button>
             </th>
           </tr>

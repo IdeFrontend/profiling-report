@@ -92,14 +92,28 @@ describe('MultiSelectSummary', () => {
     );
   });
 
-  it('PR-MSEL-003b: every header carries the drawn sort arrows, sorted column is highlighted', async () => {
+  it('PR-MSEL-003b: every header carries a sort icon; sorted column changes glyph direction', async () => {
     const wrapper = mountPanel();
-    // The sketch draws the same pair of arrows on all four columns.
-    expect(wrapper.findAll('thead th .pr-sort-arrows')).toHaveLength(4);
+    // Default: sortKey='duration' desc → duration shows ↓, other 3 show ↕.
+    expect(wrapper.findAll('thead th [data-testid="sort-icon-none"]')).toHaveLength(3);
+    expect(wrapper.find('[data-testid="sort-icon-desc"]').exists()).toBe(true);
+    // No text glyph — drawn SVG only.
     expect(wrapper.find('thead th').text()).not.toContain('◇');
 
-    // Since the glyph never changes, aria-sort is the only handle the sorted
-    // column highlight has — it must reach the button that owns the state.
+    // Click duration again (active, desc → null → asc).
+    await wrapper.get('[data-testid="multi-select-sort-duration"]').trigger('click');
+    // desc → null
+    expect(wrapper.findAll('thead th [data-testid="sort-icon-none"]')).toHaveLength(4);
+    await wrapper.get('[data-testid="multi-select-sort-duration"]').trigger('click');
+    // null → asc
+    expect(wrapper.find('[data-testid="sort-icon-asc"]').exists()).toBe(true);
+
+    // Click a different column → that column goes asc, others neutral.
+    await wrapper.get('[data-testid="multi-select-sort-name"]').trigger('click');
+    expect(wrapper.find('[data-testid="sort-icon-asc"]').exists()).toBe(true);
+    expect(wrapper.findAll('thead th [data-testid="sort-icon-none"]')).toHaveLength(3);
+
+    // aria-sort still drives the colour change via CSS.
     const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-multi-select__sort\[aria-sort='ascending'\]/);
     expect(src).toMatch(/\.pr-multi-select__sort\[aria-sort='descending'\]/);
