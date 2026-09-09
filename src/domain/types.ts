@@ -327,6 +327,17 @@ export interface AdaptedReport {
   selectedOperatorId?: string;
 }
 
+/** P2 multi-select info panel (v930/task-marquee). One row per unique event name. */
+export interface MultiSelectSummaryItem {
+  name: string;
+  /** Total wall duration of all events with this name, in nanoseconds. */
+  wallDuration: number;
+  /** Self time (wall duration minus child spans) in nanoseconds. Equals wallDuration when unknown. */
+  selfTime: number;
+  /** Mean wall duration across all events with this name, in nanoseconds. */
+  avgWallDuration: number;
+}
+
 export interface SelectedEvent {
   id: string;
   name: string;
