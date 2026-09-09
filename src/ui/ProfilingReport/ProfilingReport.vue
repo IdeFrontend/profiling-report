@@ -591,7 +591,8 @@ function closeTopologyFullscreen() {
 }
 
 function onTopologyFullscreenAfterLeave() {
-  fullscreenTopology.value = null;
+  // Leave can be cancelled by a mid-fade reopen — only clear when still closed.
+  if (!topologyFullscreen.value) fullscreenTopology.value = null;
 }
 
 function onOpenTopologyFullscreen(model: MemoryTopologyModel) {
@@ -716,8 +717,9 @@ function onGlobalKeydown(e: KeyboardEvent) {
     closeTopologyFullscreen();
     return;
   }
-  // Overlay covers the timeline; WASD must not pan/zoom the hidden view.
-  if (topologyFullscreen.value) return;
+  // Overlay covers the timeline (including the ~200ms leave fade while the model is still held).
+  // WASD must not pan/zoom the hidden view.
+  if (topologyFullscreen.value || fullscreenTopology.value != null) return;
   if (!showTimeline.value) return;
   // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
   // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.

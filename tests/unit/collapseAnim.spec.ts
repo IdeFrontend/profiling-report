@@ -171,7 +171,11 @@ describe('collapse summary dissolve (PR-RENDER-028)', () => {
     expect(ghost).toBeTruthy();
     const rect = renderer.eventScreenRect(ghost!.id);
     expect(rect).toBeTruthy();
-    expect(renderer.hitTest(rect!.x + 1, rect!.y + rect!.h / 2)).toBe(ghost!.id);
+    const hitId = renderer.hitTest(rect!.x + 1, rect!.y + rect!.h / 2);
+    expect(hitId).toBe(ghost!.id);
+    // hitTest uses hitLayout (ghosts); findEvent must resolve the same layout or eventAtPointer
+    // returns null for the painted bar during the dissolve tween (PR-RENDER-028).
+    expect(renderer.findEvent(hitId!)?.id).toBe(ghost!.id);
   });
 
   it('PR-RENDER-032: ClearType drawEventLabels shifts/fades with collapse tween', async () => {

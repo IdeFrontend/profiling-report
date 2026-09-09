@@ -577,7 +577,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   findEvent(id: string): SwimEvent | null {
-    return findEvent(this.layout, id);
+    return findEvent(this.hitLayout, id);
   }
 
   private refreshDepCache(): void {

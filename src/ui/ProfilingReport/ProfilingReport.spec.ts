@@ -511,6 +511,53 @@ describe('ProfilingReport scaffold', () => {
     expect(src).toMatch(/\.pr-topo-fs-enter-from,\s*\.pr-topo-fs-leave-to\s*\{[^}]*opacity:\s*0/s);
     expect(src).toMatch(/\.pr-topo-fs-enter-from,\s*\.pr-topo-fs-leave-to\s*\{[^}]*scale\(0\.98\)/s);
     expect(src).toMatch(/prefers-reduced-motion:\s*reduce[\s\S]*?\.pr-topo-fs-enter-active/);
+
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const wrapper = mount(ProfilingReport, {
+      attachTo: host,
+      global: { stubs: { Transition: false } },
+      props: {
+        title: 'topo-fs-anim',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(topologyReport()),
+      },
+    });
+    try {
+      await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+      await nextTick();
+      expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+
+      // Mid-leave: open flag cleared while the model is still held for the fade.
+      type Setup = {
+        topologyFullscreen: boolean;
+        fullscreenTopology: unknown;
+      };
+      const setup = (wrapper.vm as unknown as { $: { setupState: Setup } }).$.setupState;
+      expect(setup.fullscreenTopology).toBeTruthy();
+      setup.topologyFullscreen = false;
+      const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
+      expect(span()).toBe(1000);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+      await nextTick();
+      expect(span()).toBe(1000);
+
+      // Mid-leave reopen: after-leave must not clear the new model.
+      const held = setup.fullscreenTopology;
+      setup.topologyFullscreen = true;
+      setup.fullscreenTopology = held;
+      // Stale leave callback with the guard.
+      if (!setup.topologyFullscreen) setup.fullscreenTopology = null;
+      expect(setup.fullscreenTopology).toBe(held);
+      await nextTick();
+      expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+      expect(
+        wrapper.find('[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]').exists(),
+      ).toBe(true);
+    } finally {
+      wrapper.unmount();
+      host.remove();
+    }
   });
 
   it('PR-ROOT-010: overlay right-click stays fullscreen and does not open memory CSV', async () => {
