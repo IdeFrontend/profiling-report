@@ -34,7 +34,7 @@ Fit to screen has the same result as the existing toolbar action: it frames the 
 
 The menu opens at pointer coordinates, clamped inside the viewport; it opens upward or leftward when the default position would overflow below or right.
 
-The menu closes on click outside, Escape, item activation, and a canvas **scroll-y** signal. Arrow Up and Arrow Down move active-item focus; Enter activates it. Ctrl+P activates Pin row only while the menu is open and Pin row is available, and suppresses the browser Print shortcut.
+The menu closes on click outside, Escape, item activation, and every forwarded **update:scrollY** change (gutter, main or pinned canvas, Card strip, or parent update). Arrow Up and Arrow Down move active-item focus; Enter activates it. Ctrl+P activates Pin row only while the menu is open and Pin row is available, and suppresses the browser Print shortcut.
 
 ## Hidden-lane behavior
 
