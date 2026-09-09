@@ -46,6 +46,7 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 16. **PR-TIMELINE-016** — Cursor playhead line uses time-proportional `xRatio` placement.
 17. **PR-TIMELINE-017** — No viewport breakpoint stacks swim rows; swim-row columns use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` so the track cannot collapse (stable MSTT embedding).
 18. **PR-TIMELINE-018** — Viewport time axis shows `axis-ruler-base` deep in trace; near-origin viewport omits it; overview has no base.
+19. **PR-TIMELINE-019** — Forwards context-menu and scroll events.
 
 ## Changelog
 - **2026-08-27** — Viewport axis coarse base + remainder ticks via `useViewportBase`; PR-TIMELINE-018.

@@ -766,4 +766,6 @@ describe('TimelineView', () => {
     );
     expect(src).toMatch(/\.pr-swim-row\s*\{[^}]*min-width:\s*0/s);
   });
+
+  it.todo('PR-TIMELINE-019: forwards context-menu and scroll events');
 });
