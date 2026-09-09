@@ -404,5 +404,5 @@ See prioritized product-owner list: [questions](../context/questions/).
 | UB↔GM field names | Product `MemoryUB.csv` first; sample `Memory.csv` fallback |
 | L0C → UB edge | 待确定; no sample column |
 | Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
-| Report-stat derived cards | **Compute** interim DATA-33h; **AICore parallel** still empty (DATA-33a); **带宽利用率** measured confirmed, peak/score → [DATA-33g](../context/decisions/interim/DATA.md). **Obsolete:** 平均核利用率 / dual 输入·输出 aic\|aiv cards |
+| Report-stat derived cards | **Compute** interim DATA-33h; **AICore parallel** shipped from `Summary.jsonl` as dual 并行使用率 \| 负载均衡度 ([DATA-9](../context/decisions/DATA.md) / [DATA-10](../context/decisions/DATA.md)); **带宽利用率** measured confirmed, peak/score → [DATA-33g](../context/decisions/interim/DATA.md). **Obsolete:** 平均核利用率 / dual 输入·输出 aic\|aiv cards |
 | Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |

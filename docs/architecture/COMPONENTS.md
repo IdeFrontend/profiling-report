@@ -77,9 +77,9 @@ OP-report analytics bundle: `summary`, optional `computeCard` (DATA-33h), option
 
 ### `SummaryMetrics` (M)
 
-Op name/type, task duration, optional raw frequency / `coreCount` / meta fields. **Do not** put compute TFLOPS or AICore-parallel scores on `summary` — those live on `computeCard` (DATA-33h) and the AICore parallel placeholder (DATA-33a). I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/decisions/interim/DATA.md)), not `summary.ioBandwidth`.
+Op name/type, task duration, optional raw frequency / `coreCount` / meta fields, and AICore **并行使用率** / **负载均衡度** fractions (`parallelUtilization` / `parallelBalance`, **DATA-9 / DATA-10**). **Do not** put compute TFLOPS on `summary` — those live on `computeCard` (DATA-33h). I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/decisions/interim/DATA.md)), not `summary.ioBandwidth`.
 
-**Why:** `StatsSummaryPanel` must not invent formulas; adapter only maps clear columns plus documented DATA-33g / DATA-33h guesses.
+**Why:** `StatsSummaryPanel` must not invent formulas; adapter maps clear columns plus documented DATA-33g / DATA-33h / DATA-9–10 fields.
 
 ### `BandwidthCardModel` (M, DATA-33g)
 
@@ -247,7 +247,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore parallel placeholder, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 

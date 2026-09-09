@@ -83,6 +83,48 @@ const computeView = computed(() =>
     title: `${row.measuredTflops} / ${row.peakTflops} TFLOPS`,
   })),
 );
+
+/** DATA-9 / DATA-10: dual 并行使用率 | 负载均衡度 columns (fractions → %; clamp [0, 100]). */
+function aicorePercent(fraction: number): { score: number; title: string } {
+  const raw = fraction * 100;
+  // Clamp both ends so label and bar agree — balance = 1−σ/μ can go negative; util can exceed 1.
+  const score = Number(Math.min(100, Math.max(0, raw)).toFixed(2));
+  // Strip binary-float residue while keeping sub-percent detail beyond the 2dp label.
+  const title = `${Number(raw.toPrecision(12))}%`;
+  return { score, title };
+}
+const aicoreView = computed(() => {
+  const s = props.report?.summary;
+  const rows: {
+    id: 'util' | 'balance';
+    labelKey: MessageKey;
+    score: number;
+    barTone: 'primary' | 'secondary';
+    title: string;
+  }[] = [];
+  if (s?.parallelUtilization != null) {
+    const { score, title } = aicorePercent(s.parallelUtilization);
+    rows.push({
+      id: 'util',
+      labelKey: 'parallelUtil',
+      score,
+      barTone: 'primary',
+      title,
+    });
+  }
+  if (s?.parallelBalance != null) {
+    const { score, title } = aicorePercent(s.parallelBalance);
+    rows.push({
+      id: 'balance',
+      labelKey: 'parallelBalance',
+      score,
+      barTone: 'secondary',
+      title,
+    });
+  }
+  return rows;
+});
+const hasParallel = computed(() => aicoreView.value.length > 0);
 const computeCategories = computed(() =>
   (props.report?.summaryCategories ?? []).filter((c) =>
     (['PipeUtilization', 'ArithmeticUtilization', 'ResourceConflictRatio'] as const).includes(
@@ -216,16 +258,6 @@ const durationSecondary = computed(() => {
   if (s.opName) return s.opName;
   return null;
 });
-
-const parallelUtilPercent = computed(() => {
-  const v = summary.value?.parallelUtilization;
-  return v == null ? null : v * 100;
-});
-const parallelBalancePercent = computed(() => {
-  const v = summary.value?.parallelBalance;
-  return v == null ? null : v * 100;
-});
-const hasParallel = computed(() => parallelUtilPercent.value != null);
 
 const hasMeta = computed(() => {
   const s = summary.value;
@@ -596,21 +628,44 @@ function backToReport() {
           </div>
           <div
             v-if="hasParallel"
-            class="pr-card__value"
+            class="pr-bw-cols"
           >
-            {{ (parallelUtilPercent ?? 0).toFixed(2) }}%
+            <div
+              v-for="row in aicoreView"
+              :key="row.id"
+              class="pr-bw-col"
+              :data-testid="`stats-aicore-${row.id}`"
+            >
+              <div class="pr-bw-col__head">
+                <span
+                  class="pr-card__value"
+                  :data-testid="`stats-aicore-${row.id}-score`"
+                  :title="row.title"
+                >
+                  <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
+                  <span class="pr-card__unit">%</span>
+                </span>
+                <span class="pr-bw-col__side">{{ t(row.labelKey, locale) }}</span>
+              </div>
+              <div class="pr-card__bar-track">
+                <span
+                  class="pr-card__bar-hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-card__bar-fill"
+                  :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
+                  :style="{ width: `${row.score}%` }"
+                  :data-testid="`stats-aicore-${row.id}-bar`"
+                />
+              </div>
+            </div>
           </div>
           <div
             v-else
             class="pr-card__value"
           >
             {{ t('notAvailable', locale) }}
-          </div>
-          <div
-            v-if="parallelBalancePercent != null"
-            class="pr-card__sub"
-          >
-            {{ t('parallelBalance', locale) }} {{ parallelBalancePercent.toFixed(2) }}%
           </div>
         </div>
         <div
