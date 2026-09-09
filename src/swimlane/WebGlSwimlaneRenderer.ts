@@ -73,6 +73,19 @@ interface EmphasisLayer {
   chunks: MeshChunk[];
 }
 
+/** Composite an opaque ClearType label backdrop with the same additive dim as its event fill. */
+export function compositeLabelBackdrop(
+  background: [number, number, number],
+  fill: [number, number, number],
+  dim: number,
+): [number, number, number] {
+  return [
+    Math.min(1, background[0] + fill[0] * dim),
+    Math.min(1, background[1] + fill[1] * dim),
+    Math.min(1, background[2] + fill[2] * dim),
+  ];
+}
+
 interface CurveProgram {
   program: WebGLProgram;
   uResolution: WebGLUniformLocation;
@@ -882,12 +895,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       // label's solid backdrop must use that same formula (clamped) to sit invisibly on the fill.
       // `bg` is the hovered row's chrome when this event's lane is the hovered row; a muted
       // (non-selected, non-neighbor) event swaps in `SELECTION_MUTED_FILL`/`SELECTION_MUTED_LABEL`.
-      const [lr, lg, lb] = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
+      const fill = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
-      const fr = Math.min(1, bg[0] + lr);
-      const fg = Math.min(1, bg[1] + lg);
-      const fb = Math.min(1, bg[2] + lb);
-      gl.uniform4f(prog.uBgColor, fr, fg, fb, labelAlpha);
+      const [fr, fg, fb] = compositeLabelBackdrop(bg, fill, muted ? 0.45 : 1);
+      gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
       if (muted) {
         const [mr, mg, mb] = hexToRgb(SELECTION_MUTED_LABEL);
         gl.uniform4f(prog.uColor, mr, mg, mb, labelAlpha);

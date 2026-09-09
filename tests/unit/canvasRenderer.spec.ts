@@ -30,7 +30,7 @@ import {
 import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
-import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
+import { compositeLabelBackdrop, WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
@@ -154,6 +154,16 @@ function recordingCanvas(): {
 }
 
 describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
+  it('PR-RENDER-032: ClearType label backdrop uses the same selection dim as the event fill', () => {
+    const backdrop = compositeLabelBackdrop(
+      [31 / 255, 31 / 255, 31 / 255],
+      [44 / 255, 44 / 255, 44 / 255],
+      0.45,
+    );
+    expect(backdrop[0]).toBeCloseTo(0.1992156863, 8);
+    expect(backdrop[1]).toBeCloseTo(0.1992156863, 8);
+    expect(backdrop[2]).toBeCloseTo(0.1992156863, 8);
+  });
   it('PR-RENDER-001: hitTest returns event under point', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
@@ -1031,10 +1041,10 @@ describe('PR-RENDER: lane chrome color', () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     // The label pass carries its own hovered-row chrome (#363636) and bakes it into the opaque
-    // backdrop via the same `bg + rgb` additive formula the fill pass uses, so the label rect
-    // reads as the event rect; a muted event swaps in the gray fill/label colors instead.
+    // backdrop with the same fill dim as the event pass, so a muted label rect does not brighten
+    // the surrounding gray node. A muted event still uses the gray fill/label colors.
     expect(webglSrc).toMatch(/laneHoverBg = hexToRgb\(LANE_HOVER_FILL\)/);
-    expect(webglSrc).toMatch(/Math\.min\(1, bg\[0\] \+ lr\)/);
+    expect(webglSrc).toMatch(/compositeLabelBackdrop\(bg, fill, muted \? 0\.45 : 1\)/);
     expect(webglSrc).toMatch(/hexToRgb\(SELECTION_MUTED_LABEL\)/);
   });
 

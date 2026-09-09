@@ -395,37 +395,6 @@ function clearPanHoverCapture(): void {
   panCaptureHoverEvent = null;
 }
 
-/** Snapshot hover gap + event hover at pointerdown; held until pointerup (pan capture). */
-function capturePanHover(
-  localX: number,
-  localY: number,
-  w: number,
-  magEventId: string | null,
-): void {
-  if (props.measureMode) {
-    clearPanHoverCapture();
-    return;
-  }
-  lastHoverLocalX = localX;
-  lastHoverLocalY = localY;
-  panCaptureHoverEvent = eventAtPointer(localX, localY, magEventId);
-  // Alt session owns the Δt chrome — never freeze a hover-gap under it.
-  if (altMeasureSessionActive()) {
-    panCaptureHoverGap = null;
-    hoverGap.value = null;
-    return;
-  }
-  panCaptureHoverGap = findHoverGap(
-    backend.getLayout(),
-    paintView(),
-    w,
-    localX,
-    localY,
-    EVENT_EDGE_MAGNET_PX,
-  );
-  hoverGap.value = panCaptureHoverGap;
-}
-
 function altMeasureSessionActive(): boolean {
   return (
     altMeasure.anchorId != null &&
@@ -1614,14 +1583,6 @@ const gapMeasureGeometry = computed(() => {
     arrowLayout: { mode: 'inline' as const, side: 'right' as const, style },
   };
 });
-
-/** CSS-pixel screen rect for an event (renderers report device-pixel rects scaled by dpr). */
-function eventScreenRectCss(eventId: string): { x: number; y: number; w: number; h: number } | null {
-  const rect = backend.eventScreenRect(eventId);
-  if (!rect) return null;
-  const dpr = currentDpr();
-  return { x: rect.x / dpr, y: rect.y / dpr, w: rect.w / dpr, h: rect.h / dpr };
-}
 
 /** Normalized marquee rect in canvas px (null until the 4px threshold is crossed). */
 const marqueeGeometry = computed(() => {
