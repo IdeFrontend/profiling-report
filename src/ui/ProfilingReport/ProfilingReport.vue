@@ -1233,6 +1233,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     transform 200ms ease;
 }
 
+/* Leave still mounts the overlay for 200ms — do not swallow clicks meant for the report. */
+.pr-topo-fs-leave-active {
+  pointer-events: none;
+}
+
 .pr-topo-fs-enter-from,
 .pr-topo-fs-leave-to {
   opacity: 0;

@@ -505,11 +505,13 @@ describe('ProfilingReport scaffold', () => {
   });
 
   it('PR-ROOT-013: topology fullscreen show/hide uses a 200ms opacity+scale transition', async () => {
+    const { flushPromises } = await import('@vue/test-utils');
     const src = (await import('./ProfilingReport.vue?raw')).default as string;
     expect(src).toMatch(/<Transition[^>]*name="pr-topo-fs"/);
     expect(src).toMatch(/\.pr-topo-fs-enter-active,\s*\.pr-topo-fs-leave-active\s*\{[^}]*opacity\s+200ms\s+ease/s);
     expect(src).toMatch(/\.pr-topo-fs-enter-from,\s*\.pr-topo-fs-leave-to\s*\{[^}]*opacity:\s*0/s);
     expect(src).toMatch(/\.pr-topo-fs-enter-from,\s*\.pr-topo-fs-leave-to\s*\{[^}]*scale\(0\.98\)/s);
+    expect(src).toMatch(/\.pr-topo-fs-leave-active\s*\{[^}]*pointer-events:\s*none/s);
     expect(src).toMatch(/prefers-reduced-motion:\s*reduce[\s\S]*?\.pr-topo-fs-enter-active/);
 
     const host = document.createElement('div');
@@ -528,32 +530,25 @@ describe('ProfilingReport scaffold', () => {
       await nextTick();
       expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
 
-      // Mid-leave: open flag cleared while the model is still held for the fade.
-      type Setup = {
-        topologyFullscreen: boolean;
-        fullscreenTopology: unknown;
-      };
-      const setup = (wrapper.vm as unknown as { $: { setupState: Setup } }).$.setupState;
-      expect(setup.fullscreenTopology).toBeTruthy();
-      setup.topologyFullscreen = false;
+      // Close then reopen before leave settles — exercises the real @after-leave guard
+      // (fails if after-leave nulls the model unconditionally).
+      await wrapper.get('[data-testid="topology-fullscreen-back"]').trigger('click');
+      await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+      await nextTick();
+      await flushPromises();
+      expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+      expect(
+        wrapper.find('[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]').exists(),
+      ).toBe(true);
+
+      // Mid-leave WASD: Back clears the open flag while the model is still held.
+      await wrapper.get('[data-testid="topology-fullscreen-back"]').trigger('click');
       const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
       expect(span()).toBe(1000);
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
       await nextTick();
       expect(span()).toBe(1000);
-
-      // Mid-leave reopen: after-leave must not clear the new model.
-      const held = setup.fullscreenTopology;
-      setup.topologyFullscreen = true;
-      setup.fullscreenTopology = held;
-      // Stale leave callback with the guard.
-      if (!setup.topologyFullscreen) setup.fullscreenTopology = null;
-      expect(setup.fullscreenTopology).toBe(held);
-      await nextTick();
-      expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
-      expect(
-        wrapper.find('[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]').exists(),
-      ).toBe(true);
+      // Overlay may still be leaving in jsdom (no CSS transitionend); cover window is the WASD gate above.
     } finally {
       wrapper.unmount();
       host.remove();
