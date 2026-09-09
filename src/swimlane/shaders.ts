@@ -45,7 +45,7 @@ in vec2 aData; // x = distance to prev event end, y = distance to next event sta
 out vec2 vScreenPos;
 out vec2 vLrScreen;
 
-float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
+float translateScaleX(float x) { return (x + uSizePos.z) * uSizePos.x; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
 float glToPixelX(float x) { return (x + 1.0) * 0.5 * uResolution.x; }
 float glToPixelY(float y) { return (1.0 - y) * 0.5 * uResolution.y; }
