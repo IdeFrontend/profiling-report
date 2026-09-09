@@ -83,8 +83,10 @@ const hoverTimeNs = ref<number | null>(null);
 /** Local x ratio for the value dot (full 24px lane hit target, not parent echo). */
 const hoverXRatio = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
-/** Paint box in viewport coords — value-dot is teleported so overview `transform` cannot clip it. */
-const paintRect = ref<{ left: number; top: number; width: number; height: number } | null>(null);
+/** Per-track paint boxes in viewport coords — dots are teleported so overview `transform` cannot clip them. */
+const paintRectsById = ref<Record<string, { left: number; top: number; width: number; height: number }>>(
+  {},
+);
 /** Chart-column drag-pan (mirrors SwimlaneCanvas: 4px gate before pan emits). */
 const dragging = ref(false);
 const PAN_DRAG_THRESHOLD_PX = 4;
@@ -159,13 +161,19 @@ function updateChartHover(seriesId: string, e: PointerEvent) {
   hoverTimeNs.value = time;
   hoverXRatio.value = xRatio;
   tipPos.value = { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` };
-  const paint = el.querySelector('.pr-overview-paint') as HTMLElement | null;
-  if (paint) {
-    const r = paint.getBoundingClientRect();
-    paintRect.value = { left: r.left, top: r.top, width: r.width, height: r.height };
-  } else {
-    paintRect.value = null;
+  const root = el.closest('.pr-overview-charts');
+  const next: Record<string, { left: number; top: number; width: number; height: number }> = {};
+  if (root) {
+    for (const trackEl of root.querySelectorAll<HTMLElement>('[data-series-id]')) {
+      const id = trackEl.getAttribute('data-series-id');
+      const paint = trackEl.querySelector('.pr-overview-paint') as HTMLElement | null;
+      if (!id || !paint) continue;
+      const r = paint.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      next[id] = { left: r.left, top: r.top, width: r.width, height: r.height };
+    }
   }
+  paintRectsById.value = next;
   emit('cursor', { time, xRatio, snapped: false });
 }
 
@@ -220,7 +228,7 @@ function clearTipOnly() {
   hoverSeriesId.value = null;
   hoverTimeNs.value = null;
   hoverXRatio.value = null;
-  paintRect.value = null;
+  paintRectsById.value = {};
 }
 
 function onChartPointerLeave(e: PointerEvent) {
@@ -266,43 +274,62 @@ function onChartsWheel(e: WheelEvent) {
   emit('wheel', e);
 }
 
-const tipTrack = computed(() => {
-  const id = hoverSeriesId.value;
-  if (!id) return null;
-  return tracks.value.find((tr) => tr.id === id) ?? null;
-});
+type TipRow = {
+  id: string;
+  label: string;
+  color: string;
+  value: number | null;
+};
 
-const tipValue = computed(() => {
-  const track = tipTrack.value;
+const tipRows = computed((): TipRow[] => {
+  if (hoverSeriesId.value == null) return [];
   const time = hoverTimeNs.value ?? props.cursorTime;
-  if (!track || time == null) return null;
-  return stepValueAt(track.points, time);
+  if (time == null) return [];
+  return tracks.value.map((tr) => ({
+    id: tr.id,
+    label: tr.label,
+    color: tr.color,
+    value: stepValueAt(tr.points, time),
+  }));
 });
 
-const showTip = computed(() => tipTrack.value != null && tipValue.value != null);
+const showTip = computed(
+  () => hoverSeriesId.value != null && tipRows.value.some((r) => r.value != null),
+);
 
 function dotTopPercent(value: number): number {
   return (1 - Math.min(OVERVIEW_Y_MAX, Math.max(0, value)) / OVERVIEW_Y_MAX) * 100;
 }
 
-/** Fixed-position styles for the teleported value-dot (avoids transform clipping). */
-const valueDotStyle = computed(() => {
-  const track = tipTrack.value;
-  const value = tipValue.value;
-  const xRatio = hoverXRatio.value;
-  const rect = paintRect.value;
-  if (!track || value == null || xRatio == null || !rect || rect.width <= 0 || rect.height <= 0) {
-    return null;
-  }
-  const yPct = dotTopPercent(value) / 100;
-  return {
-    left: `${rect.left + xRatio * rect.width}px`,
-    top: `${rect.top + yPct * rect.height}px`,
-    background: track.color,
-  };
-});
+type ValueDot = {
+  id: string;
+  active: boolean;
+  style: { left: string; top: string; background: string };
+};
 
-const showValueDot = computed(() => valueDotStyle.value != null);
+/** Fixed-position dots for every track (avoids transform clipping). */
+const valueDots = computed((): ValueDot[] => {
+  const xRatio = hoverXRatio.value;
+  if (hoverSeriesId.value == null || xRatio == null) return [];
+  const rects = paintRectsById.value;
+  const out: ValueDot[] = [];
+  for (const row of tipRows.value) {
+    if (row.value == null) continue;
+    const rect = rects[row.id];
+    if (!rect || rect.width <= 0 || rect.height <= 0) continue;
+    const yPct = dotTopPercent(row.value) / 100;
+    out.push({
+      id: row.id,
+      active: row.id === hoverSeriesId.value,
+      style: {
+        left: `${rect.left + xRatio * rect.width}px`,
+        top: `${rect.top + yPct * rect.height}px`,
+        background: row.color,
+      },
+    });
+  }
+  return out;
+});
 </script>
 
 <template>
@@ -421,20 +448,37 @@ const showValueDot = computed(() => valueDotStyle.value != null);
 
     <Teleport to="body">
       <div
-        v-if="showTip && tipTrack"
+        v-if="showTip"
         class="pr-tooltip pr-overview-value-tip"
         data-testid="overview-value-tooltip"
         :style="tipPos"
       >
-        <div class="pr-tooltip__name">{{ tipTrack.label }}</div>
-        <div>{{ tipValue }}</div>
+        <div
+          v-for="row in tipRows"
+          :key="row.id"
+          class="pr-overview-value-tip__row"
+          :class="{ 'is-active': row.id === hoverSeriesId }"
+          :data-series-id="row.id"
+        >
+          <span
+            class="pr-overview-value-tip__swatch"
+            :style="{ background: row.color }"
+          />
+          <span class="pr-overview-value-tip__name">{{ row.label }}</span>
+          <span class="pr-overview-value-tip__value">{{
+            row.value == null ? '—' : row.value
+          }}</span>
+        </div>
       </div>
       <!-- Fixed outside the transformed overview stack so v≈0 is not clipped. -->
       <div
-        v-if="showValueDot && valueDotStyle"
+        v-for="dot in valueDots"
+        :key="dot.id"
         class="pr-overview-value-dot"
+        :class="{ 'is-active': dot.active }"
         data-testid="overview-value-dot"
-        :style="valueDotStyle"
+        :data-series-id="dot.id"
+        :style="dot.style"
       />
     </Teleport>
   </div>
@@ -641,13 +685,42 @@ const showValueDot = computed(() => valueDotStyle.value != null);
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
   font-size: 12px;
   line-height: 1.45;
-  min-width: 120px;
-  color: #e8e8e8;
+  min-width: 140px;
+  color: #b3b3b3;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.pr-overview-value-tip .pr-tooltip__name {
-  font-weight: 600;
-  margin-bottom: 4px;
+.pr-overview-value-tip__row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.pr-overview-value-tip__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.pr-overview-value-tip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-overview-value-tip__value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pr-overview-value-tip__row.is-active {
+  color: #e8e8e8;
+  font-weight: 700;
 }
 
 /* Teleported value-dot — fixed so overview translateY / parent overflow cannot crop it. */
@@ -662,5 +735,12 @@ const showValueDot = computed(() => valueDotStyle.value != null);
   transform: translate(-50%, -50%);
   pointer-events: none;
   box-sizing: border-box;
+}
+
+.pr-overview-value-dot.is-active {
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+  z-index: 20;
 }
 </style>
