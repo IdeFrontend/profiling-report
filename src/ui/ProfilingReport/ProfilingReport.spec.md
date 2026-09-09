@@ -107,14 +107,29 @@ sequenceDiagram
     Root->>Root: contextMenuContext = payload
     Root->>Menu: open at (x, y)
     User->>Menu: select action
-    Menu->>Root: emit('action', command)
+    Menu->>Root: emit('action', { command, laneId, target })
     Root->>Root: apply shared behavior (zoomToFit, hideLane, select event, toggle pin)
+    Root->>Menu: emit('dismiss')
     Root->>Root: contextMenuContext = null
 ```
 
-`ProfilingReport` owns the single `ContextMenu` instance. It receives `context-menu` from both the main and pinned surfaces (via `SwimlaneView` and `TimelineView`), opens the menu at client viewport coordinates, and applies actions through shared state helpers so the rest of the report stays consistent. Any vertical scroll (`update:scrollY`) clears `contextMenuContext`.
+`ProfilingReport` owns the single `ContextMenu` instance. It receives `context-menu` from both the main and pinned surfaces (via `SwimlaneView` and `TimelineView`), opens the menu at client viewport coordinates, and applies actions through shared state helpers so the rest of the report stays consistent. `ContextMenu` emits `dismiss` after click-outside, Escape, item activation, or any `update:scrollY`; `ProfilingReport` clears `contextMenuContext` on every `dismiss`.
 
 ### Search
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Root as ProfilingReport
+    participant Canvas as SwimlaneCanvas
+    participant Swim as SwimlaneView
+
+    User->>Root: type query in search field
+    Root->>Root: viewState.searchQuery = query
+    Root->>Swim: :searchQuery
+    Swim->>Canvas: :searchQuery
+    Canvas->>Canvas: dim non-matching events to 25%
+```
 
 The renderer applies event name filtering as a substring, case-insensitive match during draw. Events that match render at full opacity; non-matching events are dimmed to 25% alpha but remain visible and interactive (hover/select still work on dimmed events). Lanes with no matching events remain visible (empty lanes are not collapsed).
 
@@ -192,7 +207,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 9. **PR-ROOT-010** — Overlay right-click stays fullscreen and does not open memory CSV.
 10. **PR-ROOT-011** — Overlay dialog: Escape closes; WASD idle.
 11. **PR-ROOT-012** — Host/deep-reactive `swimlaneModel` is consumed raw (shallow): collapse, deps, and gutter do not walk Proxies; in-place nested mutations do not invalidate the display tree — replace the prop reference to refresh.
-12. **PR-ROOT-013** — Owns `contextMenuContext`; forwards `context-menu` from `TimelineView` into the single `ContextMenu`; clears it on `update:scrollY`, click outside, Escape, or item activation.
+12. **PR-ROOT-013** — Owns `contextMenuContext`; forwards `context-menu` from `TimelineView` into the single `ContextMenu`; clears it on `update:scrollY`, menu `dismiss`, click outside, Escape, or item activation.
 13. **PR-ROOT-014** — Context-menu actions reuse shared state paths (`zoomToFitWindow`, `hideLane`, normal `select`, `pinLane`/`unpinLane`).
 14. **PR-ROOT-015** — `hiddenLaneIds` is owned here and passed down; hidden lanes omitted from gutter, main body, and pinned strip.
 

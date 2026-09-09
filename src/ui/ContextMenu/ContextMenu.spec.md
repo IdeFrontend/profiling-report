@@ -10,13 +10,13 @@ Right-click menu for a swimlane event or lane, routing viewport, selection, visi
 
 **context** is either absent (menu closed) or `{ target: SwimEvent | null, x: number, y: number, laneId: string }` from a canvas or leaf lane-header hit test. **x** and **y** are client viewport coordinates (`PointerEvent.clientX` / `clientY`). **target** is the event beneath the pointer; `null` identifies a leaf lane-header or empty portion of a leaf lane. **laneId** is a leaf lane id resolved from the swim tree, not from `SwimEvent`.
 
-The parent supplies current viewport, selected event, hidden-lane, and pin state so each available action reflects report state.
+The parent supplies **view** (`SwimlaneViewWindow`, for Fit to screen and viewport clamping), **selectedEventId**, **hiddenLaneIds**, and **pinnedLaneIds** so each available action reflects report state.
 
 **Forwarding.** A main gutter header follows `LaneGutterNode` → `LaneGutter` → `SwimlaneView`; the pinned-strip header uses its direct `LaneGutterNode` child in `SwimlaneView`. Main and pinned `SwimlaneCanvas` instances emit directly to `SwimlaneView`. `SwimlaneView` forwards every invocation to `TimelineView`, which forwards it to `ProfilingReport`; the root owns the one menu context and action handling.
 
 ## Outputs
 
-**action** reports the selected available command with its **laneId** and optional **target**. The parent applies shared view-state behavior: Fit to screen uses `zoomToFitWindow`; Hide uses `hideLane`; Show in event view reuses the report's normal `select` path with the target event (so `selectedEventId`, `DetailPanel`, and `select` emit stay consistent); Pin row toggles the shared **pinnedLaneIds** list.
+**action** reports `{ command: 'fit' | 'show' | 'hide' | 'pin', laneId: string, target?: SwimEvent }`. The parent applies shared view-state behavior: `'fit'` uses `zoomToFitWindow`; `'hide'` uses `hideLane`; `'show'` reuses the report's normal `select` path with **target** (so `selectedEventId`, `DetailPanel`, and `select` emit stay consistent); `'pin'` toggles the shared **pinnedLaneIds** list.
 
 **dismiss** reports closure after click-outside, Escape, an item activation, or any change to **scrollY** (gutter wheel, canvas wheel, trackpad pan, W/S/A/D, zoom-to-fit, collapse, etc.).
 

@@ -30,7 +30,7 @@ Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detai
 
 **pin-lane** fires with a **leaf** lane `id` when the user clicks an unpinned pushpin. **unpin-lane** fires with the same shape when the user clicks a pinned pushpin on an original row. Parent updates `pinnedLaneIds` immutably (see [`view-state.spec.md`](../../../../../specs/core/view-state.spec.md)).
 
-**context-menu** fires when a user right-clicks a leaf lane header with `{ target: null, x: number, y: number, laneId: string }`. **x** and **y** are client viewport coordinates. **laneId** is the resolved leaf id. Folder and Card headers do not open this menu; the parent combines this invocation with the canvas event-chart path.
+**context-menu** fires when a user right-clicks a leaf lane header with `{ target: null, x: number, y: number, laneId: string }`. **x** and **y** are client viewport coordinates. **laneId** is the resolved leaf id. The native browser context menu is suppressed on leaf lane headers. Folder and Card headers do not open this menu; the parent combines this invocation with the canvas event-chart path.
 
 ## Behavior
 
