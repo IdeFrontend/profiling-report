@@ -353,9 +353,24 @@ describe('OverviewCharts', () => {
     const wrap = mount(OverviewCharts, {
       props: { series, startTime: 0, endTime: 2000 },
     });
-    await wrap.get('[data-testid="overview-header-track"]').trigger('click');
+    const band = wrap.get('[data-testid="overview-header-track"]');
+    await band.trigger('pointerdown', { clientX: 100, clientY: 10, button: 0 });
+    await band.trigger('click');
     expect(wrap.emitted('update:collapsed')?.[0]).toEqual([true]);
     expect(wrap.findAll('[data-series-id]')).toHaveLength(0);
+  });
+
+  it('PR-OV-008: scrubbing the header chart band does not collapse', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+    });
+    const header = wrap.get('[data-testid="overview-header"]');
+    const band = wrap.get('[data-testid="overview-header-track"]');
+    await header.trigger('pointerdown', { clientX: 100, clientY: 10, button: 0 });
+    await header.trigger('pointermove', { clientX: 120, clientY: 10, buttons: 1 });
+    await band.trigger('click');
+    expect(wrap.emitted('update:collapsed')).toBeUndefined();
+    expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
   });
 
   it('PR-OV-008: overview header gutter has no vertical splitter', async () => {

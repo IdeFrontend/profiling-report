@@ -138,18 +138,11 @@ const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 const cursorXRatio = ref<number | null>(props.cursorXRatio ?? null);
 /** Gray the swim vertical bar while the cursor is magnetized to an event edge. */
 const cursorSnapped = ref(props.cursorSnapped ?? false);
-/** Canonical ns under the cursor — overview value tooltips. */
-const cursorTimeNs = ref<number | null>(null);
 
 watch(
   () => props.cursorXRatio,
   (v) => {
     cursorXRatio.value = v ?? null;
-    if (v == null) cursorTimeNs.value = null;
-    else {
-      const span = props.view.endTime - props.view.startTime;
-      cursorTimeNs.value = props.view.startTime + v * span;
-    }
   },
 );
 
@@ -385,7 +378,6 @@ function onGutterResizePointerUp() {
 function onCursor(payload: { time: number; xRatio: number; snapped?: boolean } | null) {
   cursorXRatio.value = payload?.xRatio ?? null;
   cursorSnapped.value = payload?.snapped ?? false;
-  cursorTimeNs.value = payload?.time ?? null;
   emit('cursor', payload);
 }
 
@@ -394,7 +386,6 @@ function clearCursor() {
   if (cursorXRatio.value == null && !cursorSnapped.value) return;
   cursorXRatio.value = null;
   cursorSnapped.value = false;
-  cursorTimeNs.value = null;
   emit('cursor', null);
 }
 

@@ -104,6 +104,36 @@ function toggleCollapsed() {
   emit('update:collapsed', next);
 }
 
+/** Suppress click-to-collapse after a scrub/drag on the header (same 4px gate as pan). */
+let headerPtrOriginX = 0;
+let headerPtrOriginY = 0;
+let headerPtrMoved = false;
+
+function onHeaderPointerDown(e: PointerEvent) {
+  if (e.button !== 0) return;
+  headerPtrOriginX = e.clientX;
+  headerPtrOriginY = e.clientY;
+  headerPtrMoved = false;
+}
+
+function onHeaderPointerMove(e: PointerEvent) {
+  if ((e.buttons & 1) === 0) return;
+  if (
+    Math.abs(e.clientX - headerPtrOriginX) > PAN_DRAG_THRESHOLD_PX ||
+    Math.abs(e.clientY - headerPtrOriginY) > PAN_DRAG_THRESHOLD_PX
+  ) {
+    headerPtrMoved = true;
+  }
+}
+
+function onHeaderClick() {
+  if (headerPtrMoved) {
+    headerPtrMoved = false;
+    return;
+  }
+  toggleCollapsed();
+}
+
 /** Map counter name → bright stroke hex (fill uses same at ~0.45 opacity). */
 function colorForName(name: string): string {
   return overviewSeriesStroke(name);
@@ -353,7 +383,9 @@ const valueDots = computed((): ValueDot[] => {
       tabindex="0"
       :aria-expanded="!isCollapsed"
       :aria-label="sectionTitle"
-      @click="toggleCollapsed"
+      @pointerdown="onHeaderPointerDown"
+      @pointermove="onHeaderPointerMove"
+      @click="onHeaderClick"
       @keydown.enter.prevent="toggleCollapsed"
       @keydown.space.prevent="toggleCollapsed"
     >
