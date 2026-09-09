@@ -47,6 +47,7 @@ import {
   filterCollapsedTree,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
+import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '../ContextMenu/ContextMenu.vue';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
@@ -401,6 +402,27 @@ function onUnpinLane(laneId: string): void {
   viewState.value = unpinLane(viewState.value, laneId);
 }
 
+const contextMenuContext = ref<ContextMenuContext | null>(null);
+
+function onContextMenu(payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }): void {
+  contextMenuContext.value = { x: payload.x, y: payload.y, laneId: payload.laneId, target: payload.target ?? null };
+}
+
+function onContextMenuDismiss(): void {
+  contextMenuContext.value = null;
+}
+
+function onContextMenuAction(action: ContextMenuAction): void {
+  if (action.command === 'reset') {
+    onZoomToFit();
+  } else if (action.command === 'show') {
+    onSelect(action.target ?? null);
+  } else if (action.command === 'pin') {
+    if (viewState.value.pinnedLaneIds.includes(action.laneId)) onUnpinLane(action.laneId);
+    else onPinLane(action.laneId);
+  }
+}
+
 function onGutterMetricChange(payload: { cardId: string; metric: GutterMetric }): void {
   gutterMetricByCard.value = { ...gutterMetricByCard.value, [payload.cardId]: payload.metric };
 }
@@ -690,7 +712,9 @@ function onOverviewWindow(window: { startTime: number; endTime: number }) {
 }
 
 function onScrollY(scrollY: number) {
-  viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
+  const next = Math.max(0, scrollY);
+  if (contextMenuContext.value && next !== viewState.value.scrollY) contextMenuContext.value = null;
+  viewState.value = { ...viewState.value, scrollY: next };
 }
 
 function onPan(deltaTime: number) {
@@ -920,6 +944,14 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom="onZoom"
           @update:measure-range="onMeasureRange"
           @focus-measure="onFocusMeasure"
+          @context-menu="onContextMenu"
+        />
+        <ContextMenu
+          :context="contextMenuContext"
+          :pinned-lane-ids="viewState.pinnedLaneIds"
+          :locale="locale"
+          @action="onContextMenuAction"
+          @dismiss="onContextMenuDismiss"
         />
         <p
           v-if="!showTimeline"

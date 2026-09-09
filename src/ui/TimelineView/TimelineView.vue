@@ -81,6 +81,7 @@ const emit = defineEmits<{
   'update:measure-range': [range: MeasureRange | null];
   'focus-measure': [];
   'update:gutter-metric': [payload: { cardId: string; metric: GutterMetric }];
+  'context-menu': [payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }];
 }>();
 
 const timeAxisRef = ref<HTMLElement | null>(null);
@@ -625,6 +626,7 @@ defineExpose({
       @zoom="(f, a) => emit('zoom', f, a)"
       @update:measure-range="emit('update:measure-range', $event)"
       @suppress-measure-dt="suppressMeasureDt = $event"
+      @context-menu="emit('context-menu', $event)"
     />
 
     <div

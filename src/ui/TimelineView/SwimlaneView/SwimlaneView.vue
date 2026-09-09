@@ -93,6 +93,7 @@ const emit = defineEmits<{
   'update:measure-range': [range: MeasureRange | null];
   'suppress-measure-dt': [suppress: boolean];
   'update:gutter-metric': [payload: { cardId: string; metric: GutterMetric }];
+  'context-menu': [payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }];
 }>();
 
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
@@ -434,6 +435,7 @@ defineExpose({
           @pin-lane="emit('pin-lane', $event)"
           @unpin-lane="emit('unpin-lane', $event)"
           @lane-hover="onLaneHover"
+          @context-menu="emit('context-menu', $event)"
         />
       </div>
       <SwimlaneCanvas
@@ -466,6 +468,7 @@ defineExpose({
         @update:measure-range="emit('update:measure-range', $event)"
         @suppress-measure-dt="emit('suppress-measure-dt', $event)"
         @toggle-group="emit('toggle-group', $event)"
+        @context-menu="emit('context-menu', $event)"
       />
     </div>
 
@@ -496,6 +499,7 @@ defineExpose({
         @pin-lane="emit('pin-lane', $event)"
         @unpin-lane="emit('unpin-lane', $event)"
         @lane-hover="onLaneHover"
+        @context-menu="emit('context-menu', $event)"
       />
       <SwimlaneCanvas
         ref="canvasRef"
@@ -526,6 +530,7 @@ defineExpose({
         @update:measure-range="emit('update:measure-range', $event)"
         @suppress-measure-dt="emit('suppress-measure-dt', $event)"
         @toggle-group="emit('toggle-group', $event)"
+        @context-menu="emit('context-menu', $event)"
       />
 
       <div

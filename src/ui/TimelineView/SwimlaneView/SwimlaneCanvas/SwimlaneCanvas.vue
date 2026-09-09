@@ -115,6 +115,7 @@ const emit = defineEmits<{
   'suppress-measure-dt': [suppress: boolean];
   /** Click on a collapsed-group summary bar — expand that grouping node. */
   'toggle-group': [groupId: string];
+  'context-menu': [payload: { x: number; y: number; laneId: string; target: SwimEvent | null }];
 }>();
 
 /**
@@ -1198,6 +1199,18 @@ function clearEdgeSnapHighlight() {
   snapExactEdgeMarks.value = [];
 }
 
+function onContextMenu(e: MouseEvent): void {
+  const local = localFromClient(e.clientX, e.clientY);
+  if (!local) return;
+  const dpr = currentDpr();
+  const eventId = backend.hitTest(local.x * dpr, local.y * dpr);
+  const target = eventId ? backend.findEvent(eventId) : null;
+  const laneId = laneIdAtPoint(backend.getLayout(), props.view, local.y);
+  if (!laneId) return;
+  e.preventDefault();
+  emit('context-menu', { x: e.clientX, y: e.clientY, laneId, target: target ?? null });
+}
+
 /** Fade bands outside the visible selection (persists when range is fully off-screen). */
 const measureFadeGeometry = computed(() => {
   void resizeTick.value;
@@ -1890,6 +1903,7 @@ defineExpose({
         @pointerup="onPointerUp"
         @pointerleave="onPointerLeave"
         @wheel="onWheel"
+        @contextmenu="onContextMenu"
       />
     </template>
     <canvas
@@ -1904,6 +1918,7 @@ defineExpose({
       @pointerup="onPointerUp"
       @pointerleave="onPointerLeave"
       @wheel="onWheel"
+      @contextmenu="onContextMenu"
     />
     <div
       v-if="cursorXRatio != null"
