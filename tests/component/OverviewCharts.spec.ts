@@ -304,13 +304,21 @@ describe('OverviewCharts', () => {
     expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
   });
 
-  it('PR-OV-008: click on header chart band does not collapse', async () => {
+  it('PR-OV-008: click on header chart band collapses (full-width like Card strips)', async () => {
     const wrap = mount(OverviewCharts, {
       props: { series, startTime: 0, endTime: 2000 },
     });
     await wrap.get('[data-testid="overview-header-track"]').trigger('click');
-    expect(wrap.emitted('update:collapsed')).toBeUndefined();
-    expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
+    expect(wrap.emitted('update:collapsed')?.[0]).toEqual([true]);
+    expect(wrap.findAll('[data-series-id]')).toHaveLength(0);
+  });
+
+  it('PR-OV-008: overview header gutter has no vertical splitter', async () => {
+    const src = (await import('../../src/ui/TimelineView/OverviewCharts/OverviewCharts.vue?raw'))
+      .default as string;
+    expect(src).toMatch(
+      /\.pr-overview-gutter-cell--header\s*\{[^}]*border-right:\s*none/,
+    );
   });
 
   it('PR-OV-009: track hover uses swimlane LANE_HOVER_FILL whole-lane chrome', async () => {

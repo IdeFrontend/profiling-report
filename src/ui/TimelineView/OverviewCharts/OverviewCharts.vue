@@ -350,7 +350,6 @@ const showValueDot = computed(() => valueDotStyle.value != null);
         class="pr-overview-header-track"
         data-testid="overview-header-track"
         aria-hidden="true"
-        @click.stop
         @pointermove="onHeaderTrackPointerMove"
         @pointerleave="onHeaderTrackPointerLeave"
       />
@@ -508,6 +507,8 @@ const showValueDot = computed(() => valueDotStyle.value != null);
 .pr-overview-gutter-cell--header {
   padding-left: 8px;
   gap: 6px;
+  /* Card strips have no gutter seam — keep the 统计分析 header continuous. */
+  border-right: none;
 }
 
 .pr-overview-pin {
