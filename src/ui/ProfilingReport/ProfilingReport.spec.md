@@ -109,7 +109,7 @@ sequenceDiagram
     User->>Menu: select action
     Menu->>Root: emit('action', { command, laneId, target })
     Root->>Root: apply shared behavior (zoomToFit, hideLane, select event, toggle pin)
-    Root->>Menu: emit('dismiss')
+    Menu->>Root: emit('dismiss')
     Root->>Root: contextMenuContext = null
 ```
 

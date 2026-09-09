@@ -10,7 +10,7 @@ Right-click menu for a swimlane event or lane, routing viewport, selection, visi
 
 **context** is either absent (menu closed) or `{ target: SwimEvent | null, x: number, y: number, laneId: string }` from a canvas or leaf lane-header hit test. **x** and **y** are client viewport coordinates (`PointerEvent.clientX` / `clientY`). **target** is the event beneath the pointer; `null` identifies a leaf lane-header or empty portion of a leaf lane. **laneId** is a leaf lane id resolved from the swim tree, not from `SwimEvent`.
 
-The parent supplies **view** (`SwimlaneViewWindow`, for Fit to screen and viewport clamping), **selectedEventId**, **hiddenLaneIds**, and **pinnedLaneIds** so each available action reflects report state.
+The parent supplies **view** (`SwimlaneViewWindow`, for Fit to screen and scroll-change detection), **selectedEventId**, **hiddenLaneIds**, and **pinnedLaneIds** so each available action reflects report state.
 
 **Forwarding.** A main gutter header follows `LaneGutterNode` → `LaneGutter` → `SwimlaneView`; the pinned-strip header uses its direct `LaneGutterNode` child in `SwimlaneView`. Main and pinned `SwimlaneCanvas` instances emit directly to `SwimlaneView`. `SwimlaneView` forwards every invocation to `TimelineView`, which forwards it to `ProfilingReport`; the root owns the one menu context and action handling.
 
@@ -36,7 +36,7 @@ The menu opens at pointer coordinates, clamped inside the viewport; it opens upw
 
 The menu closes on click outside, Escape, item activation, and every forwarded **update:scrollY** change (gutter, main or pinned canvas, Card strip, or parent update). Arrow Up and Arrow Down move active-item focus; Enter activates it. Ctrl+P activates Pin row only while the menu is open and Pin row is available, and suppresses the browser Print shortcut.
 
-## Hidden-lane behavior
+#### Hidden-lane behavior
 
 A hidden lane is removed from the gutter and main canvas/body, and from the pinned strip if it was pinned. The pin id remains in **pinnedLaneIds** while hidden, so a later `unhideLane` restores the row to both the tree and the pinned strip. Collapsing an ancestor still hides the original row but leaves the pinned-strip duplicate visible per [`SwimlaneView.spec.md`](../TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
