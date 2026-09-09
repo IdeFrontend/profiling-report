@@ -149,9 +149,9 @@ Format and statuses: [README.md](README.md).
 
 ## DATA-32 (was: Q5)
 
-- **Resolved:** 2026-07-31
+- **Resolved:** 2026-07-31 (wording refreshed 2026-09-09)
 - **Question:** Overview charts data source?
-- **Decision:** **Hide** overview charts until `OverviewSeries` (C). Adapter returns `[]`.
+- **Decision:** **Hide** overview charts when `overviewSeries` is empty. When Sampling.json has usable `ph:C` counters, [DATA-39](./DATA.md) fills the series; otherwise the adapter returns `[]` and the block stays hidden.
 - **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [DATA-39](./DATA.md)
 
 ---

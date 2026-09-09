@@ -6,6 +6,11 @@ export const OVERVIEW_TRACK_GAP = 8;
 export const OVERVIEW_LANE_H = OVERVIEW_TRACK_H + OVERVIEW_TRACK_GAP;
 /** Card-like section header (matches LANE_GROUP_HEADER_HEIGHT). */
 export const OVERVIEW_HEADER_H = 40;
+/**
+ * Shared Y domain for overview util counters (%). Same scale on every track so
+ * peaks are comparable (not per-series auto-scale).
+ */
+export const OVERVIEW_Y_MAX = 100;
 
 /**
  * Scroll-body content top pad for the 统计分析 block.

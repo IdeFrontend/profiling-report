@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { adaptPayloads, adaptRep, loadReportSource, parseNpuRep160, parseRep } from '../../src/index';
+import { overviewSeriesFromSampling } from '../../src/adapters';
 import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../src/adapters/memoryTopology';
 import { loadOutRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import type { CsvTableModel } from '../../src/domain/types';
@@ -121,6 +122,21 @@ describe('PR-VM: report view-models (interim)', () => {
     delete payloads['Sampling.json'];
     delete payloads['sampling.json'];
     expect(adaptPayloads(payloads).reportModel.overviewSeries).toEqual([]);
+  });
+
+  it('PR-VM-003 (DATA-39): args.value null / non-number is skipped (not coerced to 0)', () => {
+    const json = JSON.stringify({
+      traceEvents: [
+        { ph: 'C', name: 'CUBE', ts: 1, args: { value: null } },
+        { ph: 'C', name: 'CUBE', ts: 2, args: { value: '10' } },
+        { ph: 'C', name: 'CUBE', ts: 3, args: { value: 42 } },
+        { ph: 'C', name: 'VECTOR', ts: 4, args: {} },
+      ],
+    });
+    const series = overviewSeriesFromSampling(new TextEncoder().encode(json));
+    expect(series).toHaveLength(1);
+    expect(series[0]!.id).toBe('CUBE');
+    expect(series[0]!.points).toEqual([{ t: 3000, v: 42 }]);
   });
 
   it('PR-VM-005: pipe occupancy items are side-specific (no AIC/AIV blend)', () => {

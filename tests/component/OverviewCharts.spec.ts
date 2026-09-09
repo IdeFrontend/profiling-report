@@ -127,9 +127,9 @@ describe('OverviewCharts', () => {
     expect(dot).toBeTruthy();
     expect(dot!.classList.contains('pr-overview-value-dot')).toBe(true);
     // Fixed viewport coords from paint rect (teleported outside overview transform).
-    // CUBE at t=1000 holds v=50 (= max) → stroke at the top of the paint box.
+    // CUBE at t=1000 holds v=50 on shared 0–100 Y → mid of the 16px paint.
     expect(dot!.style.left).toBe('500px');
-    expect(dot!.style.top).toBe('0px');
+    expect(dot!.style.top).toBe('8px');
     expect(document.querySelector('[data-testid="overview-value-tooltip"]')?.textContent).toContain(
       'CUBE',
     );
@@ -276,6 +276,15 @@ describe('OverviewCharts', () => {
     expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
   });
 
+  it('PR-OV-008: click on header chart band does not collapse', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+    });
+    await wrap.get('[data-testid="overview-header-track"]').trigger('click');
+    expect(wrap.emitted('update:collapsed')).toBeUndefined();
+    expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
+  });
+
   it('PR-OV-009: track hover uses swimlane LANE_HOVER_FILL whole-lane chrome', async () => {
     const { LANE_HOVER_FILL } = await import('../../src/swimlane/layout');
     const wrap = mount(OverviewCharts, {
@@ -291,5 +300,85 @@ describe('OverviewCharts', () => {
       /\.pr-overview-track:hover\s*\{[^}]*background:\s*var\(--pr-overview-lane-hover/,
     );
     expect(src).toMatch(/\.pr-overview-track:hover\s+\.pr-overview-label\s*\{[^}]*color:\s*#fff/);
+  });
+
+  it('PR-OV-010: tracks share OVERVIEW_Y_MAX 0–100 domain', async () => {
+    const layout = await import('../../src/ui/TimelineView/OverviewCharts/overviewLayout');
+    expect(layout.OVERVIEW_Y_MAX).toBe(100);
+    const wrap = mount(OverviewCharts, {
+      props: {
+        series: [
+          {
+            id: 'CUBE',
+            label: 'CUBE',
+            points: [
+              { t: 0, v: 50 },
+              { t: 1000, v: 50 },
+            ],
+          },
+        ],
+        startTime: 0,
+        endTime: 1000,
+      },
+      attachTo: document.body,
+    });
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    const paint = wrap.get('[data-series-id="CUBE"] .pr-overview-paint').element as HTMLElement;
+    const rect = {
+      left: 0,
+      width: 1000,
+      top: 0,
+      height: 16,
+      right: 1000,
+      bottom: 16,
+      x: 0,
+      y: 0,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect;
+    (col.element as HTMLElement).getBoundingClientRect = () => rect;
+    paint.getBoundingClientRect = () => rect;
+    await col.trigger('pointermove', { clientX: 500, clientY: 8 });
+    const dot = document.querySelector('[data-testid="overview-value-dot"]') as HTMLElement | null;
+    expect(dot).toBeTruthy();
+    // v=50 on 0–100 → mid band (not top — that would be per-track auto-scale).
+    expect(dot!.style.top).toBe('8px');
+    wrap.unmount();
+    document.querySelectorAll('[data-testid="overview-value-dot"]').forEach((n) => n.remove());
+  });
+
+  it('PR-OV-011: pointerup outside chart column clears tip and cursor', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+      attachTo: document.body,
+    });
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    const paint = wrap.get('[data-series-id="CUBE"] .pr-overview-paint').element as HTMLElement;
+    const rect = {
+      left: 0,
+      width: 1000,
+      top: 0,
+      height: 16,
+      right: 1000,
+      bottom: 16,
+      x: 0,
+      y: 0,
+      toJSON() {
+        return {};
+      },
+    } as DOMRect;
+    (col.element as HTMLElement).getBoundingClientRect = () => rect;
+    paint.getBoundingClientRect = () => rect;
+    await col.trigger('pointerdown', { clientX: 100, button: 0, pointerId: 1 });
+    await col.trigger('pointermove', { clientX: 200, button: 0, pointerId: 1 });
+    expect(document.querySelector('[data-testid="overview-value-dot"]')).toBeTruthy();
+    const orig = document.elementFromPoint.bind(document);
+    document.elementFromPoint = () => document.body;
+    await col.trigger('pointerup', { clientX: -10, clientY: -10, button: 0, pointerId: 1 });
+    document.elementFromPoint = orig;
+    expect(document.querySelector('[data-testid="overview-value-dot"]')).toBeNull();
+    expect(wrap.emitted('cursor')?.at(-1)?.[0]).toBeNull();
+    wrap.unmount();
   });
 });

@@ -856,16 +856,18 @@ export function overviewSeriesFromSampling(payload: Uint8Array | undefined): Ove
       args?: { value?: unknown };
     };
     if (e.ph !== 'C' || typeof e.name !== 'string' || e.name.length === 0) continue;
-    const v = Number(e.args?.value);
+    const rawV = e.args?.value;
+    // DATA-39: finite numeric args.value only — Number(null)===0 must not invent a sample.
+    if (typeof rawV !== 'number' || !Number.isFinite(rawV)) continue;
     const ts = Number(e.ts);
-    if (!Number.isFinite(v) || !Number.isFinite(ts)) continue;
+    if (!Number.isFinite(ts)) continue;
     let points = byName.get(e.name);
     if (!points) {
       points = [];
       byName.set(e.name, points);
       order.push(e.name);
     }
-    points.push({ t: ts * SAMPLING_US_TO_NS, v });
+    points.push({ t: ts * SAMPLING_US_TO_NS, v: rawV });
   }
   const series: OverviewSeries[] = [];
   for (const name of order) {

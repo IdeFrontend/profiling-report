@@ -16,7 +16,7 @@ import {
   stepValueAt,
   strokePathFromVertices,
 } from './stepPath';
-import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H, OVERVIEW_TRACK_GAP, OVERVIEW_TRACK_H } from './overviewLayout';
+import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H, OVERVIEW_TRACK_GAP, OVERVIEW_TRACK_H, OVERVIEW_Y_MAX } from './overviewLayout';
 
 const props = withDefaults(
   defineProps<{
@@ -119,36 +119,22 @@ const x1 = computed(() => {
   return span > 0 ? props.endTime : props.startTime + 1;
 });
 
-const tracks = computed(() =>
-  props.series.map((s) => {
-    const maxV = Math.max(0, ...s.points.map((p) => p.v), 1);
-    return {
-      ...s,
-      maxV,
-      color: colorForName(s.id),
-      isPinned: pinned.value.has(s.id),
-    };
-  }),
-);
-
-function pathHelpers(maxV: number) {
+const tracks = computed(() => {
   const xSpan = x1.value - x0.value;
   const toX = (t: number) => ((t - x0.value) / xSpan) * VIEW_W;
-  const toY = (v: number) => TRACK_H * (1 - v / maxV);
-  return { toX, toY };
-}
-
-function areaPath(points: { t: number; v: number }[], maxV: number): string {
-  const verts = stepAfterVertices(points, x0.value, x1.value);
-  const { toX, toY } = pathHelpers(maxV);
-  return areaPathFromVertices(verts, TRACK_H, toX, toY);
-}
-
-function strokePath(points: { t: number; v: number }[], maxV: number): string {
-  const verts = stepAfterVertices(points, x0.value, x1.value);
-  const { toX, toY } = pathHelpers(maxV);
-  return strokePathFromVertices(verts, toX, toY);
-}
+  const toY = (v: number) => TRACK_H * (1 - Math.min(OVERVIEW_Y_MAX, Math.max(0, v)) / OVERVIEW_Y_MAX);
+  return props.series.map((s) => {
+    const verts = stepAfterVertices(s.points, x0.value, x1.value);
+    return {
+      ...s,
+      maxV: OVERVIEW_Y_MAX,
+      color: colorForName(s.id),
+      isPinned: pinned.value.has(s.id),
+      areaD: areaPathFromVertices(verts, TRACK_H, toX, toY),
+      strokeD: strokePathFromVertices(verts, toX, toY),
+    };
+  });
+});
 
 function onPinClick(seriesId: string, isPinned: boolean, e: MouseEvent) {
   e.stopPropagation();
@@ -207,6 +193,13 @@ function onChartPointerUp(e: PointerEvent) {
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
   } catch {
     /* already released */
+  }
+  // Leave is ignored while dragging; after release outside a chart column, drop tip + playhead.
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const root = (e.currentTarget as HTMLElement).closest('.pr-overview-charts');
+  if (!under || !root?.contains(under) || !under.closest?.('.pr-overview-chart-col')) {
+    clearTipOnly();
+    emit('cursor', null);
   }
 }
 
@@ -275,9 +268,8 @@ const tipValue = computed(() => {
 
 const showTip = computed(() => tipTrack.value != null && tipValue.value != null);
 
-function dotTopPercent(track: { maxV: number }, value: number): number {
-  const maxV = track.maxV > 0 ? track.maxV : 1;
-  return (1 - value / maxV) * 100;
+function dotTopPercent(_track: { maxV: number }, value: number): number {
+  return (1 - Math.min(OVERVIEW_Y_MAX, Math.max(0, value)) / OVERVIEW_Y_MAX) * 100;
 }
 
 /** Fixed-position styles for the teleported value-dot (avoids transform clipping). */
@@ -345,6 +337,7 @@ const showValueDot = computed(() => valueDotStyle.value != null);
         class="pr-overview-header-track"
         data-testid="overview-header-track"
         aria-hidden="true"
+        @click.stop
         @pointermove="onHeaderTrackPointerMove"
         @pointerleave="onHeaderTrackPointerLeave"
       />
@@ -399,12 +392,12 @@ const showValueDot = computed(() => valueDotStyle.value != null);
             >
               <path
                 class="pr-overview-fill"
-                :d="areaPath(track.points, track.maxV)"
+                :d="track.areaD"
                 :fill="track.color"
               />
               <path
                 class="pr-overview-stroke"
-                :d="strokePath(track.points, track.maxV)"
+                :d="track.strokeD"
                 :stroke="track.color"
                 fill="none"
               />
