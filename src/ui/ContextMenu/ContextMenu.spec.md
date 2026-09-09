@@ -38,7 +38,7 @@ The menu closes on click outside, Escape, item activation, and every forwarded *
 
 ## Hidden-lane behavior
 
-A hidden lane is removed from the gutter and main canvas/body, and from the pinned strip if it was pinned. The pin id remains in **pinnedLaneIds** while hidden, so a later `unhideLane` (currently available only through a session reset such as a new report load or operator switch) restores the row to both the tree and the pinned strip. Collapsing an ancestor still hides the original row but leaves the pinned-strip duplicate visible per [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
+A hidden lane is removed from the gutter and main canvas/body, and from the pinned strip if it was pinned. The pin id remains in **pinnedLaneIds** while hidden, so a later `unhideLane` restores the row to both the tree and the pinned strip. Collapsing an ancestor still hides the original row but leaves the pinned-strip duplicate visible per [`SwimlaneView.spec.md`](../TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
 ## Acceptance Criteria
 

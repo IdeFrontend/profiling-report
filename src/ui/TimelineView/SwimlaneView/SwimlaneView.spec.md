@@ -14,7 +14,7 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 ## Outputs
 
-**toggle-group** — unchanged. **update:gutter-metric** emits `{ cardId, metric }` when the user picks a different gutter metric on a Card strip. Parent recomputes gutter lane bars for that Card's subtree and passes updated **groups**. **context-menu** forwards `context-menu` payloads from both main and pinned surfaces to `TimelineView`.
+**toggle-group** — unchanged. **update:gutter-metric** emits `{ cardId, metric }` when the user picks a different gutter metric on a Card strip. Parent recomputes gutter lane bars for that Card's subtree and passes updated **groups**. **update:scrollY** forwards vertical scroll offset from any scrollable lane surface to the parent. **context-menu** forwards `context-menu` payloads from both main and pinned surfaces to `TimelineView`.
 
 ## Behavior
 
@@ -73,10 +73,10 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 20. **PR-SWIMVIEW-020** — Alt event measure shares session across pin strip and body; each endpoint records the surface it was captured on so a body click on a pinned lane draws on the body instance (not the sticky duplicate). Cross-surface pairs use split sticks + Δt.
 21. **PR-SWIMVIEW-021** — When Alt-measure endpoints span pin strip and body, a dashed vertical bridge connects the two lane centers at the later edge (still drawn when either edge is outside the current time window; re-projects on gutter/body resize).
 22. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
-25. **PR-SWIMVIEW-025** — Forwards `context-menu` from main and pinned surfaces to parent.
-26. **PR-SWIMVIEW-026** — Hidden lanes omitted from pinned strip.
 23. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 24. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
+25. **PR-SWIMVIEW-025** — Forwards `context-menu` from main and pinned surfaces to parent.
+26. **PR-SWIMVIEW-026** — Hidden lanes omitted from pinned strip.
 27. **PR-SWIMVIEW-027** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
 
 ## Visual

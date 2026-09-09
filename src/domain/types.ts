@@ -384,6 +384,8 @@ export interface SwimlaneViewState {
   measureRange: MeasureRange | null;
   /** Leaf lane ids in pin order (session-local); sticky strip duplicates. */
   pinnedLaneIds: string[];
+  /** Hidden leaf lane ids (session-local); independent of collapse or pinned state. */
+  hiddenLaneIds: string[];
 }
 
 export interface SwimlaneViewWindow {

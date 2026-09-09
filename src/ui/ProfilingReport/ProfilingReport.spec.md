@@ -192,8 +192,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 9. **PR-ROOT-010** — Overlay right-click stays fullscreen and does not open memory CSV.
 10. **PR-ROOT-011** — Overlay dialog: Escape closes; WASD idle.
 11. **PR-ROOT-012** — Host/deep-reactive `swimlaneModel` is consumed raw (shallow): collapse, deps, and gutter do not walk Proxies; in-place nested mutations do not invalidate the display tree — replace the prop reference to refresh.
-12. **PR-ROOT-013** — Owns `contextMenuContext`; forwards `context-menu` from `TimelineView` into the single `ContextMenu`; dismisses on `update:scrollY`.
-13. **PR-ROOT-014** — Context-menu actions reuse shared state paths (`zoomToFitWindow`, `hideLane`, normal `select`, `togglePin`).
+12. **PR-ROOT-013** — Owns `contextMenuContext`; forwards `context-menu` from `TimelineView` into the single `ContextMenu`; clears it on `update:scrollY`, click outside, Escape, or item activation.
+13. **PR-ROOT-014** — Context-menu actions reuse shared state paths (`zoomToFitWindow`, `hideLane`, normal `select`, `pinLane`/`unpinLane`).
 14. **PR-ROOT-015** — `hiddenLaneIds` is owned here and passed down; hidden lanes omitted from gutter, main body, and pinned strip.
 
 ## Edge Cases

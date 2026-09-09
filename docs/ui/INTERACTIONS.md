@@ -76,7 +76,7 @@ Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (
 
 Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
 
-- Right-click lane or event → menu (e.g. **Pin row** + Ctrl+P, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
+- Right-click lane or event → menu (**整屏显示**, **在事件视图中显示**, **隐藏**, **Pin row** in MVP; **撤销缩放**, **重置缩放**, and **Offset** deferred pending product answers). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; **隐藏** writes **hiddenLaneIds**. Gutter icon is the primary affordance in this pass.
 
 **Phase 2+.**
 
