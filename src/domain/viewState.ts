@@ -11,6 +11,31 @@ const MIN_WINDOW = 1;
 export const MIN_VIEW_WINDOW = MIN_WINDOW;
 
 /**
+ * fp32 ULP at a given magnitude: the spacing between representable float32 values at
+ * `2^exp` where exp = floor(log2(maxAbs)). WebGL event coords are stored relative to
+ * `model.minTime` as float32, so their magnitude is ≈ fullSpan (trace span) — at high
+ * zoom one ULP can span many device pixels, which is what makes event bounds "jump".
+ */
+function fp32UlpAt(maxAbs: number): number {
+  const e = Math.max(-126, Math.floor(Math.log2(Math.max(2 ** -126, maxAbs))));
+  return 2 ** e * 2 ** -23;
+}
+
+/**
+ * Zoom-in cutoff that keeps fp32 coordinate noise below `pxPerUlp` device pixels: once the
+ * view span shrinks to `ulp(fullSpan) * widthPx / pxPerUlp`, a single ULP of the stored coords
+ * moves the bound by `pxPerUlp` pixels. We target ~1/4 device px, so spans must stay at or above
+ * `ulp * widthPx * 4`. Width is the track width in CSS px (the actual rasterized width).
+ */
+export function minSpanForPrecision(fullSpan: number, widthPx: number): number {
+  const full = Math.max(MIN_WINDOW, fullSpan);
+  const width = Math.max(1, widthPx);
+  const ulp = fp32UlpAt(full);
+  // ulp * (width) / span ≤ 1/4  →  span ≥ ulp * width * 4
+  return Math.max(MIN_WINDOW, ulp * width * 4);
+}
+
+/**
  * Keyboard pan step in CSS px — PyPTO's `moveStep` (see
  * `swimGraphThreadEvents.vue` in the pypto_toolkit source). One A/D press shifts the
  * viewport by this many screen pixels.
@@ -27,34 +52,38 @@ export function keyboardPanStepTime(span: number, trackWidth: number): number {
   return (KEYBOARD_PAN_STEP_PX / Math.max(1, trackWidth)) * Math.max(1, span);
 }
 
-/** Max zoom ratio for a trace: fullSpan / MIN_WINDOW (≥ 1). */
-export function maxZoomRatio(fullSpan: number): number {
-  const full = Math.max(MIN_WINDOW, fullSpan);
-  return Math.max(1, full / MIN_WINDOW);
+/** Max zoom ratio for a trace: fullSpan / minSpan (default MIN_WINDOW) (≥ 1). */
+export function maxZoomRatio(fullSpan: number, minSpan = MIN_WINDOW): number {
+  return maxZoomRatioWithMin(Math.max(MIN_WINDOW, fullSpan), minSpan);
 }
 
 /**
  * Toolbar slider 0…100 from current window span.
- * 0 = fit (full span); 100 = min window (`MIN_WINDOW`, same floor as Ctrl+wheel).
+ * 0 = fit (full span); 100 = min window (`minSpan`, default `MIN_WINDOW`, same floor as Ctrl+wheel).
  */
-export function zoomPercentFromSpan(span: number, fullSpan: number): number {
+export function zoomPercentFromSpan(span: number, fullSpan: number, minSpan = MIN_WINDOW): number {
   const full = Math.max(MIN_WINDOW, fullSpan);
-  const s = Math.max(MIN_WINDOW, span);
+  const s = Math.max(minSpan, span);
   if (s >= full) return 0;
-  const maxR = maxZoomRatio(full);
+  const maxR = maxZoomRatioWithMin(full, minSpan);
   if (maxR <= 1) return 0;
   const ratio = full / s;
   return Math.min(100, Math.round((Math.log2(ratio) / Math.log2(maxR)) * 100));
 }
 
 /** Inverse of `zoomPercentFromSpan` — span for a slider percent. */
-export function spanFromZoomPercent(pct: number, fullSpan: number): number {
+export function spanFromZoomPercent(pct: number, fullSpan: number, minSpan = MIN_WINDOW): number {
   const full = Math.max(MIN_WINDOW, fullSpan);
-  const maxR = maxZoomRatio(full);
+  const maxR = maxZoomRatioWithMin(full, minSpan);
   if (pct <= 0 || maxR <= 1) return full;
-  if (pct >= 100) return MIN_WINDOW;
+  if (pct >= 100) return minSpan;
   const ratio = 2 ** ((pct / 100) * Math.log2(maxR));
-  return Math.max(MIN_WINDOW, full / Math.max(1, ratio));
+  return Math.max(minSpan, full / Math.max(1, ratio));
+}
+
+/** max zoom ratio for a given full span and min-span floor (shared by slider + percent). */
+function maxZoomRatioWithMin(full: number, minSpan: number): number {
+  return Math.max(1, full / Math.max(minSpan, 1));
 }
 
 export function createViewState(model: SwimlaneModel | null | undefined): SwimlaneViewState {
@@ -140,15 +169,16 @@ export function zoomAt(
   factor: number,
   anchorTime: number,
   bounds?: { minTime: number; maxTime: number },
+  minSpan = MIN_WINDOW,
 ): SwimlaneViewWindow {
-  const span = Math.max(MIN_WINDOW, view.endTime - view.startTime);
-  const nextSpan = Math.max(MIN_WINDOW, span / factor);
+  const span = Math.max(minSpan, view.endTime - view.startTime);
+  const nextSpan = Math.max(minSpan, span / factor);
   const ratio = (anchorTime - view.startTime) / span;
   let startTime = anchorTime - nextSpan * ratio;
   let endTime = startTime + nextSpan;
 
   if (bounds) {
-    const full = Math.max(MIN_WINDOW, bounds.maxTime - bounds.minTime);
+    const full = Math.max(minSpan, bounds.maxTime - bounds.minTime);
     if (nextSpan >= full) {
       return { startTime: bounds.minTime, endTime: bounds.maxTime, scrollY: view.scrollY };
     }
