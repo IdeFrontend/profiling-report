@@ -564,5 +564,22 @@ describe('LaneGutter', () => {
     expect(lane.attributes('style')).toContain('height: 44px');
     // One title cell, not one per sub-row.
     expect(wrapper.findAll('[data-testid^="gutter-lane-"]')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('PR-GUTTER-017: collapse wrapper animates height + opacity during a tween', () => {
+    const wrapper = mount(LaneGutter, {
+      props: { groups, collapseAnim: { groupId: 'p1', visible: 0.5, hiddenHeight: 44 } },
+    });
+    const el = wrapper.get('[data-testid="gutter-collapse-p1"]');
+    expect(el.attributes('style')).toContain('height: 22px');
+    expect(el.attributes('style')).toContain('opacity: 0.5');
+    expect(el.attributes('style')).toContain('overflow: hidden');
+
+    // At rest the wrapper has no inline clip, so the pin tooltip is not clipped.
+    const rest = mount(LaneGutter, { props: { groups } });
+    expect(rest.get('[data-testid="gutter-collapse-p1"]').attributes('style')).toBeUndefined();
+    rest.unmount();
+    wrapper.unmount();
   });
 });

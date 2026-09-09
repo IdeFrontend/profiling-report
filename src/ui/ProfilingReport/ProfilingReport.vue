@@ -43,8 +43,10 @@ import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz } from '../../doma
 import { colorVarForLaneName } from '../../domain/laneColors';
 import { leafRowCount } from '../../swimlane/layout';
 import {
+  buildFolderSummaryEvents,
   collectLeafEventsFromModel,
   filterCollapsedTree,
+  findThreadById,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
@@ -59,7 +61,8 @@ import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
 import MemoryTopologyPanel from '../StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
-import { animateViewWindow } from '../TimelineView/animateViewWindow';
+import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
+import { collapseHiddenHeight, type CollapseAnimState } from '../../swimlane/layout';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import '../tokens.css';
 import {
@@ -138,6 +141,16 @@ const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+/** In-flight collapse/expand tween; null when settled. */
+const collapseAnim = ref<CollapseAnimState | null>(null);
+/** Group id forced expanded while its tween runs (kept separate from `visible` so the
+ *  display model does not re-derive every frame). */
+const animGroupId = ref<string | null>(null);
+/** True while the in-flight tween is collapsing (1→0); false when expanding (0→1). */
+const animCollapsing = ref(false);
+/** Settled `collapsedGroupIds` the in-flight tween will commit on `onDone`. */
+let pendingCollapseTarget: string[] | null = null;
+let cancelCollapseAnim: () => void = () => {};
 /** Multi-operator packs: selector options + adapted reports (empty for single-op). */
 const operators = ref<ReportOperator[]>([]);
 /** Shallow: avoid deep-proxying every swim event in every operator pack. */
@@ -239,12 +252,23 @@ const laneGroups = computed((): GutterGroup[] => {
   });
 });
 
+/** Collapse set with the in-flight group forced EXPANDED so the tween can interpolate.
+ *  Depends only on `animGroupId` (stable across frames), not `collapseAnim.visible`, so
+ *  `displaySwim` stays cached for the whole tween and the canvas never rebuilds meshes. */
+const visualCollapsedIds = computed(() =>
+  animGroupId.value
+    ? collapsedGroupIds.value.filter((id) => id !== animGroupId.value)
+    : collapsedGroupIds.value,
+);
+
 /** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
 const displaySwim = computed((): SwimlaneModel | null => {
   const m = swim.value;
   if (!m) return null;
   // Swim is already toRaw'd; replace swimlaneModel (or toggle collapse) to refresh — in-place nested edits do not.
-  return filterCollapsedTree(m, collapsedGroupIds.value);
+  // During a collapse tween, `visualCollapsedIds` omits the animating group so the expanded
+  // tree stays cached and the canvas never rebuilds meshes mid-animation.
+  return filterCollapsedTree(m, visualCollapsedIds.value);
 });
 
 const bounds = computed(() => {
@@ -313,6 +337,10 @@ function resetViewFromModel(
   opts?: { preservePanelWidths?: boolean },
 ): void {
   stopViewWindowAnim();
+  cancelCollapseAnim();
+  collapseAnim.value = null;
+  animGroupId.value = null;
+  pendingCollapseTarget = null;
   const next = createViewState(model);
   next.asideVisible = showAsidePanel;
   viewState.value = next;
@@ -375,22 +403,132 @@ function onAsideWidth(w: number): void {
 }
 
 function onToggleGroup(groupId: string): void {
+  const m = swim.value;
+
+  // Mid-tween re-click on the same group reverses from the current visible.
+  if (animGroupId.value === groupId && collapseAnim.value) {
+    const { visible, hiddenHeight, summaryEvents } = collapseAnim.value;
+    const nowCollapsing = !animCollapsing.value;
+    const target = nowCollapsing
+      ? [...new Set([...collapsedGroupIds.value, groupId])]
+      : collapsedGroupIds.value.filter((id) => id !== groupId);
+    cancelCollapseAnim();
+    if (hiddenHeight <= 0 || prefersReducedMotion()) {
+      animGroupId.value = null;
+      collapseAnim.value = null;
+      pendingCollapseTarget = null;
+      collapsedGroupIds.value = target;
+      clampScrollAfterCollapse();
+      return;
+    }
+    animCollapsing.value = nowCollapsing;
+    animGroupId.value = groupId;
+    pendingCollapseTarget = target;
+    collapseAnim.value = { groupId, visible, hiddenHeight, summaryEvents };
+    cancelCollapseAnim = animateProgress({
+      from: visible,
+      to: nowCollapsing ? 0 : 1,
+      durationMs: 200,
+      onUpdate: (v) => {
+        collapseAnim.value = { groupId, visible: v, hiddenHeight, summaryEvents };
+      },
+      onDone: () => {
+        collapseAnim.value = null;
+        animGroupId.value = null;
+        pendingCollapseTarget = null;
+        collapsedGroupIds.value = target;
+        clampScrollAfterCollapse();
+      },
+    });
+    return;
+  }
+
+  // Different group (or idle): commit any in-flight tween's target before starting anew.
+  if (animGroupId.value && pendingCollapseTarget) {
+    collapsedGroupIds.value = pendingCollapseTarget;
+    pendingCollapseTarget = null;
+    // Rows may have just left the filtered tree — drop stale hover / clamp scroll now,
+    // not only when the *new* tween's onDone fires (~200ms later).
+    clampScrollAfterCollapse();
+  }
+  cancelCollapseAnim();
+  animGroupId.value = null;
+  collapseAnim.value = null;
+
   const set = new Set(collapsedGroupIds.value);
-  if (set.has(groupId)) set.delete(groupId);
-  else set.add(groupId);
-  collapsedGroupIds.value = [...set];
-  // Collapse/expand rebuilds the visible tree — clear a hover that may point at a
-  // vanished summary bar (or any other event that just left the filtered model).
-  hovered.value = null;
-  // Keep scroll within new content height
-  const el = timelineRef.value?.gutterRoot;
-  viewState.value = {
-    ...viewState.value,
-    hoveredEventId: null,
-    ...(el
-      ? { scrollY: Math.min(viewState.value.scrollY, el.scrollHeight) }
-      : {}),
+  const collapsing = !set.has(groupId);
+  if (collapsing) set.add(groupId);
+  else set.delete(groupId);
+  const target = [...set];
+
+  // Height of the descendants being hidden/shown (expanded − collapsed content height).
+  const collapsedIds = collapsing ? target : collapsedGroupIds.value;
+  const expandedIds = collapsing ? collapsedGroupIds.value : target;
+  if (!m) {
+    collapsedGroupIds.value = target;
+    clearHoverAfterCollapse();
+    return;
+  }
+  const hiddenHeight = collapseHiddenHeight(m, expandedIds, collapsedIds);
+  const folder = findThreadById(m, groupId);
+  const summaryEvents = folder ? buildFolderSummaryEvents(folder) : undefined;
+  const summaries =
+    summaryEvents && summaryEvents.length > 0 ? summaryEvents : undefined;
+
+  if (hiddenHeight <= 0 || prefersReducedMotion()) {
+    pendingCollapseTarget = null;
+    collapsedGroupIds.value = target;
+    clampScrollAfterCollapse();
+    return;
+  }
+
+  animCollapsing.value = collapsing;
+  animGroupId.value = groupId;
+  pendingCollapseTarget = target;
+  collapseAnim.value = {
+    groupId,
+    visible: collapsing ? 1 : 0,
+    hiddenHeight,
+    summaryEvents: summaries,
   };
+  cancelCollapseAnim = animateProgress({
+    from: collapsing ? 1 : 0,
+    to: collapsing ? 0 : 1,
+    durationMs: 200,
+    onUpdate: (visible) => {
+      collapseAnim.value = {
+        groupId,
+        visible,
+        hiddenHeight,
+        summaryEvents: summaries,
+      };
+    },
+    onDone: () => {
+      collapseAnim.value = null;
+      animGroupId.value = null;
+      pendingCollapseTarget = null;
+      collapsedGroupIds.value = target;
+      clampScrollAfterCollapse();
+    },
+  });
+}
+
+/** Clear hover that may point at a vanished summary bar / pruned event. */
+function clearHoverAfterCollapse(): void {
+  hovered.value = null;
+  viewState.value = { ...viewState.value, hoveredEventId: null };
+}
+
+function clampScrollAfterCollapse(): void {
+  clearHoverAfterCollapse();
+  // Keep scroll within new content height once the collapse settles.
+  const el = timelineRef.value?.gutterRoot;
+  if (el) {
+    viewState.value = {
+      ...viewState.value,
+      scrollY: Math.min(viewState.value.scrollY, el.scrollHeight),
+    };
+  }
 }
 
 function onPinLane(laneId: string): void {
@@ -450,7 +588,11 @@ function applyAdapted(adapted: AdaptedReport) {
 
 function closeTopologyFullscreen() {
   topologyFullscreen.value = false;
-  fullscreenTopology.value = null;
+}
+
+function onTopologyFullscreenAfterLeave() {
+  // Leave can be cancelled by a mid-fade reopen — only clear when still closed.
+  if (!topologyFullscreen.value) fullscreenTopology.value = null;
 }
 
 function onOpenTopologyFullscreen(model: MemoryTopologyModel) {
@@ -556,6 +698,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelViewWindowAnim();
+  cancelCollapseAnim();
+  collapseAnim.value = null;
+  animGroupId.value = null;
+  pendingCollapseTarget = null;
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onGlobalKeydown);
 });
@@ -571,8 +717,9 @@ function onGlobalKeydown(e: KeyboardEvent) {
     closeTopologyFullscreen();
     return;
   }
-  // Overlay covers the timeline; WASD must not pan/zoom the hidden view.
-  if (topologyFullscreen.value) return;
+  // Overlay covers the timeline (including the ~200ms leave fade while the model is still held).
+  // WASD must not pan/zoom the hidden view.
+  if (topologyFullscreen.value || fullscreenTopology.value != null) return;
   if (!showTimeline.value) return;
   // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
   // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
@@ -894,10 +1041,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :dependency-mode="localDependencyMode"
           :dependency-depth="localDependencyDepth"
           :groups="laneGroups"
-          :collapsed-ids="collapsedGroupIds"
+          :collapsed-ids="visualCollapsedIds"
           :pinned-lane-ids="viewState.pinnedLaneIds"
           :display-swim="displaySwim"
           :pin-source-model="swim"
+          :collapse-anim="collapseAnim"
           :cursor="cursor"
           :show-overview-charts="showOverview"
           :gutter-width="gutterWidth"
@@ -953,57 +1101,62 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       {{ t('noTimeline', locale) }}
     </p>
 
-    <div
-      v-if="topologyFullscreen && fullscreenTopology"
-      class="pr-topo-fs"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="pr-topo-fs-title"
-      data-testid="topology-fullscreen-overlay"
+    <Transition
+      name="pr-topo-fs"
+      @after-leave="onTopologyFullscreenAfterLeave"
     >
-      <div class="pr-topo-fs__head">
-        <button
-          ref="fullscreenBackRef"
-          type="button"
-          class="pr-topo-fs__back"
-          data-testid="topology-fullscreen-back"
-          :aria-label="t('back', locale)"
-          :title="t('back', locale)"
-          @click="closeTopologyFullscreen"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            aria-hidden="true"
+      <div
+        v-if="topologyFullscreen && fullscreenTopology"
+        class="pr-topo-fs"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pr-topo-fs-title"
+        data-testid="topology-fullscreen-overlay"
+      >
+        <div class="pr-topo-fs__head">
+          <button
+            ref="fullscreenBackRef"
+            type="button"
+            class="pr-topo-fs__back"
+            data-testid="topology-fullscreen-back"
+            :aria-label="t('back', locale)"
+            :title="t('back', locale)"
+            @click="closeTopologyFullscreen"
           >
-            <path
-              d="M10 3.5L4.5 8 10 12.5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M5 8h8"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
-        <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
+            <svg
+              viewBox="0 0 16 16"
+              width="14"
+              height="14"
+              aria-hidden="true"
+            >
+              <path
+                d="M10 3.5L4.5 8 10 12.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M5 8h8"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+          <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
+        </div>
+        <div class="pr-topo-fs__body">
+          <MemoryTopologyPanel
+            :model="fullscreenTopology"
+            :locale="locale"
+            :open-details-on-contextmenu="false"
+          />
+        </div>
       </div>
-      <div class="pr-topo-fs__body">
-        <MemoryTopologyPanel
-          :model="fullscreenTopology"
-          :locale="locale"
-          :open-details-on-contextmenu="false"
-        />
-      </div>
-    </div>
+    </Transition>
 
     <Transition name="pr-dock">
       <DetailPanel
@@ -1071,6 +1224,31 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-height: 0;
   padding: 10px 12px;
   background: var(--pr-bg-deep);
+}
+
+.pr-topo-fs-enter-active,
+.pr-topo-fs-leave-active {
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+/* Leave still mounts the overlay for 200ms — do not swallow clicks meant for the report. */
+.pr-topo-fs-leave-active {
+  pointer-events: none;
+}
+
+.pr-topo-fs-enter-from,
+.pr-topo-fs-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-topo-fs-enter-active,
+  .pr-topo-fs-leave-active {
+    transition: none;
+  }
 }
 
 .pr-topo-fs__head {

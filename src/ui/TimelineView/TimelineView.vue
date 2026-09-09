@@ -18,6 +18,7 @@ import AxisRuler from './TimeAxis/AxisRuler/AxisRuler.vue';
 import CursorTimestamp from './TimeAxis/CursorTimestamp/CursorTimestamp.vue';
 import MeasureDtArrow from './MeasureDtArrow.vue';
 import type { GutterGroup } from './SwimlaneView/LaneGutter/LaneGutter.vue';
+import type { CollapseAnimState } from '../../swimlane/layout';
 import SwimlaneView from './SwimlaneView/SwimlaneView.vue';
 import type { GutterMetric } from '../../domain/gutterMetrics';
 import {
@@ -49,6 +50,8 @@ const props = withDefaults(
      * `displaySwim` and disappear if an ancestor Card/folder is collapsed.
      */
     pinSourceModel?: SwimlaneModel | null;
+    /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
+    collapseAnim?: CollapseAnimState | null;
     /** From view.pinnedLaneIds — sticky strip. */
     pinnedLaneIds?: string[];
     cursor: { time: number; xRatio: number; snapped?: boolean } | null;
@@ -62,6 +65,7 @@ const props = withDefaults(
   {
     dependencyMode: 'all',
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
+    collapseAnim: null,
   },
 );
 
@@ -609,6 +613,7 @@ defineExpose({
       :cursor-x-ratio="cursor?.xRatio ?? null"
       :cursor-snapped="cursor?.snapped ?? false"
       :locale="locale"
+      :collapse-anim="collapseAnim"
       :gutter-metric-by-card="gutterMetricByCard"
       :gutter-metric-options-by-card="gutterMetricOptionsByCard"
       @update:scroll-y="emit('update:scrollY', $event)"

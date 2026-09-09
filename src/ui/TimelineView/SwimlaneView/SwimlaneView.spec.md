@@ -48,6 +48,8 @@ When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim bo
 
 Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
 
+**Strip animation.** The pinned strip appears/disappears over **200ms**: its height tweens through a `--pr-pinned-h` custom property (0 ↔ N·`LANE_HEIGHT`), so pinning/unpinning the first/last lane grows/shrinks the strip smoothly and the body below reflows at the same rate instead of jumping. Incremental pins while the strip is visible animate the same way (N·22 ↔ (N±1)·22). `prefers-reduced-motion: reduce` drops the transition.
+
 ## Acceptance Criteria
 
 1. **PR-SWIMVIEW-001** — Renders gutter and canvas side by side.
@@ -69,11 +71,13 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 17. **PR-SWIMVIEW-017** — `pinnedLaneIds` may span multiple Cards/groups; strip order follows pin order.
 18. **PR-SWIMVIEW-018** — Measure magnet follows the canvas under the pointer across pin strip and body (create/resize may start on one and snap on the other).
 19. **PR-SWIMVIEW-019** — Pinned strip stays populated when an ancestor of a pinned leaf is collapsed (`pinSourceModel` / full swim); scroll-body originals hide.
-20. **PR-SWIMVIEW-020** — Alt event measure shares session across pin strip and body; each endpoint records the surface it was captured on so a body click on a pinned lane draws on the body instance (not the sticky duplicate). Cross-surface pairs use split sticks + Δt.
+20. **PR-SWIMVIEW-020** — Alt event measure shares session across pin strip and body; each endpoint records the surface it was captured on so a body click on a pinned lane draws on the body instance (not the sticky duplicate). Cross-surface pairs use split sticks + Δt. Endpoint ids resolve via `findEventInModel`, which scans both leaf `events` and collapsed-folder `summaryEvents` so Alt+click on a gray summary bar can draw Δt.
 21. **PR-SWIMVIEW-021** — When Alt-measure endpoints span pin strip and body, a dashed vertical bridge connects the two lane centers at the later edge (still drawn when either edge is outside the current time window; re-projects on gutter/body resize).
 22. **PR-SWIMVIEW-022** — Free-cursor Alt target (`eventId === null`) paints the full-height cursor line on both pin strip and body; stick + Δt remain only on the anchor-owning surface.
 23. **PR-SWIMVIEW-023** — Changing `collapsedIds` or `pinnedLaneIds` clears any active Alt-measure session (ephemeral or pinned).
 24. **PR-SWIMVIEW-024** — Ephemeral Alt-measure target is not cleared on `pointerleave` of the pin-strip or body canvas (crossing strip↔body must not blank Δt). With no sticky strip, the scroll canvas uses `solo` so leave clears live preview.
+25. **PR-SWIMVIEW-025** — Pinned strip appears/disappears over 200ms via `--pr-pinned-h` height transition; enter/leave collapse to `height: 0`; `prefers-reduced-motion: reduce` drops the transition.
+26. **PR-SWIMVIEW-026** — Collapsing/expanding a Card or folder slides the content: the canvas rows/events below the group shift up/down and the collapsing subtree fades (`collapseAnim` → `SwimlaneCanvas.setCollapseAnim`), Card strips below the collapsed Card shift with the same offset, and the gutter collapse wrapper animates height + opacity. Folder tweens also crossfade ghost `summaryEvents` (α = 1 − visible) with child events (α = visible). Dependency strokes to/from the animating subtree stay hidden for the tween; other connectors keep drawing. Driven by a 200ms `animateProgress` tween owned by `ProfilingReport`; a mid-tween re-click reverses from the current progress; instant under `prefers-reduced-motion: reduce`.
 27. **PR-SWIMVIEW-027** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
 
 ## Visual
@@ -100,8 +104,11 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
-- **2026-09-08** — Pinned-strip height and body content height account for multi-row leaf `rowCount` (`PR-SWIMVIEW-027`; 025/026 reserved for #71 pin/collapse tweens).
+- **2026-09-08** — Pinned-strip height and body content height account for multi-row leaf `rowCount` (`PR-SWIMVIEW-027`).
 - **2026-09-07** — Pinned strip applies selection gray-muting like the body; only dependency Beziers stay body-only (`PR-SWIMVIEW-016`).
+- **2026-09-07** — PR-SWIMVIEW-026: mid-tween re-click reverses from the current progress.
+- **2026-09-03** — PR-SWIMVIEW-026: lane collapse/expand animates — canvas slide+fade (`collapseAnim` → `setCollapseAnim`), Card strips below the collapsed Card shift, gutter wrapper animates height + opacity; `ProfilingReport` owns a 200ms tween.
+- **2026-09-03** — Pinned strip appears/disappears over 200ms via `--pr-pinned-h` height transition; reduced-motion drops it.
 - **2026-09-03** — Card metric selector offers only **时钟周期** / **利用率** (cacheHit and task removed).
 - **2026-09-02** — Alt-measure chrome and pin↔body bridge join the swim cursor at `z-index: 9` above Card strips (`PR-SWIMVIEW-004`).
 - **2026-09-01** — Pin↔body bridge re-projects on gutter/body resize (`PR-SWIMVIEW-021`).

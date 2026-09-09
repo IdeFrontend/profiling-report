@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import type { CollapseAnimState } from '../../../../swimlane/layout';
 import LaneGutterNode from './LaneGutterNode.vue';
 import type { GutterGroup, GutterLane } from './gutterTypes';
 
@@ -14,6 +15,8 @@ const props = defineProps<{
   /** Lane under canvas/gutter hover — row highlight only (does not show pushpin). */
   hoveredLaneId?: string | null;
   locale?: string;
+  /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
+  collapseAnim?: CollapseAnimState | null;
 }>();
 
 const emit = defineEmits<{
@@ -30,6 +33,17 @@ const collapsed = computed(() => new Set(props.collapsedIds ?? []));
 
 function isCollapsed(id: string): boolean {
   return collapsed.value.has(id);
+}
+
+/** Height/opacity of the collapsible wrapper while its group is animating. */
+function collapseStyle(id: string): Record<string, string> | undefined {
+  const anim = props.collapseAnim;
+  if (!anim || anim.groupId !== id || anim.hiddenHeight <= 0) return undefined;
+  return {
+    height: `${Math.max(0, anim.hiddenHeight * anim.visible)}px`,
+    opacity: `${Math.max(0, Math.min(1, anim.visible))}`,
+    overflow: 'hidden',
+  };
 }
 
 defineExpose({ root });
@@ -52,23 +66,30 @@ defineExpose({ root });
         :data-testid="`gutter-group-${group.id}`"
         aria-hidden="true"
       />
-      <template v-if="!isCollapsed(group.id)">
-        <LaneGutterNode
-          v-for="lane in group.lanes"
-          :key="lane.id"
-          :lane="lane"
-          :depth="0"
-          :collapsed-ids="collapsedIds"
-          :pinned-lane-ids="pinnedLaneIds"
-          :hovered-lane-id="hoveredLaneId"
-          :locale="locale"
-          :util-midline-percent="group.utilMidlinePercent"
-          @toggle="(id) => emit('toggle-group', id)"
-          @pin-lane="(id) => emit('pin-lane', id)"
-          @unpin-lane="(id) => emit('unpin-lane', id)"
-          @lane-hover="(id) => emit('lane-hover', id)"
-        />
-      </template>
+      <div
+        class="pr-gutter__collapse"
+        :data-testid="`gutter-collapse-${group.id}`"
+        :style="collapseStyle(group.id)"
+      >
+        <template v-if="!isCollapsed(group.id)">
+          <LaneGutterNode
+            v-for="lane in group.lanes"
+            :key="lane.id"
+            :lane="lane"
+            :depth="0"
+            :collapsed-ids="collapsedIds"
+            :pinned-lane-ids="pinnedLaneIds"
+            :hovered-lane-id="hoveredLaneId"
+            :locale="locale"
+            :util-midline-percent="group.utilMidlinePercent"
+            :collapse-anim="collapseAnim"
+            @toggle="(id) => emit('toggle-group', id)"
+            @pin-lane="(id) => emit('pin-lane', id)"
+            @unpin-lane="(id) => emit('unpin-lane', id)"
+            @lane-hover="(id) => emit('lane-hover', id)"
+          />
+        </template>
+      </div>
     </template>
   </div>
 </template>
@@ -104,5 +125,13 @@ defineExpose({ root });
   border-bottom: 1px solid #3a3a3a;
   background: transparent;
   pointer-events: none;
+}
+
+/* Wraps a Card's (or folder's) descendant rows so the collapse tween can animate
+   height + opacity; `overflow: hidden` is applied inline only while animating so the
+   pin tooltip is not clipped at rest. */
+.pr-gutter__collapse {
+  flex: 0 0 auto;
+  min-width: 0;
 }
 </style>

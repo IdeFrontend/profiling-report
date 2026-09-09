@@ -5,7 +5,14 @@ import {
   type EventRef,
   type SwimlaneViewWindow,
 } from '../domain/types';
-import { eventLinkContentY, findLaidOutEvent, type LaidOutEvent, type SwimlaneLayout } from './layout';
+import {
+  collapseShiftY,
+  eventLinkContentY,
+  findLaidOutEvent,
+  type CollapseTransform,
+  type LaidOutEvent,
+  type SwimlaneLayout,
+} from './layout';
 
 export const DEP_STROKE_WIDTH = 2;
 /** BFS cap per direction so depth=-1 cannot freeze the main thread. */
@@ -149,4 +156,32 @@ export function linkIntersectsTimeView(link: DependencyLink, view: SwimlaneViewW
   const lo = Math.min(link.t0, link.t1);
   const hi = Math.max(link.t0, link.t1);
   return hi >= view.startTime && lo <= view.endTime;
+}
+
+/** True when content-space Y sits in the collapsing/expanding subtree band. */
+function yInCollapseSubtree(y: number, t: CollapseTransform): boolean {
+  return t.active && y >= t.foldY && y < t.subtreeEnd;
+}
+
+/**
+ * Links to paint during a collapse/expand tween: drop any whose endpoint lies in the
+ * animating subtree (those edges are mid-slide), and apply `collapseShiftY` to the
+ * rest so after-subtree connectors track the gap close. When the tween is idle,
+ * returns `links` unchanged.
+ */
+export function depLinksForCollapsePaint(
+  links: readonly DependencyLink[],
+  t: CollapseTransform,
+): readonly DependencyLink[] {
+  if (!t.active) return links;
+  const out: DependencyLink[] = [];
+  for (const l of links) {
+    if (yInCollapseSubtree(l.y0, t) || yInCollapseSubtree(l.y1, t)) continue;
+    out.push({
+      ...l,
+      y0: collapseShiftY(l.y0, t),
+      y1: collapseShiftY(l.y1, t),
+    });
+  }
+  return out;
 }
