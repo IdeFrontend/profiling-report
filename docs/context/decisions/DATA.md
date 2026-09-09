@@ -82,8 +82,8 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-04
 - **Question:** **82%** (average core utilization) — which file, which field, and the formula?
-- **Decision:** Card is **AI Core 并行使用率** from `summary.jsonl` → `OpInfoSummary` → `aicore_parallel_utilization` (fraction 0–1). Load balance = `aicore_parallel_balance` (1 − σ/μ across blocks).
-- **Specs:** [view-models](../../../specs/core/view-models.spec.md), [npu-rep](../../../specs/core/npu-rep.spec.md)
+- **Decision:** Card is **AI Core 并行使用率** from `summary.jsonl` → `OpInfoSummary` → `aicore_parallel_utilization` (fraction 0–1). Load balance = `aicore_parallel_balance` (1 − σ/μ across blocks). UI: dual columns on the AICore card.
+- **Specs:** [view-models](../../../specs/core/view-models.spec.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-011c)
 - **Source:** NPU-Compute.md (2026-09-04); implemented as `summary.parallelUtilization` / `parallelBalance`.
 
 ---
@@ -92,8 +92,8 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-04
 - **Question:** **启用 n/m 核** / sketch **负载均衡度** — which fields?
-- **Decision:** Hide the former **启用 n/m 核** label. Sketch **负载均衡度** = `summary.jsonl` `OpInfoSummary` `aicore_parallel_balance` (fraction 0–1), shown as a subtitle under AICore 并行使用率.
-- **Specs:** [view-models](../../../specs/core/view-models.spec.md), [npu-rep](../../../specs/core/npu-rep.spec.md)
+- **Decision:** Hide the former **启用 n/m 核** label. Sketch **负载均衡度** = `summary.jsonl` `OpInfoSummary` `aicore_parallel_balance` (fraction 0–1), shown as a dual column beside **并行使用率** on the AICore card (same chrome as BW 读\|写).
+- **Specs:** [view-models](../../../specs/core/view-models.spec.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-011c)
 - **Source:** NPU-Compute.md (2026-09-04); implemented as `summary.parallelBalance`.
 
 ---
