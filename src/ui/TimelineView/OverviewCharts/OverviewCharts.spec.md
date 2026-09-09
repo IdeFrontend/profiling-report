@@ -21,7 +21,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 - **Gutter column:** width = TimelineView gutter (`gutterWidth` prop); labels left-aligned; section header with chevron + localized **统计分析** / Statistical analysis.
 - **Collapsible header (v930/entry):** full-width Card-like strip (`#2a2a2a` / hover `#323232`, 40px) with `Chevron` + title; **no vertical gutter splitter** on the header (tracks keep the seam). Click **anywhere** on the strip toggles expand/collapse of all tracks (sticky pin strip stays visible).
 - **Track / lane:** **16px** paint area inside a **24px** lane with an **8px** empty gap above the chart (gap is part of the series hit target). Pointer over gutter **or** chart column highlights the **whole track** with swimlane lane-hover fill (`LANE_HOVER_FILL` / `#363636`) and lifts the label to `#fff` (same chrome as main swim rows).
-- **Splitters:** **1px** `#3a3a3a` horizontal border under each lane (same as lane row dividers).
+- **Splitters:** **1px** `#3a3a3a` horizontal seam under each lane (inset line on the track — same look as lane row dividers). The seam stays inside that lane’s **24px** chart hit target so moving between tracks does not drop the tip.
 - **Style:** **step-after** area + stroke (hold each sample value until the next counter event, then jump). Fill `fill-opacity ≈ 0.45` under a bright stroke. Stroke hex from `overviewSeriesStroke` ([COLOR_TOKENS](../../../../docs/ui/COLOR_TOKENS.md): Cube → `#3078F0`; other pipes → OKLCH `L+0.2` of the pipe base).
 - **Y domain:** shared **0–100** (`OVERVIEW_Y_MAX`) for all tracks so util-% counters are comparable; do **not** auto-scale each series to its own peak. Values outside `[0, 100]` clamp. Non-percentage `ph:C` counters (absolute units) therefore flatten at the band ceiling — out of scope until Product defines a per-unit scale; today’s Sampling fixtures are all util %.
 - **Time domain:** shared with swimlane visible `[startTime, endTime]` (canonical ns).
@@ -32,7 +32,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 ## Acceptance Criteria
 
 1. **PR-OV-001** — Renders one labeled track per `OverviewSeries` entry; section header present.
-2. **PR-OV-002** — Each track SVG is 16px tall inside a 24px lane (8px gap above the paint); consecutive lanes use a 1px `#3a3a3a` horizontal splitter; the full 24px chart column (including the gap) is the series hit target.
+2. **PR-OV-002** — Each track SVG is 16px tall inside a 24px lane (8px gap above the paint); consecutive lanes use a 1px `#3a3a3a` horizontal splitter drawn as an inset seam on the upper lane so the full 24px chart column (including the seam) remains that series’ hit target.
 3. **PR-OV-003** — Mounted in the swim body below the time axis (DOM: axis → swimlane containing overview).
 4. **PR-OV-004** — Series paths are step-after: value stays constant until the next sample time, then jumps (no diagonal interpolation between samples).
 5. **PR-OV-005** — Track pushpin emits `pin-overview` / `unpin-overview`; sticky strip (`variant=strip`) shows pinned series in pin order **below** the lane pin strip.

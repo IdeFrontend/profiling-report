@@ -229,7 +229,7 @@ function onChartPointerLeave(e: PointerEvent) {
   if (next && root?.contains(next)) {
     // Another chart column — keep tip ownership until its move handler runs.
     if (next.closest?.('.pr-overview-chart-col')) return;
-    // Header track / inter-track gap in the chart column — keep playhead, drop tip/dot.
+    // Header track / gutter — keep or clear playhead; drop tip/dot.
     clearTipOnly();
     if (next.closest?.('.pr-overview-gutter-cell')) {
       emit('cursor', null);
@@ -516,7 +516,9 @@ const valueDots = computed((): ValueDot[] => {
 .pr-overview-track {
   height: var(--pr-overview-lane-h, 24px);
   min-height: var(--pr-overview-lane-h, 24px);
-  border-bottom: 1px solid var(--pr-divider, #3a3a3a);
+  /* Inset line — not border-bottom — so the chart column keeps the full 24px hit
+     target and the seam belongs to the track above (no tip flicker between series). */
+  box-shadow: inset 0 -1px 0 var(--pr-divider, #3a3a3a);
 }
 
 /* Same whole-lane chrome as swim rows (LANE_HOVER_FILL / --pr-surface-raised). */

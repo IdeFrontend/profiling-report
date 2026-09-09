@@ -85,13 +85,32 @@ describe('OverviewCharts', () => {
     }
     const src = (await import('../../src/ui/TimelineView/OverviewCharts/OverviewCharts.vue?raw'))
       .default as string;
-    expect(src).toMatch(/\.pr-overview-track\s*\{[^}]*border-bottom:\s*1px solid/);
+    expect(src).toMatch(/\.pr-overview-track\s*\{[^}]*box-shadow:\s*inset 0 -1px 0/);
+    expect(src).not.toMatch(/\.pr-overview-track\s*\{[^}]*border-bottom:\s*1px solid/);
     expect(src).toMatch(/--pr-overview-lane-h/);
     expect(src).toMatch(/--pr-overview-track-gap/);
     const layout = await import('../../src/ui/TimelineView/OverviewCharts/overviewLayout');
     expect(layout.OVERVIEW_LANE_H).toBe(24);
     expect(layout.OVERVIEW_TRACK_GAP).toBe(8);
     expect(layout.overviewSectionHeightPx(2)).toBe(40 + 48);
+  });
+
+  it('PR-OV-002: leaving one chart column for another keeps the tip (seam is hittable)', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+      attachTo: document.body,
+    });
+    mockTrackPaints(wrap, {
+      CUBE: { left: 0, top: 0, width: 1000, height: 16 },
+      VECTOR: { left: 0, top: 40, width: 1000, height: 16 },
+    });
+    const cubeCol = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    const vectorCol = wrap.get('[data-series-id="VECTOR"] [data-testid="overview-chart-col"]');
+    await cubeCol.trigger('pointermove', { clientX: 500, clientY: 8 });
+    expect(document.querySelector('[data-testid="overview-value-tooltip"]')).toBeTruthy();
+    await cubeCol.trigger('pointerleave', { relatedTarget: vectorCol.element });
+    expect(document.querySelector('[data-testid="overview-value-tooltip"]')).toBeTruthy();
+    wrap.unmount();
   });
 
   it('PR-OV-005: pin click emits pin-overview / unpin-overview', async () => {
