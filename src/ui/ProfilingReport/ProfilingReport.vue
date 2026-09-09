@@ -297,9 +297,9 @@ const bounds = computed(() => {
 });
 
 /**
- * Zoom-in floor that keeps fp32 coordinate noise of the stored event coords at ≤ 1/4 device px.
+ * Zoom-in floor that keeps fp32 coordinate noise of the stored event coords at ≤ 1 device px.
  * Stored coords are `start - minTime` (magnitude ≈ fullSpan), so at high zoom one fp32 ULP would
- * span many pixels; clamp the span to `ulp * widthPx * 4`. Track width feeds the px-per-ULP ratio.
+ * span many pixels; clamp the span to `ulp * widthPx`. Track width feeds the px-per-ULP ratio.
  */
 const ulpMinSpan = computed(() =>
   minSpanForPrecision(
