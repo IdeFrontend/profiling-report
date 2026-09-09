@@ -24,15 +24,15 @@ function fp32UlpAt(maxAbs: number): number {
 /**
  * Zoom-in cutoff that keeps fp32 coordinate noise below `pxPerUlp` device pixels: once the
  * view span shrinks to `ulp(fullSpan) * widthPx / pxPerUlp`, a single ULP of the stored coords
- * moves the bound by `pxPerUlp` pixels. We target ~1/4 device px, so spans must stay at or above
- * `ulp * widthPx * 4`. Width is the track width in CSS px (the actual rasterized width).
+ * moves the bound by `pxPerUlp` pixels. We target ~1 device px, so spans must stay at or above
+ * `ulp * widthPx`. (A ¼px target would multiply this by 4 — allowing 4× less zoom-in.)
  */
 export function minSpanForPrecision(fullSpan: number, widthPx: number): number {
   const full = Math.max(MIN_WINDOW, fullSpan);
   const width = Math.max(1, widthPx);
   const ulp = fp32UlpAt(full);
-  // ulp * (width) / span ≤ 1/4  →  span ≥ ulp * width * 4
-  return Math.max(MIN_WINDOW, ulp * width * 4);
+  // ulp * (width) / span ≤ 1  →  span ≥ ulp * width
+  return Math.max(MIN_WINDOW, ulp * width);
 }
 
 /**
