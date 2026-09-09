@@ -504,6 +504,57 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-013: topology fullscreen show/hide uses a 200ms opacity+scale transition', async () => {
+    const { flushPromises } = await import('@vue/test-utils');
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    expect(src).toMatch(/<Transition[^>]*name="pr-topo-fs"/);
+    expect(src).toMatch(/\.pr-topo-fs-enter-active,\s*\.pr-topo-fs-leave-active\s*\{[^}]*opacity\s+200ms\s+ease/s);
+    expect(src).toMatch(/\.pr-topo-fs-enter-from,\s*\.pr-topo-fs-leave-to\s*\{[^}]*opacity:\s*0/s);
+    expect(src).toMatch(/\.pr-topo-fs-enter-from,\s*\.pr-topo-fs-leave-to\s*\{[^}]*scale\(0\.98\)/s);
+    expect(src).toMatch(/\.pr-topo-fs-leave-active\s*\{[^}]*pointer-events:\s*none/s);
+    expect(src).toMatch(/prefers-reduced-motion:\s*reduce[\s\S]*?\.pr-topo-fs-enter-active/);
+
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const wrapper = mount(ProfilingReport, {
+      attachTo: host,
+      global: { stubs: { Transition: false } },
+      props: {
+        title: 'topo-fs-anim',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(topologyReport()),
+      },
+    });
+    try {
+      await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+      await nextTick();
+      expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+
+      // Close then reopen before leave settles — exercises the real @after-leave guard
+      // (fails if after-leave nulls the model unconditionally).
+      await wrapper.get('[data-testid="topology-fullscreen-back"]').trigger('click');
+      await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+      await nextTick();
+      await flushPromises();
+      expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+      expect(
+        wrapper.find('[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]').exists(),
+      ).toBe(true);
+
+      // Mid-leave WASD: Back clears the open flag while the model is still held.
+      await wrapper.get('[data-testid="topology-fullscreen-back"]').trigger('click');
+      const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
+      expect(span()).toBe(1000);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+      await nextTick();
+      expect(span()).toBe(1000);
+      // Overlay may still be leaving in jsdom (no CSS transitionend); cover window is the WASD gate above.
+    } finally {
+      wrapper.unmount();
+      host.remove();
+    }
+  });
+
   it('PR-ROOT-010: overlay right-click stays fullscreen and does not open memory CSV', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {

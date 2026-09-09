@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, provide, ref } from 'vue';
 import { t } from '../../i18n';
+import { ASIDE_TRACK_ANIMATING_KEY } from '../asideTrackAnimating';
 import {
   ASIDE_WIDTH_DEFAULT,
   ASIDE_WIDTH_MAX,
@@ -23,16 +24,74 @@ const emit = defineEmits<{
   'update:asideWidth': [width: number];
 }>();
 
-const layoutStyle = computed(() =>
-  props.showAside
-    ? ({ '--pr-aside-width': `${props.asideWidth}px` } as Record<string, string>)
-    : undefined,
+/** Track collapses to 0 and slides the aside in/out over the same 200ms as the dock. */
+const layoutStyle = computed(
+  () =>
+    ({ '--pr-aside-width': props.showAside ? `${props.asideWidth}px` : '0px' } as Record<
+      string,
+      string
+    >),
 );
+
+/** Suppress the grid-track transition while the user drags the resize handle. */
+const isResizing = ref(false);
+
+/**
+ * True while `grid-template-columns` is tweening. SwimlaneCanvas freezes its
+ * backing store and CSS-stretches the bitmap until the track settles (avoids
+ * per-frame WebGL buffer realloc during the 200ms aside open/close).
+ */
+const asideTrackAnimating = ref(false);
+provide(ASIDE_TRACK_ANIMATING_KEY, asideTrackAnimating);
+
+/** Fallback if `transitionend` is skipped (interrupted/reduced-motion edge cases). */
+let trackAnimFallback: ReturnType<typeof setTimeout> | null = null;
+
+function clearTrackAnimFallback(): void {
+  if (trackAnimFallback == null) return;
+  clearTimeout(trackAnimFallback);
+  trackAnimFallback = null;
+}
+
+function beginTrackAnim(): void {
+  asideTrackAnimating.value = true;
+  clearTrackAnimFallback();
+  trackAnimFallback = setTimeout(() => {
+    asideTrackAnimating.value = false;
+    trackAnimFallback = null;
+  }, 250);
+}
+
+function endTrackAnim(): void {
+  clearTrackAnimFallback();
+  asideTrackAnimating.value = false;
+}
+
+function isAsideTrackTransition(e: TransitionEvent): boolean {
+  if (e.propertyName !== 'grid-template-columns') return false;
+  // Own track tween only — ignore nested opacity transitions bubbling from the aside.
+  return e.target === rootEl.value || e.currentTarget === rootEl.value;
+}
+
+function onTrackTransitionStart(e: TransitionEvent): void {
+  if (!isAsideTrackTransition(e)) return;
+  beginTrackAnim();
+}
+
+function onTrackTransitionEnd(e: TransitionEvent): void {
+  if (!isAsideTrackTransition(e)) return;
+  endTrackAnim();
+}
+
+onBeforeUnmount(() => {
+  clearTrackAnimFallback();
+});
 
 let session: ReturnType<typeof startHorizontalResize> | null = null;
 
 function onAsideResizePointerDown(e: PointerEvent) {
   if (e.button !== 0) return;
+  isResizing.value = true;
   const el = e.currentTarget as HTMLElement;
   el.setPointerCapture?.(e.pointerId);
   session = startHorizontalResize({
@@ -53,6 +112,7 @@ function onAsideResizePointerMove(e: PointerEvent) {
 function onAsideResizePointerUp() {
   session?.end();
   session = null;
+  isResizing.value = false;
 }
 
 const rootEl = ref<HTMLElement | null>(null);
@@ -63,28 +123,34 @@ defineExpose({ rootEl });
   <div
     ref="rootEl"
     class="pr-layout"
-    :class="{ 'pr-layout--no-aside': !showAside }"
+    :class="{ 'pr-layout--resizing': isResizing }"
     :style="layoutStyle"
+    :data-aside-track-animating="asideTrackAnimating ? 'true' : 'false'"
+    @transitionstart="onTrackTransitionStart"
+    @transitionend="onTrackTransitionEnd"
+    @transitioncancel="onTrackTransitionEnd"
   >
     <section class="pr-main">
       <slot name="main" />
     </section>
-    <div
-      v-if="showAside"
-      class="pr-layout__aside"
-    >
-      <button
-        type="button"
-        class="pr-layout__resize pr-layout__resize--aside"
-        data-testid="aside-resize-handle"
-        :aria-label="t('resizeSidebar', locale)"
-        @pointerdown="onAsideResizePointerDown"
-        @pointermove="onAsideResizePointerMove"
-        @pointerup="onAsideResizePointerUp"
-        @pointercancel="onAsideResizePointerUp"
-      />
-      <slot name="aside" />
-    </div>
+    <Transition name="pr-aside">
+      <div
+        v-if="showAside"
+        class="pr-layout__aside"
+      >
+        <button
+          type="button"
+          class="pr-layout__resize pr-layout__resize--aside"
+          data-testid="aside-resize-handle"
+          :aria-label="t('resizeSidebar', locale)"
+          @pointerdown="onAsideResizePointerDown"
+          @pointermove="onAsideResizePointerMove"
+          @pointerup="onAsideResizePointerUp"
+          @pointercancel="onAsideResizePointerUp"
+        />
+        <slot name="aside" />
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -92,15 +158,36 @@ defineExpose({ rootEl });
 .pr-layout {
   display: grid;
   /* minmax(0, …) lets both tracks compress under a narrow host — no horizontal scroll. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, var(--pr-aside-width, 480px));
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--pr-aside-width, 0px));
   gap: 0;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+  /* The aside track collapses 0 ↔ width in step with the aside's fade. */
+  transition: grid-template-columns 200ms ease;
 }
 
-.pr-layout--no-aside {
-  grid-template-columns: 1fr;
+/* Resize drag drives the track directly — no 200ms lag behind the pointer. */
+.pr-layout--resizing {
+  transition: none;
+}
+
+.pr-aside-enter-active,
+.pr-aside-leave-active {
+  transition: opacity 200ms ease;
+}
+
+.pr-aside-enter-from,
+.pr-aside-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-layout,
+  .pr-aside-enter-active,
+  .pr-aside-leave-active {
+    transition: none;
+  }
 }
 
 .pr-main {

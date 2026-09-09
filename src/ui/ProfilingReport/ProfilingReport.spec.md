@@ -162,7 +162,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Dependency state.** `dependencyMode` and `dependencyDepth` are one pair of values, held here and read by both dependency surfaces: the swimlane curves and the detail dock's Relevent column, which walk the same `SwimEvent.dependencies` refs with the same filter. The dock's Relevent toolbar is where the user edits them; the props seed them and a change re-walks in place. `hasDependencies` gates the walk, so a model without edges hands the dock no neighbours and the column never mounts. Neighbour semantics — cap, ordering, cycles — belong to [dependencies](../../../specs/core/dependencies.spec.md).
 
-**Topology fullscreen.** StatsAside **全屏** (fit-window icon; `title`/`aria-label` = Full screen) emits `open-topology-fullscreen` with the current `MemoryTopologyModel`. The root covers `.pr-root` (toolbar + timeline + aside) with an opaque overlay: Back (`t('back')`) + title **内存拓扑** / Memory topology, then `MemoryTopologyPanel` scaled to the remaining box. The overlay is a modal dialog (`role="dialog"`, `aria-modal`); focus moves to Back on open. `ReportLayout` stays mounted. Back or Escape restores the stacked report (aside open/width/scroll unchanged). Escape still clears an active measure session first. W/S/A/D do not pan/zoom the covered timeline. Overlay right-click does not open the memory CSV overlay and does not close fullscreen (browser context menu is suppressed). Stacked-diagram UI-35 is unchanged. A report / operator change closes the overlay. Not the browser Fullscreen API.
+**Topology fullscreen.** StatsAside **全屏** (fit-window icon; `title`/`aria-label` = Full screen) emits `open-topology-fullscreen` with the current `MemoryTopologyModel`. The root covers `.pr-root` (toolbar + timeline + aside) with an opaque overlay: Back (`t('back')`) + title **内存拓扑** / Memory topology, then `MemoryTopologyPanel` scaled to the remaining box. Show/hide is a 200ms opacity + slight scale `Transition` (`pr-topo-fs`; instant under `prefers-reduced-motion: reduce`). The model stays until `@after-leave` so the leave frame still paints; a mid-leave reopen keeps the new model (`after-leave` clears only while still closed). Leave uses `pointer-events: none` so clicks reach the report underneath. WASD stay idle for the whole cover window (open flag **or** held model during leave). The overlay is a modal dialog (`role="dialog"`, `aria-modal`); focus moves to Back on open. `ReportLayout` stays mounted. Back or Escape restores the stacked report (aside open/width/scroll unchanged). Escape still clears an active measure session first. Overlay right-click does not open the memory CSV overlay and does not close fullscreen (browser context menu is suppressed). Stacked-diagram UI-35 is unchanged. A report / operator change closes the overlay. Not the browser Fullscreen API.
 
 ## Visual
 
@@ -181,6 +181,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 9. **PR-ROOT-010** — Overlay right-click stays fullscreen and does not open memory CSV.
 10. **PR-ROOT-011** — Overlay dialog: Escape closes; WASD idle.
 11. **PR-ROOT-012** — Host/deep-reactive `swimlaneModel` is consumed raw (shallow): collapse, deps, and gutter do not walk Proxies; in-place nested mutations do not invalidate the display tree — replace the prop reference to refresh.
+12. **PR-ROOT-013** — Topology fullscreen show/hide uses a 200ms opacity + scale `Transition` (`pr-topo-fs`); `prefers-reduced-motion: reduce` drops the transition. Closing keeps the model until leave finishes; WASD stay idle while the leave panel is still mounted; leave uses `pointer-events: none` so clicks reach the report; a mid-leave reopen does not clear the new model.
 
 ## Edge Cases
 
@@ -212,6 +213,8 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-09-09** — Topology fullscreen leave: `pointer-events: none`, WASD idle while model held, after-leave clears only when still closed; PR-ROOT-013 exercises Back→reopen (PR-ROOT-013).
+- **2026-09-08** — Topology fullscreen show/hide animates over 200ms (`pr-topo-fs` opacity + scale; PR-ROOT-013).
 - **2026-09-08** — Swim model is shallow (PR-ROOT-012): host must replace `swimlaneModel` (not mutate nested events in place) to refresh; `toRaw` at the swim source keeps collapse/deps/gutter off Proxies.
 - **2026-09-08** — Topology **全屏** covers `.pr-root` with Back + scaled diagram (PR-ROOT-009); overlay right-click does not open memory CSV (PR-ROOT-010); Escape closes and WASD stay idle (PR-ROOT-011).
 - **2026-09-07** — Product host files are `.npu-rep` ([PROC-2](../../docs/context/decisions/PROC.md)); classic `.rep` remains an engineering fixture path.

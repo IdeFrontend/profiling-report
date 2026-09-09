@@ -133,6 +133,54 @@ function collectLeafEventSources(
   return out;
 }
 
+/** Depth-first folder/thread lookup by id (Cards are processes — not returned here). */
+export function findThreadById(model: SwimlaneModel, id: string): SwimThread | null {
+  const walk = (nodes: SwimThread[]): SwimThread | null => {
+    for (const n of nodes) {
+      if (n.id === id) return n;
+      if (n.children) {
+        const hit = walk(n.children);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  for (const p of model.processes) {
+    const hit = walk(p.threads);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * Disjoint-union summary bars for a folder's descendants (same shape as a collapsed
+ * folder's `summaryEvents`). Empty when `folder` is not a folder or has no leaf events.
+ */
+export function buildFolderSummaryEvents(folder: SwimThread): SwimEvent[] {
+  if (!isFolderNode(folder)) return [];
+  const sources = collectLeafEventSources(folder.children ?? []);
+  return unionEventIntervals(sources.map((s) => s.event)).map((r, i) => {
+    const base: SwimEvent = {
+      id: `${folder.id}/summary/${i}`,
+      name: '',
+      startTime: r.startTime,
+      duration: r.duration,
+      taskCount: r.count,
+    };
+    if (r.count === 1) {
+      const src = sources.find(
+        (s) => s.event.startTime === r.startTime && s.event.duration === r.duration,
+      );
+      if (src) {
+        base.name = src.event.name;
+        base.laneName = src.laneName;
+        base.sourceEvent = src.event;
+      }
+    }
+    return base;
+  });
+}
+
 /**
  * Disjoint union of event intervals: sort by start and merge overlapping *and touching*
  * spans (`next.start <= cur.end`) into the minimal set of non-overlapping ranges.
@@ -192,31 +240,12 @@ export function filterCollapsedTree(
     nodes.map((n) => {
       if (!isFolderNode(n)) return n;
       if (collapsed.has(n.id)) {
-        const sources = collectLeafEventSources(n.children ?? []);
-        const summaryEvents = unionEventIntervals(sources.map((s) => s.event)).map((r, i) => {
-          const base: SwimEvent = {
-            id: `${n.id}/summary/${i}`,
-            name: '',
-            startTime: r.startTime,
-            duration: r.duration,
-            taskCount: r.count,
-          };
-          // Single-leaf union: keep the real event name + source lane for the tooltip,
-          // and the leaf itself for select-on-expand.
-          if (r.count === 1) {
-            const src = sources.find(
-              (s) =>
-                s.event.startTime === r.startTime && s.event.duration === r.duration,
-            );
-            if (src) {
-              base.name = src.event.name;
-              base.laneName = src.laneName;
-              base.sourceEvent = src.event;
-            }
-          }
-          return base;
-        });
-        return { ...n, children: [], events: [], summaryEvents };
+        return {
+          ...n,
+          children: [],
+          events: [],
+          summaryEvents: buildFolderSummaryEvents(n),
+        };
       }
       return { ...n, children: filterThreads(n.children ?? []) };
     });

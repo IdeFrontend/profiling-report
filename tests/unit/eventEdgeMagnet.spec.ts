@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  applyCollapseAnim,
   eventBlockMetrics,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
+  leafLaneIdAtPoint,
   measureRangeExactEdgeMarks,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
@@ -321,5 +323,40 @@ describe('findHoverGap', () => {
     });
     // Sub-row 1: pointer at 400 sits inside eB (200..500) → tooltip wins, no gap.
     expect(findHoverGap(layout, view, width, 400, yRow1, 10)).toBeNull();
+  });
+
+  it('PR-RENDER-031: prefers last tucked leaf for magnet / leaf-lane pick', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [
+            {
+              id: 'folder',
+              name: 'Folder',
+              events: [],
+              children: [
+                { id: 'leaf', name: 'Leaf', events: [{ id: 'e1', name: 'a', startTime: 10, duration: 20 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(model);
+    const mid = applyCollapseAnim(layout, {
+      groupId: 'folder',
+      visible: 0.5,
+      hiddenHeight: LANE_HEIGHT,
+    });
+    const midLeaf = mid.lanes.find((l) => l.thread.id === 'leaf')!;
+    const y = midLeaf.y - view.scrollY;
+    const v = { startTime: 0, endTime: 100, scrollY: 0 };
+    expect(leafLaneIdAtPoint(mid, v, y)).toBe('leaf');
+    // startTime 10 → x=100 at width 1000 over [0,100]
+    expect(nearestEventEdgeAtPoint(mid, v, width, 105, y, 10)?.eventId).toBe('e1');
   });
 });

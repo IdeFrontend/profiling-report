@@ -38,6 +38,14 @@ withDefaults(
   border-width: 0 1.2px 1.2px 0;
   width: 5px;
   height: 5px;
+  /* Folders/Cards rotate the arrow between right/down — tween instead of snapping. */
+  transition: transform 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-chevron::before {
+    transition: none;
+  }
 }
 
 .pr-chevron--down::before {

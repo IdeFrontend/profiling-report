@@ -15,6 +15,7 @@ import {
   layoutHeaders,
   leafRowCount,
   rebuildLayout,
+  collapseTransform,
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   snapEventRect,
@@ -26,7 +27,7 @@ import {
 } from '../../src/swimlane/layout';
 import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
-import { dependencyGraph, dependencyStrokeWidth } from '../../src/swimlane/dependencyLinks';
+import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
@@ -632,6 +633,152 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.render();
 
     expect(curveLineWidth).toBe(dependencyStrokeWidth(2));
+  });
+
+  it('PR-RENDER-029: hides only dep curves with an endpoint in the collapsing subtree', () => {
+    // folder(core) → mte1(e1) | sibling hbm(eH) linked to e1. Collapsing core hides e1↔eH;
+    // a second link entirely below the fold (if any) would still draw — here we assert hide.
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [
+            {
+              id: 'core',
+              name: 'Core',
+              events: [],
+              children: [
+                {
+                  id: 'mte1',
+                  name: 'MTE1',
+                  events: [
+                    {
+                      id: 'e1',
+                      name: 'a',
+                      startTime: 0,
+                      duration: 10,
+                      dependencies: {
+                        predecessors: [],
+                        successors: [{ tid: 'hbm', index: 0 }],
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: 'hbm',
+              name: 'HBM',
+              events: [
+                {
+                  id: 'eH',
+                  name: 'h',
+                  startTime: 20,
+                  duration: 10,
+                  dependencies: {
+                    predecessors: [{ tid: 'mte1', index: 0 }],
+                    successors: [],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const canvas = document.createElement('canvas');
+    const ctx = mock2dContext();
+    let bezierCalls = 0;
+    ctx.bezierCurveTo = () => {
+      bezierCalls += 1;
+    };
+    vi.spyOn(canvas, 'getContext').mockReturnValue(ctx);
+
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 200, 1);
+    renderer.setModel(model);
+    renderer.setSelection('e1', null);
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    renderer.render();
+    expect(bezierCalls).toBeGreaterThan(0);
+
+    bezierCalls = 0;
+    renderer.setCollapseAnim({ groupId: 'core', visible: 0.5, hiddenHeight: 22 });
+    renderer.render();
+    // e1 is in the collapsing subtree → curve suppressed.
+    expect(bezierCalls).toBe(0);
+
+    bezierCalls = 0;
+    renderer.setCollapseAnim(null);
+    renderer.render();
+    expect(bezierCalls).toBeGreaterThan(0);
+  });
+
+  it('PR-RENDER-029: keeps dep curves when neither endpoint is in the collapsing subtree', () => {
+    // Two top-level leaves linked; collapsing an unrelated empty folder must keep the curve.
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [
+            {
+              id: 'a',
+              name: 'A',
+              events: [
+                {
+                  id: 'eA',
+                  name: 'a',
+                  startTime: 0,
+                  duration: 10,
+                  dependencies: { predecessors: [], successors: [{ tid: 'b', index: 0 }] },
+                },
+              ],
+            },
+            {
+              id: 'b',
+              name: 'B',
+              events: [
+                {
+                  id: 'eB',
+                  name: 'b',
+                  startTime: 20,
+                  duration: 10,
+                  dependencies: { predecessors: [{ tid: 'a', index: 0 }], successors: [] },
+                },
+              ],
+            },
+            {
+              id: 'empty',
+              name: 'Empty',
+              events: [],
+              children: [{ id: 'empty/x', name: 'X', events: [] }],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(model);
+    const { links } = dependencyGraph(layout, 'eA');
+    expect(links.length).toBe(1);
+    const t = collapseTransform(layout, { groupId: 'empty', visible: 0.5, hiddenHeight: 22 });
+    expect(t.active).toBe(true);
+    const painted = depLinksForCollapsePaint(links, t);
+    expect(painted).toHaveLength(1);
+  });
+
+  it('PR-RENDER-030: WebGL lane chrome uses premultiplied alpha blending for collapse fade', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw')).default as string;
+    expect(webglSrc).toMatch(/blendFuncSeparate\(gl\.ONE,\s*gl\.ONE_MINUS_SRC_ALPHA/);
+    expect(webglSrc).toMatch(/rgb\[0\] \* alpha/);
+    expect(webglSrc).toMatch(/collapseAlpha\(lane\.y/);
   });
 });
 

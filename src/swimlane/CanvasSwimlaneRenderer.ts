@@ -12,13 +12,20 @@ import {
   cubicControlPull,
   dependencyGraph,
   dependencyStrokeWidth,
+  depLinksForCollapsePaint,
   linkIntersectsTimeView,
   linkToScreen,
   type DependencyLink,
 } from './dependencyLinks';
 import {
+  collapseAlpha,
+  collapseShiftY,
+  collapseTransform,
+  applyCollapseAnim,
+  collapseGhostSummaries,
   EMPTY_LAYOUT,
   eventPaintRect,
+  IDLE_COLLAPSE,
   LANE_FILL,
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
@@ -36,6 +43,8 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_LABEL_COLOR,
+  type CollapseAnimState,
+  type CollapseTransform,
   type LaidOutEvent,
   type SwimlaneLayout,
 } from './layout';
@@ -129,6 +138,55 @@ function roundRectPath(
   ctx.closePath();
 }
 
+/** Paint folder summary ghosts during collapse/expand (dissolve / re-aggregate). */
+function paintCollapseGhostSummaries(
+  ctx: CanvasRenderingContext2D,
+  layout: SwimlaneLayout,
+  state: CollapseAnimState | null,
+  view: SwimlaneViewWindow,
+  width: number,
+  height: number,
+  dpr: number,
+  selectedId: string | null,
+  hoveredId: string | null,
+): void {
+  const ghosts = collapseGhostSummaries(layout, state);
+  if (ghosts.length === 0) return;
+  const span = Math.max(1, view.endTime - view.startTime);
+  for (const item of ghosts) {
+    const ev = item.event;
+    const alpha = item.alpha ?? 1;
+    if (alpha <= 0) continue;
+    if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
+    const x = ((ev.startTime - view.startTime) / span) * width;
+    const w = Math.max(2, (ev.duration / span) * width);
+    const metrics = eventBlockMetrics(item.y, view.scrollY);
+    const y = metrics.y * dpr;
+    const h = metrics.h * dpr;
+    if (y + h < 0 || y > height) continue;
+    const fr = eventPaintRect(x, y, w, h, dpr);
+    const eventState = eventStateOf(item.id, selectedId, hoveredId);
+    const fill = eventFill(item.color, eventState);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = fill;
+    roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
+    ctx.fill();
+    drawEventLabel(
+      ctx,
+      taskCountLabel(ev.taskCount ?? 0),
+      fr.x,
+      fr.y,
+      fr.w,
+      fr.h,
+      width,
+      alpha,
+      SUMMARY_LABEL_COLOR,
+      dpr,
+    );
+    ctx.globalAlpha = 1;
+  }
+}
+
 /**
  * Canvas2D overlay: labels and hover/selection state fills.
  * Used on top of WebGL interval fills (hybrid path).
@@ -138,6 +196,7 @@ export class SwimlaneOverlayPainter {
   private ctx: CanvasRenderingContext2D | null = null;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
+  private collapse: CollapseTransform = IDLE_COLLAPSE;
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
@@ -150,6 +209,8 @@ export class SwimlaneOverlayPainter {
   private width = 0;
   private height = 0;
   private dpr = 1;
+  /** Full collapse state — ghost summaryEvents painted during the tween. */
+  private collapseState: CollapseAnimState | null = null;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -170,6 +231,14 @@ export class SwimlaneOverlayPainter {
   setLayout(layout: SwimlaneLayout): void {
     if (layout === this.layout) return;
     this.layout = layout;
+    this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
+  }
+
+  /** Per-frame collapse/expand transform (see layout.collapseTransform). */
+  setCollapseAnim(state: CollapseAnimState | null): void {
+    this.collapseState = state;
+    this.collapse = collapseTransform(this.layout, state);
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -222,9 +291,11 @@ export class SwimlaneOverlayPainter {
       if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
         continue;
       }
+      const laneY = collapseShiftY(item.y, this.collapse);
+      const laneAlpha = collapseAlpha(item.y, this.collapse);
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const metrics = eventBlockMetrics(item.y, this.view.scrollY);
+      const metrics = eventBlockMetrics(laneY, this.view.scrollY);
       const y = metrics.y * dpr;
       const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
@@ -264,12 +335,13 @@ export class SwimlaneOverlayPainter {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const { alpha, muted } = eventEmphasis(
+      const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
         bright.has(item.id) || item.id === this.hoveredId,
         hasSearch,
         hasSelection,
       );
+      const alpha = emphAlpha * laneAlpha;
 
       // The GL pass laid down the resting fill at this block's own emphasis. Painting a
       // semi-transparent state fill on top of that would double-composite — Canvas
@@ -279,7 +351,7 @@ export class SwimlaneOverlayPainter {
       const fill = eventFill(item.color, state);
       if (state !== 'normal') {
         const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = laneAlpha;
         ctx.fillStyle =
           laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
         roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
@@ -311,6 +383,19 @@ export class SwimlaneOverlayPainter {
       }
     }
 
+    // Folder summary ghosts dissolve/aggregate over the fading subtree (PR-RENDER-028).
+    paintCollapseGhostSummaries(
+      ctx,
+      this.layout,
+      this.collapseState,
+      this.view,
+      this.width,
+      this.height,
+      dpr,
+      this.selectedId,
+      this.hoveredId,
+    );
+
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
   }
 
@@ -318,6 +403,8 @@ export class SwimlaneOverlayPainter {
     this.canvas = null;
     this.ctx = null;
     this.layout = EMPTY_LAYOUT;
+    this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
     this.neighborIds = new Set();
   }
 }
@@ -326,8 +413,13 @@ export class SwimlaneOverlayPainter {
 export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
+  /** Expanded layout the collapse tween interpolates from; paint uses this + `collapse`. */
+  private baseLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private layout: SwimlaneLayout = EMPTY_LAYOUT;
+  /** Shifted layout for hit-test / magnetize / eventScreenRect (matches paint). */
+  private hitLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
+  private collapse: CollapseTransform = IDLE_COLLAPSE;
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
@@ -340,6 +432,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private width = 0;
   private height = 0;
   private dpr = 1;
+  private collapseState: CollapseAnimState | null = null;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -360,8 +453,19 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setModel(model: SwimlaneModel): void {
-    this.layout = rebuildLayout(model);
+    this.baseLayout = rebuildLayout(model);
+    this.layout = this.baseLayout;
+    this.hitLayout = this.baseLayout;
+    this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
     this.refreshDepCache();
+  }
+
+  /** Per-frame collapse/expand transform applied inline in `render` (no layout rebuild). */
+  setCollapseAnim(state: CollapseAnimState | null): void {
+    this.collapseState = state;
+    this.collapse = collapseTransform(this.baseLayout, state);
+    this.hitLayout = state ? applyCollapseAnim(this.baseLayout, state) : this.baseLayout;
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -410,7 +514,12 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   getLayout(): SwimlaneLayout {
-    return this.layout;
+    return this.hitLayout;
+  }
+
+  /** Expanded base layout for overlay paint (collapse applied via setCollapseAnim). */
+  getBaseLayout(): SwimlaneLayout {
+    return this.baseLayout;
   }
 
   getNeighborIds(): Set<string> {
@@ -423,17 +532,17 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
-    const item = findLaidOutEvent(this.layout, eventId);
+    const item = findLaidOutEvent(this.hitLayout, eventId);
     if (!item) return null;
     return eventScreenRect(item, this.view, this.width, this.dpr);
   }
 
   hitTest(x: number, y: number): string | null {
-    return hitTestLayout(this.layout, this.view, this.width, x, y, this.dpr);
+    return hitTestLayout(this.hitLayout, this.view, this.width, x, y, this.dpr);
   }
 
   findEvent(id: string): SwimEvent | null {
-    return findEvent(this.layout, id);
+    return findEvent(this.hitLayout, id);
   }
 
   private refreshDepCache(): void {
@@ -454,7 +563,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const dpr = this.dpr;
 
     for (const header of this.layout.headers) {
-      const headerTop = (header.y - this.view.scrollY) * dpr;
+      const headerTop = (collapseShiftY(header.y, this.collapse) - this.view.scrollY) * dpr;
       const headerH = LANE_GROUP_HEADER_HEIGHT * dpr;
       if (headerTop + headerH > 0 && headerTop < this.height) {
         ctx.fillStyle = LANE_GROUP_HEADER_FILL;
@@ -469,9 +578,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
-      const y = (lane.y - this.view.scrollY) * dpr;
+      const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
       const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > this.height) continue;
+      ctx.globalAlpha = collapseAlpha(lane.y, this.collapse);
       ctx.fillStyle = lane.thread.id === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
       ctx.fillRect(0, y, this.width, laneH);
       ctx.strokeStyle = '#3a3a3a';
@@ -479,6 +589,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.moveTo(0, y + laneH - 0.5);
       ctx.lineTo(this.width, y + laneH - 0.5);
       ctx.stroke();
+      ctx.globalAlpha = 1;
     }
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
@@ -506,7 +617,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
-      const metrics = eventBlockMetrics(item.y, this.view.scrollY);
+      const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
       const y = metrics.y * dpr;
       const h = metrics.h * dpr;
       if (y + h < 0 || y > this.height) continue;
@@ -538,12 +649,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const { alpha, muted } = eventEmphasis(
+      const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
         bright.has(item.id) || item.id === this.hoveredId,
         hasSearch,
         hasSelection,
       );
+      const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
       const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
       const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
       ctx.globalAlpha = alpha;
@@ -564,6 +676,18 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       });
     }
 
+    paintCollapseGhostSummaries(
+      ctx,
+      this.baseLayout,
+      this.collapseState,
+      this.view,
+      this.width,
+      this.height,
+      dpr,
+      this.selectedId,
+      this.hoveredId,
+    );
+
     for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
       if (matches) {
         drawEventLabel(
@@ -583,7 +707,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     // Dependency curves draw above event labels.
     if (this.paintDependencies) {
-      paintDependencyLinksDevice(ctx, this.depLinks, this.view, this.width, this.dpr);
+      paintDependencyLinksDevice(
+        ctx,
+        depLinksForCollapsePaint(this.depLinks, this.collapse),
+        this.view,
+        this.width,
+        this.dpr,
+      );
     }
 
     // Cursor is a DOM overlay under Card strips (SwimlaneView); not painted here.
@@ -592,7 +722,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   dispose(): void {
     this.canvas = null;
     this.ctx = null;
+    this.baseLayout = EMPTY_LAYOUT;
     this.layout = EMPTY_LAYOUT;
+    this.hitLayout = EMPTY_LAYOUT;
+    this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
     this.neighborIds = new Set();
     this.depLinks = [];
   }

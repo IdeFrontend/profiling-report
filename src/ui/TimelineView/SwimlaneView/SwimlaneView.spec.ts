@@ -27,6 +27,52 @@ describe('SwimlaneView', () => {
     expect(wrapper.find('.pr-swim-row--body').exists()).toBe(true);
   });
 
+  it('PR-SWIMVIEW-020: Alt-measure findEvent resolves collapsed-folder summaryEvents', async () => {
+    const { ALT_MEASURE_FIND_EVENT_KEY } = await import('./altMeasureShared');
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const summary = { id: 'folder/summary/0', name: '', startTime: 10, duration: 50 };
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: ['folder'],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [
+                {
+                  id: 'folder',
+                  name: 'Folder',
+                  events: [],
+                  children: [{ id: 'leaf', name: 'Leaf', events: [] }],
+                  summaryEvents: [summary],
+                },
+              ],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const find = (
+      wrapper.vm as unknown as {
+        $: { provides: Record<symbol, (id: string) => { id: string } | null> };
+      }
+    ).$.provides[ALT_MEASURE_FIND_EVENT_KEY as symbol];
+    expect(find('folder/summary/0')?.id).toBe('folder/summary/0');
+    expect(find('missing')).toBeNull();
+  });
+
   it('PR-SWIMVIEW-002: Card strip covers full width and emits toggle-group', async () => {
     const view = createViewState({
       minTime: 0,
@@ -367,7 +413,28 @@ describe('SwimlaneView', () => {
       },
     });
     const strip = wrapper.get('[data-testid="pinned-strip"]').element as HTMLElement;
-    expect(strip.style.height).toBe('44px');
+    // Transition uses --pr-pinned-h; computed height still reflects rowCount × LANE_HEIGHT.
+    expect(strip.style.getPropertyValue('--pr-pinned-h').trim() || strip.style.height).toBe('44px');
+  });
+
+  it('PR-SWIMVIEW-025: pinned strip appears/disappears with a 200ms height transition', async () => {
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-pinned-strip\s*\{[^}]*height:\s*var\(--pr-pinned-h[^)]*\)/s);
+    expect(src).toMatch(/\.pr-pinned-strip\s*\{[^}]*transition:\s*height\s+200ms\s+ease/s);
+    // Enter/leave collapse the strip so appearing never jumps the body below it.
+    expect(src).toMatch(
+      /\.pr-pinned-strip\.pr-pinned-enter-from,[\s\S]*?\.pr-pinned-strip\.pr-pinned-leave-to\s*\{[^}]*height:\s*0/s,
+    );
+    expect(src).toMatch(/prefers-reduced-motion:\s*reduce/);
+  });
+
+  it('PR-SWIMVIEW-026: collapse tween slides canvas + Card strips + gutter', async () => {
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    // Forwards the tween to the body canvas and the gutter.
+    expect(src).toMatch(/:collapse-anim="collapseAnim"/);
+    // Card strips below a collapsing Card shift up by the same offset as the canvas.
+    expect(src).toMatch(/anim\.hiddenHeight \* \(1 - anim\.visible\)/);
+    expect(src).toMatch(/LANE_GROUP_HEADER_HEIGHT/);
   });
 
   it('PR-SWIMVIEW-014: pinned duplicates keep the same lane ids as originals', () => {

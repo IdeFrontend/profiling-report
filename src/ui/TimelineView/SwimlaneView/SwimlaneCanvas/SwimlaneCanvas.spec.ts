@@ -2023,4 +2023,113 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('lane-hover')).toBeUndefined();
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-069: freezeBackingStore skips buffer realloc until thaw', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: { processes: [], minTime: 0, maxTime: 1000 },
+        freezeBackingStore: false,
+      },
+      attachTo: document.body,
+    });
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 640, configurable: true, writable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 240, configurable: true, writable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({
+        left: 0,
+        top: 0,
+        width: 640,
+        height: 240,
+        right: 640,
+        bottom: 240,
+      }),
+      configurable: true,
+    });
+    await fireAllDeviceRo();
+    expect(canvas.width).toBe(640);
+
+    await wrapper.setProps({ freezeBackingStore: true });
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({
+        left: 0,
+        top: 0,
+        width: 400,
+        height: 240,
+        right: 400,
+        bottom: 240,
+      }),
+      configurable: true,
+    });
+    await fireAllDeviceRo();
+    // Frozen: CSS box shrank, device buffer kept.
+    expect(canvas.width).toBe(640);
+
+    await wrapper.setProps({ freezeBackingStore: false });
+    await nextTick();
+    expect(canvas.width).toBe(400);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-070: frozen hit path scales CSS pointer into device buffer space', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: eventModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        freezeBackingStore: false,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    const el = canvas.element as HTMLCanvasElement;
+    const box = { left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 };
+    Object.defineProperty(wrap, 'clientWidth', {
+      get: () => box.width,
+      configurable: true,
+    });
+    Object.defineProperty(wrap, 'clientHeight', {
+      get: () => box.height,
+      configurable: true,
+    });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ ...box }),
+      configurable: true,
+    });
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => ({ ...box }),
+      configurable: true,
+    });
+    await fireAllDeviceRo();
+    expect(el.width).toBe(400);
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+      renderer: () => { hitTest: (x: number, y: number) => string | null };
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const midX = rect.x + rect.w / 2;
+    const midY = rect.y + rect.h / 2;
+    expect(vm.renderer().hitTest(midX, midY)).toBe('e1');
+
+    await wrapper.setProps({ freezeBackingStore: true });
+    box.width = 200;
+    box.right = 200;
+    await fireAllDeviceRo();
+    expect(el.width).toBe(400);
+
+    // Painted mid maps to CSS x = midX * (200/400).
+    const cssX = midX * (200 / 400);
+    await canvas.trigger('pointermove', { clientX: cssX, clientY: midY, pointerId: 1 });
+    const hover = wrapper.emitted('hover')!.at(-1)![0] as { id: string } | null;
+    expect(hover?.id).toBe('e1');
+
+    wrapper.unmount();
+  });
 });
