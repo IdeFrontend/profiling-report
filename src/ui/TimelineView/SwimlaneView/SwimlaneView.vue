@@ -4,6 +4,7 @@ import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
   type MeasureRange,
+  type OverviewSeries,
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
@@ -32,6 +33,8 @@ import {
 } from '../../panelResize';
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
+import OverviewCharts from '../OverviewCharts/OverviewCharts.vue';
+import { overviewSectionHeightPx } from '../OverviewCharts/overviewLayout';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import CardMetricSelect from './CardMetricSelect.vue';
@@ -51,6 +54,12 @@ const props = withDefaults(
      * Pass the full tree so pins survive ancestor collapse.
      */
     pinSourceModel?: SwimlaneModel | null;
+    /** Full overview series; sticky strip filters by pinnedOverviewIds. */
+    overviewSeries?: OverviewSeries[];
+    /** When false, hide scrollable + sticky overview charts. */
+    showOverviewCharts?: boolean;
+    /** Overview series ids in pin order (PyPTO counter pin). */
+    pinnedOverviewIds?: string[];
     view: SwimlaneViewState;
     selectedEventId: string | null;
     hoveredEventId: string | null;
@@ -79,6 +88,9 @@ const props = withDefaults(
     cursorXRatio: null,
     cursorSnapped: false,
     collapseAnim: null,
+    overviewSeries: () => [],
+    pinnedOverviewIds: () => [],
+    showOverviewCharts: true,
   },
 );
 
@@ -88,6 +100,8 @@ const emit = defineEmits<{
   'toggle-group': [groupId: string];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
+  'pin-overview': [seriesId: string];
+  'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -149,10 +163,32 @@ watch(
 const collapsed = computed(() => new Set(props.collapsedIds));
 
 const pinnedLaneIds = computed(() => props.pinnedLaneIds ?? []);
+const pinnedOverviewIds = computed(() => props.pinnedOverviewIds ?? []);
 const pinnedRows = computed(() => resolvePinnedGutterLanes(props.groups, pinnedLaneIds.value));
 const pinnedModel = computed(() =>
   buildPinnedSwimModel(props.pinSourceModel ?? props.model, pinnedLaneIds.value),
 );
+/** Sticky overview tracks in pin order (skip ids missing from current series). */
+const pinnedOverviewSeries = computed(() => {
+  const byId = new Map((props.overviewSeries ?? []).map((s) => [s.id, s]));
+  return pinnedOverviewIds.value
+    .map((id) => byId.get(id))
+    .filter((s): s is OverviewSeries => s != null);
+});
+
+/** Scrollable 统计分析 block (all series); scrolls away with lanes unless pinned copies stay sticky. */
+const scrollOverviewSeries = computed(() =>
+  props.showOverviewCharts !== false && (props.overviewSeries?.length ?? 0) > 0
+    ? (props.overviewSeries ?? [])
+    : [],
+);
+
+const overviewCollapsed = ref(false);
+
+const overviewContentPad = computed(() =>
+  overviewSectionHeightPx(scrollOverviewSeries.value.length, overviewCollapsed.value),
+);
+
 
 /** Shared Alt-measure session so pin-strip ↔ body can measure across sticky and scroll lanes. */
 const altMeasureShared = createAltMeasureShared();
@@ -260,12 +296,13 @@ const cardHeaders = computed(() => {
 
 const visibleCardStrips = computed(() => {
   const scrollY = props.view.scrollY;
+  const pad = overviewContentPad.value;
   // 0 until ResizeObserver / mount measures the body; show all and let overflow:hidden clip.
   const viewportH = bodyViewportH.value > 0 ? bodyViewportH.value : Number.POSITIVE_INFINITY;
   return cardHeaders.value
     .map((h) => ({
       ...h,
-      top: h.y - scrollY,
+      top: h.y + pad - scrollY,
     }))
     .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < viewportH);
 });
@@ -352,8 +389,13 @@ function clearCursor() {
   emit('cursor', null);
 }
 
-/** Keep scroll/zoom working over full-width Card chrome. */
+/** Keep scroll/zoom/pan working over full-width Card chrome and overview charts. */
 function onStripWheel(e: WheelEvent) {
+  canvasRef.value?.handleWheel(e);
+}
+
+/** OverviewCharts sits above the canvas — same wheel gestures as the swimlane. */
+function onOverviewWheel(e: WheelEvent) {
   canvasRef.value?.handleWheel(e);
 }
 
@@ -483,10 +525,47 @@ defineExpose({
       </div>
     </Transition>
 
+    <OverviewCharts
+      v-if="pinnedOverviewSeries.length"
+      variant="strip"
+      :series="pinnedOverviewSeries"
+      :pinned-overview-ids="pinnedOverviewIds"
+      :start-time="view.startTime"
+      :end-time="view.endTime"
+      :gutter-width="localGutterWidth"
+      :locale="locale"
+      :measure-mode="measureMode"
+      @pin-overview="emit('pin-overview', $event)"
+      @unpin-overview="emit('unpin-overview', $event)"
+      @cursor="onCursor"
+      @wheel="onOverviewWheel"
+      @pan="emit('pan', $event)"
+    />
+
     <div
       ref="bodyRef"
       class="pr-swim-row pr-swim-row--body"
     >
+      <OverviewCharts
+        v-if="scrollOverviewSeries.length"
+        class="pr-body-overview"
+        :style="{ transform: `translateY(${-view.scrollY}px)` }"
+        :series="scrollOverviewSeries"
+        :pinned-overview-ids="pinnedOverviewIds"
+        :start-time="view.startTime"
+        :end-time="view.endTime"
+        :gutter-width="localGutterWidth"
+        :locale="locale"
+        :measure-mode="measureMode"
+        :collapsed="overviewCollapsed"
+        @pin-overview="emit('pin-overview', $event)"
+        @unpin-overview="emit('unpin-overview', $event)"
+        @cursor="onCursor"
+        @wheel="onOverviewWheel"
+        @pan="emit('pan', $event)"
+        @update:collapsed="overviewCollapsed = $event"
+      />
+
       <button
         type="button"
         class="pr-gutter-resize"
@@ -500,6 +579,8 @@ defineExpose({
 
       <LaneGutter
         ref="gutterRef"
+        class="pr-body-gutter"
+        :style="{ paddingTop: `${overviewContentPad}px` }"
         :groups="groups"
         :collapsed-ids="collapsedIds"
         :pinned-lane-ids="pinnedLaneIds"
@@ -516,6 +597,7 @@ defineExpose({
         ref="canvasRef"
         :model="model"
         :view="view"
+        :content-top-pad="overviewContentPad"
         :selected-event-id="selectedEventId"
         :hovered-event-id="hoveredEventId"
         :hovered-lane-id="hoveredLaneId"
@@ -585,6 +667,18 @@ defineExpose({
           </span>
         </div>
       </div>
+    </div>
+    <div
+      v-if="cursorXRatio != null"
+      class="pr-stack-cursor-layer"
+      data-testid="stack-cursor"
+      aria-hidden="true"
+    >
+      <div
+        class="pr-stack-cursor"
+        :class="{ 'pr-stack-cursor--snapped': cursorSnapped }"
+        :style="{ left: `${cursorXRatio * 100}%` }"
+      />
     </div>
   </div>
 </template>
@@ -677,6 +771,19 @@ defineExpose({
   overflow: hidden;
 }
 
+.pr-body-overview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  will-change: transform;
+}
+
+.pr-body-gutter {
+  box-sizing: border-box;
+}
+
 /* Pin to used gutter column so the handle stays on the seam when the column shrinks. */
 /*
  * Pin to the used gutter column so the handle stays on the seam when the column
@@ -760,5 +867,30 @@ defineExpose({
   font-weight: 700;
   line-height: 22px;
   letter-spacing: 0;
+}
+
+/* Full-height playhead over the chart column (above overview z-index 4) so the
+ * line stays continuous through 统计分析 header/tracks down to the swim bottom. */
+.pr-stack-cursor-layer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--pr-gutter-width, 280px);
+  pointer-events: none;
+  z-index: 9;
+  overflow: hidden;
+}
+
+.pr-stack-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #317af7;
+}
+
+.pr-stack-cursor--snapped {
+  background: #4c4c4c;
 }
 </style>

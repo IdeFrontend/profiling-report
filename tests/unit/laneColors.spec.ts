@@ -5,6 +5,10 @@ import {
   labelColorOn,
   LANE_COLOR_HEX,
   laneColorKey,
+  overviewSeriesStroke,
+  overviewStrokeHex,
+  OVERVIEW_CUBE_STROKE,
+  OVERVIEW_STROKE_LIFT_L,
 } from '../../src/domain/laneColors';
 import { hexToOklch, oklchToHex } from '../../src/domain/oklch';
 
@@ -116,5 +120,32 @@ describe('laneColorKey', () => {
   it('keeps AIV pipe-state names intact (no Core*.*/PIPE suffix rule)', () => {
     expect(laneColorKey('AIV0/PIPE_V/status')).toBe('vector');
     expect(laneColorKey('AIV0/PIPE_S/status')).toBe('scalar');
+  });
+});
+
+describe('overviewStrokeHex', () => {
+  it('lifts pipe bases by OVERVIEW_STROKE_LIFT_L in OKLCH', () => {
+    for (const [key, base] of Object.entries(LANE_COLOR_HEX)) {
+      if (key === 'cube') continue; // series path uses dedicated accent
+      const lifted = overviewStrokeHex(base);
+      expect(L(lifted) - L(base), key).toBeCloseTo(OVERVIEW_STROKE_LIFT_L, 2);
+    }
+  });
+
+  it('leaves already-bright accents alone', () => {
+    expect(overviewStrokeHex('#B868F8')).toBe('#B868F8');
+  });
+
+  it('overviewSeriesStroke: Cube accent; Vector via laneColorKey lift; 通信 mov', () => {
+    expect(overviewSeriesStroke('CUBE')).toBe(OVERVIEW_CUBE_STROKE);
+    expect(overviewSeriesStroke('VECTOR').toLowerCase()).toBe('#56b19f');
+    expect(overviewSeriesStroke('VECTOR')).not.toBe(LANE_COLOR_HEX.vector);
+    expect(overviewSeriesStroke('FIXPIPE').toLowerCase()).toBe(
+      overviewStrokeHex(LANE_COLOR_HEX.fixp).toLowerCase(),
+    );
+    expect(overviewSeriesStroke('通信')).toBe('#B868F8');
+    // Expected product stroke ~#53B3A3 sits within a few RGB of L+0.2 lift.
+    const [r, g, b] = [0x56, 0xb1, 0x9f];
+    expect(Math.hypot(r - 0x53, g - 0xb3, b - 0xa3)).toBeLessThan(8);
   });
 });

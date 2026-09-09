@@ -11,6 +11,14 @@ function xOffsets(box: CanvasBox, fractions: number[]): number[] {
   return fractions.map((f) => Math.min(Math.round(f * box.width), box.width - 4));
 }
 
+/** Scrollable 统计分析 block overlays the canvas top (contentTopPad). */
+async function overviewTopPad(page: Page): Promise<number> {
+  const ov = page.getByTestId('overview-charts');
+  if ((await ov.count()) === 0) return 0;
+  const b = await ov.boundingBox();
+  return b?.height ?? 0;
+}
+
 async function waitForDepCurves(
   page: Page,
   gl: ReturnType<Page['getByTestId']>,
@@ -41,8 +49,10 @@ async function probeSwimlane(
   const maxLanes = opts.maxLanes ?? 12;
   const fractions = opts.xFractions ?? EVENT_X_FRACTIONS;
   const hitTimeoutMs = opts.hitTimeoutMs ?? 400;
+  const topPad = await overviewTopPad(page);
   for (let lane = 0; lane < maxLanes; lane++) {
-    const y = box.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+    const y = box.y + topPad + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+    if (y > box.y + box.height - 2) break;
     for (const xOff of xOffsets(box, fractions)) {
       const x = box.x + xOff;
       if (opts.action === 'move') await page.mouse.move(x, y);
@@ -70,8 +80,10 @@ async function probeSwimlaneDepCurves(
   const maxLanes = opts?.maxLanes ?? 24;
   const offsets = opts?.xOffsetsPx ?? [24, 80, 160, 280, 420];
   const paintTimeoutMs = opts?.paintTimeoutMs ?? 400;
+  const topPad = await overviewTopPad(page);
   for (let lane = 0; lane < maxLanes; lane++) {
-    const y = box.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+    const y = box.y + topPad + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+    if (y > box.y + box.height - 2) break;
     for (const xOff of offsets) {
       if (xOff >= box.width - 2) continue;
       await page.mouse.click(box.x + xOff, y);
@@ -93,7 +105,9 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
     await expect(page.getByTestId('pipe-occupancy')).toBeVisible();
-    await expect(page.getByTestId('overview-charts')).toHaveCount(0);
+    // sample.lite.rep embeds Sampling.json (CUBE/VECTOR) → overview tracks (DATA-39).
+    await expect(page.getByTestId('overview-charts')).toBeVisible();
+    await expect(page.locator('[data-testid="overview-charts"] [data-series-id="CUBE"]')).toBeVisible();
   });
 
   test('PR-E2E-011: playground loads the product 160-byte npu-rep sample (in-browser parse)', async ({ page }) => {
@@ -160,7 +174,11 @@ test.describe('PR-E2E feature paths', () => {
     const canvas = page.getByTestId('swimlane-canvas');
     const box = await canvas.boundingBox();
     expect(box).toBeTruthy();
-    await page.mouse.move(box!.x + 40, box!.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
+    const topPad = await overviewTopPad(page);
+    await page.mouse.move(
+      box!.x + 40,
+      box!.y + topPad + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2,
+    );
     await expect(page.getByTestId('cursor-line')).toBeVisible();
     await expect(page.getByTestId('cursor-label')).toBeVisible();
     await expect(page.getByTestId('cursor-label')).toHaveText(/^[\d][\d. ]*\s+(ms|µs|ns|s)$/);
@@ -297,8 +315,12 @@ test.describe('PR-E2E feature paths', () => {
     const overlay = page.getByTestId('swimlane-canvas');
     await expect(overlay).toBeVisible({ timeout: 15_000 });
     const box = (await overlay.boundingBox())!;
+    const topPad = await overviewTopPad(page);
 
-    await page.mouse.click(box.x + 106, box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2);
+    await page.mouse.click(
+      box.x + 106,
+      box.y + topPad + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2,
+    );
     const panel = page.getByTestId('detail-panel');
     await expect(panel).toBeVisible();
 

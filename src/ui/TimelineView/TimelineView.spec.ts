@@ -95,6 +95,29 @@ describe('TimelineView', () => {
     );
   });
 
+  it('PR-OV-003: overview charts mount in the swim body below the time axis', () => {
+    const wrapper = mount(TimelineView, {
+      props: {
+        ...baseProps(),
+        showOverviewCharts: true,
+        overviewSeries: [
+          { id: 'CUBE', label: 'CUBE', points: [{ t: 0, v: 1 }, { t: 1000, v: 2 }] },
+        ],
+      },
+    });
+    const root = wrapper.get('[data-testid="timeline-view"]').element;
+    const axis = wrapper.get('[data-testid="time-axis"]').element;
+    const overview = wrapper.get('[data-testid="overview-charts"]').element;
+    const body = wrapper.get('.pr-swim-row--body').element;
+    expect(body.contains(overview)).toBe(true);
+    const kids = [...root.children] as HTMLElement[];
+    const axisRow = kids.find((el) => el.contains(axis));
+    const swimStack = kids.find((el) => el.contains(body));
+    expect(axisRow).toBeTruthy();
+    expect(swimStack).toBeTruthy();
+    expect(kids.indexOf(axisRow!)).toBeLessThan(kids.indexOf(swimStack!));
+  });
+
   it('PR-TIMELINE-002: measure mode keeps overview and draws axis bars + arrow', () => {
     stubAxisWidth(400);
     const view = createViewState({

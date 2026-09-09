@@ -3,5 +3,13 @@ source_primary: v930/entry
 crops:
   overview-charts.png:
     source: v930/entry
-    region: "统计分析 Cube/Vector/通信 overview chart tracks with gutter labels"
-    box: { x: 1280, y: 720, w: 4700, h: 420 }
+    region: "统计分析 group above swimlane — gutter labels + Cube/Vector/通信 area tracks"
+    box: { x: 1280, y: 720, w: 4700, h: 440 }
+  overview-charts-gutter.png:
+    source: v930/entry
+    region: "统计分析 gutter — chevron header + 通信 / Cube / Vector labels"
+    box: { x: 1280, y: 720, w: 400, h: 440 }
+  overview-charts-track.png:
+    source: v930/entry
+    region: "Cube overview area track — bright stroke + darker fill (16px CSS target)"
+    box: { x: 2000, y: 1040, w: 2400, h: 40 }

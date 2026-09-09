@@ -16,6 +16,7 @@ const FILE_FIXTURES = {
   rep: { name: 'out.rep', url: '/data/out.rep' },
   example: { name: 'example.rep', url: '/data/example.rep' },
   npu160: { name: 'example160.rep', url: '/data/example160.rep' },
+  vector_muladd: { name: 'vector_muladd_plain.npu-rep', url: '/data/vector_muladd_plain.npu-rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
 } as const;
 

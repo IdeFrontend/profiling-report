@@ -34,6 +34,8 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim body (below overview/axis chrome, above the scrolling lane body) renders **duplicate** leaf rows for each pinned id, in pin order. Original rows stay in the main scroll model at their tree positions.
 
+When **pinnedOverviewIds** is non-empty, a sticky **OverviewCharts** strip (`variant=strip`) renders **below** the lane pin strip and **above** the scrolling body, in overview pin order (PyPTO counter-thread pin parity). Unpinned 统计分析 tracks live at the top of the scroll body under a Card-like collapsible header and move with `scrollY`. Wheel over overview (scroll or sticky) is forwarded to the body canvas `handleWheel` (same scroll / trackpad pan / Ctrl+zoom as Card strips); chart-column drag emits `pan`. Collapse updates body `contentTopPad`.
+
 | Concern | Behavior |
 |---------|----------|
 | Gutter | Pinned strip shows duplicate lane labels + util for each pinned leaf (same chrome as originals; pushpin shown **filled** `#4a90e2`) |
@@ -58,7 +60,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 4. **PR-SWIMVIEW-004** — Stacking: measure borders below Card strips (`z-index: 8`); swim cursor and Alt-measure chrome (`z-index: 9`) above Card strips; blue edge marks (`z-index: 10–11`) above the cursor / Alt-measure band; pin↔body Alt-measure bridge also at `z-index: 9`.
 5. **PR-SWIMVIEW-005** — `pointerenter` on a Card strip clears the swim cursor and emits `cursor` `null` immediately.
 6. **PR-SWIMVIEW-006** — Card strip fill/hover use `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` CSS vars (no hardcoded `rgb(42…)` / `rgb(50…)`).
-7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar (axis hover / shared playhead).
+7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar and the stack-level chart-column playhead (`stack-cursor`) so the line stays continuous through overview chrome.
 8. **PR-SWIMVIEW-008** — Gutter resize handle pins to used grid column (`grid-column: 1 / 2`); track column uses `minmax(80px, 1fr)`.
 9. **PR-SWIMVIEW-009** — When the cursor is magnetized (`cursorSnapped`), the swim vertical bar renders gray (`.pr-swim-cursor--snapped`).
 10. **PR-SWIMVIEW-010** — Expanded Card with available modes shows metric select in gutter column; collapsed hides it.
@@ -79,6 +81,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 25. **PR-SWIMVIEW-025** — Pinned strip appears/disappears over 200ms via `--pr-pinned-h` height transition; enter/leave collapse to `height: 0`; `prefers-reduced-motion: reduce` drops the transition.
 26. **PR-SWIMVIEW-026** — Collapsing/expanding a Card or folder slides the content: the canvas rows/events below the group shift up/down and the collapsing subtree fades (`collapseAnim` → `SwimlaneCanvas.setCollapseAnim`), Card strips below the collapsed Card shift with the same offset, and the gutter collapse wrapper animates height + opacity. Folder tweens also crossfade ghost `summaryEvents` (α = 1 − visible) with child events (α = visible). Dependency strokes to/from the animating subtree stay hidden for the tween; other connectors keep drawing. Driven by a 200ms `animateProgress` tween owned by `ProfilingReport`; a mid-tween re-click reverses from the current progress; instant under `prefers-reduced-motion: reduce`.
 27. **PR-SWIMVIEW-027** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
+28. **PR-SWIMVIEW-028** — Non-empty **pinnedOverviewIds** with matching `overviewSeries` renders sticky overview strip (`data-testid=pinned-overview-charts`) below the lane pin strip and above the scroll body, in pin order.
 
 ## Visual
 

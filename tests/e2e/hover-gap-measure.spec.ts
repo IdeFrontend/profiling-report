@@ -1,5 +1,13 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
+
+/** Scrollable 统计分析 block overlays the canvas top (contentTopPad). */
+async function overviewTopPad(page: Page): Promise<number> {
+  const ov = page.getByTestId('overview-charts');
+  if ((await ov.count()) === 0) return 0;
+  const b = await ov.boundingBox();
+  return b?.height ?? 0;
+}
 
 test('hover gap measure overlay appears between events', async ({ page }) => {
   test.setTimeout(60_000);
@@ -17,10 +25,11 @@ test('hover gap measure overlay appears between events', async ({ page }) => {
     await zoomIn.click();
   }
 
+  const topPad = await overviewTopPad(page);
   const gap = page.locator('[data-testid="gap-measure"]');
   let found = false;
   for (let lane = 0; lane < 28; lane++) {
-    const y = box!.y + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
+    const y = box!.y + topPad + LANE_GROUP_HEADER_HEIGHT + lane * LANE_HEIGHT + LANE_HEIGHT / 2;
     if (y > box!.y + box!.height - 2) break;
     for (let px = 48; px < box!.width - 48; px += 10) {
       await page.mouse.move(box!.x + px, y);

@@ -28,7 +28,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Swimlane model.** Extracts the timeline via `chromeTraceToSwimlane`: `trace.json` with `sourceTimeUnit: 'ns'` (classic `.rep`), or `PipeTrace.json` with `sourceTimeUnit: 'us'` (product `npu-rep`; its `displayTimeUnit: "ns"` label is misleading — ts/dur are microseconds).
 
-**Overview series.** Empty array per DATA-32a (the product `Sampling.json` `ph:C` counter source remains deferred).
+**Overview series.** From product `Sampling.json` Chrome Trace `ph:"C"` counters ([DATA-39](../context/decisions/DATA.md)): one `OverviewSeries` per distinct counter `name` present (`id`/`label` = `name`); `points[{t,v}]` from `ts` (µs→canonical ns) and finite `args.value`. Empty when Sampling absent or no counters — hide UI ([DATA-32](../context/decisions/DATA.md)). Do not invent from `PipeUtilization`.
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (PROC-3).
 
@@ -44,7 +44,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration, pid, blockDim, optional coreCount (DATA-1). Classic `.rep` leaves compute/util unset (no `summary.jsonl`). Product `npu-rep` fills `aicFlops` / `parallelUtilization` from `OpInfoSummary` (DATA-2, DATA-9, DATA-33).
 2. **PR-VM-002** — PipeOccupancy aggregates mean of non-NA ratios per pipe family per DATA-33b; optional absoluteValue from mean `*_time(us)` (DATA-33f).
-3. **PR-VM-003** — Overview series returns empty array per DATA-32a.
+3. **PR-VM-003** — Overview series from `Sampling.json` `ph:C` (DATA-39): one track per counter name present on product fixtures with Sampling; empty when Sampling absent (`out.rep`); never invented from PipeUtilization.
 4. **PR-VM-005** — Pipe items are side-specific (`aic_*` vs `aiv_*`); no blended AIC/AIV family ratio.
 5. **PR-VM-006** — `computeTables` includes PipeUtilization, ArithmeticUtilization, ResourceConflictRatio with non-empty headers/rows and blockIds `0`…`7` on `out.rep`.
 6. **PR-VM-007** — `memoryTables` includes Memory.csv, L2Cache.csv, MemoryL0.csv, MemoryUB.csv with blockIds; `csvTexts` has raw text for each present table fileName.
@@ -70,7 +70,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Dependencies
 
-DATA-33, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-32a, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
+DATA-33, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-39, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
 
 ## Open
 

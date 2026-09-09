@@ -24,7 +24,7 @@ DATA-33b (pipe aggregation: mean of non-NA ratios per family). Shared `PR-FMT-*`
 
 ## Open
 
-DATA-32 — Overview series returns empty array per DATA-32a.
+—
 
 ## Design sketches
 
