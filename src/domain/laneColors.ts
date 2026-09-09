@@ -175,6 +175,7 @@ export function overviewStrokeHex(baseHex: string): string {
 /**
  * Stroke hex for an overview series id/label (`CUBE`, `VECTOR`, `通信`, …).
  * Fill uses the same colour at ~0.45 opacity.
+ * Cube and 通信 need dedicated accents; every other pipe name goes through `laneColorKey`.
  */
 export function overviewSeriesStroke(name: string): string {
   const key = name.toLowerCase();
@@ -182,12 +183,5 @@ export function overviewSeriesStroke(name: string): string {
   if (key.includes('通信') || key === 'comm' || key === 'communication') {
     return overviewStrokeHex(MOV_HEX);
   }
-  if (key === 'fixpipe') return overviewStrokeHex(LANE_COLOR_HEX.fixp);
-  if (key === 'vector') return overviewStrokeHex(LANE_COLOR_HEX.vector);
-  if (key === 'scalar') return overviewStrokeHex(LANE_COLOR_HEX.scalar);
-  if (key === 'mte1') return overviewStrokeHex(LANE_COLOR_HEX.mte1);
-  if (key === 'mte2') return overviewStrokeHex(LANE_COLOR_HEX.mte2);
-  if (key === 'mte3') return overviewStrokeHex(LANE_COLOR_HEX.mte3);
-  if (key === 'fixp') return overviewStrokeHex(LANE_COLOR_HEX.fixp);
   return overviewStrokeHex(LANE_COLOR_HEX[laneColorKey(name)]);
 }

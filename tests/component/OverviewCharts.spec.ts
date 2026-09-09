@@ -244,9 +244,37 @@ describe('OverviewCharts', () => {
         },
       }) as DOMRect;
     await col.trigger('pointerdown', { clientX: 100, button: 0, pointerId: 1 });
-    await col.trigger('pointermove', { clientX: 200, button: 0, pointerId: 1 });
+    // Cross the 4px click-vs-drag gate, then move further to pan.
+    await col.trigger('pointermove', { clientX: 105, button: 0, pointerId: 1 });
+    await col.trigger('pointermove', { clientX: 205, button: 0, pointerId: 1 });
     const pan = wrap.emitted('pan')?.at(-1)?.[0] as number;
     expect(pan).toBeCloseTo(-0.1 * 2000);
+    wrap.unmount();
+  });
+
+  it('PR-OV-012: moves within 4px do not emit pan', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+    });
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    const el = col.element as HTMLElement;
+    el.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        width: 1000,
+        top: 0,
+        height: 16,
+        right: 1000,
+        bottom: 16,
+        x: 0,
+        y: 0,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    await col.trigger('pointerdown', { clientX: 100, button: 0, pointerId: 1 });
+    await col.trigger('pointermove', { clientX: 103, button: 0, pointerId: 1 });
+    expect(wrap.emitted('pan')).toBeUndefined();
     wrap.unmount();
   });
 

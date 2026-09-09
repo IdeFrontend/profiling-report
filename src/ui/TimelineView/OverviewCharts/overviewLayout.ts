@@ -8,7 +8,8 @@ export const OVERVIEW_LANE_H = OVERVIEW_TRACK_H + OVERVIEW_TRACK_GAP;
 export const OVERVIEW_HEADER_H = 40;
 /**
  * Shared Y domain for overview util counters (%). Same scale on every track so
- * peaks are comparable (not per-series auto-scale).
+ * peaks are comparable (not per-series auto-scale). Non-% counters clamp — see
+ * OverviewCharts.spec.md.
  */
 export const OVERVIEW_Y_MAX = 100;
 

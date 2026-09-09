@@ -85,9 +85,12 @@ const hoverXRatio = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
 /** Paint box in viewport coords — value-dot is teleported so overview `transform` cannot clip it. */
 const paintRect = ref<{ left: number; top: number; width: number; height: number } | null>(null);
-/** Chart-column drag-pan (mirrors SwimlaneCanvas non-measure drag). */
+/** Chart-column drag-pan (mirrors SwimlaneCanvas: 4px gate before pan emits). */
 const dragging = ref(false);
+const PAN_DRAG_THRESHOLD_PX = 4;
 let lastDragX = 0;
+let dragOriginX = 0;
+let panArmed = false;
 
 /** Internal collapse when parent does not control `collapsed`. */
 const localCollapsed = ref(false);
@@ -127,7 +130,6 @@ const tracks = computed(() => {
     const verts = stepAfterVertices(s.points, x0.value, x1.value);
     return {
       ...s,
-      maxV: OVERVIEW_Y_MAX,
       color: colorForName(s.id),
       isPinned: pinned.value.has(s.id),
       areaD: areaPathFromVertices(verts, TRACK_H, toX, toY),
@@ -170,12 +172,22 @@ function updateChartHover(seriesId: string, e: PointerEvent) {
 function onChartPointerDown(e: PointerEvent) {
   if (e.button !== 0 || props.measureMode) return;
   dragging.value = true;
+  panArmed = false;
+  dragOriginX = e.clientX;
   lastDragX = e.clientX;
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
 }
 
 function onChartPointerMove(seriesId: string, e: PointerEvent) {
   if (dragging.value && !props.measureMode) {
+    if (!panArmed) {
+      if (Math.abs(e.clientX - dragOriginX) <= PAN_DRAG_THRESHOLD_PX) {
+        updateChartHover(seriesId, e);
+        return;
+      }
+      panArmed = true;
+      lastDragX = e.clientX;
+    }
     const el = e.currentTarget as HTMLElement;
     const w = Math.max(1, el.getBoundingClientRect().width);
     const span = Math.max(1, x1.value - x0.value);
@@ -189,6 +201,7 @@ function onChartPointerMove(seriesId: string, e: PointerEvent) {
 function onChartPointerUp(e: PointerEvent) {
   if (!dragging.value) return;
   dragging.value = false;
+  panArmed = false;
   try {
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
   } catch {
@@ -268,7 +281,7 @@ const tipValue = computed(() => {
 
 const showTip = computed(() => tipTrack.value != null && tipValue.value != null);
 
-function dotTopPercent(_track: { maxV: number }, value: number): number {
+function dotTopPercent(value: number): number {
   return (1 - Math.min(OVERVIEW_Y_MAX, Math.max(0, value)) / OVERVIEW_Y_MAX) * 100;
 }
 
@@ -281,7 +294,7 @@ const valueDotStyle = computed(() => {
   if (!track || value == null || xRatio == null || !rect || rect.width <= 0 || rect.height <= 0) {
     return null;
   }
-  const yPct = dotTopPercent(track, value) / 100;
+  const yPct = dotTopPercent(value) / 100;
   return {
     left: `${rect.left + xRatio * rect.width}px`,
     top: `${rect.top + yPct * rect.height}px`,
