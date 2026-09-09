@@ -140,7 +140,7 @@ const selected = ref<SelectedEvent | null>(null);
 /** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
 const selectedEvent = ref<SwimEvent | null>(null);
 /** Marquee capture; mutually exclusive with `selected` (only one dock mounts). */
-const multiSelected = ref<SwimEvent[]>([]);
+const multiSelected = shallowRef<SwimEvent[]>([]);
   /**
    * Δt span shown on the axis for the marquee: the live drag extent while dragging.
    * Cleared on commit (the axis measure control disappears when the drag ends).
@@ -756,6 +756,7 @@ onBeforeUnmount(() => {
 function onRootKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
+    if (multiSelected.value.length > 0) onSelect(null);
     return;
   }
   if (e.key === 'Escape' && topologyFullscreen.value) {

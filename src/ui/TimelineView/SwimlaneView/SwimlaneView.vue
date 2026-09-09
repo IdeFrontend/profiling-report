@@ -617,7 +617,10 @@ defineExpose({
           :resolve-magnetize="magnetizeAtClient"
           alt-measure-role="strip"
           :pinned-lane-ids="pinnedLaneIds"
+          :multi-selected-ids="localMultiSelectedIds"
           @select="emit('select', $event)"
+          @multi-select="emit('multi-select', $event)"
+          @multi-select-span="emit('multi-select-span', $event)"
           @hover="(ev, x, y) => emit('hover', ev, x, y)"
           @lane-hover="onLaneHover"
           @cursor="onCursor"
@@ -627,6 +630,7 @@ defineExpose({
           @update:measure-range="emit('update:measure-range', $event)"
           @suppress-measure-dt="emit('suppress-measure-dt', $event)"
           @toggle-group="emit('toggle-group', $event)"
+          @update-multi-selected="onUpdateMultiSelected"
         />
       </div>
     </Transition>

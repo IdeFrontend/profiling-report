@@ -237,6 +237,8 @@ let marqueeAnchor: { x: number; y: number } | null = null;
 let marqueePending = false;
 /** True from marquee pointerdown until pointerup — suppresses tooltip / select. */
 let marqueePressActive = false;
+/** Escape cancelled the drag mid-press — swallow the leftover release, then clear. */
+let marqueeEscaped = false;
 /** Ids the live rect covers; overrides `multiSelectedIds` so the drag previews its own commit. */
 let marqueePreviewIds: string[] | null = null;
 let unbindMarqueeDrag: (() => void) | null = null;
@@ -959,6 +961,7 @@ function endMarquee(): void {
   marqueeAnchor = null;
   marqueePending = false;
   marqueePressActive = false;
+  marqueeEscaped = false;
   marqueeShift = false;
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
@@ -1091,11 +1094,10 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueeAnchor = null;
   // Stay non-pending so the release is not mistaken for a click-select.
   marqueePending = false;
-  // Escape cancels the gesture fully — release the press flag so hover/cursor resume
-  // immediately, not on the next pointerdown/pointerup. The unbind above already
-  // stops window-level drag move/end from firing, so the next pointerup is a plain
-  // click (no marquee context to suppress).
-  marqueePressActive = false;
+   // Keep the press flag true so onPointerUp swallows the leftover release
+   // (marqueePressActive && !marqueePending). The flag is cleared there on
+   // this cancelled pointerup so the next click is fresh — PR-CANVAS-082.
+   marqueeEscaped = true;
   marqueeShift = false;
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
@@ -1976,6 +1978,11 @@ function onPointerMove(e: PointerEvent): void {
 function onPointerUp(e: PointerEvent): void {
   // A marquee that crossed the 4px gate (or was cancelled) never selects; the window
   // pointerup that follows commits it. A press still pending is a plain click.
+  if (marqueeEscaped) {
+    marqueeEscaped = false;
+    marqueePressActive = false;
+    return;
+  }
   if (marqueePressActive && !marqueePending) return;
   dragging = false;
   const didFreeform = measureDragOccurred;
@@ -2027,6 +2034,8 @@ function onPointerUp(e: PointerEvent): void {
     // the event the user is actually pointing at, not the first in layout order.
     const hit = eventAtPointer(x, y, mag.eventId);
     if (hit) {
+      const groupId = summaryGroupIdFor(hit.id);
+      if (groupId != null) return;
       const eventId = hit.id;
       // Seed with both the live multi-set and the current single selection: a plain
       // click on A leaves A in `selectedEventId` (not `multiSelectedIds`), so without

@@ -247,7 +247,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(rrSwitchThreshold * 1.5).toBe(6);
   });
 
-  it('PR-RENDER-018: snapEventRect aligns edges to integer device pixels', () => {
+  it('PR-RENDER-027: snapEventRect aligns edges to integer device pixels', () => {
     const r = snapEventRect(10.4, 2.5, 20.3, 16);
     expect(r.x).toBe(10);
     expect(r.y).toBe(3);
@@ -267,7 +267,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(paint.r).toBe(2);
   });
 
-  it('PR-RENDER-019: resize sets buffer without style sizing', () => {
+  it('PR-RENDER-028: resize sets buffer without style sizing', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
@@ -1148,7 +1148,7 @@ describe('PR-RENDER: marquee hit collection', () => {
   /** Both fixture events start at t=0 on the one lane (overlapping → two sub-rows); e-long runs to 800, e-short to 1. */
   const laneY = layout.eventsById.get('e-long')!.y;
 
-  it('PR-RENDER-018: collects every event whose block intersects the rect', () => {
+  it('PR-RENDER-030: collects every event whose block intersects the rect', () => {
     const all = eventsIntersectingRect(layout, view, 400, {
       x0: 0,
       y0: laneY - view.scrollY,
@@ -1167,7 +1167,7 @@ describe('PR-RENDER: marquee hit collection', () => {
     expect(right.map((e) => e.id)).toEqual(['e-long']);
   });
 
-  it('PR-RENDER-019: rect order is normalized and misses collect nothing', () => {
+  it('PR-RENDER-031: rect order is normalized and misses collect nothing', () => {
     const dragUpLeft = eventsIntersectingRect(layout, view, 400, {
       x0: 400,
       y0: laneY + LANE_HEIGHT,
