@@ -8,7 +8,7 @@ Right-click menu for a swimlane event or lane, routing viewport, selection, and 
 
 ## Inputs
 
-**context** is either absent (menu closed) or `{ target: SwimEvent | null, x: number, y: number, laneId: string }` from a canvas or leaf lane-header hit test. **x** and **y** are client viewport coordinates (`PointerEvent.clientX` / `clientY`). **target** is the event beneath the pointer; `null` identifies a leaf lane-header or empty portion of a leaf lane. **laneId** is a leaf lane id resolved from the swim tree, not from `SwimEvent`.
+**context** is either absent (menu closed) or `{ target: SwimEvent | null, x: number, y: number, laneId: string }` from a canvas or leaf lane-header hit test. **x** and **y** are client viewport coordinates (`PointerEvent.clientX` / `clientY`). **target** is the event beneath the pointer; `null` identifies a leaf lane-header or empty portion of a leaf lane. **laneId** is a leaf lane id, except a collapsed-folder summary-bar target carries its owning folder id so Show in event view remains reachable; Pin row rejects that non-leaf id.
 
 The parent applies shared view-state behavior directly from `contextMenuContext`/`viewState` in `ProfilingReport.vue`; the component receives only **context**, **pinnedLaneIds**, and **locale** as props.
 
@@ -92,7 +92,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
-- **2026-09-10** — Show on a collapsed-folder summary-bar target resolves `sourceEvent` (single-task) or dismisses without selecting (multi-task); stale-target check uses `findEventInModel` (leaf events + `summaryEvents`) instead of leaf-only lookup (`PR-CTXMENU-012`).
+- **2026-09-10** — Show on a collapsed-folder summary-bar target resolves `sourceEvent` (single-task) or dismisses without selecting (multi-task); summary-bar canvas invocation carries its folder id while Pin row still rejects non-leaf lanes; stale-target check uses `findEventInModel` (leaf events + `summaryEvents`) instead of leaf-only lookup (`PR-CTXMENU-012`, `PR-CANVAS-077`).
 - **2026-09-10** — Right-click on canvas guards `e.button !== 0` and resolves leaf lane ids only; menu focus is captured and restored on close; menu stays hidden until repositioned to avoid a reopen flash; dedicated `--pr-surface-hover` token replaces `--pr-divider` for hover fill.
 - **2026-09-10** — Renamed acceptance criteria to `PR-CTXMENU-*`; placement measures the rendered menu and all surface tokens are defined in `tokens.css`.
 - **2026-09-09** — Trim scope to Reset zoom, Show in event view, Pin row; defer Hide lane.

@@ -110,6 +110,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 74. **PR-CANVAS-074** — Changing `contentTopPad` (统计分析 expand/collapse tween) calls `sync()` so `setView(paintView())` reprojects lane Y and the canvas repaints without waiting for pointer hover.
 75. **PR-CANVAS-075** — Right-click (`e.button !== 0`) is ignored by `onPointerDown` / `onPointerUp`: no `set-playhead`, `select`, drag, or pointer capture from the same gesture that opens the context menu.
 76. **PR-CANVAS-076** — `contextmenu` resolves a leaf lane id only (`leafLaneIdAtPoint`); right-clicking a folder-only row emits no `context-menu`.
+77. **PR-CANVAS-077** — Right-clicking a collapsed-folder summary bar emits its folder lane id and summary event target, so Show in event view remains reachable; folder-only empty rows still do not open a menu.
 
 ## Edge Cases
 
@@ -142,6 +143,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-10** — Right-clicking a collapsed-folder summary bar opens its event menu via the summary's folder id; empty folder rows still do not open a menu (`PR-CANVAS-077`).
 - **2026-09-10** — Right-click (`e.button !== 0`) no longer runs the left-click pointer path (`PR-CANVAS-075`); `contextmenu` resolves a leaf lane id only via `leafLaneIdAtPoint`, so folder rows do not open the menu (`PR-CANVAS-076`).
 - **2026-09-10** — `contentTopPad` changes sync/repaint the canvas (`PR-CANVAS-074`) so overview collapse does not leave stale events.
 - **2026-09-10** — Gap / Alt-measure Δt labels use zoom-aware `nsPerPx` digits (same rule as playhead / tooltip start·end).

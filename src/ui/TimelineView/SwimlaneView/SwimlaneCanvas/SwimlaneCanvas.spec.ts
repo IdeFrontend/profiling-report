@@ -2204,4 +2204,39 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('context-menu')).toBeFalsy();
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-077: right-click on a summary bar opens its event context menu', async () => {
+    const summary = {
+      id: 'folder/summary/0',
+      name: '',
+      startTime: 200,
+      duration: 400,
+      taskCount: 3,
+    };
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [{ id: 'folder', name: '计算', events: [], children: [], summaryEvents: [summary] }],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithGapModel({ model });
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect(summary.id)!;
+    await canvas.trigger('contextmenu', { clientX: rect.x + rect.w / 2, clientY: rect.y + rect.h / 2 });
+
+    expect(wrapper.emitted('context-menu')?.at(-1)?.[0]).toEqual({
+      x: rect.x + rect.w / 2,
+      y: rect.y + rect.h / 2,
+      laneId: 'folder',
+      target: summary,
+    });
+    wrapper.unmount();
+  });
 });

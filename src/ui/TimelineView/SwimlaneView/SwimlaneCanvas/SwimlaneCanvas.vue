@@ -1688,15 +1688,16 @@ function activeCanvas(): HTMLCanvasElement | null {
 }
 
 function onContextMenu(e: MouseEvent): void {
-  const target = activeCanvas();
-  if (!target || props.measureMode) return;
-  const rect = target.getBoundingClientRect();
+  const canvas = activeCanvas();
+  if (!canvas || props.measureMode) return;
+  const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  const laneId = leafLaneIdAtPoint(backend.getLayout(), paintView(), y);
+  const event = eventAtPointer(x, y, null);
+  const laneId = leafLaneIdAtPoint(backend.getLayout(), paintView(), y) ?? summaryGroupIdFor(event?.id ?? null);
   if (!laneId) return;
   e.preventDefault();
-  emit('context-menu', { x: e.clientX, y: e.clientY, laneId, target: eventAtPointer(x, y, null) });
+  emit('context-menu', { x: e.clientX, y: e.clientY, laneId, target: event });
 }
 
 function onPointerDown(e: PointerEvent): void {
