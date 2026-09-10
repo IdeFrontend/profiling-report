@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import ContextMenu from './ContextMenu.vue';
 import type { SwimEvent } from '../../domain/types';
@@ -17,7 +17,7 @@ function menuItem(command: string) {
 }
 
 describe('ContextMenu', () => {
-  it('PR-CTXM-001: event menu groups available commands', async () => {
+  it('PR-CTXMENU-001: event menu groups available commands', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
       attachTo: document.body,
@@ -29,7 +29,7 @@ describe('ContextMenu', () => {
     expect(document.querySelector('.pr-ctx-menu__sep')).not.toBeNull();
   });
 
-  it('PR-CTXM-002: lane menu omits event commands', async () => {
+  it('PR-CTXMENU-002: lane menu omits event commands', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
       attachTo: document.body,
@@ -41,7 +41,7 @@ describe('ContextMenu', () => {
     expect(document.querySelector('.pr-ctx-menu__sep')).toBeNull();
   });
 
-  it('PR-CTXM-003: reset zoom emits reset action for lane', async () => {
+  it('PR-CTXMENU-003: reset zoom emits reset action for lane', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
       attachTo: document.body,
@@ -51,7 +51,7 @@ describe('ContextMenu', () => {
     expect(wrapper.emitted('action')?.[0]?.[0]).toEqual({ command: 'reset', laneId: 'lane1' });
   });
 
-  it('PR-CTXM-004: show emits target event', async () => {
+  it('PR-CTXMENU-004: show emits target event', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
       attachTo: document.body,
@@ -65,7 +65,7 @@ describe('ContextMenu', () => {
     });
   });
 
-  it('PR-CTXM-005: pin toggles shared pin state and localizes the action', async () => {
+  it('PR-CTXMENU-005: pin toggles shared pin state and localizes the action', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
       attachTo: document.body,
@@ -83,7 +83,7 @@ describe('ContextMenu', () => {
     expect(wrapper.emitted('dismiss')).toHaveLength(2);
   });
 
-  it('PR-CTXM-006: deferred commands remain absent', async () => {
+  it('PR-CTXMENU-006: deferred commands remain absent', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
       attachTo: document.body,
@@ -94,13 +94,18 @@ describe('ContextMenu', () => {
     expect(menuItem('offset')).toBeNull();
   });
 
-  it('PR-CTXM-007: viewport clamp avoids menu overflow', async () => {
+  it('PR-CTXMENU-007: viewport clamp uses the rendered menu dimensions', async () => {
     const originalW = window.innerWidth;
     const originalH = window.innerHeight;
     Object.defineProperty(window, 'innerWidth', { value: 300, configurable: true });
     Object.defineProperty(window, 'innerHeight', { value: 200, configurable: true });
+    // Mock getBoundingClientRect globally so place() reads real dimensions (250×113) on first call.
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 250, bottom: 113, left: 0, width: 250, height: 113,
+      toJSON: () => ({}),
+    });
     wrapper = mount(ContextMenu, {
-      props: { context: { x: 290, y: 190, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
+      props: { context: { x: 290, y: 190, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
@@ -109,13 +114,16 @@ describe('ContextMenu', () => {
     const topMatch = style.match(/top:\s*(-?\d+)px/);
     expect(leftMatch).not.toBeNull();
     expect(topMatch).not.toBeNull();
-    expect(Number(leftMatch![1])).toBeLessThan(290);
-    expect(Number(topMatch![1])).toBeLessThan(190);
+    expect(Number(leftMatch![1])).toBeGreaterThanOrEqual(4);
+    expect(Number(topMatch![1])).toBeGreaterThanOrEqual(4);
+    expect(Number(leftMatch![1]) + 250).toBeLessThanOrEqual(296);
+    expect(Number(topMatch![1]) + 113).toBeLessThanOrEqual(196);
+    spy.mockRestore();
     Object.defineProperty(window, 'innerWidth', { value: originalW, configurable: true });
     Object.defineProperty(window, 'innerHeight', { value: originalH, configurable: true });
   });
 
-  it('PR-CTXM-008: dismisses on outside click and Escape', async () => {
+  it('PR-CTXMENU-008: dismisses on outside click and Escape', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
       attachTo: document.body,
@@ -130,18 +138,19 @@ describe('ContextMenu', () => {
     expect(wrapper.emitted('dismiss')).toHaveLength(2);
   });
 
-  it('PR-CTXM-009: keyboard navigation activates commands', async () => {
+  it('PR-CTXMENU-009: keyboard navigation focuses and activates the next event command', async () => {
     wrapper = mount(ContextMenu, {
-      props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
+      props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
+    expect(document.activeElement).toBe(document.querySelector('[data-testid="context-menu"]'));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-    expect(wrapper.emitted('action')?.[0]?.[0]).toEqual({ command: 'pin', laneId: 'lane1' });
+    expect(wrapper.emitted('action')?.[0]?.[0]).toEqual({ command: 'show', laneId: 'lane1', target: event });
   });
 
-  it('PR-CTXM-010: Ctrl+P activates pin and prevents browser print', async () => {
+  it('PR-CTXMENU-010: Ctrl+P activates pin and prevents browser print', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
       attachTo: document.body,

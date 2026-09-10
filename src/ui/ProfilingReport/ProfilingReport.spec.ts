@@ -61,6 +61,22 @@ function topologyReport() {
 }
 
 describe('ProfilingReport scaffold', () => {
+  it('PR-CTXMENU-011: leaf-gutter context menu reaches the report root', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
+      clientX: 10,
+      clientY: 20,
+    });
+    await nextTick();
+
+    expect(document.querySelector('[data-testid="context-menu"]')).not.toBeNull();
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-001, PR-SCAFFOLD-003: mounts report root with timeline chrome', () => {
     const wrapper = mount(ProfilingReport, {
       props: { title: 'scaffold' },

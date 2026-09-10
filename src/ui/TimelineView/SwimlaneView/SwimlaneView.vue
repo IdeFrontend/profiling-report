@@ -576,6 +576,7 @@ defineExpose({
             @pin-lane="emit('pin-lane', $event)"
             @unpin-lane="emit('unpin-lane', $event)"
             @lane-hover="onLaneHover"
+            @context-menu="emit('context-menu', $event)"
           />
         </div>
         <SwimlaneCanvas
@@ -665,6 +666,7 @@ defineExpose({
         @pin-lane="emit('pin-lane', $event)"
         @unpin-lane="emit('unpin-lane', $event)"
         @lane-hover="onLaneHover"
+        @context-menu="emit('context-menu', $event)"
       />
       <SwimlaneCanvas
         ref="canvasRef"
