@@ -51,6 +51,7 @@ import {
   findThreadById,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
+import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '../ContextMenu/ContextMenu.vue';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
@@ -143,6 +144,7 @@ const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+const contextMenuContext = ref<ContextMenuContext | null>(null);
 /** In-flight collapse/expand tween; null when settled. */
 const collapseAnim = ref<CollapseAnimState | null>(null);
 /** Group id forced expanded while its tween runs (kept separate from `visible` so the
@@ -859,7 +861,10 @@ function onOverviewWindow(window: { startTime: number; endTime: number }) {
   });
 }
 
+function onContextMenu(payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }): void { contextMenuContext.value = { ...payload, target: payload.target ?? null }; }
+function onContextMenuAction(action: ContextMenuAction): void { if (action.command === 'reset') onZoomToFit(); else if (action.command === 'show') onSelect(action.target ?? null); else if (viewState.value.pinnedLaneIds.includes(action.laneId)) onUnpinLane(action.laneId); else onPinLane(action.laneId); }
 function onScrollY(scrollY: number) {
+  contextMenuContext.value = null;
   viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
 }
 
@@ -1095,7 +1100,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom="onZoom"
           @update:measure-range="onMeasureRange"
           @focus-measure="onFocusMeasure"
+          @context-menu="onContextMenu"
         />
+        <ContextMenu :context="contextMenuContext" :pinned-lane-ids="viewState.pinnedLaneIds" :locale="locale" @action="onContextMenuAction" @dismiss="contextMenuContext = null" />
         <p
           v-if="!showTimeline"
           class="pr-error"

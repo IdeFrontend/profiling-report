@@ -102,6 +102,7 @@ const emit = defineEmits<{
   'update:scrollY': [scrollY: number];
   'update:gutterWidth': [width: number];
   'toggle-group': [groupId: string];
+  'context-menu': [payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
   'pin-overview': [seriesId: string];
