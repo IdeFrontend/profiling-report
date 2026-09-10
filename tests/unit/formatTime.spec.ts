@@ -3,10 +3,13 @@ import {
   formatAxisTime,
   formatAxisBaseTime,
   formatCursorTime,
+  formatDisplayTime,
+  formatDisplayTimeAuto,
   formatTime,
   formatTimeAuto,
   formatTimeParts,
   formatTimePartsAuto,
+  fractionDigitsForNsPerPx,
   nsToCycles,
   resolveClockFreqMHz,
   resolveTimeUnitFromVisibleRange,
@@ -100,13 +103,16 @@ describe('PR-TIME: auto-scale time labels', () => {
     expect(formatTimeAuto(41_000)).toBe('41.000 µs');
   });
 
-  it('PR-TIME-009: event surfaces use 4 significant digits; detail keeps full title', () => {
+  it('PR-TIME-009: event duration uses 4 significant digits; detail keeps full title', () => {
     expect(formatTimeAuto(479_611_000, { significantDigits: 4 })).toBe('479.6 ms');
     expect(formatTimeAuto(109_283, { significantDigits: 4 })).toBe('109.3 µs');
     expect(formatTimePartsAuto(500_000, { significantDigits: 4 })).toEqual({
-      value: '500.0',
+      value: '500',
       unit: 'µs',
     });
+    // Trailing fractional zeros are stripped (`841.0` → `841`).
+    expect(formatTimeAuto(841, { significantDigits: 4 })).toBe('841 ns');
+    expect(formatTimeAuto(41_000, { significantDigits: 4 })).toBe('41 µs');
     // Full precision remains the default (detail hover titles).
     expect(formatTimePartsAuto(500_000)).toEqual({ value: '500.000', unit: 'µs' });
   });
@@ -144,5 +150,40 @@ describe('PR-TIME: auto-scale time labels', () => {
     // Axis / cursor take no mode at all; they stay wall-time.
     expect(formatAxisTime(1_000_000, 'ms')).toContain('ms');
     expect(formatCursorTime(1_000_000, 'ms')).toContain(':');
+  });
+
+  it('PR-TIME-011: nsPerPx picks min digits so a 1px move changes the label', () => {
+    // 0.00312 ms/px → 3120 ns/px → 3 fraction digits in ms.
+    const nsPerPx = 0.00312 * 1e6;
+    expect(fractionDigitsForNsPerPx(nsPerPx, 'ms')).toBe(3);
+    expect(fractionDigitsForNsPerPx(1e6, 'ms')).toBe(0); // 1 ms/px
+    expect(fractionDigitsForNsPerPx(0, 'ms')).toBe(0);
+    // Sub-ns zoom is clamped to the unit's nanosecond resolution.
+    expect(fractionDigitsForNsPerPx(0.001, 'ms')).toBe(6);
+    expect(fractionDigitsForNsPerPx(0.001, 'us')).toBe(3);
+
+    const t = 16_961_000; // 16.961 ms
+    const a = formatDisplayTime(t, 0, 'ms', { nsPerPx });
+    const b = formatDisplayTime(t + nsPerPx, 0, 'ms', { nsPerPx });
+    expect(a).not.toBe(b);
+
+    // Without nsPerPx, fixed 3 decimals remain.
+    expect(formatTime(1_800_000, 'ms')).toBe('1.800 ms');
+    // Exact auto Δt at coarse zoom — proves wiring is not a no-op vs old fixed digits.
+    expect(formatTimeAuto(41_000, { nsPerPx: 10 })).toBe('41.00 µs');
+    expect(formatTimeAuto(t, { nsPerPx })).not.toBe(formatTimeAuto(t + nsPerPx, { nsPerPx }));
+    // significantDigits still wins over nsPerPx.
+    expect(formatTimeAuto(479_611_000, { significantDigits: 4, nsPerPx })).toBe('479.6 ms');
+    // Event start/end path: display auto with nsPerPx (no significantDigits).
+    expect(formatDisplayTimeAuto(t, 0, { nsPerPx })).toBe('16.961 ms');
+    expect(formatDisplayTimeAuto(t + nsPerPx, 0, { nsPerPx })).not.toBe(
+      formatDisplayTimeAuto(t, 0, { nsPerPx }),
+    );
+    // Fit-zoom floor: never coarser than 4 significant digits.
+    expect(formatDisplayTimeAuto(5_200_123_456, 0, { nsPerPx: 7e8 })).toBe('5.200 s');
+    expect(formatDisplayTimeAuto(500_123, 0, { nsPerPx: 1e3 })).toBe('500.1 µs');
+    // Sub-ns clamp: do not invent digits below 1 ns.
+    expect(formatDisplayTimeAuto(16_961_000, 0, { nsPerPx: 0.001 })).toBe('16.961000 ms');
+    expect(formatDisplayTimeAuto(500_123, 0, { nsPerPx: 0.001 })).toBe('500.123 µs');
   });
 });

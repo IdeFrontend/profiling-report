@@ -15,6 +15,8 @@ const props = withDefaults(
     clockFreqMHz?: number;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
+    /** Viewport ns per CSS px — zoom-aware fraction digits for start/end (PR-TIME-011). */
+    nsPerPx?: number;
     locale?: string;
   }>(),
   { timeOrigin: 0 },
@@ -34,16 +36,31 @@ const kind = computed(() => {
   return null;
 });
 
-const displayOpts = computed(() => ({
-  significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS,
+const baseOpts = computed(() => ({
   mode: props.timeDisplayMode,
   clockFreqMHz: props.clockFreqMHz,
 }));
 
-const fullOpts = computed(() => ({
-  mode: props.timeDisplayMode,
-  clockFreqMHz: props.clockFreqMHz,
+/** Duration keeps 4 significant digits. */
+const durationOpts = computed(() => ({
+  ...baseOpts.value,
+  significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS,
 }));
+
+/** Start/end: zoom-aware digits when `nsPerPx` is set; else 4 significant digits. */
+const startEndOpts = computed(() => {
+  if (props.nsPerPx != null) return { ...baseOpts.value, nsPerPx: props.nsPerPx };
+  return { ...baseOpts.value, significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS };
+});
+
+/** Hover titles: at least as precise as the cell (never coarser under zoom). */
+const fullOpts = computed(() => {
+  if (props.nsPerPx != null) {
+    // Max legal digits for the auto unit (capped in formatTime) — PR-TIME-009.
+    return { ...baseOpts.value, nsPerPx: Math.min(props.nsPerPx, 1) };
+  }
+  return baseOpts.value;
+});
 
 /** Value+unit on one line; caption below is Start / Duration / End only. */
 const metrics = computed(() => {
@@ -54,9 +71,10 @@ const metrics = computed(() => {
     ['end', props.selected.endTime, true],
   ];
   return rows.map(([key, ns, relative]) => {
+    const display = key === 'dur' ? durationOpts.value : startEndOpts.value;
     const compact = relative
-      ? formatDisplayTimePartsAuto(ns, origin, displayOpts.value)
-      : formatTimePartsAuto(ns, displayOpts.value);
+      ? formatDisplayTimePartsAuto(ns, origin, display)
+      : formatTimePartsAuto(ns, display);
     const detailed = relative
       ? formatDisplayTimePartsAuto(ns, origin, fullOpts.value)
       : formatTimePartsAuto(ns, fullOpts.value);
@@ -65,7 +83,7 @@ const metrics = computed(() => {
       value: compact.value,
       unit: compact.unit,
       label: t(key, props.locale),
-      // Cell shows 4 significant digits; hover title keeps full precision + unit.
+      // Cell may round; hover title keeps full precision + unit.
       title: detailed.unit ? `${detailed.value} ${detailed.unit}` : detailed.value,
     };
   });

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { buildAxisRulerTicks } from '../../domain/axisRuler';
-import { formatDisplayTime, formatTimeAuto } from '../../domain/formatTime';
+import { formatDisplayTime, formatTimeAuto, nsPerPxForTrack } from '../../domain/formatTime';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -55,7 +55,7 @@ const props = withDefaults(
     collapseAnim?: CollapseAnimState | null;
     /** From view.pinnedLaneIds — sticky strip. */
     pinnedLaneIds?: string[];
-    /** From view.pinnedOverviewIds — sticky overview below lane pins. */
+    /** From view.pinnedOverviewIds — sticky overview above lane pins. */
     pinnedOverviewIds?: string[];
     cursor: { time: number; xRatio: number; snapped?: boolean } | null;
     showOverviewCharts?: boolean;
@@ -128,9 +128,16 @@ function onGutterWidth(w: number) {
   emit('update:gutterWidth', w);
 }
 
+/** ns per CSS px of the time track — drives playhead / measure fraction digits. */
+const nsPerPx = computed(() =>
+  nsPerPxForTrack(props.view.endTime - props.view.startTime, timeAxisWidth.value),
+);
+
 const cursorLabel = computed(() => {
   if (!props.cursor) return '';
-  return formatDisplayTime(props.cursor.time, props.bounds.minTime, props.timeScaleUnit);
+  return formatDisplayTime(props.cursor.time, props.bounds.minTime, props.timeScaleUnit, {
+    nsPerPx: nsPerPx.value,
+  });
 });
 
 const viewportRuler = computed(() =>
@@ -154,7 +161,7 @@ const measureAxis = computed(() => {
   const start = Math.min(range.startTime, range.endTime);
   const end = Math.max(range.startTime, range.endTime);
   if (!(end > start)) return null;
-  const label = formatTimeAuto(end - start);
+  const label = formatTimeAuto(end - start, { nsPerPx: nsPerPx.value });
   const visStart = Math.max(viewStart, start);
   const visEnd = Math.min(viewEnd, end);
   if (!(visEnd > visStart)) {
@@ -243,7 +250,9 @@ const cursorLabelAbove = computed(() => {
   const cursor = props.cursor;
   const axisW = timeAxisWidth.value;
   if (!axis || !layout || !cursor || axisW <= 0) return false;
-  const cursorLabelText = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit);
+  const cursorLabelText = formatDisplayTime(cursor.time, props.bounds.minTime, props.timeScaleUnit, {
+    nsPerPx: nsPerPx.value,
+  });
   const cursorLabelW = estimateAxisLabelWidth(cursorLabelText, CURSOR_LABEL_MIN_WIDTH_PX);
   const dtLabelW = measureLabelWidth.value || estimateAxisLabelWidth(axis.label);
   const dtPlacement =

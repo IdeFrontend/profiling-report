@@ -40,12 +40,13 @@ Left-column stack: overview bar, time axis, and SwimlaneView body. Gutter width 
 12. **PR-TIMELINE-012** — Clicking the Δt label emits `focus-measure`.
 13. **PR-TIMELINE-013** — Hovering the viewport time axis emits `cursor`, lifts the timestamp above the ticks, and shows the swimlane vertical playhead at the same x (default and measure mode).
 14. **PR-TIMELINE-014** — Axis-started measure drag magnetizes the moving edge when the pointer moves over the swimlane (same as canvas-started drag); emitted `cursor` uses the magnetized `time` and matching `xRatio` (not raw pointer x).
-15. **PR-TIMELINE-015** — Cursor label uses `formatDisplayTime` relative to `bounds.minTime` when `minTime ≠ 0`.
+15. **PR-TIMELINE-015** — Cursor label uses `formatDisplayTime` relative to `bounds.minTime` when `minTime ≠ 0`, with `nsPerPx` from the visible span ÷ track width (zoom-aware digits per format-time).
 16. **PR-TIMELINE-016** — Cursor playhead line uses time-proportional `xRatio` placement.
 17. **PR-TIMELINE-017** — No viewport breakpoint stacks swim rows; swim-row columns use `minmax(0, var(--pr-gutter-width)) minmax(80px, 1fr)` so the track cannot collapse (stable MSTT embedding).
 18. **PR-TIMELINE-018** — Viewport time axis shows `axis-ruler-base` deep in trace; near-origin viewport omits it; overview has no base.
 
 ## Changelog
+- **2026-09-10** — Cursor / measure Δt labels use zoom-aware `nsPerPx` digits (`PR-TIMELINE-015`).
 - **2026-08-27** — Viewport axis coarse base + remainder ticks via `useViewportBase`; PR-TIMELINE-018.
 - **2026-08-25** — Cursor labels relative to minTime; PR-TIMELINE-015.
 - **2026-08-25** — Note continuous `fitPanelWidths` track budget (owned by ProfilingReport).

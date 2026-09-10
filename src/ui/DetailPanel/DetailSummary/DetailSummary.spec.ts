@@ -29,9 +29,9 @@ describe('DetailSummary', () => {
     });
 
     expect(wrapper.findAll('.pr-detail-summary__number').map((n) => n.text())).toEqual([
-      '1.000',
-      '500.0',
-      '1.500',
+      '1',
+      '500',
+      '1.5',
     ]);
     expect(wrapper.findAll('.pr-detail-summary__unit').map((n) => n.text())).toEqual([
       'ms',
@@ -47,6 +47,33 @@ describe('DetailSummary', () => {
       '1.000 ms',
       '500.000 µs',
       '1.500 ms',
+    ]);
+  });
+
+  it('PR-DSUM-002: start/end follow nsPerPx; duration stays 4 sig digits', () => {
+    const nsPerPx = 0.00312 * 1e6;
+    const wrapper = mount(DetailSummary, {
+      props: {
+        selected: {
+          id: '1',
+          name: 'op',
+          startTime: 16_961_000,
+          duration: 41_000,
+          endTime: 17_002_000,
+        },
+        timeDisplayMode: 'time' as const,
+        nsPerPx,
+      },
+    });
+    expect(wrapper.findAll('.pr-detail-summary__number').map((n) => n.text())).toEqual([
+      '16.961',
+      '41',
+      '17.002',
+    ]);
+    expect(wrapper.findAll('.pr-detail-summary__unit').map((n) => n.text())).toEqual([
+      'ms',
+      'µs',
+      'ms',
     ]);
   });
 
@@ -96,7 +123,7 @@ describe('DetailSummary', () => {
     const values = wrapper.findAll('.pr-detail-summary__value');
     expect(wrapper.findAll('.pr-detail-summary__number').map((n) => n.text())).toEqual([
       '708 400',
-      '41.00',
+      '41',
       '708 400',
     ]);
     expect(wrapper.findAll('.pr-detail-summary__unit').map((n) => n.text())).toEqual([
@@ -114,6 +141,29 @@ describe('DetailSummary', () => {
       '0-0-103-13-2(matmul)',
     );
     expect(wrapper.find('[data-testid="detail-summary-kind"]').attributes('title')).toBe('event');
+  });
+
+  it('PR-DSUM-004: with nsPerPx, hover title is at least as precise as the cell', () => {
+    const wrapper = mount(DetailSummary, {
+      props: {
+        selected: {
+          id: '1',
+          name: 'op',
+          startTime: 16_961_234,
+          duration: 41_000,
+          endTime: 17_002_234,
+        },
+        timeDisplayMode: 'time' as const,
+        nsPerPx: 100,
+      },
+    });
+    const startCell = wrapper.findAll('.pr-detail-summary__number')[0]!.text();
+    const startTitle = wrapper.findAll('.pr-detail-summary__value')[0]!.attributes('title')!;
+    expect(startCell).toBe('16.9612');
+    expect(startTitle).toBe('16.961234 ms');
+    expect(startTitle.replace(/[^\d]/g, '').length).toBeGreaterThanOrEqual(
+      startCell.replace(/[^\d]/g, '').length,
+    );
   });
 
   it('PR-DSUM-005: metrics set the card width; only the name and pill crop', async () => {

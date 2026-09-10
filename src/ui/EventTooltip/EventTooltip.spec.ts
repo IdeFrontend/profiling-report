@@ -39,9 +39,30 @@ describe('EventTooltip', () => {
     });
 
     const text = wrapper.text();
-    expect(text).toContain('2.000 ms'); // start → ms
-    expect(text).toContain('500.0 ns'); // duration → ns (4 sig digits)
+    expect(text).toContain('2 ms'); // start → ms (sig digits, trailing zeros stripped)
+    expect(text).toContain('500 ns'); // duration → ns (4 sig digits)
     expect(text).toContain('2.001 ms'); // end 2_000_500 → ms
+  });
+
+  it('PR-TOOLTIP-002: start/end follow nsPerPx digits; duration stays 4 sig', () => {
+    // 0.00312 ms/px → 3 fraction digits in ms.
+    const nsPerPx = 0.00312 * 1e6;
+    const wrapper = mount(EventTooltip, {
+      props: {
+        event: makeEvent({
+          startTime: 16_961_000,
+          duration: 41_000,
+        }),
+        stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
+        timeOrigin: 0,
+        nsPerPx,
+      },
+    });
+    const text = wrapper.text();
+    expect(text).toContain('16.961 ms');
+    expect(text).toContain('41 µs'); // duration still 4 sig digits
+    expect(text).toContain('17.002 ms'); // end = start + dur
   });
 
   it('PR-TOOLTIP-003: multi-task summary titles as "N tasks"; single-event keeps the real name', () => {

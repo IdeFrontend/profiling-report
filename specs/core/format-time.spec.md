@@ -21,11 +21,12 @@ formatDisplayTimePartsAuto(ns, origin, opts?): { value: string; unit: string }
 timeScaleUnitFromNsQuantum(quantumNs): TimeScaleUnit
 timeScaleUnitFromMagnitude(ns): TimeScaleUnit
 resolveTimeUnitFromVisibleRange(spanNs): TimeScaleUnit
+fractionDigitsForNsPerPx(nsPerPx, unit): number
 resolveClockFreqMHz(summary?): number | undefined
 nsToCycles(ns, clockFreqMHz): number
 ```
 
-`opts = { significantDigits?, mode?, clockFreqMHz? }` — `mode: 'cycles'` renders CPU clocks instead of wall time, and is honored **only** by the `*Auto` / `*PartsAuto` helpers (tooltip, detail). Axis ticks, the cursor, and measure Δt are always wall time.
+`opts = { significantDigits?, mode?, clockFreqMHz?, nsPerPx? }` — `mode: 'cycles'` renders CPU clocks instead of wall time, and is honored **only** by the `*Auto` / `*PartsAuto` helpers (tooltip, detail). Axis ticks, the cursor, and measure Δt are always wall time. Optional `nsPerPx` (ns per CSS px) sets fraction digits via `fractionDigitsForNsPerPx` so playhead / measure / event start·end labels change when the cursor moves 1 px; ignored when `significantDigits` is set.
 
 ## Behavior
 
@@ -38,11 +39,11 @@ nsToCycles(ns, clockFreqMHz): number
 
 **Cycles mode ([UI-40a](../../docs/context/decisions/interim/UI.md)).** When `mode: 'cycles'` and a valid `clockFreqMHz`, the **`*Auto` / `*PartsAuto`** formatters render derived CPU clocks `cycles = ns × freqMHz / 1000`, rounded to an integer, as a **number only** — no `cyc` / `cycles` suffix. The value is space-grouped in 3-digit groups with **no leading zeroes** (`10 325`, `5 000`, `325`, `0`). **Cycle domain is trace-relative:** tooltip/detail convert `ns − model.minTime` (the same relative value the wall-time path shows), so derived cycles are **not** comparable to a producer's absolute `*_total_cycles` counters — they start at 0 at the trace origin. The conversion is exact via a BigInt path (`round(ns) × round(freqMHz) / 1000`, half-up), so grouped digits stay exact even when the cycle count exceeds `Number.MAX_SAFE_INTEGER`. Missing / invalid `clockFreqMHz` → `—`; `formatTimePartsAuto` returns an empty `unit`. **Scope:** cycles apply to the event tooltip and the event detail strip. **Axis tick labels, the cursor timestamp, and the measure Δt label stay in wall time** — `formatAxisTime`, `formatCursorTime`, `formatTime`, and `formatTimeParts` never render cycles. `clockFreqMHz` comes from `resolveClockFreqMHz` (prefer `currentFreq`, fall back to `ratedFreq` when current is missing or non-positive, from `OpBasicInfo`, MHz). **Not** per-event `*_total_cycles`. Open: true vs derived — [UI-45](../../docs/context/questions/UI.md).
 
-**Tooltip/detail formatting.** `formatTime` / `formatTimeParts` take an explicit unit (chrome callers). Surfaces that must not follow zoom use `formatTimeAuto` / `formatTimePartsAuto` / `formatDisplayTimeAuto` / `formatDisplayTimePartsAuto`. Event tooltip and detail **value cells** pass `significantDigits: 4` (`EVENT_TIME_SIGNIFICANT_DIGITS`); detail **hover titles** omit that option and keep full fixed-decimal precision. Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part. `formatTimeParts*` returns value and unit separately for the detail card; joined helpers add a space. **Presentation chrome** (detail / tooltip) keeps one digit size/weight across scales; unit identity is the suffix string — formatting does not encode unit via size or color.
+**Tooltip/detail formatting.** `formatTime` / `formatTimeParts` take an explicit unit (chrome callers). Surfaces that must not follow zoom **unit** use `formatTimeAuto` / `formatTimePartsAuto` / `formatDisplayTimeAuto` / `formatDisplayTimePartsAuto` (per-value magnitude unit). Event **duration** value cells pass `significantDigits: 4` (`EVENT_TIME_SIGNIFICANT_DIGITS`). Event **start / end** pass viewport `nsPerPx` for zoom-aware fraction digits (same rule as playhead / measure); when `nsPerPx` is omitted they fall back to 4 significant digits. Detail **hover titles** for start/end use max nanosecond-resolution digits when the cell is zoom-aware (`nsPerPx: min(viewportNsPerPx, 1)`), so the title is never coarser than the cell; without `nsPerPx` they keep fixed 3-decimal precision. Duration titles omit rounding options the same way. Values with |magnitude| ≥ 1000 use thin-space-style grouping (`1 800 000`) on the integer part. `formatTimeParts*` returns value and unit separately for the detail card; joined helpers add a space. **Presentation chrome** (detail / tooltip) keeps one digit size/weight across scales; unit identity is the suffix string — formatting does not encode unit via size or color.
 
-**Axis tick formatting.** `formatAxisTime` derives one fraction-digit count from `tickStepNs` in the display unit (0 when the step is integral; otherwise the minimum digits that represent the step). Every tick on the same axis uses that precision — integral steps omit `.0` (e.g. `100ms`); fractional steps keep trailing zeros on whole ticks (e.g. `25.0ms` beside `12.5ms`). **Zero is always compact** (`0ms` / `0µs` / `0ns` / `0s`, never `0.0…`). Applies the same ≥1000 grouping. Viewport axis may subtract a coarse base (`resolveAxisBaseOffset` in axisRuler) and show remainders on ticks; the base label uses `formatAxisBaseTime` (integral only, no decimal point). Cursor keeps full `formatDisplayTime` in the viewport unit.
+**Axis tick formatting.** `formatAxisTime` derives one fraction-digit count from `tickStepNs` in the display unit (0 when the step is integral; otherwise the minimum digits that represent the step). Every tick on the same axis uses that precision — integral steps omit `.0` (e.g. `100ms`); fractional steps keep trailing zeros on whole ticks (e.g. `25.0ms` beside `12.5ms`). **Zero is always compact** (`0ms` / `0µs` / `0ns` / `0s`, never `0.0…`). Applies the same ≥1000 grouping. Viewport axis may subtract a coarse base (`resolveAxisBaseOffset` in axisRuler) and show remainders on ticks; the base label uses `formatAxisBaseTime` (integral only, no decimal point). Cursor / measure Δt use `formatDisplayTime` / `formatTimeAuto` with optional `nsPerPx` for zoom-aware fraction digits (not axis tick-step digits).
 
-**Cursor formatting.** `MM:SS.mmm` in the resolved scale (sketch: 4.456ms → `00:04.456`) — API helper; UI cursor pill uses scalar `formatDisplayTime` in the viewport unit.
+**Cursor formatting.** `MM:SS.mmm` in the resolved scale (sketch: 4.456ms → `00:04.456`) — API helper; UI cursor pill uses scalar `formatDisplayTime` in the viewport unit with `nsPerPx` from the visible span ÷ track width.
 
 ## Acceptance Criteria
 
@@ -55,8 +56,9 @@ nsToCycles(ns, clockFreqMHz): number
 1. **PR-TIME-006** — `formatAxisBaseTime` integral only (no decimal point).
 1. **PR-TIME-007** — axis ticks share one fraction-digit count from tick step (no mixed `146ms` / `146.1ms`).
 1. **PR-TIME-008** — `formatTimeAuto` / magnitude unit: tooltip/detail/Δt independent of viewport unit.
-1. **PR-TIME-009** — Event tooltip / detail value cells use **4** significant digits; detail hover titles keep full precision.
+1. **PR-TIME-009** — Event tooltip / detail **duration** value cells use **4** significant digits (trailing fractional zeros stripped); **start / end** use zoom-aware `nsPerPx` digits when provided (else 4 significant digits); detail hover titles stay at least as precise as the cell (zoom-aware titles use max ns-resolution digits via `nsPerPx ≤ 1`; otherwise fixed 3 decimals).
 1. **PR-TIME-010** — cycles conversion, freq resolve, and space-grouped (no leading zero) cycle formatting via `formatTimeAuto` / `formatTimePartsAuto` (tooltip/detail only; axis/cursor/measure stay time; `—` without freq).
+1. **PR-TIME-011** — When `opts.nsPerPx` is set (and `significantDigits` is not), fraction digits are `max(fractionDigitsForNsPerPx, floor from EVENT_TIME_SIGNIFICANT_DIGITS on the magnitude)`, then capped at the unit's nanosecond resolution (`maxFractionDigitsForUnit`: ns 0 / µs 3 / ms 6 / s 9). `fractionDigitsForNsPerPx` is min `d` such that a 1 CSS-px move changes the label (`ceil(-log10(nsPerPx / unitQuantum))`; ≥1 unit/px → 0). Without `nsPerPx`, chrome stays at fixed 3 decimals. Call sites: playhead, measure/gap Δt, and event tooltip/detail **start·end**. Duration keeps `significantDigits: 4`.
 
 ## Edge Cases
 
@@ -67,6 +69,11 @@ Zero → compact `'0ms'` on axis (via PR-TIME-004); tooltip `formatTimeAuto(0)` 
 UI-40a — Time (auto) vs CPU clocks; freq from OpBasicInfo (`currentFreq`, else `ratedFreq`); see [UI-40a](../../docs/context/decisions/interim/UI.md). Cycle source still open: [UI-45](../../docs/context/questions/UI.md).
 
 ## Changelog
+- **2026-09-10** — PR-TIME-009: detail hover titles under zoom use max ns-resolution digits (≥ cell); align AC with DetailSummary `fullOpts`.
+- **2026-09-10** — PR-TIME-009: strip trailing fractional zeros on significant-digit duration (`841.0` → `841`).
+- **2026-09-10** — PR-TIME-011: floor zoom digits at 4-sig magnitude; clamp to unit ns resolution (no sub-ns invention).
+- **2026-09-09** — PR-TIME-011 also covers event tooltip/detail start·end (duration stays 4 significant digits).
+- **2026-09-09** — PR-TIME-011 zoom-aware chrome fraction digits via `nsPerPx` / `fractionDigitsForNsPerPx` (playhead + measure Δt).
 - **2026-09-03** — Removed zero-padding from cycles labels; space-group only, no leading zeroes.
 - **2026-09-03** — Cycles scope narrowed: axis ticks, cursor, and measure Δt stay wall time; cycles render only on tooltip and detail (`*Auto`/`*PartsAuto` helpers).
 - **2026-09-02** — Cycles labels are number-only with fixed-width zero-padded space grouping (width from total trace cycles); dropped `cyc`/`cycles` suffix.

@@ -186,6 +186,12 @@ function formatMagnitude(value: number, fractionDigits?: number): string {
   return groupIntegerDigits(String(rounded));
 }
 
+/** Drop trailing fractional zeros (`841.0` → `841`, `11.30` → `11.3`). */
+function stripTrailingFractionZeros(body: string): string {
+  if (!body.includes('.')) return body;
+  return body.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+}
+
 /** Significant-digit magnitude for event start/end/duration display (not hover detail). */
 function formatSignificantMagnitude(value: number, digits: number): string {
   if (!Number.isFinite(value)) return '—';
@@ -202,6 +208,7 @@ function formatSignificantMagnitude(value: number, digits: number): string {
       body = n.toFixed(Math.max(0, digits - 1 - order));
     }
   }
+  body = stripTrailingFractionZeros(body);
   const sign = neg ? '-' : '';
   const dot = body.indexOf('.');
   if (dot < 0) return sign + groupIntegerDigits(body);
@@ -211,6 +218,48 @@ function formatSignificantMagnitude(value: number, digits: number): string {
 /** Digits shown on event tooltip + detail value cells (hover title keeps full precision). */
 export const EVENT_TIME_SIGNIFICANT_DIGITS = 4;
 
+/**
+ * Min fraction digits so a 1 CSS-px horizontal move (`nsPerPx`) changes the label
+ * in `unit`. Example: 0.00312 ms/px → 3. Not the same as axis tick-step digits.
+ * Capped at the unit's nanosecond resolution (µs ≤ 3, ms ≤ 6, s ≤ 9; ns → 0).
+ */
+export function fractionDigitsForNsPerPx(nsPerPx: number, unit: TimeScaleUnit): number {
+  if (!(nsPerPx > 0) || !Number.isFinite(nsPerPx)) return 0;
+  const stepInUnit = nsPerPx / unitQuantumNs(unit);
+  if (!(stepInUnit > 0) || !Number.isFinite(stepInUnit)) return 0;
+  if (stepInUnit >= 1) return 0;
+  const zoom = Math.ceil(-Math.log10(stepInUnit));
+  return Math.min(maxFractionDigitsForUnit(unit), Math.max(0, zoom));
+}
+
+/** Max fraction digits that still represent whole nanoseconds in `unit`. */
+export function maxFractionDigitsForUnit(unit: TimeScaleUnit): number {
+  const q = unitQuantumNs(unit);
+  return q <= 1 ? 0 : Math.round(Math.log10(q));
+}
+
+/**
+ * Fraction digits implied by formatting `|valueInUnit|` with `significantDigits`
+ * (e.g. 5.200 with 4 sig → 3). Used to floor zoom digits so fit-zoom labels stay
+ * at least as precise as the prior significant-digit rule.
+ */
+export function fractionDigitsForSignificantMagnitude(
+  valueInUnit: number,
+  significantDigits: number,
+): number {
+  if (!(significantDigits > 0) || !Number.isFinite(valueInUnit) || valueInUnit === 0) {
+    return 0;
+  }
+  const order = Math.floor(Math.log10(Math.abs(valueInUnit)));
+  if (!Number.isFinite(order)) return 0;
+  return Math.max(0, significantDigits - 1 - order);
+}
+
+/** Visible time span ÷ track CSS width (clamps non-positive span / width). */
+export function nsPerPxForTrack(spanNs: number, widthPx: number): number {
+  return Math.max(1, spanNs) / Math.max(1, widthPx);
+}
+
 export type FormatTimeOpts = {
   /** When set, format the unit magnitude with this many significant digits. */
   significantDigits?: number;
@@ -218,6 +267,11 @@ export type FormatTimeOpts = {
   mode?: TimeDisplayMode;
   /** AIC frequency in MHz — required when `mode` is `cycles`. */
   clockFreqMHz?: number;
+  /**
+   * Zoom resolution (ns per CSS px). When set (and `significantDigits` is not),
+   * fraction digits follow {@link fractionDigitsForNsPerPx} instead of fixed 3.
+   */
+  nsPerPx?: number;
 };
 
 /**
@@ -274,16 +328,30 @@ export function formatTimeParts(
   const sig = opts?.significantDigits;
   const mag = (v: number, fractionDigits?: number) =>
     sig != null ? formatSignificantMagnitude(v, sig) : formatMagnitude(v, fractionDigits);
+  const v = nsToUnitValue(ns, unit);
+  const zoomDigits =
+    sig == null && opts?.nsPerPx != null ? fractionDigitsForNsPerPx(opts.nsPerPx, unit) : undefined;
+  // Zoom digits never drop below the prior 4-sig floor, and never invent sub-ns.
+  const frac =
+    zoomDigits != null
+      ? Math.min(
+          maxFractionDigitsForUnit(unit),
+          Math.max(
+            zoomDigits,
+            fractionDigitsForSignificantMagnitude(v, EVENT_TIME_SIGNIFICANT_DIGITS),
+          ),
+        )
+      : 3;
   switch (unit) {
     case 'ns':
-      return { value: mag(ns), unit: label };
+      return { value: zoomDigits != null && frac > 0 ? mag(ns, frac) : mag(ns), unit: label };
     case 'us':
-      return { value: mag(ns / 1e3, 3), unit: label };
+      return { value: mag(ns / 1e3, frac), unit: label };
     case 's':
-      return { value: mag(ns / 1e9, 3), unit: label };
+      return { value: mag(ns / 1e9, frac), unit: label };
     case 'ms':
     default:
-      return { value: mag(ns / 1e6, 3), unit: label };
+      return { value: mag(ns / 1e6, frac), unit: label };
   }
 }
 

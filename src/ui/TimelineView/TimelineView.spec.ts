@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
-import { formatDisplayTime } from '../../domain/formatTime';
 import { createViewState } from '../../domain/viewState';
 import SwimlaneCanvas from './SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.vue';
 import TimelineView from './TimelineView.vue';
@@ -717,7 +716,8 @@ describe('TimelineView', () => {
     wrapper.unmount();
   });
 
-  it('PR-TIMELINE-015: cursor label is relative to bounds.minTime when minTime ≠ 0', () => {
+  it('PR-TIMELINE-015: cursor label is relative to bounds.minTime when minTime ≠ 0', async () => {
+    stubAxisWidth(1000);
     const minTime = 986_000;
     const maxTime = 5_260_000;
     const view = createViewState({ minTime, maxTime, processes: [] });
@@ -731,11 +731,13 @@ describe('TimelineView', () => {
         displaySwim: { minTime, maxTime, processes: [] },
         cursor: { time: 3_354_000, xRatio: 0.5 },
       },
+      attachTo: document.body,
     });
+    await fireAllResizeObservers();
 
-    expect(wrapper.find('[data-testid="cursor-label"]').text()).toBe(
-      formatDisplayTime(3_354_000, minTime, 'us'),
-    );
+    // Relative 2_368_000 ns = 2368 µs; span/width ≈ 4274 ns/px → 0 µs fraction digits.
+    expect(wrapper.find('[data-testid="cursor-label"]').text()).toBe('2 368 µs');
+    wrapper.unmount();
   });
 
   it('PR-TIMELINE-016: cursor timestamp aligns with time-proportional xRatio', () => {

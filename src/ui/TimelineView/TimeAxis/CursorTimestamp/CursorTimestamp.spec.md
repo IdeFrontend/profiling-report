@@ -34,7 +34,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 |-------|--------|
 | Bubble fill | `#317AF7` (align `--pr-playhead` / `#3078F0` ±) |
 | Text | `#ffffff`, 11px, weight 600, tabular-nums |
-| Format | Scalar via `formatDisplayTime` in the **viewport** unit (e.g. `0.500 ms`); **may differ** from tooltip Start (`formatDisplayTimeAuto`, e.g. `500.0 µs`) |
+| Format | Scalar via `formatDisplayTime` in the **viewport** unit with zoom-aware `nsPerPx` digits (e.g. `0.500 ms`); tooltip Start uses per-value auto unit with the same `nsPerPx` digit rule (unit may still differ, e.g. `500.0 µs`) |
 | Size | ~72×19px content; `padding: 1px 8px`; `border-radius: 4px`; `min-width: 72px` |
 | Stem | 1px line same blue (`#317AF7`), continuous from axis through swimlane — **no** 1px gap at the axis/canvas border; axis + canvas segments share the same x (no horizontal jog) |
 | Behavior | Must update on pointer move; short traces use µs/ns viewport unit so digits change |
@@ -71,6 +71,7 @@ Crops: [`visual/cursor-timestamp.png`](./visual/cursor-timestamp.png), [`visual/
 [format-time](../../../../../specs/core/format-time.spec.md) (formatDisplayTime — viewport chrome).
 
 ## Changelog
+- **2026-09-09** — Cursor label passes viewport `nsPerPx` into `formatDisplayTime` (PR-TIME-011 zoom-aware digits).
 - **2026-08-28** — Two-tier: cursor stays viewport `formatDisplayTime`; may differ from tooltip/detail Start (per-value auto).
 - **2026-08-27** — Unit auto-scales via `TimeScaleUnit` (manual dropdown removed); format stays scalar `formatDisplayTime`.
 - **2026-08-26** — `snapped` prop grays the stem (`#4c4c4c`) while the cursor is magnetized to an event edge; PR-CURSOR-006.
