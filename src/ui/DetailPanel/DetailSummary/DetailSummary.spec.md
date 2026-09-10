@@ -16,7 +16,7 @@ Purely presentational — no emitted events.
 
 ## Behavior
 
-Identity card: a circular op glyph, the event name, an optional type pill, and an inset panel with start / duration / end. Each metric picks its unit from that value's magnitude (columns may show different units). Value cells show **4** significant digits; the cell `title` hover keeps full precision with unit. Mounted by `DetailPanel` when a selection exists.
+Identity card: a circular op glyph, the event name, an optional type pill, and an inset panel with start / duration / end. Each metric picks its unit from that value's magnitude (columns may show different units). **Duration** value cells show **4** significant digits; **start / end** use viewport `nsPerPx` for zoom-aware fraction digits (fall back to 4 significant digits when omitted). The cell `title` hover keeps full precision with unit (under `nsPerPx`, at least as many digits as the cell, capped at ns resolution). Mounted by `DetailPanel` when a selection exists.
 
 The pill under the name carries the instruction or op type (the sketch shows `MOV_OUT_TO_L1_MULTI_ND2NZ` under `FIX_LOC_TO_DST`). Producers spell that field differently, so the first present of `op_type`, `kernel_type`, `kernel_name`, `type`, `cat` in `args` wins and the pill hides when none is there.
 
@@ -26,7 +26,7 @@ Only the metrics resist shrinking. The **name and type pill still ellipsize**, s
 
 This trades a stable width for uncropped values: the card is a little wider or narrower per selection (about 40px across a fixture, mostly the unit suffix, since `tabular-nums` fixes the digits). Heights stay constant, so the timeline above never moves.
 
-Every cell that truncates carries its full text in `title`, so a hover recovers what the ellipsis ate. The value line carries one too, but for a different reason — it is not cropped, it is *rounded* to 4 significant digits, and a nanosecond-resolution Ascend timestamp is exactly the case where the dropped digits matter. The value hover includes the unit.
+Every cell that truncates carries its full text in `title`, so a hover recovers what the ellipsis ate. The value line carries one too, but for a different reason — it is not cropped, it is *rounded* (duration to 4 significant digits; start/end to zoom-aware fraction digits), and a nanosecond-resolution Ascend timestamp is exactly the case where the dropped digits matter. The value hover includes the unit.
 
 The metric **value line** shows number + unit (`479.6 ms`); the caption below is the field name only (`Start` / `Duration` / `End`). Units may differ across columns when magnitudes differ.
 
@@ -35,7 +35,7 @@ The metric **value line** shows number + unit (`479.6 ms`); the caption below is
 ## Acceptance Criteria
 
 1. **PR-DSUM-001** — Renders event name.
-2. **PR-DSUM-002** — Renders start / duration / end with unit beside the value (per-value auto unit, **4** significant digits); captions are field names only; digit chrome is uniform across units (no size/tint-by-unit).
+2. **PR-DSUM-002** — Renders start / duration / end with unit beside the value (per-value auto unit; duration **4** significant digits; start/end `nsPerPx` when provided); captions are field names only; digit chrome is uniform across units (no size/tint-by-unit).
 3. **PR-DSUM-003** — Shows the type pill from `args` when present and hides it otherwise.
 4. **PR-DSUM-004** — Every truncating cell carries its full-precision text as a hover title.
 5. **PR-DSUM-005** — The metric cells never crop: they keep their automatic minimum width and carry no ellipsis, and the card takes a `min-content` track so it fits them without stretching. The name and pill still ellipsize.
@@ -54,6 +54,8 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 [format-time](../../../../specs/core/format-time.spec.md).
 
 ## Changelog
+- **2026-09-10** — Hover titles under `nsPerPx` stay ≥ cell precision (PR-DSUM-004 / PR-TIME-009).
+- **2026-09-09** — Start/end use zoom-aware `nsPerPx` digits (PR-TIME-011); duration stays 4 significant digits.
 - **2026-09-01** — PR-DSUM-005: the card's fixed 290px track becomes `min-content` and the metric cells lose `min-width: 0` and their ellipsis, so start / duration / end are never cropped and the card claims only the width they need. 290px was chosen off one sketch frame and cropped as soon as a value ran wide.
 - **2026-08-28** — Intentional: uniform digit chrome; unit via suffix text (no size/tint-by-unit).
 - **2026-08-28** — Unit beside the value (`479.6 ms`); caption is Start/Duration/End only.

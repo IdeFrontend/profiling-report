@@ -107,6 +107,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 71. **PR-CANVAS-071** — Inbound `hoveredLaneId` prop calls renderer `setHoveredLane` (and WebGL overlay when active) without re-emitting `lane-hover` (gutter→track half of AC-07).
 72. **PR-CANVAS-072** — The event-edge magnet (`nearestEventEdgeAtPoint`) snaps only to edges in the sub-row under the pointer; a multi-row leaf does not snap across sub-rows.
 73. **PR-CANVAS-073** — The hover-gap measure (`findHoverGap`) computes an idle gap only within the sub-row under the pointer; the vertical padding check and the left/right neighbour scan are sub-row-scoped.
+74. **PR-CANVAS-074** — Changing `contentTopPad` (统计分析 expand/collapse tween) calls `sync()` so `setView(paintView())` reprojects lane Y and the canvas repaints without waiting for pointer hover.
 
 ## Edge Cases
 
@@ -139,6 +140,8 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-10** — `contentTopPad` changes sync/repaint the canvas (`PR-CANVAS-074`) so overview collapse does not leave stale events.
+- **2026-09-10** — Gap / Alt-measure Δt labels use zoom-aware `nsPerPx` digits (same rule as playhead / tooltip start·end).
 - **2026-09-09** — Alt-measure vertical dashed connector also spans different sub-rows in one multiline leaf (`PR-CANVAS-050`; `sameLane` is same visual band).
 - **2026-09-09** — Alt-measure anchor/pinned borders are white (`rgba(255,255,255)`); ephemeral hover target stays blue (`PR-CANVAS-045`/`055`/`061`).
 - **2026-09-08** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-072`/`073`).

@@ -16,6 +16,8 @@ const props = withDefaults(
     clockFreqMHz?: number;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
+    /** Viewport ns per CSS px — forwarded to DetailSummary start/end formatting. */
+    nsPerPx?: number;
     locale?: string;
     /** Omitted when the report carries no dependency data — the column hides. */
     neighbors?: DependencyNeighbors;
@@ -91,6 +93,7 @@ const dockStyle = computed(() => ({
         :time-display-mode="timeDisplayMode"
         :clock-freq-m-hz="clockFreqMHz"
         :time-origin="timeOrigin"
+        :ns-per-px="nsPerPx"
         :locale="locale"
       />
       <DetailParameter
