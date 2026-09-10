@@ -34,7 +34,7 @@ const model: SwimlaneModel = {
 
 function mountPanel(props: Partial<Record<string, unknown>> = {}) {
   return mount(MultiSelectSummary, {
-    props: { selectedEvents, model, unit: 'ns', ...props },
+    props: { selectedEvents, model, ...props },
   });
 }
 

@@ -729,7 +729,7 @@ export function eventsIntersectingRect(
   const w = Math.max(1, width);
   const out: LaidOutEvent[] = [];
   for (const item of layout.events) {
-    if (item.summary) continue;
+    if (item.summary || item.alpha === 0) continue;
     const ev = item.event;
     const { y, h } = eventBlockMetrics(item.y, view.scrollY);
     if (y > bottom || y + h < top) continue;

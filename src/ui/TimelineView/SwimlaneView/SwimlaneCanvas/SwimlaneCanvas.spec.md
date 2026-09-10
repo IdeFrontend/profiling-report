@@ -124,6 +124,10 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 91. **PR-CANVAS-091** — Shift+left-click on empty space (no hit) does nothing — no emit.
 92. **PR-CANVAS-092** — Shift+pointerdown that leaves the canvas before pointerup does not toggle on the next up without Shift.
 93. **PR-CANVAS-093** — Plain drag starts the marquee and does not pan; Shift+wheel and trackpad horizontal `deltaX` pan instead.
+94. **PR-CANVAS-094** — `onPointerUp` guards `e.button !== 0`, matching `onPointerDown`: a right/middle-click release never selects or opens the dock.
+95. **PR-CANVAS-095** — Ctrl/Cmd-drag pan recovers from a lost pointerup (a trusted pointermove with `buttons === 0`, `pointercancel`, or `pointerleave` all end the pan) instead of latching on indefinitely.
+96. **PR-CANVAS-096** — Ctrl/Cmd+click (or a Ctrl/Cmd-drag that ends within the click threshold) is a no-op in `onPointerUp` — it never falls through to `select` and so never clears an active multi-selection.
+97. **PR-CANVAS-097** — Shift+union/drag on the pinned strip resolves ids through the shared cross-model event resolver, so ids outside the pinned lanes (from the body or a seeded single selection) are not dropped from the committed `multi-select`.
 
 ## Edge Cases
 
@@ -156,6 +160,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-10** — `onPointerUp` guards `e.button !== 0` (matching `onPointerDown`); Ctrl/Cmd-drag pan recovers from a lost pointerup via `buttons === 0`/`pointercancel`/`pointerleave`; Ctrl/Cmd+click no longer falls through to `select` and wipes an active multi-selection; pinned-strip Shift+union/drag resolves ids through the shared cross-model resolver instead of dropping ids outside the pinned lanes (`PR-CANVAS-094`–`097`).
 - **2026-09-10** — `contentTopPad` changes sync/repaint the canvas (`PR-CANVAS-074`) so overview collapse does not leave stale events.
 - **2026-09-10** — Gap / Alt-measure Δt labels use zoom-aware `nsPerPx` digits (same rule as playhead / tooltip start·end).
 - **2026-09-09** — Alt-measure vertical dashed connector also spans different sub-rows in one multiline leaf (`PR-CANVAS-050`; `sameLane` is same visual band).
@@ -192,9 +197,9 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 - **2026-08-27** — Default-mode Alt event measure (Alt+click anchor + Alt+hover Δt; same-lane reuse + cross-lane dashed connector; clears on Alt keyup / Esc / toggle / measure mode); PR-CANVAS-045–053.
 - **2026-08-27** — Memoize exact-edge scans per snapped time; border hover emits `snapped`; PR-CANVAS-042/043.
 - **2026-08-27** — Integrate hover-gap measure (#36) with magnet snap cursor; renumber snap ACs to PR-CANVAS-039–043.
-- **2026-08-26** — Live marquee previews its commit: covered events stay bright, the rest dim via the committed-selection path; PR-CANVAS-052.
+- **2026-08-26** — Live marquee previews its commit: covered events stay bright, the rest dim via the committed-selection path; PR-CANVAS-085.
 - **2026-08-26** — Wheel pan takes the dominant axis, so a vertical trackpad scroll with incidental `deltaX` still scrolls lanes; PR-CANVAS-049.
-- **2026-08-26** — Product gesture flip: unmodified drag marquees (measure mode still wins), drag no longer pans (pan-capture hover freeze and its PR-CANVAS-031/037/038 removed), pan moves to Shift+wheel / trackpad `deltaX`; live `multi-select-span` for axis Δt; PR-CANVAS-045/047/049/050/051.
+- **2026-08-26** — Product gesture flip: unmodified drag marquees (measure mode still wins), drag no longer pans (pan-capture hover freeze and its PR-CANVAS-031/037/038 removed), pan moves to Shift+wheel / trackpad `deltaX`; live `multi-select-span` for axis Δt; PR-CANVAS-078/081/083/084/093.
 - **2026-08-26** — Hover gap persists across zoom/pan/scroll (refresh at last pointer); PR-CANVAS-035.
 - **2026-08-26** — Hover gap measure renders only when Δt label fits inline inside the gap; PR-CANVAS-034.
 - **2026-08-26** — Fix hover gap cleared on every pointermove (view watch used a fresh tuple each evaluation); PR-CANVAS-033.
@@ -202,7 +207,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 - **2026-08-26** — Default-mode hover gap measure (sticks + Δt arrow between adjacent events); shared `MeasureDtArrow`; PR-CANVAS-027–030/032.
 - **2026-08-26** — Measure-border resize drag: unsnapped edge uses blue playhead; gray border stem hidden during drag; PR-CANVAS-041.
 - **2026-08-26** — Magnet snap paints multi-lane 2px blue bars at matching edges; `cursor` emits `snapped` to gray the full-height swim/axis line (PR-CANVAS-018).
-- **2026-08-25** — Marquee multi-select; `multi-select` emit + `multiSelectedIds` prop; PR-CANVAS-045…051.
+- **2026-08-25** — Marquee multi-select; `multi-select` emit + `multiSelectedIds` prop; PR-CANVAS-078…089.
 - **2026-08-25** — Measure-mode event click also selects the event; empty-space click also clears the selection (PR-CANVAS-013/014/015/016).
 - **2026-08-25** — `resizeTick` invalidates measure overlay geometry on width-only resize; PR-CANVAS-026.
 - **2026-08-24** — Unified track width for cursor/time; size canvas from wrap; PR-CANVAS-024/025.

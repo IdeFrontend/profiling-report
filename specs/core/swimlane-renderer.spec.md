@@ -79,7 +79,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep their original fill and label color; non-neighbors render solid dark-gray `#2C2C2C`.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` / `setHoveredLane` are optional (existing implementers stay valid).
 1. **PR-RENDER-015**: `setMultiSelection` keeps selected ids bright and dims the rest with the single-click factor; empty clears it (Canvas + WebGL; `skipIf` when WebGL2 is missing).
-1. **PR-RENDER-049**: `eventsIntersectingRect` collects intersecting leaf events (block-edge intersection in CSS px).
+1. **PR-RENDER-049**: `eventsIntersectingRect` collects intersecting leaf events (block-edge intersection in CSS px), skipping `alpha === 0` (fully faded mid-collapse-tween) the same way `hitTestLayout` and the hover-gap/magnet scans do.
 1. **PR-RENDER-050**: `eventsIntersectingRect` normalizes rect order (any 2-corner ordering) and returns `[]` on a miss (rect over headers / empty rows).
 1. **PR-RENDER-017**: `eventRadius` applies the CSS-px corner policy (1 below 4 CSS-px width, else 2) × `dpr` → device px; Canvas and WebGL share the same `shaders.ts` constants via one `uRR` vec3 uniform / `eventRadius`.
 1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
@@ -129,6 +129,8 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-10** — WebGL `setSelection` bails its expensive tail (`refreshDepCache`/`rebuildEmphasisSplit`/`rebuildCurveInstances`) on `selectedId` alone again; `hoveredId` updates for live paint without re-walking every event on each pointermove (`PR-RENDER-049`; perf regression on the `op2` fixture, 150k+ events).
+- **2026-09-10** — `eventsIntersectingRect` skips `alpha === 0` mid-collapse-tween events, matching `hitTestLayout`/`findHoverGap`/`leafLaneIdAtPoint` (`PR-RENDER-049`).
 - **2026-09-09** — PR-RENDER-027: `findEvent` resolves against `hitLayout` so ghost-summary hit ids round-trip during the dissolve tween.
 - **2026-09-08** — PR-RENDER-032: WebGL ClearType labels follow `collapseShiftY` / `collapseAlpha` during the lane collapse tween.
 - **2026-09-08** — Multi-row lanes: overlapping leaf events split into non-overlapping sub-rows (greedy first-fit), leaf height `rowCount × LANE_HEIGHT`, hit-test/mesh per sub-row; restores the additive-fill invariant for overlapping standalone Chrome-trace lanes. (PR-RENDER-042–046; after ClearType 041 / #71 collapse 027–032)

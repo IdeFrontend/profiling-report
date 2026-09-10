@@ -275,6 +275,7 @@ export class SwimlaneOverlayPainter {
   }
 
   setMultiSelection(ids: string[]): void {
+    if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
     this.multiIds = new Set(ids);
   }
 
@@ -518,6 +519,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setMultiSelection(ids: string[]): void {
+    if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
     this.multiIds = new Set(ids);
   }
 

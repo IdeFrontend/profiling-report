@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -142,7 +142,7 @@ const stackRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
-const localMultiSelectedIds = ref<string[]>(props.multiSelectedIds ?? []);
+const localMultiSelectedIds = shallowRef<string[]>(props.multiSelectedIds ?? []);
 /** Keep the local mirror in sync with parent-driven updates (marquee commit).
  * Without this, `localMultiSelectedIds` only catches the initial value and any
  * `update-multi-selected` toggle — a `view.multiSelectedIds` swap in the parent

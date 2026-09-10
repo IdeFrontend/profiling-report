@@ -24,7 +24,7 @@ The header renders the 详情 tab label with a 2px white underline and the close
 
 The expander is the sketch's 14×1px bar plus a 6×4px solid triangle in `#6c6c6c`, 4px below the dock's top edge. The two swap order between states — triangle above the bar reads as "push up to expand", below it as "push down to collapse" — which is a flex `column-reverse` / `column` flip. Padding, not margin, grows the hit target so the visual keeps its sketch position.
 
-Whichever way the height changes — appear, disappear, or expander — it animates over 200ms, so the timeline above always reflows at the same rate instead of jumping. The dock is `box-sizing: border-box` and clips its overflow, so `height: 0` on leave collapses completely. `prefers-reduced-motion: reduce` drops the transition.
+Whichever way the height changes — appear, disappear, or expander — it animates over 200ms. The dock's mount/unmount is a `translateY(100%)` + opacity slide (the timeline above does not reflow at the mount/unmount rate; only an already-mounted height change, e.g. the expander, animates `height` and reflows the timeline smoothly). `prefers-reduced-motion: reduce` drops the transition.
 
 Each column scrolls inside whichever height is current, so switching selections never resizes the panel or shifts the timeline above it. For the same reason the identity card is pinned to the top of its column and its captions stay on one line.
 
@@ -54,6 +54,7 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 [dependencies](../../../specs/core/dependencies.spec.md) for the neighbour model.
 
 ## Changelog
+- **2026-09-10** — Dock mount/unmount is a `translateY(100%)` + opacity slide (`ProfilingReport.vue`'s `pr-dock` transition), not a `height: 0` collapse; duration aligned to 200ms both here and in code.
 - **2026-09-02** — Expanded dock height is `min(var(--pr-dock-h), 60vh)` so a short host cannot lose the timeline; the free-drag path used to leave `innerHeight - 160` for the same reason.
 - **2026-09-01** — Identity track becomes `min-content` in both the three- and two-column layouts, so the card fits its figures instead of cropping them at 290px. Behaviour is specified in DetailSummary (`PR-DSUM-005`).
 - **2026-09-01** — PR-DPANEL-005 recast: the drag handle becomes the sketch's centred expander and the dock's free height range becomes two fixed heights (247 / 407), measured off the v930 pair. Adds PR-DPANEL-006 (underline on the rule) and PR-DPANEL-007 (animated height, `PrIcon` close). The stale `45vh` cap in this spec was never implemented and is gone with the range.

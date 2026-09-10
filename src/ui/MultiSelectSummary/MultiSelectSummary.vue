@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import SortIcon from '../SortIcon.vue';
+import CloseButton from '../CloseButton.vue';
 import { formatTimePartsAuto } from '../../domain/formatTime';
 import { collectLeafEventsFromModel } from '../../domain/swimTree';
 import type { SwimEvent, SwimlaneModel } from '../../domain/types';
@@ -201,16 +202,12 @@ function onResizePointerUp() {
         class="pr-multi-select__visible-count"
         data-testid="multi-select-visible-count"
       >{{ t('showingRows', locale).replace('{shown}', String(visibleRows.length)).replace('{total}', String(rows.length)) }}</span>
-      <button
-        type="button"
+      <CloseButton
         class="pr-multi-select__close"
         data-testid="multi-select-close"
-        :aria-label="t('closePanel', locale)"
-        :title="t('closePanel', locale)"
+        :label="t('closePanel', locale)"
         @click="emit('close')"
-      >
-        ×
-      </button>
+      />
     </header>
 
     <div class="pr-multi-select__body">
@@ -302,7 +299,8 @@ function onResizePointerUp() {
   /* The shell owns background, border and height. */
 }
 
-/* Same 5px hit strip as DetailPanel's top edge. */
+/* 5px top-edge resize hit strip, inside the dock's padding box (no translate — the
+   parent `.pr-dock` clips overflow, so any offset outside the box is unhittable). */
 .pr-multi-select__resize {
   position: absolute;
   left: 0;
@@ -314,7 +312,6 @@ function onResizePointerUp() {
   border: 0;
   background: transparent;
   cursor: ns-resize;
-  transform: translateY(-50%);
   z-index: 6;
 }
 

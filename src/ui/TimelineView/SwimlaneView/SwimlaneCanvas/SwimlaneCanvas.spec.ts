@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { CanvasSwimlaneRenderer } from '../../../../swimlane/CanvasSwimlaneRenderer';
+import { ALT_MEASURE_FIND_EVENT_KEY } from '../altMeasureShared';
+import type { SwimEvent } from '../../../../domain/types';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
 
 /** ResizeObservers created during a test — call `fireAllDeviceRo()` after setting wrap client size. */
@@ -389,7 +391,10 @@ describe('SwimlaneCanvas', () => {
     ]
   };
 
-  async function mountWithEventModel(extra: Record<string, unknown> = {}) {
+  async function mountWithEventModel(
+    extra: Record<string, unknown> = {},
+    provide: Record<string | symbol, unknown> = {},
+  ) {
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
@@ -400,7 +405,8 @@ describe('SwimlaneCanvas', () => {
 
         ...extra
       },
-      attachTo: document.body
+      attachTo: document.body,
+      global: { provide },
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
@@ -2088,6 +2094,57 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-094: onPointerUp guards e.button !== 0, matching onPointerDown', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const y = rect.y + rect.h / 2;
+    // Right-click down+up at an event: onPointerDown already bails on e.button !== 0, so
+    // no marquee/drag state is armed; onPointerUp must independently bail too.
+    await canvas.trigger('pointerdown', { clientX: rect.x, clientY: y, pointerId: 1, button: 2 });
+    await canvas.trigger('pointerup', { clientX: rect.x, clientY: y, pointerId: 1, button: 2 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('select')).toBeFalsy();
+    expect(wrapper.emitted('set-playhead')).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-095: Ctrl-drag pan recovers from a lost pointerup (buttons === 0 move)', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointermove', { clientX: 90, clientY: 30, buttons: 1, ctrlKey: true });
+    expect(wrapper.emitted('pan')).toBeTruthy();
+    const panCount = wrapper.emitted('pan')!.length;
+
+    // pointerup never arrives (e.g. OS context menu swallowed it); the next trusted move
+    // reports buttons === 0 — the pan must end here rather than continuing indefinitely.
+    const el = canvas.element as HTMLCanvasElement;
+    const lost = new PointerEvent('pointermove', { clientX: 140, clientY: 30, buttons: 0 });
+    Object.defineProperty(lost, 'isTrusted', { value: true });
+    el.dispatchEvent(lost);
+    await wrapper.vm.$nextTick();
+    const after = new PointerEvent('pointermove', { clientX: 200, clientY: 30, buttons: 0 });
+    Object.defineProperty(after, 'isTrusted', { value: true });
+    el.dispatchEvent(after);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('pan')!.length).toBe(panCount);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-096: Ctrl+click within the click threshold does not select or clear multi-selection', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    await wrapper.setProps({ multiSelectedIds: ['e1'] });
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1, ctrlKey: true });
+    await canvas.trigger('pointerup', { clientX: 41, clientY: 30, pointerId: 1, ctrlKey: true });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('select')).toBeFalsy();
+    expect(wrapper.emitted('multi-select')).toBeFalsy();
+    expect(wrapper.emitted('pan')).toBeFalsy();
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-083: in measureMode, drag measures and never marquees', async () => {
     const { wrapper, canvas } = await mountWithEventModel({ measureMode: true });
     await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1 });
@@ -2241,6 +2298,51 @@ describe('SwimlaneCanvas', () => {
     expect(ids).toContain('e1');
     expect(ids).toContain('e2');
     expect(new Set(ids).size).toBe(ids.length);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-097: Shift+drag union resolves ids via the shared resolver, not the local model', async () => {
+    // Simulates the pinned-strip instance: its own `backend` only knows about pinned-lane
+    // events, but a seeded selection can reference an id from the (unpinned) body. The
+    // shared resolver (provided by SwimlaneView in production) must be consulted instead
+    // of silently dropping ids `backend.findEvent` cannot see.
+    const foreignEvent: SwimEvent = { id: 'foreign', name: 'body-only', startTime: 10, duration: 5 };
+    const bodyOnlyEvent: SwimEvent = { id: 'e1', name: 'busy', startTime: 200, duration: 300 };
+    const { wrapper, canvas } = await mountWithEventModel(
+      { measureMode: false, selectedEventId: 'foreign' },
+      {
+        [ALT_MEASURE_FIND_EVENT_KEY as unknown as string]: (id: string) =>
+          id === 'foreign' ? foreignEvent : id === 'e1' ? bodyOnlyEvent : null,
+      },
+    );
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+
+    await canvas.trigger('pointerdown', {
+      clientX: rect.x - 20,
+      clientY: rect.y - 4,
+      pointerId: 1,
+      shiftKey: true,
+    });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
+    );
+    await wrapper.vm.$nextTick();
+
+    const ids = (wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[]).map((e) => e.id);
+    // The pre-existing single selection ('foreign', not in this instance's own model) must
+    // survive the union instead of resolving to null and being filtered out.
+    expect(ids).toContain('foreign');
+    expect(ids).toContain('e1');
     wrapper.unmount();
   });
 

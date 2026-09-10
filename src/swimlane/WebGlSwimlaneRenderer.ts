@@ -533,9 +533,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
-    if (selectedId === this.selectedId && hoveredId === this.hoveredId) return;
-    this.selectedId = selectedId;
+    // Hover-only changes take the cheap path: the per-frame ClearType/lane-hover paint
+    // reads `hoveredId` live, but the emphasis-split buckets (which gate the expensive
+    // refreshDepCache/rebuildEmphasisSplit/rebuildCurveInstances tail below) do not key
+    // off it, so a pointermove must not re-walk 150k+ events / rebuild every VAO+VBO.
     this.hoveredId = hoveredId;
+    if (selectedId === this.selectedId) return;
+    this.selectedId = selectedId;
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();

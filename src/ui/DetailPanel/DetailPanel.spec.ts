@@ -104,7 +104,7 @@ describe('DetailPanel', () => {
 
   it('PR-DPANEL-007: the close control is the design icon and the shell lives in the parent', async () => {
     const wrapper = mount(DetailPanel, { props: { selected, timeDisplayMode: 'time' as const } });
-    expect(wrapper.find('[data-testid="detail-panel-close"] .pr-icon--close').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="detail-panel-close"].pr-close').exists()).toBe(true);
 
     const src = (await import('./DetailPanel.vue?raw')).default as string;
     // The panel is a content shell now: height, border and transition are owned by the parent dock.

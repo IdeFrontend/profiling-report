@@ -386,10 +386,6 @@ function clampScrollY(y: number): number {
   return Math.min(maxScrollY(), Math.max(0, y));
 }
 
-function clearPanHoverCapture(): void {
-  // no-op: panCaptureHoverGap/Event removed (always null after capture was dropped)
-}
-
 function altMeasureSessionActive(): boolean {
   return (
     altMeasure.anchorId != null &&
@@ -831,12 +827,29 @@ watch(
 );
 
 watch(
-  () => [props.view, props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies, props.multiSelectedIds],
+  () => [props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
+  () => {
+    sync();
+  },
+);
+
+/** `props.view` fields (startTime/endTime/scrollY) mutate in place on some callers — keep deep. */
+watch(
+  () => props.view,
   () => {
     localScrollY = props.view.scrollY;
     sync();
   },
   { deep: true },
+);
+
+/** Identity-only: a marquee/Shift-toggle commit replaces the whole array, never mutates it in
+ * place, so a shallow watch avoids deep-traversing a selection that can hold 125k+ ids. */
+watch(
+  () => props.multiSelectedIds,
+  () => {
+    sync();
+  },
 );
 
 /** Overview expand/collapse tweens contentTopPad — setView + paint or events stay stale. */
@@ -930,8 +943,6 @@ function endMarquee(): void {
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
-  // Drop pan-capture hover so the next pointermove drives hover from the live state.
-  clearPanHoverCapture();
 }
 
 /** Marquee time extent — the live Δt the axis chrome shows while dragging. */
@@ -1022,7 +1033,7 @@ function onMarqueeDragEnd(): void {
     (props.multiSelectedIds ?? []).forEach(addId);
     events.forEach((ev) => addId(ev.id));
     const unioned = ordered
-      .map((id) => backend.findEvent(id))
+      .map((id) => findAltMeasureEvent(id))
       .filter((ev): ev is SwimEvent => ev != null);
     emit('multi-select', unioned);
   } else {
@@ -1041,7 +1052,6 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   marqueePressActive = true;
   // Hide hover chrome immediately: lane highlight, gap overlay, and tooltip.
   hoverGap.value = null;
-  clearPanHoverCapture();
   emit('cursor', { time: timeAtX(localX), xRatio: localX / syncTrackWidth(), snapped: false });
   emitLaneHover(null);
   unbindMarqueeDrag = bindWindowPointerDrag({
@@ -1871,6 +1881,14 @@ function onPointerMove(e: PointerEvent): void {
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
 
   if (dragging) {
+    // Trusted move with no buttons held means a lost pointerup — recover instead of
+    // panning indefinitely (same recovery `bindWindowPointerDrag` gives every other gesture).
+    if (e.isTrusted && e.buttons === 0) {
+      dragging = false;
+      emit('hover', null, e.clientX, e.clientY);
+      emitLaneHover(y);
+      return;
+    }
     // Measure create is driven by window listeners (release over Card strips still ends).
     if (measureGestureActive || measureCreatePending || measurePressActive) {
       hoverGap.value = null;
@@ -1933,6 +1951,7 @@ function onPointerMove(e: PointerEvent): void {
 }
 
 function onPointerUp(e: PointerEvent): void {
+  if (e.button !== 0) return;
   // A marquee that crossed the 4px gate (or was cancelled) never selects; the window
   // pointerup that follows commits it. A press still pending is a plain click.
   if (marqueeEscaped) {
@@ -2006,11 +2025,19 @@ function onPointerUp(e: PointerEvent): void {
       // Shift+click multi-selection behaves like a region (summary dock, span
       // hull, single-selection dismiss, empty set clears).
       const toggled = [...ids]
-        .map((id) => backend.findEvent(id))
+        .map((id) => findAltMeasureEvent(id))
         .filter((ev): ev is SwimEvent => ev != null);
       emit('multi-select', toggled);
     }
     shiftTogglePending = false;
+    return;
+  }
+
+  // Ctrl/Cmd+click (or a Ctrl/Cmd-drag that never left the click threshold) suppresses
+  // marquee/single-select here — it is the pan modifier, not a selection gesture, and
+  // must not silently wipe an active multi-selection by falling through to `select`.
+  if (ctrlClickPending) {
+    ctrlClickPending = false;
     return;
   }
 
@@ -2117,9 +2144,11 @@ function onPointerLeave(e: PointerEvent): void {
   // Shared strip→body session: leave on one canvas must not blank the sibling's target mid-crossing.
   // Solo keeps clearing ephemeral live preview on leave.
   if (!altMeasure.pinned && props.altMeasureRole === 'solo') altMeasure.target = null;
-  // Drop any pending Ctrl/Shift+click so a press that leaves the canvas never misfires on the next enter.
+  // Drop any pending Ctrl/Shift+click, and end a Ctrl/Cmd-drag pan, so a press that leaves
+  // the canvas (or a lost pointerup/pointercancel) never misfires or latches on indefinitely.
   ctrlClickPending = false;
   shiftTogglePending = false;
+  dragging = false;
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
@@ -2219,6 +2248,7 @@ defineExpose({
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
         @pointerleave="onPointerLeave"
+        @pointercancel="onPointerLeave"
         @wheel="onWheel"
       />
     </template>
@@ -2233,6 +2263,7 @@ defineExpose({
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointerleave="onPointerLeave"
+      @pointercancel="onPointerLeave"
       @wheel="onWheel"
     />
     <div

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import PrIcon from '../PrIcon.vue';
+import CloseButton from '../CloseButton.vue';
 import type { ReportOperator, TimeDisplayMode } from '../../domain/types';
 import Chevron from '../Chevron.vue';
 import {
@@ -852,16 +853,12 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         >
           <div class="pr-toolbar__display-head">
             <span class="pr-toolbar__display-title">{{ t('displayControl', locale) }}</span>
-            <button
-              type="button"
+            <CloseButton
               class="pr-toolbar__display-close"
               data-testid="display-control-close"
-              :aria-label="t('closePanel', locale)"
-              :title="t('closePanel', locale)"
+              :label="t('closePanel', locale)"
               @click="closeDisplayControl"
-            >
-              <PrIcon name="close" />
-            </button>
+            />
           </div>
           <label class="pr-toolbar__display-field">
             <span class="pr-toolbar__display-label">{{ t('taskDisplayUnit', locale) }}</span>

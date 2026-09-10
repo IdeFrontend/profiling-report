@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { t } from '../../i18n';
 import type { DependencyNeighbors } from '../../domain/dependencies';
 import type { DependencyMode, SelectedEvent, TimeDisplayMode } from '../../domain/types';
-import PrIcon from '../PrIcon.vue';
+import CloseButton from '../CloseButton.vue';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 import DetailSummary from './DetailSummary/DetailSummary.vue';
 import DetailParameter from './DetailParameter/DetailParameter.vue';
@@ -72,16 +72,12 @@ function toggleExpanded(): void {
     </button>
     <header class="pr-detail-panel__head">
       <span class="pr-detail-panel__tab">{{ t('details', locale) }}</span>
-      <button
-        type="button"
+      <CloseButton
         class="pr-detail-panel__close"
         data-testid="detail-panel-close"
-        :aria-label="t('closePanel', locale)"
-        :title="t('closePanel', locale)"
+        :label="t('closePanel', locale)"
         @click="emit('close')"
-      >
-        <PrIcon name="close" />
-      </button>
+      />
     </header>
 
     <div
