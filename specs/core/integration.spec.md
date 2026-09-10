@@ -45,7 +45,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-010**: Dragging the dock taller grows its columns with it.
 1. **PR-E2E-011**: Drag marquees real events into the multi-select dock; bars fill against the widest row; a Name click hands off to DetailPanel.
 1. **PR-E2E-012**: Escape cancels a marquee mid-drag and clears a committed one.
-1. **PR-E2E-013**: Closing the dock expands the timeline throughout its leave animation.
+1. **PR-E2E-013**: Closing the dock keeps the swimlane canvas visible through its leave animation.
 
 ## Dependencies
 

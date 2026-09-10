@@ -173,7 +173,6 @@ const detailDockHeight = computed(() =>
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
 const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
-const dockLeaving = ref(false);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
@@ -405,14 +404,6 @@ function resetViewFromModel(
     : [];
   initGutterMetrics(model);
   if (showTimeline.value) void bindLayoutFit();
-}
-
-function onDockBeforeLeave(): void {
-  dockLeaving.value = true;
-}
-
-function onDockAfterLeave(): void {
-  dockLeaving.value = false;
 }
 
 function stopLayoutFitObserver(): void {
@@ -1103,7 +1094,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     <ReportLayout
       v-else-if="showTimeline || showAside"
       ref="layoutRef"
-      :class="{ 'pr-layout--dock-leaving': dockLeaving }"
       :show-aside="showAside"
       :aside-width="asideWidth"
       :locale="locale"
@@ -1207,11 +1197,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 
     <!-- Persistent dock shell: single/multi selection swap content, not the container.
          The shared height survives mode switches so the panel does not animate from 0. -->
-    <Transition
-      name="pr-dock"
-      @before-leave="onDockBeforeLeave"
-      @after-leave="onDockAfterLeave"
-    >
+    <Transition name="pr-dock">
       <footer
         v-if="showTimeline && (selected || multiSelected.length)"
         class="pr-dock"
@@ -1332,10 +1318,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
   overflow: hidden;
-}
-
-.pr-layout--dock-leaving :deep(.pr-swim-canvas) {
-  visibility: hidden;
 }
 
 .pr-error {

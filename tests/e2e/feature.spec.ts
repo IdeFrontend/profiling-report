@@ -414,7 +414,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(dock).toHaveCount(0);
   });
 
-  test('PR-E2E-013: closing the dock does not expose a stale canvas during its leave animation', async ({
+  test('PR-E2E-013: closing the dock keeps the swimlane canvas visible through the leave animation', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
@@ -435,7 +435,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect
       .poll(() =>
         page.locator('.pr-swim-canvas').evaluateAll((canvases) =>
-          canvases.every((canvas) => getComputedStyle(canvas).visibility === 'hidden'),
+          canvases.every((canvas) => getComputedStyle(canvas).visibility === 'visible'),
         ),
       )
       .toBe(true);
