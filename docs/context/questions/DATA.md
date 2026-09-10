@@ -2,13 +2,15 @@
 
 Open **DATA** questions (file/field/formula data mapping). Status enum, prefix taxonomy, and migration map: [README.md](README.md).
 
-These seven are the granular roofline questions from the HQ/`Q11` batch. They stay as separate ids permanently, but their **status and findings are tracked once** under the [DATA-37](#data-37--roofline-formulas-was-q11) umbrella — ask Product for them together.
+## Roofline sub-questions — aliases of DATA-37
+
+The seven **DATA-11…DATA-17** rows below are the granular roofline questions from the HQ/`Q11` batch. They keep permanent ids of their own, but carry the **same status as the [DATA-37](#data-37--roofline-formulas-was-q11) umbrella** and share its findings — ask Product for them together.
 
 ### DATA-11 — Roofline axes vs pipe busy rates
 
 <img src="../visual/questions/data-11.png" alt="DATA-11 Roofline chart — not pipe busy rates" width="900" height="655">
 
-**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** The Roofline chart plots **X = Ops/Byte** (arithmetic intensity) and **Y = TOps/s** (achieved performance). The producer doc's Roofline table instead points its three tab labels at **pipe busy rates** — `aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio` (`PipeUtilization.csv`). Busy-rate ratios cannot produce either axis, so: what are the real axis quantities, and are the tabs meant to be axes at all, or three separate bottleneck panels?
 
@@ -16,7 +18,7 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 <img src="../visual/questions/data-12.png" alt="DATA-12 X axis Ops/Byte" width="900" height="655">
 
-**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** **X axis = Ops/Byte** — which file, field(s), and formula? Does the **GM** point use the same formula and byte source as the **L2** point, or different ones? (Interim [DATA-37b](../decisions/interim/DATA.md): `fops ÷ ((read_main_memory_datas(KB) + write_main_memory_datas(KB)) × 1024)`.)
 
@@ -24,7 +26,7 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 <img src="../visual/questions/data-13.png" alt="DATA-13 Y axis TOps/s" width="900" height="655">
 
-**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** **Y axis = TOps/s** — which file, field(s), and formula? Raw FLOPS *counts* exist (`aiv_vec_fops`, `aic_cube_fops` on `ArithmeticUtilization.csv`) but there is no documented TOps/s conversion. Is it a per-side (Cube \| Vector) value or one combined number? (Interim [DATA-37a](../decisions/interim/DATA.md): `fops ÷ mean(*_time(us)) ÷ 1e6`.)
 
@@ -32,7 +34,7 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 <img src="../visual/questions/data-14.png" alt="DATA-14 roof lines" width="900" height="655">
 
-**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** The two **roof lines** — the bandwidth slope and the compute plateau — which file and fields? Peak compute ([DATA-3](../decisions/DATA.md): `aic/aiv_flops_theoretical`) and peak BW ([DATA-5](../decisions/DATA.md): `aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s**) are documented for the summary cards; nothing states whether the roofline roof reuses those values, or which one applies to which side.
 
@@ -40,7 +42,7 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 <img src="../visual/questions/data-15.png" alt="DATA-15 L2 legend series" width="900" height="655">
 
-**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** The chart legend has an **L2** series alongside GM, and the L2 point needs **bytes moved through L2**. Which field? `L2Cache.csv` carries hit/miss **counts** and hit **rates** only — no byte traffic. If no byte field exists, should the L2 series be dropped, or taken from another file? (Interim [DATA-37c](../decisions/interim/DATA.md): omit the L2 point.)
 
@@ -48,7 +50,7 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 <img src="../visual/questions/data-16.png" alt="DATA-16 Vec_FP32 / Vec_MISC mix" width="900" height="655">
 
-**Status:** `partial` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** The op-mix annotation above the plot prints labels such as `Vec_FP32` / `Vec_MISC`. Which file and fields feed them on **Cube vs Vector** ops, and when several mix ratios are non-zero at once, **which labels are shown, in what order, and with how much precision?**
 
@@ -58,7 +60,7 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 <img src="../visual/questions/data-17.png" alt="DATA-17 Roofline tabs" width="900" height="655">
 
-**Status:** `partial` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** Tabs **内存单元** / **内存通路** / **搬运单元** — what does each tab show, and is the tab set in scope at all this iteration (or should the panel stay single-chart)?
 
@@ -70,7 +72,7 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 **Status:** `interim`
 
-**Question:** A CSV holds one row per `block_id` (sample: 8 rows). On the **summary** PIPE bars, do we average all blocks? On the **详情** overlays, do we show only the selected block? Does picking a block scope **only PIPE** or every summary widget (cards, Roofline, memory diagram)? The producer reply on the 详情 crop asks for a **block-selection control** there (reference crop [DATA-29](#data-29--summary-aggregation-mean--max--first--selected)); engineering also ships an **All \| block_id** control on the summary — confirm whether that summary control is wanted, and where the selector belongs.
+**Question:** A CSV holds one row per `block_id` (sample: 8 rows). On the **summary** PIPE bars, do we average all blocks? On the **详情** overlays, do we show only the selected block? Does picking a block scope **only PIPE** or every summary widget (cards, Roofline, memory diagram)? The producer reply on the 详情 crop asks for a **block-selection control** there (reference crop [DATA-29](#data-29--same-rule-for-every-widget)); engineering also ships an **All \| block_id** control on the summary — confirm whether that summary control is wanted, and where the selector belongs.
 
 **Interim:** summary PIPE bars default to mean of non-`NA` ratios across `block_id` ([`DATA-33b`](../decisions/interim/DATA.md)); summary **block** control (All \| `block_id`) scopes PIPE when >1 block. **详情** / memory / metrics = selected block ([`DATA-33c`](../decisions/interim/DATA.md)). Matrix: [VIEW_DATA_REQUIREMENTS §8.1](../../formats/VIEW_DATA_REQUIREMENTS.md).
 
@@ -80,9 +82,9 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 **Status:** `partial`
 
-**Question:** Memory-diagram boxes can show a **Peak (%)** badge — the unit's usage as a percent of its theoretical maximum, driving a color scale. For **each** box — GM, L2, L1, L0A, L0B, L0C, Cube, FixP, UB, Vec, Scalar — which file and field gives that percent, and what is the box's 100% reference (theoretical peak)? The producer doc's 理论值 column is empty for every row.
+**Question:** Memory-diagram **boxes and edges** can show a **Peak (%)** badge — the unit's usage as a percent of its theoretical maximum, driving a color scale. For **each box** — GM, L2, L1, L0A, L0B, L0C, Cube, FixP, UB, Vec, Scalar — which file and field gives that percent, and what is the box's 100% reference (theoretical peak)? For each **edge** that carries a 理论值 — L0C → L1 and L0C → L2/GM ([DATA-24](../decisions/DATA.md) / [DATA-25](#data-25--l0c--l2gm)) — same question: which field, and what is the 100% reference? The producer doc's 理论值 column is empty for every row.
 
-**Answer so far:** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)), not a peak-relative percent. Other boxes — still no Product mapping. Rule 2 of the producer doc also asks how the color scale maps when 理论值 is known.
+**Answer so far:** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)), not a peak-relative percent. Other boxes and both L0C edges — still no Product mapping. Rule 2 of the producer doc also asks how the color scale maps when 理论值 is known.
 
 ### DATA-25 — L0C → L2/GM
 
