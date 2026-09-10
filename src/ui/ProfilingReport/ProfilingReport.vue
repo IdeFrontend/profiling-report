@@ -7,6 +7,8 @@ import {
   createViewState,
   keyboardPanStepTime,
   measureFocusWindow,
+  MIN_VIEW_WINDOW,
+  minSpanForPrecision,
   panBy,
   pinLane,
   pinOverview,
@@ -295,11 +297,29 @@ const bounds = computed(() => {
   };
 });
 
+/**
+ * Zoom-in floor that keeps fp32 coordinate noise of the stored event coords at ≤ 1 device px.
+ * Stored coords are `start - minTime` (magnitude ≈ fullSpan), so at high zoom one fp32 ULP would
+ * span many pixels; clamp the span to `ulp * widthPx`. WebGL resolves X in device px, so the
+ * CSS-px track width is scaled by devicePixelRatio before it feeds the px-per-ULP ratio.
+ * Before the track has measured a real width, defer to the legacy floor (`minSpanForPrecision`
+ * would clamp a 0 width to 1 and yield an un-scaled ~ULP floor that underestimates the defect).
+ */
+const ulpMinSpan = computed(() => {
+  const widthCss = timelineRef.value?.trackWidth ?? 0;
+  if (widthCss <= 0) return MIN_VIEW_WINDOW;
+  return minSpanForPrecision(
+    bounds.value.maxTime - bounds.value.minTime,
+    widthCss * (window.devicePixelRatio || 1),
+  );
+});
+
 /** Log zoom: 0 = fit, 100 = min window (same floor as Ctrl+wheel / zoomAt). */
 const zoomPercent = computed(() =>
   zoomPercentFromSpan(
     viewState.value.endTime - viewState.value.startTime,
     bounds.value.maxTime - bounds.value.minTime,
+    ulpMinSpan.value,
   ),
 );
 
@@ -875,7 +895,7 @@ function onZoom(factor: number, anchorTime: number) {
   stopViewWindowAnim();
   viewState.value = applyWindow(
     viewState.value,
-    zoomAt(viewState.value, factor, anchorTime, bounds.value),
+    zoomAt(viewState.value, factor, anchorTime, bounds.value, ulpMinSpan.value),
   );
 }
 
@@ -896,7 +916,7 @@ function onZoomOut() {
 function onZoomPercent(pct: number) {
   stopViewWindowAnim();
   const full = bounds.value.maxTime - bounds.value.minTime;
-  const span = spanFromZoomPercent(pct, full);
+  const span = spanFromZoomPercent(pct, full, ulpMinSpan.value);
   const mid = (viewState.value.startTime + viewState.value.endTime) / 2;
   let startTime = mid - span / 2;
   let endTime = mid + span / 2;

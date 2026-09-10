@@ -689,8 +689,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).
+    // X maps event space to clip via (x + offset) * sx — offset is added BEFORE scaling so we keep
+    // large absolute-time magnitudes out of the scale step (fp32: subtract-then-scale vs the old
+    // `x * sx + px` which multiplied a large offset-after-scale). Algebraically equivalent to
+    // `(timeBase - view.startTime) - span/2`.
     const sx = 2 / span;
-    const px = -1 + (2 * (this.timeBase - this.view.startTime)) / span;
+    const offsetX = this.timeBase - this.view.startTime - span / 2;
 
     for (let i = 0; i < this.laneMeshes.length; i++) {
       const lane = this.layout.lanes[i];
@@ -713,7 +717,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const sy = bandHSnapped / devH;
         const py = 1 - (topSnapped * 2 + bandHSnapped) / devH;
 
-        gl.uniform4f(swim.uSizePos, sx, sy, px, py);
+        gl.uniform4f(swim.uSizePos, sx, sy, offsetX, py);
         if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
 
         // Summary bars composite source-over so their exact fill lands without adding onto
