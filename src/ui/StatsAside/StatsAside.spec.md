@@ -223,6 +223,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 | Panel | `#262626` (`--pr-bg-panel`), radius `4px`, padding `12px 10px 10px` |
 | Title | `14px` / `600` / `#ffffff` — **计算负载分析** (on aside shell, not inside panel) |
 | 详情 | `12px` / `#e6e6e6` |
+| Block select | Rendered when `PipeUtilization.csv` holds >1 `block_id` (PR-STATS-014b). Uses the shared block-pill class `.pr-block-pill` (`tokens.css`) — the one definition also used by [`CsvFieldListPanel`](./CsvFieldListPanel/CsvFieldListPanel.spec.md): fill `#2a2a2a`, `1px` stroke `#3a3a3a`, radius `4px`, text `#e0e0e0`, pad `4px 22px 4px 10px`, `min-width: 72px`, `cursor: pointer`, custom chevron (`appearance: none` — never the native arrow); caption `block` `#b8b8b8`, gap `6px` |
 | Cube\|Vector | pill `#111111`; active `#343434` / `#ffffff`; inactive `#b3b3b3`; radius `4px`; label `12px` |
 | Chart well | `#202020`, radius `4px`, padding `10px 8px 12px` |
 | Scale | `12px` / `#999999` |
@@ -252,6 +253,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-10** — Summary PIPE **block** select shares the `.pr-block-pill` chrome (`tokens.css`) with the memory overlay switcher — one definition instead of two copies, so they cannot drift. The v930 frames contain no summary block control — it is a DATA-33b addition with no design source.
 - **2026-09-08** — AICore dual **并行使用率** \| **负载均衡度** columns with `%` bars (DATA-9 / DATA-10, PR-STATS-011c).
 - **2026-09-08** — AICore score/bar clamp to [0, 100]; unrounded percent in value `title`; 2dp display precision documented.
 - **2026-09-08** — Topology **全屏** is a fit-window icon emitting `open-topology-fullscreen` for the root overlay (PR-STATS-033/034); hidden when the diagram is hidden.

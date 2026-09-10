@@ -210,6 +210,7 @@ function onViewAll() {
           <span>{{ t('block', locale) }}</span>
           <select
             v-model="selectedBlock"
+            class="pr-block-pill"
             data-testid="csv-block"
           >
             <option
@@ -382,18 +383,6 @@ function onViewAll() {
   gap: 6px;
   font-size: 11px;
   color: #b8b8b8;
-}
-
-.pr-csv__block select {
-  appearance: none;
-  background: #2a2a2a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23c8c8c8' d='M0 0l5 6 5-6z'/></svg>") no-repeat right 8px center;
-  border: 1px solid #3a3a3a;
-  color: #e0e0e0;
-  font-size: 11px;
-  padding: 4px 22px 4px 10px;
-  border-radius: 4px;
-  min-width: 72px;
-  cursor: pointer;
 }
 
 .pr-csv__view-all {

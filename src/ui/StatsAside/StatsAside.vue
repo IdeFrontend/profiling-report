@@ -824,6 +824,7 @@ function backToReport() {
             <span>{{ t('block', locale) }}</span>
             <select
               :value="summaryBlockId"
+              class="pr-block-pill"
               data-testid="pipe-block"
               :aria-label="t('block', locale)"
               @change="onSummaryBlockChange(($event.target as HTMLSelectElement).value)"
@@ -1496,15 +1497,6 @@ function backToReport() {
   margin-bottom: 8px;
   font-size: 11px;
   color: #b8b8b8;
-}
-
-.pr-pipe-block select {
-  background: #2a2a2a;
-  color: #e8e8e8;
-  border: 1px solid #3a3a3a;
-  border-radius: 3px;
-  padding: 2px 6px;
-  font-size: 11px;
 }
 
 .pr-pipe-toggle {

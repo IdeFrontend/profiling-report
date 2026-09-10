@@ -106,6 +106,8 @@ describe('StatsAside', () => {
     expect(options).toEqual(['', '0', '1']);
 
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
+    // Shared block-pill chrome (tokens.css) — guards against the native arrow returning.
+    expect(wrapper.get('[data-testid="pipe-block"]').classes()).toContain('pr-block-pill');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
     expect(wrapper.text()).toContain('1.00 GB/s');
 
