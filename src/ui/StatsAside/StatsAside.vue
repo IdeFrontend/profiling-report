@@ -824,6 +824,7 @@ function backToReport() {
             <span>{{ t('block', locale) }}</span>
             <select
               :value="summaryBlockId"
+              class="pr-block-pill"
               data-testid="pipe-block"
               :aria-label="t('block', locale)"
               @change="onSummaryBlockChange(($event.target as HTMLSelectElement).value)"
@@ -1496,19 +1497,6 @@ function backToReport() {
   margin-bottom: 8px;
   font-size: 11px;
   color: #b8b8b8;
-}
-
-.pr-pipe-block select {
-  /* Block-pill chrome — keep in sync with .pr-csv__block select (CsvFieldListPanel). */
-  appearance: none;
-  background: #2a2a2a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23c8c8c8' d='M0 0l5 6 5-6z'/></svg>") no-repeat right 8px center;
-  border: 1px solid #3a3a3a;
-  color: #e0e0e0;
-  font-size: 11px;
-  padding: 4px 22px 4px 10px;
-  border-radius: 4px;
-  min-width: 72px;
-  cursor: pointer;
 }
 
 .pr-pipe-toggle {
