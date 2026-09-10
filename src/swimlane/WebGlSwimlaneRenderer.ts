@@ -500,7 +500,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
     this.rebuildMeshes();
     this.rebuildCurveInstances();
-    // Glyphs are keyed by drawn text, not model identity — keep the atlas across setModel
+    // Glyphs are keyed by CSS font + drawn text, not model identity — keep the atlas across setModel
     // so collapse/unfold and a pan that revisits names do not re-rasterize. LRU still
     // bounds GPU memory; resize clears on dpr change (new fontPx).
   }

@@ -146,7 +146,7 @@ export class TextAtlas {
   private measures = new Map<string, number>();
   private bytes = 0;
   private probeCtx: Atlas2d | null | undefined;
-  private probeFontPx = 0;
+  private probeFont = '';
   private rasterCanvas: OffscreenCanvas | null = null;
   private rasterCtx: Atlas2d | null = null;
 
@@ -160,27 +160,30 @@ export class TextAtlas {
   }
 
   /**
-   * Rasterize + upload `text`. Draw/truncate cache by `(sizePx, drawn text)` so clip-width
+   * Rasterize + upload `text`. Draw/truncate cache by `(CSS font, drawn text)` so clip-width
    * pan reuses the texture. Shrink bakes `scaleX` into a 1:1 ClearType glyph (keyed with
    * integer `maxWidth`) — GPU-scaling a full-size texture shears subpixel RGB and clips
-   * the first letter at the event edge. Returns null when the platform lacks
-   * `OffscreenCanvas` or the label is too narrow to draw.
+   * the first letter at the event edge. `font` defaults to `eventLabelFont(fontSizePx)`
+   * (weight + size + family) and is the cache identity, so a later themed stack cannot
+   * reuse the wrong bitmap. Returns null when the platform lacks `OffscreenCanvas` or
+   * the label is too narrow to draw.
    */
   get(
     gl: WebGL2RenderingContext,
     text: string,
     fontSizePx: number,
     maxWidth: number,
+    font: string = eventLabelFont(fontSizePx),
   ): TextGlyph | null {
     // Bucket clip width to integer device px before fitting. `eventLabelAnchor` supplies a
     // continuous float (`visibleW - 8`); rounding keeps the draw/shrink/truncate/skip choice
     // stable across sub-pixel pan/zoom. The glyph key itself does not include this width.
     const widthPx = Math.round(maxWidth);
-    const probe = this.ensureProbe(fontSizePx);
+    const probe = this.ensureProbe(font);
     if (!probe) return null;
 
     const fit = fitEventLabel(
-      { measureText: (s) => ({ width: this.measureWidth(probe, fontSizePx, s) }) },
+      { measureText: (s) => ({ width: this.measureWidth(probe, font, s) }) },
       text,
       widthPx,
     );
@@ -190,8 +193,9 @@ export class TextAtlas {
     const drawn = fit.text;
     // Draw/truncate share one glyph per string. Shrink must not: a 0.8-baked texture
     // drawn 1:1 at a wider clip would clip letters, and GPU-scaling a 1.0 texture
-    // breaks ClearType (NEAREST minify) the same way.
-    const key = scaleX === 1 ? `${fontSizePx}\0${drawn}` : `${fontSizePx}\0${drawn}\0${widthPx}`;
+    // breaks ClearType (NEAREST minify) the same way. CSS font (not size alone) is
+    // the identity so two families at the same px cannot collide.
+    const key = scaleX === 1 ? `${font}\0${drawn}` : `${font}\0${drawn}\0${widthPx}`;
     const cached = this.glyphs.get(key);
     if (cached) {
       this.glyphs.delete(key);
@@ -199,7 +203,7 @@ export class TextAtlas {
       return cached;
     }
 
-    const raster = this.rasterize(drawn, fontSizePx, scaleX);
+    const raster = this.rasterize(drawn, font, fontSizePx, scaleX);
     if (!raster) return null;
 
     const texture = gl.createTexture();
@@ -223,15 +227,15 @@ export class TextAtlas {
     return glyph;
   }
 
-  private ensureProbe(fontSizePx: number): Atlas2d | null {
+  private ensureProbe(font: string): Atlas2d | null {
     if (this.probeCtx === undefined) {
       const opened = this.open2d(16, 16);
       this.probeCtx = opened?.ctx ?? null;
     }
     if (!this.probeCtx) return null;
-    if (this.probeFontPx !== fontSizePx) {
-      this.probeCtx.font = eventLabelFont(fontSizePx);
-      this.probeFontPx = fontSizePx;
+    if (this.probeFont !== font) {
+      this.probeCtx.font = font;
+      this.probeFont = font;
     }
     return this.probeCtx;
   }
@@ -244,16 +248,16 @@ export class TextAtlas {
     return { canvas, ctx };
   }
 
-  private measureWidth(ctx: Atlas2d, fontSizePx: number, text: string): number {
-    const key = `${fontSizePx}\0${text}`;
+  private measureWidth(ctx: Atlas2d, font: string, text: string): number {
+    const key = `${font}\0${text}`;
     const hit = this.measures.get(key);
     if (hit !== undefined) {
       this.measures.delete(key);
       this.measures.set(key, hit);
       return hit;
     }
-    ctx.font = eventLabelFont(fontSizePx);
-    this.probeFontPx = fontSizePx;
+    ctx.font = font;
+    this.probeFont = font;
     const width = ctx.measureText(text).width;
     this.measures.set(key, width);
     while (this.measures.size > this.maxMeasures) {
@@ -266,12 +270,13 @@ export class TextAtlas {
 
   private rasterize(
     drawn: string,
+    font: string,
     fontSizePx: number,
     scaleX: number,
   ): { canvas: OffscreenCanvas; w: number; h: number } | null {
     const probe = this.probeCtx;
     if (!probe) return null;
-    const inkW = Math.max(1, Math.ceil(this.measureWidth(probe, fontSizePx, drawn) * scaleX));
+    const inkW = Math.max(1, Math.ceil(this.measureWidth(probe, font, drawn) * scaleX));
     const w = inkW + GLYPH_PAD_PX * 2;
     const h = Math.ceil(fontSizePx * 1.5);
 
@@ -290,7 +295,7 @@ export class TextAtlas {
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#ffffff';
-    ctx.font = eventLabelFont(fontSizePx);
+    ctx.font = font;
     ctx.textAlign = 'center';
     const m = ctx.measureText(drawn);
     const { baselineY, baseline } = centeredTextBaseline(m, h / 2);

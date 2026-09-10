@@ -170,6 +170,16 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(allocs).toBe(allocsAfterFirst);
   });
 
+  it('PR-RENDER-038: glyphs and measures key by CSS font, not size alone', () => {
+    vi.stubGlobal('OffscreenCanvas', FakeCanvas);
+    const atlas = new TextAtlas(50_000);
+    const arial = atlas.get(gl, 'aaa', 12, 100, '400 12px Arial')!;
+    const georgia = atlas.get(gl, 'aaa', 12, 100, '400 12px Georgia')!;
+    // Same sizePx and string, different family → different bitmap (not a size-only key).
+    expect(georgia.texture).not.toBe(arial.texture);
+    expect(atlas.get(gl, 'aaa', 12, 100, '400 12px Arial')!.texture).toBe(arial.texture);
+  });
+
   it('PR-RENDER-038: glyphs key by drawn text so clip-width pan reuses the texture', () => {
     vi.stubGlobal('OffscreenCanvas', FakeCanvas);
     const atlas = new TextAtlas(1600);
