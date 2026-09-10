@@ -11,7 +11,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Open `.npu-rep` in panel | H / M | Host opens; library renders ([PROC-2](../context/decisions/PROC.md)) |
 | Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([PROC-3](../context/decisions/PROC.md)) |
 | Timeline secondary tab | M | Primary view |
-| OP算子 / 源码 / 详情 / 缓存 tabs | P2 | msinsight-like parity |
+| OP算子 / 源码 / 详情 / 缓存 tabs | M | **时间线** active; **源码 / 详情 / 缓存** visible and **disabled** ([UI-37](../context/decisions/UI.md)). No tab surfaces this phase. OP算子 = brand / multi-op selector. |
 | Host explorer / performance tree | H | `source/v930/entry.jpeg` left rail |
 | Keep Insight for `.bin` | H | See formats comparison |
 
@@ -27,7 +27,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
-| Task display unit (auto s/ms/µs/ns or CPU clocks) | M | Two-tier auto ([UI-40a](../context/decisions/interim/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Optional **CPU clocks** when OpBasicInfo freq present (tooltip + detail only). Open: true vs derived cycles — [UI-45](../context/questions/UI.md) |
+| Task display unit (auto s/ms/µs/ns or CPU clocks) | M | Two-tier auto ([UI-40](../context/decisions/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Optional **CPU clocks** when OpBasicInfo freq present — **derived** `ns × freq` ([UI-45](../context/decisions/UI.md)); tooltip + detail only. |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
 | Settings | P2 | |
 
@@ -35,9 +35,9 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([UI-40](../context/questions/UI.md)) |
+| Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([UI-40](../context/decisions/UI.md)) |
 | Cube / Vector overview charts | M | From `Sampling.json` `ph:C` — all counters present ([DATA-39](../context/decisions/DATA.md)); **hide** if empty ([DATA-32](../context/decisions/DATA.md)); per-track pin → sticky strip above pinned lanes (PyPTO) |
-| Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/decisions/DATA.md)); flat CTEF still valid |
+| Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/decisions/DATA.md)); flat CTEF still valid. Mid-row 统计 control **deferred** ([UI-47](../context/questions/deferred.md)) — do not ship. |
 | Card-header gutter metric selector | M | Per-Card dropdown (时钟周期 / 利用率); clockCycle = mean `*_time(us)` (µs), not cycle counts — [`gutter-metrics.spec.md`](../../specs/core/gutter-metrics.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md); sketch [`v930/entry`](./source/v930/entry.jpeg) |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |
 | Colored event rectangles | M | Normative colors [COLOR_TOKENS](COLOR_TOKENS.md) |

@@ -23,7 +23,7 @@ Maps product specs and interim decisions to stable **test ids**. See [docs/proce
 | PR-VM-002 | unit | `tests/unit/viewModels.spec.ts` | DATA-33b |
 | PR-VM-003 | unit | `tests/unit/viewModels.spec.ts` | DATA-32a, DATA-32 |
 | PR-SWIM-001 | unit | `tests/unit/swimlaneModel.spec.ts` | COMPONENTS |
-| PR-TIME-001 | unit | `tests/unit/formatTime.spec.ts` | UI-40a |
+| PR-TIME-001 | unit | `tests/unit/formatTime.spec.ts` | UI-40 / UI-45 |
 | PR-VIEW-001..003 | unit | `tests/unit/viewState.spec.ts` | INTERACTIONS, COMPONENTS |
 | PR-RENDER-001..002 | unit | `tests/unit/canvasRenderer.spec.ts` | SwimlaneRenderer |
 | PR-JSON-001..002 | unit | `tests/unit/loadReportSource.spec.ts` | PROC-3 standalone CTEF |

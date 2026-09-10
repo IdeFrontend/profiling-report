@@ -29,7 +29,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 
 Sketch: `source/v930/task-hover.jpeg`
 
-- Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Times use **per-value** auto units (`formatDisplayTimeAuto` / `formatTimeAuto`, 4 significant digits) — independent of viewport zoom ([UI-40a](../context/decisions/interim/UI.md)). No host `timeUnit` prop.
+- Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Times use **per-value** auto units (`formatDisplayTimeAuto` / `formatTimeAuto`, 4 significant digits) — independent of viewport zoom ([UI-40](../context/decisions/UI.md)). Optional **CPU clocks** on tooltip/detail are derived per [UI-45](../context/decisions/UI.md). No host `timeUnit` prop.
 - Highlight the hovered rectangle by **lifting its own fill**, not by outlining it: `eventFill()` derives every state from the lane's base colour in OKLCH (`hover` and `selected` both `L+0.33`, with `selected` also `C×1.05`). Ringing on hover as well as selection is what made the two read as one state — the defect AC-08 reported — so the ring is selection's alone and rides over its fill. A block that is both keeps the selected fill. Both lifts clear the `L 0.6` label flip, so **a label inverts as the pointer crosses it**. A hovered block keeps full opacity under a selection — without that, dark text on a light fill washed by the selection dim is unreadable.
 - The two compose: a hovered selected event shows the lifted fill *and* the ring.
 - No selection change on hover alone.
@@ -71,6 +71,8 @@ Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (
 - **Sticky strip:** pinned leaf rows duplicate at the top of the swim body (gutter + canvas); originals remain in tree order below. Strip stays when an ancestor Card/folder is collapsed (pins are built from the full swim model). Strip shows **events only** — no dependency beziers. Pins may span multiple Cards/groups; strip order = pin order. See [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 - **Overview / summary charts (PyPTO counter pin):** each 统计分析 track has the same pushpin affordance. Click appends the series id to **pinnedOverviewIds**. Sticky duplicates sit **above** the pinned-lane strip and **above** the scrolling swim body; the unpinned 统计分析 block scrolls with the lanes. Unpin from either the section or the sticky strip. Shared playhead line paints over overview tracks; hover shows the step value (EventTooltip chrome).
 **Phase 2+** (spec + crops landed; implementation follows).
+
+**Deferred ([UI-47](../context/questions/deferred.md)):** sketch mid-row bar-chart / **统计** between lane title and util bar — do not ship this iteration (distinct from pin, 报告 aside, and Card 时钟周期).
 
 ## Context menu
 

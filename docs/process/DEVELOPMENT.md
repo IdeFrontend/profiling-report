@@ -109,7 +109,7 @@ Do **not** leave a `resolved` row parked on the open-questions list. Agents: see
 
 **Milestone 2 (parse → view-models → swimlane → UI shell)** — green on `master` (`PR-FMT-*` / `PR-VM-*` / `PR-SWIM-*` / `PR-UI-*` / `PR-E2E-*`).
 
-**Milestone 3 (renderer + navigation)** — Canvas `SwimlaneRenderer`, view-state zoom/pan, toolbar (search / zoom / fit / toggle aside), UI-40a time formatting (`PR-TIME-*` / `PR-VIEW-*` / `PR-RENDER-*` / `PR-UI-004+` / `PR-E2E-004`).
+**Milestone 3 (renderer + navigation)** — Canvas `SwimlaneRenderer`, view-state zoom/pan, toolbar (search / zoom / fit / toggle aside), UI-40 / UI-45 time formatting (`PR-TIME-*` / `PR-VIEW-*` / `PR-RENDER-*` / `PR-UI-004+` / `PR-E2E-004`).
 
 **Milestone 4 (trace JSON + MVP polish)** — standalone Chrome Trace open path (PROC-3), gutter util bars, time-unit control, i18n hooks, CSS tokens (`PR-JSON-*` / `PR-UI-006` / `PR-E2E-005`).
 

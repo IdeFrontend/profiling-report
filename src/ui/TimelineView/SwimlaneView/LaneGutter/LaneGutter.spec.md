@@ -6,6 +6,8 @@
 
 Left-side vertical gutter showing Card / nested lane hierarchy, lane names, and metric-driven util bars. Scroll-synced with the swimlane canvas so lane labels align with event rows.
 
+**Deferred ([UI-47](../../../../../docs/context/questions/deferred.md)):** the sketch mid-row bar-chart / **统计** control between lane title and util bar is **out of this iteration** — do not ship click behavior or tooltip.
+
 Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detail.png`](./visual/expander-detail.png), [`visual/gutter-util.png`](./visual/gutter-util.png), [`visual/util-bars.png`](./visual/util-bars.png), [`visual/util-midline.png`](./visual/util-midline.png), [`visual/util-midline-detail.png`](./visual/util-midline-detail.png), [`visual/pin-lanes.png`](./visual/pin-lanes.png), [`visual/pin-icon-detail.png`](./visual/pin-icon-detail.png), [`visual/pin-hover-tooltip.png`](./visual/pin-hover-tooltip.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs

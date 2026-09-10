@@ -32,7 +32,7 @@ Not required for first MVP merge:
 - Sketch-faithful multi-core golden
 - Overview charts with real series
 - Overview charts with real series
-- Product-final hardware inventory beyond DATA-34a; roofline tabs / L2 series beyond DATA-37*; memory SVG; deps; secondary tabs
+- Product-final hardware inventory beyond DATA-34a; roofline tabs / L2 series beyond DATA-37*; memory SVG; deps; secondary tab *surfaces* (chrome disabled per [UI-37](../UI.md))
 
 ## Related specs to keep in sync
 
