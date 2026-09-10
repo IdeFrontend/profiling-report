@@ -1,0 +1,6 @@
+{
+  "metric": "parseRep_out_rep_ms",
+  "medianMs": 0.057,
+  "toleranceRatio": 0.05,
+  "note": "Initial baseline; regenerate only with Approved. Accept perf baseline."
+}

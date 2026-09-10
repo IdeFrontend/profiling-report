@@ -42,7 +42,9 @@
     "check:sample": "node scripts/check-sample-rep.mjs",
     "render:question-visuals": "node scripts/render-question-visuals.mjs",
     "check:questions": "node scripts/check-questions.mjs",
-    "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run check:design && npm run check:questions && npm run check:sample && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
+    "check:factory": "node scripts/factory/handoff.selfcheck.mjs",
+    "bench:perf": "node scripts/factory/bench-perf.mjs",
+    "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run check:design && npm run check:questions && npm run check:sample && npm run check:factory && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
     "ci:tdd": "npm run ci && npm run test:e2e:feature"
   },
   "peerDependencies": {
