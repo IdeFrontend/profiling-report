@@ -570,6 +570,25 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
+  it.skipIf(!hasWebGl2)('PR-CANVAS-098: WebGL rebuilds emphasis when hover changes under selection', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setSelection('e-long', null);
+    const rebuild = vi.spyOn(
+      renderer as unknown as { rebuildEmphasisSplit: () => void },
+      'rebuildEmphasisSplit',
+    );
+
+    renderer.setSelection('e-long', 'e-short');
+
+    expect(rebuild).toHaveBeenCalledOnce();
+    renderer.dispose();
+  });
+
   it('PR-RENDER-013: dep neighbors keep their color; non-neighbors render gray', () => {
     const parent: SwimEvent = {
       id: 'e-parent',

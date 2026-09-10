@@ -533,12 +533,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
-    // Hover-only changes take the cheap path: the per-frame ClearType/lane-hover paint
-    // reads `hoveredId` live, but the emphasis-split buckets (which gate the expensive
-    // refreshDepCache/rebuildEmphasisSplit/rebuildCurveInstances tail below) do not key
-    // off it, so a pointermove must not re-walk 150k+ events / rebuild every VAO+VBO.
+    const selectionChanged = selectedId !== this.selectedId;
+    const hoverChanged = hoveredId !== this.hoveredId;
+    if (!selectionChanged && !hoverChanged) return;
     this.hoveredId = hoveredId;
-    if (selectedId === this.selectedId) return;
+    if (!selectionChanged) {
+      // Emphasis buckets include the hovered event while a selection is active; labels read it
+      // live during render, so the buckets must refresh too.
+      if (this.selectedId || this.multiIds.size > 0) this.rebuildEmphasisSplit();
+      return;
+    }
     this.selectedId = selectedId;
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
