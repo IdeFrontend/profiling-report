@@ -149,6 +149,7 @@ const emit = defineEmits<{
   'suppress-measure-dt': [suppress: boolean];
   /** Click on a collapsed-group summary bar — expand that grouping node. */
   'toggle-group': [groupId: string];
+  'context-menu': [payload: { x: number; y: number; laneId: string; target: SwimEvent | null }];
 }>();
 
 /**
@@ -1849,6 +1850,18 @@ function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
 
+function onContextMenu(e: MouseEvent): void {
+  const target = activeCanvas();
+  if (!target || props.measureMode) return;
+  const rect = target.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const laneId = laneIdAtPoint(backend.getLayout(), paintView(), y);
+  if (!laneId) return;
+  e.preventDefault();
+  emit('context-menu', { x: e.clientX, y: e.clientY, laneId, target: eventAtPointer(x, y, null) });
+}
+
 function onPointerDown(e: PointerEvent): void {
   if (e.button !== 0) return;
   downX = e.clientX;
@@ -2272,6 +2285,7 @@ defineExpose({
         @pointerup="onPointerUp"
         @pointerleave="onPointerLeave"
         @pointercancel="onPointerLeave"
+        @contextmenu="onContextMenu"
         @wheel="onWheel"
       />
     </template>
@@ -2287,6 +2301,7 @@ defineExpose({
       @pointerup="onPointerUp"
       @pointerleave="onPointerLeave"
       @pointercancel="onPointerLeave"
+      @contextmenu="onContextMenu"
       @wheel="onWheel"
     />
     <div

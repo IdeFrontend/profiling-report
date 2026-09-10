@@ -2,7 +2,7 @@
 
 | spec-id-prefix |
 |----------------|
-| PR-CTXM-*      |
+| PR-CTXMENU-*   |
 
 Right-click menu for a swimlane event or lane, routing viewport, selection, and pin actions to the owning report state.
 
@@ -28,7 +28,7 @@ For an event target, the menu orders available commands by scope: event-scope **
 
 Reset zoom has the same result as the existing toolbar action: it frames the model time window and resets vertical scroll via `zoomToFitWindow` + `animateToWindow`. Show in event view selects the target event via the report's normal `select` handler (so `selectedEventId`, the detail dock, and the `select` emit stay consistent). Pin row toggles the existing pin state; it is an alternate affordance, not a second pin list.
 
-**撤销缩放** (Undo zoom, depth badge, Ctrl+Z), **隐藏** (Hide lane), and **Offset** are deferred pending UI-48 / UI-49 / UI-50. They are not rendered and their shortcuts are inactive. Copy name is out of scope.
+**撤销缩放** (Undo zoom, depth badge, Ctrl+Z), **隐藏** (Hide lane), and **Offset** are deferred pending product decisions. They are not rendered and their shortcuts are inactive. Copy name is out of scope.
 
 ### Invocation, position, and dismissal
 
@@ -38,16 +38,17 @@ The menu closes on click outside, Escape, item activation, and every forwarded *
 
 ## Acceptance Criteria
 
-1. **PR-CTXM-001** — Event menu groups available commands.
-2. **PR-CTXM-002** — Lane menu omits event commands.
-3. **PR-CTXM-003** — Reset zoom matches toolbar framing.
-4. **PR-CTXM-004** — Show reuses report selection path for target event.
-5. **PR-CTXM-005** — Pin toggles shared pin state.
-6. **PR-CTXM-006** — Deferred commands remain absent.
-7. **PR-CTXM-007** — Viewport clamp avoids menu overflow.
-8. **PR-CTXM-008** — Dismisses on outside, Escape, scrollY change.
-9. **PR-CTXM-009** — Keyboard navigation activates commands.
-10. **PR-CTXM-010** — Ctrl+P prevents browser print.
+1. **PR-CTXMENU-001** — Event menu groups available commands.
+2. **PR-CTXMENU-002** — Lane menu omits event commands.
+3. **PR-CTXMENU-003** — Reset zoom matches toolbar framing.
+4. **PR-CTXMENU-004** — Show reuses report selection path for target event.
+5. **PR-CTXMENU-005** — Pin toggles shared pin state.
+6. **PR-CTXMENU-006** — Deferred commands remain absent.
+7. **PR-CTXMENU-007** — Viewport clamp uses rendered menu dimensions.
+8. **PR-CTXMENU-008** — Dismisses on outside, Escape, scrollY change.
+9. **PR-CTXMENU-009** — Keyboard navigation focuses and activates commands.
+10. **PR-CTXMENU-010** — Ctrl+P prevents browser print.
+11. **PR-CTXMENU-011** — Leaf-gutter invocations reach the report root.
 
 ## Edge Cases
 
@@ -75,12 +76,12 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 
 | Element | Normative value |
 |---|---|
-| Surface | `var(--pr-surface-overlay)` background, `6px` radius, `4px 0` padding, `0 4px 12px rgba(0,0,0,0.4)` shadow |
+| Surface | `var(--pr-surface-raised)` background, `6px` radius, `4px 0` padding, `0 4px 12px rgba(0,0,0,0.4)` shadow |
 | Item | `32px` height; `8px 40px 8px 12px` padding; `13px` text |
-| Hover | `var(--pr-surface-hover)` |
-| Disabled | `var(--pr-text-secondary)` |
-| Shortcut | `var(--pr-text-secondary)` |
-| Separator | `1px solid var(--pr-border-subtle)` between non-empty scope groups |
+| Hover | `var(--pr-divider)` |
+| Disabled | `var(--pr-tab-inactive)` |
+| Shortcut | `var(--pr-tab-inactive)` |
+| Separator | `1px solid var(--pr-divider)` between non-empty scope groups |
 
 ## Design sketches
 
@@ -90,5 +91,6 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
-- **2026-09-09** — Trim scope to Reset zoom, Show in event view, Pin row; defer Hide lane (UI-50).
+- **2026-09-10** — Renamed acceptance criteria to `PR-CTXMENU-*`; placement measures the rendered menu and all surface tokens are defined in `tokens.css`.
+- **2026-09-09** — Trim scope to Reset zoom, Show in event view, Pin row; defer Hide lane.
 - **2026-09-08** — Initial spec.

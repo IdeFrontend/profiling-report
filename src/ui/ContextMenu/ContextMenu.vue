@@ -30,7 +30,7 @@ const emit = defineEmits<{
 }>();
 
 const menuRef = ref<HTMLElement | null>(null);
-const menuStyle = ref<Record<string, string>>({});
+const menuStyle = ref<Record<string, string>>({ position: 'fixed', visibility: 'hidden' });
 const activeIndex = ref(0);
 
 const items = computed(() => {
@@ -51,12 +51,11 @@ const items = computed(() => {
 const hasEventGroup = computed(() => !!props.context?.target);
 
 function place(x: number, y: number) {
-  const MENU_W = 220;
-  const MENU_H = items.value.length * 32 + 8;
+  const { width, height } = menuRef.value?.getBoundingClientRect() ?? { width: 0, height: 0 };
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const left = Math.max(4, Math.min(x, vw - MENU_W - 4));
-  const top = Math.max(4, Math.min(y + MENU_H > vh ? y - MENU_H : y, vh - MENU_H - 4));
+  const left = Math.max(4, Math.min(x + width > vw ? x - width : x, vw - width - 4));
+  const top = Math.max(4, Math.min(y + height > vh ? y - height : y, vh - height - 4));
   menuStyle.value = { position: 'fixed', left: `${left}px`, top: `${top}px` };
 }
 
@@ -105,8 +104,11 @@ watch(
   async (ctx) => {
     if (ctx) {
       activeIndex.value = 0;
+      unbindListeners();
       await nextTick();
+      if (props.context !== ctx) return;
       place(ctx.x, ctx.y);
+      menuRef.value?.focus();
       bindListeners();
     } else {
       unbindListeners();
@@ -172,7 +174,7 @@ onBeforeUnmount(unbindListeners);
   border-radius: 6px;
   background: var(--pr-surface-raised, #363636);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  color: var(--pr-fg, #e8e8e8);
+  color: var(--pr-tab-inactive);
   font-size: 13px;
   user-select: none;
 }
@@ -180,7 +182,7 @@ onBeforeUnmount(unbindListeners);
 .pr-ctx-menu__sep {
   height: 1px;
   margin: 4px 0;
-  background: var(--pr-border, #3a3a3a);
+  background: var(--pr-divider);
 }
 
 .pr-ctx-menu__item {
@@ -201,7 +203,7 @@ onBeforeUnmount(unbindListeners);
 }
 
 .pr-ctx-menu__item--active {
-  background: var(--pr-surface-hover, #454545);
+  background: var(--pr-divider);
 }
 
 .pr-ctx-menu__label {
@@ -211,7 +213,7 @@ onBeforeUnmount(unbindListeners);
 .pr-ctx-menu__shortcut {
   flex: 0 0 auto;
   margin-left: 12px;
-  color: var(--pr-fg-muted, #999);
+  color: var(--pr-tab-inactive);
   font-size: 12px;
 }
 </style>
