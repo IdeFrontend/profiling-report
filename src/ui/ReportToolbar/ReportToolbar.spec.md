@@ -82,8 +82,10 @@ Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930
 | Background | `#2a2a2a` |
 | Border | none (or `1px solid #3a3a3a` if needed) |
 | Icon | `search` design icon `16×16`, color `#9a9a9a`, left inset |
-| Input padding | `0 12px 0 32px` |
+| Input padding | `0 12px 0 32px` (right `28px` when clear × is shown) |
 | Placeholder | `#808080`; text `#e0e0e0`; font `12px` |
+| Clear | × button (`data-testid="search-clear"`) **sibling** of the search `<label>` (not nested) when `searchQuery` is non-empty; `@mousedown.prevent` keeps focus on mouse clear; `@click` / Enter / Space clear and refocus the input |
+| Focus | `:focus` has no ring (mouse click); `:focus-visible` uses an **inset** playhead `box-shadow` so the ring is not clipped by toolbar `overflow-x: clip`; clear × has its own `:focus-visible` outline |
 
 ### Zoom pill (`visual/zoom.png`)
 
@@ -196,11 +198,12 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 23. **PR-TOOLBAR-022** — Clicking the shortcut-help trigger opens the `shortcut-help` popover listing mouse / keyboard / combined bindings (W/S/A/D, Ctrl+wheel, Ctrl+drag, Alt+click); it closes via the X, a second press, an outside pointerdown, or Escape.
 24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt, single-finger, double-finger, box-select) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below; Combined scaling/pan/box-select rows include `/`-separated trackpad/gesture stand-ins.
 25. **PR-TOOLBAR-024** — The user-guide action renders **last** among `data-toolbar-clip` actions (`data-testid="open-user-guide"`, `help` glyph). Click emits `open-user-guide` with `userGuideUrl` (default `DEFAULT_USER_GUIDE_URL`) and calls `window.open(…, '_blank', 'noopener,noreferrer')`.
+26. **PR-TOOLBAR-025** — When `searchQuery` is non-empty, a clear × (`data-testid="search-clear"`, `aria-label` from `searchClear`) appears as a **sibling** of the search `<label>` (not inside it); `@mousedown.prevent` avoids stealing focus before mouse clear; `@click` and keyboard **Enter** / **Space** emit `update:searchQuery` with `''` then refocus the input. Search `:focus-visible` uses an inset playhead ring (not an outer outline) so it is not clipped by `.pr-chrome` / `.pr-toolbar` `overflow-x: clip`.
 
 ## Edge Cases
 
 - asideAvailable=false → toggle button hidden.
-- Search query initially empty, user types to filter.
+- Search query initially empty, user types to filter; clear × appears and empties the query.
 - Popover closed → `display-control` not in DOM (or not visible).
 
 ## Design sketches
@@ -219,6 +222,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-09-09** — Search clear × + inset `:focus-visible` ring so the focus border is not clipped (`PR-TOOLBAR-025`).
 - **2026-09-07** — User-guide action (rightmost `help` glyph) opens `userGuideUrl` (`PR-TOOLBAR-024`); sketch trailing help claimed.
 - **2026-09-07** — Toolbar icon / zoom buttons: no `:focus` ring on mouse click; restore `:focus-visible` outline for keyboard Tab.
 - **2026-09-07** — Shortcut-help Combined rows add PyPTO trackpad/gesture stand-ins (single-finger, double-finger, box-select) with `/` separators (`PR-TOOLBAR-023`).
