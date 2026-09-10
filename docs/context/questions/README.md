@@ -50,9 +50,9 @@ IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker in place
 | `I-Q7a` | `DATA-34a` |
 | `I-Q9` | `DATA-36a` |
 | `I-Q11a–f` | `DATA-37a…DATA-37f` |
-| `I-Q14` | `UI-40a` |
+| `I-Q14` | `UI-40a` (promoted → [UI-40](../decisions/UI.md) / [UI-45](../decisions/UI.md); interim stub **SUPERSEDED**) |
 | `I-Q16–19` | `PKG-1a…PKG-3a` (I-Q19 → resolved [UI-41](../decisions/UI.md)) |
 | `D-PIN-FOLDER` | `UI-44` |
-| `Q23` / `HQ 38` | `UI-45` |
+| `Q23` / `HQ 38` | `UI-45` (resolved — [UI-45](../decisions/UI.md)) |
 | `Q24` / `HQ 39` | `DATA-38` |
 | `HQ 40` | `UI-46` |
