@@ -102,6 +102,38 @@ describe('computeAltMeasureGap', () => {
     expect(gap!.leftLaneY).not.toBe(gap!.rightLaneY);
   });
 
+  it('treats different sub-rows in one leaf as not sameLane (vertical connector)', () => {
+    // a + b overlap → b on row 1; c is later on row 0. Measure b→c spans sub-rows.
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [ev('a', 0, 100), ev('b', 50, 100), ev('c', 200, 50)],
+            },
+          ],
+        },
+      ],
+    });
+    const b = layout.eventsById.get('b')!;
+    const c = layout.eventsById.get('c')!;
+    expect(b.laneIndex).toBe(c.laneIndex);
+    expect(b.rowIndex).not.toBe(c.rowIndex);
+
+    const gap = computeAltMeasureGap(layout, 'b', 200, 'c');
+    expect(gap).toMatchObject({
+      sameLane: false,
+      targetEventId: 'c',
+    });
+    expect(gap!.leftLaneY).not.toBe(gap!.rightLaneY);
+  });
+
   it('returns null when target is inside the anchor span', () => {
     const layout = rebuildLayout({
       minTime: 0,
