@@ -631,7 +631,7 @@ describe('SwimlaneView', () => {
     expect(mids[1]!.attributes('style')).toContain('left: 50%');
   });
 
-  it('PR-SWIMVIEW-028: pinnedOverviewIds render sticky overview below lane pin strip', () => {
+  it('PR-SWIMVIEW-028: pinnedOverviewIds render sticky overview above lane pin strip', () => {
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -681,12 +681,26 @@ describe('SwimlaneView', () => {
     const stackChildren = [...wrapper.get('.pr-swim-stack').element.children] as HTMLElement[];
     const pinnedStripIdx = stackChildren.findIndex((el) => el.getAttribute('data-testid') === 'pinned-strip');
     const pinnedOvIdx = stackChildren.findIndex(
-      (el) => el.getAttribute('data-testid') === 'pinned-overview-charts',
+      (el) => el.getAttribute('data-testid') === 'pinned-overview-wrap',
     );
     const bodyIdx = stackChildren.findIndex((el) => el.classList.contains('pr-swim-row--body'));
-    expect(pinnedStripIdx).toBeGreaterThanOrEqual(0);
-    expect(pinnedOvIdx).toBeGreaterThan(pinnedStripIdx);
-    expect(bodyIdx).toBeGreaterThan(pinnedOvIdx);
+    expect(pinnedOvIdx).toBeGreaterThanOrEqual(0);
+    expect(pinnedStripIdx).toBeGreaterThan(pinnedOvIdx);
+    expect(bodyIdx).toBeGreaterThan(pinnedStripIdx);
+    const wrap = wrapper.get('[data-testid="pinned-overview-wrap"]').element as HTMLElement;
+    expect(wrap.style.getPropertyValue('--pr-pinned-overview-h').trim()).toBe('48px');
+  });
+
+  it('PR-SWIMVIEW-029: pinned overview strip appears/disappears with a 200ms height transition', async () => {
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-pinned-overview\s*\{[^}]*height:\s*var\(--pr-pinned-overview-h[^)]*\)/s,
+    );
+    expect(src).toMatch(/\.pr-pinned-overview\s*\{[^}]*transition:\s*height\s+200ms\s+ease/s);
+    expect(src).toMatch(
+      /\.pr-pinned-overview\.pr-pinned-overview-enter-from,[\s\S]*?\.pr-pinned-overview\.pr-pinned-overview-leave-to\s*\{[^}]*height:\s*0/s,
+    );
+    expect(src).toMatch(/name="pr-pinned-overview"/);
   });
 
   it('PR-SWIMVIEW-018: measure magnet routes by pointer Y across pin strip and body', () => {
