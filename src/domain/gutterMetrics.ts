@@ -233,9 +233,10 @@ export function availableGutterMetrics(
   return metrics;
 }
 
-export function defaultGutterMetric(available: GutterMetric[]): GutterMetric {
+export function defaultGutterMetric(available: GutterMetric[]): GutterMetric | null {
+  if (available.includes('utilization')) return 'utilization';
   if (available.includes('clockCycle')) return 'clockCycle';
-  return 'utilization';
+  return null;
 }
 
 export function gutterBarsForCard(
