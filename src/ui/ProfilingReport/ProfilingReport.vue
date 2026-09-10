@@ -7,6 +7,7 @@ import {
   createViewState,
   keyboardPanStepTime,
   measureFocusWindow,
+  MIN_VIEW_WINDOW,
   minSpanForPrecision,
   panBy,
   pinLane,
@@ -299,14 +300,19 @@ const bounds = computed(() => {
 /**
  * Zoom-in floor that keeps fp32 coordinate noise of the stored event coords at ≤ 1 device px.
  * Stored coords are `start - minTime` (magnitude ≈ fullSpan), so at high zoom one fp32 ULP would
- * span many pixels; clamp the span to `ulp * widthPx`. Track width feeds the px-per-ULP ratio.
+ * span many pixels; clamp the span to `ulp * widthPx`. WebGL resolves X in device px, so the
+ * CSS-px track width is scaled by devicePixelRatio before it feeds the px-per-ULP ratio.
+ * Before the track has measured a real width, defer to the legacy floor (`minSpanForPrecision`
+ * would clamp a 0 width to 1 and yield an un-scaled ~ULP floor that underestimates the defect).
  */
-const ulpMinSpan = computed(() =>
-  minSpanForPrecision(
+const ulpMinSpan = computed(() => {
+  const widthCss = timelineRef.value?.trackWidth ?? 0;
+  if (widthCss <= 0) return MIN_VIEW_WINDOW;
+  return minSpanForPrecision(
     bounds.value.maxTime - bounds.value.minTime,
-    timelineRef.value?.trackWidth ?? 0,
-  ),
-);
+    widthCss * (window.devicePixelRatio || 1),
+  );
+});
 
 /** Log zoom: 0 = fit, 100 = min window (same floor as Ctrl+wheel / zoomAt). */
 const zoomPercent = computed(() =>
