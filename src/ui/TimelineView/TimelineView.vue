@@ -108,7 +108,6 @@ const swimlaneRef = ref<{
     clientY: number,
   ) => { time: number; xRatio: number; eventId?: string | null } | null;
   clearEdgeSnapHighlight?: () => void;
-  forceResize?: () => void;
 } | null>(null);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 /** Pointer is over the viewport time axis — keep cursor lifted above ticks. */
@@ -536,9 +535,6 @@ defineExpose({
   /** Viewport track width (CSS px) — the time-axis column, used by keyboard pan. */
   get trackWidth() {
     return timeAxisWidth.value;
-  },
-  forceResize: () => {
-    swimlaneRef.value?.forceResize?.();
   },
 });
 </script>

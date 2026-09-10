@@ -414,7 +414,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(dock).toHaveCount(0);
   });
 
-  test('PR-E2E-013: closing the dock resizes the swimlane canvas immediately (no stale frame)', async ({
+  test('PR-E2E-013: closing the dock frees the swimlane while the dock slides away', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
@@ -431,20 +431,23 @@ test.describe('PR-E2E feature paths', () => {
     await page.mouse.up();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
 
+    const wrapBeforeLeave = await overlay.evaluate((canvas) =>
+      (canvas.closest('[data-testid="swimlane"]') as HTMLElement).clientHeight,
+    );
     await page.getByTestId('multi-select-close').click();
-    await expect(page.getByTestId('dock')).toHaveCount(0);
 
-    // The canvas backing store must already match the grown wrap the instant the
-    // dock leaves — no frame where it is still sized/stretched for the old (shorter)
-    // wrap height, which is what painted the stale black square. Check immediately
-    // (no poll/retry): the fix applies synchronously in the Transition's after-leave.
-    const matches = await overlay.evaluate((canvas: HTMLCanvasElement) => {
-      const wrap = canvas.closest('[data-testid="swimlane"]') as HTMLElement;
-      const dpr = window.devicePixelRatio || 1;
-      const expectedH = Math.round(wrap.clientHeight * dpr);
-      return Math.abs(canvas.height - expectedH) <= 2;
-    });
-    expect(matches).toBe(true);
+    // Vue's leave element is still mounted, but it must no longer reserve the
+    // dock's flex slot; otherwise the root background is exposed as a blank box.
+    const dock = page.getByTestId('dock');
+    await expect(dock).toHaveCSS('position', 'absolute');
+    await expect
+      .poll(() =>
+        overlay.evaluate((canvas) =>
+          (canvas.closest('[data-testid="swimlane"]') as HTMLElement).clientHeight,
+        ),
+      )
+      .toBeGreaterThan(wrapBeforeLeave + 100);
+    await expect(dock).toHaveCount(0);
     await expect(overlay).toBeVisible();
   });
 

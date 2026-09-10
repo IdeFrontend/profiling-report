@@ -128,7 +128,6 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 95. **PR-CANVAS-095** — Ctrl/Cmd-drag pan recovers from a lost pointerup (a trusted pointermove with `buttons === 0`, `pointercancel`, or `pointerleave` all end the pan) instead of latching on indefinitely.
 96. **PR-CANVAS-096** — Ctrl/Cmd+click (or a Ctrl/Cmd-drag that ends within the click threshold) is a no-op in `onPointerUp` — it never falls through to `select` and so never clears an active multi-selection.
 97. **PR-CANVAS-097** — Shift+union/drag on the pinned strip resolves ids through the shared cross-model event resolver, so ids outside the pinned lanes (from the body or a seeded single selection) are not dropped from the committed `multi-select`.
-98. **PR-CANVAS-098** — `forceResize` (exposed) immediately reads the current CSS box and repaints, bypassing the async ResizeObserver — used by the root right after the dock's leave transition frees layout space.
 
 ## Edge Cases
 
