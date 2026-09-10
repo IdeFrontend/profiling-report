@@ -30,6 +30,7 @@ const emit = defineEmits<{
   'unpin-lane': [id: string];
   /** Whole-lane hover (AC-07): drive track highlight from gutter pointer. */
   'lane-hover': [id: string | null];
+  'context-menu': [payload: { x: number; y: number; laneId: string }];
 }>();
 
 const collapsed = computed(() => new Set(props.collapsedIds ?? []));
