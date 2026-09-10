@@ -70,7 +70,7 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.get('[data-testid="multi-select-avgDuration-b"]').text()).toContain('200 ns');
   });
 
-  it('PR-MSEL-003: default sort is Wall Duration descending; header cycles asc → desc → unsorted', async () => {
+  it('PR-MSEL-003: default sort is Wall Duration descending; header alternates asc and desc', async () => {
     const wrapper = mountPanel();
     expect(rowOrder(wrapper)).toEqual(['b', 'c', 'a']);
     expect(wrapper.get('[data-testid="multi-select-sort-duration"]').attributes('aria-sort')).toBe(
@@ -84,11 +84,11 @@ describe('MultiSelectSummary', () => {
     await wrapper.get('[data-testid="multi-select-sort-name"]').trigger('click');
     expect(rowOrder(wrapper)).toEqual(['c', 'b', 'a']);
 
-    // Third click drops back to unsorted: the selection order returns.
+    // Third click returns to ascending; sorting never drops to selection order.
     await wrapper.get('[data-testid="multi-select-sort-name"]').trigger('click');
     expect(rowOrder(wrapper)).toEqual(['a', 'b', 'c']);
     expect(wrapper.get('[data-testid="multi-select-sort-name"]').attributes('aria-sort')).toBe(
-      'none',
+      'ascending',
     );
   });
 
@@ -100,12 +100,8 @@ describe('MultiSelectSummary', () => {
     // No text glyph — drawn SVG only.
     expect(wrapper.find('thead th').text()).not.toContain('◇');
 
-    // Click duration again (active, desc → null → asc).
+    // Click duration again (active, desc → asc).
     await wrapper.get('[data-testid="multi-select-sort-duration"]').trigger('click');
-    // desc → null
-    expect(wrapper.findAll('thead th [data-testid="sort-icon-none"]')).toHaveLength(4);
-    await wrapper.get('[data-testid="multi-select-sort-duration"]').trigger('click');
-    // null → asc
     expect(wrapper.find('[data-testid="sort-icon-asc"]').exists()).toBe(true);
 
     // Click a different column → that column goes asc, others neutral.
@@ -181,6 +177,27 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.find('.pr-multi-select__body').exists()).toBe(true);
     expect(wrapper.find('.pr-multi-select__table').exists()).toBe(true);
   });
+
+  it('PR-MSEL-008: caps rendered rows but keeps the full selection count', () => {
+    const largeSelection = Array.from({ length: 1001 }, (_, index) =>
+      ev(`event-${index}`, `event-${index}`, index, index + 1),
+    );
+    const wrapper = mountPanel({ selectedEvents: largeSelection, model: null });
+
+    expect(wrapper.get('[data-testid="multi-select-count"]').text()).toContain('1001');
+    expect(wrapper.get('[data-testid="multi-select-visible-count"]').text()).toContain('1000 of 1001');
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1000);
+  });
+
+  it('handles a 125001-event marquee without a spread-argument overflow', () => {
+    const largeSelection = Array.from({ length: 125001 }, (_, index) =>
+      ev(`event-${index}`, `event-${index}`, index, index + 1),
+    );
+    const wrapper = mountPanel({ selectedEvents: largeSelection, model: null });
+
+    expect(wrapper.get('[data-testid="multi-select-visible-count"]').text()).toContain('1000 of 125001');
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1000);
+  }, 15_000);
 
   it('single marquee hit still renders a one-row table (spec edge case)', () => {
     const wrapper = mountPanel({ selectedEvents: [selectedEvents[0]] });

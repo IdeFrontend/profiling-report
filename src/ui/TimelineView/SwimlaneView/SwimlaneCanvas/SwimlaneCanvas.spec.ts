@@ -1985,6 +1985,23 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-067: Cmd+left-drag pans on macOS', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 1, metaKey: true });
+    await canvas.trigger('pointermove', {
+      clientX: 160,
+      clientY: y,
+      pointerId: 1,
+      buttons: 1,
+      metaKey: true,
+    });
+    await canvas.trigger('pointerup', { clientX: 160, clientY: y, pointerId: 1, metaKey: true });
+    expect(wrapper.emitted('pan')).toHaveLength(1);
+    expect(wrapper.emitted('multi-select')).toBeFalsy();
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-068: horizontal-dominant wheel pans (incl. with ctrlKey); vertical scrolls', async () => {
     const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
     // view 0–1000 over 400px → deltaX 50 → pan +125

@@ -135,6 +135,7 @@ const messages = {
     // Marquee multi-select dock (v930/task-marquee). The sketch keeps the table
     // headers in English in the zh-CN UI, same as Parameter / Relevent above.
     itemsSelected: '{n} items selected.',
+    showingRows: 'Showing {shown} of {total}',
     slices: 'Slices',
     wallDuration: 'Wall Duration',
     selfTime: 'Self time',
@@ -250,6 +251,7 @@ const messages = {
     tabsNotSupported: 'Not supported',
     focusMeasureRange: 'Focus measure range',
     itemsSelected: '{n} items selected.',
+    showingRows: 'Showing {shown} of {total}',
     slices: 'Slices',
     wallDuration: 'Wall Duration',
     selfTime: 'Self time',

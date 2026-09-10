@@ -764,6 +764,10 @@ function onRootKeydown(e: KeyboardEvent) {
     closeTopologyFullscreen();
     return;
   }
+  if (e.key === 'Escape' && multiSelected.value.length > 0) {
+    onSelect(null);
+    return;
+  }
   // Overlay covers the timeline (including the ~200ms leave fade while the model is still held).
   // WASD must not pan/zoom the hidden view.
   if (topologyFullscreen.value || fullscreenTopology.value != null) return;
@@ -797,9 +801,6 @@ function onRootKeydown(e: KeyboardEvent) {
     const step = keyboardPanStepTime(span, trackWidth > 0 ? trackWidth : 1000);
     e.preventDefault();
     onPan(key === 'd' ? step : -step);
-  }
-  if (e.key === 'Escape' && multiSelected.value.length > 0) {
-    onSelect(null);
   }
 }
 

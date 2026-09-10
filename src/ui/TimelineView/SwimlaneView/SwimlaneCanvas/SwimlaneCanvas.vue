@@ -1825,8 +1825,8 @@ function onPointerDown(e: PointerEvent): void {
   downX = e.clientX;
   lastPointerClientY = e.clientY;
   measureDragOccurred = false;
-  // Store Ctrl state — Ctrl suppresses marquee and single select in onPointerUp.
-  ctrlClickPending = e.ctrlKey && e.button === 0;
+  // Ctrl/Cmd suppresses marquee and single select in onPointerUp so the drag pans.
+  ctrlClickPending = (e.ctrlKey || e.metaKey) && e.button === 0;
   // Store Shift state — Shift+left-click toggles multi-selection in onPointerUp.
   shiftTogglePending = e.shiftKey && e.button === 0;
   // Measure mode owns the unmodified drag; otherwise it starts a marquee.
@@ -1844,7 +1844,7 @@ function onPointerDown(e: PointerEvent): void {
   } else {
     endMeasureCreate();
     if (ctrlClickPending) {
-      // Ctrl+left-drag pans (PyPTO combined pan) instead of marqueeing.
+      // Ctrl/Cmd+left-drag pans (PyPTO combined pan) instead of marqueeing.
       dragging = true;
       lastX = e.clientX;
     } else {

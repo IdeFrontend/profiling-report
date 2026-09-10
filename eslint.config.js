@@ -30,12 +30,7 @@ export default tseslint.config(
       },
     },
   },
-  {
-    files: ['bisect.cjs'],
-    rules: {
-      '@typescript-eslint/no-require-imports': 'off',
-    },
-  },
+
   {
     files: ['**/*.{ts,vue}'],
     languageOptions: {

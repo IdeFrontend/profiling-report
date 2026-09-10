@@ -176,6 +176,14 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(timeline().props('multiSelectSpan')).toBeNull();
 
+    // Escape clears multi-select even when Shift is held; WASD guards do not apply to Escape.
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', shiftKey: true }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+
     wrapper.unmount();
   });
 

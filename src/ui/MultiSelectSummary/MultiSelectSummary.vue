@@ -13,6 +13,7 @@ import {
 
 const DOCK_HEIGHT_MIN = DOCK_HEIGHT_COLLAPSED;
 const DOCK_HEIGHT_MAX = DOCK_HEIGHT_EXPANDED * 2;
+const MAX_RENDERED_ROWS = 1000;
 
 const props = withDefaults(
   defineProps<{
@@ -39,9 +40,9 @@ const emit = defineEmits<{
 type SortKey = 'name' | 'duration' | 'selfTime' | 'avgDuration';
 type SortDirection = 'asc' | 'desc';
 
-/** Sketch default: longest first. `null` direction = unsorted (selection order). */
+/** Sketch default: longest first. */
 const sortKey = ref<SortKey>('duration');
-const sortDirection = ref<SortDirection | null>('desc');
+const sortDirection = ref<SortDirection>('desc');
 
 /** Mean duration per event name across the whole model (Q23: self time = duration). */
 const averageByName = computed(() => {
@@ -82,22 +83,29 @@ const rows = computed<Row[]>(() =>
 );
 
 const sortedRows = computed<Row[]>(() => {
-  const dir = sortDirection.value;
-  if (!dir) return rows.value;
   const key = sortKey.value;
-  const sign = dir === 'asc' ? 1 : -1;
+  const sign = sortDirection.value === 'asc' ? 1 : -1;
   return [...rows.value].sort((a, b) => {
     if (key === 'name') return sign * a.name.localeCompare(b.name);
     return sign * (a[key] - b[key]);
   });
 });
 
+/** Keep the dock bounded; sorting and bar scales still use the complete selection. */
+const visibleRows = computed(() => sortedRows.value.slice(0, MAX_RENDERED_ROWS));
+
 /** Column maxima drive the inline bars; guard against an all-zero column. */
-const columnMax = computed(() => ({
-  duration: Math.max(...rows.value.map((r) => r.duration), 0),
-  selfTime: Math.max(...rows.value.map((r) => r.selfTime), 0),
-  avgDuration: Math.max(...rows.value.map((r) => r.avgDuration), 0),
-}));
+const columnMax = computed(() => {
+  let duration = 0;
+  let selfTime = 0;
+  let avgDuration = 0;
+  for (const row of rows.value) {
+    duration = Math.max(duration, row.duration);
+    selfTime = Math.max(selfTime, row.selfTime);
+    avgDuration = Math.max(avgDuration, row.avgDuration);
+  }
+  return { duration, selfTime, avgDuration };
+});
 
 const NUMERIC_COLUMNS = [
   { key: 'duration', label: 'wallDuration' },
@@ -115,27 +123,26 @@ function cell(row: Row, key: 'duration' | 'selfTime' | 'avgDuration') {
   };
 }
 
-/** ascending → descending → unsorted; a new column enters the cycle at ascending. */
+/** A new column starts ascending; subsequent clicks alternate direction. */
 function toggleSort(key: SortKey): void {
   if (sortKey.value !== key) {
     sortKey.value = key;
     sortDirection.value = 'asc';
     return;
   }
-  sortDirection.value =
-    sortDirection.value === 'asc' ? 'desc' : sortDirection.value === 'desc' ? null : 'asc';
+  sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
 }
 
 /** aria-sort value for a column header ('none' when this column is not the sort key). */
 function sortState(key: SortKey): 'ascending' | 'descending' | 'none' {
-  if (sortKey.value !== key || !sortDirection.value) return 'none';
+  if (sortKey.value !== key) return 'none';
   return sortDirection.value === 'asc' ? 'ascending' : 'descending';
 }
 
 /** SortIcon direction for a column: active column shows asc/desc, others show null (↕). */
 function dirFor(key: SortKey): 'asc' | 'desc' | null {
   if (sortKey.value !== key) return null;
-  return sortDirection.value ?? null;
+  return sortDirection.value;
 }
 
 let session: ReturnType<typeof startHorizontalResize> | null = null;
@@ -189,6 +196,11 @@ function onResizePointerUp() {
         class="pr-multi-select__tab"
         data-testid="multi-select-tab"
       >{{ t('slices', locale) }} ({{ rows.length }})</span>
+      <span
+        v-if="rows.length > visibleRows.length"
+        class="pr-multi-select__visible-count"
+        data-testid="multi-select-visible-count"
+      >{{ t('showingRows', locale).replace('{shown}', String(visibleRows.length)).replace('{total}', String(rows.length)) }}</span>
       <button
         type="button"
         class="pr-multi-select__close"
@@ -239,7 +251,7 @@ function onResizePointerUp() {
         </thead>
         <tbody>
           <tr
-            v-for="row in sortedRows"
+            v-for="row in visibleRows"
             :key="row.id"
             :data-testid="`multi-select-row-${row.id}`"
           >
@@ -332,6 +344,11 @@ function onResizePointerUp() {
   border-bottom: 2px solid #e8e8e8;
   font-size: 13px;
   font-weight: 600;
+}
+
+.pr-multi-select__visible-count {
+  padding-bottom: 6px;
+  color: #969696;
 }
 
 .pr-multi-select__close {
