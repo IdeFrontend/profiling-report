@@ -2,33 +2,67 @@
 
 Open **DATA** questions (file/field/formula data mapping). Status enum, prefix taxonomy, and migration map: [README.md](README.md).
 
+These seven are the granular roofline questions from the HQ/`Q11` batch. They stay as separate ids permanently, but their **status and findings are tracked once** under the [DATA-37](#data-37--roofline-formulas-was-q11) umbrella — ask Product for them together.
+
 ### DATA-11 — Roofline axes vs pipe busy rates
 
-**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
+<img src="../visual/questions/data-11.png" alt="DATA-11 Roofline chart — not pipe busy rates" width="900" height="655">
+
+**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+
+**Question:** The Roofline chart plots **X = Ops/Byte** (arithmetic intensity) and **Y = TOps/s** (achieved performance). The producer doc's Roofline table instead points its three tab labels at **pipe busy rates** — `aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio` (`PipeUtilization.csv`). Busy-rate ratios cannot produce either axis, so: what are the real axis quantities, and are the tabs meant to be axes at all, or three separate bottleneck panels?
 
 ### DATA-12 — X axis Ops/Byte
 
-**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
+<img src="../visual/questions/data-12.png" alt="DATA-12 X axis Ops/Byte" width="900" height="655">
+
+**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+
+**Question:** **X axis = Ops/Byte** — which file, field(s), and formula? Does the **GM** point use the same formula and byte source as the **L2** point, or different ones? (Interim [DATA-37b](../decisions/interim/DATA.md): `fops ÷ ((read_main_memory_datas(KB) + write_main_memory_datas(KB)) × 1024)`.)
 
 ### DATA-13 — Y axis TOps/s
 
-**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
+<img src="../visual/questions/data-13.png" alt="DATA-13 Y axis TOps/s" width="900" height="655">
+
+**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+
+**Question:** **Y axis = TOps/s** — which file, field(s), and formula? Raw FLOPS *counts* exist (`aiv_vec_fops`, `aic_cube_fops` on `ArithmeticUtilization.csv`) but there is no documented TOps/s conversion. Is it a per-side (Cube \| Vector) value or one combined number? (Interim [DATA-37a](../decisions/interim/DATA.md): `fops ÷ mean(*_time(us)) ÷ 1e6`.)
 
 ### DATA-14 — roof lines
 
-**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
+<img src="../visual/questions/data-14.png" alt="DATA-14 roof lines" width="900" height="655">
+
+**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+
+**Question:** The two **roof lines** — the bandwidth slope and the compute plateau — which file and fields? Peak compute ([DATA-3](../decisions/DATA.md): `aic/aiv_flops_theoretical`) and peak BW ([DATA-5](../decisions/DATA.md): `aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s**) are documented for the summary cards; nothing states whether the roofline roof reuses those values, or which one applies to which side.
 
 ### DATA-15 — L2 bytes
 
-**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
+<img src="../visual/questions/data-15.png" alt="DATA-15 L2 legend series" width="900" height="655">
+
+**Status:** `open` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+
+**Question:** The chart legend has an **L2** series alongside GM, and the L2 point needs **bytes moved through L2**. Which field? `L2Cache.csv` carries hit/miss **counts** and hit **rates** only — no byte traffic. If no byte field exists, should the L2 series be dropped, or taken from another file? (Interim [DATA-37c](../decisions/interim/DATA.md): omit the L2 point.)
 
 ### DATA-16 — Vec_FP32 / Vec_MISC mix labels
 
-**Status:** `partial` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
+<img src="../visual/questions/data-16.png" alt="DATA-16 Vec_FP32 / Vec_MISC mix" width="900" height="655">
+
+**Status:** `partial` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+
+**Question:** The op-mix annotation above the plot prints labels such as `Vec_FP32` / `Vec_MISC`. Which file and fields feed them on **Cube vs Vector** ops, and when several mix ratios are non-zero at once, **which labels are shown, in what order, and with how much precision?**
+
+**Answer so far:** Fields exist in `ArithmeticUtilization.csv` — `aiv_vec_{fp32,fp16,int32,int16,misc}_ratio`. The producer dictionary uses *different* names (`aiv_vec_{vf,sfu,simt_vf}_ratio`). The "which to show when many are non-zero" rule is undocumented.
 
 ### DATA-17 — Roofline tabs
 
-**Status:** `partial` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
+<img src="../visual/questions/data-17.png" alt="DATA-17 Roofline tabs" width="900" height="655">
+
+**Status:** `partial` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+
+**Question:** Tabs **内存单元** / **内存通路** / **搬运单元** — what does each tab show, and is the tab set in scope at all this iteration (or should the panel stay single-chart)?
+
+**Answer so far:** The producer doc maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`) — the pipe-busy-rate mapping [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) flags as wrong. No Product answer. (Interim [DATA-37f](../decisions/interim/DATA.md): hide the tabs.)
 
 ### DATA-19 — summary vs 详情 block scope
 
@@ -36,7 +70,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `interim`
 
-**Question:** On the summary bars, do we average all blocks? On **详情**, do we show only the selected block?
+**Question:** A CSV holds one row per `block_id` (sample: 8). On the **summary** PIPE bars, do we average all blocks? On the **详情** overlays, do we show only the selected block? Is the summary **block switcher** optional or required, and does picking a block scope **only PIPE** or every summary widget (cards, Roofline, memory diagram)? The sketch shows a block selector on the 详情 view, not on the summary.
 
 **Interim:** summary PIPE bars default to mean of non-`NA` ratios across `block_id` ([`DATA-33b`](../decisions/interim/DATA.md)); summary **block** control (All \| `block_id`) scopes PIPE when >1 block. **详情** / memory / metrics = selected block ([`DATA-33c`](../decisions/interim/DATA.md)). Matrix: [VIEW_DATA_REQUIREMENTS §8.1](../../formats/VIEW_DATA_REQUIREMENTS.md).
 
@@ -46,9 +80,9 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `partial`
 
-**Question:** **Peak (%)** color on each memory-diagram box — which file and field for each box?
+**Question:** Memory-diagram boxes can show a **Peak (%)** badge — the unit's usage as a percent of its theoretical maximum, driving a color scale. For **each** box — GM, L2, L1, L0A, L0B, L0C, Cube, FixP, UB, Vec, Scalar — which file and field gives that percent, and what is the box's 100% reference (theoretical peak)? The producer doc's 理论值 column is empty for every row.
 
-**Answer so far:** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)). Other boxes (GM, L1, L0*, Cube, FixP, UB, Vec, Scalar) — still no Product mapping.
+**Answer so far:** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)), not a peak-relative percent. Other boxes — still no Product mapping. Rule 2 of the producer doc also asks how the color scale maps when 理论值 is known.
 
 ### DATA-25 — L0C → L2/GM
 
@@ -56,9 +90,9 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `interim`
 
-**Question:** **L0C → L2/GM** — show it? Which field? (`L0C_to_GM_datas(KB)`?)
+**Question:** Show a **L0C → L2/GM** edge on the memory diagram? If yes, the sample provides `Memory.csv` → `L0C_to_GM_datas(KB)` (+ `L0C_to_GM_bw_usage_rate(%)`); confirm the field and the 理论值 (Peak %). The sketch labels one **LOC** source node for L0C → L1, L0C → L2/GM and L0C → UB without distinguishing the three edges — should they be one arrow or three?
 
-**Interim:** show `Memory.csv` → `L0C_to_GM_datas(KB)` when present. Same **LOC** node as L0C → L1.
+**Interim:** show `Memory.csv` → `L0C_to_GM_datas(KB)` when present; no Peak(%).
 
 ### DATA-28 — summary aggregation (mean / max / first / selected)
 
@@ -66,7 +100,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `interim`
 
-**Question:** A CSV often has many `block_id` rows. For summary numbers, **mean**, **max**, **first block**, or **selected block**?
+**Question:** A CSV often has many `block_id` rows (sample: 8). When one summary number is shown — a PIPE percent, a bandwidth card, a compute score — which aggregation is correct: **mean**, **max**, **first block**, or **selected block**? How are `NA`/empty rows treated, and is the rule the same for every metric?
 
 **Interim:** [`DATA-33b`](../decisions/interim/DATA.md): mean of non-`NA` values across `block_id` for summary PIPE / I/O measured BW. Product note: request a **general aggregation description document**.
 
@@ -76,7 +110,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `interim`
 
-**Question:** Same aggregation rule for every widget (cards, PIPE, Roofline, memory diagram)?
+**Question:** Does one aggregation rule ([DATA-28](#data-28--summary-aggregation-mean--max--first--selected)) apply to **every** widget — bandwidth / compute / AICore cards, PIPE bars, Roofline, memory diagram — or are there per-surface exceptions? If there are exceptions, list which widget uses which rule (and why).
 
 **Interim:** [`DATA-33c`](../decisions/interim/DATA.md): summary PIPE (and measured BW) stay mean-across-blocks; **详情** / memory diagram / metrics lists are the selected block. Roofline aggregates like [`DATA-33b`](../decisions/interim/DATA.md).
 
@@ -84,7 +118,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `partial`
 
-**Question:** Authoritative MVP fixture shape?
+**Question:** Which fixture is authoritative for acceptance — the sketch-faithful Gantt (Card → Core → pipe hierarchy), or the flat AIV sample? Is there a golden report file Product will designate, and which properties must match (lane tree, values, chrome) versus which are pixel-cosmetic?
 
 **Answer so far:** Product target = sketch-like Gantt (A). **CI fixture** = `out.rep` until golden — [`DATA-31a`](../decisions/interim/DATA.md).
 
@@ -92,7 +126,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `open` + `interim`
 
-**Question:** Dependencies encoding?
+**Question:** How does the producer encode the dependency edges between timeline events — which Chrome Trace `args` keys, successor lists or predecessor lists, and how are ids made addressable? Are edges within one lane only, or also cross-lane?
 
 **Interim:** [`DATA-36a`](../decisions/interim/DATA.md) successor-list encoding via Chrome Trace `args`.
 
@@ -100,7 +134,9 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `open` + `interim`
 
-**Question:** Roofline formulas? Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) (axes vs pipe busy rates), [DATA-12](#data-12--x-axis-opsbyte) (X Ops/Byte), [DATA-13](#data-13--y-axis-topss) (Y TOps/s), [DATA-14](#data-14--roof-lines) (roof peaks), [DATA-15](#data-15--l2-bytes) (L2 bytes), [DATA-16](#data-16--vec_fp32--vec_misc-mix-labels) (mix labels), [DATA-17](#data-17--roofline-tabs) (tabs).
+**Question:** Which file, field, and formula feeds **each element of the Roofline chart** — X axis (Ops/Byte), Y axis (TOps/s), the GM and L2 measured points, the two roof lines (peak bandwidth + peak compute), the op-mix labels, and the 内存单元 / 内存通路 / 搬运单元 tabs? The producer docs describe the chart's *purpose* but supply no formulas, so all seven sub-questions below are open and should be answered together.
+
+Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) (axes vs pipe busy rates), [DATA-12](#data-12--x-axis-opsbyte) (X Ops/Byte), [DATA-13](#data-13--y-axis-topss) (Y TOps/s), [DATA-14](#data-14--roof-lines) (roof peaks), [DATA-15](#data-15--l2-bytes) (L2 bytes), [DATA-16](#data-16--vec_fp32--vec_misc-mix-labels) (mix labels), [DATA-17](#data-17--roofline-tabs) (tabs).
 
 **Known so far (docs checked 2026-09-10):**
 
