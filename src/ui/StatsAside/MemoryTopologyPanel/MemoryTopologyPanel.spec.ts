@@ -26,12 +26,19 @@ const model = {
   ],
 };
 
+/** Chrome geometry (448×540 units): GM x16–56, L2 x94–134, cluster rows x188–432. */
+const CHROME = { gmRight: 56, l2Left: 94, l2Right: 134, clusterLeft: 188 };
+
 describe('MemoryTopologyPanel', () => {
-  it('PR-MEMTOP-001: renders topology nodes', () => {
+  it('PR-MEMTOP-001: renders the chrome asset and the L2 node anchor', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('L2 Cache');
-    expect(wrapper.text()).toContain('CUBE');
+    const chrome = wrapper.get('image');
+    expect(chrome.attributes('href')).toContain('memory-topology.svg');
+    expect(chrome.attributes('width')).toBe('448');
+    expect(chrome.attributes('height')).toBe('540');
+    expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(true);
+    expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 448 540');
   });
 
   it('PR-MEMTOP-002: renders data-driven edge labels', () => {
@@ -39,16 +46,7 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.text()).toContain('1.56 GB/s');
     expect(wrapper.findAll('[data-testid="edge-vec-ub"]')).toHaveLength(2);
     expect(wrapper.findAll('[data-testid="edge-ub-vec"]')).toHaveLength(2);
-    for (const id of [
-      'l1-l0a',
-      'l1-l0b',
-      'l0a-cube',
-      'l0b-cube',
-      'l0c-cube',
-      'cube-l0c',
-      'l0c-l1',
-      'l0c-l2',
-    ]) {
+    for (const id of ['l1-l0a', 'l1-l0b', 'l0a-cube', 'l0b-cube', 'l0c-cube', 'cube-l0c']) {
       expect(wrapper.get(`[data-testid="edge-${id}"]`).text().length).toBeGreaterThan(0);
     }
   });
@@ -78,7 +76,7 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.text()).not.toContain('1.56 GB/s');
   });
 
-  it('PR-MEMTOP-006: edge labels sit in pillar corridors, not on GM/L2', () => {
+  it('PR-MEMTOP-006: edge labels sit in the pillar corridors', () => {
     const wrapper = mount(MemoryTopologyPanel, {
       props: {
         model: {
@@ -91,31 +89,17 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    const gm = wrapper.get('.pr-topo__gm');
-    const l2 = wrapper.get('.pr-topo__l2');
-    const cluster = wrapper.get('.pr-topo__cluster');
-    const gmRight = Number(gm.attributes('x')) + Number(gm.attributes('width'));
-    const l2Left = Number(l2.attributes('x'));
-    const l2Right = l2Left + Number(l2.attributes('width'));
-    const clusterLeft = Number(cluster.attributes('x'));
+    const x = (id: string): number => Number(wrapper.get(`[data-testid="edge-${id}"]`).attributes('x'));
 
-    const gmRead = wrapper.get('[data-testid="edge-gm-l2-read"]');
-    const gmX = Number(gmRead.attributes('x'));
-    expect(gmX).toBeGreaterThan(gmRight);
-    expect(gmX).toBeLessThan(l2Left);
-    expect(gmRead.attributes('transform') ?? '').toMatch(/rotate/);
-
-    const l2ub = wrapper.get('[data-testid="edge-l2-ub"]');
-    const ubX = Number(l2ub.attributes('x'));
-    expect(ubX).toBeGreaterThan(l2Right);
-    expect(ubX).toBeLessThan(clusterLeft);
-    expect(l2ub.attributes('transform') ?? '').toMatch(/rotate/);
-
-    const l2l1 = wrapper.get('[data-testid="edge-l2-l1-read"]');
-    const l1X = Number(l2l1.attributes('x'));
-    expect(l1X).toBeGreaterThan(l2Right);
-    expect(l1X).toBeLessThan(clusterLeft);
-    expect(l2l1.attributes('transform') ?? '').toMatch(/rotate/);
+    // GM↔L2 labels sit between the GM pillar and the L2 pillar...
+    expect(x('gm-l2-read')).toBeGreaterThan(CHROME.gmRight);
+    expect(x('gm-l2-read')).toBeLessThan(CHROME.l2Left);
+    // ...and L2↔cluster labels between the L2 pillar and the row stack. The export draws
+    // these horizontally in the corridor (unlike the earlier redraw, which rotated them).
+    for (const id of ['l2-ub', 'l2-l1-read']) {
+      expect(x(id)).toBeGreaterThan(CHROME.l2Right);
+      expect(x(id)).toBeLessThan(CHROME.clusterLeft);
+    }
   });
 
   it('PR-MEMTOP-007: shows L2 Peak(%) when peakPct set', () => {
@@ -154,5 +138,13 @@ describe('MemoryTopologyPanel', () => {
     });
     await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
     expect(wrapper.emitted('open-details')).toBeUndefined();
+  });
+
+  it('PR-MEMTOP-009: edges with no chrome slot are not drawn', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    // The export carries no KB plate, so L0C→L1 / L0C→GM datagrams stay in the 详情 tabs.
+    expect(wrapper.findAll('[data-testid="edge-l0c-l1"]')).toHaveLength(0);
+    expect(wrapper.findAll('[data-testid="edge-l0c-l2"]')).toHaveLength(0);
+    expect(wrapper.text()).not.toContain('KB');
   });
 });
