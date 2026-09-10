@@ -857,6 +857,7 @@ export interface AltMeasureGap {
   leftLaneY: number;
   /** Lane Y of the later (gapEnd) side. */
   rightLaneY: number;
+  /** True when both ends share the same visual band Y (same leaf sub-row). */
   sameLane: boolean;
   targetEventId: string | null;
 }
@@ -920,7 +921,7 @@ export function computeAltMeasureGap(
     gapEndTime: times.gapEndTime,
     leftLaneY,
     rightLaneY,
-    sameLane: targetItem ? targetItem.laneIndex === anchorItem.laneIndex : true,
+    sameLane: targetItem ? leftLaneY === rightLaneY : true,
     targetEventId: targetEventId ?? null,
   };
 }

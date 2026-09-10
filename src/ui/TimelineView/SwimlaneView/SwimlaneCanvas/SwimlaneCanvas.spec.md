@@ -83,7 +83,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 47. **PR-CANVAS-047** — Hovering the anchor event itself shows only the anchor highlight (no Δt overlay).
 48. **PR-CANVAS-048** — Δt is the distance from the anchor's nearest edge to the target: `target − anchor.end` when the target is later, `anchor.start − target` when earlier.
 49. **PR-CANVAS-049** — Touching (Δt = 0) targets render no event-measure overlay and no blue target highlight (anchor highlight only); Alt+click a touching target does not pin.
-50. **PR-CANVAS-050** — Same-lane measurement reuses the gap-measure border sticks + `MeasureDtArrow`; cross-lane measurement draws sticks plus a vertical blue dashed connector with the Δt label on the earlier lane; both modes use inline-or-outside label fallback. Alt-measure chrome (`.pr-alt-measure`, anchors) stacks at `z-index: 9` with the swim cursor — above Card strips — so the dashed connector stays unbroken through Card headers.
+50. **PR-CANVAS-050** — Same-**sub-row** measurement reuses the gap-measure border sticks + `MeasureDtArrow`; measurement across different lanes **or different sub-rows in one multiline leaf** draws sticks plus a vertical blue dashed connector with the Δt label on the earlier band; both modes use inline-or-outside label fallback. Alt-measure chrome (`.pr-alt-measure`, anchors) stacks at `z-index: 9` with the swim cursor — above Card strips — so the dashed connector stays unbroken through Card headers.
 51. **PR-CANVAS-051** — Ephemeral session clears on **Alt keyup**, **pointermove with `altKey` false**, **Esc**, or Alt+click empty space; Alt+click the same anchor while ephemeral is a no-op (does not toggle off).
 52. **PR-CANVAS-052** — Entering `measureMode` clears the session; the overlay is hidden while `measureMode` is true.
 53. **PR-CANVAS-053** — While the session is active, the default hover-gap measure is suppressed (including during left-button pan capture/drag).
@@ -139,6 +139,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-09** — Alt-measure vertical dashed connector also spans different sub-rows in one multiline leaf (`PR-CANVAS-050`; `sameLane` is same visual band).
 - **2026-09-09** — Alt-measure anchor/pinned borders are white (`rgba(255,255,255)`); ephemeral hover target stays blue (`PR-CANVAS-045`/`055`/`061`).
 - **2026-09-08** — Magnet and hover-gap measure are sub-row-scoped on multi-row leaves (`PR-CANVAS-072`/`073`).
 - **2026-09-07** — Inbound `hoveredLaneId` drives track `setHoveredLane` without re-emitting (gutter→track AC-07); PR-CANVAS-071.
