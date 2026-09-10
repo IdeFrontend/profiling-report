@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -34,11 +34,15 @@ import {
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import OverviewCharts from '../OverviewCharts/OverviewCharts.vue';
-import { overviewSectionHeightPx } from '../OverviewCharts/overviewLayout';
+import {
+  OVERVIEW_HEADER_H,
+  OVERVIEW_LANE_H,
+} from '../OverviewCharts/overviewLayout';
 import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import CardMetricSelect from './CardMetricSelect.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import { animateProgress, prefersReducedMotion } from '../animateViewWindow';
 import { t } from '../../../i18n';
 
 const props = withDefaults(
@@ -184,10 +188,59 @@ const scrollOverviewSeries = computed(() =>
 );
 
 const overviewCollapsed = ref(false);
+/** 1 = tracks fully open, 0 = fully closed (tweened like Card gutter collapse). */
+const overviewAnimVisible = ref(1);
+let cancelOverviewAnim: () => void = () => {};
 
-const overviewContentPad = computed(() =>
-  overviewSectionHeightPx(scrollOverviewSeries.value.length, overviewCollapsed.value),
+const overviewHiddenHeight = computed(
+  () => scrollOverviewSeries.value.length * OVERVIEW_LANE_H,
 );
+
+const overviewContentPad = computed(() => {
+  const n = scrollOverviewSeries.value.length;
+  if (n <= 0) return 0;
+  return OVERVIEW_HEADER_H + overviewHiddenHeight.value * overviewAnimVisible.value;
+});
+
+function clampScrollAfterOverviewCollapse(): void {
+  // Pad shrinks up to N×24px; keep scrollY inside the new content height.
+  void nextTick(() => {
+    const el = gutterRef.value?.root;
+    if (!el) return;
+    const maxY = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (props.view.scrollY > maxY) emit('update:scrollY', maxY);
+  });
+}
+
+function onOverviewCollapsedUpdate(nextCollapsed: boolean): void {
+  cancelOverviewAnim();
+  const height = overviewHiddenHeight.value;
+  const from = overviewAnimVisible.value;
+  const to = nextCollapsed ? 0 : 1;
+  overviewCollapsed.value = nextCollapsed;
+
+  const finish = (v: number) => {
+    overviewAnimVisible.value = v;
+    if (v < from) clampScrollAfterOverviewCollapse();
+  };
+
+  if (height <= 0 || prefersReducedMotion() || from === to) {
+    finish(to);
+    return;
+  }
+
+  cancelOverviewAnim = animateProgress({
+    from,
+    to,
+    durationMs: 200,
+    onUpdate: (v) => {
+      overviewAnimVisible.value = v;
+    },
+    onDone: () => {
+      finish(to);
+    },
+  });
+}
 
 
 /** Shared Alt-measure session so pin-strip ↔ body can measure across sticky and scroll lanes. */
@@ -241,6 +294,9 @@ const altMeasureCrossBridge = computed(() => {
   void props.view.startTime;
   void props.view.endTime;
   void pinnedStripHeight.value;
+  // Overview collapse tweens paddingTop inside the body — height unchanged, so
+  // bodyViewportH / ResizeObserver do not fire; still reproject the bridge.
+  void overviewContentPad.value;
   // Re-read client rects after gutter / body resize (sticks re-project; bridge must follow).
   void localGutterWidth.value;
   void bodyViewportH.value;
@@ -321,6 +377,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  cancelOverviewAnim();
   bodyResizeObserver?.disconnect();
   bodyResizeObserver = null;
 });
@@ -558,12 +615,14 @@ defineExpose({
         :locale="locale"
         :measure-mode="measureMode"
         :collapsed="overviewCollapsed"
+        :collapse-visible="overviewAnimVisible"
+        :collapse-hidden-height="overviewHiddenHeight"
         @pin-overview="emit('pin-overview', $event)"
         @unpin-overview="emit('unpin-overview', $event)"
         @cursor="onCursor"
         @wheel="onOverviewWheel"
         @pan="emit('pan', $event)"
-        @update:collapsed="overviewCollapsed = $event"
+        @update:collapsed="onOverviewCollapsedUpdate"
       />
 
       <button

@@ -2132,4 +2132,40 @@ describe('SwimlaneCanvas', () => {
 
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-074: contentTopPad change setView-reprojects scrollY so overview pad tweens repaint', async () => {
+    const setView = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setView');
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    });
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: { processes: [], minTime: 0, maxTime: 1000 },
+        view: { startTime: 0, endTime: 1000, scrollY: 80 },
+        contentTopPad: 40,
+      },
+    });
+    Object.defineProperty(wrapper.get('[data-testid="swimlane"]').element, 'clientWidth', {
+      value: 200,
+      configurable: true,
+    });
+    Object.defineProperty(wrapper.get('[data-testid="swimlane"]').element, 'clientHeight', {
+      value: 100,
+      configurable: true,
+    });
+    await fireAllDeviceRo();
+    setView.mockClear();
+
+    await wrapper.setProps({ contentTopPad: 88 });
+    await nextTick();
+
+    expect(setView).toHaveBeenCalled();
+    const last = setView.mock.calls.at(-1)![0] as { scrollY: number };
+    // paintView: scrollY - contentTopPad
+    expect(last.scrollY).toBe(80 - 88);
+    wrapper.unmount();
+  });
 });

@@ -12,13 +12,3 @@ export const OVERVIEW_HEADER_H = 40;
  * OverviewCharts.spec.md.
  */
 export const OVERVIEW_Y_MAX = 100;
-
-/**
- * Scroll-body content top pad for the 统计分析 block.
- * Collapsed → header only; expanded → header + 24px lanes (8px gap + 16px chart).
- */
-export function overviewSectionHeightPx(seriesCount: number, collapsed = false): number {
-  if (seriesCount <= 0) return 0;
-  if (collapsed) return OVERVIEW_HEADER_H;
-  return OVERVIEW_HEADER_H + seriesCount * OVERVIEW_LANE_H;
-}

@@ -10,16 +10,16 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 
 ```text
 ┌ time axis ─────────────────────────────────────────────┐
-├ pinned lanes (sticky) ─────────────────────────────────┤
 ├ pinned overview tracks (sticky) ───────────────────────┤
+├ pinned lanes (sticky) ─────────────────────────────────┤
 │ ▾ 统计分析 + tracks (scroll with lanes)                │
 │ Card / cores / pipes …                                 │
 └────────────────────────────────────────────────────────┘
 ```
 
-- **Placement:** scrollable section at the top of the swim **body** (moves with `scrollY`). Sticky duplicates of pinned series sit **below** the pinned-lane strip and **above** the scrolling body.
+- **Placement:** scrollable section at the top of the swim **body** (moves with `scrollY`). Sticky duplicates of pinned series sit **above** the pinned-lane strip and **above** the scrolling body.
 - **Gutter column:** width = TimelineView gutter (`gutterWidth` prop); labels left-aligned; section header with chevron + localized **统计分析** / Statistical analysis.
-- **Collapsible header (v930/entry):** full-width Card-like strip (`#2a2a2a` / hover `#323232`, 40px) with `Chevron` + title; **no vertical gutter splitter** on the header (tracks keep the seam). Click **anywhere** on the strip toggles expand/collapse of all tracks (sticky pin strip stays visible). The chart-band half also scrubs the playhead — a press that moves more than **4px** is treated as scrub, not collapse (same gate as chart drag-pan).
+- **Collapsible header (v930/entry):** full-width Card-like strip (`#2a2a2a` / hover `#323232`, 40px) with `Chevron` + title; **no vertical gutter splitter** on the header (tracks keep the seam). Click **anywhere** on the strip toggles expand/collapse of all tracks (sticky pin strip stays visible). In the swim body, collapse/expand slides over **200ms** (height + opacity + pad — **PR-OV-013**). The chart-band half also scrubs the playhead — a press that moves more than **4px** is treated as scrub, not collapse (same gate as chart drag-pan).
 - **Track / lane:** **16px** paint area inside a **24px** lane with an **8px** empty gap above the chart (gap is part of the series hit target). Pointer over gutter **or** chart column highlights the **whole track** with swimlane lane-hover fill (`LANE_HOVER_FILL` / `#363636`) and lifts the label to `#fff` (same chrome as main swim rows).
 - **Splitters:** **1px** `#3a3a3a` horizontal seam under each lane (inset line on the track — same look as lane row dividers). The seam stays inside that lane’s **24px** chart hit target so moving between tracks does not drop the tip.
 - **Style:** **step-after** area + stroke (hold each sample value until the next counter event, then jump). Fill `fill-opacity ≈ 0.45` under a bright stroke. Stroke hex from `overviewSeriesStroke` ([COLOR_TOKENS](../../../../docs/ui/COLOR_TOKENS.md): Cube → `#3078F0`; other pipes → OKLCH `L+0.2` of the pipe base).
@@ -35,7 +35,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 2. **PR-OV-002** — Each track SVG is 16px tall inside a 24px lane (8px gap above the paint); consecutive lanes use a 1px `#3a3a3a` horizontal splitter drawn as an inset seam on the upper lane so the full 24px chart column (including the seam) remains that series’ hit target.
 3. **PR-OV-003** — Mounted in the swim body below the time axis (DOM: axis → swimlane containing overview).
 4. **PR-OV-004** — Series paths are step-after: value stays constant until the next sample time, then jumps (no diagonal interpolation between samples).
-5. **PR-OV-005** — Track pushpin emits `pin-overview` / `unpin-overview`; sticky strip (`variant=strip`) shows pinned series in pin order **below** the lane pin strip.
+5. **PR-OV-005** — Track pushpin emits `pin-overview` / `unpin-overview`; sticky strip (`variant=strip`) shows pinned series in pin order **above** the lane pin strip. SwimlaneView animates that strip’s appear/disappear with the same 200ms height tween as the lane pin strip.
 6. **PR-OV-006** — Shared cursor x draws a continuous vertical playhead over the chart column (not gutter). Hovering anywhere in a chart column’s 24px lane (including the 8px gap above the paint) emits `cursor` and shows one multi-series tip (all track labels + step values at that time) plus a value-dot on **every** track; the hovered series tip row is bold with a color swatch and its dot is emphasized; dots are teleported / fixed so a zero (or near-baseline) sample on the last track is not clipped by the overview transform or parent overflow. Hovering the header-row chart band emits `cursor` with a real xRatio (no tip/dots); gutter labels do not emit `cursor`.
 7. **PR-OV-007** — Wheel over overview emits `wheel` for swimlane scroll / trackpad pan / Ctrl+zoom; drag on a chart column emits `pan` (skipped while `measureMode`).
 8. **PR-OV-008** — Section header is a Card-like collapsible strip (no vertical gutter splitter); click **anywhere** on the full-width header (gutter or chart band) toggles `collapsed` / `update:collapsed` and hides/shows all tracks. A pointer move beyond **4px** after press (playhead scrub on the chart band) does **not** toggle on release.
@@ -43,6 +43,7 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 10. **PR-OV-010** — All tracks share a **0–100** Y domain (`OVERVIEW_Y_MAX`); a series whose peak is below 100 does not fill the band height. Values outside the domain clamp; non-% counters are out of scope (documented in Layout).
 11. **PR-OV-011** — Ending a chart drag (pointerup / cancel) while the pointer is outside a chart column clears the value tip/dot and emits `cursor: null` (leave is ignored while dragging).
 12. **PR-OV-012** — Chart drag-pan uses the same **4px** click-vs-drag threshold as `SwimlaneCanvas`; moves ≤4px do not emit `pan`.
+13. **PR-OV-013** — Section expand/collapse animates like Card/folder gutter collapse: `SwimlaneView` drives a **200ms** `animateProgress` tween (`collapseVisible` 0→1 / 1→0). Track list sits in a height+opacity wrapper (`height = hiddenHeight × visible`, `opacity = visible`, `overflow: hidden`); tracks stay mounted while `visible > 0`. Body `overviewContentPad` interpolates with the same factor so swim content does not jump. A mid-tween re-click reverses from the current progress; under `prefers-reduced-motion: reduce` the change is instant. Strip variant does not section-collapse.
 
 ## Visual
 

@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createViewState } from '../../src/domain/viewState';
 import OverviewCharts from '../../src/ui/TimelineView/OverviewCharts/OverviewCharts.vue';
+import SwimlaneView from '../../src/ui/TimelineView/SwimlaneView/SwimlaneView.vue';
 import type { OverviewSeries } from '../../src/domain/types';
 
 const series: OverviewSeries[] = [
@@ -92,7 +94,7 @@ describe('OverviewCharts', () => {
     const layout = await import('../../src/ui/TimelineView/OverviewCharts/overviewLayout');
     expect(layout.OVERVIEW_LANE_H).toBe(24);
     expect(layout.OVERVIEW_TRACK_GAP).toBe(8);
-    expect(layout.overviewSectionHeightPx(2)).toBe(40 + 48);
+    expect(layout.OVERVIEW_HEADER_H + 2 * layout.OVERVIEW_LANE_H).toBe(40 + 48);
   });
 
   it('PR-OV-002: leaving one chart column for another keeps the tip (seam is hittable)', async () => {
@@ -469,5 +471,135 @@ describe('OverviewCharts', () => {
     expect(wrap.emitted('cursor')?.at(-1)?.[0]).toBeNull();
     wrap.unmount();
     cleanupTeleport();
+  });
+
+  it('PR-OV-013: parent-driven mid-tween keeps tracks mounted with height+opacity', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: {
+        series,
+        startTime: 0,
+        endTime: 2000,
+        collapsed: true,
+        collapseVisible: 0.5,
+        collapseHiddenHeight: 48,
+      },
+    });
+    expect(wrap.findAll('[data-series-id]')).toHaveLength(2);
+    const collapse = wrap.get('[data-testid="overview-collapse"]');
+    expect(collapse.attributes('style')).toMatch(/height:\s*24px/);
+    expect(collapse.attributes('style')).toMatch(/opacity:\s*0\.5/);
+    expect(collapse.attributes('style')).toMatch(/overflow:\s*hidden/);
+    expect(collapse.attributes('style')).toMatch(/pointer-events:\s*none/);
+    wrap.unmount();
+  });
+
+  it('PR-OV-013: fully open collapseVisible leaves no clip style', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: {
+        series,
+        startTime: 0,
+        endTime: 2000,
+        collapsed: false,
+        collapseVisible: 1,
+        collapseHiddenHeight: 48,
+      },
+    });
+    const collapse = wrap.get('[data-testid="overview-collapse"]');
+    expect(collapse.attributes('style') ?? '').not.toMatch(/overflow:\s*hidden/);
+    expect(collapse.attributes('style') ?? '').not.toMatch(/height:/);
+    wrap.unmount();
+  });
+
+  it('PR-OV-013: settled collapseVisible 0 unmounts tracks', async () => {
+    const wrap = mount(OverviewCharts, {
+      props: {
+        series,
+        startTime: 0,
+        endTime: 2000,
+        collapsed: true,
+        collapseVisible: 0,
+        collapseHiddenHeight: 48,
+      },
+    });
+    expect(wrap.findAll('[data-series-id]')).toHaveLength(0);
+    expect(wrap.find('[data-testid="overview-collapse"]').exists()).toBe(false);
+    wrap.unmount();
+  });
+
+  it('PR-OV-013: SwimlaneView tweens overview pad; reduced motion is instant', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        onchange: null,
+      })),
+    );
+
+    const overviewSeries = [
+      { id: 'CUBE', label: 'CUBE', points: [{ t: 0, v: 1 }, { t: 1000, v: 2 }] },
+      { id: 'VECTOR', label: 'VECTOR', points: [{ t: 0, v: 3 }, { t: 1000, v: 4 }] },
+    ];
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrap = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: [],
+        overviewSeries,
+        model: { minTime: 0, maxTime: 1000, processes: [] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      global: {
+        stubs: {
+          SwimlaneCanvas: {
+            props: ['contentTopPad'],
+            template: '<div data-testid="canvas-stub" :data-pad="contentTopPad" />',
+          },
+        },
+      },
+    });
+
+    // Header 40 + 2×24 lanes.
+    expect(wrap.get('[data-testid="canvas-stub"]').attributes('data-pad')).toBe('88');
+
+    await wrap.get('[data-testid="overview-header"]').trigger('click');
+    // Mid-tween: pad between 40 and 88.
+    await vi.advanceTimersByTimeAsync(100);
+    const mid = Number(wrap.get('[data-testid="canvas-stub"]').attributes('data-pad'));
+    expect(mid).toBeGreaterThan(40);
+    expect(mid).toBeLessThan(88);
+
+    await vi.advanceTimersByTimeAsync(200);
+    expect(wrap.get('[data-testid="canvas-stub"]').attributes('data-pad')).toBe('40');
+
+    // Reduced motion: expand is instant.
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: String(query).includes('prefers-reduced-motion'),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        onchange: null,
+      })),
+    );
+    await wrap.get('[data-testid="overview-header"]').trigger('click');
+    expect(wrap.get('[data-testid="canvas-stub"]').attributes('data-pad')).toBe('88');
+
+    wrap.unmount();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 });
