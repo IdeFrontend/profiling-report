@@ -69,6 +69,9 @@ describe('PR-RENDER: ClearType text atlas', () => {
 });
 
 describe('PR-RENDER: TextAtlas cache bounds', () => {
+  /** Stretch FakeCtx `measureText` (1 = width==char count). Truncate-reuse needs wider glyphs. */
+  let measureMul = 1;
+
   /** Minimal OffscreenCanvas stub so TextAtlas can rasterize in jsdom. */
   class FakeCtx {
     font = '';
@@ -76,15 +79,11 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     textBaseline = 'alphabetic';
     fillStyle = '#000000';
     measureText(text: string): { width: number; actualBoundingBoxAscent: number; actualBoundingBoxDescent: number } {
-      // Monospace: width == char count; symmetric ink so centeredTextBaseline takes the alphabetic branch.
-      return { width: text.length, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 3 };
+      // Monospace: width == char count × measureMul; ink metrics so centeredTextBaseline is alphabetic.
+      return { width: text.length * measureMul, actualBoundingBoxAscent: 9, actualBoundingBoxDescent: 3 };
     }
     fillRect(): void {}
     fillText(): void {}
-    save(): void {}
-    translate(): void {}
-    scale(): void {}
-    restore(): void {}
   }
   class FakeCanvas {
     constructor(public width: number, public height: number) {}
@@ -110,6 +109,7 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     vi.unstubAllGlobals();
     deleted.length = 0;
     nextId = 0;
+    measureMul = 1;
   });
 
   it('PR-RENDER-038: evicts least-recently-used glyphs beyond the byte budget', () => {
@@ -140,8 +140,7 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(deleted).toContain(a.texture); // remaining glyphs deleted on clear
   });
 
-  it('PR-RENDER-038: caches skip misses so the probe is not re-allocated each frame', () => {
-    // A counting OffscreenCanvas reveals how many 2D probe contexts get allocated.
+  it('PR-RENDER-038: skip reuses the probe canvas and cached measure (no realloc each frame)', () => {
     let allocs = 0;
     class CountingCanvas {
       width: number;
@@ -160,22 +159,47 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     const atlas = new TextAtlas(1000);
     const long = 'x'.repeat(100); // measured width 100; maxWidth 10 → ratio 0.1 → skip
     expect(atlas.get(gl, long, 12, 10)).toBeNull();
-    const allocsAfterFirst = allocs; // platform probe + fit probe (2 allocations)
-    expect(allocsAfterFirst).toBeGreaterThan(0);
+    const allocsAfterFirst = allocs; // one probe canvas; skip never opens the raster canvas
+    expect(allocsAfterFirst).toBe(1);
 
-    // The same (static-viewport) key now short-circuits before any OffscreenCanvas probe.
     expect(atlas.get(gl, long, 12, 10)).toBeNull();
     expect(allocs).toBe(allocsAfterFirst);
   });
 
-  it('PR-RENDER-038: rounds maxWidth so sub-pixel pan/zoom deltas reuse the glyph', () => {
+  it('PR-RENDER-038: glyphs key by drawn text so clip-width pan reuses the texture', () => {
     vi.stubGlobal('OffscreenCanvas', FakeCanvas);
     const atlas = new TextAtlas(1600);
     const a = atlas.get(gl, 'aaa', 12, 100.2)!;
-    // 100.4 rounds to the same integer bucket as 100.2 → cache hit (same glyph object).
+    // Sub-pixel clip-width delta: same integer fit bucket, same glyph object.
     expect(atlas.get(gl, 'aaa', 12, 100.4)).toBe(a);
-    // A width that lands in the next bucket mints a new glyph.
-    const c = atlas.get(gl, 'aaa', 12, 101.4)!;
-    expect(c).not.toBe(a);
+    // Wider clip that still draws as-is: same drawn text → same texture (not a new key).
+    const wide = atlas.get(gl, 'aaa', 12, 200)!;
+    expect(wide.texture).toBe(a.texture);
+    expect(wide.scaleX).toBe(1);
+  });
+
+  it('PR-RENDER-038: shrink reuses the full-text glyph and returns scaleX', () => {
+    vi.stubGlobal('OffscreenCanvas', FakeCanvas);
+    const atlas = new TextAtlas(1600);
+    const ten = 'abcdefghij'; // measured 10; 8–9 → shrink; 10 → draw
+    const shrunk = atlas.get(gl, ten, 12, 9)!;
+    expect(shrunk.scaleX).toBe(0.9);
+    const tighter = atlas.get(gl, ten, 12, 8)!;
+    expect(tighter.texture).toBe(shrunk.texture);
+    expect(tighter.scaleX).toBe(0.8);
+    const full = atlas.get(gl, ten, 12, 10)!;
+    expect(full.texture).toBe(shrunk.texture);
+    expect(full.scaleX).toBe(1);
+  });
+
+  it('PR-RENDER-038: truncate keys by drawn text so shared prefixes reuse the glyph', () => {
+    vi.stubGlobal('OffscreenCanvas', FakeCanvas);
+    measureMul = 10; // char width 10 so several integer maxWidths share one prefix
+    const atlas = new TextAtlas(50_000);
+    const ten = 'abcdefghij'; // measured 100; 55 and 58 both truncate to 'ab...'
+    const a = atlas.get(gl, ten, 12, 55)!;
+    const b = atlas.get(gl, ten, 12, 58)!;
+    expect(a.scaleX).toBe(1);
+    expect(b.texture).toBe(a.texture);
   });
 });

@@ -500,9 +500,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
     this.rebuildMeshes();
     this.rebuildCurveInstances();
-    // A new model invalidates every cached label glyph (names/widths differ); free the GPU
-    // textures now instead of waiting for the atlas LRU budget to evict them.
-    if (this.gl) this.atlas?.clear(this.gl);
+    // Glyphs are keyed by drawn text, not model identity — keep the atlas across setModel
+    // so collapse/unfold and a pan that revisits names do not re-rasterize. LRU still
+    // bounds GPU memory; resize clears on dpr change (new fontPx).
   }
 
   /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */
@@ -888,16 +888,18 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const cy = r.y + r.h / 2;
-      // Snap the quad origin to device pixels: glyphs are drawn 1:1 with NEAREST sampling, so a
-      // half-pixel origin (odd visible width or the event's -0.5 optical nudge) shifts the baked
-      // ClearType subpixel RGB off the display grid and leaves the fringe colored/soft.
-      const gx = Math.round(anchor.cx - glyph.width / 2);
+      // Snap the quad origin to device pixels: draw/truncate quads are 1:1 with NEAREST
+      // sampling, so a half-pixel origin (odd visible width or the event's -0.5 optical nudge)
+      // shifts the baked ClearType subpixel RGB off the display grid and leaves the fringe
+      // colored/soft. Shrink uses the same texture at `scaleX` (fit ≥ 0.8).
+      const drawW = glyph.scaleX === 1 ? glyph.width : glyph.width * glyph.scaleX;
+      const gx = Math.round(anchor.cx - drawW / 2);
       const gy = Math.round(cy - glyph.height / 2);
       gl.uniform4f(
         prog.uSizePos,
-        glyph.width / devW,
+        drawW / devW,
         glyph.height / devH,
-        -1 + (2 * gx + glyph.width) / devW,
+        -1 + (2 * gx + drawW) / devW,
         1 - (2 * gy + glyph.height) / devH,
       );
       // Clip the opaque label quad to its event's fill rect. WebGL scissor uses bottom-left
