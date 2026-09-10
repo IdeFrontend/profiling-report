@@ -232,6 +232,9 @@ function fitStyle(key: string): { fontSize: string } | undefined {
 </template>
 
 <style scoped>
+/* The diagram's base surface. The chrome paints no artboard of its own (the export's
+ * rgba(255,255,255,0.05) frame is stripped), so this is what the diagram sits on: it matches the
+ * card `--pr-bg-panel` instead of the lighter `#313131` the frame used to produce. */
 .pr-topo {
   min-width: 0;
   background: #262626;
