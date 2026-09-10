@@ -1499,12 +1499,16 @@ function backToReport() {
 }
 
 .pr-pipe-block select {
-  background: #2a2a2a;
-  color: #e8e8e8;
+  /* Block-pill chrome — keep in sync with .pr-csv__block select (CsvFieldListPanel). */
+  appearance: none;
+  background: #2a2a2a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23c8c8c8' d='M0 0l5 6 5-6z'/></svg>") no-repeat right 8px center;
   border: 1px solid #3a3a3a;
-  border-radius: 3px;
-  padding: 2px 6px;
+  color: #e0e0e0;
   font-size: 11px;
+  padding: 4px 22px 4px 10px;
+  border-radius: 4px;
+  min-width: 72px;
+  cursor: pointer;
 }
 
 .pr-pipe-toggle {
