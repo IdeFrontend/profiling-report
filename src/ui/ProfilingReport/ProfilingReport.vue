@@ -219,8 +219,12 @@ function initGutterMetrics(model: SwimlaneModel | null): void {
   const next: Record<string, GutterMetric> = {};
   for (const p of model.processes) {
     const avail = availableGutterMetrics(model, rows, p.id);
-    let metric = gutterMetricByCard.value[p.id] ?? defaultGutterMetric(avail);
-    if (!avail.includes(metric)) metric = defaultGutterMetric(avail);
+    let metric = gutterMetricByCard.value[p.id];
+    if (metric == null || !avail.includes(metric)) {
+      const fallback = defaultGutterMetric(avail);
+      if (fallback == null) continue;
+      metric = fallback;
+    }
     next[p.id] = metric;
   }
   gutterMetricByCard.value = next;
@@ -243,12 +247,14 @@ const laneGroups = computed((): GutterGroup[] => {
   const rows = pipeUtilRows.value;
   return m.processes.map((p) => {
     const options = gutterMetricOptionsByCard.value[p.id] ?? [];
-    const metric = gutterMetricByCard.value[p.id] ?? defaultGutterMetric(options);
-    const bars = gutterBarsForCard(m, rows, metric, p.id);
+    const stored = gutterMetricByCard.value[p.id];
+    const metric =
+      stored != null && options.includes(stored) ? stored : defaultGutterMetric(options);
+    const bars = metric != null ? gutterBarsForCard(m, rows, metric, p.id) : new Map();
     return {
       id: p.id,
       name: p.name,
-      utilMidlinePercent: averageBarWidthForCard(bars, metric),
+      utilMidlinePercent: metric != null ? averageBarWidthForCard(bars, metric) : undefined,
       lanes: lanesWithBars(p.threads, bars),
     };
   });
