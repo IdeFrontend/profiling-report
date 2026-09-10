@@ -2521,7 +2521,7 @@ defineExpose({
 .pr-alt-measure-anchor {
   position: absolute;
   box-sizing: border-box;
-  border: 2px solid rgba(255, 180, 196, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.95);
   border-radius: 5px;
   pointer-events: none;
   z-index: 9;
