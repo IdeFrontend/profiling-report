@@ -10,7 +10,7 @@ Right-click menu for a swimlane event or lane, routing viewport, selection, and 
 
 **context** is either absent (menu closed) or `{ target: SwimEvent | null, x: number, y: number, laneId: string }` from a canvas or leaf lane-header hit test. **x** and **y** are client viewport coordinates (`PointerEvent.clientX` / `clientY`). **target** is the event beneath the pointer; `null` identifies a leaf lane-header or empty portion of a leaf lane. **laneId** is a leaf lane id resolved from the swim tree, not from `SwimEvent`.
 
-The parent supplies **view** (`SwimlaneViewWindow`, for Reset zoom and scroll-change detection), **selectedEventId**, and **pinnedLaneIds** so each available action reflects report state.
+The parent applies shared view-state behavior directly from `contextMenuContext`/`viewState` in `ProfilingReport.vue`; the component receives only **context**, **pinnedLaneIds**, and **locale** as props.
 
 **Forwarding.** A main gutter header follows `LaneGutterNode` → `LaneGutter` → `SwimlaneView`; the pinned-strip header uses its direct `LaneGutterNode` child in `SwimlaneView`. Main and pinned `SwimlaneCanvas` instances emit directly to `SwimlaneView`. `SwimlaneView` forwards every invocation to `TimelineView`, which forwards it to `ProfilingReport`; the root owns the one menu context and action handling.
 
@@ -78,7 +78,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 |---|---|
 | Surface | `var(--pr-surface-raised)` background, `6px` radius, `4px 0` padding, `0 4px 12px rgba(0,0,0,0.4)` shadow |
 | Item | `32px` height; `8px 40px 8px 12px` padding; `13px` text |
-| Hover | `var(--pr-divider)` |
+| Hover | `var(--pr-surface-hover)` |
 | Disabled | `var(--pr-tab-inactive)` |
 | Shortcut | `var(--pr-tab-inactive)` |
 | Separator | `1px solid var(--pr-divider)` between non-empty scope groups |
@@ -91,6 +91,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-10** — Right-click on canvas guards `e.button !== 0` and resolves leaf lane ids only; menu focus is captured and restored on close; menu stays hidden until repositioned to avoid a reopen flash; dedicated `--pr-surface-hover` token replaces `--pr-divider` for hover fill.
 - **2026-09-10** — Renamed acceptance criteria to `PR-CTXMENU-*`; placement measures the rendered menu and all surface tokens are defined in `tokens.css`.
 - **2026-09-09** — Trim scope to Reset zoom, Show in event view, Pin row; defer Hide lane.
 - **2026-09-08** — Initial spec.

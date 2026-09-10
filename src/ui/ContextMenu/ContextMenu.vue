@@ -32,6 +32,7 @@ const emit = defineEmits<{
 const menuRef = ref<HTMLElement | null>(null);
 const menuStyle = ref<Record<string, string>>({ position: 'fixed', visibility: 'hidden' });
 const activeIndex = ref(0);
+let restoreFocusEl: HTMLElement | null = null;
 
 const items = computed(() => {
   const result: { command: ContextMenuCommand; label: string; shortcut?: string }[] = [];
@@ -56,7 +57,7 @@ function place(x: number, y: number) {
   const vh = window.innerHeight;
   const left = Math.max(4, Math.min(x + width > vw ? x - width : x, vw - width - 4));
   const top = Math.max(4, Math.min(y + height > vh ? y - height : y, vh - height - 4));
-  menuStyle.value = { position: 'fixed', left: `${left}px`, top: `${top}px` };
+  menuStyle.value = { position: 'fixed', left: `${left}px`, top: `${top}px`, visibility: 'visible' };
 }
 
 function activate(index: number) {
@@ -105,6 +106,8 @@ watch(
     if (ctx) {
       activeIndex.value = 0;
       unbindListeners();
+      restoreFocusEl = document.activeElement as HTMLElement | null;
+      menuStyle.value = { position: 'fixed', visibility: 'hidden' };
       await nextTick();
       if (props.context !== ctx) return;
       place(ctx.x, ctx.y);
@@ -112,6 +115,8 @@ watch(
       bindListeners();
     } else {
       unbindListeners();
+      restoreFocusEl?.focus();
+      restoreFocusEl = null;
     }
   },
   { immediate: true, flush: 'sync' },
@@ -203,7 +208,7 @@ onBeforeUnmount(unbindListeners);
 }
 
 .pr-ctx-menu__item--active {
-  background: var(--pr-divider);
+  background: var(--pr-surface-hover);
 }
 
 .pr-ctx-menu__label {

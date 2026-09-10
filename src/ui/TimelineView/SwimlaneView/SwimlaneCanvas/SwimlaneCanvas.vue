@@ -22,6 +22,7 @@ import {
   findHoverGap,
   LANE_HEIGHT,
   laneIdAtPoint,
+  leafLaneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
   summaryFolderId,
@@ -1692,13 +1693,14 @@ function onContextMenu(e: MouseEvent): void {
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  const laneId = laneIdAtPoint(backend.getLayout(), paintView(), y);
+  const laneId = leafLaneIdAtPoint(backend.getLayout(), paintView(), y);
   if (!laneId) return;
   e.preventDefault();
   emit('context-menu', { x: e.clientX, y: e.clientY, laneId, target: eventAtPointer(x, y, null) });
 }
 
 function onPointerDown(e: PointerEvent): void {
+  if (e.button !== 0) return;
   lastX = e.clientX;
   downX = e.clientX;
   lastPointerClientY = e.clientY;
@@ -1807,6 +1809,7 @@ function onPointerMove(e: PointerEvent): void {
 }
 
 function onPointerUp(e: PointerEvent): void {
+  if (e.button !== 0) return;
   const didFreeform = measureDragOccurred;
   const wasPending = measureCreatePending && !didFreeform;
   const wasMeasurePress = measurePressActive;

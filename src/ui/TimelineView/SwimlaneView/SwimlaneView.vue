@@ -608,7 +608,7 @@ defineExpose({
           @zoom="(f, a) => emit('zoom', f, a)"
           @update:measure-range="emit('update:measure-range', $event)"
           @suppress-measure-dt="emit('suppress-measure-dt', $event)"
-        @context-menu="emit('context-menu', $event)"
+          @context-menu="emit('context-menu', $event)"
           @toggle-group="emit('toggle-group', $event)"
         />
       </div>

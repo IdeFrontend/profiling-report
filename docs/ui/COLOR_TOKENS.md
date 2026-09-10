@@ -11,6 +11,8 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-bg-deep` | `#1F1F1F` | Main report / timeline / gutter lanes / toolbar strip / canvas |
 | `--pr-bg-aside` | `#1A1A1A` | Right-aside shell / gutter between islands (`v930/detail-strip-raised` sample `rgb(26,26,26)`) |
 | `--pr-bg-panel` | `#262626` | Elevated chrome: PIPE / Roofline / topology aside sections, detail dock (Card strips use `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` → `#2a2a2a` / `#323232`) |
+| `--pr-surface-raised` | `#363636` | Raised chrome floating above a panel: tooltip, OP menu, display popover (see rule 5) |
+| `--pr-surface-hover` | `#424242` | Hover / active-item fill on `--pr-surface-raised` chrome (e.g. `ContextMenu`) — kept distinct from `--pr-divider` so a hover state is not also a separator color |
 | `--pr-axis-tick` | `#343434` | Viewport/overview axis major bars + minor ticks (v930 sample ≈ `rgb(52,52,52)`) |
 | `--pr-axis-tick-muted` | `#272727` | Axis ticks outside the selected overview window (v930 sample ≈ `rgb(39,39,39)`) |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
@@ -78,6 +80,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
   --pr-bg-aside: #1a1a1a;
   --pr-bg-panel: #262626;
   --pr-surface-raised: #363636;
+  --pr-surface-hover: #424242;
   --pr-divider: #3a3a3a;
   --pr-tab-inactive: #b3b3b3;
   --pr-axis-tick: #313131;
@@ -92,7 +95,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 2. **Gutter utilization bars** use threshold fills only: util &lt; 0.5 → `rgba(231,67,74,0.4)`, util ≥ 0.5 → `rgba(255,255,255,0.08)` — not `colorKey` / pipe category hues. Both are translucent so the track hatch reads through; over the hatch they resolve to roughly `#763437` and `#3d3d3d`. Track radius `4px`. Midline dash at 50% track width: `1px dashed rgba(255,255,255,0.1)`.
 3. Unknown swimlane category → neutral gray (`#606060`), not a random hue.
 4. **Axis muting is a band, not a tick color.** Ticks are `--pr-axis-tick` everywhere; the region outside the overview brush window is painted `--pr-axis-band-muted` behind them. `--pr-axis-tick-muted` therefore resolves to the same value as `--pr-axis-tick` by default and exists only as a host override hook.
-5. **`--pr-surface-raised`** is the fill for chrome floating above a panel: event tooltip, OP selector menu, display-control popover. Use the token rather than repeating `#363636`.
+5. **`--pr-surface-raised`** is the fill for chrome floating above a panel: event tooltip, OP selector menu, display-control popover. Use the token rather than repeating `#363636`. Hover/active-item fill on that chrome uses **`--pr-surface-hover`** (`#424242`), never `--pr-divider` (a separator token).
 6. **Event states are derived, never palette entries.** One base colour per lane; `eventFill()` offsets it in OKLCH — `hover` and `selected` both `L+0.33`, with `selected` also `C×1.05` — and selection keeps the 2px white ring over the result. Hardcoding a second hue per lane is what produced the AC-08 defect, where hover and selection read as one state. Label colour follows from the fill (`L > 0.6` → dark), so it never needs picking either; both lifts cross that threshold, so labels invert under the pointer. A hovered block is exempt from the selection dim so that dark text on a light fill is not washed to mud.
 7. Changing tokens requires updating this file and visual fixtures in the same PR.
 

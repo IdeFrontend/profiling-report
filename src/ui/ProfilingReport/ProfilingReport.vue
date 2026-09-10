@@ -49,6 +49,7 @@ import {
   collectLeafEventsFromModel,
   filterCollapsedTree,
   findThreadById,
+  isFolderNode,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
 import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '../ContextMenu/ContextMenu.vue';
@@ -861,8 +862,27 @@ function onOverviewWindow(window: { startTime: number; endTime: number }) {
   });
 }
 
-function onContextMenu(payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }): void { contextMenuContext.value = { ...payload, target: payload.target ?? null }; }
-function onContextMenuAction(action: ContextMenuAction): void { if (action.command === 'reset') onZoomToFit(); else if (action.command === 'show') onSelect(action.target ?? null); else if (viewState.value.pinnedLaneIds.includes(action.laneId)) onUnpinLane(action.laneId); else onPinLane(action.laneId); }
+function onContextMenu(payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }): void {
+  contextMenuContext.value = { ...payload, target: payload.target ?? null };
+}
+function onContextMenuAction(action: ContextMenuAction): void {
+  if (action.command === 'reset') {
+    onZoomToFit();
+    return;
+  }
+  if (action.command === 'show') {
+    // Edge case: target no longer exists → dismiss without selecting.
+    const stillExists =
+      !action.target || (swim.value != null && collectLeafEventsFromModel(swim.value).some((e) => e.id === action.target!.id));
+    if (stillExists) onSelect(action.target ?? null);
+    return;
+  }
+  // Edge case: lane no longer exists or is non-leaf → dismiss without action.
+  const lane = swim.value ? findThreadById(swim.value, action.laneId) : null;
+  if (!lane || isFolderNode(lane)) return;
+  if (viewState.value.pinnedLaneIds.includes(action.laneId)) onUnpinLane(action.laneId);
+  else onPinLane(action.laneId);
+}
 function onScrollY(scrollY: number) {
   contextMenuContext.value = null;
   viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
@@ -1102,7 +1122,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @focus-measure="onFocusMeasure"
           @context-menu="onContextMenu"
         />
-        <ContextMenu :context="contextMenuContext" :pinned-lane-ids="viewState.pinnedLaneIds" :locale="locale" @action="onContextMenuAction" @dismiss="contextMenuContext = null" />
+        <ContextMenu
+          :context="contextMenuContext"
+          :pinned-lane-ids="viewState.pinnedLaneIds"
+          :locale="locale"
+          @action="onContextMenuAction"
+          @dismiss="contextMenuContext = null"
+        />
         <p
           v-if="!showTimeline"
           class="pr-error"

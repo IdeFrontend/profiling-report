@@ -105,7 +105,7 @@ describe('ContextMenu', () => {
       toJSON: () => ({}),
     });
     wrapper = mount(ContextMenu, {
-      props: { context: { x: 290, y: 190, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
+      props: { context: { x: 290, y: 199, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();

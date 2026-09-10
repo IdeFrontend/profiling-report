@@ -108,6 +108,8 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 72. **PR-CANVAS-072** — The event-edge magnet (`nearestEventEdgeAtPoint`) snaps only to edges in the sub-row under the pointer; a multi-row leaf does not snap across sub-rows.
 73. **PR-CANVAS-073** — The hover-gap measure (`findHoverGap`) computes an idle gap only within the sub-row under the pointer; the vertical padding check and the left/right neighbour scan are sub-row-scoped.
 74. **PR-CANVAS-074** — Changing `contentTopPad` (统计分析 expand/collapse tween) calls `sync()` so `setView(paintView())` reprojects lane Y and the canvas repaints without waiting for pointer hover.
+75. **PR-CANVAS-075** — Right-click (`e.button !== 0`) is ignored by `onPointerDown` / `onPointerUp`: no `set-playhead`, `select`, drag, or pointer capture from the same gesture that opens the context menu.
+76. **PR-CANVAS-076** — `contextmenu` resolves a leaf lane id only (`leafLaneIdAtPoint`); right-clicking a folder-only row emits no `context-menu`.
 
 ## Edge Cases
 
@@ -140,6 +142,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-10** — Right-click (`e.button !== 0`) no longer runs the left-click pointer path (`PR-CANVAS-075`); `contextmenu` resolves a leaf lane id only via `leafLaneIdAtPoint`, so folder rows do not open the menu (`PR-CANVAS-076`).
 - **2026-09-10** — `contentTopPad` changes sync/repaint the canvas (`PR-CANVAS-074`) so overview collapse does not leave stale events.
 - **2026-09-10** — Gap / Alt-measure Δt labels use zoom-aware `nsPerPx` digits (same rule as playhead / tooltip start·end).
 - **2026-09-09** — Alt-measure vertical dashed connector also spans different sub-rows in one multiline leaf (`PR-CANVAS-050`; `sameLane` is same visual band).
