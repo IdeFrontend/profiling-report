@@ -173,7 +173,8 @@ const detailDockHeight = computed(() =>
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
 const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
-  let layoutResizeObserver: ResizeObserver | null = null;
+const dockLeaving = ref(false);
+let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 /** In-flight collapse/expand tween; null when settled. */
@@ -404,6 +405,14 @@ function resetViewFromModel(
     : [];
   initGutterMetrics(model);
   if (showTimeline.value) void bindLayoutFit();
+}
+
+function onDockBeforeLeave(): void {
+  dockLeaving.value = true;
+}
+
+function onDockAfterLeave(): void {
+  dockLeaving.value = false;
 }
 
 function stopLayoutFitObserver(): void {
@@ -1094,6 +1103,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     <ReportLayout
       v-else-if="showTimeline || showAside"
       ref="layoutRef"
+      :class="{ 'pr-layout--dock-leaving': dockLeaving }"
       :show-aside="showAside"
       :aside-width="asideWidth"
       :locale="locale"
@@ -1197,39 +1207,43 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 
     <!-- Persistent dock shell: single/multi selection swap content, not the container.
          The shared height survives mode switches so the panel does not animate from 0. -->
-    <Transition name="pr-dock">
-    <footer
-      v-if="showTimeline && (selected || multiSelected.length)"
-      class="pr-dock"
-      data-testid="dock"
-      :style="{ '--pr-dock-h': `${dockHeight}px` }"
+    <Transition
+      name="pr-dock"
+      @before-leave="onDockBeforeLeave"
+      @after-leave="onDockAfterLeave"
     >
-      <MultiSelectSummary
-        v-if="multiSelected.length"
-        :selected-events="multiSelected"
-        :model="swim"
-        :locale="locale"
-        :height="dockHeight"
-        @close="onSelect(null)"
-        @select-single="onSelect"
-        @update:height="dockHeight = $event"
-      />
-      <DetailPanel
-        v-else
-        :selected="selected as SelectedEvent"
-        :time-display-mode="localTimeDisplayMode"
-        :clock-freq-m-hz="clockFreqMHz"
-        :time-origin="bounds.minTime"
-        :ns-per-px="nsPerPx"
-        :locale="locale"
-        :neighbors="dependencyNeighbors"
-        :dependency-mode="localDependencyMode"
-        :height="detailDockHeight"
-        @close="onSelect(null)"
-        @update:height="dockHeight = $event"
-        @update:dependency-mode="onDependencyMode"
-      />
-    </footer>
+      <footer
+        v-if="showTimeline && (selected || multiSelected.length)"
+        class="pr-dock"
+        data-testid="dock"
+        :style="{ '--pr-dock-h': `${dockHeight}px` }"
+      >
+        <MultiSelectSummary
+          v-if="multiSelected.length"
+          :selected-events="multiSelected"
+          :model="swim"
+          :locale="locale"
+          :height="dockHeight"
+          @close="onSelect(null)"
+          @select-single="onSelect"
+          @update:height="dockHeight = $event"
+        />
+        <DetailPanel
+          v-else
+          :selected="selected as SelectedEvent"
+          :time-display-mode="localTimeDisplayMode"
+          :clock-freq-m-hz="clockFreqMHz"
+          :time-origin="bounds.minTime"
+          :ns-per-px="nsPerPx"
+          :locale="locale"
+          :neighbors="dependencyNeighbors"
+          :dependency-mode="localDependencyMode"
+          :height="detailDockHeight"
+          @close="onSelect(null)"
+          @update:height="dockHeight = $event"
+          @update:dependency-mode="onDependencyMode"
+        />
+      </footer>
     </Transition>
 
     <Transition
@@ -1318,6 +1332,10 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
   overflow: hidden;
+}
+
+.pr-layout--dock-leaving :deep(.pr-swim-canvas) {
+  visibility: hidden;
 }
 
 .pr-error {

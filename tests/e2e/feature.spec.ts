@@ -414,6 +414,35 @@ test.describe('PR-E2E feature paths', () => {
     await expect(dock).toHaveCount(0);
   });
 
+  test('PR-E2E-013: closing the dock does not expose a stale canvas during its leave animation', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+
+    await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
+    await page.mouse.up();
+    await expect(page.getByTestId('multi-select-summary')).toBeVisible();
+
+    await page.getByTestId('multi-select-close').click();
+    await expect
+      .poll(() =>
+        page.locator('.pr-swim-canvas').evaluateAll((canvases) =>
+          canvases.every((canvas) => getComputedStyle(canvas).visibility === 'hidden'),
+        ),
+      )
+      .toBe(true);
+    await expect(page.getByTestId('dock')).toHaveCount(0);
+    await expect(overlay).toBeVisible();
+  });
+
   test('PR-E2E-012: Escape cancels a marquee mid-drag and clears a committed one', async ({
     page,
   }) => {
