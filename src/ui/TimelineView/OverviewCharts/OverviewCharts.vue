@@ -31,13 +31,20 @@ const props = withDefaults(
     pinnedOverviewIds?: string[];
     /**
      * `section` — scrollable 统计分析 block (header + series).
-     * `strip` — sticky duplicates below pinned lanes (no header; pins always visible).
+     * `strip` — sticky duplicates above pinned lanes (no header; pins always visible).
      */
     variant?: 'section' | 'strip';
     /** When true, drag creates measure on the swimlane — do not pan from overview. */
     measureMode?: boolean;
     /** Controlled collapse (section variant); omit for internal default expanded. */
     collapsed?: boolean;
+    /**
+     * Parent-driven collapse progress (0 = closed, 1 = open). When set, tracks stay
+     * mounted while progress > 0 and the track list uses height+opacity collapse.
+     */
+    collapseVisible?: number;
+    /** Full tracks height (px) used by the collapse wrapper; defaults to lanes × OVERVIEW_LANE_H. */
+    collapseHiddenHeight?: number;
   }>(),
   {
     gutterWidth: 280,
@@ -46,6 +53,8 @@ const props = withDefaults(
     variant: 'section',
     measureMode: false,
     collapsed: undefined,
+    collapseVisible: undefined,
+    collapseHiddenHeight: undefined,
   },
 );
 
@@ -97,6 +106,41 @@ watch(
     if (v !== undefined) localCollapsed.value = v;
   },
 );
+
+/** Parent owns the 200ms tween (SwimlaneView); omit → instant local collapse. */
+const collapseDriven = computed(() => props.collapseVisible !== undefined);
+
+const collapseProgress = computed(() => {
+  if (props.collapseVisible !== undefined) return props.collapseVisible;
+  return isCollapsed.value ? 0 : 1;
+});
+
+const tracksMounted = computed(
+  () =>
+    isStrip.value ||
+    !isCollapsed.value ||
+    (collapseDriven.value && collapseProgress.value > 0),
+);
+
+const collapseStyle = computed((): Record<string, string> | undefined => {
+  if (!collapseDriven.value) return undefined;
+  const v = Math.max(0, Math.min(1, collapseProgress.value));
+  // Fully open: no inline height/overflow so pin tooltips above the first track
+  // are not clipped (LaneGutter collapseStyle returns undefined when idle).
+  if (v >= 1) return undefined;
+  const h = Math.max(
+    0,
+    props.collapseHiddenHeight ?? props.series.length * OVERVIEW_LANE_H,
+  );
+  // Disable hit-testing mid-tween so pins/charts don't catch clicks as rows slide.
+  const tweening = v > 0 && v < 1;
+  return {
+    height: `${h * v}px`,
+    opacity: `${v}`,
+    overflow: 'hidden',
+    ...(tweening ? { 'pointer-events': 'none' } : {}),
+  };
+});
 
 function toggleCollapsed() {
   const next = !isCollapsed.value;
@@ -405,7 +449,12 @@ const valueDots = computed((): ValueDot[] => {
       />
     </div>
 
-    <template v-if="isStrip || !isCollapsed">
+    <div
+      v-if="tracksMounted"
+      class="pr-overview__collapse"
+      data-testid="overview-collapse"
+      :style="collapseStyle"
+    >
       <div
         v-for="track in tracks"
         :key="track.id"
@@ -467,7 +516,7 @@ const valueDots = computed((): ValueDot[] => {
           </div>
         </div>
       </div>
-    </template>
+    </div>
 
     <Teleport to="body">
       <div
@@ -520,6 +569,11 @@ const valueDots = computed((): ValueDot[] => {
 
 .pr-overview-charts--strip {
   z-index: 6;
+}
+
+.pr-overview__collapse {
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 .pr-overview-header,
