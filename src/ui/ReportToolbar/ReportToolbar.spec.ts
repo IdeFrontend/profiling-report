@@ -22,6 +22,46 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:searchQuery')).toEqual([['test query']]);
   });
 
+  it('PR-TOOLBAR-025: clear × emits empty searchQuery; inset focus ring is not clipped', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: { ...defaultProps, searchQuery: 'scala' },
+      attachTo: document.body,
+    });
+    const clear = wrapper.find('[data-testid="search-clear"]');
+    expect(clear.exists()).toBe(true);
+    expect(clear.attributes('aria-label')).toBe(t('searchClear'));
+    // Sibling of the label — not nested (a11y name + valid label content model).
+    expect(clear.element.closest('label')).toBeNull();
+    expect(clear.element.parentElement?.classList.contains('pr-toolbar__search')).toBe(true);
+
+    const input = wrapper.find('[data-testid="search-input"]').element as HTMLInputElement;
+    input.focus();
+    await clear.trigger('click');
+    expect(wrapper.emitted('update:searchQuery')).toEqual([['']]);
+    await flushPromises();
+    expect(document.activeElement).toBe(input);
+
+    // Keyboard Space must clear even if mousedown.prevent would suppress the synthetic click.
+    await wrapper.setProps({ searchQuery: 'scala' });
+    const clearAgain = wrapper.get('[data-testid="search-clear"]');
+    await clearAgain.trigger('keydown', { key: ' ', code: 'Space' });
+    expect(wrapper.emitted('update:searchQuery')!.at(-1)).toEqual(['']);
+
+    await wrapper.setProps({ searchQuery: '' });
+    expect(wrapper.find('[data-testid="search-clear"]').exists()).toBe(false);
+    wrapper.unmount();
+
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-toolbar__search input:focus-visible\s*\{[^}]*box-shadow:\s*inset 0 0 0 2px/,
+    );
+    expect(src).toMatch(/\.pr-toolbar__search-clear:focus-visible\s*\{[^}]*outline:\s*2px/);
+    expect(src).toMatch(/@mousedown\.prevent/);
+    expect(src).toMatch(/@click="clearSearch"/);
+    expect(src).toMatch(/@keydown\.space\.prevent="clearSearch"/);
+    expect(src).toMatch(/@keydown\.enter\.prevent="clearSearch"/);
+  });
+
   it('PR-TOOLBAR-002: emits zoom-in on button click', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     await wrapper.find('[data-testid="zoom-in"]').trigger('click');

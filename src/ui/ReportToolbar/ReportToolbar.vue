@@ -78,6 +78,14 @@ function openUserGuide() {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+const searchInputRef = ref<HTMLInputElement | null>(null);
+
+/** Clear query and keep focus on the input (button unmounts when empty). */
+function clearSearch() {
+  emit('update:searchQuery', '');
+  void nextTick(() => searchInputRef.value?.focus());
+}
+
 const atDepthMax = computed(() => props.dependencyDepth >= MAX_DEPENDENCY_DEPTH);
 const atDepthMin = computed(() => props.dependencyDepth <= MIN_DEPENDENCY_DEPTH);
 
@@ -448,21 +456,37 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       ref="toolbarRef"
       class="pr-toolbar"
     >
-      <label class="pr-toolbar__search">
-        <span class="pr-toolbar__sr">{{ t('searchLabel', locale) }}</span>
-        <PrIcon
-          name="search"
-          class="pr-toolbar__search-icon"
-          data-testid="search-magnifier"
-        />
-        <input
-          data-testid="search-input"
-          type="search"
-          :value="searchQuery"
-          :placeholder="t('searchPlaceholder', locale)"
-          @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
+      <div class="pr-toolbar__search">
+        <label class="pr-toolbar__search-field">
+          <span class="pr-toolbar__sr">{{ t('searchLabel', locale) }}</span>
+          <PrIcon
+            name="search"
+            class="pr-toolbar__search-icon"
+            data-testid="search-magnifier"
+          />
+          <input
+            ref="searchInputRef"
+            data-testid="search-input"
+            type="search"
+            :value="searchQuery"
+            :placeholder="t('searchPlaceholder', locale)"
+            @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
+          >
+        </label>
+        <button
+          v-if="searchQuery.length > 0"
+          type="button"
+          class="pr-toolbar__search-clear"
+          data-testid="search-clear"
+          :aria-label="t('searchClear', locale)"
+          @mousedown.prevent
+          @click="clearSearch"
+          @keydown.enter.prevent="clearSearch"
+          @keydown.space.prevent="clearSearch"
         >
-      </label>
+          ×
+        </button>
+      </div>
 
       <div
         class="pr-toolbar__zoom pr-toolbar__zoom-pill"
@@ -1165,6 +1189,13 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   height: var(--pr-toolbar-h);
 }
 
+.pr-toolbar__search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--pr-toolbar-h);
+}
+
 .pr-toolbar__search-icon {
   position: absolute;
   left: 10px;
@@ -1185,12 +1216,46 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   font-size: 12px;
 }
 
+/* Room for the clear × when a query is present. */
+.pr-toolbar__search:has(.pr-toolbar__search-clear) input {
+  padding-right: 28px;
+}
+
 .pr-toolbar__search input::placeholder {
   color: #808080;
 }
 
 .pr-toolbar__search input::-webkit-search-cancel-button {
   -webkit-appearance: none;
+}
+
+.pr-toolbar__search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #9a9a9a;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.pr-toolbar__search-clear:focus {
+  outline: none;
+}
+
+.pr-toolbar__search-clear:hover {
+  color: #d0d0d0;
+}
+
+.pr-toolbar__search-clear:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
+  border-radius: 2px;
 }
 
 /* Zoom compound pill */
@@ -1606,7 +1671,12 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   outline: none;
 }
 
-.pr-toolbar__search input:focus-visible,
+/* Inset ring: outer outline would clip on the left under toolbar overflow-x: clip. */
+.pr-toolbar__search input:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--pr-playhead, #3078f0);
+}
+
 .pr-toolbar__slider:focus-visible,
 .pr-toolbar__display-field input[type='number']:focus-visible,
 .pr-toolbar__display-field select:focus-visible {
