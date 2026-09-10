@@ -327,7 +327,7 @@ describe('SwimlaneView', () => {
     expect(src).not.toMatch(/background:\s*rgb\(50,\s*50,\s*50\)/);
   });
 
-  it('PR-SWIMVIEW-029: parent-driven multiSelectedIds change reaches the canvas (marquee commit)', async () => {
+  it('PR-SWIMVIEW-030: parent-driven multiSelectedIds change reaches the canvas (marquee commit)', async () => {
     // Regression: SwimlaneView kept a local mirror of `multiSelectedIds` for the
     // canvas but never synced it from the prop, so a parent-driven swap (the
     // marquee commit path: ProfilingReport mutates `viewState.multiSelectedIds`

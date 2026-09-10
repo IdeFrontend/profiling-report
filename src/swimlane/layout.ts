@@ -1096,19 +1096,6 @@ export function eventEmphasis(
   };
 }
 
-/** Numeric dim for WebGL emphasis layer split. Selection or multi keeps the rest at 0.45;
- * search misses also dim to 0.25. Bright (no dim) returns 1. */
-export function eventEmphasisDim(
-  matchesSearch: boolean,
-  keepBright: boolean,
-  hasSearch: boolean,
-  hasSelectionOrMulti: boolean,
-): number {
-  if (hasSearch && !matchesSearch) return 0.25;
-  if (hasSelectionOrMulti && !keepBright) return 0.45;
-  return 1;
-}
-
 /** Parse `#RRGGBB` → RGB in 0..1. */
 export function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');

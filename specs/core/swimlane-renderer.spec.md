@@ -48,7 +48,7 @@ Hover and selected sit on the same lightness. Earlier passes kept them `0.13` ap
 
 Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts as the pointer crosses its block**. That is accepted, not overlooked. An earlier revision held hover below the flip precisely to keep labels steady, and what it bought — a lift clipped to `≈ +0.09` — was too weak to notice, which is the defect that replaced it. Deriving the label from the painted fill rather than from the state is what makes the trade safe: however the lifts are retuned, a fill and its label cannot end up disagreeing about which side of the threshold they are on.
 
-**Marquee multi-selection.** `setMultiSelection(ids)` is the same emphasis machinery with a set instead of one id: a non-empty set counts as "there is a selection", the ids in it stay bright, and everything else takes the same 0.45 factor. An empty set clears the dim. No white stroke and no dependency curves — marquee is a bulk highlight, not a focus. The method is **optional** on `SwimlaneRenderer` (like `setDependencyMode` / `setDependencyDepth`); `SwimlaneCanvas` calls it with `?.`.
+**Marquee multi-selection.** `setMultiSelection(ids)` is the same emphasis machinery with a set instead of one id: a non-empty set counts as "there is a selection", the ids in it stay bright, and everything else uses the single-selection solid muted fill. An empty set clears the muting. No white stroke and no dependency curves — marquee is a bulk highlight, not a focus. The method is **optional** on `SwimlaneRenderer` (like `setDependencyMode` / `setDependencyDepth`); `SwimlaneCanvas` calls it with `?.`.
 
 **Marquee hit collection.** `eventsIntersectingRect(layout, view, width, rect)` returns the laid-out leaf events whose drawn block intersects a screen-space rect, in layout order. Rect corners are order-normalized, so a drag in any direction collects the same set. Folder rows carry no events, so a rect crossing Card header strips contributes none.
 
@@ -79,12 +79,12 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep their original fill and label color; non-neighbors render solid dark-gray `#2C2C2C`.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` / `setHoveredLane` are optional (existing implementers stay valid).
 1. **PR-RENDER-015**: `setMultiSelection` keeps selected ids bright and dims the rest with the single-click factor; empty clears it (Canvas + WebGL; `skipIf` when WebGL2 is missing).
-1. **PR-RENDER-030**: `eventsIntersectingRect` collects intersecting leaf events (block-edge intersection in CSS px).
-1. **PR-RENDER-031**: `eventsIntersectingRect` normalizes rect order (any 2-corner ordering) and returns `[]` on a miss (rect over headers / empty rows).
+1. **PR-RENDER-049**: `eventsIntersectingRect` collects intersecting leaf events (block-edge intersection in CSS px).
+1. **PR-RENDER-050**: `eventsIntersectingRect` normalizes rect order (any 2-corner ordering) and returns `[]` on a miss (rect over headers / empty rows).
 1. **PR-RENDER-017**: `eventRadius` applies the CSS-px corner policy (1 below 4 CSS-px width, else 2) × `dpr` → device px; Canvas and WebGL share the same `shaders.ts` constants via one `uRR` vec3 uniform / `eventRadius`.
 1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
-1. **PR-RENDER-027**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
-1. **PR-RENDER-028**: `resize(deviceW, deviceH, dpr)` sets `canvas.width/height` to device args without writing `canvas.style`; WebGL has no `uDpr` uniform.
+1. **PR-RENDER-047**: `snapEventRect` (device-px inputs) aligns all four edges to integer device pixels; min size 1 device px.
+1. **PR-RENDER-048**: `resize(deviceW, deviceH, dpr)` sets `canvas.width/height` to device args without writing `canvas.style`; WebGL has no `uDpr` uniform.
 1. **PR-RENDER-020**: `setHoveredLane` fills that one leaf row `LANE_HOVER_FILL` in the background pass on both backends, leaving every event fill untouched.
 1. **PR-RENDER-020b**: WebGL overlay underpaint for non-resting blocks uses `LANE_HOVER_FILL` when that event's lane is the hovered row (else `LANE_FILL`), so a dimmed state fill composites over the same lane chrome Canvas uses.
 1. **PR-RENDER-021**: `setSelection(selected, hovered)` paints each block the OKLCH state fill for its winning state, and each label the contrast colour of the fill beneath it.

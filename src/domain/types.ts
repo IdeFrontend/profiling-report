@@ -376,7 +376,7 @@ export interface SwimlaneViewState {
   scrollY: number;
   selectedEventId: string | null;
   hoveredEventId: string | null;
-  /** Marquee multi-selection; mutually exclusive with `selectedEventId`. Local panel until Q22. */
+  /** Marquee multi-selection; mutually exclusive with `selectedEventId`. Local overlay only. */
   multiSelectedIds: string[];
   searchQuery: string;
   asideVisible: boolean;

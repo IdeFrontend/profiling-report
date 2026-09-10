@@ -33,7 +33,7 @@ import {
   LANE_HEIGHT,
   contentHeightFromLayout,
   eventBlockMetrics,
-  eventEmphasisDim,
+  eventEmphasis,
   eventLabelAnchor,
   eventScreenRect,
   findEvent,
@@ -342,9 +342,13 @@ export class SwimlaneOverlayPainter {
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const keepBright = bright.has(item.id) || item.id === this.hoveredId || this.multiIds.has(item.id);
-      const dim = eventEmphasisDim(matches, keepBright, hasSearch, hasSelection || hasMulti);
-      const muted = dim < 1;
-      const alpha = (dim === 0.25 ? 0.25 : 1) * laneAlpha;
+      const { alpha: emphAlpha, muted } = eventEmphasis(
+        matches,
+        keepBright,
+        hasSearch,
+        hasSelection || hasMulti,
+      );
+      const alpha = emphAlpha * laneAlpha;
 
       // The GL pass laid down the resting fill at this block's own emphasis. Painting a
       // semi-transparent state fill on top of that would double-composite — Canvas
@@ -661,9 +665,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       const keepBright = bright.has(item.id) || item.id === this.hoveredId || this.multiIds.has(item.id);
-      const dim = eventEmphasisDim(matches, keepBright, hasSearch, hasSelection || hasMulti);
-      const muted = dim < 1;
-      const alpha = (dim === 0.25 ? 0.25 : 1) * collapseAlpha(item.y, this.collapse);
+      const { alpha: emphAlpha, muted } = eventEmphasis(
+        matches,
+        keepBright,
+        hasSearch,
+        hasSelection || hasMulti,
+      );
+      const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
       const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
       const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
       ctx.globalAlpha = alpha;

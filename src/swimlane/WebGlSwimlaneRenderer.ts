@@ -24,7 +24,6 @@ import {
   encodeIntervalPair,
   eventBlockMetrics,
   eventEmphasis,
-  eventEmphasisDim,
   eventLabelAnchor,
   eventPaintRect,
   eventScreenRect,
@@ -435,6 +434,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private timeBase = 0;
   private searchQuery = '';
   private selectedId: string | null = null;
+  private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
@@ -532,9 +532,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.view = { ...view };
   }
 
-  setSelection(selectedId: string | null, _hoveredId: string | null): void {
-    if (selectedId === this.selectedId) return;
+  setSelection(selectedId: string | null, hoveredId: string | null): void {
+    if (selectedId === this.selectedId && hoveredId === this.hoveredId) return;
     this.selectedId = selectedId;
+    this.hoveredId = hoveredId;
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();
@@ -897,7 +898,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       // (non-selected, non-neighbor) event swaps in `SELECTION_MUTED_FILL`/`SELECTION_MUTED_LABEL`.
       const fill = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
-      const [fr, fg, fb] = compositeLabelBackdrop(bg, fill, muted ? 0.45 : 1);
+      const [fr, fg, fb] = compositeLabelBackdrop(bg, fill, 1);
       gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
       if (muted) {
         const [mr, mg, mb] = hexToRgb(SELECTION_MUTED_LABEL);
@@ -1047,13 +1048,17 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         for (const item of events) {
           if (item.summary) continue;
           const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
-          const keepBright = bright.has(item.id) || multi.has(item.id);
-          const dim = eventEmphasisDim(matches, keepBright, hasSearch, hasSelection || hasMulti);
-          const fill = dim < 1 ? SELECTION_MUTED_FILL : item.color;
-          const key = `${fill}:${dim}`;
+          const { alpha, muted } = eventEmphasis(
+            matches,
+            bright.has(item.id) || multi.has(item.id) || item.id === this.hoveredId,
+            hasSearch,
+            hasSelection || hasMulti,
+          );
+          const fill = muted ? SELECTION_MUTED_FILL : item.color;
+          const key = `${muted ? 1 : 0}|${alpha}`;
           let entry = byKey.get(key);
           if (!entry) {
-            entry = { rgb: hexToRgb(fill), dim, pairs: [] };
+            entry = { rgb: hexToRgb(fill), dim: alpha, pairs: [] };
             byKey.set(key, entry);
           }
           const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);

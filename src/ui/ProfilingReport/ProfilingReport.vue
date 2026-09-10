@@ -1208,6 +1208,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         :time-display-mode="localTimeDisplayMode"
         :clock-freq-m-hz="clockFreqMHz"
         :time-origin="bounds.minTime"
+        :ns-per-px="nsPerPx"
         :locale="locale"
         :neighbors="dependencyNeighbors"
         :dependency-mode="localDependencyMode"
@@ -1275,23 +1276,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </div>
     </Transition>
 
-    <Transition name="pr-dock">
-      <DetailPanel
-        v-if="selected && showTimeline"
-        :selected="selected"
-        :time-display-mode="localTimeDisplayMode"
-        :clock-freq-m-hz="clockFreqMHz"
-        :time-origin="bounds.minTime"
-        :ns-per-px="nsPerPx"
-        :locale="locale"
-        :neighbors="dependencyNeighbors"
-        :dependency-mode="localDependencyMode"
-        :expanded="dockExpanded"
-        @close="onSelect(null)"
-        @update:expanded="dockExpanded = $event"
-        @update:dependency-mode="onDependencyMode"
-      />
-    </Transition>
     <EventTooltip
       v-if="hovered && showTimeline"
       :event="hovered"
