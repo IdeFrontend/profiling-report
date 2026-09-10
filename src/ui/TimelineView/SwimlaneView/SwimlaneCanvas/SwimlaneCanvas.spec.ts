@@ -1664,7 +1664,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-061: pinned highlights use pink for both (no blue --target)', async () => {
+  it('PR-CANVAS-061: pinned highlights use white for both (no blue --target)', async () => {
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointerdown', { clientX: 60, clientY: y, pointerId: 1, altKey: true });
