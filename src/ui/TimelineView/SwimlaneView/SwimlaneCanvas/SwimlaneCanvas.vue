@@ -17,7 +17,7 @@ import {
   computeAltMeasureGap,
   contentHeightFromModel,
   eventMeasureTargetTime,
-  eventsContainedByRect,
+  eventsIntersectingRect,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
@@ -946,7 +946,7 @@ function marqueeSpan(rect: MarqueeRect): MeasureRange {
 
 /** Leaf events the rect currently covers — the preview during the drag, the commit on release. */
 function eventsInMarquee(rect: MarqueeRect): SwimEvent[] {
-  return eventsContainedByRect(backend.getLayout(), props.view, syncTrackWidth(), rect).map(
+  return eventsIntersectingRect(backend.getLayout(), paintView(), syncTrackWidth(), rect).map(
     (item) => item.event,
   );
 }

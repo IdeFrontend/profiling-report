@@ -1176,7 +1176,7 @@ describe('SwimlaneCanvas', () => {
     return mountWithEventModel({ measureMode: false });
   }
 
-  it('PR-CANVAS-078: unmodified drag past 4px draws the marquee and commits contained events', async () => {
+  it('PR-CANVAS-078: unmodified drag past 4px draws the marquee and commits intersecting events', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
       wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
@@ -1214,6 +1214,37 @@ describe('SwimlaneCanvas', () => {
     // Rect is cleared on commit, and the press does not also select.
     expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(false);
     expect(wrapper.emitted('select')).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('marquee uses the painted view when overview content offsets lanes', async () => {
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false, contentTopPad: 40 });
+    const rect = (
+      wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
+    ).eventScreenRect('e1')!;
+
+    await canvas.trigger('pointerdown', {
+      clientX: rect.x - 20,
+      clientY: rect.y - 4,
+      pointerId: 1,
+    });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+      }),
+    );
+    await wrapper.vm.$nextTick();
+
+    const committed = wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[];
+    expect(committed.map((event) => event.id)).toEqual(['e1']);
     wrapper.unmount();
   });
 
