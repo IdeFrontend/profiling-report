@@ -217,13 +217,12 @@ function onResizePointerUp() {
       <table class="pr-multi-select__table">
         <thead>
           <tr>
-            <th scope="col">
+            <th scope="col" :aria-sort="sortState('name')">
               <button
                 type="button"
                 class="pr-multi-select__sort"
                 data-testid="multi-select-sort-name"
                 :aria-label="`${t('name', locale)} — ${t('sortColumn', locale)}`"
-                :aria-sort="sortState('name')"
                 @click="toggleSort('name')"
               >
                 {{ t('name', locale) }}
@@ -234,13 +233,13 @@ function onResizePointerUp() {
               v-for="col in NUMERIC_COLUMNS"
               :key="col.key"
               scope="col"
+              :aria-sort="sortState(col.key)"
             >
               <button
                 type="button"
                 class="pr-multi-select__sort"
                 :data-testid="`multi-select-sort-${col.key}`"
                 :aria-label="`${t(col.label, locale)} — ${t('sortColumn', locale)}`"
-                :aria-sort="sortState(col.key)"
                 @click="toggleSort(col.key)"
               >
                 {{ t(col.label, locale) }}
@@ -415,8 +414,8 @@ function onResizePointerUp() {
 
 /* The sketch's arrows are identical on every column, so the sorted column is
    marked by its label brightening — not by a different glyph. */
-.pr-multi-select__sort[aria-sort='ascending'],
-.pr-multi-select__sort[aria-sort='descending'] {
+th[aria-sort='ascending'] .pr-multi-select__sort,
+th[aria-sort='descending'] .pr-multi-select__sort {
   color: #e8e8e8;
 }
 

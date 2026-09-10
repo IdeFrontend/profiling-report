@@ -297,10 +297,6 @@ let raf = 0;
 let localScrollY = 0;
 /** Last client X across pointermoves — used by the pan branch to compute `dx` per move. */
 let lastX = 0;
-/** Hover gap snapshot at pointerdown; held for the rest of the pan so chrome does not flicker. */
-let panCaptureHoverGap: HoverGap | null = null;
-/** Hovered event at pointerdown; replayed for the duration of the pan capture. */
-let panCaptureHoverEvent: SwimEvent | null = null;
 
 function currentDpr(): number {
   return typeof window !== 'undefined' && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
@@ -391,8 +387,7 @@ function clampScrollY(y: number): number {
 }
 
 function clearPanHoverCapture(): void {
-  panCaptureHoverGap = null;
-  panCaptureHoverEvent = null;
+  // no-op: panCaptureHoverGap/Event removed (always null after capture was dropped)
 }
 
 function altMeasureSessionActive(): boolean {
@@ -1822,6 +1817,7 @@ function activeCanvas(): HTMLCanvasElement | null {
 }
 
 function onPointerDown(e: PointerEvent): void {
+  if (e.button !== 0) return;
   downX = e.clientX;
   lastPointerClientY = e.clientY;
   measureDragOccurred = false;
@@ -1886,8 +1882,8 @@ function onPointerMove(e: PointerEvent): void {
     const dx = e.clientX - lastX;
     lastX = e.clientX;
     emit('pan', -(dx / w) * span);
-    hoverGap.value = altMeasureSessionActive() ? null : panCaptureHoverGap;
-    emit('hover', panCaptureHoverEvent, e.clientX, e.clientY);
+    hoverGap.value = null;
+    emit('hover', null, e.clientX, e.clientY);
     emitLaneHover(y);
     return;
   }

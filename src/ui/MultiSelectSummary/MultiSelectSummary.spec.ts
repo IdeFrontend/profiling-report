@@ -73,9 +73,9 @@ describe('MultiSelectSummary', () => {
   it('PR-MSEL-003: default sort is Wall Duration descending; header alternates asc and desc', async () => {
     const wrapper = mountPanel();
     expect(rowOrder(wrapper)).toEqual(['b', 'c', 'a']);
-    expect(wrapper.get('[data-testid="multi-select-sort-duration"]').attributes('aria-sort')).toBe(
-      'descending',
-    );
+    expect(
+      wrapper.get('[data-testid="multi-select-sort-duration"]').element.closest('th')?.getAttribute('aria-sort'),
+    ).toBe('descending');
 
     // A different column enters the cycle at ascending.
     await wrapper.get('[data-testid="multi-select-sort-name"]').trigger('click');
@@ -87,9 +87,9 @@ describe('MultiSelectSummary', () => {
     // Third click returns to ascending; sorting never drops to selection order.
     await wrapper.get('[data-testid="multi-select-sort-name"]').trigger('click');
     expect(rowOrder(wrapper)).toEqual(['a', 'b', 'c']);
-    expect(wrapper.get('[data-testid="multi-select-sort-name"]').attributes('aria-sort')).toBe(
-      'ascending',
-    );
+    expect(
+      wrapper.get('[data-testid="multi-select-sort-name"]').element.closest('th')?.getAttribute('aria-sort'),
+    ).toBe('ascending');
   });
 
   it('PR-MSEL-003b: every header carries a sort icon; sorted column changes glyph direction', async () => {
@@ -109,10 +109,10 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.find('[data-testid="sort-icon-asc"]').exists()).toBe(true);
     expect(wrapper.findAll('thead th [data-testid="sort-icon-none"]')).toHaveLength(3);
 
-    // aria-sort still drives the colour change via CSS.
+    // aria-sort on <th> drives the colour change via CSS.
     const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-multi-select__sort\[aria-sort='ascending'\]/);
-    expect(src).toMatch(/\.pr-multi-select__sort\[aria-sort='descending'\]/);
+    expect(src).toMatch(/th\[aria-sort='ascending'\]\s+\.pr-multi-select__sort/);
+    expect(src).toMatch(/th\[aria-sort='descending'\]\s+\.pr-multi-select__sort/);
   });
 
   it('PR-MSEL-004: numeric cells carry a bar proportional to the column max', () => {

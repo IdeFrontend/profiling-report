@@ -120,6 +120,10 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 87. **PR-CANVAS-087** — Shift+left-click after a plain single-select seeds the toggle set with the current single selection, so a user who picks A and Shift+clicks B ends up with {A, B} (not just B).
 88. **PR-CANVAS-088** — Shift+drag unions the new marquee rectangle with the existing single and multi selections; the committed `multi-select` event list contains every selected id exactly once.
 89. **PR-CANVAS-089** — During a marquee drag, lane hover highlight is hidden and the `cursor` event follows the pointer with `snapped: false`; the cursor is cleared when the drag ends or is cancelled.
+90. **PR-CANVAS-090** — Shift+left-click on an already-selected event removes it from the multi-selection; removing the last event commits an empty array.
+91. **PR-CANVAS-091** — Shift+left-click on empty space (no hit) does nothing — no emit.
+92. **PR-CANVAS-092** — Shift+pointerdown that leaves the canvas before pointerup does not toggle on the next up without Shift.
+93. **PR-CANVAS-093** — Plain drag starts the marquee and does not pan; Shift+wheel and trackpad horizontal `deltaX` pan instead.
 
 ## Edge Cases
 

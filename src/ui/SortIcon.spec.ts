@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-// SortIcon does not exist yet — this import will fail on first run.
 import SortIcon from './SortIcon.vue';
 
 describe('SortIcon', () => {

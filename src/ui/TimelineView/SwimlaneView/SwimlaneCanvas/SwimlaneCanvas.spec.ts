@@ -2055,7 +2055,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-049: drag never pans; Shift+wheel and trackpad deltaX pan instead', async () => {
+  it('PR-CANVAS-093: drag never pans; Shift+wheel and trackpad deltaX pan instead', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1 });
     window.dispatchEvent(new PointerEvent('pointermove', { clientX: 90, clientY: 30, buttons: 1 }));
@@ -2244,7 +2244,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-XXX: Shift+left-click on selected event removes from multi-selection', async () => {
+  it('PR-CANVAS-090: Shift+left-click on selected event removes from multi-selection', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
@@ -2275,7 +2275,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-XXX: Shift+left-click on empty space does nothing', async () => {
+  it('PR-CANVAS-091: Shift+left-click on empty space does nothing', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     // Click somewhere with no event (assuming top-left corner is empty)
     await canvas.trigger('pointerdown', { clientX: 0, clientY: 0, pointerId: 1, shiftKey: true });
@@ -2286,7 +2286,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-XXX: Shift+down that leaves the canvas does not toggle on the next up', async () => {
+  it('PR-CANVAS-092: Shift+down that leaves the canvas does not toggle on the next up', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null
