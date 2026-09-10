@@ -109,6 +109,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 74. **PR-CANVAS-074** — Changing `contentTopPad` (统计分析 expand/collapse tween) calls `sync()` so `setView(paintView())` reprojects lane Y and the canvas repaints without waiting for pointer hover.
 75. **PR-CANVAS-075** — Right-click (`e.button !== 0`) is ignored by `onPointerDown` / `onPointerUp`: no `set-playhead`, `select`, drag, or pointer capture from the same gesture that opens the context menu.
 76. **PR-CANVAS-076** — `contextmenu` resolves a leaf lane id only (`leafLaneIdAtPoint`); right-clicking a folder-only row emits no `context-menu`.
+77. **PR-CANVAS-077** — Right-clicking a collapsed-folder summary bar emits its folder lane id and summary event target, so Show in event view remains reachable; folder-only empty rows still do not open a menu.
 
 78. **PR-CANVAS-078** — Unmodified drag past 4px draws the marquee and commits intersecting events.
 79. **PR-CANVAS-079** — A press under the 4px gate still selects (click, not marquee).
@@ -172,6 +173,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 - **2026-09-12** — Live marquee emits `multi-select-preview` for the dock (PR-CANVAS-101); commit still owns host `select`.
 - **2026-09-12** — Pending marquee/click press keeps lane hover **and** the hover-gap Δt overlay; both clear only once the live marquee crosses the 4px gate (`PR-CANVAS-089` / `PR-CANVAS-100`).
 - **2026-09-10** — `onPointerUp` guards `e.button !== 0` (matching `onPointerDown`); Ctrl/Cmd-drag pan recovers from a lost pointerup via `buttons === 0`/`pointercancel`/`pointerleave`; Ctrl/Cmd+click no longer falls through to `select` and wipes an active multi-selection; pinned-strip Shift+union/drag resolves ids through the shared cross-model resolver instead of dropping ids outside the pinned lanes (`PR-CANVAS-094`–`097`).
+- **2026-09-10** — Right-clicking a collapsed-folder summary bar opens its event menu via the summary's folder id; empty folder rows still do not open a menu (`PR-CANVAS-077`).
 - **2026-09-10** — Right-click (`e.button !== 0`) no longer runs the left-click pointer path (`PR-CANVAS-075`); `contextmenu` resolves a leaf lane id only via `leafLaneIdAtPoint`, so folder rows do not open the menu (`PR-CANVAS-076`).
 - **2026-09-10** — `contentTopPad` changes sync/repaint the canvas (`PR-CANVAS-074`) so overview collapse does not leave stale events.
 - **2026-09-10** — Gap / Alt-measure Δt labels use zoom-aware `nsPerPx` digits (same rule as playhead / tooltip start·end).
