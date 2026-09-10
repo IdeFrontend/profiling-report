@@ -12,13 +12,14 @@ pinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState
 unpinLane(state: SwimlaneViewState, laneId: string): SwimlaneViewState
 pinOverview(state: SwimlaneViewState, seriesId: string): SwimlaneViewState
 unpinOverview(state: SwimlaneViewState, seriesId: string): SwimlaneViewState
-zoomAt(view: SwimlaneViewWindow, factor: number, anchorTime: number, bounds?: Bounds): SwimlaneViewWindow
+zoomAt(view: SwimlaneViewWindow, factor: number, anchorTime: number, bounds?: Bounds, minSpan?: number): SwimlaneViewWindow
 panBy(view: SwimlaneViewWindow, deltaTime: number, bounds?: Bounds): SwimlaneViewWindow
 zoomToFitWindow(model: SwimlaneModel | null | undefined): SwimlaneViewWindow
 applyWindow(state: SwimlaneViewState, window: SwimlaneViewWindow): SwimlaneViewState
 measureFocusWindow(range: MeasureRange, bounds: Bounds, scrollY?: number): SwimlaneViewWindow
-zoomPercentFromSpan(span: number, fullSpan: number): number
-spanFromZoomPercent(pct: number, fullSpan: number): number
+zoomPercentFromSpan(span: number, fullSpan: number, minSpan?: number): number
+spanFromZoomPercent(pct: number, fullSpan: number, minSpan?: number): number
+minSpanForPrecision(fullSpan: number, widthPx: number): number
 ```
 
 ## Behavior
@@ -33,9 +34,11 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 
 **Measure (M2).** `setMeasureMode` / `setMeasureRange` / `clearMeasure` update measure fields immutably. Range endpoints are order-normalized (`startTime <= endTime`, ns units matching the viewport). Clearing / disabling measure nulls the range. Local overlay only — does not drive aside recompute. `measureFocusWindow` centers a measured range so it spans half the visible width (25% padding each side), clamps to bounds, and fits the full bounds when 2× duration exceeds the trace.
 
-**Zoom.** `zoomAt` zooms around an anchor time point. Factor >1 zooms in, <1 zooms out. Span is clamped to a minimum of 1 (`MIN_WINDOW`). With bounds, the zoomed window never exceeds the bounds edges — if the zoomed span exceeds the full bounds, returns the full bounds.
+**Zoom.** `zoomAt` zooms around an anchor time point. Factor >1 zooms in, <1 zooms out. Span is clamped to a minimum of 1 (`MIN_WINDOW`), or to the caller-supplied `minSpan` floor when provided. With bounds, the zoomed window never exceeds the bounds edges — if the zoomed span exceeds the full bounds, returns the full bounds.
 
-**Shared zoom range (toolbar slider).** `zoomPercentFromSpan` / `spanFromZoomPercent` map the same extremes as wheel/`zoomAt`: slider 0 = fit (`fullSpan`), slider 100 = `MIN_WINDOW`. Log2 interpolate with `maxRatio = fullSpan / MIN_WINDOW` (not a hard 100× cap).
+**Shared zoom range (toolbar slider).** `zoomPercentFromSpan` / `spanFromZoomPercent` map the same extremes as wheel/`zoomAt`: slider 0 = fit (`fullSpan`), slider 100 = the zoom floor (`minSpan`, default `MIN_WINDOW`). Log2 interpolate with `maxRatio = fullSpan / minSpan` (not a hard 100× cap). `minSpan` must be passed consistently to both helpers and `zoomAt`; the default keeps the legacy `MIN_WINDOW` floor.
+
+**fp32 precision floor (PR-VIEW-020).** GPU event coords are stored as float32 relative to `model.minTime`, so their magnitude ≈ the trace span `fullSpan`. At one magnitude step the representable spacing is `ulp(fullSpan) = 2^floor(log2(fullSpan)) · 2^-23`. The rasterizer resolves X in **device px**, so at a view port of width `widthPx` device px a single ULP of `start` moves the left edge by `pxPerUlp = ulp · widthPx / span`. `minSpanForPrecision(fullSpan, widthPx)` returns the smallest span with `pxPerUlp ≤ 1` device px (`≥ ulp · widthPx`), never below `MIN_WINDOW`. The caller (ProfilingReport) passes this as the `minSpan` floor to `zoomAt` / `spanFromZoomPercent` / `zoomPercentFromSpan` so wheel, keyboard, and slider zoom-in cannot reach multi-device-pixel jumps; the width is the canvas device width (`trackWidth·dpr`). (A ¼px target would multiply the floor by 4 — allowing 4× less zoom-in.)
 
 **Pan.** `panBy` shifts the viewport by delta time units. Positive delta moves later times into view. With bounds, the window is clamped to stay within bounds edges.
 
@@ -65,6 +68,9 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 16. **PR-VIEW-017** — `keyboardPanStepTime` clamps `trackWidth ≤ 0` and `span ≤ 0` to a minimum of 1, returning a positive finite step (no NaN / division by zero).
 17. **PR-VIEW-018** — createViewState initializes empty **pinnedOverviewIds**.
 18. **PR-VIEW-019** — pinOverview appends id when absent; unpinOverview removes when present.
+19. **PR-VIEW-020** — `minSpanForPrecision` floors at `ULP(fullSpan)·widthPx` (≤1 device px per ULP) and never below `MIN_WINDOW`.
+20. **PR-VIEW-021** — slider 100 ↔ custom `minSpan`; `zoomAt` / slider share the precision floor.
+21. **PR-VIEW-022** — `spanFromZoomPercent` ↔ `zoomPercentFromSpan` round-trip with a custom `minSpan`.
 ## Edge Cases
 
 - null/undefined model → zoomToFitWindow returns {startTime:0, endTime:1, scrollY:0}.
@@ -86,6 +92,7 @@ spanFromZoomPercent(pct: number, fullSpan: number): number
 M2 measure fields.
 
 ## Changelog
+- **2026-09-10** — fp32 precision floor: `minSpanForPrecision` + optional `minSpan` on `zoomAt` / `zoomPercentFromSpan` / `spanFromZoomPercent` (`PR-VIEW-020`…`022`); defaults keep the legacy `MIN_WINDOW` floor.
 - **2026-09-08** — **pinnedOverviewIds** + pinOverview/unpinOverview (`PR-VIEW-018` / `019`); PyPTO counter-pin parity.
 - **2026-09-07** — Trackpad pinch zoom / two-finger horizontal pan via native `wheel` (PyPTO parity; see SwimlaneCanvas `PR-CANVAS-068`).- **2026-09-03** — Keyboard navigation (W/S/A/D): `keyboardPanStepTime` + `KEYBOARD_PAN_STEP_PX` (`PR-VIEW-016` / `017`). Resolves Q19 gesture parity.
 - **2026-08-31** — Pinned strip stays visible under ancestor collapse (full swim as pin source).

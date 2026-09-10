@@ -22,10 +22,8 @@ function fp32UlpAt(maxAbs: number): number {
 }
 
 /**
- * Zoom-in cutoff that keeps fp32 coordinate noise below `pxPerUlp` device pixels: once the
- * view span shrinks to `ulp(fullSpan) * widthPx / pxPerUlp`, a single ULP of the stored coords
- * moves the bound by `pxPerUlp` pixels. We target ~1 device px, so spans must stay at or above
- * `ulp * widthPx`. (A ¼px target would multiply this by 4 — allowing 4× less zoom-in.)
+ * Zoom-in cutoff that keeps fp32 coordinate noise at ≤ 1 device px: once the view span shrinks
+ * below `ulp(fullSpan) * widthPx`, a single ULP of the stored coords moves the bound by >1 pixel.
  */
 export function minSpanForPrecision(fullSpan: number, widthPx: number): number {
   const full = Math.max(MIN_WINDOW, fullSpan);
@@ -50,11 +48,6 @@ export const KEYBOARD_PAN_STEP_PX = 30;
  */
 export function keyboardPanStepTime(span: number, trackWidth: number): number {
   return (KEYBOARD_PAN_STEP_PX / Math.max(1, trackWidth)) * Math.max(1, span);
-}
-
-/** Max zoom ratio for a trace: fullSpan / minSpan (default MIN_WINDOW) (≥ 1). */
-export function maxZoomRatio(fullSpan: number, minSpan = MIN_WINDOW): number {
-  return maxZoomRatioWithMin(Math.max(MIN_WINDOW, fullSpan), minSpan);
 }
 
 /**
