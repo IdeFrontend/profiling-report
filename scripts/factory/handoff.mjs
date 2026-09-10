@@ -250,7 +250,7 @@ export function transitionError(row) {
   return `illegal transition ${from} ${status} → ${to}`;
 }
 
-export function labelForToRole(role, phase) {
+export function labelForToRole(role) {
   switch (role) {
     case 'spec-author':
       return 'awaiting-spec';
@@ -296,7 +296,7 @@ export function ciModeLabels(status, phase) {
 }
 
 export function labelsFromHandoff(row, currentLabels = []) {
-  const stage = labelForToRole(row.to_role, row.phase);
+  const stage = labelForToRole(row.to_role);
   const mode = ciModeLabels(row.status, row.phase);
   const current = new Set(currentLabels);
   const add = new Set();
@@ -353,7 +353,6 @@ export function classifyVitestFailure(message) {
  */
 export function redStageVerdictFromVitestJson(json) {
   const failed = [];
-  const suites = json?.testResults ?? json?.testResults ?? [];
   if (Array.isArray(json?.testResults)) {
     for (const tr of json.testResults) {
       for (const ar of tr.assertionResults ?? []) {
