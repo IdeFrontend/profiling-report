@@ -9,7 +9,7 @@ describe('PR-RENDER: ClearType text atlas', () => {
   });
 
   it('PR-RENDER-037: eventLabelFont uses shared CSS px size', () => {
-    expect(eventLabelFont(12)).toMatch(/^400 12px /);
+    expect(eventLabelFont(12)).toBe('400 12px ui-sans-serif, system-ui, sans-serif');
   });
 
   it('PR-RENDER-037: clearTypeRasterSupported is false in jsdom', () => {
@@ -170,14 +170,19 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(allocs).toBe(allocsAfterFirst);
   });
 
-  it('PR-RENDER-038: glyphs and measures key by CSS font, not size alone', () => {
+  it('PR-RENDER-038: glyphs and measures key by CSS font, not size alone', async () => {
+    const src = (await import('../../src/swimlane/textAtlas.ts?raw')).default as string;
+    // Positive match — empty haystack fails. Keying by fontSizePx alone would miss these.
+    expect(src).toMatch(/const font = eventLabelFont\(fontSizePx\)/);
+    expect(src).toMatch(/\$\{font\}\\0\$\{drawn\}/);
+    expect(src).toMatch(/const key = `\$\{font\}\\0\$\{text\}`/);
+
     vi.stubGlobal('OffscreenCanvas', FakeCanvas);
     const atlas = new TextAtlas(50_000);
-    const arial = atlas.get(gl, 'aaa', 12, 100, '400 12px Arial')!;
-    const georgia = atlas.get(gl, 'aaa', 12, 100, '400 12px Georgia')!;
-    // Same sizePx and string, different family → different bitmap (not a size-only key).
-    expect(georgia.texture).not.toBe(arial.texture);
-    expect(atlas.get(gl, 'aaa', 12, 100, '400 12px Arial')!.texture).toBe(arial.texture);
+    const a = atlas.get(gl, 'aaa', 12, 100)!;
+    const b = atlas.get(gl, 'aaa', 24, 100)!;
+    expect(b.texture).not.toBe(a.texture);
+    expect(atlas.get(gl, 'aaa', 12, 100)!.texture).toBe(a.texture);
   });
 
   it('PR-RENDER-038: glyphs key by drawn text so clip-width pan reuses the texture', () => {

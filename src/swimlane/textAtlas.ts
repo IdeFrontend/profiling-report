@@ -163,22 +163,21 @@ export class TextAtlas {
    * Rasterize + upload `text`. Draw/truncate cache by `(CSS font, drawn text)` so clip-width
    * pan reuses the texture. Shrink bakes `scaleX` into a 1:1 ClearType glyph (keyed with
    * integer `maxWidth`) — GPU-scaling a full-size texture shears subpixel RGB and clips
-   * the first letter at the event edge. `font` defaults to `eventLabelFont(fontSizePx)`
-   * (weight + size + family) and is the cache identity, so a later themed stack cannot
-   * reuse the wrong bitmap. Returns null when the platform lacks `OffscreenCanvas` or
-   * the label is too narrow to draw.
+   * the first letter at the event edge. CSS font is `eventLabelFont(fontSizePx)` (weight +
+   * size + family) so a later themed stack cannot reuse the wrong bitmap. Returns null when
+   * the platform lacks `OffscreenCanvas` or the label is too narrow to draw.
    */
   get(
     gl: WebGL2RenderingContext,
     text: string,
     fontSizePx: number,
     maxWidth: number,
-    font: string = eventLabelFont(fontSizePx),
   ): TextGlyph | null {
     // Bucket clip width to integer device px before fitting. `eventLabelAnchor` supplies a
     // continuous float (`visibleW - 8`); rounding keeps the draw/shrink/truncate/skip choice
     // stable across sub-pixel pan/zoom. The glyph key itself does not include this width.
     const widthPx = Math.round(maxWidth);
+    const font = eventLabelFont(fontSizePx);
     const probe = this.ensureProbe(font);
     if (!probe) return null;
 

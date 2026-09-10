@@ -29,7 +29,6 @@ import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
-import { TextAtlas } from '../../src/swimlane/textAtlas';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
@@ -1096,19 +1095,14 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(setModel).not.toMatch(/atlas\?\.clear/);
   });
 
-  it.skipIf(!hasWebGl2)('PR-RENDER-038: setModel does not delete atlas textures', () => {
-    const canvas = document.createElement('canvas');
+  it('PR-RENDER-038: setModel does not delete atlas textures', () => {
+    // Behavioral (no WebGL2): plant an atlas so `this.atlas?.clear` would be observable in jsdom.
     const renderer = new WebGlSwimlaneRenderer();
-    expect(renderer.attach(canvas)).toBe(true);
-    renderer.resize(400, 120, 1);
+    const clear = vi.fn();
+    Object.assign(renderer, { atlas: { clear } });
     renderer.setModel(tinyModel());
-    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
-    renderer.render();
-    const clear = vi.spyOn(TextAtlas.prototype, 'clear');
     renderer.setModel(tinyModel());
     expect(clear).not.toHaveBeenCalled();
-    clear.mockRestore();
-    renderer.dispose();
   });
 });
 
