@@ -11,8 +11,6 @@ export interface TextGlyph {
   texture: WebGLTexture;
   width: number;
   height: number;
-  /** Horizontal shrink from `fitEventLabel`; 1 when already baked into the bitmap. */
-  scaleX: number;
 }
 
 const FONT_FAMILY = 'ui-sans-serif, system-ui, sans-serif';
@@ -125,6 +123,9 @@ export const DEFAULT_MAX_GLYPH_BYTES = 16 * 1024 * 1024; // 16 MiB
 /** Upper bound on cached `measureText` widths (full strings + truncation prefixes). */
 export const DEFAULT_MAX_MEASURES = 16384;
 
+/** Device-px padding around rasterized ink. Not a `get()` argument — the only caller never varies it. */
+const GLYPH_PAD_PX = 2;
+
 /** 2D surface used to measure and rasterize — real OffscreenCanvas2D or the unit-test stub. */
 interface Atlas2d {
   font: string;
@@ -170,7 +171,6 @@ export class TextAtlas {
     text: string,
     fontSizePx: number,
     maxWidth: number,
-    pad = 2,
   ): TextGlyph | null {
     // Bucket clip width to integer device px before fitting. `eventLabelAnchor` supplies a
     // continuous float (`visibleW - 8`); rounding keeps the draw/shrink/truncate/skip choice
@@ -199,7 +199,7 @@ export class TextAtlas {
       return cached;
     }
 
-    const raster = this.rasterize(drawn, fontSizePx, pad, scaleX);
+    const raster = this.rasterize(drawn, fontSizePx, scaleX);
     if (!raster) return null;
 
     const texture = gl.createTexture();
@@ -216,7 +216,7 @@ export class TextAtlas {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.bindTexture(gl.TEXTURE_2D, null);
 
-    const glyph: TextGlyph = { texture, width: raster.w, height: raster.h, scaleX: 1 };
+    const glyph: TextGlyph = { texture, width: raster.w, height: raster.h };
     this.glyphs.set(key, glyph);
     this.bytes += raster.w * raster.h * 4;
     this.evictOverBudget(gl);
@@ -267,13 +267,12 @@ export class TextAtlas {
   private rasterize(
     drawn: string,
     fontSizePx: number,
-    pad: number,
     scaleX: number,
   ): { canvas: OffscreenCanvas; w: number; h: number } | null {
     const probe = this.probeCtx;
     if (!probe) return null;
     const inkW = Math.max(1, Math.ceil(this.measureWidth(probe, fontSizePx, drawn) * scaleX));
-    const w = inkW + pad * 2;
+    const w = inkW + GLYPH_PAD_PX * 2;
     const h = Math.ceil(fontSizePx * 1.5);
 
     if (!this.rasterCanvas || !this.rasterCtx) {

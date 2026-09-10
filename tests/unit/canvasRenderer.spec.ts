@@ -29,8 +29,26 @@ import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
+import { TextAtlas } from '../../src/swimlane/textAtlas';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
+
+/** Brace-match a class method so a reorder cannot yield an empty slice that vacuously passes. */
+function classMethodBody(src: string, name: string): string {
+  const needle = `\n  ${name}(`;
+  const at = src.indexOf(needle);
+  if (at < 0) throw new Error(`method ${name} not found`);
+  const brace = src.indexOf('{', at);
+  let depth = 0;
+  for (let i = brace; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) return src.slice(brace, i + 1);
+    }
+  }
+  throw new Error(`method ${name} unclosed`);
+}
 
 function tinyModel(): SwimlaneModel {
   return {
@@ -1069,10 +1087,28 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     // A browser-zoom dpr change mints a new `fontPx` key for every cached glyph; resize must
     // free the old-font textures (inside `if (dprChanged)`) instead of leaving them to the LRU.
-    expect(webglSrc).toMatch(/if \(dprChanged\) \{[\s\S]*?this\.atlas\?\.clear\(gl\);/);
+    expect(classMethodBody(webglSrc, 'resize')).toMatch(/if \(dprChanged\) \{[\s\S]*?this\.atlas\?\.clear\(gl\);/);
     // Names persist across collapse/unfold — setModel must not wipe glyphs that pan will reuse.
-    const setModel = webglSrc.slice(webglSrc.indexOf('setModel(model'), webglSrc.indexOf('setCollapseAnim'));
+    // Brace-match the method (not a slice between two names) so a reorder cannot empty the
+    // haystack and make `.not.toMatch` pass vacuously.
+    const setModel = classMethodBody(webglSrc, 'setModel');
+    expect(setModel.length).toBeGreaterThan(20);
     expect(setModel).not.toMatch(/atlas\?\.clear/);
+  });
+
+  it.skipIf(!hasWebGl2)('PR-RENDER-038: setModel does not delete atlas textures', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.render();
+    const clear = vi.spyOn(TextAtlas.prototype, 'clear');
+    renderer.setModel(tinyModel());
+    expect(clear).not.toHaveBeenCalled();
+    clear.mockRestore();
+    renderer.dispose();
   });
 });
 

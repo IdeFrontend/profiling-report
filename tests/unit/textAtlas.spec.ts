@@ -179,7 +179,6 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     // Wider clip that still draws as-is: same drawn text → same texture (not a new key).
     const wide = atlas.get(gl, 'aaa', 12, 200)!;
     expect(wide.texture).toBe(a.texture);
-    expect(wide.scaleX).toBe(1);
   });
 
   it('PR-RENDER-038: shrink bakes scaleX into a 1:1 glyph (not a GPU-scaled full-text texture)', () => {
@@ -187,7 +186,6 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     const atlas = new TextAtlas(50_000);
     const ten = 'abcdefghij'; // measured 10; 8–9 → shrink; 10 → draw
     const shrunk = atlas.get(gl, ten, 12, 9)!;
-    expect(shrunk.scaleX).toBe(1);
     // 9/10 vs 8/10 bake different widths; must not share a GPU-scaled texture.
     const tighter = atlas.get(gl, ten, 12, 8)!;
     expect(tighter.texture).not.toBe(shrunk.texture);
@@ -205,7 +203,6 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     const ten = 'abcdefghij'; // measured 100; 55 and 58 both truncate to 'ab...'
     const a = atlas.get(gl, ten, 12, 55)!;
     const b = atlas.get(gl, ten, 12, 58)!;
-    expect(a.scaleX).toBe(1);
     expect(b.texture).toBe(a.texture);
   });
 });
