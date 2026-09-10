@@ -16,16 +16,28 @@ const props = withDefaults(
     clockFreqMHz?: number;
     /** Display origin (usually model.minTime); start/end are relative to this. */
     timeOrigin?: number;
+    /** Viewport ns per CSS px — zoom-aware fraction digits for start/end (PR-TIME-011). */
+    nsPerPx?: number;
     locale?: string;
   }>(),
   { timeOrigin: 0 },
 );
 
-const displayOpts = computed(() => ({
+/** Duration keeps 4 significant digits; start/end follow zoom when `nsPerPx` is set. */
+const durationOpts = computed(() => ({
   significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS,
   mode: props.timeDisplayMode,
   clockFreqMHz: props.clockFreqMHz,
 }));
+
+const startEndOpts = computed(() => {
+  const base = {
+    mode: props.timeDisplayMode,
+    clockFreqMHz: props.clockFreqMHz,
+  };
+  if (props.nsPerPx != null) return { ...base, nsPerPx: props.nsPerPx };
+  return { ...base, significantDigits: EVENT_TIME_SIGNIFICANT_DIGITS };
+});
 
 /**
  * Multi-task summary bars title as "N tasks".
@@ -58,12 +70,12 @@ const title = computed(() => {
     </div>
     <div>
       {{ t('start', locale) }}:
-      {{ formatDisplayTimeAuto(event.startTime, timeOrigin, displayOpts) }}
+      {{ formatDisplayTimeAuto(event.startTime, timeOrigin, startEndOpts) }}
     </div>
-    <div>{{ t('dur', locale) }}: {{ formatTimeAuto(event.duration, displayOpts) }}</div>
+    <div>{{ t('dur', locale) }}: {{ formatTimeAuto(event.duration, durationOpts) }}</div>
     <div>
       {{ t('end', locale) }}:
-      {{ formatDisplayTimeAuto(event.startTime + event.duration, timeOrigin, displayOpts) }}
+      {{ formatDisplayTimeAuto(event.startTime + event.duration, timeOrigin, startEndOpts) }}
     </div>
   </div>
 </template>

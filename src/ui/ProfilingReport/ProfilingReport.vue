@@ -41,7 +41,7 @@ import {
 import { buildCannbotPayload } from '../../domain/cannbot';
 import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../domain/cannbot';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
-import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz } from '../../domain/formatTime';
+import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz, nsPerPxForTrack } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
 import { leafRowCount } from '../../swimlane/layout';
 import {
@@ -175,6 +175,13 @@ const caps = computed<ReportCapability[]>(() => {
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );
+/** Same density as TimelineView playhead / measure labels — tooltip & detail start/end. */
+const nsPerPx = computed((): number | undefined => {
+  const w = timelineRef.value?.trackWidth ?? 0;
+  // Omit until the track has measured — avoids a pre-mount 1000px digit jump.
+  if (!(w > 0)) return undefined;
+  return nsPerPxForTrack(viewState.value.endTime - viewState.value.startTime, w);
+});
 const clockFreqMHz = computed(() => resolveClockFreqMHz(report.value?.summary));
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
@@ -1185,6 +1192,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         :time-display-mode="localTimeDisplayMode"
         :clock-freq-m-hz="clockFreqMHz"
         :time-origin="bounds.minTime"
+        :ns-per-px="nsPerPx"
         :locale="locale"
         :neighbors="dependencyNeighbors"
         :dependency-mode="localDependencyMode"
@@ -1202,6 +1210,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :time-display-mode="localTimeDisplayMode"
       :clock-freq-m-hz="clockFreqMHz"
       :time-origin="bounds.minTime"
+      :ns-per-px="nsPerPx"
       :locale="locale"
     />
   </div>

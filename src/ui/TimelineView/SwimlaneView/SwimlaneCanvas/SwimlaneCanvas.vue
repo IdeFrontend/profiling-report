@@ -10,7 +10,7 @@ import {
   type SwimlaneViewWindow,
 } from '../../../../domain/types';
 import { normalizeMeasureRange } from '../../../../domain/viewState';
-import { formatTimeAuto } from '../../../../domain/formatTime';
+import { formatTimeAuto, nsPerPxForTrack } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
   computeAltMeasureDelta,
@@ -866,7 +866,15 @@ watch(
   { deep: true },
 );
 
-/** Refresh snap marks + hover gap when the window moves (zoom / pan / scroll). */
+/** Overview expand/collapse tweens contentTopPad — setView + paint or events stay stale. */
+watch(
+  () => props.contentTopPad,
+  () => {
+    sync();
+  },
+);
+
+/** Refresh snap marks + hover gap when the window moves (zoom / pan / scroll / overview pad). */
 watch(
   [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY, () => props.contentTopPad],
   () => {
@@ -1428,7 +1436,9 @@ const gapMeasureGeometry = computed(() => {
   const arrowLeft = xAtTime(visStart);
   const arrowRight = xAtTime(visEnd);
 
-  const label = formatTimeAuto(rightStart - leftEnd);
+  const label = formatTimeAuto(rightStart - leftEnd, {
+    nsPerPx: nsPerPxForTrack(props.view.endTime - props.view.startTime, w),
+  });
   const top = gap.laneY - paintView().scrollY;
 
   const leftPct = (arrowLeft / w) * 100;
@@ -1530,7 +1540,9 @@ const altEventMeasureGeometry = computed(() => {
   const right = xAtTime(gapEndTime);
   const arrowLeft = xAtTime(visStart);
   const arrowRight = xAtTime(visEnd);
-  const label = formatTimeAuto(deltaNs);
+  const label = formatTimeAuto(deltaNs, {
+    nsPerPx: nsPerPxForTrack(props.view.endTime - props.view.startTime, w),
+  });
   const rangePx = arrowRight - arrowLeft;
   const leftPct = (arrowLeft / w) * 100;
   const widthPct = ((arrowRight - arrowLeft) / w) * 100;
