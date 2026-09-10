@@ -703,7 +703,7 @@ export function findLaidOutEvent(layout: SwimlaneLayout, id: string): LaidOutEve
   return layout.eventsById.get(id);
 }
 
-/** Screen-space marquee rect (canvas CSS px); order-normalized by `eventsIntersectingRect`. */
+/** Screen-space marquee rect (canvas CSS px); order-normalized by `eventsContainedByRect`. */
 export interface MarqueeRect {
   x0: number;
   y0: number;
@@ -712,10 +712,10 @@ export interface MarqueeRect {
 }
 
 /**
- * Leaf events whose drawn block intersects the marquee rect, in layout order.
+ * Leaf events whose drawn block is fully contained by the marquee rect, in layout order.
  * Folder rows hold no events, so Card header strips the rect passes over contribute none.
  */
-export function eventsIntersectingRect(
+export function eventsContainedByRect(
   layout: SwimlaneLayout,
   view: SwimlaneViewWindow,
   width: number,
@@ -732,10 +732,10 @@ export function eventsIntersectingRect(
     if (item.summary) continue;
     const ev = item.event;
     const { y, h } = eventBlockMetrics(item.y, view.scrollY);
-    if (y > bottom || y + h < top) continue;
+    if (y < top || y + h > bottom) continue;
     const x = ((ev.startTime - view.startTime) / span) * w;
     const ew = Math.max(2, (ev.duration / span) * w);
-    if (x > right || x + ew < left) continue;
+    if (x < left || x + ew > right) continue;
     out.push(item);
   }
   return out;

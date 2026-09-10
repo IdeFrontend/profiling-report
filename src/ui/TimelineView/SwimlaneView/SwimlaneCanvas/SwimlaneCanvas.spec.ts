@@ -1176,12 +1176,11 @@ describe('SwimlaneCanvas', () => {
     return mountWithEventModel({ measureMode: false });
   }
 
-  it('PR-CANVAS-078: unmodified drag past 4px draws the marquee and commits intersecting events', async () => {
+  it('PR-CANVAS-078: unmodified drag past 4px draws the marquee and commits contained events', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
       wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
     ).eventScreenRect('e1')!;
-    const y = rect.y + rect.h / 2;
 
     await canvas.trigger('pointerdown', {
       clientX: rect.x - 20,
@@ -1197,8 +1196,8 @@ describe('SwimlaneCanvas', () => {
 
     window.dispatchEvent(
       new PointerEvent('pointermove', {
-        clientX: rect.x + rect.w / 2,
-        clientY: y + 4,
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
         buttons: 1,
       }),
     );
@@ -1207,7 +1206,7 @@ describe('SwimlaneCanvas', () => {
     expect(marquee.attributes('style')).toMatch(/left:\s*\d/);
 
     window.dispatchEvent(
-      new PointerEvent('pointerup', { clientX: rect.x + rect.w / 2, clientY: y + 4 }),
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
     );
     await wrapper.vm.$nextTick();
     const committed = wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[];
@@ -2084,27 +2083,30 @@ describe('SwimlaneCanvas', () => {
       renderer: () => { setMultiSelection: (ids: string[]) => void };
     };
     const rect = vm.eventScreenRect('e1')!;
-    const y = rect.y + rect.h / 2;
     const spy = vi.spyOn(vm.renderer(), 'setMultiSelection');
 
-    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
     // Past the gate but still left of the block: nothing is covered yet.
     window.dispatchEvent(
-      new PointerEvent('pointermove', { clientX: rect.x - 10, clientY: y, buttons: 1 }),
+      new PointerEvent('pointermove', { clientX: rect.x - 10, clientY: rect.y - 4, buttons: 1 }),
     );
     await wrapper.vm.$nextTick();
     expect(spy.mock.calls.at(-1)![0]).toEqual([]);
 
-    // Rect now covers the block — it must light up before the release.
+    // Rect now fully contains the block — it must light up before the release.
     window.dispatchEvent(
-      new PointerEvent('pointermove', { clientX: rect.x + rect.w / 2, clientY: y, buttons: 1 }),
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
     );
     await wrapper.vm.$nextTick();
     expect(spy.mock.calls.at(-1)![0]).toEqual(['e1']);
 
     // Commit drops the preview; the dim is the parent's `multiSelectedIds` again.
     window.dispatchEvent(
-      new PointerEvent('pointerup', { clientX: rect.x + rect.w / 2, clientY: y }),
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
     );
     await wrapper.vm.$nextTick();
     expect(spy.mock.calls.at(-1)![0]).toEqual([]);

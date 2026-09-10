@@ -10,7 +10,7 @@ import {
   eventLabelAnchor,
   eventPaintRect,
   eventRadius,
-  eventsIntersectingRect,
+  eventsContainedByRect,
   findExactEdgeMatches,
   hitTestLayout,
   nearestEventEdgeAtPoint,
@@ -1158,8 +1158,8 @@ describe('PR-RENDER: marquee hit collection', () => {
   /** Both fixture events start at t=0 on the one lane (overlapping → two sub-rows); e-long runs to 800, e-short to 1. */
   const laneY = layout.eventsById.get('e-long')!.y;
 
-  it('PR-RENDER-030: collects every event whose block intersects the rect', () => {
-    const all = eventsIntersectingRect(layout, view, 400, {
+  it('PR-RENDER-030: collects every event whose block is contained by the rect', () => {
+    const all = eventsContainedByRect(layout, view, 400, {
       x0: 0,
       y0: laneY - view.scrollY,
       x1: 400,
@@ -1167,28 +1167,28 @@ describe('PR-RENDER: marquee hit collection', () => {
     });
     expect(all.map((e) => e.id).sort()).toEqual(['e-long', 'e-short']);
 
-    // Right half of the view only reaches e-long (e-short is 1ns wide at x≈0).
-    const right = eventsIntersectingRect(layout, view, 400, {
+    // Right half clips e-long's left edge, so neither event is contained.
+    const right = eventsContainedByRect(layout, view, 400, {
       x0: 200,
       y0: laneY - view.scrollY,
       x1: 400,
       y1: laneY + LANE_HEIGHT,
     });
-    expect(right.map((e) => e.id)).toEqual(['e-long']);
+    expect(right).toEqual([]);
   });
 
   it('PR-RENDER-031: rect order is normalized and misses collect nothing', () => {
-    const dragUpLeft = eventsIntersectingRect(layout, view, 400, {
+    const dragUpLeft = eventsContainedByRect(layout, view, 400, {
       x0: 400,
       y0: laneY + LANE_HEIGHT,
-      x1: 200,
+      x1: 0,
       y1: laneY - view.scrollY,
     });
     expect(dragUpLeft.map((e) => e.id)).toEqual(['e-long']);
 
     // Below the only lane: a rect over empty space / group headers collects nothing.
     expect(
-      eventsIntersectingRect(layout, view, 400, {
+      eventsContainedByRect(layout, view, 400, {
         x0: 0,
         y0: laneY + LANE_HEIGHT * 4,
         x1: 400,
@@ -1253,7 +1253,7 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     const layout = rebuildLayout(summaryModel(4));
     const view = { startTime: 0, endTime: 100, scrollY: 0 };
     expect(
-      eventsIntersectingRect(layout, view, 400, {
+      eventsContainedByRect(layout, view, 400, {
         x0: 0,
         y0: LANE_GROUP_HEADER_HEIGHT,
         x1: 400,
