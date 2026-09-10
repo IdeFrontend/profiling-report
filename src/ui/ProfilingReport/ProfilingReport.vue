@@ -48,6 +48,7 @@ import {
   buildFolderSummaryEvents,
   collectLeafEventsFromModel,
   filterCollapsedTree,
+  findEventInModel,
   findThreadById,
   isFolderNode,
 } from '../../domain/swimTree';
@@ -871,10 +872,12 @@ function onContextMenuAction(action: ContextMenuAction): void {
     return;
   }
   if (action.command === 'show') {
-    // Edge case: target no longer exists → dismiss without selecting.
-    const stillExists =
-      !action.target || (swim.value != null && collectLeafEventsFromModel(swim.value).some((e) => e.id === action.target!.id));
-    if (stillExists) onSelect(action.target ?? null);
+    // Edge case: target no longer exists → dismiss without selecting. A collapsed-folder
+    // summary bar is never itself selected — resolve to its sole underlying leaf
+    // (taskCount === 1) or drop the action (multi-task summary has no single event).
+    const resolved = action.target?.taskCount != null ? (action.target.sourceEvent ?? null) : (action.target ?? null);
+    const stillExists = !resolved || findEventInModel(swim.value, resolved.id) != null;
+    if (stillExists) onSelect(resolved);
     return;
   }
   // Edge case: lane no longer exists or is non-leaf → dismiss without action.

@@ -8,7 +8,6 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
-  type SwimThread,
 } from '../../../domain/types';
 import {
   LANE_GROUP_HEADER_FILL,
@@ -24,6 +23,7 @@ import {
   clearAltMeasureShared,
   createAltMeasureShared,
 } from './altMeasureShared';
+import { findEventInModel } from '../../../domain/swimTree';
 import { buildPinnedSwimModel, resolvePinnedGutterLanes } from './pinnedLanes';
 import {
   GUTTER_WIDTH_DEFAULT,
@@ -255,27 +255,6 @@ watch(
     if (altMeasureShared.anchorId) clearAltMeasureShared(altMeasureShared);
   },
 );
-
-function walkThreads(threads: SwimThread[], visit: (t: SwimThread) => void): void {
-  for (const t of threads) {
-    visit(t);
-    if (t.children?.length) walkThreads(t.children, visit);
-  }
-}
-
-function findEventInModel(model: SwimlaneModel | null | undefined, id: string): SwimEvent | null {
-  if (!model) return null;
-  for (const p of model.processes) {
-    let found: SwimEvent | null = null;
-    walkThreads(p.threads, (t) => {
-      if (found) return;
-      const ev = t.events.find((e) => e.id === id) ?? t.summaryEvents?.find((e) => e.id === id);
-      if (ev) found = ev;
-    });
-    if (found) return found;
-  }
-  return null;
-}
 
 provide(ALT_MEASURE_FIND_EVENT_KEY, (id: string) => {
   return (
