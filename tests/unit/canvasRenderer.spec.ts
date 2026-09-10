@@ -153,7 +153,7 @@ function recordingCanvas(): {
 }
 
 describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
-  it('PR-RENDER-032: ClearType label backdrop uses the same solid selection fill as the event', () => {
+  it('PR-RENDER-051: ClearType label backdrop uses the same solid selection fill as the event', () => {
     const backdrop = compositeLabelBackdrop(
       [31 / 255, 31 / 255, 31 / 255],
       [44 / 255, 44 / 255, 44 / 255],
@@ -1045,6 +1045,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(/laneHoverBg = hexToRgb\(LANE_HOVER_FILL\)/);
     expect(webglSrc).toMatch(/compositeLabelBackdrop\(bg, fill, 1\)/);
     expect(webglSrc).toMatch(/hexToRgb\(SELECTION_MUTED_LABEL\)/);
+    expect(webglSrc).toMatch(/bright\.has\(item\.id\) \|\| this\.multiIds\.has\(item\.id\) \|\| item\.id === this\.hoveredId/);
   });
 
   it('PR-RENDER-039: ClearType label quad origin snaps to integer device px', async () => {

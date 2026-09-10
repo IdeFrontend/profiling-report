@@ -880,7 +880,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       if (!matches) continue;
       const { muted } = eventEmphasis(
         matches,
-        bright.has(item.id) || this.multiIds.has(item.id),
+        bright.has(item.id) || this.multiIds.has(item.id) || item.id === this.hoveredId,
         hasSearch,
         hasSelection || hasMulti,
       );

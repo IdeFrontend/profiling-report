@@ -16,10 +16,10 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 | Zoom to fit | Fit full `[minTime, maxTime]` in view (animated, same easing as Δt focus) | MVP |
 | `W` / `S` | Zoom in / out around the cursor (viewport center when no cursor) | M3 |
 | `A` / `D` | Pan left / right by a fixed 30 px step | M3 |
-| `Ctrl`+left-drag | Horizontal pan | M3 |
+| Ctrl/Cmd + left-drag | Horizontal pan | M3 |
 | Click lane header expand/collapse | Toggle children | MVP |
 
-**MVP gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, Shift+wheel / trackpad horizontal pan, toolbar zoom / zoom-to-fit (table above). Drag on the **swimlane** is multi-select, not pan (see [Multi-select](#multi-select)). PyPTO keyboard shortcuts (W/S zoom, A/D pan) are **Phase 2** unless [Q19](../context/OPEN_QUESTIONS.md) resolves otherwise — do not treat them as MVP parity.
+**MVP gestures:** wheel scroll, Ctrl/Cmd+wheel zoom, Shift+wheel / trackpad horizontal pan, toolbar zoom / zoom-to-fit (table above). Drag on the **swimlane** is multi-select, not pan (see [Multi-select](#multi-select)). PyPTO keyboard shortcuts (W/S zoom, A/D pan) are [UI-41](../context/decisions/UI.md#ui-41-was-q19) — do not treat them as MVP parity.
 
 **CSS cursors (timeline):** swimlane canvas empty space uses `default` (arrow; not `crosshair` or hand `pointer`). Hovering an event uses `pointer`. Viewport time axis uses `pointer`. Measure mode / measure edge bars use `col-resize`. Overview brush uses `grab` / `grabbing` / `ew-resize` on handles.
 
@@ -57,7 +57,7 @@ Sketch: [`v930/task-marquee`](./source/v930/task-marquee.jpeg)
 - **Measure mode wins:** while the caliper is on, an unmodified drag creates / resizes `measureRange` and never marquees.
 - Marquee commit replaces any single selection (and vice versa); an empty rect clears both. Escape cancels mid-drag and clears a committed selection.
 - **Δt chrome:** the viewport time axis shows the same measure UI (blue edge bars + double-sided Δt arrow + duration) over the marquee's time extent while dragging. The Δt chrome is cleared on commit; the committed selection no longer draws a hull span. Same geometry as measure — not a second style.
-- Selected events keep full opacity; the rest dim through the same path single-click selection uses (0.45).
+- Selected events keep full opacity; the rest use the same solid `#2C2C2C` mute as single-click selection.
 - Summary table: count header + per-event Slices table ([MultiSelectSummary](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md)).
 - Additive **Shift+click** toggles a single event in/out of the selection; the marquee remains the bulk multi-select gesture.
 

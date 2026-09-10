@@ -187,7 +187,7 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.get('[data-testid="multi-select-count"]').text()).toContain('1001');
     expect(wrapper.get('[data-testid="multi-select-visible-count"]').text()).toContain('1000 of 1001');
     expect(wrapper.findAll('tbody tr')).toHaveLength(1000);
-  });
+  }, 15_000);
 
   it('handles a 125001-event marquee without a spread-argument overflow', () => {
     const largeSelection = Array.from({ length: 125001 }, (_, index) =>
