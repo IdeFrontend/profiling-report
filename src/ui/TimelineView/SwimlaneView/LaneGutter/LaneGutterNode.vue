@@ -152,6 +152,8 @@ function fillColor(bar: GutterBarDisplay): string {
   return bar.relativeMax ? UTIL_RED : UTIL_GRAY;
 }
 
+function onContextMenu(e: MouseEvent): void { e.preventDefault(); emit('context-menu', { x: e.clientX, y: e.clientY, laneId: props.lane.id }); }
+
 function onPinClick(e: MouseEvent) {
   e.stopPropagation();
   if (isPinned.value) emit('unpin-lane', props.lane.id);
@@ -256,6 +258,7 @@ onBeforeUnmount(() => {
         @pin-lane="(id) => emit('pin-lane', id)"
         @unpin-lane="(id) => emit('unpin-lane', id)"
         @lane-hover="(id) => emit('lane-hover', id)"
+        @context-menu="(payload) => emit('context-menu', payload)"
       />
     </template>
   </div>
@@ -270,6 +273,7 @@ onBeforeUnmount(() => {
     :data-testid="`gutter-lane-${lane.id}`"
     @pointerenter="onLanePointerEnter"
     @pointerleave="onLanePointerLeave"
+    @contextmenu="onContextMenu"
   >
     <button
       type="button"

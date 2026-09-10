@@ -651,6 +651,7 @@ defineExpose({
       @zoom="(f, a) => emit('zoom', f, a)"
       @update:measure-range="emit('update:measure-range', $event)"
       @suppress-measure-dt="suppressMeasureDt = $event"
+      @context-menu="emit('context-menu', $event)"
     />
   </div>
 </template>

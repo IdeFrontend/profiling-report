@@ -25,6 +25,7 @@ const emit = defineEmits<{
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
   'lane-hover': [laneId: string | null];
+  'context-menu': [payload: { x: number; y: number; laneId: string }];
 }>();
 
 const root = ref<HTMLElement | null>(null);
@@ -87,6 +88,7 @@ defineExpose({ root });
             @pin-lane="(id) => emit('pin-lane', id)"
             @unpin-lane="(id) => emit('unpin-lane', id)"
             @lane-hover="(id) => emit('lane-hover', id)"
+            @context-menu="(payload) => emit('context-menu', payload)"
           />
         </template>
       </div>
