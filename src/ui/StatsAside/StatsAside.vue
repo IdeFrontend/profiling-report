@@ -221,6 +221,19 @@ const topologyModel = computed(() => {
   return props.report?.memoryTopology;
 });
 
+/**
+ * UI-38: the chrome's MTE blocks carry no value plate, so their utilizations are not drawn on
+ * the diagram. PipeUtilization is the only CSV holding them, so the memory 详情 CSV field list
+ * (shown for CSV-only reports) offers that tab next to the memory ones. Reports with memory
+ * summary categories render those categories instead — their MTE ratios stay under 计算 详情.
+ */
+const memoryDetailTables = computed(() => {
+  const pipe = (props.report?.computeTables ?? []).filter(
+    (t) => t.fileName === 'PipeUtilization.csv',
+  );
+  return [...(props.report?.memoryTables ?? []), ...pipe];
+});
+
 const showTopology = computed(() => {
   const m = topologyModel.value;
   return Boolean(m && m.edges.some((e) => e.label != null && e.label !== ''));
@@ -558,7 +571,7 @@ function backToReport() {
       />
       <CsvFieldListPanel
         v-else
-        :tables="report?.memoryTables ?? []"
+        :tables="memoryDetailTables"
         :csv-texts="report?.csvTexts ?? {}"
         :selected-block-id="selectedBlockId"
         :locale="locale"
@@ -1039,7 +1052,7 @@ function backToReport() {
           />
           <CsvFieldListPanel
             v-else
-            :tables="report?.memoryTables ?? []"
+            :tables="memoryDetailTables"
             :csv-texts="report?.csvTexts ?? {}"
             :selected-block-id="selectedBlockId"
             :locale="locale"

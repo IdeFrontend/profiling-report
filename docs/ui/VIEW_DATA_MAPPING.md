@@ -230,7 +230,7 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 
 **Note (docx):** dual-Die / Remote memory — open whether right-click details exist.
 
-**Topology edges:** the panel renders the official chrome [`memory-topology.svg`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) — the sketch exported from Figma, with its static node labels/arrows intact and its sample values stripped in-repo — and overlays **real CSV values** on that chrome's value slots (not placeholders). The export carries no KB slot, so `L0C → L1` / `L0C → L2` datagrams appear only in the CSV 详情, and its SIMT links plus 9 in-box `%` plates stay blank (no adapter edge). Sketch: [`v930/report-stats-scrolled`](./source/v930/report-stats-scrolled.jpeg) (topology SVG); CSV 详情 is [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg).
+**Topology edges:** the panel renders the official chrome [`memory-topology.svg`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) — the sketch exported from Figma, with its static node labels/arrows intact and its sample values stripped in-repo — and overlays **real CSV values** on that chrome's value slots (not placeholders). The export carries no KB slot, so `L0C → L1` / `L0C → L2` datagrams appear only in the CSV 详情, and its SIMT links plus 9 in-box `%` plates stay blank (no adapter edge). The chrome also draws `MTE1/2/3` boxes, but the export gives **no** MTE block a value plate (all 10 in-box `%` plates belong to other units): the adapter models the blocks as nodes (`mte1`/`mte2`/`mte3`) and their utilizations are read from `PipeUtilization.csv` in the memory 详情 list, so the diagram stays exactly as designed (UI-38). Slots are sized for the export's 27.6-unit placeholders, so a real value wider than its own slot's clearance (35.4 units between the GM and L2 pillars, 49.9 elsewhere) is scaled down proportionally rather than overlapping the chrome (PR-MEMTOP-010). Sketch: [`v930/report-stats-scrolled`](./source/v930/report-stats-scrolled.jpeg) (topology SVG); CSV 详情 is [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg).
 
 ### Edge → field → source (engineering mapping for M2)
 
@@ -275,7 +275,7 @@ Memory detail controls ([`v930/memory-load-detail`](./source/v930/memory-load-de
 
 | Control | Behavior |
 | --- | --- |
-| Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent |
+| Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent. On the CSV field-list rendering, also `PipeUtilization` when present — the only source of the chrome's MTE utilizations (UI-38); when memory summary categories exist the surface lists those categories instead |
 | Block switcher | Filter rows to selected `block_id` ([DATA-33c](../context/decisions/interim/DATA.md)); default = first block |
 | 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/decisions/interim/DATA.md)) |
 

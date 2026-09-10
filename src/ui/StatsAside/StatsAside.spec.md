@@ -108,6 +108,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 36b. **PR-STATS-032b** — Lone Vector / write columns use secondary bar hue (COLOR_TOKENS semantic, not index).
 37. **PR-STATS-033** — 全屏 icon next to 详情 when topology shown; hidden when diagram hidden.
 38. **PR-STATS-034** — 全屏 emits open-topology-fullscreen; does not open CSV overlay.
+39. **PR-STATS-035** — The memory 详情 **CSV field list** (the `CsvFieldListPanel` rendering, used when no memory summary categories exist — CSV-only reports) also offers the `PipeUtilization` tab when that table is present, so MTE utilizations stay reachable even though the export gives the chrome's MTE blocks no value plate (UI-38). Reports **with** memory summary categories list those categories instead (memory files only); their MTE ratios stay reachable under 计算 详情 → `PipeUtilization`.
 
 ## Edge Cases
 

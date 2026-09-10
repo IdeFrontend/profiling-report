@@ -58,6 +58,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 13. **PR-VM-014** — `summary.coreCount` from `HardwareInfo.jsonl` by op type (cube/vector/mix); omit when jsonl or field missing.
 14. **PR-VM-015** — `computeCard` from Product `OpInfoSummary` FLOPS when present; else ArithmeticUtilization + HardwareInfo peaks (DATA-33h); omit when no side has measured + peak.
 15. **PR-VM-016** — When both OpBasicInfo.csv and Summary.jsonl exist, identity comes from OpBasicInfo and OpInfoSummary derived FLOPS/util overlay onto summary + computeCard.
+16. **PR-VM-017** — Topology nodes include the chrome's MTE blocks (`mte1`/`mte2`/`mte3`, UI-38). The export gives MTE no value plate, so the adapter produces no MTE edge and the panel no MTE slot; MTE utilizations come from `PipeUtilization.csv` via the memory 详情 CSV field list.
 
 ## Edge Cases
 

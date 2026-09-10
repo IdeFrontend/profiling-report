@@ -1,10 +1,44 @@
+<script lang="ts">
+/** Base value type size, cap-height matched to the export's own values (see Visual).
+ *  Mirrors the `.pr-topo__edge` font-size; the fit rule below only ever shrinks from it. */
+export const BASE_FONT_PX = 6.3;
+
+/** Horizontal room each slot's value has before it touches the chrome, in chrome units,
+ *  measured off the export. A value is drawn centred on its slot, not on the corridor, so the
+ *  binding constraint is the *nearer* wall: `2 × (nearest wall − centre) − 2 units of air`.
+ *  GM↔L2 (centre x≈75, walls x≈55.75/x≈94) is the tight one at 35.4; every other link corridor
+ *  (centre x≈160, walls x≈133.75/x≈188) allows 49.9; the L2 in-box plate spans the 40-unit
+ *  pillar, leaving 36 once its own padding is respected. */
+export const SLOT_MAX_W: Record<string, number> = {
+  'gm-l2-read': 35.4,
+  'gm-l2-write': 35.4,
+  'l2-peak': 36,
+};
+export const DEFAULT_MAX_W = 49.9;
+
+/**
+ * Type size for a value that is `natural` units wide in slot `slot`.
+ * The export's slots were sized for its own 27.6-unit placeholders; the system sans runs
+ * wider per cap height, and real values are longer (`{n}.{nn} GB/s`, KB volumes), so a value
+ * that would spill out of its corridor is scaled down proportionally — same strokes, smaller
+ * — instead of overlapping the pillars. Anything that fits keeps the base size.
+ */
+export function fitFontSize(natural: number, slot: string, base = BASE_FONT_PX): number {
+  const max = SLOT_MAX_W[slot] ?? DEFAULT_MAX_W;
+  return natural > max ? (max / natural) * base : base;
+}
+</script>
+
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watchEffect } from 'vue';
 import type { MemoryTopologyModel } from '../../../domain/types';
 import { t } from '../../../i18n';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
- *  Its static labels stay outlined paths; the export's sample values were stripped in-repo. */
-import chromeUrl from './memory-topology.svg?url';
+ *  Its static labels stay outlined paths; the export's sample values were stripped in-repo.
+ *  `?no-inline` keeps the 200 kB asset out of the JS bundle — lib mode inlines assets whatever
+ *  `assetsInlineLimit` says, and only this suffix is checked first — so it ships as
+ *  `dist/memory-topology.svg` for the host to serve (see `vite.config.ts`). */
+import chromeUrl from './memory-topology.svg?url&no-inline';
 
 const props = withDefaults(
   defineProps<{
@@ -78,6 +112,46 @@ const values = computed(() =>
     slots.map(([x, y], i) => ({ id, x, y, key: `${id}-${i}`, text: label(id) ?? '' })),
   ),
 );
+
+/** DATA-20 plate text: `{n}%` from `peakPct`, else the `l2-hit` edge label. */
+const peakText = computed(() =>
+  l2PeakPct.value != null ? `${l2PeakPct.value.toFixed(2)}%` : label('l2-hit'),
+);
+
+/**
+ * Measurement twin: an unpainted `<text>` carrying the same class, so `getComputedTextLength`
+ * reports the label's natural width in chrome units (the viewBox is 448×540 px at 1:1).
+ * jsdom has no SVG text metrics — the fit then stays at the base size.
+ */
+const measureTwin = ref<SVGTextElement | null>(null);
+
+/** Per-slot type size, set only where a value outgrows its slot (PR-MEMTOP-010). */
+const fitted = ref<Record<string, number>>({});
+
+watchEffect(() => {
+  const el = measureTwin.value;
+  const next: Record<string, number> = {};
+  if (el && typeof el.getComputedTextLength === 'function') {
+    const measure = (text: string): number => {
+      if (!text) return 0;
+      el.textContent = text;
+      return el.getComputedTextLength();
+    };
+    for (const v of values.value) {
+      const px = fitFontSize(measure(v.text), v.id);
+      if (px < BASE_FONT_PX) next[v.key] = px;
+    }
+    const peak = measure(peakText.value ?? '');
+    const peakPx = fitFontSize(peak, 'l2-peak');
+    if (peakPx < BASE_FONT_PX) next.peak = peakPx;
+  }
+  fitted.value = next;
+});
+
+function fitStyle(key: string): { fontSize: string } | undefined {
+  const px = fitted.value[key];
+  return px != null ? { fontSize: `${px}px` } : undefined;
+}
 </script>
 
 <template>
@@ -119,17 +193,19 @@ const values = computed(() =>
         text-anchor="middle"
         dominant-baseline="middle"
         class="pr-topo__peak"
+        :style="fitStyle('peak')"
         data-testid="node-l2-peak"
-      >{{ l2PeakPct.toFixed(2) }}%</text>
+      >{{ peakText }}</text>
       <text
-        v-else-if="label('l2-hit')"
+        v-else-if="peakText"
         x="113.8"
         y="277.1"
         text-anchor="middle"
         dominant-baseline="middle"
         class="pr-topo__pct"
+        :style="fitStyle('peak')"
         data-testid="edge-l2-hit"
-      >{{ label('l2-hit') }}</text>
+      >{{ peakText }}</text>
 
       <text
         v-for="v in values"
@@ -139,8 +215,18 @@ const values = computed(() =>
         text-anchor="middle"
         dominant-baseline="middle"
         class="pr-topo__edge"
+        :style="fitStyle(v.key)"
         :data-testid="`edge-${v.id}`"
       >{{ v.text }}</text>
+
+      <text
+        ref="measureTwin"
+        class="pr-topo__edge"
+        x="-1000"
+        y="-1000"
+        opacity="0"
+        aria-hidden="true"
+      />
     </svg>
   </div>
 </template>
@@ -165,17 +251,23 @@ const values = computed(() =>
   fill: none;
 }
 
-/* 6.6px fills the export's 27.6-unit value plates exactly (8px overflows them). */
+/* The export's values measure 27.6 units wide and 4.25 units tall (cap height). Sizing follows
+ * the cap height: 6.3px × 0.705 = 4.44 units, and 800 is the closest available stroke to the
+ * export's (measured ink density ≈ SF 800). The system sans is wider per cap height than the
+ * export's face (~1.2×) and real values are longer than its 27.6-unit placeholders, so a value
+ * that would leave its corridor is scaled down per slot (`fitFontSize`, PR-MEMTOP-010). */
 .pr-topo__edge {
-  fill: #f9b665;
-  font-size: 6.6px;
-  font-weight: 700;
+  fill: #f9b766;
+  font-size: 6.3px;
+  font-weight: 800;
 }
 
+/* Same size/weight as the edge values: the export's in-box `%` numbers are the same type
+ * (measured cap 4.25 units, ink fill ≈ the 800 weight). Colour is the export's pure white. */
 .pr-topo__peak,
 .pr-topo__pct {
-  fill: #f0f0f0;
-  font-size: 6.6px;
-  font-weight: 700;
+  fill: #fff;
+  font-size: 6.3px;
+  font-weight: 800;
 }
 </style>
