@@ -69,8 +69,8 @@ export function timeScaleUnitFromMagnitude(ns: number): TimeScaleUnit {
 }
 
 /**
- * Interim UI-40a — OpBasicInfo MHz for ns→cycles display.
- * Prefer Current Freq over Rated Freq; see docs/context/decisions/interim/UI.md.
+ * OpBasicInfo MHz for ns→cycles display (UI-40 / UI-45).
+ * Prefer Current Freq over Rated Freq; see docs/context/decisions/UI.md.
  * Returns undefined when missing/invalid so clocks UI can hide.
  */
 export function resolveClockFreqMHz(summary?: SummaryMetrics | null): number | undefined {
@@ -82,7 +82,7 @@ export function resolveClockFreqMHz(summary?: SummaryMetrics | null): number | u
 }
 
 /**
- * Exact derived cycles as a BigInt (UI-40a): `round(ns) × round(freqMHz) / 1000`,
+ * Exact derived cycles as a BigInt (UI-45): `round(ns) × round(freqMHz) / 1000`,
  * rounded half-up. BigInt keeps the integer exact past `Number.MAX_SAFE_INTEGER`,
  * where `ns × freqMHz` as a double loses its low digits (a 708 s trace at 1650 MHz
  * is ~1.17e18 cycles, whose double ULP is ~256).
@@ -97,7 +97,7 @@ function wholeCyclesExact(ns: number, clockFreqMHz: number): bigint {
 }
 
 /**
- * Display cycles from wall time (UI-40a): `cycles = ns × freqMHz / 1000`.
+ * Display cycles from wall time (UI-45): `cycles = ns × freqMHz / 1000`.
  * Exact within `Number.MAX_SAFE_INTEGER`; callers that format the label use the
  * BigInt path directly so grouped digits stay exact for long traces.
  * Not per-event `*_total_cycles`; assumes timeline ns shares the AIC clock domain.
@@ -263,7 +263,7 @@ export function nsPerPxForTrack(spanNs: number, widthPx: number): number {
 export type FormatTimeOpts = {
   /** When set, format the unit magnitude with this many significant digits. */
   significantDigits?: number;
-  /** `cycles` renders CPU clocks instead of wall time (UI-40a). */
+  /** `cycles` renders CPU clocks instead of wall time (UI-40 / UI-45). */
   mode?: TimeDisplayMode;
   /** AIC frequency in MHz — required when `mode` is `cycles`. */
   clockFreqMHz?: number;

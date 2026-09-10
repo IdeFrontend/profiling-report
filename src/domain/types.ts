@@ -336,11 +336,11 @@ export interface SelectedEvent {
   args?: Record<string, unknown>;
 }
 
-/** Auto wall-time scale (UI-40a interim): s / ms / µs / ns from viewport or axis density. */
+/** Auto wall-time scale (UI-40): s / ms / µs / ns from viewport or axis density. */
 export type TimeScaleUnit = 's' | 'ms' | 'us' | 'ns';
 
 /**
- * User preference (UI-40a): wall time with auto s/ms/µs/ns, or CPU clocks.
+ * User preference (UI-40 / UI-45): wall time with auto s/ms/µs/ns, or derived CPU clocks.
  * Clocks require OpBasicInfo currentFreq/ratedFreq (MHz).
  */
 export type TimeDisplayMode = 'time' | 'cycles';

@@ -36,6 +36,9 @@ jobs:
       - name: Check design assets
         run: npm run check:design
 
+      - name: Check open questions
+        run: npm run check:questions
+
       - name: Check sample fixture
         run: npm run check:sample
 
