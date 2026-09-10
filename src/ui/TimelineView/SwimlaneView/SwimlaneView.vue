@@ -134,6 +134,7 @@ type CanvasExpose = {
   ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   clearEdgeSnapHighlight: () => void;
   altMeasureBridgeEndpoint?: () => { clientX: number; clientY: number; time: number } | null;
+  forceResize: () => void;
 };
 const canvasRef = ref<CanvasExpose | null>(null);
 const pinnedCanvasRef = ref<CanvasExpose | null>(null);
@@ -527,6 +528,10 @@ defineExpose({
   clearEdgeSnapHighlight,
   /** Test/debug: shared Alt-measure session (pin strip ↔ body). */
   altMeasureShared,
+  forceResize: () => {
+    canvasRef.value?.forceResize();
+    pinnedCanvasRef.value?.forceResize();
+  },
 });
 </script>
 

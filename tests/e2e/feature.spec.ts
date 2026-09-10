@@ -414,7 +414,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(dock).toHaveCount(0);
   });
 
-  test('PR-E2E-013: closing the dock keeps the swimlane canvas visible through the leave animation', async ({
+  test('PR-E2E-013: closing the dock resizes the swimlane canvas immediately (no stale frame)', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
@@ -432,14 +432,19 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
 
     await page.getByTestId('multi-select-close').click();
-    await expect
-      .poll(() =>
-        page.locator('.pr-swim-canvas').evaluateAll((canvases) =>
-          canvases.every((canvas) => getComputedStyle(canvas).visibility === 'visible'),
-        ),
-      )
-      .toBe(true);
     await expect(page.getByTestId('dock')).toHaveCount(0);
+
+    // The canvas backing store must already match the grown wrap the instant the
+    // dock leaves — no frame where it is still sized/stretched for the old (shorter)
+    // wrap height, which is what painted the stale black square. Check immediately
+    // (no poll/retry): the fix applies synchronously in the Transition's after-leave.
+    const matches = await overlay.evaluate((canvas: HTMLCanvasElement) => {
+      const wrap = canvas.closest('[data-testid="swimlane"]') as HTMLElement;
+      const dpr = window.devicePixelRatio || 1;
+      const expectedH = Math.round(wrap.clientHeight * dpr);
+      return Math.abs(canvas.height - expectedH) <= 2;
+    });
+    expect(matches).toBe(true);
     await expect(overlay).toBeVisible();
   });
 

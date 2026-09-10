@@ -2508,6 +2508,42 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-098: forceResize repaints from the CSS box before ResizeObserver fires', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: { processes: [], minTime: 0, maxTime: 1000 },
+      },
+      attachTo: document.body,
+    });
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 640, configurable: true, writable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 240, configurable: true, writable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 640, height: 240, right: 640, bottom: 240 }),
+      configurable: true,
+    });
+    await fireAllDeviceRo();
+    expect(canvas.height).toBe(240);
+
+    // Simulate a dock leaving: the wrap grows synchronously (layout), but the
+    // ResizeObserver callback has not fired yet — the exact gap that painted a
+    // stale/short frame (the reported black square) before forceResize existed.
+    Object.defineProperty(wrap, 'clientHeight', { value: 480, configurable: true, writable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 640, height: 480, right: 640, bottom: 480 }),
+      configurable: true,
+    });
+    // No fireAllDeviceRo() here — RO has not fired, only forceResize should apply the new size.
+    const vm = wrapper.vm as unknown as { forceResize: () => void };
+    vm.forceResize();
+    await nextTick();
+    expect(canvas.height).toBe(480);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-069: freezeBackingStore skips buffer realloc until thaw', async () => {
     const wrapper = mount(SwimlaneCanvas, {
       props: {

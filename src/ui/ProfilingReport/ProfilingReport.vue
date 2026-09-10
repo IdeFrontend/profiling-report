@@ -152,7 +152,7 @@ const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
-const timelineRef = ref<{ gutterRoot: HTMLElement | null; trackWidth?: number } | null>(null);
+const timelineRef = ref<{ gutterRoot: HTMLElement | null; trackWidth?: number; forceResize?: () => void } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
@@ -409,6 +409,13 @@ function resetViewFromModel(
 function stopLayoutFitObserver(): void {
   layoutResizeObserver?.disconnect();
   layoutResizeObserver = null;
+}
+
+/** After the dock's leave transition unmounts it, the swimlane wrap grows synchronously
+ * but ResizeObserver reports the new box a frame late — force the resize now so the
+ * canvas never paints a stale frame stretched into the freed space (black square). */
+function onDockAfterLeave(): void {
+  timelineRef.value?.forceResize?.();
 }
 
 function applyLayoutFit(): void {
@@ -1197,7 +1204,10 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 
     <!-- Persistent dock shell: single/multi selection swap content, not the container.
          The shared height survives mode switches so the panel does not animate from 0. -->
-    <Transition name="pr-dock">
+    <Transition
+      name="pr-dock"
+      @after-leave="onDockAfterLeave"
+    >
       <footer
         v-if="showTimeline && (selected || multiSelected.length)"
         class="pr-dock"

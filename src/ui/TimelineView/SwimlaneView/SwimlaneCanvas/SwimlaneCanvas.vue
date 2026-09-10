@@ -754,6 +754,42 @@ watch(freezeBackingStore, (frozen, wasFrozen) => {
   if (wasFrozen && !frozen) thawBackingStore();
 });
 
+/**
+ * Force an immediate resize + repaint from the current CSS box, bypassing the
+ * ResizeObserver's async callback. Used right after the dock's leave transition
+ * removes the footer: layout grows the canvas wrap synchronously, but RO fires a
+ * frame later — without this, the canvas shows a stale bitmap stretched/padded
+ * into the new box for one frame (looks like a black square where the dock was).
+ */
+function forceResize(): void {
+  const wrap = wrapRef.value;
+  if (!wrap) return;
+  const dpr = currentDpr();
+  const w = wrap.clientWidth || lastW;
+  const h = wrap.clientHeight || lastH;
+  if (w < 1 || h < 1) return;
+  const deviceW = Math.max(1, Math.round(w * dpr));
+  const deviceH = Math.max(1, Math.round(h * dpr));
+  if (deviceW === lastDeviceW && deviceH === lastDeviceH && dpr === lastDpr) {
+    applyViewState();
+    schedulePaint();
+    return;
+  }
+  lastW = w;
+  lastH = h;
+  syncTrackWidth();
+  lastDeviceW = deviceW;
+  lastDeviceH = deviceH;
+  lastDpr = dpr;
+  resizeTick.value += 1;
+  ensureAttach();
+  if (!attached) return;
+  backend.resize(deviceW, deviceH, dpr);
+  if (useWebGl.value) overlay.resize(deviceW, deviceH, dpr);
+  applyViewState();
+  flushPaint();
+}
+
 function bindResizeObserver(): void {
   resizeObserver?.disconnect();
   resizeObserver = null;
@@ -2211,6 +2247,7 @@ defineExpose({
   clearEdgeSnapHighlight,
   clearAltMeasure,
   altMeasureBridgeEndpoint,
+  forceResize,
 });
 </script>
 
