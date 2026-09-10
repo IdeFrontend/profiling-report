@@ -25,6 +25,7 @@ Official product memory-path topology chrome with **data-driven link values** (c
 7. **L2 Peak(%) (DATA-20):** when the `l2` node has `peakPct`, show `{n}%` in the export's in-box plate under **L2 Cache** (no “Peak” word, no warm tint). Otherwise fall back to the `l2-hit` edge label in the same plate; never both. Other units have no Peak until Product maps them.
 8. **Right-click (UI-35):** `contextmenu` on the diagram prevent-defaults. When `openDetailsOnContextmenu` is true (stacked aside), emit `open-details` so the parent opens the memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0). When false (root fullscreen overlay), do not emit; overlay stays open.
 9. Fullscreen chrome (Back, **全屏** control) lives on `ProfilingReport` / `StatsAside`; this panel stays presentational.
+10. **Value fit (PR-MEMTOP-010):** a value wider than its own slot's corridor is drawn at a proportionally smaller `font-size` so it stays inside the link, instead of overlapping a pillar or a neighbouring unit. Values that fit keep the base size; nothing else about the slot moves.
 
 ### Value slots (edge → label centres, chrome units)
 
@@ -50,7 +51,21 @@ Pillars: GM x16–56, L2 x94–134; row stack x188–432 — AIV0 y17–197, AIC
 
 **Slot note —** the export routes its lower L2↔AIC corridor link on to FixP; the panel labels that corridor slot with the Memory.csv L1 write-back (`aic_l1_write_bw`), which is the same L2↔AIC path.
 
+### Value fit (PR-MEMTOP-010)
+
+The export's slots were sized for its own 27.6-unit placeholders. Real values are longer (`{n}.{nn} GB/s`, KB volumes) and the system sans is wider per cap height than the export's face (~1.2×), so a label can outgrow its link. Each slot has a **corridor** — the free run between the chrome around it, measured off the export. A value is drawn centred on its slot, not on the corridor, so the binding constraint is the **nearer** wall:
+
+| Slot | Corridor (walls) | Slot centre | Bound |
+|------|------------------|-------------|-------|
+| `gm-l2-read` / `gm-l2-write` | x≈55.75 … x≈94 | x≈74.5 / x≈75.3 | 35.4 |
+| every other link slot | x≈133.75 … x≈188 | x≈159.7 | 49.9 |
+| L2 plate (`peakPct` / `l2-hit`) | x≈94 … x≈133.75 (the pillar) | x≈113.8 | 36 |
+
+A value whose natural width exceeds its bound is drawn at `bound / natural × 6.3px` — the same strokes, scaled down — so e.g. `504.00 GB/s` (43.2 units) lands at 5.17px inside the GM↔L2 link. Widths come from the rendered label's own metrics (`getComputedTextLength`), so they follow the platform font; where metrics are unavailable — a non-browser DOM, or a mount inside a hidden container, where text has no layout and measures 0 — the panel keeps the base size.
+
 **No slot —** `l0c-l1` / `l0c-l2` (L0C→L1 / L0C→GM data volumes, KB) have no plate in the export, which carries no KB values; they stay in the Memory.csv 详情 tabs. The same is true of the AIV0/AIV1 SIMT in/out pair, the four in-row SIMT links per AIV row, the UB→VEC run, the two rotated AIV↔AIC trunk labels, AIC `L1→MTE1#3→BT`, `FixP→rail`, and the 9 in-box `%` plates other than L2 Peak — the adapter computes no such edge.
+
+**MTE blocks (UI-38) —** the chrome draws `MTE1`/`MTE2`/`MTE3` boxes (AIV0/AIV1 columns, the AIC column and the L2↔cluster trunk), but the export gives every one of them **no value plate**: all 10 in-box `%` plates belong to other units (L2, UB/Scalar, CUBE/FixP, SIMT/SIMD/VEC). The panel therefore draws no slot for MTE and the diagram stays exactly as designed. The blocks are modelled as nodes (`mte1`/`mte2`/`mte3`) and their utilizations are read from `PipeUtilization.csv` in the memory 详情 CSV field list ([StatsAside](../StatsAside.spec.md) PR-STATS-035).
 
 ## Acceptance Criteria
 
@@ -65,17 +80,18 @@ Pillars: GM x16–56, L2 x94–134; row stack x188–432 — AIV0 y17–197, AIC
 8. **PR-MEMTOP-008** — Right-click emits `open-details`.
 8b. **PR-MEMTOP-008b** — Right-click does not emit when `openDetailsOnContextmenu` is false.
 9. **PR-MEMTOP-009** — Edges with no chrome slot (`l0c-l1`, `l0c-l2`) are not drawn.
+10. **PR-MEMTOP-010** — A value wider than its slot's corridor is scaled down proportionally so it stays inside the link; values that fit keep the base size, and the slot geometry never moves.
 
 ## Visual
 
-Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, static labels kept as outlines, sample values removed in-repo. Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-topology.png`](./visual/memory-topology.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
+Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, static labels kept as outlines, sample values removed in-repo. The asset is **not bundled into the JS**: it is imported with `?no-inline` (lib mode inlines every JS-referenced asset regardless of `assetsInlineLimit`; `?no-inline` is the one suffix Vite checks first) and shipped as `dist/memory-topology.svg`, referenced at the root path `/memory-topology.svg`. A host embedding the library must serve that file next to the bundle, otherwise the chrome renders empty and only the overlaid values remain. Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-topology.png`](./visual/memory-topology.png) — [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 | Token | Value |
 |-------|--------|
 | Panel bg | `#262626` |
 | Chrome art | `memory-topology.svg` (self-contained fills: GM `#4d4d4d`, L2 `#666666`, cache/UB units `#668cf7`, compute units `#36c18d`, muted `#666666`, MTE chips `#f69e39`) |
-| Edge label | `#f9b665` `6.6px` bold — sized to the export's 27.6-unit plates (8px overflows them) |
-| L2 Peak(%) | DATA-20: `{n}%` in the L2 plate; `#f0f0f0` |
+| Edge label | `#f9b766` `800` `6.3px` base — the export's values measure 27.6 × 4.25 units (cap height), so the size is set from the cap height; the system sans is ~1.2× wider per cap height and real values are longer than its placeholders, so a value that outgrows its corridor is scaled down per slot (PR-MEMTOP-010) |
+| L2 Peak(%) | DATA-20: `{n}%` in the L2 plate; `#fff`, same size and fit as the edge labels |
 | L2 node anchor | transparent (the chrome supplies the fill) |
 
 ## Design sketches
@@ -91,6 +107,10 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 DATA-20 (L2 Peak), DATA-21, DATA-33c, UI-35, UI-38, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
+- **2026-09-10** — Chrome asset kept out of the JS bundle: imported with `?no-inline` and shipped as `dist/memory-topology.svg` for the host to serve (lib build 712 kB → 479 kB). Vite's lib mode inlines every JS-referenced asset regardless of `assetsInlineLimit`, so the suffix is the only lever; noted in `vite.config.ts` and in Visual.
+- **2026-09-10** — Value fit (PR-MEMTOP-010): a value wider than its slot's corridor is scaled down proportionally instead of overlapping the pillars. Bounds are the *nearer* wall (35.4 units GM↔L2, 49.9 elsewhere, 36 in the L2 plate) since a value is centred on its slot, and widths come from the rendered label's own metrics. The previous "system sans is ~8% wider" note was also too low — measured ~1.2× per cap height, plus one more digit than the export's placeholders.
+- **2026-09-10** — Value type re-measured against the export: label colour `#f9b665` → `#f9b766` (the export's exact amber), L2 `%` colour `#f0f0f0` → `#fff`, size `6.6px` → `6.3px` (the export's cap height is 4.4 units; 6.6px was ~6% taller) and weight `700` → `800` (the export's strokes are heavier than the system bold).
+- **2026-09-10** — MTE blocks modelled (UI-38): the chrome's `MTE1/2/3` boxes have no value plate in the export, so no slot is drawn; the nodes exist in the model and their utilizations come from `PipeUtilization.csv` in the memory 详情 list (PR-STATS-035).
 - **2026-09-10** — Chrome replaced by the official product SVG export; values overlaid at its slots. No in-DOM `<marker>`s (the asset owns the arrows). Corridor labels are horizontal as in the export. `l0c-l1` / `l0c-l2` lose their diagram slot (no KB plate in the export) — PR-MEMTOP-001/002/006 reworded, PR-MEMTOP-009 added.
 - **2026-09-08** — Same panel in the root fullscreen overlay; overlay passes `openDetailsOnContextmenu: false` so right-click does not emit (PR-MEMTOP-008b).
 - **2026-09-07** — Match `report-stats-scrolled` colors (cache/compute/L2/arrows/dash); L2 Peak as `{n}%` without tint; CUBE/LOC/FixP roles.

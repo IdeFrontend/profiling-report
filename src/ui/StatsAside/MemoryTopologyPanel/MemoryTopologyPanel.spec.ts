@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
-import MemoryTopologyPanel from './MemoryTopologyPanel.vue';
+import MemoryTopologyPanel, {
+  DEFAULT_MAX_W,
+  SLOT_MAX_W,
+  fitFontSize,
+} from './MemoryTopologyPanel.vue';
 
 const model = {
   nodes: [
@@ -146,5 +151,89 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.findAll('[data-testid="edge-l0c-l1"]')).toHaveLength(0);
     expect(wrapper.findAll('[data-testid="edge-l0c-l2"]')).toHaveLength(0);
     expect(wrapper.text()).not.toContain('KB');
+  });
+});
+
+describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
+  /** Natural widths measured in Chrome for this panel's type (6.3px/800, system sans). */
+  const WIDTHS: Record<string, number> = {
+    '504.00 GB/s': 43.19,
+    '12.34 GB/s': 37.33,
+    '1.56 GB/s': 32.75,
+    '100.00%': 31.11,
+  };
+
+  /** jsdom has no SVG text metrics; stand in for the browser's `getComputedTextLength`. */
+  function stubMetrics(): () => void {
+    const proto = SVGTextElement.prototype as unknown as Record<string, unknown>;
+    const had = Object.prototype.hasOwnProperty.call(proto, 'getComputedTextLength');
+    const prev = proto.getComputedTextLength;
+    proto.getComputedTextLength = function (this: SVGTextElement) {
+      return WIDTHS[this.textContent ?? ''] ?? 20;
+    };
+    return () => {
+      if (had) proto.getComputedTextLength = prev;
+      else delete proto.getComputedTextLength;
+    };
+  }
+
+  it('keeps the base size while a value fits its corridor', () => {
+    expect(fitFontSize(37.33, 'l2-ub')).toBe(6.3); // 37.33 ≤ the link bound
+    expect(fitFontSize(43.19, 'l2-l1-read')).toBe(6.3);
+    expect(fitFontSize(31.11, 'l2-peak')).toBe(6.3); // `100.00%` inside the 40-unit pillar
+    expect(fitFontSize(0, 'gm-l2-read')).toBe(6.3); // blank slot
+  });
+
+  it('keeps every slot bound inside its own corridor', () => {
+    // Walls measured off the export; a value is centred on the slot, so the nearer wall binds.
+    const CORRIDORS: Record<string, [number, number, number]> = {
+      // slot: [left wall, centre-nearest wall pair, right wall]
+      'gm-l2-read': [55.75, 74.5, 94],
+      'gm-l2-write': [55.75, 75.3, 94],
+      'l2-ub': [133.75, 159.7, 188],
+      'l2-peak': [94, 113.8, 133.75],
+    };
+    for (const [slot, [left, centre, right]] of Object.entries(CORRIDORS)) {
+      const half = (SLOT_MAX_W[slot] ?? DEFAULT_MAX_W) / 2;
+      expect(centre - half).toBeGreaterThanOrEqual(left);
+      expect(centre + half).toBeLessThanOrEqual(right);
+    }
+  });
+
+  it('shrinks a value that outgrows the tight GM↔L2 corridor', () => {
+    const tight = SLOT_MAX_W['gm-l2-read']!;
+    expect(fitFontSize(43.19, 'gm-l2-read')).toBeCloseTo((tight / 43.19) * 6.3, 6);
+    expect(fitFontSize(37.33, 'gm-l2-write')).toBeLessThan(6.3);
+  });
+
+  it('bounds unmapped slots by the widest link corridor', () => {
+    expect(fitFontSize(DEFAULT_MAX_W, 'nope')).toBe(6.3);
+    expect(fitFontSize(DEFAULT_MAX_W + 1, 'nope')).toBeLessThan(6.3);
+  });
+
+  it('PR-MEMTOP-010: applies the fitted size only to the over-wide label', async () => {
+    const restore = stubMetrics();
+    try {
+      const wrapper = mount(MemoryTopologyPanel, {
+        props: {
+          model: {
+            ...model,
+            edges: [
+              { id: 'gm-l2-read', from: 'gm', to: 'l2', label: '504.00 GB/s' },
+              { id: 'l2-ub', from: 'l2', to: 'ub', label: '1.56 GB/s' },
+            ],
+          },
+        },
+      });
+      await nextTick();
+      const wide = wrapper.get('[data-testid="edge-gm-l2-read"]');
+      const fits = wrapper.get('[data-testid="edge-l2-ub"]');
+      expect(wide.text()).toBe('504.00 GB/s');
+      const px = /font-size:\s*([\d.]+)px/.exec(wide.attributes('style') ?? '')?.[1];
+      expect(Number(px)).toBeCloseTo((SLOT_MAX_W['gm-l2-read']! / 43.19) * 6.3, 4);
+      expect(fits.attributes('style') ?? '').not.toContain('font-size');
+    } finally {
+      restore();
+    }
   });
 });
