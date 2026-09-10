@@ -327,7 +327,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(ratedOnly.peakTflops).toBeCloseTo((128 * 72 * 1.65 * 2) / 1000, 3);
   });
 
-  it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {
+  it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB from Memory.csv (DATA-22/23); hide NA, show 0', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const topo = adapted.reportModel.memoryTopology;
     expect(topo).toBeDefined();
@@ -376,7 +376,8 @@ describe('PR-VM: report view-models (interim)', () => {
     ];
     const labelled = buildMemoryTopology(both, '0');
     expect(labelled?.edges.find((e) => e.id === 'l2-l1-read')?.label).toBe('0.00 GB/s');
-    expect(labelled?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('9.25 GB/s');
+    // DATA-22: Memory.csv wins; the MemoryUB `*_gm` column is not the collected source.
+    expect(labelled?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('1.11 GB/s');
 
     const sampleOnly: CsvTableModel[] = [
       {

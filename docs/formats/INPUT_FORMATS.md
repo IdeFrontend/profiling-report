@@ -284,7 +284,7 @@ GM / L2 / L1 oriented bandwidth and data volumes. Bare `*_read_bw` = leaving the
 | GM ← L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present; write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
 | L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv`; `out.rep` NA |
 | L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed**; `out.rep` NA |
-| L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
+| L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; Product-confirmed field ([DATA-24](../context/decisions/DATA.md)); 理论值 still 待确定 |
 | L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
 | L0C → UB | — | — | **TBD** (docx); absent in sample |
 
@@ -309,8 +309,8 @@ L0C `_bw_cube` directions are confirmed by suffix. L0A/L0B keep master L1→buff
 | --- | --- | --- | --- |
 | Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `aiv_ub_write_bw_vector(GB/s)` | Present; `ub_read_*` = leaving UB |
 | UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `aiv_ub_read_bw_vector(GB/s)` | Present |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | Product name on `MemoryUB.csv` (unverified; absent from sample); sample uses `aiv_ub_to_gm_bw` on `Memory.csv` |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same: product `MemoryUB.csv` unverified; sample `aiv_gm_to_ub_bw` on `Memory.csv` |
+| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | `aiv_ub_to_gm_bw(GB/s)` on `Memory.csv` | **DATA-22:** use `Memory.csv` `aiv_ub_to_gm_bw`; the docx `MemoryUB.csv` name is absent from the sample |
+| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | `aiv_gm_to_ub_bw(GB/s)` on `Memory.csv` | **DATA-23:** use `Memory.csv` `aiv_gm_to_ub_bw`; the docx `MemoryUB.csv` name is absent from the sample |
 
 Sample also includes `aiv_ub_read_bw_scalar(GB/s)` / `aiv_ub_write_bw_scalar(GB/s)`.
 

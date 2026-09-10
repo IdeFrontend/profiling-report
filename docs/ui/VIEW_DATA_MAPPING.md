@@ -60,7 +60,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | **Confirmed** (npu-compute 0818). Shown as ms in mockup (unit conversion in UI) |
 | 5 | 算力情况 | measured / peak TFLOPS | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` | **Interim DATA-33h** (DATA-2..4, UI-33). Sketch: **Cube \| Vector** columns |
-| 6 | 带宽利用率 | main-mem read / write BW | `Memory.csv` | Sketch: one card **读 \| 写**. Measured columns confirmed; peak / score / aic↔读·写 aggregation still **DATA-33g** |
+| 6 | 带宽利用率 | main-mem read / write BW | `Memory.csv` | Sketch: one card **读 \| 写**. Measured columns confirmed; peak / score / aic↔读·写 aggregation still **DATA-33g**. Source is **not** `Report.csv` ([DATA-8](../context/decisions/DATA.md)) |
 | 7 | AICore 并行使用率 | `aicore_parallel_utilization` / `aicore_parallel_balance` | `summary.jsonl` | **DATA-9 / DATA-10**. Sketch: **并行使用率** \| **负载均衡度** |
 
 ### Visualization logic (from mockup)
@@ -100,7 +100,7 @@ Compute uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formu
 | Layout | Sketch: one card, **读 \| 写** columns, score **with** `%`. UI mean-collapses aic\|aiv per direction |
 | Bar | Fill width = score % of track (`--pr-color-card-bar-primary` / `--pr-color-card-bar-secondary`; legacy alias `--pr-color-bandwidth-bar`); same 8px pill hatched track as duration; 0% fill has no 2px sliver |
 | NA | Omit that column; omit the card if both sides NA |
-| `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused |
+| `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused. Confirmed not the card source ([DATA-8](../context/decisions/DATA.md)) |
 
 ---
 
@@ -248,10 +248,10 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 | L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | Same |
 | L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
-| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |
-| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` then `aiv_ub_to_gm_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | Product name first (unverified; absent from sample); sample fallback |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` then `aiv_gm_to_ub_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | Product name first (unverified; absent from sample); sample fallback |
+| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | **DATA-24:** Product-confirmed field; 理论值 (Peak %) still 待确定 |
+| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | Field present in sample; 理论值 (Peak %) still 待确定 ([DATA-25](../context/questions/DATA.md)) |
+| UB → L2 | `aiv_ub_to_gm_bw(GB/s)` | `Memory.csv` | **DATA-22:** Product answer; `MemoryUB.csv` `aiv_ub_read_bw_gm` is absent from the sample |
+| L2 → UB | `aiv_gm_to_ub_bw(GB/s)` | `Memory.csv` | **DATA-23:** Product answer; `MemoryUB.csv` `aiv_ub_write_bw_gm` is absent from the sample |
 | Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | `ub_read_*` = leaving UB (`out.rep` add 2:1) |
 | UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
 | L2Cache Hit Rate | first `*_hit_rate(%)` | `L2Cache.csv` | AIC/AIV column choice TBD (DATA-21 interim) |
@@ -365,7 +365,7 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Memory Peak (%) per unit | **L2 = hit rate (DATA-20).** Other units still unmapped |
 | L2 hit-rate column choice | Incomplete (DATA-21 interim) |
 | L0C → UB edge | 待确定 |
-| UB↔GM | Product `MemoryUB.csv` names first; sample `Memory.csv` fallback |
+| UB↔GM | **Closed (DATA-22 / DATA-23):** `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` |
 | Statistical analysis series schema | Placeholder only |
 | Timeline + event-detail field tables | Empty; mockup-driven |
 | HardwareInfo | Confirmed source; in toolkit `example.rep` (not in git), absent from `out.rep` |

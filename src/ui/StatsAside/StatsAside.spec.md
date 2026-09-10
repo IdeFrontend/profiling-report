@@ -300,4 +300,4 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Open
 
-Measure range does not recompute this aside. Roofline Product-final formulas remain DATA-37. Bandwidth peak field remains DATA-5 SOL 1600 via `summary.jsonl` (DATA-8 Report.csv still open).
+Measure range does not recompute this aside. Roofline Product-final formulas remain DATA-37. Bandwidth cards read `Memory.csv` / `summary.jsonl` `Memory` main-mem read/write with peak DATA-5 SOL 1600 — **not** `Report.csv` (DATA-8 resolved).

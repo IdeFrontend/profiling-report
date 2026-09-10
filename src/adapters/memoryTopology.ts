@@ -133,20 +133,16 @@ const EDGE_MAP: {
     from: 'ub',
     to: 'l2',
     unit: 'GB/s',
-    sources: [
-      { file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_gm(GB/s)'] },
-      { file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] },
-    ],
+    // DATA-22: Memory.csv `aiv_ub_to_gm_bw` is the collected field; MemoryUB `*_gm` is absent from the sample.
+    sources: [{ file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] }],
   },
   {
     id: 'l2-ub',
     from: 'l2',
     to: 'ub',
     unit: 'GB/s',
-    sources: [
-      { file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_gm(GB/s)'] },
-      { file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] },
-    ],
+    // DATA-23: Memory.csv `aiv_gm_to_ub_bw` is the collected field; MemoryUB `*_gm` is absent from the sample.
+    sources: [{ file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] }],
   },
   {
     id: 'vec-ub',

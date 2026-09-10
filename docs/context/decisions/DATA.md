@@ -78,6 +78,16 @@ Format and statuses: [README.md](README.md).
 
 ---
 
+## DATA-8 (was: HQ 8)
+
+- **Resolved:** 2026-09-10
+- **Question:** Do the I/O bandwidth cards come from `Report.csv`? If yes, list the column names.
+- **Decision:** **No.** Cards read `Memory.csv` / `summary.jsonl` → `category: Memory` main-memory BW: input = `aic_main_mem_read_bw(GB/s)` + `aiv_main_mem_read_bw(GB/s)`, output = the matching `*_write_bw`. Peak / score use `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s** and `aicore_gm_read_bw` / `aicore_gm_write_bw` (DATA-5–DATA-7). `Report.csv` is named "SOL/平均带宽" in producer notes but has **no schema** and is unused.
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.3, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §7, [view-models](../../../specs/core/view-models.spec.md)
+- **Source:** `npu-compute性能优化.docx` 报告统计信息 table + NPU-Compute.md Q5–Q7 (2026-09-10).
+
+---
+
 ## DATA-9 (was: HQ 9)
 
 - **Resolved:** 2026-09-04
@@ -115,6 +125,36 @@ Format and statuses: [README.md](README.md).
 - **Decision:** Use the **total** hit rate from `summary.jsonl` → `category: L2Cache`. When `summary.jsonl` is absent, fall back to the first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, `aic_read_hit_rate(%)`, `aiv_read_hit_rate(%)`.
 - **Specs:** [npu-rep](../../../specs/core/npu-rep.spec.md)
 - **Source:** NPU-Compute.md (2026-09-04).
+
+---
+
+## DATA-22 (was: HQ 22)
+
+- **Resolved:** 2026-09-10
+- **Question:** **UB → L2/GM** — which file and field?
+- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_ub_to_gm_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_read_bw_gm(GB/s)` — it is absent from the sample and is not the collected field.
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.6, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §11
+- **Source:** NPU-Compute.md Q22 (2026-09-10); implemented in `memoryTopology.ts`.
+
+---
+
+## DATA-23 (was: HQ 23)
+
+- **Resolved:** 2026-09-10
+- **Question:** **L2/GM → UB** — which file and field?
+- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_gm_to_ub_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_write_bw_gm(GB/s)` — absent from the sample.
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.6, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §11
+- **Source:** NPU-Compute.md Q23 (2026-09-10); implemented in `memoryTopology.ts`.
+
+---
+
+## DATA-24 (was: HQ 24)
+
+- **Resolved:** 2026-09-10
+- **Question:** **L0C → L1** — show it? Which field?
+- **Decision:** Show `Memory.csv` → `L0C_to_L1_datas(KB)` when present. The Product 理论值 (Peak %) for this edge is still 待确定 and tracked by [DATA-20](../questions/DATA.md).
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.4
+- **Source:** NPU-Compute.md Q24 (2026-09-10); implemented in `memoryTopology.ts`.
 
 ---
 

@@ -2,73 +2,33 @@
 
 Open **DATA** questions (file/field/formula data mapping). Status enum, prefix taxonomy, and migration map: [README.md](README.md).
 
-### DATA-8 — I/O bandwidth cards from `Report.csv`?
-
-<img src="../visual/questions/data-8.png" alt="DATA-8 I/O bandwidth cards" width="900" height="225">
-
-**Status:** `open`
-
-**Question:** Do these cards come from `Report.csv` instead? If yes, list the column names. (Resolved `DATA-33` uses `summary.jsonl` `Memory` / `Memory.csv`, not `Report.csv`.)
-
 ### DATA-11 — Roofline axes vs pipe busy rates
 
-<img src="../visual/questions/data-11.png" alt="DATA-11 Roofline chart — not pipe busy rates" width="900" height="655">
-
-**Status:** `open`
-
-**Question:** The old mapping uses `aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio` (pipe busy rates). What should we use instead? Real Roofline axes are undocumented.
+**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
 
 ### DATA-12 — X axis Ops/Byte
 
-<img src="../visual/questions/data-12.png" alt="DATA-12 X axis Ops/Byte" width="900" height="655">
-
-**Status:** `open`
-
-**Question:** **X axis** (Ops/Byte) — file, fields, formula? Is GM and L2 the same formula?
+**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
 
 ### DATA-13 — Y axis TOps/s
 
-<img src="../visual/questions/data-13.png" alt="DATA-13 Y axis TOps/s" width="900" height="655">
-
-**Status:** `open`
-
-**Question:** **Y axis** (TOps/s) — file, fields, formula? (Raw `aic_cube_fops` / `aiv_vec_fops` exist but are not a TOps/s formula.)
+**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
 
 ### DATA-14 — roof lines
 
-<img src="../visual/questions/data-14.png" alt="DATA-14 roof lines" width="900" height="655">
-
-**Status:** `open`
-
-**Question:** The **roof** lines (peak bandwidth and peak compute) — which file and fields?
+**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
 
 ### DATA-15 — L2 bytes
 
-<img src="../visual/questions/data-15.png" alt="DATA-15 L2 legend series" width="900" height="655">
-
-**Status:** `open`
-
-**Question:** The **L2** point needs bytes moved. Which field has L2 bytes? (`L2Cache.csv` has hit counts and hit *rates*, no byte traffic.)
+**Status:** `open` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
 
 ### DATA-16 — Vec_FP32 / Vec_MISC mix labels
 
-<img src="../visual/questions/data-16.png" alt="DATA-16 Vec_FP32 / Vec_MISC mix" width="900" height="655">
-
-**Status:** `partial`
-
-**Question:** Labels like `Vec_FP32` / `Vec_MISC` — which file and fields? Which labels when many are non-zero?
-
-**Answer so far:** Fields exist in `ArithmeticUtilization.csv`: `aiv_vec_fp32_ratio`, `aiv_vec_fp16_ratio`, `aiv_vec_int32_ratio`, `aiv_vec_int16_ratio`, `aiv_vec_misc_ratio`. The docx dictionary uses *different* names (`aiv_vec_vf_ratio`, `aiv_vec_sfu_ratio`, `aiv_vec_simt_vf_ratio`). The "which to show when many are non-zero" rule is undocumented.
+**Status:** `partial` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
 
 ### DATA-17 — Roofline tabs
 
-<img src="../visual/questions/data-17.png" alt="DATA-17 Roofline tabs" width="900" height="655">
-
-**Status:** `partial`
-
-**Question:** Tabs **内存单元** / **内存通路** / **搬运单元** — what should each tab show?
-
-**Answer so far:** The docx Roofline table maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`) — the pipe-busy-rate mapping DATA-11 flags as wrong.
+**Status:** `partial` — granular alias tracked by [DATA-37](#data-37--roofline-formulas-was-q11).
 
 ### DATA-19 — summary vs 详情 block scope
 
@@ -90,36 +50,6 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Answer so far:** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)). Other boxes (GM, L1, L0*, Cube, FixP, UB, Vec, Scalar) — still no Product mapping.
 
-### DATA-22 — UB → L2/GM arrow
-
-<img src="../visual/questions/data-22.png" alt="DATA-22 UB to L2/GM arrow" width="900" height="900">
-
-**Status:** `interim`
-
-**Question:** **UB → L2/GM** — which file and field? Two names exist: `MemoryUB.csv` `aiv_ub_read_bw_gm` vs `Memory.csv` `aiv_ub_to_gm_bw`.
-
-**Interim:** adapter tries `MemoryUB.csv` → `aiv_ub_read_bw_gm(GB/s)` first, then `Memory.csv` → `aiv_ub_to_gm_bw(GB/s)`. Sample MemoryUB has **no `*_gm` fields**.
-
-### DATA-23 — L2/GM → UB arrow
-
-<img src="../visual/questions/data-23.png" alt="DATA-23 L2/GM to UB arrow" width="900" height="900">
-
-**Status:** `interim`
-
-**Question:** **L2/GM → UB** — which file and field? (`MemoryUB.csv` `aiv_ub_write_bw_gm` vs `Memory.csv` `aiv_gm_to_ub_bw`.)
-
-**Interim:** adapter tries `MemoryUB.csv` → `aiv_ub_write_bw_gm(GB/s)` first, then `Memory.csv` → `aiv_gm_to_ub_bw(GB/s)`. Same sample gap: no gm fields on MemoryUB.
-
-### DATA-24 — L0C → L1
-
-<img src="../visual/questions/data-24.png" alt="DATA-24 L0C to L1" width="900" height="900">
-
-**Status:** `interim`
-
-**Question:** **L0C → L1** — show it? Which field? (`L0C_to_L1_datas(KB)`?)
-
-**Interim:** show `Memory.csv` → `L0C_to_L1_datas(KB)` when present. Product 理论值 is still 待确定. Sketch node is **LOC**.
-
 ### DATA-25 — L0C → L2/GM
 
 <img src="../visual/questions/data-25.png" alt="DATA-25 L0C to L2/GM" width="900" height="900">
@@ -128,7 +58,7 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Question:** **L0C → L2/GM** — show it? Which field? (`L0C_to_GM_datas(KB)`?)
 
-**Interim:** show `Memory.csv` → `L0C_to_GM_datas(KB)` when present. Same **LOC** node as DATA-24.
+**Interim:** show `Memory.csv` → `L0C_to_GM_datas(KB)` when present. Same **LOC** node as L0C → L1.
 
 ### DATA-28 — summary aggregation (mean / max / first / selected)
 
@@ -170,7 +100,15 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Status:** `open` + `interim`
 
-**Question:** Roofline formulas?
+**Question:** Roofline formulas? Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) (axes vs pipe busy rates), [DATA-12](#data-12--x-axis-opsbyte) (X Ops/Byte), [DATA-13](#data-13--y-axis-topss) (Y TOps/s), [DATA-14](#data-14--roof-lines) (roof peaks), [DATA-15](#data-15--l2-bytes) (L2 bytes), [DATA-16](#data-16--vec_fp32--vec_misc-mix-labels) (mix labels), [DATA-17](#data-17--roofline-tabs) (tabs).
+
+**Known so far (docs checked 2026-09-10):**
+
+- **Axes (DATA-11–13):** not documented. NPU-Compute.md Q11–Q13 have no Product answer; the docx tab→field table (`aic_cube_ratio` / `aic_mte2_ratio` / `aic_mte1_ratio`, `PipeUtilization.csv`) is pipe busy rates, not axes.
+- **Roof (DATA-14):** peak compute formulas *do* exist in NPU-Compute.md Q3 (`aic/aiv_flops_theoretical`) and peak BW = `aicore_gm_bw_theoretical` (SOL **1600 GB/s**, Q5), but the docs never wire them to the roofline roof.
+- **L2 bytes (DATA-15):** absent — `L2Cache.csv` has hit/miss counts and hit *rates* only.
+- **Mix (DATA-16):** fields exist in `ArithmeticUtilization.csv` (`aiv_vec_{fp32,fp16,int32,int16,misc}_ratio`); the docx dictionary uses `aiv_vec_{vf,sfu,simt_vf}_ratio`. The "which to show when many are non-zero" rule is undocumented.
+- **Tabs (DATA-17):** docx maps 内存单元/内存通路/搬运单元 to the pipe ratios above — the mapping DATA-11 flags as wrong; no Product answer.
 
 **Interim:** [`DATA-37a…DATA-37f`](../decisions/interim/DATA.md).
 
