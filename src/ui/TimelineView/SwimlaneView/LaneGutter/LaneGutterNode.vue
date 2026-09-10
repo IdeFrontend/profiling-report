@@ -97,10 +97,26 @@ function setUtilTipPos(clientX: number, clientY: number) {
   };
 }
 
-function onLanePointerEnter(e: PointerEvent) {
+function onLanePointerEnter() {
   emit('lane-hover', props.lane.id);
+}
+
+function onUtilPointerEnter(e: PointerEvent) {
+  scheduleUtilTip(e.clientX, e.clientY);
+}
+
+function onUtilPointerMove(e: PointerEvent) {
   if (!canShowUtilTip.value) return;
   setUtilTipPos(e.clientX, e.clientY);
+}
+
+function onUtilPointerLeave() {
+  hideUtilTip();
+}
+
+function scheduleUtilTip(clientX: number, clientY: number) {
+  if (!canShowUtilTip.value) return;
+  setUtilTipPos(clientX, clientY);
   clearUtilTipTimer();
   utilTipTimer = setTimeout(() => {
     utilTipVisible.value = true;
@@ -108,15 +124,24 @@ function onLanePointerEnter(e: PointerEvent) {
   }, UTIL_TIP_DELAY_MS);
 }
 
-function onLanePointerMove(e: PointerEvent) {
-  if (!canShowUtilTip.value) return;
-  setUtilTipPos(e.clientX, e.clientY);
+function hideUtilTip() {
+  clearUtilTipTimer();
+  utilTipVisible.value = false;
+}
+
+function onUtilFocusIn(e: FocusEvent) {
+  const el = e.currentTarget as HTMLElement;
+  const r = el.getBoundingClientRect();
+  scheduleUtilTip(r.left + r.width / 2, r.top + r.height / 2);
+}
+
+function onUtilFocusOut() {
+  hideUtilTip();
 }
 
 function onLanePointerLeave() {
   emit('lane-hover', null);
-  clearUtilTipTimer();
-  utilTipVisible.value = false;
+  hideUtilTip();
 }
 
 function fillColor(bar: GutterBarDisplay): string {
@@ -243,7 +268,6 @@ onBeforeUnmount(() => {
     :style="{ paddingLeft: pad, height: rowHeightPx, flex: `0 0 ${rowHeightPx}` }"
     :data-testid="`gutter-lane-${lane.id}`"
     @pointerenter="onLanePointerEnter"
-    @pointermove="onLanePointerMove"
     @pointerleave="onLanePointerLeave"
   >
     <button
@@ -276,7 +300,13 @@ onBeforeUnmount(() => {
       class="pr-gutter__util"
       :class="utilSizeClass"
       data-testid="lane-util"
+      :tabindex="canShowUtilTip ? 0 : undefined"
       :aria-label="canShowUtilTip ? displayBar.label : undefined"
+      @pointerenter="onUtilPointerEnter"
+      @pointermove="onUtilPointerMove"
+      @pointerleave="onUtilPointerLeave"
+      @focusin="onUtilFocusIn"
+      @focusout="onUtilFocusOut"
     >
       <span class="pr-gutter__util-track">
         <span
@@ -472,9 +502,23 @@ onBeforeUnmount(() => {
 }
 
 /* Half the height, so half the radius: 4px on an 8px bar rounds the ends into a stadium
-   and the bar stops reading as a bar. */
+   and the bar stops reading as a bar. Hit target stretches to the lane top/bottom so the
+   value tip opens when the pointer is above/below the 8px paint (title column still excluded). */
 .pr-gutter__util--thin {
+  align-self: stretch;
+  height: auto;
+  display: flex;
+  align-items: center;
+  border-radius: 0;
+  background: transparent;
+}
+
+.pr-gutter__util--thin .pr-gutter__util-track {
+  position: relative;
+  inset: auto;
+  width: 100%;
   height: 8px;
+  flex: 0 0 auto;
   border-radius: 2px;
 }
 

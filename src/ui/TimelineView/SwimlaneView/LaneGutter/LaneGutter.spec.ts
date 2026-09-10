@@ -181,8 +181,11 @@ describe('LaneGutter', () => {
     );
 
     const src = (await import('./LaneGutterNode.vue?raw')).default as string;
-    // Radius follows the bar's height; 4px on the 8px bar rounds it into a stadium.
-    expect(rule(src, '\\.pr-gutter__util--thin')).toMatch(/border-radius:\s*2px/);
+    // Thin column is a full-height hit target (radius 0); the 8px track keeps the 2px stadium.
+    expect(rule(src, '\\.pr-gutter__util--thin')).toMatch(/border-radius:\s*0/);
+    expect(rule(src, '\\.pr-gutter__util--thin\\s+\\.pr-gutter__util-track')).toMatch(
+      /border-radius:\s*2px/,
+    );
     expect(rule(src, '\\.pr-gutter__util')).toMatch(/border-radius:\s*4px/);
     // Opaque under the tint, so the track hatch cannot read through the filled part.
     const fillRule = rule(src, '\\.pr-gutter__util-fill');
@@ -487,7 +490,7 @@ describe('LaneGutter', () => {
     expect(tip).not.toMatch(/#555/);
   });
 
-  it('PR-GUTTER-016: thin lane hover shows delayed cursor-follow value tooltip', async () => {
+  it('PR-GUTTER-016: thin util column hover shows delayed cursor-follow value tooltip', async () => {
     vi.useFakeTimers();
     const nested = [
       {
@@ -518,15 +521,29 @@ describe('LaneGutter', () => {
 
     const thickLane = wrapper.get('[data-testid="gutter-folder-cube"]');
     expect(thickLane.get('[data-testid="lane-util"]').text()).toContain('88');
-    await thickLane.trigger('pointerenter', { clientX: 40, clientY: 20 });
+    await thickLane.get('[data-testid="lane-util"]').trigger('pointerenter', {
+      clientX: 40,
+      clientY: 20,
+    });
     await vi.advanceTimersByTimeAsync(400);
     expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
 
     const thinLane = wrapper.get('[data-testid="gutter-lane-mte1"]');
-    expect(thinLane.get('[data-testid="lane-util"]').classes()).toContain('pr-gutter__util--thin');
+    const thinBar = thinLane.get('[data-testid="lane-util"]');
+    expect(thinBar.classes()).toContain('pr-gutter__util--thin');
     expect(thinLane.find('.pr-gutter__util-pct').exists()).toBe(false);
 
-    await thinLane.trigger('pointerenter', { clientX: 100, clientY: 50 });
+    // Title / row chrome must not open the value tip.
+    await thinLane.trigger('pointerenter', { clientX: 40, clientY: 50 });
+    await vi.advanceTimersByTimeAsync(400);
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+
+    // Full-lane-height hit in the util column (CSS stretch above/below the 8px paint).
+    const src = (await import('./LaneGutterNode.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-gutter__util--thin\s*\{[^}]*align-self:\s*stretch/s);
+    expect(src).toMatch(/\.pr-gutter__util--thin\s+\.pr-gutter__util-track\s*\{[^}]*height:\s*8px/s);
+
+    await thinBar.trigger('pointerenter', { clientX: 100, clientY: 50 });
     expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
     await vi.advanceTimersByTimeAsync(399);
     expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
@@ -538,12 +555,22 @@ describe('LaneGutter', () => {
     expect(tip!.style.left).toBe('112px');
     expect(tip!.style.top).toBe('62px');
 
-    await thinLane.trigger('pointermove', { clientX: 130, clientY: 70 });
+    await thinBar.trigger('pointermove', { clientX: 130, clientY: 70 });
     expect(tip!.style.left).toBe('142px');
     expect(tip!.style.top).toBe('82px');
 
-    await thinLane.trigger('pointerleave');
+    await thinBar.trigger('pointerleave');
     expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+
+    // Keyboard focus also opens the tip after the same delay.
+    expect(thinBar.attributes('tabindex')).toBe('0');
+    await thinBar.trigger('focusin');
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeTruthy();
+    await thinBar.trigger('focusout');
+    expect(document.querySelector('[data-testid="lane-util-tip"]')).toBeNull();
+
     wrapper.unmount();
     vi.useRealTimers();
   });

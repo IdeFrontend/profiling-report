@@ -60,7 +60,7 @@ Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../..
 | 利用率 (utilization) | `NN%` | Equals util % (0–100) | Red when &lt; 50%; gray when ≥ 50% |
 | Legacy pipe ratio | `NN%` | `utilization × 100` | true |
 
-**Thin bars** (pipe leaves) show fill width only; **omit in-track text** for all metrics — value appears in a hover tooltip (**PR-GUTTER-016**). **Thick bars** show **label** inside track, right-aligned.
+**Thin bars** (pipe leaves) show fill width only; **omit in-track text** for all metrics — value appears in a hover tooltip on the **util column** (full lane height hit target; title excluded) (**PR-GUTTER-016**). **Thick bars** show **label** inside track, right-aligned.
 
 ### Pin (leaf lanes only)
 
@@ -140,7 +140,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 13. **PR-GUTTER-013** — Click unpinned pin emits `pin-lane`; pinned emits `unpin-lane`.
 14. **PR-GUTTER-014** — When `categoryKey` is set, gutter labels follow `locale` (`通信`/`Comm`, `计算`/`Compute`, `储存HBM`/`HBM storage`).
 15. **PR-GUTTER-015** — A hovered lane row (gutter pointer, folder or leaf, or inbound `hoveredLaneId`) fills `--pr-surface-raised` and lifts its label to `#fff`; gutter pointer emits `lane-hover` so the track paints to match; the pin tooltip carries EventTooltip chrome.
-16. **PR-GUTTER-016** — Hovering **anywhere on a leaf lane row** that has a **thin** filled util bar shows the metric **label** after a **400ms** delay. Tooltip uses EventTooltip / pin chrome, is teleported to `body`, and follows the cursor at **+12px / +12px** (same offset as event hover). Thick bars keep the in-track label and do **not** show this tip. Leave cancels a pending delay and hides the tip.
+16. **PR-GUTTER-016** — Hovering **or focusing** the **thin util column** (`[data-testid=lane-util]`, `tabindex=0`) on a leaf lane shows the metric **label** after a **400ms** delay. The hit target is the full **lane height** in that column (top border to bottom border), not only the 8px painted bar — so pointers above/below the bar still open the tip. Tooltip uses EventTooltip / pin chrome, is teleported to `body`, and follows the cursor at **+12px / +12px** on pointer move (focus opens at the column center). Hovering the lane title, pin, or other gutter chrome does **not** show this tip. Thick bars keep the in-track label and do **not** show this tip. Leave / blur cancels a pending delay and hides the tip.
 17. **PR-GUTTER-017** — While a Card/folder is animating (`collapseAnim`), its descendant rows sit inside a `.pr-gutter__collapse` wrapper whose inline `height` (`hiddenHeight × visible`) and `opacity` (`visible`) tween; `overflow: hidden` is applied only during the tween so the pin tooltip is not clipped at rest.
 18. **PR-GUTTER-018** — A leaf with `rowCount` renders one title cell `rowCount × LANE_HEIGHT` (name + util + pin vertically centered) with a single bottom border — no per-sub-row gutter rows.
 
@@ -179,6 +179,8 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../SwimlaneView.spec.md).
 
 ## Changelog
+- **2026-09-10** — PR-GUTTER-016: thin util tip also opens on keyboard focus (`tabindex=0`); pointer hit target remains full lane height.
+- **2026-09-10** — PR-GUTTER-016: thin util value tip hit target is full lane height in the util column (not only the 8px bar paint); title/pin still excluded.
 - **2026-09-08** — Multi-row leaf renders one tall title cell `rowCount × LANE_HEIGHT` (`PR-GUTTER-018`).
 - **2026-09-07** — Whole-lane hover (AC-07): gutter leaf/folder `pointerenter`/`pointerleave` emit `lane-hover` so the track paints `#363636` with the header; folders participate in both directions.
 - **2026-09-07** — Renumber collapse-wrapper AC to `PR-GUTTER-017` (open #45 claims `PR-GUTTER-016` for the thin util value tooltip).
