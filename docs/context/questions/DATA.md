@@ -70,7 +70,7 @@ These seven are the granular roofline questions from the HQ/`Q11` batch. They st
 
 **Status:** `interim`
 
-**Question:** A CSV holds one row per `block_id` (sample: 8). On the **summary** PIPE bars, do we average all blocks? On the **详情** overlays, do we show only the selected block? Is the summary **block switcher** optional or required, and does picking a block scope **only PIPE** or every summary widget (cards, Roofline, memory diagram)? The sketch shows a block selector on the 详情 view, not on the summary.
+**Question:** A CSV holds one row per `block_id` (sample: 8 rows). On the **summary** PIPE bars, do we average all blocks? On the **详情** overlays, do we show only the selected block? Does picking a block scope **only PIPE** or every summary widget (cards, Roofline, memory diagram)? The producer reply on the 详情 crop asks for a **block-selection control** there (reference crop [DATA-29](#data-29--summary-aggregation-mean--max--first--selected)); engineering also ships an **All \| block_id** control on the summary — confirm whether that summary control is wanted, and where the selector belongs.
 
 **Interim:** summary PIPE bars default to mean of non-`NA` ratios across `block_id` ([`DATA-33b`](../decisions/interim/DATA.md)); summary **block** control (All \| `block_id`) scopes PIPE when >1 block. **详情** / memory / metrics = selected block ([`DATA-33c`](../decisions/interim/DATA.md)). Matrix: [VIEW_DATA_REQUIREMENTS §8.1](../../formats/VIEW_DATA_REQUIREMENTS.md).
 
