@@ -44,9 +44,11 @@ describe('PR-GMET: gutter metrics', () => {
     expect(availableGutterMetrics(model, [], 'empty')).toEqual([]);
   });
 
-  it('PR-GMET-002: default is clockCycle, else utilization', () => {
+  it('PR-GMET-002: default is utilization, else clockCycle, else null', () => {
     expect(defaultGutterMetric(['utilization'])).toBe('utilization');
-    expect(defaultGutterMetric(['clockCycle', 'utilization'])).toBe('clockCycle');
+    expect(defaultGutterMetric(['clockCycle'])).toBe('clockCycle');
+    expect(defaultGutterMetric(['clockCycle', 'utilization'])).toBe('utilization');
+    expect(defaultGutterMetric([])).toBeNull();
   });
 
   it('PR-GMET-003: clockCycle barWidth normalizes to max lane', () => {

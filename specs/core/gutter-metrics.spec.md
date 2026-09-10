@@ -10,7 +10,7 @@ Compute per-lane gutter bar display for the Card-header metric selector. Maps `.
 type GutterMetric = 'clockCycle' | 'utilization';
 
 availableGutterMetrics(model, csvRows): GutterMetric[]
-defaultGutterMetric(available: GutterMetric[]): GutterMetric
+defaultGutterMetric(available: GutterMetric[]): GutterMetric | null
 gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 ```
 
@@ -40,7 +40,7 @@ Per Card:
 1. **clockCycle** — offer only when `PipeUtilization.csv` yields at least one mapped `*_time(us)` column with a non-`NA` mean for a lane under that Card.
 2. **utilization** — offer when the Card subtree has trace lanes (always on trace-backed reports).
 
-When **clockCycle** is unavailable, default to **utilization**.
+When **utilization** is unavailable, default to **clockCycle**. When neither is available, return `null`.
 
 ### clockCycle formula (normative)
 
@@ -107,7 +107,7 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 ## Acceptance Criteria
 
 1. **PR-GMET-001** — Returns available metrics; omits clockCycle when CSV lacks mappable `*_time(us)` (utilization only).
-2. **PR-GMET-002** — Default metric is clockCycle when available, else utilization.
+2. **PR-GMET-002** — Default metric is utilization when available, else clockCycle when available, else `null`.
 3. **PR-GMET-003** — clockCycle barWidth normalizes to max lane in Card.
 4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring.
 5. **PR-GMET-005** — Folder rollups mean child values for clockCycle.
@@ -145,6 +145,7 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 Until Product answers DATA-38 / UI-46 **or** the producer ships PMU join data: keep the column map, mean-across-blocks `*_time(us)` raw, relative barWidth, and `µs` labels as specified above. MIX keys that share one `laneColorKey` keep mean-of-column-means until Product defines another blend.
 
 ## Changelog
+- **2026-09-09** — Default Card metric is utilization when available; empty availability returns `null` (PR-GMET-002).
 - **2026-09-05** — Document PyPTO PMU sum-of-`total cycle` as reference; note NPU-Compute.md, PR #74, and scanned fixtures lack event-level PMU (interim stays `*_time(us)`).
 - **2026-09-05** — Remap gutter label-units ask to **UI-46** / **UI-46a** (do not reuse the id reserved on PR #23 for timeline CPU clocks).
 - **2026-09-04** — Utilization idle leaves (`coverage = 0`) keep a `0%` bar and count in folder means (PR-GMET-004).
