@@ -386,7 +386,7 @@ export interface SwimlaneViewState {
   pinnedLaneIds: string[];
   /**
    * Overview series ids (`OverviewSeries.id`) in pin order (session-local).
-   * Sticky duplicates sit below the pinned-lane strip (PyPTO counter-pin parity).
+   * Sticky duplicates sit above the pinned-lane strip (PyPTO counter-pin parity).
    */
   pinnedOverviewIds: string[];
 }

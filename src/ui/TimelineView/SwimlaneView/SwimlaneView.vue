@@ -319,6 +319,10 @@ const altMeasureCrossBridge = computed(() => {
 const pinnedStripHeight = computed(() =>
   pinnedRows.value.reduce((h, row) => h + (row.lane.rowCount ?? 1) * LANE_HEIGHT, 0),
 );
+/** Sticky overview strip height (N × OVERVIEW_LANE_H) — drives enter/leave CSS tween. */
+const pinnedOverviewHeight = computed(
+  () => pinnedOverviewSeries.value.length * OVERVIEW_LANE_H,
+);
 const pinnedView = computed(() => ({
   startTime: props.view.startTime,
   endTime: props.view.endTime,
@@ -522,6 +526,31 @@ defineExpose({
         height: `${altMeasureCrossBridge.height}px`,
       }"
     />
+    <Transition name="pr-pinned-overview">
+      <div
+        v-if="pinnedOverviewSeries.length"
+        class="pr-pinned-overview"
+        data-testid="pinned-overview-wrap"
+        :style="{ '--pr-pinned-overview-h': `${pinnedOverviewHeight}px` }"
+      >
+        <OverviewCharts
+          variant="strip"
+          :series="pinnedOverviewSeries"
+          :pinned-overview-ids="pinnedOverviewIds"
+          :start-time="view.startTime"
+          :end-time="view.endTime"
+          :gutter-width="localGutterWidth"
+          :locale="locale"
+          :measure-mode="measureMode"
+          @pin-overview="emit('pin-overview', $event)"
+          @unpin-overview="emit('unpin-overview', $event)"
+          @cursor="onCursor"
+          @wheel="onOverviewWheel"
+          @pan="emit('pan', $event)"
+        />
+      </div>
+    </Transition>
+
     <Transition name="pr-pinned">
       <div
         v-if="pinnedRows.length"
@@ -581,23 +610,6 @@ defineExpose({
         />
       </div>
     </Transition>
-
-    <OverviewCharts
-      v-if="pinnedOverviewSeries.length"
-      variant="strip"
-      :series="pinnedOverviewSeries"
-      :pinned-overview-ids="pinnedOverviewIds"
-      :start-time="view.startTime"
-      :end-time="view.endTime"
-      :gutter-width="localGutterWidth"
-      :locale="locale"
-      :measure-mode="measureMode"
-      @pin-overview="emit('pin-overview', $event)"
-      @unpin-overview="emit('unpin-overview', $event)"
-      @cursor="onCursor"
-      @wheel="onOverviewWheel"
-      @pan="emit('pan', $event)"
-    />
 
     <div
       ref="bodyRef"
@@ -789,6 +801,41 @@ defineExpose({
 
 @media (prefers-reduced-motion: reduce) {
   .pr-pinned-strip {
+    transition: none;
+  }
+}
+
+.pr-pinned-overview {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  /* Same enter/leave / incremental-height pattern as `.pr-pinned-strip`. */
+  height: var(--pr-pinned-overview-h, 0px);
+  transition: height 200ms ease;
+  overflow: hidden;
+  z-index: 6;
+  /* No wrapper border — last overview track inset uses --pr-divider (#3a3a3a),
+     matching swimlane / gutter lane seams (not the brighter #555 pin-strip chrome). */
+  background: #1f1f1f;
+}
+
+.pr-pinned-overview.pr-pinned-overview-enter-from,
+.pr-pinned-overview.pr-pinned-overview-leave-to {
+  height: 0;
+}
+
+.pr-pinned-overview-enter-active,
+.pr-pinned-overview-leave-active {
+  pointer-events: none;
+}
+
+.pr-pinned-overview :deep(.pr-overview-charts) {
+  /* Strip height is driven by the wrapper; drop the charts root border so the
+     seam is only the track divider (same color as lane separators). */
+  border-bottom: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-pinned-overview {
     transition: none;
   }
 }

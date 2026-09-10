@@ -32,9 +32,9 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 ### Pinned lanes (sticky strip)
 
-When **pinnedLaneIds** is non-empty, a **fixed strip** at the top of the swim body (below overview/axis chrome, above the scrolling lane body) renders **duplicate** leaf rows for each pinned id, in pin order. Original rows stay in the main scroll model at their tree positions.
+When **pinnedLaneIds** is non-empty, a **fixed strip** of pinned leaf rows renders **below** sticky overview pins (when present) and **above** the scrolling lane body, in pin order. Original rows stay in the main scroll model at their tree positions.
 
-When **pinnedOverviewIds** is non-empty, a sticky **OverviewCharts** strip (`variant=strip`) renders **below** the lane pin strip and **above** the scrolling body, in overview pin order (PyPTO counter-thread pin parity). Unpinned 统计分析 tracks live at the top of the scroll body under a Card-like collapsible header and move with `scrollY`. Wheel over overview (scroll or sticky) is forwarded to the body canvas `handleWheel` (same scroll / trackpad pan / Ctrl+zoom as Card strips); chart-column drag emits `pan`. Collapse of the scrolling 统计分析 section tweens over **200ms** (`animateProgress`, same as PR-SWIMVIEW-026 / PR-OV-013): body `contentTopPad` / `overviewContentPad` interpolates with `collapseVisible` so the canvas does not jump; strip variant does not section-collapse.
+When **pinnedOverviewIds** is non-empty, a sticky **OverviewCharts** strip (`variant=strip`) renders **above** the lane pin strip and **above** the scrolling body, in overview pin order (PyPTO counter-thread pin parity). Unpinned 统计分析 tracks live at the top of the scroll body under a Card-like collapsible header and move with `scrollY`. Wheel over overview (scroll or sticky) is forwarded to the body canvas `handleWheel` (same scroll / trackpad pan / Ctrl+zoom as Card strips); chart-column drag emits `pan`. Collapse of the scrolling 统计分析 section tweens over **200ms** (`animateProgress`, same as PR-SWIMVIEW-026 / PR-OV-013): body `contentTopPad` / `overviewContentPad` interpolates with `collapseVisible` so the canvas does not jump; strip variant does not section-collapse.
 
 | Concern | Behavior |
 |---------|----------|
@@ -50,7 +50,7 @@ When **pinnedOverviewIds** is non-empty, a sticky **OverviewCharts** strip (`var
 
 Stacking: pinned strip sits above the scrolling lane body and below Card strips in the scroll region (`z-index` between measure chrome and Card strips — lane rows only, no overlap with Card band interaction).
 
-**Strip animation.** The pinned strip appears/disappears over **200ms**: its height tweens through a `--pr-pinned-h` custom property (0 ↔ N·`LANE_HEIGHT`), so pinning/unpinning the first/last lane grows/shrinks the strip smoothly and the body below reflows at the same rate instead of jumping. Incremental pins while the strip is visible animate the same way (N·22 ↔ (N±1)·22). `prefers-reduced-motion: reduce` drops the transition.
+**Strip animation.** The pinned **lane** strip appears/disappears over **200ms**: its height tweens through a `--pr-pinned-h` custom property (0 ↔ N·`LANE_HEIGHT`), so pinning/unpinning the first/last lane grows/shrinks the strip smoothly and the body below reflows at the same rate instead of jumping. Incremental pins while the strip is visible animate the same way (N·22 ↔ (N±1)·22). The pinned **overview** strip uses the same pattern via `--pr-pinned-overview-h` (0 ↔ N·`OVERVIEW_LANE_H`). `prefers-reduced-motion: reduce` drops both transitions.
 
 ## Acceptance Criteria
 
@@ -81,7 +81,8 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 25. **PR-SWIMVIEW-025** — Pinned strip appears/disappears over 200ms via `--pr-pinned-h` height transition; enter/leave collapse to `height: 0`; `prefers-reduced-motion: reduce` drops the transition.
 26. **PR-SWIMVIEW-026** — Collapsing/expanding a Card or folder slides the content: the canvas rows/events below the group shift up/down and the collapsing subtree fades (`collapseAnim` → `SwimlaneCanvas.setCollapseAnim`), Card strips below the collapsed Card shift with the same offset, and the gutter collapse wrapper animates height + opacity. Folder tweens also crossfade ghost `summaryEvents` (α = 1 − visible) with child events (α = visible). Dependency strokes to/from the animating subtree stay hidden for the tween; other connectors keep drawing. Driven by a 200ms `animateProgress` tween owned by `ProfilingReport`; a mid-tween re-click reverses from the current progress; instant under `prefers-reduced-motion: reduce`.
 27. **PR-SWIMVIEW-027** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
-28. **PR-SWIMVIEW-028** — Non-empty **pinnedOverviewIds** with matching `overviewSeries` renders sticky overview strip (`data-testid=pinned-overview-charts`) below the lane pin strip and above the scroll body, in pin order.
+28. **PR-SWIMVIEW-028** — Non-empty **pinnedOverviewIds** with matching `overviewSeries` renders sticky overview strip (`data-testid=pinned-overview-charts`) **above** the lane pin strip and above the scroll body, in pin order.
+29. **PR-SWIMVIEW-029** — Pinned overview strip appears/disappears over 200ms via `--pr-pinned-overview-h` height transition; enter/leave collapse to `height: 0`; incremental pin count changes animate the same way; `prefers-reduced-motion: reduce` drops the transition.
 
 ## Visual
 
@@ -107,6 +108,8 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-10** — PR-SWIMVIEW-028: sticky overview pins stack **above** the lane pin strip (was below).
+- **2026-09-10** — PR-SWIMVIEW-029: pinned overview strip height tweens like the lane pin strip (`--pr-pinned-overview-h`, 200ms).
 - **2026-09-10** — 统计分析 section collapse/expand tweens pad + track height/opacity over 200ms (`PR-OV-013`); mid-tween reverse + reduced-motion instant.
 - **2026-09-08** — Pinned-strip height and body content height account for multi-row leaf `rowCount` (`PR-SWIMVIEW-027`).
 - **2026-09-07** — Pinned strip applies selection gray-muting like the body; only dependency Beziers stay body-only (`PR-SWIMVIEW-016`).
