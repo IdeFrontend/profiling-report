@@ -1039,11 +1039,10 @@ describe('PR-RENDER: lane chrome color', () => {
   it('PR-RENDER-039: ClearType label quad origin snaps to integer device px', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    // Glyph quads draw 1:1 with NEAREST sampling (shrink uses the same texture at scaleX);
-    // a half-pixel origin (odd visible width or the event's -0.5 optical nudge) shifts the
-    // baked ClearType subpixel RGB off the display grid. Both axes round the origin.
-    expect(webglSrc).toMatch(/const drawW = glyph\.scaleX === 1 \? glyph\.width : glyph\.width \* glyph\.scaleX/);
-    expect(webglSrc).toMatch(/const gx = Math\.round\(anchor\.cx - drawW \/ 2\)/);
+    // Glyph quads draw 1:1 with NEAREST sampling; a half-pixel origin (odd visible width or the
+    // event's -0.5 optical nudge) shifts the baked ClearType subpixel RGB off the display grid.
+    // Both axes must round the quad origin to a whole device pixel.
+    expect(webglSrc).toMatch(/const gx = Math\.round\(anchor\.cx - glyph\.width \/ 2\)/);
     expect(webglSrc).toMatch(/const gy = Math\.round\(cy - glyph\.height \/ 2\)/);
   });
 

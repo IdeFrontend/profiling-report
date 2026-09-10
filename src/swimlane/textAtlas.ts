@@ -11,7 +11,7 @@ export interface TextGlyph {
   texture: WebGLTexture;
   width: number;
   height: number;
-  /** Horizontal shrink from `fitEventLabel`; 1 for draw/truncate. Applied at draw time, not baked. */
+  /** Horizontal shrink from `fitEventLabel`; 1 when already baked into the bitmap. */
   scaleX: number;
 }
 
@@ -134,6 +134,10 @@ interface Atlas2d {
   measureText(text: string): TextMetricsLike;
   fillRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
+  save(): void;
+  restore(): void;
+  translate(x: number, y: number): void;
+  scale(x: number, y: number): void;
 }
 
 export class TextAtlas {
@@ -155,10 +159,11 @@ export class TextAtlas {
   }
 
   /**
-   * Rasterize + upload `text`, cached by `(sizePx, drawn text)`. Fit still uses rounded
-   * `maxWidth` (draw / shrink / truncate / skip); shrink is a draw-time `scaleX` on the
-   * full-text glyph so pan/zoom that only changes clip width reuses the texture. Returns
-   * null when the platform lacks `OffscreenCanvas` or the label is too narrow to draw.
+   * Rasterize + upload `text`. Draw/truncate cache by `(sizePx, drawn text)` so clip-width
+   * pan reuses the texture. Shrink bakes `scaleX` into a 1:1 ClearType glyph (keyed with
+   * integer `maxWidth`) — GPU-scaling a full-size texture shears subpixel RGB and clips
+   * the first letter at the event edge. Returns null when the platform lacks
+   * `OffscreenCanvas` or the label is too narrow to draw.
    */
   get(
     gl: WebGL2RenderingContext,
@@ -183,15 +188,18 @@ export class TextAtlas {
 
     const scaleX = fit.kind === 'shrink' ? fit.scaleX : 1;
     const drawn = fit.text;
-    const key = `${fontSizePx}\0${drawn}`;
+    // Draw/truncate share one glyph per string. Shrink must not: a 0.8-baked texture
+    // drawn 1:1 at a wider clip would clip letters, and GPU-scaling a 1.0 texture
+    // breaks ClearType (NEAREST minify) the same way.
+    const key = scaleX === 1 ? `${fontSizePx}\0${drawn}` : `${fontSizePx}\0${drawn}\0${widthPx}`;
     const cached = this.glyphs.get(key);
     if (cached) {
       this.glyphs.delete(key);
       this.glyphs.set(key, cached);
-      return scaleX === 1 ? cached : { ...cached, scaleX };
+      return cached;
     }
 
-    const raster = this.rasterize(drawn, fontSizePx, pad);
+    const raster = this.rasterize(drawn, fontSizePx, pad, scaleX);
     if (!raster) return null;
 
     const texture = gl.createTexture();
@@ -203,8 +211,7 @@ export class TextAtlas {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, raster.canvas);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    // Draw/truncate quads are 1:1 with NEAREST so the ClearType fringe stays on the pixel
-    // grid. Shrink scales that same texture at draw time (ratio ≥ 0.8, so minification is mild).
+    // Glyph quads draw 1:1 (including baked shrink), so NEAREST keeps the subpixel RGB fringe.
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.bindTexture(gl.TEXTURE_2D, null);
@@ -213,7 +220,7 @@ export class TextAtlas {
     this.glyphs.set(key, glyph);
     this.bytes += raster.w * raster.h * 4;
     this.evictOverBudget(gl);
-    return scaleX === 1 ? glyph : { ...glyph, scaleX };
+    return glyph;
   }
 
   private ensureProbe(fontSizePx: number): Atlas2d | null {
@@ -261,10 +268,11 @@ export class TextAtlas {
     drawn: string,
     fontSizePx: number,
     pad: number,
+    scaleX: number,
   ): { canvas: OffscreenCanvas; w: number; h: number } | null {
     const probe = this.probeCtx;
     if (!probe) return null;
-    const inkW = Math.max(1, Math.ceil(this.measureWidth(probe, fontSizePx, drawn)));
+    const inkW = Math.max(1, Math.ceil(this.measureWidth(probe, fontSizePx, drawn) * scaleX));
     const w = inkW + pad * 2;
     const h = Math.ceil(fontSizePx * 1.5);
 
@@ -288,7 +296,13 @@ export class TextAtlas {
     const m = ctx.measureText(drawn);
     const { baselineY, baseline } = centeredTextBaseline(m, h / 2);
     ctx.textBaseline = baseline;
-    ctx.fillText(drawn, w / 2, baselineY);
+    // Horizontal-only shrink around the glyph center; bake into the bitmap so the quad
+    // stays 1:1 with NEAREST (GPU-scaling a ClearType texture clips/shears the first letter).
+    ctx.save();
+    ctx.translate(w / 2, baselineY);
+    ctx.scale(scaleX, 1);
+    ctx.fillText(drawn, 0, 0);
+    ctx.restore();
     return { canvas, w, h };
   }
 

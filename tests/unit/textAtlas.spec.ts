@@ -84,6 +84,10 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     }
     fillRect(): void {}
     fillText(): void {}
+    save(): void {}
+    translate(): void {}
+    scale(): void {}
+    restore(): void {}
   }
   class FakeCanvas {
     constructor(public width: number, public height: number) {}
@@ -178,18 +182,20 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(wide.scaleX).toBe(1);
   });
 
-  it('PR-RENDER-038: shrink reuses the full-text glyph and returns scaleX', () => {
+  it('PR-RENDER-038: shrink bakes scaleX into a 1:1 glyph (not a GPU-scaled full-text texture)', () => {
     vi.stubGlobal('OffscreenCanvas', FakeCanvas);
-    const atlas = new TextAtlas(1600);
+    const atlas = new TextAtlas(50_000);
     const ten = 'abcdefghij'; // measured 10; 8–9 → shrink; 10 → draw
     const shrunk = atlas.get(gl, ten, 12, 9)!;
-    expect(shrunk.scaleX).toBe(0.9);
+    expect(shrunk.scaleX).toBe(1);
+    // 9/10 vs 8/10 bake different widths; must not share a GPU-scaled texture.
     const tighter = atlas.get(gl, ten, 12, 8)!;
-    expect(tighter.texture).toBe(shrunk.texture);
-    expect(tighter.scaleX).toBe(0.8);
+    expect(tighter.texture).not.toBe(shrunk.texture);
+    expect(tighter.width).toBeLessThan(shrunk.width);
+    // Draw (fits) is a third glyph — reusing a shrink-bake would clip letters.
     const full = atlas.get(gl, ten, 12, 10)!;
-    expect(full.texture).toBe(shrunk.texture);
-    expect(full.scaleX).toBe(1);
+    expect(full.texture).not.toBe(shrunk.texture);
+    expect(full.width).toBeGreaterThan(shrunk.width);
   });
 
   it('PR-RENDER-038: truncate keys by drawn text so shared prefixes reuse the glyph', () => {

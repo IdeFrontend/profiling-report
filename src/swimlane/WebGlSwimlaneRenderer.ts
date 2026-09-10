@@ -888,18 +888,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const cy = r.y + r.h / 2;
-      // Snap the quad origin to device pixels: draw/truncate quads are 1:1 with NEAREST
-      // sampling, so a half-pixel origin (odd visible width or the event's -0.5 optical nudge)
-      // shifts the baked ClearType subpixel RGB off the display grid and leaves the fringe
-      // colored/soft. Shrink uses the same texture at `scaleX` (fit ≥ 0.8).
-      const drawW = glyph.scaleX === 1 ? glyph.width : glyph.width * glyph.scaleX;
-      const gx = Math.round(anchor.cx - drawW / 2);
+      // Snap the quad origin to device pixels: glyphs are drawn 1:1 with NEAREST sampling, so a
+      // half-pixel origin (odd visible width or the event's -0.5 optical nudge) shifts the baked
+      // ClearType subpixel RGB off the display grid and leaves the fringe colored/soft.
+      const gx = Math.round(anchor.cx - glyph.width / 2);
       const gy = Math.round(cy - glyph.height / 2);
       gl.uniform4f(
         prog.uSizePos,
-        drawW / devW,
+        glyph.width / devW,
         glyph.height / devH,
-        -1 + (2 * gx + drawW) / devW,
+        -1 + (2 * gx + glyph.width) / devW,
         1 - (2 * gy + glyph.height) / devH,
       );
       // Clip the opaque label quad to its event's fill rect. WebGL scissor uses bottom-left
