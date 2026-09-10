@@ -430,7 +430,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         type="button"
         class="pr-tabs__tab"
         disabled
-        :title="t('phase2', locale)"
+        data-testid="tab-source"
+        :title="t('tabsNotSupported', locale)"
       >
         {{ t('tabSource', locale) }}
       </button>
@@ -438,7 +439,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         type="button"
         class="pr-tabs__tab"
         disabled
-        :title="t('phase2', locale)"
+        data-testid="tab-detail"
+        :title="t('tabsNotSupported', locale)"
       >
         {{ t('tabDetail', locale) }}
       </button>
@@ -446,7 +448,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         type="button"
         class="pr-tabs__tab"
         disabled
-        :title="t('phase2', locale)"
+        data-testid="tab-cache"
+        :title="t('tabsNotSupported', locale)"
       >
         {{ t('tabCache', locale) }}
       </button>

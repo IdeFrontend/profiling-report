@@ -45,7 +45,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-------|-------------|
 | `SwimlaneModel.minTime` / `maxTime` (ns) | **Required** |
 | `SwimlaneViewState` visible window | **Required** (defaults to full range) |
-| Display unit preference | **Optional** — `TimeDisplayMode` (`'time'` auto-scale / `'cycles'` CPU clocks), gated on OpBasicInfo freq ([UI-40](../context/questions/UI.md), [UI-40a](../context/decisions/interim/UI.md)); cycle source open [UI-45](../context/questions/UI.md) |
+| Display unit preference | **Optional** — `TimeDisplayMode` (`'time'` auto-scale / `'cycles'` derived CPU clocks), gated on OpBasicInfo freq ([UI-40](../context/decisions/UI.md), [UI-45](../context/decisions/UI.md)) |
 
 ---
 
@@ -89,7 +89,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Input | Requirement |
 |-------|-------------|
 | Hovered/selected `SwimEvent` name + timing | **Required** for tooltip/detail |
-| Time unit for display | **Configurable** (UI-40) |
+| Time unit for display | **Configurable** ([UI-40](../context/decisions/UI.md) / [UI-45](../context/decisions/UI.md)) |
 | Source paths / PC / dep mini-graph | **Optional** — P2 |
 
 ---
@@ -208,9 +208,9 @@ Omit panel when neither source yields fields. 更多 navigates in-aside + still 
 
 ---
 
-### 15. Secondary tabs (OP / Source / Details / Cache) — P2
+### 15. Secondary tabs (OP / Source / Details / Cache)
 
-Data contracts still open (UI-37). Do not block Timeline MVP.
+**源码 / 详情 / 缓存** remain in chrome but are **disabled** ([UI-37](../context/decisions/UI.md)). No tab surfaces or data contracts this product phase. Timeline only.
 
 ---
 

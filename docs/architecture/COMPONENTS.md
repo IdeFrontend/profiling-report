@@ -215,7 +215,7 @@ Hierarchical folder/leaf labels and utilization mini-bars, scroll-synced with th
 
 ### `TimeAxis` (M)
 
-Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**. **Two-tier auto ([UI-40a](../context/decisions/interim/UI.md)):** axis/cursor chrome from viewport/density `timeScaleUnit`; tooltip/detail/Δt use per-value magnitude. No manual ms/µs/ns dropdown; display mode is **Time (auto)** or **CPU clocks** when OpBasicInfo freq is present (tooltip + detail only; axis/cursor stay wall time).
+Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times are **nanoseconds**. **Two-tier auto ([UI-40](../context/decisions/UI.md)):** axis/cursor chrome from viewport/density `timeScaleUnit`; tooltip/detail/Δt use per-value magnitude. No manual ms/µs/ns dropdown; display mode is **Time (auto)** or **CPU clocks** when OpBasicInfo freq is present — derived per [UI-45](../context/decisions/UI.md) (tooltip + detail only; axis/cursor stay wall time).
 
 **Why:** Shared alignment for overview charts and swimlane; playhead per INTERACTIONS.
 
@@ -306,7 +306,7 @@ Pin/context actions and multi-select aggregate table.
 | Concern | Owner |
 |---------|--------|
 | VS Code performance explorer / tree | MSTT host |
-| Secondary tabs OP算子 / 源码 / 详情 / 缓存 (beyond Timeline shell) | Host or later library tab strip (P2 product decision) |
+| Secondary tabs OP算子 / 源码 / 详情 / 缓存 (beyond Timeline shell) | Library chrome shows tabs; **源码 / 详情 / 缓存** disabled ([UI-37](../context/decisions/UI.md)) — no surfaces |
 | Insight `.bin` viewing | MindStudio Insight |
 | PyPTO compute-graph three-column shell | pypto-tools until/unless adapted |
 

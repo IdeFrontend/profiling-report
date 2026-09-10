@@ -161,7 +161,7 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     await flushPromises();
     expect(wrapper.get('[data-testid="time-display-mode"]').attributes('value')).toBe('cycles');
 
-    // Freq disappears → fall back to wall time (UI-40a).
+    // Freq disappears → fall back to wall time (UI-40 / UI-45).
     await wrapper.setProps({ reportModel: emptyReportViewModel() });
     await flushPromises();
     expect(wrapper.get('[data-testid="time-display-mode"]').attributes('value')).toBe('time');

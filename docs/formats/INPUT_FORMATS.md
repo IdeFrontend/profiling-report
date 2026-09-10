@@ -224,8 +224,8 @@ Operator-level (one row per profiled OP in the sample).
 | `Mix Block Dim` | yes | — |
 | `Device Id` | yes | — |
 | `Pid` | yes | 进程ID (aside meta **进程**) |
-| `Current Freq` | yes | Hardware overlay / OpBasicInfo dump; **not** on the v930 header |
-| `Rated Freq` | yes | Same as Current Freq — not on the aside shell |
+| `Current Freq` | yes | Hardware overlay / OpBasicInfo dump; **not** on the v930 header. Also feeds **CPU clocks** display — derived `cycles = ns × freqMHz / 1000` with Current when valid, else Rated ([UI-45](../context/decisions/UI.md)); not `HardwareInfo.jsonl` `ai_core_frequency_MHZ` |
+| `Rated Freq` | yes | Same as Current Freq — not on the aside shell; fallback MHz for derived cycles ([UI-45](../context/decisions/UI.md)) |
 
 ### 3.2 `HardwareInfo.jsonl`
 

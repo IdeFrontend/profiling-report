@@ -12,7 +12,7 @@ Sketches place the viewer inside a VS Code–like IDE with:
 - Secondary nav: **OP算子** | **时间线** (Timeline) | **源码** | **详情** | **缓存**
 - Left activity bar / explorer (host-owned in MSTT; not part of the Vue library shell)
 
-**MVP:** implement the **Timeline** experience as the primary (and only required) view. Other secondary tabs remain in scope for Phase 2+ (see [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
+**MVP:** implement the **Timeline** experience as the primary (and only active) view. **源码 / 详情 / 缓存** stay visible and **disabled** ([UI-37](../context/decisions/UI.md); see [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
 
 Primary overview sketches: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg`.
 

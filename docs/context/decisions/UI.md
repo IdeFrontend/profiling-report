@@ -122,3 +122,33 @@ Format and statuses: [README.md](README.md).
 - **Decision:** **Filter + highlight**: search filters non-matching rows and highlights the matching substring (flush chip), on both compute and memory.
 - **Specs:** [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md), [UX_SPEC](../../ui/UX_SPEC.md)
 - **Source:** PR [#52](https://github.com/IdeFrontend/profiling-report/pull/52).
+
+---
+
+## UI-37 (was: Q10)
+
+- **Resolved:** 2026-09-10
+- **Question:** Source / Details / Cache tabs?
+- **Decision:** Secondary tabs **源码 / 详情 / 缓存** stay in chrome but are **disabled**; only **时间线** is active. No tab surfaces or data contracts in this product phase. OP算子 remains brand / multi-op selector, not a mode tab.
+- **Specs:** [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md)
+- **Source:** Product answer in chat (2026-09-10).
+
+---
+
+## UI-40 (was: Q14)
+
+- **Resolved:** 2026-09-10
+- **Question:** Time units UX?
+- **Decision:** Display mode is **时间（自动）** vs **CPU 时钟周期** (gated on valid OpBasicInfo freq). Wall time is **two-tier auto**: viewport/overview chrome (axis, cursor) from visible span / axis density; tooltip, detail Start·End·Duration, and measure/gap Δt use per-value magnitude units. **No** manual s/ms/µs/ns dropdown. Cycle conversion details owned by [UI-45](UI.md).
+- **Specs:** [format-time.spec.md](../../../specs/core/format-time.spec.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [INTERACTIONS](../../ui/INTERACTIONS.md), [COMPONENTS](../../architecture/COMPONENTS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [ProfilingReport.spec.md](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
+- **Source:** Product confirmation of shipping UX formerly interim UI-40a (2026-09-10).
+
+---
+
+## UI-45 (was: Q23 / HQ 38)
+
+- **Resolved:** 2026-09-10
+- **Question:** Timeline CPU clocks — true vs derived? Scope for axis / cursor / measure?
+- **Decision:** Use **derived** cycles: `cycles = ns × freqMHz / 1000` with `freqMHz` = OpBasicInfo `Current Freq` when valid, else `Rated Freq` (MHz; not HardwareInfo `ai_core_frequency_MHZ`). Integer, space-grouped, no suffix, no leading zeroes; cycle domain is trace-relative (`ns − model.minTime`). Scope = **event tooltip + event detail strip only**; axis ticks, cursor, and measure Δt stay in wall time. Not per-event `*_total_cycles`; display conversion only. Hide clocks option when freq missing/invalid; fall back to time if freq disappears while in cycles.
+- **Specs:** [format-time.spec.md](../../../specs/core/format-time.spec.md), [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [INTERACTIONS](../../ui/INTERACTIONS.md)
+- **Source:** Product confirmation of interim choice A (2026-09-10).

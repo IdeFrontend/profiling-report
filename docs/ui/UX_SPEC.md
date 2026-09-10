@@ -40,8 +40,8 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 
 ### Phasing
 
-- **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select).
-- **P2:** Secondary tabs (OP算子 / 源码 / 详情 / 缓存), roofline, memory topology, hardware aside, deps, multiselect, context menu.
+- **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select). Secondary tabs **源码 / 详情 / 缓存** visible and disabled ([UI-37](../context/decisions/UI.md)).
+- **P2:** Roofline polish, hardware aside depth, deps extras, multiselect, context menu. Mid-row gutter 统计 deferred ([UI-47](../context/questions/deferred.md)).
 
 Fidelity of lane content depends on trace richness. Product **target** is sketch-like multi-core lanes ([questions](../context/questions/) DATA-31); sample fixture may be thinner. UX still applies; empty or thinner data **hides** optional surfaces ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)).
 
@@ -131,15 +131,15 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Success** | User sees predecessors/successors or slice aggregates |
 | **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
 
-### S9 — Switch analysis mode via secondary tabs (P2)
+### S9 — Secondary tabs (disabled)
 
 | | |
 |--|--|
-| **Goal** | Move between Timeline and OP / Source / Details / Cache modes |
-| **Trigger** | Click secondary tab |
-| **Steps** | Preserve report identity; load tab-specific surface; Timeline state retained when returning |
-| **Success** | User can leave Timeline and return without re-opening the file |
-| **Sketches** | Tab chrome in `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, etc. |
+| **Goal** | Tab chrome shows analysis modes; only Timeline is usable |
+| **Trigger** | User sees 源码 / 详情 / 缓存 |
+| **Steps** | Tabs are present and **disabled** — no navigation, no surfaces |
+| **Success** | Timeline remains the only active mode ([UI-37](../context/decisions/UI.md)) |
+| **Sketches** | Tab chrome in `source/v930/entry.jpeg` |
 
 ---
 
@@ -154,7 +154,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 
 | Element | MVP | Notes |
 |---------|-----|-------|
-| Secondary tabs: OP算子 / **时间线** / 源码 / 详情 / 缓存 | Timeline only | Others P2 |
+| Secondary tabs: OP算子 / **时间线** / 源码 / 详情 / 缓存 | Timeline active; others **disabled** ([UI-37](../context/decisions/UI.md)) | No tab surfaces this phase |
 | Toolbar | Search, zoom, toggle aside | Extra icons P2 |
 | Main Timeline layout | Gutter + overview + swimlane + aside + detail | See UI_OVERVIEW |
 
@@ -272,12 +272,12 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 1. MVP: read PIPE bars in aside.
 2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the substring; inspect values (`source/v930/compute-load-detail.jpeg`).
 
-### Flow S6–S9 (P2)
+### Flow S6–S9
 
 - **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → optional **全屏** overlay or details list.
 - **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/decisions/DATA.md)).
 - **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
-- **S9:** Click 源码 / 详情 / 缓存 / OP算子 → different main surface; return to 时间线 restores view state.
+- **S9:** 源码 / 详情 / 缓存 remain **disabled** ([UI-37](../context/decisions/UI.md)); Timeline only.
 
 ---
 
