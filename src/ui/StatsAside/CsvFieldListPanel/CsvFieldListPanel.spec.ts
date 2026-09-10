@@ -47,6 +47,8 @@ describe('CsvFieldListPanel', () => {
     });
 
     expect(wrapper.get('[data-testid="csv-block"]').element).toHaveProperty('value', '0');
+    // Shared block-pill chrome (tokens.css) — the PIPE card uses the same class.
+    expect(wrapper.get('[data-testid="csv-block"]').classes()).toContain('pr-block-pill');
     await wrapper.get('[data-testid="csv-block"]').setValue('1');
     expect(wrapper.text()).toContain('0.3');
     expect(wrapper.text()).toContain('NA');
