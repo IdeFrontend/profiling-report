@@ -1187,6 +1187,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 
     <!-- Persistent dock shell: single/multi selection swap content, not the container.
          The shared height survives mode switches so the panel does not animate from 0. -->
+    <Transition name="pr-dock">
     <footer
       v-if="showTimeline && (selected || multiSelected.length)"
       class="pr-dock"
@@ -1219,6 +1220,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         @update:dependency-mode="onDependencyMode"
       />
     </footer>
+    </Transition>
 
     <Transition
       name="pr-topo-fs"
@@ -1334,8 +1336,25 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-height: 0;
 }
 
+.pr-dock-enter-active,
+.pr-dock-leave-active {
+  transition:
+    transform 220ms ease,
+    opacity 220ms ease;
+}
+
+.pr-dock-enter-from,
+.pr-dock-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pr-dock {
+    transition: none;
+  }
+  .pr-dock-enter-active,
+  .pr-dock-leave-active {
     transition: none;
   }
 }
