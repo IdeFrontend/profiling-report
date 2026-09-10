@@ -167,8 +167,9 @@ Hide when no usable GM point. M3 swaps formulas when Product closes DATA-37.
 
 | Input | Requirement |
 |-------|-------------|
-| Static SVG topology asset | **Required** for diagram chrome |
+| Static SVG topology asset | **Provided** — `src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg` (official export: static labels, arrows, value plates; sample values stripped in-repo) |
 | Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) §11.2.6 + selected block. **Hide `NA`; show 0.** L2↔L1 from `Memory.csv`. UB: `MemoryUB.csv` names first, then `Memory.csv` sample names |
+| Value **slots** | Fixed positions in the chrome for the edges that have one ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) § Value slots); `L0C → L1/L2` (KB) and the unmodelled SIMT / `%` plates have no slot |
 | Edge **thicknesses** | **Not** data-driven — keep static SVG geometry |
 | Memory* / L2Cache CSVs | **Required to show**; hide diagram if no label data |
 | Field list mode | Optional — same CSVs as memory detail tabs |

@@ -230,7 +230,7 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 
 **Note (docx):** dual-Die / Remote memory — open whether right-click details exist.
 
-**Topology edges:** redraw must show **real CSV values** on buffer connection lines (not placeholders). Sketch: [`v930/report-stats-scrolled`](./source/v930/report-stats-scrolled.jpeg) (topology SVG); CSV 详情 is [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg).
+**Topology edges:** the panel renders the official chrome [`memory-topology.svg`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) — the sketch exported from Figma, with its static node labels/arrows intact and its sample values stripped in-repo — and overlays **real CSV values** on that chrome's value slots (not placeholders). The export carries no KB slot, so `L0C → L1` / `L0C → L2` datagrams appear only in the CSV 详情, and its SIMT links plus 9 in-box `%` plates stay blank (no adapter edge). Sketch: [`v930/report-stats-scrolled`](./source/v930/report-stats-scrolled.jpeg) (topology SVG); CSV 详情 is [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg).
 
 ### Edge → field → source (engineering mapping for M2)
 

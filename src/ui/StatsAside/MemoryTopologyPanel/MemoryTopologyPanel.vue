@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue';
+import { computed } from 'vue';
 import type { MemoryTopologyModel } from '../../../domain/types';
 import { t } from '../../../i18n';
+/** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
+ *  Its static labels stay outlined paths; the export's sample values were stripped in-repo. */
+import chromeUrl from './memory-topology.svg?url';
 
 const props = withDefaults(
   defineProps<{
@@ -16,10 +19,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   'open-details': [];
 }>();
-
-const uid = useId().replace(/[^A-Za-z0-9_-]/g, '');
-const writeMarker = `pr-topo-write-${uid}`;
-const readMarker = `pr-topo-read-${uid}`;
 
 const show = computed(() => {
   const m = props.model;
@@ -38,24 +37,47 @@ function onContextMenu(e: MouseEvent) {
   if (props.openDetailsOnContextmenu) emit('open-details');
 }
 
-/** Pillars + clusters leave GM↔L2 and L2↔cluster corridors for rotated GB/s labels. */
-const GM = { x: 10, y: 28, w: 22, h: 464 };
-const L2 = { x: 50, y: 28, w: 30, h: 464 };
-const CL = { x: 128, w: 324, h: 148 };
-const ROW = { aiv0: 28, aic: 186, aiv1: 344 };
-const GM_L2_X = (GM.x + GM.w + L2.x) / 2;
-const L2_W_X = L2.x + L2.w + 16;
-const L2_R_X = CL.x - 16;
+/**
+ * Value slots of the chrome (`memory-topology.svg`, 448×540 units), keyed by edge id.
+ * Coordinates are the centres of the values stripped from the export, so an overlaid
+ * label lands on the same link (and inside the same plate) the design filled.
+ * Pillars: GM x16–56, L2 x94–134; rows x188–432 — AIV0 y17–197, AIC y201–339, AIV1 y343–523.
+ * Ordering follows the export's link direction: the upper label of a pair rides the link
+ * whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).
+ *
+ * Chrome slots we intentionally leave blank because the adapter computes no such edge:
+ * the AIV0/AIV1 SIMT in/out pair and the four in-row SIMT links, the UB→VEC run, the two
+ * rotated AIV↔AIC trunk labels, AIC L1→MTE1#3→BT, FixP→rail, and 9 of the 10 in-box `%`
+ * plates (the L2 plate is DATA-20 `peakPct`, see below).
+ */
+const SLOTS: Record<string, readonly (readonly [number, number])[]> = {
+  'gm-l2-read': [[74.5, 255.9]],
+  'gm-l2-write': [[75.3, 277.8]],
+  'l2-ub': [[159.7, 106.4], [159.7, 426.6]],
+  'ub-l2': [[160.4, 121.3], [159.7, 441.5]],
+  'l2-l1-read': [[159.7, 235.5]],
+  // The export routes its lower L2↔AIC corridor link on to FixP; we label it with the
+  // Memory.csv L1 write-back (`aic_l1_write_bw`), which is the same corridor.
+  'l2-l1-write': [[159.7, 273.1]],
+  'ub-vec': [[338.2, 153.4], [338.2, 473.3]],
+  'vec-ub': [[338.2, 165.2], [338.2, 485.4]],
+  'l1-l0a': [[239.7, 221.7]],
+  'l1-l0b': [[240.1, 234.3]],
+  'l0a-cube': [[302.9, 222.5]],
+  'l0b-cube': [[302.9, 235.5]],
+  'cube-l0c': [[373.5, 229.2]],
+  'l0c-cube': [[373.5, 244.5]],
+};
 
-function clx(n: number): number {
-  return CL.x + n;
-}
-function ry(row: keyof typeof ROW, n: number): number {
-  return ROW[row] + n;
-}
-function rot(x: number, y: number): string {
-  return `rotate(-90 ${x} ${y})`;
-}
+/**
+ * One entry per slot, drawn even when the edge has no `label` (empty string), so a slot
+ * that the adapter omitted stays an addressable, visibly blank plate.
+ */
+const values = computed(() =>
+  Object.entries(SLOTS).flatMap(([id, slots]) =>
+    slots.map(([x, y], i) => ({ id, x, y, key: `${id}-${i}`, text: label(id) ?? '' })),
+  ),
+);
 </script>
 
 <template>
@@ -67,625 +89,63 @@ function rot(x: number, y: number): string {
   >
     <svg
       class="pr-topo__svg"
-      viewBox="0 0 460 520"
+      viewBox="0 0 448 540"
       role="img"
       :aria-label="t('memoryTopology', locale)"
     >
-      <defs>
-        <marker
-          :id="writeMarker"
-          markerWidth="6"
-          markerHeight="6"
-          refX="5"
-          refY="3"
-          orient="auto"
-        >
-          <path
-            d="M0,0 L6,3 L0,6 Z"
-            fill="#3978f9"
-          />
-        </marker>
-        <marker
-          :id="readMarker"
-          markerWidth="6"
-          markerHeight="6"
-          refX="5"
-          refY="3"
-          orient="auto"
-        >
-          <path
-            d="M0,0 L6,3 L0,6 Z"
-            fill="#3978f9"
-          />
-        </marker>
-      </defs>
-
-      <!-- GM pillar -->
-      <rect
-        :x="GM.x"
-        :y="GM.y"
-        :width="GM.w"
-        :height="GM.h"
-        rx="3"
-        class="pr-topo__gm"
+      <image
+        :href="chromeUrl"
+        x="0"
+        y="0"
+        width="448"
+        height="540"
       />
-      <text
-        :x="GM.x + GM.w / 2"
-        y="260"
-        text-anchor="middle"
-        :transform="rot(GM.x + GM.w / 2, 260)"
-        class="pr-topo__pillar-label"
-      >GM</text>
 
-      <!-- L2 pillar (DATA-20 Peak(%) as in-box `{n}%`, flat fill per sketch) -->
+      <!-- L2 node anchor: the chrome paints the pillar, this keeps the node addressable. -->
       <rect
-        :x="L2.x"
-        :y="L2.y"
-        :width="L2.w"
-        :height="L2.h"
-        rx="3"
-        class="pr-topo__l2"
         data-testid="node-l2"
+        class="pr-topo__l2"
+        x="94"
+        y="16"
+        width="40"
+        height="508"
       />
-      <text
-        :x="L2.x + L2.w / 2"
-        :y="l2PeakPct != null ? 230 : 248"
-        text-anchor="middle"
-        :transform="rot(L2.x + L2.w / 2, l2PeakPct != null ? 230 : 248)"
-        class="pr-topo__pillar-label"
-      >L2 Cache</text>
+
+      <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. -->
       <text
         v-if="l2PeakPct != null"
-        :x="L2.x + L2.w / 2"
-        y="268"
+        x="113.8"
+        y="277.1"
         text-anchor="middle"
-        :transform="rot(L2.x + L2.w / 2, 268)"
+        dominant-baseline="middle"
         class="pr-topo__peak"
         data-testid="node-l2-peak"
       >{{ l2PeakPct.toFixed(2) }}%</text>
       <text
-        v-if="label('l2-hit') && l2PeakPct == null"
-        :x="L2.x + L2.w / 2"
-        y="486"
+        v-else-if="label('l2-hit')"
+        x="113.8"
+        y="277.1"
         text-anchor="middle"
+        dominant-baseline="middle"
         class="pr-topo__pct"
         data-testid="edge-l2-hit"
       >{{ label('l2-hit') }}</text>
 
-      <rect
-        :x="L2.x + 2"
-        y="40"
-        width="26"
-        height="32"
-        rx="2"
-        class="pr-topo__muted"
-      />
       <text
-        :x="L2.x + L2.w / 2"
-        y="59"
-        text-anchor="middle"
-        class="pr-topo__tiny"
-      >XN_IMM</text>
-      <rect
-        :x="L2.x + 2"
-        y="78"
-        width="26"
-        height="24"
-        rx="2"
-        class="pr-topo__muted"
-      />
-      <text
-        :x="L2.x + L2.w / 2"
-        y="93"
-        text-anchor="middle"
-        class="pr-topo__tiny"
-      >Data Cache</text>
-
-      <!-- GM ↔ L2 corridor. read = leaving GM (GM→L2); write = arriving at GM (L2→GM). -->
-      <path
-        :d="`M ${GM.x + GM.w} 176 L ${L2.x} 176`"
-        class="pr-topo__arrow-read"
-        :marker-end="`url(#${readMarker})`"
-      />
-      <path
-        :d="`M ${L2.x} 252 L ${GM.x + GM.w} 252`"
-        class="pr-topo__arrow-write"
-        :marker-end="`url(#${writeMarker})`"
-      />
-      <text
-        v-if="label('gm-l2-read')"
-        :x="GM_L2_X"
-        y="176"
+        v-for="v in values"
+        :key="v.key"
+        :x="v.x"
+        :y="v.y"
         text-anchor="middle"
         dominant-baseline="middle"
-        :transform="rot(GM_L2_X, 176)"
         class="pr-topo__edge"
-        data-testid="edge-gm-l2-read"
-      >{{ label('gm-l2-read') }}</text>
-      <text
-        :x="GM_L2_X"
-        y="252"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        :transform="rot(GM_L2_X, 252)"
-        class="pr-topo__edge"
-        data-testid="edge-gm-l2-write"
-      >{{ label('gm-l2-write') ?? '' }}</text>
-
-      <!-- AIV0 -->
-      <rect
-        :x="CL.x"
-        :y="ROW.aiv0"
-        :width="CL.w"
-        :height="CL.h"
-        rx="4"
-        class="pr-topo__cluster"
-      />
-      <text
-        :x="clx(8)"
-        :y="ry('aiv0', 14)"
-        class="pr-topo__cluster-title"
-      >AIV0</text>
-      <rect
-        :x="clx(16)"
-        :y="ry('aiv0', 24)"
-        width="44"
-        height="28"
-        rx="2"
-        class="pr-topo__compute"
-      />
-      <text
-        :x="clx(38)"
-        :y="ry('aiv0', 42)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >Scalar</text>
-      <rect
-        :x="clx(68)"
-        :y="ry('aiv0', 24)"
-        width="124"
-        height="108"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(130)"
-        :y="ry('aiv0', 80)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >SIMT Data Cache / UB</text>
-      <rect
-        :x="clx(200)"
-        :y="ry('aiv0', 30)"
-        width="40"
-        height="24"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(220)"
-        :y="ry('aiv0', 46)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >SIMT</text>
-      <rect
-        :x="clx(200)"
-        :y="ry('aiv0', 60)"
-        width="40"
-        height="24"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(220)"
-        :y="ry('aiv0', 76)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >SIMD</text>
-      <rect
-        :x="clx(258)"
-        :y="ry('aiv0', 24)"
-        width="36"
-        height="108"
-        rx="2"
-        class="pr-topo__compute"
-      />
-      <text
-        :x="clx(276)"
-        :y="ry('aiv0', 82)"
-        text-anchor="middle"
-        :transform="rot(clx(276), ry('aiv0', 82))"
-        class="pr-topo__node"
-      >VEC</text>
-      <path
-        :d="`M ${L2.x + L2.w} ${ry('aiv0', 72)} L ${CL.x} ${ry('aiv0', 72)}`"
-        class="pr-topo__arrow-write"
-        :marker-end="`url(#${writeMarker})`"
-      />
-      <path
-        :d="`M ${CL.x} ${ry('aiv0', 100)} L ${L2.x + L2.w} ${ry('aiv0', 100)}`"
-        class="pr-topo__arrow-read"
-        :marker-end="`url(#${readMarker})`"
-      />
-      <text
-        v-if="label('l2-ub')"
-        :x="L2_W_X"
-        :y="ry('aiv0', 72)"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        :transform="rot(L2_W_X, ry('aiv0', 72))"
-        class="pr-topo__edge"
-        data-testid="edge-l2-ub"
-      >{{ label('l2-ub') }}</text>
-      <text
-        v-if="label('ub-l2')"
-        :x="L2_R_X"
-        :y="ry('aiv0', 100)"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        :transform="rot(L2_R_X, ry('aiv0', 100))"
-        class="pr-topo__edge"
-        data-testid="edge-ub-l2"
-      >{{ label('ub-l2') }}</text>
-      <text
-        v-if="label('vec-ub')"
-        :x="clx(248)"
-        :y="ry('aiv0', 142)"
-        text-anchor="end"
-        class="pr-topo__edge"
-        data-testid="edge-vec-ub"
-      >{{ label('vec-ub') }}</text>
-      <text
-        v-if="label('ub-vec')"
-        :x="clx(108)"
-        :y="ry('aiv0', 142)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-ub-vec"
-      >{{ label('ub-vec') }}</text>
-
-      <!-- AIC -->
-      <rect
-        :x="CL.x"
-        :y="ROW.aic"
-        :width="CL.w"
-        :height="CL.h"
-        rx="4"
-        class="pr-topo__cluster"
-      />
-      <text
-        :x="clx(8)"
-        :y="ry('aic', 14)"
-        class="pr-topo__cluster-title"
-      >AIC</text>
-      <rect
-        :x="clx(16)"
-        :y="ry('aic', 28)"
-        width="40"
-        height="100"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(36)"
-        :y="ry('aic', 80)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >L1</text>
-      <rect
-        :x="clx(68)"
-        :y="ry('aic', 28)"
-        width="28"
-        height="22"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(82)"
-        :y="ry('aic', 43)"
-        text-anchor="middle"
-        class="pr-topo__tiny"
-      >L0A</text>
-      <rect
-        :x="clx(68)"
-        :y="ry('aic', 54)"
-        width="28"
-        height="22"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(82)"
-        :y="ry('aic', 69)"
-        text-anchor="middle"
-        class="pr-topo__tiny"
-      >L0B</text>
-      <rect
-        :x="clx(68)"
-        :y="ry('aic', 80)"
-        width="28"
-        height="22"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(82)"
-        :y="ry('aic', 95)"
-        text-anchor="middle"
-        class="pr-topo__tiny"
-      >LOC</text>
-      <rect
-        :x="clx(108)"
-        :y="ry('aic', 44)"
-        width="56"
-        height="56"
-        rx="2"
-        class="pr-topo__compute"
-      />
-      <text
-        :x="clx(136)"
-        :y="ry('aic', 76)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >CUBE</text>
-      <rect
-        :x="clx(176)"
-        :y="ry('aic', 44)"
-        width="44"
-        height="28"
-        rx="2"
-        class="pr-topo__fixp"
-      />
-      <text
-        :x="clx(198)"
-        :y="ry('aic', 62)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >FixP</text>
-      <rect
-        :x="clx(176)"
-        :y="ry('aic', 78)"
-        width="44"
-        height="28"
-        rx="2"
-        class="pr-topo__compute"
-      />
-      <text
-        :x="clx(198)"
-        :y="ry('aic', 96)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >Scalar</text>
-      <path
-        :d="`M ${L2.x + L2.w} ${ry('aic', 72)} L ${CL.x} ${ry('aic', 72)}`"
-        class="pr-topo__arrow-write"
-        :marker-end="`url(#${writeMarker})`"
-      />
-      <path
-        :d="`M ${CL.x} ${ry('aic', 100)} L ${L2.x + L2.w} ${ry('aic', 100)}`"
-        class="pr-topo__arrow-read"
-        :marker-end="`url(#${readMarker})`"
-      />
-      <text
-        v-if="label('l2-l1-read')"
-        :x="L2_W_X"
-        :y="ry('aic', 72)"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        :transform="rot(L2_W_X, ry('aic', 72))"
-        class="pr-topo__edge"
-        data-testid="edge-l2-l1-read"
-      >{{ label('l2-l1-read') }}</text>
-      <text
-        v-if="label('l2-l1-write')"
-        :x="L2_R_X"
-        :y="ry('aic', 100)"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        :transform="rot(L2_R_X, ry('aic', 100))"
-        class="pr-topo__edge"
-        data-testid="edge-l2-l1-write"
-      >{{ label('l2-l1-write') }}</text>
-      <text
-        v-if="label('l1-l0a')"
-        :x="clx(70)"
-        :y="ry('aic', 138)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-l1-l0a"
-      >{{ label('l1-l0a') }}</text>
-      <text
-        v-if="label('l1-l0b')"
-        :x="clx(140)"
-        :y="ry('aic', 138)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-l1-l0b"
-      >{{ label('l1-l0b') }}</text>
-      <text
-        v-if="label('l0a-cube')"
-        :x="clx(210)"
-        :y="ry('aic', 138)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-l0a-cube"
-      >{{ label('l0a-cube') }}</text>
-      <text
-        v-if="label('l0b-cube')"
-        :x="clx(280)"
-        :y="ry('aic', 138)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-l0b-cube"
-      >{{ label('l0b-cube') }}</text>
-      <text
-        v-if="label('l0c-cube')"
-        :x="clx(70)"
-        :y="ry('aic', 152)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-l0c-cube"
-      >{{ label('l0c-cube') }}</text>
-      <text
-        v-if="label('cube-l0c')"
-        :x="clx(140)"
-        :y="ry('aic', 152)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-cube-l0c"
-      >{{ label('cube-l0c') }}</text>
-      <text
-        v-if="label('l0c-l1')"
-        :x="clx(210)"
-        :y="ry('aic', 152)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-l0c-l1"
-      >{{ label('l0c-l1') }}</text>
-      <text
-        v-if="label('l0c-l2')"
-        :x="clx(280)"
-        :y="ry('aic', 152)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-l0c-l2"
-      >{{ label('l0c-l2') }}</text>
-
-      <!-- AIV1 -->
-      <rect
-        :x="CL.x"
-        :y="ROW.aiv1"
-        :width="CL.w"
-        :height="CL.h"
-        rx="4"
-        class="pr-topo__cluster"
-      />
-      <text
-        :x="clx(8)"
-        :y="ry('aiv1', 14)"
-        class="pr-topo__cluster-title"
-      >AIV1</text>
-      <rect
-        :x="clx(16)"
-        :y="ry('aiv1', 24)"
-        width="44"
-        height="28"
-        rx="2"
-        class="pr-topo__compute"
-      />
-      <text
-        :x="clx(38)"
-        :y="ry('aiv1', 42)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >Scalar</text>
-      <rect
-        :x="clx(68)"
-        :y="ry('aiv1', 24)"
-        width="124"
-        height="108"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(130)"
-        :y="ry('aiv1', 80)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >SIMT Data Cache / UB</text>
-      <rect
-        :x="clx(200)"
-        :y="ry('aiv1', 30)"
-        width="40"
-        height="24"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(220)"
-        :y="ry('aiv1', 46)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >SIMT</text>
-      <rect
-        :x="clx(200)"
-        :y="ry('aiv1', 60)"
-        width="40"
-        height="24"
-        rx="2"
-        class="pr-topo__cache"
-      />
-      <text
-        :x="clx(220)"
-        :y="ry('aiv1', 76)"
-        text-anchor="middle"
-        class="pr-topo__node"
-      >SIMD</text>
-      <rect
-        :x="clx(258)"
-        :y="ry('aiv1', 24)"
-        width="36"
-        height="108"
-        rx="2"
-        class="pr-topo__compute"
-      />
-      <text
-        :x="clx(276)"
-        :y="ry('aiv1', 82)"
-        text-anchor="middle"
-        :transform="rot(clx(276), ry('aiv1', 82))"
-        class="pr-topo__node"
-      >VEC</text>
-      <path
-        :d="`M ${L2.x + L2.w} ${ry('aiv1', 72)} L ${CL.x} ${ry('aiv1', 72)}`"
-        class="pr-topo__arrow-write"
-        :marker-end="`url(#${writeMarker})`"
-      />
-      <path
-        :d="`M ${CL.x} ${ry('aiv1', 100)} L ${L2.x + L2.w} ${ry('aiv1', 100)}`"
-        class="pr-topo__arrow-read"
-        :marker-end="`url(#${readMarker})`"
-      />
-      <text
-        v-if="label('l2-ub')"
-        :x="L2_W_X"
-        :y="ry('aiv1', 72)"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        :transform="rot(L2_W_X, ry('aiv1', 72))"
-        class="pr-topo__edge"
-      >{{ label('l2-ub') }}</text>
-      <text
-        v-if="label('ub-l2')"
-        :x="L2_R_X"
-        :y="ry('aiv1', 100)"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        :transform="rot(L2_R_X, ry('aiv1', 100))"
-        class="pr-topo__edge"
-      >{{ label('ub-l2') }}</text>
-      <text
-        v-if="label('vec-ub')"
-        :x="clx(248)"
-        :y="ry('aiv1', 142)"
-        text-anchor="end"
-        class="pr-topo__edge"
-        data-testid="edge-vec-ub"
-      >{{ label('vec-ub') }}</text>
-      <text
-        v-if="label('ub-vec')"
-        :x="clx(108)"
-        :y="ry('aiv1', 142)"
-        text-anchor="middle"
-        class="pr-topo__edge"
-        data-testid="edge-ub-vec"
-      >{{ label('ub-vec') }}</text>
+        :data-testid="`edge-${v.id}`"
+      >{{ v.text }}</text>
     </svg>
   </div>
 </template>
 
 <style scoped>
-/* Fills sampled from visual/memory-topology.png (v930/report-stats-scrolled). */
 .pr-topo {
   min-width: 0;
   background: #262626;
@@ -700,75 +160,22 @@ function rot(x: number, y: number): string {
   overflow: hidden;
 }
 
-.pr-topo__gm {
-  fill: #4d4d4d;
-}
-
+/* Transparent anchor — the chrome supplies the pillar's fill. */
 .pr-topo__l2 {
-  fill: #657294;
-}
-
-.pr-topo__peak {
-  fill: #f0f0f0;
-  font-size: 8px;
-  letter-spacing: 0.02em;
-}
-
-.pr-topo__muted {
-  fill: #4d4d4d;
-}
-
-.pr-topo__cache {
-  fill: #668cf7;
-  stroke: #85a3f9;
-  stroke-width: 1;
-}
-
-.pr-topo__compute {
-  fill: #37c18d;
-  stroke: #5ecda3;
-  stroke-width: 1;
-}
-
-.pr-topo__fixp {
-  fill: #657294;
-  stroke: #848ea9;
-  stroke-width: 1;
-}
-
-.pr-topo__cluster {
   fill: none;
-  stroke: #e8e8e8;
-  stroke-width: 1;
-  stroke-dasharray: 5 5;
 }
 
-.pr-topo__pillar-label,
-.pr-topo__cluster-title,
-.pr-topo__node {
-  fill: #f0f0f0;
-  font-size: 9px;
-}
-
-.pr-topo__tiny {
-  fill: #e8e8e8;
-  font-size: 7px;
-}
-
+/* 6.6px fills the export's 27.6-unit value plates exactly (8px overflows them). */
 .pr-topo__edge {
   fill: #f9b665;
-  font-size: 8px;
+  font-size: 6.6px;
+  font-weight: 700;
 }
 
+.pr-topo__peak,
 .pr-topo__pct {
   fill: #f0f0f0;
-  font-size: 8px;
-}
-
-.pr-topo__arrow-write,
-.pr-topo__arrow-read {
-  stroke: #3978f9;
-  stroke-width: 1.5;
-  fill: none;
+  font-size: 6.6px;
+  font-weight: 700;
 }
 </style>
