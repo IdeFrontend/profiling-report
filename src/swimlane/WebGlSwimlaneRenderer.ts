@@ -500,9 +500,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
     this.rebuildMeshes();
     this.rebuildCurveInstances();
-    // A new model invalidates every cached label glyph (names/widths differ); free the GPU
-    // textures now instead of waiting for the atlas LRU budget to evict them.
-    if (this.gl) this.atlas?.clear(this.gl);
+    // Glyphs are keyed by CSS font + drawn text, not model identity — keep the atlas across setModel
+    // so collapse/unfold and a pan that revisits names do not re-rasterize. LRU still
+    // bounds GPU memory; resize clears on dpr change (new fontPx).
   }
 
   /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */

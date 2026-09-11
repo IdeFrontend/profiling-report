@@ -32,6 +32,23 @@ import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer'
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
+/** Brace-match a class method so a reorder cannot yield an empty slice that vacuously passes. */
+function classMethodBody(src: string, name: string): string {
+  const needle = `\n  ${name}(`;
+  const at = src.indexOf(needle);
+  if (at < 0) throw new Error(`method ${name} not found`);
+  const brace = src.indexOf('{', at);
+  let depth = 0;
+  for (let i = brace; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) return src.slice(brace, i + 1);
+    }
+  }
+  throw new Error(`method ${name} unclosed`);
+}
+
 function tinyModel(): SwimlaneModel {
   return {
     minTime: 0,
@@ -1069,7 +1086,41 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     // A browser-zoom dpr change mints a new `fontPx` key for every cached glyph; resize must
     // free the old-font textures (inside `if (dprChanged)`) instead of leaving them to the LRU.
-    expect(webglSrc).toMatch(/if \(dprChanged\) \{[\s\S]*?this\.atlas\?\.clear\(gl\);/);
+    expect(classMethodBody(webglSrc, 'resize')).toMatch(/if \(dprChanged\) \{[\s\S]*?this\.atlas\?\.clear\(gl\);/);
+    // Names persist across collapse/unfold — setModel must not wipe glyphs that pan will reuse.
+    // Brace-match the method (not a slice between two names) so a reorder cannot empty the
+    // haystack and make `.not.toMatch` pass vacuously.
+    const setModel = classMethodBody(webglSrc, 'setModel');
+    expect(setModel.length).toBeGreaterThan(20);
+    expect(setModel).not.toMatch(/atlas\?\.clear/);
+  });
+
+  it('PR-RENDER-038: setModel does not delete atlas textures', () => {
+    // Pre-PR clear was `if (this.gl) this.atlas?.clear(this.gl)` at the end of setModel.
+    // Plant a stub gl so that guard is truthy; `{}` would throw in rebuildMeshes.
+    const renderer = new WebGlSwimlaneRenderer();
+    const clear = vi.fn();
+    const noop = () => {};
+    const buf = {};
+    const gl = {
+      createVertexArray: () => buf,
+      createBuffer: () => buf,
+      bindVertexArray: noop,
+      bindBuffer: noop,
+      bufferData: noop,
+      enableVertexAttribArray: noop,
+      vertexAttribPointer: noop,
+      deleteVertexArray: noop,
+      deleteBuffer: noop,
+      ARRAY_BUFFER: 34962,
+      ELEMENT_ARRAY_BUFFER: 34963,
+      STATIC_DRAW: 35044,
+      FLOAT: 5126,
+    };
+    Object.assign(renderer, { atlas: { clear }, gl });
+    renderer.setModel(tinyModel());
+    renderer.setModel(tinyModel());
+    expect(clear).not.toHaveBeenCalled();
   });
 });
 

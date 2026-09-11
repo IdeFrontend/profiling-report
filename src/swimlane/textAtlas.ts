@@ -18,11 +18,11 @@ const FONT_FAMILY = 'ui-sans-serif, system-ui, sans-serif';
 /** CSS px before DPR scale — shared by WebGL ClearType and Canvas overlay labels. */
 export const EVENT_LABEL_FONT_CSS_PX = 12;
 
-export function eventLabelFont(sizePx: number): string {
+export function eventLabelFont(sizePx: number, family: string = FONT_FAMILY): string {
   // Regular weight (400): ClearType `pow(rgb, 2.25)` on white-on-black narrows the antialiased
   // edge, but at 12px the regular stroke stays legible. Matches the live Canvas2D overlay
   // (`drawEventLabel`), which uses the same weight.
-  return `400 ${Math.max(8, Math.round(sizePx))}px ${FONT_FAMILY}`;
+  return `400 ${Math.max(8, Math.round(sizePx))}px ${family}`;
 }
 
 /** Minimal `measureText` surface — satisfied by Canvas2D and OffscreenCanvas2D contexts alike. */
@@ -120,18 +120,43 @@ export function clearTypeRasterSupported(): boolean {
 /** Upper bound on cached label texture memory (RGBA bytes); least-recently-used glyphs are evicted beyond it. */
 export const DEFAULT_MAX_GLYPH_BYTES = 16 * 1024 * 1024; // 16 MiB
 
-/** Upper bound on cached "skip" misses (labels too narrow to draw at all). */
-export const DEFAULT_MAX_MISSES = 4096;
+/** Upper bound on cached `measureText` widths (full strings + truncation prefixes). */
+export const DEFAULT_MAX_MEASURES = 16384;
+
+/** Device-px padding around rasterized ink. Not a `get()` argument — the only caller never varies it. */
+const GLYPH_PAD_PX = 2;
+
+/** 2D surface used to measure and rasterize — real OffscreenCanvas2D or the unit-test stub. */
+interface Atlas2d {
+  font: string;
+  fillStyle: string;
+  textAlign: string;
+  textBaseline: CanvasTextBaseline | string;
+  measureText(text: string): TextMetricsLike;
+  fillRect(x: number, y: number, w: number, h: number): void;
+  fillText(text: string, x: number, y: number): void;
+  save(): void;
+  restore(): void;
+  translate(x: number, y: number): void;
+  scale(x: number, y: number): void;
+}
 
 export class TextAtlas {
   private glyphs = new Map<string, TextGlyph>();
+  private measures = new Map<string, number>();
   private bytes = 0;
-  /** Cached `fitEventLabel` skips — a label that can't fit is remembered so it isn't re-probed each frame. */
-  private misses = new Set<string>();
+  private probeCtx: Atlas2d | null | undefined;
+  private probeFont = '';
+  private rasterCanvas: OffscreenCanvas | null = null;
+  private rasterCtx: Atlas2d | null = null;
+  /** Last size `eventLabelFont` was built for — skip the per-label string alloc on the hot path. */
+  private fontPx = 0;
+  private font = '';
 
   constructor(
     private readonly maxBytes = DEFAULT_MAX_GLYPH_BYTES,
-    private readonly maxMisses = DEFAULT_MAX_MISSES,
+    private readonly maxMeasures = DEFAULT_MAX_MEASURES,
+    private readonly fontFamily = FONT_FAMILY,
   ) {}
 
   static isSupported(): boolean {
@@ -139,69 +164,55 @@ export class TextAtlas {
   }
 
   /**
-   * Rasterize + upload `text`, cached by `(sizePx, maxWidth, text)`. Returns null when the
-   * platform lacks `OffscreenCanvas` (jsdom, older browsers) or the label is too narrow to draw
-   * (a cached miss) — callers must fall back to the grayscale Canvas2D overlay.
+   * Rasterize + upload `text`. Draw/truncate cache by `(CSS font, drawn text)` so clip-width
+   * pan reuses the texture. Shrink bakes `scaleX` into a 1:1 ClearType glyph (keyed with
+   * integer `maxWidth`) — GPU-scaling a full-size texture shears subpixel RGB and clips
+   * the first letter at the event edge. CSS font is `eventLabelFont(fontSizePx, fontFamily)`
+   * (weight + size + family) so a later themed stack cannot reuse the wrong bitmap. The CSS
+   * string is memoized on `fontSizePx` so a dense frame does not rebuild it per label.
+   * Returns null when the platform lacks `OffscreenCanvas` or the label is too narrow to draw.
    */
   get(
     gl: WebGL2RenderingContext,
     text: string,
     fontSizePx: number,
     maxWidth: number,
-    pad = 2,
   ): TextGlyph | null {
-    // Bucket the width to integer device px before it enters the key or `fitEventLabel`.
-    // `eventLabelAnchor` supplies a continuous float (`visibleW - 8`), so a pan/zoom nudging a
-    // partially-clipped label a fraction of a pixel would otherwise mint a fresh texture every
-    // frame and churn the 16 MiB LRU. Rounding collapses sub-pixel drift into one key and keeps
-    // the fit decision consistent with the cached texture.
+    // Bucket clip width to integer device px before fitting. `eventLabelAnchor` supplies a
+    // continuous float (`visibleW - 8`); rounding keeps the draw/shrink/truncate/skip choice
+    // stable across sub-pixel pan/zoom. The glyph key itself does not include this width.
     const widthPx = Math.round(maxWidth);
-    const key = `${fontSizePx}|${widthPx}|${text}`;
+    if (this.fontPx !== fontSizePx) {
+      this.fontPx = fontSizePx;
+      this.font = eventLabelFont(fontSizePx, this.fontFamily);
+    }
+    const font = this.font;
+    const probe = this.ensureProbe(font);
+    if (!probe) return null;
+
+    const fit = fitEventLabel(
+      { measureText: (s) => ({ width: this.measureWidth(probe, font, s) }) },
+      text,
+      widthPx,
+    );
+    if (fit.kind === 'skip') return null;
+
+    const scaleX = fit.kind === 'shrink' ? fit.scaleX : 1;
+    const drawn = fit.text;
+    // Draw/truncate share one glyph per string. Shrink must not: a 0.8-baked texture
+    // drawn 1:1 at a wider clip would clip letters, and GPU-scaling a 1.0 texture
+    // breaks ClearType (NEAREST minify) the same way. CSS font (not size alone) is
+    // the identity so two families at the same px cannot collide.
+    const key = scaleX === 1 ? `${font}\0${drawn}` : `${font}\0${drawn}\0${widthPx}`;
     const cached = this.glyphs.get(key);
     if (cached) {
-      // Re-insert at the tail so the Map's insertion order tracks recency (LRU).
       this.glyphs.delete(key);
       this.glyphs.set(key, cached);
       return cached;
     }
-    // Cached skip: return before the OffscreenCanvas probe/platform check — a static viewport
-    // otherwise re-runs `clearTypeRasterSupported` + `fitEventLabel` for this label every frame.
-    if (this.misses.has(key)) return null;
-    if (!clearTypeRasterSupported()) return null;
 
-    const probe = new OffscreenCanvas(16, 16);
-    const probeCtx = probe.getContext('2d', { alpha: false })!;
-    probeCtx.font = eventLabelFont(fontSizePx);
-    // Fit policy: draw as-is / horizontal-shrink / truncate / skip (see `fitEventLabel`).
-    const fit = fitEventLabel(probeCtx, text, widthPx);
-    if (fit.kind === 'skip') {
-      this.cacheMiss(key);
-      return null;
-    }
-    const scaleX = fit.kind === 'shrink' ? fit.scaleX : 1;
-    const measured = Math.ceil(probeCtx.measureText(fit.text).width * scaleX);
-    const drawW = Math.max(1, measured);
-    const w = drawW + pad * 2;
-    const h = Math.ceil(fontSizePx * 1.5);
-
-    const canvas = new OffscreenCanvas(w, h);
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return null;
-    ctx.fillStyle = '#000000'; // opaque black base (alpha:false starts black; explicit for intent)
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#ffffff'; // white ink → subpixel RGB coverage
-    ctx.font = eventLabelFont(fontSizePx);
-    ctx.textAlign = 'center';
-    const m = ctx.measureText(fit.text);
-    const { baselineY, baseline } = centeredTextBaseline(m, h / 2);
-    ctx.textBaseline = baseline;
-    // Horizontal-only shrink: scale around the glyph's own center so the ink stays centered
-    // and the vertical metrics are untouched.
-    ctx.save();
-    ctx.translate(w / 2, baselineY);
-    ctx.scale(scaleX, 1);
-    ctx.fillText(fit.text, 0, 0);
-    ctx.restore();
+    const raster = this.rasterize(drawn, font, fontSizePx, scaleX);
+    if (!raster) return null;
 
     const texture = gl.createTexture();
     if (!texture) return null;
@@ -209,32 +220,102 @@ export class TextAtlas {
     // Preserve the raw subpixel RGB — do not premultiply or colorspace-convert the fringe.
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, raster.canvas);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    // Glyph quads are drawn 1:1 (texture size == device-px quad size), so NEAREST keeps the
-    // subpixel RGB fringe intact. LINEAR would re-blur the half-texel sampling. If glyphs are
-    // ever drawn at a different scale, switch these back to LINEAR.
+    // Glyph quads draw 1:1 (including baked shrink), so NEAREST keeps the subpixel RGB fringe.
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.bindTexture(gl.TEXTURE_2D, null);
 
-    const glyph = { texture, width: w, height: h };
+    const glyph: TextGlyph = { texture, width: raster.w, height: raster.h };
     this.glyphs.set(key, glyph);
-    this.bytes += w * h * 4;
+    this.bytes += raster.w * raster.h * 4;
     this.evictOverBudget(gl);
     return glyph;
   }
 
-  /** Remember a skip so the next frame short-circuits before the probe; FIFO-evict beyond the cap. */
-  private cacheMiss(key: string): void {
-    if (this.misses.has(key)) return;
-    this.misses.add(key);
-    while (this.misses.size > this.maxMisses) {
-      const oldest = this.misses.values().next().value as string | undefined;
-      if (oldest === undefined) break;
-      this.misses.delete(oldest);
+  private ensureProbe(font: string): Atlas2d | null {
+    if (this.probeCtx === undefined) {
+      const opened = this.open2d(16, 16);
+      this.probeCtx = opened?.ctx ?? null;
     }
+    if (!this.probeCtx) return null;
+    if (this.probeFont !== font) {
+      this.probeCtx.font = font;
+      this.probeFont = font;
+    }
+    return this.probeCtx;
+  }
+
+  private open2d(w: number, h: number): { canvas: OffscreenCanvas; ctx: Atlas2d } | null {
+    if (typeof OffscreenCanvas === 'undefined') return null;
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext('2d', { alpha: false }) as Atlas2d | null;
+    if (!ctx) return null;
+    return { canvas, ctx };
+  }
+
+  private measureWidth(ctx: Atlas2d, font: string, text: string): number {
+    const key = `${font}\0${text}`;
+    const hit = this.measures.get(key);
+    if (hit !== undefined) {
+      this.measures.delete(key);
+      this.measures.set(key, hit);
+      return hit;
+    }
+    ctx.font = font;
+    this.probeFont = font;
+    const width = ctx.measureText(text).width;
+    this.measures.set(key, width);
+    while (this.measures.size > this.maxMeasures) {
+      const oldest = this.measures.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      this.measures.delete(oldest);
+    }
+    return width;
+  }
+
+  private rasterize(
+    drawn: string,
+    font: string,
+    fontSizePx: number,
+    scaleX: number,
+  ): { canvas: OffscreenCanvas; w: number; h: number } | null {
+    const probe = this.probeCtx;
+    if (!probe) return null;
+    const inkW = Math.max(1, Math.ceil(this.measureWidth(probe, font, drawn) * scaleX));
+    const w = inkW + GLYPH_PAD_PX * 2;
+    const h = Math.ceil(fontSizePx * 1.5);
+
+    if (!this.rasterCanvas || !this.rasterCtx) {
+      const opened = this.open2d(w, h);
+      if (!opened) return null;
+      this.rasterCanvas = opened.canvas;
+      this.rasterCtx = opened.ctx;
+    } else if (this.rasterCanvas.width !== w || this.rasterCanvas.height !== h) {
+      this.rasterCanvas.width = w;
+      this.rasterCanvas.height = h;
+    }
+
+    const ctx = this.rasterCtx;
+    const canvas = this.rasterCanvas;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    const m = ctx.measureText(drawn);
+    const { baselineY, baseline } = centeredTextBaseline(m, h / 2);
+    ctx.textBaseline = baseline;
+    // Horizontal-only shrink around the glyph center; bake into the bitmap so the quad
+    // stays 1:1 with NEAREST (GPU-scaling a ClearType texture clips/shears the first letter).
+    ctx.save();
+    ctx.translate(w / 2, baselineY);
+    ctx.scale(scaleX, 1);
+    ctx.fillText(drawn, 0, 0);
+    ctx.restore();
+    return { canvas, w, h };
   }
 
   /** Evict least-recently-used glyphs until the byte budget is met. */
@@ -251,11 +332,11 @@ export class TextAtlas {
     }
   }
 
-  /** Delete every cached texture and reset the budget (a new model invalidates every label). */
+  /** Delete every cached texture and reset the budget (dpr/font change invalidates every label). */
   clear(gl: WebGL2RenderingContext): void {
     for (const g of this.glyphs.values()) gl.deleteTexture(g.texture);
     this.glyphs.clear();
-    this.misses.clear();
+    this.measures.clear();
     this.bytes = 0;
   }
 
