@@ -47,7 +47,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 | Inactive tab | `#9a9a9a` |
 | Search | radius `4px`; fill `#262626`; stroke magnifying-glass SVG `12×12` `#9a9a9a`; focus border `#3078f0` |
 | Search match | substring chip: fill `#1d283c`, text `#688aec` weight `600`, radius `3px`, pad `0` (flush; no gap); rest of label `#8e8e8e`; non-matching rows hidden |
-| Block pill | shared `.pr-block-pill` (`tokens.css`): bg `#2a2a2a`; radius `4px`; custom chevron; no native arrow. Same class as the summary PIPE block select |
+| Block select | shared `.pr-block-pill` (`tokens.css`) — matches the 显示控制 field family: fill `#404040`, no border, radius `6px`, height `32px`, text `#ffffff` `12px`, design down-chevron (`appearance: none` — no native arrow); `:focus` clears the ring, `:focus-visible` ring `2px #3078f0` offset `1px`. Same class as the summary PIPE block select |
 | 查看全部 | `#c8c8c8` `12px` |
 | Field key | `#8e8e8e`; value `#e6e6e6` right-aligned |
 | Field list | fills leftover overlay height; `overflow: auto` (no `max-height` cap) |
