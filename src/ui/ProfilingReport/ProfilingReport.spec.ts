@@ -484,12 +484,9 @@ describe('ProfilingReport scaffold', () => {
     expect(overlay.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
     expect(wrapper.find('.pr-layout').exists()).toBe(true);
     expect(wrapper.findAll('[data-testid="no-timeline"]')).toHaveLength(0);
-    const markerIds = wrapper
-      .findAll('[data-testid="memory-topology-panel"] marker')
-      .map((m) => m.attributes('id'));
+    // The chrome asset owns the arrows, so the panel no longer defines SVG <marker>s and
+    // the stacked + overlay instances have no element ids to dedupe.
     expect(wrapper.findAll('[data-testid="memory-topology-panel"]').length).toBe(2);
-    expect(markerIds.length).toBeGreaterThan(1);
-    expect(new Set(markerIds).size).toBe(markerIds.length);
     await wrapper.get('[data-testid="topology-fullscreen-back"]').trigger('click');
     expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
     expect(wrapper.find('.pr-layout').exists()).toBe(true);

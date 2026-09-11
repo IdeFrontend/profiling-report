@@ -450,6 +450,26 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(model?.edges.find((e) => e.id === 'l2-hit')?.label).toBe('81.25%');
   });
 
+  it('PR-VM-017: topology nodes carry the chrome MTE blocks (UI-38)', () => {
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.0' }],
+        blockIds: ['0'],
+      },
+    ];
+    const model = buildMemoryTopology(tables, '0');
+    // The chrome draws MTE1/2/3 but gives them no value plate, so they stay model-only: no edge
+    // and no slot. Their utilizations come from PipeUtilization.csv in the memory 详情 list.
+    expect(model?.nodes.filter((n) => n.id.startsWith('mte')).map((n) => n.label)).toEqual([
+      'MTE1',
+      'MTE2',
+      'MTE3',
+    ]);
+    expect(model?.edges.some((e) => e.id.includes('mte'))).toBe(false);
+  });
+
   it('PR-VM-016: OpBasicInfo identity keeps Summary.jsonl derived FLOPS/util overlay', () => {
     const parsed = parseRep(loadOutRepBytes());
     parsed.payloads['OpBasicInfo.csv'] = new TextEncoder().encode(

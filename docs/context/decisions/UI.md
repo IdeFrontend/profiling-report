@@ -80,10 +80,11 @@ Format and statuses: [README.md](README.md).
 
 ## UI-38 (was: Q12)
 
-- **Resolved:** 2026-07-31
+- **Resolved:** 2026-07-31 (updated 2026-09-10)
 - **Question:** Memory topology rendering?
-- **Decision:** Static SVG + data-driven edge labels.
-- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
+- **Decision:** Static SVG + data-driven edge labels. The chrome's `MTE1`/`MTE2`/`MTE3` blocks get **no** diagram value plate — the export gives them none — so the adapter models them as nodes and their utilizations stay reachable through `PipeUtilization.csv` in the memory 详情 list. Values too wide for their slot are scaled down rather than overlapping the chrome.
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models](../../../specs/core/view-models.spec.md)
+- **Source:** Design sketch `v930/report-stats-scrolled` (no MTE value plates); Product answer 2026-09-10 — keep the diagram exactly as designed and surface the ratios in 内存 详情.
 
 ---
 
