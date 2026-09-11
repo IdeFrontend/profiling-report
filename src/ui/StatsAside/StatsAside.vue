@@ -824,7 +824,7 @@ function backToReport() {
             <span>{{ t('block', locale) }}</span>
             <select
               :value="summaryBlockId"
-              class="pr-block-pill"
+              class="pr-block-select"
               data-testid="pipe-block"
               :aria-label="t('block', locale)"
               @change="onSummaryBlockChange(($event.target as HTMLSelectElement).value)"

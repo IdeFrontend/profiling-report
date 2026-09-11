@@ -47,7 +47,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 | Inactive tab | `#9a9a9a` |
 | Search | radius `4px`; fill `#262626`; stroke magnifying-glass SVG `12×12` `#9a9a9a`; focus border `#3078f0` |
 | Search match | substring chip: fill `#1d283c`, text `#688aec` weight `600`, radius `3px`, pad `0` (flush; no gap); rest of label `#8e8e8e`; non-matching rows hidden |
-| Block pill | shared `.pr-block-pill` (`tokens.css`): bg `#2a2a2a`; radius `4px`; custom chevron; no native arrow. Same class as the summary PIPE block select |
+| Block select | Shared `.pr-block-select` (`tokens.css`); the chrome values are written down once in [`StatsAside.spec.md`](../StatsAside.spec.md) and this row links there rather than repeating them, so the two cannot drift. Caption `block` `#b8b8b8`, gap `6px`. **Deliberate deviation from [`block-switcher.png`](./visual/block-switcher.png) / [`block-switcher-view-all.png`](./visual/block-switcher-view-all.png)**, which crop a `4px` pill: the field-family chrome is product direction (2026-09-11), so the crop is the *layout* reference for this control, not its fill/radius |
 | 查看全部 | `#c8c8c8` `12px` |
 | Field key | `#8e8e8e`; value `#e6e6e6` right-aligned |
 | Field list | fills leftover overlay height; `overflow: auto` (no `max-height` cap) |
@@ -62,6 +62,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 - [memory-load-detail](../../../../docs/ui/source/v930/memory-load-detail.jpeg) — full frame
 
 ## Changelog
+- **2026-09-11** — Block select moves off the `4px` `#2a2a2a` pill to the 显示控制 field-family chrome (`.pr-block-select`, renamed from `.pr-block-pill`); the values are written down once in [`StatsAside.spec.md`](../StatsAside.spec.md) and linked from here. The `block-switcher*.png` crops predate this and show the old pill, so they are the layout reference only.
 - **2026-08-31** — Zero matches show an empty list (no extra copy); search query persists across tab switches.
 - **2026-08-28** — Search filters non-matching rows and still highlights the substring; match chip is flush (pad `0`). Same on compute and memory.
 - **2026-08-24** — Search match is a navy chip + light-blue semi-bold text (`v930/search-highlight`).

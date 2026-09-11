@@ -223,7 +223,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 | Panel | `#262626` (`--pr-bg-panel`), radius `4px`, padding `12px 10px 10px` |
 | Title | `14px` / `600` / `#ffffff` — **计算负载分析** (on aside shell, not inside panel) |
 | 详情 | `12px` / `#e6e6e6` |
-| Block select | Rendered when `PipeUtilization.csv` holds >1 `block_id` (PR-STATS-014b). Uses the shared block-pill class `.pr-block-pill` (`tokens.css`) — the one definition also used by [`CsvFieldListPanel`](./CsvFieldListPanel/CsvFieldListPanel.spec.md): fill `#2a2a2a`, `1px` stroke `#3a3a3a`, radius `4px`, text `#e0e0e0`, pad `4px 22px 4px 10px`, `min-width: 72px`, `cursor: pointer`, custom chevron (`appearance: none` — never the native arrow); caption `block` `#b8b8b8`, gap `6px` |
+| Block select | Rendered when `PipeUtilization.csv` holds >1 `block_id` (PR-STATS-014b). Uses the shared block class `.pr-block-select` (`tokens.css`) — **the single write-down of this chrome**, also used by [`CsvFieldListPanel`](./CsvFieldListPanel/CsvFieldListPanel.spec.md), whose row links here instead of repeating the values. Matching the 显示控制 field family: fill `#404040`, no border, radius `6px`, height `32px`, text `#ffffff` `12px`, `min-width: 72px`, `cursor: pointer`, design down-chevron sized by `--pr-select-chevron-size` (`appearance: none` — never the native arrow; the SVG's stroke mirrors `--pr-select-chevron-color`); `:focus` clears the ring, `:focus-visible` ring `2px #3078f0` offset `1px`; caption `block` `#b8b8b8`, gap `6px` |
 | Cube\|Vector | pill `#111111`; active `#343434` / `#ffffff`; inactive `#b3b3b3`; radius `4px`; label `12px` |
 | Chart well | `#202020`, radius `4px`, padding `10px 8px 12px` |
 | Scale | `12px` / `#999999` |
@@ -253,6 +253,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-11** — Summary PIPE **block** select and the memory overlay switcher move off the `4px` `#2a2a2a` pill to the 显示控制 field-family chrome (`#404040` fill, `6px` radius, `32px`, white `12px`, design down-chevron, `:focus-visible` `2px #3078f0`), and the class is renamed `.pr-block-pill` → `.pr-block-select` to match what both specs call the control. The `tokens.css` rule still backs both surfaces and is now the only place the values are written down; chevron size and colour come from `--pr-select-chevron-size` / `--pr-select-chevron-color`.
 - **2026-09-10** — Summary PIPE **block** select shares the `.pr-block-pill` chrome (`tokens.css`) with the memory overlay switcher — one definition instead of two copies, so they cannot drift. The v930 frames contain no summary block control — it is a DATA-33b addition with no design source.
 - **2026-09-08** — AICore dual **并行使用率** \| **负载均衡度** columns with `%` bars (DATA-9 / DATA-10, PR-STATS-011c).
 - **2026-09-08** — AICore score/bar clamp to [0, 100]; unrounded percent in value `title`; 2dp display precision documented.

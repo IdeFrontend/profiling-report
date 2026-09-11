@@ -210,7 +210,7 @@ function onViewAll() {
           <span>{{ t('block', locale) }}</span>
           <select
             v-model="selectedBlock"
-            class="pr-block-pill"
+            class="pr-block-select"
             data-testid="csv-block"
           >
             <option

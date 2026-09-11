@@ -1550,9 +1550,9 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   transform: translateY(-50%);
   pointer-events: none;
   box-sizing: border-box;
-  width: 10px;
-  height: 10px;
-  color: #b3b3b3;
+  width: var(--pr-select-chevron-size);
+  height: var(--pr-select-chevron-size);
+  color: var(--pr-select-chevron-color);
 }
 
 /* Same border-triangle glyph as Chevron.vue, drawn down. */
