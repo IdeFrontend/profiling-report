@@ -47,7 +47,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 | Inactive tab | `#9a9a9a` |
 | Search | radius `4px`; fill `#262626`; stroke magnifying-glass SVG `12×12` `#9a9a9a`; focus border `#3078f0` |
 | Search match | substring chip: fill `#1d283c`, text `#688aec` weight `600`, radius `3px`, pad `0` (flush; no gap); rest of label `#8e8e8e`; non-matching rows hidden |
-| Block select | shared `.pr-block-pill` (`tokens.css`) — matches the 显示控制 field family: fill `#404040`, no border, radius `6px`, height `32px`, text `#ffffff` `12px`, design down-chevron (`appearance: none` — no native arrow); `:focus` clears the ring, `:focus-visible` ring `2px #3078f0` offset `1px`. Same class as the summary PIPE block select |
+| Block select | shared `.pr-block-pill` (`tokens.css`) — matches the 显示控制 field family: fill `#404040`, no border, radius `6px`, height `32px`, text `#ffffff` `12px`, design down-chevron (`appearance: none` — no native arrow); `:focus` clears the ring, `:focus-visible` ring `2px #3078f0` offset `1px`; caption `block` `#b8b8b8`, gap `6px`. Same class as the summary PIPE block select. **Deliberate deviation from [`block-switcher.png`](./visual/block-switcher.png) / [`block-switcher-view-all.png`](./visual/block-switcher-view-all.png)**, which crop a `4px` pill: the field-family chrome is product direction (2026-09-11), so the crop is the *layout* reference for this control, not its fill/radius |
 | 查看全部 | `#c8c8c8` `12px` |
 | Field key | `#8e8e8e`; value `#e6e6e6` right-aligned |
 | Field list | fills leftover overlay height; `overflow: auto` (no `max-height` cap) |
@@ -62,6 +62,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 - [memory-load-detail](../../../../docs/ui/source/v930/memory-load-detail.jpeg) — full frame
 
 ## Changelog
+- **2026-09-11** — Block select moves off the `4px` `#2a2a2a` pill to the 显示控制 field-family chrome (`#404040`, `6px`, `32px`, white `12px`, design down-chevron, `:focus-visible` `2px #3078f0`), the same `.pr-block-pill` definition the summary PIPE block select uses. The `block-switcher*.png` crops predate this and show the old pill, so they are the layout reference only.
 - **2026-08-31** — Zero matches show an empty list (no extra copy); search query persists across tab switches.
 - **2026-08-28** — Search filters non-matching rows and still highlights the substring; match chip is flush (pad `0`). Same on compute and memory.
 - **2026-08-24** — Search match is a navy chip + light-blue semi-bold text (`v930/search-highlight`).
