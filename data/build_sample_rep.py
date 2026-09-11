@@ -767,9 +767,29 @@ def build_summary_jsonl(texts, *, op_basic, demo):
             lines.append(category_means_from_csv(cat, texts[name]))
 
     mem = next((o for o in lines if o.get("category") == "Memory"), {})
-    read_bw = mem.get("aic_main_mem_read_bw(GB/s)") or mem.get("aiv_main_mem_read_bw(GB/s)") or demo["gm_read"]
-    write_bw = mem.get("aic_main_mem_write_bw(GB/s)") or mem.get("aiv_main_mem_write_bw(GB/s)") or demo["gm_write"]
-    usage = ((read_bw + write_bw) / 2.0) / 1600.0 * 100.0
+    # npu-tools summarize_npu_rep.py: read / write = sum of the aic + aiv sides (non-null only).
+    read_values = [
+        mem[k] for k in ("aic_main_mem_read_bw(GB/s)", "aiv_main_mem_read_bw(GB/s)")
+        if mem.get(k) is not None
+    ]
+    write_values = [
+        mem[k] for k in ("aic_main_mem_write_bw(GB/s)", "aiv_main_mem_write_bw(GB/s)")
+        if mem.get(k) is not None
+    ]
+    read_bw = sum(read_values) if read_values else demo["gm_read"]
+    write_bw = sum(write_values) if write_values else demo["gm_write"]
+    # npu-tools summarize_npu_rep.py: usage = mean of the non-null per-path usage-rate columns.
+    usage_values = [
+        mem[k]
+        for k in (
+            "GM_to_UB_bw_usage_rate(%)",
+            "UB_to_GM_bw_usage_rate(%)",
+            "GM_to_L1_bw_usage_rate(%)",
+            "L1_to_GM_bw_usage_rate(%)",
+        )
+        if mem.get(k) is not None
+    ]
+    usage = round(sum(usage_values) / len(usage_values), 6) if usage_values else None
 
     op_info = {
         "category": "OpInfoSummary",
@@ -787,7 +807,7 @@ def build_summary_jsonl(texts, *, op_basic, demo):
         "aicore_gm_bw_theoretical(GB/s)": 1600,
         "aicore_gm_read_bw(GB/s)": read_bw,
         "aicore_gm_write_bw(GB/s)": write_bw,
-        "aicore_gm_bw_usage_rate(%)": usage,
+        **({"aicore_gm_bw_usage_rate(%)": usage} if usage is not None else {}),
         "aic_flops": demo["aic_flops"],
         "aiv_flops": demo["aiv_flops"],
         "aic_flops_theoretical": demo["aic_flops_theoretical"],

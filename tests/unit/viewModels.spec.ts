@@ -25,7 +25,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.parallelUtilization).toBeUndefined();
   });
 
-  it('PR-VM-013 (interim DATA-33g): Memory.csv → bandwidthCards mean non-NA; peak 1600 GB/s', () => {
+  it('PR-VM-013 (DATA-8): bandwidthCards prefer the producer-summed summary.jsonl sides; Memory.csv fallback; peak 1600 GB/s', () => {
     const fixture = adaptRep(parseRep(loadOutRepBytes())).reportModel.bandwidthCards;
     expect(fixture).toBeDefined();
     expect(fixture!.map((c) => c.id)).toEqual(['input', 'output']);
@@ -63,11 +63,43 @@ describe('PR-VM: report view-models (interim)', () => {
       { id: 'input', sides: [{ side: 'aiv', measuredGBs: 60, peakGBs: 1600 }] },
     ]);
 
+    // DATA-8: `OpInfoSummary` publishes the aic + aiv sides already summed — prefer them.
+    parsed.payloads['summary.jsonl'] = new TextEncoder().encode(
+      JSON.stringify({
+        category: 'OpInfoSummary',
+        'aicore_gm_bw_theoretical(GB/s)': 1600,
+        'aicore_gm_read_bw(GB/s)': 1234,
+        'aicore_gm_write_bw(GB/s)': 567,
+      }),
+    );
+    expect(adaptRep(parsed).reportModel.bandwidthCards).toEqual([
+      { id: 'input', sides: [{ side: 'aicore', measuredGBs: 1234, peakGBs: 1600 }] },
+      { id: 'output', sides: [{ side: 'aicore', measuredGBs: 567, peakGBs: 1600 }] },
+    ]);
+
+    // Without the summed field, fall back to the `category: Memory` per-side columns.
+    parsed.payloads['summary.jsonl'] = new TextEncoder().encode(
+      [
+        JSON.stringify({ category: 'OpInfoSummary', 'aicore_gm_bw_theoretical(GB/s)': 1600 }),
+        JSON.stringify({
+          category: 'Memory',
+          'aic_main_mem_read_bw(GB/s)': 80,
+          'aiv_main_mem_read_bw(GB/s)': 90,
+        }),
+      ].join('\n'),
+    );
+    const perSide = adaptRep(parsed).reportModel.bandwidthCards!;
+    expect(Object.fromEntries(perSide[0]!.sides.map((s) => [s.side, s.measuredGBs]))).toEqual({
+      aic: 80,
+      aiv: 90,
+    });
+
+    delete parsed.payloads['summary.jsonl'];
     delete parsed.payloads['Memory.csv'];
     expect(adaptRep(parsed).reportModel.bandwidthCards).toBeUndefined();
   });
 
-  it('PR-VM-002 (interim DATA-33b): PipeUtilization → PIPE bars mean of non-NA', () => {
+  it('PR-VM-002 (DATA-28): PipeUtilization → PIPE bars mean of non-NA', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const vectorPipes = adapted.reportModel.pipeOccupancy.filter((p) => p.side === 'vector');
     const byId = Object.fromEntries(vectorPipes.map((p) => [p.id, p]));

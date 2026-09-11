@@ -53,7 +53,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** If measured I/O is small (e.g. `15.8 GB/s`), show **GB/s** or **TB/s**?
 - **Decision:** Always **GB/s** (not TB/s).
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](../decisions/interim/) `DATA-33g`
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/DATA.md](DATA.md) `DATA-8`
 - **Source:** Product answer doc (2026-08-31); implemented via `formatGBs()` in `StatsAside.vue`.
 
 ---

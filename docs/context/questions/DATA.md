@@ -112,7 +112,7 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 ### DATA-38 — Card gutter 时钟周期 formula (was: Q24 / HQ 39)
 
-**Status:** `interim`
+**Status:** `partial` + `interim`
 
 **Question:** Card-header **时钟周期 / Clock Cycle** gutter bars ([design `entry.jpeg`](../../ui/source/v930/entry.jpeg)) — which file, fields, and formula? Is the value cycle counts, pipe `*_time(us)`, or derived from swimlane events?
 

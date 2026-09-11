@@ -82,7 +82,7 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-10
 - **Question:** Do the I/O bandwidth cards come from `Report.csv`? If yes, list the column names.
-- **Decision:** **No.** Cards read `summary.jsonl` → `category: OpInfoSummary`: measured read `aicore_gm_read_bw(GB/s)` and measured write `aicore_gm_write_bw(GB/s)` — each the **sum** of the `category: Memory` sides (`aic_main_mem_read_bw + aiv_main_mem_read_bw`, likewise write), **not** their mean — peak `aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s**, shared by every side (DATA-6), and usage `aicore_gm_bw_usage_rate(%)` = `(read + write) / theoretical`. Each direction's 读/写 share uses that direction's measured value as the numerator. `Report.csv` is named "SOL/平均带宽" in producer notes but has **no schema** and is unused.
+- **Decision:** **No.** Cards read `summary.jsonl` → `category: OpInfoSummary`: measured read `aicore_gm_read_bw(GB/s)` and measured write `aicore_gm_write_bw(GB/s)`, each the producer's **sum** of the `category: Memory` sides (`aic_main_mem_read_bw + aiv_main_mem_read_bw`, likewise write). Peak = `aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s**, shared by every side (DATA-6). Each direction's 读/写 **score = that direction's measured ÷ peak**. The card does **not** use `aicore_gm_bw_usage_rate(%)`: the producer computes that field independently as the mean of the non-`NA` per-path `GM_to_UB` / `UB_to_GM` / `GM_to_L1` / `L1_to_GM` `_bw_usage_rate(%)` columns, so it is not the 读/写 shares. `Report.csv` is named "SOL/平均带宽" in producer notes but has **no schema** and is unused.
 - **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.3, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §7, [view-models](../../../specs/core/view-models.spec.md), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
 - **Source:** `npu-compute性能优化.docx` 报告统计信息 table + NPU-Compute.md Q5–Q7 (2026-09-10); exact field list re-confirmed by `Questions/DATA questions/DATA questions.md` DATA-8 and `Questions/NPU-Compute.md` Q5/Q7 (2026-09-11).
 
@@ -142,7 +142,7 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-10
 - **Question:** **UB → L2/GM** — which file and field?
-- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_ub_to_gm_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_read_bw_gm(GB/s)` — it is absent from the sample and is not the collected field.
+- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_ub_to_gm_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_read_bw_gm(GB/s)` — it is **not the collected field** (absent from the classic `.rep` sample; `0.0` in the product sample).
 - **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.6, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §11
 - **Source:** NPU-Compute.md Q22 (2026-09-10); implemented in `memoryTopology.ts`.
 
@@ -152,7 +152,7 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-10
 - **Question:** **L2/GM → UB** — which file and field?
-- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_gm_to_ub_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_write_bw_gm(GB/s)` — absent from the sample.
+- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_gm_to_ub_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_write_bw_gm(GB/s)` — **not the collected field** (absent from the classic `.rep` sample; `0.0` in the product sample).
 - **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.6, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §11
 - **Source:** NPU-Compute.md Q23 (2026-09-10); implemented in `memoryTopology.ts`.
 
@@ -240,7 +240,7 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-04
 - **Question:** Report summary formulas?
-- **Decision:** `summary.jsonl` is canonical. Duration = `OpInfoSummary` `Task Duration(us)`; compute = `aic_flops`/`aiv_flops` (measured) + `aic_flops_theoretical`/`aiv_flops_theoretical` (peak), score = measured/peak×100%; I/O BW = `Memory` category `*_main_mem_{read,write}_bw` with peak `aicore_gm_bw_theoretical(GB/s)` = **1600 GB/s**, score = measured/peak; avg-core-util = **AI Core 并行使用率** (`aicore_parallel_utilization`/`aicore_parallel_balance`). PIPE aggregation remains [`DATA-33b`](interim/DATA.md). Classic `.rep` without `summary.jsonl` keeps CSV fallbacks (`OpBasicInfo.csv`, `Memory.csv`).
+- **Decision:** `summary.jsonl` is canonical. Duration = `OpInfoSummary` `Task Duration(us)`; compute = `aic_flops`/`aiv_flops` (measured) + `aic_flops_theoretical`/`aiv_flops_theoretical` (peak), score = measured/peak×100%; I/O BW = the `OpInfoSummary` sides `aicore_gm_read_bw` / `aicore_gm_write_bw` (the aic + aiv `Memory` sums) with peak `aicore_gm_bw_theoretical(GB/s)` = **1600 GB/s** (see the DATA-8 / DATA-19 / DATA-28 / DATA-29 entries above for the source fields and block scope); avg-core-util = **AI Core 并行使用率** (`aicore_parallel_utilization`/`aicore_parallel_balance`). Classic `.rep` without `summary.jsonl` keeps CSV fallbacks (`OpBasicInfo.csv`, `Memory.csv`).
 - **Specs:** [view-models](../../../specs/core/view-models.spec.md), [npu-rep](../../../specs/core/npu-rep.spec.md)
 - **Source:** NPU-Compute.md (2026-09-04). Supersedes interim `DATA-33a`, `DATA-33e`, `DATA-33g`.
 

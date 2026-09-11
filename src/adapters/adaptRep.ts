@@ -50,7 +50,7 @@ const BANDWIDTH_COLUMNS = {
 
 const ALL_MAIN_MEM_BW_COLUMNS = Object.values(BANDWIDTH_COLUMNS).flatMap((d) => [...d.aic, ...d.aiv]);
 
-/** DATA-33g: sketch 1600 GB/s hardware guess for all four aic/aiv × in/out slots. */
+/** DATA-5: SOL 1600 GB/s hardware peak shared by every bandwidth side (DATA-6). */
 const BANDWIDTH_PEAK_GBS = 1600;
 
 /** DATA-37d fallback when Memory BW columns are all NA. */
@@ -297,7 +297,7 @@ function bandwidthSide(
   return { side, measuredGBs, peakGBs: BANDWIDTH_PEAK_GBS };
 }
 
-/** DATA-33g: mean non-NA Memory.csv main-mem BW; peak = sketch 1600 GB/s. */
+/** DATA-8 fallback (classic `.rep`): mean non-NA `Memory.csv` main-mem BW; peak = SOL 1600 GB/s. */
 function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
   if (!payload) return [];
   const { rows } = parseCsv(decodeUtf8(payload));
@@ -442,10 +442,10 @@ function computeCardFromPayloads(
 }
 
 /**
- * Product bandwidth cards from `summary.jsonl` (spec Q5–Q7): `OpInfoSummary`
- * provides the SOL peak (`aicore_gm_bw_theoretical(GB/s)`, default 1600) and the
- * `Memory` category provides per-side measured read/write BW. Falls back to the
- * `Memory.csv` path when `summary.jsonl` is absent.
+ * Product bandwidth cards from `summary.jsonl` (DATA-8): `OpInfoSummary` provides the SOL peak
+ * (`aicore_gm_bw_theoretical(GB/s)`, default 1600) and the aic + aiv sides already **summed**
+ * (`aicore_gm_read_bw` / `aicore_gm_write_bw`). The `Memory` per-side columns are the classic
+ * `.rep` fallback. Falls back to the `Memory.csv` path when `summary.jsonl` is absent.
  */
 function bandwidthCardsFromSummary(payload?: Uint8Array): BandwidthCardModel[] {
   if (!payload) return [];
@@ -465,6 +465,10 @@ function bandwidthCardsFromSummary(payload?: Uint8Array): BandwidthCardModel[] {
         ? (obj['aicore_gm_bw_theoretical(GB/s)'] as number)
         : Number(obj['aicore_gm_bw_theoretical(GB/s)']);
       if (Number.isFinite(peak) && peak > 0) peakGBs = peak;
+      for (const key of ['aicore_gm_read_bw(GB/s)', 'aicore_gm_write_bw(GB/s)']) {
+        const n = typeof obj[key] === 'number' ? (obj[key] as number) : Number(obj[key]);
+        if (Number.isFinite(n)) mem[stripUnit(key)] = n;
+      }
       continue;
     }
     if (category !== 'Memory') continue;
@@ -487,16 +491,20 @@ function bandwidthCardsFromSummary(payload?: Uint8Array): BandwidthCardModel[] {
   };
 
   const cards: BandwidthCardModel[] = [];
-  const input: BandwidthSideRow[] = [];
-  const output: BandwidthSideRow[] = [];
-  const aicRead = side('aic', ['aic_main_mem_read_bw']);
-  const aivRead = side('aiv', ['aiv_main_mem_read_bw']);
-  const aicWrite = side('aic', ['aic_main_mem_write_bw']);
-  const aivWrite = side('aiv', ['aiv_main_mem_write_bw']);
-  if (aicRead) input.push(aicRead);
-  if (aivRead) input.push(aivRead);
-  if (aicWrite) output.push(aicWrite);
-  if (aivWrite) output.push(aivWrite);
+  /**
+   * DATA-8: `OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw` publish the aic + aiv sides
+   * already summed — read them directly so the viewer cannot drift from the producer. Fall back to
+   * the two `Memory` per-side columns when the category does not carry the summed field (classic `.rep`).
+   */
+  const direction = (combinedKey: string, aicKey: string, aivKey: string): BandwidthSideRow[] => {
+    const sum = mem[combinedKey];
+    if (sum != null) return [{ side: 'aicore', measuredGBs: sum, peakGBs }];
+    return [side('aic', [aicKey]), side('aiv', [aivKey])].filter(
+      (row): row is BandwidthSideRow => row != null,
+    );
+  };
+  const input = direction('aicore_gm_read_bw', 'aic_main_mem_read_bw', 'aiv_main_mem_read_bw');
+  const output = direction('aicore_gm_write_bw', 'aic_main_mem_write_bw', 'aiv_main_mem_write_bw');
   if (input.length > 0) cards.push({ id: 'input', sides: input });
   if (output.length > 0) cards.push({ id: 'output', sides: output });
   return cards;
@@ -763,7 +771,7 @@ const PIPE_COLUMNS: {
   },
 ];
 
-/** DATA-33b: mean non-NA ratios (and times) over the given PipeUtilization rows. */
+/** DATA-28: mean non-NA ratios (and times) over the given PipeUtilization rows. */
 export function pipeOccupancyFromRows(rows: Record<string, string>[]): PipeOccupancyItem[] {
   if (rows.length === 0) return [];
   const items: PipeOccupancyItem[] = [];

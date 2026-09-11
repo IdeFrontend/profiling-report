@@ -63,7 +63,7 @@ Crops: [`visual/buffer-links.png`](./visual/buffer-links.png), [`visual/memory-t
 
 ## Dependencies
 
-DATA-20 (L2 Peak), DATA-21, DATA-22, DATA-23, DATA-24, DATA-33c, UI-35, UI-38, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
+DATA-20 (L2 Peak), DATA-21, DATA-22, DATA-23, DATA-24, DATA-25, UI-35, UI-38, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
 - **2026-09-10** — UB↔GM labels read `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` (DATA-22 / DATA-23); the `MemoryUB.csv` `*_gm` names are absent from the sample.

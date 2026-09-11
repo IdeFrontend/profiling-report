@@ -133,7 +133,7 @@ const EDGE_MAP: {
     from: 'ub',
     to: 'l2',
     unit: 'GB/s',
-    // DATA-22: Memory.csv `aiv_ub_to_gm_bw` is the collected field; MemoryUB `*_gm` is absent from the sample.
+    // DATA-22: Memory.csv `aiv_ub_to_gm_bw` is the collected field; MemoryUB `*_gm` is not collected.
     sources: [{ file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] }],
   },
   {
@@ -141,7 +141,7 @@ const EDGE_MAP: {
     from: 'l2',
     to: 'ub',
     unit: 'GB/s',
-    // DATA-23: Memory.csv `aiv_gm_to_ub_bw` is the collected field; MemoryUB `*_gm` is absent from the sample.
+    // DATA-23: Memory.csv `aiv_gm_to_ub_bw` is the collected field; MemoryUB `*_gm` is not collected.
     sources: [{ file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] }],
   },
   {

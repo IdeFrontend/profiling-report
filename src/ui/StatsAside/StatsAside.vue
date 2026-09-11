@@ -160,7 +160,7 @@ const hasHardwareDetails = computed(
 
 const asideSurface = ref<AsideSurface>('report');
 const selectedBlockId = ref('');
-/** DATA-19 / DATA-33b: empty string = All blocks (mean); else filter PIPE to that block_id. */
+/** DATA-19 / DATA-28: empty string = All blocks (mean); else filter PIPE to that block_id. */
 const summaryBlockId = ref('');
 
 function defaultTopologyBlockId(tables: NonNullable<ReportViewModel['memoryTables']>): string {

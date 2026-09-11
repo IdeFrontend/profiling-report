@@ -18,7 +18,7 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-color-card-bar-primary` | `#5EC8D8` | Left dual-column bars (Cube / 读 / 并行使用率) |
 | `--pr-color-card-bar-secondary` | `#5ED8A8` | Right dual-column bars (Vector / 写 / 负载均衡度) |
 | `--pr-color-overview-cube` | `#3078F0` | Overview Cube series stroke (dedicated blue accent) |
-| `--pr-color-bandwidth-bar` | `#5EC8D8` | Alias for card primary bar (legacy name; DATA-33g 读\|写 bars) |
+| `--pr-color-bandwidth-bar` | `#5EC8D8` | Alias for card primary bar (legacy name; DATA-8 读\|写 bars) |
 
 ### Toolbar controls (hardcoded; not CSS vars)
 

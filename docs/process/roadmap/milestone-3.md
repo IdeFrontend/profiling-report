@@ -22,7 +22,7 @@ Index: [README.md](README.md) · Previous: [milestone-2.md](milestone-2.md)
 | Item | Status | Features |
 |------|--------|----------|
 | Overview charts | **New** | When producer supplies `OverviewSeries` (DATA-32) |
-| Summary DATA-33 tiles | **Shipped** | Duration + compute + BW peak/score + AICore 并行\|负载 (DATA-5–7, DATA-9–10); DATA-8 closed (cards from `Memory.csv`, not `Report.csv`) |
+| Summary DATA-33 tiles | **Shipped** | Duration + compute + BW peak/score + AICore 并行\|负载 (DATA-5–7, DATA-9–10); DATA-8 closed (`summary.jsonl` `OpInfoSummary`, not `Report.csv`) |
 | Roofline (Product-final DATA-37) | **Replace** | Swap [M2](milestone-2.md) interim formulas/peaks when DATA-37 resolves |
 | Secondary tabs | **Disabled** | 源码 / 详情 / 缓存 visible, disabled ([UI-37](../../context/decisions/UI.md)); hardware aside if DATA-34 |
 | Visual regression / sketch golden | **New** | DATA-31 golden when available |

@@ -309,8 +309,8 @@ L0C `_bw_cube` directions are confirmed by suffix. L0A/L0B keep master L1→buff
 | --- | --- | --- | --- |
 | Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `aiv_ub_write_bw_vector(GB/s)` | Present; `ub_read_*` = leaving UB |
 | UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `aiv_ub_read_bw_vector(GB/s)` | Present |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | **DATA-22:** absent from the sample's `MemoryUB.csv`; use `Memory.csv` `aiv_ub_to_gm_bw` |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | **DATA-23:** absent from the sample's `MemoryUB.csv`; use `Memory.csv` `aiv_gm_to_ub_bw` |
+| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | **DATA-22:** not the collected field; use `Memory.csv` `aiv_ub_to_gm_bw` |
+| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | **DATA-23:** not the collected field; use `Memory.csv` `aiv_gm_to_ub_bw` |
 
 Sample also includes `aiv_ub_read_bw_scalar(GB/s)` / `aiv_ub_write_bw_scalar(GB/s)`.
 
@@ -401,8 +401,8 @@ See prioritized product-owner list: [questions](../context/questions/).
 | `npu-rep` vs `cann-rep` | Product diagram vs repo packer; same conceptual layout |
 | `HardwareInfo.jsonl` | Details source confirmed; missing from `out.rep`; toolkit `example.rep` pack (not in git) |
 | `MemoryL1.csv` | Not required; L1 BW on `Memory.csv` |
-| UB↔GM field names | **Closed:** `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` ([DATA-22](../context/decisions/DATA.md) / [DATA-23](../context/decisions/DATA.md)); docx `MemoryUB.csv` `*_gm` names are absent from the sample |
+| UB↔GM field names | **Closed:** `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` ([DATA-22](../context/decisions/DATA.md) / [DATA-23](../context/decisions/DATA.md)); docx `MemoryUB.csv` `*_gm` names are not the collected field |
 | L0C → UB edge | 待确定; no sample column |
 | Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
-| Report-stat derived cards | **Compute** interim DATA-33h; **AICore parallel** shipped from `Summary.jsonl` as dual 并行使用率 \| 负载均衡度 ([DATA-9](../context/decisions/DATA.md) / [DATA-10](../context/decisions/DATA.md)); **带宽利用率** measured confirmed, peak/score → [DATA-33g](../context/decisions/interim/DATA.md). **Obsolete:** 平均核利用率 / dual 输入·输出 aic\|aiv cards |
+| Report-stat derived cards | **Compute** interim DATA-33h; **AICore parallel** shipped from `Summary.jsonl` as dual 并行使用率 \| 负载均衡度 ([DATA-9](../context/decisions/DATA.md) / [DATA-10](../context/decisions/DATA.md)); **带宽利用率** resolved ([DATA-8](../context/decisions/DATA.md)): peak SOL 1600, score = measured ÷ peak. **Obsolete:** 平均核利用率 / dual 输入·输出 aic\|aiv cards |
 | Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |

@@ -20,7 +20,7 @@ Maps product specs and interim decisions to stable **test ids**. See [docs/proce
 | PR-FMT-001 | unit | `tests/unit/parseRep.spec.ts` | REP_FORMAT |
 | PR-FMT-002 | unit | `tests/unit/parseRep.spec.ts` | REP_FORMAT, DATA-31a |
 | PR-VM-001 | unit | `tests/unit/viewModels.spec.ts` | DATA-33a |
-| PR-VM-002 | unit | `tests/unit/viewModels.spec.ts` | DATA-33b |
+| PR-VM-002 | unit | `tests/unit/viewModels.spec.ts` | DATA-28 |
 | PR-VM-003 | unit | `tests/unit/viewModels.spec.ts` | DATA-32a, DATA-32 |
 | PR-SWIM-001 | unit | `tests/unit/swimlaneModel.spec.ts` | COMPONENTS |
 | PR-TIME-001 | unit | `tests/unit/formatTime.spec.ts` | UI-40 / UI-45 |

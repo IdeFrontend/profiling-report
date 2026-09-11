@@ -40,17 +40,17 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim` — **SUPERSEDED** 2026-09-11
 **Question:** [DATA-33](../DATA.md)
-**Interim:** ~~Default **All** = **mean of non-`NA` ratios** per pipe family across `block_id`. Summary block control may scope PIPE to one `block_id`.~~ Product-confirmed ([DATA-28](../../questions/DATA.md) / [DATA-19](../../questions/DATA.md)): `All` = `summary.jsonl` non-`NA` mean across `block_id`; a picked `block_id` = that block's `PipeUtilization.csv` row.
+**Interim:** ~~Default **All** = **mean of non-`NA` ratios** per pipe family across `block_id`. Summary block control may scope PIPE to one `block_id`.~~ Product-confirmed ([DATA-28](../DATA.md) / [DATA-19](../DATA.md)): `All` = `summary.jsonl` non-`NA` mean across `block_id`; a picked `block_id` = that block's `PipeUtilization.csv` row.
 **Implement / test as:** `StatsAside` PIPE + `pipeOccupancyFromRows`; PR-STATS-014b
-**Superseded when:** — done ([DATA-28](../../questions/DATA.md)).
+**Superseded when:** — done ([DATA-28](../DATA.md)).
 
 ### DATA-33c — Block scope vs aggregate
 
 **Status:** `interim` — **SUPERSEDED** 2026-09-11
 **Question:** [DATA-33](../DATA.md)
-**Interim:** ~~Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id`. **Detail / memory / metrics** views are **block-scoped** via the block switcher; **All** restores the default topology block.~~ Product-confirmed ([DATA-19](../../questions/DATA.md) / [DATA-29](../../questions/DATA.md)): **one** selector — **All | 0 | 1 | 2 …**, default **All** — scopes **every** widget; `All` reads `summary.jsonl`, a picked id reads that block's CSV row. No per-surface exceptions.
+**Interim:** ~~Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id`. **Detail / memory / metrics** views are **block-scoped** via the block switcher; **All** restores the default topology block.~~ Product-confirmed ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)): **one** selector — **All | 0 | 1 | 2 …**, default **All** — scopes **every** widget; `All` reads `summary.jsonl`, a picked id reads that block's CSV row. No per-surface exceptions.
 **Implement / test as:** Aside detail tabs + block picker tests
-**Superseded when:** — done ([DATA-29](../../questions/DATA.md)).
+**Superseded when:** — done ([DATA-29](../DATA.md)).
 
 ### DATA-33d — 查看全部 CSV
 
@@ -80,7 +80,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim` — **SUPERSEDED** 2026-09-04
 **Question:** [DATA-33](../DATA.md)
-**Interim:** ~~Peak/score still a guess (1600 GB/s; `round(measured/peak×100)`).~~ Product ([DATA-8](../../questions/DATA.md), DATA-5–DATA-7): measured read / write BW = **sum** of the aic + aiv `Memory` sides (`OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw`), peak = `aicore_gm_bw_theoretical(GB/s)` = **SOL 1600 GB/s** (shared by both sides), usage = `aicore_gm_bw_usage_rate(%)` = `(read + write) / theoretical`. Fall back to `Memory.csv` non-`NA` mean when `summary.jsonl` is absent. Display **GB/s** (UI-34).
+**Interim:** ~~Peak/score still a guess (1600 GB/s; `round(measured/peak×100)`).~~ Product ([DATA-8](../DATA.md), DATA-5–DATA-7): measured read / write BW = the `OpInfoSummary` sides `aicore_gm_read_bw` / `aicore_gm_write_bw` (the aic + aiv `Memory` sums), peak = `aicore_gm_bw_theoretical(GB/s)` = **SOL 1600 GB/s** (shared by both sides), score per direction = **measured ÷ peak**. Fall back to the `Memory.csv` non-`NA` mean when `summary.jsonl` is absent. Display **GB/s** (UI-34).
 **Implement / test as:** `bandwidthCards`, `PR-VM-013`, `PR-STATS-024`
 **Superseded when:** — already superseded by NPU-Compute.md / DATA-33.
 
