@@ -129,6 +129,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 96. **PR-CANVAS-096** — Ctrl/Cmd+click (or a Ctrl/Cmd-drag that ends within the click threshold) is a no-op in `onPointerUp` — it never falls through to `select` and so never clears an active multi-selection.
 97. **PR-CANVAS-097** — Shift+union/drag on the pinned strip resolves ids through the shared cross-model event resolver, so ids outside the pinned lanes (from the body or a seeded single selection) are not dropped from the committed `multi-select`.
 98. **PR-CANVAS-098** — While any selection is active, a hover-only update rebuilds the WebGL emphasis buckets because both the interval fill and the ClearType label keep the hovered event bright. A hover transition must never leave a bright label on a muted interval or vice versa.
+99. **PR-CANVAS-099** — A multi-selected event keeps the `selected` fill lift (same `L+0.33`, `C×1.05` as the single selection), not just exemption from muting; it must not fall back to its resting colour and only brighten on hover.
 
 ## Edge Cases
 

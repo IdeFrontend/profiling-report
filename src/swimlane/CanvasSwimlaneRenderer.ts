@@ -355,7 +355,7 @@ export class SwimlaneOverlayPainter {
       // semi-transparent state fill on top of that would double-composite — Canvas
       // blends the same state over the lane background instead. Reset to the lane
       // fill first (hover tint when that row is hovered) so both backends agree.
-      const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+      const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
       const fill = eventFill(item.color, state);
       if (state !== 'normal') {
         const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
@@ -674,7 +674,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         hasSelection || hasMulti,
       );
       const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
-      const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+      const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
       const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
