@@ -76,6 +76,13 @@ describe('ProfilingReport scaffold', () => {
     expect(src).not.toMatch(/pr-root__corner-wash/);
   });
 
+  it('PR-ROOT-014: the dock stacks above the timeline so the cursor playhead cannot paint over it', async () => {
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    // `.pr-main` (ReportLayout) is `z-index: 1`; the dock must sit above it or the
+    // full-height cursor stem (CursorTimestamp, `height: 100vh`) paints over the dock.
+    expect(src).toMatch(/\.pr-dock\s*\{[^}]*z-index:\s*[2-9]/);
+  });
+
   it('PR-ROOT-002: accepts pre-parsed model props', () => {
     const wrapper = mount(ProfilingReport, {
       props: {

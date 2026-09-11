@@ -1323,6 +1323,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   flex-direction: column;
   flex: 0 0 auto;
   position: relative;
+  /* Above `.pr-main` (z-index: 1 in ReportLayout) so the full-height cursor
+     playhead (CursorTimestamp, `height: 100vh`) paints *under* the dock, not over it. */
+  z-index: 2;
   box-sizing: border-box;
   height: min(var(--pr-dock-h), 60vh);
   background: var(--pr-bg-panel, #262626);
