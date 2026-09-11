@@ -60,7 +60,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | **Confirmed** (npu-compute 0818). Shown as ms in mockup (unit conversion in UI) |
 | 5 | 算力情况 | measured / peak TFLOPS | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` | **Interim DATA-33h** (DATA-2..4, UI-33). Sketch: **Cube \| Vector** columns |
-| 6 | 带宽利用率 | main-mem read / write BW | `Memory.csv` | Sketch: one card **读 \| 写**. Measured columns confirmed; peak / score / aic↔读·写 aggregation still **DATA-33g** |
+| 6 | 带宽利用率 | measured / peak read \| write BW | `summary.jsonl` `OpInfoSummary` (+ `category: Memory` fallback) | Sketch: one card **读 \| 写**. Measured read / write = the producer's summed sides `aicore_gm_read_bw` / `aicore_gm_write_bw`; peak SOL **1600 GB/s** shared by both sides; each direction's score = measured ÷ peak ([DATA-8](../context/decisions/DATA.md)). One block selector for the aggregation ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). Source is **not** `Report.csv`. |
 | 7 | AICore 并行使用率 | `aicore_parallel_utilization` / `aicore_parallel_balance` | `summary.jsonl` | **DATA-9 / DATA-10**. Sketch: **并行使用率** \| **负载均衡度** |
 
 ### Visualization logic (from mockup)
@@ -73,10 +73,10 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | Grid | Sketch **2×2**: top 整体耗时 \| AICore 并行使用率; bottom 算力情况 \| 带宽利用率 |
 | 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + progress bar = `min(100%, Block Dim / core_count × 100%)` when adapter sets `summary.coreCount` (UI-32); else decorative ~15% fill (DATA-33e). Secondary: `{blockDim} / {coreCount}` iterations/core when both set (DATA-1); else `blockDim` only; else `opName`; else omit. No standalone op-type card. |
 | 算力情况 card | **Cube \| Vector** columns (UI-33): large score (no `%`), bar = `round(measured/peak×100)` %, subtitle `measured / peak` with `TFLOPS` on the next line — **DATA-33h** (DATA-2..4). Omit side without both measured + peak; **N/A** placeholder when duration present but `computeCard` absent. |
-| 带宽利用率 card | **读 \| 写** columns: large score **with** `%`, bar = score% of track, `measured / peak` — **DATA-33g** / UI-34 GB/s (sketch TB/s). Same card chrome as 整体耗时. |
+| 带宽利用率 card | **读 \| 写** columns: large score **with** `%`, bar = score% of track, `measured / peak` — **DATA-8** / UI-34 GB/s (sketch TB/s). Same card chrome as 整体耗时. |
 | AICore 并行使用率 card | Dual **并行使用率** \| **负载均衡度** from `summary.parallelUtilization` / `parallelBalance` (**DATA-9 / DATA-10**): 2dp `%` scores, bars = clamped score % of track ([0, 100]), unrounded percent in value `title`. Hide a column when its field is absent; **title + `N/A`** when duration present but both absent. |
 
-Compute uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formulas still partial). Bandwidth **measured** columns are product-confirmed; peak, score, and 读/写 aggregation stay [DATA-33g](../context/decisions/interim/DATA.md). AICore parallel fields are product-confirmed (**DATA-9 / DATA-10**).
+Compute uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formulas still partial). Bandwidth **measured / peak / 读写** are product-confirmed ([DATA-8](../context/decisions/DATA.md)). AICore parallel fields are product-confirmed (**DATA-9 / DATA-10**).
 
 ### Interim DATA-33h (算力情况)
 
@@ -85,22 +85,22 @@ Compute uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formu
 | Measured | Mean `aic_cube_fops` / `aiv_vec_fops` ÷ mean `aic_time(us)` / `aiv_time(us)` on `ArithmeticUtilization.csv` → TFLOPS (`/ 1e6`) — same basis as roofline DATA-37a |
 | Peak | Cube: `16×sizeof(dtype)×16×core×freq×2/1000`; Vector: `128×core×freq×2/1000`. Cores from `HardwareInfo.jsonl`; freq from jsonl `ai_core_frequency_MHZ` (confirmed MHz) or OpBasicInfo `Rated Freq` / `Current Freq` **assumed MHz** until Product confirms units (DATA-3); `sizeof(dtype)` = **2** (FP16) until dtype in CSV |
 | Score | `round(measured/peak×100)` clamped 0–100 |
-| Display | TFLOPS with same magnitude rounding as DATA-33g GB/s |
+| Display | TFLOPS with same magnitude rounding as DATA-8 GB/s |
 | Layout | Same raised card chrome as duration. Inner **Cube \| Vector** columns (UI-33; adapter `aic`/`aiv`). Requires `taskDurationUs`; BW-only summary omits this card |
 | NA | Omit side without both measured and peak; **N/A** placeholder when duration present but no computable sides |
 
-### Interim DATA-33g (带宽利用率)
+### 带宽利用率 (DATA-8)
 
-| Slot | Interim |
+| Slot | Rule |
 | --- | --- |
-| Measured | **Confirmed columns:** mean of non-`NA` matching Memory.csv main-mem read/write BW across `block_id` (same as DATA-33b). Sketch shows **读 \| 写**; aic/aiv → 读/写 aggregation **OPEN** |
-| Peak | 1600 GB/s (1.6 TB/s) — sketch HW guess, **not** max of measured columns |
-| Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100. Sketch 81 vs `0.08/1.6` does **not** match; follow the ratio |
+| Measured | `summary.jsonl` `OpInfoSummary` `aicore_gm_read_bw(GB/s)` / `aicore_gm_write_bw(GB/s)` — the producer's sums of the `category: Memory` aic + aiv sides. Fallback: those same two `Memory` columns summed; `Memory.csv` non-`NA` means without `summary.jsonl` |
+| Peak | `OpInfoSummary` `aicore_gm_bw_theoretical(GB/s)` = **1600 GB/s** (SOL), shared by both sides (DATA-6) |
+| Score | `round(measuredGBs / peakGBs × 100)` clamped 0–100, per direction. The card does **not** use `aicore_gm_bw_usage_rate(%)` (a mean of the per-path usage columns) |
 | Display | **GB/s** with magnitude rounding: ≥10 → 1 decimal; ≥0.01 → 2; ≥0.001 → 3; else 4 (UI-34; sketch may still print TB/s) |
-| Layout | Sketch: one card, **读 \| 写** columns, score **with** `%`. UI mean-collapses aic\|aiv per direction |
+| Layout | Sketch: one card, **读 \| 写** columns, score **with** `%`. UI **sums** any aic\|aiv sides per direction (the summed producer field arrives as one `aicore` side) |
 | Bar | Fill width = score % of track (`--pr-color-card-bar-primary` / `--pr-color-card-bar-secondary`; legacy alias `--pr-color-bandwidth-bar`); same 8px pill hatched track as duration; 0% fill has no 2px sliver |
 | NA | Omit that column; omit the card if both sides NA |
-| `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused |
+| `Report.csv` | Named SOL/平均带宽 in producer notes; **no schema** — unused. Confirmed not the card source ([DATA-8](../context/decisions/DATA.md)) |
 
 ---
 
@@ -152,12 +152,13 @@ Do **not** use the docx tab→pipe-ratio table. While DATA-37 is open:
 
 | Axis / element | Interim source |
 | --- | --- |
-| Y achieved | DATA-37a: `fops / timeUs / 1e6` from `ArithmeticUtilization.csv` |
-| X GM | DATA-37b: fops / GM R+W bytes from `Memory.csv` |
+| Y achieved | DATA-37a: `fops / timeUs / 1e6` from `ArithmeticUtilization` |
+| X GM | DATA-37b: fops / GM R+W bytes from `Memory` |
 | L2 point | DATA-37c: omit |
 | Roof | DATA-37d: peakCompute=1 TOps/s; peakBW from main-mem BW columns |
 | Op-mix labels | DATA-37e: normalize Vector/Cube mix ratios |
 | Tabs | DATA-37f: hidden |
+| Block scope | **All** = the `summary.jsonl` `ArithmeticUtilization` + `Memory` categories; a picked `block_id` = that block's CSV rows ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). A picked block with no GM point hides the panel — never the **All** point under a block label |
 
 Hide `RooflinePanel` when no GM point can be derived.
 
@@ -197,7 +198,7 @@ Hide `RooflinePanel` when no GM point can be derived.
 - Horizontal 0–100% tracks with a percent scale above the rows; solid fill = ratio; hatched remainder to 100%.
 - In-bar absolute (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent.
 - **详情** opens the compute CSV overlay (`CsvFieldListPanel`) and emits `open-pipe-details`.
-- Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([DATA-33b](../context/decisions/interim/DATA.md)); detail tabs are block-scoped ([DATA-33c](../context/decisions/interim/DATA.md)).
+- Summary PIPE bars for the aside default view may still use mean-across-blocks aggregation ([DATA-28](../context/decisions/DATA.md)); every widget shares the one block selector ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)).
 - Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).
 
 ---
@@ -214,7 +215,7 @@ Detail surface uses **tabs** ([`v930/compute-load-detail`](./source/v930/compute
 | `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
 | `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
 
-Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-33c](../context/decisions/interim/DATA.md)):
+Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-19](../context/decisions/DATA.md)):
 
 - AIC group: cycles, `*_time(us)`, `*_ratio`, active BW, ICache miss, scalar stall/wait breakdowns.
 - AIV group: same pattern; display `NA` when absent.
@@ -248,14 +249,14 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 | L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | Same |
 | L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
-| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |
-| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | Product still 待确定; sample has the column |
-| UB → L2 | `aiv_ub_read_bw_gm(GB/s)` then `aiv_ub_to_gm_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | Product name first (unverified; absent from sample); sample fallback |
-| L2 → UB | `aiv_ub_write_bw_gm(GB/s)` then `aiv_gm_to_ub_bw(GB/s)` | `MemoryUB.csv` then `Memory.csv` | Product name first (unverified; absent from sample); sample fallback |
+| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | **DATA-24:** Product-confirmed field; 理论值 (Peak %) tracked by [DATA-20](../context/questions/DATA.md) |
+| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | **DATA-25:** Product-confirmed field; 理论值 (Peak %) tracked by [DATA-20](../context/questions/DATA.md) |
+| UB → L2 | `aiv_ub_to_gm_bw(GB/s)` | `Memory.csv` | **DATA-22:** Product answer; `MemoryUB.csv` `aiv_ub_read_bw_gm` is not the collected field |
+| L2 → UB | `aiv_gm_to_ub_bw(GB/s)` | `Memory.csv` | **DATA-23:** Product answer; `MemoryUB.csv` `aiv_ub_write_bw_gm` is not the collected field |
 | Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | `ub_read_*` = leaving UB (`out.rep` add 2:1) |
 | UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
-| L2Cache Hit Rate | first `*_hit_rate(%)` | `L2Cache.csv` | AIC/AIV column choice TBD (DATA-21 interim) |
-| **L2 Peak(%)** | same hit-rate columns as above | `L2Cache.csv` | **DATA-20:** L2 box only = hit rate. Other units still unmapped |
+| L2Cache Hit Rate | total `*_hit_rate(%)` | `L2Cache.csv` / `summary.jsonl` `L2Cache` | **DATA-21:** use the **total** hit rate; fall back to first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, then read rates |
+| **L2 Peak(%)** | same hit-rate columns as above | `L2Cache.csv` | **DATA-20:** L2 box only = hit rate. Other units and the L0C edges still unmapped |
 
 **NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
 
@@ -265,7 +266,7 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 - Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
 - Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (hit rate, DATA-20; sketch has no “Peak” word and no fill tint). Other units stay without Peak until Product maps them.
 - **Right-click (UI-35):** open memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0), same as **详情**.
-- Labels are **block-scoped** via the same block switcher as memory details ([DATA-33c](../context/decisions/interim/DATA.md)).
+- Labels are **block-scoped** via the same block switcher as memory details ([DATA-19](../context/decisions/DATA.md)).
 
 ---
 
@@ -276,7 +277,7 @@ Memory detail controls ([`v930/memory-load-detail`](./source/v930/memory-load-de
 | Control | Behavior |
 | --- | --- |
 | Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent |
-| Block switcher | Filter rows to selected `block_id` ([DATA-33c](../context/decisions/interim/DATA.md)); default = first block |
+| Block switcher | Filter rows to selected `block_id` ([DATA-19](../context/decisions/DATA.md)); default = first block |
 | 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/decisions/interim/DATA.md)) |
 
 Searchable key–value / table of columns for the active tab + block. Show `NA` when present.
@@ -357,21 +358,21 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Topic | Source status |
 | --- | --- |
 | Report-stat cards 5, 8 field derivation | Empty in product tables |
-| I/O bandwidth peak / score (cards 6–7) | **Measured confirmed.** Peak / score still **DATA-33g** |
+| I/O bandwidth peak / score (cards 6–7) | **Resolved** ([DATA-8](../context/decisions/DATA.md)): peak SOL 1600, score = measured ÷ peak |
 | Stats header 进程 / 算子类型 / Blocks | **Closed.** `OpBasicInfo.csv` `Pid` / `Op Type` / `Block Dim`. 核数 / NPU ARCH / aic频率 are not on the v930 header. |
 | Roofline tab names vs pipe-ratio fields; missing axis formulas | Contradictory / incomplete |
 | Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |
 | Dual-Die remote memory right-click details | Explicit product question |
 | Memory Peak (%) per unit | **L2 = hit rate (DATA-20).** Other units still unmapped |
-| L2 hit-rate column choice | Incomplete (DATA-21 interim) |
+| L2 hit-rate column choice | **Resolved (DATA-21):** total hit rate from `summary.jsonl` `L2Cache`; fall back to first non-`NA` read rate |
 | L0C → UB edge | 待确定 |
-| UB↔GM | Product `MemoryUB.csv` names first; sample `Memory.csv` fallback |
+| UB↔GM | **Closed (DATA-22 / DATA-23):** `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` |
 | Statistical analysis series schema | Placeholder only |
 | Timeline + event-detail field tables | Empty; mockup-driven |
 | HardwareInfo | Confirmed source; in toolkit `example.rep` (not in git), absent from `out.rep` |
 | Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
 | `ResourceConflictRatio.csv` | In sample; no UI mapping |
-| Block-level aggregation for OP summary cards | Unspecified (sample has 8 blocks) |
+| Block-level aggregation for OP summary cards | **Closed:** one selector, `All` = `summary.jsonl` non-`NA` mean, a picked id = that block's CSV row ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). A picked block with no data blanks its widget — never the `All` aggregate under a block label |
 
 ---
 

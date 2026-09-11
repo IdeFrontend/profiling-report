@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { adaptPayloads, adaptRep, loadReportSource, parseNpuRep160, parseRep } from '../../src/index';
-import { overviewSeriesFromSampling } from '../../src/adapters';
+import {
+  bandwidthCardsFromRows,
+  computeCardFromRows,
+  overviewSeriesFromSampling,
+  pipeOccupancyFromRows,
+  rooflineFromRows,
+} from '../../src/adapters';
 import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../src/adapters/memoryTopology';
 import { loadOutRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import type { CsvTableModel } from '../../src/domain/types';
@@ -25,7 +31,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.parallelUtilization).toBeUndefined();
   });
 
-  it('PR-VM-013 (interim DATA-33g): Memory.csv → bandwidthCards mean non-NA; peak 1600 GB/s', () => {
+  it('PR-VM-013 (DATA-8): bandwidthCards prefer the producer-summed summary.jsonl sides; Memory.csv fallback; peak 1600 GB/s', () => {
     const fixture = adaptRep(parseRep(loadOutRepBytes())).reportModel.bandwidthCards;
     expect(fixture).toBeDefined();
     expect(fixture!.map((c) => c.id)).toEqual(['input', 'output']);
@@ -63,11 +69,43 @@ describe('PR-VM: report view-models (interim)', () => {
       { id: 'input', sides: [{ side: 'aiv', measuredGBs: 60, peakGBs: 1600 }] },
     ]);
 
+    // DATA-8: `OpInfoSummary` publishes the aic + aiv sides already summed — prefer them.
+    parsed.payloads['summary.jsonl'] = new TextEncoder().encode(
+      JSON.stringify({
+        category: 'OpInfoSummary',
+        'aicore_gm_bw_theoretical(GB/s)': 1600,
+        'aicore_gm_read_bw(GB/s)': 1234,
+        'aicore_gm_write_bw(GB/s)': 567,
+      }),
+    );
+    expect(adaptRep(parsed).reportModel.bandwidthCards).toEqual([
+      { id: 'input', sides: [{ side: 'aicore', measuredGBs: 1234, peakGBs: 1600 }] },
+      { id: 'output', sides: [{ side: 'aicore', measuredGBs: 567, peakGBs: 1600 }] },
+    ]);
+
+    // Without the summed field, fall back to the `category: Memory` per-side columns.
+    parsed.payloads['summary.jsonl'] = new TextEncoder().encode(
+      [
+        JSON.stringify({ category: 'OpInfoSummary', 'aicore_gm_bw_theoretical(GB/s)': 1600 }),
+        JSON.stringify({
+          category: 'Memory',
+          'aic_main_mem_read_bw(GB/s)': 80,
+          'aiv_main_mem_read_bw(GB/s)': 90,
+        }),
+      ].join('\n'),
+    );
+    const perSide = adaptRep(parsed).reportModel.bandwidthCards!;
+    expect(Object.fromEntries(perSide[0]!.sides.map((s) => [s.side, s.measuredGBs]))).toEqual({
+      aic: 80,
+      aiv: 90,
+    });
+
+    delete parsed.payloads['summary.jsonl'];
     delete parsed.payloads['Memory.csv'];
     expect(adaptRep(parsed).reportModel.bandwidthCards).toBeUndefined();
   });
 
-  it('PR-VM-002 (interim DATA-33b): PipeUtilization → PIPE bars mean of non-NA', () => {
+  it('PR-VM-002 (DATA-28): PipeUtilization → PIPE bars mean of non-NA', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const vectorPipes = adapted.reportModel.pipeOccupancy.filter((p) => p.side === 'vector');
     const byId = Object.fromEntries(vectorPipes.map((p) => [p.id, p]));
@@ -327,7 +365,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(ratedOnly.peakTflops).toBeCloseTo((128 * 72 * 1.65 * 2) / 1000, 3);
   });
 
-  it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB prefers MemoryUB then Memory.csv; hide NA, show 0', () => {
+  it('PR-VM-011: out.rep UB/Vec/GM 2:1 and from→to; L2↔L1 from Memory.csv; UB from Memory.csv (DATA-22/23); hide NA, show 0', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const topo = adapted.reportModel.memoryTopology;
     expect(topo).toBeDefined();
@@ -376,7 +414,8 @@ describe('PR-VM: report view-models (interim)', () => {
     ];
     const labelled = buildMemoryTopology(both, '0');
     expect(labelled?.edges.find((e) => e.id === 'l2-l1-read')?.label).toBe('0.00 GB/s');
-    expect(labelled?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('9.25 GB/s');
+    // DATA-22: Memory.csv wins; the MemoryUB `*_gm` column is not the collected source.
+    expect(labelled?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('1.11 GB/s');
 
     const sampleOnly: CsvTableModel[] = [
       {
@@ -397,7 +436,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(sample?.edges.find((e) => e.id === 'l2-l1-write')?.label).toBeUndefined();
   });
 
-  it('PR-VM-012: topology labels are block-scoped; snapshot uses first labelled block', () => {
+  it('PR-VM-012: topology labels are block-scoped; snapshot is summary.jsonl, first labelled block is the classic-.rep fallback', () => {
     const tables: CsvTableModel[] = [
       {
         fileName: 'Memory.csv',
@@ -416,6 +455,21 @@ describe('PR-VM: report view-models (interim)', () => {
     const first = firstLabelledMemoryTopology(tables);
     expect(first?.blockId).toBe('1');
     expect(first?.model.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
+
+    // PR-VM-017: a product pack snapshots the summary.jsonl aggregate, not that first labelled block.
+    const encoder = new TextEncoder();
+    const csv = 'block_id,aiv_main_mem_read_bw(GB/s)\n0,NA\n1,4.25\n';
+    const categorySnapshot = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        JSON.stringify({ category: 'Memory', 'aiv_main_mem_read_bw(GB/s)': 9.5 }) + '\n',
+      ),
+      'Memory.csv': encoder.encode(csv),
+    }).reportModel.memoryTopology;
+    expect(categorySnapshot?.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('9.50 GB/s');
+    // Without summary.jsonl there is no aggregate, so the classic `.rep` falls back to block 1.
+    const csvSnapshot = adaptPayloads({ 'Memory.csv': encoder.encode(csv) }).reportModel
+      .memoryTopology;
+    expect(csvSnapshot?.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
   });
 
   it('PR-VM-012b: L2 Peak(%) from first non-NA hit-rate column (DATA-20 / DATA-21)', () => {
@@ -476,5 +530,115 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summary.parallelUtilization).toBe(0.5);
     expect(computeCard?.sides.map((s) => s.side).sort()).toEqual(['aic', 'aiv']);
     expect(computeCard!.sides.find((s) => s.side === 'aic')!.measuredTflops).toBe(10);
+  });
+
+  it('PR-VM-017 (DATA-19/28/29): All scope reads summary.jsonl, a picked block reads its CSV row', () => {
+    const encoder = new TextEncoder();
+    const payloads = {
+      // Producer aggregate: deliberately different from the per-block CSVs below.
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify({
+            category: 'OpInfoSummary',
+            'aicore_gm_bw_theoretical(GB/s)': 1600,
+          }),
+          JSON.stringify({ category: 'PipeUtilization', aiv_vec_ratio: 0.42 }),
+          JSON.stringify({ category: 'Memory', 'aiv_ub_to_gm_bw(GB/s)': 42 }),
+        ].join('\n') + '\n',
+      ),
+      'PipeUtilization.csv': encoder.encode('block_id,aiv_vec_ratio\n0,0.2\n1,0.8\n'),
+      // Edge direction carries one row per block; blocks are 0 and 1.
+      'Memory.csv': encoder.encode(
+        [
+          'block_id,aiv_ub_to_gm_bw(GB/s)',
+          '0,1.5',
+          '1,1.7',
+        ].join('\n'),
+      ),
+    };
+    const model = adaptPayloads(payloads).reportModel;
+
+    // All = the summary.jsonl category record …
+    expect(model.pipeOccupancy.find((p) => p.id === 'vector')?.ratio).toBeCloseTo(0.42, 6);
+    expect(model.memoryTopology?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('42.00 GB/s');
+    expect(model.summaryCategories!.find((c) => c.id === 'PipeUtilization')!.fields).toContainEqual({
+      key: 'aiv_vec_ratio',
+      value: '0.42',
+    });
+
+    // … and it is not the CSV mean, which is what a picked block's rows produce.
+    const csvRows = model.computeTables.find((t) => t.fileName === 'PipeUtilization.csv')!.rows;
+    expect(pipeOccupancyFromRows(csvRows).find((p) => p.id === 'vector')?.ratio).toBeCloseTo(0.5, 6);
+    expect(buildMemoryTopology(model.memoryTables, '1')?.edges.find((e) => e.id === 'ub-l2')?.label)
+      .toBe('1.70 GB/s');
+  });
+
+  it('PR-VM-017b (DATA-19/29): All roofline reads the summary.jsonl categories, not the CSV mean', () => {
+    const encoder = new TextEncoder();
+    const payloads = {
+      // Producer aggregate: deliberately different from the per-block CSVs below.
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify({
+            category: 'ArithmeticUtilization',
+            'aiv_vec_fops': '2e7',
+            'aiv_time(us)': '1',
+          }),
+          JSON.stringify({ category: 'Memory', 'read_main_memory_datas(KB)': '1024' }),
+        ].join('\n') + '\n',
+      ),
+      'ArithmeticUtilization.csv': encoder.encode(
+        'block_id,aiv_vec_fops,aiv_time(us)\n0,4e7,1\n1,8e7,1\n',
+      ),
+      'Memory.csv': encoder.encode('block_id,read_main_memory_datas(KB)\n0,4096\n1,4096\n'),
+    };
+    const gm = adaptPayloads(payloads).reportModel.roofline?.points.find((p) => p.id === 'gm');
+    // The category record is the All aggregate; the CSV mean would be 6e7 fops.
+    expect(gm?.performance).toBeCloseTo(2e7 / 1 / 1e6, 6);
+    expect(gm?.intensity).toBeCloseTo(2e7 / 1024 / 1024, 6);
+  });
+
+  it('PR-VM-018 (DATA-8/19): bandwidthCardsFromRows sums a block’s aic + aiv sides per direction', () => {
+    const rows = [
+      {
+        block_id: '2',
+        'aic_main_mem_read_bw(GB/s)': '80',
+        'aiv_main_mem_read_bw(GB/s)': '90',
+        'aic_main_mem_write_bw(GB/s)': 'NA',
+        'aiv_main_mem_write_bw(GB/s)': '70',
+      },
+    ];
+    expect(bandwidthCardsFromRows(rows)).toEqual([
+      { id: 'input', sides: [{ side: 'aicore', measuredGBs: 170, peakGBs: 1600 }] },
+      { id: 'output', sides: [{ side: 'aicore', measuredGBs: 70, peakGBs: 1600 }] },
+    ]);
+    // Peak follows the producer's `aicore_gm_bw_theoretical` when the caller resolved one.
+    expect(bandwidthCardsFromRows(rows, 800)[0]!.sides[0]!.peakGBs).toBe(800);
+    expect(bandwidthCardsFromRows([])).toEqual([]);
+  });
+
+  it('PR-VM-019 (DATA-19): computeCardFromRows measures the block row, peaks stay chip-level', () => {
+    const summary = { aicFlopsTheoretical: 20, aivFlopsTheoretical: 10 };
+    const rows = [{ 'aic_cube_fops': '3e7', 'aic_time(us)': '1.5' }];
+    const card = computeCardFromRows(rows, summary);
+    expect(card?.sides).toEqual([{ side: 'aic', measuredTflops: 20, peakTflops: 20 }]);
+    // No theoretical peak in the summary → no side, never an invented peak.
+    expect(computeCardFromRows(rows, {})).toBeUndefined();
+    expect(computeCardFromRows([], summary)).toBeUndefined();
+    // Classic `.rep`: no OpInfoSummary peak, so the chip-level peak comes from the All card.
+    const fallback = { sides: [{ side: 'aic' as const, measuredTflops: 1, peakTflops: 20 }] };
+    expect(computeCardFromRows(rows, {}, fallback)?.sides).toEqual([
+      { side: 'aic', measuredTflops: 20, peakTflops: 20 },
+    ]);
+    // A peak is never borrowed for a side the All card does not have.
+    expect(computeCardFromRows(rows, {}, { sides: [] })).toBeUndefined();
+  });
+
+  it('PR-VM-020 (DATA-19): rooflineFromRows honours the rows it is given', () => {
+    const arith = [{ 'aiv_vec_fops': '2e7', 'aiv_time(us)': '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const model = rooflineFromRows(arith, mem);
+    expect(model?.points[0]?.intensity).toBeCloseTo(2e7 / 1024 / 1024, 6);
+    expect(rooflineFromRows([], mem)).toBeUndefined();
   });
 });

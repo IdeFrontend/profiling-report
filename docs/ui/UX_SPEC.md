@@ -95,7 +95,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Rank pipes and inspect raw CSV counters for a selected block |
 | **Trigger** | After S1; user needs more than bar chart |
-| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter + highlight field labels; open memory tabs + block switcher; optionally 查看全部 |
+| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter field labels; open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
 | **Sketches** | Bars: [`v930/compute-load`](./source/v930/compute-load.jpeg). Details: [`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg) |
 | **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
@@ -193,9 +193,9 @@ Interactivity classes:
 | Lane gutter | interactive | Expand/collapse; wheel scroll sync | Row set + `scrollY` | M |
 | Event tooltip | interactive (transient) | Hover | Shows timing | M |
 | Detail strip / bottom dock | interactive (selection-driven) | Cleared by empty click | Bound to selection | M / richer P2 |
-| Pipe field list + search | interactive | Type filter, scroll | Filtered rows + flush substring highlight | M1 |
+| Pipe field list + search | interactive | Type filter, scroll | Filtered rows (no highlight, UI-43) | M1 |
 | Memory topology | semi / interactive | Pan/zoom diagram optional; click nodes P2 | Field highlight | P2 |
-| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows + flush substring highlight | M1 |
+| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows (no highlight, UI-43) | M1 |
 | Hardware details | static / semi | Scroll | — | P2 |
 | Dependency link curves | interactive | Toggle visibility; click link | Selection / detail | P2 |
 | Context menu | interactive | Right-click | Pin / actions | P2 |
@@ -270,7 +270,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S5 (M1)
 
 1. MVP: read PIPE bars in aside.
-2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the substring; inspect values (`source/v930/compute-load-detail.jpeg`).
+2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows (no substring highlight, [UI-43](../context/decisions/UI.md)); inspect values (`source/v930/compute-load-detail.jpeg`).
 
 ### Flow S6–S9
 
@@ -287,7 +287,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-----------|-----|
 | No `OverviewSeries` | Hide `OverviewCharts` ([DATA-32](../context/decisions/DATA.md)) |
 | Optional CSV / panel inputs missing | Hide related surface ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)); Timeline still works if trace present |
-| Summary formula unknown (DATA-33) | **Interim [DATA-33a](../context/decisions/interim/DATA.md):** duration; **[DATA-33h](../context/decisions/interim/DATA.md)** compute Cube\|Vector when `computeCard` exists; **[DATA-33g](../context/decisions/interim/DATA.md)** bandwidth 读\|写; **DATA-9 / DATA-10** AICore dual 并行\|负载 when `parallelUtilization` / `parallelBalance` exist (else title + `N/A`) |
+| Summary formulas (DATA-33) | **Interim [DATA-33a](../context/decisions/interim/DATA.md):** duration; **[DATA-33h](../context/decisions/interim/DATA.md)** compute Cube\|Vector when `computeCard` exists; **[DATA-8](../context/decisions/DATA.md)** bandwidth 读\|写 (summed sides, score = measured ÷ peak); **DATA-9 / DATA-10** AICore dual 并行\|负载 when `parallelUtilization` / `parallelBalance` exist (else title + `N/A`) |
 | Trace missing / invalid | Error state on root; emit `error`; do not show broken swimlane |
 | All AIC fields `NA` (vector-only) | Show AIV-derived PIPE; do not invent Cube series |
 | Search no matches | Neutral empty hint in toolbar/results; swimlane unchanged except clear highlights |
@@ -328,6 +328,6 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-------|----------|---------------------------|
 | Trace richness | DATA-31, DATA-35 | Lane taxonomy may be thinner than sketches; hierarchy collapses to available threads |
 | Overview series | DATA-32 | Charts hidden if no series |
-| Summary formulas | DATA-33 / [DATA-33a](../context/decisions/interim/DATA.md) / [DATA-33g](../context/decisions/interim/DATA.md) / [DATA-33h](../context/decisions/interim/DATA.md) / [DATA-9](../context/decisions/DATA.md) / [DATA-10](../context/decisions/DATA.md) | Duration + interim compute/BW; AICore dual columns when parallel fields present; BW peak/score via DATA-5–7 (`summary.jsonl` SOL 1600) |
+| Summary formulas | DATA-33 / [DATA-33a](../context/decisions/interim/DATA.md) / [DATA-8](../context/decisions/DATA.md) / [DATA-33h](../context/decisions/interim/DATA.md) / [DATA-9](../context/decisions/DATA.md) / [DATA-10](../context/decisions/DATA.md) | Duration + compute/BW (BW per DATA-8); AICore dual columns when parallel fields present; BW peak/score via DATA-5–7 (`summary.jsonl` SOL 1600) |
 | Hardware aside | DATA-34 / UI-30, UI-31 | **更多** always opens; missing HardwareInfo → **缺少 hardware info** |
 | Dependencies | DATA-36 | S8 dep flows blocked |

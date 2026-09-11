@@ -15,10 +15,15 @@ export {
 export {
   adaptRep,
   adaptPayloads,
+  bandwidthCardsFromRows,
+  categoryRow,
+  computeCardFromRows,
   emptyReportViewModel,
   overviewSeriesFromSampling,
   pipeOccupancyFromRows,
+  rooflineFromRows,
+  summaryCategoryRows,
 } from './adaptRep';
-export { buildMemoryTopology } from './memoryTopology';
+export { buildMemoryTopology, buildMemoryTopologyFromCategories } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';

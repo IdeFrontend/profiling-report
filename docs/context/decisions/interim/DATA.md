@@ -38,19 +38,19 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-33b — PIPE aggregation
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-09-11
 **Question:** [DATA-33](../DATA.md)
-**Interim:** Default **All** = **mean of non-`NA` ratios** per pipe family across `block_id`. Summary block control may scope PIPE to one `block_id` (DATA-19).
+**Interim:** ~~Default **All** = **mean of non-`NA` ratios** per pipe family across `block_id`. Summary block control may scope PIPE to one `block_id`.~~ Product-confirmed ([DATA-28](../DATA.md) / [DATA-19](../DATA.md)): `All` = `summary.jsonl` non-`NA` mean across `block_id`; a picked `block_id` = that block's `PipeUtilization.csv` row.
 **Implement / test as:** `StatsAside` PIPE + `pipeOccupancyFromRows`; PR-STATS-014b
-**Superseded when:** DATA-33 / data spec overrides aggregation
+**Superseded when:** — done ([DATA-28](../DATA.md)).
 
 ### DATA-33c — Block scope vs aggregate
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-09-11
 **Question:** [DATA-33](../DATA.md)
-**Interim:** Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id` ([DATA-33b](#data-33b--pipe-aggregation), DATA-19). **Detail / memory / metrics** views are **block-scoped** via the block switcher ([`v930/memory-load-detail`](../../../../docs/ui/source/v930/memory-load-detail.jpeg)). Picking a summary block id syncs topology `selectedBlockId`; **All** restores the default topology block (`firstLabelledMemoryTopology` / first id). Default selected block = first `block_id` in fixture order.
+**Interim:** ~~Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id`. **Detail / memory / metrics** views are **block-scoped** via the block switcher; **All** restores the default topology block.~~ Product-confirmed ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)): **one** selector — **All | 0 | 1 | 2 …**, default **All** — scopes **every** CSV-backed widget; `All` reads `summary.jsonl`, a picked id reads that block's CSV row. Op-level-only metrics (`HardwareInfo`, AI Core 并行使用率 / 负载均衡度) do not change, and without `summary.jsonl` the `All` aggregate falls back to the CSV data.
 **Implement / test as:** Aside detail tabs + block picker tests
-**Superseded when:** Product defines block vs aggregate UX
+**Superseded when:** — done ([DATA-29](../DATA.md)).
 
 ### DATA-33d — 查看全部 CSV
 
@@ -80,7 +80,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim` — **SUPERSEDED** 2026-09-04
 **Question:** [DATA-33](../DATA.md)
-**Interim:** ~~Peak/score still a guess (1600 GB/s; `round(measured/peak×100)`).~~ Product (NPU-Compute / DATA-5, DATA-6, DATA-7): measured read/write BW from `summary.jsonl` `Memory` category; peak = `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = **SOL 1600 GB/s**; score = `measured / peak × 100%`. Fall back to `Memory.csv` mean when `summary.jsonl` is absent. Display **GB/s** (UI-34).
+**Interim:** ~~Peak/score still a guess (1600 GB/s; `round(measured/peak×100)`).~~ Product ([DATA-8](../DATA.md), DATA-5–DATA-7): measured read / write BW = the `OpInfoSummary` sides `aicore_gm_read_bw` / `aicore_gm_write_bw` (the aic + aiv `Memory` sums), peak = `aicore_gm_bw_theoretical(GB/s)` = **SOL 1600 GB/s** (shared by both sides), score per direction = **measured ÷ peak**. Fall back to the `Memory.csv` non-`NA` mean when `summary.jsonl` is absent. Display **GB/s** (UI-34).
 **Implement / test as:** `bandwidthCards`, `PR-VM-013`, `PR-STATS-024`
 **Superseded when:** — already superseded by NPU-Compute.md / DATA-33.
 

@@ -166,7 +166,7 @@ interface PipeOccupancyItem {
 #### CsvFieldListPanel (`src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.vue`)
 
 - **CSV tabs**: Lists available tables by filename, product label mapping (e.g., `Memory.csv` → "MemoryL1")
-- **Block switcher**: `<select>` picker filtered by `block_id` column (DATA-33c)
+- **Block switcher**: `<select>` picker filtered by `block_id` column (DATA-19)
 - **Search**: Filters field header names (case-insensitive substring)
 - **Field list**: Shows header → value pairs for the selected block/row with literal `NA` display
 - **查看全部 button**: Emits `view-full-csv` with `{ fileName, text }` for full CSV export (DATA-33d)

@@ -1,4 +1,4 @@
-import type { CsvTableModel, MemoryTopologyModel } from '../domain/types';
+import type { CsvTableModel, MemoryTopologyModel, SummaryCategory } from '../domain/types';
 
 const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'gm', label: 'GM' },
@@ -133,20 +133,16 @@ const EDGE_MAP: {
     from: 'ub',
     to: 'l2',
     unit: 'GB/s',
-    sources: [
-      { file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_gm(GB/s)'] },
-      { file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] },
-    ],
+    // DATA-22: Memory.csv `aiv_ub_to_gm_bw` is the collected field; MemoryUB `*_gm` is not collected.
+    sources: [{ file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] }],
   },
   {
     id: 'l2-ub',
     from: 'l2',
     to: 'ub',
     unit: 'GB/s',
-    sources: [
-      { file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_gm(GB/s)'] },
-      { file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] },
-    ],
+    // DATA-23: Memory.csv `aiv_gm_to_ub_bw` is the collected field; MemoryUB `*_gm` is not collected.
+    sources: [{ file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] }],
   },
   {
     id: 'vec-ub',
@@ -189,26 +185,22 @@ function formatLabel(n: number, unit: Unit): string {
 }
 
 /**
- * Block-scoped memory topology from Memory* CSV tables (§11.2.6).
- * Product: hide `NA`; show 0. Omit the whole diagram when no edge has a label.
+ * Where an edge value comes from, resolved per selector scope (DATA-19 / DATA-29):
+ * `All` reads `summary.jsonl` category fields, a picked id reads that block's CSV row.
  */
-export function buildMemoryTopology(
-  tables: CsvTableModel[],
-  blockId: string,
-): MemoryTopologyModel | undefined {
-  const byFile = new Map(tables.map((t) => [t.fileName, t]));
+export type MemoryValueSource = (
+  file: string,
+  columns: readonly string[],
+) => number | undefined;
+
+function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | undefined {
   const edges: MemoryTopologyModel['edges'] = [];
   const edgeValues = new Map<string, number>();
 
   for (const spec of EDGE_MAP) {
     let value: number | undefined;
     for (const src of spec.sources) {
-      const row = rowForBlock(byFile.get(src.file), blockId);
-      if (!row) continue;
-      for (const col of src.columns) {
-        value = parseNumber(row[col]);
-        if (value != null) break;
-      }
+      value = read(src.file, src.columns);
       if (value != null) break;
     }
     if (value != null) edgeValues.set(spec.id, value);
@@ -229,6 +221,54 @@ export function buildMemoryTopology(
   );
 
   return { nodes, edges };
+}
+
+/**
+ * Block-scoped memory topology from Memory* CSV tables (§11.2.6).
+ * Product: hide `NA`; show 0. Omit the whole diagram when no edge has a label.
+ */
+export function buildMemoryTopology(
+  tables: CsvTableModel[],
+  blockId: string,
+): MemoryTopologyModel | undefined {
+  const byFile = new Map(tables.map((t) => [t.fileName, t]));
+  return topologyFromSource((file, columns) => {
+    const row = rowForBlock(byFile.get(file), blockId);
+    if (!row) return undefined;
+    for (const col of columns) {
+      const v = parseNumber(row[col]);
+      if (v != null) return v;
+    }
+    return undefined;
+  });
+}
+
+/** Each Memory* CSV is the raw form of one `summary.jsonl` category. */
+const FILE_CATEGORY: Record<string, string> = {
+  'Memory.csv': 'Memory',
+  'MemoryL0.csv': 'MemoryL0',
+  'MemoryUB.csv': 'MemoryUB',
+  'L2Cache.csv': 'L2Cache',
+};
+
+/**
+ * `All` memory topology (DATA-19 / DATA-29): values come from the `summary.jsonl`
+ * category records — the producer's non-`NA` mean across `block_id` — not from one block's row.
+ */
+export function buildMemoryTopologyFromCategories(
+  categories: SummaryCategory[],
+): MemoryTopologyModel | undefined {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  return topologyFromSource((file, columns) => {
+    const category = byId.get(FILE_CATEGORY[file] ?? file);
+    if (!category) return undefined;
+    const field = new Map(category.fields.map((f) => [f.key, f.value]));
+    for (const col of columns) {
+      const v = parseNumber(field.get(col));
+      if (v != null) return v;
+    }
+    return undefined;
+  });
 }
 
 function blockIdsInOrder(tables: CsvTableModel[]): string[] {
