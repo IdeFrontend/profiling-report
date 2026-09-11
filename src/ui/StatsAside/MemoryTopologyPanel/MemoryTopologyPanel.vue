@@ -51,7 +51,7 @@ export function fitFontSize(natural: number, slot: string, base = BASE_FONT_PX):
 </script>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue';
+import { computed, ref, useId, watchEffect } from 'vue';
 import type { MemoryTopologyModel } from '../../../domain/types';
 import { t } from '../../../i18n';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
@@ -68,7 +68,9 @@ const props = withDefaults(
     /** UI-35: stacked diagram right-click. Fullscreen overlay turns this off. */
     openDetailsOnContextmenu?: boolean;
   }>(),
-  { openDetailsOnContextmenu: true },
+  // `locale: undefined` is what `t()` already does with an absent prop (`resolveLocale` falls
+  // back), but the linter needs the key present to see the optional prop as intentional.
+  { openDetailsOnContextmenu: true, locale: undefined },
 );
 
 const emit = defineEmits<{
@@ -139,6 +141,29 @@ const peakText = computed(() =>
   l2PeakPct.value != null ? `${l2PeakPct.value.toFixed(2)}%` : label('l2-hit'),
 );
 
+/** Unique per instance: the panel renders twice at once (stacked + fullscreen overlay). */
+const summaryId = useId();
+
+/**
+ * Accessible text alternative (PR-MEMTOP-011). `role="img"` exposes the diagram as a single
+ * image, so its `<text>` values never reach the a11y tree on their own. This spells out the
+ * same slots as `from → to: value`, read from the model — so it lists exactly what the diagram
+ * draws: blank slots and slotless edges (`l0c-l1` / `l0c-l2`) stay out.
+ */
+const summary = computed(() => {
+  const names = new Map((props.model?.nodes ?? []).map((n) => [n.id, n.label]));
+  const parts: string[] = [];
+  if (peakText.value) parts.push(`${names.get('l2') ?? 'L2'}: ${peakText.value}`);
+  for (const v of values.value) {
+    if (!v.text) continue;
+    const edge = props.model?.edges.find((e) => e.id === v.id);
+    const from = (edge && names.get(edge.from)) ?? edge?.from ?? '';
+    const to = (edge && names.get(edge.to)) ?? edge?.to ?? '';
+    parts.push(from && to ? `${from} → ${to}: ${v.text}` : v.text);
+  }
+  return parts.join('; ');
+});
+
 /**
  * Measurement twin: an unpainted `<text>` carrying the same class, so `getComputedTextLength`
  * reports the label's natural width in chrome units (the viewBox is 448×540 px at 1:1).
@@ -187,6 +212,7 @@ function fitStyle(key: string): { fontSize: string } | undefined {
       viewBox="0 0 448 540"
       role="img"
       :aria-label="t('memoryTopology', locale)"
+      :aria-describedby="summaryId"
     >
       <image
         :href="chromeUrl"
@@ -206,26 +232,18 @@ function fitStyle(key: string): { fontSize: string } | undefined {
         height="508"
       />
 
-      <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. -->
+      <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
+           `peakPct` when the node carries one, else the `l2-hit` edge label — one plate, so one
+           element; the testid still tells the two sources apart. -->
       <text
-        v-if="l2PeakPct != null"
-        x="113.8"
-        y="277.1"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        class="pr-topo__peak"
-        :style="fitStyle('peak')"
-        data-testid="node-l2-peak"
-      >{{ peakText }}</text>
-      <text
-        v-else-if="peakText"
+        v-if="peakText"
         x="113.8"
         y="277.1"
         text-anchor="middle"
         dominant-baseline="middle"
         class="pr-topo__pct"
         :style="fitStyle('peak')"
-        data-testid="edge-l2-hit"
+        :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
       >{{ peakText }}</text>
 
       <text
@@ -237,7 +255,7 @@ function fitStyle(key: string): { fontSize: string } | undefined {
         dominant-baseline="middle"
         class="pr-topo__edge"
         :style="fitStyle(v.key)"
-        :data-testid="`edge-${v.id}`"
+        :data-testid="`edge-${v.key}`"
       >{{ v.text }}</text>
 
       <text
@@ -249,6 +267,12 @@ function fitStyle(key: string): { fontSize: string } | undefined {
         aria-hidden="true"
       />
     </svg>
+
+    <!-- The diagram's accessible text alternative — see `summary` (PR-MEMTOP-011). -->
+    <span
+      :id="summaryId"
+      class="pr-topo__sr"
+    >{{ summary }}</span>
   </div>
 </template>
 
@@ -287,11 +311,24 @@ function fitStyle(key: string): { fontSize: string } | undefined {
 }
 
 /* Same size/weight as the edge values: the export's in-box `%` numbers are the same type
- * (measured cap 4.25 units, ink fill ≈ the 800 weight). Colour is the export's pure white. */
-.pr-topo__peak,
+ * (measured cap 4.25 units, ink fill ≈ the 800 weight). Colour is the export's pure white.
+ * One rule for the one L2 plate, whichever source fills it (Peak% or `l2-hit`). */
 .pr-topo__pct {
   fill: #fff;
   font-size: 6.3px;
   font-weight: 800;
+}
+
+/* Visually hidden, still in the a11y tree: the diagram's text alternative (PR-MEMTOP-011).
+ * Same declarations as `.pr-csv__sr`. */
+.pr-topo__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 </style>

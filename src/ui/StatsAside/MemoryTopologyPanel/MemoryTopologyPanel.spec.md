@@ -26,6 +26,8 @@ Official product memory-path topology chrome with **data-driven link values** (c
 8. **Right-click (UI-35):** `contextmenu` on the diagram prevent-defaults. When `openDetailsOnContextmenu` is true (stacked aside), emit `open-details` so the parent opens the memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0). When false (root fullscreen overlay), do not emit; overlay stays open.
 9. Fullscreen chrome (Back, **全屏** control) lives on `ProfilingReport` / `StatsAside`; this panel stays presentational.
 10. **Value fit (PR-MEMTOP-010):** a value wider than its own slot's corridor is drawn at a proportionally smaller `font-size` so it stays inside the link, instead of overlapping a pillar or a neighbouring unit. Values that fit keep the base size; nothing else about the slot moves.
+11. **Accessible description (PR-MEMTOP-011):** the root `role="img"` makes the diagram one image, so its `<text>` values do not reach the a11y tree by themselves. The panel therefore also renders a visually hidden list of the slots it draws — `{from} → {to}: {value}` per slot plus the L2 plate, from the model's own node labels and edge labels — and points the `svg` at it with `aria-describedby`. Slots left blank and edges with no slot are omitted, so the description lists exactly what is drawn. Each instance uses its own id (`useId`), because the stacked aside and the fullscreen overlay render two panels at once.
+12. **Slot testids (PR-MEMTOP-002b):** `data-testid` is `edge-{edge-id}-{slotIndex}`, so the AIV0/AIV1 pairs resolve to distinct elements.
 
 ### Value slots (edge → label centres, chrome units)
 
@@ -75,16 +77,19 @@ The export's slots were sized for its own 27.6-unit placeholders. Real values ar
 
 1. **PR-MEMTOP-001** — Renders the chrome asset `memory-topology.svg` at 448×540 with the L2 node anchor.
 2. **PR-MEMTOP-002** — Renders data-driven edge labels (GB/s) from `model.edges`; Vec↔UB on AIV0 and AIV1; AIC L1/L0/Cube labels when present.
+2b. **PR-MEMTOP-002b** — Every drawn value carries a unique `data-testid` (`edge-{edge-id}-{slot}`), so a `getByTestId`-style query resolves to one element even for the AIV0/AIV1 pairs.
 3. **PR-MEMTOP-003** — Omits the label for an edge with no `label` (slot drawn, blank).
 4. **PR-MEMTOP-004** — Hides the diagram when `model` is null/empty.
 5. **PR-MEMTOP-005** — Edge labels update when `model.edges` labels change.
 6. **PR-MEMTOP-006** — GM↔L2 labels sit between the GM and L2 pillars; L2↔cluster labels sit between the L2 pillar and the row stack. The export draws these horizontally in the corridor (the earlier redraw rotated them).
 7. **PR-MEMTOP-007** — When `l2.peakPct` is set, shows `{n}%` in the L2 plate (no “Peak” word) and hides the `l2-hit` edge label.
 7b. **PR-MEMTOP-007b** — Omits Peak chrome when `peakPct` is absent.
+7c. **PR-MEMTOP-007c** — With `peakPct` absent, the same single plate shows the `l2-hit` edge label; the two sources never both render.
 8. **PR-MEMTOP-008** — Right-click emits `open-details`.
 8b. **PR-MEMTOP-008b** — Right-click does not emit when `openDetailsOnContextmenu` is false.
 9. **PR-MEMTOP-009** — Edges with no chrome slot (`l0c-l1`, `l0c-l2`) are not drawn.
 10. **PR-MEMTOP-010** — A value wider than its slot's corridor is scaled down proportionally so it stays inside the link; values that fit keep the base size, and the slot geometry never moves.
+11. **PR-MEMTOP-011** — The diagram's `role="img"` hides its `<text>` values from the a11y tree, so the same slots are exposed as an accessible description (`aria-describedby` → a visually hidden `from → to: value` list, built from the model). One description per instance: the panel renders twice at once, so the id must not collide.
 
 ## Visual
 
@@ -112,6 +117,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 DATA-20 (L2 Peak), DATA-21, DATA-33c, UI-35, UI-38, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
+- **2026-09-11** — Review follow-ups on this panel: (a) the L2 plate was two `v-if`/`v-else-if` `<text>` elements whose branches could never both render while the styling was identical — collapsed to one element with a conditional `data-testid` (PR-MEMTOP-007c); (b) `data-testid` was `edge-{edge-id}`, duplicated by the AIV0/AIV1 pairs, now `edge-{edge-id}-{slot}` (PR-MEMTOP-002b); (c) `role="img"` left the drawn values out of the a11y tree, now also exposed as a visually hidden description wired through `aria-describedby`, id per instance via `useId` (PR-MEMTOP-011); (d) `locale` gained an explicit `undefined` default for `vue/require-default-prop`.
 - **2026-09-11** — Value fit bounds made per-slot: `SLOT_MAX_W` previously covered only GM↔L2 and the L2 plate and let every other slot fall back to a 49.9-unit default measured from the L2↔row corridor. The row stack's inner corridors are much tighter — L0B↔Cube 34.7, L0A↔Cube 36.7, Cube↔L0C 37.5, L1↔L0A/B 41.1/40.3, UB↔SIMD 42.1 — so a 3-digit label (`{n}.{nn} GB/s` ≈ 41.7 units; the sample fixture already shows `504.00 GB/s` on GM↔L2) would have overlapped the L0/Cube boxes that PR-MEMTOP-010 exists to protect. All 14 slots now carry a measured bound and the fallback is the tightest one; the corridor test covers every slot instead of four.
 - **2026-09-10** — Chrome artboard lift removed: the export paints a full-canvas `rgba(255,255,255,0.05)` frame, which over the `#262626` card rendered the diagram as `#313131` — a lighter rectangle than the card around it. The sketch has no `#313131` surface (only `#262626` cards and `#2d2d2d` inner panels), so the frame is stripped; the diagram base is now the card's `#262626` and the three 3% row panels land on `#2d2d2d`, matching the sketch.
 - **2026-09-10** — Chrome asset kept out of the JS bundle: imported with `?no-inline` and shipped as `dist/memory-topology.svg` for the host to serve (lib build 712 kB → 479 kB). Vite's lib mode inlines every JS-referenced asset regardless of `assetsInlineLimit`, so the suffix is the only lever; noted in `vite.config.ts` and in Visual.
