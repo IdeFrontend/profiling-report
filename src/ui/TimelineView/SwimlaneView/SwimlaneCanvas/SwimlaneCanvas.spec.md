@@ -109,7 +109,7 @@ Seven interaction events: **select** fires with a `SwimEvent` (or null) on click
 73. **PR-CANVAS-073** — The hover-gap measure (`findHoverGap`) computes an idle gap only within the sub-row under the pointer; the vertical padding check and the left/right neighbour scan are sub-row-scoped.
 74. **PR-CANVAS-074** — Changing `contentTopPad` (统计分析 expand/collapse tween) calls `sync()` so `setView(paintView())` reprojects lane Y and the canvas repaints without waiting for pointer hover.
 75. **PR-CANVAS-075** — Right-click (`e.button !== 0`) is ignored by `onPointerDown` / `onPointerUp`: no `set-playhead`, `select`, drag, or pointer capture from the same gesture that opens the context menu.
-76. **PR-CANVAS-076** — `contextmenu` resolves a leaf lane id only (`leafLaneIdAtPoint`); right-clicking a folder-only row emits no `context-menu`.
+76. **PR-CANVAS-076** — `contextmenu` resolves a leaf lane id (`leafLaneIdAtPoint`); right-clicking an empty or folder-only row emits no `context-menu`. The collapsed-folder summary-bar exception is covered by PR-CANVAS-077.
 77. **PR-CANVAS-077** — Right-clicking a collapsed-folder summary bar emits its folder lane id and summary event target, so Show in event view remains reachable; folder-only empty rows still do not open a menu.
 
 ## Edge Cases

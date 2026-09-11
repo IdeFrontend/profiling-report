@@ -167,6 +167,14 @@ const gutterMetricByCard = ref<Record<string, GutterMetric>>({});
 
 /** Raw swim model for all consumers — unwrap host deep-reactive props so deps/gutter/collapse skip Proxies. */
 const swim = computed(() => toRaw(props.swimlaneModel ?? internalSwim.value));
+/** Pin row is only offered for a resolvable leaf lane; a summary-bar target carries its
+ *  folder id, which the pin action rejects. */
+const contextMenuCanPin = computed(() => {
+  const ctx = contextMenuContext.value;
+  if (!ctx) return false;
+  const lane = swim.value ? findThreadById(swim.value, ctx.laneId) : null;
+  return !!lane && !isFolderNode(lane);
+});
 const report = computed(() => props.reportModel ?? internalReport.value);
 /** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
 const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
@@ -874,7 +882,9 @@ function onContextMenuAction(action: ContextMenuAction): void {
   if (action.command === 'show') {
     // Edge case: target no longer exists → dismiss without selecting. A collapsed-folder
     // summary bar is never itself selected — resolve to its sole underlying leaf
-    // (taskCount === 1) or drop the action (multi-task summary has no single event).
+    // (taskCount === 1). A multi-task summary has no single event: drop the action
+    // entirely so Show never clears an existing selection.
+    if (action.target?.taskCount != null && action.target.sourceEvent == null) return;
     const resolved = action.target?.taskCount != null ? (action.target.sourceEvent ?? null) : (action.target ?? null);
     const stillExists = !resolved || findEventInModel(swim.value, resolved.id) != null;
     if (stillExists) onSelect(resolved);
@@ -1128,6 +1138,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         <ContextMenu
           :context="contextMenuContext"
           :pinned-lane-ids="viewState.pinnedLaneIds"
+          :can-pin="contextMenuCanPin"
           :locale="locale"
           @action="onContextMenuAction"
           @dismiss="contextMenuContext = null"

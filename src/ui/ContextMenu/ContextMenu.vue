@@ -18,11 +18,16 @@ export interface ContextMenuAction {
   target?: SwimEvent;
 }
 
-const props = defineProps<{
-  context: ContextMenuContext | null;
-  pinnedLaneIds: string[];
-  locale?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    context: ContextMenuContext | null;
+    pinnedLaneIds: string[];
+    /** Omit Pin row when the lane cannot be pinned (e.g. a summary-bar folder id). */
+    canPin?: boolean;
+    locale?: string;
+  }>(),
+  { canPin: true },
+);
 
 const emit = defineEmits<{
   action: [payload: ContextMenuAction];
@@ -40,12 +45,14 @@ const items = computed(() => {
     result.push({ command: 'reset', label: t('ctxResetZoom', props.locale) });
     result.push({ command: 'show', label: t('ctxShowInEventView', props.locale) });
   }
-  const pinned = props.context ? props.pinnedLaneIds.includes(props.context.laneId) : false;
-  result.push({
-    command: 'pin',
-    label: t(pinned ? 'ctxUnpinRow' : 'ctxPinRow', props.locale),
-    shortcut: 'Ctrl+P',
-  });
+  if (props.canPin) {
+    const pinned = props.context ? props.pinnedLaneIds.includes(props.context.laneId) : false;
+    result.push({
+      command: 'pin',
+      label: t(pinned ? 'ctxUnpinRow' : 'ctxPinRow', props.locale),
+      shortcut: 'Ctrl+P',
+    });
+  }
   return result;
 });
 
@@ -145,7 +152,7 @@ onBeforeUnmount(unbindListeners);
         :key="item.command"
       >
         <div
-          v-if="hasEventGroup && i === items.length - 1 && items.length > 1"
+          v-if="hasEventGroup && item.command === 'pin'"
           class="pr-ctx-menu__sep"
           role="separator"
         />

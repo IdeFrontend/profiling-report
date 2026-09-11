@@ -127,10 +127,11 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-CTXMENU-012: Show on a multi-task summary bar dismisses without selecting', async () => {
+  it('PR-CTXMENU-012: Show on a multi-task summary bar preserves the existing selection', async () => {
+    const leaf = { id: 'leaf-1', name: 'busy', startTime: 0, duration: 10 };
     const summary = {
       id: 'folder/summary/0',
-      name: '',
+      name: 'busy',
       startTime: 0,
       duration: 10,
       taskCount: 4,
@@ -145,7 +146,7 @@ describe('ProfilingReport scaffold', () => {
               id: 'folder',
               name: '计算',
               events: [],
-              children: [],
+              children: [{ id: 'leaf-thread', name: 'T', events: [leaf] }],
               summaryEvents: [summary],
             },
           ],
@@ -159,6 +160,16 @@ describe('ProfilingReport scaffold', () => {
       props: { swimlaneModel, reportModel: emptyReportViewModel() },
     });
 
+    // Select a real leaf first, so the multi-task summary Show has a selection to clear.
+    wrapper.findComponent(ContextMenu).vm.$emit('action', {
+      command: 'show',
+      laneId: 'leaf-thread',
+      target: leaf,
+    });
+    await nextTick();
+    expect(wrapper.vm.viewState.selectedEventId).toBe('leaf-1');
+
+    // Show on a multi-task summary (no sourceEvent) must dismiss without clearing.
     wrapper.findComponent(ContextMenu).vm.$emit('action', {
       command: 'show',
       laneId: 'folder',
@@ -166,7 +177,7 @@ describe('ProfilingReport scaffold', () => {
     });
     await nextTick();
 
-    expect(wrapper.vm.viewState.selectedEventId).toBeNull();
+    expect(wrapper.vm.viewState.selectedEventId).toBe('leaf-1');
     wrapper.unmount();
   });
 

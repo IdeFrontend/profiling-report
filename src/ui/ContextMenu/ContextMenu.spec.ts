@@ -83,6 +83,18 @@ describe('ContextMenu', () => {
     expect(wrapper.emitted('dismiss')).toHaveLength(2);
   });
 
+  it('PR-CTXMENU-013: pin row is omitted for a non-leaf (summary-bar) lane', async () => {
+    wrapper = mount(ContextMenu, {
+      props: { context: { x: 10, y: 10, laneId: 'folder', target: event }, pinnedLaneIds: [], canPin: false },
+      attachTo: document.body,
+    });
+    await wrapper.vm.$nextTick();
+    expect(menuItem('reset')).not.toBeNull();
+    expect(menuItem('show')).not.toBeNull();
+    expect(menuItem('pin')).toBeNull();
+    expect(document.querySelector('.pr-ctx-menu__sep')).toBeNull();
+  });
+
   it('PR-CTXMENU-006: deferred commands remain absent', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
