@@ -185,18 +185,32 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
   });
 
   it('keeps every slot bound inside its own corridor', () => {
-    // Walls measured off the export; a value is centred on the slot, so the nearer wall binds.
+    // Walls measured off the export at each slot's own height band; a value is centred on its
+    // slot, so the nearer wall binds. This covers *every* slot: the row stack's inner corridors
+    // are much tighter than the pillars' and once shared a single (too generous) default.
     const CORRIDORS: Record<string, [number, number, number]> = {
-      // slot: [left wall, centre-nearest wall pair, right wall]
+      // slot: [left wall, slot centre, right wall]
       'gm-l2-read': [55.75, 74.5, 94],
       'gm-l2-write': [55.75, 75.3, 94],
       'l2-ub': [133.75, 159.7, 188],
+      'ub-l2': [133.75, 160.4, 188],
+      'l2-l1-read': [133.75, 159.7, 188],
+      'l2-l1-write': [133.75, 159.7, 188],
+      'ub-vec': [315, 338.2, 361],
+      'vec-ub': [315, 338.2, 361],
+      'l1-l0a': [217, 239.7, 262],
+      'l1-l0b': [217, 240.1, 262],
+      'l0a-cube': [282, 302.9, 322],
+      'l0b-cube': [282, 302.9, 322],
+      'cube-l0c': [353, 373.5, 394],
+      'l0c-cube': [353, 373.5, 394],
       'l2-peak': [94, 113.8, 133.75],
     };
+    expect(Object.keys(SLOT_MAX_W).sort()).toEqual(Object.keys(CORRIDORS).sort());
     for (const [slot, [left, centre, right]] of Object.entries(CORRIDORS)) {
-      const half = (SLOT_MAX_W[slot] ?? DEFAULT_MAX_W) / 2;
-      expect(centre - half).toBeGreaterThanOrEqual(left);
-      expect(centre + half).toBeLessThanOrEqual(right);
+      const half = SLOT_MAX_W[slot]! / 2;
+      expect(centre - half, `${slot} left`).toBeGreaterThanOrEqual(left);
+      expect(centre + half, `${slot} right`).toBeLessThanOrEqual(right);
     }
   });
 
@@ -206,7 +220,23 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     expect(fitFontSize(37.33, 'gm-l2-write')).toBeLessThan(6.3);
   });
 
-  it('bounds unmapped slots by the widest link corridor', () => {
+  it('shrinks a value that outgrows a tight row-stack corridor', () => {
+    // 43.19 units overflows L0B↔Cube / Cube↔L0C / L1↔L0A, which the old single default let pass.
+    // (Values this wide are real: the sample fixture's GM↔L2 label is already `504.00 GB/s`.)
+    for (const slot of ['l0b-cube', 'cube-l0c', 'l1-l0a', 'ub-vec']) {
+      expect(fitFontSize(43.19, slot), slot).toBeLessThan(6.3);
+      expect(fitFontSize(43.19, slot), slot).toBeCloseTo((SLOT_MAX_W[slot]! / 43.19) * 6.3, 6);
+    }
+    // …and a 3-digit value alone is enough to overflow the tightest of them.
+    expect(fitFontSize(41.7, 'l0b-cube')).toBeLessThan(6.3);
+    expect(fitFontSize(41.7, 'l0b-cube')).toBeCloseTo((SLOT_MAX_W['l0b-cube']! / 41.7) * 6.3, 6);
+    // While the wide pillar corridors still hold those values at full size.
+    expect(fitFontSize(43.19, 'l2-ub')).toBe(6.3);
+  });
+
+  it('falls back to the tightest bound for a slot the table forgets', () => {
+    const tightest = Math.min(...Object.values(SLOT_MAX_W));
+    expect(DEFAULT_MAX_W).toBe(tightest);
     expect(fitFontSize(DEFAULT_MAX_W, 'nope')).toBe(6.3);
     expect(fitFontSize(DEFAULT_MAX_W + 1, 'nope')).toBeLessThan(6.3);
   });

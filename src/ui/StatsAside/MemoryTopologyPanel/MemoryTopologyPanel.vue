@@ -5,16 +5,37 @@ export const BASE_FONT_PX = 6.3;
 
 /** Horizontal room each slot's value has before it touches the chrome, in chrome units,
  *  measured off the export. A value is drawn centred on its slot, not on the corridor, so the
- *  binding constraint is the *nearer* wall: `2 × (nearest wall − centre) − 2 units of air`.
- *  GM↔L2 (centre x≈75, walls x≈55.75/x≈94) is the tight one at 35.4; every other link corridor
- *  (centre x≈160, walls x≈133.75/x≈188) allows 49.9; the L2 in-box plate spans the 40-unit
- *  pillar, leaving 36 once its own padding is respected. */
+ *  binding constraint is the *nearer* wall:
+ *  `2 × (nearest wall − centre) − 2 units of air − 1.5 units of anti-alias margin`.
+ *
+ *  Every slot is listed because the clearance differs per slot — the row stack's inner corridors
+ *  (L1↔L0A/B, L0A/B↔Cube, Cube↔L0C, UB↔SIMD) are far tighter than the pillars' and have no
+ *  common bound. Measured walls at the value's own height band:
+ *  `gm-l2-*` x≈55.75/x≈94; `l2-*`/`ub-l2` x≈133.75/x≈188; `ub-vec`/`vec-ub` x≈315/x≈361;
+ *  `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube` x≈282/x≈322;
+ *  `cube-l0c`/`l0c-cube` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
 export const SLOT_MAX_W: Record<string, number> = {
   'gm-l2-read': 35.4,
   'gm-l2-write': 35.4,
+  'l2-ub': 49.9,
+  'ub-l2': 49.9,
+  'l2-l1-read': 49.9,
+  'l2-l1-write': 49.9,
+  'ub-vec': 42.1,
+  'vec-ub': 42.1,
+  'l1-l0a': 41.1,
+  'l1-l0b': 40.3,
+  'l0a-cube': 36.7,
+  'l0b-cube': 34.7,
+  'cube-l0c': 37.5,
+  'l0c-cube': 37.5,
   'l2-peak': 36,
 };
-export const DEFAULT_MAX_W = 49.9;
+
+/** Fallback for a slot the table above forgets. It is the *tightest* measured bound, so a new
+ *  slot shrinks its value rather than spilling over the chrome — a generous default here would
+ *  silently overflow the narrow row-stack corridors. */
+export const DEFAULT_MAX_W = 34.7;
 
 /**
  * Type size for a value that is `natural` units wide in slot `slot`.

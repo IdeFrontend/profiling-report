@@ -53,15 +53,19 @@ Pillars: GM x16–56, L2 x94–134; row stack x188–432 — AIV0 y17–197, AIC
 
 ### Value fit (PR-MEMTOP-010)
 
-The export's slots were sized for its own 27.6-unit placeholders. Real values are longer (`{n}.{nn} GB/s`, KB volumes) and the system sans is wider per cap height than the export's face (~1.2×), so a label can outgrow its link. Each slot has a **corridor** — the free run between the chrome around it, measured off the export. A value is drawn centred on its slot, not on the corridor, so the binding constraint is the **nearer** wall:
+The export's slots were sized for its own 27.6-unit placeholders. Real values are longer (`{n}.{nn} GB/s`, KB volumes) and the system sans is wider per cap height than the export's face (~1.2×), so a label can outgrow its link. Each slot has a **corridor** — the free run between the chrome around it, measured off the export at the value's own height band. A value is drawn centred on its slot, not on the corridor, so the binding constraint is the **nearer** wall:
 
-| Slot | Corridor (walls) | Slot centre | Bound |
-|------|------------------|-------------|-------|
-| `gm-l2-read` / `gm-l2-write` | x≈55.75 … x≈94 | x≈74.5 / x≈75.3 | 35.4 |
-| every other link slot | x≈133.75 … x≈188 | x≈159.7 | 49.9 |
-| L2 plate (`peakPct` / `l2-hit`) | x≈94 … x≈133.75 (the pillar) | x≈113.8 | 36 |
+| Slot | Corridor (walls, chrome units) | Bound |
+|------|-------------------------------|-------|
+| `gm-l2-read` / `gm-l2-write` | x≈55.75 … x≈94 | 35.4 |
+| `l2-ub`, `ub-l2`, `l2-l1-read`, `l2-l1-write` | x≈133.75 … x≈188 | 49.9 |
+| `ub-vec` / `vec-ub` | x≈315 … x≈361 | 42.1 |
+| `l1-l0a` / `l1-l0b` | x≈217 … x≈262 | 41.1 / 40.3 |
+| `l0a-cube` / `l0b-cube` | x≈282 … x≈322 | 36.7 / 34.7 |
+| `cube-l0c` / `l0c-cube` | x≈353 … x≈394 | 37.5 |
+| L2 plate (`peakPct` / `l2-hit`) | x≈94 … x≈133.75 (the pillar) | 36 |
 
-A value whose natural width exceeds its bound is drawn at `bound / natural × 6.3px` — the same strokes, scaled down — so e.g. `504.00 GB/s` (43.2 units) lands at 5.17px inside the GM↔L2 link. Widths come from the rendered label's own metrics (`getComputedTextLength`), so they follow the platform font; where metrics are unavailable — a non-browser DOM, or a mount inside a hidden container, where text has no layout and measures 0 — the panel keeps the base size.
+**Every** slot carries its own bound (`SLOT_MAX_W`): the row stack's inner corridors are far tighter than the pillars' (L0B↔Cube is 34.7 against L2↔row's 49.9), so no single bound serves them all. A slot the table forgets falls back to the **tightest** bound (34.7) — a generous fallback would silently overflow a narrow corridor. A value whose natural width exceeds its bound is drawn at `bound / natural × 6.3px` — the same strokes, scaled down — so e.g. `504.00 GB/s` (43.2 units) lands at 5.17px inside the GM↔L2 link and at 5.06px inside L0B↔Cube. Widths come from the rendered label's own metrics (`getComputedTextLength`), so they follow the platform font; where metrics are unavailable — a non-browser DOM, or a mount inside a hidden container, where text has no layout and measures 0 — the panel keeps the base size.
 
 **No slot —** `l0c-l1` / `l0c-l2` (L0C→L1 / L0C→GM data volumes, KB) have no plate in the export, which carries no KB values; they stay in the Memory.csv 详情 tabs. The same is true of the AIV0/AIV1 SIMT in/out pair, the four in-row SIMT links per AIV row, the UB→VEC run, the two rotated AIV↔AIC trunk labels, AIC `L1→MTE1#3→BT`, `FixP→rail`, and the 9 in-box `%` plates other than L2 Peak — the adapter computes no such edge.
 
@@ -108,6 +112,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 DATA-20 (L2 Peak), DATA-21, DATA-33c, UI-35, UI-38, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
+- **2026-09-11** — Value fit bounds made per-slot: `SLOT_MAX_W` previously covered only GM↔L2 and the L2 plate and let every other slot fall back to a 49.9-unit default measured from the L2↔row corridor. The row stack's inner corridors are much tighter — L0B↔Cube 34.7, L0A↔Cube 36.7, Cube↔L0C 37.5, L1↔L0A/B 41.1/40.3, UB↔SIMD 42.1 — so a 3-digit label (`{n}.{nn} GB/s` ≈ 41.7 units; the sample fixture already shows `504.00 GB/s` on GM↔L2) would have overlapped the L0/Cube boxes that PR-MEMTOP-010 exists to protect. All 14 slots now carry a measured bound and the fallback is the tightest one; the corridor test covers every slot instead of four.
 - **2026-09-10** — Chrome artboard lift removed: the export paints a full-canvas `rgba(255,255,255,0.05)` frame, which over the `#262626` card rendered the diagram as `#313131` — a lighter rectangle than the card around it. The sketch has no `#313131` surface (only `#262626` cards and `#2d2d2d` inner panels), so the frame is stripped; the diagram base is now the card's `#262626` and the three 3% row panels land on `#2d2d2d`, matching the sketch.
 - **2026-09-10** — Chrome asset kept out of the JS bundle: imported with `?no-inline` and shipped as `dist/memory-topology.svg` for the host to serve (lib build 712 kB → 479 kB). Vite's lib mode inlines every JS-referenced asset regardless of `assetsInlineLimit`, so the suffix is the only lever; noted in `vite.config.ts` and in Visual.
 - **2026-09-10** — Value fit (PR-MEMTOP-010): a value wider than its slot's corridor is scaled down proportionally instead of overlapping the pillars. Bounds are the *nearer* wall (35.4 units GM↔L2, 49.9 elsewhere, 36 in the L2 plate) since a value is centred on its slot, and widths come from the rendered label's own metrics. The previous "system sans is ~8% wider" note was also too low — measured ~1.2× per cap height, plus one more digit than the export's placeholders.
