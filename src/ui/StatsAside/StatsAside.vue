@@ -76,29 +76,29 @@ const bandwidthCards = computed(() => {
   const all = props.report?.bandwidthCards ?? [];
   if (!id) return all;
   const peak = props.report?.summary.gmBwTheoreticalGBs ?? all[0]?.sides[0]?.peakGBs;
-  // Empty rows (no Memory.csv for this pack) keep the All cards rather than blanking the tile.
-  const scoped = bandwidthCardsFromRows(rowsForBlock('Memory.csv', id), peak);
-  return scoped.length > 0 ? scoped : all;
+  // A block with no `Memory.csv` shows no tile — never the All aggregate wearing its label.
+  return bandwidthCardsFromRows(rowsForBlock('Memory.csv', id), peak);
 });
 const computeCard = computed(() => {
   const id = blockId.value;
   const all = props.report?.computeCard;
   if (!id) return all;
-  const scoped = computeCardFromRows(
+  // Peak is per-chip (DATA-29), so the picked block re-reads only the measured side and inherits
+  // the peak; nothing to read (no row) blanks the tile rather than repeating the All value.
+  return computeCardFromRows(
     rowsForBlock('ArithmeticUtilization.csv', id),
     props.report?.summary ?? {},
+    all,
   );
-  return scoped ?? all;
 });
 const roofline = computed(() => {
   const id = blockId.value;
-  const all = props.report?.roofline;
-  if (!id) return all;
-  const scoped = rooflineFromRows(
+  if (!id) return props.report?.roofline;
+  // Undecidable for this block ⇒ no series, rather than the All point under a block label.
+  return rooflineFromRows(
     rowsForBlock('ArithmeticUtilization.csv', id),
     rowsForBlock('Memory.csv', id),
   );
-  return scoped ?? all;
 });
 const showComputeCard = computed(
   () => hasDuration.value && (computeCard.value?.sides.length ?? 0) > 0,
@@ -235,13 +235,25 @@ const scopedPipeOccupancy = computed(() => {
   const all = props.report?.pipeOccupancy ?? [];
   if (!blockId.value) return all;
   const rows = rowsForBlock('PipeUtilization.csv', blockId.value);
-  // Empty filter (stale id / missing rows) keeps the All aggregate rather than blanking PIPE.
-  return rows.length === 0 ? all : pipeOccupancyFromRows(rows);
+  // Blank rather than repeat the All aggregate under a block label. `showPipe` reads the All
+  // occupancy, so the switcher survives an empty pick and the user can get back to All.
+  return rows.length === 0 ? [] : pipeOccupancyFromRows(rows);
 });
 
 /** Overlay row scope: `All` has no single row, so the CSV lists fall back to the first block id. */
 const overlayBlockId = computed(
   () => blockId.value || (props.report?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv')?.blockIds[0] ?? ''),
+);
+
+/**
+ * DATA-19 / DATA-29: 详情 follows the same selector. With a block picked the CSV field list shows that
+ * block's row; under `All` the product default (`summary.jsonl` category list) stays.
+ */
+const computeCsvScope = computed(
+  () => Boolean(blockId.value) && (props.report?.computeTables?.length ?? 0) > 0,
+);
+const memoryCsvScope = computed(
+  () => Boolean(blockId.value) && (props.report?.memoryTables?.length ?? 0) > 0,
 );
 
 watch(
@@ -592,7 +604,7 @@ function backToReport() {
       class="pr-aside__detail"
     >
       <SummaryCategoryList
-        v-if="computeCategories.length > 0"
+        v-if="computeCategories.length > 0 && !computeCsvScope"
         :categories="computeCategories"
         :active-id="activeCategory"
         @update:active-id="activeCategory = $event"
@@ -603,6 +615,7 @@ function backToReport() {
         :csv-texts="report?.csvTexts ?? {}"
         :show-block-switcher="false"
         :show-view-all="false"
+        :selected-block-id="overlayBlockId"
         :locale="locale"
       />
     </div>
@@ -613,7 +626,7 @@ function backToReport() {
       class="pr-aside__detail"
     >
       <SummaryCategoryList
-        v-if="memoryCategories.length > 0"
+        v-if="memoryCategories.length > 0 && !memoryCsvScope"
         :categories="memoryCategories"
         :active-id="activeCategory"
         @update:active-id="activeCategory = $event"
@@ -1058,7 +1071,7 @@ function backToReport() {
             </button>
           </div>
           <SummaryCategoryList
-            v-if="computeCategories.length > 0"
+            v-if="computeCategories.length > 0 && !computeCsvScope"
             :categories="computeCategories"
             :active-id="activeCategory"
             @update:active-id="activeCategory = $event"
@@ -1069,6 +1082,7 @@ function backToReport() {
             :csv-texts="report?.csvTexts ?? {}"
             :show-block-switcher="false"
             :show-view-all="false"
+            :selected-block-id="overlayBlockId"
             :locale="locale"
           />
         </div>
@@ -1093,7 +1107,7 @@ function backToReport() {
             </button>
           </div>
           <SummaryCategoryList
-            v-if="memoryCategories.length > 0"
+            v-if="memoryCategories.length > 0 && !memoryCsvScope"
             :categories="memoryCategories"
             :active-id="activeCategory"
             @update:active-id="activeCategory = $event"

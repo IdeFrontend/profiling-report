@@ -135,11 +135,13 @@ Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 | Compute load (Cube \| Vector families) | `summary.jsonl` `PipeUtilization` aggregate | That block's `PipeUtilization.csv` row |
 | BW cards | `OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw` (summed sides, [DATA-8](../context/decisions/DATA.md)) | That block's `Memory.csv` aic + aiv sides summed |
 | Compute card | `OpInfoSummary` `aic_flops` / `aiv_flops` | That block's `ArithmeticUtilization.csv` measured, chip-level peak |
-| Roofline | `summary.jsonl` aggregate | That block's `ArithmeticUtilization.csv` + `Memory.csv` rows |
+| Roofline | `summary.jsonl` `ArithmeticUtilization` + `Memory` categories | That block's `ArithmeticUtilization.csv` + `Memory.csv` rows |
 | Memory topology + edge labels | `summary.jsonl` memory categories | That block's Memory* CSV row |
-| Compute / memory CSV **详情** overlays | Rows for the picked block; with **All** they fall back to the first `block_id` (a CSV list has no aggregate row) | Same selection |
+| Compute / memory CSV **详情** overlays | The `summary.jsonl` category list (product default); the CSV list, when shown, falls back to the first `block_id` (a CSV list has no aggregate row) | The CSV field list replaces the category list and shows that block's row |
 
-Two documented exceptions. (1) Metrics that exist only op-level — `HardwareInfo.jsonl` and the `OpInfoSummary`-only AI Core 并行使用率 / 负载均衡度 and `Task Duration(us)` — do not change with the selection, because no per-block source exists. (2) When `summary.jsonl` is absent (classic `.rep`) there is no aggregate, so `All` reads the CSV data (PIPE mean across rows; memory diagram from the first labelled block).
+Two documented exceptions. (1) Metrics that exist only op-level — `HardwareInfo.jsonl` and the `OpInfoSummary`-only AI Core 并行使用率 / 负载均衡度 and `Task Duration(us)` — do not change with the selection, because no per-block source exists. (2) When `summary.jsonl` is absent (classic `.rep`) there is no aggregate, so `All` reads the CSV data (PIPE mean across rows; roofline from the CSV means; memory diagram from the first labelled block).
+
+A picked `block_id` that has no data for a widget **blanks** that widget (BW card / roofline hidden, compute card `N/A`, PIPE rows empty, topology unlabelled) — it never renders the **All** aggregate under that block's label.
 
 ---
 
@@ -148,7 +150,7 @@ Two documented exceptions. (1) Metrics that exist only op-level — `HardwareInf
 | Input | Requirement |
 |-------|-------------|
 | Tabs | `PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio` CSVs |
-| Selected `block_id` | **Required** — one selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
+| Selected `block_id` | **Required** — one selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); with a picked id the CSV field list replaces the `summary.jsonl` category default and shows that block's row |
 | Search query | UI-only |
 
 Hide tab when CSV missing. Show `NA` values.
@@ -162,7 +164,7 @@ Hide tab when CSV missing. Show `NA` values.
 | Points (intensity, achieved perf) | **Required to show** — interim DATA-37a/b GM point from ArithmeticUtilization + Memory |
 | Op-mix labels (e.g. `Vec_FP32`) | Optional — DATA-37e when mix ratios present |
 | Peak bandwidth / compute ceilings | Interim DATA-37d (constants + Memory BW); Product-final when DATA-37 closes |
-| `ArithmeticUtilization.csv` + `Memory.csv` | Interim sources (DATA-37*) |
+| `ArithmeticUtilization` + `Memory` | Interim sources (DATA-37*): `All` = the `summary.jsonl` categories, a picked `block_id` = that block's CSV rows ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
 | L2 series / tab filters | **Omit** (DATA-37c/f) until DATA-37 |
 
 Hide when no usable GM point. M3 swaps formulas when Product closes DATA-37.
@@ -186,7 +188,7 @@ Hide when no usable GM point. M3 swaps formulas when Product closes DATA-37.
 | Input | Requirement |
 |-------|-------------|
 | Tabs | Memory L1 (`Memory.csv`), L2Cache, Memory L0, Memory UB |
-| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
+| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); a picked id scopes the field list to that block's row |
 | 查看全部 | Emit full CSV open ([DATA-33d](../context/decisions/interim/DATA.md)) |
 
 Hide tab when CSV missing.

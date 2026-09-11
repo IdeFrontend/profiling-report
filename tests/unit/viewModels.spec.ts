@@ -558,6 +558,31 @@ describe('PR-VM: report view-models (interim)', () => {
       .toBe('1.70 GB/s');
   });
 
+  it('PR-VM-017b (DATA-19/29): All roofline reads the summary.jsonl categories, not the CSV mean', () => {
+    const encoder = new TextEncoder();
+    const payloads = {
+      // Producer aggregate: deliberately different from the per-block CSVs below.
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify({
+            category: 'ArithmeticUtilization',
+            'aiv_vec_fops': '2e7',
+            'aiv_time(us)': '1',
+          }),
+          JSON.stringify({ category: 'Memory', 'read_main_memory_datas(KB)': '1024' }),
+        ].join('\n') + '\n',
+      ),
+      'ArithmeticUtilization.csv': encoder.encode(
+        'block_id,aiv_vec_fops,aiv_time(us)\n0,4e7,1\n1,8e7,1\n',
+      ),
+      'Memory.csv': encoder.encode('block_id,read_main_memory_datas(KB)\n0,4096\n1,4096\n'),
+    };
+    const gm = adaptPayloads(payloads).reportModel.roofline?.points.find((p) => p.id === 'gm');
+    // The category record is the All aggregate; the CSV mean would be 6e7 fops.
+    expect(gm?.performance).toBeCloseTo(2e7 / 1 / 1e6, 6);
+    expect(gm?.intensity).toBeCloseTo(2e7 / 1024 / 1024, 6);
+  });
+
   it('PR-VM-018 (DATA-8/19): bandwidthCardsFromRows sums a block’s aic + aiv sides per direction', () => {
     const rows = [
       {
@@ -585,6 +610,13 @@ describe('PR-VM: report view-models (interim)', () => {
     // No theoretical peak in the summary → no side, never an invented peak.
     expect(computeCardFromRows(rows, {})).toBeUndefined();
     expect(computeCardFromRows([], summary)).toBeUndefined();
+    // Classic `.rep`: no OpInfoSummary peak, so the chip-level peak comes from the All card.
+    const fallback = { sides: [{ side: 'aic' as const, measuredTflops: 1, peakTflops: 20 }] };
+    expect(computeCardFromRows(rows, {}, fallback)?.sides).toEqual([
+      { side: 'aic', measuredTflops: 20, peakTflops: 20 },
+    ]);
+    // A peak is never borrowed for a side the All card does not have.
+    expect(computeCardFromRows(rows, {}, { sides: [] })).toBeUndefined();
   });
 
   it('PR-VM-020 (DATA-19): rooflineFromRows honours the rows it is given', () => {

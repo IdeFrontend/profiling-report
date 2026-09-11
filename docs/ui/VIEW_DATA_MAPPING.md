@@ -152,12 +152,13 @@ Do **not** use the docx tab→pipe-ratio table. While DATA-37 is open:
 
 | Axis / element | Interim source |
 | --- | --- |
-| Y achieved | DATA-37a: `fops / timeUs / 1e6` from `ArithmeticUtilization.csv` |
-| X GM | DATA-37b: fops / GM R+W bytes from `Memory.csv` |
+| Y achieved | DATA-37a: `fops / timeUs / 1e6` from `ArithmeticUtilization` |
+| X GM | DATA-37b: fops / GM R+W bytes from `Memory` |
 | L2 point | DATA-37c: omit |
 | Roof | DATA-37d: peakCompute=1 TOps/s; peakBW from main-mem BW columns |
 | Op-mix labels | DATA-37e: normalize Vector/Cube mix ratios |
 | Tabs | DATA-37f: hidden |
+| Block scope | **All** = the `summary.jsonl` `ArithmeticUtilization` + `Memory` categories; a picked `block_id` = that block's CSV rows ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). A picked block with no GM point hides the panel — never the **All** point under a block label |
 
 Hide `RooflinePanel` when no GM point can be derived.
 
@@ -371,7 +372,7 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | HardwareInfo | Confirmed source; in toolkit `example.rep` (not in git), absent from `out.rep` |
 | Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
 | `ResourceConflictRatio.csv` | In sample; no UI mapping |
-| Block-level aggregation for OP summary cards | **Closed:** one selector, `All` = `summary.jsonl` non-`NA` mean, a picked id = that block's CSV row ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
+| Block-level aggregation for OP summary cards | **Closed:** one selector, `All` = `summary.jsonl` non-`NA` mean, a picked id = that block's CSV row ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). A picked block with no data blanks its widget — never the `All` aggregate under a block label |
 
 ---
 

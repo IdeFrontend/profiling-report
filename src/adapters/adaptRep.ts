@@ -239,7 +239,8 @@ function rooflineFromCsv(
 
 /**
  * DATA-37 interim formulas over the given rows, so the same rule serves both selector scopes
- * (DATA-19 / DATA-29): `All` passes the `summary.jsonl` category record, a picked block its CSV rows.
+ * (DATA-19 / DATA-29): `All` passes the `summary.jsonl` `ArithmeticUtilization` + `Memory` category
+ * records, a picked block its CSV rows.
  */
 export function rooflineFromRows(
   arithRows: Record<string, string>[],
@@ -481,18 +482,23 @@ function computeCardFromPayloads(
 
 /**
  * DATA-19 / DATA-29: one block's compute card — measured from that block's `ArithmeticUtilization.csv`
- * row, peak from the chip-level theoretical FLOPS in `OpInfoSummary` (a peak is per-chip, not per block).
+ * row, peak from the chip-level theoretical FLOPS in `OpInfoSummary` (a peak is per-chip, not per block;
+ * `peakFallback` carries the All card's peak for a classic `.rep` with no `OpInfoSummary`).
  */
 export function computeCardFromRows(
   arithRows: Record<string, string>[],
   summary: SummaryMetrics,
+  peakFallback?: ComputeCardModel,
 ): ComputeCardModel | undefined {
   if (arithRows.length === 0) return undefined;
   const sides: ComputeSideRow[] = [];
   for (const side of ['aic', 'aiv'] as const) {
     const measuredTflops = measuredTflopsForSide(arithRows, side);
+    // Peak is per-chip, not per block, so a classic `.rep` (no OpInfoSummary) may take it from
+    // the All card built out of HardwareInfo peaks.
     const peakTflops =
-      side === 'aic' ? summary.aicFlopsTheoretical : summary.aivFlopsTheoretical;
+      (side === 'aic' ? summary.aicFlopsTheoretical : summary.aivFlopsTheoretical) ??
+      peakFallback?.sides.find((s) => s.side === side)?.peakTflops;
     if (measuredTflops == null || peakTflops == null || !(peakTflops > 0)) continue;
     sides.push({ side, measuredTflops, peakTflops });
   }
@@ -971,14 +977,21 @@ export function overviewSeriesFromSampling(payload: Uint8Array | undefined): Ove
 function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportViewModel {
   const compute = collectCsvTables(payloads, COMPUTE_CSV_FILES);
   const memory = collectCsvTables(payloads, MEMORY_CSV_FILES);
-  const roofline = rooflineFromCsv(
-    payloadByName(payloads, ['ArithmeticUtilization.csv']),
-    payloadByName(payloads, ['Memory.csv']),
-  );
   const hardwareDetails = hardwareDetailsFromPayloads(payloads);
   const summaryJsonl = payloadByName(payloads, ['summary.jsonl', 'Summary.jsonl', 'SUMMARY.jsonl']);
   const summaryCategories = summaryCategoriesFromSummaryJsonl(summaryJsonl);
-  // DATA-19 / DATA-29 `All` scope: the memory diagram reads the summary.jsonl category mean.
+  // DATA-19 / DATA-29 `All` scope: PIPE, roofline and the memory diagram read the summary.jsonl
+  // category records, so every widget shares the producer's own non-`NA` mean; the CSV means stay
+  // as the classic-`.rep` fallback (no `summary.jsonl` ⇒ no aggregate exists).
+  const roofline =
+    rooflineFromRows(
+      summaryCategoryRows(summaryCategories, 'ArithmeticUtilization'),
+      summaryCategoryRows(summaryCategories, 'Memory'),
+    ) ??
+    rooflineFromCsv(
+      payloadByName(payloads, ['ArithmeticUtilization.csv']),
+      payloadByName(payloads, ['Memory.csv']),
+    );
   const memoryTopology =
     buildMemoryTopologyFromCategories(summaryCategories) ??
     firstLabelledMemoryTopology(memory.tables)?.model;

@@ -136,6 +136,127 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('1.00 GB/s');
   });
 
+  it('PR-STATS-014c (DATA-19/29): 详情 follows the block selector — picked id reads its CSV row', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.2' },
+                { block_id: '1', aiv_vec_ratio: '0.8' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aiv_ub_to_gm_bw(GB/s)'],
+              rows: [
+                { block_id: '0', 'aiv_ub_to_gm_bw(GB/s)': '1.5' },
+                { block_id: '1', 'aiv_ub_to_gm_bw(GB/s)': '1.7' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          // Product default 详情: the summary.jsonl category list.
+          summaryCategories: [
+            {
+              id: 'PipeUtilization',
+              title: 'PipeUtilization',
+              fields: [{ key: 'aiv_vec_ratio', value: '0.42' }],
+            },
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aiv_ub_to_gm_bw(GB/s)', value: '1.6' }],
+            },
+          ],
+          csvTexts: {
+            'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.2\n1,0.8\n',
+            'Memory.csv': 'block_id,aiv_ub_to_gm_bw(GB/s)\n0,1.5\n1,1.7\n',
+          },
+        }),
+      },
+    });
+
+    // All keeps the summary.jsonl category list (product default) …
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+
+    // … a picked block switches 详情 to that block's CSV row.
+    await wrapper.get('[data-testid="pipe-block"]').setValue('1');
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="csv-field-list"]').text()).toContain('0.8');
+    expect(wrapper.get('[data-testid="csv-field-list"]').text()).not.toContain('0.42');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="csv-field-list"]').text()).toContain('1.7');
+  });
+
+  it('PR-STATS-014d (DATA-29): a picked block with no data blanks the tile — never the All aggregate', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          // BW / compute / roofline All values exist …
+          bandwidthCards: [
+            { id: 'input', sides: [{ side: 'aicore', measuredGBs: 800, peakGBs: 1600 }] },
+          ],
+          computeCard: {
+            sides: [{ side: 'aic', measuredTflops: 10, peakTflops: 20 }],
+          },
+          roofline: {
+            points: [{ id: 'gm', label: 'GM', intensity: 1, performance: 1, style: 'solid' }],
+            mixLabels: [],
+            peakComputeTops: 1,
+            peakBandwidthGBs: 1600,
+          },
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.2' },
+                { block_id: '1', aiv_vec_ratio: '0.8' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          // … but the picked block has no Memory.csv / ArithmeticUtilization.csv rows.
+          memoryTables: [],
+        }),
+      },
+    });
+
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="pipe-block"]').setValue('1');
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+    // PIPE re-reads the block's own row (0.8, not the All 0.5) …
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(wrapper.text()).not.toContain('50%');
+    // … and the selector stays reachable so All can be restored.
+    expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="pipe-block"]').setValue('');
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+  });
+
   it('PR-STATS-003: Cube|Vector toggle only for MIX and filters by side', async () => {
     const pipes = [
       { id: 'cube', label: 'Cube', ratio: 0.8, colorKey: 'cube', side: 'cube' as const },
