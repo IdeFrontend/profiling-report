@@ -66,55 +66,15 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 **Answer so far:** The producer doc maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`) — the pipe-busy-rate mapping [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) flags as wrong. No Product answer. (Interim [DATA-37f](../decisions/interim/DATA.md): hide the tabs.)
 
-### DATA-19 — summary vs 详情 block scope
-
-<img src="../visual/questions/data-19.png" alt="DATA-19 详情 overlay (selected block)" width="900" height="315">
-
-**Status:** `interim`
-
-**Question:** A CSV holds one row per `block_id` (sample: 8 rows). On the **summary** PIPE bars, do we average all blocks? On the **详情** overlays, do we show only the selected block? Does picking a block scope **only PIPE** or every summary widget (cards, Roofline, memory diagram)? The producer reply on the 详情 crop asks for a **block-selection control** there (reference crop [DATA-29](#data-29--same-rule-for-every-widget)); engineering also ships an **All \| block_id** control on the summary — confirm whether that summary control is wanted, and where the selector belongs.
-
-**Interim:** summary PIPE bars default to mean of non-`NA` ratios across `block_id` ([`DATA-33b`](../decisions/interim/DATA.md)); summary **block** control (All \| `block_id`) scopes PIPE when >1 block. **详情** / memory / metrics = selected block ([`DATA-33c`](../decisions/interim/DATA.md)). Matrix: [VIEW_DATA_REQUIREMENTS §8.1](../../formats/VIEW_DATA_REQUIREMENTS.md).
-
 ### DATA-20 — Peak(%) box colors
 
 <img src="../visual/questions/data-20.png" alt="DATA-20 Peak(%) on the L2 box" width="900" height="900">
 
 **Status:** `partial`
 
-**Question:** Memory-diagram **boxes and edges** can show a **Peak (%)** badge — the unit's usage as a percent of its theoretical maximum, driving a color scale. For **each box** — GM, L2, L1, L0A, L0B, L0C, Cube, FixP, UB, Vec, Scalar — which file and field gives that percent, and what is the box's 100% reference (theoretical peak)? For each **edge** that carries a 理论值 — L0C → L1 and L0C → L2/GM ([DATA-24](../decisions/DATA.md) / [DATA-25](#data-25--l0c--l2gm)) — same question: which field, and what is the 100% reference? The producer doc's 理论值 column is empty for every row.
+**Question:** Memory-diagram **boxes and edges** can show a **Peak (%)** badge — the unit's usage as a percent of its theoretical maximum, driving a color scale. For **each box** — GM, L2, L1, L0A, L0B, L0C, Cube, FixP, UB, Vec, Scalar — which file and field gives that percent, and what is the box's 100% reference (theoretical peak)? For each **edge** that carries a 理论值 — L0C → L1 and L0C → L2/GM ([DATA-24](../decisions/DATA.md) / [DATA-25](../decisions/DATA.md)) — same question: which field, and what is the 100% reference? The producer doc's 理论值 column is empty for every row.
 
-**Answer so far:** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)), not a peak-relative percent. Other boxes and both L0C edges — still no Product mapping. Rule 2 of the producer doc also asks how the color scale maps when 理论值 is known.
-
-### DATA-25 — L0C → L2/GM
-
-<img src="../visual/questions/data-25.png" alt="DATA-25 L0C to L2/GM" width="900" height="900">
-
-**Status:** `interim`
-
-**Question:** Show a **L0C → L2/GM** edge on the memory diagram? If yes, the sample provides `Memory.csv` → `L0C_to_GM_datas(KB)` (+ `L0C_to_GM_bw_usage_rate(%)`); confirm the field and the 理论值 (Peak %). The sketch labels one **LOC** source node for L0C → L1, L0C → L2/GM and L0C → UB without distinguishing the three edges — should they be one arrow or three?
-
-**Interim:** show `Memory.csv` → `L0C_to_GM_datas(KB)` when present; no Peak(%).
-
-### DATA-28 — summary aggregation (mean / max / first / selected)
-
-<img src="../visual/questions/data-28.png" alt="DATA-28 summary mean percent column" width="900" height="524">
-
-**Status:** `interim`
-
-**Question:** A CSV often has many `block_id` rows (sample: 8). When one summary number is shown — a PIPE percent, a bandwidth card, a compute score — which aggregation is correct: **mean**, **max**, **first block**, or **selected block**? How are `NA`/empty rows treated, and is the rule the same for every metric?
-
-**Interim:** [`DATA-33b`](../decisions/interim/DATA.md): mean of non-`NA` values across `block_id` for summary PIPE / I/O measured BW. Product note: request a **general aggregation description document**.
-
-### DATA-29 — same rule for every widget?
-
-<img src="../visual/questions/data-29.png" alt="DATA-29 selected block switcher" width="900" height="318">
-
-**Status:** `interim`
-
-**Question:** Does one aggregation rule ([DATA-28](#data-28--summary-aggregation-mean--max--first--selected)) apply to **every** widget — bandwidth / compute / AICore cards, PIPE bars, Roofline, memory diagram — or are there per-surface exceptions? If there are exceptions, list which widget uses which rule (and why).
-
-**Interim:** [`DATA-33c`](../decisions/interim/DATA.md): summary PIPE (and measured BW) stay mean-across-blocks; **详情** / memory diagram / metrics lists are the selected block. Roofline aggregates like [`DATA-33b`](../decisions/interim/DATA.md).
+**Answer so far (2026-09-11):** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)), not a peak-relative percent. The producer's answer sheet for this question is **blank** — every other box and both L0C edges stay unmapped. Rule 2 of the producer doc also asks how the color scale maps when 理论值 is known.
 
 ### DATA-31 — authoritative MVP fixture shape (was: Q4)
 
@@ -157,6 +117,8 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **Question:** Card-header **时钟周期 / Clock Cycle** gutter bars ([design `entry.jpeg`](../../ui/source/v930/entry.jpeg)) — which file, fields, and formula? Is the value cycle counts, pipe `*_time(us)`, or derived from swimlane events?
 
 **Answer so far (interim):** Quantity = **mean non-`NA` mapped `PipeUtilization.csv` `*_time(us)`** across `block_id`, keyed by `laneColorKey` (not `*_total_cycles`, not per-event average). Relative bar within Card; max-lane red. Selector modes: **clockCycle** + **utilization** only. Interim: [`DATA-38a`](../decisions/interim/DATA.md). Label units: [`UI-46`](UI.md) / [`UI-46a`](../decisions/interim/UI.md). Spec: [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md). **Not** timeline CPU-clocks display ([UI-45](../decisions/UI.md)).
+
+**Product answer (2026-09-11, partial):** the gutter offers **two options — 时钟周期 (clock cycle)** and **耗时占比** (time share: all timeline ÷ total cycle). No file/field/formula is given yet and the answer is numbered `1:` (more may follow), so this stays open; it does confirm the interim's two-mode selector but not the quantity.
 
 **PyPTO reference (not shippable on current npu-rep):** sum of `event.pmu_info['total cycle']` after joining `tilefwk_prof_pmu.csv` onto events. Absent from [NPU-Compute.md](https://gitcode.com/wk0911/npu-tools/blob/main/npu-compute/NPU-Compute.md) embeds and from scanned fixtures (`example.npu.rep`, PR #74 packs) — event traces have no `pmu_info` / `"total cycle"`; PR #74 does not add them. Block CSV `*_total_cycles` ≠ that formula.
 

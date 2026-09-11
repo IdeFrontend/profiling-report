@@ -73,7 +73,7 @@ Important AIV columns (sample is vector-heavy):
 
 AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cube / FixPipe bars when present.
 
-**MVP aggregation ([DATA-33b](../context/decisions/interim/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md). Superseded when DATA-33 / data spec says otherwise.
+**Aggregation ([DATA-28](../context/decisions/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), `All` (default) takes the **mean of non-`NA` ratios** across `block_id` rows from `summary.jsonl`; a picked `block_id` takes that block's `PipeUtilization.csv` row ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md).
 
 **Overview charts:** Fill `OverviewSeries` from product `Sampling.json` `ph:"C"` counters — **one track per distinct counter `name` present** ([DATA-39](../context/decisions/DATA.md)). **Hide** when empty ([DATA-32](../context/decisions/DATA.md)). Do **not** derive from PipeUtilization ratios.
 

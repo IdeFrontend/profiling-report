@@ -60,7 +60,7 @@ Mockups extracted from the source docx live under [`docs/ui/source/v930/`](./sou
 | 3 | Blocks | `Block Dim` | `OpBasicInfo.csv` | |
 | 4 | 整体耗时 | `Task Duration（us）` / `Task Duration(us)` | `OpBasicInfo.csv` | **Confirmed** (npu-compute 0818). Shown as ms in mockup (unit conversion in UI) |
 | 5 | 算力情况 | measured / peak TFLOPS | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` | **Interim DATA-33h** (DATA-2..4, UI-33). Sketch: **Cube \| Vector** columns |
-| 6 | 带宽利用率 | main-mem read / write BW | `Memory.csv` | Sketch: one card **读 \| 写**. Measured columns confirmed; peak / score settled ([DATA-5](../context/decisions/DATA.md)–[DATA-7](../context/decisions/DATA.md)); aic↔读/写 aggregation still [DATA-28](../context/questions/DATA.md) / [DATA-29](../context/questions/DATA.md). Source is **not** `Report.csv` ([DATA-8](../context/decisions/DATA.md)) |
+| 6 | 带宽利用率 | measured / peak read \| write BW | `summary.jsonl` `OpInfoSummary` + `category: Memory` | Sketch: one card **读 \| 写**. Measured read / write = **sum** of the aic + aiv `Memory` fields (`aicore_gm_read_bw` / `aicore_gm_write_bw`); peak SOL **1600 GB/s** shared by both sides; each direction's share = measured ÷ peak ([DATA-8](../context/decisions/DATA.md)). One block selector for the aggregation ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). Source is **not** `Report.csv`. |
 | 7 | AICore 并行使用率 | `aicore_parallel_utilization` / `aicore_parallel_balance` | `summary.jsonl` | **DATA-9 / DATA-10**. Sketch: **并行使用率** \| **负载均衡度** |
 
 ### Visualization logic (from mockup)
@@ -249,13 +249,13 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 | L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | **DATA-24:** Product-confirmed field; 理论值 (Peak %) tracked by [DATA-20](../context/questions/DATA.md) |
-| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | Field present in sample; 理论值 (Peak %) still 待确定 ([DATA-25](../context/questions/DATA.md)) |
+| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | **DATA-25:** Product-confirmed field; 理论值 (Peak %) tracked by [DATA-20](../context/questions/DATA.md) |
 | UB → L2 | `aiv_ub_to_gm_bw(GB/s)` | `Memory.csv` | **DATA-22:** Product answer; `MemoryUB.csv` `aiv_ub_read_bw_gm` is absent from the sample |
 | L2 → UB | `aiv_gm_to_ub_bw(GB/s)` | `Memory.csv` | **DATA-23:** Product answer; `MemoryUB.csv` `aiv_ub_write_bw_gm` is absent from the sample |
 | Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | `ub_read_*` = leaving UB (`out.rep` add 2:1) |
 | UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
-| L2Cache Hit Rate | first `*_hit_rate(%)` | `L2Cache.csv` | AIC/AIV column choice TBD (DATA-21 interim) |
-| **L2 Peak(%)** | same hit-rate columns as above | `L2Cache.csv` | **DATA-20:** L2 box only = hit rate. Other units still unmapped |
+| L2Cache Hit Rate | total `*_hit_rate(%)` | `L2Cache.csv` / `summary.jsonl` `L2Cache` | **DATA-21:** use the **total** hit rate; fall back to first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, then read rates |
+| **L2 Peak(%)** | same hit-rate columns as above | `L2Cache.csv` | **DATA-20:** L2 box only = hit rate. Other units and the L0C edges still unmapped |
 
 **NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
 

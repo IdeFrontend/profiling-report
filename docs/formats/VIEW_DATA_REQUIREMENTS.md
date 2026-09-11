@@ -101,7 +101,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Bar/secondary per DATA-33e (DATA-1, UI-32). Op type is not a separate card. `opName` / `blockDim` feed duration secondary; `coreCount` from `HardwareInfo.jsonl` |
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` peaks | **DATA-33h** (DATA-2..4, UI-33): `computeCard` with Cube/Vector (aic/aiv) sides when both measured and peak exist; else title + `N/A` when duration present — [DATA-33a](../context/decisions/interim/DATA.md) |
-| Bandwidth utilization tile | `Memory.csv` / `summary.jsonl` Memory + `aicore_gm_bw_theoretical(GB/s)` | Sketch **带宽利用率** **读 \| 写**. Display **GB/s** (UI-34). Peak SOL **1600 GB/s** ([DATA-5](../context/decisions/DATA.md)–[DATA-7](../context/decisions/DATA.md)); aic/aiv → 读/写 mean until Product defines aggregation. **Not** `Report.csv` ([DATA-8](../context/decisions/DATA.md)) |
+| Bandwidth utilization tile | `summary.jsonl` `OpInfoSummary` + `category: Memory` | Sketch **带宽利用率** **读 \| 写**. Display **GB/s** (UI-34). Peak SOL **1600 GB/s**, shared by every side ([DATA-6](../context/decisions/DATA.md)). Measured read / write = **sum** of the aic + aiv `Memory` fields (`aicore_gm_read_bw` / `aicore_gm_write_bw`); each direction's share = that direction's measured ÷ theoretical ([DATA-8](../context/decisions/DATA.md)). **Not** `Report.csv`. |
 | AICore parallel util | `summary.jsonl` `OpInfoSummary` `aicore_parallel_utilization` / `aicore_parallel_balance` | **DATA-9 / DATA-10:** dual **并行使用率** \| **负载均衡度** `%` columns; title + `N/A` when duration present but both absent; omit when BW-only |
 | Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
@@ -115,7 +115,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | Input | Requirement |
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
-| Aggregation | **Interim ([DATA-33b](../context/decisions/interim/DATA.md)):** default **All** = mean of non-`NA` ratios per pipe family across `block_id`. Summary **block** control (when >1 block): pick a `block_id` → PIPE uses that block only |
+| Aggregation | **Confirmed ([DATA-28](../context/decisions/DATA.md)):** `All` (default) = **non-`NA` mean** across `block_id` from `summary.jsonl`; a picked `block_id` = that block's CSV row. One block selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
 | Absolute in-bar | **Confirmed (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)):** mean non-`NA` `*_time(us)` for the family/side (same block scope as Aggregation); omit when all NA |
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
@@ -125,15 +125,20 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 
 Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 
-### 8.1 Block scope matrix (DATA-28 / DATA-29 / DATA-33b / DATA-33c)
+### 8.1 Block scope matrix (DATA-19 / DATA-28 / DATA-29)
 
-| Surface | Default | When summary block = `block_id` |
-|---------|---------|----------------------------------|
-| Summary PIPE bars | Mean across blocks (All) | That block only |
-| Summary cards (duration / compute / BW / AICore) | Mean / adapter rules (unchanged) | Unchanged (still All-scope) |
-| Roofline | Mean-style aggregate (DATA-33b) | Unchanged |
-| Memory topology + edge labels | Selected block ([DATA-33c](../context/decisions/interim/DATA.md)); default = first labelled / first id | Syncs to the picked summary block; **All** restores the default topology block |
-| Compute / memory CSV **详情** overlays | Selected block switcher | Independent overlay switcher (memory); compute has no block picker |
+**One selector, one scope.** Every surface carries the same block selector — **All | 0 | 1 | 2 …** (one per `block_id`), default **All** — and it scopes **every** widget. **`All`** reads the aggregate from `summary.jsonl` (non-`NA` mean across `block_id`, [DATA-28](../context/decisions/DATA.md)); a picked id reads **that block's row** from the per-block CSV. There are no per-surface exceptions ([DATA-29](../context/decisions/DATA.md)).
+
+| Surface | `All` (default) | Picked `block_id` |
+|---------|-----------------|-------------------|
+| Summary PIPE bars | `summary.jsonl` `category: PipeUtilization` | That block's `PipeUtilization.csv` row |
+| Compute load (Cube \| Vector families) | `summary.jsonl` `PipeUtilization` aggregate | That block's `PipeUtilization.csv` row |
+| Summary BW / compute / AICore cards | `summary.jsonl` `OpInfoSummary` / category aggregate | That block's CSV row, where the metric is collected per block |
+| Roofline | `summary.jsonl` aggregate | That block's CSVs |
+| Memory topology + edge labels | `summary.jsonl` aggregate | That block's CSVs |
+| Compute / memory CSV **详情** overlays | Rows for the picked block (memory has its own switcher); compute has no block picker | Same selection |
+
+Op-level metrics with no per-block series (e.g. `Task Duration(us)`) stay op-level under either selection.
 
 ---
 
@@ -142,7 +147,7 @@ Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 | Input | Requirement |
 |-------|-------------|
 | Tabs | `PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio` CSVs |
-| Selected `block_id` | **Required** — [DATA-33c](../context/decisions/interim/DATA.md) |
+| Selected `block_id` | **Required** — one selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
 | Search query | UI-only |
 
 Hide tab when CSV missing. Show `NA` values.
@@ -180,7 +185,7 @@ Hide when no usable GM point. M3 swaps formulas when Product closes DATA-37.
 | Input | Requirement |
 |-------|-------------|
 | Tabs | Memory L1 (`Memory.csv`), L2Cache, Memory L0, Memory UB |
-| Block switcher | [DATA-33c](../context/decisions/interim/DATA.md) |
+| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
 | 查看全部 | Emit full CSV open ([DATA-33d](../context/decisions/interim/DATA.md)) |
 
 Hide tab when CSV missing.

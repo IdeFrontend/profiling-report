@@ -682,12 +682,12 @@ describe('StatsAside', () => {
     expect(card.find('.pr-bw-cols').exists()).toBe(true);
     const read = card.get('[data-testid="stats-bandwidth-read"]');
     expect(read.text()).toMatch(/读|Read/);
-    // mean(80, 90) = 85 → score 5
-    expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/5/);
-    expect(read.text()).toMatch(/85\.0 \/ 1600\.0\s*GB\/s/);
-    expect(read.get('.pr-card__sub').attributes('title')).toBe('85 / 1600 GB/s');
+    // DATA-8: read = aic + aiv = 80 + 90 = 170 → score round(170/1600×100) = 11
+    expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/11/);
+    expect(read.text()).toMatch(/170\.0 \/ 1600\.0\s*GB\/s/);
+    expect(read.get('.pr-card__sub').attributes('title')).toBe('170 / 1600 GB/s');
     expect(read.get('[data-testid="stats-bandwidth-read-bar"]').attributes('style')).toMatch(
-      /width:\s*5%/,
+      /width:\s*11%/,
     );
     const write = card.get('[data-testid="stats-bandwidth-write"]');
     expect(write.text()).toMatch(/写|Write/);

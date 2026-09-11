@@ -82,9 +82,9 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-10
 - **Question:** Do the I/O bandwidth cards come from `Report.csv`? If yes, list the column names.
-- **Decision:** **No.** Cards read `Memory.csv` / `summary.jsonl` → `category: Memory` main-memory BW: input = `aic_main_mem_read_bw(GB/s)` + `aiv_main_mem_read_bw(GB/s)`, output = the matching `*_write_bw`. Peak / score use `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s** and `aicore_gm_read_bw` / `aicore_gm_write_bw` (DATA-5–DATA-7). `Report.csv` is named "SOL/平均带宽" in producer notes but has **no schema** and is unused.
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.3, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §7, [view-models](../../../specs/core/view-models.spec.md)
-- **Source:** `npu-compute性能优化.docx` 报告统计信息 table + NPU-Compute.md Q5–Q7 (2026-09-10).
+- **Decision:** **No.** Cards read `summary.jsonl` → `category: OpInfoSummary`: measured read `aicore_gm_read_bw(GB/s)` and measured write `aicore_gm_write_bw(GB/s)` — each the **sum** of the `category: Memory` sides (`aic_main_mem_read_bw + aiv_main_mem_read_bw`, likewise write), **not** their mean — peak `aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s**, shared by every side (DATA-6), and usage `aicore_gm_bw_usage_rate(%)` = `(read + write) / theoretical`. Each direction's 读/写 share uses that direction's measured value as the numerator. `Report.csv` is named "SOL/平均带宽" in producer notes but has **no schema** and is unused.
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.3, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §7, [view-models](../../../specs/core/view-models.spec.md), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
+- **Source:** `npu-compute性能优化.docx` 报告统计信息 table + NPU-Compute.md Q5–Q7 (2026-09-10); exact field list re-confirmed by `Questions/DATA questions/DATA questions.md` DATA-8 and `Questions/NPU-Compute.md` Q5/Q7 (2026-09-11).
 
 ---
 
@@ -115,6 +115,16 @@ Format and statuses: [README.md](README.md).
 - **Decision:** Show **cost time**: mean of non-`NA` `*_time(us)` for the same family/side as the ratio (`PipeUtilization.csv`). Not cycles.
 - **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [decisions/interim/](../decisions/interim/) `DATA-33f`
 - **Source:** Product answer doc (2026-08-31).
+
+---
+
+## DATA-19 (was: HQ 19)
+
+- **Resolved:** 2026-09-11
+- **Question:** A CSV holds one row per `block_id`. On the summary PIPE bars, do we average all blocks? On the 详情 overlays, only the selected block? Does picking a block scope **only PIPE** or every summary widget?
+- **Decision:** **One block selector, one scope.** Every surface carries a block selector with options **All | 0 | 1 | 2 …** (one per `block_id`), default **All**. **`All`** reads the aggregate from `summary.jsonl` (`category: PipeUtilization`); a specific id reads **that block's row** from the per-block CSV (`PipeUtilization.csv`). The selector scopes **every** summary and detail widget — not PIPE alone. The aggregation used for `All` is [DATA-28](../decisions/DATA.md); the shared per-widget rule is [DATA-29](../decisions/DATA.md).
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §8.1, [view-models](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2
+- **Source:** `npu-tools` `Questions/DATA questions/DATA questions.md` DATA-19 (2026-09-11).
 
 ---
 
@@ -152,9 +162,19 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-10
 - **Question:** **L0C → L1** — show it? Which field?
-- **Decision:** Show `Memory.csv` → `L0C_to_L1_datas(KB)` when present. The Product 理论值 (Peak %) for this edge is still 待确定 and tracked by [DATA-20](../questions/DATA.md).
+- **Decision:** Show `L0C_to_L1_datas(KB)` (`summary.jsonl` → `category: Memory`; the `Memory.csv` column) when present. The Product 理论值 (Peak %) for this edge is still 待确定 and tracked by [DATA-20](../questions/DATA.md).
 - **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.4
-- **Source:** NPU-Compute.md Q24 (2026-09-10); implemented in `memoryTopology.ts`.
+- **Source:** NPU-Compute.md Q24 (2026-09-10); field re-confirmed by `Questions/DATA questions/DATA questions.md` DATA-24 (2026-09-11); implemented in `memoryTopology.ts`.
+
+---
+
+## DATA-25 (was: HQ 25)
+
+- **Resolved:** 2026-09-11
+- **Question:** **L0C → L2/GM** — show it? Which field? Is the sketch's single **LOC** node one arrow or three?
+- **Decision:** **Show** the edge. Value = `summary.jsonl` → `category: Memory` → `L0C_to_GM_datas(KB)` (the `Memory.csv` column). The 理论值 (Peak %) for this edge is **not** answered and is tracked by [DATA-20](../questions/DATA.md). The LOC node stays a **single** source node; the producer keeps L0C → UB hidden (already [DATA-26](../decisions/DATA.md)) so only L0C → L1 and L0C → L2/GM are drawn.
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.4, [view-models](../../../specs/core/view-models.spec.md)
+- **Source:** `npu-tools` `Questions/DATA questions/DATA questions.md` DATA-25 (2026-09-11); implemented in `memoryTopology.ts`.
 
 ---
 
@@ -175,6 +195,26 @@ Format and statuses: [README.md](README.md).
 - **Decision:** Do **not** show Dual-Die / remote memory arrows.
 - **Specs:** [npu-rep](../../../specs/core/npu-rep.spec.md)
 - **Source:** NPU-Compute.md (2026-09-04).
+
+---
+
+## DATA-28 (was: HQ 28)
+
+- **Resolved:** 2026-09-11
+- **Question:** A CSV often has many `block_id` rows. For a single summary number, which aggregation is correct — **mean**, **max**, **first block**, or **selected block**? How are `NA`/empty rows treated?
+- **Decision:** Use the `summary.jsonl` aggregate. By its producer definition (`summarize_npu_rep.py`) the default is the **mean of non-`NA` values across `block_id`**; `--block N` takes that block's row verbatim (no aggregation). `NA`/empty values stay the string `"NA"` and are excluded from the mean; identical rows are deduped. A specific block therefore comes from that block's CSV row, and `All` from the summary ([DATA-19](../decisions/DATA.md) / [DATA-29](../decisions/DATA.md)). Compute-load families are shown **Cube and Vector separately** — Cube `aic_cube_ratio` / `aic_mte2_ratio` / `aic_mte1_ratio` / `aic_fixpipe_ratio` / `aic_scalar_ratio`, Vector `aiv_vec_ratio` / `aiv_mte2_ratio` / `aiv_mte3_ratio` / `aiv_scalar_ratio`, all from `summary.jsonl` `category: PipeUtilization`. The producer still wants a general aggregation-description doc; no rule here changes if that lands.
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §8 / §8.1, [view-models](../../../specs/core/view-models.spec.md)
+- **Source:** `npu-tools` `Questions/DATA questions/DATA questions.md` DATA-28 and `Questions/NPU-Compute.md` § summary.jsonl (2026-09-11).
+
+---
+
+## DATA-29 (was: HQ 29)
+
+- **Resolved:** 2026-09-11
+- **Question:** Does one aggregation rule apply to **every** widget (cards, PIPE, Roofline, memory diagram), or are there per-surface exceptions?
+- **Decision:** **One consistent rule, no exceptions.** Every widget uses the same block selector (**All | 0 | 1 | 2 …**, default **All**): `All` sources `summary.jsonl`, a specific id sources that block's CSV row ([DATA-19](../decisions/DATA.md)), with the `All` aggregation of [DATA-28](../decisions/DATA.md). This replaces the earlier split ("summary stays mean-across-blocks, detail is block-scoped").
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §8.1, [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2, [view-models](../../../specs/core/view-models.spec.md)
+- **Source:** `npu-tools` `Questions/DATA questions/DATA questions.md` DATA-29 (2026-09-11).
 
 ---
 

@@ -334,7 +334,7 @@ function utilScore(measured: number, peak: number): number {
   return Math.min(100, Math.max(0, Math.round((measured / peak) * 100)));
 }
 
-/** Sketch 读|写: collapse input/output × aic|aiv into one mean per direction (DATA-33g). */
+/** Sketch 读|写: collapse input/output × aic|aiv into one **sum** per direction (DATA-8). */
 function bandwidthUtilFromCards(
   cards: BandwidthCardModel[],
 ): { dir: 'read' | 'write'; measuredGBs: number; peakGBs: number }[] {
@@ -342,10 +342,9 @@ function bandwidthUtilFromCards(
   for (const id of ['input', 'output'] as const) {
     const card = cards.find((c) => c.id === id);
     if (!card || card.sides.length === 0) continue;
-    const measuredGBs =
-      card.sides.reduce((a, s) => a + s.measuredGBs, 0) / card.sides.length;
-    // ponytail: peak from sides[0] only — safe while DATA-33g peak is the constant 1600 GB/s.
-    // When DATA-5/6 ship per-side peaks, mean/max/pick needs an explicit Product rule.
+    // DATA-8: read = aic + aiv (the producer's `OpInfoSummary.aicore_gm_read_bw`), write likewise.
+    const measuredGBs = card.sides.reduce((a, s) => a + s.measuredGBs, 0);
+    // Peak is one SOL value shared by every side (DATA-6), so sides[0] is representative.
     const peakGBs = card.sides[0]!.peakGBs;
     out.push({ dir: id === 'input' ? 'read' : 'write', measuredGBs, peakGBs });
   }

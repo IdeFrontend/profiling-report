@@ -22,7 +22,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Aside meta (shell).** v930 header is **进程** / **算子类型** / **Blocks** from `pid`, `opType`, `blockDim`. Hide a segment when unset; hide the row when all three are empty. Do **not** put 核数, aic频率, or NPU ARCH on this row. `currentFreq` / `ratedFreq` stay on the model for the hardware overlay fallback; they are not shell fields. Overlay `chip_info` / `arch_info` stay in `hardwareDetails`.
 
-**Pipe occupancy.** Reads `PipeUtilization.csv`, computes per-pipe-family means of non-NA ratios across all rows (DATA-33b). Optional `absoluteValue` = mean non-NA matching `*_time(us)` (DATA-33f). **ICache Miss confirmed:** include when `*_icache_miss_rate` mean is present. Each item is **side-specific**: Cube uses `aic_*` columns, Vector uses `aiv_*`. Shared family names (MTE2, Scalar) appear as separate cube/vector items — never a blended AIC+AIV mean. Ratios merge into matching swimlane threads by `laneColorKey` (mean when both sides contribute the same key).
+**Pipe occupancy.** Reads `PipeUtilization.csv`, computes per-pipe-family means of non-NA ratios across all rows (DATA-28). Optional `absoluteValue` = mean non-NA matching `*_time(us)` (DATA-33f). **ICache Miss confirmed:** include when `*_icache_miss_rate` mean is present. Each item is **side-specific**: Cube uses `aic_*` columns, Vector uses `aiv_*`. Shared family names (MTE2, Scalar) appear as separate cube/vector items — never a blended AIC+AIV mean. Ratios merge into matching swimlane threads by `laneColorKey` (mean when both sides contribute the same key).
 
 **CSV detail tables (M1).** Builds `CsvTableModel` entries for compute tabs (`PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio`) and memory tabs (`Memory.csv`, `L2Cache`, `MemoryL0`, `MemoryUB`). Each table includes headers, rows, and distinct `blockIds` in fixture order (DATA-33c). Missing embeds are omitted. Raw CSV text is stored in `csvTexts[fileName]` for 查看全部 (DATA-33d).
 
@@ -38,12 +38,12 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Hardware details (M1).** Prefer `HardwareInfo.jsonl` category sections (product source); else OpBasicInfo non-empty columns. Omit when neither yields fields. Include `'hardwareDetails'` in capabilities when model present. **StatsAside** always shows **更多** on the report shell; when the adapter omits `hardwareDetails`, the overlay shows **缺少 hardware info** (UI-30, UI-31). Do **not** map jsonl `ai_core_count` / `chip_info` onto the aside meta row.
 
-**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` from Memory* CSVs per [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md). L2↔L1 from `Memory.csv`. UB→L2 / L2→UB: `Memory.csv` `aiv_ub_to_gm_bw(GB/s)` / `aiv_gm_to_ub_bw(GB/s)` ([DATA-22](../context/decisions/DATA.md) / [DATA-23](../context/decisions/DATA.md)) — the docx `MemoryUB.csv` `*_gm` names are absent from the sample. `buildMemoryTopology(tables, blockId)` rebuilds labels for another block (DATA-33c). Hide `NA` labels; **show 0**. Omit `memoryTopology` (and `'memoryDiagram'`) when no edge yields a label. **L2 Peak(%) (DATA-20):** set `nodes` entry `l2.peakPct` from the same L2Cache hit-rate value as the `l2-hit` edge (DATA-21 interim column order: first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, `aic_read_hit_rate(%)`, `aiv_read_hit_rate(%)`).
+**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` from Memory* CSVs per [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md). L2↔L1 from `Memory.csv`. UB→L2 / L2→UB: `Memory.csv` `aiv_ub_to_gm_bw(GB/s)` / `aiv_gm_to_ub_bw(GB/s)` ([DATA-22](../context/decisions/DATA.md) / [DATA-23](../context/decisions/DATA.md)) — the docx `MemoryUB.csv` `*_gm` names are absent from the sample. L0C → L1 / L0C → L2/GM: `Memory.csv` `L0C_to_L1_datas(KB)` / `L0C_to_GM_datas(KB)` ([DATA-24](../context/decisions/DATA.md) / [DATA-25](../context/decisions/DATA.md)); their 理论值 (Peak %) stays open with [DATA-20](../context/questions/DATA.md). L0C → UB and remote arrows are not drawn ([DATA-26](../context/decisions/DATA.md) / [DATA-27](../context/decisions/DATA.md)). `buildMemoryTopology(tables, blockId)` rebuilds labels for another block; every widget shares the one block selector ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). Hide `NA` labels; **show 0**. Omit `memoryTopology` (and `'memoryDiagram'`) when no edge yields a label. **L2 Peak(%) (DATA-20):** set `nodes` entry `l2.peakPct` from the same L2Cache hit-rate value as the `l2-hit` edge (DATA-21 interim column order: first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, `aic_read_hit_rate(%)`, `aiv_read_hit_rate(%)`).
 
 ## Acceptance Criteria
 
 1. **PR-VM-001** — ReportViewModel.summary contains name, type, duration, pid, blockDim, optional coreCount (DATA-1). Classic `.rep` leaves compute/util unset (no `summary.jsonl`). Product `npu-rep` fills `aicFlops` / `parallelUtilization` from `OpInfoSummary` (DATA-2, DATA-9, DATA-33).
-2. **PR-VM-002** — PipeOccupancy aggregates mean of non-NA ratios per pipe family per DATA-33b; optional absoluteValue from mean `*_time(us)` (DATA-33f).
+2. **PR-VM-002** — PipeOccupancy aggregates mean of non-NA ratios per pipe family per DATA-28; optional absoluteValue from mean `*_time(us)` (DATA-33f).
 3. **PR-VM-003** — Overview series from `Sampling.json` `ph:C` (DATA-39): one track per counter name present on product fixtures with Sampling; empty when Sampling absent (`out.rep`); never invented from PipeUtilization.
 4. **PR-VM-005** — Pipe items are side-specific (`aic_*` vs `aiv_*`); no blended AIC/AIV family ratio.
 5. **PR-VM-006** — `computeTables` includes PipeUtilization, ArithmeticUtilization, ResourceConflictRatio with non-empty headers/rows and blockIds `0`…`7` on `out.rep`.
@@ -54,7 +54,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 10. **PR-VM-011** — `memoryTopology` from Memory* CSVs; `out.rep` UB/Vec/GM 2:1 and `from→to`; L2↔L1 from Memory.csv; UB from `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` (DATA-22 / DATA-23); hide NA, show 0.
 11. **PR-VM-012** — Topology labels come only from the requested `block_id`; first labelled block is used for the adapter snapshot.
 11b. **PR-VM-012b** — `l2.peakPct` from first non-NA L2Cache hit-rate column (DATA-20 / DATA-21); matches `l2-hit` edge value.
-12. **PR-VM-013** — `bandwidthCards` prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = 1600); fall back to Memory.csv mean non-NA main-mem BW with peak 1600 GB/s; omit NA sides/cards (DATA-5, DATA-33). Also covers unmodified `out.rep` (aiv-only; peak 1600).
+12. **PR-VM-013** — `bandwidthCards` prefer `summary.jsonl`: read / write = **sum** of the aic + aiv `Memory` sides (the producer's `OpInfoSummary.aicore_gm_read_bw(GB/s)` / `aicore_gm_write_bw(GB/s)`), peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = 1600 shared by both sides, usage = `aicore_gm_bw_usage_rate(%)` = (read + write) / theoretical (DATA-5..DATA-8). Fall back to `Memory.csv` non-`NA` mean per block with peak 1600 GB/s; omit NA sides/cards. Also covers unmodified `out.rep` (aiv-only; peak 1600).
 13. **PR-VM-014** — `summary.coreCount` from `HardwareInfo.jsonl` by op type (cube/vector/mix); omit when jsonl or field missing.
 14. **PR-VM-015** — `computeCard` from Product `OpInfoSummary` FLOPS when present; else ArithmeticUtilization + HardwareInfo peaks (DATA-33h); omit when no side has measured + peak.
 15. **PR-VM-016** — When both OpBasicInfo.csv and Summary.jsonl exist, identity comes from OpBasicInfo and OpInfoSummary derived FLOPS/util overlay onto summary + computeCard.
@@ -70,13 +70,14 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Dependencies
 
-DATA-33, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-39, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
+DATA-19, DATA-25, DATA-28, DATA-29, DATA-33, DATA-33d, DATA-33f, DATA-39, DATA-34a, DATA-37a–f. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
 
 ## Open
 
 DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; compute formula given but no chart-axis spec).
 
 ## Changelog
+- **2026-09-11** — Block scope is one selector for every widget (`All` = `summary.jsonl` non-`NA` mean, a picked id = that block's CSV row) (DATA-19 / DATA-28 / DATA-29). BW cards sum the aic + aiv sides (`aicore_gm_read_bw` / `aicore_gm_write_bw`) instead of meaning them (DATA-8). Memory topology adds L0C → L1 / L0C → L2/GM (DATA-24 / DATA-25).
 - **2026-09-10** — Memory topology UB→L2 / L2→UB read `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` (DATA-22 / DATA-23); the `MemoryUB.csv` `*_gm` names are absent from the sample (PR-VM-011).
 - **2026-09-07** — L2 `peakPct` on topology nodes (DATA-20 / DATA-21, PR-VM-012b).
 - **2026-09-04** — NPU-Compute: `summary.jsonl` is the canonical source — `OpInfoSummary` derived fields (compute/BW/parallel utilization), summary-first detail categories, `PipeTrace.json` µs timeline, spaced HardwareInfo key normalization, peak 1600 GB/s (SOL), compute score = measured/theoretical (DATA-2, DATA-3, DATA-5, DATA-9, DATA-33, UI-32).

@@ -20,7 +20,7 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 - **clockCycle** raw values and labels are **microseconds** of pipe active time (`*_time(us)`), never cycle counts and never percents. Label always ends with **`µs`** (same glyph as `formatTime`).
 - **utilization** labels use **`%`** of event coverage over the model span.
 - Time window for **utilization** is the swimlane model span `[minTime, maxTime]` (full trace), not the visible viewport.
-- CSV aggregations ignore `NA` tokens. Mean-across-`block_id` uses the same aggregation **pattern** as pipe occupancy ([DATA-33b](../../docs/context/decisions/interim/DATA.md)); for clockCycle the averaged cells are **`*_time(us)`**, matching aside absolute time ([DATA-33f](../../docs/context/decisions/interim/DATA.md): mean non-`NA` `*_time(us)`, **not cycles**).
+- CSV aggregations ignore `NA` tokens. Mean-across-`block_id` uses the same aggregation **pattern** as pipe occupancy ([DATA-28](../../docs/context/decisions/DATA.md)); for clockCycle the averaged cells are **`*_time(us)`**, matching aside absolute time ([DATA-33f](../../docs/context/decisions/interim/DATA.md): mean non-`NA` `*_time(us)`, **not cycles**).
 
 ## Behavior
 
@@ -111,7 +111,7 @@ Let \(V\) be the set of raw values for lanes/folders under the Card that have a 
 3. **PR-GMET-003** — clockCycle barWidth normalizes to max lane in Card.
 4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring.
 5. **PR-GMET-005** — Folder rollups mean child values for clockCycle.
-6. **PR-GMET-006** — Ignores `NA` CSV cells; means `*_time(us)` across `block_id` rows (DATA-33b pattern / DATA-33f quantity).
+6. **PR-GMET-006** — Ignores `NA` CSV cells; means `*_time(us)` across `block_id` rows (DATA-28 pattern / DATA-33f quantity).
 7. **PR-GMET-007** — `averageBarWidthForCard`: 50 for utilization; mean barWidth for clockCycle when ≥2 lanes.
 8. **PR-GMET-008** — `clockCycle` labels: integer when `|raw| ≥ 0.5`; otherwise two decimals (or `toPrecision(2)` when `raw < 0.01`); always suffix **`µs`**; never uses cycle-count columns.
 
