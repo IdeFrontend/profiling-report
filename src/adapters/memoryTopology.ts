@@ -6,7 +6,7 @@ const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'xn_imm', label: 'XN_IMM' },
   { id: 'data_cache', label: 'Data Cache' },
   // UI-38: the chrome draws MTE1/2/3 blocks on the L2↔unit paths, but the export gives them no
-  // value plate, so the panel has no slot to paint (MV-* below). They still belong to the model:
+  // value plate, so the panel has no slot to paint (PR-VM-017). They still belong to the model:
   // their utilizations live in PipeUtilization.csv and surface through the memory 详情 CSV field list.
   { id: 'mte1', label: 'MTE1' },
   { id: 'mte2', label: 'MTE2' },
