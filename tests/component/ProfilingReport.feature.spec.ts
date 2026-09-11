@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { adaptRep, emptyReportViewModel, parseRep, ProfilingReport } from '../../src/index';
+import TimelineView from '../../src/ui/TimelineView/TimelineView.vue';
 import { loadOutRepBuffer, loadOutRepBytes, loadNpuRepBuffer, loadResultNpuRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import * as swimTree from '../../src/domain/swimTree';
 import * as anim from '../../src/ui/TimelineView/animateViewWindow';
@@ -404,9 +405,8 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     );
   });
 
-  it('PR-UI-013: collapse tween keeps the display model stable (no per-frame rebuild)', async () => {
-    // A default-collapsed sibling group forces `visualCollapsedIds` non-empty during the
-    // tween, which is the regression path where the old code re-derived the model per frame.
+  it('PR-UI-013: collapse tween keeps the display model identity (no filterCollapsedTree)', async () => {
+    // A default-collapsed sibling group used to re-derive displaySwim per frame.
     const model: SwimlaneModel = {
       minTime: 0,
       maxTime: 1000,
@@ -460,24 +460,26 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     });
     await flushPromises();
 
-    // The spy intercepts: displaySwim derived the collapsed tree on first render.
-    expect(filterSpy.mock.calls.length).toBeGreaterThan(0);
+    const timeline = wrapper.findComponent(TimelineView);
+    const display = timeline.props('displaySwim');
+    expect(display).toBe(timeline.props('pinSourceModel'));
+    expect(filterSpy).not.toHaveBeenCalled();
 
     await wrapper.get('[data-testid="gutter-folder-card0/core-a"]').trigger('click');
     await flushPromises();
 
     expect(onUpdate).toBeTruthy();
-    const callsBeforeStep = filterSpy.mock.calls.length;
-    expect(callsBeforeStep).toBeGreaterThan(0);
+    expect(timeline.props('displaySwim')).toBe(display);
+    expect(filterSpy).not.toHaveBeenCalled();
 
-    // Stepping the tween must not re-derive the display model (filterCollapsedTree stable).
     onUpdate!(0.6);
     await flushPromises();
     onUpdate!(0.3);
     await flushPromises();
     onUpdate!(0.1);
     await flushPromises();
-    expect(filterSpy.mock.calls.length).toBe(callsBeforeStep);
+    expect(timeline.props('displaySwim')).toBe(display);
+    expect(filterSpy).not.toHaveBeenCalled();
 
     onDone!();
     await flushPromises();

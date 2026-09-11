@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyCollapseAnim,
+  collapseFoldsFromLayout,
+  collapseHiddenHeight,
   eventBlockMetrics,
   groupBottomY,
   LANE_HEIGHT,
@@ -167,7 +169,9 @@ describe('collapse summary dissolve (PR-RENDER-028)', () => {
       summaryEvents,
     });
 
-    const ghost = renderer.getLayout().events.find((e) => e.summary);
+    const ghost =
+      renderer.getLayout().summaryExtras?.find((e) => e.summary) ??
+      renderer.getLayout().events.find((e) => e.summary);
     expect(ghost).toBeTruthy();
     const rect = renderer.eventScreenRect(ghost!.id);
     expect(rect).toBeTruthy();
@@ -186,5 +190,43 @@ describe('collapse summary dissolve (PR-RENDER-028)', () => {
     expect(draw).toMatch(/collapseShiftY\(item\.y,\s*this\.collapse\)/);
     expect(draw).toMatch(/collapseAlpha\(item\.y,\s*this\.collapse\)/);
     expect(draw).toMatch(/labelAlpha\s*<=\s*0/);
+  });
+});
+
+describe('paint-only rest collapse (PR-RENDER-047)', () => {
+  it('setCollapsedIds folds without cloning events or rebuilding the base layout', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.setModel(folderModel());
+    renderer.resize(200, 400, 1);
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    const baseEvents = renderer.getBaseLayout().events;
+    const baseMte1 = renderer.getBaseLayout().lanes.find((l) => l.thread.id === 'mte1')!.y;
+
+    renderer.setCollapsedIds(['core']);
+
+    expect(renderer.getLayout().events).toBe(baseEvents);
+    expect(renderer.getBaseLayout().lanes.find((l) => l.thread.id === 'mte1')?.y).toBe(baseMte1);
+    const ghost = renderer.getLayout().summaryExtras?.find((e) => e.summary);
+    expect(ghost).toBeTruthy();
+    const rect = renderer.eventScreenRect(ghost!.id);
+    expect(rect).toBeTruthy();
+    expect(renderer.hitTest(rect!.x + 1, rect!.y + rect!.h / 2)).toBe(ghost!.id);
+    expect(renderer.findEvent(ghost!.id)?.id).toBe(ghost!.id);
+
+    const hbm = renderer.getLayout().lanes.find((l) => l.thread.id === 'hbm');
+    expect(hbm?.y).toBe(106);
+    expect(renderer.getLayout().lanes.find((l) => l.thread.id === 'mte1')?.alpha).toBe(0);
+  });
+
+  it('nested Card fold swallows a Core rest fold', () => {
+    const layout = rebuildLayout(folderModel());
+    const t = collapseFoldsFromLayout(layout, ['card', 'core'], null);
+    expect(t.folds.map((f) => f.groupId)).toEqual(['card']);
+  });
+
+  it('collapseHiddenHeight matches descendant lane rows without filterCollapsedTree', () => {
+    expect(collapseHiddenHeight(folderModel(), [], ['core'])).toBe(44);
   });
 });

@@ -437,8 +437,9 @@ describe('SwimlaneView', () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     // Forwards the tween to the body canvas and the gutter.
     expect(src).toMatch(/:collapse-anim="collapseAnim"/);
-    // Card strips below a collapsing Card shift up by the same offset as the canvas.
-    expect(src).toMatch(/anim\.hiddenHeight \* \(1 - anim\.visible\)/);
+    // Card strips share the canvas fold transform (rest + in-flight).
+    expect(src).toMatch(/collapseTransformFromModel/);
+    expect(src).toMatch(/collapseShiftY\(h\.y,\s*fold\)/);
     expect(src).toMatch(/LANE_GROUP_HEADER_HEIGHT/);
   });
 

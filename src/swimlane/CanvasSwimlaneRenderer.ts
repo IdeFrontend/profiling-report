@@ -19,10 +19,11 @@ import {
 } from './dependencyLinks';
 import {
   collapseAlpha,
+  collapseClosedHeight,
   collapseShiftY,
-  collapseTransform,
-  applyCollapseAnim,
-  collapseGhostSummaries,
+  collapsePaintState,
+  collectCollapseSummaries,
+  collapseFoldsFromLayout,
   EMPTY_LAYOUT,
   eventPaintRect,
   IDLE_COLLAPSE,
@@ -138,11 +139,11 @@ function roundRectPath(
   ctx.closePath();
 }
 
-/** Paint folder summary ghosts during collapse/expand (dissolve / re-aggregate). */
-function paintCollapseGhostSummaries(
+/** Paint folder summary bars (rest-collapsed α=1 and tween ghosts). */
+function paintCollapseSummaries(
   ctx: CanvasRenderingContext2D,
-  layout: SwimlaneLayout,
-  state: CollapseAnimState | null,
+  items: readonly LaidOutEvent[],
+  collapse: CollapseTransform,
   view: SwimlaneViewWindow,
   width: number,
   height: number,
@@ -150,17 +151,16 @@ function paintCollapseGhostSummaries(
   selectedId: string | null,
   hoveredId: string | null,
 ): void {
-  const ghosts = collapseGhostSummaries(layout, state);
-  if (ghosts.length === 0) return;
+  if (items.length === 0) return;
   const span = Math.max(1, view.endTime - view.startTime);
-  for (const item of ghosts) {
+  for (const item of items) {
     const ev = item.event;
     const alpha = item.alpha ?? 1;
     if (alpha <= 0) continue;
     if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
     const x = ((ev.startTime - view.startTime) / span) * width;
     const w = Math.max(2, (ev.duration / span) * width);
-    const metrics = eventBlockMetrics(item.y, view.scrollY);
+    const metrics = eventBlockMetrics(collapseShiftY(item.y, collapse), view.scrollY);
     const y = metrics.y * dpr;
     const h = metrics.h * dpr;
     if (y + h < 0 || y > height) continue;
@@ -211,6 +211,9 @@ export class SwimlaneOverlayPainter {
   private dpr = 1;
   /** Full collapse state — ghost summaryEvents painted during the tween. */
   private collapseState: CollapseAnimState | null = null;
+  private collapsedIds: readonly string[] = [];
+  private summaryCache = new Map<string, SwimEvent[]>();
+  private paintSummaries: readonly LaidOutEvent[] = [];
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -231,14 +234,32 @@ export class SwimlaneOverlayPainter {
   setLayout(layout: SwimlaneLayout): void {
     if (layout === this.layout) return;
     this.layout = layout;
-    this.collapse = IDLE_COLLAPSE;
-    this.collapseState = null;
+    this.summaryCache.clear();
+    this.refreshCollapse();
   }
 
-  /** Per-frame collapse/expand transform (see layout.collapseTransform). */
+  setCollapsedIds(ids: readonly string[]): void {
+    if (ids === this.collapsedIds || (ids.length === this.collapsedIds.length && ids.every((id, i) => id === this.collapsedIds[i]))) {
+      return;
+    }
+    this.collapsedIds = ids;
+    this.refreshCollapse();
+  }
+
+  /** Per-frame collapse/expand transform (see layout.collapseFoldsFromLayout). */
   setCollapseAnim(state: CollapseAnimState | null): void {
     this.collapseState = state;
-    this.collapse = collapseTransform(this.layout, state);
+    this.refreshCollapse();
+  }
+
+  private refreshCollapse(): void {
+    this.collapse = collapseFoldsFromLayout(this.layout, this.collapsedIds, this.collapseState);
+    this.paintSummaries = collectCollapseSummaries(
+      this.layout,
+      this.collapsedIds,
+      this.collapseState,
+      this.summaryCache,
+    );
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -286,13 +307,17 @@ export class SwimlaneOverlayPainter {
     const bright = this.neighborIds;
     const dpr = this.dpr;
 
-    for (const item of this.layout.events) {
+    for (let i = 0; i < this.layout.lanes.length; i++) {
+      const lane = this.layout.lanes[i]!;
+      if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
+      for (const item of this.layout.eventsByLane[i] ?? []) {
       const ev = item.event;
       if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
         continue;
       }
       const laneY = collapseShiftY(item.y, this.collapse);
       const laneAlpha = collapseAlpha(item.y, this.collapse);
+      if (laneAlpha <= 0) continue;
       const x = ((ev.startTime - this.view.startTime) / span) * this.width;
       const w = Math.max(2, (ev.duration / span) * this.width);
       const metrics = eventBlockMetrics(laneY, this.view.scrollY);
@@ -382,12 +407,13 @@ export class SwimlaneOverlayPainter {
         );
       }
     }
+    }
 
-    // Folder summary ghosts dissolve/aggregate over the fading subtree (PR-RENDER-028).
-    paintCollapseGhostSummaries(
+    // Folder summary ghosts / rest-collapsed bars (PR-RENDER-028 / PR-RENDER-047).
+    paintCollapseSummaries(
       ctx,
-      this.layout,
-      this.collapseState,
+      this.paintSummaries,
+      this.collapse,
       this.view,
       this.width,
       this.height,
@@ -405,6 +431,9 @@ export class SwimlaneOverlayPainter {
     this.layout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
     this.collapseState = null;
+    this.collapsedIds = [];
+    this.summaryCache.clear();
+    this.paintSummaries = [];
     this.neighborIds = new Set();
   }
 }
@@ -433,6 +462,9 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private height = 0;
   private dpr = 1;
   private collapseState: CollapseAnimState | null = null;
+  private collapsedIds: readonly string[] = [];
+  private summaryCache = new Map<string, SwimEvent[]>();
+  private paintSummaries: readonly LaidOutEvent[] = [];
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -455,17 +487,39 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   setModel(model: SwimlaneModel): void {
     this.baseLayout = rebuildLayout(model);
     this.layout = this.baseLayout;
-    this.hitLayout = this.baseLayout;
-    this.collapse = IDLE_COLLAPSE;
+    this.collapsedIds = [];
+    this.summaryCache.clear();
     this.collapseState = null;
+    this.collapse = IDLE_COLLAPSE;
+    this.hitLayout = this.baseLayout;
+    this.paintSummaries = [];
     this.refreshDepCache();
+  }
+
+  setCollapsedIds(ids: readonly string[]): void {
+    if (ids === this.collapsedIds || (ids.length === this.collapsedIds.length && ids.every((id, i) => id === this.collapsedIds[i]))) {
+      return;
+    }
+    this.collapsedIds = ids;
+    this.refreshCollapse();
   }
 
   /** Per-frame collapse/expand transform applied inline in `render` (no layout rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
     this.collapseState = state;
-    this.collapse = collapseTransform(this.baseLayout, state);
-    this.hitLayout = state ? applyCollapseAnim(this.baseLayout, state) : this.baseLayout;
+    this.refreshCollapse();
+  }
+
+  private refreshCollapse(): void {
+    const next = collapsePaintState(
+      this.baseLayout,
+      this.collapsedIds,
+      this.collapseState,
+      this.summaryCache,
+    );
+    this.collapse = next.collapse;
+    this.hitLayout = next.hitLayout;
+    this.paintSummaries = next.hitLayout.summaryExtras ?? [];
   }
 
   setView(view: SwimlaneViewWindow): void {
@@ -510,7 +564,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
 
   contentHeight(): number {
-    return contentHeightFromLayout(this.layout);
+    return Math.max(0, contentHeightFromLayout(this.baseLayout) - collapseClosedHeight(this.collapse));
   }
 
   getLayout(): SwimlaneLayout {
@@ -534,7 +588,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
     const item = findLaidOutEvent(this.hitLayout, eventId);
     if (!item) return null;
-    return eventScreenRect(item, this.view, this.width, this.dpr);
+    return eventScreenRect(item, this.view, this.width, this.dpr, this.collapse);
   }
 
   hitTest(x: number, y: number): string | null {
@@ -578,10 +632,12 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
+      const laneAlpha = collapseAlpha(lane.y, this.collapse);
+      if (laneAlpha <= 0) continue;
       const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
       const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > this.height) continue;
-      ctx.globalAlpha = collapseAlpha(lane.y, this.collapse);
+      ctx.globalAlpha = laneAlpha;
       ctx.fillStyle = lane.thread.id === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
       ctx.fillRect(0, y, this.width, laneH);
       ctx.strokeStyle = '#3a3a3a';
@@ -610,7 +666,9 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       fill: string;
     }[] = [];
 
-    for (const item of this.layout.events) {
+    for (let i = 0; i < this.layout.lanes.length; i++) {
+      if (collapseAlpha(this.layout.lanes[i]!.y, this.collapse) <= 0) continue;
+      for (const item of this.layout.eventsByLane[i] ?? []) {
       const ev = item.event;
       if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
         continue;
@@ -674,12 +732,13 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         muted,
         fill,
       });
+      }
     }
 
-    paintCollapseGhostSummaries(
+    paintCollapseSummaries(
       ctx,
-      this.baseLayout,
-      this.collapseState,
+      this.paintSummaries,
+      this.collapse,
       this.view,
       this.width,
       this.height,
@@ -727,6 +786,9 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
     this.collapseState = null;
+    this.collapsedIds = [];
+    this.summaryCache.clear();
+    this.paintSummaries = [];
     this.neighborIds = new Set();
     this.depLinks = [];
   }

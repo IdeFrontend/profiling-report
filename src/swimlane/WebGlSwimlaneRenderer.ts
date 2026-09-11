@@ -9,9 +9,9 @@ import {
 } from '../domain/types';
 import {
   collapseAlpha,
+  collapseClosedHeight,
   collapseShiftY,
-  collapseTransform,
-  applyCollapseAnim,
+  collapsePaintState,
   EMPTY_LAYOUT,
   IDLE_COLLAPSE,
   LANE_FILL,
@@ -417,6 +417,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private hitLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private collapse: CollapseTransform = IDLE_COLLAPSE;
+  private collapseState: CollapseAnimState | null = null;
+  private collapsedIds: readonly string[] = [];
+  private summaryCache = new Map<string, SwimEvent[]>();
   /** Subtracted from event times before float32 upload (model.minTime). */
   private timeBase = 0;
   private searchQuery = '';
@@ -495,6 +498,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.baseLayout = rebuildLayout(model);
     this.layout = this.baseLayout;
     this.hitLayout = this.baseLayout;
+    this.collapsedIds = [];
+    this.summaryCache.clear();
+    this.collapseState = null;
     this.collapse = IDLE_COLLAPSE;
     this.timeBase = model?.minTime ?? 0;
     this.refreshDepCache();
@@ -505,11 +511,29 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     if (this.gl) this.atlas?.clear(this.gl);
   }
 
+  setCollapsedIds(ids: readonly string[]): void {
+    if (ids === this.collapsedIds || (ids.length === this.collapsedIds.length && ids.every((id, i) => id === this.collapsedIds[i]))) {
+      return;
+    }
+    this.collapsedIds = ids;
+    this.refreshCollapse();
+  }
+
   /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
-    this.collapse = collapseTransform(this.baseLayout, state);
-    this.hitLayout = state ? applyCollapseAnim(this.baseLayout, state) : this.baseLayout;
-    // Endpoint Y / visibility change with the tween — refresh instance buffer.
+    this.collapseState = state;
+    this.refreshCollapse();
+  }
+
+  private refreshCollapse(): void {
+    const next = collapsePaintState(
+      this.baseLayout,
+      this.collapsedIds,
+      this.collapseState,
+      this.summaryCache,
+    );
+    this.collapse = next.collapse;
+    this.hitLayout = next.hitLayout;
     this.rebuildCurveInstances();
   }
 
@@ -563,13 +587,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   contentHeight(): number {
-    return contentHeightFromLayout(this.layout);
+    return Math.max(0, contentHeightFromLayout(this.baseLayout) - collapseClosedHeight(this.collapse));
   }
 
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
     const item = findLaidOutEvent(this.hitLayout, eventId);
     if (!item) return null;
-    return eventScreenRect(item, this.view, this.width, this.dpr);
+    return eventScreenRect(item, this.view, this.width, this.dpr, this.collapse);
   }
 
   hitTest(x: number, y: number): string | null {
@@ -648,10 +672,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
+      const alpha = collapseAlpha(lane.y, this.collapse);
+      if (alpha <= 0) continue;
       const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
       const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > devH) continue;
-      const alpha = collapseAlpha(lane.y, this.collapse);
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
       this.drawSolidRect(solid, unit, 0, y, devW, laneH, bg, alpha);
       this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider], alpha);
@@ -697,6 +722,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const meshes = this.laneMeshes[i];
       if (!lane || !meshes) continue;
       const laneAlpha = collapseAlpha(lane.y, this.collapse);
+      if (laneAlpha <= 0) continue;
 
       for (const row of meshes.rows) {
         const { y: topRaw, h: bandHRaw } = eventBlockMetrics(
@@ -799,6 +825,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = EMPTY_LAYOUT;
     this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
+    this.collapsedIds = [];
+    this.summaryCache.clear();
     this.neighborIds = new Set();
     this.depLinks = [];
   }
@@ -831,7 +860,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.uniform2f(prog.uTextPow, CLEARTYPE_TEXT_POW, 0);
     gl.enable(gl.SCISSOR_TEST);
 
-    for (const item of this.layout.events) {
+    for (let i = 0; i < this.layout.lanes.length; i++) {
+      const lane = this.layout.lanes[i];
+      if (!lane || collapseAlpha(lane.y, this.collapse) <= 0) continue;
+      for (const item of this.layout.eventsByLane[i] ?? []) {
       // Collapsed-folder summary bars carry their own dimmed "N tasks" label via the overlay
       // (`taskCountLabel` in `SUMMARY_LABEL_COLOR`); the ClearType pass must not rasterize `ev.name`
       // (empty for multi-task unions, the leaf title for a single-event union) over it with a
@@ -914,6 +946,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       gl.bindTexture(gl.TEXTURE_2D, glyph.texture);
       gl.bindVertexArray(quad.vao);
       gl.drawElements(gl.TRIANGLES, quad.indexCount, gl.UNSIGNED_SHORT, 0);
+      }
     }
     gl.bindVertexArray(null);
     gl.disable(gl.SCISSOR_TEST);
