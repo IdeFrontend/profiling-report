@@ -31,6 +31,12 @@
   --pr-color-card-bar-primary: #5ec8d8;
   --pr-color-card-bar-secondary: #5ed8a8;
   --pr-color-default: #606060;
+  /* Custom dropdown chevrons: one size + colour for every chevron we draw.
+     A native <select> cannot host a pseudo-element, so the block select paints
+     its chevron as a background image and that SVG bakes the colour in — keep
+     its stroke equal to --pr-select-chevron-color. */
+  --pr-select-chevron-size: 10px;
+  --pr-select-chevron-color: #b3b3b3;
 }
 
 /**
@@ -91,7 +97,7 @@
  * comboboxes in the report; `appearance: none` + the background chevron keep the
  * native arrow out. Global because both components are `<style scoped>`.
  */
-.pr-block-pill {
+.pr-block-select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -102,7 +108,13 @@
   padding: 0 32px 0 12px;
   border: 0;
   border-radius: 6px;
-  background: #404040 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path fill='none' stroke='%23b3b3b3' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round' d='M2.5 4.5L6 8l3.5-3.5'/></svg>") no-repeat right 12px center;
+  background-color: #404040;
+  /* Sized by the shared token; the stroke colour is baked in because a data-URI
+     cannot read a custom property — keep it equal to --pr-select-chevron-color. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path fill='none' stroke='%23b3b3b3' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round' d='M2.5 4.5L6 8l3.5-3.5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: var(--pr-select-chevron-size);
   color: #ffffff;
   font-size: 12px;
   cursor: pointer;
@@ -110,11 +122,11 @@
 
 /* Chrome draws the ring on click, not only keyboard entry; suppress it and
    re-add it for :focus-visible, matching the 显示控制 fields. */
-.pr-block-pill:focus {
+.pr-block-select:focus {
   outline: none;
 }
 
-.pr-block-pill:focus-visible {
+.pr-block-select:focus-visible {
   outline: 2px solid var(--pr-playhead, #3078f0);
   outline-offset: 1px;
 }
