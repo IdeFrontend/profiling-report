@@ -11,6 +11,8 @@ import {
   type SwimThread,
 } from '../../../domain/types';
 import {
+  collapseShiftY,
+  collapseTransformFromModel,
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_GROUP_HEADER_HOVER,
@@ -51,7 +53,7 @@ const props = withDefaults(
     collapsedIds: string[];
     /** Leaf lane ids in pin order; sticky strip when non-empty. */
     pinnedLaneIds?: string[];
-    /** Visible (collapse-filtered) swim model for the scrolling body. */
+    /** Full swim model for the scrolling body; collapse is paint-only. */
     model: SwimlaneModel | null;
     /**
      * Unfiltered swim model for the pinned strip. Defaults to `model`.
@@ -336,22 +338,19 @@ function onLaneHover(id: string | null): void {
   hoveredLaneId.value = id;
 }
 
-/** Card header Y from the same row walk as the canvas, without an event-layout rebuild. */
+/** Card header Y from the same row walk as the canvas, shifted by rest + in-flight folds. */
 const cardHeaders = computed(() => {
-  const headers = layoutHeaders(props.model).map((h) => ({
+  const fold = collapseTransformFromModel(
+    props.model,
+    props.collapsedIds,
+    props.collapseAnim ?? null,
+  );
+  return layoutHeaders(props.model).map((h) => ({
     id: h.id,
     name: h.name,
-    y: h.y,
+    y: collapseShiftY(h.y, fold),
     expanded: !collapsed.value.has(h.id),
   }));
-  // Collapse/expand of a Card slides the strips below its header up to close the gap.
-  const anim = props.collapseAnim;
-  if (!anim || anim.hiddenHeight <= 0) return headers;
-  const groupHeader = headers.find((h) => h.id === anim.groupId);
-  if (!groupHeader) return headers; // folder collapse — Card strips stay put
-  const bottomY = groupHeader.y + LANE_GROUP_HEADER_HEIGHT;
-  const shift = anim.hiddenHeight * (1 - anim.visible);
-  return headers.map((h) => (h.y >= bottomY ? { ...h, y: h.y - shift } : h));
 });
 
 const visibleCardStrips = computed(() => {
@@ -684,6 +683,7 @@ defineExpose({
         :alt-measure-role="pinnedLaneIds.length ? 'body' : 'solo'"
         :pinned-lane-ids="pinnedLaneIds"
         :collapse-anim="collapseAnim"
+        :collapsed-ids="collapsedIds"
         @select="emit('select', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"

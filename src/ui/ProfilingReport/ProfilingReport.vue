@@ -47,7 +47,6 @@ import { leafRowCount } from '../../swimlane/layout';
 import {
   buildFolderSummaryEvents,
   collectLeafEventsFromModel,
-  filterCollapsedTree,
   findThreadById,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
@@ -268,23 +267,15 @@ const laneGroups = computed((): GutterGroup[] => {
 });
 
 /** Collapse set with the in-flight group forced EXPANDED so the tween can interpolate.
- *  Depends only on `animGroupId` (stable across frames), not `collapseAnim.visible`, so
- *  `displaySwim` stays cached for the whole tween and the canvas never rebuilds meshes. */
+ *  Depends only on `animGroupId` (stable across frames), not `collapseAnim.visible`. */
 const visualCollapsedIds = computed(() =>
   animGroupId.value
     ? collapsedGroupIds.value.filter((id) => id !== animGroupId.value)
     : collapsedGroupIds.value,
 );
 
-/** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
-const displaySwim = computed((): SwimlaneModel | null => {
-  const m = swim.value;
-  if (!m) return null;
-  // Swim is already toRaw'd; replace swimlaneModel (or toggle collapse) to refresh — in-place nested edits do not.
-  // During a collapse tween, `visualCollapsedIds` omits the animating group so the expanded
-  // tree stays cached and the canvas never rebuilds meshes mid-animation.
-  return filterCollapsedTree(m, visualCollapsedIds.value);
-});
+/** Unfiltered swim identity — collapse is paint-only on the canvas (PR-UI-013). */
+const displaySwim = computed((): SwimlaneModel | null => swim.value);
 
 const bounds = computed(() => {
   const m = swim.value;

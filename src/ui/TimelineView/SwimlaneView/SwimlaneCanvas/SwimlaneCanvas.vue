@@ -15,11 +15,12 @@ import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRendere
 import {
   computeAltMeasureDelta,
   computeAltMeasureGap,
-  contentHeightFromModel,
+  visualContentHeight,
   eventMeasureTargetTime,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
+  findLaidOutEvent,
   LANE_HEIGHT,
   laneIdAtPoint,
   nearestEventEdgeAtPoint,
@@ -91,6 +92,8 @@ const props = withDefaults(
     hoveredLaneId?: string | null;
     /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
     collapseAnim?: CollapseAnimState | null;
+    /** Rest-collapsed Card/folder ids (paint-only; canvas keeps the expanded model). */
+    collapsedIds?: readonly string[];
     /**
      * Freeze the device backing store and CSS-stretch the bitmap (aside track tween).
      * When omitted, follows ReportLayout's provided `ASIDE_TRACK_ANIMATING_KEY`.
@@ -112,6 +115,7 @@ const props = withDefaults(
     pinnedLaneIds: () => [],
     hoveredLaneId: null,
     collapseAnim: null,
+    collapsedIds: () => [],
     contentTopPad: 0,
   },
 );
@@ -329,14 +333,7 @@ function zeroBackingStores(): void {
 }
 
 function modelContentHeight(): number {
-  const base = contentHeightFromModel(props.model);
-  const anim = props.collapseAnim;
-  if (anim && anim.hiddenHeight > 0) {
-    // Match contentHeightFromModel's 120px body floor so the scroll area never
-    // under-shoots the settled height (which would clip the collapsed content).
-    return Math.max(120, base - anim.hiddenHeight * (1 - anim.visible));
-  }
-  return base;
+  return visualContentHeight(props.model, props.collapsedIds ?? [], props.collapseAnim ?? null);
 }
 
 function maxScrollY(): number {
@@ -512,6 +509,9 @@ function flushPaint(): void {
 }
 
 function applyViewState(forceModel = false): void {
+  // Dummy pre-attach backend must not steal `attachedModel` — parent onMounted can
+  // push defaultCollapsedIds before this canvas's `await nextTick()` attach.
+  if (!attached) return;
   if (!props.model) {
     cachedExactEdgeMatches = [];
     cachedExactEdgeMatchKey = '';
@@ -535,10 +535,13 @@ function applyViewState(forceModel = false): void {
   backend.setPaintDependencies?.(props.showDependencies !== false);
   backend.setSelection(props.selectedEventId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
+  backend.setCollapsedIds?.(props.collapsedIds ?? []);
+  backend.setCollapseAnim(props.collapseAnim ?? null);
   if (useWebGl.value) {
     // Overlay paints with collapseShiftY against the expanded base — do not pass
     // getLayout() (already shifted for hit-test) or the tween would apply twice.
     overlay.setLayout(backend.getBaseLayout());
+    overlay.setCollapsedIds(props.collapsedIds ?? []);
     overlay.setCollapseAnim(props.collapseAnim ?? null);
     overlay.setView(paintView());
     overlay.setSelection(props.selectedEventId, props.hoveredEventId);
@@ -664,6 +667,7 @@ function ensureAttach(): void {
       overlay.attach(ov);
       overlay.setDrawEventLabels(!glBackend.hasClearTypeLabels());
       attached = true;
+      attachedModel = null;
       zeroBackingStores();
       return;
     }
@@ -676,6 +680,7 @@ function ensureAttach(): void {
   backend = new CanvasSwimlaneRenderer();
   backend.attach(fb);
   attached = true;
+  attachedModel = null;
   zeroBackingStores();
 }
 
@@ -839,14 +844,31 @@ watch(
   },
 );
 
+function applyCollapsePaint(): void {
+  if (!attached) return;
+  backend.setCollapsedIds?.(props.collapsedIds ?? []);
+  backend.setCollapseAnim(props.collapseAnim ?? null);
+  if (useWebGl.value) {
+    overlay.setCollapsedIds(props.collapsedIds ?? []);
+    overlay.setCollapseAnim(props.collapseAnim ?? null);
+  }
+  const wrap = wrapRef.value;
+  if (wrap) sizerHeight.value = Math.max(modelContentHeight(), wrap.clientHeight || 0);
+  sync();
+}
+
 /** Per-frame collapse/expand: transform the expanded layout, shrink the scroll area, repaint. */
 watch(
   () => props.collapseAnim,
-  (anim) => {
-    backend.setCollapseAnim(anim ?? null);
-    const wrap = wrapRef.value;
-    if (wrap) sizerHeight.value = Math.max(modelContentHeight(), wrap.clientHeight || 0);
-    sync();
+  () => {
+    applyCollapsePaint();
+  },
+);
+
+watch(
+  () => props.collapsedIds,
+  () => {
+    applyCollapsePaint();
   },
 );
 
@@ -1500,7 +1522,7 @@ function ownsAltMeasureEndpoint(
   surface: AltMeasureSurface | null,
 ): boolean {
   if (surface == null || surface !== thisAltMeasureSurface()) return false;
-  if (eventId != null && !backend.getLayout().eventsById.has(eventId)) return false;
+  if (eventId != null && !findLaidOutEvent(backend.getLayout(), eventId)) return false;
   return true;
 }
 

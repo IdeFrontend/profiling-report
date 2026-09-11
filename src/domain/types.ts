@@ -413,6 +413,8 @@ export interface SwimlaneRenderer {
   setPaintDependencies?(enabled: boolean): void;
   /** Optional: leaf lane under the pointer; hosts that omit this paint no row hover. */
   setHoveredLane?(laneId: string | null): void;
+  /** Optional: rest-collapsed Card/folder ids (paint-only; does not rebuild meshes). */
+  setCollapsedIds?(ids: readonly string[]): void;
   contentHeight(): number;
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;
   findEvent(id: string): SwimEvent | null;
