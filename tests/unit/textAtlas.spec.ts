@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CLEARTYPE_TEXT_POW, TEXT_CLEARTYPE_FS } from '../../src/swimlane/shaders';
-import { centeredTextBaseline, clearTypeRasterSupported, eventLabelFont, fitEventLabel, fitTextWidth, TextAtlas } from '../../src/swimlane/textAtlas';
+import { centeredTextBaseline, clearTypeRasterSupported, DEFAULT_MAX_MEASURES, eventLabelFont, fitEventLabel, fitTextWidth, TextAtlas } from '../../src/swimlane/textAtlas';
 
 describe('PR-RENDER: ClearType text atlas', () => {
   it('PR-RENDER-037: text shaders export sudu gamma constants', () => {
@@ -170,19 +170,15 @@ describe('PR-RENDER: TextAtlas cache bounds', () => {
     expect(allocs).toBe(allocsAfterFirst);
   });
 
-  it('PR-RENDER-038: glyphs and measures key by CSS font, not size alone', async () => {
-    const src = (await import('../../src/swimlane/textAtlas.ts?raw')).default as string;
-    // Positive match — empty haystack fails. Keying by fontSizePx alone would miss these.
-    expect(src).toMatch(/const font = eventLabelFont\(fontSizePx\)/);
-    expect(src).toMatch(/\$\{font\}\\0\$\{drawn\}/);
-    expect(src).toMatch(/const key = `\$\{font\}\\0\$\{text\}`/);
-
+  it('PR-RENDER-038: glyphs and measures key by CSS font, not size alone', () => {
     vi.stubGlobal('OffscreenCanvas', FakeCanvas);
-    const atlas = new TextAtlas(50_000);
-    const a = atlas.get(gl, 'aaa', 12, 100)!;
-    const b = atlas.get(gl, 'aaa', 24, 100)!;
-    expect(b.texture).not.toBe(a.texture);
-    expect(atlas.get(gl, 'aaa', 12, 100)!.texture).toBe(a.texture);
+    const atlas = new TextAtlas(50_000, DEFAULT_MAX_MEASURES, 'Arial');
+    const arial = atlas.get(gl, 'aaa', 12, 100)!;
+    // Same atlas, second family at the same px. Size-only keys would reuse `arial`.
+    Object.assign(atlas, { fontFamily: 'Georgia', fontPx: 0 });
+    const georgia = atlas.get(gl, 'aaa', 12, 100)!;
+    expect(georgia.texture).not.toBe(arial.texture);
+    expect(atlas.get(gl, 'aaa', 12, 100)!.texture).toBe(georgia.texture);
   });
 
   it('PR-RENDER-038: glyphs key by drawn text so clip-width pan reuses the texture', () => {

@@ -18,11 +18,11 @@ const FONT_FAMILY = 'ui-sans-serif, system-ui, sans-serif';
 /** CSS px before DPR scale — shared by WebGL ClearType and Canvas overlay labels. */
 export const EVENT_LABEL_FONT_CSS_PX = 12;
 
-export function eventLabelFont(sizePx: number): string {
+export function eventLabelFont(sizePx: number, family: string = FONT_FAMILY): string {
   // Regular weight (400): ClearType `pow(rgb, 2.25)` on white-on-black narrows the antialiased
   // edge, but at 12px the regular stroke stays legible. Matches the live Canvas2D overlay
   // (`drawEventLabel`), which uses the same weight.
-  return `400 ${Math.max(8, Math.round(sizePx))}px ${FONT_FAMILY}`;
+  return `400 ${Math.max(8, Math.round(sizePx))}px ${family}`;
 }
 
 /** Minimal `measureText` surface — satisfied by Canvas2D and OffscreenCanvas2D contexts alike. */
@@ -149,10 +149,14 @@ export class TextAtlas {
   private probeFont = '';
   private rasterCanvas: OffscreenCanvas | null = null;
   private rasterCtx: Atlas2d | null = null;
+  /** Last size `eventLabelFont` was built for — skip the per-label string alloc on the hot path. */
+  private fontPx = 0;
+  private font = '';
 
   constructor(
     private readonly maxBytes = DEFAULT_MAX_GLYPH_BYTES,
     private readonly maxMeasures = DEFAULT_MAX_MEASURES,
+    private readonly fontFamily = FONT_FAMILY,
   ) {}
 
   static isSupported(): boolean {
@@ -163,9 +167,10 @@ export class TextAtlas {
    * Rasterize + upload `text`. Draw/truncate cache by `(CSS font, drawn text)` so clip-width
    * pan reuses the texture. Shrink bakes `scaleX` into a 1:1 ClearType glyph (keyed with
    * integer `maxWidth`) — GPU-scaling a full-size texture shears subpixel RGB and clips
-   * the first letter at the event edge. CSS font is `eventLabelFont(fontSizePx)` (weight +
-   * size + family) so a later themed stack cannot reuse the wrong bitmap. Returns null when
-   * the platform lacks `OffscreenCanvas` or the label is too narrow to draw.
+   * the first letter at the event edge. CSS font is `eventLabelFont(fontSizePx, fontFamily)`
+   * (weight + size + family) so a later themed stack cannot reuse the wrong bitmap. The CSS
+   * string is memoized on `fontSizePx` so a dense frame does not rebuild it per label.
+   * Returns null when the platform lacks `OffscreenCanvas` or the label is too narrow to draw.
    */
   get(
     gl: WebGL2RenderingContext,
@@ -177,7 +182,11 @@ export class TextAtlas {
     // continuous float (`visibleW - 8`); rounding keeps the draw/shrink/truncate/skip choice
     // stable across sub-pixel pan/zoom. The glyph key itself does not include this width.
     const widthPx = Math.round(maxWidth);
-    const font = eventLabelFont(fontSizePx);
+    if (this.fontPx !== fontSizePx) {
+      this.fontPx = fontSizePx;
+      this.font = eventLabelFont(fontSizePx, this.fontFamily);
+    }
+    const font = this.font;
     const probe = this.ensureProbe(font);
     if (!probe) return null;
 

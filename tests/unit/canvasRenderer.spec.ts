@@ -1096,10 +1096,28 @@ describe('PR-RENDER: lane chrome color', () => {
   });
 
   it('PR-RENDER-038: setModel does not delete atlas textures', () => {
-    // Behavioral (no WebGL2): plant an atlas so `this.atlas?.clear` would be observable in jsdom.
+    // Pre-PR clear was `if (this.gl) this.atlas?.clear(this.gl)` at the end of setModel.
+    // Plant a stub gl so that guard is truthy; `{}` would throw in rebuildMeshes.
     const renderer = new WebGlSwimlaneRenderer();
     const clear = vi.fn();
-    Object.assign(renderer, { atlas: { clear } });
+    const noop = () => {};
+    const buf = {};
+    const gl = {
+      createVertexArray: () => buf,
+      createBuffer: () => buf,
+      bindVertexArray: noop,
+      bindBuffer: noop,
+      bufferData: noop,
+      enableVertexAttribArray: noop,
+      vertexAttribPointer: noop,
+      deleteVertexArray: noop,
+      deleteBuffer: noop,
+      ARRAY_BUFFER: 34962,
+      ELEMENT_ARRAY_BUFFER: 34963,
+      STATIC_DRAW: 35044,
+      FLOAT: 5126,
+    };
+    Object.assign(renderer, { atlas: { clear }, gl });
     renderer.setModel(tinyModel());
     renderer.setModel(tinyModel());
     expect(clear).not.toHaveBeenCalled();
