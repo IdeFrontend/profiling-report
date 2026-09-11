@@ -48,9 +48,12 @@ import {
   buildFolderSummaryEvents,
   collectLeafEventsFromModel,
   filterCollapsedTree,
+  findEventInModel,
   findThreadById,
+  isFolderNode,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
+import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '../ContextMenu/ContextMenu.vue';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import {
@@ -143,6 +146,7 @@ const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+const contextMenuContext = ref<ContextMenuContext | null>(null);
 /** In-flight collapse/expand tween; null when settled. */
 const collapseAnim = ref<CollapseAnimState | null>(null);
 /** Group id forced expanded while its tween runs (kept separate from `visible` so the
@@ -163,6 +167,14 @@ const gutterMetricByCard = ref<Record<string, GutterMetric>>({});
 
 /** Raw swim model for all consumers — unwrap host deep-reactive props so deps/gutter/collapse skip Proxies. */
 const swim = computed(() => toRaw(props.swimlaneModel ?? internalSwim.value));
+/** Pin row is only offered for a resolvable leaf lane; a summary-bar target carries its
+ *  folder id, which the pin action rejects. */
+const contextMenuCanPin = computed(() => {
+  const ctx = contextMenuContext.value;
+  if (!ctx) return false;
+  const lane = swim.value ? findThreadById(swim.value, ctx.laneId) : null;
+  return !!lane && !isFolderNode(lane);
+});
 const report = computed(() => props.reportModel ?? internalReport.value);
 /** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
 const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
@@ -859,7 +871,33 @@ function onOverviewWindow(window: { startTime: number; endTime: number }) {
   });
 }
 
+function onContextMenu(payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }): void {
+  contextMenuContext.value = { ...payload, target: payload.target ?? null };
+}
+function onContextMenuAction(action: ContextMenuAction): void {
+  if (action.command === 'reset') {
+    onZoomToFit();
+    return;
+  }
+  if (action.command === 'show') {
+    // Edge case: target no longer exists → dismiss without selecting. A collapsed-folder
+    // summary bar is never itself selected — resolve to its sole underlying leaf
+    // (taskCount === 1). A multi-task summary has no single event: drop the action
+    // entirely so Show never clears an existing selection.
+    if (action.target?.taskCount != null && action.target.sourceEvent == null) return;
+    const resolved = action.target?.taskCount != null ? (action.target.sourceEvent ?? null) : (action.target ?? null);
+    const stillExists = !resolved || findEventInModel(swim.value, resolved.id) != null;
+    if (stillExists) onSelect(resolved);
+    return;
+  }
+  // Edge case: lane no longer exists or is non-leaf → dismiss without action.
+  const lane = swim.value ? findThreadById(swim.value, action.laneId) : null;
+  if (!lane || isFolderNode(lane)) return;
+  if (viewState.value.pinnedLaneIds.includes(action.laneId)) onUnpinLane(action.laneId);
+  else onPinLane(action.laneId);
+}
 function onScrollY(scrollY: number) {
+  contextMenuContext.value = null;
   viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
 }
 
@@ -1095,6 +1133,15 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom="onZoom"
           @update:measure-range="onMeasureRange"
           @focus-measure="onFocusMeasure"
+          @context-menu="onContextMenu"
+        />
+        <ContextMenu
+          :context="contextMenuContext"
+          :pinned-lane-ids="viewState.pinnedLaneIds"
+          :can-pin="contextMenuCanPin"
+          :locale="locale"
+          @action="onContextMenuAction"
+          @dismiss="contextMenuContext = null"
         />
         <p
           v-if="!showTimeline"

@@ -3,6 +3,7 @@ import { markRaw, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
+import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
@@ -61,6 +62,125 @@ function topologyReport() {
 }
 
 describe('ProfilingReport scaffold', () => {
+  it('PR-CTXMENU-011: leaf-gutter context menu reaches the report root', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
+      clientX: 10,
+      clientY: 20,
+    });
+    await nextTick();
+
+    expect(document.querySelector('[data-testid="context-menu"]')).not.toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CTXMENU-012: Show on a single-task summary bar selects its underlying leaf', async () => {
+    const leaf = { id: 'leaf-1', name: 'busy', startTime: 0, duration: 10 };
+    const summary = {
+      id: 'folder/summary/0',
+      name: 'busy',
+      startTime: 0,
+      duration: 10,
+      taskCount: 1,
+      sourceEvent: leaf,
+    };
+    const swimlaneModel = {
+      processes: [
+        {
+          id: 'p-0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              // Real leaf under the folder so findEventInModel resolves `sourceEvent`
+              // (a collapsed folder's summaryEvents mirror its actual leaf events).
+              children: [{ id: 'leaf-thread', name: 'T', events: [leaf] }],
+              summaryEvents: [summary],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 1000,
+    };
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel, reportModel: emptyReportViewModel() },
+    });
+
+    // Bypass canvas hit-testing: emit the action ContextMenu would fire for a
+    // right-clicked summary bar (`target` = the summary event, not the leaf).
+    wrapper.findComponent(ContextMenu).vm.$emit('action', {
+      command: 'show',
+      laneId: 'folder',
+      target: summary,
+    });
+    await nextTick();
+
+    expect(wrapper.vm.viewState.selectedEventId).toBe('leaf-1');
+    wrapper.unmount();
+  });
+
+  it('PR-CTXMENU-012: Show on a multi-task summary bar preserves the existing selection', async () => {
+    const leaf = { id: 'leaf-1', name: 'busy', startTime: 0, duration: 10 };
+    const summary = {
+      id: 'folder/summary/0',
+      name: 'busy',
+      startTime: 0,
+      duration: 10,
+      taskCount: 4,
+    };
+    const swimlaneModel = {
+      processes: [
+        {
+          id: 'p-0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [{ id: 'leaf-thread', name: 'T', events: [leaf] }],
+              summaryEvents: [summary],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 1000,
+    };
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel, reportModel: emptyReportViewModel() },
+    });
+
+    // Select a real leaf first, so the multi-task summary Show has a selection to clear.
+    wrapper.findComponent(ContextMenu).vm.$emit('action', {
+      command: 'show',
+      laneId: 'leaf-thread',
+      target: leaf,
+    });
+    await nextTick();
+    expect(wrapper.vm.viewState.selectedEventId).toBe('leaf-1');
+
+    // Show on a multi-task summary (no sourceEvent) must dismiss without clearing.
+    wrapper.findComponent(ContextMenu).vm.$emit('action', {
+      command: 'show',
+      laneId: 'folder',
+      target: summary,
+    });
+    await nextTick();
+
+    expect(wrapper.vm.viewState.selectedEventId).toBe('leaf-1');
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-001, PR-SCAFFOLD-003: mounts report root with timeline chrome', () => {
     const wrapper = mount(ProfilingReport, {
       props: { title: 'scaffold' },

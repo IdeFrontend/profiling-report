@@ -2168,4 +2168,75 @@ describe('SwimlaneCanvas', () => {
     expect(last.scrollY).toBe(80 - 88);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-075: right-click does not run the left-click path (set-playhead / select / pan)', async () => {
+    const { wrapper, canvas } = await mountWithEventModel();
+    const vm = wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null };
+    const rect = vm.eventScreenRect('e1')!;
+    const x = rect.x + rect.w / 2;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1, button: 2 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1, button: 2 });
+
+    expect(wrapper.emitted('set-playhead')).toBeFalsy();
+    expect(wrapper.emitted('select')).toBeFalsy();
+    expect(wrapper.emitted('pan')).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-076: right-click on a folder row does not emit context-menu (leaf-only lane id)', async () => {
+    const folderOnlyModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 'folder-1', name: 'Folder', events: [], children: [] },
+          ],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithGapModel({ model: folderOnlyModel });
+    await canvas.trigger('contextmenu', { clientX: 40, clientY: 8 });
+    expect(wrapper.emitted('context-menu')).toBeFalsy();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-077: right-click on a summary bar opens its event context menu', async () => {
+    const summary = {
+      id: 'folder/summary/0',
+      name: '',
+      startTime: 200,
+      duration: 400,
+      taskCount: 3,
+    };
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [{ id: 'folder', name: '计算', events: [], children: [], summaryEvents: [summary] }],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithGapModel({ model });
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect(summary.id)!;
+    await canvas.trigger('contextmenu', { clientX: rect.x + rect.w / 2, clientY: rect.y + rect.h / 2 });
+
+    expect(wrapper.emitted('context-menu')?.at(-1)?.[0]).toEqual({
+      x: rect.x + rect.w / 2,
+      y: rect.y + rect.h / 2,
+      laneId: 'folder',
+      target: summary,
+    });
+    wrapper.unmount();
+  });
 });
