@@ -60,6 +60,7 @@ Sketch: [`v930/task-marquee`](./source/v930/task-marquee.jpeg)
 - Selected events keep full opacity; the rest use the same solid `#2C2C2C` mute as single-click selection.
 - Summary table: count header + per-event Slices table ([MultiSelectSummary](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md)).
 - Additive **Shift+click** toggles a single event in/out of the selection; the marquee remains the bulk multi-select gesture.
+- Additive **Shift+drag** unions the new marquee rectangle with the existing single and multi selections; the committed selection keeps every selected id exactly once.
 
 **Phase 2 — implemented.**
 
