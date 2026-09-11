@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextTick } from 'vue';
+import { defineComponent, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import MemoryTopologyPanel, {
   DEFAULT_MAX_W,
@@ -49,16 +49,29 @@ describe('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-002: renders data-driven edge labels', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.text()).toContain('1.56 GB/s');
-    expect(wrapper.findAll('[data-testid="edge-vec-ub"]')).toHaveLength(2);
-    expect(wrapper.findAll('[data-testid="edge-ub-vec"]')).toHaveLength(2);
+    // Two-slot edges get one element per slot (AIV0 + AIV1), and the slot index makes each
+    // testid unique — a bare `edge-vec-ub` twice was ambiguous for `getByTestId`-style queries.
+    expect(wrapper.find('[data-testid="edge-vec-ub-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="edge-vec-ub-1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="edge-ub-vec-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="edge-ub-vec-1"]').exists()).toBe(true);
     for (const id of ['l1-l0a', 'l1-l0b', 'l0a-cube', 'l0b-cube', 'l0c-cube', 'cube-l0c']) {
-      expect(wrapper.get(`[data-testid="edge-${id}"]`).text().length).toBeGreaterThan(0);
+      expect(wrapper.get(`[data-testid="edge-${id}-0"]`).text().length).toBeGreaterThan(0);
     }
+  });
+
+  it('PR-MEMTOP-002b: every drawn value has a unique testid', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const drawn = wrapper
+      .findAll('[data-testid^="edge-"]')
+      .map((el) => el.attributes('data-testid'));
+    expect(drawn.length).toBeGreaterThan(1);
+    expect(new Set(drawn).size).toBe(drawn.length);
   });
 
   it('PR-MEMTOP-003: omits NA/missing edge labels', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
-    const gmWrite = wrapper.findAll('[data-testid="edge-gm-l2-write"]');
+    const gmWrite = wrapper.findAll('[data-testid="edge-gm-l2-write-0"]');
     expect(gmWrite.length).toBe(1);
     expect(gmWrite[0]!.text()).not.toContain('GB/s');
   });
@@ -94,7 +107,8 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    const x = (id: string): number => Number(wrapper.get(`[data-testid="edge-${id}"]`).attributes('x'));
+    const x = (id: string): number =>
+      Number(wrapper.get(`[data-testid="edge-${id}-0"]`).attributes('x'));
 
     // GM↔L2 labels sit between the GM pillar and the L2 pillar...
     expect(x('gm-l2-read')).toBeGreaterThan(CHROME.gmRight);
@@ -131,6 +145,23 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.find('[data-testid="node-l2-peak"]').exists()).toBe(false);
   });
 
+  it('PR-MEMTOP-007c: falls back to the l2-hit label in the same plate', () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          edges: [...model.edges, { id: 'l2-hit', from: 'l2', to: 'l2', label: '77.50%' }],
+        },
+      },
+    });
+    // No peakPct, so the one plate shows the hit rate and keeps the `l2-hit` testid.
+    const plate = wrapper.get('[data-testid="edge-l2-hit"]');
+    expect(plate.text()).toBe('77.50%');
+    expect(wrapper.find('[data-testid="node-l2-peak"]').exists()).toBe(false);
+    expect(wrapper.findAll('[data-testid="edge-l2-hit"]')).toHaveLength(1);
+    expect(wrapper.find('svg').text()).not.toContain('77.50%77.50%');
+  });
+
   it('PR-MEMTOP-008: right-click emits open-details', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
@@ -148,9 +179,44 @@ describe('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-009: edges with no chrome slot are not drawn', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     // The export carries no KB plate, so L0C→L1 / L0C→GM datagrams stay in the 详情 tabs.
-    expect(wrapper.findAll('[data-testid="edge-l0c-l1"]')).toHaveLength(0);
-    expect(wrapper.findAll('[data-testid="edge-l0c-l2"]')).toHaveLength(0);
+    expect(wrapper.findAll('[data-testid^="edge-l0c-l1"]')).toHaveLength(0);
+    expect(wrapper.findAll('[data-testid^="edge-l0c-l2"]')).toHaveLength(0);
     expect(wrapper.text()).not.toContain('KB');
+  });
+
+  it('PR-MEMTOP-011: describes the drawn values to assistive tech', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const id = wrapper.get('svg').attributes('aria-describedby');
+    expect(id).toBeTruthy();
+    const summary = wrapper.get(`[id="${id}"]`);
+    expect(summary.classes()).toContain('pr-topo__sr');
+    // Node labels from the model, so the numbers are not bare text.
+    expect(summary.text()).toContain('GM → L2 Cache: 1.56 GB/s');
+    expect(summary.text()).toContain('L2 Cache:');
+    // Only slots the diagram draws: `l0c-l1` / `l0c-l2` carry KB and have no plate.
+    expect(summary.text()).not.toContain('KB');
+    expect(summary.text()).not.toContain('7 KB');
+  });
+
+  it('PR-MEMTOP-011: gives each instance its own description id', () => {
+    // The stacked aside and the fullscreen overlay render two panels in the *same* app, so a
+    // hardcoded id would collide and point both diagrams at one description. `useId` is unique
+    // per app, which two separate `mount()` calls would not reproduce (each is its own app).
+    const Host = defineComponent({
+      components: { MemoryTopologyPanel },
+      props: { model: { type: Object, required: true } },
+      template: `<div>
+        <MemoryTopologyPanel :model="model" />
+        <MemoryTopologyPanel :model="model" />
+      </div>`,
+    });
+    const wrapper = mount(Host, { props: { model } });
+    const ids = wrapper.findAll('svg').map((s) => s.attributes('aria-describedby'));
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+    expect(wrapper.findAll('.pr-topo__sr')).toHaveLength(2);
+    expect(wrapper.get(`[id="${ids[0]}"]`).text()).toBe(wrapper.get(`[id="${ids[1]}"]`).text());
+    expect(wrapper.get(`[id="${ids[0]}"]`).text().length).toBeGreaterThan(0);
   });
 });
 
@@ -256,8 +322,8 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
         },
       });
       await nextTick();
-      const wide = wrapper.get('[data-testid="edge-gm-l2-read"]');
-      const fits = wrapper.get('[data-testid="edge-l2-ub"]');
+      const wide = wrapper.get('[data-testid="edge-gm-l2-read-0"]');
+      const fits = wrapper.get('[data-testid="edge-l2-ub-0"]');
       expect(wide.text()).toBe('504.00 GB/s');
       const px = /font-size:\s*([\d.]+)px/.exec(wide.attributes('style') ?? '')?.[1];
       expect(Number(px)).toBeCloseTo((SLOT_MAX_W['gm-l2-read']! / 43.19) * 6.3, 4);
