@@ -48,7 +48,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim` — **SUPERSEDED** 2026-09-11
 **Question:** [DATA-33](../DATA.md)
-**Interim:** ~~Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id`. **Detail / memory / metrics** views are **block-scoped** via the block switcher; **All** restores the default topology block.~~ Product-confirmed ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)): **one** selector — **All | 0 | 1 | 2 …**, default **All** — scopes **every** widget; `All` reads `summary.jsonl`, a picked id reads that block's CSV row. No per-surface exceptions.
+**Interim:** ~~Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id`. **Detail / memory / metrics** views are **block-scoped** via the block switcher; **All** restores the default topology block.~~ Product-confirmed ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)): **one** selector — **All | 0 | 1 | 2 …**, default **All** — scopes **every** CSV-backed widget; `All` reads `summary.jsonl`, a picked id reads that block's CSV row. Op-level-only metrics (`HardwareInfo`, AI Core 并行使用率 / 负载均衡度) do not change, and without `summary.jsonl` the `All` aggregate falls back to the CSV data.
 **Implement / test as:** Aside detail tabs + block picker tests
 **Superseded when:** — done ([DATA-29](../DATA.md)).
 

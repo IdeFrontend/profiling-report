@@ -142,7 +142,7 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-10
 - **Question:** **UB → L2/GM** — which file and field?
-- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_ub_to_gm_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_read_bw_gm(GB/s)` — it is **not the collected field** (absent from the classic `.rep` sample; `0.0` in the product sample).
+- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_ub_to_gm_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_read_bw_gm(GB/s)` — it is **not the collected field**: the producer does not emit it (the classic `.rep` sample has no such column; the product sample's `0.0` values are uncollected).
 - **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.6, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §11
 - **Source:** NPU-Compute.md Q22 (2026-09-10); implemented in `memoryTopology.ts`.
 
@@ -152,7 +152,7 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-10
 - **Question:** **L2/GM → UB** — which file and field?
-- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_gm_to_ub_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_write_bw_gm(GB/s)` — **not the collected field** (absent from the classic `.rep` sample; `0.0` in the product sample).
+- **Decision:** `summary.jsonl` → `category: Memory` → `aiv_gm_to_ub_bw(GB/s)` (the `Memory.csv` column). Do **not** use `MemoryUB.csv` `aiv_ub_write_bw_gm(GB/s)` — **not the collected field**: the producer does not emit it (the classic `.rep` sample has no such column; the product sample's `0.0` values are uncollected).
 - **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.6, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §11
 - **Source:** NPU-Compute.md Q23 (2026-09-10); implemented in `memoryTopology.ts`.
 

@@ -22,7 +22,7 @@ import { laneColorKey } from '../domain/laneColors';
 import { hasDependencies } from '../domain/dependencies';
 import { nestCardTreeFromFlatCorePipes } from '../domain/swimTree';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
-import { firstLabelledMemoryTopology } from './memoryTopology';
+import { buildMemoryTopologyFromCategories, firstLabelledMemoryTopology } from './memoryTopology';
 
 const COMPUTE_CSV_FILES = [
   'PipeUtilization.csv',
@@ -234,6 +234,17 @@ function rooflineFromCsv(
   if (!arithPayload || !memoryPayload) return undefined;
   const arithRows = parseCsv(decodeUtf8(arithPayload)).rows;
   const memRows = parseCsv(decodeUtf8(memoryPayload)).rows;
+  return rooflineFromRows(arithRows, memRows);
+}
+
+/**
+ * DATA-37 interim formulas over the given rows, so the same rule serves both selector scopes
+ * (DATA-19 / DATA-29): `All` passes the `summary.jsonl` category record, a picked block its CSV rows.
+ */
+export function rooflineFromRows(
+  arithRows: Record<string, string>[],
+  memRows: Record<string, string>[],
+): RooflineViewModel | undefined {
   if (arithRows.length === 0 || memRows.length === 0) return undefined;
 
   const vecFops = meanFamily(arithRows, ['aiv_vec_fops']);
@@ -297,10 +308,15 @@ function bandwidthSide(
   return { side, measuredGBs, peakGBs: BANDWIDTH_PEAK_GBS };
 }
 
-/** DATA-8 fallback (classic `.rep`): mean non-NA `Memory.csv` main-mem BW; peak = SOL 1600 GB/s. */
+/** DATA-8 fallback (classic `.rep`): per-side mean non-NA `Memory.csv` main-mem BW; peak = SOL 1600 GB/s. */
 function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
   if (!payload) return [];
   const { rows } = parseCsv(decodeUtf8(payload));
+  return bandwidthCardsPerSideFromRows(rows);
+}
+
+/** Per-side cards (`aic` + `aiv` rows) — the classic `.rep` shape, kept for the `Memory.csv` fallback. */
+function bandwidthCardsPerSideFromRows(rows: Record<string, string>[]): BandwidthCardModel[] {
   if (rows.length === 0) return [];
   const cards: BandwidthCardModel[] = [];
   for (const id of ['input', 'output'] as const) {
@@ -310,6 +326,28 @@ function bandwidthCardsFromMemory(payload?: Uint8Array): BandwidthCardModel[] {
     if (aic) sides.push(aic);
     if (aiv) sides.push(aiv);
     if (sides.length > 0) cards.push({ id, sides });
+  }
+  return cards;
+}
+
+/**
+ * DATA-8 / DATA-19: one block's I/O bandwidth from its `Memory.csv` row. Read / write = that row's
+ * aic + aiv sides **summed**, exactly as the producer sums them into `OpInfoSummary`, peak = SOL.
+ * Emits a single `aicore` side so the UI's per-direction `reduce` stays a no-op (no double count).
+ */
+export function bandwidthCardsFromRows(
+  rows: Record<string, string>[],
+  peakGBs: number = BANDWIDTH_PEAK_GBS,
+): BandwidthCardModel[] {
+  if (rows.length === 0) return [];
+  const cards: BandwidthCardModel[] = [];
+  for (const id of ['input', 'output'] as const) {
+    let sum: number | undefined;
+    for (const col of [...BANDWIDTH_COLUMNS[id].aic, ...BANDWIDTH_COLUMNS[id].aiv]) {
+      const v = meanFamily(rows, [col]);
+      if (v != null) sum = (sum ?? 0) + v;
+    }
+    if (sum != null) cards.push({ id, sides: [{ side: 'aicore', measuredGBs: sum, peakGBs }] });
   }
   return cards;
 }
@@ -435,6 +473,26 @@ function computeCardFromPayloads(
   for (const side of ['aic', 'aiv'] as const) {
     const measuredTflops = measuredTflopsForSide(rows, side);
     const peakTflops = peakTflopsForSide(side, hw, summary);
+    if (measuredTflops == null || peakTflops == null || !(peakTflops > 0)) continue;
+    sides.push({ side, measuredTflops, peakTflops });
+  }
+  return sides.length > 0 ? { sides } : undefined;
+}
+
+/**
+ * DATA-19 / DATA-29: one block's compute card — measured from that block's `ArithmeticUtilization.csv`
+ * row, peak from the chip-level theoretical FLOPS in `OpInfoSummary` (a peak is per-chip, not per block).
+ */
+export function computeCardFromRows(
+  arithRows: Record<string, string>[],
+  summary: SummaryMetrics,
+): ComputeCardModel | undefined {
+  if (arithRows.length === 0) return undefined;
+  const sides: ComputeSideRow[] = [];
+  for (const side of ['aic', 'aiv'] as const) {
+    const measuredTflops = measuredTflopsForSide(arithRows, side);
+    const peakTflops =
+      side === 'aic' ? summary.aicFlopsTheoretical : summary.aivFlopsTheoretical;
     if (measuredTflops == null || peakTflops == null || !(peakTflops > 0)) continue;
     sides.push({ side, measuredTflops, peakTflops });
   }
@@ -771,7 +829,10 @@ const PIPE_COLUMNS: {
   },
 ];
 
-/** DATA-28: mean non-NA ratios (and times) over the given PipeUtilization rows. */
+/**
+ * DATA-28 / DATA-19: mean non-NA ratios (and times) over the given PipeUtilization rows.
+ * `All` passes the `summary.jsonl` category record; a picked block its `PipeUtilization.csv` row.
+ */
 export function pipeOccupancyFromRows(rows: Record<string, string>[]): PipeOccupancyItem[] {
   if (rows.length === 0) return [];
   const items: PipeOccupancyItem[] = [];
@@ -796,6 +857,26 @@ export function pipeOccupancyFromRows(rows: Record<string, string>[]): PipeOccup
 function pipeOccupancyFromCsv(payload?: Uint8Array): PipeOccupancyItem[] {
   if (!payload) return [];
   return pipeOccupancyFromRows(parseCsv(decodeUtf8(payload)).rows);
+}
+
+/**
+ * DATA-19 / DATA-28 / DATA-29: a `summary.jsonl` category record as a CSV-shaped row, so the row-based
+ * builders (`pipeOccupancyFromRows`, `rooflineFromRows`, `computeCardFromRows`) serve the `All` scope
+ * with the producer's own non-`NA` mean instead of a second aggregation implemented here.
+ */
+export function categoryRow(category: SummaryCategory): Record<string, string> {
+  const row: Record<string, string> = {};
+  for (const f of category.fields) row[f.key] = f.value;
+  return row;
+}
+
+/** Rows for one `summary.jsonl` category id (the `All` scope of DATA-19 / DATA-29). */
+export function summaryCategoryRows(
+  categories: SummaryCategory[] | undefined,
+  id: string,
+): Record<string, string>[] {
+  const category = categories?.find((c) => c.id === id);
+  return category ? [categoryRow(category)] : [];
 }
 
 /**
@@ -895,10 +976,12 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     payloadByName(payloads, ['Memory.csv']),
   );
   const hardwareDetails = hardwareDetailsFromPayloads(payloads);
-  const labelled = firstLabelledMemoryTopology(memory.tables);
-  const memoryTopology = labelled?.model;
   const summaryJsonl = payloadByName(payloads, ['summary.jsonl', 'Summary.jsonl', 'SUMMARY.jsonl']);
   const summaryCategories = summaryCategoriesFromSummaryJsonl(summaryJsonl);
+  // DATA-19 / DATA-29 `All` scope: the memory diagram reads the summary.jsonl category mean.
+  const memoryTopology =
+    buildMemoryTopologyFromCategories(summaryCategories) ??
+    firstLabelledMemoryTopology(memory.tables)?.model;
   const bandwidthCards = summaryJsonl
     ? bandwidthCardsFromSummary(summaryJsonl)
     : bandwidthCardsFromMemory(payloadByName(payloads, ['Memory.csv']));
@@ -934,7 +1017,16 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     );
   return {
     summary,
-    pipeOccupancy: pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv'])),
+    pipeOccupancy: (() => {
+      // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` is the producer's
+      // non-NA mean across `block_id`; the CSV mean stays as the classic-`.rep` fallback.
+      const fromSummary = pipeOccupancyFromRows(
+        summaryCategoryRows(summaryCategories, 'PipeUtilization'),
+      );
+      return fromSummary.length > 0
+        ? fromSummary
+        : pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv']));
+    })(),
     overviewSeries: overviewSeriesFromSampling(
       payloadByName(payloads, ['Sampling.json', 'sampling.json']),
     ),

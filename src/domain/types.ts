@@ -130,6 +130,11 @@ export interface SummaryCategory {
  * `aicore` = the producer's `OpInfoSummary` value, already summed over aic + aiv.
  */
 export interface BandwidthSideRow {
+  /**
+   * `aic` / `aiv` = the per-side `Memory` columns (classic `.rep` fallback).
+   * `aicore` = the producer's already-summed `OpInfoSummary` side (DATA-8) and the per-block
+   * `bandwidthCardsFromRows` sum. Construction-only: never render `aicore` as a Cube/Vector label.
+   */
   side: 'aic' | 'aiv' | 'aicore';
   measuredGBs: number;
   peakGBs: number;

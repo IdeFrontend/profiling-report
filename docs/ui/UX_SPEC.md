@@ -270,7 +270,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S5 (M1)
 
 1. MVP: read PIPE bars in aside.
-2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the substring; inspect values (`source/v930/compute-load-detail.jpeg`).
+2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows (no substring highlight, [UI-43](../context/decisions/UI.md)); inspect values (`source/v930/compute-load-detail.jpeg`).
 
 ### Flow S6–S9
 

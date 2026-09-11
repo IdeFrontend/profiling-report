@@ -65,7 +65,7 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('75');
   });
 
-  it('PR-STATS-014b: summary PIPE block All vs id scopes bars and syncs topology', async () => {
+  it('PR-STATS-014b: one block selector scopes PIPE + topology — All = summary.jsonl (DATA-19/28/29)', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -96,6 +96,14 @@ describe('StatsAside', () => {
               blockIds: ['0', '1', '2'],
             },
           ],
+          // All scope (DATA-28): the producer's non-NA mean across block_id, not block 0's row.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aiv_main_mem_read_bw(GB/s)', value: '4.0' }],
+            },
+          ],
         }),
       },
     });
@@ -109,17 +117,18 @@ describe('StatsAside', () => {
     // Shared block-pill chrome (tokens.css) — guards against the native arrow returning.
     expect(wrapper.get('[data-testid="pipe-block"]').classes()).toContain('pr-block-pill');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
-    expect(wrapper.text()).toContain('1.00 GB/s');
+    // All = summary.jsonl aggregate (4.0), not the first block's 1.0.
+    expect(wrapper.text()).toContain('4.00 GB/s');
 
     await wrapper.get('[data-testid="pipe-block"]').setValue('1');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
     expect(wrapper.text()).toContain('2.00 GB/s');
-    expect(wrapper.text()).not.toContain('1.00 GB/s');
+    expect(wrapper.text()).not.toContain('4.00 GB/s');
 
-    // All must restore default topology from a non-default pick (not via an intervening `0`).
+    // All must return to the summary.jsonl aggregate from a non-default pick (not via an intervening `0`).
     await wrapper.get('[data-testid="pipe-block"]').setValue('');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
-    expect(wrapper.text()).toContain('1.00 GB/s');
+    expect(wrapper.text()).toContain('4.00 GB/s');
     expect(wrapper.text()).not.toContain('2.00 GB/s');
 
     await wrapper.get('[data-testid="pipe-block"]').setValue('0');
@@ -846,6 +855,14 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          // All scope (DATA-19 / DATA-29): the diagram reads the summary.jsonl category mean.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ],
           csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
         }),
       },
@@ -865,6 +882,14 @@ describe('StatsAside', () => {
               headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
               rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
+            },
+          ],
+          // All scope (DATA-19 / DATA-29): the diagram reads the summary.jsonl category mean.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
             },
           ],
           csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
@@ -989,17 +1014,14 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-duration-card"]').exists()).toBe(true);
 
+    // All scope = the summary.jsonl aggregate (DATA-28), not one block's CSV row.
     const stale = report({
       summary: { taskDurationUs: 1 },
-      memoryTables: [
+      summaryCategories: [
         {
-          fileName: 'Memory.csv',
-          headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
-          rows: [
-            { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
-            { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '2.5' },
-          ],
-          blockIds: ['0', '1'],
+          id: 'Memory',
+          title: 'Memory',
+          fields: [{ key: 'aiv_main_mem_read_bw(GB/s)', value: '2.5' }],
         },
       ],
     });
@@ -1008,15 +1030,11 @@ describe('StatsAside', () => {
     await swapped.setProps({
       report: report({
         summary: { taskDurationUs: 1 },
-        memoryTables: [
+        summaryCategories: [
           {
-            fileName: 'Memory.csv',
-            headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
-            rows: [
-              { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.56' },
-              { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
-            ],
-            blockIds: ['0', '1'],
+            id: 'Memory',
+            title: 'Memory',
+            fields: [{ key: 'aiv_main_mem_read_bw(GB/s)', value: '1.56' }],
           },
         ],
       }),
@@ -1080,6 +1098,7 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          // CSV-only pack (no summary.jsonl): All falls back to the first labelled block.
           csvTexts: {
             'Memory.csv': 'block_id,aiv_main_mem_read_bw(GB/s)\n0,NA\n1,1.56\n',
             'MemoryL0.csv': 'block_id,aic_l0a_read_bw(GB/s)\n0,NA\n',
@@ -1131,6 +1150,14 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          // All scope (DATA-19 / DATA-29): the diagram reads the summary.jsonl category mean.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ],
           csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
         }),
       },
@@ -1157,6 +1184,13 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: 'NA' }],
+            },
+          ],
         }),
       },
     });
@@ -1175,6 +1209,14 @@ describe('StatsAside', () => {
               headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
               rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
+            },
+          ],
+          // All scope (DATA-19 / DATA-29): the diagram reads the summary.jsonl category mean.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
             },
           ],
           csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },

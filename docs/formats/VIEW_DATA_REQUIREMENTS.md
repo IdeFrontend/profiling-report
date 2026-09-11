@@ -127,18 +127,19 @@ Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 
 ### 8.1 Block scope matrix (DATA-19 / DATA-28 / DATA-29)
 
-**One selector, one scope.** Every surface carries the same block selector — **All | 0 | 1 | 2 …** (one per `block_id`), default **All** — and it scopes **every** widget. **`All`** reads the aggregate from `summary.jsonl` (non-`NA` mean across `block_id`, [DATA-28](../context/decisions/DATA.md)); a picked id reads **that block's row** from the per-block CSV. There are no per-surface exceptions ([DATA-29](../context/decisions/DATA.md)).
+**One selector, one scope.** One block selector — **All | 0 | 1 | 2 …** (one per `block_id`), default **All** — scopes every CSV-backed widget. **`All`** reads the aggregate from `summary.jsonl` (the producer's non-`NA` mean across `block_id`, [DATA-28](../context/decisions/DATA.md)); a picked id reads **that block's row** from the per-block CSV. No per-surface exceptions ([DATA-29](../context/decisions/DATA.md)).
 
 | Surface | `All` (default) | Picked `block_id` |
 |---------|-----------------|-------------------|
 | Summary PIPE bars | `summary.jsonl` `category: PipeUtilization` | That block's `PipeUtilization.csv` row |
 | Compute load (Cube \| Vector families) | `summary.jsonl` `PipeUtilization` aggregate | That block's `PipeUtilization.csv` row |
-| Summary BW / compute / AICore cards | `summary.jsonl` `OpInfoSummary` / category aggregate | That block's CSV row, where the metric is collected per block |
-| Roofline | `summary.jsonl` aggregate | That block's CSVs |
-| Memory topology + edge labels | `summary.jsonl` aggregate | That block's CSVs |
-| Compute / memory CSV **详情** overlays | Rows for the picked block (memory has its own switcher); compute has no block picker | Same selection |
+| BW cards | `OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw` (summed sides, [DATA-8](../context/decisions/DATA.md)) | That block's `Memory.csv` aic + aiv sides summed |
+| Compute card | `OpInfoSummary` `aic_flops` / `aiv_flops` | That block's `ArithmeticUtilization.csv` measured, chip-level peak |
+| Roofline | `summary.jsonl` aggregate | That block's `ArithmeticUtilization.csv` + `Memory.csv` rows |
+| Memory topology + edge labels | `summary.jsonl` memory categories | That block's Memory* CSV row |
+| Compute / memory CSV **详情** overlays | Rows for the picked block; with **All** they fall back to the first `block_id` (a CSV list has no aggregate row) | Same selection |
 
-Op-level metrics with no per-block series (e.g. `Task Duration(us)`) stay op-level under either selection.
+Two documented exceptions. (1) Metrics that exist only op-level — `HardwareInfo.jsonl` and the `OpInfoSummary`-only AI Core 并行使用率 / 负载均衡度 and `Task Duration(us)` — do not change with the selection, because no per-block source exists. (2) When `summary.jsonl` is absent (classic `.rep`) there is no aggregate, so `All` reads the CSV data (PIPE mean across rows; memory diagram from the first labelled block).
 
 ---
 

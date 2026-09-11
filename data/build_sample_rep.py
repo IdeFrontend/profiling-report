@@ -635,12 +635,6 @@ def hardware_info(chip_info, ai_core_count, ai_vector_count, freq_mhz=1650):
     return "\n".join(json.dumps(x, ensure_ascii=False) for x in lines) + "\n"
 
 
-def rename_memory_ub_scalar_to_gm(text):
-    return text.replace("aiv_ub_read_bw_scalar(GB/s)", "aiv_ub_read_bw_gm(GB/s)").replace(
-        "aiv_ub_write_bw_scalar(GB/s)", "aiv_ub_write_bw_gm(GB/s)"
-    )
-
-
 def scale_column_values(text, column_names, scale):
     """Multiply named CSV columns by scale (skip NA/empty)."""
     lines = text.rstrip("\n").split("\n")
@@ -918,9 +912,6 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
                 texts["Memory.csv"], col,
                 lambda row_i, t=target: t * (0.9 + 0.2 * ((row_i * 3) % 4) / 3.0),
             )
-
-    if "MemoryUB.csv" in texts:
-        texts["MemoryUB.csv"] = rename_memory_ub_scalar_to_gm(texts["MemoryUB.csv"])
 
     texts["HardwareInfo.jsonl"] = hardware_info(
         chip_info, ai_core_count, ai_vector_count, freq_mhz=int(op_basic.get("freq", 1650)),

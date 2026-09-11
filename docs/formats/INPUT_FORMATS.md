@@ -175,7 +175,7 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 | `PipeUtilization.csv` | CSV | `block_id` + `sub_block_id` | Roofline tabs, pipe occupancy, pipe details |
 | `Memory.csv` | CSV | block / sub-block | Memory load edges (GM/L2/L1) |
 | `MemoryL0.csv` | CSV | block / sub-block | L0A/B/C ↔ Cube edges |
-| `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / Scalar; GM↔UB product names here, sample fallback `Memory.csv` |
+| `MemoryUB.csv` | CSV | block / sub-block | UB ↔ Vec / Scalar (the producer emits no `*_gm` names here; GM↔UB BW lives on `Memory.csv`, [DATA-22](../context/decisions/DATA.md) / [DATA-23](../context/decisions/DATA.md)) |
 | `L2Cache.csv` | CSV | block / sub-block | L2 hit-rate overlay |
 | `MemoryL1.csv` | CSV | (docx mockup annotation only) | L2→L1 path — **not in sample** |
 | Timeline / kernel events | (unspecified in tables) | Block / pipe event | Kernel block timeline + event details |
@@ -285,7 +285,7 @@ GM / L2 / L1 oriented bandwidth and data volumes. Bare `*_read_bw` = leaving the
 | L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv`; `out.rep` NA |
 | L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed**; `out.rep` NA |
 | L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; Product-confirmed field ([DATA-24](../context/decisions/DATA.md)); 理论值 still 待确定 |
-| L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; marked 待确定 in docx |
+| L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; **confirmed** ([DATA-25](../context/decisions/DATA.md)); 理论值 (Peak %) still open with [DATA-20](../context/questions/DATA.md) |
 | L0C → UB | — | — | **TBD** (docx); absent in sample |
 
 Also present in sample (not all listed in docx edge table): MTE instruction/ratio columns, `GM_to_L1_*`, `UB_to_GM_*`, `aiv_ub_to_gm_bw(GB/s)`, `aiv_gm_to_ub_bw(GB/s)`, etc.
@@ -383,7 +383,7 @@ Verified against unpacked payloads (2026-08-03 local sample):
 | Docx-mapped pipe occupancy / Roofline ratio fields on `PipeUtilization.csv` | All present |
 | Docx-mapped L0 BW fields on `MemoryL0.csv` | All present |
 | Docx-mapped Vec↔UB BW on `MemoryUB.csv` | Present |
-| Docx `aiv_ub_*_bw_gm` on `MemoryUB.csv` | **Absent**; GM↔UB BW is `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` on `Memory.csv` |
+| Docx `aiv_ub_*_bw_gm` on `MemoryUB.csv` | Not emitted by the producer; GM↔UB BW is `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` on `Memory.csv` ([DATA-22](../context/decisions/DATA.md) / [DATA-23](../context/decisions/DATA.md)); the fixture no longer renames `*_scalar` to `*_gm` |
 | Docx `L0C_to_L1_datas` / `L0C_to_GM_datas` | Present as `*_datas(KB)` (+ usage rate) on `Memory.csv` |
 | `OpBasicInfo.csv` PID / Op Type / Block Dim / Task Duration | Present |
 | `L2Cache.csv` hit-rate columns | Present |
@@ -405,4 +405,4 @@ See prioritized product-owner list: [questions](../context/questions/).
 | L0C → UB edge | 待确定; no sample column |
 | Timeline event schema for full details panel | Product tables empty; sample trace is pipe-state oriented only |
 | Report-stat derived cards | **Compute** interim DATA-33h; **AICore parallel** shipped from `Summary.jsonl` as dual 并行使用率 \| 负载均衡度 ([DATA-9](../context/decisions/DATA.md) / [DATA-10](../context/decisions/DATA.md)); **带宽利用率** resolved ([DATA-8](../context/decisions/DATA.md)): peak SOL 1600, score = measured ÷ peak. **Obsolete:** 平均核利用率 / dual 输入·输出 aic\|aiv cards |
-| Block aggregation | Sample has multiple `block_id` rows; summary policy unspecified |
+| Block aggregation | **Closed:** one selector, `All` = `summary.jsonl` non-`NA` mean, a picked id = that block's CSV row ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |

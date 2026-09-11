@@ -371,7 +371,7 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | HardwareInfo | Confirmed source; in toolkit `example.rep` (not in git), absent from `out.rep` |
 | Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
 | `ResourceConflictRatio.csv` | In sample; no UI mapping |
-| Block-level aggregation for OP summary cards | Unspecified (sample has 8 blocks) |
+| Block-level aggregation for OP summary cards | **Closed:** one selector, `All` = `summary.jsonl` non-`NA` mean, a picked id = that block's CSV row ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
 
 ---
 

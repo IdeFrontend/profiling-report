@@ -176,6 +176,17 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     }
   });
 
+  it('MemoryUB.csv keeps the producer column names — no invented `*_gm` rename', () => {
+    for (const report of [op1, op2]) {
+      const ub = report.reportModel.memoryTables.find((t) => t.fileName === 'MemoryUB.csv')!;
+      expect(ub).toBeDefined();
+      // DATA-22/23: the producer emits no `*_gm` here, so neither does the fixture.
+      expect(ub.headers).toContain('aiv_ub_read_bw_scalar(GB/s)');
+      expect(ub.headers).toContain('aiv_ub_write_bw_scalar(GB/s)');
+      expect(ub.headers.some((h) => h.endsWith('_bw_gm(GB/s)'))).toBe(false);
+    }
+  });
+
   it('both operators embed Sampling.json with CUBE/VECTOR util counters (for PR #98)', () => {
     const container = parseNpuRep160(loadSampleRepBytes());
     for (const opName of ['op1.npu.rep', 'op2.npu.rep'] as const) {
