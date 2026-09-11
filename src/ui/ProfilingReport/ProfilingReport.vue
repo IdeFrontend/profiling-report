@@ -60,7 +60,6 @@ import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_COLLAPSED,
-  DOCK_HEIGHT_EXPANDED,
   fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
@@ -161,15 +160,7 @@ const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 /** Shared dock height for single-select DetailPanel and multi-select summary. */
 const dockHeight = ref(DOCK_HEIGHT_COLLAPSED);
-/** DetailPanel only ever sanctions its two fixed heights (PR-DPANEL-005); clamp the
- * shared `dockHeight` — which MultiSelectSummary can free-drag — to whichever of the
- * two is closer before handing it down, so a mid-select swap never lands DetailPanel
- * on a height its own spec forbids. */
-const detailDockHeight = computed(() =>
-  dockHeight.value >= (DOCK_HEIGHT_COLLAPSED + DOCK_HEIGHT_EXPANDED) / 2
-    ? DOCK_HEIGHT_EXPANDED
-    : DOCK_HEIGHT_COLLAPSED,
-);
+
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
 const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
@@ -1224,7 +1215,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :locale="locale"
           :neighbors="dependencyNeighbors"
           :dependency-mode="localDependencyMode"
-          :height="detailDockHeight"
+          :height="dockHeight"
           @close="onSelect(null)"
           @update:height="dockHeight = $event"
           @update:dependency-mode="onDependencyMode"

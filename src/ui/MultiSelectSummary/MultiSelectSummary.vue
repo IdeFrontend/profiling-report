@@ -9,11 +9,8 @@ import { t } from '../../i18n';
 import {
   DOCK_HEIGHT_COLLAPSED,
   DOCK_HEIGHT_EXPANDED,
-  startHorizontalResize,
 } from '../panelResize';
 
-const DOCK_HEIGHT_MIN = DOCK_HEIGHT_COLLAPSED;
-const DOCK_HEIGHT_MAX = DOCK_HEIGHT_EXPANDED * 2;
 const MAX_RENDERED_ROWS = 1000;
 
 const props = withDefaults(
@@ -26,7 +23,7 @@ const props = withDefaults(
     height?: number;
   }>(),
   {
-    height: DOCK_HEIGHT_EXPANDED,
+    height: DOCK_HEIGHT_COLLAPSED,
     locale: undefined,
   },
 );
@@ -146,29 +143,14 @@ function dirFor(key: SortKey): 'asc' | 'desc' | null {
   return sortDirection.value;
 }
 
-let session: ReturnType<typeof startHorizontalResize> | null = null;
+const expanded = computed(() => props.height >= DOCK_HEIGHT_EXPANDED);
 
-function onResizePointerDown(e: PointerEvent) {
-  if (e.button !== 0) return;
-  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  session = startHorizontalResize({
-    startClientX: e.clientY,
-    startWidth: props.height,
-    min: DOCK_HEIGHT_MIN,
-    max: Math.min(DOCK_HEIGHT_MAX, Math.max(DOCK_HEIGHT_MIN, window.innerHeight - 160)),
-    direction: -1,
-    onChange: (h) => emit('update:height', h),
-  });
-  e.preventDefault();
-}
+const expanderLabel = computed(() =>
+  t(expanded.value ? 'collapseDock' : 'expandDock', props.locale),
+);
 
-function onResizePointerMove(e: PointerEvent) {
-  session?.move(e.clientY);
-}
-
-function onResizePointerUp() {
-  session?.end();
-  session = null;
+function toggleExpanded(): void {
+  emit('update:height', expanded.value ? DOCK_HEIGHT_COLLAPSED : DOCK_HEIGHT_EXPANDED);
 }
 </script>
 
@@ -179,15 +161,17 @@ function onResizePointerUp() {
   >
     <button
       type="button"
-      class="pr-multi-select__resize"
-      data-testid="multi-select-resize-handle"
-      :aria-label="t('resizeDock', locale)"
-      :title="t('resizeDock', locale)"
-      @pointerdown="onResizePointerDown"
-      @pointermove="onResizePointerMove"
-      @pointerup="onResizePointerUp"
-      @pointercancel="onResizePointerUp"
-    />
+      class="pr-multi-select__expander"
+      :class="{ 'pr-multi-select__expander--expanded': expanded }"
+      data-testid="multi-select-expander"
+      :aria-label="expanderLabel"
+      :aria-expanded="expanded"
+      :title="expanderLabel"
+      @click="toggleExpanded"
+    >
+      <span class="pr-multi-select__expander-bar" />
+      <span class="pr-multi-select__expander-arrow" />
+    </button>
     <header class="pr-multi-select__head">
       <span
         class="pr-multi-select__count"
@@ -299,25 +283,53 @@ function onResizePointerUp() {
   /* The shell owns background, border and height. */
 }
 
-/* 5px top-edge resize hit strip, inside the dock's padding box (no translate — the
-   parent `.pr-dock` clips overflow, so any offset outside the box is unhittable). */
-.pr-multi-select__resize {
+/* Sketch affordance, identical to DetailPanel: a 14x1 bar and a small solid triangle,
+   centred on the dock's top edge. The two swap order between states via flex direction. */
+.pr-multi-select__expander {
   position: absolute;
-  left: 0;
-  right: 0;
   top: 0;
-  height: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+  /* Padding only, so the 14x8 visual keeps its sketch position while the hit target
+     reaches a usable size. */
   margin: 0;
-  padding: 0;
+  padding: 4px 16px 10px;
   border: 0;
   background: transparent;
-  cursor: ns-resize;
-  z-index: 6;
+  color: #6c6c6c;
+  cursor: pointer;
 }
 
-.pr-multi-select__resize:hover,
-.pr-multi-select__resize:active {
-  background: rgba(49, 122, 247, 0.35);
+.pr-multi-select__expander--expanded {
+  flex-direction: column;
+}
+
+.pr-multi-select__expander:hover {
+  color: #b3b3b3;
+}
+
+.pr-multi-select__expander-bar {
+  width: 14px;
+  height: 1px;
+  background: currentColor;
+}
+
+.pr-multi-select__expander-arrow {
+  width: 0;
+  height: 0;
+  border-right: 3px solid transparent;
+  border-bottom: 4px solid currentColor;
+  border-left: 3px solid transparent;
+}
+
+.pr-multi-select__expander--expanded .pr-multi-select__expander-arrow {
+  border-top: 4px solid currentColor;
+  border-bottom: 0;
 }
 
 .pr-multi-select__head {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import MultiSelectSummary from './MultiSelectSummary.vue';
 import type { SwimEvent, SwimlaneModel } from '../../domain/types';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 function ev(id: string, name: string, startTime: number, duration: number): SwimEvent {
   return { id, name, startTime, duration };
@@ -154,21 +155,24 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.emitted('close')).toHaveLength(1);
   });
 
-  it('PR-MSEL-007: dragging the top edge up grows the dock and clamps at the floor', async () => {
-    const wrapper = mountPanel({ height: 247 });
-    const handle = wrapper.get('[data-testid="multi-select-resize-handle"]');
+  it('PR-MSEL-007: the expander toggles the dock between its two heights; no resize handle', async () => {
+    const wrapper = mountPanel({ height: DOCK_HEIGHT_COLLAPSED });
+    const expander = wrapper.find('[data-testid="multi-select-expander"]');
+    expect(expander.exists()).toBe(true);
+    // The drag handle is gone: the dock has two heights, not a range.
+    expect(wrapper.find('[data-testid="multi-select-resize-handle"]').exists()).toBe(false);
 
-    await handle.trigger('pointerdown', { button: 0, clientY: 800 });
-    await handle.trigger('pointermove', { clientY: 700 });
-    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([347]);
+    expect(expander.attributes('aria-expanded')).toBe('false');
 
-    await handle.trigger('pointermove', { clientY: 4000 });
-    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([247]);
+    await expander.trigger('click');
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_EXPANDED]);
 
-    const before = wrapper.emitted('update:height')?.length ?? 0;
-    await handle.trigger('pointerup');
-    await handle.trigger('pointermove', { clientY: 100 });
-    expect(wrapper.emitted('update:height')?.length ?? 0).toBe(before);
+    // Height is driven by the prop, so the parent owning the state is what moves it.
+    await wrapper.setProps({ height: DOCK_HEIGHT_EXPANDED });
+    expect(expander.attributes('aria-expanded')).toBe('true');
+
+    await expander.trigger('click');
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_COLLAPSED]);
   });
 
   it('PR-MSEL-008: the table body scrolls, not the dock', () => {
