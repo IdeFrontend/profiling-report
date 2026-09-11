@@ -244,9 +244,15 @@ describe('StatsAside', () => {
     });
 
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
     await wrapper.get('[data-testid="pipe-block"]').setValue('1');
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+    // Compute keeps its cell as the N/A placeholder — no All measurement under the block label.
+    const naCard = wrapper.get('[data-testid="stats-compute-card"]');
+    expect(naCard.classes()).toContain('pr-card--na');
+    expect(naCard.text()).toContain('N/A');
+    expect(naCard.text()).not.toContain('10');
     // PIPE re-reads the block's own row (0.8, not the All 0.5) …
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
     expect(wrapper.text()).not.toContain('50%');
@@ -254,6 +260,7 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
     await wrapper.get('[data-testid="pipe-block"]').setValue('');
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
   });
 

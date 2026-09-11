@@ -436,7 +436,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(sample?.edges.find((e) => e.id === 'l2-l1-write')?.label).toBeUndefined();
   });
 
-  it('PR-VM-012: topology labels are block-scoped; snapshot uses first labelled block', () => {
+  it('PR-VM-012: topology labels are block-scoped; snapshot is summary.jsonl, first labelled block is the classic-.rep fallback', () => {
     const tables: CsvTableModel[] = [
       {
         fileName: 'Memory.csv',
@@ -455,6 +455,21 @@ describe('PR-VM: report view-models (interim)', () => {
     const first = firstLabelledMemoryTopology(tables);
     expect(first?.blockId).toBe('1');
     expect(first?.model.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
+
+    // PR-VM-017: a product pack snapshots the summary.jsonl aggregate, not that first labelled block.
+    const encoder = new TextEncoder();
+    const csv = 'block_id,aiv_main_mem_read_bw(GB/s)\n0,NA\n1,4.25\n';
+    const categorySnapshot = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        JSON.stringify({ category: 'Memory', 'aiv_main_mem_read_bw(GB/s)': 9.5 }) + '\n',
+      ),
+      'Memory.csv': encoder.encode(csv),
+    }).reportModel.memoryTopology;
+    expect(categorySnapshot?.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('9.50 GB/s');
+    // Without summary.jsonl there is no aggregate, so the classic `.rep` falls back to block 1.
+    const csvSnapshot = adaptPayloads({ 'Memory.csv': encoder.encode(csv) }).reportModel
+      .memoryTopology;
+    expect(csvSnapshot?.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
   });
 
   it('PR-VM-012b: L2 Peak(%) from first non-NA hit-rate column (DATA-20 / DATA-21)', () => {
