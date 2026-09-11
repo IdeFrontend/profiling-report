@@ -117,11 +117,12 @@ Format and statuses: [README.md](README.md).
 
 ## UI-43 (was: HQ 37)
 
-- **Resolved:** 2026-08-28
+- **Resolved:** 2026-09-11
+- **Was:** filter + highlight (2026-08-28, PR [#52](https://github.com/IdeFrontend/profiling-report/pull/52)) — superseded.
 - **Question:** CSV 详情 search — filter only, or filter + highlight?
-- **Decision:** **Filter + highlight**: search filters non-matching rows and highlights the matching substring (flush chip), on both compute and memory.
-- **Specs:** [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md), [UX_SPEC](../../ui/UX_SPEC.md)
-- **Source:** PR [#52](https://github.com/IdeFrontend/profiling-report/pull/52).
+- **Decision:** **Filter only**: search hides rows whose headers do not contain the query and leaves the matching labels unstyled — no substring chip. Same rule on the compute and memory overlays.
+- **Specs:** [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-003`), [UX_SPEC](../../ui/UX_SPEC.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md)
+- **Source:** Product answer to Q37 in npu-computing `npu-tools` `npu-compute/Questions/NPU-Compute.md` (2026-09-11): "Hide non-matching rows and filter only".
 
 ---
 

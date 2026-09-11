@@ -95,7 +95,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Rank pipes and inspect raw CSV counters for a selected block |
 | **Trigger** | After S1; user needs more than bar chart |
-| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter + highlight field labels; open memory tabs + block switcher; optionally 查看全部 |
+| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter field labels; open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
 | **Sketches** | Bars: [`v930/compute-load`](./source/v930/compute-load.jpeg). Details: [`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg) |
 | **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
@@ -193,9 +193,9 @@ Interactivity classes:
 | Lane gutter | interactive | Expand/collapse; wheel scroll sync | Row set + `scrollY` | M |
 | Event tooltip | interactive (transient) | Hover | Shows timing | M |
 | Detail strip / bottom dock | interactive (selection-driven) | Cleared by empty click | Bound to selection | M / richer P2 |
-| Pipe field list + search | interactive | Type filter, scroll | Filtered rows + flush substring highlight | M1 |
+| Pipe field list + search | interactive | Type filter, scroll | Filtered rows (no highlight, UI-43) | M1 |
 | Memory topology | semi / interactive | Pan/zoom diagram optional; click nodes P2 | Field highlight | P2 |
-| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows + flush substring highlight | M1 |
+| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows (no highlight, UI-43) | M1 |
 | Hardware details | static / semi | Scroll | — | P2 |
 | Dependency link curves | interactive | Toggle visibility; click link | Selection / detail | P2 |
 | Context menu | interactive | Right-click | Pin / actions | P2 |

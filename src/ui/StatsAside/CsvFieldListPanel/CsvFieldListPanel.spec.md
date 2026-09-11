@@ -24,7 +24,7 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 
 1. Tabs list present tables; selecting a tab switches the field list.
 2. Bound **selectedBlockId** when it is in the active table’s `blockIds`; otherwise an internal fallback to that table’s first `blockId` (DATA-19 / DATA-29). Only the block picker emits `update:selectedBlockId` — tab switches do not write through. Rows filtered to the displayed `block_id`.
-3. Search hides fields whose headers do not contain the query (case-insensitive substring). A match paints that slice as a navy chip with light-blue text, flush to the surrounding label (no pad). Values stay unchanged. Zero matches leave the list empty (no extra copy). The query persists across tab switches. Clear (×) empties the query and restores the full list. Same rule on compute and memory overlays.
+3. Search **hides** fields whose headers do not contain the query (case-insensitive substring) and leaves the surviving labels unstyled — no match chip (UI-43). Values stay unchanged. Zero matches leave the list empty (no extra copy). The query persists across tab switches. Clear (×) empties the query and restores the full list. Same rule on compute and memory overlays.
 4. Field list shows header → value for the first matching row of the selected block (or all columns from that row). Show literal `NA`.
 5. 查看全部 emits full CSV text for the active `fileName`.
 
@@ -32,7 +32,7 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 
 1. **PR-CSV-001** — Renders a tab per table; switching tabs changes visible fields.
 2. **PR-CSV-002** — Block switcher filters rows by `block_id`.
-3. **PR-CSV-003** — Search filters and highlights labels.
+3. **PR-CSV-003** — Search filters labels (hides non-matching rows, no highlight).
 4. **PR-CSV-004** — 查看全部 emits `view-full-csv` with fileName + text.
 5. **PR-CSV-005** — Tab switch does not emit `update:selectedBlockId` when the active table lacks the bound id; field list falls back internally.
 6. **PR-CSV-006** — Flags hide block and 查看全部.
@@ -46,7 +46,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 | Active tab underline | `2px solid #ffffff` (label width; not playhead blue) |
 | Inactive tab | `#9a9a9a` |
 | Search | radius `4px`; fill `#262626`; stroke magnifying-glass SVG `12×12` `#9a9a9a`; focus border `#3078f0` |
-| Search match | substring chip: fill `#1d283c`, text `#688aec` weight `600`, radius `3px`, pad `0` (flush; no gap); rest of label `#8e8e8e`; non-matching rows hidden |
+| Search match | **Retired (UI-43):** the label stays `#8e8e8e` — no chip. Non-matching rows hidden. Former chip: fill `#1d283c`, text `#688aec` weight `600` (kept here as design history) |
 | Block pill | shared `.pr-block-pill` (`tokens.css`): bg `#2a2a2a`; radius `4px`; custom chevron; no native arrow. Same class as the summary PIPE block select |
 | 查看全部 | `#c8c8c8` `12px` |
 | Field key | `#8e8e8e`; value `#e6e6e6` right-aligned |
@@ -58,10 +58,11 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 - [field-rows](./visual/field-rows.png) — from `v930/compute-load-detail`
 - [block-switcher](./visual/block-switcher.png) — from `v930/memory-load-detail`
 - [compute-load-detail](../../../../docs/ui/source/v930/compute-load-detail.jpeg) — full frame
-- [search-highlight](../../../../docs/ui/source/v930/search-highlight.jpeg) — search match chrome
+- [search-highlight](../../../../docs/ui/source/v930/search-highlight.jpeg) — former search match chrome (chip retired, UI-43)
 - [memory-load-detail](../../../../docs/ui/source/v930/memory-load-detail.jpeg) — full frame
 
 ## Changelog
+- **2026-09-11** — Search is **filter-only** (UI-43): matching labels are no longer chip-highlighted.
 - **2026-08-31** — Zero matches show an empty list (no extra copy); search query persists across tab switches.
 - **2026-08-28** — Search filters non-matching rows and still highlights the substring; match chip is flush (pad `0`). Same on compute and memory.
 - **2026-08-24** — Search match is a navy chip + light-blue semi-bold text (`v930/search-highlight`).
