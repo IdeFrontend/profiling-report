@@ -147,7 +147,10 @@ const multiSelected = shallowRef<SwimEvent[]>([]);
  */
 const multiSelectSpan = ref<MeasureRange | null>(null);
 /**
- * True while a live marquee (>4px) is driving the dock from `multi-select-preview`.
+ * True while a live marquee (>4px) gesture is active (any post-gate preview,
+ * including empty coverage). Gates Escape so preview `multiSelected` is not
+ * treated as a committed multi-select. Dock content still mounts only from
+ * `selected` / `multiSelected` (empty-only does not open a blank footer).
  * Host `select` / viewState commit wait for pointerup; Escape restores the pre-drag dock.
  */
 const marqueeLive = ref(false);
@@ -916,7 +919,8 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
 
 /**
  * Live marquee coverage for the dock only. Does not touch viewState or host `select`.
- * Empty mid-drag keeps the last non-empty preview so the footer does not leave.
+ * Any post-gate preview (including `[]`) arms `marqueeLive` for Escape. Empty mid-drag
+ * keeps the last non-empty dock content so the footer does not leave or flash blank.
  */
 function onMultiSelectPreview(events: SwimEvent[] | null): void {
   if (events == null) {
@@ -924,10 +928,11 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
     if (marqueeLive.value) clearMarqueeLive({ restore: true });
     return;
   }
-  // Empty first/mid coverage: hold last non-empty; do not mount a blank dock.
-  if (events.length === 0) return;
+  // Arm gesture liveness before the empty early-return so Escape stays gated
+  // even for an empty-only live rect over a committed multi dock.
   snapshotDockIfNeeded();
   marqueeLive.value = true;
+  if (events.length === 0) return;
   if (events.length >= 2) {
     selected.value = null;
     selectedEvent.value = null;
@@ -1274,7 +1279,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
          The shared height survives mode switches so the panel does not animate from 0. -->
     <Transition name="pr-dock">
       <footer
-        v-if="showTimeline && (selected || multiSelected.length || marqueeLive)"
+        v-if="showTimeline && (selected || multiSelected.length)"
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"

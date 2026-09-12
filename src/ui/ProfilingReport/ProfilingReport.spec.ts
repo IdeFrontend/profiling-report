@@ -398,6 +398,50 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    // Gesture is live (Escape gated) even though the footer stays closed.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.emitted('select')).toBeFalsy();
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: empty-only live marquee Escape keeps a committed multi dock', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-empty-over-multi',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+    const selectAfterCommit = wrapper.emitted('select')?.length ?? 0;
+
+    // Empty live rect over committed multi: arm Escape gate without changing dock content.
+    timeline().vm.$emit('multi-select-preview', []);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectAfterCommit);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+
+    timeline().vm.$emit('multi-select-preview', null);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectAfterCommit);
 
     wrapper.unmount();
   });
