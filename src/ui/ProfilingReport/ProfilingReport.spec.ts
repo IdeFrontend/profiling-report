@@ -86,10 +86,16 @@ describe('ProfilingReport scaffold', () => {
   it('PR-ROOT-015: dock enter height-tweens; leave stays absolute + translateY', async () => {
     const src = (await import('./ProfilingReport.vue?raw')).default as string;
     // Enter must not reserve a full-height slot while painted off-screen (black hole).
+    expect(src).toMatch(/\.pr-dock-enter-active\s*\{[^}]*height\s+200ms/s);
     expect(src).toMatch(/\.pr-dock-enter-from\s*\{[^}]*height:\s*0/s);
     expect(src).not.toMatch(/\.pr-dock-enter-from\s*\{[^}]*translateY/s);
+    // Shared enter-from+leave-to translateY was the black-hole bug — must stay split.
+    expect(src).not.toMatch(
+      /\.pr-dock-enter-from\s*,\s*\.pr-dock-leave-to\s*\{[^}]*translateY/s,
+    );
     // Leave keeps the intentional absolute slide so the swimlane grows mid-leave.
     expect(src).toMatch(/\.pr-dock-leave-active\s*\{[^}]*position:\s*absolute/s);
+    expect(src).toMatch(/\.pr-dock-leave-active\s*\{[^}]*transform\s+200ms/s);
     expect(src).toMatch(/\.pr-dock-leave-to\s*\{[^}]*translateY\(100%\)/s);
   });
 

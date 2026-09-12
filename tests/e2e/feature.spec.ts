@@ -451,6 +451,68 @@ test.describe('PR-E2E feature paths', () => {
     await expect(overlay).toBeVisible();
   });
 
+  test('PR-E2E-014: dock enter grows layout height with the timeline (no black-hole slot)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+    const topPad = await overviewTopPad(page);
+
+    // Slow the enter so a mid-flight sample is reliable; leave absolute slide unchanged.
+    await page.addStyleTag({
+      content: `
+        .pr-dock-enter-active {
+          transition: height 2000ms linear !important, opacity 2000ms linear !important;
+        }
+      `,
+    });
+
+    const swimBefore = await overlay.evaluate(
+      (canvas) => (canvas.closest('[data-testid="swimlane"]') as HTMLElement).clientHeight,
+    );
+
+    await page.mouse.click(
+      box.x + 106,
+      box.y + topPad + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2,
+    );
+    const dock = page.getByTestId('dock');
+    await expect(dock).toBeVisible();
+
+    // Sample while height is still climbing — must not already reserve the full dock.
+    await expect
+      .poll(async () => {
+        const sample = await page.evaluate(() => {
+          const d = document.querySelector('[data-testid="dock"]') as HTMLElement | null;
+          const s = document.querySelector('[data-testid="swimlane"]') as HTMLElement | null;
+          if (!d || !s) return null;
+          return { dockH: d.getBoundingClientRect().height, swimH: s.clientHeight };
+        });
+        return sample;
+      })
+      .not.toBeNull();
+
+    const mid = await page.evaluate(() => {
+      const d = document.querySelector('[data-testid="dock"]') as HTMLElement;
+      const s = document.querySelector('[data-testid="swimlane"]') as HTMLElement;
+      return { dockH: d.getBoundingClientRect().height, swimH: s.clientHeight };
+    });
+
+    // Catch the regression: full-height reserved slot + translateY left swim shrunk by
+    // ~DOCK_HEIGHT while dock layout height was already final. Mid-enter must couple them.
+    expect(mid.dockH).toBeLessThan(DOCK_HEIGHT_COLLAPSED * 0.6);
+    expect(swimBefore - mid.swimH).toBeLessThan(DOCK_HEIGHT_COLLAPSED * 0.6 + 40);
+    // Layout shrink tracks the dock's current layout height (not a pre-claimed full slot).
+    expect(Math.abs(swimBefore - mid.swimH - mid.dockH)).toBeLessThan(48);
+
+    await expect
+      .poll(async () => (await dock.boundingBox())?.height ?? 0, { timeout: 3000 })
+      .toBe(DOCK_HEIGHT_COLLAPSED);
+  });
+
   test('PR-E2E-012: Escape cancels a marquee mid-drag and clears a committed one', async ({
     page,
   }) => {
