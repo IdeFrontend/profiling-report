@@ -1359,72 +1359,68 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-089: marquee hides lane hover and cursor follows the pointer', async () => {
-    const { wrapper, canvas } = await mountForMarquee();
-    const rect = (
-      wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
-    ).eventScreenRect('e1')!;
-    const y = rect.y + rect.h / 2;
+  it('PR-CANVAS-089: live marquee clears lane hover and hover-gap; cursor follows unsnapped', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
 
-    // Seed a hover so a false clear on press would be observable.
-    await canvas.trigger('pointermove', { clientX: rect.x + rect.w / 2, clientY: y });
+    // Seed gap chrome + lane hover in the free middle (px 140).
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
+    const cursorsBefore = (wrapper.emitted('cursor') ?? []).length;
 
-    await canvas.trigger('pointerdown', {
-      clientX: rect.x - 20,
-      clientY: rect.y - 4,
-      pointerId: 1,
-    });
-    // Pending press must not clear lane hover (gutter header would flicker on every click).
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 1 });
+    // Pending press: chrome stays; do not force an unsnapped cursor yet.
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
+    expect((wrapper.emitted('cursor') ?? []).length).toBe(cursorsBefore);
 
-    const moveX = rect.x + rect.w / 2;
     window.dispatchEvent(
-      new PointerEvent('pointermove', { clientX: moveX, clientY: y + 4, buttons: 1 }),
+      new PointerEvent('pointermove', { clientX: 200, clientY: y + 10, buttons: 1 }),
     );
     await wrapper.vm.$nextTick();
-    // Past the 4px gate: live marquee suppresses lane hover.
+    // Past the 4px gate: live marquee owns chrome.
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
-    const cursors = wrapper.emitted('cursor');
-    const last = cursors![cursors!.length - 1][0] as { time: number; xRatio: number; snapped?: boolean };
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    const last = wrapper.emitted('cursor')!.at(-1)![0] as { xRatio: number; snapped?: boolean };
     expect(last.snapped).toBe(false);
-    expect(last.xRatio).toBeCloseTo(moveX / 400, 5);
+    expect(last.xRatio).toBeCloseTo(200 / 400, 5);
 
-    window.dispatchEvent(
-      new PointerEvent('pointerup', { clientX: moveX, clientY: y + 4 }),
-    );
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 200, clientY: y + 10 }));
     await wrapper.vm.$nextTick();
-    const final = wrapper.emitted('cursor')!.at(-1)![0];
-    expect(final).toBeNull();
+    expect(wrapper.emitted('cursor')!.at(-1)![0]).toBeNull();
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-100: click does not clear lane hover on press or release', async () => {
-    const { wrapper, canvas } = await mountForMarquee();
-    const rect = (
-      wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
-    ).eventScreenRect('e1')!;
-    const x = rect.x + rect.w / 2;
-    const y = rect.y + rect.h / 2;
+  it('PR-CANVAS-100: pending press keeps lane hover and hover-gap (no visual chrome flash)', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
 
-    await canvas.trigger('pointermove', { clientX: x, clientY: y });
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
     const afterHover = (wrapper.emitted('lane-hover') ?? []).length;
+    const cursorsBefore = (wrapper.emitted('cursor') ?? []).length;
 
-    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
-    // No null emit on press — that is the header flicker.
-    const afterDown = wrapper.emitted('lane-hover') ?? [];
-    expect(afterDown.slice(afterHover).some((args) => args[0] == null)).toBe(false);
+    expect((wrapper.emitted('lane-hover') ?? []).slice(afterHover).some((a) => a[0] == null)).toBe(false);
+    expect((wrapper.emitted('cursor') ?? []).length).toBe(cursorsBefore);
 
-    await canvas.trigger('pointerup', { clientX: x + 2, clientY: y + 1, pointerId: 1 });
-    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x + 2, clientY: y + 1 }));
+    // Sub-threshold nudge — still a click candidate, chrome stays.
+    await canvas.trigger('pointermove', { clientX: 142, clientY: y + 1, buttons: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
+
+    await canvas.trigger('pointerup', { clientX: 142, clientY: y + 1, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 142, clientY: y + 1 }));
     await wrapper.vm.$nextTick();
 
-    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e1');
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
-    const afterUp = wrapper.emitted('lane-hover') ?? [];
-    expect(afterUp.slice(afterHover).some((args) => args[0] == null)).toBe(false);
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(false);
     wrapper.unmount();
   });
 

@@ -968,6 +968,9 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
       return;
     }
     marqueePending = false;
+    // Gate crossed: drop hover chrome so only the marquee rect + unsnapped cursor remain.
+    hoverGap.value = null;
+    emitLaneHover(null);
   }
   const rect = {
     x0: marqueeAnchor.x,
@@ -988,7 +991,7 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
   } else {
     marqueePreviewIds = previewIds;
   }
-  // Keep the timestamp label following the cursor and suppress lane hover highlight.
+  // Keep the timestamp label following the cursor (unsnapped) while the rect is live.
   const w = syncTrackWidth();
   emit('cursor', { time: timeAtX(local.x), xRatio: local.x / w, snapped: false });
   emitLaneHover(null);
@@ -1050,10 +1053,8 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   marqueeAnchor = { x: localX, y: localY };
   marqueePending = true;
   marqueePressActive = true;
-  // Pending press is still a click candidate — keep lane-row hover (gutter header +
-  // canvas fill). Hide it only once the drag crosses the 4px gate (onMarqueeDragMove).
-  hoverGap.value = null;
-  emit('cursor', { time: timeAtX(localX), xRatio: localX / syncTrackWidth(), snapped: false });
+  // Pending press is visually a no-op: keep lane-row hover and hover-gap Δt overlay.
+  // Clear them (and force an unsnapped cursor) only once the drag crosses 4px.
   unbindMarqueeDrag = bindWindowPointerDrag({
     onMove: onMarqueeDragMove,
     onEnd: onMarqueeDragEnd,
