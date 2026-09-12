@@ -9,6 +9,7 @@ import {
   eventLabelAnchor,
   eventPaintRect,
   eventRadius,
+  eventsIntersectingRect,
   findExactEdgeMatches,
   hitTestLayout,
   nearestEventEdgeAtPoint,
@@ -28,7 +29,7 @@ import {
 import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
-import { WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
+import { compositeLabelBackdrop, WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
@@ -152,6 +153,16 @@ function recordingCanvas(): {
 }
 
 describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
+  it('PR-RENDER-051: ClearType label backdrop uses the same solid selection fill as the event', () => {
+    const backdrop = compositeLabelBackdrop(
+      [31 / 255, 31 / 255, 31 / 255],
+      [44 / 255, 44 / 255, 44 / 255],
+      1,
+    );
+    expect(backdrop[0]).toBeCloseTo(0.2941176471, 8);
+    expect(backdrop[1]).toBeCloseTo(0.2941176471, 8);
+    expect(backdrop[2]).toBeCloseTo(0.2941176471, 8);
+  });
   it('PR-RENDER-001: hitTest returns event under point', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
@@ -245,7 +256,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(rrSwitchThreshold * 1.5).toBe(6);
   });
 
-  it('PR-RENDER-018: snapEventRect aligns edges to integer device pixels', () => {
+  it('PR-RENDER-047: snapEventRect aligns edges to integer device pixels', () => {
     const r = snapEventRect(10.4, 2.5, 20.3, 16);
     expect(r.x).toBe(10);
     expect(r.y).toBe(3);
@@ -265,7 +276,7 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(paint.r).toBe(2);
   });
 
-  it('PR-RENDER-019: resize sets buffer without style sizing', () => {
+  it('PR-RENDER-048: resize sets buffer without style sizing', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();
     renderer.attach(canvas);
@@ -556,6 +567,25 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     expect(() => renderer.render()).not.toThrow();
     renderer.setSelection(null, null);
     expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
+
+  it.skipIf(!hasWebGl2)('PR-CANVAS-098: WebGL rebuilds emphasis when hover changes under selection', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setSelection('e-long', null);
+    const rebuild = vi.spyOn(
+      renderer as unknown as { rebuildEmphasisSplit: () => void },
+      'rebuildEmphasisSplit',
+    );
+
+    renderer.setSelection('e-long', 'e-short');
+
+    expect(rebuild).toHaveBeenCalledOnce();
     renderer.dispose();
   });
 
@@ -1029,11 +1059,12 @@ describe('PR-RENDER: lane chrome color', () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     // The label pass carries its own hovered-row chrome (#363636) and bakes it into the opaque
-    // backdrop via the same `bg + rgb` additive formula the fill pass uses, so the label rect
-    // reads as the event rect; a muted event swaps in the gray fill/label colors instead.
+    // backdrop with the same solid fill as the event pass, so a muted label rect does not brighten
+    // the surrounding gray node. A muted event still uses the gray fill/label colors.
     expect(webglSrc).toMatch(/laneHoverBg = hexToRgb\(LANE_HOVER_FILL\)/);
-    expect(webglSrc).toMatch(/Math\.min\(1, bg\[0\] \+ lr\)/);
+    expect(webglSrc).toMatch(/compositeLabelBackdrop\(bg, fill, 1\)/);
     expect(webglSrc).toMatch(/hexToRgb\(SELECTION_MUTED_LABEL\)/);
+    expect(webglSrc).toMatch(/bright\.has\(item\.id\) \|\| this\.multiIds\.has\(item\.id\) \|\| item\.id === this\.hoveredId/);
   });
 
   it('PR-RENDER-039: ClearType label quad origin snaps to integer device px', async () => {
@@ -1093,6 +1124,96 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
     expect(stub.setDependencyMode).toBeUndefined();
     expect(stub.setDependencyDepth).toBeUndefined();
     expect(stub.setHoveredLane).toBeUndefined();
+    // Marquee support is optional too: a host renderer predating it stays valid.
+    expect(stub.setMultiSelection).toBeUndefined();
+  });
+
+  it('PR-RENDER-015: setMultiSelection dims non-selected events like a single click', () => {
+    // Multi-selected ids act as the "bright" set; the rest use the shared solid muted fill.
+    const multi = new Set(['e-long']);
+    expect(eventEmphasis(true, multi.has('e-long'), false, multi.size > 0)).toEqual({ alpha: 1, muted: false });
+    expect(eventEmphasis(true, multi.has('e-short'), false, multi.size > 0)).toEqual({ alpha: 1, muted: true });
+    // Empty selection clears the dim entirely.
+    expect(eventEmphasis(true, false, false, false)).toEqual({ alpha: 1, muted: false });
+
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setMultiSelection(['e-long']);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setMultiSelection([]);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
+
+  it.skipIf(!hasWebGl2)('PR-RENDER-017: WebGL setMultiSelection rebuilds emphasis', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new WebGlSwimlaneRenderer();
+    expect(renderer.attach(canvas)).toBe(true);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setMultiSelection(['e-long']);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.setMultiSelection([]);
+    expect(() => renderer.render()).not.toThrow();
+    renderer.dispose();
+  });
+
+  it('WebGL keeps search alpha and selection muting in separate layers', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toContain('const key = `${muted ? 1 : 0}|${alpha}`;');
+    expect(webglSrc).toMatch(/byKey\.get\(key\)/);
+  });
+});
+
+describe('PR-RENDER: marquee hit collection', () => {
+  const layout = rebuildLayout(tinyModel());
+  const view = { startTime: 0, endTime: 1000, scrollY: 0 };
+  /** Both fixture events start at t=0 on the one lane (overlapping → two sub-rows); e-long runs to 800, e-short to 1. */
+  const laneY = layout.eventsById.get('e-long')!.y;
+
+  it('PR-RENDER-049: collects every event whose block intersects the rect', () => {
+    const all = eventsIntersectingRect(layout, view, 400, {
+      x0: 0,
+      y0: laneY - view.scrollY,
+      x1: 400,
+      y1: laneY + LANE_HEIGHT * 2,
+    });
+    expect(all.map((e) => e.id).sort()).toEqual(['e-long', 'e-short']);
+
+    // Right half intersects e-long (e-short is 1ns wide at x≈0).
+    const right = eventsIntersectingRect(layout, view, 400, {
+      x0: 200,
+      y0: laneY - view.scrollY,
+      x1: 400,
+      y1: laneY + LANE_HEIGHT,
+    });
+    expect(right.map((event) => event.id)).toEqual(['e-long']);
+  });
+
+  it('PR-RENDER-050: rect order is normalized and misses collect nothing', () => {
+    const dragUpLeft = eventsIntersectingRect(layout, view, 400, {
+      x0: 400,
+      y0: laneY + LANE_HEIGHT,
+      x1: 0,
+      y1: laneY - view.scrollY,
+    });
+    expect(dragUpLeft.map((e) => e.id)).toEqual(['e-long']);
+
+    // Below the only lane: a rect over empty space / group headers collects nothing.
+    expect(
+      eventsIntersectingRect(layout, view, 400, {
+        x0: 0,
+        y0: laneY + LANE_HEIGHT * 4,
+        x1: 400,
+        y1: laneY + LANE_HEIGHT * 6,
+      }),
+    ).toEqual([]);
   });
 });
 
@@ -1145,6 +1266,19 @@ describe('PR-RENDER: collapsed-group summary events', () => {
       'folder/summary/0',
       'folder/summary/0',
     ]);
+  });
+
+  it('marquee ignores summary bars', () => {
+    const layout = rebuildLayout(summaryModel(4));
+    const view = { startTime: 0, endTime: 100, scrollY: 0 };
+    expect(
+      eventsIntersectingRect(layout, view, 400, {
+        x0: 0,
+        y0: LANE_GROUP_HEADER_HEIGHT,
+        x1: 400,
+        y1: LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT,
+      }),
+    ).toEqual([]);
   });
 
   it('PR-RENDER-026: summary bars render a gray fill with a dimmed task-count label and a hover lift', () => {

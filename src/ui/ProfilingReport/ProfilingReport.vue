@@ -4,6 +4,7 @@ import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
   clearMeasure,
+  clearSelection,
   createViewState,
   keyboardPanStepTime,
   measureFocusWindow,
@@ -12,6 +13,8 @@ import {
   pinOverview,
   setMeasureMode,
   setMeasureRange,
+  setMultiSelection,
+  setSelectedEvent,
   spanFromZoomPercent,
   unpinLane,
   unpinOverview,
@@ -53,8 +56,10 @@ import {
 import { t } from '../../i18n';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
+import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
+  DOCK_HEIGHT_COLLAPSED,
   fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
@@ -98,9 +103,19 @@ const props = withDefaults(defineProps<{
   /** End-user guide URL for the toolbar help button. */
   userGuideUrl?: string;
 }>(), {
+  title: undefined,
+  source: undefined,
+  swimlaneModel: undefined,
+  reportModel: undefined,
+  reportMeta: undefined,
+  theme: undefined,
+  locale: undefined,
+  timeDisplayMode: undefined,
   dependencyMode: 'all',
   dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
   userGuideUrl: DEFAULT_USER_GUIDE_URL,
+  preferRenderer: undefined,
+  capabilities: undefined,
 });
 
 const emit = defineEmits<{
@@ -124,6 +139,28 @@ const hovered = ref<SwimEvent | null>(null);
 const selected = ref<SelectedEvent | null>(null);
 /** Raw model event behind `selected` — the dependency walk needs its EventRefs. */
 const selectedEvent = ref<SwimEvent | null>(null);
+/** Marquee capture; mutually exclusive with `selected` (only one dock mounts). */
+const multiSelected = shallowRef<SwimEvent[]>([]);
+/**
+ * Δt span shown on the axis for the marquee: the live drag extent while dragging.
+ * Cleared on commit (the axis measure control disappears when the drag ends).
+ */
+const multiSelectSpan = ref<MeasureRange | null>(null);
+/**
+ * True while a live marquee (>4px) gesture is active (any post-gate preview,
+ * including empty coverage). Gates Escape so preview `multiSelected` is not
+ * treated as a committed multi-select. Dock content still mounts only from
+ * `selected` / `multiSelected` (empty-only does not open a blank footer).
+ * Host `select` / viewState commit wait for pointerup; Escape restores the pre-drag dock.
+ */
+const marqueeLive = ref(false);
+type DockSnap = {
+  selected: SelectedEvent | null;
+  selectedEvent: SwimEvent | null;
+  multiSelected: SwimEvent[];
+};
+/** Snapshot of dock UI taken on the first live preview of a gesture; discarded on commit. */
+let dockSnap: DockSnap | null = null;
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
@@ -136,7 +173,9 @@ const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
-const dockExpanded = ref(false);
+/** Shared dock height for single-select DetailPanel and multi-select summary. */
+const dockHeight = ref(DOCK_HEIGHT_COLLAPSED);
+
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
 const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
@@ -332,9 +371,7 @@ function animateToWindow(window: { startTime: number; endTime: number; scrollY: 
   });
 }
 
-function onFocusMeasure() {
-  const range = viewState.value.measureRange;
-  if (!range) return;
+function onFocusMeasure(range: MeasureRange) {
   const target = measureFocusWindow(range, bounds.value, viewState.value.scrollY);
   animateToWindow(target);
 }
@@ -361,6 +398,10 @@ function resetViewFromModel(
   viewState.value = next;
   selected.value = null;
   selectedEvent.value = null;
+  multiSelected.value = [];
+  multiSelectSpan.value = null;
+  marqueeLive.value = false;
+  dockSnap = null;
   hovered.value = null;
   closeTopologyFullscreen();
   // Operator switches keep session gutter/aside preferences; fresh loads reset them.
@@ -711,7 +752,7 @@ watch(showAside, () => {
 });
 
 onMounted(() => {
-  window.addEventListener('keydown', onGlobalKeydown);
+  window.addEventListener('keydown', onRootKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
@@ -726,18 +767,30 @@ onBeforeUnmount(() => {
   animGroupId.value = null;
   pendingCollapseTarget = null;
   stopLayoutFitObserver();
-  window.removeEventListener('keydown', onGlobalKeydown);
+  window.removeEventListener('keydown', onRootKeydown);
 });
 
-function onGlobalKeydown(e: KeyboardEvent) {
-  // Escape clears an active measure session / range first (existing M2 contract).
+/** Escape drops the measure overlay and the marquee multi-selection alike. */
+function onRootKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
+    // Live marquee preview fills `multiSelected` without a commit — do not clear it here.
+    if (!marqueeLive.value && multiSelected.value.length > 0) onSelect(null);
     return;
   }
   if (e.key === 'Escape' && topologyFullscreen.value) {
     e.preventDefault();
     closeTopologyFullscreen();
+    return;
+  }
+  // Live preview owns Escape: canvas cancels and emits `multi-select-preview(null)`,
+  // which restores the pre-drag dock. Treating preview `multiSelected` as committed
+  // would emit host `select(null)` and clear viewState before that restore.
+  if (e.key === 'Escape' && marqueeLive.value) {
+    return;
+  }
+  if (e.key === 'Escape' && multiSelected.value.length > 0) {
+    onSelect(null);
     return;
   }
   // Overlay covers the timeline (including the ~200ms leave fade while the model is still held).
@@ -811,10 +864,12 @@ watch(
 );
 
 function onSelect(ev: SwimEvent | null) {
+  multiSelected.value = [];
+  multiSelectSpan.value = null;
   if (!ev) {
     selected.value = null;
     selectedEvent.value = null;
-    viewState.value = { ...viewState.value, selectedEventId: null };
+    viewState.value = clearSelection(viewState.value);
     emit('select', null);
     return;
   }
@@ -828,8 +883,104 @@ function onSelect(ev: SwimEvent | null) {
   };
   selected.value = payload;
   selectedEvent.value = ev;
-  viewState.value = { ...viewState.value, selectedEventId: ev.id };
+  viewState.value = setSelectedEvent(viewState.value, ev.id);
   emit('select', payload);
+}
+
+function selectedPayloadFromEvent(ev: SwimEvent): SelectedEvent {
+  return {
+    id: ev.id,
+    name: ev.name,
+    startTime: ev.startTime,
+    duration: ev.duration,
+    endTime: ev.startTime + ev.duration,
+    args: ev.args,
+  };
+}
+
+function snapshotDockIfNeeded(): void {
+  if (dockSnap) return;
+  dockSnap = {
+    selected: selected.value,
+    selectedEvent: selectedEvent.value,
+    multiSelected: multiSelected.value.slice(),
+  };
+}
+
+function clearMarqueeLive(opts?: { restore?: boolean }): void {
+  if (opts?.restore && dockSnap) {
+    selected.value = dockSnap.selected;
+    selectedEvent.value = dockSnap.selectedEvent;
+    multiSelected.value = dockSnap.multiSelected;
+  }
+  dockSnap = null;
+  marqueeLive.value = false;
+}
+
+/**
+ * Live marquee coverage for the dock only. Does not touch viewState or host `select`.
+ * Any post-gate preview (including `[]`) arms `marqueeLive` for Escape. Empty mid-drag
+ * keeps the last non-empty dock content so the footer does not leave or flash blank.
+ */
+function onMultiSelectPreview(events: SwimEvent[] | null): void {
+  if (events == null) {
+    // Escape / cancel. Commit clears marqueeLive before this emit arrives.
+    if (marqueeLive.value) clearMarqueeLive({ restore: true });
+    return;
+  }
+  // Arm gesture liveness before the empty early-return so Escape stays gated
+  // even for an empty-only live rect over a committed multi dock.
+  snapshotDockIfNeeded();
+  marqueeLive.value = true;
+  if (events.length === 0) return;
+  if (events.length >= 2) {
+    selected.value = null;
+    selectedEvent.value = null;
+    multiSelected.value = events;
+    return;
+  }
+  const ev = events[0]!;
+  multiSelected.value = [];
+  selectedEvent.value = ev;
+  selected.value = selectedPayloadFromEvent(ev);
+}
+
+/**
+ * Marquee commit. Empty → clear. Exactly one event → single-select DetailPanel
+ * (same as a plain click). Two or more → multi-select summary and `select(null)`
+ * so hosts read "no single selection" while the multi dock is up (contract in
+ * ProfilingReport.spec.md Outputs). The axis Δt is cleared on commit (it only
+ * follows the live drag).
+ */
+function onMultiSelect(events: SwimEvent[]) {
+  // Discard the pre-drag snap; commit wins. Preview-null that follows is a no-op.
+  clearMarqueeLive();
+  if (events.length === 0) {
+    onSelect(null);
+    return;
+  }
+  if (events.length === 1) {
+    onSelect(events[0]!);
+    return;
+  }
+  selected.value = null;
+  selectedEvent.value = null;
+  multiSelected.value = events;
+  // multiSelectSpan is already cleared by the canvas before this emit.
+  multiSelectSpan.value = null;
+  viewState.value = setMultiSelection(
+    viewState.value,
+    events.map((e) => e.id),
+  );
+  emit('select', null);
+}
+
+/**
+ * Live marquee extent during the drag. The canvas nulls it on pointerup/Escape.
+ * The root does not replace it with a committed hull, so the axis Δt disappears after drag.
+ */
+function onMultiSelectSpan(span: MeasureRange | null) {
+  multiSelectSpan.value = span;
 }
 
 function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
@@ -1071,6 +1222,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :pin-source-model="swim"
           :collapse-anim="collapseAnim"
           :cursor="cursor"
+          :multi-select-span="multiSelectSpan"
           :show-overview-charts="showOverview"
           :overview-series="report?.overviewSeries ?? []"
           :gutter-width="gutterWidth"
@@ -1088,6 +1240,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @unpin-overview="onUnpinOverview"
           @update:gutter-metric="onGutterMetricChange"
           @select="onSelect"
+          @multi-select="onMultiSelect"
+          @multi-select-preview="onMultiSelectPreview"
+          @multi-select-span="onMultiSelectSpan"
           @hover="onHover"
           @cursor="onCursor"
           @set-playhead="onSetPlayhead"
@@ -1120,13 +1275,47 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </template>
     </ReportLayout>
 
-    <p
-      v-else
-      class="pr-error"
-      data-testid="no-timeline"
-    >
-      {{ t('noTimeline', locale) }}
-    </p>
+    <!-- Persistent dock shell: single/multi selection swap content, not the container.
+         The shared height survives mode switches so the panel does not animate from 0. -->
+    <Transition name="pr-dock">
+      <footer
+        v-if="showTimeline && (selected || multiSelected.length)"
+        class="pr-dock"
+        :class="{ 'pr-dock--live': marqueeLive }"
+        data-testid="dock"
+        :style="{ '--pr-dock-h': `${dockHeight}px` }"
+      >
+        <Transition name="pr-dock-content" mode="out-in">
+          <MultiSelectSummary
+            v-if="multiSelected.length"
+            key="multi"
+            :selected-events="multiSelected"
+            :model="swim"
+            :locale="locale"
+            :height="dockHeight"
+            @close="onSelect(null)"
+            @select-single="onSelect"
+            @update:height="dockHeight = $event"
+          />
+          <DetailPanel
+            v-else-if="selected"
+            key="single"
+            :selected="selected as SelectedEvent"
+            :time-display-mode="localTimeDisplayMode"
+            :clock-freq-m-hz="clockFreqMHz"
+            :time-origin="bounds.minTime"
+            :ns-per-px="nsPerPx"
+            :locale="locale"
+            :neighbors="dependencyNeighbors"
+            :dependency-mode="localDependencyMode"
+            :height="dockHeight"
+            @close="onSelect(null)"
+            @update:height="dockHeight = $event"
+            @update:dependency-mode="onDependencyMode"
+          />
+        </Transition>
+      </footer>
+    </Transition>
 
     <Transition
       name="pr-topo-fs"
@@ -1185,24 +1374,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </div>
     </Transition>
 
-    <Transition name="pr-dock">
-      <DetailPanel
-        v-if="selected && showTimeline"
-        :selected="selected"
-        :time-display-mode="localTimeDisplayMode"
-        :clock-freq-m-hz="clockFreqMHz"
-        :time-origin="bounds.minTime"
-        :ns-per-px="nsPerPx"
-        :locale="locale"
-        :neighbors="dependencyNeighbors"
-        :dependency-mode="localDependencyMode"
-        :expanded="dockExpanded"
-        @close="onSelect(null)"
-        @update:expanded="dockExpanded = $event"
-        @update:dependency-mode="onDependencyMode"
-      />
-    </Transition>
-
     <EventTooltip
       v-if="hovered && showTimeline"
       :event="hovered"
@@ -1239,6 +1410,85 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   padding: 6px 10px;
   color: #f88;
   flex: 0 0 auto;
+}
+
+.pr-dock {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  position: relative;
+  /* Above `.pr-main` (z-index: 1 in ReportLayout) so the full-height cursor
+     playhead (CursorTimestamp, `height: 100vh`) paints *under* the dock, not over it. */
+  z-index: 2;
+  box-sizing: border-box;
+  height: min(var(--pr-dock-h), 60vh);
+  background: var(--pr-bg-panel, #262626);
+  border-top: 1px solid #3a3a3a;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  transition: height 200ms ease;
+}
+
+.pr-dock--live {
+  /* Live preview swaps content; keep shell height stable (no expander fight). */
+  transition: none;
+}
+
+.pr-dock > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.pr-dock-content-enter-active,
+.pr-dock-content-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.pr-dock-content-enter-from,
+.pr-dock-content-leave-to {
+  opacity: 0;
+}
+
+/* Enter grows height in-flow (timeline shrinks with the visible panel — no empty
+   flex slot / black hole under a translateY-hidden full-height dock). */
+.pr-dock-enter-active {
+  transition:
+    height 200ms ease,
+    opacity 200ms ease;
+}
+
+.pr-dock-enter-from {
+  height: 0;
+  opacity: 0;
+}
+
+/* Leave slides away while absolute so flex space frees immediately (PR-E2E-013). */
+.pr-dock-leave-active {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease;
+}
+
+.pr-dock-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-dock {
+    transition: none;
+  }
+  .pr-dock-enter-active,
+  .pr-dock-leave-active,
+  .pr-dock-content-enter-active,
+  .pr-dock-content-leave-active {
+    transition: none;
+  }
 }
 
 .pr-topo-fs {

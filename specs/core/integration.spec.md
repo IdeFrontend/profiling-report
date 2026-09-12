@@ -42,20 +42,25 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-007**: `?fixture=ffn_dense&renderer=webgl` attaches WebGL, paints selected dependency curves, and search does not rebuild the cached graph.
 1. **PR-E2E-008**: Active measure toggle has `aria-pressed="true"` and renders the `measure` design icon as a 16px `currentColor` mask, so toggling retints the one glyph instead of swapping artwork.
 1. **PR-E2E-009**: Relevent connector curves meet their chips flush, at any name length.
-1. **PR-E2E-010**: Expanding the dock grows its columns with it.
-1. **PR-E2E-011**: `?fixture=npu160` loads the product 160-byte `.npu-rep` sample, parses it in-browser, and renders the timeline + aside with no load error.
+1. **PR-E2E-010**: Dragging the dock taller grows its columns with it.
+1. **PR-E2E-011**: Drag marquees real events into the multi-select dock; bars fill against the widest row; a Name click hands off to DetailPanel.
+1. **PR-E2E-012**: Escape cancels a marquee mid-drag and clears a committed one.
+1. **PR-E2E-013**: Closing the dock immediately frees its layout space while it slides away.
+1. **PR-E2E-014**: Opening the dock grows its layout height with the enter animation — the timeline must not shrink by a full dock height while the dock's layout height is still near zero (no black hole under a translateY-hidden full-height slot).
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-09-12** — PR-E2E-014: dock enter must not reserve a full-height flex slot while still visually empty (black-hole regression vs master).
 - **2026-09-07** — PR-UI-015: different-group toggle mid-tween commits the in-flight collapse target before starting the new tween.
 - **2026-09-07** — PR-UI-014: mid-tween re-click on the same folder reverses from the current `visible`.
 - **2026-09-04** — PR-UI-013: collapse/expand tween keeps the display model identity stable (no per-frame `filterCollapsedTree` / WebGL mesh rebuild).
 - **2026-09-03** — PR-UI-012: metrics-only report (no `trace.json`) renders the aside without a timeline instead of a hard error.
 - **2026-09-03** — PR-E2E-011: product 160-byte `npu-rep` sample (`?fixture=npu160`) renders in the playground via in-browser `parseNpuRep160`.
 - **2026-09-01** — PR-E2E-008 now checks the `PrIcon` mask and its per-state tint. The HDesign asset replaced the hand-drawn glyph, so the arrowhead `fill="none"` assertion had nothing to bind to and PR-TOOLBAR-007c was withdrawn with it.
+- **2026-08-25** — PR-E2E-011/012: marquee multi-select in Chromium. Only a real browser has the gutter resize handle overlapping the canvas's left edge and a layout engine that sizes the inline bars, so jsdom cannot catch either.
 - **2026-08-20** — PR-E2E-008 structural (no pixel crop diff); defers icon geometry to PR-TOOLBAR-007c.
 - **2026-08-20** — PR-E2E-009: chip-to-curve join measured in a real layout engine. Chips are content-sized in jsdom too, so only a browser can catch a short name sitting ~28px short of its connector.
 - **2026-08-19** — PR-E2E-007: Chromium WebGL dependency curves (`ffn_dense`).

@@ -12,7 +12,7 @@ The component works in two modes. In **auto-loading mode**, provide **source** �
 
 ## Outputs
 
-Lifecycle events: **ready** fires once the report is loaded and the timeline is rendered. **select** fires with a `SelectedEvent` (id, name, startTime, duration, endTime) when the user clicks an event on the swimlane, or `null` when they click empty space. **error** fires with `{ message, cause? }` on load or parse failure. **open-hardware-details** is forwarded from StatsAside when the user clicks 更多 (aside also opens interim HardwareDetailsPanel when data exists, DATA-34a). **open-pipe-details** is forwarded when the user clicks PIPE 详情 (aside navigates to CSV details). **view-full-csv** forwards `{ fileName, text }` for 查看全部 (DATA-33d). **cannbot-request** fires when a section cannbot icon is clicked, with the `CannbotPayload` assembled from the current reportModel + reportMeta (version/scope/report_name/report_id/report_path/op_name/collected_at/data/prompt). **open-user-guide** forwards the guide URL from the toolbar help button (toolbar also attempts `window.open`). Aside **close** is handled internally (`asideVisible = false`); it is not a root emit. The component does not expose internal view state — viewport, hover, and cursor are managed internally.
+Lifecycle events: **ready** fires once the report is loaded and the timeline is rendered. **select** tracks the **single** selection: it fires with a `SelectedEvent` (id, name, startTime, duration, endTime) when the user clicks an event on the swimlane (or a marquee that covers exactly one event), and with `null` whenever the single selection is dismissed — an empty-space click, a cleared marquee (empty commit / Escape / dock close), or a **multi-event** marquee commit that replaces it with a multi-selection. In that last case `select(null)` arrives while the (internal) multi-select dock is active, so hosts read it as "no single selection", not "nothing is selected". The marquee's `multi-select` / `multi-select-span` are internal child→root emits, not part of the host surface ([public-api](../../../specs/architecture/public-api.spec.md)). **error** fires with `{ message, cause? }` on load or parse failure. **open-hardware-details** is forwarded from StatsAside when the user clicks 更多 (aside also opens interim HardwareDetailsPanel when data exists, DATA-34a). **open-pipe-details** is forwarded when the user clicks PIPE 详情 (aside navigates to CSV details). **view-full-csv** forwards `{ fileName, text }` for 查看全部 (DATA-33d). **cannbot-request** fires when a section cannbot icon is clicked, with the `CannbotPayload` assembled from the current reportModel + reportMeta (version/scope/report_name/report_id/report_path/op_name/collected_at/data/prompt). **open-user-guide** forwards the guide URL from the toolbar help button (toolbar also attempts `window.open`). Aside **close** is handled internally (`asideVisible = false`); it is not a root emit. The component does not expose internal view state — viewport, hover, and cursor are managed internally.
 
 ## Interaction flows
 
@@ -45,7 +45,7 @@ sequenceDiagram
 
 Ctrl+wheel zooms around cursor position. Toolbar buttons zoom around viewport center. Zoom-to-fit eases both view edges to the full trace span (same animation as Δt measure focus). All zoom operations are clamped to timeline bounds. The toolbar `zoomPercent` slider shares the same range: 0 = fit, 100 = `MIN_WINDOW` (same floor as `zoomAt` / Ctrl+wheel), not a hard 100× cap.
 
-### Drag-pan
+### Wheel-pan
 
 ```mermaid
 sequenceDiagram
@@ -54,8 +54,7 @@ sequenceDiagram
     participant Root as ProfilingReport
     participant State as viewState
 
-    User->>Canvas: pointerdown
-    User->>Canvas: pointermove (while dragging)
+    User->>Canvas: Shift+wheel / trackpad deltaX
     Canvas->>Root: emit('pan', deltaTime)
     Root->>State: panBy(view, deltaTime, bounds)
     State-->>Root: new SwimlaneViewWindow
@@ -63,7 +62,7 @@ sequenceDiagram
     Root->>TimeOverviewBar: update startTime/endTime
 ```
 
-Drag-to-pan emits delta time continuously on every pointermove. Pan is clamped to timeline bounds. A 4px threshold on pointer-up suppresses the click-to-select when movement exceeded 4px.
+Time panning is **Shift+wheel** or a two-finger horizontal trackpad scroll — an unmodified drag marquees instead (see [MultiSelectSummary](../MultiSelectSummary/MultiSelectSummary.spec.md)). Pan is clamped to timeline bounds. A 4px threshold on pointer-up still separates click-to-select from a marquee drag.
 
 ### Hover, selection, tooltip
 
@@ -87,7 +86,7 @@ sequenceDiagram
     Root->>Root: clear hover, hide tooltip
 ```
 
-Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear. A 4px threshold on pointer-up gates selection: movement >4px between pointerdown and pointerup suppresses the click-to-select. Pan emits continuously on every move while dragging.
+Hover is transient: tooltip follows the cursor. Selection is persistent: detail strip shows until user clicks empty space. Clicking empty space emits `select(null)` — tooltip, selection, and detail strip all clear. A 4px threshold on pointer-up gates selection: movement >4px between pointerdown and pointerup starts a marquee instead, so that press never selects.
 
 ### Search
 
@@ -142,7 +141,11 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside availability.** `asideAvailable` is true when duration, I/O bandwidth cards (DATA-33g), PIPE, CSV tables, roofline, hardware details, or labelled topology exist. Name/type alone do not open the aside. Missing `bandwidthCards` on a host-managed model is treated as empty.
 
-**State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection, hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
+**State ownership.** ProfilingReport owns a single `SwimlaneViewState` object holding viewport bounds, selection (single and marquee), hover, search, playhead, and aside visibility. Children receive state as read-only props and emit events upward. All mutations create new object references to trigger Vue reactivity.
+
+**Selection and the docks.** Single-select and marquee multi-select are mutually exclusive and drive mutually exclusive docks: `multiSelectedIds` non-empty mounts [MultiSelectSummary](../MultiSelectSummary/MultiSelectSummary.spec.md), else a `selectedEventId` mounts DetailPanel, else neither. The exclusivity itself lives in [view-state](../../../specs/core/view-state.spec.md) (`setSelectedEvent` / `setMultiSelection` / `clearSelection`), so the root just routes: canvas `multi-select` with **two or more** events sets the marquee dock; a **one-event** commit is demoted through the single-select path (DetailPanel) — same as a plain click; an **empty** commit clears both. The dock's `select-single` and `close` and an empty-space click and **Escape** go back through the single-select path. A multi-event marquee commit emits `select(null)` because the single selection was dismissed in favor of the multi-selection — so `select(null)` means "no single selection", and a host must not infer from it that nothing is selected (see Outputs).
+
+**Live marquee dock preview.** While the canvas emits `multi-select-preview` (after the 4px gate), the root drives the dock UI from that list without calling `setMultiSelection` / host `select` on every move: **≥2** → MultiSelectSummary, **1** → DetailPanel, **empty mid-drag** → keep the last non-empty dock content for this gesture. **Gesture liveness** (`marqueeLive`) arms on any post-gate preview including `[]` so Escape is gated even for an empty-only rect over a committed multi dock; the footer still mounts only from `selected` / `multiSelected` (empty-only does not open a blank dock). On commit (`multi-select`) the existing empty / 1 / ≥2 rules apply once. Escape mid-drag: while `marqueeLive`, root does not `onSelect(null)`; the canvas cancels and emits `preview(null)`, which restores the pre-drag dock snapshot — no host `select`. Mode switches fade **content only** (`pr-dock-content` out-in, opacity ~180ms) inside the persistent `<footer class="pr-dock">`; the shell height stays `--pr-dock-h` (no height animation on single↔multi swap). Outer `pr-dock` Transition is only for true none↔some (open/close). **Enter** height-tweens from `0` so the timeline shrinks with the visible panel (no empty flex slot / black hole). **Leave** takes the dock `position: absolute` and slides it away so flex space frees immediately while the panel is still on screen. The root also owns the Δt span the axis draws for a multi-selection — the live marquee extent during the drag; the canvas clears it on commit so the axis Δt disappears when the rect commits. Both docks share the one session-only `dockHeight` inside that persistent footer.
 
 **Swim model identity (PR-ROOT-012).** The loaded/host `swimlaneModel` is held and consumed shallow (not deep-proxied) so collapse/expand, dependency walks, and gutter stay fast on large traces. Host-managed callers must **replace the `swimlaneModel` reference** to refresh — in-place nested `event` / `thread` mutations do not invalidate the display tree. Emitted `SwimEvent` payloads and pin/body canvas models share the same raw object identity.
 
@@ -176,12 +179,17 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 4. **PR-ROOT-004** — Auto-loaded sources apply the adapter's capabilities; the prop overrides them; host-managed models and a removed `source` publish none and clear operator state (no stale OP selector).
 5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models and capabilities; re-select is a no-op; closing the aside then switching operator keeps the aside closed; a manually resized aside keeps its preferred width across operator switches (does not reset to 480).
 6. **PR-ROOT-006** — *WITHDRAWN (2026-09-01)* — the corner wash moved to the toolbar strip, which now owns it; at the root it was occluded by `.pr-main`.
-7. **PR-ROOT-008** — cannbot-request emits assembled payload with reportMeta.
-8. **PR-ROOT-009** — Topology 全屏 covers `.pr-root`; Back closes; layout stays mounted; no spurious no-timeline; report change closes overlay.
-9. **PR-ROOT-010** — Overlay right-click stays fullscreen and does not open memory CSV.
-10. **PR-ROOT-011** — Overlay dialog: Escape closes; WASD idle.
-11. **PR-ROOT-012** — Host/deep-reactive `swimlaneModel` is consumed raw (shallow): collapse, deps, and gutter do not walk Proxies; in-place nested mutations do not invalidate the display tree — replace the prop reference to refresh.
-12. **PR-ROOT-013** — Topology fullscreen show/hide uses a 200ms opacity + scale `Transition` (`pr-topo-fs`); `prefers-reduced-motion: reduce` drops the transition. Closing keeps the model until leave finishes; WASD stay idle while the leave panel is still mounted; leave uses `pointer-events: none` so clicks reach the report; a mid-leave reopen does not clear the new model.
+7. **PR-ROOT-007** — Marquee of two or more events mounts MultiSelectSummary; `select-single` / Escape / an empty commit swap back. A one-event marquee commit demotes to single-select DetailPanel (no multi-select summary).
+8. **PR-ROOT-008** — cannbot-request emits assembled payload with reportMeta.
+9. **PR-ROOT-009** — Topology 全屏 covers `.pr-root`; Back closes; layout stays mounted; no spurious no-timeline; report change closes overlay.
+10. **PR-ROOT-010** — Overlay right-click stays fullscreen and does not open memory CSV.
+11. **PR-ROOT-011** — Overlay dialog: Escape closes; WASD idle.
+12. **PR-ROOT-012** — Host/deep-reactive `swimlaneModel` is consumed raw (shallow): collapse, deps, and gutter do not walk Proxies; in-place nested mutations do not invalidate the display tree — replace the prop reference to refresh.
+13. **PR-ROOT-013** — Topology fullscreen show/hide uses a 200ms opacity + scale `Transition` (`pr-topo-fs`); `prefers-reduced-motion: reduce` drops the transition. Closing keeps the model until leave finishes; WASD stay idle while the leave panel is still mounted; leave uses `pointer-events: none` so clicks reach the report; a mid-leave reopen does not clear the new model.
+14. **PR-ROOT-014** — The dock stacks above the timeline (`.pr-dock` `z-index` > `.pr-main`'s 1) so the full-height cursor playhead paints *under* the dock, not over it.
+15. **PR-ROOT-015** — Dock enter uses `height: 0` (no `translateY`) so the timeline shrinks with the visible panel; leave keeps `position: absolute` + `translateY` slide so flex space frees immediately while the panel is still on screen.
+16. **PR-ROOT-016** — Live `multi-select-preview` drives the dock (≥2 → MultiSelectSummary, 1 → DetailPanel) without host `select` / viewState commit; any post-gate preview (including `[]`) arms gesture liveness for Escape without mounting a blank footer on empty-only; empty mid-drag keeps the last non-empty dock content; Escape mid-drag does not treat preview or committed `multiSelected` as clearable while the gesture is live; canvas `preview(null)` restores the pre-drag dock; commit applies once on `multi-select`.
+17. **PR-ROOT-017** — Single↔multi swaps fade content only (`pr-dock-content` out-in opacity) inside the persistent footer; shell height stays `--pr-dock-h` (no height animation on mode swap).
 
 ## Edge Cases
 
@@ -213,6 +221,10 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-09-12** — Live marquee dock preview + content out-in fade (PR-ROOT-016 / PR-ROOT-017); host `select` only on commit; Escape gated while `marqueeLive`.
+- **2026-09-12** — A one-event marquee commit demotes to single-select DetailPanel (PR-ROOT-007); multi-select summary requires two or more events.
+- **2026-09-12** — Dock enter height-tweens from 0 (no empty flex slot / black hole); leave stays absolute + slide (PR-ROOT-015).
+- **2026-09-11** — The dock stacks above `.pr-main` (`z-index: 2`) so the full-height cursor playhead paints under it (PR-ROOT-014).
 - **2026-09-09** — Topology fullscreen leave: `pointer-events: none`, WASD idle while model held, after-leave clears only when still closed; PR-ROOT-013 exercises Back→reopen (PR-ROOT-013).
 - **2026-09-08** — Topology fullscreen show/hide animates over 200ms (`pr-topo-fs` opacity + scale; PR-ROOT-013).
 - **2026-09-08** — Swim model is shallow (PR-ROOT-012): host must replace `swimlaneModel` (not mutate nested events in place) to refresh; `toRaw` at the swim source keeps collapse/deps/gutter off Proxies.
@@ -223,7 +235,10 @@ DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 - **2026-09-03** — Operator switch preserves `asideVisible` and session gutter/aside widths (closing or resizing the sidebar then changing OP no longer reopens it or snaps width back to 480; PR-ROOT-005).
 - **2026-09-02** — Added `timeDisplayMode` host prop (`'time' | 'cycles'`); CPU-clocks mode derived from OpBasicInfo freq per UI-40 / UI-45.
 - **2026-08-27** — **Breaking:** removed `timeUnit` host prop; wall-time labels auto-scale (`TimeScaleUnit`) from viewport span and overview density per UI-40.
+- **2026-08-27** — `select` contract restated: `null` means "no single selection" and also fires on a non-empty marquee commit; `multi-select` / `multi-select-span` documented as internal emits.
 - **2026-08-26** — reportMeta prop + cannbot-request payload emit (PR-ROOT-008).
+- **2026-08-26** — Gesture flip per Product: drag marquees instead of panning (pan is Shift+wheel / trackpad horizontal), and the root owns the multi-select Δt span (live extent → committed hull).
+- **2026-08-25** — Owns the marquee multi-selection: mutually exclusive docks, Escape clears it, empty commit = clear; PR-ROOT-007.
 - **2026-08-20** — Top-left 208×60 blue fade corner wash (PR-ROOT-006).
 - **2026-08-20** — Multi-operator npu-rep packs: OP selector + operator switch (PR-ROOT-005).
 - **2026-09-01** — The dock's height becomes a boolean: the root holds `dockExpanded` rather than a pixel height, and wraps the dock in a `Transition` so appearing and disappearing animate on the same curve as the expander.

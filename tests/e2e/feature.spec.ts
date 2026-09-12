@@ -102,7 +102,7 @@ test.describe('PR-E2E feature paths', () => {
     await page.goto('/');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
     await expect(page.getByTestId('profiling-report')).toBeVisible();
-    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('swimlane').first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
     await expect(page.getByTestId('pipe-occupancy')).toBeVisible();
     // sample.lite.rep embeds Sampling.json (CUBE/VECTOR) → overview tracks (DATA-39).
@@ -113,7 +113,7 @@ test.describe('PR-E2E feature paths', () => {
   test('PR-E2E-011: playground loads the product 160-byte npu-rep sample (in-browser parse)', async ({ page }) => {
     await page.goto('/?fixture=npu160');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
-    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('swimlane').first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('swimlane-canvas')).toBeVisible();
     await expect(page.getByTestId('pipe-occupancy')).toBeVisible();
     await expect(page.getByTestId('stats-summary')).toBeVisible();
@@ -156,7 +156,7 @@ test.describe('PR-E2E feature paths', () => {
   test('PR-E2E-005: standalone Chrome Trace hides aside (PROC-3)', async ({ page }) => {
     await page.goto('/?fixture=ffn_dense');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
-    await expect(page.getByTestId('swimlane')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('swimlane').first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('pipe-occupancy')).toHaveCount(0);
     await expect(page.getByTestId('stats-summary')).toHaveCount(0);
     // Trace-only still shows task/util gutter bars from events (no pipe CSV).
@@ -191,7 +191,7 @@ test.describe('PR-E2E feature paths', () => {
 
     await page.goto('/?fixture=ffn_dense&renderer=webgl');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
-    const swim = page.getByTestId('swimlane');
+    const swim = page.getByTestId('swimlane').first();
     await expect(swim).toBeVisible({ timeout: 15_000 });
     await expect(swim).toHaveAttribute('data-renderer', 'webgl');
 
@@ -339,7 +339,7 @@ test.describe('PR-E2E feature paths', () => {
 
     const heights = async () =>
       page.evaluate(() =>
-        ['.pr-detail-panel', '.pr-detail-panel__body', '.pr-detail-summary'].map(
+        ['.pr-dock', '.pr-detail-panel__body', '.pr-detail-summary'].map(
           (sel) => document.querySelector(sel)!.getBoundingClientRect().height,
         ),
       );
@@ -358,5 +358,202 @@ test.describe('PR-E2E feature paths', () => {
     expect(body1).toBeGreaterThan(body0 + 100);
     expect(dock1 - body1).toBeCloseTo(dock0 - body0, 0);
     expect(card1).toBeGreaterThan(body1 - 40);
+  });
+
+  test('PR-E2E-011: drag marquees real events into the multi-select dock', async ({
+    page,
+  }) => {
+    // Real pointer + layout: jsdom fakes both, so only Chromium proves the rect the user
+    // drags matches the blocks the renderer actually painted.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+
+    await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
+    await page.mouse.down();
+    // Mid-drag the rect must be visible; the tooltip must not.
+    await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
+    await expect(page.getByTestId('marquee-rect')).toBeVisible();
+    await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
+    // Live dock follows coverage before commit (≥2 events → summary).
+    await expect(page.getByTestId('dock')).toBeVisible();
+    await expect(page.getByTestId('multi-select-summary')).toBeVisible();
+    // Δt chrome tracks the live rect (measure parity), with measure mode off.
+    await expect(page.getByTestId('measure-arrow')).toBeVisible();
+    await page.mouse.up();
+
+    const dock = page.getByTestId('multi-select-summary');
+    await expect(dock).toBeVisible();
+    await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
+    // Δt is cleared on commit; only the live drag showed the measure chrome.
+    await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
+    // The shared dock shell shows multi-select content; single-select DetailPanel is hidden.
+    await expect(page.getByTestId('detail-panel')).toHaveCount(0);
+
+    const rows = page.locator('[data-testid^="multi-select-row-"]');
+    const count = await rows.count();
+    expect(count).toBeGreaterThan(0);
+    await expect(page.getByTestId('multi-select-tab')).toHaveText(`Slices (${count})`);
+
+    // Bars are laid out by the real engine: the longest row fills its track.
+    const widths = await page.evaluate(() =>
+      [...document.querySelectorAll('.pr-multi-select__bar-fill')].map((el) => {
+        const fill = el.getBoundingClientRect().width;
+        const track = el.parentElement!.getBoundingClientRect().width;
+        return track > 0 ? fill / track : -1;
+      }),
+    );
+    expect(widths.length).toBeGreaterThan(0);
+    expect(Math.max(...widths)).toBeCloseTo(1, 1);
+    for (const w of widths) expect(w).toBeGreaterThanOrEqual(0);
+
+    // Name click hands off to single-select.
+    await page.locator('.pr-multi-select__name').first().click();
+    await expect(page.getByTestId('detail-panel')).toBeVisible();
+    await expect(dock).toHaveCount(0);
+  });
+
+  test('PR-E2E-013: closing the dock frees the swimlane while the dock slides away', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+
+    await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
+    await page.mouse.up();
+    await expect(page.getByTestId('multi-select-summary')).toBeVisible();
+
+    const wrapBeforeLeave = await overlay.evaluate((canvas) =>
+      (canvas.closest('[data-testid="swimlane"]') as HTMLElement).clientHeight,
+    );
+    await page.getByTestId('multi-select-close').click();
+
+    // Vue's leave element is still mounted, but it must no longer reserve the
+    // dock's flex slot; otherwise the root background is exposed as a blank box.
+    const dock = page.getByTestId('dock');
+    await expect(dock).toHaveCSS('position', 'absolute');
+    await expect
+      .poll(() =>
+        overlay.evaluate((canvas) =>
+          (canvas.closest('[data-testid="swimlane"]') as HTMLElement).clientHeight,
+        ),
+      )
+      .toBeGreaterThan(wrapBeforeLeave + 100);
+    await expect(dock).toHaveCount(0);
+    await expect(overlay).toBeVisible();
+  });
+
+  test('PR-E2E-014: dock enter grows layout height with the timeline (no black-hole slot)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+    const topPad = await overviewTopPad(page);
+
+    // Slow the enter so a mid-flight sample is reliable; leave absolute slide unchanged.
+    await page.addStyleTag({
+      content: `
+        .pr-dock-enter-active {
+          transition: height 2000ms linear !important, opacity 2000ms linear !important;
+        }
+      `,
+    });
+
+    const swimBefore = await overlay.evaluate(
+      (canvas) => (canvas.closest('[data-testid="swimlane"]') as HTMLElement).clientHeight,
+    );
+
+    await page.mouse.click(
+      box.x + 106,
+      box.y + topPad + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2,
+    );
+    const dock = page.getByTestId('dock');
+    await expect(dock).toBeVisible();
+
+    // Sample while height is still climbing — must not already reserve the full dock.
+    await expect
+      .poll(async () => {
+        const sample = await page.evaluate(() => {
+          const d = document.querySelector('[data-testid="dock"]') as HTMLElement | null;
+          const s = document.querySelector('[data-testid="swimlane"]') as HTMLElement | null;
+          if (!d || !s) return null;
+          return { dockH: d.getBoundingClientRect().height, swimH: s.clientHeight };
+        });
+        return sample;
+      })
+      .not.toBeNull();
+
+    const mid = await page.evaluate(() => {
+      const d = document.querySelector('[data-testid="dock"]') as HTMLElement;
+      const s = document.querySelector('[data-testid="swimlane"]') as HTMLElement;
+      return { dockH: d.getBoundingClientRect().height, swimH: s.clientHeight };
+    });
+
+    // Catch the regression: full-height reserved slot + translateY left swim shrunk by
+    // ~DOCK_HEIGHT while dock layout height was already final. Mid-enter must couple them.
+    expect(mid.dockH).toBeLessThan(DOCK_HEIGHT_COLLAPSED * 0.6);
+    expect(swimBefore - mid.swimH).toBeLessThan(DOCK_HEIGHT_COLLAPSED * 0.6 + 40);
+    // Layout shrink tracks the dock's current layout height (not a pre-claimed full slot).
+    expect(Math.abs(swimBefore - mid.swimH - mid.dockH)).toBeLessThan(48);
+
+    await expect
+      .poll(async () => (await dock.boundingBox())?.height ?? 0, { timeout: 3000 })
+      .toBe(DOCK_HEIGHT_COLLAPSED);
+  });
+
+  test('PR-E2E-012: Escape cancels a marquee mid-drag and clears a committed one', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=deps');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = (await overlay.boundingBox())!;
+    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+
+    // Seed a single selection so Escape mid-drag must restore DetailPanel.
+    await page.mouse.click(box.x + 40, laneY);
+    await expect(page.getByTestId('detail-panel')).toBeVisible();
+
+    const marquee = async () => {
+      await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
+    };
+
+    // Cancelled mid-drag: live summary appears, Escape restores prior DetailPanel.
+    await marquee();
+    await expect(page.getByTestId('multi-select-summary')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
+    await page.mouse.up();
+    await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
+    await expect(page.getByTestId('detail-panel')).toBeVisible();
+    await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
+
+    // Committed, then cleared by Escape — the axis Δt goes with it.
+    await marquee();
+    await page.mouse.up();
+    await expect(page.getByTestId('multi-select-summary')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
+    await expect(page.getByTestId('detail-panel')).toHaveCount(0);
+    await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
   });
 });

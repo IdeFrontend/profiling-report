@@ -72,6 +72,19 @@ interface EmphasisLayer {
   chunks: MeshChunk[];
 }
 
+/** Composite an opaque ClearType label backdrop with the same additive dim as its event fill. */
+export function compositeLabelBackdrop(
+  background: [number, number, number],
+  fill: [number, number, number],
+  dim: number,
+): [number, number, number] {
+  return [
+    Math.min(1, background[0] + fill[0] * dim),
+    Math.min(1, background[1] + fill[1] * dim),
+    Math.min(1, background[2] + fill[2] * dim),
+  ];
+}
+
 interface CurveProgram {
   program: WebGLProgram;
   uResolution: WebGLUniformLocation;
@@ -421,11 +434,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private timeBase = 0;
   private searchQuery = '';
   private selectedId: string | null = null;
+  private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private paintDependencies = true;
   private neighborIds = new Set<string>();
+  private multiIds = new Set<string>();
   private depLinks: DependencyLink[] = [];
   private width = 0;
   private height = 0;
@@ -517,8 +532,17 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.view = { ...view };
   }
 
-  setSelection(selectedId: string | null, _hoveredId: string | null): void {
-    if (selectedId === this.selectedId) return;
+  setSelection(selectedId: string | null, hoveredId: string | null): void {
+    const selectionChanged = selectedId !== this.selectedId;
+    const hoverChanged = hoveredId !== this.hoveredId;
+    if (!selectionChanged && !hoverChanged) return;
+    this.hoveredId = hoveredId;
+    if (!selectionChanged) {
+      // Emphasis buckets include the hovered event while a selection is active; labels read it
+      // live during render, so the buckets must refresh too.
+      if (this.selectedId || this.multiIds.size > 0) this.rebuildEmphasisSplit();
+      return;
+    }
     this.selectedId = selectedId;
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
@@ -560,6 +584,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
     this.rebuildCurveInstances();
+  }
+
+  setMultiSelection(ids: string[]): void {
+    if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
+    this.multiIds = new Set(ids);
+    this.rebuildEmphasisSplit();
   }
 
   contentHeight(): number {
@@ -800,6 +830,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
     this.neighborIds = new Set();
+    this.multiIds = new Set();
     this.depLinks = [];
   }
 
@@ -817,6 +848,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
+    const hasMulti = this.multiIds.size > 0;
     const bright = this.neighborIds;
     // Lane backgrounds — the event fill composites over these, not the clear color. The
     // hovered row's chrome is `LANE_HOVER_FILL`, so its label backdrop must match that too.
@@ -854,7 +886,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const r = eventPaintRect(x, y, w, h, dpr);
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
       if (!matches) continue;
-      const { muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
+      const { muted } = eventEmphasis(
+        matches,
+        bright.has(item.id) || this.multiIds.has(item.id) || item.id === this.hoveredId,
+        hasSearch,
+        hasSelection || hasMulti,
+      );
       const anchor = eventLabelAnchor(r.x, r.w, devW);
       if (!anchor) continue;
       const glyph = atlas.get(gl, ev.name, fontPx, anchor.maxWidth);
@@ -867,12 +904,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       // label's solid backdrop must use that same formula (clamped) to sit invisibly on the fill.
       // `bg` is the hovered row's chrome when this event's lane is the hovered row; a muted
       // (non-selected, non-neighbor) event swaps in `SELECTION_MUTED_FILL`/`SELECTION_MUTED_LABEL`.
-      const [lr, lg, lb] = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
+      const fill = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
-      const fr = Math.min(1, bg[0] + lr);
-      const fg = Math.min(1, bg[1] + lg);
-      const fb = Math.min(1, bg[2] + lb);
-      gl.uniform4f(prog.uBgColor, fr, fg, fb, labelAlpha);
+      const [fr, fg, fb] = compositeLabelBackdrop(bg, fill, 1);
+      gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
       if (muted) {
         const [mr, mg, mb] = hexToRgb(SELECTION_MUTED_LABEL);
         gl.uniform4f(prog.uColor, mr, mg, mb, labelAlpha);
@@ -991,12 +1026,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.disposeEmphasisSplit();
     const q = this.searchQuery;
     const sel = this.selectedId;
-    if (!gl || (!q && !sel)) return;
+    const multi = this.multiIds;
+    if (!gl || (!q && !sel && multi.size === 0)) return;
 
     const hasSearch = q.length > 0;
     const hasSelection = sel != null;
+    const hasMulti = multi.size > 0;
     const bright = this.neighborIds;
-    const mutedRgb = hexToRgb(SELECTION_MUTED_FILL);
     const byLane = new Map<number, Map<number, LaidOutEvent[]>>();
     for (const ev of this.layout.events) {
       let byRow = byLane.get(ev.laneIndex);
@@ -1020,16 +1056,21 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         for (const item of events) {
           if (item.summary) continue;
           const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
-          const { alpha, muted } = eventEmphasis(matches, bright.has(item.id), hasSearch, hasSelection);
-          const rgb = muted ? mutedRgb : meshes.color;
+          const { alpha, muted } = eventEmphasis(
+            matches,
+            bright.has(item.id) || multi.has(item.id) || item.id === this.hoveredId,
+            hasSearch,
+            hasSelection || hasMulti,
+          );
+          const fill = muted ? SELECTION_MUTED_FILL : item.color;
           const key = `${muted ? 1 : 0}|${alpha}`;
-          let bucket = byKey.get(key);
-          if (!bucket) {
-            bucket = { rgb, dim: alpha, pairs: [] };
-            byKey.set(key, bucket);
+          let entry = byKey.get(key);
+          if (!entry) {
+            entry = { rgb: hexToRgb(fill), dim: alpha, pairs: [] };
+            byKey.set(key, entry);
           }
           const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-          bucket.pairs.push(a, b);
+          entry.pairs.push(a, b);
         }
         // Dimmer layers first so full-bright selection/matches paint on top. Rows with only
         // summary bars keep the base mesh full-bright.

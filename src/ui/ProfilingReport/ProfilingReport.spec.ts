@@ -76,6 +76,29 @@ describe('ProfilingReport scaffold', () => {
     expect(src).not.toMatch(/pr-root__corner-wash/);
   });
 
+  it('PR-ROOT-014: the dock stacks above the timeline so the cursor playhead cannot paint over it', async () => {
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    // `.pr-main` (ReportLayout) is `z-index: 1`; the dock must sit above it or the
+    // full-height cursor stem (CursorTimestamp, `height: 100vh`) paints over the dock.
+    expect(src).toMatch(/\.pr-dock\s*\{[^}]*z-index:\s*[2-9]/);
+  });
+
+  it('PR-ROOT-015: dock enter height-tweens; leave stays absolute + translateY', async () => {
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    // Enter must not reserve a full-height slot while painted off-screen (black hole).
+    expect(src).toMatch(/\.pr-dock-enter-active\s*\{[^}]*height\s+200ms/s);
+    expect(src).toMatch(/\.pr-dock-enter-from\s*\{[^}]*height:\s*0/s);
+    expect(src).not.toMatch(/\.pr-dock-enter-from\s*\{[^}]*translateY/s);
+    // Shared enter-from+leave-to translateY was the black-hole bug — must stay split.
+    expect(src).not.toMatch(
+      /\.pr-dock-enter-from\s*,\s*\.pr-dock-leave-to\s*\{[^}]*translateY/s,
+    );
+    // Leave keeps the intentional absolute slide so the swimlane grows mid-leave.
+    expect(src).toMatch(/\.pr-dock-leave-active\s*\{[^}]*position:\s*absolute/s);
+    expect(src).toMatch(/\.pr-dock-leave-active\s*\{[^}]*transform\s+200ms/s);
+    expect(src).toMatch(/\.pr-dock-leave-to\s*\{[^}]*translateY\(100%\)/s);
+  });
+
   it('PR-ROOT-002: accepts pre-parsed model props', () => {
     const wrapper = mount(ProfilingReport, {
       props: {
@@ -119,6 +142,338 @@ describe('ProfilingReport scaffold', () => {
     ).toBe('true');
     expect(wrapper.find('[data-testid="detail-relevant-incoming-count"]').text()).toBe('1');
     expect(wrapper.find('[data-testid="detail-relevant-outgoing-count"]').text()).toBe('0');
+  });
+
+  it('PR-ROOT-007: marquee mounts the multi-select dock; single-select and Escape swap it back', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'multi-select',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectEventById: (id: string) => void;
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+
+    // Single-select first, so the swap out of DetailPanel is exercised.
+    vm.selectEventById('a');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+
+    // Multi-select wins: the two docks are mutually exclusive.
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (2)');
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+    expect(vm.viewState.selectedEventId).toBeNull();
+    // Axis Δt is cleared on commit (it only followed the live drag).
+    expect(timeline().props('multiSelectSpan')).toBeNull();
+    // The documented overload: a non-empty commit dismisses the single selection, so the
+    // host hears select(null) even though the multi-select dock is up.
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+
+    // Name click transitions to single-select + DetailPanel.
+    await wrapper.get('[data-testid="multi-select-name-b"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(vm.viewState.selectedEventId).toBe('b');
+    expect(timeline().props('multiSelectSpan')).toBeNull();
+
+    // Escape clears the marquee selection (and mounts neither dock).
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(timeline().props('multiSelectSpan')).toBeNull();
+
+    // Escape clears multi-select even when Shift is held; WASD guards do not apply to Escape.
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', shiftKey: true }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-007: a one-event marquee commit demotes to DetailPanel', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'multi-select-one',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const model = depsModel();
+    const only = [model.processes[0]!.threads[0]!.events[0]!];
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select', only);
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(wrapper.emitted('select')?.at(-1)?.[0]).toMatchObject({ id: 'a' });
+    expect(timeline().props('multiSelectSpan')).toBeNull();
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-007: the live marquee span reaches the axis before the commit', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'multi-select-span',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select-span', { startTime: 5, endTime: 25 });
+    await nextTick();
+    expect(timeline().props('multiSelectSpan')).toEqual({ startTime: 5, endTime: 25 });
+    // No dock yet — the rect has not committed.
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+
+    // The canvas nulls the drag span on pointerup; the root does not replace it with a hull.
+    timeline().vm.$emit('multi-select-span', null);
+    timeline().vm.$emit('multi-select', depsModel().processes[0]!.threads[0]!.events);
+    await nextTick();
+    expect(timeline().props('multiSelectSpan')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-007: an empty marquee commit clears the selection and emits select(null)', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'multi-select-empty',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectEventById: (id: string) => void;
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    vm.selectEventById('a');
+    await nextTick();
+
+    wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', []);
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(vm.viewState.selectedEventId).toBeNull();
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: live preview mounts Detail for 1 / Summary for ≥2 without host select', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectEventById: (id: string) => void;
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    vm.selectEventById('a');
+    await nextTick();
+    const selectBefore = wrapper.emitted('select')?.length ?? 0;
+
+    timeline().vm.$emit('multi-select-preview', [events[1]!]);
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+
+    // Empty mid-drag keeps the last non-empty preview (no leave flicker).
+    timeline().vm.$emit('multi-select-preview', []);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: Escape mid-drag restores the pre-drag dock without host select', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-escape',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectEventById: (id: string) => void;
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    vm.selectEventById('a');
+    await nextTick();
+    const selectBefore = wrapper.emitted('select')?.length ?? 0;
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+
+    // Real Escape hits root first (would clear committed multi). While marqueeLive,
+    // root must not onSelect(null); canvas then emits preview(null) to restore UI.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+
+    timeline().vm.$emit('multi-select-preview', null);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: empty-first preview does not mount a blank dock', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-empty-first',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select-preview', []);
+    await nextTick();
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    // Gesture is live (Escape gated) even though the footer stays closed.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.emitted('select')).toBeFalsy();
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: empty-only live marquee Escape keeps a committed multi dock', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-empty-over-multi',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+    const selectAfterCommit = wrapper.emitted('select')?.length ?? 0;
+
+    // Empty live rect over committed multi: arm Escape gate without changing dock content.
+    timeline().vm.$emit('multi-select-preview', []);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectAfterCommit);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+
+    timeline().vm.$emit('multi-select-preview', null);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectAfterCommit);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-017: mode swap keeps the dock shell mounted and defines content fade CSS', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'dock-content-fade',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select-preview', [events[0]!]);
+    await nextTick();
+    const dock = wrapper.get('[data-testid="dock"]');
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="dock"]').element).toBe(dock.element);
+
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-dock-content-enter-active[\s\S]*?opacity\s+180ms/);
+    expect(src).toMatch(/name="pr-dock-content"/);
+    expect(src).toMatch(/mode="out-in"/);
+
+    wrapper.unmount();
   });
 
   it('PR-STATS-006: aside close hides the stats panel', async () => {
