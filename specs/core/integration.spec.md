@@ -46,12 +46,14 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-011**: Drag marquees real events into the multi-select dock; bars fill against the widest row; a Name click hands off to DetailPanel.
 1. **PR-E2E-012**: Escape cancels a marquee mid-drag and clears a committed one.
 1. **PR-E2E-013**: Closing the dock immediately frees its layout space while it slides away.
+1. **PR-E2E-014**: Opening the dock grows its layout height with the enter animation — the timeline must not shrink by a full dock height while the dock's layout height is still near zero (no black hole under a translateY-hidden full-height slot).
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-09-12** — PR-E2E-014: dock enter must not reserve a full-height flex slot while still visually empty (black-hole regression vs master).
 - **2026-09-07** — PR-UI-015: different-group toggle mid-tween commits the in-flight collapse target before starting the new tween.
 - **2026-09-07** — PR-UI-014: mid-tween re-click on the same folder reverses from the current `visible`.
 - **2026-09-04** — PR-UI-013: collapse/expand tween keeps the display model identity stable (no per-frame `filterCollapsedTree` / WebGL mesh rebuild).

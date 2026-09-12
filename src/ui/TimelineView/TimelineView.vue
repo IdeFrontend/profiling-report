@@ -87,6 +87,7 @@ const emit = defineEmits<{
   'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
   'multi-select': [events: SwimEvent[]];
+  'multi-select-preview': [events: SwimEvent[] | null];
   'multi-select-span': [span: MeasureRange | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -663,6 +664,7 @@ defineExpose({
       @update:gutter-metric="emit('update:gutter-metric', $event)"
       @select="emit('select', $event)"
       @multi-select="emit('multi-select', $event)"
+      @multi-select-preview="emit('multi-select-preview', $event)"
       @multi-select-span="emit('multi-select-span', $event)"
       @hover="(ev, x, y) => emit('hover', ev, x, y)"
       @cursor="emit('cursor', $event)"
