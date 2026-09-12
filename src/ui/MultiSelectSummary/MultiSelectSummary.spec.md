@@ -4,7 +4,7 @@
 |----------------|
 | PR-MSEL-*      |
 
-The marquee multi-select summary dock. Mounted by ProfilingReport when a marquee (or Shift+click toggle set) commits a non-empty multi-selection; it is mutually exclusive with the single-select DetailPanel.
+The marquee multi-select summary dock. Mounted by ProfilingReport when a marquee (or Shift+click toggle set) commits a multi-selection of **two or more** events; a one-event commit is demoted to single-select DetailPanel. Mutually exclusive with the single-select DetailPanel.
 
 ## Inputs
 
@@ -31,5 +31,6 @@ The dock shows a header with the selection count and the "Slices" tab label, a s
 
 ## Changelog
 
+- **2026-09-12** — Dock mounts only for commits of two or more events; a one-event marquee is demoted to DetailPanel by the root.
 - **2026-08-26** — Multi-select summary dock for the marquee commit path.
 - **2026-09-11** — PR-MSEL-007 recast: the drag handle becomes the centred expander, matching DetailPanel's two-height collapse/expand; the dock's free height range becomes two fixed heights.

@@ -57,7 +57,7 @@ Sketch: [`v930/task-marquee`](./source/v930/task-marquee.jpeg)
 - **Pending press (≤4px):** visually a no-op until the gate is crossed — lane-row / gutter hover highlight and the default-mode hover-gap Δt overlay stay as they were under the pointer. Do not clear them on `pointerdown` (that flashed the header and gap arrow on every click).
 - **Live marquee (>4px):** hide lane-row hover and the hover-gap overlay; show only the blue marquee rect plus the unsnapped vertical cursor / timestamp bar that follows the pointer. Axis Δt chrome follows the marquee's time extent.
 - **Measure mode wins:** while the caliper is on, an unmodified drag creates / resizes `measureRange` and never marquees.
-- Marquee commit replaces any single selection (and vice versa); an empty rect clears both. Escape cancels mid-drag and clears a committed selection.
+- Marquee commit replaces any single selection (and vice versa); an empty rect clears both. A rect that covers **exactly one** event is treated as a normal single selection (DetailPanel), not the multi-select summary. Escape cancels mid-drag and clears a committed selection.
 - **Δt chrome:** the viewport time axis shows the same measure UI (blue edge bars + double-sided Δt arrow + duration) over the marquee's time extent while dragging. The Δt chrome is cleared on commit; the committed selection no longer draws a hull span. Same geometry as measure — not a second style.
 - Selected events keep full opacity; the rest use the same solid `#2C2C2C` mute as single-click selection.
 - Summary table: count header + per-event Slices table ([MultiSelectSummary](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md)).

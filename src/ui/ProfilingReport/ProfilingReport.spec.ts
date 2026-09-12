@@ -210,6 +210,34 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-007: a one-event marquee commit demotes to DetailPanel', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'multi-select-one',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const model = depsModel();
+    const only = [model.processes[0]!.threads[0]!.events[0]!];
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select', only);
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(wrapper.emitted('select')?.at(-1)?.[0]).toMatchObject({ id: 'a' });
+    expect(timeline().props('multiSelectSpan')).toBeNull();
+
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-007: the live marquee span reaches the axis before the commit', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {

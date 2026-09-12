@@ -864,15 +864,19 @@ function onSelect(ev: SwimEvent | null) {
 }
 
 /**
- * Marquee commit. Both branches emit `select(null)`: an empty rect clears everything,
- * a non-empty one dismisses the single selection in favor of the multi-selection — so
- * hosts read `select(null)` as "no single selection", not "nothing is selected"
- * (contract in ProfilingReport.spec.md Outputs). The axis Δt is cleared on commit
- * (it only follows the live drag).
+ * Marquee commit. Empty → clear. Exactly one event → single-select DetailPanel
+ * (same as a plain click). Two or more → multi-select summary and `select(null)`
+ * so hosts read "no single selection" while the multi dock is up (contract in
+ * ProfilingReport.spec.md Outputs). The axis Δt is cleared on commit (it only
+ * follows the live drag).
  */
 function onMultiSelect(events: SwimEvent[]) {
   if (events.length === 0) {
     onSelect(null);
+    return;
+  }
+  if (events.length === 1) {
+    onSelect(events[0]!);
     return;
   }
   selected.value = null;
