@@ -2280,6 +2280,51 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-101: live marquee emits multi-select-preview; Escape/end emit null', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    await wrapper.vm.$nextTick();
+    const preview = wrapper.emitted('multi-select-preview')!.at(-1)![0] as { id: string }[];
+    expect(preview.map((e) => e.id)).toEqual(['e1']);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.at(-1)![0]).toBeNull();
+    expect(wrapper.emitted('multi-select')).toBeFalsy();
+
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 2 });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    await wrapper.vm.$nextTick();
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
+    );
+    await wrapper.vm.$nextTick();
+    const emits = wrapper.emitted('multi-select-preview')!;
+    const multi = wrapper.emitted('multi-select')!;
+    // Commit lands before the clearing null preview.
+    expect(multi.at(-1)![0]).toEqual(expect.any(Array));
+    expect(emits.at(-1)![0]).toBeNull();
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-086: Shift+left-click on event toggles multi-selection (add)', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {

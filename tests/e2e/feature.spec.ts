@@ -379,6 +379,9 @@ test.describe('PR-E2E feature paths', () => {
     await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
     await expect(page.getByTestId('marquee-rect')).toBeVisible();
     await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
+    // Live dock follows coverage before commit (≥2 events → summary).
+    await expect(page.getByTestId('dock')).toBeVisible();
+    await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     // Δt chrome tracks the live rect (measure parity), with measure mode off.
     await expect(page.getByTestId('measure-arrow')).toBeVisible();
     await page.mouse.up();
@@ -524,19 +527,24 @@ test.describe('PR-E2E feature paths', () => {
     const box = (await overlay.boundingBox())!;
     const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
 
+    // Seed a single selection so Escape mid-drag must restore DetailPanel.
+    await page.mouse.click(box.x + 40, laneY);
+    await expect(page.getByTestId('detail-panel')).toBeVisible();
+
     const marquee = async () => {
       await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
       await page.mouse.down();
       await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
     };
 
-    // Cancelled mid-drag: nothing commits, and the release does not select either.
+    // Cancelled mid-drag: live summary appears, Escape restores prior DetailPanel.
     await marquee();
+    await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
     await page.mouse.up();
     await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
-    await expect(page.getByTestId('detail-panel')).toHaveCount(0);
+    await expect(page.getByTestId('detail-panel')).toBeVisible();
     await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
 
     // Committed, then cleared by Escape — the axis Δt goes with it.
@@ -545,6 +553,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
+    await expect(page.getByTestId('detail-panel')).toHaveCount(0);
     await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
   });
 });

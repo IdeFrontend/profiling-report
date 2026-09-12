@@ -130,6 +130,8 @@ const emit = defineEmits<{
   select: [event: SwimEvent | null];
   /** Marquee commit — every leaf event intersecting the rect. */
   'multi-select': [events: SwimEvent[]];
+  /** Live marquee coverage for the dock preview; null when the drag ends or cancels. */
+  'multi-select-preview': [events: SwimEvent[] | null];
   /** Live marquee time extent for the axis Δt chrome; null when the drag ends or cancels. */
   'multi-select-span': [span: MeasureRange | null];
   /** Shift+left-click toggled a single event in/out of multi-selection. */
@@ -943,6 +945,7 @@ function endMarquee(): void {
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
+  emitMarqueePreview(null);
 }
 
 /** Marquee time extent — the live Δt the axis chrome shows while dragging. */
@@ -955,6 +958,28 @@ function eventsInMarquee(rect: MarqueeRect): SwimEvent[] {
   return eventsIntersectingRect(backend.getLayout(), paintView(), syncTrackWidth(), rect).map(
     (item) => item.event,
   );
+}
+
+/** Same event list commit will use (plain rect, or Shift union with current selection). */
+function eventsForMarqueeCommit(rectEvents: SwimEvent[]): SwimEvent[] {
+  if (!marqueeShift) return rectEvents;
+  const ids = new Set<string>();
+  const ordered: string[] = [];
+  const addId = (id: string) => {
+    if (ids.has(id)) return;
+    ids.add(id);
+    ordered.push(id);
+  };
+  if (props.selectedEventId) addId(props.selectedEventId);
+  (props.multiSelectedIds ?? []).forEach(addId);
+  rectEvents.forEach((ev) => addId(ev.id));
+  return ordered
+    .map((id) => findAltMeasureEvent(id))
+    .filter((ev): ev is SwimEvent => ev != null);
+}
+
+function emitMarqueePreview(events: SwimEvent[] | null): void {
+  emit('multi-select-preview', events);
 }
 
 function onMarqueeDragMove(clientX: number, clientY: number): void {
@@ -982,7 +1007,8 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
   emit('multi-select-span', marqueeSpan(rect));
   // Preview the commit: covered events stay bright, the rest dim through the shared path.
   // Shift+drag previews the union so the existing selection does not flicker dim.
-  const previewIds = eventsInMarquee(rect).map((ev) => ev.id);
+  const rectEvents = eventsInMarquee(rect);
+  const previewIds = rectEvents.map((ev) => ev.id);
   if (marqueeShift) {
     const set = new Set<string>(props.multiSelectedIds ?? []);
     if (props.selectedEventId) set.add(props.selectedEventId);
@@ -991,6 +1017,7 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
   } else {
     marqueePreviewIds = previewIds;
   }
+  emitMarqueePreview(eventsForMarqueeCommit(rectEvents));
   // Keep the timestamp label following the cursor (unsnapped) while the rect is live.
   const w = syncTrackWidth();
   emit('cursor', { time: timeAtX(local.x), xRatio: local.x / w, snapped: false });
@@ -1015,6 +1042,7 @@ function onMarqueeDragEnd(): void {
   // Preview hands the dim back to `multiSelectedIds`, which the commit below sets.
   marqueePreviewIds = null;
   if (!rect) {
+    emitMarqueePreview(null);
     sync();
     return;
   }
@@ -1023,25 +1051,13 @@ function onMarqueeDragEnd(): void {
   // The root clears the live drag span on commit; the committed hull is no longer drawn.
   emit('multi-select-span', null);
   emit('cursor', null);
+  // Commit before clearing preview so root can discard the snap without restoring.
   if (marqueeShift) {
-    // Shift+drag unions the new rectangle with the existing selection (single + multi).
-    const ids = new Set<string>();
-    const ordered: string[] = [];
-    const addId = (id: string) => {
-      if (ids.has(id)) return;
-      ids.add(id);
-      ordered.push(id);
-    };
-    if (props.selectedEventId) addId(props.selectedEventId);
-    (props.multiSelectedIds ?? []).forEach(addId);
-    events.forEach((ev) => addId(ev.id));
-    const unioned = ordered
-      .map((id) => findAltMeasureEvent(id))
-      .filter((ev): ev is SwimEvent => ev != null);
-    emit('multi-select', unioned);
+    emit('multi-select', eventsForMarqueeCommit(events));
   } else {
     emit('multi-select', events);
   }
+  emitMarqueePreview(null);
   marqueeShift = false;
 }
 
@@ -1077,6 +1093,7 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
+  emitMarqueePreview(null);
   emit('cursor', null);
   sync();
 }

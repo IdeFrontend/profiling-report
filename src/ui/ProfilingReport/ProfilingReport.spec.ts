@@ -288,6 +288,124 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-016: live preview mounts Detail for 1 / Summary for ≥2 without host select', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectEventById: (id: string) => void;
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    vm.selectEventById('a');
+    await nextTick();
+    const selectBefore = wrapper.emitted('select')?.length ?? 0;
+
+    timeline().vm.$emit('multi-select-preview', [events[1]!]);
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+
+    // Empty mid-drag keeps the last non-empty preview (no leave flicker).
+    timeline().vm.$emit('multi-select-preview', []);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: Escape mid-drag restores the pre-drag dock without host select', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-escape',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectEventById: (id: string) => void;
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    vm.selectEventById('a');
+    await nextTick();
+    const selectBefore = wrapper.emitted('select')?.length ?? 0;
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+
+    timeline().vm.$emit('multi-select-preview', null);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-017: mode swap keeps the dock shell mounted and defines content fade CSS', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'dock-content-fade',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select-preview', [events[0]!]);
+    await nextTick();
+    const dock = wrapper.get('[data-testid="dock"]');
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="dock"]').element).toBe(dock.element);
+
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-dock-content-enter-active[\s\S]*?opacity\s+180ms/);
+    expect(src).toMatch(/name="pr-dock-content"/);
+    expect(src).toMatch(/mode="out-in"/);
+
+    wrapper.unmount();
+  });
+
   it('PR-STATS-006: aside close hides the stats panel', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
