@@ -221,7 +221,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
-- **2026-09-12** — Live marquee dock preview + content cross-fade (PR-ROOT-016 / PR-ROOT-017); host `select` only on commit.
+- **2026-09-12** — Live marquee dock preview + content out-in fade (PR-ROOT-016 / PR-ROOT-017); host `select` only on commit; Escape gated while `marqueeLive`.
 - **2026-09-12** — A one-event marquee commit demotes to single-select DetailPanel (PR-ROOT-007); multi-select summary requires two or more events.
 - **2026-09-12** — Dock enter height-tweens from 0 (no empty flex slot / black hole); leave stays absolute + slide (PR-ROOT-015).
 - **2026-09-11** — The dock stacks above `.pr-main` (`z-index: 2`) so the full-height cursor playhead paints under it (PR-ROOT-014).
