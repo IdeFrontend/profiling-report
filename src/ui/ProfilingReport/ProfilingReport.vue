@@ -771,12 +771,19 @@ onBeforeUnmount(() => {
 function onRootKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
-    if (multiSelected.value.length > 0) onSelect(null);
+    // Live marquee preview fills `multiSelected` without a commit — do not clear it here.
+    if (!marqueeLive.value && multiSelected.value.length > 0) onSelect(null);
     return;
   }
   if (e.key === 'Escape' && topologyFullscreen.value) {
     e.preventDefault();
     closeTopologyFullscreen();
+    return;
+  }
+  // Live preview owns Escape: canvas cancels and emits `multi-select-preview(null)`,
+  // which restores the pre-drag dock. Treating preview `multiSelected` as committed
+  // would emit host `select(null)` and clear viewState before that restore.
+  if (e.key === 'Escape' && marqueeLive.value) {
     return;
   }
   if (e.key === 'Escape' && multiSelected.value.length > 0) {
@@ -917,9 +924,10 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
     if (marqueeLive.value) clearMarqueeLive({ restore: true });
     return;
   }
+  // Empty first/mid coverage: hold last non-empty; do not mount a blank dock.
+  if (events.length === 0) return;
   snapshotDockIfNeeded();
   marqueeLive.value = true;
-  if (events.length === 0) return;
   if (events.length >= 2) {
     selected.value = null;
     selectedEvent.value = null;

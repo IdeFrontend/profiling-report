@@ -365,13 +365,39 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
 
+    // Real Escape hits root first (would clear committed multi). While marqueeLive,
+    // root must not onSelect(null); canvas then emits preview(null) to restore UI.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+
     timeline().vm.$emit('multi-select-preview', null);
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
     expect(vm.viewState.selectedEventId).toBe('a');
-    expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: empty-first preview does not mount a blank dock', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-empty-first',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select-preview', []);
+    await nextTick();
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
 
     wrapper.unmount();
   });
