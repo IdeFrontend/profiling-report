@@ -1340,24 +1340,31 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-height: 0;
 }
 
-.pr-dock-enter-active,
-.pr-dock-leave-active {
+/* Enter grows height in-flow (timeline shrinks with the visible panel — no empty
+   flex slot / black hole under a translateY-hidden full-height dock). */
+.pr-dock-enter-active {
   transition:
-    transform 200ms ease,
+    height 200ms ease,
     opacity 200ms ease;
 }
 
-/* Leave must stop reserving flex space before it slides away; otherwise the
-   root background is exposed underneath it until unmount. */
+.pr-dock-enter-from {
+  height: 0;
+  opacity: 0;
+}
+
+/* Leave slides away while absolute so flex space frees immediately (PR-E2E-013). */
 .pr-dock-leave-active {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
   z-index: 4;
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease;
 }
 
-.pr-dock-enter-from,
 .pr-dock-leave-to {
   transform: translateY(100%);
   opacity: 0;

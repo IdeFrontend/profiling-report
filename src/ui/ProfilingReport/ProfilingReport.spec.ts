@@ -83,6 +83,16 @@ describe('ProfilingReport scaffold', () => {
     expect(src).toMatch(/\.pr-dock\s*\{[^}]*z-index:\s*[2-9]/);
   });
 
+  it('PR-ROOT-015: dock enter height-tweens; leave stays absolute + translateY', async () => {
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    // Enter must not reserve a full-height slot while painted off-screen (black hole).
+    expect(src).toMatch(/\.pr-dock-enter-from\s*\{[^}]*height:\s*0/s);
+    expect(src).not.toMatch(/\.pr-dock-enter-from\s*\{[^}]*translateY/s);
+    // Leave keeps the intentional absolute slide so the swimlane grows mid-leave.
+    expect(src).toMatch(/\.pr-dock-leave-active\s*\{[^}]*position:\s*absolute/s);
+    expect(src).toMatch(/\.pr-dock-leave-to\s*\{[^}]*translateY\(100%\)/s);
+  });
+
   it('PR-ROOT-002: accepts pre-parsed model props', () => {
     const wrapper = mount(ProfilingReport, {
       props: {
