@@ -1366,7 +1366,7 @@ describe('SwimlaneCanvas', () => {
     ).eventScreenRect('e1')!;
     const y = rect.y + rect.h / 2;
 
-    // Seed a hover so the press-clear is observable.
+    // Seed a hover so a false clear on press would be observable.
     await canvas.trigger('pointermove', { clientX: rect.x + rect.w / 2, clientY: y });
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
 
@@ -1375,21 +1375,15 @@ describe('SwimlaneCanvas', () => {
       clientY: rect.y - 4,
       pointerId: 1,
     });
-    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
-
-    // Sub-4px canvas moves must not restore lane hover (flicker before the gate).
-    await canvas.trigger('pointermove', {
-      clientX: rect.x - 18,
-      clientY: rect.y - 2,
-      buttons: 1,
-    });
-    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
+    // Pending press must not clear lane hover (gutter header would flicker on every click).
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
 
     const moveX = rect.x + rect.w / 2;
     window.dispatchEvent(
       new PointerEvent('pointermove', { clientX: moveX, clientY: y + 4, buttons: 1 }),
     );
     await wrapper.vm.$nextTick();
+    // Past the 4px gate: live marquee suppresses lane hover.
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
     const cursors = wrapper.emitted('cursor');
     const last = cursors![cursors!.length - 1][0] as { time: number; xRatio: number; snapped?: boolean };
@@ -1405,7 +1399,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-100: click after pending marquee press restores lane hover without a move', async () => {
+  it('PR-CANVAS-100: click does not clear lane hover on press or release', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
       wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
@@ -1415,9 +1409,13 @@ describe('SwimlaneCanvas', () => {
 
     await canvas.trigger('pointermove', { clientX: x, clientY: y });
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
+    const afterHover = (wrapper.emitted('lane-hover') ?? []).length;
 
     await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
-    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
+    // No null emit on press — that is the header flicker.
+    const afterDown = wrapper.emitted('lane-hover') ?? [];
+    expect(afterDown.slice(afterHover).some((args) => args[0] == null)).toBe(false);
 
     await canvas.trigger('pointerup', { clientX: x + 2, clientY: y + 1, pointerId: 1 });
     window.dispatchEvent(new PointerEvent('pointerup', { clientX: x + 2, clientY: y + 1 }));
@@ -1425,6 +1423,8 @@ describe('SwimlaneCanvas', () => {
 
     expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e1');
     expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
+    const afterUp = wrapper.emitted('lane-hover') ?? [];
+    expect(afterUp.slice(afterHover).some((args) => args[0] == null)).toBe(false);
     wrapper.unmount();
   });
 
