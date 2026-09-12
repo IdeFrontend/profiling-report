@@ -1366,19 +1366,31 @@ describe('SwimlaneCanvas', () => {
     ).eventScreenRect('e1')!;
     const y = rect.y + rect.h / 2;
 
+    // Seed a hover so the press-clear is observable.
+    await canvas.trigger('pointermove', { clientX: rect.x + rect.w / 2, clientY: y });
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
+
     await canvas.trigger('pointerdown', {
       clientX: rect.x - 20,
       clientY: rect.y - 4,
       pointerId: 1,
     });
-    const laneHovers = wrapper.emitted('lane-hover') ?? [];
-    expect(laneHovers.at(-1)?.[0]).toBeNull();
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
+
+    // Sub-4px canvas moves must not restore lane hover (flicker before the gate).
+    await canvas.trigger('pointermove', {
+      clientX: rect.x - 18,
+      clientY: rect.y - 2,
+      buttons: 1,
+    });
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
 
     const moveX = rect.x + rect.w / 2;
     window.dispatchEvent(
       new PointerEvent('pointermove', { clientX: moveX, clientY: y + 4, buttons: 1 }),
     );
     await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
     const cursors = wrapper.emitted('cursor');
     const last = cursors![cursors!.length - 1][0] as { time: number; xRatio: number; snapped?: boolean };
     expect(last.snapped).toBe(false);
@@ -1390,6 +1402,29 @@ describe('SwimlaneCanvas', () => {
     await wrapper.vm.$nextTick();
     const final = wrapper.emitted('cursor')!.at(-1)![0];
     expect(final).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-100: click after pending marquee press restores lane hover without a move', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const rect = (
+      wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
+    ).eventScreenRect('e1')!;
+    const x = rect.x + rect.w / 2;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointermove', { clientX: x, clientY: y });
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
+
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBeNull();
+
+    await canvas.trigger('pointerup', { clientX: x + 2, clientY: y + 1, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x + 2, clientY: y + 1 }));
+    await wrapper.vm.$nextTick();
+
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e1');
+    expect(wrapper.emitted('lane-hover')!.at(-1)?.[0]).toBe('t-1');
     wrapper.unmount();
   });
 

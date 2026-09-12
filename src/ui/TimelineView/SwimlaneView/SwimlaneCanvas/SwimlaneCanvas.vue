@@ -1880,13 +1880,18 @@ function onPointerMove(e: PointerEvent): void {
   const mag = magnetizeLocal(x, y);
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
 
+  // Pending marquee press (sub-4px): keep magnet / event hover for the imminent click,
+  // but do not restore lane-row highlight — beginMarquee cleared it, and restoring here
+  // flickers until the gate is crossed (then onMarqueeDragMove clears again).
+  const restoreLaneHover = !marqueePressActive;
+
   if (dragging) {
     // Trusted move with no buttons held means a lost pointerup — recover instead of
     // panning indefinitely (same recovery `bindWindowPointerDrag` gives every other gesture).
     if (e.isTrusted && e.buttons === 0) {
       dragging = false;
       emit('hover', null, e.clientX, e.clientY);
-      emitLaneHover(y);
+      if (restoreLaneHover) emitLaneHover(y);
       return;
     }
     // Measure create is driven by window listeners (release over Card strips still ends).
@@ -1902,7 +1907,7 @@ function onPointerMove(e: PointerEvent): void {
     emit('pan', -(dx / w) * span);
     hoverGap.value = null;
     emit('hover', null, e.clientX, e.clientY);
-    emitLaneHover(y);
+    if (restoreLaneHover) emitLaneHover(y);
     return;
   }
 
@@ -1939,7 +1944,7 @@ function onPointerMove(e: PointerEvent): void {
     }
     // Keep normal event hover (tooltip); only the gap overlay stays suppressed.
     emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
-    emitLaneHover(y);
+    if (restoreLaneHover) emitLaneHover(y);
     return;
   }
 
@@ -1947,7 +1952,7 @@ function onPointerMove(e: PointerEvent): void {
   updateHoverGap(x, y, w);
 
   emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
-  emitLaneHover(y);
+  if (restoreLaneHover) emitLaneHover(y);
 }
 
 function onPointerUp(e: PointerEvent): void {
@@ -1973,6 +1978,9 @@ function onPointerUp(e: PointerEvent): void {
   const y = e.clientY - rect.top;
   const w = Math.max(1, rect.width);
   const mag = magnetizeLocal(x, y);
+  // Pending marquee press ends as a click: restore the row highlight beginMarquee hid.
+  // (Active marquee already returned above; without this, highlight stays off until the next move.)
+  if (marqueePressActive && marqueePending) emitLaneHover(y);
   emit('set-playhead', mag.time);
   if (wasMeasurePress || props.measureMode) {
     if (
