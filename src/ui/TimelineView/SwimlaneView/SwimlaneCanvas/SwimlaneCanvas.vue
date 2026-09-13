@@ -337,6 +337,23 @@ let resizeObserver: ResizeObserver | null = null;
 let raf = 0;
 /** Local scroll accumulator so rapid wheel events do not drop deltas waiting on props. */
 let localScrollY = 0;
+
+function emitScrollY(y: number): void {
+  localScrollY = y;
+  emit('scroll-y', y);
+  // Gutter/cards apply Y synchronously in SwimlaneView.onScrollY; rAF paint
+  // would leave the canvas one frame behind and look like scroll chase.
+  applyViewState();
+  flushPaint();
+}
+
+/** Adopt scrollY from parent/gutter without re-emitting (keeps layers locked). */
+function setScrollY(y: number): void {
+  if (Math.abs(localScrollY - y) <= 0.5) return;
+  localScrollY = y;
+  applyViewState();
+  flushPaint();
+}
 /** Last client X across pointermoves — used by the pan branch to compute `dx` per move. */
 let lastX = 0;
 
@@ -785,9 +802,10 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   // after a prior edge/post-commit autoscroll sat near maxY — that jumps the
   // timeline under the drag. Preserve scroll; edge-band suspend handles the band
   // sliding under the pointer (PR-CANVAS-104).
-  if (localScrollY > maxY && !marqueePressActive) {
-    localScrollY = maxY;
-    emit('scroll-y', localScrollY);
+  if (localScrollY > maxY) {
+    if (!marqueePressActive) {
+      emitScrollY(maxY);
+    }
   }
 }
 
@@ -1057,8 +1075,7 @@ function ensureContentYVisible(contentY: number): void {
   }
   next = clampScrollY(next);
   if (next === localScrollY) return;
-  localScrollY = next;
-  emit('scroll-y', localScrollY);
+  emitScrollY(next);
   sync();
 }
 
@@ -1095,6 +1112,7 @@ function updateMarqueeAutoScrollDir(clientY: number): void {
     return;
   }
   const wrapH = wrap.clientHeight;
+  const prevWrapH = marqueeEdgeWrapH;
   // Dock preview (or any wrap shrink) can slide the edge band under a stationary
   // pointer — especially after a prior bottom-edge autoscroll left the cursor low.
   // Suspend until the pointer leaves the band so scroll does not jump on dock open.
@@ -1109,6 +1127,8 @@ function updateMarqueeAutoScrollDir(clientY: number): void {
   let dir = 0;
   if (clientY <= box.top + MARQUEE_EDGE_AUTOSCROLL_PX) dir = -1;
   else if (clientY >= box.bottom - MARQUEE_EDGE_AUTOSCROLL_PX) dir = 1;
+  const distBottom = box.bottom - clientY;
+  const distTop = clientY - box.top;
   if (marqueeEdgeSuspended) {
     if (dir === 0) marqueeEdgeSuspended = false;
     else {
@@ -1143,8 +1163,7 @@ function tickMarqueeAutoScroll(): void {
   const next = clampScrollY(localScrollY + marqueeAutoScrollDir * MARQUEE_EDGE_SCROLL_PX);
   if (next !== localScrollY) {
     marqueeLastEdgeScrollDir = marqueeAutoScrollDir;
-    localScrollY = next;
-    emit('scroll-y', localScrollY);
+    emitScrollY(next);
     // Remap the rect against the scrolled lanes using the last pointer position.
     applyMarqueeDragAt(marqueeLastClientX, marqueeLastClientY);
   }
@@ -2449,8 +2468,7 @@ function onWheel(e: WheelEvent): void {
     emit('pan', (panPx / w) * span);
     return;
   }
-  localScrollY = clampScrollY(localScrollY + e.deltaY);
-  emit('scroll-y', localScrollY);
+  emitScrollY(clampScrollY(localScrollY + e.deltaY));
 }
 
 defineExpose({
@@ -2459,6 +2477,8 @@ defineExpose({
   useWebGl,
   /** Card strips sit above the canvas; SwimlaneView forwards wheel here. */
   handleWheel: onWheel,
+  /** Keep canvas scroll locked to gutter/cards when parent drives scrollY. */
+  setScrollY,
   magnetizeAtClient,
   magnetizeAtClientLocal,
   clearEdgeSnapHighlight,

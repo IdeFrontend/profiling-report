@@ -125,6 +125,7 @@ const emit = defineEmits<{
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
 type CanvasExpose = {
   handleWheel: (e: WheelEvent) => void;
+  setScrollY?: (y: number) => void;
   magnetizeAtClient: (
     clientX: number,
     clientY: number,
@@ -390,16 +391,34 @@ const cardHeaders = computed(() => {
   return headers.map((h) => (h.y >= bottomY ? { ...h, y: h.y - shift } : h));
 });
 
+/** Live scrollY before parent `props.view.scrollY` catches up (cards + gutter). */
+const displayScrollY = ref(props.view.scrollY);
+/**
+ * Live marquee preview (non-null). While true, gutter `scroll` must not drive viewState —
+ * dock shrink scroll-anchoring was writing scrollTop and fighting canvas-owned scrollY.
+ */
+const marqueePreviewLive = ref(false);
+/** True while we assign `scrollTop` from display/props (ignore the echo scroll event). */
+let gutterScrollFromProps = false;
+
+const cardStripsScrollRef = ref<HTMLElement | null>(null);
+const overviewElRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
+
 const visibleCardStrips = computed(() => {
-  const scrollY = props.view.scrollY;
+  const scrollY = displayScrollY.value;
   const pad = overviewContentPad.value;
   // 0 until ResizeObserver / mount measures the body; show all and let overflow:hidden clip.
   const viewportH = bodyViewportH.value > 0 ? bodyViewportH.value : Number.POSITIVE_INFINITY;
   return cardHeaders.value
-    .map((h) => ({
-      ...h,
-      top: h.y + pad - scrollY,
-    }))
+    .map((h) => {
+      const layoutTop = h.y + pad;
+      return {
+        ...h,
+        /** Position in content space; scroller translateY(-scrollY) moves it on screen. */
+        layoutTop,
+        top: layoutTop - scrollY,
+      };
+    })
     .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < viewportH);
 });
 
@@ -422,33 +441,66 @@ onUnmounted(() => {
   bodyResizeObserver = null;
 });
 
+function applyGutterScrollTop(y: number): void {
+  const el = gutterRef.value?.root;
+  if (!el || Math.abs(el.scrollTop - y) <= 0.5) return;
+  gutterScrollFromProps = true;
+  el.scrollTop = y;
+  nextTick(() => {
+    gutterScrollFromProps = false;
+  });
+}
+
 watch(
   () => props.view.scrollY,
   (y) => {
-    const el = gutterRef.value?.root;
-    if (el && Math.abs(el.scrollTop - y) > 0.5) {
-      el.scrollTop = y;
-    }
+    if (Math.abs(displayScrollY.value - y) > 0.5) applyDisplayScrollY(y);
+    else applyGutterScrollTop(y);
   },
 );
 
+function applyDisplayScrollY(y: number): void {
+  displayScrollY.value = y;
+  applyGutterScrollTop(y);
+  canvasRef.value?.setScrollY?.(y);
+  // Direct DOM transforms so cards/overview match gutter in the same turn (no Vue flush lag).
+  if (cardStripsScrollRef.value) {
+    cardStripsScrollRef.value.style.transform = `translateY(${-y}px)`;
+  }
+  const overviewEl =
+    overviewElRef.value && '$el' in overviewElRef.value
+      ? overviewElRef.value.$el
+      : (overviewElRef.value as HTMLElement | null);
+  if (overviewEl?.style) {
+    overviewEl.style.transform = `translateY(${-y}px)`;
+  }
+}
+
 function onScrollY(scrollY: number) {
-  emit('update:scrollY', Math.max(0, scrollY));
+  const y = Math.max(0, scrollY);
+  applyDisplayScrollY(y);
+  emit('update:scrollY', y);
 }
 
 function onUpdateMultiSelected(newIds: string[]) {
   localMultiSelectedIds.value = newIds;
 }
 
-function onMultiSelectPreview(events: SwimEvent[] | null) {
-  livePreviewIds.value = events == null ? null : events.map((e) => e.id);
+function onMultiSelectPreview(events: SwimEvent[] | null): void {
+  marqueePreviewLive.value = events != null;
   emit('multi-select-preview', events);
 }
 
 function onGutterScroll(): void {
   const el = gutterRef.value?.root;
   if (!el) return;
+  if (gutterScrollFromProps) return;
   if (Math.abs(el.scrollTop - props.view.scrollY) > 0.5) {
+    if (marqueePreviewLive.value) {
+      // Do not write scrollTop here (that chased canvas/cards). overflow-anchor:none
+      // blocks dock anchoring; canvas emits remain the source of truth via the watcher.
+      return;
+    }
     onScrollY(el.scrollTop);
   }
 }
@@ -686,8 +738,9 @@ defineExpose({
     >
       <OverviewCharts
         v-if="scrollOverviewSeries.length"
+        ref="overviewElRef"
         class="pr-body-overview"
-        :style="{ transform: `translateY(${-view.scrollY}px)` }"
+        :style="{ transform: `translateY(${-displayScrollY}px)` }"
         :series="scrollOverviewSeries"
         :pinned-overview-ids="pinnedOverviewIds"
         :start-time="view.startTime"
@@ -780,21 +833,26 @@ defineExpose({
         }"
       >
         <div
-          v-for="strip in visibleCardStrips"
-          :key="strip.id"
-          role="button"
-          tabindex="0"
-          class="pr-card-strip"
-          :data-testid="`card-strip-${strip.id}`"
-          :aria-expanded="strip.expanded"
-          :aria-label="strip.name"
-          :style="{ top: `${strip.top}px` }"
-          @pointerenter="clearCursor"
-          @click="onCardStripActivate(strip.id, $event)"
-          @keydown.enter.prevent="onCardStripActivate(strip.id, $event)"
-          @keydown.space.prevent="onCardStripActivate(strip.id, $event)"
-          @wheel="onStripWheel"
+          ref="cardStripsScrollRef"
+          class="pr-card-strips__scroll"
+          :style="{ transform: `translateY(${-displayScrollY}px)` }"
         >
+          <div
+            v-for="strip in visibleCardStrips"
+            :key="strip.id"
+            role="button"
+            tabindex="0"
+            class="pr-card-strip"
+            :data-testid="`card-strip-${strip.id}`"
+            :aria-expanded="strip.expanded"
+            :aria-label="strip.name"
+            :style="{ top: `${strip.layoutTop}px` }"
+            @pointerenter="clearCursor"
+            @click="onCardStripActivate(strip.id, $event)"
+            @keydown.enter.prevent="onCardStripActivate(strip.id, $event)"
+            @keydown.space.prevent="onCardStripActivate(strip.id, $event)"
+            @wheel="onStripWheel"
+          >
           <span class="pr-card-strip__label">
             <Chevron
               class="pr-card-strip__chevron"
@@ -810,6 +868,7 @@ defineExpose({
               @update:model-value="onMetricChange(strip.id, $event)"
             />
           </span>
+          </div>
         </div>
       </div>
     </div>
@@ -1002,6 +1061,13 @@ defineExpose({
   pointer-events: none;
   z-index: 8;
   overflow: hidden;
+}
+
+.pr-card-strips__scroll {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
 }
 
 .pr-card-strip {
