@@ -462,8 +462,6 @@ function resetViewFromModel(
   multiSelectSpan.value = null;
   marqueeLive.value = false;
   marqueeFromClosed.value = false;
-  previewMultiApplied = false;
-  clearPreviewDockTimer();
   dockSnap = null;
   hovered.value = null;
   closeTopologyFullscreen();
@@ -998,7 +996,6 @@ function snapshotDockIfNeeded(): void {
 }
 
 function clearMarqueeLive(opts?: { restore?: boolean }): void {
-  clearPreviewDockTimer();
   if (opts?.restore && dockSnap) {
     selected.value = dockSnap.selected;
     selectedEvent.value = dockSnap.selectedEvent;
@@ -1037,38 +1034,13 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
   if (events.length >= 2) {
     selected.value = null;
     selectedEvent.value = null;
-    multiSelected.value = [];
-    previewMultiApplied = false;
+    multiSelected.value = events;
     return;
   }
-
-  // Single-event DetailPanel is cheap — apply immediately.
-  if (events.length < 2) {
-    clearPreviewDockTimer();
-    applyLivePreviewDock(events);
-    return;
-  }
-
-  if (sameEventIdSet(events, multiSelected.value)) {
-    previewMultiApplied = true;
-    return;
-  }
-
-  // First ≥2 of this gesture mounts the summary dock immediately; further growth is coalesced.
-  if (!previewMultiApplied) {
-    clearPreviewDockTimer();
-    applyLivePreviewDock(events);
-    return;
-  }
-
-  pendingPreviewEvents = events;
-  if (previewDockTimer != null) return;
-  previewDockTimer = setTimeout(() => {
-    previewDockTimer = null;
-    const pending = pendingPreviewEvents;
-    pendingPreviewEvents = null;
-    if (pending && marqueeLive.value) applyLivePreviewDock(pending);
-  }, PREVIEW_DOCK_THROTTLE_MS);
+  const ev = events[0]!;
+  multiSelected.value = [];
+  selectedEvent.value = ev;
+  selected.value = selectedPayloadFromEvent(ev);
 }
 
 /**

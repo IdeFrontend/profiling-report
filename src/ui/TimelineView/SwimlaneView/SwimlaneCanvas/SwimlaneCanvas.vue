@@ -1352,6 +1352,9 @@ function onMarqueeDragEnd(): void {
     ? (releaseContentY ?? selectionBottomContentY)
     : selectionBottomContentY;
   marqueeLastEdgeScrollDir = 0;
+  // Hold committed ids through the sync emit so dim does not flash back to stale
+  // props (parent re-renders one tick after `multi-select`). Clear on nextTick.
+  marqueePreviewIds = commitEvents.map((ev) => ev.id);
   sync();
   // The root clears the live drag span on commit; the committed hull is no longer drawn.
   emit('multi-select-span', null);
@@ -1363,6 +1366,10 @@ function onMarqueeDragEnd(): void {
   marqueeShift = false;
   // Closed→preview dock grows to collapsed on commit; keep the chosen Y visible.
   scheduleEnsureMarqueeReleaseVisible(focusContentY);
+  void nextTick(() => {
+    marqueePreviewIds = null;
+    sync();
+  });
 }
 
 function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {

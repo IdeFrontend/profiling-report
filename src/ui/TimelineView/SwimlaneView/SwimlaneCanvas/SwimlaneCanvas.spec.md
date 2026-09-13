@@ -136,6 +136,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 103. **PR-CANVAS-103** — After a live marquee commits, if the wrap later shrinks such that the post-commit focus Y would fall outside the visible area (e.g. closed→preview dock grows to collapsed), the canvas emits `scroll-y` so that focus Y stays inside the wrap (near the bottom, with a small pad). The scroll **tweens** over the same ~200ms as the dock height transition (instant under `prefers-reduced-motion`). Focus Y is the mouse-up content Y when the **latest** edge-autoscroll that moved scroll was **up**; otherwise it is the **bottom of the bottommost selected lane row** (full `LANE_HEIGHT`, not the raw marquee/cursor Y — a mid-row release must not leave that row clipped). No scroll when that Y remains visible.
 104. **PR-CANVAS-104** — When the wrap shrinks during a live marquee (dock preview mount), edge autoscroll does **not** arm from a band that slid under a stationary pointer — suspend until the pointer leaves the edge band (then re-enter to scroll). Live marquee also skips the resize `maxScrollY` clamp so a prior edge/post-commit autoscroll near max does not jump the timeline when the dock opens. The lane gutter uses `overflow-anchor: none`, and while `multi-select-preview` is live any gutter `scrollTop` change that is not the canvas-owned `scrollY` is rejected (browser scroll-anchoring must not bump scroll when the dock eats wrap height).
 105. **PR-CANVAS-105** — Vertical wheel (and other `scroll-y` emits) apply `localScrollY` and **flush-paint** in the same turn so the canvas does not lag a frame behind gutter/card strips that already consumed the emit. Paint uses `localScrollY` even when parent `props.view.scrollY` has not caught up yet.
+106. **PR-CANVAS-106** — On marquee commit, `marqueePreviewIds` holds the committed id list through the sync `multi-select` emit and the immediate `sync()` so dim does not flash back to stale `props.multiSelectedIds`; the hold clears on the following `nextTick` once props have flushed.
 
 ## Edge Cases
 
@@ -168,6 +169,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-13** — Marquee commit holds preview ids until props flush so dim does not flash (PR-CANVAS-106); rebased onto master after #31 squash.
 - **2026-09-13** — Multi-task summary click expands and multi-selects nested leaves (`PR-CANVAS-065`).
 - **2026-09-13** — Post-commit selection-border scroll targets the full bottom selected lane row, not mid-row release Y (`PR-CANVAS-103`).
 - **2026-09-13** — Post-commit focus scroll tweens with the dock height transition (`PR-CANVAS-103`).

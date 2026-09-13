@@ -2295,7 +2295,7 @@ describe('SwimlaneCanvas', () => {
     expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
     expect(selSpy.mock.calls.at(-1)![0]).toBeNull();
 
-    // Commit holds preview ids through the sync emit (PR-CANVAS-102); dim does not
+    // Commit holds preview ids through the sync emit (PR-CANVAS-106); dim does not
     // flash to stale props. After nextTick the hold drops back to props.
     window.dispatchEvent(
       new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
@@ -2309,7 +2309,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-102: commit holds marqueePreviewIds until props flush', async () => {
+  it('PR-CANVAS-106: commit holds marqueePreviewIds until props flush', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     await wrapper.setProps({ multiSelectedIds: ['other'] });
     const vm = wrapper.vm as {
