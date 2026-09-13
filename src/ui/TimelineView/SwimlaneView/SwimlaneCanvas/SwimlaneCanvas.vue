@@ -237,8 +237,12 @@ let shiftTogglePending = false;
 const MEASURE_DRAG_THRESHOLD_PX = 4;
 /** Marquee (unmodified drag) multi-select — same 4px click-vs-drag gate as measure create. */
 const marqueeRect = ref<MarqueeRect | null>(null);
-/** Local anchor for the marquee; set on pointerdown. */
-let marqueeAnchor: { x: number; y: number } | null = null;
+/**
+ * Marquee drag origin. `x` is viewport-local (time axis does not scroll with lanes).
+ * `contentY` is scroll-space (`viewportY + paintScrollY`) so edge autoscroll stretches
+ * the rect instead of shifting the whole selection with the lanes.
+ */
+let marqueeAnchor: { x: number; contentY: number } | null = null;
 /** Press waiting for the 4px threshold — still a click until it is crossed. */
 let marqueePending = false;
 /** True from marquee pointerdown until pointerup — suppresses tooltip / select. */
@@ -418,12 +422,21 @@ function maxScrollY(): number {
   return Math.max(0, modelContentHeight() + pad - viewH);
 }
 
+/**
+ * Paint/hit-test scroll in lane content space.
+ * Prefer `localScrollY` so marquee autoscroll remaps in the same frame as the step
+ * (props.view.scrollY lags until the parent applies `scroll-y`).
+ */
+function paintScrollY(): number {
+  return localScrollY - (props.contentTopPad ?? 0);
+}
+
 /** View window for paint/hit-test — scrollY shifted by overview pad. */
 function paintView(): SwimlaneViewWindow {
   return {
     startTime: props.view.startTime,
     endTime: props.view.endTime,
-    scrollY: props.view.scrollY - (props.contentTopPad ?? 0),
+    scrollY: paintScrollY(),
   };
 }
 
@@ -1149,10 +1162,12 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
 function applyMarqueeDragAt(clientX: number, clientY: number): void {
   const local = localFromClient(clientX, clientY);
   if (!local || !marqueeAnchor) return;
+  // Anchor stays glued to content; convert to viewport each remap (autoscroll stretch).
+  const anchorViewY = marqueeAnchor.contentY - paintScrollY();
   if (marqueePending) {
     if (
       Math.abs(local.x - marqueeAnchor.x) <= MEASURE_DRAG_THRESHOLD_PX &&
-      Math.abs(local.y - marqueeAnchor.y) <= MEASURE_DRAG_THRESHOLD_PX
+      Math.abs(local.y - anchorViewY) <= MEASURE_DRAG_THRESHOLD_PX
     ) {
       return;
     }
@@ -1163,7 +1178,7 @@ function applyMarqueeDragAt(clientX: number, clientY: number): void {
   }
   const rect = {
     x0: marqueeAnchor.x,
-    y0: marqueeAnchor.y,
+    y0: anchorViewY,
     x1: local.x,
     y1: local.y,
   };
@@ -1242,7 +1257,7 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   endMeasureResize();
   endMarquee();
   marqueeShift = shiftKey;
-  marqueeAnchor = { x: localX, y: localY };
+  marqueeAnchor = { x: localX, contentY: localY + paintScrollY() };
   marqueePending = true;
   marqueePressActive = true;
   // Pending press is visually a no-op: keep lane-row hover and hover-gap Δt overlay.

@@ -2446,6 +2446,18 @@ describe('SwimlaneCanvas', () => {
     expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
     expect(wrapper.emitted('scroll-y')!.at(-1)![0] as number).toBeGreaterThan(0);
 
+    // Anchor is content-fixed: with the pointer held in the bottom band, scroll-down
+    // must grow the rect (top moves up) rather than shift both corners together.
+    const geo = wrapper.find('[data-testid="marquee-rect"]').attributes('style') ?? '';
+    const top = Number(/top:\s*([-.\d]+)px/.exec(geo)?.[1] ?? NaN);
+    const height = Number(/height:\s*([-.\d]+)px/.exec(geo)?.[1] ?? NaN);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    // Started near localY≈100 (clientY 200 − box.top 100); after scroll the viewport
+    // top of the anchor is contentY − scroll ≈ 100 − scrolled.
+    expect(top).toBeLessThan(100);
+    expect(top).toBeCloseTo(100 - scrolled, 0);
+    expect(height).toBeGreaterThan(scrolled);
+
     window.dispatchEvent(new PointerEvent('pointerup', { clientX: 50, clientY: 290 }));
     wrapper.unmount();
   });

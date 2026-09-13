@@ -349,7 +349,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-016: closed-to-drag uses preview dock height; commit grows to collapsed', async () => {
+  it('PR-ROOT-016: closed-to-drag uses preview dock height; commit grows to session height', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'live-preview-height',
@@ -373,6 +373,49 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
       `--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`,
     );
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: expand survives clear then closed-to-drag marquee commit', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'dock-expand-preserved',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as { selectEventById: (id: string) => void };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const { DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } = await import('../panelResize');
+
+    vm.selectEventById('a');
+    await nextTick();
+    wrapper.getComponent({ name: 'DetailPanel' }).vm.$emit('update:height', DOCK_HEIGHT_EXPANDED);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`,
+    );
+
+    // Clear selection — dock unmounts; session height must stay expanded.
+    wrapper.getComponent({ name: 'DetailPanel' }).vm.$emit('close');
+    await nextTick();
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`,
+    );
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`,
+    );
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
 
     wrapper.unmount();
   });

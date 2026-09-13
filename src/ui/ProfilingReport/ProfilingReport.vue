@@ -1076,7 +1076,6 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
  * follows the live drag).
  */
 function onMultiSelect(events: SwimEvent[]) {
-  const fromClosed = dockSnap ? !dockSnap.wasOpen : false;
   const priorHeight = dockSnap?.dockHeight ?? dockHeight.value;
   // Discard the pre-drag snap; commit wins. Preview-null that follows is a no-op.
   clearMarqueeLive();
@@ -1084,8 +1083,10 @@ function onMultiSelect(events: SwimEvent[]) {
     onSelect(null);
     return;
   }
-  // Closed→drag used preview height; grow to collapsed. Already-open keeps session height.
-  dockHeight.value = fromClosed ? DOCK_HEIGHT_COLLAPSED : priorHeight;
+  // Closed→drag used preview height; grow to the session height (collapsed or expanded).
+  // Clearing the selection must not forget an expanded dock — priorHeight is that session value.
+  // Already-open already shows session height during the gesture.
+  dockHeight.value = priorHeight;
   if (events.length === 1) {
     onSelect(events[0]!);
     return;
