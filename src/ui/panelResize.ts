@@ -29,6 +29,11 @@ export const DOCK_HEIGHT_MARQUEE_PREVIEW = 56;
  * `min(max(minHeight, slack), targetHeight)` where
  * `slack = max(0, wrapClosed - (contentHeight - effectiveScrollY))` and
  * `wrapClosed = wrapHeightNow + currentPreviewHeight`.
+ *
+ * Callers opening from a closed dock should pass the pre-mount wrap as
+ * `wrapHeightNow` with `currentPreviewHeight: 0` (and freeze that wrap for the
+ * gesture) so the first paint is already correct — using a live wrap after the
+ * dock mounts overshoots to target then shrinks.
  */
 export function marqueePreviewDockHeight(opts: {
   wrapHeightNow: number;

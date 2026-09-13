@@ -136,7 +136,12 @@ type CanvasExpose = {
   clearEdgeSnapHighlight: () => void;
   altMeasureBridgeEndpoint?: () => { clientX: number; clientY: number; time: number } | null;
   wrapLayoutEpoch?: number;
-  computeMarqueePreviewDockHeight?: (currentPreviewPx: number, targetPx: number) => number;
+  swimlaneWrapHeight?: number;
+  computeMarqueePreviewDockHeight?: (
+    currentPreviewPx: number,
+    targetPx: number,
+    wrapClosedHeight?: number,
+  ) => number;
 };
 const canvasRef = ref<CanvasExpose | null>(null);
 const pinnedCanvasRef = ref<CanvasExpose | null>(null);
@@ -550,13 +555,20 @@ defineExpose({
   get wrapLayoutEpoch() {
     return canvasRef.value?.wrapLayoutEpoch ?? 0;
   },
+  get swimlaneWrapHeight() {
+    return canvasRef.value?.swimlaneWrapHeight ?? 0;
+  },
   computeMarqueePreviewDockHeight(
     currentPreviewPx: number,
     targetPx: number,
+    wrapClosedHeight?: number,
   ): number {
     return (
-      canvasRef.value?.computeMarqueePreviewDockHeight?.(currentPreviewPx, targetPx) ??
-      currentPreviewPx
+      canvasRef.value?.computeMarqueePreviewDockHeight?.(
+        currentPreviewPx,
+        targetPx,
+        wrapClosedHeight,
+      ) ?? currentPreviewPx
     );
   },
 });

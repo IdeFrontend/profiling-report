@@ -386,12 +386,19 @@ function modelContentHeight(): number {
 
 /**
  * Live marquee preview dock height from wrap slack below lane content.
- * `currentPreviewPx` is the height already applied (restores closed wrap size).
+ * Pass `wrapClosedHeight` (pre-dock wrap) to freeze the closed layout — avoids
+ * overshooting to collapsed when wrap shrinks mid-enter / after first paint.
+ * Without it, `currentPreviewPx` restores closed size from the live wrap.
  */
-function computeMarqueePreviewDockHeight(currentPreviewPx: number, targetPx: number): number {
+function computeMarqueePreviewDockHeight(
+  currentPreviewPx: number,
+  targetPx: number,
+  wrapClosedHeight?: number,
+): number {
+  const frozen = wrapClosedHeight != null && wrapClosedHeight > 0;
   return marqueePreviewDockHeight({
-    wrapHeightNow: wrapRef.value?.clientHeight ?? 0,
-    currentPreviewHeight: currentPreviewPx,
+    wrapHeightNow: frozen ? wrapClosedHeight : (wrapRef.value?.clientHeight ?? 0),
+    currentPreviewHeight: frozen ? 0 : currentPreviewPx,
     contentHeight: modelContentHeight(),
     scrollY: props.view.scrollY,
     contentTopPad: props.contentTopPad ?? 0,
@@ -2384,6 +2391,9 @@ defineExpose({
   clearAltMeasure,
   altMeasureBridgeEndpoint,
   wrapLayoutEpoch,
+  get swimlaneWrapHeight() {
+    return wrapRef.value?.clientHeight ?? 0;
+  },
   computeMarqueePreviewDockHeight,
 });
 </script>
