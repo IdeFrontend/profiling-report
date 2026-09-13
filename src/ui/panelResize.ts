@@ -20,6 +20,8 @@ export const TIMELINE_TRACK_MIN = 320;
  */
 export const DOCK_HEIGHT_COLLAPSED = 247;
 export const DOCK_HEIGHT_EXPANDED = 407;
+/** In-flow dock height while a marquee is live and the dock was closed at drag start. */
+export const DOCK_HEIGHT_MARQUEE_PREVIEW = 56;
 
 export function clampPanelWidth(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;

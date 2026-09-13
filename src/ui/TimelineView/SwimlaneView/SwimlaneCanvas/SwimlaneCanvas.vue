@@ -246,6 +246,15 @@ let marqueePreviewIds: string[] | null = null;
 let unbindMarqueeDrag: (() => void) | null = null;
 /** True if the marquee started with Shift held — the commit unions with the existing selection. */
 let marqueeShift = false;
+/** Edge band (CSS px) that arms vertical autoscroll while the marquee is live. */
+const MARQUEE_EDGE_AUTOSCROLL_PX = 40;
+/** Scroll step per animation frame while the pointer sits in an edge band. */
+const MARQUEE_EDGE_SCROLL_PX = 12;
+let marqueeAutoScrollRaf = 0;
+/** −1 = toward top, +1 = toward bottom, 0 = idle. */
+let marqueeAutoScrollDir = 0;
+let marqueeLastClientX = 0;
+let marqueeLastClientY = 0;
 /** Magnet snap to nearest in-lane event start/end. */
 const EVENT_EDGE_MAGNET_PX = 10;
 /** Fast snap when clicking an event while a prior measure range exists. */
@@ -938,6 +947,7 @@ function endMeasureCreate(): void {
 
 /** Drop the marquee gesture without committing (Escape, unmount, pointerup). */
 function endMarquee(): void {
+  stopMarqueeAutoScroll();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   marqueeAnchor = null;
@@ -949,6 +959,55 @@ function endMarquee(): void {
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);
+}
+
+function stopMarqueeAutoScroll(): void {
+  if (marqueeAutoScrollRaf) cancelAnimationFrame(marqueeAutoScrollRaf);
+  marqueeAutoScrollRaf = 0;
+  marqueeAutoScrollDir = 0;
+}
+
+function updateMarqueeAutoScrollDir(clientY: number): void {
+  const wrap = wrapRef.value;
+  if (!wrap || marqueePending) {
+    stopMarqueeAutoScroll();
+    return;
+  }
+  const box = wrap.getBoundingClientRect();
+  let dir = 0;
+  if (clientY <= box.top + MARQUEE_EDGE_AUTOSCROLL_PX) dir = -1;
+  else if (clientY >= box.bottom - MARQUEE_EDGE_AUTOSCROLL_PX) dir = 1;
+  if (dir === 0) {
+    stopMarqueeAutoScroll();
+    return;
+  }
+  marqueeAutoScrollDir = dir;
+  if (!marqueeAutoScrollRaf) {
+    marqueeAutoScrollRaf = requestAnimationFrame(tickMarqueeAutoScroll);
+  }
+}
+
+function tickMarqueeAutoScroll(): void {
+  marqueeAutoScrollRaf = 0;
+  if (!marqueePressActive || marqueePending || marqueeAutoScrollDir === 0) {
+    marqueeAutoScrollDir = 0;
+    return;
+  }
+  const next = clampScrollY(localScrollY + marqueeAutoScrollDir * MARQUEE_EDGE_SCROLL_PX);
+  if (next !== localScrollY) {
+    localScrollY = next;
+    emit('scroll-y', localScrollY);
+    // Remap the rect against the scrolled lanes using the last pointer position.
+    applyMarqueeDragAt(marqueeLastClientX, marqueeLastClientY);
+  }
+  const atLimit =
+    (marqueeAutoScrollDir < 0 && localScrollY <= 0) ||
+    (marqueeAutoScrollDir > 0 && localScrollY >= maxScrollY());
+  if (!atLimit && marqueeAutoScrollDir !== 0) {
+    marqueeAutoScrollRaf = requestAnimationFrame(tickMarqueeAutoScroll);
+  } else {
+    marqueeAutoScrollDir = 0;
+  }
 }
 
 /** Marquee time extent — the live Δt the axis chrome shows while dragging. */
@@ -986,6 +1045,13 @@ function emitMarqueePreview(events: SwimEvent[] | null): void {
 }
 
 function onMarqueeDragMove(clientX: number, clientY: number): void {
+  marqueeLastClientX = clientX;
+  marqueeLastClientY = clientY;
+  applyMarqueeDragAt(clientX, clientY);
+  if (!marqueePending && marqueePressActive) updateMarqueeAutoScrollDir(clientY);
+}
+
+function applyMarqueeDragAt(clientX: number, clientY: number): void {
   const local = localFromClient(clientX, clientY);
   if (!local || !marqueeAnchor) return;
   if (marqueePending) {
@@ -1033,6 +1099,7 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
  * press that never crossed the 4px gate — that is a click) commits nothing.
  */
 function onMarqueeDragEnd(): void {
+  stopMarqueeAutoScroll();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   const rect = marqueeRect.value;
@@ -1086,6 +1153,7 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
 /** Escape during the drag cancels without committing; the press flag survives until pointerup. */
 function onMarqueeKeydown(e: KeyboardEvent): void {
   if (e.key !== 'Escape' || !marqueePressActive) return;
+  stopMarqueeAutoScroll();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   marqueeAnchor = null;

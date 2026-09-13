@@ -349,6 +349,33 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-016: closed-to-drag uses preview dock height; commit grows to collapsed', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-height',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const { DOCK_HEIGHT_MARQUEE_PREVIEW, DOCK_HEIGHT_COLLAPSED } = await import('../panelResize');
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    const dock = wrapper.get('[data-testid="dock"]');
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`);
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`,
+    );
+
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-016: Escape mid-drag restores the pre-drag dock without host select', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
@@ -391,7 +418,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-016: empty-first preview does not mount a blank dock', async () => {
+  it('PR-ROOT-016: empty-first preview mounts the nothing-selected message', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'live-preview-empty-first',
@@ -403,11 +430,11 @@ describe('ProfilingReport scaffold', () => {
 
     timeline().vm.$emit('multi-select-preview', []);
     await nextTick();
-    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
-    // Gesture is live (Escape gated) even though the footer stays closed.
+    // Gesture is live (Escape gated) even with empty coverage.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
     expect(wrapper.emitted('select')).toBeFalsy();
