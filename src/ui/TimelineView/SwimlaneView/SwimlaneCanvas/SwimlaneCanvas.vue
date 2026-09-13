@@ -22,7 +22,9 @@ import {
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
+  findLaidOutEvent,
   LANE_HEIGHT,
+  laneAtContentY,
   laneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
@@ -1209,6 +1211,38 @@ function eventsInMarquee(rect: MarqueeRect): SwimEvent[] {
   );
 }
 
+/**
+ * Content-space bottom of the sub-row under `contentY` (top of the next row).
+ * Used so post-commit scroll reveals the full bottom lane, not a mid-row release Y.
+ */
+function snapContentYToRowBottom(contentY: number): number {
+  const hit = laneAtContentY(backend.getLayout(), contentY);
+  if (!hit) return contentY;
+  const rel = contentY - hit.lane.y;
+  // Exact row boundary already is the previous row's bottom.
+  if (rel > 0 && rel % LANE_HEIGHT === 0) return contentY;
+  const rowIndex = Math.max(
+    0,
+    Math.min(hit.lane.rowCount - 1, Math.floor(rel / LANE_HEIGHT)),
+  );
+  return hit.lane.y + (rowIndex + 1) * LANE_HEIGHT;
+}
+
+/**
+ * Bottom edge of the bottommost committed event's lane row (content space).
+ * Falls back to snapping the marquee rect bottom when the commit is empty.
+ */
+function selectionBottomContentYForCommit(commitEvents: SwimEvent[], rect: MarqueeRect): number {
+  const layout = backend.getLayout();
+  let bottom = -Infinity;
+  for (const ev of commitEvents) {
+    const item = findLaidOutEvent(layout, ev.id);
+    if (item) bottom = Math.max(bottom, item.y + LANE_HEIGHT);
+  }
+  if (Number.isFinite(bottom)) return bottom;
+  return snapContentYToRowBottom(localScrollY + Math.max(rect.y0, rect.y1));
+}
+
 /** Same event list commit will use (plain rect, or Shift union with current selection). */
 function eventsForMarqueeCommit(rectEvents: SwimEvent[]): SwimEvent[] {
   if (!marqueeShift) return rectEvents;
@@ -1307,22 +1341,22 @@ function onMarqueeDragEnd(): void {
   // Capture release / selection content Y before the dock may grow and shrink the wrap.
   const local = localFromClient(marqueeLastClientX, marqueeLastClientY);
   const releaseContentY = local != null ? localScrollY + local.y : null;
-  const selectionBottomContentY = localScrollY + Math.max(rect.y0, rect.y1);
+  const rectEvents = eventsInMarquee(rect);
+  const commitEvents = marqueeShift ? eventsForMarqueeCommit(rectEvents) : rectEvents;
+  // Selection-border focus uses the bottom of the bottommost selected *row* (full lane
+  // height), not the raw marquee/cursor Y — a mid-row release must not leave the row clipped.
+  const selectionBottomContentY = selectionBottomContentYForCommit(commitEvents, rect);
   // Latest edge-autoscroll: up → keep cursor visible; otherwise keep selection bottom visible.
   const preferCursor = marqueeLastEdgeScrollDir < 0;
   const focusContentY = preferCursor
     ? (releaseContentY ?? selectionBottomContentY)
     : selectionBottomContentY;
   marqueeLastEdgeScrollDir = 0;
-  const events = eventsInMarquee(rect);
-  const commitEvents = marqueeShift ? eventsForMarqueeCommit(events) : events;
-  // Hold committed ids through the sync emit so dim does not flash back to stale
-  // props (parent re-renders one tick after `multi-select`). Clear on nextTick.
-  marqueePreviewIds = commitEvents.map((ev) => ev.id);
+  sync();
   // The root clears the live drag span on commit; the committed hull is no longer drawn.
   emit('multi-select-span', null);
   emit('cursor', null);
-  // Root discards the live snap on `multi-select`; preview-null that follows is a no-op.
+  // Commit before clearing preview so root can discard the snap without restoring.
   emit('multi-select', commitEvents);
   emitMarqueePreview(null);
   sync();

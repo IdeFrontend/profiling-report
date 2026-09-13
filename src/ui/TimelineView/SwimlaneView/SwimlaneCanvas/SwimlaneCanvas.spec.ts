@@ -2596,7 +2596,8 @@ describe('SwimlaneCanvas', () => {
     await wrapper.setProps({ model: { ...tallModel } });
     await fireAllDeviceRo();
 
-    // Selection spans localY 50→180; release cursor is higher (localY 120).
+    // Selection spans localY 50→180 (mid-row release at 120). Bottom selected
+    // lane row is snapped to full LANE_HEIGHT (header 40 + thread index 6 → bottom 194).
     await canvas.trigger('pointerdown', { clientX: 20, clientY: 150, pointerId: 1 });
     window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 280, buttons: 1 }));
     await wrapper.vm.$nextTick();
@@ -2610,6 +2611,9 @@ describe('SwimlaneCanvas', () => {
     box.height = 50;
     box.bottom = 150;
 
+    const rowBottom = 40 + 6 * 22 + 22; // LANE_GROUP_HEADER_HEIGHT + t-6 top + LANE_HEIGHT
+    const targetMin = rowBottom - 50;
+    const targetMax = rowBottom - 50 + 8;
     const before = wrapper.emitted('scroll-y')?.length ?? 0;
     // Layout-settle rAF, then the 200ms ensureContentYVisible tween.
     for (let i = 0; i < 40; i++) {
@@ -2623,17 +2627,18 @@ describe('SwimlaneCanvas', () => {
       if (
         (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
         last != null &&
-        last >= 180 - 50 &&
-        last <= 180 - 50 + 8
+        last >= targetMin &&
+        last <= targetMax
       ) {
         break;
       }
     }
     expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
     const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
-    // Selection bottom contentY = 180 (not cursor 120).
-    expect(scrolled).toBeGreaterThanOrEqual(180 - 50);
-    expect(scrolled).toBeLessThanOrEqual(180 - 50 + 8);
+    // Full bottom row (194), not raw marquee Y (180) or cursor (120).
+    expect(scrolled).toBeGreaterThanOrEqual(targetMin);
+    expect(scrolled).toBeLessThanOrEqual(targetMax);
+    expect(scrolled).toBeGreaterThan(180 - 50);
 
     wrapper.unmount();
   });
