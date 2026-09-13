@@ -78,13 +78,17 @@ const TEXT_FLIP_L = 0.6;
  * Selection, because hovering your own selection must not drop it back to the hover
  * fill, or it reads as having lost the selection. The surrounding gray muting marks the
  * selection, so a hovered selection is still distinguished.
+ *
+ * A multi-selected block counts as selected too: it must keep the same lifted fill as the
+ * single selection, not fall back to its resting colour and only brighten on hover.
  */
 export function eventStateOf(
   id: string,
   selectedId: string | null,
   hoveredId: string | null,
+  multiIds?: ReadonlySet<string>,
 ): EventState {
-  if (id === selectedId) return 'selected';
+  if (id === selectedId || multiIds?.has(id)) return 'selected';
   if (id === hoveredId) return 'hover';
   return 'normal';
 }
