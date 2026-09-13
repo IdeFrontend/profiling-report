@@ -391,15 +391,13 @@ describe('ProfilingReport scaffold', () => {
 
     timeline().vm.$emit('multi-select-preview', events);
     await nextTick();
-    // Retrigger watchEffect (scrollY) so the spy is consulted after mount.
-    const rootVm = wrapper.vm as unknown as { viewState: { scrollY: number } };
-    rootVm.viewState.scrollY = 1;
-    await nextTick();
 
+    // First paint must already be the precomputed preview (no collapsed→shrink flash).
     const style = wrapper.get('[data-testid="dock"]').attributes('style') ?? '';
     expect(spy).toHaveBeenCalled();
     expect(style).toContain(`--pr-dock-h: ${slackHeight}px`);
     expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`);
+    expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`);
     expect(slackHeight).toBeLessThan(DOCK_HEIGHT_COLLAPSED);
 
     spy.mockRestore();
@@ -448,7 +446,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-016: empty-first preview mounts the nothing-selected message', async () => {
+  it('PR-ROOT-016: empty-first from closed does not mount the dock', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'live-preview-empty-first',
@@ -460,11 +458,11 @@ describe('ProfilingReport scaffold', () => {
 
     timeline().vm.$emit('multi-select-preview', []);
     await nextTick();
-    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
-    // Gesture is live (Escape gated) even with empty coverage.
+    // Gesture is live (Escape gated) even with empty coverage and no dock.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
     expect(wrapper.emitted('select')).toBeFalsy();

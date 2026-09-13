@@ -150,9 +150,10 @@ const multiSelectSpan = ref<MeasureRange | null>(null);
 /**
  * True while a live marquee (>4px) gesture is active (any post-gate preview,
  * including empty coverage). Gates Escape so preview `multiSelected` is not
- * treated as a committed multi-select. While live, the footer stays mounted
- * (including an empty-state message) so mid-drag does not leave/enter the shell.
- * Host `select` / viewState commit wait for pointerup; Escape restores the pre-drag dock.
+ * treated as a committed multi-select. Footer mount: already-open docks stay up
+ * (empty → nothing-selected message); closed→drag mounts only once coverage is
+ * non-empty. Host `select` / viewState commit wait for pointerup; Escape restores
+ * the pre-drag dock.
  */
 const marqueeLive = ref(false);
 type DockSnap = {
@@ -162,6 +163,11 @@ type DockSnap = {
   /** Dock was already showing content when the gesture started. */
   wasOpen: boolean;
   dockHeight: number;
+  /**
+   * Swimlane wrap height before the preview dock mounted (closed layout).
+   * Frozen for the gesture so mid-enter / RO feedback cannot overshoot to collapsed.
+   */
+  wrapClosedHeight?: number;
 };
 /** Snapshot of dock UI taken on the first live preview of a gesture; discarded on commit. */
 let dockSnap: DockSnap | null = null;
@@ -192,7 +198,12 @@ const timelineRef = ref<{
   gutterRoot: HTMLElement | null;
   trackWidth?: number;
   wrapLayoutEpoch?: number;
-  computeMarqueePreviewDockHeight?: (currentPreviewPx: number, targetPx: number) => number;
+  swimlaneWrapHeight?: number;
+  computeMarqueePreviewDockHeight?: (
+    currentPreviewPx: number,
+    targetPx: number,
+    wrapClosedHeight?: number,
+  ) => number;
 } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
@@ -355,15 +366,18 @@ const displaySwim = computed((): SwimlaneModel | null => {
 /** Recompute preview height from wrap slack below lane content while live from closed. */
 watchEffect(() => {
   if (!marqueeLive.value || !marqueeFromClosed.value) return;
-  // Reactive deps so edge-autoscroll / collapse / wrap resize refresh the height.
+  // Reactive deps so edge-autoscroll / collapse refresh the height.
+  // Prefer frozen wrapClosed from gesture start — do not follow wrapLayoutEpoch
+  // (enter/RO would feed wrapNow+current and briefly overshoot to collapsed).
   void viewState.value.scrollY;
   void collapseAnim.value;
   void displaySwim.value;
-  void timelineRef.value?.wrapLayoutEpoch;
+  const wrapClosed = dockSnap?.wrapClosedHeight;
   const next =
     timelineRef.value?.computeMarqueePreviewDockHeight?.(
       marqueePreviewHeight.value,
       DOCK_HEIGHT_COLLAPSED,
+      wrapClosed,
     ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
   if (next !== marqueePreviewHeight.value) marqueePreviewHeight.value = next;
 });
@@ -944,15 +958,28 @@ function selectedPayloadFromEvent(ev: SwimEvent): SelectedEvent {
 function snapshotDockIfNeeded(): void {
   if (dockSnap) return;
   const wasOpen = !!(selected.value || multiSelected.value.length);
+  const wrapClosedHeight = wasOpen
+    ? undefined
+    : (timelineRef.value?.swimlaneWrapHeight ?? 0);
   dockSnap = {
     selected: selected.value,
     selectedEvent: selectedEvent.value,
     multiSelected: multiSelected.value.slice(),
     wasOpen,
     dockHeight: dockHeight.value,
+    wrapClosedHeight,
   };
   marqueeFromClosed.value = !wasOpen;
-  if (!wasOpen) marqueePreviewHeight.value = DOCK_HEIGHT_MARQUEE_PREVIEW;
+  // Precompute before the dock mounts so the first paint is already at preview
+  // height (not collapsed → shrink flicker via wrap RO feedback).
+  if (!wasOpen) {
+    marqueePreviewHeight.value =
+      timelineRef.value?.computeMarqueePreviewDockHeight?.(
+        0,
+        DOCK_HEIGHT_COLLAPSED,
+        wrapClosedHeight,
+      ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
+  }
 }
 
 function clearMarqueeLive(opts?: { restore?: boolean }): void {
@@ -971,7 +998,9 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
 /**
  * Live marquee coverage for the dock only. Does not touch viewState or host `select`.
  * Any post-gate preview (including `[]`) arms `marqueeLive` for Escape. Empty mid-drag
- * clears Detail/Summary content and shows the nothing-selected message (no stale rows).
+ * clears Detail/Summary. When the dock was already open at drag start, the footer stays
+ * mounted with a nothing-selected message; when it opened from closed, the footer stays
+ * hidden until coverage is non-empty (no empty-state flash).
  */
 function onMultiSelectPreview(events: SwimEvent[] | null): void {
   if (events == null) {
@@ -1336,10 +1365,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </ReportLayout>
 
     <!-- Persistent dock shell: single/multi/empty swap content, not the container.
-         Live marquee from a closed dock uses slack-based preview height; commit grows to collapsed. -->
+         Live marquee from a closed dock uses slack-based preview height; commit grows to collapsed.
+         From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
-        v-if="showTimeline && (selected || multiSelected.length || marqueeLive)"
+        v-if="showTimeline && (selected || multiSelected.length || (marqueeLive && !marqueeFromClosed))"
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
@@ -1500,6 +1530,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 .pr-dock--live {
   /* Live preview swaps content; keep shell height stable (no expander fight). */
   transition: none;
+}
+
+/* Live enter: opacity only — height is already the precomputed preview; a height
+   tween would shrink the wrap mid-animation and re-feed the slack math. */
+.pr-dock--live.pr-dock-enter-active {
+  transition: opacity 200ms ease;
 }
 
 .pr-dock > * {

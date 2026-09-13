@@ -110,7 +110,12 @@ const swimlaneRef = ref<{
   ) => { time: number; xRatio: number; eventId?: string | null } | null;
   clearEdgeSnapHighlight?: () => void;
   wrapLayoutEpoch?: number;
-  computeMarqueePreviewDockHeight?: (currentPreviewPx: number, targetPx: number) => number;
+  swimlaneWrapHeight?: number;
+  computeMarqueePreviewDockHeight?: (
+    currentPreviewPx: number,
+    targetPx: number,
+    wrapClosedHeight?: number,
+  ) => number;
 } | null>(null);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 /** Pointer is over the viewport time axis — keep cursor lifted above ticks. */
@@ -542,13 +547,20 @@ defineExpose({
   get wrapLayoutEpoch() {
     return swimlaneRef.value?.wrapLayoutEpoch ?? 0;
   },
+  get swimlaneWrapHeight() {
+    return swimlaneRef.value?.swimlaneWrapHeight ?? 0;
+  },
   computeMarqueePreviewDockHeight(
     currentPreviewPx: number,
     targetPx: number,
+    wrapClosedHeight?: number,
   ): number {
     return (
-      swimlaneRef.value?.computeMarqueePreviewDockHeight?.(currentPreviewPx, targetPx) ??
-      currentPreviewPx
+      swimlaneRef.value?.computeMarqueePreviewDockHeight?.(
+        currentPreviewPx,
+        targetPx,
+        wrapClosedHeight,
+      ) ?? currentPreviewPx
     );
   },
 });
