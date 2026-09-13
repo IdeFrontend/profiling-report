@@ -2111,9 +2111,7 @@ describe('SwimlaneCanvas', () => {
     await wrapper.vm.$nextTick();
 
     // Leftover release from the cancelled drag must not select.
-    window.dispatchEvent(
-      new PointerEvent('pointerup', { clientX: rect.x + 20, clientY: rect.y + 8 }),
-    );
+    await canvas.trigger('pointerup', { clientX: rect.x + 20, clientY: rect.y + 8, pointerId: 1 });
     await wrapper.vm.$nextTick();
     const afterCancel = wrapper.emitted('select')?.length ?? 0;
 
@@ -2282,15 +2280,48 @@ describe('SwimlaneCanvas', () => {
     expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
     expect(selSpy.mock.calls.at(-1)![0]).toBeNull();
 
-    // Commit drops the preview; the dim is the parent's `multiSelectedIds` again.
+    // Commit holds preview ids through the sync emit (PR-CANVAS-102); dim does not
+    // flash to stale props. After nextTick the hold drops back to props.
     window.dispatchEvent(
       new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
     );
+    expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
     await wrapper.vm.$nextTick();
     expect(multiSpy.mock.calls.at(-1)![0]).toEqual([]);
     expect(
       (wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[]).map((e) => e.id),
     ).toEqual(['e1']);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-102: commit holds marqueePreviewIds until props flush', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    await wrapper.setProps({ multiSelectedIds: ['other'] });
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+      renderer: () => { setMultiSelection: (ids: string[]) => void };
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const multiSpy = vi.spyOn(vm.renderer(), 'setMultiSelection');
+
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    await wrapper.vm.$nextTick();
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
+    );
+    // Must not paint the prior `other` selection between emit and props flush.
+    expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
+    await wrapper.vm.$nextTick();
+    // Parent did not update props in this unit mount — hold clears to prop value.
+    expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['other']);
     wrapper.unmount();
   });
 

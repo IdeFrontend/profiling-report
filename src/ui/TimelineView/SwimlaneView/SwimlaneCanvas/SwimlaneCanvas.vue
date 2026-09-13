@@ -1049,20 +1049,22 @@ function onMarqueeDragEnd(): void {
     return;
   }
   const events = eventsInMarquee(rect);
+  const commitEvents = marqueeShift ? eventsForMarqueeCommit(events) : events;
+  // Hold committed ids through the sync emit so dim does not flash back to stale
+  // props (parent re-renders one tick after `multi-select`). Clear on nextTick.
+  marqueePreviewIds = commitEvents.map((ev) => ev.id);
   // The root clears the live drag span on commit; the committed hull is no longer drawn.
   emit('multi-select-span', null);
   emit('cursor', null);
-  // Commit while preview ids still paint, so dim does not flash back to stale props.
   // Root discards the live snap on `multi-select`; preview-null that follows is a no-op.
-  if (marqueeShift) {
-    emit('multi-select', eventsForMarqueeCommit(events));
-  } else {
-    emit('multi-select', events);
-  }
-  marqueePreviewIds = null;
+  emit('multi-select', commitEvents);
   emitMarqueePreview(null);
   sync();
   marqueeShift = false;
+  void nextTick(() => {
+    marqueePreviewIds = null;
+    sync();
+  });
 }
 
 function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {

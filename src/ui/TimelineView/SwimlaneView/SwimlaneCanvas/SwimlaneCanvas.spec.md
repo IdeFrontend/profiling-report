@@ -132,6 +132,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 99. **PR-CANVAS-099** — A multi-selected event keeps the `selected` fill lift (same `L+0.33`, `C×1.05` as the single selection), not just exemption from muting; it must not fall back to its resting colour and only brighten on hover.
 100. **PR-CANVAS-100** — A pending marquee press (click under the 4px gate) is visually a no-op for hover chrome: it does not emit `lane-hover` null and does not clear the hover-gap Δt overlay on `pointerdown` or under-threshold moves — gutter/header highlight and the gap arrow stay as they were under the pointer for the whole click (no disappear/reappear flicker).
 101. **PR-CANVAS-101** — Once a marquee is live (>4px), every move emits `multi-select-preview` with the same event list commit will use (plain rect, or Shift union). Escape, end-without-rect, and post-commit emit `null`. Commit emits `multi-select` before the clearing `null` preview.
+102. **PR-CANVAS-102** — On marquee commit, `marqueePreviewIds` holds the committed id list through the sync `multi-select` emit and the immediate `sync()` so dim does not flash back to stale `props.multiSelectedIds`; the hold clears on the following `nextTick` once props have flushed.
 
 ## Edge Cases
 
@@ -164,6 +165,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-13** — Marquee commit holds preview ids until props flush so dim does not flash (PR-CANVAS-102); PR-CANVAS-082 leftover release uses canvas pointerup.
 - **2026-09-13** — PR-CANVAS-082 wording matches two-phase Escape release (`marqueeEscaped` swallows leftover pointerup).
 - **2026-09-12** — Live marquee emits `multi-select-preview` for the dock (PR-CANVAS-101); commit still owns host `select`.
 - **2026-09-12** — Pending marquee/click press keeps lane hover **and** the hover-gap Δt overlay; both clear only once the live marquee crosses the 4px gate (`PR-CANVAS-089` / `PR-CANVAS-100`).

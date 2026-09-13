@@ -149,22 +149,32 @@ const multiSelectSpan = ref<MeasureRange | null>(null);
 /**
  * True while a live marquee (>4px) gesture is active (any post-gate preview,
  * including empty coverage). Gates Escape so preview `multiSelected` is not
- * treated as a committed multi-select. Dock content still mounts only from
- * `selected` / `multiSelected` (empty-only does not open a blank footer).
- * Host `select` / viewState commit wait for pointerup; Escape restores the pre-drag dock.
+ * treated as a committed multi-select. Footer mount: already-open docks stay up
+ * (empty → nothing-selected message); closed→drag mounts only once coverage is
+ * non-empty. Host `select` / viewState commit wait for pointerup; Escape restores
+ * the pre-drag dock.
  */
 const marqueeLive = ref(false);
 type DockSnap = {
   selected: SelectedEvent | null;
   selectedEvent: SwimEvent | null;
   multiSelected: SwimEvent[];
+  /** Dock was already showing content when the gesture started. */
+  wasOpen: boolean;
 };
 /** Snapshot of dock UI taken on the first live preview of a gesture; discarded on commit. */
 let dockSnap: DockSnap | null = null;
+/** Reactive: live marquee started over an already-open dock (keeps shell for empty state). */
+const marqueeFromClosed = ref(false);
 /** Coalesce live ≥2 dock remaps during a growing marquee (op2-scale). */
 const PREVIEW_DOCK_THROTTLE_MS = 100;
 let previewDockTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingPreviewEvents: SwimEvent[] | null = null;
+/**
+ * True after this gesture has applied a ≥2 preview dock. Reset per gesture so the
+ * first ≥2 over a committed multi (or after empty/single) is not throttled 100ms.
+ */
+let previewMultiApplied = false;
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
@@ -405,6 +415,9 @@ function resetViewFromModel(
   multiSelected.value = [];
   multiSelectSpan.value = null;
   marqueeLive.value = false;
+  marqueeFromClosed.value = false;
+  previewMultiApplied = false;
+  clearPreviewDockTimer();
   dockSnap = null;
   hovered.value = null;
   closeTopologyFullscreen();
@@ -904,11 +917,15 @@ function selectedPayloadFromEvent(ev: SwimEvent): SelectedEvent {
 
 function snapshotDockIfNeeded(): void {
   if (dockSnap) return;
+  const wasOpen = !!(selected.value || multiSelected.value.length);
   dockSnap = {
     selected: selected.value,
     selectedEvent: selectedEvent.value,
     multiSelected: multiSelected.value.slice(),
+    wasOpen,
   };
+  marqueeFromClosed.value = !wasOpen;
+  previewMultiApplied = false;
 }
 
 function sameEventIdSet(a: SwimEvent[], b: SwimEvent[]): boolean {
@@ -930,10 +947,15 @@ function applyLivePreviewDock(events: SwimEvent[]): void {
   if (events.length >= 2) {
     selected.value = null;
     selectedEvent.value = null;
-    if (sameEventIdSet(events, multiSelected.value)) return;
+    if (sameEventIdSet(events, multiSelected.value)) {
+      previewMultiApplied = true;
+      return;
+    }
     multiSelected.value = events;
+    previewMultiApplied = true;
     return;
   }
+  previewMultiApplied = false;
   const ev = events[0]!;
   if (
     multiSelected.value.length === 0 &&
@@ -956,14 +978,18 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
   }
   dockSnap = null;
   marqueeLive.value = false;
+  marqueeFromClosed.value = false;
+  previewMultiApplied = false;
 }
 
 /**
  * Live marquee coverage for the dock only. Does not touch viewState or host `select`.
  * Any post-gate preview (including `[]`) arms `marqueeLive` for Escape. Empty mid-drag
- * keeps the last non-empty dock content so the footer does not leave or flash blank.
- * Skips unchanged membership; throttles ≥2 remaps so op2-scale marquees do not
- * re-sort 150k rows on every pointermove.
+ * clears Detail/Summary. When the dock was already open at drag start, the footer stays
+ * mounted with a nothing-selected message; when it opened from closed, the footer stays
+ * hidden until coverage is non-empty (no empty-state flash).
+ * Skips unchanged membership; throttles further ≥2 remaps after the first of the gesture
+ * so op2-scale marquees do not re-sort 150k rows on every pointermove.
  */
 function onMultiSelectPreview(events: SwimEvent[] | null): void {
   if (events == null) {
@@ -971,11 +997,18 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
     if (marqueeLive.value) clearMarqueeLive({ restore: true });
     return;
   }
-  // Arm gesture liveness before the empty early-return so Escape stays gated
+  // Arm gesture liveness before applying coverage so Escape stays gated
   // even for an empty-only live rect over a committed multi dock.
   snapshotDockIfNeeded();
   marqueeLive.value = true;
-  if (events.length === 0) return;
+  if (events.length === 0) {
+    clearPreviewDockTimer();
+    selected.value = null;
+    selectedEvent.value = null;
+    multiSelected.value = [];
+    previewMultiApplied = false;
+    return;
+  }
 
   // Single-event DetailPanel is cheap — apply immediately.
   if (events.length < 2) {
@@ -984,10 +1017,13 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
     return;
   }
 
-  if (sameEventIdSet(events, multiSelected.value)) return;
+  if (sameEventIdSet(events, multiSelected.value)) {
+    previewMultiApplied = true;
+    return;
+  }
 
-  // First ≥2 paint mounts the summary dock immediately; further growth is coalesced.
-  if (multiSelected.value.length < 2) {
+  // First ≥2 of this gesture mounts the summary dock immediately; further growth is coalesced.
+  if (!previewMultiApplied) {
     clearPreviewDockTimer();
     applyLivePreviewDock(events);
     return;
@@ -1333,11 +1369,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </template>
     </ReportLayout>
 
-    <!-- Persistent dock shell: single/multi selection swap content, not the container.
-         The shared height survives mode switches so the panel does not animate from 0. -->
+    <!-- Persistent dock shell: single/multi/empty swap content, not the container.
+         From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
-        v-if="showTimeline && (selected || multiSelected.length)"
+        v-if="showTimeline && (selected || multiSelected.length || (marqueeLive && !marqueeFromClosed))"
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
@@ -1371,6 +1407,14 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             @update:height="dockHeight = $event"
             @update:dependency-mode="onDependencyMode"
           />
+          <div
+            v-else
+            key="empty"
+            class="pr-dock-empty"
+            data-testid="dock-empty"
+          >
+            {{ t('nothingSelected', locale) }}
+          </div>
         </Transition>
       </footer>
     </Transition>
@@ -1495,6 +1539,16 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 .pr-dock > * {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.pr-dock-empty {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 0 16px;
+  color: #a8a8a8;
+  font-size: 12px;
 }
 
 .pr-dock-content-enter-active,

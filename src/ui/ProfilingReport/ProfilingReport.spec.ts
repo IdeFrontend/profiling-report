@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { markRaw, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
@@ -328,10 +328,12 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
 
-    // Empty mid-drag keeps the last non-empty preview (no leave flicker).
+    // Empty mid-drag clears stale Detail/Summary and shows the empty message.
     timeline().vm.$emit('multi-select-preview', []);
     await nextTick();
-    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
 
     timeline().vm.$emit('multi-select', events);
@@ -398,6 +400,7 @@ describe('ProfilingReport scaffold', () => {
     timeline().vm.$emit('multi-select-preview', []);
     await nextTick();
     expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
     // Gesture is live (Escape gated) even though the footer stays closed.
@@ -408,7 +411,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-016: empty-only live marquee Escape keeps a committed multi dock', async () => {
+  it('PR-ROOT-016: empty-only live marquee Escape restores a committed multi dock', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'live-preview-empty-over-multi',
@@ -429,10 +432,12 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     const selectAfterCommit = wrapper.emitted('select')?.length ?? 0;
 
-    // Empty live rect over committed multi: arm Escape gate without changing dock content.
+    // Empty live rect over committed multi: clear stale rows, keep dock with empty message.
     timeline().vm.$emit('multi-select-preview', []);
     await nextTick();
-    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
@@ -442,9 +447,48 @@ describe('ProfilingReport scaffold', () => {
     timeline().vm.$emit('multi-select-preview', null);
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(false);
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectAfterCommit);
 
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: first ≥2 of a new gesture applies immediately over a committed multi', async () => {
+    vi.useFakeTimers();
+    const model = depsModel();
+    model.processes[0]!.threads[0]!.events.push({
+      id: 'c',
+      name: 'C',
+      startTime: 40,
+      duration: 10,
+      dependencies: { predecessors: [], successors: [] },
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-first-multi',
+        swimlaneModel: model,
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select', [events[0]!, events[1]!]);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+
+    // New gesture over a different ≥2 set must not wait for the 100ms throttle.
+    timeline().vm.$emit('multi-select-preview', [events[1]!, events[2]!]);
+    await nextTick();
+    const summary = wrapper.findComponent({ name: 'MultiSelectSummary' });
+    expect(summary.exists()).toBe(true);
+    expect((summary.props('selectedEvents') as { id: string }[]).map((e) => e.id)).toEqual([
+      'b',
+      'c',
+    ]);
+
+    vi.useRealTimers();
     wrapper.unmount();
   });
 
