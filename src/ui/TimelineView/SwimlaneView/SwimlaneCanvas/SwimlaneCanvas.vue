@@ -276,6 +276,14 @@ let marqueeAutoScrollDir = 0;
 let marqueeLastEdgeScrollDir = 0;
 let marqueeLastClientX = 0;
 let marqueeLastClientY = 0;
+/**
+ * Wrap height last seen for edge-band math. When the dock preview mounts the wrap
+ * shrinks and the band can slide under a stationary pointer — suspend autoscroll
+ * until the pointer leaves the band (PR-CANVAS-104).
+ */
+let marqueeEdgeWrapH = 0;
+/** True after a wrap resize until the pointer leaves the edge band. */
+let marqueeEdgeSuspended = false;
 /** Cancels an in-flight post-commit “keep release Y visible” wait. */
 let marqueeReleaseVisibleRaf = 0;
 /** Magnet snap to nearest in-lane event start/end. */
@@ -773,7 +781,11 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   if (bufferChanged) flushPaint();
   else if (!freeze) schedulePaint();
   const maxY = maxScrollY();
-  if (localScrollY > maxY) {
+  // Live marquee: dock preview shrinks the wrap and would otherwise clamp scroll
+  // after a prior edge/post-commit autoscroll sat near maxY — that jumps the
+  // timeline under the drag. Preserve scroll; edge-band suspend handles the band
+  // sliding under the pointer (PR-CANVAS-104).
+  if (localScrollY > maxY && !marqueePressActive) {
     localScrollY = maxY;
     emit('scroll-y', localScrollY);
   }
@@ -1009,6 +1021,8 @@ function endMarquee(): void {
   marqueeShift = false;
   marqueePreviewIds = null;
   marqueeLastEdgeScrollDir = 0;
+  marqueeEdgeWrapH = 0;
+  marqueeEdgeSuspended = false;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);
@@ -1080,10 +1094,28 @@ function updateMarqueeAutoScrollDir(clientY: number): void {
     stopMarqueeAutoScroll();
     return;
   }
+  const wrapH = wrap.clientHeight;
+  // Dock preview (or any wrap shrink) can slide the edge band under a stationary
+  // pointer — especially after a prior bottom-edge autoscroll left the cursor low.
+  // Suspend until the pointer leaves the band so scroll does not jump on dock open.
+  if (wrapH !== marqueeEdgeWrapH) {
+    if (marqueeEdgeWrapH > 0) {
+      marqueeEdgeSuspended = true;
+      stopMarqueeAutoScroll();
+    }
+    marqueeEdgeWrapH = wrapH;
+  }
   const box = wrap.getBoundingClientRect();
   let dir = 0;
   if (clientY <= box.top + MARQUEE_EDGE_AUTOSCROLL_PX) dir = -1;
   else if (clientY >= box.bottom - MARQUEE_EDGE_AUTOSCROLL_PX) dir = 1;
+  if (marqueeEdgeSuspended) {
+    if (dir === 0) marqueeEdgeSuspended = false;
+    else {
+      stopMarqueeAutoScroll();
+      return;
+    }
+  }
   if (dir === 0) {
     stopMarqueeAutoScroll();
     return;
@@ -1097,6 +1129,14 @@ function updateMarqueeAutoScrollDir(clientY: number): void {
 function tickMarqueeAutoScroll(): void {
   marqueeAutoScrollRaf = 0;
   if (!marqueePressActive || marqueePending || marqueeAutoScrollDir === 0) {
+    marqueeAutoScrollDir = 0;
+    return;
+  }
+  const wrapH = wrapRef.value?.clientHeight ?? 0;
+  if (wrapH !== marqueeEdgeWrapH) {
+    // Wrap resized mid-tick (dock mount) — stop; next pointermove re-evaluates.
+    marqueeEdgeWrapH = wrapH;
+    marqueeEdgeSuspended = true;
     marqueeAutoScrollDir = 0;
     return;
   }
@@ -1260,6 +1300,8 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   marqueeAnchor = { x: localX, contentY: localY + paintScrollY() };
   marqueePending = true;
   marqueePressActive = true;
+  marqueeEdgeWrapH = wrapRef.value?.clientHeight ?? 0;
+  marqueeEdgeSuspended = false;
   // Pending press is visually a no-op: keep lane-row hover and hover-gap Δt overlay.
   // Clear them (and force an unsnapped cursor) only once the drag crosses 4px.
   unbindMarqueeDrag = bindWindowPointerDrag({
@@ -1282,6 +1324,8 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueeEscaped = true;
   marqueeShift = false;
   marqueePreviewIds = null;
+  marqueeEdgeWrapH = 0;
+  marqueeEdgeSuspended = false;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);

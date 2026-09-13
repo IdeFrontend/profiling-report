@@ -2462,6 +2462,93 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-104: wrap shrink does not edge-autoscroll under a stationary pointer', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    // Start tall; dock preview will shrink height and move bottom up under the pointer.
+    let box = { left: 0, top: 100, width: 400, height: 300, right: 400, bottom: 400 };
+    const applyBox = () => {
+      Object.defineProperty(wrap, 'clientWidth', { value: box.width, configurable: true });
+      Object.defineProperty(wrap, 'clientHeight', { value: box.height, configurable: true });
+      Object.defineProperty(wrap, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ ...box }),
+      });
+      const canvasEl = wrapper.find('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+      Object.defineProperty(canvasEl, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ ...box }),
+      });
+    };
+    applyBox();
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    // Live marquee with pointer in the interior (not in the 40px edge band).
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 250, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 280, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    frames.length = 0;
+
+    // Dock preview: wrap shrinks so clientY 280 is now inside the bottom edge band
+    // (new bottom 300 → band starts at 260) without the pointer moving.
+    box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    applyBox();
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 280, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    for (const cb of frames.splice(0)) cb(0);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('scroll-y')?.length ?? 0).toBe(before);
+
+    // Leave the band then re-enter — autoscroll may arm again.
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 200, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 290, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(frames.length).toBeGreaterThan(0);
+    for (let i = 0; i < 10 && (wrapper.emitted('scroll-y')?.length ?? 0) <= before; i++) {
+      const cb = frames.shift();
+      expect(cb).toBeTruthy();
+      cb!(0);
+      await wrapper.vm.$nextTick();
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 290 }));
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-103: after commit with no upward edge-scroll, keeps selection bottom visible', async () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
