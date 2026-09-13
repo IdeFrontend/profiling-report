@@ -264,6 +264,12 @@ const MARQUEE_RELEASE_LAYOUT_WAIT_MS = 280;
 let marqueeAutoScrollRaf = 0;
 /** −1 = toward top, +1 = toward bottom, 0 = idle. */
 let marqueeAutoScrollDir = 0;
+/**
+ * Last edge-autoscroll direction that actually moved scroll during this gesture
+ * (−1 up, +1 down, 0 none). Post-commit visibility uses the latest: up → cursor;
+ * otherwise → bottom of the marquee selection region.
+ */
+let marqueeLastEdgeScrollDir = 0;
 let marqueeLastClientX = 0;
 let marqueeLastClientY = 0;
 /** Cancels an in-flight post-commit “keep release Y visible” wait. */
@@ -989,6 +995,7 @@ function endMarquee(): void {
   marqueeEscaped = false;
   marqueeShift = false;
   marqueePreviewIds = null;
+  marqueeLastEdgeScrollDir = 0;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);
@@ -1007,7 +1014,7 @@ function cancelMarqueeReleaseVisible(): void {
 
 /**
  * Scroll so `contentY` (scroll-space: localScrollY + viewport-local y) stays inside the wrap.
- * Used after dock grow eats the bottom of the swimlane under the release point.
+ * Used after dock grow eats the bottom of the swimlane under the release / selection.
  */
 function ensureContentYVisible(contentY: number): void {
   const viewH = wrapRef.value?.clientHeight ?? 0;
@@ -1030,7 +1037,7 @@ function ensureContentYVisible(contentY: number): void {
 
 /**
  * Dock height tweens after live class drops; wait until wrap height is stable (or timeout)
- * then keep the marquee release content Y visible.
+ * then keep the chosen post-commit content Y visible (cursor or selection bottom).
  */
 function scheduleEnsureMarqueeReleaseVisible(contentY: number): void {
   cancelMarqueeReleaseVisible();
@@ -1082,6 +1089,7 @@ function tickMarqueeAutoScroll(): void {
   }
   const next = clampScrollY(localScrollY + marqueeAutoScrollDir * MARQUEE_EDGE_SCROLL_PX);
   if (next !== localScrollY) {
+    marqueeLastEdgeScrollDir = marqueeAutoScrollDir;
     localScrollY = next;
     emit('scroll-y', localScrollY);
     // Remap the rect against the scrolled lanes using the last pointer position.
@@ -1202,9 +1210,16 @@ function onMarqueeDragEnd(): void {
     sync();
     return;
   }
-  // Capture release content Y before the dock may grow and shrink the wrap.
+  // Capture release / selection content Y before the dock may grow and shrink the wrap.
   const local = localFromClient(marqueeLastClientX, marqueeLastClientY);
   const releaseContentY = local != null ? localScrollY + local.y : null;
+  const selectionBottomContentY = localScrollY + Math.max(rect.y0, rect.y1);
+  // Latest edge-autoscroll: up → keep cursor visible; otherwise keep selection bottom visible.
+  const preferCursor = marqueeLastEdgeScrollDir < 0;
+  const focusContentY = preferCursor
+    ? (releaseContentY ?? selectionBottomContentY)
+    : selectionBottomContentY;
+  marqueeLastEdgeScrollDir = 0;
   const events = eventsInMarquee(rect);
   const commitEvents = marqueeShift ? eventsForMarqueeCommit(events) : events;
   // Hold committed ids through the sync emit so dim does not flash back to stale
@@ -1218,8 +1233,8 @@ function onMarqueeDragEnd(): void {
   emitMarqueePreview(null);
   sync();
   marqueeShift = false;
-  // Closed→preview dock grows to collapsed on commit; keep the mouse-up lane Y visible.
-  if (releaseContentY != null) scheduleEnsureMarqueeReleaseVisible(releaseContentY);
+  // Closed→preview dock grows to collapsed on commit; keep the chosen Y visible.
+  scheduleEnsureMarqueeReleaseVisible(focusContentY);
 }
 
 function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
