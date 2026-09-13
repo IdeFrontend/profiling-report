@@ -668,7 +668,6 @@ test.describe('PR-E2E feature paths', () => {
       if ((await btn.count()) === 0) continue;
       if ((await btn.getAttribute('aria-expanded')) === 'false') await btn.click();
     }
-    const overlay = page.getByTestId('swimlane-canvas');
     const gutter = page.getByTestId('lane-gutter');
     await expect
       .poll(async () => gutter.evaluate((el) => el.scrollHeight - el.clientHeight), {
