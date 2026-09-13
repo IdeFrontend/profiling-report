@@ -2092,7 +2092,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-082: Escape during the drag fully releases the press flag — next plain click selects', async () => {
+  it('PR-CANVAS-082: Escape mid-drag swallows leftover pointerup; next plain click selects', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
       wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
@@ -2105,18 +2105,24 @@ describe('SwimlaneCanvas', () => {
     );
     await wrapper.vm.$nextTick();
 
-    // Escape cancels the marquee mid-drag (no pointerup yet).
+    // Escape cancels the marquee mid-drag (no pointerup yet). Press stays armed
+    // with marqueeEscaped until the leftover release is swallowed.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await wrapper.vm.$nextTick();
 
-    // A new plain click on the same event must select it (regression: marqueePressActive
-    // used to stay set until the next pointerup, suppressing hover/cursor until then).
-    const emittedSelect = wrapper.emitted('select');
+    // Leftover release from the cancelled drag must not select.
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + 20, clientY: rect.y + 8 }),
+    );
+    await wrapper.vm.$nextTick();
+    const afterCancel = wrapper.emitted('select')?.length ?? 0;
+
+    // A new plain click on the same event must select it.
     await canvas.trigger('pointerdown', { clientX: rect.x, clientY: rect.y + rect.h / 2, pointerId: 2 });
     await canvas.trigger('pointerup', { clientX: rect.x, clientY: rect.y + rect.h / 2, pointerId: 2 });
     await wrapper.vm.$nextTick();
     const selects = wrapper.emitted('select') ?? [];
-    expect(selects.length).toBeGreaterThan(emittedSelect?.length ?? 0);
+    expect(selects.length).toBeGreaterThan(afterCancel);
     wrapper.unmount();
   });
 

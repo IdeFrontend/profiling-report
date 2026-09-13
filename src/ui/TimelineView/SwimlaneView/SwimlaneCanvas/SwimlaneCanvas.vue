@@ -1085,10 +1085,10 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueeAnchor = null;
   // Stay non-pending so the release is not mistaken for a click-select.
   marqueePending = false;
-   // Keep the press flag true so onPointerUp swallows the leftover release
-   // (marqueePressActive && !marqueePending). The flag is cleared there on
-   // this cancelled pointerup so the next click is fresh — PR-CANVAS-082.
-   marqueeEscaped = true;
+  // Keep the press flag true so onPointerUp swallows the leftover release
+  // (marqueePressActive && !marqueePending). The flag is cleared there on
+  // this cancelled pointerup so the next click is fresh — PR-CANVAS-082.
+  marqueeEscaped = true;
   marqueeShift = false;
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);
