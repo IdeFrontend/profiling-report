@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, watchEffect } from 'vue';
 import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
@@ -168,21 +168,32 @@ let dockSnap: DockSnap | null = null;
 /** Reactive: live marquee opened the dock from closed (drives preview shell height). */
 const marqueeFromClosed = ref(false);
 /**
- * Shell height while marquee is live: small preview when opening from closed,
+ * Applied preview height while marquee is live from a closed dock.
+ * Fed back into slack math as `currentPreviewHeight` so wrap shrink stays consistent.
+ */
+const marqueePreviewHeight = ref(DOCK_HEIGHT_MARQUEE_PREVIEW);
+/**
+ * Shell height while marquee is live: slack-based preview when opening from closed,
  * otherwise the session dock height (already budgeted into the timeline).
  */
 const dockDisplayHeight = computed(() => {
   if (marqueeLive.value && marqueeFromClosed.value) {
-    return DOCK_HEIGHT_MARQUEE_PREVIEW;
+    return marqueePreviewHeight.value;
   }
   return dockHeight.value;
 });
+
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
-const timelineRef = ref<{ gutterRoot: HTMLElement | null; trackWidth?: number } | null>(null);
+const timelineRef = ref<{
+  gutterRoot: HTMLElement | null;
+  trackWidth?: number;
+  wrapLayoutEpoch?: number;
+  computeMarqueePreviewDockHeight?: (currentPreviewPx: number, targetPx: number) => number;
+} | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
@@ -339,6 +350,22 @@ const displaySwim = computed((): SwimlaneModel | null => {
   // During a collapse tween, `visualCollapsedIds` omits the animating group so the expanded
   // tree stays cached and the canvas never rebuilds meshes mid-animation.
   return filterCollapsedTree(m, visualCollapsedIds.value);
+});
+
+/** Recompute preview height from wrap slack below lane content while live from closed. */
+watchEffect(() => {
+  if (!marqueeLive.value || !marqueeFromClosed.value) return;
+  // Reactive deps so edge-autoscroll / collapse / wrap resize refresh the height.
+  void viewState.value.scrollY;
+  void collapseAnim.value;
+  void displaySwim.value;
+  void timelineRef.value?.wrapLayoutEpoch;
+  const next =
+    timelineRef.value?.computeMarqueePreviewDockHeight?.(
+      marqueePreviewHeight.value,
+      DOCK_HEIGHT_COLLAPSED,
+    ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
+  if (next !== marqueePreviewHeight.value) marqueePreviewHeight.value = next;
 });
 
 const bounds = computed(() => {
@@ -937,6 +964,7 @@ function snapshotDockIfNeeded(): void {
     dockHeight: dockHeight.value,
   };
   marqueeFromClosed.value = !wasOpen;
+  if (!wasOpen) marqueePreviewHeight.value = DOCK_HEIGHT_MARQUEE_PREVIEW;
 }
 
 function clearMarqueeLive(opts?: { restore?: boolean }): void {
@@ -950,6 +978,7 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
   dockSnap = null;
   marqueeLive.value = false;
   marqueeFromClosed.value = false;
+  marqueePreviewHeight.value = DOCK_HEIGHT_MARQUEE_PREVIEW;
 }
 
 /**
@@ -1345,7 +1374,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </ReportLayout>
 
     <!-- Persistent dock shell: single/multi/empty swap content, not the container.
-         Live marquee from a closed dock uses a short preview height; commit grows it. -->
+         Live marquee from a closed dock uses slack-based preview height; commit grows to collapsed. -->
     <Transition name="pr-dock">
       <footer
         v-if="showTimeline && (selected || multiSelected.length || marqueeLive)"

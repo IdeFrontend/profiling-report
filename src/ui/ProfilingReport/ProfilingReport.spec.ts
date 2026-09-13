@@ -365,6 +365,7 @@ describe('ProfilingReport scaffold', () => {
     timeline().vm.$emit('multi-select-preview', events);
     await nextTick();
     const dock = wrapper.get('[data-testid="dock"]');
+    // jsdom wrap is empty of slack → minimum preview height.
     expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`);
 
     timeline().vm.$emit('multi-select', events);
@@ -373,6 +374,41 @@ describe('ProfilingReport scaffold', () => {
       `--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`,
     );
 
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-018: closed-to-drag preview grows into slack below lanes up to collapsed', async () => {
+    const panelResize = await import('../panelResize');
+    const { DOCK_HEIGHT_MARQUEE_PREVIEW, DOCK_HEIGHT_COLLAPSED } = panelResize;
+    const slackHeight = 180;
+    const spy = vi.spyOn(panelResize, 'marqueePreviewDockHeight').mockReturnValue(slackHeight);
+
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-slack',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+      attachTo: document.body,
+    });
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    // Retrigger watchEffect (scrollY) so the spy is consulted after mount.
+    const rootVm = wrapper.vm as unknown as { viewState: { scrollY: number } };
+    rootVm.viewState.scrollY = 1;
+    await nextTick();
+
+    const style = wrapper.get('[data-testid="dock"]').attributes('style') ?? '';
+    expect(spy).toHaveBeenCalled();
+    expect(style).toContain(`--pr-dock-h: ${slackHeight}px`);
+    expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`);
+    expect(slackHeight).toBeLessThan(DOCK_HEIGHT_COLLAPSED);
+
+    spy.mockRestore();
     wrapper.unmount();
   });
 

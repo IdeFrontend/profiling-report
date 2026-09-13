@@ -20,8 +20,35 @@ export const TIMELINE_TRACK_MIN = 320;
  */
 export const DOCK_HEIGHT_COLLAPSED = 247;
 export const DOCK_HEIGHT_EXPANDED = 407;
-/** In-flow dock height while a marquee is live and the dock was closed at drag start. */
+/** Minimum in-flow dock height while a marquee is live and the dock was closed at drag start. */
 export const DOCK_HEIGHT_MARQUEE_PREVIEW = 56;
+
+/**
+ * Live marquee preview dock height when opening from a closed dock.
+ * Grows into dead space below lane content up to the post-commit target:
+ * `min(max(minHeight, slack), targetHeight)` where
+ * `slack = max(0, wrapClosed - (contentHeight - effectiveScrollY))` and
+ * `wrapClosed = wrapHeightNow + currentPreviewHeight`.
+ */
+export function marqueePreviewDockHeight(opts: {
+  wrapHeightNow: number;
+  currentPreviewHeight: number;
+  contentHeight: number;
+  scrollY: number;
+  contentTopPad: number;
+  minHeight?: number;
+  targetHeight: number;
+}): number {
+  const minH = opts.minHeight ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
+  const target = Math.max(minH, opts.targetHeight);
+  const wrapNow = Math.max(0, opts.wrapHeightNow);
+  const current = Math.max(0, opts.currentPreviewHeight);
+  const wrapClosed = wrapNow + current;
+  const effectiveScrollY = opts.scrollY - opts.contentTopPad;
+  const contentBottomInViewport = opts.contentHeight - effectiveScrollY;
+  const slack = Math.max(0, wrapClosed - contentBottomInViewport);
+  return Math.round(Math.min(Math.max(minH, slack), target));
+}
 
 export function clampPanelWidth(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
