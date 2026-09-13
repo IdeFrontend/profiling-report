@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import PrIcon from '../PrIcon.vue';
+import CloseButton from '../CloseButton.vue';
 import type { ReportOperator, TimeDisplayMode } from '../../domain/types';
 import Chevron from '../Chevron.vue';
 import {
@@ -554,223 +555,223 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
             :aria-label="t('shortcuts', locale)"
             :style="shortcutHelpStyle"
           >
-          <div class="pr-toolbar__shortcut-head">
-            <span class="pr-toolbar__shortcut-title">{{ t('shortcuts', locale) }}</span>
-            <button
-              type="button"
-              class="pr-toolbar__shortcut-close"
-              data-testid="shortcut-help-close"
-              :title="t('closePanel', locale)"
-              @click="closeShortcutHelp"
-            >
-              <PrIcon name="close" />
-            </button>
-          </div>
+            <div class="pr-toolbar__shortcut-head">
+              <span class="pr-toolbar__shortcut-title">{{ t('shortcuts', locale) }}</span>
+              <button
+                type="button"
+                class="pr-toolbar__shortcut-close"
+                data-testid="shortcut-help-close"
+                :title="t('closePanel', locale)"
+                @click="closeShortcutHelp"
+              >
+                <PrIcon name="close" />
+              </button>
+            </div>
 
-          <div class="pr-toolbar__shortcut-information">
-            <div class="pr-toolbar__shortcut-mouse-key">
-              <div class="pr-toolbar__shortcut-column">
-                <div class="pr-toolbar__shortcut-section-title">
-                  {{ t('mouseControl', locale) }}
+            <div class="pr-toolbar__shortcut-information">
+              <div class="pr-toolbar__shortcut-mouse-key">
+                <div class="pr-toolbar__shortcut-column">
+                  <div class="pr-toolbar__shortcut-section-title">
+                    {{ t('mouseControl', locale) }}
+                  </div>
+                  <div class="pr-toolbar__shortcut-row">
+                    <span>{{ t('verticalMovement', locale) }}</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="mouse-wheel"
+                      :src="shortcutMouseWheel"
+                      alt=""
+                      width="24"
+                      height="24"
+                    >
+                  </div>
+                  <div class="pr-toolbar__shortcut-row">
+                    <span>{{ t('singleBoxSelection', locale) }}</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="mouse-click"
+                      :src="shortcutMouseClick"
+                      alt=""
+                      width="24"
+                      height="24"
+                    >
+                  </div>
                 </div>
-                <div class="pr-toolbar__shortcut-row">
-                  <span>{{ t('verticalMovement', locale) }}</span>
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="mouse-wheel"
-                    :src="shortcutMouseWheel"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
-                </div>
-                <div class="pr-toolbar__shortcut-row">
-                  <span>{{ t('singleBoxSelection', locale) }}</span>
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="mouse-click"
-                    :src="shortcutMouseClick"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
+
+                <div class="pr-toolbar__shortcut-column">
+                  <div class="pr-toolbar__shortcut-section-title">
+                    {{ t('keyboardControl', locale) }}
+                  </div>
+                  <div class="pr-toolbar__shortcut-pair-row">
+                    <div class="pr-toolbar__shortcut-pair">
+                      <span>{{ t('zoomIn', locale) }}</span>
+                      <img
+                        class="pr-toolbar__shortcut-glyph"
+                        data-shortcut-icon="key-w"
+                        :src="shortcutKeyW"
+                        alt="W"
+                        width="24"
+                        height="24"
+                      >
+                    </div>
+                    <div class="pr-toolbar__shortcut-pair">
+                      <span>{{ t('zoomOut', locale) }}</span>
+                      <img
+                        class="pr-toolbar__shortcut-glyph"
+                        data-shortcut-icon="key-s"
+                        :src="shortcutKeyS"
+                        alt="S"
+                        width="24"
+                        height="24"
+                      >
+                    </div>
+                  </div>
+                  <div class="pr-toolbar__shortcut-pair-row">
+                    <div class="pr-toolbar__shortcut-pair">
+                      <span>{{ t('panLeft', locale) }}</span>
+                      <img
+                        class="pr-toolbar__shortcut-glyph"
+                        data-shortcut-icon="key-a"
+                        :src="shortcutKeyA"
+                        alt="A"
+                        width="24"
+                        height="24"
+                      >
+                    </div>
+                    <div class="pr-toolbar__shortcut-pair">
+                      <span>{{ t('panRight', locale) }}</span>
+                      <img
+                        class="pr-toolbar__shortcut-glyph"
+                        data-shortcut-icon="key-d"
+                        :src="shortcutKeyD"
+                        alt="D"
+                        width="24"
+                        height="24"
+                      >
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div class="pr-toolbar__shortcut-column">
+              <div class="pr-toolbar__shortcut-column pr-toolbar__shortcut-column--combined">
                 <div class="pr-toolbar__shortcut-section-title">
-                  {{ t('keyboardControl', locale) }}
+                  {{ t('combinedControl', locale) }}
                 </div>
-                <div class="pr-toolbar__shortcut-pair-row">
-                  <div class="pr-toolbar__shortcut-pair">
-                    <span>{{ t('zoomIn', locale) }}</span>
+                <div class="pr-toolbar__shortcut-row">
+                  <span>{{ t('scaling', locale) }}</span>
+                  <span class="pr-toolbar__shortcut-glyphs">
                     <img
                       class="pr-toolbar__shortcut-glyph"
-                      data-shortcut-icon="key-w"
-                      :src="shortcutKeyW"
-                      alt="W"
+                      data-shortcut-icon="mouse-wheel"
+                      :src="shortcutMouseWheel"
+                      alt=""
                       width="24"
                       height="24"
                     >
-                  </div>
-                  <div class="pr-toolbar__shortcut-pair">
-                    <span>{{ t('zoomOut', locale) }}</span>
                     <img
                       class="pr-toolbar__shortcut-glyph"
-                      data-shortcut-icon="key-s"
-                      :src="shortcutKeyS"
-                      alt="S"
+                      data-shortcut-icon="key-ctrl"
+                      :src="shortcutKeyCtrl"
+                      alt="Ctrl"
                       width="24"
                       height="24"
                     >
-                  </div>
+                    <span
+                      class="pr-toolbar__shortcut-sep"
+                      aria-hidden="true"
+                    >/</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="single-finger"
+                      :src="shortcutSingleFinger"
+                      alt=""
+                      width="24"
+                      height="24"
+                    >
+                  </span>
                 </div>
-                <div class="pr-toolbar__shortcut-pair-row">
-                  <div class="pr-toolbar__shortcut-pair">
-                    <span>{{ t('panLeft', locale) }}</span>
+                <div class="pr-toolbar__shortcut-row">
+                  <span>{{ t('dragPan', locale) }}</span>
+                  <span class="pr-toolbar__shortcut-glyphs">
                     <img
                       class="pr-toolbar__shortcut-glyph"
-                      data-shortcut-icon="key-a"
-                      :src="shortcutKeyA"
-                      alt="A"
+                      data-shortcut-icon="mouse-click"
+                      :src="shortcutMouseClick"
+                      alt=""
                       width="24"
                       height="24"
                     >
-                  </div>
-                  <div class="pr-toolbar__shortcut-pair">
-                    <span>{{ t('panRight', locale) }}</span>
                     <img
                       class="pr-toolbar__shortcut-glyph"
-                      data-shortcut-icon="key-d"
-                      :src="shortcutKeyD"
-                      alt="D"
+                      data-shortcut-icon="key-ctrl"
+                      :src="shortcutKeyCtrl"
+                      alt="Ctrl"
                       width="24"
                       height="24"
                     >
-                  </div>
+                    <span
+                      class="pr-toolbar__shortcut-sep"
+                      aria-hidden="true"
+                    >/</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="double-finger"
+                      :src="shortcutDoubleFinger"
+                      alt=""
+                      width="24"
+                      height="24"
+                    >
+                  </span>
+                </div>
+                <div class="pr-toolbar__shortcut-row">
+                  <span>{{ t('boxSelect', locale) }}</span>
+                  <span class="pr-toolbar__shortcut-glyphs">
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="mouse-click"
+                      :src="shortcutMouseClick"
+                      alt=""
+                      width="24"
+                      height="24"
+                    >
+                    <span
+                      class="pr-toolbar__shortcut-sep"
+                      aria-hidden="true"
+                    >/</span>
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="box-select"
+                      :src="shortcutBoxSelect"
+                      alt=""
+                      width="24"
+                      height="24"
+                    >
+                  </span>
+                </div>
+                <div class="pr-toolbar__shortcut-row">
+                  <span>{{ t('timeMeasurement', locale) }}</span>
+                  <span class="pr-toolbar__shortcut-glyphs">
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="mouse-click"
+                      :src="shortcutMouseClick"
+                      alt=""
+                      width="24"
+                      height="24"
+                    >
+                    <img
+                      class="pr-toolbar__shortcut-glyph"
+                      data-shortcut-icon="key-alt"
+                      :src="shortcutKeyAlt"
+                      alt="Alt"
+                      width="24"
+                      height="24"
+                    >
+                  </span>
                 </div>
               </div>
             </div>
-
-            <div class="pr-toolbar__shortcut-column pr-toolbar__shortcut-column--combined">
-              <div class="pr-toolbar__shortcut-section-title">
-                {{ t('combinedControl', locale) }}
-              </div>
-              <div class="pr-toolbar__shortcut-row">
-                <span>{{ t('scaling', locale) }}</span>
-                <span class="pr-toolbar__shortcut-glyphs">
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="mouse-wheel"
-                    :src="shortcutMouseWheel"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="key-ctrl"
-                    :src="shortcutKeyCtrl"
-                    alt="Ctrl"
-                    width="24"
-                    height="24"
-                  >
-                  <span
-                    class="pr-toolbar__shortcut-sep"
-                    aria-hidden="true"
-                  >/</span>
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="single-finger"
-                    :src="shortcutSingleFinger"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
-                </span>
-              </div>
-              <div class="pr-toolbar__shortcut-row">
-                <span>{{ t('dragPan', locale) }}</span>
-                <span class="pr-toolbar__shortcut-glyphs">
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="mouse-click"
-                    :src="shortcutMouseClick"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="key-ctrl"
-                    :src="shortcutKeyCtrl"
-                    alt="Ctrl"
-                    width="24"
-                    height="24"
-                  >
-                  <span
-                    class="pr-toolbar__shortcut-sep"
-                    aria-hidden="true"
-                  >/</span>
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="double-finger"
-                    :src="shortcutDoubleFinger"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
-                </span>
-              </div>
-              <div class="pr-toolbar__shortcut-row">
-                <span>{{ t('boxSelect', locale) }}</span>
-                <span class="pr-toolbar__shortcut-glyphs">
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="mouse-click"
-                    :src="shortcutMouseClick"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
-                  <span
-                    class="pr-toolbar__shortcut-sep"
-                    aria-hidden="true"
-                  >/</span>
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="box-select"
-                    :src="shortcutBoxSelect"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
-                </span>
-              </div>
-              <div class="pr-toolbar__shortcut-row">
-                <span>{{ t('timeMeasurement', locale) }}</span>
-                <span class="pr-toolbar__shortcut-glyphs">
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="mouse-click"
-                    :src="shortcutMouseClick"
-                    alt=""
-                    width="24"
-                    height="24"
-                  >
-                  <img
-                    class="pr-toolbar__shortcut-glyph"
-                    data-shortcut-icon="key-alt"
-                    :src="shortcutKeyAlt"
-                    alt="Alt"
-                    width="24"
-                    height="24"
-                  >
-                </span>
-              </div>
-            </div>
           </div>
-        </div>
         </Teleport>
       </div>
 
@@ -852,15 +853,12 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         >
           <div class="pr-toolbar__display-head">
             <span class="pr-toolbar__display-title">{{ t('displayControl', locale) }}</span>
-            <button
-              type="button"
+            <CloseButton
               class="pr-toolbar__display-close"
               data-testid="display-control-close"
-              :title="t('closePanel', locale)"
+              :label="t('closePanel', locale)"
               @click="closeDisplayControl"
-            >
-              <PrIcon name="close" />
-            </button>
+            />
           </div>
           <label class="pr-toolbar__display-field">
             <span class="pr-toolbar__display-label">{{ t('taskDisplayUnit', locale) }}</span>

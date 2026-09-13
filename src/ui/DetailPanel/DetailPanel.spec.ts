@@ -74,25 +74,22 @@ describe('DetailPanel', () => {
     const wrapper = mount(DetailPanel, {
       props: { selected, timeDisplayMode: 'time' as const },
     });
-    const dock = wrapper.find('[data-testid="detail-panel"]');
     const expander = wrapper.find('[data-testid="detail-panel-expander"]');
     expect(expander.exists()).toBe(true);
     // The drag handle is gone: the dock has two heights, not a range.
     expect(wrapper.find('[data-testid="detail-panel-resize-handle"]').exists()).toBe(false);
 
-    expect(dock.attributes('style')).toContain(`${DOCK_HEIGHT_COLLAPSED}px`);
     expect(expander.attributes('aria-expanded')).toBe('false');
 
     await expander.trigger('click');
-    expect(wrapper.emitted('update:expanded')?.at(-1)).toEqual([true]);
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_EXPANDED]);
 
     // Height is driven by the prop, so the parent owning the state is what moves it.
-    await wrapper.setProps({ expanded: true });
-    expect(dock.attributes('style')).toContain(`${DOCK_HEIGHT_EXPANDED}px`);
+    await wrapper.setProps({ height: DOCK_HEIGHT_EXPANDED });
     expect(expander.attributes('aria-expanded')).toBe('true');
 
     await expander.trigger('click');
-    expect(wrapper.emitted('update:expanded')?.at(-1)).toEqual([false]);
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_COLLAPSED]);
   });
 
   it('PR-DPANEL-006: the active tab underline sits on the header rule, not mid-header', async () => {
@@ -105,16 +102,13 @@ describe('DetailPanel', () => {
     expect(src).not.toMatch(/\.pr-detail-panel__tab\s*\{[^}]*padding-bottom/);
   });
 
-  it('PR-DPANEL-007: dock height animates, and the close control is the design icon', async () => {
+  it('PR-DPANEL-007: the close control is the design icon and the shell lives in the parent', async () => {
     const wrapper = mount(DetailPanel, { props: { selected, timeDisplayMode: 'time' as const } });
-    expect(wrapper.find('[data-testid="detail-panel-close"] .pr-icon--close').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="detail-panel-close"].pr-close').exists()).toBe(true);
 
     const src = (await import('./DetailPanel.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-detail-panel\s*\{[^}]*transition:\s*height/);
-    // Cap against the viewport so a short host cannot lose the timeline on expand.
-    expect(src).toMatch(/height:\s*min\(\s*var\(--pr-dock-h\),\s*60vh\s*\)/);
-    // Enter/leave reuse that same transition so appearing never jumps the timeline.
-    expect(src).toMatch(/\.pr-detail-panel\.pr-dock-enter-from[\s\S]*?height:\s*0/);
-    expect(src).toMatch(/prefers-reduced-motion: reduce/);
+    // The panel is a content shell now: height, border and transition are owned by the parent dock.
+    expect(src).not.toMatch(/\.pr-detail-panel\s*\{[^}]*height:\s*min\(\s*var\(--pr-dock-h\),\s*60vh\s*\)/);
+    expect(src).not.toMatch(/\.pr-detail-panel\.pr-dock-enter-from/);
   });
 });

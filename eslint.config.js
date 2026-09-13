@@ -30,6 +30,7 @@ export default tseslint.config(
       },
     },
   },
+
   {
     files: ['**/*.{ts,vue}'],
     languageOptions: {

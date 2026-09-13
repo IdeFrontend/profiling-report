@@ -16,6 +16,7 @@ import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vu
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import CannbotIcon from './CannbotIcon.vue';
+import CloseButton from '../CloseButton.vue';
 import type { CannbotScope } from '../../domain/cannbot';
 
 const props = defineProps<{
@@ -458,29 +459,12 @@ function backToReport() {
         <h3 :title="headerTitle">
           {{ headerTitle }}
         </h3>
-        <button
-          type="button"
+        <CloseButton
           class="pr-aside__close"
           data-testid="stats-aside-close"
-          :aria-label="t('closePanel', locale)"
-          :title="t('closePanel', locale)"
+          :label="t('closePanel', locale)"
           @click="emit('close')"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            aria-hidden="true"
-          >
-            <path
-              d="M4 4l8 8M12 4l-8 8"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
+        />
       </div>
       <p
         v-if="asideSurface === 'report' && (hasMeta || showMore)"
