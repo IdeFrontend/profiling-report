@@ -250,11 +250,20 @@ let marqueeShift = false;
 const MARQUEE_EDGE_AUTOSCROLL_PX = 40;
 /** Scroll step per animation frame while the pointer sits in an edge band. */
 const MARQUEE_EDGE_SCROLL_PX = 12;
+/**
+ * After marquee commit the dock may tween taller (~200ms) and shrink the wrap.
+ * Keep the release content Y this far above the new wrap bottom when scrolling it back into view.
+ */
+const MARQUEE_RELEASE_VISIBLE_PAD_PX = 8;
+/** Stop waiting for wrap height to settle after dock grow (CSS height transition is 200ms). */
+const MARQUEE_RELEASE_LAYOUT_WAIT_MS = 280;
 let marqueeAutoScrollRaf = 0;
 /** −1 = toward top, +1 = toward bottom, 0 = idle. */
 let marqueeAutoScrollDir = 0;
 let marqueeLastClientX = 0;
 let marqueeLastClientY = 0;
+/** Cancels an in-flight post-commit “keep release Y visible” wait. */
+let marqueeReleaseVisibleRaf = 0;
 /** Magnet snap to nearest in-lane event start/end. */
 const EVENT_EDGE_MAGNET_PX = 10;
 /** Fast snap when clicking an event while a prior measure range exists. */
@@ -945,6 +954,7 @@ function endMeasureCreate(): void {
 /** Drop the marquee gesture without committing (Escape, unmount, pointerup). */
 function endMarquee(): void {
   stopMarqueeAutoScroll();
+  cancelMarqueeReleaseVisible();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   marqueeAnchor = null;
@@ -962,6 +972,60 @@ function stopMarqueeAutoScroll(): void {
   if (marqueeAutoScrollRaf) cancelAnimationFrame(marqueeAutoScrollRaf);
   marqueeAutoScrollRaf = 0;
   marqueeAutoScrollDir = 0;
+}
+
+function cancelMarqueeReleaseVisible(): void {
+  if (marqueeReleaseVisibleRaf) cancelAnimationFrame(marqueeReleaseVisibleRaf);
+  marqueeReleaseVisibleRaf = 0;
+}
+
+/**
+ * Scroll so `contentY` (scroll-space: localScrollY + viewport-local y) stays inside the wrap.
+ * Used after dock grow eats the bottom of the swimlane under the release point.
+ */
+function ensureContentYVisible(contentY: number): void {
+  const viewH = wrapRef.value?.clientHeight ?? 0;
+  if (viewH <= 0) return;
+  const top = localScrollY;
+  const bottom = localScrollY + viewH;
+  if (contentY >= top && contentY < bottom) return;
+  let next = localScrollY;
+  if (contentY >= bottom) {
+    next = contentY - viewH + MARQUEE_RELEASE_VISIBLE_PAD_PX;
+  } else {
+    next = contentY - MARQUEE_RELEASE_VISIBLE_PAD_PX;
+  }
+  next = clampScrollY(next);
+  if (next === localScrollY) return;
+  localScrollY = next;
+  emit('scroll-y', localScrollY);
+  sync();
+}
+
+/**
+ * Dock height tweens after live class drops; wait until wrap height is stable (or timeout)
+ * then keep the marquee release content Y visible.
+ */
+function scheduleEnsureMarqueeReleaseVisible(contentY: number): void {
+  cancelMarqueeReleaseVisible();
+  const started = performance.now();
+  let lastH = -1;
+  let stable = 0;
+  const tick = (now: number) => {
+    marqueeReleaseVisibleRaf = 0;
+    const H = wrapRef.value?.clientHeight ?? 0;
+    if (H === lastH) stable += 1;
+    else {
+      stable = 0;
+      lastH = H;
+    }
+    if (stable >= 2 || now - started >= MARQUEE_RELEASE_LAYOUT_WAIT_MS) {
+      ensureContentYVisible(contentY);
+      return;
+    }
+    marqueeReleaseVisibleRaf = requestAnimationFrame(tick);
+  };
+  marqueeReleaseVisibleRaf = requestAnimationFrame(tick);
 }
 
 function updateMarqueeAutoScrollDir(clientY: number): void {
@@ -1113,6 +1177,9 @@ function onMarqueeDragEnd(): void {
     sync();
     return;
   }
+  // Capture release content Y before the dock may grow and shrink the wrap.
+  const local = localFromClient(marqueeLastClientX, marqueeLastClientY);
+  const releaseContentY = local != null ? localScrollY + local.y : null;
   const events = eventsInMarquee(rect);
   sync();
   // The root clears the live drag span on commit; the committed hull is no longer drawn.
@@ -1126,6 +1193,8 @@ function onMarqueeDragEnd(): void {
   }
   emitMarqueePreview(null);
   marqueeShift = false;
+  // Closed→preview dock grows to collapsed on commit; keep the mouse-up lane Y visible.
+  if (releaseContentY != null) scheduleEnsureMarqueeReleaseVisible(releaseContentY);
 }
 
 function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {

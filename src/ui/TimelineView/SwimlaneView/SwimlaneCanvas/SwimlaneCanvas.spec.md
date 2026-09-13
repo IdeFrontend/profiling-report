@@ -133,6 +133,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 100. **PR-CANVAS-100** — A pending marquee press (click under the 4px gate) is visually a no-op for hover chrome: it does not emit `lane-hover` null and does not clear the hover-gap Δt overlay on `pointerdown` or under-threshold moves — gutter/header highlight and the gap arrow stay as they were under the pointer for the whole click (no disappear/reappear flicker).
 101. **PR-CANVAS-101** — Once a marquee is live (>4px), every move emits `multi-select-preview` with the same event list commit will use (plain rect, or Shift union). Escape, end-without-rect, and post-commit emit `null`. Commit emits `multi-select` before the clearing `null` preview.
 102. **PR-CANVAS-102** — While a marquee is live, holding the pointer in a top or bottom edge band of the visible wrap emits continuous `scroll-y` toward that edge (clamped); leaving the band, pointerup, or Escape stops autoscroll. Marquee coverage remaps after each scroll step.
+103. **PR-CANVAS-103** — After a live marquee commits, if the wrap later shrinks such that the mouse-up content Y would fall below the visible area (e.g. closed→preview dock grows to collapsed), the canvas emits `scroll-y` so that release Y stays inside the wrap (near the bottom, with a small pad). No scroll when the release Y remains visible.
 
 ## Edge Cases
 
@@ -165,6 +166,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-13** — After marquee commit, keep mouse-up Y visible when the dock grow shrinks the wrap (`PR-CANVAS-103`).
 - **2026-09-13** — Live marquee edge autoscroll (`PR-CANVAS-102`).
 - **2026-09-13** — PR-CANVAS-082 wording matches two-phase Escape release (`marqueeEscaped` swallows leftover pointerup).
 - **2026-09-12** — Live marquee emits `multi-select-preview` for the dock (PR-CANVAS-101); commit still owns host `select`.

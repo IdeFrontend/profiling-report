@@ -2411,6 +2411,86 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-103: after commit, scroll-y keeps release Y visible when wrap shrinks', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    // Live marquee; release near the bottom of the tall wrap (localY ≈ 180).
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 200, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 280, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 280 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select')).toBeTruthy();
+
+    // Simulate closed→preview dock growing to collapsed: wrap loses ~150px at the bottom.
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    // Wait for two stable height frames (scheduleEnsureMarqueeReleaseVisible).
+    for (let i = 0; i < 6 && (wrapper.emitted('scroll-y')?.length ?? 0) <= before; i++) {
+      now += 16;
+      const cb = frames.shift();
+      expect(cb).toBeTruthy();
+      cb!(now);
+      await wrapper.vm.$nextTick();
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    // Release contentY = 180; new viewH = 50 → scroll so 180 stays in view near the bottom.
+    expect(scrolled).toBeGreaterThanOrEqual(180 - 50);
+    expect(scrolled).toBeLessThanOrEqual(180 - 50 + 8);
+
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-086: Shift+left-click on event toggles multi-selection (add)', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {
