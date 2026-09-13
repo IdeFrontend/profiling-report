@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
-import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../../src/ui/panelResize';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } from '../../src/ui/panelResize';
 
 /** With fit = [minTime, maxTime], events fill the canvas; probe near the left first. */
 const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.35, 0.5, 0.65, 0.8];
@@ -396,13 +396,13 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('marquee-rect')).toBeVisible();
     await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
     // Live dock follows coverage before commit (≥2 events → summary). Height is
-    // slack-based preview toward the session target (PR-ROOT-018) — with room
-    // below lanes that may already equal collapsed (247), not the 56px floor.
+    // slack-based preview toward the session target (PR-ROOT-018) — floor fits
+    // chrome + first table row; with room below lanes it may reach collapsed.
     await expect(page.getByTestId('dock')).toBeVisible();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     const midDragDockH = (await page.getByTestId('dock').boundingBox())!.height;
-    expect(midDragDockH).toBeGreaterThanOrEqual(56);
-    expect(midDragDockH).toBeLessThanOrEqual(407);
+    expect(midDragDockH).toBeGreaterThanOrEqual(DOCK_HEIGHT_MARQUEE_PREVIEW);
+    expect(midDragDockH).toBeLessThanOrEqual(DOCK_HEIGHT_EXPANDED);
     // Δt chrome tracks the live rect (measure parity), with measure mode off.
     await expect(page.getByTestId('measure-arrow')).toBeVisible();
     await page.mouse.up();

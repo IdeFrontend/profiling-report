@@ -20,8 +20,12 @@ export const TIMELINE_TRACK_MIN = 320;
  */
 export const DOCK_HEIGHT_COLLAPSED = 247;
 export const DOCK_HEIGHT_EXPANDED = 407;
-/** Minimum in-flow dock height while a marquee is live and the dock was closed at drag start. */
-export const DOCK_HEIGHT_MARQUEE_PREVIEW = 56;
+/**
+ * Minimum in-flow dock height while a marquee is live and the dock was closed at drag start.
+ * Sized to fit MultiSelectSummary chrome (head + table thead) plus the first data row;
+ * slack may grow it further toward the session target.
+ */
+export const DOCK_HEIGHT_MARQUEE_PREVIEW = 100;
 
 /**
  * Live marquee preview dock height when opening from a closed dock.

@@ -2611,12 +2611,23 @@ describe('SwimlaneCanvas', () => {
     box.bottom = 150;
 
     const before = wrapper.emitted('scroll-y')?.length ?? 0;
-    for (let i = 0; i < 6 && (wrapper.emitted('scroll-y')?.length ?? 0) <= before; i++) {
+    // Layout-settle rAF, then the 200ms ensureContentYVisible tween.
+    for (let i = 0; i < 40; i++) {
       now += 16;
-      const cb = frames.shift();
-      expect(cb).toBeTruthy();
-      cb!(now);
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
       await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        last >= 180 - 50 &&
+        last <= 180 - 50 + 8
+      ) {
+        break;
+      }
     }
     expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
     const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
@@ -2715,19 +2726,32 @@ describe('SwimlaneCanvas', () => {
     box.bottom = 150;
 
     const before = wrapper.emitted('scroll-y')?.length ?? 0;
-    for (let i = 0; i < 6 && (wrapper.emitted('scroll-y')?.length ?? 0) <= before; i++) {
+    const cursorContentY = scrollAtCommit + 50;
+    const targetMin = cursorContentY - 50;
+    const targetMax = cursorContentY - 50 + 8;
+    // Layout-settle rAF, then the 200ms ensureContentYVisible tween.
+    for (let i = 0; i < 40; i++) {
       now += 16;
-      const cb = frames.shift();
-      expect(cb).toBeTruthy();
-      cb!(now);
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
       await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        last >= targetMin &&
+        last <= targetMax
+      ) {
+        break;
+      }
     }
     expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
     const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
     // Latest edge-scroll was up → focus release cursor (localY 50), not selection bottom (100).
-    const cursorContentY = scrollAtCommit + 50;
-    expect(scrolled).toBeGreaterThanOrEqual(cursorContentY - 50);
-    expect(scrolled).toBeLessThanOrEqual(cursorContentY - 50 + 8);
+    expect(scrolled).toBeGreaterThanOrEqual(targetMin);
+    expect(scrolled).toBeLessThanOrEqual(targetMax);
     // Selection-bottom focus would land ~50px lower.
     expect(scrolled).toBeLessThan(scrollAtCommit + 100 - 50);
 

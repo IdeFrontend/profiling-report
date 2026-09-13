@@ -43,7 +43,7 @@ import {
   measureLabelFitsInlineSpan,
 } from '../../cursorMeasureOverlap';
 import MeasureDtArrow from '../../MeasureDtArrow.vue';
-import { animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
+import { animateProgress, animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
 import {
   ALT_MEASURE_FIND_EVENT_KEY,
   ALT_MEASURE_SHARED_KEY,
@@ -265,7 +265,11 @@ const MARQUEE_EDGE_SCROLL_PX = 12;
 const MARQUEE_RELEASE_VISIBLE_PAD_PX = 8;
 /** Stop waiting for wrap height to settle after dock grow (CSS height transition is 200ms). */
 const MARQUEE_RELEASE_LAYOUT_WAIT_MS = 280;
+/** Match `.pr-dock` height transition when scrolling focus Y back into view after dock grow. */
+const DOCK_SCROLL_ANIM_MS = 200;
 let marqueeAutoScrollRaf = 0;
+/** Cancel handle for post-dock `ensureContentYVisible` scroll tween. */
+let cancelEnsureScrollAnim: (() => void) | null = null;
 /** −1 = toward top, +1 = toward bottom, 0 = idle. */
 let marqueeAutoScrollDir = 0;
 /**
@@ -1055,11 +1059,14 @@ function stopMarqueeAutoScroll(): void {
 function cancelMarqueeReleaseVisible(): void {
   if (marqueeReleaseVisibleRaf) cancelAnimationFrame(marqueeReleaseVisibleRaf);
   marqueeReleaseVisibleRaf = 0;
+  cancelEnsureScrollAnim?.();
+  cancelEnsureScrollAnim = null;
 }
 
 /**
  * Scroll so `contentY` (scroll-space: localScrollY + viewport-local y) stays inside the wrap.
  * Used after dock grow eats the bottom of the swimlane under the release / selection.
+ * Tweens over `DOCK_SCROLL_ANIM_MS` to match the dock height enter/leave (reduced-motion → instant).
  */
 function ensureContentYVisible(contentY: number): void {
   const viewH = wrapRef.value?.clientHeight ?? 0;
@@ -1075,8 +1082,24 @@ function ensureContentYVisible(contentY: number): void {
   }
   next = clampScrollY(next);
   if (next === localScrollY) return;
-  emitScrollY(next);
-  sync();
+  cancelEnsureScrollAnim?.();
+  cancelEnsureScrollAnim = null;
+  const from = localScrollY;
+  if (prefersReducedMotion() || Math.abs(next - from) < 0.5) {
+    emitScrollY(next);
+    return;
+  }
+  cancelEnsureScrollAnim = animateProgress({
+    from,
+    to: next,
+    durationMs: DOCK_SCROLL_ANIM_MS,
+    onUpdate: (y) => {
+      emitScrollY(y);
+    },
+    onDone: () => {
+      cancelEnsureScrollAnim = null;
+    },
+  });
 }
 
 /**
