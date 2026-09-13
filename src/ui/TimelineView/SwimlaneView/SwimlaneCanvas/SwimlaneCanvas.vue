@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { ASIDE_TRACK_ANIMATING_KEY } from '../../../asideTrackAnimating';
+import { marqueePreviewDockHeight } from '../../../panelResize';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -15,7 +16,7 @@ import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRendere
 import {
   computeAltMeasureDelta,
   computeAltMeasureGap,
-  contentHeightFromModel,
+  contentHeightForModel,
   eventMeasureTargetTime,
   eventsIntersectingRect,
   findExactEdgeMatches,
@@ -200,6 +201,9 @@ function chooseWebGl(): boolean {
 const useWebGl = ref(chooseWebGl());
 /** Bumped on size change so measure overlay computeds re-read track width. */
 const resizeTick = ref(0);
+/** Bumped when wrap clientHeight changes — root recomputes marquee preview dock height. */
+const wrapLayoutEpoch = ref(0);
+let lastWrapClientH = -1;
 
 type Backend = CanvasSwimlaneRenderer | WebGlSwimlaneRenderer;
 
@@ -377,14 +381,22 @@ function zeroBackingStores(): void {
 }
 
 function modelContentHeight(): number {
-  const base = contentHeightFromModel(props.model);
-  const anim = props.collapseAnim;
-  if (anim && anim.hiddenHeight > 0) {
-    // Match contentHeightFromModel's 120px body floor so the scroll area never
-    // under-shoots the settled height (which would clip the collapsed content).
-    return Math.max(120, base - anim.hiddenHeight * (1 - anim.visible));
-  }
-  return base;
+  return contentHeightForModel(props.model, props.collapseAnim);
+}
+
+/**
+ * Live marquee preview dock height from wrap slack below lane content.
+ * `currentPreviewPx` is the height already applied (restores closed wrap size).
+ */
+function computeMarqueePreviewDockHeight(currentPreviewPx: number, targetPx: number): number {
+  return marqueePreviewDockHeight({
+    wrapHeightNow: wrapRef.value?.clientHeight ?? 0,
+    currentPreviewHeight: currentPreviewPx,
+    contentHeight: modelContentHeight(),
+    scrollY: props.view.scrollY,
+    contentTopPad: props.contentTopPad ?? 0,
+    targetHeight: targetPx,
+  });
 }
 
 function maxScrollY(): number {
@@ -678,6 +690,10 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   const contentH = modelContentHeight();
   const w = syncTrackWidth();
   const viewH = wrap.clientHeight || 0;
+  if (viewH !== lastWrapClientH) {
+    lastWrapClientH = viewH;
+    wrapLayoutEpoch.value += 1;
+  }
   sizerHeight.value = Math.max(contentH, viewH);
   const h = Math.max(1, viewH || lastH || contentH);
   const dpr = currentDpr();
@@ -2366,6 +2382,8 @@ defineExpose({
   clearEdgeSnapHighlight,
   clearAltMeasure,
   altMeasureBridgeEndpoint,
+  wrapLayoutEpoch,
+  computeMarqueePreviewDockHeight,
 });
 </script>
 

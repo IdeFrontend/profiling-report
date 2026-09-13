@@ -135,6 +135,8 @@ type CanvasExpose = {
   ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   clearEdgeSnapHighlight: () => void;
   altMeasureBridgeEndpoint?: () => { clientX: number; clientY: number; time: number } | null;
+  wrapLayoutEpoch?: number;
+  computeMarqueePreviewDockHeight?: (currentPreviewPx: number, targetPx: number) => number;
 };
 const canvasRef = ref<CanvasExpose | null>(null);
 const pinnedCanvasRef = ref<CanvasExpose | null>(null);
@@ -528,6 +530,18 @@ defineExpose({
   clearEdgeSnapHighlight,
   /** Test/debug: shared Alt-measure session (pin strip ↔ body). */
   altMeasureShared,
+  get wrapLayoutEpoch() {
+    return canvasRef.value?.wrapLayoutEpoch ?? 0;
+  },
+  computeMarqueePreviewDockHeight(
+    currentPreviewPx: number,
+    targetPx: number,
+  ): number {
+    return (
+      canvasRef.value?.computeMarqueePreviewDockHeight?.(currentPreviewPx, targetPx) ??
+      currentPreviewPx
+    );
+  },
 });
 </script>
 
