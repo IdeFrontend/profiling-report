@@ -495,7 +495,7 @@ function onGutterScroll(): void {
   const el = gutterRef.value?.root;
   if (!el) return;
   if (gutterScrollFromProps) return;
-  if (Math.abs(el.scrollTop - props.view.scrollY) > 0.5) {
+  if (Math.abs(el.scrollTop - displayScrollY.value) > 0.5) {
     if (marqueePreviewLive.value) {
       // Do not write scrollTop here (that chased canvas/cards). overflow-anchor:none
       // blocks dock anchoring; canvas emits remain the source of truth via the watcher.

@@ -3136,11 +3136,21 @@ describe('SwimlaneCanvas', () => {
       cb(0);
       return 1;
     });
+    // Tall content so scrollY=80 stays under maxScrollY after RO (empty model clamps to 0).
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
         preferRenderer: 'canvas' as const,
-        model: { processes: [], minTime: 0, maxTime: 1000 },
+        model: {
+          processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+          minTime: 0,
+          maxTime: 1000,
+        },
         view: { startTime: 0, endTime: 1000, scrollY: 80 },
         contentTopPad: 40,
       },
@@ -3154,6 +3164,9 @@ describe('SwimlaneCanvas', () => {
       configurable: true,
     });
     await fireAllDeviceRo();
+    // RO clamp can zero scrollY while layout settles — re-seed before the pad tween.
+    await wrapper.setProps({ view: { startTime: 0, endTime: 1000, scrollY: 80 } });
+    await nextTick();
     setView.mockClear();
 
     await wrapper.setProps({ contentTopPad: 88 });
@@ -3161,8 +3174,55 @@ describe('SwimlaneCanvas', () => {
 
     expect(setView).toHaveBeenCalled();
     const last = setView.mock.calls.at(-1)![0] as { scrollY: number };
-    // paintView: scrollY - contentTopPad
+    // paintView: localScrollY - contentTopPad
     expect(last.scrollY).toBe(80 - 88);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-105: wheel scroll flushPaints with localScrollY without waiting on props', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    const setView = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setView');
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: {
+          processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+          minTime: 0,
+          maxTime: 1000,
+        },
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+        contentTopPad: 0,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    await fireAllDeviceRo();
+    setView.mockClear();
+    frames.length = 0;
+
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    await canvas.trigger('wheel', { deltaY: 48, deltaX: 0 });
+
+    // Same-turn flush: setView sees local scroll before any rAF callback runs.
+    expect(frames.length).toBe(0);
+    expect(wrapper.emitted('scroll-y')?.at(-1)?.[0]).toBe(48);
+    expect(setView).toHaveBeenCalled();
+    const last = setView.mock.calls.at(-1)![0] as { scrollY: number };
+    expect(last.scrollY).toBe(48);
+    // Parent props still at 0 — paint must not wait on them.
+    expect(wrapper.props('view').scrollY).toBe(0);
     wrapper.unmount();
   });
 });

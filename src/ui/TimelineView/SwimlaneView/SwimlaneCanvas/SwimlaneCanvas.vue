@@ -1112,7 +1112,6 @@ function updateMarqueeAutoScrollDir(clientY: number): void {
     return;
   }
   const wrapH = wrap.clientHeight;
-  const prevWrapH = marqueeEdgeWrapH;
   // Dock preview (or any wrap shrink) can slide the edge band under a stationary
   // pointer — especially after a prior bottom-edge autoscroll left the cursor low.
   // Suspend until the pointer leaves the band so scroll does not jump on dock open.
@@ -1127,8 +1126,6 @@ function updateMarqueeAutoScrollDir(clientY: number): void {
   let dir = 0;
   if (clientY <= box.top + MARQUEE_EDGE_AUTOSCROLL_PX) dir = -1;
   else if (clientY >= box.bottom - MARQUEE_EDGE_AUTOSCROLL_PX) dir = 1;
-  const distBottom = box.bottom - clientY;
-  const distTop = clientY - box.top;
   if (marqueeEdgeSuspended) {
     if (dir === 0) marqueeEdgeSuspended = false;
     else {

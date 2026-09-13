@@ -135,6 +135,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 102. **PR-CANVAS-102** — While a marquee is live, holding the pointer in a top or bottom edge band of the visible wrap emits continuous `scroll-y` toward that edge (clamped); leaving the band, pointerup, or Escape stops autoscroll. The drag anchor stays fixed in **content** space so each scroll step stretches the rect (and remaps coverage) instead of shifting both corners with the lanes.
 103. **PR-CANVAS-103** — After a live marquee commits, if the wrap later shrinks such that the post-commit focus Y would fall outside the visible area (e.g. closed→preview dock grows to collapsed), the canvas emits `scroll-y` so that focus Y stays inside the wrap (near the bottom, with a small pad). Focus Y is the mouse-up content Y when the **latest** edge-autoscroll that moved scroll was **up**; otherwise it is the bottom of the marquee rect in content space (covers no edge-scroll and latest-down). No scroll when that Y remains visible.
 104. **PR-CANVAS-104** — When the wrap shrinks during a live marquee (dock preview mount), edge autoscroll does **not** arm from a band that slid under a stationary pointer — suspend until the pointer leaves the edge band (then re-enter to scroll). Live marquee also skips the resize `maxScrollY` clamp so a prior edge/post-commit autoscroll near max does not jump the timeline when the dock opens. The lane gutter uses `overflow-anchor: none`, and while `multi-select-preview` is live any gutter `scrollTop` change that is not the canvas-owned `scrollY` is rejected (browser scroll-anchoring must not bump scroll when the dock eats wrap height).
+105. **PR-CANVAS-105** — Vertical wheel (and other `scroll-y` emits) apply `localScrollY` and **flush-paint** in the same turn so the canvas does not lag a frame behind gutter/card strips that already consumed the emit. Paint uses `localScrollY` even when parent `props.view.scrollY` has not caught up yet.
 
 ## Edge Cases
 
@@ -167,6 +168,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-13** — Wheel/`scroll-y` flush-paints with `localScrollY` so canvas stays locked to gutter/cards (`PR-CANVAS-105`).
 - **2026-09-13** — Dock preview wrap shrink does not edge-autoscroll under a stationary pointer (`PR-CANVAS-104`).
 - **2026-09-13** — Post-commit marquee scroll: latest edge-autoscroll up → cursor Y; else selection-bottom Y (`PR-CANVAS-103`).
 - **2026-09-13** — After marquee commit, keep mouse-up Y visible when the dock grow shrinks the wrap (`PR-CANVAS-103`).

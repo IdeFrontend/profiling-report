@@ -565,4 +565,94 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('detail-panel')).toHaveCount(0);
     await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
   });
+
+  test('PR-E2E-015: wheel scroll keeps gutter and card headers locked', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.goto('/?fixture=stress&scale=large');
+    await expect(page.getByTestId('playground-ready')).toBeVisible({ timeout: 60_000 });
+    // Expand enough lanes for vertical scroll room.
+    for (const name of ['Core0.Vec0', 'Core1.Cube', 'Core1.Vec0', 'Core2.Cube', 'Core2.Vec0']) {
+      const btn = page.getByRole('button', { name: new RegExp(`^${name}`) }).first();
+      if ((await btn.getAttribute('aria-expanded')) === 'false') await btn.click();
+    }
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const gutter = page.getByTestId('lane-gutter');
+    await expect
+      .poll(async () => {
+        return gutter.evaluate((el) => el.scrollHeight - el.clientHeight);
+      })
+      .toBeGreaterThan(200);
+
+    const box = (await overlay.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 200);
+    for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 80);
+
+    const sample = await page.evaluate(() => {
+      const g = document.querySelector('[data-testid="lane-gutter"]') as HTMLElement | null;
+      const scroller = document.querySelector('.pr-card-strips__scroll') as HTMLElement | null;
+      const strip = document.querySelector(
+        '[data-testid^="card-strip-"]',
+      ) as HTMLElement | null;
+      const group = strip
+        ? (document.querySelector(
+            `[data-testid="gutter-group-${strip.getAttribute('data-testid')?.replace('card-strip-', '')}"]`,
+          ) as HTMLElement | null)
+        : null;
+      const tf = scroller?.style.transform ?? '';
+      const m = /translateY\((-?\d+(?:\.\d+)?)px\)/.exec(tf);
+      return {
+        gutterTop: g?.scrollTop ?? -1,
+        transformY: m ? Number(m[1]) : null,
+        cardVsGutter:
+          strip && group
+            ? Math.round(strip.getBoundingClientRect().top - group.getBoundingClientRect().top)
+            : null,
+      };
+    });
+    expect(sample.gutterTop).toBeGreaterThan(100);
+    expect(sample.transformY).toBe(-sample.gutterTop);
+    if (sample.cardVsGutter != null) expect(Math.abs(sample.cardVsGutter)).toBeLessThanOrEqual(1);
+  });
+
+  test('PR-E2E-016: marquee edge autoscroll moves the timeline while the rect stays live', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.goto('/?fixture=stress&scale=large');
+    await expect(page.getByTestId('playground-ready')).toBeVisible({ timeout: 60_000 });
+    for (const name of ['Core0.Vec0', 'Core1.Cube', 'Core1.Vec0', 'Core2.Cube']) {
+      const btn = page.getByRole('button', { name: new RegExp(`^${name}`) }).first();
+      if ((await btn.getAttribute('aria-expanded')) === 'false') await btn.click();
+    }
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const gutter = page.getByTestId('lane-gutter');
+    await expect
+      .poll(async () => gutter.evaluate((el) => el.scrollHeight - el.clientHeight))
+      .toBeGreaterThan(200);
+
+    const wrap = page.getByTestId('swimlane');
+    let box = (await wrap.boundingBox())!;
+    const startY = box.y + box.height / 2;
+    await page.mouse.move(box.x + 40, startY);
+    await page.mouse.down();
+    // Cross the 4px gate in the interior (outside the 40px edge bands).
+    await page.mouse.move(box.x + 120, startY + 20, { steps: 6 });
+    await expect(page.getByTestId('marquee-rect')).toBeVisible();
+    // Dock preview can shrink the wrap and suspend edge autoscroll until the
+    // pointer leaves the band (PR-CANVAS-104). Settle, leave, then re-enter.
+    await page.waitForTimeout(250);
+    box = (await wrap.boundingBox())!;
+    const midY = box.y + box.height / 2;
+    const edgeY = box.y + box.height - 8;
+    await page.mouse.move(box.x + 140, midY, { steps: 4 });
+    const before = await gutter.evaluate((el) => el.scrollTop);
+    await page.mouse.move(box.x + 140, edgeY, { steps: 4 });
+    await expect
+      .poll(async () => gutter.evaluate((el) => el.scrollTop), { timeout: 5000 })
+      .toBeGreaterThan(before);
+    await expect(page.getByTestId('marquee-rect')).toBeVisible();
+    await page.mouse.up();
+  });
 });
