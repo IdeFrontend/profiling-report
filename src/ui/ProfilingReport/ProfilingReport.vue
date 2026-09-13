@@ -60,6 +60,7 @@ import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_COLLAPSED,
+  DOCK_HEIGHT_MARQUEE_PREVIEW,
   fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
@@ -149,8 +150,8 @@ const multiSelectSpan = ref<MeasureRange | null>(null);
 /**
  * True while a live marquee (>4px) gesture is active (any post-gate preview,
  * including empty coverage). Gates Escape so preview `multiSelected` is not
- * treated as a committed multi-select. Dock content still mounts only from
- * `selected` / `multiSelected` (empty-only does not open a blank footer).
+ * treated as a committed multi-select. While live, the footer stays mounted
+ * (including an empty-state message) so mid-drag does not leave/enter the shell.
  * Host `select` / viewState commit wait for pointerup; Escape restores the pre-drag dock.
  */
 const marqueeLive = ref(false);
@@ -158,9 +159,24 @@ type DockSnap = {
   selected: SelectedEvent | null;
   selectedEvent: SwimEvent | null;
   multiSelected: SwimEvent[];
+  /** Dock was already showing content when the gesture started. */
+  wasOpen: boolean;
+  dockHeight: number;
 };
 /** Snapshot of dock UI taken on the first live preview of a gesture; discarded on commit. */
 let dockSnap: DockSnap | null = null;
+/** Reactive: live marquee opened the dock from closed (drives preview shell height). */
+const marqueeFromClosed = ref(false);
+/**
+ * Shell height while marquee is live: small preview when opening from closed,
+ * otherwise the session dock height (already budgeted into the timeline).
+ */
+const dockDisplayHeight = computed(() => {
+  if (marqueeLive.value && marqueeFromClosed.value) {
+    return DOCK_HEIGHT_MARQUEE_PREVIEW;
+  }
+  return dockHeight.value;
+});
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
@@ -900,11 +916,15 @@ function selectedPayloadFromEvent(ev: SwimEvent): SelectedEvent {
 
 function snapshotDockIfNeeded(): void {
   if (dockSnap) return;
+  const wasOpen = !!(selected.value || multiSelected.value.length);
   dockSnap = {
     selected: selected.value,
     selectedEvent: selectedEvent.value,
     multiSelected: multiSelected.value.slice(),
+    wasOpen,
+    dockHeight: dockHeight.value,
   };
+  marqueeFromClosed.value = !wasOpen;
 }
 
 function clearMarqueeLive(opts?: { restore?: boolean }): void {
@@ -912,15 +932,17 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
     selected.value = dockSnap.selected;
     selectedEvent.value = dockSnap.selectedEvent;
     multiSelected.value = dockSnap.multiSelected;
+    dockHeight.value = dockSnap.dockHeight;
   }
   dockSnap = null;
   marqueeLive.value = false;
+  marqueeFromClosed.value = false;
 }
 
 /**
  * Live marquee coverage for the dock only. Does not touch viewState or host `select`.
  * Any post-gate preview (including `[]`) arms `marqueeLive` for Escape. Empty mid-drag
- * keeps the last non-empty dock content so the footer does not leave or flash blank.
+ * clears Detail/Summary content and shows the nothing-selected message (no stale rows).
  */
 function onMultiSelectPreview(events: SwimEvent[] | null): void {
   if (events == null) {
@@ -928,11 +950,16 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
     if (marqueeLive.value) clearMarqueeLive({ restore: true });
     return;
   }
-  // Arm gesture liveness before the empty early-return so Escape stays gated
+  // Arm gesture liveness before applying coverage so Escape stays gated
   // even for an empty-only live rect over a committed multi dock.
   snapshotDockIfNeeded();
   marqueeLive.value = true;
-  if (events.length === 0) return;
+  if (events.length === 0) {
+    selected.value = null;
+    selectedEvent.value = null;
+    multiSelected.value = [];
+    return;
+  }
   if (events.length >= 2) {
     selected.value = null;
     selectedEvent.value = null;
@@ -953,12 +980,16 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
  * follows the live drag).
  */
 function onMultiSelect(events: SwimEvent[]) {
+  const fromClosed = dockSnap ? !dockSnap.wasOpen : false;
+  const priorHeight = dockSnap?.dockHeight ?? dockHeight.value;
   // Discard the pre-drag snap; commit wins. Preview-null that follows is a no-op.
   clearMarqueeLive();
   if (events.length === 0) {
     onSelect(null);
     return;
   }
+  // Closed→drag used preview height; grow to collapsed. Already-open keeps session height.
+  dockHeight.value = fromClosed ? DOCK_HEIGHT_COLLAPSED : priorHeight;
   if (events.length === 1) {
     onSelect(events[0]!);
     return;
@@ -1275,15 +1306,15 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       </template>
     </ReportLayout>
 
-    <!-- Persistent dock shell: single/multi selection swap content, not the container.
-         The shared height survives mode switches so the panel does not animate from 0. -->
+    <!-- Persistent dock shell: single/multi/empty swap content, not the container.
+         Live marquee from a closed dock uses a short preview height; commit grows it. -->
     <Transition name="pr-dock">
       <footer
-        v-if="showTimeline && (selected || multiSelected.length)"
+        v-if="showTimeline && (selected || multiSelected.length || marqueeLive)"
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
-        :style="{ '--pr-dock-h': `${dockHeight}px` }"
+        :style="{ '--pr-dock-h': `${dockDisplayHeight}px` }"
       >
         <Transition name="pr-dock-content" mode="out-in">
           <MultiSelectSummary
@@ -1292,7 +1323,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :selected-events="multiSelected"
             :model="swim"
             :locale="locale"
-            :height="dockHeight"
+            :height="dockDisplayHeight"
             @close="onSelect(null)"
             @select-single="onSelect"
             @update:height="dockHeight = $event"
@@ -1308,11 +1339,19 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :locale="locale"
             :neighbors="dependencyNeighbors"
             :dependency-mode="localDependencyMode"
-            :height="dockHeight"
+            :height="dockDisplayHeight"
             @close="onSelect(null)"
             @update:height="dockHeight = $event"
             @update:dependency-mode="onDependencyMode"
           />
+          <div
+            v-else
+            key="empty"
+            class="pr-dock-empty"
+            data-testid="dock-empty"
+          >
+            {{ t('nothingSelected', locale) }}
+          </div>
         </Transition>
       </footer>
     </Transition>
@@ -1437,6 +1476,16 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 .pr-dock > * {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.pr-dock-empty {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 0 16px;
+  color: #a8a8a8;
+  font-size: 12px;
 }
 
 .pr-dock-content-enter-active,

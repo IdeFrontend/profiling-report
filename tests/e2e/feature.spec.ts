@@ -379,15 +379,20 @@ test.describe('PR-E2E feature paths', () => {
     await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
     await expect(page.getByTestId('marquee-rect')).toBeVisible();
     await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
-    // Live dock follows coverage before commit (≥2 events → summary).
+    // Live dock follows coverage before commit (≥2 events → summary) at preview height.
     await expect(page.getByTestId('dock')).toBeVisible();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
+    const midDragDockH = (await page.getByTestId('dock').boundingBox())!.height;
+    expect(midDragDockH).toBeLessThan(100);
     // Δt chrome tracks the live rect (measure parity), with measure mode off.
     await expect(page.getByTestId('measure-arrow')).toBeVisible();
     await page.mouse.up();
 
     const dock = page.getByTestId('multi-select-summary');
     await expect(dock).toBeVisible();
+    await expect
+      .poll(async () => (await page.getByTestId('dock').boundingBox())?.height ?? 0)
+      .toBeGreaterThan(200);
     await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
     // Δt is cleared on commit; only the live drag showed the measure chrome.
     await expect(page.getByTestId('measure-arrow')).toHaveCount(0);

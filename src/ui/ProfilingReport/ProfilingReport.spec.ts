@@ -326,10 +326,12 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
 
-    // Empty mid-drag keeps the last non-empty preview (no leave flicker).
+    // Empty mid-drag clears stale Detail/Summary and shows the empty message.
     timeline().vm.$emit('multi-select-preview', []);
     await nextTick();
-    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
 
     timeline().vm.$emit('multi-select', events);
@@ -337,6 +339,33 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: closed-to-drag uses preview dock height; commit grows to collapsed', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-height',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const { DOCK_HEIGHT_MARQUEE_PREVIEW, DOCK_HEIGHT_COLLAPSED } = await import('../panelResize');
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    const dock = wrapper.get('[data-testid="dock"]');
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`);
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`,
+    );
 
     wrapper.unmount();
   });
@@ -383,7 +412,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-016: empty-first preview does not mount a blank dock', async () => {
+  it('PR-ROOT-016: empty-first preview mounts the nothing-selected message', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'live-preview-empty-first',
@@ -395,10 +424,11 @@ describe('ProfilingReport scaffold', () => {
 
     timeline().vm.$emit('multi-select-preview', []);
     await nextTick();
-    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
-    // Gesture is live (Escape gated) even though the footer stays closed.
+    // Gesture is live (Escape gated) even with empty coverage.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
     expect(wrapper.emitted('select')).toBeFalsy();
@@ -406,7 +436,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-016: empty-only live marquee Escape keeps a committed multi dock', async () => {
+  it('PR-ROOT-016: empty-only live marquee Escape restores a committed multi dock', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'live-preview-empty-over-multi',
@@ -427,10 +457,12 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     const selectAfterCommit = wrapper.emitted('select')?.length ?? 0;
 
-    // Empty live rect over committed multi: arm Escape gate without changing dock content.
+    // Empty live rect over committed multi: clear stale rows, keep dock with empty message.
     timeline().vm.$emit('multi-select-preview', []);
     await nextTick();
-    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
@@ -440,6 +472,7 @@ describe('ProfilingReport scaffold', () => {
     timeline().vm.$emit('multi-select-preview', null);
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(false);
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectAfterCommit);
 
