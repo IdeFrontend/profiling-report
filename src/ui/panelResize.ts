@@ -25,7 +25,8 @@ export const DOCK_HEIGHT_MARQUEE_PREVIEW = 56;
 
 /**
  * Live marquee preview dock height when opening from a closed dock.
- * Grows into dead space below lane content up to the post-commit target:
+ * Grows into dead space below lane content up to the post-commit session target
+ * (`dockHeight`: collapsed or expanded):
  * `min(max(minHeight, slack), targetHeight)` where
  * `slack = max(0, wrapClosed - (contentHeight - effectiveScrollY))` and
  * `wrapClosed = wrapHeightNow + currentPreviewHeight`.

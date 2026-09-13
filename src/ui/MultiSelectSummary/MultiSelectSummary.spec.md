@@ -16,7 +16,7 @@ The marquee multi-select summary dock. Mounted by ProfilingReport when a marquee
 
 ## Behavior
 
-The dock shows a header with the selection count and the "Slices" tab label, a sortable four-column table (**Name**, **Wall Duration**, **Self time**, **Average Wall Duration**), and a × close button. The table body scrolls inside the dock (the dock itself does not grow with content). At most 1000 rows are rendered; a larger selection reports "Showing 1000 of N" while numeric bars still scale against the complete selection. Sorting starts as Wall Duration descending; clicking a header alternates ascending ↔ descending, every header carries the drawn sort arrows, and the active column is highlighted. A centred expander on the top edge toggles the dock between its two fixed heights (collapsed / expanded); there is no drag resize.
+The dock shows a header with the selection count and the "Slices" tab label, a sortable four-column table (**Name**, **Wall Duration**, **Self time**, **Average Wall Duration**), and a × close button. The table body scrolls inside the dock (the dock itself does not grow with content). At most 1000 rows are rendered; a larger selection reports "Showing 1000 of N" while numeric bars still scale against the complete selection. Sorting starts as Wall Duration descending; clicking a header alternates ascending ↔ descending, every header carries the drawn sort arrows, and the active column is highlighted. A centred expander on the top edge toggles the dock between its two fixed heights (collapsed / expanded); there is no drag resize. When the parent passes `expanded`, that intent wins over deriving from `height` (slack-capped live preview).
 
 ## Acceptance Criteria
 
@@ -26,11 +26,12 @@ The dock shows a header with the selection count and the "Slices" tab label, a s
 4. **PR-MSEL-004** — Numeric cells carry a bar proportional to the column max.
 5. **PR-MSEL-005** — Clicking a name emits `select-single` with the full event.
 6. **PR-MSEL-006** — Header × emits `close`.
-7. **PR-MSEL-007** — The centred expander toggles the dock between its two sketch heights and carries `aria-expanded`; no resize handle exists.
+7. **PR-MSEL-007** — The centred expander toggles the dock between its two sketch heights and carries `aria-expanded`; no resize handle exists. When the parent passes `expanded`, that intent wins over deriving from `height`.
 8. **PR-MSEL-008** — The table body scrolls, not the dock; large selections render 1000 rows with the visible count.
 
 ## Changelog
 
+- **2026-09-13** — Optional `expanded` prop overrides height-derived chevron state (slack-capped preview).
 - **2026-09-12** — May also mount from a live marquee preview (≥2 events) before commit.
 - **2026-09-12** — Dock mounts only for commits of two or more events; a one-event marquee is demoted to DetailPanel by the root.
 - **2026-08-26** — Multi-select summary dock for the marquee commit path.

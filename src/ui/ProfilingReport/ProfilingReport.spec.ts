@@ -409,6 +409,10 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
       `--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`,
     );
+    // Chevron follows session expand even when painted height is slack-capped.
+    expect(wrapper.get('[data-testid="multi-select-expander"]').attributes('aria-expanded')).toBe(
+      'true',
+    );
 
     timeline().vm.$emit('multi-select', events);
     await nextTick();
@@ -416,13 +420,17 @@ describe('ProfilingReport scaffold', () => {
       `--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`,
     );
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="multi-select-expander"]').attributes('aria-expanded')).toBe(
+      'true',
+    );
 
     wrapper.unmount();
   });
 
-  it('PR-ROOT-018: closed-to-drag preview grows into slack below lanes up to collapsed', async () => {
+  it('PR-ROOT-018: closed-to-drag preview grows into slack toward session target', async () => {
     const panelResize = await import('../panelResize');
-    const { DOCK_HEIGHT_MARQUEE_PREVIEW, DOCK_HEIGHT_COLLAPSED } = panelResize;
+    const { DOCK_HEIGHT_MARQUEE_PREVIEW, DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } =
+      panelResize;
     const slackHeight = 180;
     const spy = vi.spyOn(panelResize, 'marqueePreviewDockHeight').mockReturnValue(slackHeight);
 
@@ -434,20 +442,36 @@ describe('ProfilingReport scaffold', () => {
       },
       attachTo: document.body,
     });
+    const vm = wrapper.vm as unknown as { selectEventById: (id: string) => void };
     const model = depsModel();
     const events = model.processes[0]!.threads[0]!.events;
     const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
 
+    // Seed session expanded, then clear so closed→drag uses expanded as target.
+    vm.selectEventById('a');
+    await nextTick();
+    wrapper.getComponent({ name: 'DetailPanel' }).vm.$emit('update:height', DOCK_HEIGHT_EXPANDED);
+    await nextTick();
+    wrapper.getComponent({ name: 'DetailPanel' }).vm.$emit('close');
+    await nextTick();
+    spy.mockClear();
+
     timeline().vm.$emit('multi-select-preview', events);
     await nextTick();
 
-    // First paint must already be the precomputed preview (no collapsed→shrink flash).
+    // First paint must already be the precomputed preview (no full-target→shrink flash).
     const style = wrapper.get('[data-testid="dock"]').attributes('style') ?? '';
     expect(spy).toHaveBeenCalled();
+    const targetHeights = spy.mock.calls.map((c) => (c[0] as { targetHeight: number }).targetHeight);
+    expect(targetHeights.every((h) => h === DOCK_HEIGHT_EXPANDED)).toBe(true);
     expect(style).toContain(`--pr-dock-h: ${slackHeight}px`);
     expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`);
     expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`);
+    expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`);
     expect(slackHeight).toBeLessThan(DOCK_HEIGHT_COLLAPSED);
+    expect(wrapper.get('[data-testid="multi-select-expander"]').attributes('aria-expanded')).toBe(
+      'true',
+    );
 
     spy.mockRestore();
     wrapper.unmount();

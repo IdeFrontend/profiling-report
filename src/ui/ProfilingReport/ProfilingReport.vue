@@ -60,6 +60,7 @@ import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_COLLAPSED,
+  DOCK_HEIGHT_EXPANDED,
   DOCK_HEIGHT_MARQUEE_PREVIEW,
   fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
@@ -213,6 +214,8 @@ const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 /** Shared dock height for single-select DetailPanel and multi-select summary. */
 const dockHeight = ref(DOCK_HEIGHT_COLLAPSED);
+/** Session expand intent — drives the chevron even when live preview height is slack-capped. */
+const dockSessionExpanded = computed(() => dockHeight.value >= DOCK_HEIGHT_EXPANDED);
 
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
@@ -376,7 +379,7 @@ watchEffect(() => {
   const next =
     timelineRef.value?.computeMarqueePreviewDockHeight?.(
       marqueePreviewHeight.value,
-      DOCK_HEIGHT_COLLAPSED,
+      dockHeight.value,
       wrapClosed,
     ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
   if (next !== marqueePreviewHeight.value) marqueePreviewHeight.value = next;
@@ -988,7 +991,7 @@ function snapshotDockIfNeeded(): void {
     marqueePreviewHeight.value =
       timelineRef.value?.computeMarqueePreviewDockHeight?.(
         0,
-        DOCK_HEIGHT_COLLAPSED,
+        dockHeight.value,
         wrapClosedHeight,
       ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
   }
@@ -1404,7 +1407,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </ReportLayout>
 
     <!-- Persistent dock shell: single/multi/empty swap content, not the container.
-         Live marquee from a closed dock uses slack-based preview height; commit grows to collapsed.
+         Live marquee from a closed dock uses slack-based preview height toward the
+         session target (collapsed or expanded); commit grows to that session height.
          From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
@@ -1422,6 +1426,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :model="swim"
             :locale="locale"
             :height="dockDisplayHeight"
+            :expanded="dockSessionExpanded"
             @close="onSelect(null)"
             @select-single="onSelect"
             @update:height="dockHeight = $event"
@@ -1438,6 +1443,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :neighbors="dependencyNeighbors"
             :dependency-mode="localDependencyMode"
             :height="dockDisplayHeight"
+            :expanded="dockSessionExpanded"
             @close="onSelect(null)"
             @update:height="dockHeight = $event"
             @update:dependency-mode="onDependencyMode"

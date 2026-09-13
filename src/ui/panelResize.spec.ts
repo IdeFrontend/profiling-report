@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DOCK_HEIGHT_COLLAPSED,
+  DOCK_HEIGHT_EXPANDED,
   DOCK_HEIGHT_MARQUEE_PREVIEW,
   marqueePreviewDockHeight,
 } from './panelResize';
@@ -34,6 +35,18 @@ describe('marqueePreviewDockHeight', () => {
         contentHeight: 100,
       }),
     ).toBe(DOCK_HEIGHT_COLLAPSED);
+  });
+
+  it('caps at expanded target when slack exceeds expanded height', () => {
+    expect(
+      marqueePreviewDockHeight({
+        ...base,
+        targetHeight: DOCK_HEIGHT_EXPANDED,
+        wrapHeightNow: 800,
+        currentPreviewHeight: 0,
+        contentHeight: 100,
+      }),
+    ).toBe(DOCK_HEIGHT_EXPANDED);
   });
 
   it('uses available slack when between min and target', () => {
@@ -71,12 +84,12 @@ describe('marqueePreviewDockHeight', () => {
     // contentBottom = 300 - 30 = 270; slack = 400 - 270 = 130.
     expect(
       marqueePreviewDockHeight({
+        ...base,
         wrapHeightNow: 400,
         currentPreviewHeight: 0,
         contentHeight: 300,
         scrollY: 50,
         contentTopPad: 20,
-        targetHeight: DOCK_HEIGHT_COLLAPSED,
       }),
     ).toBe(130);
   });
