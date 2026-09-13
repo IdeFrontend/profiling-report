@@ -1079,6 +1079,19 @@ export interface EventEmphasis {
   muted: boolean;
 }
 
+/**
+ * True when this event stays full-color under an active selection/search dim:
+ * selection/dep-neighbor (`bright`), multi-selected, or hovered.
+ */
+export function isKeepBright(
+  id: string,
+  bright: ReadonlySet<string>,
+  hoveredId: string | null,
+  multiIds: ReadonlySet<string>,
+): boolean {
+  return bright.has(id) || multiIds.has(id) || id === hoveredId;
+}
+
 /** Canvas/WebGL fill+label emphasis. Search miss → alpha 0.25; an active selection mutes
  * non-selected, non-neighbor events to solid gray (`SELECTION_MUTED_FILL`). Callers pass
  * `keepBright=true` for the selection, its laid-out dep neighbors, and the hovered block —

@@ -6,6 +6,7 @@ import {
   encodeIntervalPair,
   EVENT_MARGIN,
   eventEmphasis,
+  isKeepBright,
   eventLabelAnchor,
   eventPaintRect,
   eventRadius,
@@ -546,12 +547,17 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     // Hovered (keepBright) under a selection: unmuted, same as the selection itself.
     expect(eventEmphasis(true, true, false, true)).toEqual({ alpha: 1, muted: false });
 
-    // Both Canvas paths (main + overlay) wire hover into keepBright — otherwise a light
-    // hover fill under the selection mute is what made dark labels unreadable.
+    const bright = new Set(['sel']);
+    const multi = new Set(['m1']);
+    expect(isKeepBright('sel', bright, null, multi)).toBe(true);
+    expect(isKeepBright('m1', bright, null, multi)).toBe(true);
+    expect(isKeepBright('hov', bright, 'hov', multi)).toBe(true);
+    expect(isKeepBright('other', bright, 'hov', multi)).toBe(false);
+
+    // Both Canvas paths (main + overlay) wire keepBright via the shared helper.
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(canvasSrc.match(/bright\.has\(item\.id\)\s*\|\|\s*item\.id\s*===\s*this\.hoveredId/g))
-      .toHaveLength(2);
+    expect(canvasSrc.match(/\bisKeepBright\(/g)).toHaveLength(2);
   });
 
   it.skipIf(!hasWebGl2)('PR-RENDER-010: WebGL setSelection rebuilds emphasis', () => {
@@ -1064,7 +1070,8 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(/laneHoverBg = hexToRgb\(LANE_HOVER_FILL\)/);
     expect(webglSrc).toMatch(/compositeLabelBackdrop\(bg, fill, 1\)/);
     expect(webglSrc).toMatch(/hexToRgb\(SELECTION_MUTED_LABEL\)/);
-    expect(webglSrc).toMatch(/bright\.has\(item\.id\) \|\| this\.multiIds\.has\(item\.id\) \|\| item\.id === this\.hoveredId/);
+    // keep-bright via shared helper (not an inline disjunct regex — reorder-safe).
+    expect(webglSrc).toMatch(/\bisKeepBright\(/);
   });
 
   it('PR-RENDER-039: ClearType label quad origin snaps to integer device px', async () => {

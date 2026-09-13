@@ -34,6 +34,7 @@ import {
   contentHeightFromLayout,
   eventBlockMetrics,
   eventEmphasis,
+  isKeepBright,
   eventLabelAnchor,
   eventScreenRect,
   findEvent,
@@ -342,7 +343,7 @@ export class SwimlaneOverlayPainter {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const keepBright = bright.has(item.id) || item.id === this.hoveredId || this.multiIds.has(item.id);
+      const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
       const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
         keepBright,
@@ -666,7 +667,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const keepBright = bright.has(item.id) || item.id === this.hoveredId || this.multiIds.has(item.id);
+      const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
       const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
         keepBright,

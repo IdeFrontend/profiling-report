@@ -1,6 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
-import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../../src/ui/panelResize';
 
 /** With fit = [minTime, maxTime], events fill the canvas; probe near the left first. */
 const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.35, 0.5, 0.65, 0.8];
@@ -17,6 +16,29 @@ async function overviewTopPad(page: Page): Promise<number> {
   if ((await ov.count()) === 0) return 0;
   const b = await ov.boundingBox();
   return b?.height ?? 0;
+}
+
+
+/**
+ * Marquee over the deps fixture's first two ProfilerStep events (same lane).
+ * Must reach ~step-2 start (~19% of the fit window); a short x-drag only hits one event
+ * and demotes to DetailPanel instead of MultiSelectSummary.
+ */
+async function marqueeDepsMultiSelect(page: Page): Promise<{
+  overlay: ReturnType<Page['getByTestId']>;
+  box: CanvasBox;
+  laneY: number;
+}> {
+  const overlay = page.getByTestId('swimlane-canvas');
+  await expect(overlay).toBeVisible({ timeout: 15_000 });
+  const box = (await overlay.boundingBox())!;
+  const topPad = await overviewTopPad(page);
+  const laneY = box.y + topPad + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+  const endX = box.x + Math.max(420, Math.round(box.width * 0.35));
+  await page.mouse.move(box.x + 8, laneY);
+  await page.mouse.down();
+  await page.mouse.move(endX, laneY + LANE_HEIGHT, { steps: 12 });
+  return { overlay, box, laneY };
 }
 
 async function waitForDepCurves(
@@ -368,15 +390,8 @@ test.describe('PR-E2E feature paths', () => {
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto('/?fixture=deps');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
-    const overlay = page.getByTestId('swimlane-canvas');
-    await expect(overlay).toBeVisible({ timeout: 15_000 });
-    const box = (await overlay.boundingBox())!;
-    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
-
-    await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
-    await page.mouse.down();
+    await marqueeDepsMultiSelect(page);
     // Mid-drag the rect must be visible; the tooltip must not.
-    await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
     await expect(page.getByTestId('marquee-rect')).toBeVisible();
     await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
     // Live dock follows coverage before commit (≥2 events → summary).
@@ -423,14 +438,7 @@ test.describe('PR-E2E feature paths', () => {
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto('/?fixture=deps');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
-    const overlay = page.getByTestId('swimlane-canvas');
-    await expect(overlay).toBeVisible({ timeout: 15_000 });
-    const box = (await overlay.boundingBox())!;
-    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
-
-    await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
-    await page.mouse.down();
-    await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
+    const { overlay } = await marqueeDepsMultiSelect(page);
     await page.mouse.up();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
 
@@ -525,20 +533,15 @@ test.describe('PR-E2E feature paths', () => {
     const overlay = page.getByTestId('swimlane-canvas');
     await expect(overlay).toBeVisible({ timeout: 15_000 });
     const box = (await overlay.boundingBox())!;
-    const laneY = box.y + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
+    const topPad = await overviewTopPad(page);
+    const laneY = box.y + topPad + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2;
 
     // Seed a single selection so Escape mid-drag must restore DetailPanel.
     await page.mouse.click(box.x + 40, laneY);
     await expect(page.getByTestId('detail-panel')).toBeVisible();
 
-    const marquee = async () => {
-      await page.mouse.move(box.x + 8, laneY - LANE_HEIGHT / 2);
-      await page.mouse.down();
-      await page.mouse.move(box.x + 240, laneY + LANE_HEIGHT, { steps: 10 });
-    };
-
     // Cancelled mid-drag: live summary appears, Escape restores prior DetailPanel.
-    await marquee();
+    await marqueeDepsMultiSelect(page);
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
@@ -548,7 +551,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
 
     // Committed, then cleared by Escape — the axis Δt goes with it.
-    await marquee();
+    await marqueeDepsMultiSelect(page);
     await page.mouse.up();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     await page.keyboard.press('Escape');

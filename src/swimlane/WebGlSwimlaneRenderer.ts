@@ -24,6 +24,7 @@ import {
   encodeIntervalPair,
   eventBlockMetrics,
   eventEmphasis,
+  isKeepBright,
   eventLabelAnchor,
   eventPaintRect,
   eventScreenRect,
@@ -888,7 +889,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       if (!matches) continue;
       const { muted } = eventEmphasis(
         matches,
-        bright.has(item.id) || this.multiIds.has(item.id) || item.id === this.hoveredId,
+        isKeepBright(item.id, bright, this.hoveredId, this.multiIds),
         hasSearch,
         hasSelection || hasMulti,
       );
@@ -1058,7 +1059,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
           const { alpha, muted } = eventEmphasis(
             matches,
-            bright.has(item.id) || multi.has(item.id) || item.id === this.hoveredId,
+            isKeepBright(item.id, bright, this.hoveredId, multi),
             hasSearch,
             hasSelection || hasMulti,
           );
