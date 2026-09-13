@@ -1829,7 +1829,13 @@ describe('SwimlaneCanvas', () => {
     );
   });
 
-  it('PR-CANVAS-065: summary click expands, clears hover, and selects sole leaf or clears selection', async () => {
+  it('PR-CANVAS-065: summary click expands, selects sole leaf or multi-selects nested leaves', async () => {
+    const leaves = [
+      { id: 'e1', name: 'a', startTime: 0, duration: 400 },
+      { id: 'e2', name: 'b', startTime: 200, duration: 400 },
+      { id: 'e3', name: 'c', startTime: 500, duration: 300 },
+      { id: 'e4', name: 'd', startTime: 700, duration: 300 },
+    ];
     const multi = {
       minTime: 0,
       maxTime: 1000,
@@ -1844,7 +1850,14 @@ describe('SwimlaneCanvas', () => {
               events: [],
               children: [],
               summaryEvents: [
-                { id: 'folder/summary/0', name: '', startTime: 0, duration: 1000, taskCount: 4 },
+                {
+                  id: 'folder/summary/0',
+                  name: '',
+                  startTime: 0,
+                  duration: 1000,
+                  taskCount: 4,
+                  sourceEvents: leaves,
+                },
               ],
             },
           ],
@@ -1885,8 +1898,9 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
 
     expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['folder']);
-    // Multi-task summary: clear any prior selection.
-    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+    // Multi-task summary: expand + multi-select nested leaves (marquee commit path).
+    expect(wrapper.emitted('multi-select')?.at(-1)?.[0]).toEqual(leaves);
+    expect(wrapper.emitted('select')).toBeFalsy();
     expect(wrapper.emitted('hover')!.at(-1)?.[0]).toBeNull();
     wrapper.unmount();
 
@@ -1953,6 +1967,7 @@ describe('SwimlaneCanvas', () => {
 
     expect(one.emitted('toggle-group')?.[0]).toEqual(['folder']);
     expect(one.emitted('select')?.at(-1)).toEqual([leaf]);
+    expect(one.emitted('multi-select')).toBeFalsy();
     one.unmount();
   });
 

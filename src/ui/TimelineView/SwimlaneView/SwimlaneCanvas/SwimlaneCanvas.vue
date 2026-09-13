@@ -1760,6 +1760,28 @@ function summaryGroupIdFor(eventId: string | null): string | null {
   return summaryFolderId(backend.getLayout(), eventId);
 }
 
+/**
+ * Expand a collapsed-group summary bar and select its underlying leaf event(s).
+ * Single-leaf → `select(sourceEvent)`; multi-leaf → `multi-select(sourceEvents)`;
+ * missing sources → `select(null)`. The summary id itself is never selected.
+ */
+function activateSummaryBar(summary: SwimEvent): void {
+  if (summary.sourceEvent) {
+    emit('select', summary.sourceEvent);
+    return;
+  }
+  const leaves = summary.sourceEvents;
+  if (leaves && leaves.length >= 2) {
+    emit('multi-select', leaves);
+    return;
+  }
+  if (leaves && leaves.length === 1) {
+    emit('select', leaves[0]!);
+    return;
+  }
+  emit('select', null);
+}
+
 function localFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
   const target = activeCanvas() ?? wrapRef.value;
   if (!target) return null;
@@ -2315,8 +2337,7 @@ function onPointerUp(e: PointerEvent): void {
           // Drop the summary tooltip — that bar disappears as the folder expands.
           emit('hover', null, e.clientX, e.clientY);
           emit('toggle-group', groupId);
-          // Single-leaf group → select that event; otherwise clear prior selection.
-          emit('select', ev.sourceEvent ?? null);
+          activateSummaryBar(ev);
           return;
         }
         snapMeasureToEvent(ev);
@@ -2426,8 +2447,8 @@ function onPointerUp(e: PointerEvent): void {
     // Drop the summary tooltip — that bar disappears as the folder expands.
     emit('hover', null, e.clientX, e.clientY);
     emit('toggle-group', groupId);
-    // Single-leaf group → select that event; otherwise clear prior selection.
-    emit('select', clicked?.sourceEvent ?? null);
+    if (clicked) activateSummaryBar(clicked);
+    else emit('select', null);
     return;
   }
   emit('select', clicked);
