@@ -2092,7 +2092,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-082: Escape during the drag fully releases the press flag — next plain click selects', async () => {
+  it('PR-CANVAS-082: Escape mid-drag swallows leftover pointerup; next plain click selects', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
       wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }
@@ -2105,18 +2105,24 @@ describe('SwimlaneCanvas', () => {
     );
     await wrapper.vm.$nextTick();
 
-    // Escape cancels the marquee mid-drag (no pointerup yet).
+    // Escape cancels the marquee mid-drag (no pointerup yet). Press stays armed
+    // with marqueeEscaped until the leftover release is swallowed.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await wrapper.vm.$nextTick();
 
-    // A new plain click on the same event must select it (regression: marqueePressActive
-    // used to stay set until the next pointerup, suppressing hover/cursor until then).
-    const emittedSelect = wrapper.emitted('select');
+    // Leftover release from the cancelled drag must not select.
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + 20, clientY: rect.y + 8 }),
+    );
+    await wrapper.vm.$nextTick();
+    const afterCancel = wrapper.emitted('select')?.length ?? 0;
+
+    // A new plain click on the same event must select it.
     await canvas.trigger('pointerdown', { clientX: rect.x, clientY: rect.y + rect.h / 2, pointerId: 2 });
     await canvas.trigger('pointerup', { clientX: rect.x, clientY: rect.y + rect.h / 2, pointerId: 2 });
     await wrapper.vm.$nextTick();
     const selects = wrapper.emitted('select') ?? [];
-    expect(selects.length).toBeGreaterThan(emittedSelect?.length ?? 0);
+    expect(selects.length).toBeGreaterThan(afterCancel);
     wrapper.unmount();
   });
 
@@ -2242,12 +2248,17 @@ describe('SwimlaneCanvas', () => {
 
   it('PR-CANVAS-085: the live marquee previews which events the release will take', async () => {
     const { wrapper, canvas } = await mountForMarquee();
+    await wrapper.setProps({ selectedEventId: 'e1' });
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
-      renderer: () => { setMultiSelection: (ids: string[]) => void };
+      renderer: () => {
+        setMultiSelection: (ids: string[]) => void;
+        setSelection: (selectedId: string | null, hoveredId: string | null) => void;
+      };
     };
     const rect = vm.eventScreenRect('e1')!;
-    const spy = vi.spyOn(vm.renderer(), 'setMultiSelection');
+    const multiSpy = vi.spyOn(vm.renderer(), 'setMultiSelection');
+    const selSpy = vi.spyOn(vm.renderer(), 'setSelection');
 
     await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
     // Past the gate but still left of the block: nothing is covered yet.
@@ -2255,7 +2266,9 @@ describe('SwimlaneCanvas', () => {
       new PointerEvent('pointermove', { clientX: rect.x - 10, clientY: rect.y - 4, buttons: 1 }),
     );
     await wrapper.vm.$nextTick();
-    expect(spy.mock.calls.at(-1)![0]).toEqual([]);
+    expect(multiSpy.mock.calls.at(-1)![0]).toEqual([]);
+    // Pre-drag selection must not stay bright via dependencyGraph / eventStateOf.
+    expect(selSpy.mock.calls.at(-1)![0]).toBeNull();
 
     // Rect now fully contains the block — it must light up before the release.
     window.dispatchEvent(
@@ -2266,14 +2279,15 @@ describe('SwimlaneCanvas', () => {
       }),
     );
     await wrapper.vm.$nextTick();
-    expect(spy.mock.calls.at(-1)![0]).toEqual(['e1']);
+    expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
+    expect(selSpy.mock.calls.at(-1)![0]).toBeNull();
 
     // Commit drops the preview; the dim is the parent's `multiSelectedIds` again.
     window.dispatchEvent(
       new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
     );
     await wrapper.vm.$nextTick();
-    expect(spy.mock.calls.at(-1)![0]).toEqual([]);
+    expect(multiSpy.mock.calls.at(-1)![0]).toEqual([]);
     expect(
       (wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[]).map((e) => e.id),
     ).toEqual(['e1']);

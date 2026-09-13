@@ -499,7 +499,10 @@ function applyViewState(forceModel = false): void {
   backend.setDependencyMode?.(props.dependencyMode);
   backend.setDependencyDepth?.(props.dependencyDepth);
   backend.setPaintDependencies?.(props.showDependencies !== false);
-  backend.setSelection(props.selectedEventId, props.hoveredEventId);
+  // Live marquee preview owns brightness via setMultiSelection. Clear selectedId so
+  // dependencyGraph / eventStateOf do not keep the pre-drag selection unmuted (PR-CANVAS-085).
+  const paintSelectedId = marqueePreviewIds != null ? null : props.selectedEventId;
+  backend.setSelection(paintSelectedId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   backend.setMultiSelection?.(marqueePreviewIds ?? props.multiSelectedIds);
   if (useWebGl.value) {
@@ -508,7 +511,7 @@ function applyViewState(forceModel = false): void {
     overlay.setLayout(backend.getBaseLayout());
     overlay.setCollapseAnim(props.collapseAnim ?? null);
     overlay.setView(paintView());
-    overlay.setSelection(props.selectedEventId, props.hoveredEventId);
+    overlay.setSelection(paintSelectedId, props.hoveredEventId);
     overlay.setHoveredLane(trackHoveredLaneId.value);
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSelectionMuted(true);
@@ -1039,25 +1042,26 @@ function onMarqueeDragEnd(): void {
   // decides whether to select — clear it only here, once the gesture is truly over.
   marqueePressActive = false;
   marqueeRect.value = null;
-  // Preview hands the dim back to `multiSelectedIds`, which the commit below sets.
-  marqueePreviewIds = null;
   if (!rect) {
+    marqueePreviewIds = null;
     emitMarqueePreview(null);
     sync();
     return;
   }
   const events = eventsInMarquee(rect);
-  sync();
   // The root clears the live drag span on commit; the committed hull is no longer drawn.
   emit('multi-select-span', null);
   emit('cursor', null);
-  // Commit before clearing preview so root can discard the snap without restoring.
+  // Commit while preview ids still paint, so dim does not flash back to stale props.
+  // Root discards the live snap on `multi-select`; preview-null that follows is a no-op.
   if (marqueeShift) {
     emit('multi-select', eventsForMarqueeCommit(events));
   } else {
     emit('multi-select', events);
   }
+  marqueePreviewIds = null;
   emitMarqueePreview(null);
+  sync();
   marqueeShift = false;
 }
 
@@ -1085,10 +1089,9 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueeAnchor = null;
   // Stay non-pending so the release is not mistaken for a click-select.
   marqueePending = false;
-   // Keep the press flag true so onPointerUp swallows the leftover release
-   // (marqueePressActive && !marqueePending). The flag is cleared there on
-   // this cancelled pointerup so the next click is fresh — PR-CANVAS-082.
-   marqueeEscaped = true;
+  // Keep marqueePressActive set and arm marqueeEscaped so onPointerUp swallows
+  // the leftover release (PR-CANVAS-082). Cleared on that pointerup.
+  marqueeEscaped = true;
   marqueeShift = false;
   marqueePreviewIds = null;
   if (marqueeRect.value) emit('multi-select-span', null);

@@ -42,7 +42,7 @@ type SortDirection = 'asc' | 'desc';
 const sortKey = ref<SortKey>('duration');
 const sortDirection = ref<SortDirection>('desc');
 
-/** Mean duration per event name across the whole model (Q23: self time = duration). */
+/** Mean duration per event name across the whole model (interim: self time = duration). */
 const averageByName = computed(() => {
   const totals = new Map<string, { sum: number; count: number }>();
   if (props.model) {
@@ -73,24 +73,60 @@ const rows = computed<Row[]>(() =>
     event,
     name: event.name,
     duration: event.duration,
-    // Q23 interim: events are flat, so self time is the full duration.
+    // Interim: events are flat, so self time is the full duration.
     selfTime: event.duration,
     // Selection-only fallback when the event is not in the model (host-built list).
     avgDuration: averageByName.value.get(event.name) ?? event.duration,
   })),
 );
 
-const sortedRows = computed<Row[]>(() => {
+/**
+ * Keep only the visible window sorted. Full `rows` still drive the header count and
+ * bar maxima; live marquees are also membership-guarded / throttled in the root so
+ * this does not re-run on every pointermove with an unchanged id set.
+ */
+function selectTopRows(
+  items: readonly Row[],
+  k: number,
+  cmp: (a: Row, b: Row) => number,
+): Row[] {
+  if (items.length <= k) return items.slice().sort(cmp);
+  const best: Row[] = [];
+  for (const item of items) {
+    if (best.length < k) {
+      let lo = 0;
+      let hi = best.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (cmp(item, best[mid]!) < 0) hi = mid;
+        else lo = mid + 1;
+      }
+      best.splice(lo, 0, item);
+      continue;
+    }
+    if (cmp(item, best[k - 1]!) >= 0) continue;
+    let lo = 0;
+    let hi = k;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cmp(item, best[mid]!) < 0) hi = mid;
+      else lo = mid + 1;
+    }
+    best.splice(lo, 0, item);
+    best.pop();
+  }
+  return best;
+}
+
+const visibleRows = computed<Row[]>(() => {
   const key = sortKey.value;
   const sign = sortDirection.value === 'asc' ? 1 : -1;
-  return [...rows.value].sort((a, b) => {
+  const cmp = (a: Row, b: Row) => {
     if (key === 'name') return sign * a.name.localeCompare(b.name);
     return sign * (a[key] - b[key]);
-  });
+  };
+  return selectTopRows(rows.value, MAX_RENDERED_ROWS, cmp);
 });
-
-/** Keep the dock bounded; sorting and bar scales still use the complete selection. */
-const visibleRows = computed(() => sortedRows.value.slice(0, MAX_RENDERED_ROWS));
 
 /** Column maxima drive the inline bars; guard against an all-zero column. */
 const columnMax = computed(() => {

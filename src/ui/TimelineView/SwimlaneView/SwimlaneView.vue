@@ -144,6 +144,18 @@ const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 const localMultiSelectedIds = shallowRef<string[]>(props.multiSelectedIds ?? []);
+/**
+ * Live marquee coverage from either canvas. Shared so the pinned strip dims with the
+ * body while a body marquee is in flight (and vice versa); `null` restores the commit.
+ */
+const livePreviewIds = shallowRef<string[] | null>(null);
+const paintMultiSelectedIds = computed(
+  () => livePreviewIds.value ?? localMultiSelectedIds.value,
+);
+/** Clear single-select paint while a live preview owns brightness (PR-CANVAS-085). */
+const paintSelectedEventId = computed(() =>
+  livePreviewIds.value != null ? null : props.selectedEventId,
+);
 /** Keep the local mirror in sync with parent-driven updates (marquee commit).
  * Without this, `localMultiSelectedIds` only catches the initial value and any
  * `update-multi-selected` toggle — a `view.multiSelectedIds` swap in the parent
@@ -421,6 +433,11 @@ function onUpdateMultiSelected(newIds: string[]) {
   localMultiSelectedIds.value = newIds;
 }
 
+function onMultiSelectPreview(events: SwimEvent[] | null) {
+  livePreviewIds.value = events == null ? null : events.map((e) => e.id);
+  emit('multi-select-preview', events);
+}
+
 function onGutterScroll(): void {
   const el = gutterRef.value?.root;
   if (!el) return;
@@ -605,7 +622,7 @@ defineExpose({
           data-testid="pinned-canvas"
           :model="pinnedModel"
           :view="pinnedView"
-          :selected-event-id="selectedEventId"
+          :selected-event-id="paintSelectedEventId"
           :hovered-event-id="hoveredEventId"
           :hovered-lane-id="hoveredLaneId"
           :search-query="searchQuery"
@@ -618,10 +635,10 @@ defineExpose({
           :resolve-magnetize="magnetizeAtClient"
           alt-measure-role="strip"
           :pinned-lane-ids="pinnedLaneIds"
-          :multi-selected-ids="localMultiSelectedIds"
+          :multi-selected-ids="paintMultiSelectedIds"
           @select="emit('select', $event)"
           @multi-select="emit('multi-select', $event)"
-          @multi-select-preview="emit('multi-select-preview', $event)"
+          @multi-select-preview="onMultiSelectPreview"
           @multi-select-span="emit('multi-select-span', $event)"
           @hover="(ev, x, y) => emit('hover', ev, x, y)"
           @lane-hover="onLaneHover"
@@ -695,7 +712,7 @@ defineExpose({
         :model="model"
         :view="view"
         :content-top-pad="overviewContentPad"
-        :selected-event-id="selectedEventId"
+        :selected-event-id="paintSelectedEventId"
         :hovered-event-id="hoveredEventId"
         :hovered-lane-id="hoveredLaneId"
         :search-query="searchQuery"
@@ -710,10 +727,10 @@ defineExpose({
         :alt-measure-role="pinnedLaneIds.length ? 'body' : 'solo'"
         :pinned-lane-ids="pinnedLaneIds"
         :collapse-anim="collapseAnim"
-        :multi-selected-ids="localMultiSelectedIds"
+        :multi-selected-ids="paintMultiSelectedIds"
         @select="emit('select', $event)"
         @multi-select="emit('multi-select', $event)"
-        @multi-select-preview="emit('multi-select-preview', $event)"
+        @multi-select-preview="onMultiSelectPreview"
         @multi-select-span="emit('multi-select-span', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"

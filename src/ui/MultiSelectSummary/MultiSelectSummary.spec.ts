@@ -64,7 +64,7 @@ describe('MultiSelectSummary', () => {
     expect(headers[2]).toContain('Self time');
     expect(headers[3]).toContain('Average Wall Duration');
 
-    // Wall Duration and Self time are the event's own duration (Q23 interim).
+    // Wall Duration and Self time are the event's own duration (interim: flat events).
     expect(wrapper.get('[data-testid="multi-select-duration-a"]').text()).toContain('100 ns');
     expect(wrapper.get('[data-testid="multi-select-selfTime-a"]').text()).toContain('100 ns');
     // Average spans ALL model events named `beta` (300 + 100) / 2, not just the selected one.

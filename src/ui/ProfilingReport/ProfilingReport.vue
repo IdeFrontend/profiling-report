@@ -161,6 +161,10 @@ type DockSnap = {
 };
 /** Snapshot of dock UI taken on the first live preview of a gesture; discarded on commit. */
 let dockSnap: DockSnap | null = null;
+/** Coalesce live ≥2 dock remaps during a growing marquee (op2-scale). */
+const PREVIEW_DOCK_THROTTLE_MS = 100;
+let previewDockTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingPreviewEvents: SwimEvent[] | null = null;
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
@@ -907,7 +911,44 @@ function snapshotDockIfNeeded(): void {
   };
 }
 
+function sameEventIdSet(a: SwimEvent[], b: SwimEvent[]): boolean {
+  if (a.length !== b.length) return false;
+  if (a.length === 0) return true;
+  const ids = new Set(b.map((e) => e.id));
+  return a.every((e) => ids.has(e.id));
+}
+
+function clearPreviewDockTimer(): void {
+  if (previewDockTimer != null) {
+    clearTimeout(previewDockTimer);
+    previewDockTimer = null;
+  }
+  pendingPreviewEvents = null;
+}
+
+function applyLivePreviewDock(events: SwimEvent[]): void {
+  if (events.length >= 2) {
+    selected.value = null;
+    selectedEvent.value = null;
+    if (sameEventIdSet(events, multiSelected.value)) return;
+    multiSelected.value = events;
+    return;
+  }
+  const ev = events[0]!;
+  if (
+    multiSelected.value.length === 0 &&
+    selectedEvent.value?.id === ev.id &&
+    selected.value?.id === ev.id
+  ) {
+    return;
+  }
+  multiSelected.value = [];
+  selectedEvent.value = ev;
+  selected.value = selectedPayloadFromEvent(ev);
+}
+
 function clearMarqueeLive(opts?: { restore?: boolean }): void {
+  clearPreviewDockTimer();
   if (opts?.restore && dockSnap) {
     selected.value = dockSnap.selected;
     selectedEvent.value = dockSnap.selectedEvent;
@@ -921,6 +962,8 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
  * Live marquee coverage for the dock only. Does not touch viewState or host `select`.
  * Any post-gate preview (including `[]`) arms `marqueeLive` for Escape. Empty mid-drag
  * keeps the last non-empty dock content so the footer does not leave or flash blank.
+ * Skips unchanged membership; throttles ≥2 remaps so op2-scale marquees do not
+ * re-sort 150k rows on every pointermove.
  */
 function onMultiSelectPreview(events: SwimEvent[] | null): void {
   if (events == null) {
@@ -933,16 +976,31 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
   snapshotDockIfNeeded();
   marqueeLive.value = true;
   if (events.length === 0) return;
-  if (events.length >= 2) {
-    selected.value = null;
-    selectedEvent.value = null;
-    multiSelected.value = events;
+
+  // Single-event DetailPanel is cheap — apply immediately.
+  if (events.length < 2) {
+    clearPreviewDockTimer();
+    applyLivePreviewDock(events);
     return;
   }
-  const ev = events[0]!;
-  multiSelected.value = [];
-  selectedEvent.value = ev;
-  selected.value = selectedPayloadFromEvent(ev);
+
+  if (sameEventIdSet(events, multiSelected.value)) return;
+
+  // First ≥2 paint mounts the summary dock immediately; further growth is coalesced.
+  if (multiSelected.value.length < 2) {
+    clearPreviewDockTimer();
+    applyLivePreviewDock(events);
+    return;
+  }
+
+  pendingPreviewEvents = events;
+  if (previewDockTimer != null) return;
+  previewDockTimer = setTimeout(() => {
+    previewDockTimer = null;
+    const pending = pendingPreviewEvents;
+    pendingPreviewEvents = null;
+    if (pending && marqueeLive.value) applyLivePreviewDock(pending);
+  }, PREVIEW_DOCK_THROTTLE_MS);
 }
 
 /**
