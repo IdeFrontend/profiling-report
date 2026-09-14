@@ -24,7 +24,7 @@ The parent applies shared view-state behavior directly from `contextMenuContext`
 
 ### Menu contents
 
-For an event target, the menu orders available commands by scope: event-scope **重置缩放** (Reset zoom), **在事件视图中显示** (Show in event view); then lane-scope **置顶行** / **取消置顶行** (Pin row / Unpin row, Ctrl+P). A separator divides non-empty event and lane groups. A lane-header or empty portion of a leaf lane shows only lane-scope commands, with no separator.
+For an event target, the menu orders available commands by scope: event-scope **重置缩放** (Reset zoom), **在事件视图中显示** (Show in event view); then lane-scope **置顶行** / **取消置顶行** (Pin row / Unpin row, Ctrl/⌘+P). A separator divides non-empty event and lane groups. A lane-header or empty portion of a leaf lane shows only lane-scope commands, with no separator.
 
 Reset zoom has the same result as the existing toolbar action: it frames the model time window and resets vertical scroll via `zoomToFitWindow` + `animateToWindow`. Show in event view selects the target event via the report's normal `select` handler (so `selectedEventId`, the detail dock, and the `select` emit stay consistent). A collapsed-folder **summary bar** target is never itself selected: with a single underlying leaf (`taskCount === 1`) Show resolves to `target.sourceEvent`; a multi-task summary bar has no single event, so Show dismisses without selecting. Pin row toggles the existing pin state; it is an alternate affordance, not a second pin list. Pin row is omitted (not rendered) when the lane is a folder — a summary-bar target carries its folder id, which pinning would reject, so the parent sets **canPin** to `false` rather than showing an enabled no-op.
 
@@ -34,7 +34,7 @@ Reset zoom has the same result as the existing toolbar action: it frames the mod
 
 The menu opens at pointer coordinates, clamped inside the viewport; it opens upward or leftward when the default position would overflow below or right.
 
-The menu closes on click outside, Escape, item activation, and every forwarded **update:scrollY** change (gutter, main or pinned canvas, Card strip, or parent update). Arrow Up and Arrow Down move active-item focus; Enter activates it. Ctrl+P activates Pin row only while the menu is open and Pin row is available, and suppresses the browser Print shortcut.
+The menu closes on click outside, Escape, item activation, and every forwarded **update:scrollY** change (gutter, main or pinned canvas, Card strip, or parent update). Arrow Up and Arrow Down move active-item focus; Enter activates it. Ctrl+P / ⌘P activates Pin row only while the menu is open and Pin row is available, and suppresses the browser Print shortcut.
 
 ## Acceptance Criteria
 
@@ -47,7 +47,7 @@ The menu closes on click outside, Escape, item activation, and every forwarded *
 7. **PR-CTXMENU-007** — Viewport clamp uses rendered menu dimensions.
 8. **PR-CTXMENU-008** — Dismisses on outside, Escape, scrollY change.
 9. **PR-CTXMENU-009** — Keyboard navigation focuses and activates commands.
-10. **PR-CTXMENU-010** — Ctrl+P prevents browser print.
+10. **PR-CTXMENU-010** — Ctrl+P / ⌘P prevents browser print.
 11. **PR-CTXMENU-011** — Leaf-gutter invocations reach the report root.
 12. **PR-CTXMENU-012** — Show on a summary-bar target resolves its sole leaf (or dismisses without selecting when multi-task).
 13. **PR-CTXMENU-013** — Pin row is omitted for a non-leaf (summary-bar) lane via `canPin`; event commands remain.
@@ -70,9 +70,9 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 
 ## Open
 
-- UI-48 defines zoom history and Undo zoom scope.
-- UI-49 defines Offset action contract.
-- UI-50 defines Hide lane contract and restore path.
+- UI-51 defines zoom history and Undo zoom scope.
+- UI-52 defines Offset action contract.
+- UI-53 defines Hide lane contract and restore path.
 
 ## Visual
 
@@ -93,6 +93,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-14** — Deferred Undo/Offset/Hide questions filed as UI-51/UI-52/UI-53 (UI-48 is the topology FixP corridor). Pin shortcut label matches Ctrl and ⌘ handlers.
 - **2026-09-11** — Pin row is omitted (via `canPin`) for a non-leaf summary-bar folder id instead of showing an enabled no-op; multi-task summary Show is a genuine no-op that preserves the existing selection (`PR-CTXMENU-013`).
 - **2026-09-10** — Show on a collapsed-folder summary-bar target resolves `sourceEvent` (single-task) or dismisses without selecting (multi-task); summary-bar canvas invocation carries its folder id while Pin row still rejects non-leaf lanes; stale-target check uses `findEventInModel` (leaf events + `summaryEvents`) instead of leaf-only lookup (`PR-CTXMENU-012`, `PR-CANVAS-077`).
 - **2026-09-10** — Right-click on canvas guards `e.button !== 0` and resolves leaf lane ids only; menu focus is captured and restored on close; menu stays hidden until repositioned to avoid a reopen flash; dedicated `--pr-surface-hover` token replaces `--pr-divider` for hover fill.

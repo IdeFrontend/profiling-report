@@ -168,9 +168,17 @@ describe('ContextMenu', () => {
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
+    expect(menuItem('pin')?.textContent).toContain('Ctrl/⌘+P');
     const ev = new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, cancelable: true });
     document.dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(true);
     expect(wrapper.emitted('action')?.[0]?.[0]).toEqual({ command: 'pin', laneId: 'lane1' });
+
+    await wrapper.setProps({ context: { x: 10, y: 10, laneId: 'lane1', target: null } });
+    await wrapper.vm.$nextTick();
+    const meta = new KeyboardEvent('keydown', { key: 'p', metaKey: true, cancelable: true });
+    document.dispatchEvent(meta);
+    expect(meta.defaultPrevented).toBe(true);
+    expect(wrapper.emitted('action')).toHaveLength(2);
   });
 });

@@ -50,7 +50,7 @@ const items = computed(() => {
     result.push({
       command: 'pin',
       label: t(pinned ? 'ctxUnpinRow' : 'ctxPinRow', props.locale),
-      shortcut: 'Ctrl+P',
+      shortcut: 'Ctrl/⌘+P',
     });
   }
   return result;
