@@ -30,9 +30,9 @@ Design frames: [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg) (Cu
 | View | Status | Features |
 |------|--------|----------|
 | Report summary | **Extend** | All non-empty `OpBasicInfo` columns in fixture. Hide synthetic TFLOPS / BW / avg-util |
-| PIPE occupancy | **Extend** | Mean non-`NA` pipe-family bars (DATA-33b); **Cube \| Vector toggle for MIX** ops (#2); non-MIX shows relevant side only; hide if missing/all NA |
+| PIPE occupancy | **Extend** | Mean non-`NA` pipe-family bars ([DATA-28](../../context/decisions/DATA.md)); **Cube \| Vector toggle for MIX** ops (#2); non-MIX shows relevant side only; hide if missing/all NA |
 | PIPE / compute details | **New** | Detail tabs: `PipeUtilization` \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists; show `NA` |
-| Memory (field list) | **New** | Tabs: Memory L1 / L2Cache / Memory L0 / Memory UB (#4); **block** switcher (DATA-33c); **查看全部** opens full CSV in new tab (DATA-33d) |
+| Memory (field list) | **New** | Tabs: Memory L1 / L2Cache / Memory L0 / Memory UB (#4); **block** switcher ([DATA-19](../../context/decisions/DATA.md) / [DATA-29](../../context/decisions/DATA.md)); **查看全部** opens full CSV in new tab (DATA-33d) |
 | Memory graph / topology chart | **Out** | → [M2](milestone-2.md) (`MemoryTopologyPanel`, changelog #5) |
 | Cache | **New** | Covered by memory detail **L2Cache** tab (aside mode may alias) |
 | Metrics | **New** | Covered by compute detail **ArithmeticUtilization** + **ResourceConflictRatio** tabs |
@@ -55,9 +55,9 @@ Design frames: [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg) (Cu
 | Blocker | Impact | Mitigation |
 |---------|--------|------------|
 | No column semantics / units for many CSV fields (producer spec WIP) | Labels may be raw header names only | Ship raw headers + values; polish labels when format spec arrives |
-| Which rows to show (per `block_id` vs aggregate) | Wrong UX for multi-block fixture | **DATA-33c**: mean bars + block-scoped details with picker |
+| Which rows to show (per `block_id` vs aggregate) | Wrong UX for multi-block fixture | **DATA-28 / DATA-19**: mean bars + one block selector for every widget |
 | Sketches for pipe/memory **lists** exist; Metrics/Cache aside chrome less specified | Layout guesswork | Mirror changelog tabs + `source/v930/compute-load-detail.jpeg` list pattern |
-| DATA-33 still interim — cannot show TFLOPS/BW tiles | Summary incomplete vs sketches | Explicitly out of M1; do not invent formulas |
+| Summary tiles beyond M1 scope (compute / BW) | Summary incomplete vs sketches | Out of M1; DATA-2–10 resolved, wire in a later slice |
 | DATA-32 — no `OverviewSeries` in fixture | Overview charts stay empty | Keep hidden (already decided) |
 | Dense/wide CSVs may hurt aside UX | Scroll/search only | Search + virtualize if needed; no chart derivation in M1 |
 
