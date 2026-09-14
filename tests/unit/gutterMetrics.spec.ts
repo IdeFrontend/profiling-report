@@ -51,10 +51,10 @@ describe('PR-GMET: gutter metrics', () => {
     expect(defaultGutterMetric([])).toBeNull();
   });
 
-  it('PR-GMET-003: clockCycle barWidth normalizes to max lane', () => {
+  it('PR-GMET-003: clockCycle barWidth is share of report-wide leaf sum', () => {
     const rows = parsePipeRows(
       [
-        'block_id,aiv_vec_time(us),aiv_scalar_time(us)',
+        'block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles',
         '0,10,5',
         '1,10,5',
       ].join('\n'),
@@ -74,16 +74,45 @@ describe('PR-GMET: gutter metrics', () => {
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('vec')?.barWidth).toBe(100);
-    expect(bars.get('sc')?.barWidth).toBeCloseTo(50, 5);
+    // T = 10 + 5 = 15
+    expect(bars.get('vec')?.barWidth).toBeCloseTo((10 / 15) * 100, 5);
+    expect(bars.get('sc')?.barWidth).toBeCloseTo((5 / 15) * 100, 5);
     expect(bars.get('vec')?.relativeMax).toBe(true);
     expect(bars.get('sc')?.relativeMax).toBe(false);
-    expect(bars.get('vec')?.label).toBe('10µs');
+    expect(bars.get('vec')?.label).toBe('10');
+    expect(bars.get('sc')?.label).toBe('5');
   });
 
-  it('PR-GMET-008: clockCycle label keeps decimals when round would be 0', () => {
+  it('PR-GMET-003: report-wide denom spans all Cards', () => {
     const rows = parsePipeRows(
-      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,0.31,0.15'].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,10'].join('\n'),
+    );
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [{ id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] }],
+        },
+        {
+          id: 'card1',
+          name: 'Card1',
+          threads: [{ id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] }],
+        },
+      ],
+    };
+    const bars0 = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
+    const bars1 = gutterBarsForCard(model, rows, 'clockCycle', 'card1');
+    // T = 10 + 10 = 20 across both Cards
+    expect(bars0.get('vec')?.barWidth).toBeCloseTo(50, 5);
+    expect(bars1.get('sc')?.barWidth).toBeCloseTo(50, 5);
+  });
+
+  it('PR-GMET-008: clockCycle labels are bare cycle integers (no µs)', () => {
+    const rows = parsePipeRows(
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,1502,108'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -107,16 +136,15 @@ describe('PR-GMET: gutter metrics', () => {
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('vec')?.label).toBe('0.31µs');
-    expect(bars.get('sc')?.label).toBe('0.15µs');
-    // Folder mean (0.23) must not render as "0" on the thick bar.
-    expect(bars.get('folder')?.label).toBe('0.23µs');
-    expect(bars.get('vec')?.barWidth).toBe(100);
+    expect(bars.get('vec')?.label).toBe('1 502');
+    expect(bars.get('sc')?.label).toBe('108');
+    // Folder sums children
+    expect(bars.get('folder')?.label).toBe('1 610');
   });
 
   it('PR-GMET-003: tied clockCycle lanes get relativeMax false (all gray in UI)', () => {
     const rows = parsePipeRows(
-      ['block_id,aiv_vec_time(us)', '0,10', '1,10'].join('\n'),
+      ['block_id,aiv_vec_total_cycles', '0,10', '1,10'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -139,7 +167,7 @@ describe('PR-GMET: gutter metrics', () => {
 
   it('PR-GMET-007: averageBarWidth is 50 for util; mean barWidth for clockCycle', () => {
     const rows = parsePipeRows(
-      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,10,5'].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,5'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -158,11 +186,11 @@ describe('PR-GMET: gutter metrics', () => {
     const utilBars = gutterBarsForCard(model, [], 'utilization', 'card0');
     expect(averageBarWidthForCard(utilBars, 'utilization')).toBe(50);
     const cycleBars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(averageBarWidthForCard(cycleBars, 'clockCycle')).toBeCloseTo(75, 5);
+    // barWidths 10/15*100 and 5/15*100 → mean 50
+    expect(averageBarWidthForCard(cycleBars, 'clockCycle')).toBeCloseTo(50, 5);
 
-    // Zero-width bar still counts toward ≥2 lanes (mean includes 0 → 50).
     const withZero = parsePipeRows(
-      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,10,0'].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,0'].join('\n'),
     );
     const zeroBars = gutterBarsForCard(model, withZero, 'clockCycle', 'card0');
     expect(zeroBars.get('sc')?.barWidth).toBe(0);
@@ -206,9 +234,9 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('folder')).toMatchObject({ barWidth: 20, label: '20%' });
   });
 
-  it('PR-GMET-005: clockCycle folder rollup means child values', () => {
+  it('PR-GMET-005: clockCycle folder rollup sums child values', () => {
     const rows = parsePipeRows(
-      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,10,4'].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,4'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -232,16 +260,17 @@ describe('PR-GMET: gutter metrics', () => {
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('a')?.label).toBe('10µs');
-    expect(bars.get('b')?.label).toBe('4µs');
-    expect(bars.get('folder')?.label).toBe('7µs');
+    expect(bars.get('a')?.label).toBe('10');
+    expect(bars.get('b')?.label).toBe('4');
+    expect(bars.get('folder')?.label).toBe('14');
+    // Folder bar = 14/14 of report leaves under this card only… leaves total T=14
+    expect(bars.get('folder')?.barWidth).toBeCloseTo(100, 5);
   });
 
-  it('PR-GMET-006: ignores NA cells; mean-of-column-means for multi-column keys', () => {
-    // Flat cell mean would be (10+10+100)/3 ≈ 40; mean-of-column-means is (10+100)/2 = 55.
+  it('PR-GMET-006: ignores NA; mean-of-column-means; derives cycles when only time+block totals exist', () => {
     const rows = parsePipeRows(
       [
-        'block_id,aic_mte2_time(us),aiv_mte2_time(us)',
+        'block_id,aic_mte2_total_cycles,aiv_mte2_total_cycles',
         '0,10,NA',
         '1,10,NA',
         '2,NA,100',
@@ -259,7 +288,34 @@ describe('PR-GMET: gutter metrics', () => {
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('mte2')?.label).toBe('55µs');
+    expect(bars.get('mte2')?.label).toBe('55');
+
+    // Fixture gap path: time + block totals → absolute cycles (no µs label).
+    const derivedRows = parsePipeRows(
+      [
+        'block_id,aiv_time(us),aiv_total_cycles,aiv_vec_time(us),aiv_scalar_time(us)',
+        '0,1,1000,0.1,0.05',
+      ].join('\n'),
+    );
+    const derivedModel: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            { id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] },
+            { id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] },
+          ],
+        },
+      ],
+    };
+    const derived = gutterBarsForCard(derivedModel, derivedRows, 'clockCycle', 'card0');
+    // rate = 1000 cycles/µs → vec=100, sc=50
+    expect(derived.get('vec')?.label).toBe('100');
+    expect(derived.get('sc')?.label).toBe('50');
+    expect(derived.get('vec')?.label).not.toMatch(/µs/);
 
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     expect(adapted.swimlaneModel).not.toBeNull();

@@ -62,7 +62,7 @@ Parallel rename of the former `*_time(us)` map — replace `_time(us)` with `_to
 | `scalar` | `aic_scalar_total_cycles`, `aiv_scalar_total_cycles` |
 | `vector` | `aiv_vec_total_cycles` |
 
-No other columns feed clockCycle. Block-level `aic_total_cycles` / `aiv_total_cycles` alone do **not** map to a pipe `laneColorKey` (fixture gap — many samples lack per-pipe cycle columns). Lanes whose `laneColorKey(thread.name)` is outside this map (or all cells `NA`) get an **empty** util slot.
+Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (common fixture gap), **derive** absolute cycles as \(\operatorname{mean}(*\_\mathrm{time(us)})\times(\operatorname{mean}(\mathrm{side\_total\_cycles})/\operatorname{mean}(\mathrm{side\_time(us)}))\) using `aic_*` / `aiv_*` block totals for the matching side — labels remain bare cycle counts, never `µs`. Block-level totals alone still do **not** map to a pipe key. Lanes whose `laneColorKey(thread.name)` is outside this map (or all cells `NA` / underivable) get an **empty** util slot.
 
 #### Raw value
 
@@ -137,8 +137,9 @@ T=\sum_{\ell\in L}\operatorname{raw}_{\ell}
 | Lane with no matching CSV key | Empty bar slot (no fill, no label) for clockCycle |
 | Idle utilization leaf (coverage 0) | `0%` bar (not an empty slot); included in folder mean |
 | MIX op with both aic and aiv columns for one key | Mean of per-column aggregates (e.g. mte2, scalar) |
-| Only block-level `aic_total_cycles` / `aiv_total_cycles` | clockCycle unavailable until per-pipe mapped columns exist (or Product remaps) |
-| `*_time(us)` present in CSV | **Ignored** for gutter clockCycle |
+| Only block-level `aic_total_cycles` / `aiv_total_cycles` (no pipe time) | clockCycle unavailable |
+| Per-pipe `*_total_cycles` missing but `*_time(us)` + side totals present | **Derive** absolute cycles (see column map); labels still bare cycles |
+| `*_time(us)` alone (no side totals / no pipe cycles) | **Ignored** — cannot form clockCycle raw |
 
 ## Dependencies
 

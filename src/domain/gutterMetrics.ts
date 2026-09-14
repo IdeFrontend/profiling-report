@@ -13,15 +13,36 @@ export type GutterBarDisplay = {
   relativeMax?: boolean;
 };
 
-const PIPE_TIME_COLUMNS: { colorKey: string; columns: string[] }[] = [
-  { colorKey: 'cube', columns: ['aic_cube_time(us)'] },
-  { colorKey: 'mte2', columns: ['aic_mte2_time(us)', 'aiv_mte2_time(us)'] },
-  { colorKey: 'mte1', columns: ['aic_mte1_time(us)'] },
-  { colorKey: 'mte3', columns: ['aiv_mte3_time(us)'] },
-  { colorKey: 'fixp', columns: ['aic_fixpipe_time(us)'] },
-  { colorKey: 'scalar', columns: ['aic_scalar_time(us)', 'aiv_scalar_time(us)'] },
-  { colorKey: 'vector', columns: ['aiv_vec_time(us)'] },
+/** Per-pipe cycle columns (DATA-38a). Parallel rename of the former `*_time(us)` map. */
+const PIPE_CYCLE_COLUMNS: { colorKey: string; columns: string[]; side: 'aic' | 'aiv' }[] = [
+  { colorKey: 'cube', columns: ['aic_cube_total_cycles'], side: 'aic' },
+  { colorKey: 'mte2', columns: ['aic_mte2_total_cycles', 'aiv_mte2_total_cycles'], side: 'aic' },
+  { colorKey: 'mte1', columns: ['aic_mte1_total_cycles'], side: 'aic' },
+  { colorKey: 'mte3', columns: ['aiv_mte3_total_cycles'], side: 'aiv' },
+  { colorKey: 'fixp', columns: ['aic_fixpipe_total_cycles'], side: 'aic' },
+  { colorKey: 'scalar', columns: ['aic_scalar_total_cycles', 'aiv_scalar_total_cycles'], side: 'aic' },
+  { colorKey: 'vector', columns: ['aiv_vec_total_cycles'], side: 'aiv' },
 ];
+
+/** Time columns used only when per-pipe `*_total_cycles` are absent (fixture gap). */
+const PIPE_TIME_FALLBACK: Record<string, string[]> = {
+  cube: ['aic_cube_time(us)'],
+  mte2: ['aic_mte2_time(us)', 'aiv_mte2_time(us)'],
+  mte1: ['aic_mte1_time(us)'],
+  mte3: ['aiv_mte3_time(us)'],
+  fixp: ['aic_fixpipe_time(us)'],
+  scalar: ['aic_scalar_time(us)', 'aiv_scalar_time(us)'],
+  vector: ['aiv_vec_time(us)'],
+};
+
+const SIDE_TIME: Record<'aic' | 'aiv', string> = {
+  aic: 'aic_time(us)',
+  aiv: 'aiv_time(us)',
+};
+const SIDE_CYCLES: Record<'aic' | 'aiv', string> = {
+  aic: 'aic_total_cycles',
+  aiv: 'aiv_total_cycles',
+};
 
 function parseNumber(raw: string | undefined): number | undefined {
   if (raw == null || raw === '' || raw === 'NA') return undefined;
@@ -53,11 +74,47 @@ function meanOfColumnMeans(
   return means.reduce((a, b) => a + b, 0) / means.length;
 }
 
+/**
+ * Cycles-per-µs from block totals (`side_total_cycles / side_time(us)`).
+ * ponytail: many fixtures lack per-pipe `*_total_cycles`; upgrade when producer ships them.
+ */
+function sideCyclesPerUs(
+  rows: Record<string, string>[],
+  side: 'aic' | 'aiv',
+): number | undefined {
+  const time = meanColumn(rows, SIDE_TIME[side]);
+  const cycles = meanColumn(rows, SIDE_CYCLES[side]);
+  if (time == null || cycles == null || !(time > 0)) return undefined;
+  return cycles / time;
+}
+
+function derivePipeCycles(
+  rows: Record<string, string>[],
+  colorKey: string,
+  side: 'aic' | 'aiv',
+): number | undefined {
+  const timeCols = PIPE_TIME_FALLBACK[colorKey];
+  if (!timeCols) return undefined;
+  const timeMean = meanOfColumnMeans(rows, timeCols);
+  if (timeMean == null) return undefined;
+  // Prefer matching side scale; for MIX keys try both sides.
+  const rate =
+    sideCyclesPerUs(rows, side) ??
+    sideCyclesPerUs(rows, side === 'aic' ? 'aiv' : 'aic');
+  if (rate == null) return undefined;
+  return timeMean * rate;
+}
+
 function cycleByColorKey(rows: Record<string, string>[]): Map<string, number> {
   const out = new Map<string, number>();
-  for (const pipe of PIPE_TIME_COLUMNS) {
-    const mean = meanOfColumnMeans(rows, pipe.columns);
-    if (mean != null) out.set(pipe.colorKey, mean);
+  for (const pipe of PIPE_CYCLE_COLUMNS) {
+    const direct = meanOfColumnMeans(rows, pipe.columns);
+    if (direct != null) {
+      out.set(pipe.colorKey, direct);
+      continue;
+    }
+    const derived = derivePipeCycles(rows, pipe.colorKey, pipe.side);
+    if (derived != null) out.set(pipe.colorKey, derived);
   }
   return out;
 }
@@ -80,9 +137,11 @@ function leafRawValue(
   }
 }
 
-function rollup(values: number[]): number | undefined {
+function rollup(values: number[], metric: GutterMetric): number | undefined {
   if (values.length === 0) return undefined;
-  return values.reduce((a, b) => a + b, 0) / values.length;
+  const sum = values.reduce((a, b) => a + b, 0);
+  // clockCycle: sum children (report root → 100%). utilization: mean (unchanged).
+  return metric === 'clockCycle' ? sum : sum / values.length;
 }
 
 function computeRawTree(
@@ -95,20 +154,28 @@ function computeRawTree(
     const childVals = (thread.children ?? [])
       .map((c) => computeRawTree(c, metric, model, cycleByKey))
       .filter((v): v is number => v != null);
-    return rollup(childVals);
+    return rollup(childVals, metric);
   }
   return leafRawValue(thread, metric, model, cycleByKey);
 }
 
+/** Space-group thousands (`1 502`, `10 325`) — same glyph as UI-45 cycle labels. */
+function groupIntegerDigits(intPart: string): string {
+  const neg = intPart.startsWith('-');
+  const digits = neg ? intPart.slice(1) : intPart;
+  if (digits.length <= 3) return intPart;
+  const groups: string[] = [];
+  for (let i = digits.length; i > 0; i -= 3) {
+    groups.unshift(digits.slice(Math.max(0, i - 3), i));
+  }
+  return (neg ? '-' : '') + groups.join(' ');
+}
+
 function formatClockCycleLabel(raw: number): string {
   const rounded = Math.round(raw);
-  // CSV `*_time(us)` means are often fractional; Math.round alone paints "0" on non-empty bars.
-  let magnitude: string;
-  if (rounded !== 0 || raw === 0) magnitude = String(rounded);
-  else if (raw >= 0.01) magnitude = raw.toFixed(2);
-  else magnitude = raw.toPrecision(2);
-  // Match formatTime's µs glyph so bars are not read as % / bare ratios.
-  return `${magnitude}µs`;
+  // Never paint bare 0 when raw > 0 after rounding collapses tiny positives.
+  const n = rounded === 0 && raw > 0 ? 1 : rounded;
+  return groupIntegerDigits(String(n));
 }
 
 function formatLabel(metric: GutterMetric, raw: number, barWidth: number): string {
@@ -125,6 +192,7 @@ function formatLabel(metric: GutterMetric, raw: number, barWidth: number): strin
 function toBars(
   entries: Map<string, number>,
   metric: GutterMetric,
+  reportTotal?: number,
 ): Map<string, GutterBarDisplay> {
   const out = new Map<string, GutterBarDisplay>();
   if (entries.size === 0) return out;
@@ -142,12 +210,13 @@ function toBars(
     return out;
   }
 
-  const max = Math.max(...entries.values());
-  if (!(max > 0)) return out;
+  const T = reportTotal != null && reportTotal > 0 ? reportTotal : 0;
+  if (!(T > 0)) return out;
   const values = [...entries.values()];
+  const max = Math.max(...values);
   const allEqual = values.length > 1 && values.every((v) => v === max);
   for (const [id, raw] of entries) {
-    const barWidth = (raw / max) * 100;
+    const barWidth = (raw / T) * 100;
     out.set(id, {
       barWidth,
       label: formatLabel(metric, raw, barWidth),
@@ -174,6 +243,26 @@ function collectRawForProcess(
   };
   walk(proc.threads);
   return raw;
+}
+
+/** Sum of leaf clockCycle raws across the entire report (100% baseline). */
+function reportLeafCycleTotal(
+  model: SwimlaneModel,
+  cycleByKey: Map<string, number>,
+): number {
+  let total = 0;
+  const walk = (threads: SwimThread[]) => {
+    for (const t of threads) {
+      if (t.children !== undefined) {
+        walk(t.children ?? []);
+        continue;
+      }
+      const v = leafRawValue(t, 'clockCycle', model, cycleByKey);
+      if (v != null) total += v;
+    }
+  };
+  for (const proc of model.processes) walk(proc.threads);
+  return total;
 }
 
 function cardHasCycleData(
@@ -249,10 +338,12 @@ export function gutterBarsForCard(
   if (!proc) return new Map();
   const cycleByKey = cycleByColorKey(pipeUtilRows);
   const raw = collectRawForProcess(proc, metric, model, cycleByKey);
-  return toBars(raw, metric);
+  const reportTotal =
+    metric === 'clockCycle' ? reportLeafCycleTotal(model, cycleByKey) : undefined;
+  return toBars(raw, metric, reportTotal);
 }
 
-/** PyPTO average-line position (% of 110px track). Util = 50; clockCycle = mean barWidth (zeros count). */
+/** Util = 50; clockCycle = mean barWidth among Card bars (zeros count). */
 export function averageBarWidthForCard(
   bars: Map<string, GutterBarDisplay>,
   metric: GutterMetric,
