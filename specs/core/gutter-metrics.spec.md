@@ -16,8 +16,6 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 
 ## Unit contract
 
-## Unit contract
-
 - **barWidth** is always 0–100 (UI **track** percent of the 110px gutter util column). For **both** metrics it is the **same** event-coverage ratio (event duration / model span) — switching the Card dropdown must **not** change bar fill widths, only labels.
 - **clockCycle** label values are **absolute clock-cycle counts** from mapped `PipeUtilization.csv` `*_total_cycles`. Labels are **bare integers** (no `µs` / ms / `%` suffix) — [UI-46](../../docs/context/decisions/UI.md).
 - **utilization** labels use **`%`** of that same event coverage (unchanged).
@@ -84,7 +82,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 
 3. **Leaf lane:** \(\operatorname{raw}_{\mathrm{lane}}=\operatorname{raw}_{\mathrm{key}}\) for `laneColorKey(thread.name)`.
 
-4. **Folder / non-leaf:** \(\operatorname{raw}_{\mathrm{folder}}=\sum\operatorname{raw}_{\mathrm{child}}\) over children that have a defined raw (**sum** for the **label** only). Concurrent pipes may make the sum exceed any single-core / wall-timeline cycle budget — that oversum is **accepted** for folder labels ([DATA-38](../../docs/context/decisions/DATA.md)).
+4. **Folder / non-leaf:** \(\operatorname{raw}_{\mathrm{folder}}=\sum\operatorname{raw}_{\mathrm{key}}\) over **distinct** `laneColorKey`s among descendant leaves that have a defined raw (**sum** for the **label** only). Do **not** multiply a pipe-family CSV total by the number of cores / sibling lanes that share that key. Concurrent **distinct** pipes (e.g. VECTOR+SCALAR) may still make the sum exceed any single-core / wall-timeline cycle budget — that oversum is **accepted** ([DATA-38](../../docs/context/decisions/DATA.md)).
 
 | Output | Formula |
 |--------|---------|
@@ -114,7 +112,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 2. **PR-GMET-002** — Default metric is utilization when available, else clockCycle when available, else `null`.
 3. **PR-GMET-003** — barWidth is event coverage for **both** metrics (identical fills when switching dropdown); clockCycle does **not** use cycle-sum normalization for bars.
 4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring (unchanged).
-5. **PR-GMET-005** — Folder **labels** **sum** child cycle raws for clockCycle; folder **barWidth** stays mean coverage.
+5. **PR-GMET-005** — Folder **labels** **sum distinct** pipe-key cycle raws for clockCycle (same-key multi-core siblings count once); folder **barWidth** stays mean coverage.
 6. **PR-GMET-006** — Ignores `NA` CSV cells; means `*_total_cycles` across `block_id` rows ([DATA-28](../../docs/context/decisions/DATA.md)).
 7. **PR-GMET-007** — `averageBarWidthForCard` is **50** for both metrics.
 8. **PR-GMET-008** — `clockCycle` labels: bare rounded integers (no `µs` / unit suffix); uses mapped `*_total_cycles` (or derived) — **not** `*_time(us)` as the displayed quantity.
@@ -142,6 +140,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 None for DATA-38 / UI-46 — resolved 2026-09-14. Derive fallback for missing per-pipe `*_total_cycles` remains shipping until producer ships those columns.
 
 ## Changelog
+- **2026-09-14** — Folder cycle labels sum distinct `laneColorKey`s (no N-core duplication of one CSV column); drop duplicate Unit-contract heading.
 - **2026-09-14** — Review fixes: per-side MIX derive; availability includes derive; folder label oversum accepted; LaneGutter ACs use thresholdColor + 50% midline for both metrics.
 - **2026-09-14** — Promote DATA-38 / UI-46 to decisions; strike interim DATA-38a / UI-46a.
 - **2026-09-09** — Default Card metric is utilization when available; empty availability returns `null` (PR-GMET-002).

@@ -145,16 +145,35 @@ function computeUtilTree(thread: SwimThread, model: SwimlaneModel): number | und
   return leafUtilization(thread, model);
 }
 
-/** Absolute cycle tree — drives clockCycle labels only (folders sum children). */
+/**
+ * Leaf cycle totals keyed by `laneColorKey` under `thread`.
+ * PipeUtilization is per-pipe-family, not per-core — same key must not be counted twice.
+ */
+function leafCyclesByColorKey(
+  thread: SwimThread,
+  cycleByKey: Map<string, number>,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  const walk = (t: SwimThread) => {
+    if (t.children !== undefined) {
+      for (const c of t.children ?? []) walk(c);
+      return;
+    }
+    const key = laneColorKey(t.name);
+    const v = cycleByKey.get(key);
+    if (v != null) out.set(key, v);
+  };
+  walk(thread);
+  return out;
+}
+
+/** Absolute cycle tree — labels only; folders sum **distinct** pipe keys. */
 function computeCycleTree(
   thread: SwimThread,
   cycleByKey: Map<string, number>,
 ): number | undefined {
   if (thread.children !== undefined) {
-    const childVals = (thread.children ?? [])
-      .map((c) => computeCycleTree(c, cycleByKey))
-      .filter((v): v is number => v != null);
-    return sumRollup(childVals);
+    return sumRollup([...leafCyclesByColorKey(thread, cycleByKey).values()]);
   }
   return leafCycleRaw(thread, cycleByKey);
 }

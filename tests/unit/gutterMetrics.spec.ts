@@ -191,7 +191,7 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('folder')).toMatchObject({ barWidth: 20, label: '20%' });
   });
 
-  it('PR-GMET-005: clockCycle folder label sums child cycles; bar stays util mean', () => {
+  it('PR-GMET-005: clockCycle folder sums distinct pipe keys; same-key siblings count once', () => {
     const rows = parsePipeRows(
       ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,4'].join('\n'),
     );
@@ -231,6 +231,47 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('a')?.barWidth).toBe(40);
     expect(bars.get('b')?.barWidth).toBe(20);
     expect(bars.get('folder')?.barWidth).toBe(30);
+
+    // Two VECTOR siblings share one CSV pipe-family total — folder must not double it.
+    const multiCore: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [
+                {
+                  id: 'v0',
+                  name: 'Core0.Vec0/VECTOR',
+                  events: [{ id: 'e1', name: 'x', startTime: 0, duration: 400 }],
+                },
+                {
+                  id: 'v1',
+                  name: 'Core1.Vec0/VECTOR',
+                  events: [{ id: 'e2', name: 'y', startTime: 0, duration: 200 }],
+                },
+                {
+                  id: 'sc',
+                  name: 'Core0.Vec0/SCALAR',
+                  events: [{ id: 'e3', name: 'z', startTime: 0, duration: 100 }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const multi = gutterBarsForCard(multiCore, rows, 'clockCycle', 'card0');
+    expect(multi.get('v0')?.label).toBe('10');
+    expect(multi.get('v1')?.label).toBe('10');
+    expect(multi.get('sc')?.label).toBe('4');
+    expect(multi.get('folder')?.label).toBe('14');
   });
 
   it('PR-GMET-006: ignores NA; mean-of-column-means; derives cycles when only time+block totals exist', () => {

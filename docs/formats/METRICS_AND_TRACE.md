@@ -79,7 +79,7 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 **Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 
-**Card gutter 时钟周期 ([DATA-38](../context/decisions/DATA.md) / [UI-46](../context/decisions/UI.md)):** **labels** are **absolute clock cycles** from mapped pipe `*_total_cycles`; bare integers; **barWidth** shared with utilization (event coverage). Folders **sum** children for cycle **labels**. Dropdown = **利用率** + **时钟周期** only. Normative domain ACs: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
+**Card gutter 时钟周期 ([DATA-38](../context/decisions/DATA.md) / [UI-46](../context/decisions/UI.md)):** **labels** are **absolute clock cycles** from mapped pipe `*_total_cycles`; bare integers; **barWidth** shared with utilization (event coverage). Folders **sum distinct** pipe keys for cycle **labels** (same-key multi-core siblings count once). Dropdown = **利用率** + **时钟周期** only. Normative domain ACs: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
 
 ### Gutter metric modes (Card-header selector)
 
@@ -88,7 +88,7 @@ Per-Card dropdown on swimlane Card strips — **exactly two** selectable items w
 | Mode | Quantity (label) | Primary embed | Notes |
 |------|----------|---------------|-------|
 | 利用率 (`utilization`) | Event coverage % over model time span | `trace.json` | label `NN%`; bar = coverage |
-| 时钟周期 (`clockCycle`) | Absolute pipe **clock cycles** | `PipeUtilization.csv` mapped `*_total_cycles` | Bare cycle labels; **same barWidth as utilization**; folder labels **sum**; hide mode when no mappable cycle data |
+| 时钟周期 (`clockCycle`) | Absolute pipe **clock cycles** | `PipeUtilization.csv` mapped `*_total_cycles` | Bare cycle labels; **same barWidth as utilization**; folder labels **sum distinct keys**; hide mode when no mappable cycle data |
 
 Default: **利用率** when available, else **时钟周期**. Aside PIPE **ratio** bars stay [DATA-28](../context/decisions/DATA.md); aside in-bar absolute times stay [DATA-33f](../context/decisions/interim/DATA.md) (`*_time(us)` — **not** the gutter clockCycle label). Decisions: [DATA-38](../context/decisions/DATA.md), [UI-46](../context/decisions/UI.md).
 
