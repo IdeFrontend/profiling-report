@@ -359,6 +359,10 @@ const bounds = computed(() => {
     maxTime: m.maxTime > m.minTime ? m.maxTime : m.minTime + 1,
   };
 });
+const contextMenuCanReset = computed(() => {
+  const { minTime, maxTime } = bounds.value;
+  return viewState.value.startTime !== minTime || viewState.value.endTime !== maxTime;
+});
 
 /** Log zoom: 0 = fit, 100 = min window (same floor as Ctrl+wheel / zoomAt). */
 const zoomPercent = computed(() =>
@@ -1397,6 +1401,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :context="contextMenuContext"
           :pinned-lane-ids="viewState.pinnedLaneIds"
           :can-pin="contextMenuCanPin"
+          :can-reset="contextMenuCanReset"
           :locale="locale"
           @action="onContextMenuAction"
           @dismiss="contextMenuContext = null"

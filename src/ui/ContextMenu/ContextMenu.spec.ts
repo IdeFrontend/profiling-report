@@ -19,7 +19,11 @@ function menuItem(command: string) {
 describe('ContextMenu', () => {
   it('PR-CTXMENU-001: event menu groups available commands', async () => {
     wrapper = mount(ContextMenu, {
-      props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
+      props: {
+        context: { x: 10, y: 10, laneId: 'lane1', target: event },
+        pinnedLaneIds: [],
+        canReset: true,
+      },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
@@ -29,26 +33,39 @@ describe('ContextMenu', () => {
     expect(document.querySelector('.pr-ctx-menu__sep')).not.toBeNull();
   });
 
-  it('PR-CTXMENU-002: lane menu omits event commands', async () => {
+  it('PR-CTXMENU-002: lane menu exposes available lane and viewport commands', async () => {
     wrapper = mount(ContextMenu, {
-      props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
+      props: {
+        context: { x: 10, y: 10, laneId: 'lane1', target: null },
+        pinnedLaneIds: [],
+        canReset: true,
+      },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
-    expect(menuItem('reset')).toBeNull();
+    expect(menuItem('reset')).not.toBeNull();
     expect(menuItem('show')).toBeNull();
     expect(menuItem('pin')).not.toBeNull();
-    expect(document.querySelector('.pr-ctx-menu__sep')).toBeNull();
+    expect(document.querySelector('.pr-ctx-menu__sep')).not.toBeNull();
   });
 
-  it('PR-CTXMENU-003: reset zoom emits reset action for lane', async () => {
+  it('PR-CTXMENU-003: reset zoom is available without an event only outside the total range', async () => {
     wrapper = mount(ContextMenu, {
-      props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
+      props: {
+        context: { x: 10, y: 10, laneId: 'lane1', target: null },
+        pinnedLaneIds: [],
+        canReset: true,
+      },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
+    expect(menuItem('reset')).not.toBeNull();
     menuItem('reset')!.click();
     expect(wrapper.emitted('action')?.[0]?.[0]).toEqual({ command: 'reset', laneId: 'lane1' });
+
+    await wrapper.setProps({ canReset: false });
+    await wrapper.vm.$nextTick();
+    expect(menuItem('reset')).toBeNull();
   });
 
   it('PR-CTXMENU-004: show emits target event', async () => {
@@ -85,14 +102,19 @@ describe('ContextMenu', () => {
 
   it('PR-CTXMENU-013: pin row is omitted for a non-leaf (summary-bar) lane', async () => {
     wrapper = mount(ContextMenu, {
-      props: { context: { x: 10, y: 10, laneId: 'folder', target: event }, pinnedLaneIds: [], canPin: false },
+      props: {
+        context: { x: 10, y: 10, laneId: 'folder', target: event },
+        pinnedLaneIds: [],
+        canPin: false,
+        canReset: true,
+      },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
     expect(menuItem('reset')).not.toBeNull();
     expect(menuItem('show')).not.toBeNull();
     expect(menuItem('pin')).toBeNull();
-    expect(document.querySelector('.pr-ctx-menu__sep')).toBeNull();
+    expect(document.querySelectorAll('.pr-ctx-menu__sep')).toHaveLength(1);
   });
 
   it('PR-CTXMENU-006: deferred commands remain absent', async () => {
@@ -168,7 +190,11 @@ describe('ContextMenu', () => {
 
   it('PR-CTXMENU-009: keyboard navigation focuses and activates the next event command', async () => {
     wrapper = mount(ContextMenu, {
-      props: { context: { x: 10, y: 10, laneId: 'lane1', target: event }, pinnedLaneIds: [] },
+      props: {
+        context: { x: 10, y: 10, laneId: 'lane1', target: event },
+        pinnedLaneIds: [],
+        canReset: true,
+      },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();

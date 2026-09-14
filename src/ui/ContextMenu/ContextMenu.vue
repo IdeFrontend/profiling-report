@@ -24,9 +24,11 @@ const props = withDefaults(
     pinnedLaneIds: string[];
     /** Omit Pin row when the lane cannot be pinned (e.g. a summary-bar folder id). */
     canPin?: boolean;
+    /** Show Reset zoom only when the current window differs from the total range. */
+    canReset?: boolean;
     locale?: string;
   }>(),
-  { canPin: true },
+  { canPin: true, canReset: false },
 );
 
 const emit = defineEmits<{
@@ -41,8 +43,8 @@ let restoreFocusEl: HTMLElement | null = null;
 
 const items = computed(() => {
   const result: { command: ContextMenuCommand; label: string; shortcut?: string }[] = [];
+  if (props.canReset) result.push({ command: 'reset', label: t('ctxResetZoom', props.locale) });
   if (props.context?.target) {
-    result.push({ command: 'reset', label: t('ctxResetZoom', props.locale) });
     result.push({ command: 'show', label: t('ctxShowInEventView', props.locale) });
   }
   if (props.canPin) {
@@ -56,7 +58,9 @@ const items = computed(() => {
   return result;
 });
 
+const hasViewportGroup = computed(() => props.canReset);
 const hasEventGroup = computed(() => !!props.context?.target);
+const hasEarlierGroup = computed(() => hasViewportGroup.value || hasEventGroup.value);
 
 function place(x: number, y: number) {
   const { width, height } = menuRef.value?.getBoundingClientRect() ?? { width: 0, height: 0 };
@@ -166,7 +170,7 @@ onBeforeUnmount(unbindListeners);
         :key="item.command"
       >
         <div
-          v-if="hasEventGroup && item.command === 'pin'"
+          v-if="(hasViewportGroup && item.command === 'show') || (hasEarlierGroup && item.command === 'pin')"
           class="pr-ctx-menu__sep"
           role="separator"
         />

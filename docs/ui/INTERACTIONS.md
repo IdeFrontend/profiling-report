@@ -85,7 +85,7 @@ Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (
 
 Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
 
-- Right-click lane or event → menu (e.g. **Pin row** + Alt+P while open, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
+- Right-click lane or event → menu (e.g. **Reset zoom** at any timeline point while zoomed in, **Pin row** + Alt+P while open, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
 
 **Phase 2+.**
 

@@ -82,6 +82,37 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-CTXMENU-003: Reset zoom is available off-event only outside the total range', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
+      clientX: 10,
+      clientY: 20,
+    });
+    await nextTick();
+    expect(document.querySelector('[data-testid="ctx-item-reset"]')).toBeNull();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    await nextTick();
+    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
+      clientX: 10,
+      clientY: 20,
+    });
+    await nextTick();
+    expect(document.querySelector('[data-testid="ctx-item-reset"]')).not.toBeNull();
+
+    document.querySelector<HTMLButtonElement>('[data-testid="ctx-item-reset"]')!.click();
+    await nextTick();
+    expect(wrapper.vm.viewState.startTime).toBe(0);
+    expect(wrapper.vm.viewState.endTime).toBe(1000);
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+  });
+
   it('PR-CTXMENU-012: Show on a single-task summary bar selects its underlying leaf', async () => {
     const leaf = { id: 'leaf-1', name: 'busy', startTime: 0, duration: 10 };
     const summary = {
