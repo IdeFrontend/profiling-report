@@ -2564,6 +2564,101 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-104: overscrolled live marquee eases toward maxScrollY without jumping', async () => {
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 500 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({
+      model: { ...tallModel },
+      view: { startTime: 0, endTime: 1000, scrollY: 500 },
+    });
+    await fireAllDeviceRo();
+
+    // Arm a live marquee so soft-clamp applies.
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 150, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 180, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+
+    // Dock shrink: wrap shorter → maxScrollY drops; resize skips clamp while marquee is live.
+    Object.defineProperty(wrap, 'clientHeight', { value: 80, configurable: true });
+    box.bottom = 180;
+    await fireAllDeviceRo();
+    await wrapper.vm.$nextTick();
+
+    const before = (wrapper.emitted('scroll-y') ?? []).map((c) => c[0] as number);
+    const overscrolled = before.at(-1) ?? 500;
+    // Wheel up uses the same clampScrollY path as edge autoscroll.
+    const vm = wrapper.vm as { handleWheel: (e: WheelEvent) => void };
+    vm.handleWheel(
+      new WheelEvent('wheel', { deltaY: -12, clientX: 80, clientY: 150 }),
+    );
+    await wrapper.vm.$nextTick();
+    const after = (wrapper.emitted('scroll-y') ?? []).map((c) => c[0] as number);
+    const stepped = after.at(-1);
+    expect(stepped).toBeTypeOf('number');
+    expect(stepped!).toBeLessThan(overscrolled);
+    expect(overscrolled - stepped!).toBeLessThanOrEqual(12 + 0.5);
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 180 }));
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-103: selection-border focus includes contentTopPad', async () => {
+    const { wrapper } = await mountForMarquee();
+    await wrapper.setProps({ contentTopPad: 80 });
+    await wrapper.vm.$nextTick();
+    const vm = wrapper.vm as unknown as {
+      selectionBottomContentYForCommit: (
+        events: { id: string }[],
+        rect: { x0: number; y0: number; x1: number; y1: number },
+      ) => number;
+      renderer: () => { getLayout: () => { events: { id: string; y: number }[] } };
+    };
+    const layoutEv = vm.renderer().getLayout().events.find((e) => e.id === 'e1');
+    expect(layoutEv).toBeTruthy();
+    const withPad = vm.selectionBottomContentYForCommit([{ id: 'e1' } as never], {
+      x0: 0,
+      y0: 0,
+      x1: 10,
+      y1: 10,
+    });
+    // Layout y + LANE_HEIGHT is content space; wrap space adds contentTopPad.
+    expect(withPad).toBe(layoutEv!.y + 22 + 80);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-103: after commit with no upward edge-scroll, keeps selection bottom visible', async () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {

@@ -620,7 +620,54 @@ describe('ProfilingReport scaffold', () => {
       'c',
     ]);
 
+    // Further ≥2 growth in the same gesture is coalesced until the throttle fires.
+    timeline().vm.$emit('multi-select-preview', [events[0]!, events[1]!, events[2]!]);
+    await nextTick();
+    expect((summary.props('selectedEvents') as { id: string }[]).map((e) => e.id)).toEqual([
+      'b',
+      'c',
+    ]);
+    await vi.advanceTimersByTimeAsync(100);
+    await nextTick();
+    expect(
+      (wrapper.findComponent({ name: 'MultiSelectSummary' }).props('selectedEvents') as {
+        id: string;
+      }[]).map((e) => e.id),
+    ).toEqual(['a', 'b', 'c']);
+
     vi.useRealTimers();
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-018: slack preview ignores live scrollY after gesture start', async () => {
+    const model = depsModel();
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'frozen-scroll-slack',
+        swimlaneModel: model,
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const panelResize = await import('../panelResize');
+    const spy = vi.spyOn(panelResize, 'marqueePreviewDockHeight').mockReturnValue(120);
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    const callsAtOpen = spy.mock.calls.length;
+    expect(callsAtOpen).toBeGreaterThan(0);
+    const scrollAtOpen = spy.mock.calls.at(-1)![0]!.scrollY as number;
+
+    // Edge autoscroll updates view scroll; slack watch must not recompute from live scrollY.
+    const vm = wrapper.vm as unknown as {
+      viewState: { scrollY: number };
+    };
+    vm.viewState.scrollY = scrollAtOpen + 400;
+    await nextTick();
+    expect(spy.mock.calls.length).toBe(callsAtOpen);
+
+    spy.mockRestore();
     wrapper.unmount();
   });
 

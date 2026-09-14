@@ -169,6 +169,11 @@ type DockSnap = {
    * Frozen for the gesture so mid-enter / RO feedback cannot overshoot to collapsed.
    */
   wrapClosedHeight?: number;
+  /**
+   * `scrollY` at gesture start — frozen for slack preview math so edge autoscroll
+   * does not grow the dock and re-suspend the edge band.
+   */
+  scrollY?: number;
 };
 /** Snapshot of dock UI taken on the first live preview of a gesture; discarded on commit. */
 let dockSnap: DockSnap | null = null;
@@ -189,6 +194,15 @@ const dockDisplayHeight = computed(() => {
   }
   return dockHeight.value;
 });
+/** Coalesce live ≥2 dock remaps during a growing marquee (op2-scale / edge autoscroll). */
+const PREVIEW_DOCK_THROTTLE_MS = 100;
+let previewDockTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingPreviewEvents: SwimEvent[] | null = null;
+/**
+ * True after this gesture has applied a ≥2 preview dock. Reset per gesture so the
+ * first ≥2 over a committed multi (or after empty/single) is not throttled 100ms.
+ */
+let previewMultiApplied = false;
 
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
@@ -204,6 +218,7 @@ const timelineRef = ref<{
     currentPreviewPx: number,
     targetPx: number,
     wrapClosedHeight?: number,
+    scrollY?: number,
   ) => number;
 } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
@@ -369,18 +384,19 @@ const displaySwim = computed((): SwimlaneModel | null => {
 /** Recompute preview height from wrap slack below lane content while live from closed. */
 watchEffect(() => {
   if (!marqueeLive.value || !marqueeFromClosed.value) return;
-  // Reactive deps so edge-autoscroll / collapse refresh the height.
-  // Prefer frozen wrapClosed from gesture start — do not follow wrapLayoutEpoch
-  // (enter/RO would feed wrapNow+current and briefly overshoot to collapsed).
-  void viewState.value.scrollY;
+  // Reactive deps so collapse / model refresh the height. Do **not** subscribe to
+  // live scrollY — slack is frozen at gesture-start scroll (dockSnap.scrollY) so
+  // edge autoscroll cannot grow the preview and re-suspend the edge band.
   void collapseAnim.value;
   void displaySwim.value;
   const wrapClosed = dockSnap?.wrapClosedHeight;
+  const frozenScrollY = dockSnap?.scrollY;
   const next =
     timelineRef.value?.computeMarqueePreviewDockHeight?.(
       marqueePreviewHeight.value,
       dockHeight.value,
       wrapClosed,
+      frozenScrollY,
     ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
   if (next !== marqueePreviewHeight.value) marqueePreviewHeight.value = next;
 });
@@ -981,8 +997,10 @@ function snapshotDockIfNeeded(): void {
     wasOpen,
     dockHeight: dockHeight.value,
     wrapClosedHeight,
+    scrollY: viewState.value.scrollY,
   };
   marqueeFromClosed.value = !wasOpen;
+  previewMultiApplied = false;
   // Precompute before the dock mounts so the first paint is already at preview
   // height (not collapsed → shrink flicker via wrap RO feedback).
   if (!wasOpen) {
@@ -991,11 +1009,54 @@ function snapshotDockIfNeeded(): void {
         0,
         dockHeight.value,
         wrapClosedHeight,
+        viewState.value.scrollY,
       ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
   }
 }
 
+function sameEventIdSet(a: SwimEvent[], b: SwimEvent[]): boolean {
+  if (a.length !== b.length) return false;
+  if (a.length === 0) return true;
+  const ids = new Set(b.map((e) => e.id));
+  return a.every((e) => ids.has(e.id));
+}
+
+function clearPreviewDockTimer(): void {
+  if (previewDockTimer != null) {
+    clearTimeout(previewDockTimer);
+    previewDockTimer = null;
+  }
+  pendingPreviewEvents = null;
+}
+
+function applyLivePreviewDock(events: SwimEvent[]): void {
+  if (events.length >= 2) {
+    selected.value = null;
+    selectedEvent.value = null;
+    if (sameEventIdSet(events, multiSelected.value)) {
+      previewMultiApplied = true;
+      return;
+    }
+    multiSelected.value = events;
+    previewMultiApplied = true;
+    return;
+  }
+  previewMultiApplied = false;
+  const ev = events[0]!;
+  if (
+    multiSelected.value.length === 0 &&
+    selectedEvent.value?.id === ev.id &&
+    selected.value?.id === ev.id
+  ) {
+    return;
+  }
+  multiSelected.value = [];
+  selectedEvent.value = ev;
+  selected.value = selectedPayloadFromEvent(ev);
+}
+
 function clearMarqueeLive(opts?: { restore?: boolean }): void {
+  clearPreviewDockTimer();
   if (opts?.restore && dockSnap) {
     selected.value = dockSnap.selected;
     selectedEvent.value = dockSnap.selectedEvent;
@@ -1006,6 +1067,7 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
   marqueeLive.value = false;
   marqueeFromClosed.value = false;
   marqueePreviewHeight.value = DOCK_HEIGHT_MARQUEE_PREVIEW;
+  previewMultiApplied = false;
 }
 
 /**
@@ -1014,6 +1076,8 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
  * clears Detail/Summary. When the dock was already open at drag start, the footer stays
  * mounted with a nothing-selected message; when it opened from closed, the footer stays
  * hidden until coverage is non-empty (no empty-state flash).
+ * Skips unchanged membership; throttles further ≥2 remaps after the first of the gesture
+ * so op2-scale marquees / edge-autoscroll remaps do not re-sort 150k rows every frame.
  */
 function onMultiSelectPreview(events: SwimEvent[] | null): void {
   if (events == null) {
@@ -1026,21 +1090,41 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
   snapshotDockIfNeeded();
   marqueeLive.value = true;
   if (events.length === 0) {
+    clearPreviewDockTimer();
     selected.value = null;
     selectedEvent.value = null;
     multiSelected.value = [];
+    previewMultiApplied = false;
     return;
   }
-  if (events.length >= 2) {
-    selected.value = null;
-    selectedEvent.value = null;
-    multiSelected.value = events;
+
+  // Single-event DetailPanel is cheap — apply immediately.
+  if (events.length < 2) {
+    clearPreviewDockTimer();
+    applyLivePreviewDock(events);
     return;
   }
-  const ev = events[0]!;
-  multiSelected.value = [];
-  selectedEvent.value = ev;
-  selected.value = selectedPayloadFromEvent(ev);
+
+  if (sameEventIdSet(events, multiSelected.value)) {
+    previewMultiApplied = true;
+    return;
+  }
+
+  // First ≥2 of this gesture mounts the summary dock immediately; further growth is coalesced.
+  if (!previewMultiApplied) {
+    clearPreviewDockTimer();
+    applyLivePreviewDock(events);
+    return;
+  }
+
+  pendingPreviewEvents = events;
+  if (previewDockTimer != null) return;
+  previewDockTimer = setTimeout(() => {
+    previewDockTimer = null;
+    const pending = pendingPreviewEvents;
+    pendingPreviewEvents = null;
+    if (pending && marqueeLive.value) applyLivePreviewDock(pending);
+  }, PREVIEW_DOCK_THROTTLE_MS);
 }
 
 /**

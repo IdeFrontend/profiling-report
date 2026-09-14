@@ -435,13 +435,14 @@ function computeMarqueePreviewDockHeight(
   currentPreviewPx: number,
   targetPx: number,
   wrapClosedHeight?: number,
+  scrollY?: number,
 ): number {
   const frozen = wrapClosedHeight != null && wrapClosedHeight > 0;
   return marqueePreviewDockHeight({
     wrapHeightNow: frozen ? wrapClosedHeight : (wrapRef.value?.clientHeight ?? 0),
     currentPreviewHeight: frozen ? 0 : currentPreviewPx,
     contentHeight: modelContentHeight(),
-    scrollY: props.view.scrollY,
+    scrollY: scrollY ?? props.view.scrollY,
     contentTopPad: props.contentTopPad ?? 0,
     targetHeight: targetPx,
   });
@@ -471,8 +472,19 @@ function paintView(): SwimlaneViewWindow {
   };
 }
 
+/**
+ * Clamp scroll into [0, maxScrollY]. During a live marquee, allow temporary overscroll
+ * after a dock-shrink (PR-CANVAS-104 skips the resize clamp) — steps may ease toward
+ * the new max without jumping `localScrollY` down to it in one frame.
+ */
 function clampScrollY(y: number): number {
-  return Math.min(maxScrollY(), Math.max(0, y));
+  const maxY = maxScrollY();
+  const lo = 0;
+  if (marqueePressActive && localScrollY > maxY) {
+    // Overscrolled: never go below 0; may decrease toward maxY; do not climb further.
+    return Math.max(lo, Math.min(y, Math.max(localScrollY, maxY)));
+  }
+  return Math.min(maxY, Math.max(lo, y));
 }
 
 function altMeasureSessionActive(): boolean {
@@ -1050,6 +1062,9 @@ function endMarquee(): void {
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);
+  // Soft-clamp overscroll allowed during the live gesture; settle once it ends.
+  const maxY = maxScrollY();
+  if (localScrollY > maxY) emitScrollY(maxY);
 }
 
 function stopMarqueeAutoScroll(): void {
@@ -1229,18 +1244,22 @@ function snapContentYToRowBottom(contentY: number): number {
 }
 
 /**
- * Bottom edge of the bottommost committed event's lane row (content space).
- * Falls back to snapping the marquee rect bottom when the commit is empty.
+ * Bottom edge of the bottommost committed event's lane row, in **wrap** scroll space
+ * (`localScrollY + viewportY`, including `contentTopPad`). Falls back to snapping the
+ * marquee rect bottom when the commit is empty.
  */
 function selectionBottomContentYForCommit(commitEvents: SwimEvent[], rect: MarqueeRect): number {
   const layout = backend.getLayout();
+  const pad = props.contentTopPad ?? 0;
   let bottom = -Infinity;
   for (const ev of commitEvents) {
     const item = findLaidOutEvent(layout, ev.id);
-    if (item) bottom = Math.max(bottom, item.y + LANE_HEIGHT);
+    // item.y is layout/content space; ensureContentYVisible compares wrap space.
+    if (item) bottom = Math.max(bottom, item.y + LANE_HEIGHT + pad);
   }
   if (Number.isFinite(bottom)) return bottom;
-  return snapContentYToRowBottom(localScrollY + Math.max(rect.y0, rect.y1));
+  const wrapBottom = localScrollY + Math.max(rect.y0, rect.y1);
+  return snapContentYToRowBottom(wrapBottom - pad) + pad;
 }
 
 /** Same event list commit will use (plain rect, or Shift union with current selection). */
@@ -2571,6 +2590,8 @@ defineExpose({
     return wrapRef.value?.clientHeight ?? 0;
   },
   computeMarqueePreviewDockHeight,
+  /** Test helper: wrap-space bottom of the bottommost committed lane row. */
+  selectionBottomContentYForCommit,
 });
 </script>
 

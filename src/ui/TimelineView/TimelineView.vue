@@ -115,6 +115,7 @@ const swimlaneRef = ref<{
     currentPreviewPx: number,
     targetPx: number,
     wrapClosedHeight?: number,
+    scrollY?: number,
   ) => number;
 } | null>(null);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
@@ -554,12 +555,14 @@ defineExpose({
     currentPreviewPx: number,
     targetPx: number,
     wrapClosedHeight?: number,
+    scrollY?: number,
   ): number {
     return (
       swimlaneRef.value?.computeMarqueePreviewDockHeight?.(
         currentPreviewPx,
         targetPx,
         wrapClosedHeight,
+        scrollY,
       ) ?? currentPreviewPx
     );
   },

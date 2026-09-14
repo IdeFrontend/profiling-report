@@ -142,6 +142,7 @@ type CanvasExpose = {
     currentPreviewPx: number,
     targetPx: number,
     wrapClosedHeight?: number,
+    scrollY?: number,
   ) => number;
 };
 const canvasRef = ref<CanvasExpose | null>(null);
@@ -614,12 +615,14 @@ defineExpose({
     currentPreviewPx: number,
     targetPx: number,
     wrapClosedHeight?: number,
+    scrollY?: number,
   ): number {
     return (
       canvasRef.value?.computeMarqueePreviewDockHeight?.(
         currentPreviewPx,
         targetPx,
         wrapClosedHeight,
+        scrollY,
       ) ?? currentPreviewPx
     );
   },
