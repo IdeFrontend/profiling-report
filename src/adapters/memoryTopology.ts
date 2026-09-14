@@ -72,6 +72,7 @@ const EDGE_MAP: {
     sources: [{ file: 'Memory.csv', columns: ['aic_l1_read_bw(GB/s)'] }],
   },
   {
+    // Drawn blank on the chrome until UI-48: the export routes this corridor onto FixP.
     id: 'l2-l1-write',
     from: 'l1',
     to: 'l2',

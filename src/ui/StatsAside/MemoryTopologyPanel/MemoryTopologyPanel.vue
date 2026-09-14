@@ -1,4 +1,6 @@
 <script lang="ts">
+import type { MemoryTopologyModel } from '../../../domain/types';
+
 /** Base value type size, cap-height matched to the export's own values (see Visual).
  *  Mirrors the `.pr-topo__edge` font-size; the fit rule below only ever shrinks from it. */
 export const BASE_FONT_PX = 6.3;
@@ -20,7 +22,6 @@ export const SLOT_MAX_W: Record<string, number> = {
   'l2-ub': 49.9,
   'ub-l2': 49.9,
   'l2-l1-read': 49.9,
-  'l2-l1-write': 49.9,
   'ub-vec': 42.1,
   'vec-ub': 42.1,
   'l1-l0a': 41.1,
@@ -38,6 +39,62 @@ export const SLOT_MAX_W: Record<string, number> = {
 export const DEFAULT_MAX_W = 34.7;
 
 /**
+ * Value slots of the chrome (`memory-topology.svg`, 448×540 units), keyed by edge id.
+ * Coordinates are the centres of the values stripped from the export, so an overlaid
+ * label lands on the same link (and inside the same plate) the design filled.
+ * Pillars: GM x16–56, L2 x94–134; rows x188–432 — AIV0 y17–197, AIC y201–339, AIV1 y343–523.
+ * Ordering follows the export's link direction: the upper label of a pair rides the link
+ * whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).
+ *
+ * Chrome slots we intentionally leave blank because the adapter computes no such edge, or
+ * Product has not confirmed the assignment (UI-48): the AIV0/AIV1 SIMT in/out pair and the
+ * four in-row SIMT links, the UB→VEC run, the two rotated AIV↔AIC trunk labels, AIC
+ * L1→MTE1#3→BT, FixP→rail, the lower L2↔AIC corridor that the export routes onto FixP
+ * (`l2-l1-write` / `aic_l1_write_bw`), and 9 of the 10 in-box `%` plates (the L2 plate is
+ * DATA-20 `peakPct`).
+ */
+export const SLOTS: Record<string, readonly (readonly [number, number])[]> = {
+  'gm-l2-read': [[74.5, 255.9]],
+  'gm-l2-write': [[75.3, 277.8]],
+  'l2-ub': [
+    [159.7, 106.4],
+    [159.7, 426.6],
+  ],
+  'ub-l2': [
+    [160.4, 121.3],
+    [159.7, 441.5],
+  ],
+  'l2-l1-read': [[159.7, 235.5]],
+  'ub-vec': [
+    [338.2, 153.4],
+    [338.2, 473.3],
+  ],
+  'vec-ub': [
+    [338.2, 165.2],
+    [338.2, 485.4],
+  ],
+  'l1-l0a': [[239.7, 221.7]],
+  'l1-l0b': [[240.1, 234.3]],
+  'l0a-cube': [[302.9, 222.5]],
+  'l0b-cube': [[302.9, 235.5]],
+  'cube-l0c': [[373.5, 229.2]],
+  'l0c-cube': [[373.5, 244.5]],
+};
+
+/**
+ * True when the model has something the chrome can paint: a slotted edge label, the L2 plate
+ * (`peakPct` or `l2-hit`), or both. Slotless edges (`l0c-l1` / `l0c-l2`, and `l2-l1-write`
+ * pending UI-48) do not count — mounting chrome with every overlay blank is worse than hiding.
+ */
+export function hasDrawableTopology(model: MemoryTopologyModel | null | undefined): boolean {
+  if (!model || model.nodes.length === 0) return false;
+  if (model.nodes.some((n) => n.id === 'l2' && n.peakPct != null)) return true;
+  return model.edges.some(
+    (e) => e.label != null && e.label !== '' && (e.id in SLOTS || e.id === 'l2-hit'),
+  );
+}
+
+/**
  * Type size for a value that is `natural` units wide in slot `slot`.
  * The export's slots were sized for its own 27.6-unit placeholders; the system sans runs
  * wider per cap height, and real values are longer (`{n}.{nn} GB/s`, KB volumes), so a value
@@ -52,13 +109,14 @@ export function fitFontSize(natural: number, slot: string, base = BASE_FONT_PX):
 
 <script setup lang="ts">
 import { computed, ref, useId, watchEffect } from 'vue';
-import type { MemoryTopologyModel } from '../../../domain/types';
 import { t } from '../../../i18n';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
  *  Its static labels stay outlined paths; the export's sample values were stripped in-repo.
  *  `?no-inline` keeps the 200 kB asset out of the JS bundle — lib mode inlines assets whatever
  *  `assetsInlineLimit` says, and only this suffix is checked first — so it ships as
- *  `dist/memory-topology.svg` for the host to serve (see `vite.config.ts`). */
+ *  `dist/memory-topology.svg`. The built reference is the web-root path `/memory-topology.svg`
+ *  (hosts must serve that file at the site root, or copy it from the package export
+ *  `@huawei/profiling-report/memory-topology.svg`). */
 import chromeUrl from './memory-topology.svg?url&no-inline';
 
 const props = withDefaults(
@@ -77,10 +135,17 @@ const emit = defineEmits<{
   'open-details': [];
 }>();
 
-const show = computed(() => {
-  const m = props.model;
-  return Boolean(m && m.nodes.length > 0 && m.edges.some((e) => e.label != null && e.label !== ''));
-});
+const show = computed(() => hasDrawableTopology(props.model));
+
+/** One-shot: a missing host asset used to leave orphaned amber values on an empty rectangle. */
+const chromeFailed = ref(false);
+function onChromeError() {
+  if (chromeFailed.value) return;
+  chromeFailed.value = true;
+  console.warn(
+    '[MemoryTopologyPanel] failed to load /memory-topology.svg — serve dist/memory-topology.svg at the web root (package export: @huawei/profiling-report/memory-topology.svg)',
+  );
+}
 
 function label(id: string): string | undefined {
   return props.model?.edges.find((e) => e.id === id)?.label;
@@ -93,38 +158,6 @@ function onContextMenu(e: MouseEvent) {
   e.preventDefault();
   if (props.openDetailsOnContextmenu) emit('open-details');
 }
-
-/**
- * Value slots of the chrome (`memory-topology.svg`, 448×540 units), keyed by edge id.
- * Coordinates are the centres of the values stripped from the export, so an overlaid
- * label lands on the same link (and inside the same plate) the design filled.
- * Pillars: GM x16–56, L2 x94–134; rows x188–432 — AIV0 y17–197, AIC y201–339, AIV1 y343–523.
- * Ordering follows the export's link direction: the upper label of a pair rides the link
- * whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).
- *
- * Chrome slots we intentionally leave blank because the adapter computes no such edge:
- * the AIV0/AIV1 SIMT in/out pair and the four in-row SIMT links, the UB→VEC run, the two
- * rotated AIV↔AIC trunk labels, AIC L1→MTE1#3→BT, FixP→rail, and 9 of the 10 in-box `%`
- * plates (the L2 plate is DATA-20 `peakPct`, see below).
- */
-const SLOTS: Record<string, readonly (readonly [number, number])[]> = {
-  'gm-l2-read': [[74.5, 255.9]],
-  'gm-l2-write': [[75.3, 277.8]],
-  'l2-ub': [[159.7, 106.4], [159.7, 426.6]],
-  'ub-l2': [[160.4, 121.3], [159.7, 441.5]],
-  'l2-l1-read': [[159.7, 235.5]],
-  // The export routes its lower L2↔AIC corridor link on to FixP; we label it with the
-  // Memory.csv L1 write-back (`aic_l1_write_bw`), which is the same corridor.
-  'l2-l1-write': [[159.7, 273.1]],
-  'ub-vec': [[338.2, 153.4], [338.2, 473.3]],
-  'vec-ub': [[338.2, 165.2], [338.2, 485.4]],
-  'l1-l0a': [[239.7, 221.7]],
-  'l1-l0b': [[240.1, 234.3]],
-  'l0a-cube': [[302.9, 222.5]],
-  'l0b-cube': [[302.9, 235.5]],
-  'cube-l0c': [[373.5, 229.2]],
-  'l0c-cube': [[373.5, 244.5]],
-};
 
 /**
  * One entry per slot, drawn even when the edge has no `label` (empty string), so a slot
@@ -148,18 +181,22 @@ const summaryId = useId();
  * Accessible text alternative (PR-MEMTOP-011). `role="img"` exposes the diagram as a single
  * image, so its `<text>` values never reach the a11y tree on their own. This spells out the
  * same slots as `from → to: value`, read from the model — so it lists exactly what the diagram
- * draws: blank slots and slotless edges (`l0c-l1` / `l0c-l2`) stay out.
+ * draws: blank slots and slotless edges stay out. Paired AIV0/AIV1 slots share one aggregate
+ * value, so the description names both rows once instead of repeating the same string.
  */
 const summary = computed(() => {
   const names = new Map((props.model?.nodes ?? []).map((n) => [n.id, n.label]));
   const parts: string[] = [];
   if (peakText.value) parts.push(`${names.get('l2') ?? 'L2'}: ${peakText.value}`);
+  const seen = new Set<string>();
   for (const v of values.value) {
-    if (!v.text) continue;
+    if (!v.text || seen.has(v.id)) continue;
+    seen.add(v.id);
     const edge = props.model?.edges.find((e) => e.id === v.id);
     const from = (edge && names.get(edge.from)) ?? edge?.from ?? '';
     const to = (edge && names.get(edge.to)) ?? edge?.to ?? '';
-    parts.push(from && to ? `${from} → ${to}: ${v.text}` : v.text);
+    const pair = (SLOTS[v.id]?.length ?? 1) > 1 ? ' (AIV0, AIV1)' : '';
+    parts.push(from && to ? `${from} → ${to}${pair}: ${v.text}` : v.text);
   }
   return parts.join('; ');
 });
@@ -220,56 +257,60 @@ function fitStyle(key: string): { fontSize: string } | undefined {
         y="0"
         width="448"
         height="540"
+        @error="onChromeError"
       />
 
-      <!-- L2 node anchor: the chrome paints the pillar, this keeps the node addressable. -->
-      <rect
-        data-testid="node-l2"
-        class="pr-topo__l2"
-        x="94"
-        y="16"
-        width="40"
-        height="508"
-      />
+      <template v-if="!chromeFailed">
+        <!-- L2 node anchor: the chrome paints the pillar, this keeps the node addressable. -->
+        <rect
+          data-testid="node-l2"
+          class="pr-topo__l2"
+          x="94"
+          y="16"
+          width="40"
+          height="508"
+        />
 
-      <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
-           `peakPct` when the node carries one, else the `l2-hit` edge label — one plate, so one
-           element; the testid still tells the two sources apart. -->
-      <text
-        v-if="peakText"
-        x="113.8"
-        y="277.1"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        class="pr-topo__pct"
-        :style="fitStyle('peak')"
-        :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
-      >{{ peakText }}</text>
+        <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
+             `peakPct` when the node carries one, else the `l2-hit` edge label — one plate, so one
+             element; the testid still tells the two sources apart. -->
+        <text
+          v-if="peakText"
+          x="113.8"
+          y="277.1"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          class="pr-topo__pct"
+          :style="fitStyle('peak')"
+          :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
+        >{{ peakText }}</text>
 
-      <text
-        v-for="v in values"
-        :key="v.key"
-        :x="v.x"
-        :y="v.y"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        class="pr-topo__edge"
-        :style="fitStyle(v.key)"
-        :data-testid="`edge-${v.key}`"
-      >{{ v.text }}</text>
+        <text
+          v-for="v in values"
+          :key="v.key"
+          :x="v.x"
+          :y="v.y"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          class="pr-topo__edge"
+          :style="fitStyle(v.key)"
+          :data-testid="`edge-${v.key}`"
+        >{{ v.text }}</text>
 
-      <text
-        ref="measureTwin"
-        class="pr-topo__edge"
-        x="-1000"
-        y="-1000"
-        opacity="0"
-        aria-hidden="true"
-      />
+        <text
+          ref="measureTwin"
+          class="pr-topo__edge"
+          x="-1000"
+          y="-1000"
+          opacity="0"
+          aria-hidden="true"
+        />
+      </template>
     </svg>
 
     <!-- The diagram's accessible text alternative — see `summary` (PR-MEMTOP-011). -->
     <span
+      v-if="!chromeFailed"
       :id="summaryId"
       class="pr-topo__sr"
     >{{ summary }}</span>
@@ -277,9 +318,9 @@ function fitStyle(key: string): { fontSize: string } | undefined {
 </template>
 
 <style scoped>
-/* The diagram's base surface. The chrome paints no artboard of its own (the export's
- * rgba(255,255,255,0.05) frame is stripped), so this is what the diagram sits on: it matches the
- * card `--pr-bg-panel` instead of the lighter `#313131` the frame used to produce. */
+/* Dark-only diagram surface. The chrome is baked for dark fills and cannot adapt; light theme
+ * remaps `--pr-bg-panel` to `#f4f4f4`, so this stays the literal dark panel colour rather than
+ * the token. Sibling dark-art panels (CsvFieldListPanel, RooflinePanel) do the same. */
 .pr-topo {
   min-width: 0;
   background: #262626;

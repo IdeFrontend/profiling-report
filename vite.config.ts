@@ -19,8 +19,10 @@ export default defineConfig({
     // ~4 kB — and raising it past 4 KiB keeps those inlined rather than emitting requests the
     // consuming app never serves. The 200 kB memory-topology chrome is a JS reference, so it
     // opts out explicitly: it is imported with `?no-inline` (checked before the lib
-    // short-circuit) and ships as `dist/memory-topology.svg`, a file the host serves next to
-    // the bundle instead of carrying it as base64 in the JS.
+    // short-circuit) and ships as `dist/memory-topology.svg`. The emitted URL is the web-root
+    // path `/memory-topology.svg` (not bundle-relative), so hosts must serve that file at the
+    // site root — also exported as `@huawei/profiling-report/memory-topology.svg` for
+    // copy/deploy — instead of carrying it as base64 in the JS.
     assetsInlineLimit: 8192,
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),

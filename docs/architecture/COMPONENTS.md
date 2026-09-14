@@ -279,7 +279,7 @@ Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops
 
 Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5). Mounted on the stacked 报告统计 below PIPE and again in the root **全屏** overlay; stacked **详情** / right-click open the memory CSV overlay; overlay right-click does not.
 
-**Why:** The official chrome (`memory-topology.svg`, Figma export of `v930/report-stats-scrolled`) carries the static geometry and labels; the panel only positions the adapter's values on that chrome's slots ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)).
+**Why:** The official chrome (`memory-topology.svg`, Figma export of `v930/report-stats-scrolled`) carries the static geometry and labels; the panel only positions the adapter's values on that chrome's slots ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)). Hosts must serve `dist/memory-topology.svg` at the web root (`/memory-topology.svg`); the package exports it as `@huawei/profiling-report/memory-topology.svg` for copy/deploy.
 
 ### `HardwareDetailsPanel` (M1 interim DATA-34a)
 

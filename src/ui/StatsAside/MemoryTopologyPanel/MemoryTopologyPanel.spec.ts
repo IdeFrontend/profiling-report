@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import MemoryTopologyPanel, {
   DEFAULT_MAX_W,
   SLOT_MAX_W,
   fitFontSize,
+  hasDrawableTopology,
 } from './MemoryTopologyPanel.vue';
 
 const model = {
@@ -78,6 +79,20 @@ describe('MemoryTopologyPanel', () => {
 
   it('PR-MEMTOP-004: hides diagram when model empty', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model: null } });
+    expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+  });
+
+  it('PR-MEMTOP-004: hides when only slotless edges are labelled', () => {
+    const slotless = {
+      nodes: model.nodes,
+      edges: [
+        { id: 'l0c-l1', from: 'l0c', to: 'l1', label: '7 KB' },
+        { id: 'l0c-l2', from: 'l0c', to: 'l2', label: '8 KB' },
+        { id: 'l2-l1-write', from: 'l2', to: 'l1', label: '1.00 GB/s' },
+      ],
+    };
+    expect(hasDrawableTopology(slotless)).toBe(false);
+    const wrapper = mount(MemoryTopologyPanel, { props: { model: slotless } });
     expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
   });
 
@@ -177,11 +192,24 @@ describe('MemoryTopologyPanel', () => {
   });
 
   it('PR-MEMTOP-009: edges with no chrome slot are not drawn', () => {
-    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          edges: [
+            ...model.edges,
+            { id: 'l2-l1-write', from: 'l2', to: 'l1', label: '9.00 GB/s' },
+          ],
+        },
+      },
+    });
     // The export carries no KB plate, so L0C→L1 / L0C→GM datagrams stay in the 详情 tabs.
+    // FixP-routed `l2-l1-write` stays blank pending UI-48.
     expect(wrapper.findAll('[data-testid^="edge-l0c-l1"]')).toHaveLength(0);
     expect(wrapper.findAll('[data-testid^="edge-l0c-l2"]')).toHaveLength(0);
+    expect(wrapper.findAll('[data-testid^="edge-l2-l1-write"]')).toHaveLength(0);
     expect(wrapper.text()).not.toContain('KB');
+    expect(wrapper.text()).not.toContain('9.00 GB/s');
   });
 
   it('PR-MEMTOP-011: describes the drawn values to assistive tech', () => {
@@ -192,12 +220,31 @@ describe('MemoryTopologyPanel', () => {
     expect(summary.classes()).toContain('pr-topo__sr');
     // Node labels from the model, so the numbers are not bare text.
     expect(summary.text()).toContain('GM → L2 Cache: 1.56 GB/s');
-    expect(summary.text()).toContain('L2 Cache:');
+    expect(summary.text()).toContain('L2 Cache → UB (AIV0, AIV1): 0.00 GB/s');
+    expect(summary.text()).toContain('UB → vec (AIV0, AIV1): 0.20 GB/s');
+    // Paired slots are named once — not the same string twice.
+    expect(summary.text().match(/L2 Cache → UB/g)).toHaveLength(1);
     // Only slots the diagram draws: `l0c-l1` / `l0c-l2` carry KB and have no plate.
     expect(summary.text()).not.toContain('KB');
     expect(summary.text()).not.toContain('7 KB');
   });
 
+  it('PR-MEMTOP-012: suppresses overlays and warns once when chrome fails to load', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+      expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(true);
+      await wrapper.get('image').trigger('error');
+      expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(false);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain('memory-topology.svg');
+      await wrapper.get('image').trigger('error');
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
   it('PR-MEMTOP-011: gives each instance its own description id', () => {
     // The stacked aside and the fullscreen overlay render two panels in the *same* app, so a
     // hardcoded id would collide and point both diagrams at one description. `useId` is unique
@@ -261,7 +308,6 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       'l2-ub': [133.75, 159.7, 188],
       'ub-l2': [133.75, 160.4, 188],
       'l2-l1-read': [133.75, 159.7, 188],
-      'l2-l1-write': [133.75, 159.7, 188],
       'ub-vec': [315, 338.2, 361],
       'vec-ub': [315, 338.2, 361],
       'l1-l0a': [217, 239.7, 262],
