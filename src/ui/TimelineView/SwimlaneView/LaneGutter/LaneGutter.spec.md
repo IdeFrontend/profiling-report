@@ -54,12 +54,12 @@ Each lane **and folder** row optionally shows a util bar whose **width** and **l
 
 #### Label formats per metric
 
-Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (mean `*_time(us)` → µs label; barWidth is relative track fill only).
+Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (absolute `*_total_cycles` → bare cycle label; **barWidth** = shared event coverage).
 
 | Metric | `bar.label` (thick bars) | `barWidth` | Fill color |
 |--------|--------------------------|------------|------------|
-| 时钟周期 (clockCycle) | Formatted mean pipe active time + **`µs`** (not cycle counts; not `%`) | \((\mathrm{raw}/\max)\times 100\) within Card | Red when `relativeMax`; else gray; all gray when tied |
-| 利用率 (utilization) | `NN%` | Equals util % (0–100) | Red when &lt; 50%; gray when ≥ 50% |
+| 利用率 (utilization) | `NN%` | Event coverage % (0–100) | Red when &lt; 50%; gray when ≥ 50% |
+| 时钟周期 (clockCycle) | Bare absolute cycle count (no `µs` / unit suffix) | **Same** as utilization | Same as utilization (`thresholdColor`) |
 | Legacy pipe ratio | `NN%` | `utilization × 100` | true |
 
 **Thin bars** (pipe leaves) show fill width only; **omit in-track text** for all metrics — value appears in a hover tooltip on the **util column** (full lane height hit target; title excluded) (**PR-GUTTER-016**). **Thick bars** show **label** inside track, right-aligned.
@@ -91,8 +91,8 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 | Thin height | `8px` — pipe leaves under Core (`ALL`, `SCALAR`, `MTE*`, …) |
 | Shape | Rounded rect, radius by bar height: **4px** on the 16px thick bar, **2px** on the 8px thin one. Never a full capsule / `height/2` — 4px on an 8px bar rounds the ends into a stadium |
 | Track / unfilled | Gray **diagonal hatch** — repeating `-45deg` stripes `#3a3a3a` on `--pr-util-track` (`#2a2a2a`) |
-| Value fill | **利用率 / legacy:** util &lt; 0.5 → `rgba(231,67,74,0.4)` (red); util ≥ 0.5 → `rgba(255,255,255,0.08)` (gray) — gray at exactly 50%. **clockCycle:** gray fill; red tint when `bar.relativeMax`; when all lanes tie, uniform gray. Never pipe/category `lane.color`. Composited over an opaque `--pr-util-track` base so the filled portion is **solid** and the hatch stops at the filled edge |
-| Midline | `1px dashed rgba(255,255,255,0.1)` at `left: 50%` for **利用率**; at `left: averageBarWidth%` for clockCycle when ≥2 lanes have bars; above fill, under text; omit on empty slots |
+| Value fill | **Both metrics:** util &lt; 0.5 → `rgba(231,67,74,0.4)` (red); util ≥ 0.5 → `rgba(255,255,255,0.08)` (gray) — gray at exactly 50% (`thresholdColor`). Never pipe/category `lane.color`. Composited over an opaque `--pr-util-track` base so the filled portion is **solid** and the hatch stops at the filled edge |
+| Midline | `1px dashed rgba(255,255,255,0.1)` at `left: 50%` for **both** metrics (shared event-coverage bars); above fill, under text; omit on empty slots |
 | Bar text | **Thick bars only**, inside track, right-aligned, `padding-right: 6px`. **Thin bars omit text** |
 | Text font | 10px, weight 600, tabular-nums, color **`#b0b0b0`** (same as lane title — not bright white) |
 | Layout | `grid-template-columns: minmax(0,1fr) 110px` (name + util) |
@@ -132,8 +132,8 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 3. **PR-GUTTER-003** — Nested folders show open-angle carets; leaf lanes have **no** chevron; folder click emits `toggle-group` with node id. Card expand UI lives on SwimlaneView strips (gutter Card is a spacer).
 4. **PR-GUTTER-004** — When a Card id is in `collapsedIds`, child lanes are hidden. When a nested folder id is collapsed, its descendants are hidden but the folder row remains.
 5. **PR-GUTTER-005** — Nested indent increases with depth; only Card uses group-header spacer chrome.
-6. **PR-GUTTER-006** — **利用率 / legacy:** red (`rgba(231,67,74,0.4)`) when util &lt; 0.5 and gray (`rgba(255,255,255,0.08)`) when ≥ 0.5. **Other metrics:** red only when `bar.relativeMax` (PyPTO max-lane rule); never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the in-track label (value via hover tooltip — **PR-GUTTER-016**). The fill sits on an opaque `--pr-util-track` base (solid, unhatched); thin radius 2px / thick 4px.
-7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at 50% width for utilization, or at `averageBarWidth%` for relative metrics when computable; empty util slots do not.
+6. **PR-GUTTER-006** — **Both metrics** (`thresholdColor`): red (`rgba(231,67,74,0.4)`) when `barWidth` &lt; 50 and gray (`rgba(255,255,255,0.08)`) when ≥ 50; never pipe-category colors. Thick class on folders/depth-0; thin on deeper leaves. Thin bars omit the in-track label (value via hover tooltip — **PR-GUTTER-016**). The fill sits on an opaque `--pr-util-track` base (solid, unhatched); thin radius 2px / thick 4px.
+7. **PR-GUTTER-007** — Filled util tracks show a vertical `1px dashed rgba(255,255,255,0.1)` midline at **50%** for both utilization and clockCycle (shared event-coverage bars); empty util slots do not.
 8. **PR-GUTTER-008** — Card row is a non-interactive 40px spacer (`data-testid` `gutter-group-*`); no Card toggle button in the gutter.
 9. **PR-GUTTER-009** — When **bar** is set, width and label follow active metric format; **utilization** alone keeps legacy `%` behavior.
 10. **PR-GUTTER-010** — Leaf rows include a pushpin control (DOM); folder/Card rows omit pin. Unpinned pin hidden until leaf gutter hover (or focus); **pinned pin always visible**. Does **not** appear from events-chart hover.

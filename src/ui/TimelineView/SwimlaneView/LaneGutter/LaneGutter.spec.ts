@@ -217,20 +217,20 @@ describe('LaneGutter', () => {
     );
   });
 
-  it('PR-GUTTER-007: relative metric midline uses averageBarWidth', () => {
+  it('PR-GUTTER-007: both metrics use fixed 50% midline (shared event-coverage bars)', () => {
     const wrapper = mount(LaneGutter, {
       props: {
         groups: [
           {
             id: 'p1',
             name: 'Process 1',
-            utilMidlinePercent: 75,
+            utilMidlinePercent: 50,
             lanes: [
               {
                 id: 'l1',
                 name: 'Thread A',
                 color: '#f00',
-                bar: { barWidth: 100, label: '10', relativeMax: true },
+                bar: { barWidth: 40, label: '1 502', thresholdColor: true },
               },
             ],
           },
@@ -238,10 +238,10 @@ describe('LaneGutter', () => {
       },
     });
     const mid = wrapper.get('.pr-gutter__util-mid');
-    expect(mid.attributes('style')).toContain('left: 75%');
+    expect(mid.attributes('style')).toContain('left: 50%');
   });
 
-  it('PR-GUTTER-006: relativeMax drives red fill; tied bars stay gray', () => {
+  it('PR-GUTTER-006: thresholdColor drives red/gray fill for both metrics', () => {
     const wrapper = mount(LaneGutter, {
       props: {
         groups: [
@@ -249,9 +249,9 @@ describe('LaneGutter', () => {
             id: 'p1',
             name: 'Process 1',
             lanes: [
-              { id: 'max', name: 'Max', color: '#f00', bar: { barWidth: 100, label: '10', relativeMax: true } },
-              { id: 'other', name: 'Other', color: '#0f0', bar: { barWidth: 50, label: '5', relativeMax: false } },
-              { id: 'tie', name: 'Tie', color: '#00f', bar: { barWidth: 100, label: '10', relativeMax: false } },
+              { id: 'low', name: 'Low', color: '#f00', bar: { barWidth: 40, label: '40%', thresholdColor: true } },
+              { id: 'mid', name: 'Mid', color: '#0f0', bar: { barWidth: 50, label: '50%', thresholdColor: true } },
+              { id: 'high', name: 'High', color: '#00f', bar: { barWidth: 80, label: '1 200', thresholdColor: true } },
             ],
           },
         ],

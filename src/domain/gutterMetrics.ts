@@ -7,21 +7,49 @@ export type GutterMetric = 'clockCycle' | 'utilization';
 export type GutterBarDisplay = {
   barWidth: number;
   label: string;
-  /** Util / legacy pipe ratio: red when barWidth < 50 (gray at exactly 50). */
+  /** Event-coverage bars: red when barWidth < 50 (gray at exactly 50). Both metrics. */
   thresholdColor?: boolean;
-  /** Relative metrics: red fill when this lane is the Card max (false when all lanes tie). */
+  /** @deprecated Unused when barWidth is event coverage for both metrics. */
   relativeMax?: boolean;
 };
 
-const PIPE_TIME_COLUMNS: { colorKey: string; columns: string[] }[] = [
-  { colorKey: 'cube', columns: ['aic_cube_time(us)'] },
-  { colorKey: 'mte2', columns: ['aic_mte2_time(us)', 'aiv_mte2_time(us)'] },
-  { colorKey: 'mte1', columns: ['aic_mte1_time(us)'] },
-  { colorKey: 'mte3', columns: ['aiv_mte3_time(us)'] },
-  { colorKey: 'fixp', columns: ['aic_fixpipe_time(us)'] },
-  { colorKey: 'scalar', columns: ['aic_scalar_time(us)', 'aiv_scalar_time(us)'] },
-  { colorKey: 'vector', columns: ['aiv_vec_time(us)'] },
+/** Per-pipe cycle columns ([DATA-38](../../docs/context/decisions/DATA.md)). Each CSV column carries its side for derive. */
+const PIPE_CYCLE_COLUMNS: {
+  colorKey: string;
+  columns: { cycleCol: string; timeCol: string; side: 'aic' | 'aiv' }[];
+}[] = [
+  { colorKey: 'cube', columns: [{ cycleCol: 'aic_cube_total_cycles', timeCol: 'aic_cube_time(us)', side: 'aic' }] },
+  {
+    colorKey: 'mte2',
+    columns: [
+      { cycleCol: 'aic_mte2_total_cycles', timeCol: 'aic_mte2_time(us)', side: 'aic' },
+      { cycleCol: 'aiv_mte2_total_cycles', timeCol: 'aiv_mte2_time(us)', side: 'aiv' },
+    ],
+  },
+  { colorKey: 'mte1', columns: [{ cycleCol: 'aic_mte1_total_cycles', timeCol: 'aic_mte1_time(us)', side: 'aic' }] },
+  { colorKey: 'mte3', columns: [{ cycleCol: 'aiv_mte3_total_cycles', timeCol: 'aiv_mte3_time(us)', side: 'aiv' }] },
+  {
+    colorKey: 'fixp',
+    columns: [{ cycleCol: 'aic_fixpipe_total_cycles', timeCol: 'aic_fixpipe_time(us)', side: 'aic' }],
+  },
+  {
+    colorKey: 'scalar',
+    columns: [
+      { cycleCol: 'aic_scalar_total_cycles', timeCol: 'aic_scalar_time(us)', side: 'aic' },
+      { cycleCol: 'aiv_scalar_total_cycles', timeCol: 'aiv_scalar_time(us)', side: 'aiv' },
+    ],
+  },
+  { colorKey: 'vector', columns: [{ cycleCol: 'aiv_vec_total_cycles', timeCol: 'aiv_vec_time(us)', side: 'aiv' }] },
 ];
+
+const SIDE_TIME: Record<'aic' | 'aiv', string> = {
+  aic: 'aic_time(us)',
+  aiv: 'aiv_time(us)',
+};
+const SIDE_CYCLES: Record<'aic' | 'aiv', string> = {
+  aic: 'aic_total_cycles',
+  aiv: 'aiv_total_cycles',
+};
 
 function parseNumber(raw: string | undefined): number | undefined {
   if (raw == null || raw === '' || raw === 'NA') return undefined;
@@ -39,135 +67,162 @@ function meanColumn(rows: Record<string, string>[], column: string): number | un
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-/** Per-column means, then mean of those means (normative MIX / multi-column keys). */
-function meanOfColumnMeans(
+/**
+ * Cycles-per-µs from block totals (`side_total_cycles / side_time(us)`).
+ * ponytail: many fixtures lack per-pipe `*_total_cycles`; upgrade when producer ships them.
+ */
+function sideCyclesPerUs(
   rows: Record<string, string>[],
-  columns: readonly string[],
+  side: 'aic' | 'aiv',
 ): number | undefined {
-  const means: number[] = [];
-  for (const col of columns) {
-    const m = meanColumn(rows, col);
-    if (m != null) means.push(m);
-  }
-  if (means.length === 0) return undefined;
-  return means.reduce((a, b) => a + b, 0) / means.length;
+  const time = meanColumn(rows, SIDE_TIME[side]);
+  const cycles = meanColumn(rows, SIDE_CYCLES[side]);
+  if (time == null || cycles == null || !(time > 0)) return undefined;
+  return cycles / time;
+}
+
+/** Direct cycle column mean, else timeCol × matching-side Hz. */
+function columnCycles(
+  rows: Record<string, string>[],
+  col: { cycleCol: string; timeCol: string; side: 'aic' | 'aiv' },
+): number | undefined {
+  const direct = meanColumn(rows, col.cycleCol);
+  if (direct != null) return direct;
+  const timeMean = meanColumn(rows, col.timeCol);
+  if (timeMean == null) return undefined;
+  const rate = sideCyclesPerUs(rows, col.side);
+  if (rate == null) return undefined;
+  return timeMean * rate;
 }
 
 function cycleByColorKey(rows: Record<string, string>[]): Map<string, number> {
   const out = new Map<string, number>();
-  for (const pipe of PIPE_TIME_COLUMNS) {
-    const mean = meanOfColumnMeans(rows, pipe.columns);
-    if (mean != null) out.set(pipe.colorKey, mean);
+  for (const pipe of PIPE_CYCLE_COLUMNS) {
+    const values: number[] = [];
+    for (const col of pipe.columns) {
+      const v = columnCycles(rows, col);
+      if (v != null) values.push(v);
+    }
+    if (values.length === 0) continue;
+    out.set(
+      pipe.colorKey,
+      values.reduce((a, b) => a + b, 0) / values.length,
+    );
   }
   return out;
 }
 
-function leafRawValue(
-  thread: SwimThread,
-  metric: GutterMetric,
-  model: SwimlaneModel,
-  cycleByKey: Map<string, number>,
-): number | undefined {
-  const key = laneColorKey(thread.name);
-  switch (metric) {
-    case 'clockCycle':
-      return cycleByKey.get(key);
-    case 'utilization':
-      // Include 0 so idle lanes paint `0%` and folder means count idle children.
-      return computeThreadUtilization(thread, model.minTime, model.maxTime);
-    default:
-      return undefined;
-  }
+function leafUtilization(thread: SwimThread, model: SwimlaneModel): number {
+  // Include 0 so idle lanes paint `0%` and folder means count idle children.
+  return computeThreadUtilization(thread, model.minTime, model.maxTime);
 }
 
-function rollup(values: number[]): number | undefined {
+function leafCycleRaw(
+  thread: SwimThread,
+  cycleByKey: Map<string, number>,
+): number | undefined {
+  return cycleByKey.get(laneColorKey(thread.name));
+}
+
+function meanRollup(values: number[]): number | undefined {
   if (values.length === 0) return undefined;
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-function computeRawTree(
+function sumRollup(values: number[]): number | undefined {
+  if (values.length === 0) return undefined;
+  return values.reduce((a, b) => a + b, 0);
+}
+
+/** Event-coverage tree — drives barWidth for **both** metrics. */
+function computeUtilTree(thread: SwimThread, model: SwimlaneModel): number | undefined {
+  if (thread.children !== undefined) {
+    const childVals = (thread.children ?? [])
+      .map((c) => computeUtilTree(c, model))
+      .filter((v): v is number => v != null);
+    return meanRollup(childVals);
+  }
+  return leafUtilization(thread, model);
+}
+
+/**
+ * Leaf cycle totals keyed by `laneColorKey` under `thread`.
+ * PipeUtilization is per-pipe-family, not per-core — same key must not be counted twice.
+ */
+function leafCyclesByColorKey(
   thread: SwimThread,
-  metric: GutterMetric,
-  model: SwimlaneModel,
+  cycleByKey: Map<string, number>,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  const walk = (t: SwimThread) => {
+    if (t.children !== undefined) {
+      for (const c of t.children ?? []) walk(c);
+      return;
+    }
+    const key = laneColorKey(t.name);
+    const v = cycleByKey.get(key);
+    if (v != null) out.set(key, v);
+  };
+  walk(thread);
+  return out;
+}
+
+/** Absolute cycle tree — labels only; folders sum **distinct** pipe keys. */
+function computeCycleTree(
+  thread: SwimThread,
   cycleByKey: Map<string, number>,
 ): number | undefined {
   if (thread.children !== undefined) {
-    const childVals = (thread.children ?? [])
-      .map((c) => computeRawTree(c, metric, model, cycleByKey))
-      .filter((v): v is number => v != null);
-    return rollup(childVals);
+    return sumRollup([...leafCyclesByColorKey(thread, cycleByKey).values()]);
   }
-  return leafRawValue(thread, metric, model, cycleByKey);
+  return leafCycleRaw(thread, cycleByKey);
+}
+
+/** Space-group thousands (`1 502`, `10 325`) — same glyph as UI-45 cycle labels. */
+function groupIntegerDigits(intPart: string): string {
+  const neg = intPart.startsWith('-');
+  const digits = neg ? intPart.slice(1) : intPart;
+  if (digits.length <= 3) return intPart;
+  const groups: string[] = [];
+  for (let i = digits.length; i > 0; i -= 3) {
+    groups.unshift(digits.slice(Math.max(0, i - 3), i));
+  }
+  return (neg ? '-' : '') + groups.join(' ');
 }
 
 function formatClockCycleLabel(raw: number): string {
   const rounded = Math.round(raw);
-  // CSV `*_time(us)` means are often fractional; Math.round alone paints "0" on non-empty bars.
-  let magnitude: string;
-  if (rounded !== 0 || raw === 0) magnitude = String(rounded);
-  else if (raw >= 0.01) magnitude = raw.toFixed(2);
-  else magnitude = raw.toPrecision(2);
-  // Match formatTime's µs glyph so bars are not read as % / bare ratios.
-  return `${magnitude}µs`;
+  const n = rounded === 0 && raw > 0 ? 1 : rounded;
+  return groupIntegerDigits(String(n));
 }
 
-function formatLabel(metric: GutterMetric, raw: number, barWidth: number): string {
-  switch (metric) {
-    case 'clockCycle':
-      return formatClockCycleLabel(raw);
-    case 'utilization':
-      return `${barWidth}%`;
-    default:
-      return String(raw);
-  }
+function utilBarWidth(coverage: number): number {
+  let barWidth = Math.round(coverage * 100);
+  if (barWidth === 0 && coverage > 0) barWidth = 1;
+  return Math.min(100, Math.max(0, barWidth));
 }
 
-function toBars(
-  entries: Map<string, number>,
-  metric: GutterMetric,
-): Map<string, GutterBarDisplay> {
-  const out = new Map<string, GutterBarDisplay>();
-  if (entries.size === 0) return out;
-
-  if (metric === 'utilization') {
-    for (const [id, raw] of entries) {
-      let barWidth = Math.round(raw * 100);
-      if (barWidth === 0 && raw > 0) barWidth = 1;
-      out.set(id, {
-        barWidth: Math.min(100, Math.max(0, barWidth)),
-        label: `${barWidth}%`,
-        thresholdColor: true,
-      });
+function collectUtilForProcess(proc: SwimProcess, model: SwimlaneModel): Map<string, number> {
+  const raw = new Map<string, number>();
+  const walk = (threads: SwimThread[]) => {
+    for (const t of threads) {
+      const v = computeUtilTree(t, model);
+      if (v != null) raw.set(t.id, v);
+      if (t.children?.length) walk(t.children);
     }
-    return out;
-  }
-
-  const max = Math.max(...entries.values());
-  if (!(max > 0)) return out;
-  const values = [...entries.values()];
-  const allEqual = values.length > 1 && values.every((v) => v === max);
-  for (const [id, raw] of entries) {
-    const barWidth = (raw / max) * 100;
-    out.set(id, {
-      barWidth,
-      label: formatLabel(metric, raw, barWidth),
-      thresholdColor: false,
-      relativeMax: !allEqual && raw === max,
-    });
-  }
-  return out;
+  };
+  walk(proc.threads);
+  return raw;
 }
 
-function collectRawForProcess(
+function collectCycleForProcess(
   proc: SwimProcess,
-  metric: GutterMetric,
-  model: SwimlaneModel,
   cycleByKey: Map<string, number>,
 ): Map<string, number> {
   const raw = new Map<string, number>();
   const walk = (threads: SwimThread[]) => {
     for (const t of threads) {
-      const v = computeRawTree(t, metric, model, cycleByKey);
+      const v = computeCycleTree(t, cycleByKey);
       if (v != null) raw.set(t.id, v);
       if (t.children?.length) walk(t.children);
     }
@@ -239,6 +294,10 @@ export function defaultGutterMetric(available: GutterMetric[]): GutterMetric | n
   return null;
 }
 
+/**
+ * Bar width is always event coverage (same for both metrics).
+ * Labels: utilization → `NN%`; clockCycle → bare absolute cycle counts.
+ */
 export function gutterBarsForCard(
   model: SwimlaneModel,
   pipeUtilRows: Record<string, string>[],
@@ -247,19 +306,37 @@ export function gutterBarsForCard(
 ): Map<string, GutterBarDisplay> {
   const proc = model.processes.find((p) => p.id === cardId);
   if (!proc) return new Map();
+
+  const utilById = collectUtilForProcess(proc, model);
   const cycleByKey = cycleByColorKey(pipeUtilRows);
-  const raw = collectRawForProcess(proc, metric, model, cycleByKey);
-  return toBars(raw, metric);
+  const cycleById =
+    metric === 'clockCycle' ? collectCycleForProcess(proc, cycleByKey) : undefined;
+
+  const out = new Map<string, GutterBarDisplay>();
+  for (const [id, coverage] of utilById) {
+    const barWidth = utilBarWidth(coverage);
+    if (metric === 'utilization') {
+      out.set(id, {
+        barWidth,
+        label: `${barWidth}%`,
+        thresholdColor: true,
+      });
+      continue;
+    }
+    const cycles = cycleById?.get(id);
+    out.set(id, {
+      barWidth,
+      label: cycles != null ? formatClockCycleLabel(cycles) : '',
+      thresholdColor: true,
+    });
+  }
+  return out;
 }
 
-/** PyPTO average-line position (% of 110px track). Util = 50; clockCycle = mean barWidth (zeros count). */
+/** Midline fixed at 50% for both metrics (bar = event coverage). */
 export function averageBarWidthForCard(
-  bars: Map<string, GutterBarDisplay>,
-  metric: GutterMetric,
+  _bars: Map<string, GutterBarDisplay>,
+  _metric: GutterMetric,
 ): number | undefined {
-  if (metric === 'utilization') return 50;
-  // Include barWidth 0 — a zero-width filled slot is still a bar (≠ empty util slot).
-  const widths = [...bars.values()].map((b) => b.barWidth);
-  if (widths.length < 2) return undefined;
-  return widths.reduce((a, b) => a + b, 0) / widths.length;
+  return 50;
 }

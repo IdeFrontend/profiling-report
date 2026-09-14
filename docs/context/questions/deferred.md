@@ -26,6 +26,6 @@ Status enum, prefix taxonomy, and migration map: [README.md](README.md).
 **Question:** What does the hover bar-chart control between the lane title and utilization bar do on click? Which rows show it (all leaves / pipes only / folders too)? What is the English (and confirmed Chinese) tooltip — bare **统计**, or something else?
 **Answer so far (deferred):** Do **not** implement the mid-row 统计 control this iteration (no click behavior, no tooltip shipping).
 **Sketch evidence:** [`v930/hardware-more-detail`](../../ui/source/v930/hardware-more-detail.jpeg) — MTE1 row; tooltip **统计**. Distinct from left-edge pin (**置顶**, [UI-44](deferred.md) / INTERACTIONS pin section).
-**Not:** toolbar aside toggle (`t('stats')` → **报告**), StatsAside **报告统计**, or Card **时钟周期** ([UI-46](UI.md) / [DATA-38](DATA.md)).
+**Not:** toolbar aside toggle (`t('stats')` → **报告**), StatsAside **报告统计**, or Card **时钟周期** ([UI-46](../decisions/UI.md) / [DATA-38](../decisions/DATA.md)).
 **Revisit when:** Product schedules gutter mid-row 统计.
 **Specs when answered:** [INTERACTIONS](../../ui/INTERACTIONS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [LOCALIZATION](../../ui/LOCALIZATION.md) / `src/i18n/index.ts`.

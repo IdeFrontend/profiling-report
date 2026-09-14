@@ -51,13 +51,9 @@ describe('PR-GMET: gutter metrics', () => {
     expect(defaultGutterMetric([])).toBeNull();
   });
 
-  it('PR-GMET-003: clockCycle barWidth normalizes to max lane', () => {
+  it('PR-GMET-003: barWidth is event coverage for both metrics; only labels differ', () => {
     const rows = parsePipeRows(
-      [
-        'block_id,aiv_vec_time(us),aiv_scalar_time(us)',
-        '0,10,5',
-        '1,10,5',
-      ].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,5'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -67,23 +63,35 @@ describe('PR-GMET: gutter metrics', () => {
           id: 'card0',
           name: 'Card0',
           threads: [
-            { id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] },
-            { id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] },
+            {
+              id: 'vec',
+              name: 'Core0.Vec0/VECTOR',
+              events: [{ id: 'e1', name: 'x', startTime: 0, duration: 400 }],
+            },
+            {
+              id: 'sc',
+              name: 'Core0.Vec0/SCALAR',
+              events: [{ id: 'e2', name: 'y', startTime: 0, duration: 200 }],
+            },
           ],
         },
       ],
     };
-    const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('vec')?.barWidth).toBe(100);
-    expect(bars.get('sc')?.barWidth).toBeCloseTo(50, 5);
-    expect(bars.get('vec')?.relativeMax).toBe(true);
-    expect(bars.get('sc')?.relativeMax).toBe(false);
-    expect(bars.get('vec')?.label).toBe('10µs');
+    const util = gutterBarsForCard(model, rows, 'utilization', 'card0');
+    const cycles = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
+    expect(util.get('vec')?.barWidth).toBe(40);
+    expect(util.get('sc')?.barWidth).toBe(20);
+    expect(cycles.get('vec')?.barWidth).toBe(util.get('vec')?.barWidth);
+    expect(cycles.get('sc')?.barWidth).toBe(util.get('sc')?.barWidth);
+    expect(util.get('vec')?.label).toBe('40%');
+    expect(cycles.get('vec')?.label).toBe('10');
+    expect(cycles.get('sc')?.label).toBe('5');
+    expect(cycles.get('vec')?.thresholdColor).toBe(true);
   });
 
-  it('PR-GMET-008: clockCycle label keeps decimals when round would be 0', () => {
+  it('PR-GMET-008: clockCycle labels are bare cycle integers (no µs)', () => {
     const rows = parsePipeRows(
-      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,0.31,0.15'].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,1502,108'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -98,8 +106,16 @@ describe('PR-GMET: gutter metrics', () => {
               name: '计算',
               events: [],
               children: [
-                { id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] },
-                { id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] },
+                {
+                  id: 'vec',
+                  name: 'Core0.Vec0/VECTOR',
+                  events: [{ id: 'e1', name: 'x', startTime: 0, duration: 500 }],
+                },
+                {
+                  id: 'sc',
+                  name: 'Core0.Vec0/SCALAR',
+                  events: [{ id: 'e2', name: 'y', startTime: 0, duration: 100 }],
+                },
               ],
             },
           ],
@@ -107,39 +123,17 @@ describe('PR-GMET: gutter metrics', () => {
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('vec')?.label).toBe('0.31µs');
-    expect(bars.get('sc')?.label).toBe('0.15µs');
-    // Folder mean (0.23) must not render as "0" on the thick bar.
-    expect(bars.get('folder')?.label).toBe('0.23µs');
-    expect(bars.get('vec')?.barWidth).toBe(100);
+    expect(bars.get('vec')?.label).toBe('1 502');
+    expect(bars.get('sc')?.label).toBe('108');
+    expect(bars.get('folder')?.label).toBe('1 610');
+    // Folder bar still mean coverage, same as utilization
+    const util = gutterBarsForCard(model, rows, 'utilization', 'card0');
+    expect(bars.get('folder')?.barWidth).toBe(util.get('folder')?.barWidth);
   });
 
-  it('PR-GMET-003: tied clockCycle lanes get relativeMax false (all gray in UI)', () => {
+  it('PR-GMET-007: averageBarWidth is 50 for both metrics', () => {
     const rows = parsePipeRows(
-      ['block_id,aiv_vec_time(us)', '0,10', '1,10'].join('\n'),
-    );
-    const model: SwimlaneModel = {
-      minTime: 0,
-      maxTime: 1000,
-      processes: [
-        {
-          id: 'card0',
-          name: 'Card0',
-          threads: [
-            { id: 'a', name: 'Core0.Vec0/VECTOR', events: [] },
-            { id: 'b', name: 'Core0.Vec1/VECTOR', events: [] },
-          ],
-        },
-      ],
-    };
-    const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('a')?.relativeMax).toBe(false);
-    expect(bars.get('b')?.relativeMax).toBe(false);
-  });
-
-  it('PR-GMET-007: averageBarWidth is 50 for util; mean barWidth for clockCycle', () => {
-    const rows = parsePipeRows(
-      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,10,5'].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,5'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -158,15 +152,7 @@ describe('PR-GMET: gutter metrics', () => {
     const utilBars = gutterBarsForCard(model, [], 'utilization', 'card0');
     expect(averageBarWidthForCard(utilBars, 'utilization')).toBe(50);
     const cycleBars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(averageBarWidthForCard(cycleBars, 'clockCycle')).toBeCloseTo(75, 5);
-
-    // Zero-width bar still counts toward ≥2 lanes (mean includes 0 → 50).
-    const withZero = parsePipeRows(
-      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,10,0'].join('\n'),
-    );
-    const zeroBars = gutterBarsForCard(model, withZero, 'clockCycle', 'card0');
-    expect(zeroBars.get('sc')?.barWidth).toBe(0);
-    expect(averageBarWidthForCard(zeroBars, 'clockCycle')).toBeCloseTo(50, 5);
+    expect(averageBarWidthForCard(cycleBars, 'clockCycle')).toBe(50);
   });
 
   it('PR-GMET-004: utilization uses event coverage and threshold flag', () => {
@@ -202,13 +188,12 @@ describe('PR-GMET: gutter metrics', () => {
     const bars = gutterBarsForCard(model, [], 'utilization', 'card0');
     expect(bars.get('busy')).toMatchObject({ barWidth: 40, label: '40%', thresholdColor: true });
     expect(bars.get('idle')).toMatchObject({ barWidth: 0, label: '0%', thresholdColor: true });
-    // Folder mean includes idle child: (0.4 + 0) / 2 = 0.2 → 20%
     expect(bars.get('folder')).toMatchObject({ barWidth: 20, label: '20%' });
   });
 
-  it('PR-GMET-005: clockCycle folder rollup means child values', () => {
+  it('PR-GMET-005: clockCycle folder sums distinct pipe keys; same-key siblings count once', () => {
     const rows = parsePipeRows(
-      ['block_id,aiv_vec_time(us),aiv_scalar_time(us)', '0,10,4'].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,4'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -223,8 +208,16 @@ describe('PR-GMET: gutter metrics', () => {
               name: '计算',
               events: [],
               children: [
-                { id: 'a', name: 'Core0.Vec0/VECTOR', events: [] },
-                { id: 'b', name: 'Core0.Vec0/SCALAR', events: [] },
+                {
+                  id: 'a',
+                  name: 'Core0.Vec0/VECTOR',
+                  events: [{ id: 'e1', name: 'x', startTime: 0, duration: 400 }],
+                },
+                {
+                  id: 'b',
+                  name: 'Core0.Vec0/SCALAR',
+                  events: [{ id: 'e2', name: 'y', startTime: 0, duration: 200 }],
+                },
               ],
             },
           ],
@@ -232,16 +225,59 @@ describe('PR-GMET: gutter metrics', () => {
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('a')?.label).toBe('10µs');
-    expect(bars.get('b')?.label).toBe('4µs');
-    expect(bars.get('folder')?.label).toBe('7µs');
+    expect(bars.get('a')?.label).toBe('10');
+    expect(bars.get('b')?.label).toBe('4');
+    expect(bars.get('folder')?.label).toBe('14');
+    expect(bars.get('a')?.barWidth).toBe(40);
+    expect(bars.get('b')?.barWidth).toBe(20);
+    expect(bars.get('folder')?.barWidth).toBe(30);
+
+    // Two VECTOR siblings share one CSV pipe-family total — folder must not double it.
+    const multiCore: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [
+                {
+                  id: 'v0',
+                  name: 'Core0.Vec0/VECTOR',
+                  events: [{ id: 'e1', name: 'x', startTime: 0, duration: 400 }],
+                },
+                {
+                  id: 'v1',
+                  name: 'Core1.Vec0/VECTOR',
+                  events: [{ id: 'e2', name: 'y', startTime: 0, duration: 200 }],
+                },
+                {
+                  id: 'sc',
+                  name: 'Core0.Vec0/SCALAR',
+                  events: [{ id: 'e3', name: 'z', startTime: 0, duration: 100 }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const multi = gutterBarsForCard(multiCore, rows, 'clockCycle', 'card0');
+    expect(multi.get('v0')?.label).toBe('10');
+    expect(multi.get('v1')?.label).toBe('10');
+    expect(multi.get('sc')?.label).toBe('4');
+    expect(multi.get('folder')?.label).toBe('14');
   });
 
-  it('PR-GMET-006: ignores NA cells; mean-of-column-means for multi-column keys', () => {
-    // Flat cell mean would be (10+10+100)/3 ≈ 40; mean-of-column-means is (10+100)/2 = 55.
+  it('PR-GMET-006: ignores NA; mean-of-column-means; derives cycles when only time+block totals exist', () => {
     const rows = parsePipeRows(
       [
-        'block_id,aic_mte2_time(us),aiv_mte2_time(us)',
+        'block_id,aic_mte2_total_cycles,aiv_mte2_total_cycles',
         '0,10,NA',
         '1,10,NA',
         '2,NA,100',
@@ -254,12 +290,79 @@ describe('PR-GMET: gutter metrics', () => {
         {
           id: 'card0',
           name: 'Card0',
-          threads: [{ id: 'mte2', name: 'Core0.Cube/MTE2', events: [] }],
+          threads: [
+            {
+              id: 'mte2',
+              name: 'Core0.Cube/MTE2',
+              events: [{ id: 'e1', name: 'x', startTime: 0, duration: 100 }],
+            },
+          ],
         },
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('mte2')?.label).toBe('55µs');
+    expect(bars.get('mte2')?.label).toBe('55');
+
+    const derivedRows = parsePipeRows(
+      [
+        'block_id,aiv_time(us),aiv_total_cycles,aiv_vec_time(us),aiv_scalar_time(us)',
+        '0,1,1000,0.1,0.05',
+      ].join('\n'),
+    );
+    const derivedModel: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'vec',
+              name: 'Core0.Vec0/VECTOR',
+              events: [{ id: 'e1', name: 'x', startTime: 0, duration: 100 }],
+            },
+            {
+              id: 'sc',
+              name: 'Core0.Vec0/SCALAR',
+              events: [{ id: 'e2', name: 'y', startTime: 0, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const derived = gutterBarsForCard(derivedModel, derivedRows, 'clockCycle', 'card0');
+    expect(derived.get('vec')?.label).toBe('100');
+    expect(derived.get('sc')?.label).toBe('50');
+    expect(derived.get('vec')?.label).not.toMatch(/µs/);
+
+    // MIX derive: each side’s time × that side’s Hz, then mean (not one Hz for both times).
+    const mixRows = parsePipeRows(
+      [
+        'block_id,aic_time(us),aic_total_cycles,aiv_time(us),aiv_total_cycles,aic_mte2_time(us),aiv_mte2_time(us)',
+        '0,1,1000,1,2000,0.1,0.05',
+      ].join('\n'),
+    );
+    const mixModel: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'mte2',
+              name: 'Core0.Cube/MTE2',
+              events: [{ id: 'e1', name: 'x', startTime: 0, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const mix = gutterBarsForCard(mixModel, mixRows, 'clockCycle', 'card0');
+    // aic: 0.1×1000=100; aiv: 0.05×2000=100; mean=100 (single-side Hz would yield 75 or 150)
+    expect(mix.get('mte2')?.label).toBe('100');
 
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     expect(adapted.swimlaneModel).not.toBeNull();
