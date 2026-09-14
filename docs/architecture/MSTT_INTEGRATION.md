@@ -60,7 +60,9 @@ Host may pass capability flags so the library hides Phase 2 UI until ready. **Ca
 
 `roofline` | `memoryDiagram` | `dependencies` | `hardwareDetails` | `sourceTab` | `cacheTab` | `aicpu` | `measureMode`
 
-MVP/M1 host can pass `[]` or omit; library shows summary, PIPE, M1 detail tabs, and timeline without requiring capability flags for those. `memoryDiagram` / `roofline` / measure chrome may be gated.
+MVP/M1 host can pass `[]` or omit; library shows summary, PIPE, M1 detail tabs, and timeline without requiring capability flags for those. `memoryDiagram` / measure chrome may be gated.
+
+`roofline` is **not** one of the derived flags: the library never turns it on by itself (the card is Phase 2, out of the current release), so a host that wants it must pass `capabilities: ['roofline']` explicitly.
 
 ## Non-goals for MSTT in v1
 

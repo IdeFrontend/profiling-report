@@ -127,6 +127,8 @@ Emit payload: `id`, `name`, `startTime`, `duration`, `endTime`, optional `args` 
 
 String union flags, e.g. `roofline` | `dependencies` | `memoryDiagram` | `hardwareDetails` | `sourceTab` | `cacheTab` | `aicpu`.
 
+Most flags describe data the adapter found and derives on its own. `roofline` is the exception: it is a Phase 2 surface outside the current release, so the adapter never advertises it and only a host that opts in with `capabilities: ['roofline']` mounts the card.
+
 **Why:** Feature gating without `if (format === 'pypto')` in components. Host/adapter declares what data exists.
 
 ### `RepManifest` / `RepEmbeddedFile` (M, adapter-internal)

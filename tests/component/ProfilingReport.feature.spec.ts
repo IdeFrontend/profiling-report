@@ -304,6 +304,10 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(
       auto.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
     ).toBe('hardwareDetails,memoryDiagram');
+    // The attribute alone is not the contract — out.rep has roofline points, and the
+    // card must not reach the DOM without the flag (the aside is open: duration/PIPE).
+    expect(auto.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+    expect(auto.find('[data-testid="roofline-panel"]').exists()).toBe(false);
 
     const overridden = mount(ProfilingReport, {
       props: { source: loadOutRepBuffer(), capabilities: ['roofline'] },
@@ -312,6 +316,9 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(
       overridden.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
     ).toBe('roofline');
+    // …and the same wiring renders it once the host opts in.
+    expect(overridden.find('[data-testid="stats-roofline"]').exists()).toBe(true);
+    expect(overridden.find('[data-testid="roofline-panel"]').exists()).toBe(true);
 
     // Same instance switched to host-managed models: the adapter's flags must not leak.
     await auto.setProps({

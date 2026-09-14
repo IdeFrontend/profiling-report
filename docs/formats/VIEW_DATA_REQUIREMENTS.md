@@ -157,7 +157,7 @@ Hide tab when CSV missing. Show `NA` values.
 
 ---
 
-### 10. Roofline (`RooflinePanel`) — M2
+### 10. Roofline (`RooflinePanel`) — M2, **not in the current release** (opt-in `roofline` capability)
 
 | Input | Requirement |
 |-------|-------------|
@@ -167,7 +167,7 @@ Hide tab when CSV missing. Show `NA` values.
 | `ArithmeticUtilization` + `Memory` | Interim sources (DATA-37*): `All` = the `summary.jsonl` categories, a picked `block_id` = that block's CSV rows ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
 | L2 series / tab filters | **Omit** (DATA-37c/f) until DATA-37 |
 
-Hide when no usable GM point. M3 swaps formulas when Product closes DATA-37.
+Hide when no usable GM point. The card mounts only when the host opts in with the `roofline` capability ([FEATURE_MATRIX](../ui/FEATURE_MATRIX.md)); the adapter never derives it, so a report with points alone does not show the card. M3 swaps formulas when Product closes DATA-37.
 
 ---
 
@@ -230,7 +230,7 @@ Omit panel when neither source yields fields. 更多 navigates in-aside + still 
 | Chrome Trace (`trace.json` or `.json`) | Shell, axis, gutter, swimlane, tooltip/detail, measure overlay |
 | `OpBasicInfo.csv` | Partial summary (identity, duration, freqs); MIX toggle gate |
 | `PipeUtilization.csv` | PIPE bars; Cube/Vector sets; compute detail tab; gutter util if mapped |
-| `ArithmeticUtilization.csv` | Compute detail tab; M2 roofline |
+| `ArithmeticUtilization.csv` | Compute detail tab; M2 roofline (opt-in `roofline` capability) |
 | `Memory*.csv` | Memory detail tabs; M2 topology edge labels; DATA-8 I/O bandwidth cards |
 | `L2Cache.csv` | Memory detail L2Cache tab; topology hit-rate label |
 | `ResourceConflictRatio.csv` | Compute detail tab |

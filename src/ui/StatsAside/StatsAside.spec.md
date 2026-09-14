@@ -8,7 +8,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 ## Inputs
 
-**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** gates flag-only surfaces: `hardwareDetails` for shell controls, and `roofline` for the Roofline card (Phase 2, out of the current release — opt-in only).
+**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** — the only flag this component reads is `roofline`, which mounts the Roofline card (Phase 2, out of the current release — opt-in only). The hardware-details overlay is **not** flag-gated: it keys off `report.hardwareDetails` (`hasHardwareDetails`).
 
 ## Outputs
 
