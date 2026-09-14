@@ -84,6 +84,7 @@ const emit = defineEmits<{
   'context-menu': [payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
+  'hover-lane': [laneId: string | null];
   'pin-overview': [seriesId: string];
   'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
@@ -660,6 +661,7 @@ defineExpose({
       @toggle-group="emit('toggle-group', $event)"
       @pin-lane="emit('pin-lane', $event)"
       @unpin-lane="emit('unpin-lane', $event)"
+      @hover-lane="emit('hover-lane', $event)"
       @pin-overview="emit('pin-overview', $event)"
       @unpin-overview="emit('unpin-overview', $event)"
       @update:gutter-metric="emit('update:gutter-metric', $event)"

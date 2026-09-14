@@ -141,6 +141,25 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-CTXMENU-018: Shift+P toggles the hovered lane pin globally (menu closed)', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    wrapper.findComponent(TimelineView).vm.$emit('hover-lane', 't-0');
+    await nextTick();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'P', shiftKey: true }));
+    await nextTick();
+    expect(wrapper.vm.viewState.pinnedLaneIds).toContain('t-0');
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'P', shiftKey: true }));
+    await nextTick();
+    expect(wrapper.vm.viewState.pinnedLaneIds).not.toContain('t-0');
+    wrapper.unmount();
+  });
+
   it('PR-CTXMENU-012: Show on a single-task summary bar selects its underlying leaf', async () => {
     const leaf = { id: 'leaf-1', name: 'busy', startTime: 0, duration: 10 };
     const summary = {

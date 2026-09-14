@@ -200,6 +200,8 @@ let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
 const contextMenuContext = ref<ContextMenuContext | null>(null);
+/** Lane currently under the canvas/gutter pointer — target for the global Shift+P pin shortcut. */
+const hoveredLaneId = ref<string | null>(null);
 /** In-flight collapse/expand tween; null when settled. */
 const collapseAnim = ref<CollapseAnimState | null>(null);
 /** Group id forced expanded while its tween runs (kept separate from `visible` so the
@@ -839,6 +841,12 @@ function onRootKeydown(e: KeyboardEvent) {
   // WASD must not pan/zoom the hidden view.
   if (topologyFullscreen.value || fullscreenTopology.value != null) return;
   if (!showTimeline.value) return;
+  // Global pin toggle (Shift+P) — same pin state as the gutter pushpin and the context menu.
+  if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    togglePinLane(hoveredLaneId.value);
+    return;
+  }
   // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
   // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
@@ -1142,6 +1150,20 @@ function onContextMenu(payload: { x: number; y: number; laneId: string; target?:
   }
 }
 
+function onHoverLane(laneId: string | null): void {
+  hoveredLaneId.value = laneId;
+}
+
+/** Toggle pin for a leaf lane; ignores folders and unknown ids (global Shift+P + context menu). */
+function togglePinLane(laneId: string | null): void {
+  if (!laneId) return;
+  const lane = swim.value ? findThreadById(swim.value, laneId) : null;
+  console.log('[ctx-menu] togglePinLane', { laneId, found: !!lane, isFolder: lane ? isFolderNode(lane) : null });
+  if (!lane || isFolderNode(lane)) return;
+  if (viewState.value.pinnedLaneIds.includes(laneId)) onUnpinLane(laneId);
+  else onPinLane(laneId);
+}
+
 function onContextMenuDismiss(): void {
   contextMenuContext.value = null;
   viewState.value = { ...viewState.value, hoveredEventId: null };
@@ -1410,6 +1432,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:measure-range="onMeasureRange"
           @focus-measure="onFocusMeasure"
           @context-menu="onContextMenu"
+          @hover-lane="onHoverLane"
         />
         <ContextMenu
           :context="contextMenuContext"

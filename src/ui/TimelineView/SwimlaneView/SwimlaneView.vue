@@ -107,6 +107,7 @@ const emit = defineEmits<{
   'context-menu': [payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
+  'hover-lane': [laneId: string | null];
   'pin-overview': [seriesId: string];
   'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
@@ -343,6 +344,7 @@ const hoveredLaneId = ref<string | null>(null);
 
 function onLaneHover(id: string | null): void {
   hoveredLaneId.value = id;
+  emit('hover-lane', id);
 }
 
 /** Card header Y from the same row walk as the canvas, without an event-layout rebuild. */

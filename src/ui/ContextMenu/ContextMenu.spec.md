@@ -36,7 +36,9 @@ The menu opens at pointer coordinates, clamped inside the viewport; it opens upw
 
 While the menu is open, a transparent full-viewport scrim (a `position: fixed; inset: 0` layer below the menu) blocks the rest of the UI: it intercepts pointerdown, right-click (context menu), and wheel, so no interaction reaches the canvas, gutter, or toolbar underneath, and the page cannot scroll. Keyboard input is swallowed at the document capture phase, so app hotkeys (W/S/A/D pan/zoom, Escape measure/marquee clearing) do not fire while the menu is open.
 
-The menu closes on click outside (the scrim), Escape, item activation, and every forwarded **update:scrollY** change (programmatic only while the scrim blocks user scroll). No command is highlighted when the menu opens — the active highlight appears only after Arrow Up/Arrow Down or pointer hover. Arrow Down from no highlight moves to the first command; Arrow Up wraps to the last. Enter activates the highlighted command. Shift+P activates Pin row only while the menu is open and Pin row is available; otherwise the chord is left untouched.
+The menu closes on click outside (the scrim), Escape, item activation, and every forwarded **update:scrollY** change (programmatic only while the scrim blocks user scroll). No command is highlighted when the menu opens — the active highlight appears only after Arrow Up/Arrow Down or pointer hover. Arrow Down from no highlight moves to the first command; Arrow Up wraps to the last. Enter activates the highlighted command.
+
+**Shift+P is a global shortcut**, not scoped to the open menu: it toggles the pin state of the leaf lane currently under the canvas/gutter pointer (`hoveredLaneId`), and works whether or not the menu is open. The menu's Pin row shows the same `Shift+P` hint and activates via the menu's own `context.laneId`.
 
 Opening the menu on an event pins that event's hover highlight: the parent sets `hoveredEventId` to the target and ignores the canvas's hover-clear while the menu is open, so the event stays highlighted until the menu dismisses.
 
@@ -51,7 +53,7 @@ Opening the menu on an event pins that event's hover highlight: the parent sets 
 7. **PR-CTXMENU-007** — Viewport clamp uses rendered menu dimensions and re-clamps on resize.
 8. **PR-CTXMENU-008** — Dismisses on outside click (the scrim) and Escape.
 9. **PR-CTXMENU-009** — Keyboard navigation focuses and activates commands.
-10. **PR-CTXMENU-010** — Shift+P toggles Pin row only when that command is available.
+10. **PR-CTXMENU-010** — Shift+P toggles Pin row only when that command is available (menu open).
 11. **PR-CTXMENU-011** — Leaf-gutter invocations reach the report root.
 12. **PR-CTXMENU-012** — Show on a summary-bar target resolves its sole leaf (or dismisses without selecting when multi-task).
 13. **PR-CTXMENU-013** — Pin row is omitted for a non-leaf (summary-bar) lane via `canPin`; event commands remain.
@@ -59,6 +61,7 @@ Opening the menu on an event pins that event's hover highlight: the parent sets 
 15. **PR-CTXMENU-015** — The menu blocks the rest of the UI while open: the scrim intercepts pointerdown, right-click, and wheel; keys do not reach the app.
 16. **PR-CTXMENU-016** — Opening the menu on an event keeps that event highlighted (hover state) for the whole time the menu is open.
 17. **PR-CTXMENU-017** — No command is highlighted when the menu opens; Arrow navigation or pointer hover sets the active item.
+18. **PR-CTXMENU-018** — Shift+P toggles the hovered leaf lane's pin globally, with the menu closed.
 
 ## Edge Cases
 
@@ -76,7 +79,7 @@ Opening the menu on an event pins that event's hover highlight: the parent sets 
 
 [view-state.spec.md](../../../specs/core/view-state.spec.md), [SwimlaneCanvas.spec.md](../TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md), [LaneGutter.spec.md](../TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../TimelineView/SwimlaneView/SwimlaneView.spec.md), and [DetailPanel.spec.md](../DetailPanel/DetailPanel.spec.md). Canvas covers the events chart; LaneGutter covers leaf lane headers.
 
-Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../specs/core/view-state.spec.md). Menu item scope supersedes the looser Context menu wording in [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md). While the menu is open and Pin row is available, **Shift+P** toggles the same state; the chord is ignored when Pin row is unavailable.
+Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../specs/core/view-state.spec.md). Menu item scope supersedes the looser Context menu wording in [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md). **Shift+P** toggles the same state both globally (on the hovered leaf lane) and via the menu's Pin row (on `context.laneId`); the chord is ignored when no pinnable leaf lane is available.
 
 ## Open
 
@@ -103,6 +106,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-14** — Shift+P is now a global shortcut: it toggles the hovered leaf lane's pin with the menu closed, in addition to the menu's Pin row (`PR-CTXMENU-010`, `PR-CTXMENU-018`).
 - **2026-09-14** — Pin shortcut changed from Alt+P to Shift+P: Alt+letter is the browser menu-bar mnemonic on Windows and never reaches the page reliably (`PR-CTXMENU-010`).
 - **2026-09-14** — No command is highlighted when the menu opens; the active highlight appears only after Arrow navigation or pointer hover (`PR-CTXMENU-009`, `PR-CTXMENU-017`).
 - **2026-09-14** — Opening the menu on an event pins its hover highlight for the lifetime of the menu; the pinned highlight clears on dismiss (`PR-CTXMENU-016`).
