@@ -51,13 +51,9 @@ describe('PR-GMET: gutter metrics', () => {
     expect(defaultGutterMetric([])).toBeNull();
   });
 
-  it('PR-GMET-003: clockCycle barWidth is share of report-wide leaf sum', () => {
+  it('PR-GMET-003: barWidth is event coverage for both metrics; only labels differ', () => {
     const rows = parsePipeRows(
-      [
-        'block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles',
-        '0,10,5',
-        '1,10,5',
-      ].join('\n'),
+      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,5'].join('\n'),
     );
     const model: SwimlaneModel = {
       minTime: 0,
@@ -67,47 +63,30 @@ describe('PR-GMET: gutter metrics', () => {
           id: 'card0',
           name: 'Card0',
           threads: [
-            { id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] },
-            { id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] },
+            {
+              id: 'vec',
+              name: 'Core0.Vec0/VECTOR',
+              events: [{ id: 'e1', name: 'x', startTime: 0, duration: 400 }],
+            },
+            {
+              id: 'sc',
+              name: 'Core0.Vec0/SCALAR',
+              events: [{ id: 'e2', name: 'y', startTime: 0, duration: 200 }],
+            },
           ],
         },
       ],
     };
-    const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    // T = 10 + 5 = 15
-    expect(bars.get('vec')?.barWidth).toBeCloseTo((10 / 15) * 100, 5);
-    expect(bars.get('sc')?.barWidth).toBeCloseTo((5 / 15) * 100, 5);
-    expect(bars.get('vec')?.relativeMax).toBe(true);
-    expect(bars.get('sc')?.relativeMax).toBe(false);
-    expect(bars.get('vec')?.label).toBe('10');
-    expect(bars.get('sc')?.label).toBe('5');
-  });
-
-  it('PR-GMET-003: report-wide denom spans all Cards', () => {
-    const rows = parsePipeRows(
-      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,10'].join('\n'),
-    );
-    const model: SwimlaneModel = {
-      minTime: 0,
-      maxTime: 1000,
-      processes: [
-        {
-          id: 'card0',
-          name: 'Card0',
-          threads: [{ id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] }],
-        },
-        {
-          id: 'card1',
-          name: 'Card1',
-          threads: [{ id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] }],
-        },
-      ],
-    };
-    const bars0 = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    const bars1 = gutterBarsForCard(model, rows, 'clockCycle', 'card1');
-    // T = 10 + 10 = 20 across both Cards
-    expect(bars0.get('vec')?.barWidth).toBeCloseTo(50, 5);
-    expect(bars1.get('sc')?.barWidth).toBeCloseTo(50, 5);
+    const util = gutterBarsForCard(model, rows, 'utilization', 'card0');
+    const cycles = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
+    expect(util.get('vec')?.barWidth).toBe(40);
+    expect(util.get('sc')?.barWidth).toBe(20);
+    expect(cycles.get('vec')?.barWidth).toBe(util.get('vec')?.barWidth);
+    expect(cycles.get('sc')?.barWidth).toBe(util.get('sc')?.barWidth);
+    expect(util.get('vec')?.label).toBe('40%');
+    expect(cycles.get('vec')?.label).toBe('10');
+    expect(cycles.get('sc')?.label).toBe('5');
+    expect(cycles.get('vec')?.thresholdColor).toBe(true);
   });
 
   it('PR-GMET-008: clockCycle labels are bare cycle integers (no µs)', () => {
@@ -127,8 +106,16 @@ describe('PR-GMET: gutter metrics', () => {
               name: '计算',
               events: [],
               children: [
-                { id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] },
-                { id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] },
+                {
+                  id: 'vec',
+                  name: 'Core0.Vec0/VECTOR',
+                  events: [{ id: 'e1', name: 'x', startTime: 0, duration: 500 }],
+                },
+                {
+                  id: 'sc',
+                  name: 'Core0.Vec0/SCALAR',
+                  events: [{ id: 'e2', name: 'y', startTime: 0, duration: 100 }],
+                },
               ],
             },
           ],
@@ -138,34 +125,13 @@ describe('PR-GMET: gutter metrics', () => {
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
     expect(bars.get('vec')?.label).toBe('1 502');
     expect(bars.get('sc')?.label).toBe('108');
-    // Folder sums children
     expect(bars.get('folder')?.label).toBe('1 610');
+    // Folder bar still mean coverage, same as utilization
+    const util = gutterBarsForCard(model, rows, 'utilization', 'card0');
+    expect(bars.get('folder')?.barWidth).toBe(util.get('folder')?.barWidth);
   });
 
-  it('PR-GMET-003: tied clockCycle lanes get relativeMax false (all gray in UI)', () => {
-    const rows = parsePipeRows(
-      ['block_id,aiv_vec_total_cycles', '0,10', '1,10'].join('\n'),
-    );
-    const model: SwimlaneModel = {
-      minTime: 0,
-      maxTime: 1000,
-      processes: [
-        {
-          id: 'card0',
-          name: 'Card0',
-          threads: [
-            { id: 'a', name: 'Core0.Vec0/VECTOR', events: [] },
-            { id: 'b', name: 'Core0.Vec1/VECTOR', events: [] },
-          ],
-        },
-      ],
-    };
-    const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    expect(bars.get('a')?.relativeMax).toBe(false);
-    expect(bars.get('b')?.relativeMax).toBe(false);
-  });
-
-  it('PR-GMET-007: averageBarWidth is 50 for util; mean barWidth for clockCycle', () => {
+  it('PR-GMET-007: averageBarWidth is 50 for both metrics', () => {
     const rows = parsePipeRows(
       ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,5'].join('\n'),
     );
@@ -186,15 +152,7 @@ describe('PR-GMET: gutter metrics', () => {
     const utilBars = gutterBarsForCard(model, [], 'utilization', 'card0');
     expect(averageBarWidthForCard(utilBars, 'utilization')).toBe(50);
     const cycleBars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
-    // barWidths 10/15*100 and 5/15*100 → mean 50
-    expect(averageBarWidthForCard(cycleBars, 'clockCycle')).toBeCloseTo(50, 5);
-
-    const withZero = parsePipeRows(
-      ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,0'].join('\n'),
-    );
-    const zeroBars = gutterBarsForCard(model, withZero, 'clockCycle', 'card0');
-    expect(zeroBars.get('sc')?.barWidth).toBe(0);
-    expect(averageBarWidthForCard(zeroBars, 'clockCycle')).toBeCloseTo(50, 5);
+    expect(averageBarWidthForCard(cycleBars, 'clockCycle')).toBe(50);
   });
 
   it('PR-GMET-004: utilization uses event coverage and threshold flag', () => {
@@ -230,11 +188,10 @@ describe('PR-GMET: gutter metrics', () => {
     const bars = gutterBarsForCard(model, [], 'utilization', 'card0');
     expect(bars.get('busy')).toMatchObject({ barWidth: 40, label: '40%', thresholdColor: true });
     expect(bars.get('idle')).toMatchObject({ barWidth: 0, label: '0%', thresholdColor: true });
-    // Folder mean includes idle child: (0.4 + 0) / 2 = 0.2 → 20%
     expect(bars.get('folder')).toMatchObject({ barWidth: 20, label: '20%' });
   });
 
-  it('PR-GMET-005: clockCycle folder rollup sums child values', () => {
+  it('PR-GMET-005: clockCycle folder label sums child cycles; bar stays util mean', () => {
     const rows = parsePipeRows(
       ['block_id,aiv_vec_total_cycles,aiv_scalar_total_cycles', '0,10,4'].join('\n'),
     );
@@ -251,8 +208,16 @@ describe('PR-GMET: gutter metrics', () => {
               name: '计算',
               events: [],
               children: [
-                { id: 'a', name: 'Core0.Vec0/VECTOR', events: [] },
-                { id: 'b', name: 'Core0.Vec0/SCALAR', events: [] },
+                {
+                  id: 'a',
+                  name: 'Core0.Vec0/VECTOR',
+                  events: [{ id: 'e1', name: 'x', startTime: 0, duration: 400 }],
+                },
+                {
+                  id: 'b',
+                  name: 'Core0.Vec0/SCALAR',
+                  events: [{ id: 'e2', name: 'y', startTime: 0, duration: 200 }],
+                },
               ],
             },
           ],
@@ -263,8 +228,9 @@ describe('PR-GMET: gutter metrics', () => {
     expect(bars.get('a')?.label).toBe('10');
     expect(bars.get('b')?.label).toBe('4');
     expect(bars.get('folder')?.label).toBe('14');
-    // Folder bar = 14/14 of report leaves under this card only… leaves total T=14
-    expect(bars.get('folder')?.barWidth).toBeCloseTo(100, 5);
+    expect(bars.get('a')?.barWidth).toBe(40);
+    expect(bars.get('b')?.barWidth).toBe(20);
+    expect(bars.get('folder')?.barWidth).toBe(30);
   });
 
   it('PR-GMET-006: ignores NA; mean-of-column-means; derives cycles when only time+block totals exist', () => {
@@ -283,14 +249,19 @@ describe('PR-GMET: gutter metrics', () => {
         {
           id: 'card0',
           name: 'Card0',
-          threads: [{ id: 'mte2', name: 'Core0.Cube/MTE2', events: [] }],
+          threads: [
+            {
+              id: 'mte2',
+              name: 'Core0.Cube/MTE2',
+              events: [{ id: 'e1', name: 'x', startTime: 0, duration: 100 }],
+            },
+          ],
         },
       ],
     };
     const bars = gutterBarsForCard(model, rows, 'clockCycle', 'card0');
     expect(bars.get('mte2')?.label).toBe('55');
 
-    // Fixture gap path: time + block totals → absolute cycles (no µs label).
     const derivedRows = parsePipeRows(
       [
         'block_id,aiv_time(us),aiv_total_cycles,aiv_vec_time(us),aiv_scalar_time(us)',
@@ -305,14 +276,21 @@ describe('PR-GMET: gutter metrics', () => {
           id: 'card0',
           name: 'Card0',
           threads: [
-            { id: 'vec', name: 'Core0.Vec0/VECTOR', events: [] },
-            { id: 'sc', name: 'Core0.Vec0/SCALAR', events: [] },
+            {
+              id: 'vec',
+              name: 'Core0.Vec0/VECTOR',
+              events: [{ id: 'e1', name: 'x', startTime: 0, duration: 100 }],
+            },
+            {
+              id: 'sc',
+              name: 'Core0.Vec0/SCALAR',
+              events: [{ id: 'e2', name: 'y', startTime: 0, duration: 100 }],
+            },
           ],
         },
       ],
     };
     const derived = gutterBarsForCard(derivedModel, derivedRows, 'clockCycle', 'card0');
-    // rate = 1000 cycles/µs → vec=100, sc=50
     expect(derived.get('vec')?.label).toBe('100');
     expect(derived.get('sc')?.label).toBe('50');
     expect(derived.get('vec')?.label).not.toMatch(/µs/);

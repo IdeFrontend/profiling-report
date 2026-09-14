@@ -7,9 +7,9 @@ export type GutterMetric = 'clockCycle' | 'utilization';
 export type GutterBarDisplay = {
   barWidth: number;
   label: string;
-  /** Util / legacy pipe ratio: red when barWidth < 50 (gray at exactly 50). */
+  /** Event-coverage bars: red when barWidth < 50 (gray at exactly 50). Both metrics. */
   thresholdColor?: boolean;
-  /** Relative metrics: red fill when this lane is the Card max (false when all lanes tie). */
+  /** @deprecated Unused when barWidth is event coverage for both metrics. */
   relativeMax?: boolean;
 };
 
@@ -97,7 +97,6 @@ function derivePipeCycles(
   if (!timeCols) return undefined;
   const timeMean = meanOfColumnMeans(rows, timeCols);
   if (timeMean == null) return undefined;
-  // Prefer matching side scale; for MIX keys try both sides.
   const rate =
     sideCyclesPerUs(rows, side) ??
     sideCyclesPerUs(rows, side === 'aic' ? 'aiv' : 'aic');
@@ -119,44 +118,51 @@ function cycleByColorKey(rows: Record<string, string>[]): Map<string, number> {
   return out;
 }
 
-function leafRawValue(
+function leafUtilization(thread: SwimThread, model: SwimlaneModel): number {
+  // Include 0 so idle lanes paint `0%` and folder means count idle children.
+  return computeThreadUtilization(thread, model.minTime, model.maxTime);
+}
+
+function leafCycleRaw(
   thread: SwimThread,
-  metric: GutterMetric,
-  model: SwimlaneModel,
   cycleByKey: Map<string, number>,
 ): number | undefined {
-  const key = laneColorKey(thread.name);
-  switch (metric) {
-    case 'clockCycle':
-      return cycleByKey.get(key);
-    case 'utilization':
-      // Include 0 so idle lanes paint `0%` and folder means count idle children.
-      return computeThreadUtilization(thread, model.minTime, model.maxTime);
-    default:
-      return undefined;
-  }
+  return cycleByKey.get(laneColorKey(thread.name));
 }
 
-function rollup(values: number[], metric: GutterMetric): number | undefined {
+function meanRollup(values: number[]): number | undefined {
   if (values.length === 0) return undefined;
-  const sum = values.reduce((a, b) => a + b, 0);
-  // clockCycle: sum children (report root → 100%). utilization: mean (unchanged).
-  return metric === 'clockCycle' ? sum : sum / values.length;
+  return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-function computeRawTree(
+function sumRollup(values: number[]): number | undefined {
+  if (values.length === 0) return undefined;
+  return values.reduce((a, b) => a + b, 0);
+}
+
+/** Event-coverage tree — drives barWidth for **both** metrics. */
+function computeUtilTree(thread: SwimThread, model: SwimlaneModel): number | undefined {
+  if (thread.children !== undefined) {
+    const childVals = (thread.children ?? [])
+      .map((c) => computeUtilTree(c, model))
+      .filter((v): v is number => v != null);
+    return meanRollup(childVals);
+  }
+  return leafUtilization(thread, model);
+}
+
+/** Absolute cycle tree — drives clockCycle labels only (folders sum children). */
+function computeCycleTree(
   thread: SwimThread,
-  metric: GutterMetric,
-  model: SwimlaneModel,
   cycleByKey: Map<string, number>,
 ): number | undefined {
   if (thread.children !== undefined) {
     const childVals = (thread.children ?? [])
-      .map((c) => computeRawTree(c, metric, model, cycleByKey))
+      .map((c) => computeCycleTree(c, cycleByKey))
       .filter((v): v is number => v != null);
-    return rollup(childVals, metric);
+    return sumRollup(childVals);
   }
-  return leafRawValue(thread, metric, model, cycleByKey);
+  return leafCycleRaw(thread, cycleByKey);
 }
 
 /** Space-group thousands (`1 502`, `10 325`) — same glyph as UI-45 cycle labels. */
@@ -173,70 +179,21 @@ function groupIntegerDigits(intPart: string): string {
 
 function formatClockCycleLabel(raw: number): string {
   const rounded = Math.round(raw);
-  // Never paint bare 0 when raw > 0 after rounding collapses tiny positives.
   const n = rounded === 0 && raw > 0 ? 1 : rounded;
   return groupIntegerDigits(String(n));
 }
 
-function formatLabel(metric: GutterMetric, raw: number, barWidth: number): string {
-  switch (metric) {
-    case 'clockCycle':
-      return formatClockCycleLabel(raw);
-    case 'utilization':
-      return `${barWidth}%`;
-    default:
-      return String(raw);
-  }
+function utilBarWidth(coverage: number): number {
+  let barWidth = Math.round(coverage * 100);
+  if (barWidth === 0 && coverage > 0) barWidth = 1;
+  return Math.min(100, Math.max(0, barWidth));
 }
 
-function toBars(
-  entries: Map<string, number>,
-  metric: GutterMetric,
-  reportTotal?: number,
-): Map<string, GutterBarDisplay> {
-  const out = new Map<string, GutterBarDisplay>();
-  if (entries.size === 0) return out;
-
-  if (metric === 'utilization') {
-    for (const [id, raw] of entries) {
-      let barWidth = Math.round(raw * 100);
-      if (barWidth === 0 && raw > 0) barWidth = 1;
-      out.set(id, {
-        barWidth: Math.min(100, Math.max(0, barWidth)),
-        label: `${barWidth}%`,
-        thresholdColor: true,
-      });
-    }
-    return out;
-  }
-
-  const T = reportTotal != null && reportTotal > 0 ? reportTotal : 0;
-  if (!(T > 0)) return out;
-  const values = [...entries.values()];
-  const max = Math.max(...values);
-  const allEqual = values.length > 1 && values.every((v) => v === max);
-  for (const [id, raw] of entries) {
-    const barWidth = (raw / T) * 100;
-    out.set(id, {
-      barWidth,
-      label: formatLabel(metric, raw, barWidth),
-      thresholdColor: false,
-      relativeMax: !allEqual && raw === max,
-    });
-  }
-  return out;
-}
-
-function collectRawForProcess(
-  proc: SwimProcess,
-  metric: GutterMetric,
-  model: SwimlaneModel,
-  cycleByKey: Map<string, number>,
-): Map<string, number> {
+function collectUtilForProcess(proc: SwimProcess, model: SwimlaneModel): Map<string, number> {
   const raw = new Map<string, number>();
   const walk = (threads: SwimThread[]) => {
     for (const t of threads) {
-      const v = computeRawTree(t, metric, model, cycleByKey);
+      const v = computeUtilTree(t, model);
       if (v != null) raw.set(t.id, v);
       if (t.children?.length) walk(t.children);
     }
@@ -245,24 +202,20 @@ function collectRawForProcess(
   return raw;
 }
 
-/** Sum of leaf clockCycle raws across the entire report (100% baseline). */
-function reportLeafCycleTotal(
-  model: SwimlaneModel,
+function collectCycleForProcess(
+  proc: SwimProcess,
   cycleByKey: Map<string, number>,
-): number {
-  let total = 0;
+): Map<string, number> {
+  const raw = new Map<string, number>();
   const walk = (threads: SwimThread[]) => {
     for (const t of threads) {
-      if (t.children !== undefined) {
-        walk(t.children ?? []);
-        continue;
-      }
-      const v = leafRawValue(t, 'clockCycle', model, cycleByKey);
-      if (v != null) total += v;
+      const v = computeCycleTree(t, cycleByKey);
+      if (v != null) raw.set(t.id, v);
+      if (t.children?.length) walk(t.children);
     }
   };
-  for (const proc of model.processes) walk(proc.threads);
-  return total;
+  walk(proc.threads);
+  return raw;
 }
 
 function cardHasCycleData(
@@ -328,6 +281,10 @@ export function defaultGutterMetric(available: GutterMetric[]): GutterMetric | n
   return null;
 }
 
+/**
+ * Bar width is always event coverage (same for both metrics).
+ * Labels: utilization → `NN%`; clockCycle → bare absolute cycle counts.
+ */
 export function gutterBarsForCard(
   model: SwimlaneModel,
   pipeUtilRows: Record<string, string>[],
@@ -336,21 +293,37 @@ export function gutterBarsForCard(
 ): Map<string, GutterBarDisplay> {
   const proc = model.processes.find((p) => p.id === cardId);
   if (!proc) return new Map();
+
+  const utilById = collectUtilForProcess(proc, model);
   const cycleByKey = cycleByColorKey(pipeUtilRows);
-  const raw = collectRawForProcess(proc, metric, model, cycleByKey);
-  const reportTotal =
-    metric === 'clockCycle' ? reportLeafCycleTotal(model, cycleByKey) : undefined;
-  return toBars(raw, metric, reportTotal);
+  const cycleById =
+    metric === 'clockCycle' ? collectCycleForProcess(proc, cycleByKey) : undefined;
+
+  const out = new Map<string, GutterBarDisplay>();
+  for (const [id, coverage] of utilById) {
+    const barWidth = utilBarWidth(coverage);
+    if (metric === 'utilization') {
+      out.set(id, {
+        barWidth,
+        label: `${barWidth}%`,
+        thresholdColor: true,
+      });
+      continue;
+    }
+    const cycles = cycleById?.get(id);
+    out.set(id, {
+      barWidth,
+      label: cycles != null ? formatClockCycleLabel(cycles) : '',
+      thresholdColor: true,
+    });
+  }
+  return out;
 }
 
-/** Util = 50; clockCycle = mean barWidth among Card bars (zeros count). */
+/** Midline fixed at 50% for both metrics (bar = event coverage). */
 export function averageBarWidthForCard(
-  bars: Map<string, GutterBarDisplay>,
-  metric: GutterMetric,
+  _bars: Map<string, GutterBarDisplay>,
+  _metric: GutterMetric,
 ): number | undefined {
-  if (metric === 'utilization') return 50;
-  // Include barWidth 0 — a zero-width filled slot is still a bar (≠ empty util slot).
-  const widths = [...bars.values()].map((b) => b.barWidth);
-  if (widths.length < 2) return undefined;
-  return widths.reduce((a, b) => a + b, 0) / widths.length;
+  return 50;
 }

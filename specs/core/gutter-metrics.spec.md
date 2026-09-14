@@ -16,11 +16,13 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 
 ## Unit contract
 
-- **barWidth** is always 0–100 (UI **track** percent of the 110px gutter util column). It is **not** the physical unit of the metric.
-- **clockCycle** raw values are **absolute clock-cycle counts** from mapped `PipeUtilization.csv` `*_total_cycles`. Labels are **bare integers** (no `µs` / ms / `%` suffix) — [UI-46a](../../docs/context/decisions/interim/UI.md).
-- **utilization** labels use **`%`** of event coverage over the model span (unchanged).
-- Time window for **utilization** is the swimlane model span `[minTime, maxTime]` (full trace), not the visible viewport.
-- CSV aggregations ignore `NA` tokens. Until Product picks mean vs sum for multi-`block_id` on clockCycle, interim uses **mean** of non-`NA` cells (same pattern as [DATA-28](../../docs/context/decisions/DATA.md)). Do **not** use `*_time(us)` for clockCycle raw (aside absolute times stay [DATA-33f](../../docs/context/decisions/interim/DATA.md)).
+## Unit contract
+
+- **barWidth** is always 0–100 (UI **track** percent of the 110px gutter util column). For **both** metrics it is the **same** event-coverage ratio (event duration / model span) — switching the Card dropdown must **not** change bar fill widths, only labels.
+- **clockCycle** label values are **absolute clock-cycle counts** from mapped `PipeUtilization.csv` `*_total_cycles`. Labels are **bare integers** (no `µs` / ms / `%` suffix) — [UI-46a](../../docs/context/decisions/interim/UI.md).
+- **utilization** labels use **`%`** of that same event coverage (unchanged).
+- Time window for coverage is the swimlane model span `[minTime, maxTime]` (full trace), not the visible viewport.
+- CSV aggregations ignore `NA` tokens. Until Product picks mean vs sum for multi-`block_id` on clockCycle labels, interim uses **mean** of non-`NA` cells (same pattern as [DATA-28](../../docs/context/decisions/DATA.md)). Do **not** use `*_time(us)` for clockCycle **labels** (aside absolute times stay [DATA-33f](../../docs/context/decisions/interim/DATA.md)).
 
 ## Behavior
 
@@ -62,9 +64,9 @@ Parallel rename of the former `*_time(us)` map — replace `_time(us)` with `_to
 | `scalar` | `aic_scalar_total_cycles`, `aiv_scalar_total_cycles` |
 | `vector` | `aiv_vec_total_cycles` |
 
-Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (common fixture gap), **derive** absolute cycles as \(\operatorname{mean}(*\_\mathrm{time(us)})\times(\operatorname{mean}(\mathrm{side\_total\_cycles})/\operatorname{mean}(\mathrm{side\_time(us)}))\) using `aic_*` / `aiv_*` block totals for the matching side — labels remain bare cycle counts, never `µs`. Block-level totals alone still do **not** map to a pipe key. Lanes whose `laneColorKey(thread.name)` is outside this map (or all cells `NA` / underivable) get an **empty** util slot.
+Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (common fixture gap), **derive** absolute cycles as \(\operatorname{mean}(*\_\mathrm{time(us)})\times(\operatorname{mean}(\mathrm{side\_total\_cycles})/\operatorname{mean}(\mathrm{side\_time(us)}))\) using `aic_*` / `aiv_*` block totals for the matching side — labels remain bare cycle counts, never `µs`. Block-level totals alone still do **not** map to a pipe key. Lanes outside the map (or underivable) keep the **shared** event-coverage bar but an **empty** cycle label.
 
-#### Raw value
+#### Cycle label raw (labels only — not barWidth)
 
 1. For each column \(C\) in a pipe’s set, over CSV rows \(r\):
 
@@ -80,52 +82,42 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 \operatorname{raw}_{\mathrm{key}}=\frac{1}{k}\sum_{i=1}^{k}\operatorname{agg}(C_i)
 \]
 
-(One-column keys are just that column’s aggregate.)
-
 3. **Leaf lane:** \(\operatorname{raw}_{\mathrm{lane}}=\operatorname{raw}_{\mathrm{key}}\) for `laneColorKey(thread.name)`.
 
-4. **Folder / non-leaf:** \(\operatorname{raw}_{\mathrm{folder}}=\sum\operatorname{raw}_{\mathrm{child}}\) over children that have a defined raw (**sum** rollup, not mean).
-
-#### Report-wide total and display
-
-Let \(L\) be the set of all leaf lanes in the **entire report** (all Cards) that have a defined clockCycle raw. Let
-
-\[
-T=\sum_{\ell\in L}\operatorname{raw}_{\ell}
-\]
-
-(When \(T=0\), all barWidths are 0.) Grouping nodes under any Card still show \(\operatorname{raw}=\sum\) children; the report root’s raw equals \(T\), so its barWidth is **100%**.
+4. **Folder / non-leaf:** \(\operatorname{raw}_{\mathrm{folder}}=\sum\operatorname{raw}_{\mathrm{child}}\) over children that have a defined raw (**sum** for the **label** only).
 
 | Output | Formula |
 |--------|---------|
-| **label** | Bare integer cycle count: `Math.round(raw)` (space-grouped for readability when large). **No** unit suffix. Never show bare `0` when \(raw>0\) after rounding — show at least `1` only if Product later requires; interim: round half away from zero / standard `Math.round`. |
-| **barWidth** | \((\operatorname{raw}/T)\times 100\) (0 when \(T=0\)). Share of **report-wide** cycle sum — **not** max-within-Card. |
-| **relativeMax** (red fill) | Within the Card’s set \(V\) of raws that have a bar: \(\operatorname{raw}=\max V\) and not all values in \(V\) equal; else false. |
-| **midline** (`averageBarWidth`) | Mean of barWidths in the Card when \(\lvert V\rvert\ge 2\); omit otherwise. |
+| **label** | Bare integer cycle count: `Math.round(raw)` (space-grouped when large). **No** unit suffix. |
+| **barWidth** | **Same as utilization** — event coverage over `[minTime, maxTime]` (see below). Switching metric must not change fill width. |
+| **thresholdColor** | true (red when barWidth &lt; 50) — same as utilization |
+| **midline** | fixed **50%** for both metrics |
 
-**Parallel pipes:** \(T\) can exceed any single-core or wall-timeline cycle budget because pipes overlap. Interim accepts that for the 100% baseline pending Product confirm.
+### Shared barWidth (both metrics)
+
+`barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0; **`0` when coverage is 0**. Coverage = `computeThreadUtilization` / folder **mean** of children (idle included). Full rules: [utilization.spec.md](./utilization.spec.md).
 
 ### utilization (summary)
 
-`barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0; **`0` when coverage is 0** (idle lanes keep a defined bar, not an empty slot). **label** = `` `${barWidth}%` ``. **thresholdColor** = true (red when **&lt; 50%**, gray when ≥ 50% — matches LaneGutter `barWidth < 50`). Midline fixed at **50%**. Folder means include idle children. Full rules: [utilization.spec.md](./utilization.spec.md). **Unchanged** by DATA-38 interim rewrite.
+**label** = `` `${barWidth}%` ``. **thresholdColor** = true. Midline **50%**. Bar identical to clockCycle mode.
 
 ### Fill / midline (both metrics)
 
 | Metric | Red fill | Dashed average-line position |
 |--------|------------------|------------------------------|
 | **utilization** | util &lt; 50% (gray at exactly 50%) | fixed **50%** |
-| **clockCycle** | lane(s) at max raw within Card; all gray when tied | mean of Card barWidths when ≥2 lanes |
+| **clockCycle** | same as utilization (shared barWidth) | fixed **50%** |
 
 ## Acceptance Criteria
 
 1. **PR-GMET-001** — Returns available metrics; omits clockCycle when CSV lacks mappable `*_total_cycles` (utilization only).
 2. **PR-GMET-002** — Default metric is utilization when available, else clockCycle when available, else `null`.
-3. **PR-GMET-003** — clockCycle barWidth = \((\mathrm{raw}/T)\times 100\) with \(T\) = report-wide sum of leaf clockCycle raws (report root = 100%).
+3. **PR-GMET-003** — barWidth is event coverage for **both** metrics (identical fills when switching dropdown); clockCycle does **not** use cycle-sum normalization for bars.
 4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring (unchanged).
-5. **PR-GMET-005** — Folder rollups **sum** child raws for clockCycle.
+5. **PR-GMET-005** — Folder **labels** **sum** child cycle raws for clockCycle; folder **barWidth** stays mean coverage.
 6. **PR-GMET-006** — Ignores `NA` CSV cells; interim means `*_total_cycles` across `block_id` rows (DATA-28 pattern until Product picks sum).
-7. **PR-GMET-007** — `averageBarWidthForCard`: 50 for utilization; mean of Card barWidths for clockCycle when ≥2 lanes.
-8. **PR-GMET-008** — `clockCycle` labels: bare rounded integers (no `µs` / unit suffix); uses mapped `*_total_cycles` only — **not** `*_time(us)`.
+7. **PR-GMET-007** — `averageBarWidthForCard` is **50** for both metrics.
+8. **PR-GMET-008** — `clockCycle` labels: bare rounded integers (no `µs` / unit suffix); uses mapped `*_total_cycles` (or derived) — **not** `*_time(us)` as the displayed quantity.
 
 ## Edge Cases
 
@@ -134,12 +126,12 @@ T=\sum_{\ell\in L}\operatorname{raw}_{\ell}
 | Chrome Trace only (no CSV) | clockCycle unavailable; utilization only |
 | Empty Card subtree | No bars; selector hidden when no modes |
 | Flat CTEF (no nested children) | Metrics apply to depth-0 pipe leaves |
-| Lane with no matching CSV key | Empty bar slot (no fill, no label) for clockCycle |
-| Idle utilization leaf (coverage 0) | `0%` bar (not an empty slot); included in folder mean |
+| Lane with no matching CSV key | Shared coverage bar; empty cycle label in clockCycle mode |
+| Idle utilization leaf (coverage 0) | `0` barWidth (not an empty slot); util label `0%`; included in folder mean |
 | MIX op with both aic and aiv columns for one key | Mean of per-column aggregates (e.g. mte2, scalar) |
 | Only block-level `aic_total_cycles` / `aiv_total_cycles` (no pipe time) | clockCycle unavailable |
 | Per-pipe `*_total_cycles` missing but `*_time(us)` + side totals present | **Derive** absolute cycles (see column map); labels still bare cycles |
-| `*_time(us)` alone (no side totals / no pipe cycles) | **Ignored** — cannot form clockCycle raw |
+| `*_time(us)` alone (no side totals / no pipe cycles) | Cannot form clockCycle **label**; bar still shows coverage |
 
 ## Dependencies
 
@@ -147,12 +139,13 @@ T=\sum_{\ell\in L}\operatorname{raw}_{\ell}
 
 ## Open
 
-**Product confirmation pending** — Clock Cycles formula and bare-cycle labels are **Interim** ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-46a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-46](../../docs/context/questions/UI.md)). Confirm: per-pipe `*_total_cycles` map, report-wide denom, sum rollup, multi-block mean vs sum, parallel-pipe oversum, bare labels.
+**Product confirmation pending** — Clock Cycles **labels** and bare-cycle formatting are **Interim** ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-46a](../../docs/context/decisions/interim/UI.md)). Bar fill is shared event coverage for both metrics (confirmed locally). Confirm: per-pipe `*_total_cycles` map, folder label sum, multi-block mean vs sum, bare labels.
 
-Until Product answers: keep two dropdown items; utilization unchanged; clockCycle as specified above.
+Until Product answers: keep two dropdown items; shared barWidth; clockCycle labels as specified above.
 
 ## Changelog
-- **2026-09-14** — DATA-38 interim rewrite: two dropdown items (utilization unchanged + clockCycle); clockCycle = absolute `*_total_cycles`, report-wide sum denom, folder **sum**, bare cycle labels (PR-GMET-003/005/006/008).
+- **2026-09-14** — Shared barWidth: both metrics use event coverage; only labels switch (PR-GMET-003/007).
+- **2026-09-14** — DATA-38 interim rewrite: two dropdown items; clockCycle labels = absolute `*_total_cycles`, folder label **sum**, bare cycle labels (PR-GMET-005/006/008).
 - **2026-09-09** — Default Card metric is utilization when available; empty availability returns `null` (PR-GMET-002).
 - **2026-09-05** — Document PyPTO PMU sum-of-`total cycle` as reference; note NPU-Compute.md, PR #74, and scanned fixtures lack event-level PMU (interim stays `*_time(us)`).
 - **2026-09-05** — Remap gutter label-units ask to **UI-46** / **UI-46a** (do not reuse the id reserved on PR #23 for timeline CPU clocks).

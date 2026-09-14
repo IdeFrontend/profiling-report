@@ -79,20 +79,20 @@ AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cub
 
 **Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 
-**Card gutter 时钟周期 (open — [DATA-38](../context/questions/DATA.md) / [UI-46](../context/questions/UI.md)):** interim quantity is **absolute clock cycles** from mapped pipe `*_total_cycles` ([DATA-38a](../context/decisions/interim/DATA.md)); labels = **bare integers** ([UI-46a](../context/decisions/interim/UI.md)); bar = share of **report-wide** leaf sum (folders **sum** children). Dropdown = **利用率** + **时钟周期** only. Normative domain ACs: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
+**Card gutter 时钟周期 (open — [DATA-38](../context/questions/DATA.md) / [UI-46](../context/questions/UI.md)):** interim **labels** are **absolute clock cycles** from mapped pipe `*_total_cycles` ([DATA-38a](../context/decisions/interim/DATA.md)); bare integers ([UI-46a](../context/decisions/interim/UI.md)); **barWidth** shared with utilization (event coverage). Folders **sum** children for cycle **labels**. Dropdown = **利用率** + **时钟周期** only. Normative domain ACs: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
 
 ### Gutter metric modes (Card-header selector)
 
 Per-Card dropdown on swimlane Card strips — **exactly two** selectable items when both available. Normative formula: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md) § **clockCycle formula**.
 
-| Mode | Quantity | Primary embed | Notes |
+| Mode | Quantity (label) | Primary embed | Notes |
 |------|----------|---------------|-------|
-| 利用率 (`utilization`) | Event coverage % over model time span (Product 耗时占比) | `trace.json` | **Unchanged**; always when trace exists |
-| 时钟周期 (`clockCycle`) | Absolute pipe **clock cycles** | `PipeUtilization.csv` mapped `*_total_cycles` only (see gutter-metrics column map) | Bare cycle labels; bar = \((\mathrm{raw}/T)\times 100\) with \(T\) = report-wide leaf sum; folders **sum**; hide when no mappable cycle data; **ignore** `*_time(us)` for this mode |
+| 利用率 (`utilization`) | Event coverage % over model time span | `trace.json` | label `NN%`; bar = coverage |
+| 时钟周期 (`clockCycle`) | Absolute pipe **clock cycles** | `PipeUtilization.csv` mapped `*_total_cycles` | Bare cycle labels; **same barWidth as utilization**; folder labels **sum**; hide mode when no mappable cycle data |
 
-Default: **利用率** when available, else **时钟周期**. Aside PIPE **ratio** bars stay [DATA-28](../context/decisions/DATA.md); aside in-bar absolute times stay [DATA-33f](../context/decisions/interim/DATA.md) (`*_time(us)` — **not** the same raw as gutter clockCycle). **Product confirmation:** [DATA-38](../context/questions/DATA.md), [DATA-38a](../context/decisions/interim/DATA.md), [UI-46](../context/questions/UI.md), [UI-46a](../context/decisions/interim/UI.md).
+Default: **利用率** when available, else **时钟周期**. Aside PIPE **ratio** bars stay [DATA-28](../context/decisions/DATA.md); aside in-bar absolute times stay [DATA-33f](../context/decisions/interim/DATA.md) (`*_time(us)` — **not** the gutter clockCycle label). **Product confirmation:** [DATA-38](../context/questions/DATA.md), [DATA-38a](../context/decisions/interim/DATA.md), [UI-46](../context/questions/UI.md), [UI-46a](../context/decisions/interim/UI.md).
 
-**Fill / midline:** utilization — red when < 50%, dash at 50%. clockCycle — red on max raw within Card (all gray when tied); dash at mean of Card barWidths.
+**Fill / midline:** both metrics — red when barWidth &lt; 50%, dash at 50% (shared event-coverage bars).
 
 ---
 
