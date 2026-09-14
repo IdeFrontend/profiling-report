@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import StatsAside from './StatsAside.vue';
 import { adaptRep, emptyReportViewModel } from '../../adapters/adaptRep';
+import {
+  buildMemoryTopologyFromCategories,
+  firstLabelledMemoryTopology,
+} from '../../adapters/memoryTopology';
 import { parseRep } from '../../adapters/parseRep';
 import type { ReportViewModel } from '../../domain/types';
 import { loadOutRepBytes } from '../../../tests/helpers/fixtures';
@@ -65,7 +69,13 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('75');
   });
 
-  it('PR-STATS-014b: summary PIPE block All vs id scopes bars and syncs topology', async () => {
+  it('PR-STATS-014b: one block selector scopes PIPE + topology — All = summary.jsonl (DATA-19/28/29)', async () => {
+    // All scope (DATA-28): the producer's non-NA mean across block_id, not block 0's row.
+    const allMemory = {
+      id: 'Memory',
+      title: 'Memory',
+      fields: [{ key: 'aiv_main_mem_read_bw(GB/s)', value: '4.0' }],
+    };
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -96,6 +106,10 @@ describe('StatsAside', () => {
               blockIds: ['0', '1', '2'],
             },
           ],
+          // All scope (DATA-28): the producer's non-NA mean across block_id, not block 0's row.
+          summaryCategories: [allMemory],
+          // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
+          memoryTopology: buildMemoryTopologyFromCategories([allMemory])!,
         }),
       },
     });
@@ -103,28 +117,160 @@ describe('StatsAside', () => {
     const options = wrapper
       .findAll('[data-testid="pipe-block"] option')
       .map((o) => (o.element as HTMLOptionElement).value);
-    expect(options).toEqual(['', '0', '1']);
+    // Every id the report carries (compute ∪ memory) — a memory-only id must still be selectable, or
+    // the memory overlay switcher (same state) would leave this one blank.
+    expect(options).toEqual(['', '0', '1', '2']);
 
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
     // Shared block-pill chrome (tokens.css) — guards against the native arrow returning.
     expect(wrapper.get('[data-testid="pipe-block"]').classes()).toContain('pr-block-pill');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
-    expect(wrapper.text()).toContain('1.00 GB/s');
+    // All = summary.jsonl aggregate (4.0), not the first block's 1.0.
+    expect(wrapper.text()).toContain('4.00 GB/s');
 
     await wrapper.get('[data-testid="pipe-block"]').setValue('1');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
     expect(wrapper.text()).toContain('2.00 GB/s');
-    expect(wrapper.text()).not.toContain('1.00 GB/s');
+    expect(wrapper.text()).not.toContain('4.00 GB/s');
 
-    // All must restore default topology from a non-default pick (not via an intervening `0`).
+    // All must return to the summary.jsonl aggregate from a non-default pick (not via an intervening `0`).
     await wrapper.get('[data-testid="pipe-block"]').setValue('');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
-    expect(wrapper.text()).toContain('1.00 GB/s');
+    expect(wrapper.text()).toContain('4.00 GB/s');
     expect(wrapper.text()).not.toContain('2.00 GB/s');
 
     await wrapper.get('[data-testid="pipe-block"]').setValue('0');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20%');
     expect(wrapper.text()).toContain('1.00 GB/s');
+  });
+
+  it('PR-STATS-014c (DATA-19/29): 详情 follows the block selector — picked id reads its CSV row', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.2' },
+                { block_id: '1', aiv_vec_ratio: '0.8' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aiv_ub_to_gm_bw(GB/s)'],
+              rows: [
+                { block_id: '0', 'aiv_ub_to_gm_bw(GB/s)': '1.5' },
+                { block_id: '1', 'aiv_ub_to_gm_bw(GB/s)': '1.7' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          // Product default 详情: the summary.jsonl category list.
+          summaryCategories: [
+            {
+              id: 'PipeUtilization',
+              title: 'PipeUtilization',
+              fields: [{ key: 'aiv_vec_ratio', value: '0.42' }],
+            },
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aiv_ub_to_gm_bw(GB/s)', value: '1.6' }],
+            },
+          ],
+          csvTexts: {
+            'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.2\n1,0.8\n',
+            'Memory.csv': 'block_id,aiv_ub_to_gm_bw(GB/s)\n0,1.5\n1,1.7\n',
+          },
+        }),
+      },
+    });
+
+    // All keeps the summary.jsonl category list (product default) …
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+
+    // … a picked block switches 详情 to that block's CSV row.
+    await wrapper.get('[data-testid="pipe-block"]').setValue('1');
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="csv-field-list"]').text()).toContain('0.8');
+    expect(wrapper.get('[data-testid="csv-field-list"]').text()).not.toContain('0.42');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="csv-field-list"]').text()).toContain('1.7');
+  });
+
+  it('PR-STATS-014d (DATA-29): a picked block with no data blanks the tile — never the All aggregate', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['roofline'],
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          // BW / compute / roofline All values exist …
+          bandwidthCards: [
+            { id: 'input', sides: [{ side: 'aicore', measuredGBs: 800, peakGBs: 1600 }] },
+          ],
+          computeCard: {
+            sides: [{ side: 'aic', measuredTflops: 10, peakTflops: 20 }],
+          },
+          roofline: {
+            points: [{ id: 'gm', label: 'GM', intensity: 1, performance: 1, style: 'solid' }],
+            mixLabels: [],
+            peakComputeTops: 1,
+            peakBandwidthGBs: 1600,
+          },
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.2' },
+                { block_id: '1', aiv_vec_ratio: '0.8' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          // … but the picked block has no Memory.csv / ArithmeticUtilization.csv rows.
+          memoryTables: [],
+        }),
+      },
+    });
+
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
+    await wrapper.get('[data-testid="pipe-block"]').setValue('1');
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+    // Compute keeps its cell as the N/A placeholder — no All measurement under the block label.
+    const naCard = wrapper.get('[data-testid="stats-compute-card"]');
+    expect(naCard.classes()).toContain('pr-card--na');
+    expect(naCard.text()).toContain('N/A');
+    expect(naCard.text()).not.toContain('10');
+    // PIPE re-reads the block's own row (0.8, not the All 0.5) …
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(wrapper.text()).not.toContain('50%');
+    // … and the selector stays reachable so All can be restored.
+    expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="pipe-block"]').setValue('');
+    expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
   });
 
   it('PR-STATS-003: Cube|Vector toggle only for MIX and filters by side', async () => {
@@ -682,12 +828,12 @@ describe('StatsAside', () => {
     expect(card.find('.pr-bw-cols').exists()).toBe(true);
     const read = card.get('[data-testid="stats-bandwidth-read"]');
     expect(read.text()).toMatch(/读|Read/);
-    // mean(80, 90) = 85 → score 5
-    expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/5/);
-    expect(read.text()).toMatch(/85\.0 \/ 1600\.0\s*GB\/s/);
-    expect(read.get('.pr-card__sub').attributes('title')).toBe('85 / 1600 GB/s');
+    // DATA-8: read = aic + aiv = 80 + 90 = 170 → score round(170/1600×100) = 11
+    expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/11/);
+    expect(read.text()).toMatch(/170\.0 \/ 1600\.0\s*GB\/s/);
+    expect(read.get('.pr-card__sub').attributes('title')).toBe('170 / 1600 GB/s');
     expect(read.get('[data-testid="stats-bandwidth-read-bar"]').attributes('style')).toMatch(
-      /width:\s*5%/,
+      /width:\s*11%/,
     );
     const write = card.get('[data-testid="stats-bandwidth-write"]');
     expect(write.text()).toMatch(/写|Write/);
@@ -774,28 +920,32 @@ describe('StatsAside', () => {
   });
 
   it('PR-STATS-015: Roofline section when points present; hidden when absent', () => {
-    const withRoof = mount(StatsAside, {
-      props: {
-        report: report({
-          roofline: {
-            points: [
-              {
-                id: 'gm',
-                label: 'GM Read + Write',
-                intensity: 0.09,
-                performance: 0.002,
-                style: 'solid',
-              },
-            ],
-            mixLabels: [],
-            peakComputeTops: 1,
-            peakBandwidthGBs: 16,
+    const roofReport = report({
+      roofline: {
+        points: [
+          {
+            id: 'gm',
+            label: 'GM Read + Write',
+            intensity: 0.09,
+            performance: 0.002,
+            style: 'solid',
           },
-        }),
+        ],
+        mixLabels: [],
+        peakComputeTops: 1,
+        peakBandwidthGBs: 16,
       },
+    });
+
+    const withRoof = mount(StatsAside, {
+      props: { capabilities: ['roofline'], report: roofReport },
     });
     expect(withRoof.find('[data-testid="stats-roofline"]').exists()).toBe(true);
     expect(withRoof.find('[data-testid="roofline-panel"]').exists()).toBe(true);
+
+    // Phase 2 opt-in: the current release hides the card, points or not.
+    const unflagged = mount(StatsAside, { props: { report: roofReport } });
+    expect(unflagged.find('[data-testid="stats-roofline"]').exists()).toBe(false);
 
     const without = mount(StatsAside, {
       props: {
@@ -846,6 +996,14 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          // All scope (DATA-19 / DATA-29): the diagram reads the summary.jsonl category mean.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ],
           csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
         }),
       },
@@ -867,6 +1025,22 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          // All scope (DATA-19 / DATA-29): the diagram reads the summary.jsonl category mean.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ],
+          // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
+          memoryTopology: buildMemoryTopologyFromCategories([
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ])!,
           csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
         }),
       },
@@ -922,7 +1096,7 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('relu');
   });
 
-  it('PR-STATS-019: topology section when labelled edges present; hidden when absent', () => {
+  it('PR-STATS-019: topology section when the model is drawable; hidden when absent', () => {
     const withTopo = mount(StatsAside, {
       props: {
         report: report({
@@ -935,6 +1109,23 @@ describe('StatsAside', () => {
     });
     expect(withTopo.find('[data-testid="stats-topology"]').exists()).toBe(true);
     expect(withTopo.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
+
+    // Labels on plated-less edges only (`l0c-l1` KB lives in the 详情 tabs, PR-MEMTOP-009): the
+    // diagram and **全屏** stay out, exactly as for an absent model.
+    const slotlessOnly = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTopology: {
+            nodes: [{ id: 'l0c', label: 'L0C' }, { id: 'l1', label: 'L1' }],
+            edges: [{ id: 'l0c-l1', from: 'l0c', to: 'l1', label: '7.00 KB' }],
+          },
+        }),
+      },
+    });
+    expect(slotlessOnly.find('[data-testid="stats-topology"]').exists()).toBe(false);
+    expect(slotlessOnly.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+    expect(slotlessOnly.find('[data-testid="topology-fullscreen"]').exists()).toBe(false);
 
     const without = mount(StatsAside, {
       props: { report: report({ summary: { taskDurationUs: 1 } }) },
@@ -989,38 +1180,22 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-duration-card"]').exists()).toBe(true);
 
-    const stale = report({
-      summary: { taskDurationUs: 1 },
-      memoryTables: [
-        {
-          fileName: 'Memory.csv',
-          headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
-          rows: [
-            { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
-            { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '2.5' },
-          ],
-          blockIds: ['0', '1'],
-        },
-      ],
-    });
+    // All scope = the summary.jsonl aggregate (DATA-28), not one block's CSV row. The aside reads
+    // the adapter's `All` snapshot (PR-VM-012), so the fixture has to carry it.
+    const memoryReport = (value: string) => {
+      const categories = [
+        { id: 'Memory', title: 'Memory', fields: [{ key: 'aiv_main_mem_read_bw(GB/s)', value }] },
+      ];
+      return report({
+        summary: { taskDurationUs: 1 },
+        summaryCategories: categories,
+        memoryTopology: buildMemoryTopologyFromCategories(categories)!,
+      });
+    };
+    const stale = memoryReport('2.5');
     const swapped = mount(StatsAside, { props: { report: stale } });
     expect(swapped.text()).toContain('2.50 GB/s');
-    await swapped.setProps({
-      report: report({
-        summary: { taskDurationUs: 1 },
-        memoryTables: [
-          {
-            fileName: 'Memory.csv',
-            headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
-            rows: [
-              { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.56' },
-              { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
-            ],
-            blockIds: ['0', '1'],
-          },
-        ],
-      }),
-    });
+    await swapped.setProps({ report: memoryReport('1.56') });
     expect(swapped.text()).toContain('1.56 GB/s');
     expect(swapped.text()).not.toContain('2.50 GB/s');
   });
@@ -1059,27 +1234,31 @@ describe('StatsAside', () => {
   });
 
   it('PR-STATS-022: CSV tab fallback does not rewrite topology block', async () => {
+    const tables = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+        rows: [
+          { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+          { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '1.56' },
+        ],
+        blockIds: ['0', '1'],
+      },
+      {
+        fileName: 'MemoryL0.csv',
+        headers: ['block_id', 'aic_l0a_read_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aic_l0a_read_bw(GB/s)': 'NA' }],
+        blockIds: ['0'],
+      },
+    ];
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
           summary: { taskDurationUs: 1 },
-          memoryTables: [
-            {
-              fileName: 'Memory.csv',
-              headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
-              rows: [
-                { block_id: '0', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
-                { block_id: '1', 'aiv_main_mem_read_bw(GB/s)': '1.56' },
-              ],
-              blockIds: ['0', '1'],
-            },
-            {
-              fileName: 'MemoryL0.csv',
-              headers: ['block_id', 'aic_l0a_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l0a_read_bw(GB/s)': 'NA' }],
-              blockIds: ['0'],
-            },
-          ],
+          memoryTables: tables,
+          // CSV-only pack (no summary.jsonl): All falls back to the first labelled block — the
+          // adapter's snapshot rule (PR-VM-012), which the aside reads instead of re-deriving.
+          memoryTopology: firstLabelledMemoryTopology(tables)!.model,
           csvTexts: {
             'Memory.csv': 'block_id,aiv_main_mem_read_bw(GB/s)\n0,NA\n1,1.56\n',
             'MemoryL0.csv': 'block_id,aic_l0a_read_bw(GB/s)\n0,NA\n',
@@ -1118,6 +1297,96 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('MemoryL1');
   });
 
+  it('PR-STATS-035: memory 详情 CSV field list also offers the PipeUtilization tab (UI-38)', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              blockIds: ['0'],
+            },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aic_mte1_ratio', 'aic_mte2_ratio', 'aiv_mte3_ratio'],
+              rows: [
+                {
+                  block_id: '0',
+                  aic_mte1_ratio: '0.28',
+                  aic_mte2_ratio: '0.65',
+                  aiv_mte3_ratio: '0.14',
+                },
+              ],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: {
+            'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n',
+            'PipeUtilization.csv':
+              'block_id,aic_mte1_ratio,aic_mte2_ratio,aiv_mte3_ratio\n0,0.28,0.65,0.14\n',
+          },
+        }),
+      },
+    });
+
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="csv-tab-Memory.csv"]').exists()).toBe(true);
+    // MTE utilizations are readable here; the export gives MTE no value plate, so the diagram
+    // stays exactly as designed (no MTE slot).
+    await wrapper.get('[data-testid="csv-tab-PipeUtilization.csv"]').trigger('click');
+    expect(wrapper.text()).toContain('aic_mte2_ratio');
+    expect(wrapper.text()).toContain('aiv_mte3_ratio');
+  });
+
+  it('PR-STATS-035 boundary: memory summary categories win, so no PipeUtilization tab there', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          summaryCategories: [
+            { id: 'Memory', title: 'Memory', fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }] },
+            {
+              id: 'PipeUtilization',
+              title: 'PipeUtilization',
+              fields: [{ key: 'aic_mte2_ratio', value: '0.65' }],
+            },
+          ],
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              blockIds: ['0'],
+            },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aic_mte2_ratio'],
+              rows: [{ block_id: '0', aic_mte2_ratio: '0.65' }],
+              blockIds: ['0'],
+            },
+          ],
+        }),
+      },
+    });
+
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    // The memory surface renders the category list it has, memory files only — the compute
+    // category is served by 计算 详情, not duplicated here (PR-STATS-035).
+    expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="summary-category-tab-Memory"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="summary-category-tab-PipeUtilization"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.find('[data-testid="csv-tab-PipeUtilization.csv"]').exists()).toBe(false);
+  });
+
   it('PR-STATS-033: 全屏 next to 详情 when topology shown; hidden when diagram hidden', () => {
     const withTopo = mount(StatsAside, {
       props: {
@@ -1131,6 +1400,22 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          // All scope (DATA-19 / DATA-29): the diagram reads the summary.jsonl category mean.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ],
+          // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
+          memoryTopology: buildMemoryTopologyFromCategories([
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ])!,
           csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
         }),
       },
@@ -1157,6 +1442,13 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: 'NA' }],
+            },
+          ],
         }),
       },
     });
@@ -1177,6 +1469,22 @@ describe('StatsAside', () => {
               blockIds: ['0'],
             },
           ],
+          // All scope (DATA-19 / DATA-29): the diagram reads the summary.jsonl category mean.
+          summaryCategories: [
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ],
+          // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
+          memoryTopology: buildMemoryTopologyFromCategories([
+            {
+              id: 'Memory',
+              title: 'Memory',
+              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+            },
+          ])!,
           csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
         }),
       },
@@ -1236,6 +1544,7 @@ describe('StatsAside', () => {
     ];
     const wrapper = mount(StatsAside, {
       props: {
+        capabilities: ['roofline'],
         report: report({
           summary: { taskDurationUs: 1, opType: 'cube' },
           pipeOccupancy: pipes,

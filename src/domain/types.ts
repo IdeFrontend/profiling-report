@@ -125,14 +125,22 @@ export interface SummaryCategory {
   fields: { key: string; value: string }[];
 }
 
-/** DATA-33g: one AIC/AIV row on an I/O bandwidth card. Values in GB/s; UI shows GB/s (UI-34). */
+/**
+ * DATA-8: one measured row on an I/O bandwidth card. Values in GB/s; UI shows GB/s (UI-34).
+ * `aicore` = the producer's `OpInfoSummary` value, already summed over aic + aiv.
+ */
 export interface BandwidthSideRow {
-  side: 'aic' | 'aiv';
+  /**
+   * `aic` / `aiv` = the per-side `Memory` columns (classic `.rep` fallback).
+   * `aicore` = the producer's already-summed `OpInfoSummary` side (DATA-8) and the per-block
+   * `bandwidthCardsFromRows` sum. Construction-only: never render `aicore` as a Cube/Vector label.
+   */
+  side: 'aic' | 'aiv' | 'aicore';
   measuredGBs: number;
   peakGBs: number;
 }
 
-/** DATA-33g: 输入/输出带宽. Omit the card when both sides are NA. */
+/** DATA-8: 输入/输出带宽. Omit the card when both sides are NA. */
 export interface BandwidthCardModel {
   id: 'input' | 'output';
   sides: BandwidthSideRow[];
@@ -175,7 +183,7 @@ export interface CsvTableModel {
   fileName: string;
   headers: string[];
   rows: Record<string, string>[];
-  /** Distinct block_id values in fixture order (DATA-33c). */
+  /** Distinct block_id values in fixture order (DATA-19 / DATA-29). */
   blockIds: string[];
 }
 
@@ -254,7 +262,7 @@ export interface ReportViewModel {
   memoryTables: CsvTableModel[];
   /** Raw CSV text by basename for 查看全部 (DATA-33d). */
   csvTexts: Record<string, string>;
-  /** DATA-33g 输入/输出带宽 cards; omit when Memory.csv has no usable BW. */
+  /** DATA-8 输入/输出带宽 cards; omit when no usable BW is collected. */
   bandwidthCards?: BandwidthCardModel[];
   /** DATA-33h 算力情况; omit when no side has measured + peak. */
   computeCard?: ComputeCardModel;

@@ -71,19 +71,19 @@ Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), o
 
 ### `ReportViewModel` (M)
 
-OP-report analytics bundle: `summary`, optional `computeCard` (DATA-33h), optional `bandwidthCards[]` (DATA-33g), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
+OP-report analytics bundle: `summary`, optional `computeCard` (DATA-33h), optional `bandwidthCards[]` (DATA-8), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
 
 **Why:** Separates Ascend OP report chrome from the timeline. PyPTO-only hosts can omit it; the `npu-rep` adapter always fills what CSVs allow.
 
 ### `SummaryMetrics` (M)
 
-Op name/type, task duration, optional raw frequency / `coreCount` / meta fields, and AICore **并行使用率** / **负载均衡度** fractions (`parallelUtilization` / `parallelBalance`, **DATA-9 / DATA-10**). **Do not** put compute TFLOPS on `summary` — those live on `computeCard` (DATA-33h). I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/decisions/interim/DATA.md)), not `summary.ioBandwidth`.
+Op name/type, task duration, optional raw frequency / `coreCount` / meta fields, and AICore **并行使用率** / **负载均衡度** fractions (`parallelUtilization` / `parallelBalance`, **DATA-9 / DATA-10**). **Do not** put compute TFLOPS on `summary` — those live on `computeCard` (DATA-33h). I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-8](../context/decisions/DATA.md)), not `summary.ioBandwidth`.
 
-**Why:** `StatsSummaryPanel` must not invent formulas; adapter maps clear columns plus documented DATA-33g / DATA-33h / DATA-9–10 fields.
+**Why:** `StatsSummaryPanel` must not invent formulas; adapter maps clear columns plus documented DATA-8 / DATA-33h / DATA-9–10 fields.
 
-### `BandwidthCardModel` (M, DATA-33g)
+### `BandwidthCardModel` (M, DATA-8)
 
-`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1600 GB/s constant until Product supplies a field. UI displays GB/s (UI-34). Optional on `ReportViewModel` (omit when unused). UI collapses to one **带宽利用率** card with **读 \| 写** (aggregation OPEN).
+`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Read / write = the producer's summed `OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw` (arrives as one `aicore` side); the `Memory` per-side rows are the classic-`.rep` fallback. Peak = `aicore_gm_bw_theoretical(GB/s)` = SOL 1600 GB/s (DATA-5, DATA-6). UI displays GB/s (UI-34). Optional on `ReportViewModel` (omit when unused). UI collapses to one **带宽利用率** card with **读 \| 写** columns, score = measured ÷ peak ([DATA-8](../context/decisions/DATA.md)).
 
 **Why:** Hide-if-NA per side. Same card chrome as duration. Layout follows refreshed `summary-cards.png`.
 
@@ -126,6 +126,8 @@ Emit payload: `id`, `name`, `startTime`, `duration`, `endTime`, optional `args` 
 ### `ReportCapability` (M)
 
 String union flags, e.g. `roofline` | `dependencies` | `memoryDiagram` | `hardwareDetails` | `sourceTab` | `cacheTab` | `aicpu`.
+
+Most flags describe data the adapter found and derives on its own. `roofline` is the exception: it is a Phase 2 surface outside the current release, so the adapter never advertises it and only a host that opts in with `capabilities: ['roofline']` mounts the card.
 
 **Why:** Feature gating without `if (format === 'pypto')` in components. Host/adapter declares what data exists.
 
@@ -247,7 +249,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) only when the host passes the opt-in `roofline` capability, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
@@ -269,17 +271,17 @@ Searchable field list with CSV tabs, optional block switcher, **查看全部** e
 
 **Why:** One reusable panel for all M1 CSV drill-downs; hide empty tabs.
 
-### `RooflinePanel` (M2)
+### `RooflinePanel` (M2 — not in the current release)
 
-Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until DATA-37f superseded. Mounted on the StatsAside stacked report after the duration card; hide when no points.
+Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until DATA-37f superseded. **Hidden in the current release:** the panel mounts on the StatsAside stacked report after the duration card only when the host passes the opt-in `roofline` capability, and stays hidden when the report has no points for the selected block. The code and interim math stay in place; no surface is deleted.
 
-**Why:** FEATURE_MATRIX / sketches; interim math unblocks M2 while DATA-37 open.
+**Why:** FEATURE_MATRIX / sketches; interim math unblocks the Phase 2 card while DATA-37 open.
 
 ### `MemoryTopologyPanel` (M2)
 
 Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5). Mounted on the stacked 报告统计 below PIPE and again in the root **全屏** overlay; stacked **详情** / right-click open the memory CSV overlay; overlay right-click does not.
 
-**Why:** Geometry stays in the SVG asset; labels from adapter mapping table.
+**Why:** The official chrome (`memory-topology.svg`, Figma export of `v930/report-stats-scrolled`) carries the static geometry and labels; the panel only positions the adapter's values on that chrome's slots ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)). Hosts must serve `dist/memory-topology.svg` at the web root (`/memory-topology.svg`); the package exports it as `@huawei/profiling-report/memory-topology.svg` for copy/deploy.
 
 ### `HardwareDetailsPanel` (M1 interim DATA-34a)
 

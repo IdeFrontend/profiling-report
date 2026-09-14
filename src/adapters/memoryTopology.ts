@@ -1,10 +1,16 @@
-import type { CsvTableModel, MemoryTopologyModel } from '../domain/types';
+import type { CsvTableModel, MemoryTopologyModel, SummaryCategory } from '../domain/types';
 
 const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'gm', label: 'GM' },
   { id: 'l2', label: 'L2 Cache' },
   { id: 'xn_imm', label: 'XN_IMM' },
   { id: 'data_cache', label: 'Data Cache' },
+  // UI-38: the chrome draws MTE1/2/3 blocks on the L2↔unit paths, but the export gives them no
+  // value plate, so the panel has no slot to paint (PR-VM-017). They still belong to the model:
+  // their utilizations live in PipeUtilization.csv and surface through the memory 详情 CSV field list.
+  { id: 'mte1', label: 'MTE1' },
+  { id: 'mte2', label: 'MTE2' },
+  { id: 'mte3', label: 'MTE3' },
   { id: 'l1', label: 'L1' },
   { id: 'l0a', label: 'L0A' },
   { id: 'l0b', label: 'L0B' },
@@ -66,6 +72,7 @@ const EDGE_MAP: {
     sources: [{ file: 'Memory.csv', columns: ['aic_l1_read_bw(GB/s)'] }],
   },
   {
+    // Drawn blank on the chrome until UI-48: the export routes this corridor onto FixP.
     id: 'l2-l1-write',
     from: 'l1',
     to: 'l2',
@@ -133,20 +140,16 @@ const EDGE_MAP: {
     from: 'ub',
     to: 'l2',
     unit: 'GB/s',
-    sources: [
-      { file: 'MemoryUB.csv', columns: ['aiv_ub_read_bw_gm(GB/s)'] },
-      { file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] },
-    ],
+    // DATA-22: Memory.csv `aiv_ub_to_gm_bw` is the collected field; MemoryUB `*_gm` is not collected.
+    sources: [{ file: 'Memory.csv', columns: ['aiv_ub_to_gm_bw(GB/s)'] }],
   },
   {
     id: 'l2-ub',
     from: 'l2',
     to: 'ub',
     unit: 'GB/s',
-    sources: [
-      { file: 'MemoryUB.csv', columns: ['aiv_ub_write_bw_gm(GB/s)'] },
-      { file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] },
-    ],
+    // DATA-23: Memory.csv `aiv_gm_to_ub_bw` is the collected field; MemoryUB `*_gm` is not collected.
+    sources: [{ file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] }],
   },
   {
     id: 'vec-ub',
@@ -172,6 +175,54 @@ const EDGE_MAP: {
   },
 ];
 
+/**
+ * Edges the official chrome gives a value plate — the panel's `SLOTS` keys
+ * ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) § Value slots).
+ * `l2-hit` is plated too, but in the L2 pillar's in-box `%` plate rather than a link slot,
+ * so it rides separately. `l0c-l1` / `l0c-l2` (KB) and `l2-l1-write` (UI-48) have **no** plate:
+ * they stay in the 详情 tabs (PR-MEMTOP-009). The panel types its `SLOTS` against this tuple, so a
+ * plated edge without coordinates fails typecheck instead of silently drawing nothing.
+ */
+export const TOPOLOGY_SLOT_EDGE_IDS = [
+  'gm-l2-read',
+  'gm-l2-write',
+  'l2-ub',
+  'ub-l2',
+  'l2-l1-read',
+  'ub-vec',
+  'vec-ub',
+  'l1-l0a',
+  'l1-l0b',
+  'l0a-cube',
+  'l0b-cube',
+  'cube-l0c',
+  'l0c-cube',
+] as const;
+
+export type TopologySlotEdgeId = (typeof TOPOLOGY_SLOT_EDGE_IDS)[number];
+
+/** DATA-20 L2 Peak(%): plate on the L2 pillar, not a link slot (`unit: '%'`). */
+export const TOPOLOGY_PEAK_PLATE_EDGE_ID = 'l2-hit';
+
+/**
+ * True when the chrome can paint something: a plated link value, the L2 plate (`peakPct` or a
+ * `l2-hit` label), or both. A model whose only labels are slotless (`l0c-l1` / `l0c-l2` /
+ * `l2-l1-write`) is not drawable — mounting the chrome with every overlay blank is worse than
+ * hiding it (PR-MEMTOP-009 / PR-MEMTOP-012). Shared by the panel's `show` gate and the default
+ * block pick below, so both agree on what "the diagram exists" means.
+ */
+export function hasDrawableTopology(model: MemoryTopologyModel | null | undefined): boolean {
+  if (!model || model.nodes.length === 0) return false;
+  if (model.nodes.some((n) => n.id === 'l2' && n.peakPct != null)) return true;
+  return model.edges.some(
+    (e) =>
+      e.label != null &&
+      e.label !== '' &&
+      ((TOPOLOGY_SLOT_EDGE_IDS as readonly string[]).includes(e.id) ||
+        e.id === TOPOLOGY_PEAK_PLATE_EDGE_ID),
+  );
+}
+
 function parseNumber(raw: string | undefined): number | undefined {
   if (raw == null || raw === '' || raw === 'NA') return undefined;
   const n = Number(raw);
@@ -189,26 +240,22 @@ function formatLabel(n: number, unit: Unit): string {
 }
 
 /**
- * Block-scoped memory topology from Memory* CSV tables (§11.2.6).
- * Product: hide `NA`; show 0. Omit the whole diagram when no edge has a label.
+ * Where an edge value comes from, resolved per selector scope (DATA-19 / DATA-29):
+ * `All` reads `summary.jsonl` category fields, a picked id reads that block's CSV row.
  */
-export function buildMemoryTopology(
-  tables: CsvTableModel[],
-  blockId: string,
-): MemoryTopologyModel | undefined {
-  const byFile = new Map(tables.map((t) => [t.fileName, t]));
+export type MemoryValueSource = (
+  file: string,
+  columns: readonly string[],
+) => number | undefined;
+
+function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | undefined {
   const edges: MemoryTopologyModel['edges'] = [];
   const edgeValues = new Map<string, number>();
 
   for (const spec of EDGE_MAP) {
     let value: number | undefined;
     for (const src of spec.sources) {
-      const row = rowForBlock(byFile.get(src.file), blockId);
-      if (!row) continue;
-      for (const col of src.columns) {
-        value = parseNumber(row[col]);
-        if (value != null) break;
-      }
+      value = read(src.file, src.columns);
       if (value != null) break;
     }
     if (value != null) edgeValues.set(spec.id, value);
@@ -231,7 +278,56 @@ export function buildMemoryTopology(
   return { nodes, edges };
 }
 
-function blockIdsInOrder(tables: CsvTableModel[]): string[] {
+/**
+ * Block-scoped memory topology from Memory* CSV tables (§11.2.6).
+ * Product: hide `NA`; show 0. Omit the whole diagram when no edge has a label.
+ */
+export function buildMemoryTopology(
+  tables: CsvTableModel[],
+  blockId: string,
+): MemoryTopologyModel | undefined {
+  const byFile = new Map(tables.map((t) => [t.fileName, t]));
+  return topologyFromSource((file, columns) => {
+    const row = rowForBlock(byFile.get(file), blockId);
+    if (!row) return undefined;
+    for (const col of columns) {
+      const v = parseNumber(row[col]);
+      if (v != null) return v;
+    }
+    return undefined;
+  });
+}
+
+/**
+ * `All` memory topology (DATA-19 / DATA-29): values come from the `summary.jsonl` category
+ * records — the producer's non-`NA` mean across `block_id` — not from one block's row.
+ */
+export function buildMemoryTopologyFromCategories(
+  categories: SummaryCategory[],
+): MemoryTopologyModel | undefined {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  return topologyFromSource((file, columns) => {
+    const category = byId.get(FILE_CATEGORY[file] ?? file);
+    if (!category) return undefined;
+    const field = new Map(category.fields.map((f) => [f.key, f.value]));
+    for (const col of columns) {
+      const v = parseNumber(field.get(col));
+      if (v != null) return v;
+    }
+    return undefined;
+  });
+}
+
+/** Each Memory* CSV is the raw form of one `summary.jsonl` category. */
+const FILE_CATEGORY: Record<string, string> = {
+  'Memory.csv': 'Memory',
+  'MemoryL0.csv': 'MemoryL0',
+  'MemoryUB.csv': 'MemoryUB',
+  'L2Cache.csv': 'L2Cache',
+};
+
+/** Distinct `block_id` values across the given tables, in fixture order (no duplicates). */
+export function blockIdsInOrder(tables: CsvTableModel[]): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
   for (const table of tables) {
@@ -244,13 +340,16 @@ function blockIdsInOrder(tables: CsvTableModel[]): string[] {
   return ids;
 }
 
-/** First block that yields at least one labelled edge; otherwise undefined. */
+/**
+ * First block whose model the chrome can paint (`hasDrawableTopology`, not merely "has a label"),
+ * so the default pick always yields a diagram; otherwise undefined (PR-VM-018).
+ */
 export function firstLabelledMemoryTopology(
   tables: CsvTableModel[],
 ): { blockId: string; model: MemoryTopologyModel } | undefined {
   for (const blockId of blockIdsInOrder(tables)) {
     const model = buildMemoryTopology(tables, blockId);
-    if (model) return { blockId, model };
+    if (model && hasDrawableTopology(model)) return { blockId, model };
   }
   return undefined;
 }

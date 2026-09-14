@@ -4,7 +4,7 @@
 |----------------|
 | PR-ROOF-*      |
 
-Log-log roofline bottleneck chart (M2 interim DATA-37*).
+Log-log roofline bottleneck chart (M2 interim DATA-37*). **Not in the current release:** the panel is kept in the code but has no surface — `StatsAside` mounts it only when the host passes the opt-in `roofline` capability, so it is hidden by default. The panel itself takes no flag; the gate lives in its parent.
 
 ## Inputs
 
@@ -52,6 +52,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Changelog
 
+- **2026-09-14** — Out of the current release: kept in code, hidden behind the opt-in `roofline` capability in `StatsAside` (no surface change to the panel itself).
 - **2026-09-02** — Chart SVG uses `width: 100%` (viewBox stays **440×303**) so aside scroll never needs a horizontal bar.
 - **2026-09-02** — Aside **480px** (Product); chart **440×303** from content well.
 - **2026-09-01** — Hover tooltip inside raised card; reserved tip slot prevents layout jump.

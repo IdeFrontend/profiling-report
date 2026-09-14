@@ -26,7 +26,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | M1 aside modes in MSTT | **Ship** | Summary / PIPE / compute details / Memory tabs when CSVs present; hidden for trace-only JSON; host opens **查看全部** CSV in editor tab (DATA-33d) |
 | Host chrome | **New (host)** | i18n, load errors; capability flags; workspace dep (I-PKG-1) |
 | Details panel | **New** | Replaces compact strip: name + timing; incoming/current/outgoing mini-graph with depth filters; raw args when present; hide when no selection |
-| Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs (UI-38 + changelog #5). Hide if no memory CSVs. Edge thickness static. Optional: hover/click syncs field-list rows |
+| Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs / `summary.jsonl` categories (UI-38 + changelog #5). The diagram mounts only when the block is *drawable* — a plated edge value or the L2 plate (PR-VM-018) — with **详情** still reachable when memory CSVs exist. Edge thickness static. Optional: hover/click syncs field-list rows |
 | Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `source/v930/entry.jpeg` / `source/v930/entry.jpeg` / `source/v930/report-stats-open.jpeg`. Hide if no usable points. Capability flag `roofline` |
 | Overview / DATA-33 tiles / secondary tabs | **Out** | → [M3](milestone-3.md) |
 
@@ -49,7 +49,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | No algorithm for “prev/next” if only unordered id lists | Wrong graph direction | Interim: directed successor list; predecessors = reverse index |
 | Depth-filter semantics underspecified | Details mini-graph ambiguity | Match sketch defaults (both / forward / backward); document interim |
 | **Memory edge ↔ CSV column mapping** not fully specified (UI-38 says labels data-driven, not which field → which edge) | Wrong/missing labels on graph | Engineering mapping table from sketch + CSV headers; Product confirm later |
-| No official SVG topology asset in repo | Must draw from sketches | Create SVG from `source/v930/memory-load-detail.jpeg`; treat as product-owned asset |
+| No official SVG topology asset in repo | Must draw from sketches | **Resolved 2026-09-10** — official export shipped as `src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg` (`v930/report-stats-scrolled`), values overlaid at its slots |
 | **DATA-37 roofline** formulas + peak ceilings still open | Cannot claim Product-final axes | Ship **interim** point derivation from `ArithmeticUtilization` columns; document I-*; hide panel if undecidable; swap when DATA-37 closes |
 | Roofline peak bandwidth / compute ceilings not in fixture | Roof lines missing | Interim constants or omit roofs until Product supplies peaks |
 | **MSTT repo access / review lag** | Host PR slips past 2026-08-25 | Start dep wiring early; parallel library work; slip host only if needed |
