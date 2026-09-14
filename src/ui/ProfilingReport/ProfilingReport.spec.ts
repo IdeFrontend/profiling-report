@@ -117,6 +117,30 @@ describe('ProfilingReport scaffold', () => {
     vi.unstubAllGlobals();
   });
 
+  it('PR-CTXMENU-016: opening the menu on an event keeps it highlighted until dismissed', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    const target = { id: 'a', name: 'A', startTime: 0, duration: 10 };
+    wrapper.findComponent(TimelineView).vm.$emit('context-menu', {
+      x: 10,
+      y: 10,
+      laneId: 't-0',
+      target,
+    });
+    await nextTick();
+    expect(wrapper.vm.viewState.hoveredEventId).toBe('a');
+
+    // The menu binds its document keydown listener asynchronously after opening.
+    await nextTick();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.vm.viewState.hoveredEventId).toBeNull();
+    wrapper.unmount();
+  });
+
   it('PR-CTXMENU-012: Show on a single-task summary bar selects its underlying leaf', async () => {
     const leaf = { id: 'leaf-1', name: 'busy', startTime: 0, duration: 10 };
     const summary = {

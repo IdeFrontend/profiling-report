@@ -1103,6 +1103,9 @@ function onMultiSelectSpan(span: MeasureRange | null) {
 }
 
 function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
+  // While the context menu pins an event as highlighted, ignore the canvas clearing
+  // hover (the pointer left for the menu/scrim) — keep the target highlighted.
+  if (contextMenuContext.value?.target && ev == null) return;
   hovered.value = ev;
   viewState.value = { ...viewState.value, hoveredEventId: ev?.id ?? null };
   if (ev) {
@@ -1131,6 +1134,17 @@ function onOverviewWindow(window: { startTime: number; endTime: number }) {
 
 function onContextMenu(payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }): void {
   contextMenuContext.value = { ...payload, target: payload.target ?? null };
+  // Hide the hover tooltip, then pin the target as highlighted so it stays visibly
+  // highlighted for the whole time the menu is open (the scrim would otherwise drop it).
+  hovered.value = null;
+  if (payload.target) {
+    viewState.value = { ...viewState.value, hoveredEventId: payload.target.id };
+  }
+}
+
+function onContextMenuDismiss(): void {
+  contextMenuContext.value = null;
+  viewState.value = { ...viewState.value, hoveredEventId: null };
 }
 function onContextMenuAction(action: ContextMenuAction): void {
   if (action.command === 'reset') {
@@ -1404,7 +1418,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :can-reset="contextMenuCanReset"
           :locale="locale"
           @action="onContextMenuAction"
-          @dismiss="contextMenuContext = null"
+          @dismiss="onContextMenuDismiss"
         />
         <p
           v-if="!showTimeline"

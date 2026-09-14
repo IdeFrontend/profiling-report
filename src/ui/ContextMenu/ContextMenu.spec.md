@@ -38,6 +38,8 @@ While the menu is open, a transparent full-viewport scrim (a `position: fixed; i
 
 The menu closes on click outside (the scrim), Escape, item activation, and every forwarded **update:scrollY** change (programmatic only while the scrim blocks user scroll). Arrow Up and Arrow Down move active-item focus; Enter activates it. Alt+P activates Pin row only while the menu is open and Pin row is available; otherwise the chord is left untouched.
 
+Opening the menu on an event pins that event's hover highlight: the parent sets `hoveredEventId` to the target and ignores the canvas's hover-clear while the menu is open, so the event stays highlighted until the menu dismisses.
+
 ## Acceptance Criteria
 
 1. **PR-CTXMENU-001** — Event menu groups available commands.
@@ -55,6 +57,7 @@ The menu closes on click outside (the scrim), Escape, item activation, and every
 13. **PR-CTXMENU-013** — Pin row is omitted for a non-leaf (summary-bar) lane via `canPin`; event commands remain.
 14. **PR-CTXMENU-014** — No menu is rendered when the current context has no available commands.
 15. **PR-CTXMENU-015** — The menu blocks the rest of the UI while open: the scrim intercepts pointerdown, right-click, and wheel; keys do not reach the app.
+16. **PR-CTXMENU-016** — Opening the menu on an event keeps that event highlighted (hover state) for the whole time the menu is open.
 
 ## Edge Cases
 
@@ -99,6 +102,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-14** — Opening the menu on an event pins its hover highlight for the lifetime of the menu; the pinned highlight clears on dismiss (`PR-CTXMENU-016`).
 - **2026-09-14** — The menu now blocks the rest of the UI while open: a transparent full-viewport scrim intercepts pointerdown, right-click, and wheel, and keyboard input is swallowed at document capture so app hotkeys do not fire (`PR-CTXMENU-008`, `PR-CTXMENU-015`).
 - **2026-09-14** — Reset zoom is viewport-scoped: offered at any timeline point via `canReset`, and omitted once the visible range equals the total range (`PR-CTXMENU-002`, `PR-CTXMENU-003`).
 - **2026-09-14** — Empty command sets render no menu; viewport resize re-clamps, and Pin row uses Alt+P only when available (`PR-CTXMENU-007`, `PR-CTXMENU-010`, `PR-CTXMENU-014`).
