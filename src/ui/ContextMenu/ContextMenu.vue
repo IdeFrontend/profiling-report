@@ -99,9 +99,9 @@ function onKeydown(e: KeyboardEvent) {
   // While the menu is open it blocks the rest of the UI: swallow every key so the app's
   // own window keydown (WASD pan/zoom, Escape measure/marquee clearing) never fires.
   e.stopPropagation();
+  if (e.key === 'Escape') { e.preventDefault(); emit('dismiss'); return; }
   const n = items.value.length;
   if (!n) return;
-  if (e.key === 'Escape') { e.preventDefault(); emit('dismiss'); return; }
   if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex.value = (activeIndex.value + 1) % n; return; }
   if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex.value = activeIndex.value <= 0 ? n - 1 : activeIndex.value - 1; return; }
   if (e.key === 'Enter') { e.preventDefault(); activate(activeIndex.value); return; }

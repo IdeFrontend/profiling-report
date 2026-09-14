@@ -133,11 +133,11 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(wrapper.vm.viewState.hoveredEventId).toBe('a');
 
-    // The menu binds its document keydown listener asynchronously after opening.
-    await nextTick();
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    // Programmatic scroll dismisses the menu and clears its pinned event highlight.
+    wrapper.findComponent(TimelineView).vm.$emit('update:scrollY', 10);
     await nextTick();
     expect(wrapper.vm.viewState.hoveredEventId).toBeNull();
+    expect(wrapper.vm.viewState.scrollY).toBe(10);
     wrapper.unmount();
   });
 
@@ -1285,20 +1285,23 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('W/S/A/D ignored while typing in the search field', async () => {
+  it('W/S/A/D and Shift+P are ignored while typing in the search field', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'keyboard-guard',
-        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        swimlaneModel: depsModel(),
         reportModel: emptyReportViewModel(),
       },
     });
     const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
+    wrapper.findComponent(TimelineView).vm.$emit('hover-lane', 't-0');
     const input = wrapper.find('[data-testid="search-input"]').element as HTMLInputElement;
     input.focus();
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'P', shiftKey: true, bubbles: true }));
     await nextTick();
     expect(span()).toBe(1000);
+    expect(wrapper.vm.viewState.pinnedLaneIds).toEqual([]);
     wrapper.unmount();
   });
 });

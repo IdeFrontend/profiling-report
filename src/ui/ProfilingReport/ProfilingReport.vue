@@ -841,17 +841,8 @@ function onRootKeydown(e: KeyboardEvent) {
   // WASD must not pan/zoom the hidden view.
   if (topologyFullscreen.value || fullscreenTopology.value != null) return;
   if (!showTimeline.value) return;
-  // Global pin toggle (Shift+P) — same pin state as the gutter pushpin and the context menu.
-  if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault();
-    togglePinLane(hoveredLaneId.value);
-    return;
-  }
-  // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
-  // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
-  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
   const target = e.target as HTMLElement | null;
-  // Ignore while typing — the search box and the dependency-depth field are <input>s.
+  // Ignore shortcuts while typing — search, dependency depth, and editable controls own them.
   if (
     target &&
     (target.tagName === 'INPUT' ||
@@ -861,6 +852,15 @@ function onRootKeydown(e: KeyboardEvent) {
   ) {
     return;
   }
+  // Global pin toggle (Shift+P) — same pin state as the gutter pushpin and the context menu.
+  if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    togglePinLane(hoveredLaneId.value);
+    return;
+  }
+  // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
+  // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
   const key = e.key.toLowerCase();
   if (key === 'w' || key === 's') {
     // Zoom around the cursor (PyPTO anchors on the pointer); center when none is set.
@@ -1190,7 +1190,7 @@ function onContextMenuAction(action: ContextMenuAction): void {
   else onPinLane(action.laneId);
 }
 function onScrollY(scrollY: number) {
-  contextMenuContext.value = null;
+  onContextMenuDismiss();
   viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
 }
 

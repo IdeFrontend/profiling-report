@@ -283,12 +283,15 @@ describe('ContextMenu', () => {
     expect(wrapper.emitted('action')).toHaveLength(1);
   });
 
-  it('PR-CTXMENU-014: does not render a menu when no commands are available', async () => {
+  it('PR-CTXMENU-014: does not render a menu when no commands are available and Escape releases the keyboard trap', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'folder', target: null }, pinnedLaneIds: [], canPin: false },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
     expect(document.querySelector('[data-testid="context-menu"]')).toBeNull();
+    await wrapper.vm.$nextTick();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    expect(wrapper.emitted('dismiss')).toHaveLength(1);
   });
 });

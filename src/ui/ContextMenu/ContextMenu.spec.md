@@ -57,7 +57,7 @@ Opening the menu on an event pins that event's hover highlight: the parent sets 
 11. **PR-CTXMENU-011** — Leaf-gutter invocations reach the report root.
 12. **PR-CTXMENU-012** — Show on a summary-bar target resolves its sole leaf (or dismisses without selecting when multi-task).
 13. **PR-CTXMENU-013** — Pin row is omitted for a non-leaf (summary-bar) lane via `canPin`; event commands remain.
-14. **PR-CTXMENU-014** — No menu is rendered when the current context has no available commands.
+14. **PR-CTXMENU-014** — No menu is rendered when the current context has no available commands; Escape still dismisses that context.
 15. **PR-CTXMENU-015** — The menu blocks the rest of the UI while open: the scrim intercepts pointerdown, right-click, and wheel; keys do not reach the app.
 16. **PR-CTXMENU-016** — Opening the menu on an event keeps that event highlighted (hover state) for the whole time the menu is open.
 17. **PR-CTXMENU-017** — No command is highlighted when the menu opens; Arrow navigation or pointer hover sets the active item, and leaving the menu clears it.
@@ -106,6 +106,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-14** — Review fixes: global Shift+P now respects editable controls; programmatic scroll clears the pinned event highlight through the shared dismiss path; Escape releases empty-command contexts; unrelated `.opencode/` ignore removed (`PR-CTXMENU-014`, `PR-CTXMENU-016`, `PR-CTXMENU-018`).
 - **2026-09-14** — Shift+P is now a global shortcut: it toggles the hovered leaf lane's pin with the menu closed, in addition to the menu's Pin row (`PR-CTXMENU-010`, `PR-CTXMENU-018`).
 - **2026-09-14** — Pin shortcut changed from Alt+P to Shift+P: Alt+letter is the browser menu-bar mnemonic on Windows and never reaches the page reliably (`PR-CTXMENU-010`).
 - **2026-09-14** — No command is highlighted when the menu opens; the active highlight appears only after Arrow navigation or pointer hover and clears when the pointer leaves the menu (`PR-CTXMENU-009`, `PR-CTXMENU-017`).
