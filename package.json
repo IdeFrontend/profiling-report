@@ -13,7 +13,8 @@
       "import": "./dist/profiling-report.js",
       "require": "./dist/profiling-report.umd.cjs"
     },
-    "./style.css": "./dist/profiling-report.css"
+    "./style.css": "./dist/profiling-report.css",
+    "./memory-topology.svg": "./dist/memory-topology.svg"
   },
   "files": [
     "dist"
