@@ -176,6 +176,8 @@ export function buildFolderSummaryEvents(folder: SwimThread): SwimEvent[] {
         base.laneName = src.laneName;
         base.sourceEvent = src.event;
       }
+    } else if (r.sources.length > 0) {
+      base.sourceEvents = r.sources;
     }
     return base;
   });
@@ -184,15 +186,16 @@ export function buildFolderSummaryEvents(folder: SwimThread): SwimEvent[] {
 /**
  * Disjoint union of event intervals: sort by start and merge overlapping *and touching*
  * spans (`next.start <= cur.end`) into the minimal set of non-overlapping ranges.
- * Each range carries `count` = the number of source events merged into it.
+ * Each range carries `count` = the number of source events merged into it and `sources`
+ * = those events in merge order.
  */
 export function unionEventIntervals(
   events: SwimEvent[],
-): { startTime: number; duration: number; count: number }[] {
+): { startTime: number; duration: number; count: number; sources: SwimEvent[] }[] {
   const sorted = [...events].sort(
     (a, b) => a.startTime - b.startTime || b.duration - a.duration,
   );
-  const out: { startTime: number; duration: number; count: number }[] = [];
+  const out: { startTime: number; duration: number; count: number; sources: SwimEvent[] }[] = [];
   for (const ev of sorted) {
     const start = ev.startTime;
     const end = ev.startTime + ev.duration;
@@ -200,8 +203,9 @@ export function unionEventIntervals(
     if (last && start <= last.startTime + last.duration) {
       last.duration = Math.max(last.startTime + last.duration, end) - last.startTime;
       last.count += 1;
+      last.sources.push(ev);
     } else {
-      out.push({ startTime: start, duration: Math.max(0, end - start), count: 1 });
+      out.push({ startTime: start, duration: Math.max(0, end - start), count: 1, sources: [ev] });
     }
   }
   return out;

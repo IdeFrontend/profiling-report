@@ -84,6 +84,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 28. **PR-SWIMVIEW-028** — Non-empty **pinnedOverviewIds** with matching `overviewSeries` renders sticky overview strip (`data-testid=pinned-overview-charts`) **above** the lane pin strip and above the scroll body, in pin order.
 29. **PR-SWIMVIEW-029** — Pinned overview strip appears/disappears over 200ms via `--pr-pinned-overview-h` height transition; enter/leave collapse to `height: 0`; incremental pin count changes animate the same way; `prefers-reduced-motion: reduce` drops the transition.
 30. **PR-SWIMVIEW-030** — A parent-driven change to `multiSelectedIds` (marquee commit) reaches the canvas: the local mirror stays in sync, so the dim survives the release.
+31. **PR-SWIMVIEW-031** — A canvas `scroll-y` emit updates gutter `scrollTop` and the card-strip scroller `translateY` in the same turn (before parent `view.scrollY` catches up), so gutter / cards / canvas do not chase each other.
 
 ## Visual
 
@@ -109,6 +110,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-13** — PR-SWIMVIEW-031: canvas `scroll-y` updates gutter + card-strip transform in the same turn.
 - **2026-09-10** — PR-SWIMVIEW-028: sticky overview pins stack **above** the lane pin strip (was below).
 - **2026-09-10** — PR-SWIMVIEW-029: pinned overview strip height tweens like the lane pin strip (`--pr-pinned-overview-h`, 200ms).
 - **2026-09-10** — 统计分析 section collapse/expand tweens pad + track height/opacity over 200ms (`PR-OV-013`); mid-tween reverse + reduced-motion instant.

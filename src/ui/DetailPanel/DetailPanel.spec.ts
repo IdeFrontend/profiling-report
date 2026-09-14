@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import DetailPanel from './DetailPanel.vue';
 import type { DependencyNeighbors } from '../../domain/dependencies';
-import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } from '../panelResize';
 
 const selected = { id: '1', name: 'test_op', startTime: 100, duration: 100, endTime: 200 };
 
@@ -87,6 +87,23 @@ describe('DetailPanel', () => {
     // Height is driven by the prop, so the parent owning the state is what moves it.
     await wrapper.setProps({ height: DOCK_HEIGHT_EXPANDED });
     expect(expander.attributes('aria-expanded')).toBe('true');
+
+    await expander.trigger('click');
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_COLLAPSED]);
+  });
+
+  it('PR-DPANEL-005: expanded prop wins over a slack-capped height', async () => {
+    const wrapper = mount(DetailPanel, {
+      props: {
+        selected,
+        timeDisplayMode: 'time' as const,
+        height: DOCK_HEIGHT_MARQUEE_PREVIEW,
+        expanded: true,
+      },
+    });
+    const expander = wrapper.find('[data-testid="detail-panel-expander"]');
+    expect(expander.attributes('aria-expanded')).toBe('true');
+    expect(expander.classes()).toContain('pr-detail-panel__expander--expanded');
 
     await expander.trigger('click');
     expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_COLLAPSED]);

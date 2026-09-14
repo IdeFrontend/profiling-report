@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { ASIDE_TRACK_ANIMATING_KEY } from '../../../asideTrackAnimating';
+import { marqueePreviewDockHeight } from '../../../panelResize';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -15,13 +16,15 @@ import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRendere
 import {
   computeAltMeasureDelta,
   computeAltMeasureGap,
-  contentHeightFromModel,
+  contentHeightForModel,
   eventMeasureTargetTime,
   eventsIntersectingRect,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
+  findLaidOutEvent,
   LANE_HEIGHT,
+  laneAtContentY,
   laneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
@@ -42,7 +45,7 @@ import {
   measureLabelFitsInlineSpan,
 } from '../../cursorMeasureOverlap';
 import MeasureDtArrow from '../../MeasureDtArrow.vue';
-import { animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
+import { animateProgress, animateViewWindow, prefersReducedMotion } from '../../animateViewWindow';
 import {
   ALT_MEASURE_FIND_EVENT_KEY,
   ALT_MEASURE_SHARED_KEY,
@@ -200,6 +203,9 @@ function chooseWebGl(): boolean {
 const useWebGl = ref(chooseWebGl());
 /** Bumped on size change so measure overlay computeds re-read track width. */
 const resizeTick = ref(0);
+/** Bumped when wrap clientHeight changes — root recomputes marquee preview dock height. */
+const wrapLayoutEpoch = ref(0);
+let lastWrapClientH = -1;
 
 type Backend = CanvasSwimlaneRenderer | WebGlSwimlaneRenderer;
 
@@ -233,8 +239,12 @@ let shiftTogglePending = false;
 const MEASURE_DRAG_THRESHOLD_PX = 4;
 /** Marquee (unmodified drag) multi-select — same 4px click-vs-drag gate as measure create. */
 const marqueeRect = ref<MarqueeRect | null>(null);
-/** Local anchor for the marquee; set on pointerdown. */
-let marqueeAnchor: { x: number; y: number } | null = null;
+/**
+ * Marquee drag origin. `x` is viewport-local (time axis does not scroll with lanes).
+ * `contentY` is scroll-space (`viewportY + paintScrollY`) so edge autoscroll stretches
+ * the rect instead of shifting the whole selection with the lanes.
+ */
+let marqueeAnchor: { x: number; contentY: number } | null = null;
 /** Press waiting for the 4px threshold — still a click until it is crossed. */
 let marqueePending = false;
 /** True from marquee pointerdown until pointerup — suppresses tooltip / select. */
@@ -246,6 +256,42 @@ let marqueePreviewIds: string[] | null = null;
 let unbindMarqueeDrag: (() => void) | null = null;
 /** True if the marquee started with Shift held — the commit unions with the existing selection. */
 let marqueeShift = false;
+/** Edge band (CSS px) that arms vertical autoscroll while the marquee is live. */
+const MARQUEE_EDGE_AUTOSCROLL_PX = 40;
+/** Scroll step per animation frame while the pointer sits in an edge band. */
+const MARQUEE_EDGE_SCROLL_PX = 12;
+/**
+ * After marquee commit the dock may tween taller (~200ms) and shrink the wrap.
+ * Keep the release content Y this far above the new wrap bottom when scrolling it back into view.
+ */
+const MARQUEE_RELEASE_VISIBLE_PAD_PX = 8;
+/** Stop waiting for wrap height to settle after dock grow (CSS height transition is 200ms). */
+const MARQUEE_RELEASE_LAYOUT_WAIT_MS = 280;
+/** Match `.pr-dock` height transition when scrolling focus Y back into view after dock grow. */
+const DOCK_SCROLL_ANIM_MS = 200;
+let marqueeAutoScrollRaf = 0;
+/** Cancel handle for post-dock `ensureContentYVisible` scroll tween. */
+let cancelEnsureScrollAnim: (() => void) | null = null;
+/** −1 = toward top, +1 = toward bottom, 0 = idle. */
+let marqueeAutoScrollDir = 0;
+/**
+ * Last edge-autoscroll direction that actually moved scroll during this gesture
+ * (−1 up, +1 down, 0 none). Post-commit visibility uses the latest: up → cursor;
+ * otherwise → bottom of the marquee selection region.
+ */
+let marqueeLastEdgeScrollDir = 0;
+let marqueeLastClientX = 0;
+let marqueeLastClientY = 0;
+/**
+ * Wrap height last seen for edge-band math. When the dock preview mounts the wrap
+ * shrinks and the band can slide under a stationary pointer — suspend autoscroll
+ * until the pointer leaves the band (PR-CANVAS-104).
+ */
+let marqueeEdgeWrapH = 0;
+/** True after a wrap resize until the pointer leaves the edge band. */
+let marqueeEdgeSuspended = false;
+/** Cancels an in-flight post-commit “keep release Y visible” wait. */
+let marqueeReleaseVisibleRaf = 0;
 /** Magnet snap to nearest in-lane event start/end. */
 const EVENT_EDGE_MAGNET_PX = 10;
 /** Fast snap when clicking an event while a prior measure range exists. */
@@ -297,6 +343,23 @@ let resizeObserver: ResizeObserver | null = null;
 let raf = 0;
 /** Local scroll accumulator so rapid wheel events do not drop deltas waiting on props. */
 let localScrollY = 0;
+
+function emitScrollY(y: number): void {
+  localScrollY = y;
+  emit('scroll-y', y);
+  // Gutter/cards apply Y synchronously in SwimlaneView.onScrollY; rAF paint
+  // would leave the canvas one frame behind and look like scroll chase.
+  applyViewState();
+  flushPaint();
+}
+
+/** Adopt scrollY from parent/gutter without re-emitting (keeps layers locked). */
+function setScrollY(y: number): void {
+  if (Math.abs(localScrollY - y) <= 0.5) return;
+  localScrollY = y;
+  applyViewState();
+  flushPaint();
+}
 /** Last client X across pointermoves — used by the pan branch to compute `dx` per move. */
 let lastX = 0;
 
@@ -359,14 +422,30 @@ function zeroBackingStores(): void {
 }
 
 function modelContentHeight(): number {
-  const base = contentHeightFromModel(props.model);
-  const anim = props.collapseAnim;
-  if (anim && anim.hiddenHeight > 0) {
-    // Match contentHeightFromModel's 120px body floor so the scroll area never
-    // under-shoots the settled height (which would clip the collapsed content).
-    return Math.max(120, base - anim.hiddenHeight * (1 - anim.visible));
-  }
-  return base;
+  return contentHeightForModel(props.model, props.collapseAnim);
+}
+
+/**
+ * Live marquee preview dock height from wrap slack below lane content.
+ * Pass `wrapClosedHeight` (pre-dock wrap) to freeze the closed layout — avoids
+ * overshooting to collapsed when wrap shrinks mid-enter / after first paint.
+ * Without it, `currentPreviewPx` restores closed size from the live wrap.
+ */
+function computeMarqueePreviewDockHeight(
+  currentPreviewPx: number,
+  targetPx: number,
+  wrapClosedHeight?: number,
+  scrollY?: number,
+): number {
+  const frozen = wrapClosedHeight != null && wrapClosedHeight > 0;
+  return marqueePreviewDockHeight({
+    wrapHeightNow: frozen ? wrapClosedHeight : (wrapRef.value?.clientHeight ?? 0),
+    currentPreviewHeight: frozen ? 0 : currentPreviewPx,
+    contentHeight: modelContentHeight(),
+    scrollY: scrollY ?? props.view.scrollY,
+    contentTopPad: props.contentTopPad ?? 0,
+    targetHeight: targetPx,
+  });
 }
 
 function maxScrollY(): number {
@@ -375,17 +454,37 @@ function maxScrollY(): number {
   return Math.max(0, modelContentHeight() + pad - viewH);
 }
 
+/**
+ * Paint/hit-test scroll in lane content space.
+ * Prefer `localScrollY` so marquee autoscroll remaps in the same frame as the step
+ * (props.view.scrollY lags until the parent applies `scroll-y`).
+ */
+function paintScrollY(): number {
+  return localScrollY - (props.contentTopPad ?? 0);
+}
+
 /** View window for paint/hit-test — scrollY shifted by overview pad. */
 function paintView(): SwimlaneViewWindow {
   return {
     startTime: props.view.startTime,
     endTime: props.view.endTime,
-    scrollY: props.view.scrollY - (props.contentTopPad ?? 0),
+    scrollY: paintScrollY(),
   };
 }
 
+/**
+ * Clamp scroll into [0, maxScrollY]. During a live marquee, allow temporary overscroll
+ * after a dock-shrink (PR-CANVAS-104 skips the resize clamp) — steps may ease toward
+ * the new max without jumping `localScrollY` down to it in one frame.
+ */
 function clampScrollY(y: number): number {
-  return Math.min(maxScrollY(), Math.max(0, y));
+  const maxY = maxScrollY();
+  const lo = 0;
+  if (marqueePressActive && localScrollY > maxY) {
+    // Overscrolled: never go below 0; may decrease toward maxY; do not climb further.
+    return Math.max(lo, Math.min(y, Math.max(localScrollY, maxY)));
+  }
+  return Math.min(maxY, Math.max(lo, y));
 }
 
 function altMeasureSessionActive(): boolean {
@@ -663,6 +762,10 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   const contentH = modelContentHeight();
   const w = syncTrackWidth();
   const viewH = wrap.clientHeight || 0;
+  if (viewH !== lastWrapClientH) {
+    lastWrapClientH = viewH;
+    wrapLayoutEpoch.value += 1;
+  }
   sizerHeight.value = Math.max(contentH, viewH);
   const h = Math.max(1, viewH || lastH || contentH);
   const dpr = currentDpr();
@@ -713,9 +816,14 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   if (bufferChanged) flushPaint();
   else if (!freeze) schedulePaint();
   const maxY = maxScrollY();
+  // Live marquee: dock preview shrinks the wrap and would otherwise clamp scroll
+  // after a prior edge/post-commit autoscroll sat near maxY — that jumps the
+  // timeline under the drag. Preserve scroll; edge-band suspend handles the band
+  // sliding under the pointer (PR-CANVAS-104).
   if (localScrollY > maxY) {
-    localScrollY = maxY;
-    emit('scroll-y', localScrollY);
+    if (!marqueePressActive) {
+      emitScrollY(maxY);
+    }
   }
 }
 
@@ -938,6 +1046,8 @@ function endMeasureCreate(): void {
 
 /** Drop the marquee gesture without committing (Escape, unmount, pointerup). */
 function endMarquee(): void {
+  stopMarqueeAutoScroll();
+  cancelMarqueeReleaseVisible();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   marqueeAnchor = null;
@@ -946,9 +1056,162 @@ function endMarquee(): void {
   marqueeEscaped = false;
   marqueeShift = false;
   marqueePreviewIds = null;
+  marqueeLastEdgeScrollDir = 0;
+  marqueeEdgeWrapH = 0;
+  marqueeEdgeSuspended = false;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);
+  // Soft-clamp overscroll allowed during the live gesture; settle once it ends.
+  const maxY = maxScrollY();
+  if (localScrollY > maxY) emitScrollY(maxY);
+}
+
+function stopMarqueeAutoScroll(): void {
+  if (marqueeAutoScrollRaf) cancelAnimationFrame(marqueeAutoScrollRaf);
+  marqueeAutoScrollRaf = 0;
+  marqueeAutoScrollDir = 0;
+}
+
+function cancelMarqueeReleaseVisible(): void {
+  if (marqueeReleaseVisibleRaf) cancelAnimationFrame(marqueeReleaseVisibleRaf);
+  marqueeReleaseVisibleRaf = 0;
+  cancelEnsureScrollAnim?.();
+  cancelEnsureScrollAnim = null;
+}
+
+/**
+ * Scroll so `contentY` (scroll-space: localScrollY + viewport-local y) stays inside the wrap.
+ * Used after dock grow eats the bottom of the swimlane under the release / selection.
+ * Tweens over `DOCK_SCROLL_ANIM_MS` to match the dock height enter/leave (reduced-motion → instant).
+ */
+function ensureContentYVisible(contentY: number): void {
+  const viewH = wrapRef.value?.clientHeight ?? 0;
+  if (viewH <= 0) return;
+  const top = localScrollY;
+  const bottom = localScrollY + viewH;
+  if (contentY >= top && contentY < bottom) return;
+  let next = localScrollY;
+  if (contentY >= bottom) {
+    next = contentY - viewH + MARQUEE_RELEASE_VISIBLE_PAD_PX;
+  } else {
+    next = contentY - MARQUEE_RELEASE_VISIBLE_PAD_PX;
+  }
+  next = clampScrollY(next);
+  if (next === localScrollY) return;
+  cancelEnsureScrollAnim?.();
+  cancelEnsureScrollAnim = null;
+  const from = localScrollY;
+  if (prefersReducedMotion() || Math.abs(next - from) < 0.5) {
+    emitScrollY(next);
+    return;
+  }
+  cancelEnsureScrollAnim = animateProgress({
+    from,
+    to: next,
+    durationMs: DOCK_SCROLL_ANIM_MS,
+    onUpdate: (y) => {
+      emitScrollY(y);
+    },
+    onDone: () => {
+      cancelEnsureScrollAnim = null;
+    },
+  });
+}
+
+/**
+ * Dock height tweens after live class drops; wait until wrap height is stable (or timeout)
+ * then keep the chosen post-commit content Y visible (cursor or selection bottom).
+ */
+function scheduleEnsureMarqueeReleaseVisible(contentY: number): void {
+  cancelMarqueeReleaseVisible();
+  const started = performance.now();
+  let lastH = -1;
+  let stable = 0;
+  const tick = (now: number) => {
+    marqueeReleaseVisibleRaf = 0;
+    const H = wrapRef.value?.clientHeight ?? 0;
+    if (H === lastH) stable += 1;
+    else {
+      stable = 0;
+      lastH = H;
+    }
+    if (stable >= 2 || now - started >= MARQUEE_RELEASE_LAYOUT_WAIT_MS) {
+      ensureContentYVisible(contentY);
+      return;
+    }
+    marqueeReleaseVisibleRaf = requestAnimationFrame(tick);
+  };
+  marqueeReleaseVisibleRaf = requestAnimationFrame(tick);
+}
+
+function updateMarqueeAutoScrollDir(clientY: number): void {
+  const wrap = wrapRef.value;
+  if (!wrap || marqueePending) {
+    stopMarqueeAutoScroll();
+    return;
+  }
+  const wrapH = wrap.clientHeight;
+  // Dock preview (or any wrap shrink) can slide the edge band under a stationary
+  // pointer — especially after a prior bottom-edge autoscroll left the cursor low.
+  // Suspend until the pointer leaves the band so scroll does not jump on dock open.
+  if (wrapH !== marqueeEdgeWrapH) {
+    if (marqueeEdgeWrapH > 0) {
+      marqueeEdgeSuspended = true;
+      stopMarqueeAutoScroll();
+    }
+    marqueeEdgeWrapH = wrapH;
+  }
+  const box = wrap.getBoundingClientRect();
+  let dir = 0;
+  if (clientY <= box.top + MARQUEE_EDGE_AUTOSCROLL_PX) dir = -1;
+  else if (clientY >= box.bottom - MARQUEE_EDGE_AUTOSCROLL_PX) dir = 1;
+  if (marqueeEdgeSuspended) {
+    if (dir === 0) marqueeEdgeSuspended = false;
+    else {
+      stopMarqueeAutoScroll();
+      return;
+    }
+  }
+  if (dir === 0) {
+    stopMarqueeAutoScroll();
+    return;
+  }
+  marqueeAutoScrollDir = dir;
+  if (!marqueeAutoScrollRaf) {
+    marqueeAutoScrollRaf = requestAnimationFrame(tickMarqueeAutoScroll);
+  }
+}
+
+function tickMarqueeAutoScroll(): void {
+  marqueeAutoScrollRaf = 0;
+  if (!marqueePressActive || marqueePending || marqueeAutoScrollDir === 0) {
+    marqueeAutoScrollDir = 0;
+    return;
+  }
+  const wrapH = wrapRef.value?.clientHeight ?? 0;
+  if (wrapH !== marqueeEdgeWrapH) {
+    // Wrap resized mid-tick (dock mount) — stop; next pointermove re-evaluates.
+    marqueeEdgeWrapH = wrapH;
+    marqueeEdgeSuspended = true;
+    marqueeAutoScrollDir = 0;
+    return;
+  }
+  const next = clampScrollY(localScrollY + marqueeAutoScrollDir * MARQUEE_EDGE_SCROLL_PX);
+  if (next !== localScrollY) {
+    marqueeLastEdgeScrollDir = marqueeAutoScrollDir;
+    emitScrollY(next);
+    // Remap the rect against the scrolled lanes using the last pointer position.
+    applyMarqueeDragAt(marqueeLastClientX, marqueeLastClientY);
+  }
+  const atLimit =
+    (marqueeAutoScrollDir < 0 && localScrollY <= 0) ||
+    (marqueeAutoScrollDir > 0 && localScrollY >= maxScrollY());
+  if (!atLimit && marqueeAutoScrollDir !== 0) {
+    marqueeAutoScrollRaf = requestAnimationFrame(tickMarqueeAutoScroll);
+  } else {
+    marqueeAutoScrollDir = 0;
+  }
 }
 
 /** Marquee time extent — the live Δt the axis chrome shows while dragging. */
@@ -961,6 +1224,42 @@ function eventsInMarquee(rect: MarqueeRect): SwimEvent[] {
   return eventsIntersectingRect(backend.getLayout(), paintView(), syncTrackWidth(), rect).map(
     (item) => item.event,
   );
+}
+
+/**
+ * Content-space bottom of the sub-row under `contentY` (top of the next row).
+ * Used so post-commit scroll reveals the full bottom lane, not a mid-row release Y.
+ */
+function snapContentYToRowBottom(contentY: number): number {
+  const hit = laneAtContentY(backend.getLayout(), contentY);
+  if (!hit) return contentY;
+  const rel = contentY - hit.lane.y;
+  // Exact row boundary already is the previous row's bottom.
+  if (rel > 0 && rel % LANE_HEIGHT === 0) return contentY;
+  const rowIndex = Math.max(
+    0,
+    Math.min(hit.lane.rowCount - 1, Math.floor(rel / LANE_HEIGHT)),
+  );
+  return hit.lane.y + (rowIndex + 1) * LANE_HEIGHT;
+}
+
+/**
+ * Bottom edge of the bottommost committed event's lane row, in **wrap** scroll space
+ * (`localScrollY + viewportY`, including `contentTopPad`). Falls back to snapping the
+ * marquee rect bottom when the commit is empty.
+ */
+function selectionBottomContentYForCommit(commitEvents: SwimEvent[], rect: MarqueeRect): number {
+  const layout = backend.getLayout();
+  const pad = props.contentTopPad ?? 0;
+  let bottom = -Infinity;
+  for (const ev of commitEvents) {
+    const item = findLaidOutEvent(layout, ev.id);
+    // item.y is layout/content space; ensureContentYVisible compares wrap space.
+    if (item) bottom = Math.max(bottom, item.y + LANE_HEIGHT + pad);
+  }
+  if (Number.isFinite(bottom)) return bottom;
+  const wrapBottom = localScrollY + Math.max(rect.y0, rect.y1);
+  return snapContentYToRowBottom(wrapBottom - pad) + pad;
 }
 
 /** Same event list commit will use (plain rect, or Shift union with current selection). */
@@ -986,12 +1285,21 @@ function emitMarqueePreview(events: SwimEvent[] | null): void {
 }
 
 function onMarqueeDragMove(clientX: number, clientY: number): void {
+  marqueeLastClientX = clientX;
+  marqueeLastClientY = clientY;
+  applyMarqueeDragAt(clientX, clientY);
+  if (!marqueePending && marqueePressActive) updateMarqueeAutoScrollDir(clientY);
+}
+
+function applyMarqueeDragAt(clientX: number, clientY: number): void {
   const local = localFromClient(clientX, clientY);
   if (!local || !marqueeAnchor) return;
+  // Anchor stays glued to content; convert to viewport each remap (autoscroll stretch).
+  const anchorViewY = marqueeAnchor.contentY - paintScrollY();
   if (marqueePending) {
     if (
       Math.abs(local.x - marqueeAnchor.x) <= MEASURE_DRAG_THRESHOLD_PX &&
-      Math.abs(local.y - marqueeAnchor.y) <= MEASURE_DRAG_THRESHOLD_PX
+      Math.abs(local.y - anchorViewY) <= MEASURE_DRAG_THRESHOLD_PX
     ) {
       return;
     }
@@ -1002,7 +1310,7 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
   }
   const rect = {
     x0: marqueeAnchor.x,
-    y0: marqueeAnchor.y,
+    y0: anchorViewY,
     x1: local.x,
     y1: local.y,
   };
@@ -1033,6 +1341,7 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
  * press that never crossed the 4px gate — that is a click) commits nothing.
  */
 function onMarqueeDragEnd(): void {
+  stopMarqueeAutoScroll();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   const rect = marqueeRect.value;
@@ -1048,19 +1357,34 @@ function onMarqueeDragEnd(): void {
     sync();
     return;
   }
-  const events = eventsInMarquee(rect);
-  const commitEvents = marqueeShift ? eventsForMarqueeCommit(events) : events;
+  // Capture release / selection content Y before the dock may grow and shrink the wrap.
+  const local = localFromClient(marqueeLastClientX, marqueeLastClientY);
+  const releaseContentY = local != null ? localScrollY + local.y : null;
+  const rectEvents = eventsInMarquee(rect);
+  const commitEvents = marqueeShift ? eventsForMarqueeCommit(rectEvents) : rectEvents;
+  // Selection-border focus uses the bottom of the bottommost selected *row* (full lane
+  // height), not the raw marquee/cursor Y — a mid-row release must not leave the row clipped.
+  const selectionBottomContentY = selectionBottomContentYForCommit(commitEvents, rect);
+  // Latest edge-autoscroll: up → keep cursor visible; otherwise keep selection bottom visible.
+  const preferCursor = marqueeLastEdgeScrollDir < 0;
+  const focusContentY = preferCursor
+    ? (releaseContentY ?? selectionBottomContentY)
+    : selectionBottomContentY;
+  marqueeLastEdgeScrollDir = 0;
   // Hold committed ids through the sync emit so dim does not flash back to stale
   // props (parent re-renders one tick after `multi-select`). Clear on nextTick.
   marqueePreviewIds = commitEvents.map((ev) => ev.id);
+  sync();
   // The root clears the live drag span on commit; the committed hull is no longer drawn.
   emit('multi-select-span', null);
   emit('cursor', null);
-  // Root discards the live snap on `multi-select`; preview-null that follows is a no-op.
+  // Commit before clearing preview so root can discard the snap without restoring.
   emit('multi-select', commitEvents);
   emitMarqueePreview(null);
   sync();
   marqueeShift = false;
+  // Closed→preview dock grows to collapsed on commit; keep the chosen Y visible.
+  scheduleEnsureMarqueeReleaseVisible(focusContentY);
   void nextTick(() => {
     marqueePreviewIds = null;
     sync();
@@ -1072,9 +1396,11 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   endMeasureResize();
   endMarquee();
   marqueeShift = shiftKey;
-  marqueeAnchor = { x: localX, y: localY };
+  marqueeAnchor = { x: localX, contentY: localY + paintScrollY() };
   marqueePending = true;
   marqueePressActive = true;
+  marqueeEdgeWrapH = wrapRef.value?.clientHeight ?? 0;
+  marqueeEdgeSuspended = false;
   // Pending press is visually a no-op: keep lane-row hover and hover-gap Δt overlay.
   // Clear them (and force an unsnapped cursor) only once the drag crosses 4px.
   unbindMarqueeDrag = bindWindowPointerDrag({
@@ -1086,6 +1412,7 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
 /** Escape during the drag cancels without committing; the press flag survives until pointerup. */
 function onMarqueeKeydown(e: KeyboardEvent): void {
   if (e.key !== 'Escape' || !marqueePressActive) return;
+  stopMarqueeAutoScroll();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   marqueeAnchor = null;
@@ -1096,6 +1423,8 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueeEscaped = true;
   marqueeShift = false;
   marqueePreviewIds = null;
+  marqueeEdgeWrapH = 0;
+  marqueeEdgeSuspended = false;
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);
@@ -1455,6 +1784,28 @@ function eventScreenRectCss(eventId: string): { x: number; y: number; w: number;
 function summaryGroupIdFor(eventId: string | null): string | null {
   if (!eventId) return null;
   return summaryFolderId(backend.getLayout(), eventId);
+}
+
+/**
+ * Expand a collapsed-group summary bar and select its underlying leaf event(s).
+ * Single-leaf → `select(sourceEvent)`; multi-leaf → `multi-select(sourceEvents)`;
+ * missing sources → `select(null)`. The summary id itself is never selected.
+ */
+function activateSummaryBar(summary: SwimEvent): void {
+  if (summary.sourceEvent) {
+    emit('select', summary.sourceEvent);
+    return;
+  }
+  const leaves = summary.sourceEvents;
+  if (leaves && leaves.length >= 2) {
+    emit('multi-select', leaves);
+    return;
+  }
+  if (leaves && leaves.length === 1) {
+    emit('select', leaves[0]!);
+    return;
+  }
+  emit('select', null);
 }
 
 function localFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
@@ -2012,8 +2363,7 @@ function onPointerUp(e: PointerEvent): void {
           // Drop the summary tooltip — that bar disappears as the folder expands.
           emit('hover', null, e.clientX, e.clientY);
           emit('toggle-group', groupId);
-          // Single-leaf group → select that event; otherwise clear prior selection.
-          emit('select', ev.sourceEvent ?? null);
+          activateSummaryBar(ev);
           return;
         }
         snapMeasureToEvent(ev);
@@ -2123,8 +2473,8 @@ function onPointerUp(e: PointerEvent): void {
     // Drop the summary tooltip — that bar disappears as the folder expands.
     emit('hover', null, e.clientX, e.clientY);
     emit('toggle-group', groupId);
-    // Single-leaf group → select that event; otherwise clear prior selection.
-    emit('select', clicked?.sourceEvent ?? null);
+    if (clicked) activateSummaryBar(clicked);
+    else emit('select', null);
     return;
   }
   emit('select', clicked);
@@ -2219,8 +2569,7 @@ function onWheel(e: WheelEvent): void {
     emit('pan', (panPx / w) * span);
     return;
   }
-  localScrollY = clampScrollY(localScrollY + e.deltaY);
-  emit('scroll-y', localScrollY);
+  emitScrollY(clampScrollY(localScrollY + e.deltaY));
 }
 
 defineExpose({
@@ -2229,11 +2578,20 @@ defineExpose({
   useWebGl,
   /** Card strips sit above the canvas; SwimlaneView forwards wheel here. */
   handleWheel: onWheel,
+  /** Keep canvas scroll locked to gutter/cards when parent drives scrollY. */
+  setScrollY,
   magnetizeAtClient,
   magnetizeAtClientLocal,
   clearEdgeSnapHighlight,
   clearAltMeasure,
   altMeasureBridgeEndpoint,
+  wrapLayoutEpoch,
+  get swimlaneWrapHeight() {
+    return wrapRef.value?.clientHeight ?? 0;
+  },
+  computeMarqueePreviewDockHeight,
+  /** Test helper: wrap-space bottom of the bottommost committed lane row. */
+  selectionBottomContentYForCommit,
 });
 </script>
 

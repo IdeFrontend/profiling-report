@@ -462,6 +462,21 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
 }
 
 /**
+ * Lane content height including an in-flight collapse/expand tween.
+ * Matches SwimlaneCanvas `modelContentHeight` (120px body floor while animating).
+ */
+export function contentHeightForModel(
+  model: SwimlaneModel | null,
+  collapseAnim?: CollapseAnimState | null,
+): number {
+  const base = contentHeightFromModel(model);
+  if (collapseAnim && collapseAnim.hiddenHeight > 0) {
+    return Math.max(120, base - collapseAnim.hiddenHeight * (1 - collapseAnim.visible));
+  }
+  return base;
+}
+
+/**
  * Card header Y positions only — same row walk as `rebuildLayout`. Folders contribute one
  * `LANE_HEIGHT`; leaves use `leafRowCount` (memoized on events-array identity — first call
  * is O(events); collapse toggles that keep leaf arrays by reference stay O(rows)).
