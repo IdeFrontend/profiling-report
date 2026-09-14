@@ -112,32 +112,6 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Interim:** [`DATA-37a…DATA-37f`](../decisions/interim/DATA.md).
 
-### DATA-38 — Card gutter 时钟周期 formula (was: Q24 / HQ 39)
-
-**Status:** `partial` + `interim`
-
-**Question:** Card-header **时钟周期 / Clock Cycle** gutter bars ([design `entry.jpeg`](../../ui/source/v930/entry.jpeg)) — which file, fields, and formula? Is the value cycle counts, pipe `*_time(us)`, or derived from swimlane events?
-
-**Answer so far (interim):** Dropdown = **exactly two** items: **利用率 / Utilization** and **时钟周期 / Clock Cycles**. **barWidth** is the **same** event-coverage ratio for both (labels only change). Clock Cycles **labels** = mapped `PipeUtilization.csv` `*_total_cycles` (absolute cycles; folders **sum** child labels). Utilization labels = `NN%`. Interim: [`DATA-38a`](../decisions/interim/DATA.md). Spec: [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md). **Not** timeline CPU-clocks display ([UI-45](../decisions/UI.md)).
-
-**Product answer (2026-09-11, partial):** the gutter offers **two options — 时钟周期 (clock cycle)** and **耗时占比** (time share: all timeline ÷ total cycle). No file/field/formula is given yet and the answer is numbered `1:` (more may follow), so this stays open; it does confirm the interim's two-mode selector but not the quantity.
-
-**Product follow-up (pending — copy to Product):**
-
-Dropdown keeps **two** items: **利用率 / Utilization** and **时钟周期 / Clock Cycles**. Bar fill stays event coverage for both; only labels switch. For Clock Cycles labels we intend: absolute cycles per pipe from `PipeUtilization.csv` mapped `*_total_cycles`; grouping nodes **sum** children for the label; labels = absolute cycle counts (not ms/µs).
-
-Please confirm:
-
-1. **Source** — `*_total_cycles` per pipe, **not** `*_time(us)` and **not** event PMU `total cycle`?
-2. **Shared bar** — barWidth = event coverage for both modes (labels only change)?
-3. **Rollup** — Grouping nodes **sum** children for the **cycle label**?
-4. **Multi-block rows** — **mean** or **sum** across `block_id`?
-5. **Label** — Bare integer cycles (no `µs` / no unit suffix)? (also **UI-46**)
-
-**PyPTO reference (not shippable on current npu-rep):** sum of `event.pmu_info['total cycle']` after joining `tilefwk_prof_pmu.csv` onto events. Absent from [NPU-Compute.md](https://gitcode.com/wk0911/npu-tools/blob/main/npu-compute/NPU-Compute.md) embeds and from scanned fixtures (`example.npu.rep`, PR #74 packs) — event traces have no `pmu_info` / `"total cycle"`; PR #74 does not add them. Block CSV `*_total_cycles` ≠ that formula.
-
-**Specs when answered:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md).
-
 ### DATA-40 — topology edge value aggregation vs the BW card
 
 **Status:** `open` + `interim`

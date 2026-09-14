@@ -158,11 +158,11 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-38a — Card gutter 时钟周期 quantity / formula
 
-**Status:** `interim`
-**Question:** [DATA-38](../../questions/DATA.md)
-**Interim:** Card-header dropdown has **exactly two** items: **利用率 / Utilization** and **时钟周期 / Clock Cycles**. **barWidth** for **both** modes is the same event-coverage ratio (event / model span) — switching the dropdown changes **labels only**, not bar fills. Utilization label = `NN%`. For **clockCycle** labels: absolute cycles from mapped `PipeUtilization.csv` `*_total_cycles` (parallel rename of the former `*_time(us)` map in [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md)); **not** wall-time→cycles conversion, **not** event PMU. Multi-`block_id` aggregation stays mean of non-`NA` cells until Product picks mean vs sum ([DATA-28](../DATA.md) pattern). Leaf label = mapped key raw; **folders sum** child cycle raws for the **label** only (folder barWidth stays mean coverage). Labels = bare absolute cycle integers ([UI-46a](UI.md)). `cacheHit` / `task` stay withdrawn. **Fixture gap:** derive per-pipe cycles as `mean(*_time(us)) × (mean(side_total_cycles)/mean(side_time(us)))` when direct `*_total_cycles` absent — still absolute cycles on the label (no `µs`). Confirm with Product.
+**Status:** `interim` — **SUPERSEDED** 2026-09-14 by [DATA-38](../DATA.md) / [UI-46](../UI.md)
+**Question:** [DATA-38](../../questions/DATA.md) *(resolved — removed from open list)*
+**Interim:** ~~Two dropdown modes; shared event-coverage barWidth; clockCycle labels = absolute `*_total_cycles` (derive when missing); folders sum labels; bare cycle integers.~~ Product-final: [DATA-38](../DATA.md) (formula) and [UI-46](../UI.md) (label units).
 **Implement / test as:** `gutterMetrics.ts`, `PR-GMET-*`
-**Superseded when:** Product confirms source columns, shared event-coverage bars, label sum rollup, multi-`block_id` mean vs sum, and label glyph ([DATA-38](../../questions/DATA.md) / [UI-46](../../questions/UI.md))
+**Superseded when:** — already superseded by DATA-38 / UI-46 (2026-09-14)
 
 ### DATA-40a — Topology edge value candidates
 

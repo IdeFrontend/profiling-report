@@ -14,8 +14,8 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### UI-46a — Card gutter 时钟周期 label units
 
-**Status:** `interim`
-**Question:** [UI-46](../../questions/UI.md)
-**Interim:** **Clock Cycles** (`clockCycle`) gutter labels show **bare absolute cycle counts** (integer, space-grouped as needed) — **no** `µs` / ms suffix and **no** unit word. **Utilization** labels stay `` `${barWidth}%` `` (unchanged). Quantity/formula: [DATA-38a](DATA.md).
+**Status:** `interim` — **SUPERSEDED** 2026-09-14 by [UI-46](../UI.md) / [DATA-38](../DATA.md)
+**Question:** [UI-46](../../questions/UI.md) *(resolved — removed from open list)*
+**Interim:** ~~Bare absolute cycle counts (no `µs`).~~ Product-final: [UI-46](../UI.md) (with [DATA-38](../DATA.md)).
 **Implement / test as:** `formatClockCycleLabel`, LaneGutter thick/tip labels — [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) (`PR-GMET-008`)
-**Superseded when:** Product confirms bare cycles vs suffix / locale wording ([UI-46](../../questions/UI.md))
+**Superseded when:** — already superseded by UI-46 / DATA-38 (2026-09-14)

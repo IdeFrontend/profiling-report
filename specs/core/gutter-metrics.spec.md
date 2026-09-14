@@ -19,10 +19,10 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 ## Unit contract
 
 - **barWidth** is always 0–100 (UI **track** percent of the 110px gutter util column). For **both** metrics it is the **same** event-coverage ratio (event duration / model span) — switching the Card dropdown must **not** change bar fill widths, only labels.
-- **clockCycle** label values are **absolute clock-cycle counts** from mapped `PipeUtilization.csv` `*_total_cycles`. Labels are **bare integers** (no `µs` / ms / `%` suffix) — [UI-46a](../../docs/context/decisions/interim/UI.md).
+- **clockCycle** label values are **absolute clock-cycle counts** from mapped `PipeUtilization.csv` `*_total_cycles`. Labels are **bare integers** (no `µs` / ms / `%` suffix) — [UI-46](../../docs/context/decisions/UI.md).
 - **utilization** labels use **`%`** of that same event coverage (unchanged).
 - Time window for coverage is the swimlane model span `[minTime, maxTime]` (full trace), not the visible viewport.
-- CSV aggregations ignore `NA` tokens. Until Product picks mean vs sum for multi-`block_id` on clockCycle labels, interim uses **mean** of non-`NA` cells (same pattern as [DATA-28](../../docs/context/decisions/DATA.md)). Do **not** use `*_time(us)` for clockCycle **labels** (aside absolute times stay [DATA-33f](../../docs/context/decisions/interim/DATA.md)).
+- CSV aggregations ignore `NA` tokens. Multi-`block_id` on clockCycle labels uses **mean** of non-`NA` cells ([DATA-28](../../docs/context/decisions/DATA.md)). Do **not** use `*_time(us)` for clockCycle **labels** (aside absolute times stay [DATA-33f](../../docs/context/decisions/interim/DATA.md)).
 
 ## Behavior
 
@@ -48,7 +48,7 @@ When **utilization** is unavailable, default to **clockCycle**. When neither is 
 
 ### clockCycle formula (normative)
 
-Source file: embedded **`PipeUtilization.csv`** inside `.rep` / `.ncrep` ([METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md) § PipeUtilization.csv). Interim: [DATA-38a](../../docs/context/decisions/interim/DATA.md).
+Source file: embedded **`PipeUtilization.csv`** inside `.rep` / `.ncrep` ([METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md) § PipeUtilization.csv). Decision: [DATA-38](../../docs/context/decisions/DATA.md).
 
 #### Column → `laneColorKey` map
 
@@ -74,7 +74,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 \operatorname{agg}(C)=\frac{1}{|S_C|}\sum_{r\in S_C} C(r),\quad S_C=\{r:C(r)\neq\texttt{NA}\}
 \]
 
-(Interim **mean** across `block_id`; Product may switch to **sum**.) Omit \(C\) entirely when \(S_C=\emptyset\).
+([DATA-28](../../docs/context/decisions/DATA.md) **mean** of non-`NA` across `block_id`.) Omit \(C\) entirely when \(S_C=\emptyset\).
 
 2. For a pipe key with columns \(\{C_i\}_{i=1}^{k}\) that each have an aggregate:
 
@@ -115,7 +115,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 3. **PR-GMET-003** — barWidth is event coverage for **both** metrics (identical fills when switching dropdown); clockCycle does **not** use cycle-sum normalization for bars.
 4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring (unchanged).
 5. **PR-GMET-005** — Folder **labels** **sum** child cycle raws for clockCycle; folder **barWidth** stays mean coverage.
-6. **PR-GMET-006** — Ignores `NA` CSV cells; interim means `*_total_cycles` across `block_id` rows (DATA-28 pattern until Product picks sum).
+6. **PR-GMET-006** — Ignores `NA` CSV cells; means `*_total_cycles` across `block_id` rows ([DATA-28](../../docs/context/decisions/DATA.md)).
 7. **PR-GMET-007** — `averageBarWidthForCard` is **50** for both metrics.
 8. **PR-GMET-008** — `clockCycle` labels: bare rounded integers (no `µs` / unit suffix); uses mapped `*_total_cycles` (or derived) — **not** `*_time(us)` as the displayed quantity.
 
@@ -135,17 +135,14 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 
 ## Dependencies
 
-[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [DATA-28](../../docs/context/decisions/DATA.md) / [DATA-33f / DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-46a](../../docs/context/decisions/interim/UI.md), [DATA-38](../../docs/context/questions/DATA.md), [UI-46](../../docs/context/questions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
+[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [DATA-28](../../docs/context/decisions/DATA.md) / [DATA-33f](../../docs/context/decisions/interim/DATA.md) / [DATA-38](../../docs/context/decisions/DATA.md) / [UI-46](../../docs/context/decisions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
 ## Open
 
-**Product confirmation pending** — Clock Cycles **labels** and bare-cycle formatting are **Interim** ([DATA-38a](../../docs/context/decisions/interim/DATA.md), [UI-46a](../../docs/context/decisions/interim/UI.md)). Bar fill is shared event coverage for both metrics (confirmed locally). Confirm: per-pipe `*_total_cycles` map, folder label sum, multi-block mean vs sum, bare labels.
-
-Until Product answers: keep two dropdown items; shared barWidth; clockCycle labels as specified above.
+None for DATA-38 / UI-46 — resolved 2026-09-14. Derive fallback for missing per-pipe `*_total_cycles` remains shipping until producer ships those columns.
 
 ## Changelog
-- **2026-09-14** — Shared barWidth: both metrics use event coverage; only labels switch (PR-GMET-003/007).
-- **2026-09-14** — DATA-38 interim rewrite: two dropdown items; clockCycle labels = absolute `*_total_cycles`, folder label **sum**, bare cycle labels (PR-GMET-005/006/008).
+- **2026-09-14** — Promote DATA-38 / UI-46 to decisions; strike interim DATA-38a / UI-46a.
 - **2026-09-09** — Default Card metric is utilization when available; empty availability returns `null` (PR-GMET-002).
 - **2026-09-05** — Document PyPTO PMU sum-of-`total cycle` as reference; note NPU-Compute.md, PR #74, and scanned fixtures lack event-level PMU (interim stays `*_time(us)`).
 - **2026-09-05** — Remap gutter label-units ask to **UI-46** / **UI-46a** (do not reuse the id reserved on PR #23 for timeline CPU clocks).
