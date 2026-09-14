@@ -1190,7 +1190,9 @@ function onContextMenuAction(action: ContextMenuAction): void {
   else onPinLane(action.laneId);
 }
 function onScrollY(scrollY: number) {
-  onContextMenuDismiss();
+  // Only dismiss when open — ordinary wheel scroll-y must not clear hoveredEventId
+  // (canvas does not re-emit hover on wheel).
+  if (contextMenuContext.value) onContextMenuDismiss();
   viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
 }
 

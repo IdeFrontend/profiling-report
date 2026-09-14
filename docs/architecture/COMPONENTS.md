@@ -297,7 +297,7 @@ Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRendere
 
 ### `ContextMenu` / `MultiSelectSummary` (P2)
 
-Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is implemented: an unmodified drag on `SwimlaneCanvas` commits a marquee (measure mode wins the gesture; pan moved to Shift+wheel / trackpad horizontal scroll). A single persistent `<footer class="pr-dock">` shell in `ProfilingReport` swaps `DetailPanel` and `MultiSelectSummary` content without remounting, so height survives mode switches. The axis Δt chrome follows the live drag and is cleared on commit. `ContextMenu` is still a stub.
+Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is implemented: an unmodified drag on `SwimlaneCanvas` commits a marquee (measure mode wins the gesture; pan moved to Shift+wheel / trackpad horizontal scroll). A single persistent `<footer class="pr-dock">` shell in `ProfilingReport` swaps `DetailPanel` and `MultiSelectSummary` content without remounting, so height survives mode switches. The axis Δt chrome follows the live drag and is cleared on commit. `ContextMenu` is implemented: Reset zoom, Show in event view, and Pin/Unpin row, with a scrim that blocks the rest of the UI while open.
 
 **Why:** Listed in FEATURE_MATRIX; not MVP.
 

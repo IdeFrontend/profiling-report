@@ -18,7 +18,7 @@ The parent applies shared view-state behavior directly from `contextMenuContext`
 
 **action** reports `{ command: 'reset' | 'show' | 'pin', laneId: string, target?: SwimEvent }`. The parent applies shared view-state behavior: `'reset'` uses `zoomToFitWindow`; `'show'` reuses the report's normal `select` path with **target** (so `selectedEventId`, `DetailPanel`, and `select` emit stay consistent); `'pin'` toggles the shared **pinnedLaneIds** list.
 
-**dismiss** reports closure after click-outside (the scrim), Escape, an item activation, or any change to **scrollY** forwarded by the parent (programmatic scroll, collapse, zoom-to-fit, etc. — user scroll is blocked by the scrim).
+**dismiss** reports closure after click-outside (the scrim), Escape, an item activation, or a parent-forwarded **scrollY** change **while the menu is open** (programmatic scroll, collapse, zoom-to-fit, etc. — user scroll is blocked by the scrim; ordinary wheel scroll with the menu closed does not dismiss).
 
 ## Behavior
 
@@ -36,7 +36,7 @@ The menu opens at pointer coordinates, clamped inside the viewport; it opens upw
 
 While the menu is open, a transparent full-viewport scrim (a `position: fixed; inset: 0` layer below the menu) blocks the rest of the UI: it intercepts pointerdown, right-click (context menu), and wheel, so no interaction reaches the canvas, gutter, or toolbar underneath, and the page cannot scroll. Keyboard input is swallowed at the document capture phase, so app hotkeys (W/S/A/D pan/zoom, Escape measure/marquee clearing) do not fire while the menu is open.
 
-The menu closes on click outside (the scrim), Escape, item activation, and every forwarded **update:scrollY** change (programmatic only while the scrim blocks user scroll). No command is highlighted when the menu opens — the active highlight appears only after Arrow Up/Arrow Down or pointer hover and clears when the pointer leaves the menu. Arrow Down from no highlight moves to the first command; Arrow Up wraps to the last. Enter activates the highlighted command.
+The menu closes on click outside (the scrim), Escape, item activation, and parent-forwarded **update:scrollY** while open (programmatic only while the scrim blocks user scroll). No command is highlighted when the menu opens — the active highlight appears only after Arrow Up/Arrow Down or pointer hover and clears when the pointer leaves the menu. Arrow Down from no highlight moves to the first command; Arrow Up wraps to the last. Enter activates the highlighted command.
 
 **Shift+P is a global shortcut**, not scoped to the open menu: it toggles the pin state of the leaf lane currently under the canvas/gutter pointer (`hoveredLaneId`), and works whether or not the menu is open. The menu's Pin row shows the same `Shift+P` hint and activates via the menu's own `context.laneId`.
 
@@ -106,6 +106,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-14** — `update:scrollY` dismisses the menu only when it is open, so ordinary wheel scroll keeps `hoveredEventId` (`PR-CTXMENU-016`).
 - **2026-09-14** — Review fixes: global Shift+P now respects editable controls; programmatic scroll clears the pinned event highlight through the shared dismiss path; Escape releases empty-command contexts; unrelated `.opencode/` ignore removed (`PR-CTXMENU-014`, `PR-CTXMENU-016`, `PR-CTXMENU-018`).
 - **2026-09-14** — Shift+P is now a global shortcut: it toggles the hovered leaf lane's pin with the menu closed, in addition to the menu's Pin row (`PR-CTXMENU-010`, `PR-CTXMENU-018`).
 - **2026-09-14** — Pin shortcut changed from Alt+P to Shift+P: Alt+letter is the browser menu-bar mnemonic on Windows and never reaches the page reliably (`PR-CTXMENU-010`).

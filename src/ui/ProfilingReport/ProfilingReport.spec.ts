@@ -141,6 +141,25 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-CTXMENU-016: scroll with the menu closed does not clear hoveredEventId', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    const target = { id: 'a', name: 'A', startTime: 0, duration: 10 };
+    wrapper.findComponent(TimelineView).vm.$emit('hover', target, 12, 24);
+    await nextTick();
+    expect(wrapper.vm.viewState.hoveredEventId).toBe('a');
+
+    // Ordinary wheel scroll-y must not call dismiss — canvas does not re-emit hover.
+    wrapper.findComponent(TimelineView).vm.$emit('update:scrollY', 10);
+    await nextTick();
+    expect(wrapper.vm.viewState.hoveredEventId).toBe('a');
+    expect(wrapper.vm.viewState.scrollY).toBe(10);
+    wrapper.unmount();
+  });
+
   it('PR-CTXMENU-018: Shift+P toggles the hovered lane pin globally (menu closed)', async () => {
     const wrapper = mount(ProfilingReport, {
       attachTo: document.body,
