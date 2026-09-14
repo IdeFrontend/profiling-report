@@ -153,6 +153,31 @@ export function findThreadById(model: SwimlaneModel, id: string): SwimThread | n
 }
 
 /**
+ * Depth-first event lookup by id across every thread's leaf `events` **and** any
+ * collapsed-folder `summaryEvents` (folder-thread ghost bars). Callers that only need
+ * leaf events (never summaries) should use `collectLeafEventsFromModel` instead.
+ */
+export function findEventInModel(model: SwimlaneModel | null | undefined, id: string): SwimEvent | null {
+  if (!model) return null;
+  const walk = (nodes: SwimThread[]): SwimEvent | null => {
+    for (const n of nodes) {
+      const ev = n.events.find((e) => e.id === id) ?? n.summaryEvents?.find((e) => e.id === id);
+      if (ev) return ev;
+      if (n.children) {
+        const hit = walk(n.children);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  for (const p of model.processes) {
+    const hit = walk(p.threads);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
  * Disjoint-union summary bars for a folder's descendants (same shape as a collapsed
  * folder's `summaryEvents`). Empty when `folder` is not a folder or has no leaf events.
  */

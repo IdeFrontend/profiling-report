@@ -8,7 +8,6 @@ import {
   type SwimEvent,
   type SwimlaneModel,
   type SwimlaneViewState,
-  type SwimThread,
 } from '../../../domain/types';
 import {
   LANE_GROUP_HEADER_FILL,
@@ -24,6 +23,7 @@ import {
   clearAltMeasureShared,
   createAltMeasureShared,
 } from './altMeasureShared';
+import { findEventInModel } from '../../../domain/swimTree';
 import { buildPinnedSwimModel, resolvePinnedGutterLanes } from './pinnedLanes';
 import {
   GUTTER_WIDTH_DEFAULT,
@@ -104,6 +104,7 @@ const emit = defineEmits<{
   'update:scrollY': [scrollY: number];
   'update:gutterWidth': [width: number];
   'toggle-group': [groupId: string];
+  'context-menu': [payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
   'pin-overview': [seriesId: string];
@@ -283,27 +284,6 @@ watch(
     if (altMeasureShared.anchorId) clearAltMeasureShared(altMeasureShared);
   },
 );
-
-function walkThreads(threads: SwimThread[], visit: (t: SwimThread) => void): void {
-  for (const t of threads) {
-    visit(t);
-    if (t.children?.length) walkThreads(t.children, visit);
-  }
-}
-
-function findEventInModel(model: SwimlaneModel | null | undefined, id: string): SwimEvent | null {
-  if (!model) return null;
-  for (const p of model.processes) {
-    let found: SwimEvent | null = null;
-    walkThreads(p.threads, (t) => {
-      if (found) return;
-      const ev = t.events.find((e) => e.id === id) ?? t.summaryEvents?.find((e) => e.id === id);
-      if (ev) found = ev;
-    });
-    if (found) return found;
-  }
-  return null;
-}
 
 provide(ALT_MEASURE_FIND_EVENT_KEY, (id: string) => {
   return (
@@ -613,6 +593,7 @@ defineExpose({
             @pin-lane="emit('pin-lane', $event)"
             @unpin-lane="emit('unpin-lane', $event)"
             @lane-hover="onLaneHover"
+            @context-menu="emit('context-menu', $event)"
           />
         </div>
         <SwimlaneCanvas
@@ -648,6 +629,7 @@ defineExpose({
           @zoom="(f, a) => emit('zoom', f, a)"
           @update:measure-range="emit('update:measure-range', $event)"
           @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+          @context-menu="emit('context-menu', $event)"
           @toggle-group="emit('toggle-group', $event)"
           @update-multi-selected="onUpdateMultiSelected"
         />
@@ -706,6 +688,7 @@ defineExpose({
         @pin-lane="emit('pin-lane', $event)"
         @unpin-lane="emit('unpin-lane', $event)"
         @lane-hover="onLaneHover"
+        @context-menu="emit('context-menu', $event)"
       />
       <SwimlaneCanvas
         ref="canvasRef"
@@ -741,6 +724,7 @@ defineExpose({
         @scroll-y="onScrollY"
         @update:measure-range="emit('update:measure-range', $event)"
         @suppress-measure-dt="emit('suppress-measure-dt', $event)"
+        @context-menu="emit('context-menu', $event)"
         @toggle-group="emit('toggle-group', $event)"
         @update-multi-selected="onUpdateMultiSelected"
       />

@@ -81,6 +81,7 @@ const emit = defineEmits<{
   'update:scrollY': [scrollY: number];
   'update:window': [window: { startTime: number; endTime: number }];
   'toggle-group': [groupId: string];
+  'context-menu': [payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }];
   'pin-lane': [laneId: string];
   'unpin-lane': [laneId: string];
   'pin-overview': [seriesId: string];
@@ -673,6 +674,7 @@ defineExpose({
       @zoom="(f, a) => emit('zoom', f, a)"
       @update:measure-range="emit('update:measure-range', $event)"
       @suppress-measure-dt="suppressMeasureDt = $event"
+      @context-menu="emit('context-menu', $event)"
     />
   </div>
 </template>

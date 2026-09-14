@@ -141,6 +141,10 @@ const messages = {
     selfTime: 'Self time',
     avgWallDuration: 'Average Wall Duration',
     sortColumn: 'Sort',
+    ctxResetZoom: '重置缩放',
+    ctxShowInEventView: '在事件视图中显示',
+    ctxPinRow: '置顶行',
+    ctxUnpinRow: '取消置顶行',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -273,6 +277,10 @@ const messages = {
     gutterMetricClockCycle: 'Clock Cycle',
     gutterMetricUtilization: 'Utilization',
     gutterMetricFor: 'Gutter metric for {name}',
+    ctxResetZoom: 'Reset zoom',
+    ctxShowInEventView: 'Show in event view',
+    ctxPinRow: 'Pin row',
+    ctxUnpinRow: 'Unpin row',
   },
 } as const;
 

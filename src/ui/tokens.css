@@ -8,6 +8,7 @@
   --pr-bg-panel: #262626;
   /* Raised chrome floating above a panel: tooltip, OP menu, display popover. */
   --pr-surface-raised: #363636;
+  --pr-surface-hover: #424242;
   --pr-divider: #3a3a3a;
   --pr-tab-inactive: #b3b3b3;
   --pr-axis-tick: #313131;
