@@ -36,7 +36,7 @@ The menu opens at pointer coordinates, clamped inside the viewport; it opens upw
 
 While the menu is open, a transparent full-viewport scrim (a `position: fixed; inset: 0` layer below the menu) blocks the rest of the UI: it intercepts pointerdown, right-click (context menu), and wheel, so no interaction reaches the canvas, gutter, or toolbar underneath, and the page cannot scroll. Keyboard input is swallowed at the document capture phase, so app hotkeys (W/S/A/D pan/zoom, Escape measure/marquee clearing) do not fire while the menu is open.
 
-The menu closes on click outside (the scrim), Escape, item activation, and every forwarded **update:scrollY** change (programmatic only while the scrim blocks user scroll). No command is highlighted when the menu opens — the active highlight appears only after Arrow Up/Arrow Down or pointer hover. Arrow Down from no highlight moves to the first command; Arrow Up wraps to the last. Enter activates the highlighted command.
+The menu closes on click outside (the scrim), Escape, item activation, and every forwarded **update:scrollY** change (programmatic only while the scrim blocks user scroll). No command is highlighted when the menu opens — the active highlight appears only after Arrow Up/Arrow Down or pointer hover and clears when the pointer leaves the menu. Arrow Down from no highlight moves to the first command; Arrow Up wraps to the last. Enter activates the highlighted command.
 
 **Shift+P is a global shortcut**, not scoped to the open menu: it toggles the pin state of the leaf lane currently under the canvas/gutter pointer (`hoveredLaneId`), and works whether or not the menu is open. The menu's Pin row shows the same `Shift+P` hint and activates via the menu's own `context.laneId`.
 
@@ -60,7 +60,7 @@ Opening the menu on an event pins that event's hover highlight: the parent sets 
 14. **PR-CTXMENU-014** — No menu is rendered when the current context has no available commands.
 15. **PR-CTXMENU-015** — The menu blocks the rest of the UI while open: the scrim intercepts pointerdown, right-click, and wheel; keys do not reach the app.
 16. **PR-CTXMENU-016** — Opening the menu on an event keeps that event highlighted (hover state) for the whole time the menu is open.
-17. **PR-CTXMENU-017** — No command is highlighted when the menu opens; Arrow navigation or pointer hover sets the active item.
+17. **PR-CTXMENU-017** — No command is highlighted when the menu opens; Arrow navigation or pointer hover sets the active item, and leaving the menu clears it.
 18. **PR-CTXMENU-018** — Shift+P toggles the hovered leaf lane's pin globally, with the menu closed.
 
 ## Edge Cases
@@ -108,7 +108,7 @@ Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 ## Changelog
 - **2026-09-14** — Shift+P is now a global shortcut: it toggles the hovered leaf lane's pin with the menu closed, in addition to the menu's Pin row (`PR-CTXMENU-010`, `PR-CTXMENU-018`).
 - **2026-09-14** — Pin shortcut changed from Alt+P to Shift+P: Alt+letter is the browser menu-bar mnemonic on Windows and never reaches the page reliably (`PR-CTXMENU-010`).
-- **2026-09-14** — No command is highlighted when the menu opens; the active highlight appears only after Arrow navigation or pointer hover (`PR-CTXMENU-009`, `PR-CTXMENU-017`).
+- **2026-09-14** — No command is highlighted when the menu opens; the active highlight appears only after Arrow navigation or pointer hover and clears when the pointer leaves the menu (`PR-CTXMENU-009`, `PR-CTXMENU-017`).
 - **2026-09-14** — Opening the menu on an event pins its hover highlight for the lifetime of the menu; the pinned highlight clears on dismiss (`PR-CTXMENU-016`).
 - **2026-09-14** — The menu now blocks the rest of the UI while open: a transparent full-viewport scrim intercepts pointerdown, right-click, and wheel, and keyboard input is swallowed at document capture so app hotkeys do not fire (`PR-CTXMENU-008`, `PR-CTXMENU-015`).
 - **2026-09-14** — Reset zoom is viewport-scoped: offered at any timeline point via `canReset`, and omitted once the visible range equals the total range (`PR-CTXMENU-002`, `PR-CTXMENU-003`).

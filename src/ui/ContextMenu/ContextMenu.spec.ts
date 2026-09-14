@@ -254,6 +254,14 @@ describe('ContextMenu', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
     await wrapper.vm.$nextTick();
     expect(menuItem('pin')?.className).toContain('pr-ctx-menu__item--active');
+    document.querySelector('[data-testid="context-menu"]')!.dispatchEvent(
+      new PointerEvent('pointerleave'),
+    );
+    await wrapper.vm.$nextTick();
+    expect(document.querySelector('.pr-ctx-menu__item--active')).toBeNull();
+    expect(
+      document.querySelector('[data-testid="context-menu"]')?.getAttribute('aria-activedescendant'),
+    ).toBeNull();
   });
 
   it('PR-CTXMENU-010: Shift+P activates pin only when Pin row is available', async () => {

@@ -180,6 +180,7 @@ onBeforeUnmount(unbindListeners);
       data-testid="context-menu"
       @click.stop
       @pointerdown.stop
+      @pointerleave="activeIndex = -1"
       @contextmenu.prevent
     >
       <template
