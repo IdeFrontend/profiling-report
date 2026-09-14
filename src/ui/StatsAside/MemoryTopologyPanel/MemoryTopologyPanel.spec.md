@@ -28,7 +28,7 @@ Official product memory-path topology chrome with **data-driven link values** (c
 10. **Value fit (PR-MEMTOP-010):** a value wider than its own slot's corridor is drawn at a proportionally smaller `font-size` so it stays inside the link, instead of overlapping a pillar or a neighbouring unit. Values that fit keep the base size; nothing else about the slot moves.
 11. **Accessible description (PR-MEMTOP-011):** the root `role="img"` makes the diagram one image, so its `<text>` values do not reach the a11y tree by themselves. The panel therefore also renders a visually hidden list of the slots it draws — `{from} → {to}: {value}` once per edge (paired AIV0/AIV1 slots add `(AIV0, AIV1)`) plus the L2 plate — and points the `svg` at it with `aria-describedby`. Slots left blank and edges with no slot are omitted. Each instance uses its own id (`useId`), because the stacked aside and the fullscreen overlay render two panels at once.
 12. **Slot testids (PR-MEMTOP-002b):** `data-testid` is `edge-{edge-id}-{slotIndex}`, so the AIV0/AIV1 pairs resolve to distinct elements.
-13. **Chrome load failure (PR-MEMTOP-012):** if the `<image>` errors, warn once and suppress value overlays so hosts missing `/memory-topology.svg` do not see orphaned numbers.
+13. **Chrome load failure (PR-MEMTOP-012):** if the `<image>` errors, warn once, suppress value overlays, and clear `aria-describedby` so hosts missing `/memory-topology.svg` do not see orphaned numbers or a dangling description id.
 
 ### Value slots (edge → label centres, chrome units)
 
@@ -90,7 +90,7 @@ The export's slots were sized for its own 27.6-unit placeholders. Real values ar
 9. **PR-MEMTOP-009** — Edges with no chrome slot (`l0c-l1`, `l0c-l2`, `l2-l1-write` pending UI-48) are not drawn.
 10. **PR-MEMTOP-010** — A value wider than its slot's corridor is scaled down proportionally so it stays inside the link; values that fit keep the base size, and the slot geometry never moves.
 11. **PR-MEMTOP-011** — The diagram's `role="img"` hides its `<text>` values from the a11y tree, so the same slots are exposed as an accessible description (`aria-describedby` → a visually hidden `from → to: value` list, built from the model). Paired AIV0/AIV1 slots are named once (`… (AIV0, AIV1)`). One description per instance: the panel renders twice at once, so the id must not collide.
-12. **PR-MEMTOP-012** — If the chrome asset fails to load, the panel warns once and suppresses the value overlays (no orphaned numbers on an empty rectangle).
+12. **PR-MEMTOP-012** — If the chrome asset fails to load, the panel warns once, suppresses the value overlays, and drops `aria-describedby` so it does not point at an unmounted description.
 
 ## Visual
 

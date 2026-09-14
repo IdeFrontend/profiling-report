@@ -461,7 +461,8 @@ describe('PR-VM: report view-models (interim)', () => {
     ];
     const model = buildMemoryTopology(tables, '0');
     // The chrome draws MTE1/2/3 but gives them no value plate, so they stay model-only: no edge
-    // and no slot. Their utilizations come from PipeUtilization.csv in the memory 详情 list.
+    // and no slot. Utilizations come from PipeUtilization.csv via the memory 详情 CSV field list
+    // (CSV-only reports — PR-STATS-035); summary-category reports keep MTE under 计算 详情.
     expect(model?.nodes.filter((n) => n.id.startsWith('mte')).map((n) => n.label)).toEqual([
       'MTE1',
       'MTE2',

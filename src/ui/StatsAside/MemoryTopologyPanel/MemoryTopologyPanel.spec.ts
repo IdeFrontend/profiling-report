@@ -234,9 +234,12 @@ describe('MemoryTopologyPanel', () => {
     try {
       const wrapper = mount(MemoryTopologyPanel, { props: { model } });
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(true);
+      expect(wrapper.get('svg').attributes('aria-describedby')).toBeTruthy();
       await wrapper.get('image').trigger('error');
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(false);
       expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(false);
+      expect(wrapper.find('.pr-topo__sr').exists()).toBe(false);
+      expect(wrapper.get('svg').attributes('aria-describedby')).toBeUndefined();
       expect(warn).toHaveBeenCalledTimes(1);
       expect(String(warn.mock.calls[0]?.[0])).toContain('memory-topology.svg');
       await wrapper.get('image').trigger('error');

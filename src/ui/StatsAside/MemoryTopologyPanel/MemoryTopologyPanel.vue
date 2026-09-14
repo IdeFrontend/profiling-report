@@ -249,7 +249,7 @@ function fitStyle(key: string): { fontSize: string } | undefined {
       viewBox="0 0 448 540"
       role="img"
       :aria-label="t('memoryTopology', locale)"
-      :aria-describedby="summaryId"
+      :aria-describedby="chromeFailed ? undefined : summaryId"
     >
       <image
         :href="chromeUrl"
