@@ -204,7 +204,11 @@ const showCompute = computed(
 const showMemory = computed(
   () => (props.report?.memoryTables?.length ?? 0) > 0 || memoryCategories.value.length > 0,
 );
-const showRoofline = computed(() => (roofline.value?.points.length ?? 0) > 0);
+/** `roofline` is a Phase 2 surface outside the current release — hidden unless the host opts in. */
+const rooflineEnabled = computed(() => (props.capabilities ?? []).includes('roofline'));
+const showRoofline = computed(
+  () => rooflineEnabled.value && (roofline.value?.points.length ?? 0) > 0,
+);
 const hasHardwareDetails = computed(
   () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
 );
