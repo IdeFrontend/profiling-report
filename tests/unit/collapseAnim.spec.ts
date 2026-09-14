@@ -193,7 +193,7 @@ describe('collapse summary dissolve (PR-RENDER-028)', () => {
   });
 });
 
-describe('paint-only rest collapse (PR-RENDER-047)', () => {
+describe('paint-only rest collapse (PR-RENDER-052)', () => {
   it('setCollapsedIds folds without cloning events or rebuilding the base layout', () => {
     const canvas = document.createElement('canvas');
     const renderer = new CanvasSwimlaneRenderer();

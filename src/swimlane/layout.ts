@@ -1032,6 +1032,44 @@ export function findLaidOutEvent(layout: SwimlaneLayout, id: string): LaidOutEve
   return layout.summaryById?.get(id) ?? layout.eventsById.get(id);
 }
 
+/** Screen-space marquee rect (canvas CSS px); order-normalized by `eventsIntersectingRect`. */
+export interface MarqueeRect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * Leaf events whose drawn block intersects the marquee rect, in layout order.
+ * Folder rows hold no events, so Card header strips the rect passes over contribute none.
+ */
+export function eventsIntersectingRect(
+  layout: SwimlaneLayout,
+  view: SwimlaneViewWindow,
+  width: number,
+  rect: MarqueeRect,
+): LaidOutEvent[] {
+  const left = Math.min(rect.x0, rect.x1);
+  const right = Math.max(rect.x0, rect.x1);
+  const top = Math.min(rect.y0, rect.y1);
+  const bottom = Math.max(rect.y0, rect.y1);
+  const span = Math.max(1, view.endTime - view.startTime);
+  const w = Math.max(1, width);
+  const out: LaidOutEvent[] = [];
+  for (const item of layout.events) {
+    if (item.summary || item.alpha === 0) continue;
+    const ev = item.event;
+    const { y, h } = eventBlockMetrics(item.y, view.scrollY);
+    if (y > bottom || y + h < top) continue;
+    const x = ((ev.startTime - view.startTime) / span) * w;
+    const ew = Math.max(2, (ev.duration / span) * w);
+    if (x > right || x + ew < left) continue;
+    out.push(item);
+  }
+  return out;
+}
+
 export function findEvent(layout: SwimlaneLayout, id: string): SwimEvent | null {
   return findLaidOutEvent(layout, id)?.event ?? null;
 }
@@ -1388,6 +1426,19 @@ export interface EventEmphasis {
   alpha: number;
   /** True when an active selection mutes this event to solid gray. */
   muted: boolean;
+}
+
+/**
+ * True when this event stays full-color under an active selection/search dim:
+ * selection/dep-neighbor (`bright`), multi-selected, or hovered.
+ */
+export function isKeepBright(
+  id: string,
+  bright: ReadonlySet<string>,
+  hoveredId: string | null,
+  multiIds: ReadonlySet<string>,
+): boolean {
+  return bright.has(id) || multiIds.has(id) || id === hoveredId;
 }
 
 /** Canvas/WebGL fill+label emphasis. Search miss → alpha 0.25; an active selection mutes

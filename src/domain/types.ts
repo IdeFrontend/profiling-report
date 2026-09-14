@@ -376,6 +376,8 @@ export interface SwimlaneViewState {
   scrollY: number;
   selectedEventId: string | null;
   hoveredEventId: string | null;
+  /** Marquee multi-selection; mutually exclusive with `selectedEventId`. Local overlay only. */
+  multiSelectedIds: string[];
   searchQuery: string;
   asideVisible: boolean;
   playheadTime: number | null;
@@ -415,6 +417,8 @@ export interface SwimlaneRenderer {
   setHoveredLane?(laneId: string | null): void;
   /** Optional: rest-collapsed Card/folder ids (paint-only; does not rebuild meshes). */
   setCollapsedIds?(ids: readonly string[]): void;
+  /** Optional: marquee multi-selection ids; empty clears the dim. */
+  setMultiSelection?(ids: string[]): void;
   contentHeight(): number;
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null;
   findEvent(id: string): SwimEvent | null;

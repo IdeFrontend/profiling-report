@@ -126,8 +126,8 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | | |
 |--|--|
 | **Goal** | Understand causal links or aggregate a time slice |
-| **Trigger** | Select event with deps enabled; or rubber-band / multi-select |
-| **Steps** | Toggle dep links; select event → dependency mini-graph; multi-select → summary table; context menu pin |
+| **Trigger** | Select event with deps enabled; or marquee drag on the swimlane |
+| **Steps** | Toggle dep links; select event → dependency mini-graph; marquee drag → summary table + axis Δt; context menu pin |
 | **Success** | User sees predecessors/successors or slice aggregates |
 | **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
 
@@ -199,7 +199,7 @@ Interactivity classes:
 | Hardware details | static / semi | Scroll | — | P2 |
 | Dependency link curves | interactive | Toggle visibility; click link | Selection / detail | P2 |
 | Context menu | interactive | Right-click | Pin / actions | P2 |
-| Multi-select summary table | interactive | Shift/Ctrl or rubber-band | Aggregate table | P2 |
+| Multi-select summary table | interactive | Marquee drag (unmodified) | Aggregate table + axis Δt | P2 |
 | Display control (units / cycles) | interactive | Dialog controls | Axis unit labels | P2 |
 | Secondary tabs | interactive | Click tab | Swap main surface | P2 |
 
@@ -253,7 +253,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S2 (M)
 
 1. User Ctrl/Cmd+wheel or uses zoom slider → `timeWindow` shrinks/expands around cursor/center.
-2. User pans (drag) → window slides; charts/axis/swimlane move together.
+2. User pans (Shift+wheel or trackpad horizontal scroll) → window slides; charts/axis/swimlane move together.
 3. User expands a core in gutter → child pipe lanes appear.
 
 ### Flow S3 (M)

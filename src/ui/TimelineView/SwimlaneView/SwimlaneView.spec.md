@@ -24,7 +24,7 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 **Body scroll.** `.pr-swim-row--body` uses `overflow: hidden` so lane scroll stays contained while ReportLayout `.pr-main` stays `overflow: visible` for overview/axis chrome at the aside seam.
 
-**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips (`z-index: 8`). The mouse-following cursor bar and Alt-measure chrome (dashed cross-lane connector, sticks, Δt, free-cursor target line, event highlights, and the pin↔body cross bridge) sit **above** the Card strips at `z-index: 9`: the strips are opaque full-row buttons, so anything below them punches a visible gap at every Card header (AC-13; same failure for Alt-measure's dashed vertical). Blue edge marks stay above that band (`z-index: 10–11`) so magnet snap markers always paint on top of the playhead / Alt-measure stems. The canvas wrap's `overflow: hidden` clips overlays to the chart column. Cursor x comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
+**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. The marquee multi-select rect sits above the measure chrome and still below the strips (`z-index: 6`), so an unmodified drag reads as one rectangle across Card bands without painting over header chrome. The mouse-following cursor bar lives inside `SwimlaneCanvas` (`z-index: 3`, above the event canvas, below blue edge marks at `z-index: 4–5`) so magnet snap markers always paint on top of the gray/blue playhead stem. Card strips remain on top (`z-index: 8`). Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
 
 **Gutter resize.** The `ew-resize` handle (`data-testid="gutter-resize-handle"`) lives on the swim body seam (`z-index: 5`), under Card strips (`z-index: 8`), so it is inactive across Card bands. Overview/axis rows do not host the handle. The handle is pinned to the **used** gutter grid column (`grid-column: 1 / 2`), not `left: var(--pr-gutter-width)`, so it stays aligned when the gutter column shrinks below the token. The end line must be explicit: for abspos children, a lone `grid-column: 1` resolves end to `auto` (container padding edge) and parks the handle on the far track edge. Card-strip labels use the same column formula as the swim row.
 
@@ -83,6 +83,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 27. **PR-SWIMVIEW-027** — Body content height, Card-strip Y, and the pinned-strip height all account for multi-row leaf `rowCount` (pinned strip sums `rowCount × LANE_HEIGHT` per pinned leaf, not a flat `LANE_HEIGHT`).
 28. **PR-SWIMVIEW-028** — Non-empty **pinnedOverviewIds** with matching `overviewSeries` renders sticky overview strip (`data-testid=pinned-overview-charts`) **above** the lane pin strip and above the scroll body, in pin order.
 29. **PR-SWIMVIEW-029** — Pinned overview strip appears/disappears over 200ms via `--pr-pinned-overview-h` height transition; enter/leave collapse to `height: 0`; incremental pin count changes animate the same way; `prefers-reduced-motion: reduce` drops the transition.
+30. **PR-SWIMVIEW-030** — A parent-driven change to `multiSelectedIds` (marquee commit) reaches the canvas: the local mirror stays in sync, so the dim survives the release.
 
 ## Visual
 
@@ -128,6 +129,7 @@ Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.m
 - **2026-08-31** — Pinned strip survives ancestor collapse via `pinSourceModel` (`PR-SWIMVIEW-019`).
 - **2026-08-31** — Cross-canvas measure magnet: pin strip ↔ body (`PR-SWIMVIEW-018`).
 - **2026-08-31** — Renumber pin ACs to `PR-SWIMVIEW-013`…`017` (avoid collision with #45 `010`…`012`).
+- **2026-09-01** — `localMultiSelectedIds` now mirrors `props.multiSelectedIds`, so the marquee commit dim reaches the canvas (was lost to a stale `[]`); PR-SWIMVIEW-029.
 - **2026-08-28** — Custom dark metric dropdown: hover/open blue border; menu aligned to trigger (PyPTO parity).
 - **2026-08-28** — Abspos gutter handle uses explicit `grid-column: 1 / 2` so `right: 0` is the gutter seam, not the track’s far edge.
 - **2026-08-28** — Pinned-strip canvas shares measure mode/range with the body canvas.

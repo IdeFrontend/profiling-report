@@ -35,6 +35,7 @@ import {
   contentHeightFromLayout,
   eventBlockMetrics,
   eventEmphasis,
+  isKeepBright,
   eventLabelAnchor,
   eventScreenRect,
   findEvent,
@@ -201,6 +202,7 @@ export class SwimlaneOverlayPainter {
   private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
+  private multiIds = new Set<string>();
   private searchQuery = '';
   /** When false, skip selection gray-muting (tests / overlays that opt out). */
   private selectionMuted = true;
@@ -294,6 +296,11 @@ export class SwimlaneOverlayPainter {
     this.drawEventLabels = enabled;
   }
 
+  setMultiSelection(ids: string[]): void {
+    if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
+    this.multiIds = new Set(ids);
+  }
+
 
   render(): void {
     const ctx = this.ctx;
@@ -304,6 +311,7 @@ export class SwimlaneOverlayPainter {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectionMuted && this.selectedId != null;
+    const hasMulti = this.multiIds.size > 0;
     const bright = this.neighborIds;
     const dpr = this.dpr;
 
@@ -360,11 +368,12 @@ export class SwimlaneOverlayPainter {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
       const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
-        bright.has(item.id) || item.id === this.hoveredId,
+        keepBright,
         hasSearch,
-        hasSelection,
+        hasSelection || hasMulti,
       );
       const alpha = emphAlpha * laneAlpha;
 
@@ -372,7 +381,7 @@ export class SwimlaneOverlayPainter {
       // semi-transparent state fill on top of that would double-composite — Canvas
       // blends the same state over the lane background instead. Reset to the lane
       // fill first (hover tint when that row is hovered) so both backends agree.
-      const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+      const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
       const fill = eventFill(item.color, state);
       if (state !== 'normal') {
         const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
@@ -409,7 +418,7 @@ export class SwimlaneOverlayPainter {
     }
     }
 
-    // Folder summary ghosts / rest-collapsed bars (PR-RENDER-028 / PR-RENDER-047).
+    // Folder summary ghosts / rest-collapsed bars (PR-RENDER-028 / PR-RENDER-052).
     paintCollapseSummaries(
       ctx,
       this.paintSummaries,
@@ -435,6 +444,7 @@ export class SwimlaneOverlayPainter {
     this.summaryCache.clear();
     this.paintSummaries = [];
     this.neighborIds = new Set();
+    this.multiIds = new Set();
   }
 }
 
@@ -453,6 +463,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
+  private multiIds = new Set<string>();
   private depLinks: DependencyLink[] = [];
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
@@ -562,6 +573,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.refreshDepCache();
   }
 
+  setMultiSelection(ids: string[]): void {
+    if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
+    this.multiIds = new Set(ids);
+  }
+
 
   contentHeight(): number {
     return Math.max(0, contentHeightFromLayout(this.baseLayout) - collapseClosedHeight(this.collapse));
@@ -652,6 +668,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
+    // Marquee selection dims the rest with the same factor as a single click.
+    const hasMulti = this.multiIds.size > 0;
     const bright = this.neighborIds;
     const visible: {
       item: LaidOutEvent;
@@ -707,14 +725,15 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
 
       const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+      const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
       const { alpha: emphAlpha, muted } = eventEmphasis(
         matches,
-        bright.has(item.id) || item.id === this.hoveredId,
+        keepBright,
         hasSearch,
-        hasSelection,
+        hasSelection || hasMulti,
       );
       const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
-      const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+      const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
       const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
@@ -790,6 +809,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.summaryCache.clear();
     this.paintSummaries = [];
     this.neighborIds = new Set();
+    this.multiIds = new Set();
     this.depLinks = [];
   }
 }

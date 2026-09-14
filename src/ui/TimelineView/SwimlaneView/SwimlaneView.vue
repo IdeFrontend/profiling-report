@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, watch } from 'vue';
 import {
   DEFAULT_DEPENDENCY_DEPTH,
   type DependencyMode,
@@ -69,6 +69,7 @@ const props = withDefaults(
     view: SwimlaneViewState;
     selectedEventId: string | null;
     hoveredEventId: string | null;
+    multiSelectedIds?: string[];
     searchQuery: string;
     measureMode?: boolean;
     measureRange?: MeasureRange | null;
@@ -97,6 +98,7 @@ const props = withDefaults(
     overviewSeries: () => [],
     pinnedOverviewIds: () => [],
     showOverviewCharts: true,
+    multiSelectedIds: () => [],
   },
 );
 
@@ -109,6 +111,9 @@ const emit = defineEmits<{
   'pin-overview': [seriesId: string];
   'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
+  'multi-select': [events: SwimEvent[]];
+  'multi-select-preview': [events: SwimEvent[] | null];
+  'multi-select-span': [span: MeasureRange | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
@@ -140,6 +145,30 @@ const stackRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
+const localMultiSelectedIds = shallowRef<string[]>(props.multiSelectedIds ?? []);
+/**
+ * Live marquee coverage from either canvas. Shared so the pinned strip dims with the
+ * body while a body marquee is in flight (and vice versa); `null` restores the commit.
+ */
+const livePreviewIds = shallowRef<string[] | null>(null);
+const paintMultiSelectedIds = computed(
+  () => livePreviewIds.value ?? localMultiSelectedIds.value,
+);
+/** Clear single-select paint while a live preview owns brightness (PR-CANVAS-085). */
+const paintSelectedEventId = computed(() =>
+  livePreviewIds.value != null ? null : props.selectedEventId,
+);
+/** Keep the local mirror in sync with parent-driven updates (marquee commit).
+ * Without this, `localMultiSelectedIds` only catches the initial value and any
+ * `update-multi-selected` toggle — a `view.multiSelectedIds` swap in the parent
+ * (the marquee commit path) never reaches the canvas, so `setMultiSelection` is
+ * called with a stale `[]` and the post-release dim disappears. */
+watch(
+  () => props.multiSelectedIds,
+  (v) => {
+    if (v) localMultiSelectedIds.value = v;
+  },
+);
 /** Swimlane mouse-follow bar; synced from canvas emits and parent `cursorXRatio` (axis hover). */
 const cursorXRatio = ref<number | null>(props.cursorXRatio ?? null);
 /** Gray the swim vertical bar while the cursor is magnetized to an event edge. */
@@ -399,6 +428,15 @@ function onScrollY(scrollY: number) {
   emit('update:scrollY', Math.max(0, scrollY));
 }
 
+function onUpdateMultiSelected(newIds: string[]) {
+  localMultiSelectedIds.value = newIds;
+}
+
+function onMultiSelectPreview(events: SwimEvent[] | null) {
+  livePreviewIds.value = events == null ? null : events.map((e) => e.id);
+  emit('multi-select-preview', events);
+}
+
 function onGutterScroll(): void {
   const el = gutterRef.value?.root;
   if (!el) return;
@@ -583,7 +621,7 @@ defineExpose({
           data-testid="pinned-canvas"
           :model="pinnedModel"
           :view="pinnedView"
-          :selected-event-id="selectedEventId"
+          :selected-event-id="paintSelectedEventId"
           :hovered-event-id="hoveredEventId"
           :hovered-lane-id="hoveredLaneId"
           :search-query="searchQuery"
@@ -596,7 +634,11 @@ defineExpose({
           :resolve-magnetize="magnetizeAtClient"
           alt-measure-role="strip"
           :pinned-lane-ids="pinnedLaneIds"
+          :multi-selected-ids="paintMultiSelectedIds"
           @select="emit('select', $event)"
+          @multi-select="emit('multi-select', $event)"
+          @multi-select-preview="onMultiSelectPreview"
+          @multi-select-span="emit('multi-select-span', $event)"
           @hover="(ev, x, y) => emit('hover', ev, x, y)"
           @lane-hover="onLaneHover"
           @cursor="onCursor"
@@ -606,6 +648,7 @@ defineExpose({
           @update:measure-range="emit('update:measure-range', $event)"
           @suppress-measure-dt="emit('suppress-measure-dt', $event)"
           @toggle-group="emit('toggle-group', $event)"
+          @update-multi-selected="onUpdateMultiSelected"
         />
       </div>
     </Transition>
@@ -668,7 +711,7 @@ defineExpose({
         :model="model"
         :view="view"
         :content-top-pad="overviewContentPad"
-        :selected-event-id="selectedEventId"
+        :selected-event-id="paintSelectedEventId"
         :hovered-event-id="hoveredEventId"
         :hovered-lane-id="hoveredLaneId"
         :search-query="searchQuery"
@@ -684,7 +727,11 @@ defineExpose({
         :pinned-lane-ids="pinnedLaneIds"
         :collapse-anim="collapseAnim"
         :collapsed-ids="collapsedIds"
+        :multi-selected-ids="paintMultiSelectedIds"
         @select="emit('select', $event)"
+        @multi-select="emit('multi-select', $event)"
+        @multi-select-preview="onMultiSelectPreview"
+        @multi-select-span="emit('multi-select-span', $event)"
         @hover="(ev, x, y) => emit('hover', ev, x, y)"
         @lane-hover="onLaneHover"
         @cursor="onCursor"
@@ -695,6 +742,7 @@ defineExpose({
         @update:measure-range="emit('update:measure-range', $event)"
         @suppress-measure-dt="emit('suppress-measure-dt', $event)"
         @toggle-group="emit('toggle-group', $event)"
+        @update-multi-selected="onUpdateMultiSelected"
       />
 
       <div
