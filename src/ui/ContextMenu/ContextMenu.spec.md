@@ -24,7 +24,7 @@ The parent applies shared view-state behavior directly from `contextMenuContext`
 
 ### Menu contents
 
-For an event target, the menu orders available commands by scope: viewport-scope **重置缩放** (Reset zoom); event-scope **在事件视图中显示** (Show in event view); then lane-scope **置顶行** / **取消置顶行** (Pin row / Unpin row, Alt+P). Separators divide non-empty groups. A lane-header or empty portion of a leaf lane shows viewport- and lane-scope commands only.
+For an event target, the menu orders available commands by scope: viewport-scope **重置缩放** (Reset zoom); event-scope **在事件视图中显示** (Show in event view); then lane-scope **置顶行** / **取消置顶行** (Pin row / Unpin row, Shift+P). Separators divide non-empty groups. A lane-header or empty portion of a leaf lane shows viewport- and lane-scope commands only.
 
 Reset zoom is **not** event-scoped: it is offered at any timeline point — over an event, a lane header, or empty lane space — whenever the current visible range differs from the model's total range, and is omitted once the view already frames the whole range. It has the same result as the existing toolbar action: it frames the model time window and resets vertical scroll via `zoomToFitWindow` + `animateToWindow`. Show in event view selects the target event via the report's normal `select` handler (so `selectedEventId`, the detail dock, and the `select` emit stay consistent). A collapsed-folder **summary bar** target is never itself selected: with a single underlying leaf (`taskCount === 1`) Show resolves to `target.sourceEvent`; a multi-task summary bar has no single event, so Show dismisses without selecting. Pin row toggles the existing pin state; it is an alternate affordance, not a second pin list. Pin row is omitted (not rendered) when the lane is a folder — a summary-bar target carries its folder id, which pinning would reject, so the parent sets **canPin** to `false` rather than showing an enabled no-op.
 
@@ -36,7 +36,7 @@ The menu opens at pointer coordinates, clamped inside the viewport; it opens upw
 
 While the menu is open, a transparent full-viewport scrim (a `position: fixed; inset: 0` layer below the menu) blocks the rest of the UI: it intercepts pointerdown, right-click (context menu), and wheel, so no interaction reaches the canvas, gutter, or toolbar underneath, and the page cannot scroll. Keyboard input is swallowed at the document capture phase, so app hotkeys (W/S/A/D pan/zoom, Escape measure/marquee clearing) do not fire while the menu is open.
 
-The menu closes on click outside (the scrim), Escape, item activation, and every forwarded **update:scrollY** change (programmatic only while the scrim blocks user scroll). No command is highlighted when the menu opens — the active highlight appears only after Arrow Up/Arrow Down or pointer hover. Arrow Down from no highlight moves to the first command; Arrow Up wraps to the last. Enter activates the highlighted command. Alt+P activates Pin row only while the menu is open and Pin row is available; otherwise the chord is left untouched.
+The menu closes on click outside (the scrim), Escape, item activation, and every forwarded **update:scrollY** change (programmatic only while the scrim blocks user scroll). No command is highlighted when the menu opens — the active highlight appears only after Arrow Up/Arrow Down or pointer hover. Arrow Down from no highlight moves to the first command; Arrow Up wraps to the last. Enter activates the highlighted command. Shift+P activates Pin row only while the menu is open and Pin row is available; otherwise the chord is left untouched.
 
 Opening the menu on an event pins that event's hover highlight: the parent sets `hoveredEventId` to the target and ignores the canvas's hover-clear while the menu is open, so the event stays highlighted until the menu dismisses.
 
@@ -51,7 +51,7 @@ Opening the menu on an event pins that event's hover highlight: the parent sets 
 7. **PR-CTXMENU-007** — Viewport clamp uses rendered menu dimensions and re-clamps on resize.
 8. **PR-CTXMENU-008** — Dismisses on outside click (the scrim) and Escape.
 9. **PR-CTXMENU-009** — Keyboard navigation focuses and activates commands.
-10. **PR-CTXMENU-010** — Alt+P toggles Pin row only when that command is available.
+10. **PR-CTXMENU-010** — Shift+P toggles Pin row only when that command is available.
 11. **PR-CTXMENU-011** — Leaf-gutter invocations reach the report root.
 12. **PR-CTXMENU-012** — Show on a summary-bar target resolves its sole leaf (or dismisses without selecting when multi-task).
 13. **PR-CTXMENU-013** — Pin row is omitted for a non-leaf (summary-bar) lane via `canPin`; event commands remain.
@@ -76,7 +76,7 @@ Opening the menu on an event pins that event's hover highlight: the parent sets 
 
 [view-state.spec.md](../../../specs/core/view-state.spec.md), [SwimlaneCanvas.spec.md](../TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md), [LaneGutter.spec.md](../TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../TimelineView/SwimlaneView/SwimlaneView.spec.md), and [DetailPanel.spec.md](../DetailPanel/DetailPanel.spec.md). Canvas covers the events chart; LaneGutter covers leaf lane headers.
 
-Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../specs/core/view-state.spec.md). Menu item scope supersedes the looser Context menu wording in [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md). While the menu is open and Pin row is available, **Alt+P** toggles the same state; the chord is ignored when Pin row is unavailable.
+Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../specs/core/view-state.spec.md). Menu item scope supersedes the looser Context menu wording in [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md). While the menu is open and Pin row is available, **Shift+P** toggles the same state; the chord is ignored when Pin row is unavailable.
 
 ## Open
 
@@ -103,11 +103,12 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-14** — Pin shortcut changed from Alt+P to Shift+P: Alt+letter is the browser menu-bar mnemonic on Windows and never reaches the page reliably (`PR-CTXMENU-010`).
 - **2026-09-14** — No command is highlighted when the menu opens; the active highlight appears only after Arrow navigation or pointer hover (`PR-CTXMENU-009`, `PR-CTXMENU-017`).
 - **2026-09-14** — Opening the menu on an event pins its hover highlight for the lifetime of the menu; the pinned highlight clears on dismiss (`PR-CTXMENU-016`).
 - **2026-09-14** — The menu now blocks the rest of the UI while open: a transparent full-viewport scrim intercepts pointerdown, right-click, and wheel, and keyboard input is swallowed at document capture so app hotkeys do not fire (`PR-CTXMENU-008`, `PR-CTXMENU-015`).
 - **2026-09-14** — Reset zoom is viewport-scoped: offered at any timeline point via `canReset`, and omitted once the visible range equals the total range (`PR-CTXMENU-002`, `PR-CTXMENU-003`).
-- **2026-09-14** — Empty command sets render no menu; viewport resize re-clamps, and Pin row uses Alt+P only when available (`PR-CTXMENU-007`, `PR-CTXMENU-010`, `PR-CTXMENU-014`).
+- **2026-09-14** — Empty command sets render no menu; viewport resize re-clamps, and Pin row uses Shift+P only when available (`PR-CTXMENU-007`, `PR-CTXMENU-010`, `PR-CTXMENU-014`).
 - **2026-09-11** — Pin row is omitted (via `canPin`) for a non-leaf summary-bar folder id instead of showing an enabled no-op; multi-task summary Show is a genuine no-op that preserves the existing selection (`PR-CTXMENU-013`).
 - **2026-09-10** — Show on a collapsed-folder summary-bar target resolves `sourceEvent` (single-task) or dismisses without selecting (multi-task); summary-bar canvas invocation carries its folder id while Pin row still rejects non-leaf lanes; stale-target check uses `findEventInModel` (leaf events + `summaryEvents`) instead of leaf-only lookup (`PR-CTXMENU-012`, `PR-CANVAS-077`).
 - **2026-09-10** — Right-click on canvas guards `e.button !== 0` and resolves leaf lane ids only; menu focus is captured and restored on close; menu stays hidden until repositioned to avoid a reopen flash; dedicated `--pr-surface-hover` token replaces `--pr-divider` for hover fill.

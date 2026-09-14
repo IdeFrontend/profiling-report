@@ -256,20 +256,20 @@ describe('ContextMenu', () => {
     expect(menuItem('pin')?.className).toContain('pr-ctx-menu__item--active');
   });
 
-  it('PR-CTXMENU-010: Alt+P activates pin only when Pin row is available', async () => {
+  it('PR-CTXMENU-010: Shift+P activates pin only when Pin row is available', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
-    const ev = new KeyboardEvent('keydown', { key: 'P', altKey: true, cancelable: true });
+    const ev = new KeyboardEvent('keydown', { key: 'P', shiftKey: true, cancelable: true });
     document.dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(true);
     expect(wrapper.emitted('action')?.[0]?.[0]).toEqual({ command: 'pin', laneId: 'lane1' });
 
     await wrapper.setProps({ context: { x: 10, y: 10, laneId: 'folder', target: event }, canPin: false });
     await wrapper.vm.$nextTick();
-    const unavailable = new KeyboardEvent('keydown', { key: 'p', altKey: true, cancelable: true });
+    const unavailable = new KeyboardEvent('keydown', { key: 'p', shiftKey: true, cancelable: true });
     document.dispatchEvent(unavailable);
     expect(unavailable.defaultPrevented).toBe(false);
     expect(wrapper.emitted('action')).toHaveLength(1);

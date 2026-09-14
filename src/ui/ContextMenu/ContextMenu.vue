@@ -52,7 +52,7 @@ const items = computed(() => {
     result.push({
       command: 'pin',
       label: t(pinned ? 'ctxUnpinRow' : 'ctxPinRow', props.locale),
-      shortcut: 'Alt+P',
+      shortcut: 'Shift+P',
     });
   }
   return result;
@@ -105,7 +105,7 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex.value = (activeIndex.value + 1) % n; return; }
   if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex.value = activeIndex.value <= 0 ? n - 1 : activeIndex.value - 1; return; }
   if (e.key === 'Enter') { e.preventDefault(); activate(activeIndex.value); return; }
-  if (e.key.toLowerCase() === 'p' && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+  if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const pinIndex = items.value.findIndex((i) => i.command === 'pin');
     if (pinIndex < 0) return;
     e.preventDefault();
