@@ -108,6 +108,24 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
     // Shared block-select chrome (tokens.css) — the PIPE card uses the same class.
     expect(wrapper.get('[data-testid="pipe-block"]').classes()).toContain('pr-block-select');
+    // Pin the chrome itself: the class name alone would still pass after a silent
+    // revert to the old 4px `#2a2a2a` pill, which is what this PR is about.
+    // (Vitest stubs CSS imports to '' including `?raw`, so read the file directly;
+    // Vitest runs with the repo root as cwd.)
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync(`${process.cwd()}/src/ui/tokens.css`, 'utf8');
+    expect(css).toMatch(/\.pr-block-select\s*\{[^}]*background-color:\s*#404040/);
+    expect(css).toMatch(/\.pr-block-select\s*\{[^}]*border:\s*0/);
+    expect(css).toMatch(/\.pr-block-select\s*\{[^}]*border-radius:\s*6px/);
+    expect(css).toMatch(/\.pr-block-select\s*\{[^}]*height:\s*32px/);
+    expect(css).toMatch(/\.pr-block-select\s*\{[^}]*padding:\s*0 32px 0 12px/);
+    expect(css).toMatch(/\.pr-block-select\s*\{[^}]*background-position:\s*right 12px center/);
+    expect(css).toMatch(
+      /\.pr-block-select:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--pr-playhead, #3078f0\)/,
+    );
+    // Only the colour is a shared token; size is local to each glyph's technique.
+    expect(css).not.toMatch(/--pr-select-chevron-size/);
+    expect(css).toMatch(/--pr-select-chevron-color:\s*#b3b3b3/);
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
     expect(wrapper.text()).toContain('1.00 GB/s');
 

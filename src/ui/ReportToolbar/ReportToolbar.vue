@@ -1550,8 +1550,10 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   transform: translateY(-50%);
   pointer-events: none;
   box-sizing: border-box;
-  width: var(--pr-select-chevron-size);
-  height: var(--pr-select-chevron-size);
+  /* Geometry is local to this glyph: this box positions the chevron, while the
+     glyph itself is the ::before below (see the colour token note in tokens.css). */
+  width: 10px;
+  height: 10px;
   color: var(--pr-select-chevron-color);
 }
 
