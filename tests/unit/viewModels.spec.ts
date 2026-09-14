@@ -284,11 +284,12 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(icache?.absoluteValue).toBeUndefined();
   });
 
-  it('PR-VM-009 (interim DATA-37*): GM roofline + mix labels; capability when points exist', () => {
+  it('PR-VM-009 (interim DATA-37*): GM roofline + mix labels; capability stays opt-in', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const roof = adapted.reportModel.roofline;
     expect(roof).toBeDefined();
-    expect(adapted.capabilities).toContain('roofline');
+    // The panel is out of the current release — points alone must not advertise the flag.
+    expect(adapted.capabilities ?? []).not.toContain('roofline');
 
     const gm = roof!.points.find((p) => p.id === 'gm');
     expect(gm).toBeDefined();

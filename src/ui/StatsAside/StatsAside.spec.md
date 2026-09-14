@@ -8,7 +8,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 ## Inputs
 
-**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** (e.g. `hardwareDetails`) gates shell controls that need feature flags.
+**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** — the only flag this component reads is `roofline`, which mounts the Roofline card (Phase 2, out of the current release — opt-in only). The hardware-details overlay is **not** flag-gated: it keys off `report.hardwareDetails` (`hasHardwareDetails`).
 
 ## Outputs
 
@@ -31,7 +31,7 @@ Overlay surfaces replace the stacked report: header title becomes **计算负载
 
 ### Stacked report
 
-Default surface stacks, hide-if-missing, in order: summary **2×2** card grid (duration, AICore parallel util\|balance, compute Cube\|Vector, bandwidth 读\|写), Roofline, PIPE (计算负载分析), memory topology (内存负载分析). No Summary | PIPE | Compute | Memory tabs.
+Default surface stacks, hide-if-missing, in order: summary **2×2** card grid (duration, AICore parallel util\|balance, compute Cube\|Vector, bandwidth 读\|写), Roofline (only with the `roofline` capability), PIPE (计算负载分析), memory topology (内存负载分析). No Summary | PIPE | Compute | Memory tabs.
 
 ### Summary cards
 
@@ -51,7 +51,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 
 **Cube | Vector toggle.** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side (cube/aic or vector/aiv/vec): no toggle; show pipes for that side only. When `opType` is blank or unrecognized: no toggle; show all PIPE bars (do not default-filter to vector).
 
-**Roofline (M2 interim).** When `report.roofline.points` is non-empty, mount `RooflinePanel` on the stack after the summary cards (DATA-37a–f). Hide on overlays and when absent. No tabs until DATA-37f superseded.
+**Roofline (M2 interim — not in the current release).** The card is flag-gated: it mounts on the stack after the summary cards only when the host passes the opt-in `roofline` capability **and** the current points are non-empty (`report.roofline.points` under **All**, `rooflineFromRows` for a picked block) — DATA-37a–f. Without the capability the card never renders, points or not; the panel code and interim math stay in place. Hide on overlays and when absent. No tabs until DATA-37f superseded.
 
 **Topology (M2).** When the current model is drawable — a value on a plated edge, or the L2 plate (`l2.peakPct` / `l2-hit`), per `hasDrawableTopology` (PR-VM-018) — mount `MemoryTopologyPanel` below PIPE with title **内存负载分析**, a fit-window **全屏** icon, and **详情**. Action order: cannbot → **全屏** → **详情**. **全屏** emits **open-topology-fullscreen** (parent covers `.pr-root` with the current `topologyModel`, i.e. the active block scope). **详情** and **right-click** on the stacked diagram (UI-35) open the memory CSV overlay. If memory tables exist but the current block is not drawable — no label at all, or labels only on plated-less edges (`l0c-l1` / `l0c-l2` KB, `l2-l1-write` pending UI-48) — still show the section chrome + **详情** (no diagram, no **全屏**) so the CSV overlay stays reachable. Labels follow the shared block selector (`blockId`): **All** reads the `summary.jsonl` category mean, a picked id rebuilds via `buildMemoryTopology(tables, id)` ([DATA-19](../../../docs/context/decisions/DATA.md) / [DATA-29](../../../docs/context/decisions/DATA.md)). L2 Peak(%) comes from `l2.peakPct` (DATA-20 hit rate). Hide the diagram when the model is absent. On **report** change the selection resets to **All** (nothing stale carries over); `firstLabelledMemoryTopology` still supplies the adapter snapshot for a classic `.rep` with no `summary.jsonl` (PR-VM-012).
 
@@ -86,7 +86,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 16b. **PR-STATS-014b** — One block switcher (**All \| every `block_id` in the report**, compute ∪ memory in fixture order) when >1 block; scopes PIPE, topology, BW, compute and roofline: `All` = the `summary.jsonl` aggregate, a picked id = that block's CSV row; report change resets to `All` (DATA-19 / DATA-28 / DATA-29).
 16c. **PR-STATS-014c** — 详情 follows the same selector: under **All** the `summary.jsonl` category list is the default, with a block picked the CSV field list replaces it and shows that block's row (DATA-19 / DATA-29).
 16d. **PR-STATS-014d** — A picked block with no data blanks its widget instead of repeating the **All** value: BW card and roofline hidden, compute card **N/A**, empty PIPE rows; the switcher stays reachable so **All** can be restored.
-17. **PR-STATS-015** — Roofline section when `roofline.points` present; hidden when absent.
+17. **PR-STATS-015** — Roofline section when `roofline.points` present **and** the `roofline` capability is passed; hidden without the capability (even with points) and when absent.
 18. **PR-STATS-016** — PIPE 详情 opens compute overlay when compute tables exist and emits open-pipe-details.
 19. **PR-STATS-017** — Topology 详情 shows memory CSV overlay when tables present.
 19b. **PR-STATS-017b** — Topology right-click opens the same memory CSV overlay (UI-35).
@@ -133,7 +133,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 | No `hardwareDetails` on model | **更多** opens overlay with **缺少 hardware info** |
 | OpBasicInfo fallback only (`hardwareDetails` present, no jsonl) | **更多** opens `HardwareDetailsPanel` with fallback sections |
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
-| No roofline / empty points | Roofline section omitted |
+| No `roofline` capability / no roofline model / empty points | Roofline section omitted |
 | No memoryTopology | Topology section omitted |
 | Selected block not drawable (no label, or plated-less labels only) | Topology diagram hidden; 详情 remains if memory tables exist; **全屏** hidden |
 | Topology diagram shown | **全屏** fit-window icon sits immediately left of **详情** (cannbot → 全屏 → 详情) |
@@ -256,6 +256,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-14** — Roofline card is out of the current release: it mounts only with the opt-in `roofline` capability, so points alone no longer render it (PR-STATS-015). No roofline code was removed.
 - **2026-09-14** — Block switcher options are every `block_id` in the report (compute ∪ memory, fixture order) instead of `PipeUtilization`-only: the aside switcher and the memory overlay switcher share one state, so a memory-only id picked in the overlay can no longer leave the main `<select>` blank (PR-STATS-014b). The `All` topology model is read straight from `report.memoryTopology` instead of re-deriving the adapter's `summary.jsonl` rule (one definition, no drift).
 - **2026-09-14** — Topology gate wording synced with the code: `showTopology` now asks whether the model is *drawable* (a plated edge value or the L2 plate, PR-VM-018), not merely whether a label exists. The default block pick uses the same predicate, so the snapshot no longer selects a block whose labels are all plated-less and then hides the diagram (PR-STATS-019 / PR-STATS-021).
 - **2026-09-11** — **详情** lists follow the block selector: with a picked id the CSV field list replaces the `summary.jsonl` category list and shows that block's row; a picked block with no data blanks its widget (BW card / roofline hidden, compute **N/A**, PIPE rows empty) instead of repeating the **All** aggregate (PR-STATS-014c / 014d, DATA-19 / DATA-29).
