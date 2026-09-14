@@ -296,13 +296,14 @@ describe('PR-UI: ProfilingReport feature contract', () => {
   });
 
   it('PR-ROOT-004: auto-loaded source applies the adapter capabilities, the prop overrides', async () => {
-    // out.rep carries roofline, hardwareDetails and memoryDiagram; loadReportSource
-    // derives them, so a host passing only `source` must still get them.
+    // out.rep carries roofline points, hardwareDetails and memoryDiagram; loadReportSource
+    // derives the latter two, so a host passing only `source` must still get them.
+    // `roofline` is Phase 2, out of the current release — it is opt-in and never derived.
     const auto = mount(ProfilingReport, { props: { source: loadOutRepBuffer() } });
     await flushPromises();
     expect(
       auto.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
-    ).toBe('roofline,hardwareDetails,memoryDiagram');
+    ).toBe('hardwareDetails,memoryDiagram');
 
     const overridden = mount(ProfilingReport, {
       props: { source: loadOutRepBuffer(), capabilities: ['roofline'] },

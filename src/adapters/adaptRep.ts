@@ -1168,7 +1168,9 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   const reportModel = reportModelFromPayloads(payloads);
   const swimlaneModel = swimlaneFromPayloads(payloads, reportModel.pipeOccupancy);
   const capabilities: ReportCapability[] = [];
-  if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
+  // `roofline` is a Phase 2 surface outside the current release: it is opt-in only
+  // (`capabilities: ['roofline']` from the host) and is never derived from report data,
+  // so the panel stays hidden even when the report has points.
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
   if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');

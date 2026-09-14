@@ -239,7 +239,7 @@ const clockFreqMHz = computed(() => resolveClockFreqMHz(report.value?.summary));
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
-const asideAvailable = computed(() => reportHasAsideContent(report.value));
+const asideAvailable = computed(() => reportHasAsideContent(report.value, caps.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
 
@@ -626,10 +626,15 @@ function onGutterMetricChange(payload: { cardId: string; metric: GutterMetric })
 
 /**
  * Aside has content when any of: duration card, I/O bandwidth cards,
- * pipe occupancy, compute/memory CSV tables, roofline points, or hardware details are present.
+ * pipe occupancy, compute/memory CSV tables, hardware details, or labelled topology is present.
+ * Roofline counts only when the `roofline` capability opts it in (Phase 2, out of the current
+ * release), so points alone never open the aside.
  * Name/type alone do not open the aside (DATA-33a). Must stay in sync with StatsAside.
  */
-function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean {
+function reportHasAsideContent(
+  rm: ReportViewModel | null | undefined,
+  capabilities: ReportCapability[] = [],
+): boolean {
   if (!rm) return false;
   const hasDuration = rm.summary.taskDurationUs != null;
   const hasBandwidth = (rm.bandwidthCards ?? []).length > 0;
@@ -638,7 +643,8 @@ function reportHasAsideContent(rm: ReportViewModel | null | undefined): boolean 
   const hasComputeTables = rm.computeTables.length > 0;
   const hasMemoryTables = rm.memoryTables.length > 0;
   const hasSummaryCategories = (rm.summaryCategories?.length ?? 0) > 0;
-  const hasRoofline = (rm.roofline?.points?.length ?? 0) > 0;
+  const hasRoofline =
+    capabilities.includes('roofline') && (rm.roofline?.points?.length ?? 0) > 0;
   const hasHardware = (rm.hardwareDetails?.sections.length ?? 0) > 0;
   const hasTopology = (rm.memoryTopology?.edges.some((e) => e.label) ?? false);
   return (
@@ -662,7 +668,7 @@ function applyAdapted(adapted: AdaptedReport) {
   internalSwim.value = adapted.swimlaneModel;
   internalReport.value = adapted.reportModel;
   internalCapabilities.value = adapted.capabilities ?? null;
-  resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel));
+  resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel, caps.value));
   loadError.value = null;
   emit('ready');
 }
@@ -744,7 +750,7 @@ watch(
   () => props.swimlaneModel,
   (m) => {
     if (m && !props.source) {
-      resetViewFromModel(m, reportHasAsideContent(props.reportModel ?? report.value));
+      resetViewFromModel(m, reportHasAsideContent(props.reportModel ?? report.value, caps.value));
     }
   },
 );
@@ -772,7 +778,10 @@ onMounted(() => {
   window.addEventListener('keydown', onRootKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
-    resetViewFromModel(props.swimlaneModel ?? null, reportHasAsideContent(props.reportModel));
+    resetViewFromModel(
+      props.swimlaneModel ?? null,
+      reportHasAsideContent(props.reportModel, caps.value),
+    );
     emit('ready');
   }
 });

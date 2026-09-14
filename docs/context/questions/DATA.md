@@ -96,6 +96,8 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 **Status:** `open` + `interim`
 
+**Release impact:** none this iteration — the Roofline card is **not in the current release**. It renders only for a host that opts in with the `roofline` capability ([FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)), so these questions block the Phase 2 card, not the current one. The same applies to the DATA-11…DATA-17 aliases below.
+
 **Question:** Which file, field, and formula feeds **each element of the Roofline chart** — X axis (Ops/Byte), Y axis (TOps/s), the GM and L2 measured points, the two roof lines (peak bandwidth + peak compute), the op-mix labels, and the 内存单元 / 内存通路 / 搬运单元 tabs? The producer docs describe the chart's *purpose* but supply no formulas, so all seven sub-questions below are open and should be answered together.
 
 Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) (axes vs pipe busy rates), [DATA-12](#data-12--x-axis-opsbyte) (X Ops/Byte), [DATA-13](#data-13--y-axis-topss) (Y TOps/s), [DATA-14](#data-14--roof-lines) (roof peaks), [DATA-15](#data-15--l2-bytes) (L2 bytes), [DATA-16](#data-16--vec_fp32--vec_misc-mix-labels) (mix labels), [DATA-17](#data-17--roofline-tabs) (tabs).

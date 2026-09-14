@@ -247,7 +247,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) only when the host passes the opt-in `roofline` capability, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
@@ -269,11 +269,11 @@ Searchable field list with CSV tabs, optional block switcher, **查看全部** e
 
 **Why:** One reusable panel for all M1 CSV drill-downs; hide empty tabs.
 
-### `RooflinePanel` (M2)
+### `RooflinePanel` (M2 — not in the current release)
 
-Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until DATA-37f superseded. Mounted on the StatsAside stacked report after the duration card; hide when no points.
+Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until DATA-37f superseded. **Hidden in the current release:** the panel mounts on the StatsAside stacked report after the duration card only when the host passes the opt-in `roofline` capability, and stays hidden when the report has no points for the selected block. The code and interim math stay in place; no surface is deleted.
 
-**Why:** FEATURE_MATRIX / sketches; interim math unblocks M2 while DATA-37 open.
+**Why:** FEATURE_MATRIX / sketches; interim math unblocks the Phase 2 card while DATA-37 open.
 
 ### `MemoryTopologyPanel` (M2)
 

@@ -216,6 +216,7 @@ describe('StatsAside', () => {
   it('PR-STATS-014d (DATA-29): a picked block with no data blanks the tile — never the All aggregate', async () => {
     const wrapper = mount(StatsAside, {
       props: {
+        capabilities: ['roofline'],
         report: report({
           summary: { opType: 'vector', taskDurationUs: 1 },
           pipeOccupancy: [
@@ -919,28 +920,32 @@ describe('StatsAside', () => {
   });
 
   it('PR-STATS-015: Roofline section when points present; hidden when absent', () => {
-    const withRoof = mount(StatsAside, {
-      props: {
-        report: report({
-          roofline: {
-            points: [
-              {
-                id: 'gm',
-                label: 'GM Read + Write',
-                intensity: 0.09,
-                performance: 0.002,
-                style: 'solid',
-              },
-            ],
-            mixLabels: [],
-            peakComputeTops: 1,
-            peakBandwidthGBs: 16,
+    const roofReport = report({
+      roofline: {
+        points: [
+          {
+            id: 'gm',
+            label: 'GM Read + Write',
+            intensity: 0.09,
+            performance: 0.002,
+            style: 'solid',
           },
-        }),
+        ],
+        mixLabels: [],
+        peakComputeTops: 1,
+        peakBandwidthGBs: 16,
       },
+    });
+
+    const withRoof = mount(StatsAside, {
+      props: { capabilities: ['roofline'], report: roofReport },
     });
     expect(withRoof.find('[data-testid="stats-roofline"]').exists()).toBe(true);
     expect(withRoof.find('[data-testid="roofline-panel"]').exists()).toBe(true);
+
+    // Phase 2 opt-in: the current release hides the card, points or not.
+    const unflagged = mount(StatsAside, { props: { report: roofReport } });
+    expect(unflagged.find('[data-testid="stats-roofline"]').exists()).toBe(false);
 
     const without = mount(StatsAside, {
       props: {
@@ -1539,6 +1544,7 @@ describe('StatsAside', () => {
     ];
     const wrapper = mount(StatsAside, {
       props: {
+        capabilities: ['roofline'],
         report: report({
           summary: { taskDurationUs: 1, opType: 'cube' },
           pipeOccupancy: pipes,
