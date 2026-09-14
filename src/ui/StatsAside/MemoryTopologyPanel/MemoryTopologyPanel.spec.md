@@ -117,7 +117,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 
 ## Dependencies
 
-DATA-20 (L2 Peak), DATA-21, DATA-33c, UI-35, UI-38, UI-48, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
+DATA-20 (L2 Peak), DATA-21, DATA-22, DATA-23, DATA-24, DATA-25, UI-35, UI-38, UI-48, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
 - **2026-09-14** — `hasDrawableTopology` and the plated-edge id tuple (`TOPOLOGY_SLOT_EDGE_IDS`) moved to the adapter next to `firstLabelledMemoryTopology`, so the panel's `show` gate and the default block pick share one definition of "the diagram exists" (PR-VM-018); `SLOTS` is now typed against that tuple.
@@ -130,6 +130,7 @@ DATA-20 (L2 Peak), DATA-21, DATA-33c, UI-35, UI-38, UI-48, [view-models](../../.
 - **2026-09-10** — Value type re-measured against the export: label colour `#f9b665` → `#f9b766` (the export's exact amber), L2 `%` colour `#f0f0f0` → `#fff`, size `6.6px` → `6.3px` (the export's cap height is 4.4 units; 6.6px was ~6% taller) and weight `700` → `800` (the export's strokes are heavier than the system bold).
 - **2026-09-10** — MTE blocks modelled (UI-38): the chrome's `MTE1/2/3` boxes have no value plate in the export, so no slot is drawn; the nodes exist in the model and their utilizations come from `PipeUtilization.csv` in the memory 详情 list (PR-STATS-035).
 - **2026-09-10** — Chrome replaced by the official product SVG export; values overlaid at its slots. No in-DOM `<marker>`s (the asset owns the arrows). Corridor labels are horizontal as in the export. `l0c-l1` / `l0c-l2` lose their diagram slot (no KB plate in the export) — PR-MEMTOP-001/002/006 reworded, PR-MEMTOP-009 added.
+- **2026-09-10** — UB↔GM labels read `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` (DATA-22 / DATA-23); the producer does not emit the `MemoryUB.csv` `*_gm` names.
 - **2026-09-08** — Same panel in the root fullscreen overlay; overlay passes `openDetailsOnContextmenu: false` so right-click does not emit (PR-MEMTOP-008b).
 - **2026-09-07** — Match `report-stats-scrolled` colors (cache/compute/L2/arrows/dash); L2 Peak as `{n}%` without tint; CUBE/LOC/FixP roles.
 - **2026-09-07** — L2 Peak(%) from `peakPct` (DATA-20) + right-click `open-details` (UI-35).
