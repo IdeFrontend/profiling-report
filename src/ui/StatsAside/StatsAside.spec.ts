@@ -922,7 +922,7 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('relu');
   });
 
-  it('PR-STATS-019: topology section when labelled edges present; hidden when absent', () => {
+  it('PR-STATS-019: topology section when the model is drawable; hidden when absent', () => {
     const withTopo = mount(StatsAside, {
       props: {
         report: report({
@@ -935,6 +935,23 @@ describe('StatsAside', () => {
     });
     expect(withTopo.find('[data-testid="stats-topology"]').exists()).toBe(true);
     expect(withTopo.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
+
+    // Labels on plated-less edges only (`l0c-l1` KB lives in the 详情 tabs, PR-MEMTOP-009): the
+    // diagram and **全屏** stay out, exactly as for an absent model.
+    const slotlessOnly = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTopology: {
+            nodes: [{ id: 'l0c', label: 'L0C' }, { id: 'l1', label: 'L1' }],
+            edges: [{ id: 'l0c-l1', from: 'l0c', to: 'l1', label: '7.00 KB' }],
+          },
+        }),
+      },
+    });
+    expect(slotlessOnly.find('[data-testid="stats-topology"]').exists()).toBe(false);
+    expect(slotlessOnly.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+    expect(slotlessOnly.find('[data-testid="topology-fullscreen"]').exists()).toBe(false);
 
     const without = mount(StatsAside, {
       props: { report: report({ summary: { taskDurationUs: 1 } }) },

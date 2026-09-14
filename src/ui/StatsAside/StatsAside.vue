@@ -8,15 +8,17 @@ import type {
   ReportCapability,
   ReportViewModel,
 } from '../../domain/types';
-import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
+import {
+  buildMemoryTopology,
+  firstLabelledMemoryTopology,
+  hasDrawableTopology,
+} from '../../adapters/memoryTopology';
 import { pipeOccupancyFromRows } from '../../adapters/adaptRep';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import SummaryCategoryList from './SummaryCategoryList/SummaryCategoryList.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
-import MemoryTopologyPanel, {
-  hasDrawableTopology,
-} from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
+import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import CannbotIcon from './CannbotIcon.vue';
 import CloseButton from '../CloseButton.vue';
 import type { CannbotScope } from '../../domain/cannbot';

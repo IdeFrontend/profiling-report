@@ -38,7 +38,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Hardware details (M1).** Prefer `HardwareInfo.jsonl` category sections (product source); else OpBasicInfo non-empty columns. Omit when neither yields fields. Include `'hardwareDetails'` in capabilities when model present. **StatsAside** always shows **更多** on the report shell; when the adapter omits `hardwareDetails`, the overlay shows **缺少 hardware info** (UI-30, UI-31). Do **not** map jsonl `ai_core_count` / `chip_info` onto the aside meta row.
 
-**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` from Memory* CSVs per [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md). L2↔L1 from `Memory.csv`. UB→L2 / L2→UB: product `MemoryUB.csv` names first, then sample `Memory.csv` names. `buildMemoryTopology(tables, blockId)` rebuilds labels for another block (DATA-33c). Hide `NA` labels; **show 0**. Omit `memoryTopology` (and `'memoryDiagram'`) when no edge yields a label. **L2 Peak(%) (DATA-20):** set `nodes` entry `l2.peakPct` from the same L2Cache hit-rate value as the `l2-hit` edge (DATA-21 interim column order: first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, `aic_read_hit_rate(%)`, `aiv_read_hit_rate(%)`).
+**Memory topology (M2, change-log #5).** Build `reportModel.memoryTopology` from Memory* CSVs per [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md). L2↔L1 from `Memory.csv`. UB→L2 / L2→UB: product `MemoryUB.csv` names first, then sample `Memory.csv` names. `buildMemoryTopology(tables, blockId)` rebuilds labels for another block (DATA-33c). Hide `NA` labels; **show 0**. Omit `memoryTopology` (and `'memoryDiagram'`) when no block yields something the chrome can paint — a plated label or the L2 plate (PR-VM-018). **L2 Peak(%) (DATA-20):** set `nodes` entry `l2.peakPct` from the same L2Cache hit-rate value as the `l2-hit` edge (DATA-21 interim column order: first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, `aic_read_hit_rate(%)`, `aiv_read_hit_rate(%)`).
 
 ## Acceptance Criteria
 
@@ -52,13 +52,14 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 8. **PR-VM-009** — Roofline GM point + mix labels from ArithmeticUtilization + Memory (DATA-37a/b/e); capability `roofline` when points exist; omit when CSVs insufficient.
 9. **PR-VM-010** — `hardwareDetails` from HardwareInfo.jsonl (preferred) or OpBasicInfo fallback; omit when empty; capability `hardwareDetails` when present. StatsAside shows missing-hardware copy when omitted (UI-30, UI-31).
 10. **PR-VM-011** — `memoryTopology` from Memory* CSVs; `out.rep` UB/Vec/GM 2:1 and `from→to`; L2↔L1 from Memory.csv; UB product names first; hide NA, show 0.
-11. **PR-VM-012** — Topology labels come only from the requested `block_id`; first labelled block is used for the adapter snapshot.
+11. **PR-VM-012** — Topology labels come only from the requested `block_id`; the first *drawable* block (PR-VM-018) is used for the adapter snapshot.
 11b. **PR-VM-012b** — `l2.peakPct` from first non-NA L2Cache hit-rate column (DATA-20 / DATA-21); matches `l2-hit` edge value.
 12. **PR-VM-013** — `bandwidthCards` prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = 1600); fall back to Memory.csv mean non-NA main-mem BW with peak 1600 GB/s; omit NA sides/cards (DATA-5, DATA-33). Also covers unmodified `out.rep` (aiv-only; peak 1600).
 13. **PR-VM-014** — `summary.coreCount` from `HardwareInfo.jsonl` by op type (cube/vector/mix); omit when jsonl or field missing.
 14. **PR-VM-015** — `computeCard` from Product `OpInfoSummary` FLOPS when present; else ArithmeticUtilization + HardwareInfo peaks (DATA-33h); omit when no side has measured + peak.
 15. **PR-VM-016** — When both OpBasicInfo.csv and Summary.jsonl exist, identity comes from OpBasicInfo and OpInfoSummary derived FLOPS/util overlay onto summary + computeCard.
 16. **PR-VM-017** — Topology nodes include the chrome's MTE blocks (`mte1`/`mte2`/`mte3`, UI-38). The export gives MTE no value plate, so the adapter produces no MTE edge and the panel no MTE slot; MTE utilizations come from `PipeUtilization.csv` via the memory 详情 CSV field list (CSV-only reports); summary-category reports keep MTE under 计算 详情.
+17. **PR-VM-018** — `hasDrawableTopology(model)` is true only when the chrome can paint something: a value on a plated edge (`TOPOLOGY_SLOT_EDGE_IDS`) or the L2 plate (`l2.peakPct` / a `l2-hit` label). Labels on plated-less edges (`l0c-l1` / `l0c-l2` KB, `l2-l1-write` pending UI-48) do not count. The default-block pick uses the same predicate, so the adapter snapshot never selects a block the panel would hide (PR-VM-012).
 
 ## Edge Cases
 
@@ -78,6 +79,7 @@ DATA-33, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-39, DATA-34a, DATA-37a–f
 DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; compute formula given but no chart-axis spec).
 
 ## Changelog
+- **2026-09-14** — Topology "drawable" is one shared rule (PR-VM-018): a plated edge value (`TOPOLOGY_SLOT_EDGE_IDS`) or the L2 plate. The default-block pick and the panel gate both use `hasDrawableTopology`, so the snapshot no longer selects a block whose labels are all plated-less (`l0c-l1` / `l0c-l2` / `l2-l1-write`) and hides the diagram while a sibling block could draw one.
 - **2026-09-07** — L2 `peakPct` on topology nodes (DATA-20 / DATA-21, PR-VM-012b).
 - **2026-09-04** — NPU-Compute: `summary.jsonl` is the canonical source — `OpInfoSummary` derived fields (compute/BW/parallel utilization), summary-first detail categories, `PipeTrace.json` µs timeline, spaced HardwareInfo key normalization, peak 1600 GB/s (SOL), compute score = measured/theoretical (DATA-2, DATA-3, DATA-5, DATA-9, DATA-33, UI-32).
 - **2026-09-01** — `summary.coreCount` from `HardwareInfo.jsonl` by op type for duration secondary (DATA-1, UI-32, PR-VM-014).

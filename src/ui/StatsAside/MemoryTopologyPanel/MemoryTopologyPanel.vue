@@ -1,4 +1,9 @@
 <script lang="ts">
+import {
+  hasDrawableTopology,
+  TOPOLOGY_SLOT_EDGE_IDS,
+  type TopologySlotEdgeId,
+} from '../../../adapters/memoryTopology';
 import type { MemoryTopologyModel } from '../../../domain/types';
 
 /** Base value type size, cap-height matched to the export's own values (see Visual).
@@ -39,7 +44,9 @@ export const SLOT_MAX_W: Record<string, number> = {
 export const DEFAULT_MAX_W = 34.7;
 
 /**
- * Value slots of the chrome (`memory-topology.svg`, 448×540 units), keyed by edge id.
+ * Value slots of the chrome (`memory-topology.svg`, 448×540 units), keyed by the adapter's
+ * `TOPOLOGY_SLOT_EDGE_IDS` — the `Record` type keeps the two lists identical, so a newly plated
+ * edge without coordinates fails typecheck instead of silently drawing nothing.
  * Coordinates are the centres of the values stripped from the export, so an overlaid
  * label lands on the same link (and inside the same plate) the design filled.
  * Pillars: GM x16–56, L2 x94–134; rows x188–432 — AIV0 y17–197, AIC y201–339, AIV1 y343–523.
@@ -53,7 +60,7 @@ export const DEFAULT_MAX_W = 34.7;
  * (`l2-l1-write` / `aic_l1_write_bw`), and 9 of the 10 in-box `%` plates (the L2 plate is
  * DATA-20 `peakPct`).
  */
-export const SLOTS: Record<string, readonly (readonly [number, number])[]> = {
+export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, number])[]> = {
   'gm-l2-read': [[74.5, 255.9]],
   'gm-l2-write': [[75.3, 277.8]],
   'l2-ub': [
@@ -80,19 +87,6 @@ export const SLOTS: Record<string, readonly (readonly [number, number])[]> = {
   'cube-l0c': [[373.5, 229.2]],
   'l0c-cube': [[373.5, 244.5]],
 };
-
-/**
- * True when the model has something the chrome can paint: a slotted edge label, the L2 plate
- * (`peakPct` or `l2-hit`), or both. Slotless edges (`l0c-l1` / `l0c-l2`, and `l2-l1-write`
- * pending UI-48) do not count — mounting chrome with every overlay blank is worse than hiding.
- */
-export function hasDrawableTopology(model: MemoryTopologyModel | null | undefined): boolean {
-  if (!model || model.nodes.length === 0) return false;
-  if (model.nodes.some((n) => n.id === 'l2' && n.peakPct != null)) return true;
-  return model.edges.some(
-    (e) => e.label != null && e.label !== '' && (e.id in SLOTS || e.id === 'l2-hit'),
-  );
-}
 
 /**
  * Type size for a value that is `natural` units wide in slot `slot`.
@@ -161,11 +155,12 @@ function onContextMenu(e: MouseEvent) {
 
 /**
  * One entry per slot, drawn even when the edge has no `label` (empty string), so a slot
- * that the adapter omitted stays an addressable, visibly blank plate.
+ * that the adapter omitted stays an addressable, visibly blank plate. Iterates the adapter's
+ * slot tuple rather than `SLOTS` keys so the ids stay typed.
  */
 const values = computed(() =>
-  Object.entries(SLOTS).flatMap(([id, slots]) =>
-    slots.map(([x, y], i) => ({ id, x, y, key: `${id}-${i}`, text: label(id) ?? '' })),
+  TOPOLOGY_SLOT_EDGE_IDS.flatMap((id) =>
+    SLOTS[id].map(([x, y], i) => ({ id, x, y, key: `${id}-${i}`, text: label(id) ?? '' })),
   ),
 );
 
@@ -195,7 +190,7 @@ const summary = computed(() => {
     const edge = props.model?.edges.find((e) => e.id === v.id);
     const from = (edge && names.get(edge.from)) ?? edge?.from ?? '';
     const to = (edge && names.get(edge.to)) ?? edge?.to ?? '';
-    const pair = (SLOTS[v.id]?.length ?? 1) > 1 ? ' (AIV0, AIV1)' : '';
+    const pair = SLOTS[v.id].length > 1 ? ' (AIV0, AIV1)' : '';
     parts.push(from && to ? `${from} → ${to}${pair}: ${v.text}` : v.text);
   }
   return parts.join('; ');

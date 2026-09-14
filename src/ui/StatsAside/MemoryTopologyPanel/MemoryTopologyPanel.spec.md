@@ -34,6 +34,8 @@ Official product memory-path topology chrome with **data-driven link values** (c
 
 Pillars: GM x16–56, L2 x94–134; row stack x188–432 — AIV0 y17–197, AIC y201–339, AIV1 y343–523.
 
+`SLOTS` is keyed by the adapter's `TOPOLOGY_SLOT_EDGE_IDS` (`Record<TopologySlotEdgeId, …>`), so this table and the adapter's plated-edge list cannot drift: a plated edge with no coordinates fails typecheck. `hasDrawableTopology` (the "does the diagram exist" rule, PR-MEMTOP-004 / PR-MEMTOP-009) lives next to that tuple, because `firstLabelledMemoryTopology` picks the default block with the same rule (PR-VM-018).
+
 | Edge | Slots | Link |
 |------|-------|------|
 | `gm-l2-read` | (74.5, 255.9) | GM → L2 |
@@ -118,6 +120,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 DATA-20 (L2 Peak), DATA-21, DATA-33c, UI-35, UI-38, UI-48, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
+- **2026-09-14** — `hasDrawableTopology` and the plated-edge id tuple (`TOPOLOGY_SLOT_EDGE_IDS`) moved to the adapter next to `firstLabelledMemoryTopology`, so the panel's `show` gate and the default block pick share one definition of "the diagram exists" (PR-VM-018); `SLOTS` is now typed against that tuple.
 - **2026-09-14** — Review follow-ups: package export + web-root chrome contract; `@error` suppresses orphaned overlays (PR-MEMTOP-012); `show` / `hasDrawableTopology` ignore slotless labels; a11y description dedupes AIV pairs; FixP-routed `l2-l1-write` left blank pending UI-48; UI-38 decision aligned with PR-STATS-035 CSV-only caveat; dark-only `#262626` comment.
 - **2026-09-11** — Review follow-ups on this panel: (a) the L2 plate was two `v-if`/`v-else-if` `<text>` elements whose branches could never both render while the styling was identical — collapsed to one element with a conditional `data-testid` (PR-MEMTOP-007c); (b) `data-testid` was `edge-{edge-id}`, duplicated by the AIV0/AIV1 pairs, now `edge-{edge-id}-{slot}` (PR-MEMTOP-002b); (c) `role="img"` left the drawn values out of the a11y tree, now also exposed as a visually hidden description wired through `aria-describedby`, id per instance via `useId` (PR-MEMTOP-011); (d) `locale` gained an explicit `undefined` default for `vue/require-default-prop`.
 - **2026-09-11** — Value fit bounds made per-slot: `SLOT_MAX_W` previously covered only GM↔L2 and the L2 plate and let every other slot fall back to a 49.9-unit default measured from the L2↔row corridor. The row stack's inner corridors are much tighter — L0B↔Cube 34.7, L0A↔Cube 36.7, Cube↔L0C 37.5, L1↔L0A/B 41.1/40.3, UB↔SIMD 42.1 — so a 3-digit label (`{n}.{nn} GB/s` ≈ 41.7 units; the sample fixture already shows `504.00 GB/s` on GM↔L2) would have overlapped the L0/Cube boxes that PR-MEMTOP-010 exists to protect. All drawn slots now carry a measured bound and the fallback is the tightest one; the corridor test covers every slot.

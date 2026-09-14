@@ -5,8 +5,8 @@ import MemoryTopologyPanel, {
   DEFAULT_MAX_W,
   SLOT_MAX_W,
   fitFontSize,
-  hasDrawableTopology,
 } from './MemoryTopologyPanel.vue';
+import { hasDrawableTopology } from '../../../adapters/memoryTopology';
 
 const model = {
   nodes: [
