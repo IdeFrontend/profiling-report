@@ -1158,7 +1158,6 @@ function onHoverLane(laneId: string | null): void {
 function togglePinLane(laneId: string | null): void {
   if (!laneId) return;
   const lane = swim.value ? findThreadById(swim.value, laneId) : null;
-  console.log('[ctx-menu] togglePinLane', { laneId, found: !!lane, isFolder: lane ? isFolderNode(lane) : null });
   if (!lane || isFolderNode(lane)) return;
   if (viewState.value.pinnedLaneIds.includes(laneId)) onUnpinLane(laneId);
   else onPinLane(laneId);

@@ -95,18 +95,6 @@ function onScrimContextMenu() {
 }
 
 function onKeydown(e: KeyboardEvent) {
-  // DEBUG: temporary logging to diagnose the Pin shortcut not firing.
-  console.log('[ctx-menu] keydown', {
-    key: e.key,
-    code: e.code,
-    alt: e.altKey,
-    ctrl: e.ctrlKey,
-    meta: e.metaKey,
-    shift: e.shiftKey,
-    trusted: e.isTrusted,
-    context: !!props.context,
-    items: items.value.map((i) => i.command),
-  });
   if (!props.context) return;
   // While the menu is open it blocks the rest of the UI: swallow every key so the app's
   // own window keydown (WASD pan/zoom, Escape measure/marquee clearing) never fires.
@@ -119,7 +107,6 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter') { e.preventDefault(); activate(activeIndex.value); return; }
   if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const pinIndex = items.value.findIndex((i) => i.command === 'pin');
-    console.log('[ctx-menu] PIN branch hit', { pinIndex });
     if (pinIndex < 0) return;
     e.preventDefault();
     activate(pinIndex);
@@ -136,7 +123,6 @@ function onScrollOrResize(e: Event) {
 }
 
 function bindListeners() {
-  console.log('[ctx-menu] listeners bound');
   document.addEventListener('keydown', onKeydown, true);
   window.addEventListener('scroll', onScrollOrResize, true);
   window.addEventListener('resize', onScrollOrResize);
@@ -152,11 +138,6 @@ watch(
   () => props.context,
   async (ctx) => {
     if (ctx) {
-      console.log('[ctx-menu] open', {
-        laneId: ctx.laneId,
-        target: ctx.target?.id ?? null,
-        items: items.value.map((i) => i.command),
-      });
       activeIndex.value = -1;
       unbindListeners();
       restoreFocusEl = document.activeElement as HTMLElement | null;
