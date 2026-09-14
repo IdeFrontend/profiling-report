@@ -2,9 +2,11 @@
 
 Normative **required vs optional inputs** for each Timeline surface. Missing optional data → **hide** that panel/region (not hard error). See [decisions](../context/decisions/) (DATA-30).
 
+**Entity layer:** Required/Optional columns are **adapted** view-model fields (`SwimlaneModel`, `ReportViewModel`, `capabilities`). Source embeds are **provenance** (“Filled by”) — see [ADAPTERS.md](ADAPTERS.md). Do not fork hide rules into hardware-CSV vs simulator-CSV matrices.
+
 **MVP coding defaults:** [decisions/interim/](../context/decisions/interim/) — Interim ≠ Product-final.
 
-**Related:** [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) · [COMPONENTS.md](../architecture/COMPONENTS.md) · [UX_SPEC.md](../ui/UX_SPEC.md) · [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
+**Related:** [INPUT_FORMATS.md](INPUT_FORMATS.md) · [hardware/METRICS_AND_TRACE.md](hardware/METRICS_AND_TRACE.md) · [simulator/FORMAT.md](simulator/FORMAT.md) · [ADAPTERS.md](ADAPTERS.md) · [COMPONENTS.md](../architecture/COMPONENTS.md) · [UX_SPEC.md](../ui/UX_SPEC.md) · [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
 
 **Legend**
 
@@ -16,9 +18,27 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 ---
 
+## Profile fill (hardware vs simulator)
+
+| Adapted field / capability | Filled by **hardware** | Filled by **simulator** |
+|----------------------------|------------------------|-------------------------|
+| `SwimlaneModel` | `PipeTrace.json` / `trace.json` / standalone CTEF | `PipeTrace.json` (from emulate CTEF, µs) |
+| `summary.*` (duration, identity) | `OpBasicInfo.csv` + `Summary.jsonl` | `KernelInfo.csv` / `summary.json` (thin; [DATA-47](../context/questions/DATA.md)) |
+| `pipeOccupancy` | `PipeUtilization.csv` | hide until mapper; later `PipesUtilization` (not remapped CSV name) |
+| `overviewSeries` | `Sampling.json` `ph:C` | hide unless counters packed |
+| `memoryTopology` / `memoryDiagram` | Memory*.csv | hide Phase 1 |
+| `roofline` | Arithmetic + Memory | Phase 2+ ELF-dependent sim inputs |
+| `hardwareDetails` | `HardwareInfo.jsonl` / OpBasicInfo | usually omit |
+| `archDiagram` | — | `ArchDiagramMetrics` (+ SVG) Phase 2 |
+| `memoryHeatmap` | — | `MemoryRWAccesses` Phase 2 |
+| `vfIpc` | — | `VfIPC` / `VfSimtIPC` Phase 2 |
+| `callStacks` | — | Call* tables (ELF) Phase 2 |
+
+---
+
 ## Global open policy (DATA-30)
 
-1. Open Timeline with **minimal** data: at least a usable `SwimlaneModel` (typically from `trace.json` or a standalone Chrome Trace `.json`).
+1. Open Timeline with **minimal** data: at least a usable `SwimlaneModel` (typically from `PipeTrace.json` / `trace.json` or a standalone Chrome Trace `.json`).
 2. Each panel/chart independently: if its inputs are missing → **hide** that UI (no empty chrome, no hard error for optional analytics).
 3. Hard error only when the **source cannot be parsed at all** (corrupt container / invalid JSON).
 
@@ -31,9 +51,9 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Input | Source | Requirement |
 |-------|--------|-------------|
 | Report bytes or prebuilt models | Host / adapter | **Required** to mount |
-| `SwimlaneModel` (`processes`, `minTime`, `maxTime`) | `trace.json` inside `.npu-rep` (or classic fixture `.rep`), or standalone Chrome Trace `.json` | **Required** for Timeline |
-| `ReportViewModel` | CSV embeds via `RepAdapter` | **Optional** — Timeline works without aside analytics |
-| `capabilities` | Host / adapter | **Optional** — gates P2 surfaces |
+| `SwimlaneModel` (`processes`, `minTime`, `maxTime`) | Adapted from Chrome Trace (hardware or simulator leaf, or standalone `.json`) | **Required** for Timeline |
+| `ReportViewModel` | Adapted from profile embeds via hardware or simulator adapter | **Optional** — Timeline works without aside analytics |
+| `capabilities` | Host / adapter | **Optional** — gates P2 / simulator-native surfaces |
 
 **Minimum to open Timeline:** parseable Chrome Trace → non-empty time range (lanes may be thin).
 
@@ -45,10 +65,9 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-------|-------------|
 | `SwimlaneModel.minTime` / `maxTime` (ns) | **Required** |
 | `SwimlaneViewState` visible window | **Required** (defaults to full range) |
-| Display unit preference | **Optional** — `TimeDisplayMode` (`'time'` auto-scale / `'cycles'` derived CPU clocks), gated on OpBasicInfo freq ([UI-40](../context/decisions/UI.md), [UI-45](../context/decisions/UI.md)) |
+| Display unit preference | **Optional** — `TimeDisplayMode` (`'time'` auto-scale / `'cycles'` derived CPU clocks), gated on OpBasicInfo freq when hardware pack provides it ([UI-40](../context/decisions/UI.md), [UI-45](../context/decisions/UI.md)); simulator Phase 1 may omit cycles mode |
 
 ---
-
 ### 3. Cube / Vector overview charts (`OverviewCharts`)
 
 | Input | Requirement |

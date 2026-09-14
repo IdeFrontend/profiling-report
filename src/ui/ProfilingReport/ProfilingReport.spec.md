@@ -214,7 +214,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.spec.md). [mstt-integration](../../../specs/architecture/mstt-integration.spec.md).
 
-**Input formats:** [REP_FORMAT.md](../../../docs/formats/REP_FORMAT.md) (`.rep` binary container), [INPUT_FORMATS.md](../../../docs/formats/INPUT_FORMATS.md) (embedded file contract), [METRICS_AND_TRACE.md](../../../docs/formats/METRICS_AND_TRACE.md) (CSV schemas and file-to-UI mapping).
+**Input formats:** [REP_FORMAT.md](../../../docs/formats/REP_FORMAT.md) (`.rep` binary container), [INPUT_FORMATS.md](../../../docs/formats/INPUT_FORMATS.md) (container hub), [hardware/FORMAT.md](../../../docs/formats/hardware/FORMAT.md) (hardware schemas), [METRICS_AND_TRACE.md](../../../docs/formats/hardware/METRICS_AND_TRACE.md) (embed → UI).
 
 ## Open
 
