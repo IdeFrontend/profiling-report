@@ -478,6 +478,8 @@ function resetViewFromModel(
   multiSelectSpan.value = null;
   marqueeLive.value = false;
   marqueeFromClosed.value = false;
+  previewMultiApplied = false;
+  clearPreviewDockTimer();
   dockSnap = null;
   hovered.value = null;
   closeTopologyFullscreen();
