@@ -42,7 +42,7 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 Per Card:
 
 1. **utilization** — offer when the Card subtree has trace lanes (always on trace-backed reports).
-2. **clockCycle** — offer only when `PipeUtilization.csv` yields at least one mapped `*_total_cycles` column with a non-`NA` aggregate for a lane under that Card.
+2. **clockCycle** — offer when `PipeUtilization.csv` yields at least one mapped pipe with a non-`NA` cycle value for a lane under that Card — either a direct `*_total_cycles` column **or** a **derived** value from that column’s `*_time(us)` × matching-side block rate (`side_total_cycles / side_time(us)`).
 
 When **utilization** is unavailable, default to **clockCycle**. When neither is available, return `null`.
 
@@ -64,7 +64,7 @@ Parallel rename of the former `*_time(us)` map — replace `_time(us)` with `_to
 | `scalar` | `aic_scalar_total_cycles`, `aiv_scalar_total_cycles` |
 | `vector` | `aiv_vec_total_cycles` |
 
-Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (common fixture gap), **derive** absolute cycles as \(\operatorname{mean}(*\_\mathrm{time(us)})\times(\operatorname{mean}(\mathrm{side\_total\_cycles})/\operatorname{mean}(\mathrm{side\_time(us)}))\) using `aic_*` / `aiv_*` block totals for the matching side — labels remain bare cycle counts, never `µs`. Block-level totals alone still do **not** map to a pipe key. Lanes outside the map (or underivable) keep the **shared** event-coverage bar but an **empty** cycle label.
+Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (common fixture gap), **derive** that column as \(\operatorname{mean}(\mathrm{timeCol})\times(\operatorname{mean}(\mathrm{side\_total\_cycles})/\operatorname{mean}(\mathrm{side\_time(us)}))\) using the **matching** aic/aiv side for that column — then mean across available columns for MIX keys (do **not** apply one side’s Hz to both times). Labels remain bare cycle counts, never `µs`. Block-level totals alone still do **not** map to a pipe key. Lanes outside the map (or underivable) keep the **shared** event-coverage bar but an **empty** cycle label.
 
 #### Cycle label raw (labels only — not barWidth)
 
@@ -84,7 +84,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 
 3. **Leaf lane:** \(\operatorname{raw}_{\mathrm{lane}}=\operatorname{raw}_{\mathrm{key}}\) for `laneColorKey(thread.name)`.
 
-4. **Folder / non-leaf:** \(\operatorname{raw}_{\mathrm{folder}}=\sum\operatorname{raw}_{\mathrm{child}}\) over children that have a defined raw (**sum** for the **label** only).
+4. **Folder / non-leaf:** \(\operatorname{raw}_{\mathrm{folder}}=\sum\operatorname{raw}_{\mathrm{child}}\) over children that have a defined raw (**sum** for the **label** only). Concurrent pipes may make the sum exceed any single-core / wall-timeline cycle budget — that oversum is **accepted** for folder labels ([DATA-38](../../docs/context/decisions/DATA.md)).
 
 | Output | Formula |
 |--------|---------|
@@ -110,7 +110,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 
 ## Acceptance Criteria
 
-1. **PR-GMET-001** — Returns available metrics; omits clockCycle when CSV lacks mappable `*_total_cycles` (utilization only).
+1. **PR-GMET-001** — Returns available metrics; omits clockCycle when CSV yields neither mappable `*_total_cycles` nor derivable time×side-rate values (utilization only).
 2. **PR-GMET-002** — Default metric is utilization when available, else clockCycle when available, else `null`.
 3. **PR-GMET-003** — barWidth is event coverage for **both** metrics (identical fills when switching dropdown); clockCycle does **not** use cycle-sum normalization for bars.
 4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring (unchanged).
@@ -142,6 +142,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 None for DATA-38 / UI-46 — resolved 2026-09-14. Derive fallback for missing per-pipe `*_total_cycles` remains shipping until producer ships those columns.
 
 ## Changelog
+- **2026-09-14** — Review fixes: per-side MIX derive; availability includes derive; folder label oversum accepted; LaneGutter ACs use thresholdColor + 50% midline for both metrics.
 - **2026-09-14** — Promote DATA-38 / UI-46 to decisions; strike interim DATA-38a / UI-46a.
 - **2026-09-09** — Default Card metric is utilization when available; empty availability returns `null` (PR-GMET-002).
 - **2026-09-05** — Document PyPTO PMU sum-of-`total cycle` as reference; note NPU-Compute.md, PR #74, and scanned fixtures lack event-level PMU (interim stays `*_time(us)`).

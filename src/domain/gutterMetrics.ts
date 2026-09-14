@@ -13,27 +13,34 @@ export type GutterBarDisplay = {
   relativeMax?: boolean;
 };
 
-/** Per-pipe cycle columns (DATA-38a). Parallel rename of the former `*_time(us)` map. */
-const PIPE_CYCLE_COLUMNS: { colorKey: string; columns: string[]; side: 'aic' | 'aiv' }[] = [
-  { colorKey: 'cube', columns: ['aic_cube_total_cycles'], side: 'aic' },
-  { colorKey: 'mte2', columns: ['aic_mte2_total_cycles', 'aiv_mte2_total_cycles'], side: 'aic' },
-  { colorKey: 'mte1', columns: ['aic_mte1_total_cycles'], side: 'aic' },
-  { colorKey: 'mte3', columns: ['aiv_mte3_total_cycles'], side: 'aiv' },
-  { colorKey: 'fixp', columns: ['aic_fixpipe_total_cycles'], side: 'aic' },
-  { colorKey: 'scalar', columns: ['aic_scalar_total_cycles', 'aiv_scalar_total_cycles'], side: 'aic' },
-  { colorKey: 'vector', columns: ['aiv_vec_total_cycles'], side: 'aiv' },
+/** Per-pipe cycle columns ([DATA-38](../../docs/context/decisions/DATA.md)). Each CSV column carries its side for derive. */
+const PIPE_CYCLE_COLUMNS: {
+  colorKey: string;
+  columns: { cycleCol: string; timeCol: string; side: 'aic' | 'aiv' }[];
+}[] = [
+  { colorKey: 'cube', columns: [{ cycleCol: 'aic_cube_total_cycles', timeCol: 'aic_cube_time(us)', side: 'aic' }] },
+  {
+    colorKey: 'mte2',
+    columns: [
+      { cycleCol: 'aic_mte2_total_cycles', timeCol: 'aic_mte2_time(us)', side: 'aic' },
+      { cycleCol: 'aiv_mte2_total_cycles', timeCol: 'aiv_mte2_time(us)', side: 'aiv' },
+    ],
+  },
+  { colorKey: 'mte1', columns: [{ cycleCol: 'aic_mte1_total_cycles', timeCol: 'aic_mte1_time(us)', side: 'aic' }] },
+  { colorKey: 'mte3', columns: [{ cycleCol: 'aiv_mte3_total_cycles', timeCol: 'aiv_mte3_time(us)', side: 'aiv' }] },
+  {
+    colorKey: 'fixp',
+    columns: [{ cycleCol: 'aic_fixpipe_total_cycles', timeCol: 'aic_fixpipe_time(us)', side: 'aic' }],
+  },
+  {
+    colorKey: 'scalar',
+    columns: [
+      { cycleCol: 'aic_scalar_total_cycles', timeCol: 'aic_scalar_time(us)', side: 'aic' },
+      { cycleCol: 'aiv_scalar_total_cycles', timeCol: 'aiv_scalar_time(us)', side: 'aiv' },
+    ],
+  },
+  { colorKey: 'vector', columns: [{ cycleCol: 'aiv_vec_total_cycles', timeCol: 'aiv_vec_time(us)', side: 'aiv' }] },
 ];
-
-/** Time columns used only when per-pipe `*_total_cycles` are absent (fixture gap). */
-const PIPE_TIME_FALLBACK: Record<string, string[]> = {
-  cube: ['aic_cube_time(us)'],
-  mte2: ['aic_mte2_time(us)', 'aiv_mte2_time(us)'],
-  mte1: ['aic_mte1_time(us)'],
-  mte3: ['aiv_mte3_time(us)'],
-  fixp: ['aic_fixpipe_time(us)'],
-  scalar: ['aic_scalar_time(us)', 'aiv_scalar_time(us)'],
-  vector: ['aiv_vec_time(us)'],
-};
 
 const SIDE_TIME: Record<'aic' | 'aiv', string> = {
   aic: 'aic_time(us)',
@@ -60,20 +67,6 @@ function meanColumn(rows: Record<string, string>[], column: string): number | un
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-/** Per-column means, then mean of those means (normative MIX / multi-column keys). */
-function meanOfColumnMeans(
-  rows: Record<string, string>[],
-  columns: readonly string[],
-): number | undefined {
-  const means: number[] = [];
-  for (const col of columns) {
-    const m = meanColumn(rows, col);
-    if (m != null) means.push(m);
-  }
-  if (means.length === 0) return undefined;
-  return means.reduce((a, b) => a + b, 0) / means.length;
-}
-
 /**
  * Cycles-per-µs from block totals (`side_total_cycles / side_time(us)`).
  * ponytail: many fixtures lack per-pipe `*_total_cycles`; upgrade when producer ships them.
@@ -88,18 +81,16 @@ function sideCyclesPerUs(
   return cycles / time;
 }
 
-function derivePipeCycles(
+/** Direct cycle column mean, else timeCol × matching-side Hz. */
+function columnCycles(
   rows: Record<string, string>[],
-  colorKey: string,
-  side: 'aic' | 'aiv',
+  col: { cycleCol: string; timeCol: string; side: 'aic' | 'aiv' },
 ): number | undefined {
-  const timeCols = PIPE_TIME_FALLBACK[colorKey];
-  if (!timeCols) return undefined;
-  const timeMean = meanOfColumnMeans(rows, timeCols);
+  const direct = meanColumn(rows, col.cycleCol);
+  if (direct != null) return direct;
+  const timeMean = meanColumn(rows, col.timeCol);
   if (timeMean == null) return undefined;
-  const rate =
-    sideCyclesPerUs(rows, side) ??
-    sideCyclesPerUs(rows, side === 'aic' ? 'aiv' : 'aic');
+  const rate = sideCyclesPerUs(rows, col.side);
   if (rate == null) return undefined;
   return timeMean * rate;
 }
@@ -107,13 +98,16 @@ function derivePipeCycles(
 function cycleByColorKey(rows: Record<string, string>[]): Map<string, number> {
   const out = new Map<string, number>();
   for (const pipe of PIPE_CYCLE_COLUMNS) {
-    const direct = meanOfColumnMeans(rows, pipe.columns);
-    if (direct != null) {
-      out.set(pipe.colorKey, direct);
-      continue;
+    const values: number[] = [];
+    for (const col of pipe.columns) {
+      const v = columnCycles(rows, col);
+      if (v != null) values.push(v);
     }
-    const derived = derivePipeCycles(rows, pipe.colorKey, pipe.side);
-    if (derived != null) out.set(pipe.colorKey, derived);
+    if (values.length === 0) continue;
+    out.set(
+      pipe.colorKey,
+      values.reduce((a, b) => a + b, 0) / values.length,
+    );
   }
   return out;
 }

@@ -295,6 +295,34 @@ describe('PR-GMET: gutter metrics', () => {
     expect(derived.get('sc')?.label).toBe('50');
     expect(derived.get('vec')?.label).not.toMatch(/µs/);
 
+    // MIX derive: each side’s time × that side’s Hz, then mean (not one Hz for both times).
+    const mixRows = parsePipeRows(
+      [
+        'block_id,aic_time(us),aic_total_cycles,aiv_time(us),aiv_total_cycles,aic_mte2_time(us),aiv_mte2_time(us)',
+        '0,1,1000,1,2000,0.1,0.05',
+      ].join('\n'),
+    );
+    const mixModel: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'mte2',
+              name: 'Core0.Cube/MTE2',
+              events: [{ id: 'e1', name: 'x', startTime: 0, duration: 100 }],
+            },
+          ],
+        },
+      ],
+    };
+    const mix = gutterBarsForCard(mixModel, mixRows, 'clockCycle', 'card0');
+    // aic: 0.1×1000=100; aiv: 0.05×2000=100; mean=100 (single-side Hz would yield 75 or 150)
+    expect(mix.get('mte2')?.label).toBe('100');
+
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     expect(adapted.swimlaneModel).not.toBeNull();
     const table = adapted.reportModel.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
