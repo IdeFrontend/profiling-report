@@ -1,0 +1,141 @@
+# Simulator profile format
+
+**Profile:** `simulator` (npu_emulate / Ascend cycle-accurate OP simulation).
+
+Shared container: [INPUT_FORMATS.md](../INPUT_FORMATS.md). Table inventory: [TABLES.md](TABLES.md). Hardware profile: [../hardware/FORMAT.md](../hardware/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
+
+Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/decisions/PROC.md), [DATA-40](../../context/decisions/DATA.md), [DATA-41](../../context/decisions/DATA.md).
+
+---
+
+## 1. Role
+
+npu_emulate builds a **contract SQLite database** (or CSV export of that DB) from a simulated kernel run, then generates HTML/JSON/SVG reports. Product delivery into Asc Toolkit is still **`.npu-rep`** ([PROC-6](../../context/decisions/PROC.md)) — a leaf archive whose embeds are **simulator-native**, not hardware OpBasicInfo / PipeUtilization schemas ([DATA-40](../../context/decisions/DATA.md)).
+
+| Concern | Hardware profile | Simulator profile |
+|---------|------------------|-------------------|
+| Grain | OP / block aggregates + pipe-busy timeline | Instruction / **tick** events |
+| Hub identity | `OpBasicInfo.csv` | `KernelInfo` + `ExecutedInstructions` |
+| Timeline | `PipeTrace.json` / `trace.json` | Emulate Chrome Trace → packed as `PipeTrace.json` (µs) |
+| Detection | (no marker) | `SimulatorManifest.json` ([PROC-8](../../context/decisions/PROC.md)) |
+
+---
+
+## 2. Data model (contract DB)
+
+Sources of tables (from npu_emulate docs):
+
+| Layer | Origin | Examples |
+|-------|--------|----------|
+| Contract input | Simulator / mock DB | `KernelInfo`, `ExecutedInstructions`, `DispatchTime`, `MemoryRWAccesses`, `BrifEvents`, `PMUScalarCounters`, … |
+| Bridge / dictionary | Startup + optional ELF | `InstrTypes`, `CoreTypes`, `SourceFiles`, `Functions`, aggregation views |
+| Analysis output | Analyzers (often flag-gated) | `ArchDiagramMetrics`, `PipesUtilization`, `VfIPC*`, `TraceBubbles`, `VfPMU*` |
+| Hints | hints.sql | `HintTypes`, hint views |
+
+**Hub table:** `ExecutedInstructions` — almost every report joins on it (cores, tick ranges, instr names/types).
+
+**Time base:** simulation uses integer **ticks**. When packing `PipeTrace.json` for this viewer, the producer **MUST** convert ticks → **µs** ([DATA-41](../../context/decisions/DATA.md)).
+
+**Flag-gated depth:** many analysis tables stay empty unless analyzers run (`--bubble`, `--vec-ipc`, `--simd-perf`, `--object-file`, …). Packers MUST only claim capabilities for populated embeds.
+
+---
+
+## 3. Native emulate report outputs (reference)
+
+npu_emulate `report` already emits (among others):
+
+- Per-core Chrome Trace JSON (`core_*_tracing_report_*.json`)
+- `aicore_utilization.json`, `summary.json`
+- Arch diagram SVGs, HTML charts, bubble JSON, …
+
+Profiling-report does **not** re-implement those HTML generators. It consumes a **packed leaf** (§4) and maps into shared view-models.
+
+---
+
+## 4. Leaf pack (inside `.npu-rep`)
+
+### 4.1 Phase 1 (required)
+
+| Embed | Type | Rules |
+|-------|------|-------|
+| `SimulatorManifest.json` | json | Required marker. See §4.3 |
+| `PipeTrace.json` | json | Chrome Trace Event format; **µs** `ts`/`dur` ([DATA-41](../../context/decisions/DATA.md)). Prefer packing emulate Chrome Tracing output (rename/normalize to this basename) |
+| `KernelInfo.csv` and/or `summary.json` | csv / json | Enough for thin duration / identity cards. Exact field map: open [DATA-42](../../context/questions/DATA.md) |
+
+Optional Phase 1: additional contract CSVs may be packed unused for later phases.
+
+**Not required for Phase 1:** sqlite3 blob (container type `5` remains reserved). Prefer CSV embeds matching export basenames (`ExecutedInstructions.csv`, …).
+
+### 4.2 Phase 2 (capability-driven)
+
+Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [ADAPTERS.md](../ADAPTERS.md)):
+
+| Capability (reserved) | Typical embeds |
+|----------------------|----------------|
+| `archDiagram` | `ArchDiagramMetrics.csv`, `ExecutedInstructions.csv` |
+| `memoryHeatmap` | `MemoryRWAccesses.csv` |
+| AiCore occupancy overlay | `AiCoreOccupancy.csv` and/or `aicore_utilization.json` |
+| `pipeOccupancy` (sim) | `PipesUtilization.csv` / `PipeUtilizationHist.csv` — **do not** rename to hardware `PipeUtilization.csv` |
+| `vfIpc` | `VfIPC.csv`, `VfSimtIPC.csv` (need `--vec-ipc`) |
+| `callStacks` | Call* tables (need ELF / `--object-file`) |
+| `roofline` | ArchDiagramMetrics + Functions + ExecutedInstructions + VectorUtilizations + SourceInstructions |
+
+### 4.3 `SimulatorManifest.json`
+
+Minimum shape:
+
+```json
+{
+  "profile": "simulator",
+  "schemaVersion": 1,
+  "producer": "npu_emulate",
+  "tickToUs": null
+}
+```
+
+| Field | Required | Meaning |
+|-------|----------|---------|
+| `profile` | yes | Must be `"simulator"` |
+| `schemaVersion` | yes | Integer; start at `1` |
+| `producer` | no | e.g. `npu_emulate` |
+| `tickToUs` | no | Scale factor used when converting ticks → µs for PipeTrace; informational |
+
+Additional fields allowed; unknown keys ignored by the viewer.
+
+---
+
+## 5. Product UI mapping (MHTML §11.2.3)
+
+Product maps Biprof features → Asc Toolkit using **simulator CSV names** (not hardware embeds):
+
+| § | Feature | Primary sources |
+|---|---------|-----------------|
+| 11.2.3.1 | Architecture Diagram | `ArchDiagramMetrics`, `ExecutedInstructions` |
+| 11.2.3.2 | Memory Utilization Heatmap | `MemoryRWAccesses` |
+| 11.2.3.3 | AICore Utilization | `AiCoreOccupancy` (+ `aicore_utilization.json`) |
+| 11.2.3.4 | Sub Core / pipeline util | `PipesUtilization` |
+| 11.2.3.5 | Roofline | ArchDiagramMetrics, Functions, ExecutedInstructions, VectorUtilizations, SourceInstructions |
+| 11.2.3.6 | Pipeline utilizations | `PipesUtilization` |
+| 11.2.3.7 | SIMD/SIMT VF IPC | `VfIPC`, `VfSimtIPC` |
+| 11.2.3.8 | Call Stacks | CallGraph*, CallStacks*, CallFunctions (ELF) |
+
+Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) § Simulator. Hide rules (adapted VM): [VIEW_DATA_REQUIREMENTS.md](../VIEW_DATA_REQUIREMENTS.md).
+
+---
+
+## 6. Viewer behavior (summary)
+
+1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../INPUT_FORMATS.md)).
+2. If `SimulatorManifest.json` present → **simulator** adapter.
+3. Phase 1: build `SwimlaneModel` from `PipeTrace.json`; thin `ReportViewModel.summary*` from KernelInfo/summary when mappable; omit PIPE/memory/roofline until sources + mappers exist ([DATA-30](../../context/decisions/DATA.md)).
+4. Phase 2: set capabilities when embeds present; never invent hardware CSVs ([DATA-40](../../context/decisions/DATA.md)).
+
+---
+
+## 7. Open
+
+| Item | Id |
+|------|-----|
+| Dedicated head `origin` | [PROC-9](../../context/questions/PROC.md) |
+| KernelInfo / summary.json → summary cards | [DATA-42](../../context/questions/DATA.md) |
+| Exact `tickToUs` default when freq unknown | [DATA-42](../../context/questions/DATA.md) / producer docs |

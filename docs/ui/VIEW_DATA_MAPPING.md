@@ -2,7 +2,7 @@
 
 Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from product spec §11.2 可视化界面数据关联. Source mockups live under [`docs/ui/source/`](./source/) (``v930/`). Hierarchy: [`DESIGN_INDEX.md`](./DESIGN_INDEX.md).
 
-Input schemas: [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md).
+Container hub: [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md). Hardware schemas: [hardware/FORMAT.md](../formats/hardware/FORMAT.md). Simulator: [simulator/FORMAT.md](../formats/simulator/FORMAT.md).
 
 Design reference (docx): [HDesign mock](https://octo-g.hdesign.huawei.com/developerPreview/developer/index.html#edit&uniqueId=Cbt3Yr1Wzd6zfmVfNkJOYQ-50712&pageId=1001695).
 
@@ -369,9 +369,28 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Statistical analysis series schema | Placeholder only |
 | Timeline + event-detail field tables | Empty; mockup-driven |
 | HardwareInfo | Confirmed source; in toolkit `example.rep` (not in git), absent from `out.rep` |
-| Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
+| Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §3](../formats/INPUT_FORMATS.md#3-report-container) |
 | `ResourceConflictRatio.csv` | In sample; no UI mapping |
 | Block-level aggregation for OP summary cards | Unspecified (sample has 8 blocks) |
+
+---
+
+## Simulator profile (MHTML §11.2.3)
+
+Same host file (`.npu-rep`); leaf detected via `SimulatorManifest.json` ([PROC-8](../context/decisions/PROC.md)). Source schemas: [simulator/FORMAT.md](../formats/simulator/FORMAT.md), [simulator/TABLES.md](../formats/simulator/TABLES.md). Adapted hide rules: [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md).
+
+| § | Feature | Phase | Source embeds | Adapted / capability |
+| --- | --- | --- | --- | --- |
+| — | Timeline swimlane | M (Phase 1) | `PipeTrace.json` (emulate CTEF, µs) | `SwimlaneModel` |
+| — | Thin report summary | M (Phase 1) | `KernelInfo.csv` / `summary.json` | `reportModel.summary*` ([DATA-42](../context/questions/DATA.md)) |
+| 11.2.3.1 | Architecture Diagram | P2 | `ArchDiagramMetrics.csv`, `ExecutedInstructions.csv` | `archDiagram` |
+| 11.2.3.2 | Memory heatmap popup | P2 | `MemoryRWAccesses.csv` | `memoryHeatmap` |
+| 11.2.3.3 | AICore utilization / occupancy | P2 | `AiCoreOccupancy.csv`, `aicore_utilization.json` | occupancy overlay capability |
+| 11.2.3.4 | Sub-core / pipeline util | P2 | `PipesUtilization.csv` | `pipeOccupancy` (sim mapper; do not invent hardware `PipeUtilization.csv`) |
+| 11.2.3.5 | Roofline | P2+ | ArchDiagram + Functions + ExecutedInstructions + VectorUtilizations + SourceInstructions | `roofline` |
+| 11.2.3.6 | Pipeline utilizations (workload) | P2 | `PipesUtilization.csv` | stats / PIPE detail |
+| 11.2.3.7 | SIMD/SIMT VF IPC | P2 | `VfIPC.csv`, `VfSimtIPC.csv` | `vfIpc` |
+| 11.2.3.8 | Call stacks | P2 | CallGraph*, CallStacks*, CallFunctions (ELF) | `callStacks` |
 
 ---
 

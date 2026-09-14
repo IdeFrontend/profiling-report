@@ -162,7 +162,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 
 [swimlane-renderer](../../../../../specs/core/swimlane-renderer.spec.md), [swimlane-model](../../../../../specs/core/swimlane-model.spec.md).
 
-**Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
+**Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/hardware/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
 - **2026-09-13** — Marquee commit holds preview ids until props flush so dim does not flash (PR-CANVAS-102); PR-CANVAS-082 leftover release uses canvas pointerup.

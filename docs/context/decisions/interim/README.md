@@ -40,7 +40,7 @@ High-level product/process docs shared by many interim rules. Detailed `specs/**
 
 - [VIEW_DATA_REQUIREMENTS.md](../../../formats/VIEW_DATA_REQUIREMENTS.md)
 - [FEATURE_MATRIX.md](../../../ui/FEATURE_MATRIX.md)
-- [METRICS_AND_TRACE.md](../../../formats/METRICS_AND_TRACE.md)
+- [METRICS_AND_TRACE.md](../../../formats/hardware/METRICS_AND_TRACE.md)
 - [REP_FORMAT.md](../../../formats/REP_FORMAT.md)
 - [TESTING.md](../../../process/TESTING.md)
 - [DEVELOPMENT.md](../../../process/DEVELOPMENT.md)
