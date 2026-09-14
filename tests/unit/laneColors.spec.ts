@@ -104,6 +104,14 @@ describe('eventStateOf', () => {
     expect(eventStateOf('a', null, 'a')).toBe('hover');
     expect(eventStateOf('a', 'b', 'c')).toBe('normal');
   });
+
+  it('PR-CANVAS-099: multi-selected ids rank as selected', () => {
+    const multi = new Set(['b']);
+    expect(eventStateOf('b', null, null, multi)).toBe('selected');
+    expect(eventStateOf('b', null, 'b', multi)).toBe('selected');
+    expect(eventStateOf('a', null, null, multi)).toBe('normal');
+    expect(eventStateOf('a', null, 'a', multi)).toBe('hover');
+  });
 });
 
 describe('laneColorKey', () => {

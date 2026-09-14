@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { adaptPayloads, adaptRep, loadReportSource, parseNpuRep160, parseRep } from '../../src/index';
 import { overviewSeriesFromSampling } from '../../src/adapters';
-import { buildMemoryTopology, firstLabelledMemoryTopology } from '../../src/adapters/memoryTopology';
+import {
+  buildMemoryTopology,
+  firstLabelledMemoryTopology,
+  hasDrawableTopology,
+} from '../../src/adapters/memoryTopology';
 import { loadOutRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import type { CsvTableModel } from '../../src/domain/types';
 
@@ -418,6 +422,43 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(first?.model.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
   });
 
+  it('PR-VM-018: the default topology block must be one the chrome can actually paint', () => {
+    // Block 0 carries only a plated-less label: `L0C_to_L1_datas` (KB) shows up in the 详情 tabs,
+    // never on the chrome (PR-MEMTOP-009), so its model is not drawable. Block 1 carries a link
+    // value. Selecting by "has any label" would pick block 0 and hide the diagram although
+    // block 1 can draw one.
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'L0C_to_L1_datas(KB)', 'aiv_main_mem_read_bw(GB/s)'],
+        rows: [
+          { block_id: '0', 'L0C_to_L1_datas(KB)': '7', 'aiv_main_mem_read_bw(GB/s)': 'NA' },
+          { block_id: '1', 'L0C_to_L1_datas(KB)': 'NA', 'aiv_main_mem_read_bw(GB/s)': '4.25' },
+        ],
+        blockIds: ['0', '1'],
+      },
+    ];
+    const slotlessOnly = buildMemoryTopology(tables, '0');
+    expect(slotlessOnly?.edges.find((e) => e.id === 'l0c-l1')?.label).toBe('7.00 KB');
+    expect(hasDrawableTopology(slotlessOnly)).toBe(false);
+    expect(hasDrawableTopology(buildMemoryTopology(tables, '1'))).toBe(true);
+
+    const first = firstLabelledMemoryTopology(tables);
+    expect(first?.blockId).toBe('1');
+    expect(first?.model.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
+
+    // Nothing drawable in any block → no diagram at all (so no `memoryDiagram` capability).
+    const slotlessOnlyEverywhere: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'L0C_to_L1_datas(KB)'],
+        rows: [{ block_id: '0', 'L0C_to_L1_datas(KB)': '7' }],
+        blockIds: ['0'],
+      },
+    ];
+    expect(firstLabelledMemoryTopology(slotlessOnlyEverywhere)).toBeUndefined();
+  });
+
   it('PR-VM-012b: L2 Peak(%) from first non-NA hit-rate column (DATA-20 / DATA-21)', () => {
     const tables: CsvTableModel[] = [
       {
@@ -448,6 +489,27 @@ describe('PR-VM: report view-models (interim)', () => {
     const model = buildMemoryTopology(tables, '0');
     expect(model?.nodes.find((n) => n.id === 'l2')?.peakPct).toBe(81.25);
     expect(model?.edges.find((e) => e.id === 'l2-hit')?.label).toBe('81.25%');
+  });
+
+  it('PR-VM-017: topology nodes carry the chrome MTE blocks (UI-38)', () => {
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aiv_main_mem_read_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aiv_main_mem_read_bw(GB/s)': '1.0' }],
+        blockIds: ['0'],
+      },
+    ];
+    const model = buildMemoryTopology(tables, '0');
+    // The chrome draws MTE1/2/3 but gives them no value plate, so they stay model-only: no edge
+    // and no slot. Utilizations come from PipeUtilization.csv via the memory 详情 CSV field list
+    // (CSV-only reports — PR-STATS-035); summary-category reports keep MTE under 计算 详情.
+    expect(model?.nodes.filter((n) => n.id.startsWith('mte')).map((n) => n.label)).toEqual([
+      'MTE1',
+      'MTE2',
+      'MTE3',
+    ]);
+    expect(model?.edges.some((e) => e.id.includes('mte'))).toBe(false);
   });
 
   it('PR-VM-016: OpBasicInfo identity keeps Summary.jsonl derived FLOPS/util overlay', () => {

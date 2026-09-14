@@ -191,7 +191,7 @@ WebGL2 interval backend with sudu-style analytical horizontal coverage AA combin
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside).
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
@@ -229,7 +229,7 @@ Renders `OverviewSeries` as the **统计分析** block **above** the swimlane (b
 
 ### `SwimlaneCanvas` (M / M2)
 
-Mounts `SwimlaneRenderer`, maps pointer events to `hitTest` (CSS local × `devicePixelRatio`), updates hover/selection in view state. Chooses WebGL+overlay or Canvas fallback once and mounts **only** that canvas set. Sizes via `ResizeObserver` `devicePixelContentBoxSize` → `resize(deviceW, deviceH, dpr)`; CSS canvases stay `width/height: 100%`; paint waits until device buffer size is ≥ 1×1. **M2:** when `measureMode`, drag sets `measureRange`; draws shaded band + Δt; pan-drag suppressed.
+Mounts `SwimlaneRenderer`, maps pointer events to `hitTest` (CSS local × `devicePixelRatio`), updates hover/selection in view state. Chooses WebGL+overlay or Canvas fallback once and mounts **only** that canvas set. Sizes via `ResizeObserver` `devicePixelContentBoxSize` → `resize(deviceW, deviceH, dpr)`; CSS canvases stay `width/height: 100%`; paint waits until device buffer size is ≥ 1×1. Unmodified drag marquees a multi-selection; pan is Shift+wheel / horizontal trackpad scroll. **M2:** when `measureMode`, drag sets `measureRange` instead of marqueeing; draws shaded band + Δt.
 
 **Why:** Thin Vue wrapper over imperative rendering — keeps LOD/WebGL out of the Vue reactivity graph.
 
@@ -279,7 +279,7 @@ Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops
 
 Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5). Mounted on the stacked 报告统计 below PIPE and again in the root **全屏** overlay; stacked **详情** / right-click open the memory CSV overlay; overlay right-click does not.
 
-**Why:** Geometry stays in the SVG asset; labels from adapter mapping table.
+**Why:** The official chrome (`memory-topology.svg`, Figma export of `v930/report-stats-scrolled`) carries the static geometry and labels; the panel only positions the adapter's values on that chrome's slots ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)). Hosts must serve `dist/memory-topology.svg` at the web root (`/memory-topology.svg`); the package exports it as `@huawei/profiling-report/memory-topology.svg` for copy/deploy.
 
 ### `HardwareDetailsPanel` (M1 interim DATA-34a)
 
@@ -295,7 +295,7 @@ Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRendere
 
 ### `ContextMenu` / `MultiSelectSummary` (P2)
 
-Pin/context actions and multi-select aggregate table.
+Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is implemented: an unmodified drag on `SwimlaneCanvas` commits a marquee (measure mode wins the gesture; pan moved to Shift+wheel / trackpad horizontal scroll). A single persistent `<footer class="pr-dock">` shell in `ProfilingReport` swaps `DetailPanel` and `MultiSelectSummary` content without remounting, so height survives mode switches. The axis Δt chrome follows the live drag and is cleared on commit. `ContextMenu` is still a stub.
 
 **Why:** Listed in FEATURE_MATRIX; not MVP.
 

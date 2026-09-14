@@ -940,7 +940,7 @@ describe('StatsAside', () => {
     expect(wrapper.text()).toContain('relu');
   });
 
-  it('PR-STATS-019: topology section when labelled edges present; hidden when absent', () => {
+  it('PR-STATS-019: topology section when the model is drawable; hidden when absent', () => {
     const withTopo = mount(StatsAside, {
       props: {
         report: report({
@@ -953,6 +953,23 @@ describe('StatsAside', () => {
     });
     expect(withTopo.find('[data-testid="stats-topology"]').exists()).toBe(true);
     expect(withTopo.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
+
+    // Labels on plated-less edges only (`l0c-l1` KB lives in the 详情 tabs, PR-MEMTOP-009): the
+    // diagram and **全屏** stay out, exactly as for an absent model.
+    const slotlessOnly = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTopology: {
+            nodes: [{ id: 'l0c', label: 'L0C' }, { id: 'l1', label: 'L1' }],
+            edges: [{ id: 'l0c-l1', from: 'l0c', to: 'l1', label: '7.00 KB' }],
+          },
+        }),
+      },
+    });
+    expect(slotlessOnly.find('[data-testid="stats-topology"]').exists()).toBe(false);
+    expect(slotlessOnly.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+    expect(slotlessOnly.find('[data-testid="topology-fullscreen"]').exists()).toBe(false);
 
     const without = mount(StatsAside, {
       props: { report: report({ summary: { taskDurationUs: 1 } }) },
@@ -1134,6 +1151,96 @@ describe('StatsAside', () => {
     await wrapper.get('[data-testid="topology-details"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('MemoryL1');
+  });
+
+  it('PR-STATS-035: memory 详情 CSV field list also offers the PipeUtilization tab (UI-38)', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              blockIds: ['0'],
+            },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aic_mte1_ratio', 'aic_mte2_ratio', 'aiv_mte3_ratio'],
+              rows: [
+                {
+                  block_id: '0',
+                  aic_mte1_ratio: '0.28',
+                  aic_mte2_ratio: '0.65',
+                  aiv_mte3_ratio: '0.14',
+                },
+              ],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: {
+            'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n',
+            'PipeUtilization.csv':
+              'block_id,aic_mte1_ratio,aic_mte2_ratio,aiv_mte3_ratio\n0,0.28,0.65,0.14\n',
+          },
+        }),
+      },
+    });
+
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="csv-tab-Memory.csv"]').exists()).toBe(true);
+    // MTE utilizations are readable here; the export gives MTE no value plate, so the diagram
+    // stays exactly as designed (no MTE slot).
+    await wrapper.get('[data-testid="csv-tab-PipeUtilization.csv"]').trigger('click');
+    expect(wrapper.text()).toContain('aic_mte2_ratio');
+    expect(wrapper.text()).toContain('aiv_mte3_ratio');
+  });
+
+  it('PR-STATS-035 boundary: memory summary categories win, so no PipeUtilization tab there', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          summaryCategories: [
+            { id: 'Memory', title: 'Memory', fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }] },
+            {
+              id: 'PipeUtilization',
+              title: 'PipeUtilization',
+              fields: [{ key: 'aic_mte2_ratio', value: '0.65' }],
+            },
+          ],
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              blockIds: ['0'],
+            },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aic_mte2_ratio'],
+              rows: [{ block_id: '0', aic_mte2_ratio: '0.65' }],
+              blockIds: ['0'],
+            },
+          ],
+        }),
+      },
+    });
+
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    // The memory surface renders the category list it has, memory files only — the compute
+    // category is served by 计算 详情, not duplicated here (PR-STATS-035).
+    expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="summary-category-tab-Memory"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="summary-category-tab-PipeUtilization"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.find('[data-testid="csv-tab-PipeUtilization.csv"]').exists()).toBe(false);
   });
 
   it('PR-STATS-033: 全屏 next to 详情 when topology shown; hidden when diagram hidden', () => {
