@@ -136,6 +136,100 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     }
   });
 
+  it('fixture summary.jsonl bandwidth matches the producer sum / mean rules (DATA-8)', () => {
+    const meanNonNa = (rows: Record<string, string>[], col: string): number | undefined => {
+      const nums = rows
+        .map((r) => r[col])
+        .filter((v) => v != null && v !== '' && v !== 'NA')
+        .map(Number)
+        .filter(Number.isFinite);
+      return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : undefined;
+    };
+    for (const report of [op1, op2]) {
+      const mem = report.reportModel.memoryTables.find((t) => t.fileName === 'Memory.csv')!;
+      expect(mem).toBeDefined();
+      // npu-tools summarize_npu_rep.py: read / write = sum of the aic + aiv sides.
+      const readSum =
+        (meanNonNa(mem.rows, 'aic_main_mem_read_bw(GB/s)') ?? 0) +
+        (meanNonNa(mem.rows, 'aiv_main_mem_read_bw(GB/s)') ?? 0);
+      const writeSum =
+        (meanNonNa(mem.rows, 'aic_main_mem_write_bw(GB/s)') ?? 0) +
+        (meanNonNa(mem.rows, 'aiv_main_mem_write_bw(GB/s)') ?? 0);
+      const input = report.reportModel.bandwidthCards!.find((c) => c.id === 'input')!;
+      const output = report.reportModel.bandwidthCards!.find((c) => c.id === 'output')!;
+      expect(input.sides).toHaveLength(1);
+      expect(input.sides[0]!.side).toBe('aicore');
+      expect(input.sides[0]!.measuredGBs).toBeCloseTo(readSum, 5);
+      expect(output.sides[0]!.measuredGBs).toBeCloseTo(writeSum, 5);
+      // usage = mean of the non-null per-path usage-rate columns.
+      const usageCols = [
+        'GM_to_UB_bw_usage_rate(%)',
+        'UB_to_GM_bw_usage_rate(%)',
+        'GM_to_L1_bw_usage_rate(%)',
+        'L1_to_GM_bw_usage_rate(%)',
+      ];
+      const usageMeans = usageCols
+        .map((c) => meanNonNa(mem.rows, c))
+        .filter((v): v is number => v != null);
+      const expectedUsage = usageMeans.reduce((a, b) => a + b, 0) / usageMeans.length;
+      expect(report.reportModel.summary.gmBwUsageRate).toBeCloseTo(expectedUsage, 5);
+    }
+  });
+
+  it('fixture keeps ratio / percent columns dimensionless — the magnitude scale never touches them', () => {
+    // `transform_metric_csv` scales magnitude columns (durations, bytes, counts). Applying that to a
+    // ratio fabricates impossible data: op2's `aiv_total_hit_rate(%)` was 0.6 × the real value, so
+    // the L2 Peak plate painted a hit rate the data never had.
+    const ratioOrPct = (key: string): boolean => {
+      const k = key.toLowerCase();
+      return k.endsWith('(%)') || k.includes('_ratio') || k.endsWith('ratio') || k.includes('_rate');
+    };
+    let checked = 0;
+    for (const report of [op1, op2]) {
+      for (const category of report.reportModel.summaryCategories ?? []) {
+        for (const field of category.fields) {
+          if (!ratioOrPct(field.key)) continue;
+          const value = Number(field.value);
+          if (!Number.isFinite(value)) continue;
+          checked += 1;
+          const ceiling = field.key.endsWith('(%)') ? 100 : 1;
+          expect(
+            value,
+            `${category.id}.${field.key} = ${field.value} exceeds the ${ceiling} ceiling`,
+          ).toBeLessThanOrEqual(ceiling);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('MemoryUB.csv keeps the producer column names — no invented `*_gm` rename', () => {
+    for (const report of [op1, op2]) {
+      const ub = report.reportModel.memoryTables.find((t) => t.fileName === 'MemoryUB.csv')!;
+      expect(ub).toBeDefined();
+      // DATA-22/23: the producer emits no `*_gm` here, so neither does the fixture.
+      expect(ub.headers).toContain('aiv_ub_read_bw_scalar(GB/s)');
+      expect(ub.headers).toContain('aiv_ub_write_bw_scalar(GB/s)');
+      expect(ub.headers.some((h) => h.endsWith('_bw_gm(GB/s)'))).toBe(false);
+    }
+  });
+
+  it('the plated UB edges never fall back to the uncollected `*_gm` zero (DATA-22 / DATA-23)', () => {
+    // The chrome gives `ub-l2` / `l2-ub` a value plate. Pre-DATA-22 the adapter preferred
+    // MemoryUB `*_gm`, which is 0.0 in the product pack, so both plates read `0.00 GB/s`.
+    for (const report of [op1, op2]) {
+      const mem = report.reportModel.summaryCategories!.find((c) => c.id === 'Memory')!;
+      const field = (key: string): number =>
+        Number(mem.fields.find((f) => f.key === key)!.value);
+      const label = (id: string): string | undefined =>
+        report.reportModel.memoryTopology!.edges.find((e) => e.id === id)?.label;
+      expect(label('ub-l2')).toBe(`${field('aiv_ub_to_gm_bw(GB/s)').toFixed(2)} GB/s`);
+      expect(label('l2-ub')).toBe(`${field('aiv_gm_to_ub_bw(GB/s)').toFixed(2)} GB/s`);
+      expect(label('ub-l2')).not.toBe('0.00 GB/s');
+      expect(label('l2-ub')).not.toBe('0.00 GB/s');
+    }
+  });
+
   it('both operators embed Sampling.json with CUBE/VECTOR util counters (for PR #98)', () => {
     const container = parseNpuRep160(loadSampleRepBytes());
     for (const opName of ['op1.npu.rep', 'op2.npu.rep'] as const) {

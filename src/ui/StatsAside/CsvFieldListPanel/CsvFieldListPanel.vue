@@ -87,25 +87,6 @@ const activeRow = computed(() => {
   return table.rows.find((r) => r['block_id'] === selectedBlock.value) ?? null;
 });
 
-function highlightParts(text: string, query: string): { text: string; match: boolean }[] {
-  if (!query) return [{ text, match: false }];
-  const lower = text.toLowerCase();
-  const q = query.toLowerCase();
-  const parts: { text: string; match: boolean }[] = [];
-  let i = 0;
-  while (i < text.length) {
-    const j = lower.indexOf(q, i);
-    if (j === -1) {
-      parts.push({ text: text.slice(i), match: false });
-      break;
-    }
-    if (j > i) parts.push({ text: text.slice(i, j), match: false });
-    parts.push({ text: text.slice(j, j + q.length), match: true });
-    i = j + q.length;
-  }
-  return parts;
-}
-
 const fields = computed(() => {
   const table = activeTable.value;
   const row = activeRow.value;
@@ -117,7 +98,6 @@ const fields = computed(() => {
   return headers.map((h) => ({
     header: h,
     value: row[h] ?? '',
-    parts: highlightParts(h, q),
   }));
 });
 
@@ -244,14 +224,7 @@ function onViewAll() {
         :key="field.header"
         class="pr-csv__field"
       >
-        <span class="pr-csv__field-name">
-          <span
-            v-for="(part, i) in field.parts"
-            :key="i"
-            :class="{ 'pr-csv__field-match': part.match }"
-            :data-testid="part.match ? 'csv-field-match' : undefined"
-          >{{ part.text }}</span>
-        </span>
+        <span class="pr-csv__field-name">{{ field.header }}</span>
         <span class="pr-csv__field-value">{{ field.value }}</span>
       </li>
     </ul>
@@ -433,14 +406,6 @@ function onViewAll() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.pr-csv__field-match {
-  color: #688aec;
-  background: #1d283c;
-  border-radius: 3px;
-  padding: 0;
-  font-weight: 600;
 }
 
 .pr-csv__field-value {

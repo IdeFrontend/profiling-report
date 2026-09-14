@@ -54,7 +54,7 @@ describe('CsvFieldListPanel', () => {
     expect(wrapper.text()).toContain('NA');
   });
 
-  it('PR-CSV-003: search filters and highlights matching labels', async () => {
+  it('PR-CSV-003: search filters matching labels (no highlight)', async () => {
     const wrapper = mount(CsvFieldListPanel, {
       props: { tables, csvTexts },
     });
@@ -62,16 +62,11 @@ describe('CsvFieldListPanel', () => {
     await wrapper.get('[data-testid="csv-search"]').setValue('mte2');
     expect(wrapper.text()).toContain('aiv_mte2_ratio');
     expect(wrapper.text()).not.toContain('aiv_vec_ratio');
-    const marks = wrapper.findAll('[data-testid="csv-field-match"]');
-    expect(marks).toHaveLength(1);
-    expect(marks[0].text()).toBe('mte2');
+    // UI-43: filter only — the label renders whole, with no match chip.
+    expect(wrapper.findAll('[data-testid="csv-field-match"]')).toHaveLength(0);
+    expect(wrapper.find('.pr-csv__field-match').exists()).toBe(false);
     const src = (await import('./CsvFieldListPanel.vue?raw')).default as string;
-    const rule = src.match(/\.pr-csv__field-match\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(rule).toMatch(/background:\s*#1d283c/);
-    expect(rule).toMatch(/color:\s*#688aec/);
-    expect(rule).toMatch(/font-weight:\s*600/);
-    expect(rule).toMatch(/padding:\s*0;/);
-    expect(rule).not.toMatch(/display:\s*inline-block/);
+    expect(src).not.toMatch(/pr-csv__field-match/);
     expect(wrapper.find('[data-testid="csv-search-clear"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="csv-search-clear"]').trigger('click');

@@ -9,11 +9,16 @@ import type {
   ReportViewModel,
 } from '../../domain/types';
 import {
+  bandwidthCardsFromRows,
+  computeCardFromRows,
+  pipeOccupancyFromRows,
+  rooflineFromRows,
+} from '../../adapters/adaptRep';
+import {
   buildMemoryTopology,
-  firstLabelledMemoryTopology,
+  blockIdsInOrder,
   hasDrawableTopology,
 } from '../../adapters/memoryTopology';
-import { pipeOccupancyFromRows } from '../../adapters/adaptRep';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import SummaryCategoryList from './SummaryCategoryList/SummaryCategoryList.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
@@ -53,8 +58,49 @@ const COLOR: Record<string, string> = {
 };
 
 const hasDuration = computed(() => props.report?.summary.taskDurationUs != null);
-const bandwidthCards = computed(() => props.report?.bandwidthCards ?? []);
-const computeCard = computed(() => props.report?.computeCard);
+
+/** One block selector for every widget (DATA-19 / DATA-29): `''` = All, else that `block_id`. */
+const blockId = ref('');
+
+/** Rows for one CSV in the picked block; searches compute and memory tabs (DATA-19). */
+function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
+  const report = props.report;
+  if (!report) return [];
+  const table = [...report.computeTables, ...report.memoryTables].find(
+    (t) => t.fileName === fileName,
+  );
+  return table ? table.rows.filter((r) => r['block_id'] === id) : [];
+}
+
+const bandwidthCards = computed(() => {
+  const id = blockId.value;
+  const all = props.report?.bandwidthCards ?? [];
+  if (!id) return all;
+  const peak = props.report?.summary.gmBwTheoreticalGBs ?? all[0]?.sides[0]?.peakGBs;
+  // A block with no `Memory.csv` shows no tile — never the All aggregate wearing its label.
+  return bandwidthCardsFromRows(rowsForBlock('Memory.csv', id), peak);
+});
+const computeCard = computed(() => {
+  const id = blockId.value;
+  const all = props.report?.computeCard;
+  if (!id) return all;
+  // Peak is per-chip (DATA-29), so the picked block re-reads only the measured side and inherits
+  // the peak; nothing to read (no row) blanks the tile rather than repeating the All value.
+  return computeCardFromRows(
+    rowsForBlock('ArithmeticUtilization.csv', id),
+    props.report?.summary ?? {},
+    all,
+  );
+});
+const roofline = computed(() => {
+  const id = blockId.value;
+  if (!id) return props.report?.roofline;
+  // Undecidable for this block ⇒ no series, rather than the All point under a block label.
+  return rooflineFromRows(
+    rowsForBlock('ArithmeticUtilization.csv', id),
+    rowsForBlock('Memory.csv', id),
+  );
+});
 const showComputeCard = computed(
   () => hasDuration.value && (computeCard.value?.sides.length ?? 0) > 0,
 );
@@ -158,56 +204,56 @@ const showCompute = computed(
 const showMemory = computed(
   () => (props.report?.memoryTables?.length ?? 0) > 0 || memoryCategories.value.length > 0,
 );
-const showRoofline = computed(() => (props.report?.roofline?.points?.length ?? 0) > 0);
+const showRoofline = computed(() => (roofline.value?.points.length ?? 0) > 0);
 const hasHardwareDetails = computed(
   () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
 );
 
 const asideSurface = ref<AsideSurface>('report');
-const selectedBlockId = ref('');
-/** DATA-19 / DATA-33b: empty string = All blocks (mean); else filter PIPE to that block_id. */
-const summaryBlockId = ref('');
 
-function defaultTopologyBlockId(tables: NonNullable<ReportViewModel['memoryTables']>): string {
-  const ids = tables.flatMap((t) => t.blockIds);
-  return ids.length === 0 ? '' : (firstLabelledMemoryTopology(tables)?.blockId ?? ids[0]!);
-}
-
-/** Switcher options come from PipeUtilization only — memory-only blocks must not blank PIPE. */
-const summaryBlockIds = computed(() => {
-  const table = props.report?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
-  return table?.blockIds ?? [];
-});
-
-const showSummaryBlockSwitcher = computed(
-  () => showPipe.value && summaryBlockIds.value.length > 1,
+/**
+ * One block selector for every widget (DATA-19 / DATA-29): `''` = **All** (`summary.jsonl`
+ * aggregate), an id = that block's CSV row. Options are every `block_id` the report carries
+ * (compute ∪ memory, fixture order), so the aside switcher and the memory overlay switcher — which
+ * share this state — can never disagree about which ids exist.
+ */
+const blockIds = computed(() =>
+  blockIdsInOrder([...(props.report?.computeTables ?? []), ...(props.report?.memoryTables ?? [])]),
 );
+
+const showBlockSwitcher = computed(() => showPipe.value && blockIds.value.length > 1);
 
 watch(
   () => props.report,
-  (report) => {
+  () => {
     asideSurface.value = 'report';
-    summaryBlockId.value = '';
-    selectedBlockId.value = defaultTopologyBlockId(report?.memoryTables ?? []);
+    blockId.value = '';
   },
   { immediate: true },
 );
 
-function onSummaryBlockChange(id: string) {
-  summaryBlockId.value = id;
-  if (id) selectedBlockId.value = id;
-  else selectedBlockId.value = defaultTopologyBlockId(props.report?.memoryTables ?? []);
-}
-
 const scopedPipeOccupancy = computed(() => {
   const all = props.report?.pipeOccupancy ?? [];
-  if (!summaryBlockId.value) return all;
-  const table = props.report?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
-  if (!table) return all;
-  const rows = table.rows.filter((r) => r['block_id'] === summaryBlockId.value);
-  // Empty filter (stale id / missing rows) keeps the All aggregate rather than blanking PIPE.
-  return rows.length === 0 ? all : pipeOccupancyFromRows(rows);
+  if (!blockId.value) return all;
+  const rows = rowsForBlock('PipeUtilization.csv', blockId.value);
+  // Blank rather than repeat the All aggregate under a block label. `showPipe` reads the All
+  // occupancy, so the switcher survives an empty pick and the user can get back to All.
+  return rows.length === 0 ? [] : pipeOccupancyFromRows(rows);
 });
+
+/** Overlay row scope: `All` has no single row, so the CSV lists fall back to the first block id. */
+const overlayBlockId = computed(() => blockId.value || blockIds.value[0] || '');
+
+/**
+ * DATA-19 / DATA-29: 详情 follows the same selector. With a block picked the CSV field list shows that
+ * block's row; under `All` the product default (`summary.jsonl` category list) stays.
+ */
+const computeCsvScope = computed(
+  () => Boolean(blockId.value) && (props.report?.computeTables?.length ?? 0) > 0,
+);
+const memoryCsvScope = computed(
+  () => Boolean(blockId.value) && (props.report?.memoryTables?.length ?? 0) > 0,
+);
 
 watch(
   () => [showCompute.value, showMemory.value] as const,
@@ -217,11 +263,16 @@ watch(
   },
 );
 
+/**
+ * `All` = the adapter's snapshot (`summary.jsonl` categories, else the first drawable block's CSV);
+ * a picked id = that block's Memory* CSV row (DATA-19 / DATA-29). Rebuilding the `All` aggregate here
+ * would be a second copy of the adapter rule, free to drift from `report.memoryTopology`.
+ */
 const topologyModel = computed(() => {
+  const id = blockId.value;
   const tables = props.report?.memoryTables ?? [];
-  if (tables.length > 0) {
-    return selectedBlockId.value ? buildMemoryTopology(tables, selectedBlockId.value) : undefined;
-  }
+  // A picked block shows only that block's rows — never the All aggregate wearing its label.
+  if (id && tables.length > 0) return buildMemoryTopology(tables, id);
   return props.report?.memoryTopology;
 });
 
@@ -349,7 +400,7 @@ function utilScore(measured: number, peak: number): number {
   return Math.min(100, Math.max(0, Math.round((measured / peak) * 100)));
 }
 
-/** Sketch 读|写: collapse input/output × aic|aiv into one mean per direction (DATA-33g). */
+/** Sketch 读|写: collapse input/output × aic|aiv into one **sum** per direction (DATA-8). */
 function bandwidthUtilFromCards(
   cards: BandwidthCardModel[],
 ): { dir: 'read' | 'write'; measuredGBs: number; peakGBs: number }[] {
@@ -357,10 +408,9 @@ function bandwidthUtilFromCards(
   for (const id of ['input', 'output'] as const) {
     const card = cards.find((c) => c.id === id);
     if (!card || card.sides.length === 0) continue;
-    const measuredGBs =
-      card.sides.reduce((a, s) => a + s.measuredGBs, 0) / card.sides.length;
-    // ponytail: peak from sides[0] only — safe while DATA-33g peak is the constant 1600 GB/s.
-    // When DATA-5/6 ship per-side peaks, mean/max/pick needs an explicit Product rule.
+    // DATA-8: read = aic + aiv (the producer's `OpInfoSummary.aicore_gm_read_bw`), write likewise.
+    const measuredGBs = card.sides.reduce((a, s) => a + s.measuredGBs, 0);
+    // Peak is one SOL value shared by every side (DATA-6), so sides[0] is representative.
     const peakGBs = card.sides[0]!.peakGBs;
     out.push({ dir: id === 'input' ? 'read' : 'write', measuredGBs, peakGBs });
   }
@@ -544,7 +594,7 @@ function backToReport() {
       class="pr-aside__detail"
     >
       <SummaryCategoryList
-        v-if="computeCategories.length > 0"
+        v-if="computeCategories.length > 0 && !computeCsvScope"
         :categories="computeCategories"
         :active-id="activeCategory"
         @update:active-id="activeCategory = $event"
@@ -555,6 +605,7 @@ function backToReport() {
         :csv-texts="report?.csvTexts ?? {}"
         :show-block-switcher="false"
         :show-view-all="false"
+        :selected-block-id="overlayBlockId"
         :locale="locale"
       />
     </div>
@@ -565,7 +616,7 @@ function backToReport() {
       class="pr-aside__detail"
     >
       <SummaryCategoryList
-        v-if="memoryCategories.length > 0"
+        v-if="memoryCategories.length > 0 && !memoryCsvScope"
         :categories="memoryCategories"
         :active-id="activeCategory"
         @update:active-id="activeCategory = $event"
@@ -574,9 +625,9 @@ function backToReport() {
         v-else
         :tables="memoryDetailTables"
         :csv-texts="report?.csvTexts ?? {}"
-        :selected-block-id="selectedBlockId"
+        :selected-block-id="overlayBlockId"
         :locale="locale"
-        @update:selected-block-id="selectedBlockId = $event"
+        @update:selected-block-id="blockId = $event"
         @view-full-csv="emit('view-full-csv', $event)"
       />
     </div>
@@ -774,12 +825,12 @@ function backToReport() {
       </div>
 
       <div
-        v-if="showRoofline && report?.roofline"
+        v-if="showRoofline && roofline"
         class="pr-stack-section"
         data-testid="stats-roofline"
       >
         <RooflinePanel
-          :model="report.roofline"
+          :model="roofline"
           :locale="locale"
         />
       </div>
@@ -815,23 +866,22 @@ function backToReport() {
         </div>
         <div class="pr-panel pr-panel--pipe">
           <div
-            v-if="showSummaryBlockSwitcher"
+            v-if="showBlockSwitcher"
             class="pr-pipe-block"
             data-testid="pipe-block-switcher"
           >
             <span>{{ t('block', locale) }}</span>
             <select
-              :value="summaryBlockId"
+              v-model="blockId"
               class="pr-block-pill"
               data-testid="pipe-block"
               :aria-label="t('block', locale)"
-              @change="onSummaryBlockChange(($event.target as HTMLSelectElement).value)"
             >
               <option value="">
                 {{ t('blockAll', locale) }}
               </option>
               <option
-                v-for="id in summaryBlockIds"
+                v-for="id in blockIds"
                 :key="id"
                 :value="id"
               >
@@ -1011,7 +1061,7 @@ function backToReport() {
             </button>
           </div>
           <SummaryCategoryList
-            v-if="computeCategories.length > 0"
+            v-if="computeCategories.length > 0 && !computeCsvScope"
             :categories="computeCategories"
             :active-id="activeCategory"
             @update:active-id="activeCategory = $event"
@@ -1022,6 +1072,7 @@ function backToReport() {
             :csv-texts="report?.csvTexts ?? {}"
             :show-block-switcher="false"
             :show-view-all="false"
+            :selected-block-id="overlayBlockId"
             :locale="locale"
           />
         </div>
@@ -1046,7 +1097,7 @@ function backToReport() {
             </button>
           </div>
           <SummaryCategoryList
-            v-if="memoryCategories.length > 0"
+            v-if="memoryCategories.length > 0 && !memoryCsvScope"
             :categories="memoryCategories"
             :active-id="activeCategory"
             @update:active-id="activeCategory = $event"
@@ -1055,9 +1106,9 @@ function backToReport() {
             v-else
             :tables="memoryDetailTables"
             :csv-texts="report?.csvTexts ?? {}"
-            :selected-block-id="selectedBlockId"
+            :selected-block-id="overlayBlockId"
             :locale="locale"
-            @update:selected-block-id="selectedBlockId = $event"
+            @update:selected-block-id="blockId = $event"
             @view-full-csv="emit('view-full-csv', $event)"
           />
         </div>

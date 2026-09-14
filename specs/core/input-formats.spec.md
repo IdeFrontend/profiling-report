@@ -20,7 +20,7 @@ Report container contract and embedded file conventions shared with [rep-format]
 
 ## Dependencies
 
-DATA-33b (pipe aggregation: mean of non-NA ratios per family). Shared `PR-FMT-*` with [rep-format](./rep-format.spec.md).
+DATA-28 (pipe aggregation: mean of non-NA ratios per family). Shared `PR-FMT-*` with [rep-format](./rep-format.spec.md).
 
 ## Open
 
