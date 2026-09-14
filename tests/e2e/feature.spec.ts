@@ -397,7 +397,7 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
     // Live dock follows coverage before commit (≥2 events → summary). Height is
     // slack-based preview toward the session target (PR-ROOT-018) — floor fits
-    // chrome + first table row; with room below lanes it may reach collapsed.
+    // the count header only; with room below lanes it may reach collapsed.
     await expect(page.getByTestId('dock')).toBeVisible();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     const midDragDockH = (await page.getByTestId('dock').boundingBox())!.height;

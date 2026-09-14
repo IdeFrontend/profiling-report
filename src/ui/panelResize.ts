@@ -22,10 +22,11 @@ export const DOCK_HEIGHT_COLLAPSED = 247;
 export const DOCK_HEIGHT_EXPANDED = 407;
 /**
  * Minimum in-flow dock height while a marquee is live and the dock was closed at drag start.
- * Sized to fit MultiSelectSummary chrome (head + table thead) plus the first data row;
- * slack may grow it further toward the session target.
+ * Sized to fit MultiSelectSummary's count header row only (`{n} items selected` + Slices tab
+ * + close); the table body stays clipped until commit grows to the session target.
+ * Slack may grow it further toward that session target.
  */
-export const DOCK_HEIGHT_MARQUEE_PREVIEW = 100;
+export const DOCK_HEIGHT_MARQUEE_PREVIEW = 40;
 
 /**
  * Live marquee preview dock height when opening from a closed dock.
