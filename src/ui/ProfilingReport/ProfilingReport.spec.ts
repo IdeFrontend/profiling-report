@@ -3,6 +3,7 @@ import { markRaw, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
+import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
@@ -65,6 +66,222 @@ function topologyReport() {
 }
 
 describe('ProfilingReport scaffold', () => {
+  it('PR-CTXMENU-011: leaf-gutter context menu reaches the report root', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
+      clientX: 10,
+      clientY: 20,
+    });
+    await nextTick();
+
+    expect(document.querySelector('[data-testid="context-menu"]')).not.toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CTXMENU-003: Reset zoom is available off-event only outside the total range', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    // Zoom in while the menu is closed so the W key reaches the app's handler.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    await nextTick();
+
+    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
+      clientX: 10,
+      clientY: 20,
+    });
+    await nextTick();
+    expect(document.querySelector('[data-testid="ctx-item-reset"]')).not.toBeNull();
+
+    document.querySelector<HTMLButtonElement>('[data-testid="ctx-item-reset"]')!.click();
+    await nextTick();
+    expect(wrapper.vm.viewState.startTime).toBe(0);
+    expect(wrapper.vm.viewState.endTime).toBe(1000);
+
+    // Back at the full range, a fresh menu omits Reset zoom.
+    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
+      clientX: 10,
+      clientY: 20,
+    });
+    await nextTick();
+    expect(document.querySelector('[data-testid="ctx-item-reset"]')).toBeNull();
+
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+  });
+
+  it('PR-CTXMENU-016: opening the menu on an event keeps it highlighted until dismissed', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    const target = { id: 'a', name: 'A', startTime: 0, duration: 10 };
+    wrapper.findComponent(TimelineView).vm.$emit('context-menu', {
+      x: 10,
+      y: 10,
+      laneId: 't-0',
+      target,
+    });
+    await nextTick();
+    expect(wrapper.vm.viewState.hoveredEventId).toBe('a');
+
+    // Programmatic scroll dismisses the menu and clears its pinned event highlight.
+    wrapper.findComponent(TimelineView).vm.$emit('update:scrollY', 10);
+    await nextTick();
+    expect(wrapper.vm.viewState.hoveredEventId).toBeNull();
+    expect(wrapper.vm.viewState.scrollY).toBe(10);
+    wrapper.unmount();
+  });
+
+  it('PR-CTXMENU-016: scroll with the menu closed does not clear hoveredEventId', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    const target = { id: 'a', name: 'A', startTime: 0, duration: 10 };
+    wrapper.findComponent(TimelineView).vm.$emit('hover', target, 12, 24);
+    await nextTick();
+    expect(wrapper.vm.viewState.hoveredEventId).toBe('a');
+
+    // Ordinary wheel scroll-y must not call dismiss — canvas does not re-emit hover.
+    wrapper.findComponent(TimelineView).vm.$emit('update:scrollY', 10);
+    await nextTick();
+    expect(wrapper.vm.viewState.hoveredEventId).toBe('a');
+    expect(wrapper.vm.viewState.scrollY).toBe(10);
+    wrapper.unmount();
+  });
+
+  it('PR-CTXMENU-018: Shift+P toggles the hovered lane pin globally (menu closed)', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    wrapper.findComponent(TimelineView).vm.$emit('hover-lane', 't-0');
+    await nextTick();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'P', shiftKey: true }));
+    await nextTick();
+    expect(wrapper.vm.viewState.pinnedLaneIds).toContain('t-0');
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'P', shiftKey: true }));
+    await nextTick();
+    expect(wrapper.vm.viewState.pinnedLaneIds).not.toContain('t-0');
+    wrapper.unmount();
+  });
+
+  it('PR-CTXMENU-012: Show on a single-task summary bar selects its underlying leaf', async () => {
+    const leaf = { id: 'leaf-1', name: 'busy', startTime: 0, duration: 10 };
+    const summary = {
+      id: 'folder/summary/0',
+      name: 'busy',
+      startTime: 0,
+      duration: 10,
+      taskCount: 1,
+      sourceEvent: leaf,
+    };
+    const swimlaneModel = {
+      processes: [
+        {
+          id: 'p-0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              // Real leaf under the folder so findEventInModel resolves `sourceEvent`
+              // (a collapsed folder's summaryEvents mirror its actual leaf events).
+              children: [{ id: 'leaf-thread', name: 'T', events: [leaf] }],
+              summaryEvents: [summary],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 1000,
+    };
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel, reportModel: emptyReportViewModel() },
+    });
+
+    // Bypass canvas hit-testing: emit the action ContextMenu would fire for a
+    // right-clicked summary bar (`target` = the summary event, not the leaf).
+    wrapper.findComponent(ContextMenu).vm.$emit('action', {
+      command: 'show',
+      laneId: 'folder',
+      target: summary,
+    });
+    await nextTick();
+
+    expect(wrapper.vm.viewState.selectedEventId).toBe('leaf-1');
+    wrapper.unmount();
+  });
+
+  it('PR-CTXMENU-012: Show on a multi-task summary bar preserves the existing selection', async () => {
+    const leaf = { id: 'leaf-1', name: 'busy', startTime: 0, duration: 10 };
+    const summary = {
+      id: 'folder/summary/0',
+      name: 'busy',
+      startTime: 0,
+      duration: 10,
+      taskCount: 4,
+    };
+    const swimlaneModel = {
+      processes: [
+        {
+          id: 'p-0',
+          name: 'Card0',
+          threads: [
+            {
+              id: 'folder',
+              name: '计算',
+              events: [],
+              children: [{ id: 'leaf-thread', name: 'T', events: [leaf] }],
+              summaryEvents: [summary],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 1000,
+    };
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { swimlaneModel, reportModel: emptyReportViewModel() },
+    });
+
+    // Select a real leaf first, so the multi-task summary Show has a selection to clear.
+    wrapper.findComponent(ContextMenu).vm.$emit('action', {
+      command: 'show',
+      laneId: 'leaf-thread',
+      target: leaf,
+    });
+    await nextTick();
+    expect(wrapper.vm.viewState.selectedEventId).toBe('leaf-1');
+
+    // Show on a multi-task summary (no sourceEvent) must dismiss without clearing.
+    wrapper.findComponent(ContextMenu).vm.$emit('action', {
+      command: 'show',
+      laneId: 'folder',
+      target: summary,
+    });
+    await nextTick();
+
+    expect(wrapper.vm.viewState.selectedEventId).toBe('leaf-1');
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-001, PR-SCAFFOLD-003: mounts report root with timeline chrome', () => {
     const wrapper = mount(ProfilingReport, {
       props: { title: 'scaffold' },
@@ -1087,20 +1304,23 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('W/S/A/D ignored while typing in the search field', async () => {
+  it('W/S/A/D and Shift+P are ignored while typing in the search field', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'keyboard-guard',
-        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        swimlaneModel: depsModel(),
         reportModel: emptyReportViewModel(),
       },
     });
     const span = () => wrapper.vm.viewState.endTime - wrapper.vm.viewState.startTime;
+    wrapper.findComponent(TimelineView).vm.$emit('hover-lane', 't-0');
     const input = wrapper.find('[data-testid="search-input"]').element as HTMLInputElement;
     input.focus();
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'P', shiftKey: true, bubbles: true }));
     await nextTick();
     expect(span()).toBe(1000);
+    expect(wrapper.vm.viewState.pinnedLaneIds).toEqual([]);
     wrapper.unmount();
   });
 });

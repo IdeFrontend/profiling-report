@@ -74,7 +74,7 @@ Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (
 **Product (2026-09-04) — [UI-44](../context/questions/deferred.md):** folder/group pin is **deferred** out of the current iteration. Shipped behavior remains **leaf lanes only**. Folder + subtree strip is parked on `feat/pin-grouping-nodes` (PR [#69](https://github.com/IdeFrontend/profiling-report/pull/69) closed unmerged).
 
 - **Leaf lanes only:** unpinned pushpin appears on **gutter row hover** only (not when hovering the events chart); **pinned pushpin stays visible** on the original row and sticky-strip duplicate. Flush to the **left edge** of the gutter (not depth-indented). Outline `#a8a8a8` unpinned; solid `#4a90e2` when pinned or when hovering the pin. Full gutter row highlight `#252525` on gutter hover **or** when the pointer is over that leaf’s events-chart band (header hint only — no highlight painted on the swimlane itself). Tooltip **置顶**.
-- Click unpinned pushpin → parent appends lane id to **pinnedLaneIds**; click pinned → remove. Context-menu **Pin row** (Ctrl+P) toggles the same **pinnedLaneIds** — one pin state, two affordances.
+- Click unpinned pushpin → parent appends lane id to **pinnedLaneIds**; click pinned → remove. Context-menu **Pin row** and the global **Shift+P** (toggles the hovered leaf lane) write the same **pinnedLaneIds** — one pin state, two affordances.
 - **Sticky strip:** pinned leaf rows duplicate at the top of the swim body (gutter + canvas); originals remain in tree order below. Strip stays when an ancestor Card/folder is collapsed (pins are built from the full swim model). Strip shows **events only** — no dependency beziers. Pins may span multiple Cards/groups; strip order = pin order. See [`LaneGutter.spec.md`](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 - **Overview / summary charts (PyPTO counter pin):** each 统计分析 track has the same pushpin affordance. Click appends the series id to **pinnedOverviewIds**. Sticky duplicates sit **above** the pinned-lane strip and **above** the scrolling swim body; the unpinned 统计分析 block scrolls with the lanes. Unpin from either the section or the sticky strip. Shared playhead line paints over overview tracks; hover shows the step value (EventTooltip chrome).
 **Phase 2+** (spec + crops landed; implementation follows).
@@ -85,7 +85,7 @@ Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (
 
 Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
 
-- Right-click lane or event → menu (e.g. **Pin row** + Ctrl+P, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
+- Right-click lane or event → menu (e.g. **Reset zoom** at any timeline point while zoomed in, **Pin row** + global Shift+P, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
 
 **Phase 2+.**
 
