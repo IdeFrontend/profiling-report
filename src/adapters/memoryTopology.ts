@@ -5,6 +5,12 @@ const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'l2', label: 'L2 Cache' },
   { id: 'xn_imm', label: 'XN_IMM' },
   { id: 'data_cache', label: 'Data Cache' },
+  // UI-38: the chrome draws MTE1/2/3 blocks on the L2↔unit paths, but the export gives them no
+  // value plate, so the panel has no slot to paint (PR-VM-017). They still belong to the model:
+  // their utilizations live in PipeUtilization.csv and surface through the memory 详情 CSV field list.
+  { id: 'mte1', label: 'MTE1' },
+  { id: 'mte2', label: 'MTE2' },
+  { id: 'mte3', label: 'MTE3' },
   { id: 'l1', label: 'L1' },
   { id: 'l0a', label: 'L0A' },
   { id: 'l0b', label: 'L0B' },
@@ -66,6 +72,7 @@ const EDGE_MAP: {
     sources: [{ file: 'Memory.csv', columns: ['aic_l1_read_bw(GB/s)'] }],
   },
   {
+    // Drawn blank on the chrome until UI-48: the export routes this corridor onto FixP.
     id: 'l2-l1-write',
     from: 'l1',
     to: 'l2',
@@ -172,6 +179,54 @@ const EDGE_MAP: {
   },
 ];
 
+/**
+ * Edges the official chrome gives a value plate — the panel's `SLOTS` keys
+ * ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) § Value slots).
+ * `l2-hit` is plated too, but in the L2 pillar's in-box `%` plate rather than a link slot,
+ * so it rides separately. `l0c-l1` / `l0c-l2` (KB) and `l2-l1-write` (UI-48) have **no** plate:
+ * they stay in the 详情 tabs (PR-MEMTOP-009). The panel types its `SLOTS` against this tuple, so a
+ * plated edge without coordinates fails typecheck instead of silently drawing nothing.
+ */
+export const TOPOLOGY_SLOT_EDGE_IDS = [
+  'gm-l2-read',
+  'gm-l2-write',
+  'l2-ub',
+  'ub-l2',
+  'l2-l1-read',
+  'ub-vec',
+  'vec-ub',
+  'l1-l0a',
+  'l1-l0b',
+  'l0a-cube',
+  'l0b-cube',
+  'cube-l0c',
+  'l0c-cube',
+] as const;
+
+export type TopologySlotEdgeId = (typeof TOPOLOGY_SLOT_EDGE_IDS)[number];
+
+/** DATA-20 L2 Peak(%): plate on the L2 pillar, not a link slot (`unit: '%'`). */
+export const TOPOLOGY_PEAK_PLATE_EDGE_ID = 'l2-hit';
+
+/**
+ * True when the chrome can paint something: a plated link value, the L2 plate (`peakPct` or a
+ * `l2-hit` label), or both. A model whose only labels are slotless (`l0c-l1` / `l0c-l2` /
+ * `l2-l1-write`) is not drawable — mounting the chrome with every overlay blank is worse than
+ * hiding it (PR-MEMTOP-009 / PR-MEMTOP-012). Shared by the panel's `show` gate and the default
+ * block pick below, so both agree on what "the diagram exists" means.
+ */
+export function hasDrawableTopology(model: MemoryTopologyModel | null | undefined): boolean {
+  if (!model || model.nodes.length === 0) return false;
+  if (model.nodes.some((n) => n.id === 'l2' && n.peakPct != null)) return true;
+  return model.edges.some(
+    (e) =>
+      e.label != null &&
+      e.label !== '' &&
+      ((TOPOLOGY_SLOT_EDGE_IDS as readonly string[]).includes(e.id) ||
+        e.id === TOPOLOGY_PEAK_PLATE_EDGE_ID),
+  );
+}
+
 function parseNumber(raw: string | undefined): number | undefined {
   if (raw == null || raw === '' || raw === 'NA') return undefined;
   const n = Number(raw);
@@ -244,13 +299,16 @@ function blockIdsInOrder(tables: CsvTableModel[]): string[] {
   return ids;
 }
 
-/** First block that yields at least one labelled edge; otherwise undefined. */
+/**
+ * First block whose model the chrome can paint (`hasDrawableTopology`, not merely "has a label"),
+ * so the default pick always yields a diagram; otherwise undefined (PR-VM-018).
+ */
 export function firstLabelledMemoryTopology(
   tables: CsvTableModel[],
 ): { blockId: string; model: MemoryTopologyModel } | undefined {
   for (const blockId of blockIdsInOrder(tables)) {
     const model = buildMemoryTopology(tables, blockId);
-    if (model) return { blockId, model };
+    if (model && hasDrawableTopology(model)) return { blockId, model };
   }
   return undefined;
 }

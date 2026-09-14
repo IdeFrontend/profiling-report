@@ -49,7 +49,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | No algorithm for “prev/next” if only unordered id lists | Wrong graph direction | Interim: directed successor list; predecessors = reverse index |
 | Depth-filter semantics underspecified | Details mini-graph ambiguity | Match sketch defaults (both / forward / backward); document interim |
 | **Memory edge ↔ CSV column mapping** not fully specified (UI-38 says labels data-driven, not which field → which edge) | Wrong/missing labels on graph | Engineering mapping table from sketch + CSV headers; Product confirm later |
-| No official SVG topology asset in repo | Must draw from sketches | Create SVG from `source/v930/memory-load-detail.jpeg`; treat as product-owned asset |
+| No official SVG topology asset in repo | Must draw from sketches | **Resolved 2026-09-10** — official export shipped as `src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg` (`v930/report-stats-scrolled`), values overlaid at its slots |
 | **DATA-37 roofline** formulas + peak ceilings still open | Cannot claim Product-final axes | Ship **interim** point derivation from `ArithmeticUtilization` columns; document I-*; hide panel if undecidable; swap when DATA-37 closes |
 | Roofline peak bandwidth / compute ceilings not in fixture | Roof lines missing | Interim constants or omit roofs until Product supplies peaks |
 | **MSTT repo access / review lag** | Host PR slips past 2026-08-25 | Start dep wiring early; parallel library work; slip host only if needed |

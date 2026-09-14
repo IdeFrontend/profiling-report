@@ -53,7 +53,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 
 **Roofline (M2 interim).** When `report.roofline.points` is non-empty, mount `RooflinePanel` on the stack after the summary cards (DATA-37a–f). Hide on overlays and when absent. No tabs until DATA-37f superseded.
 
-**Topology (M2).** When labelled edges exist, mount `MemoryTopologyPanel` below PIPE with title **内存负载分析**, a fit-window **全屏** icon, and **详情**. Action order: cannbot → **全屏** → **详情**. **全屏** emits **open-topology-fullscreen** (parent covers `.pr-root` with the current `topologyModel`, including `selectedBlockId`). **详情** and **right-click** on the stacked diagram (UI-35) open the memory CSV overlay. If memory tables exist but the current block has no labelled edges, still show the section chrome + **详情** (no diagram, no **全屏**) so the CSV overlay stays reachable. Labels are block-scoped: parent owns `selectedBlockId` and rebuilds via `buildMemoryTopology`. L2 Peak(%) comes from `l2.peakPct` (DATA-20 hit rate). Hide the diagram when the model is absent. On **report** change, re-pick `selectedBlockId` via `firstLabelledMemoryTopology` (do not keep a stale id that is unlabelled in the new file).
+**Topology (M2).** When the current model is drawable — a value on a plated edge, or the L2 plate (`l2.peakPct` / `l2-hit`), per `hasDrawableTopology` (PR-VM-018) — mount `MemoryTopologyPanel` below PIPE with title **内存负载分析**, a fit-window **全屏** icon, and **详情**. Action order: cannbot → **全屏** → **详情**. **全屏** emits **open-topology-fullscreen** (parent covers `.pr-root` with the current `topologyModel`, including `selectedBlockId`). **详情** and **right-click** on the stacked diagram (UI-35) open the memory CSV overlay. If memory tables exist but the current block is not drawable — no label at all, or labels only on plated-less edges (`l0c-l1` / `l0c-l2` KB, `l2-l1-write` pending UI-48) — still show the section chrome + **详情** (no diagram, no **全屏**) so the CSV overlay stays reachable. Labels are block-scoped: parent owns `selectedBlockId` and rebuilds via `buildMemoryTopology`. L2 Peak(%) comes from `l2.peakPct` (DATA-20 hit rate). Hide the diagram when the model is absent. On **report** change, re-pick `selectedBlockId` via `firstLabelledMemoryTopology` (do not keep a stale id that is not drawable in the new file).
 
 **CSV-only fallback.** If duration, bandwidth, PIPE, roofline, and topology are all absent but compute/memory tables exist, show those CSV lists on the stack (no overlay required).
 
@@ -90,9 +90,9 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 19b. **PR-STATS-017b** — Topology right-click opens the same memory CSV overlay (UI-35).
 20. **PR-STATS-018** — 更多 navigates to hardware overlay when hardwareDetails present; back returns.
 21. **PR-STATS-018b** — OpBasicInfo fallback still renders `HardwareDetailsPanel` (not missing copy).
-22. **PR-STATS-019** — Topology section when `memoryTopology` has labelled edges; hidden when absent.
+22. **PR-STATS-019** — Topology section (diagram + **全屏**) when the current `memoryTopology` is drawable — a plated edge value or the L2 plate (see the adapter's `hasDrawableTopology` rule); hidden when absent or when the only labels sit on plated-less edges (`l0c-l1` / `l0c-l2` / `l2-l1-write`). **详情** remains per PR-STATS-023.
 23. **PR-STATS-020** — No mode-tab switcher on the stacked report.
-24. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first labelled block of the new report.
+24. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; `selectedBlockId` re-picks the first drawable block of the new report.
 25. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
 26. **PR-STATS-023** — Memory 详情 is available when memory tables exist even if the topology diagram is hidden.
 27. **PR-STATS-024** — Bandwidth util 读|写 card, GB/s, score bar.
@@ -108,6 +108,7 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 36b. **PR-STATS-032b** — Lone Vector / write columns use secondary bar hue (COLOR_TOKENS semantic, not index).
 37. **PR-STATS-033** — 全屏 icon next to 详情 when topology shown; hidden when diagram hidden.
 38. **PR-STATS-034** — 全屏 emits open-topology-fullscreen; does not open CSV overlay.
+39. **PR-STATS-035** — The memory 详情 **CSV field list** (the `CsvFieldListPanel` rendering, used when no memory summary categories exist — CSV-only reports) also offers the `PipeUtilization` tab when that table is present, so MTE utilizations stay reachable even though the export gives the chrome's MTE blocks no value plate (UI-38). Reports **with** memory summary categories list those categories instead (memory files only); their MTE ratios stay reachable under 计算 详情 → `PipeUtilization`.
 
 ## Edge Cases
 
@@ -132,9 +133,9 @@ DATA-33a duration + DATA-33g bandwidth + DATA-33h compute. Card group renders wh
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
 | No roofline / empty points | Roofline section omitted |
 | No memoryTopology | Topology section omitted |
-| Selected block has no labelled edges | Topology diagram hidden; 详情 remains if memory tables exist; **全屏** hidden |
+| Selected block not drawable (no label, or plated-less labels only) | Topology diagram hidden; 详情 remains if memory tables exist; **全屏** hidden |
 | Topology diagram shown | **全屏** fit-window icon sits immediately left of **详情** (cannbot → 全屏 → 详情) |
-| Overlay open, report replaced | Return to stacked report; re-pick first labelled block |
+| Overlay open, report replaced | Return to stacked report; re-pick first drawable block |
 | CSV tables only | Compute/memory lists on the stack |
 
 ## Visual
@@ -253,6 +254,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-14** — Topology gate wording synced with the code: `showTopology` now asks whether the model is *drawable* (a plated edge value or the L2 plate, PR-VM-018), not merely whether a label exists. The default block pick uses the same predicate, so the snapshot no longer selects a block whose labels are all plated-less and then hides the diagram (PR-STATS-019 / PR-STATS-021).
 - **2026-09-10** — Summary PIPE **block** select shares the `.pr-block-pill` chrome (`tokens.css`) with the memory overlay switcher — one definition instead of two copies, so they cannot drift. The v930 frames contain no summary block control — it is a DATA-33b addition with no design source.
 - **2026-09-08** — AICore dual **并行使用率** \| **负载均衡度** columns with `%` bars (DATA-9 / DATA-10, PR-STATS-011c).
 - **2026-09-08** — AICore score/bar clamp to [0, 100]; unrounded percent in value `title`; 2dp display precision documented.
