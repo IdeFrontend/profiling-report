@@ -29,7 +29,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
 | `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter (pipe-ratio legacy default); **时钟周期** gutter mode | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
 | `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
-| `Memory.csv` | Optional summary I/O bandwidth tiles (DATA-33g) | Memory topology diagram + field drill-down |
+| `Memory.csv` | Optional summary I/O bandwidth tiles (DATA-8) | Memory topology diagram + field drill-down |
 | `MemoryL0.csv` | — | L0 path details on memory diagram |
 | `MemoryUB.csv` | — | UB path details |
 | `L2Cache.csv` | — | Cache tab / L2 hit-rate panels |
@@ -73,7 +73,7 @@ Important AIV columns (sample is vector-heavy):
 
 AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cube / FixPipe bars when present.
 
-**MVP aggregation ([DATA-33b](../context/decisions/interim/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), take the **mean of non-`NA` ratios** across `block_id` rows. Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md). Superseded when DATA-33 / data spec says otherwise.
+**Aggregation ([DATA-28](../context/decisions/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), `All` (default) takes the **mean of non-`NA` ratios** across `block_id` rows from `summary.jsonl`; a picked `block_id` takes that block's `PipeUtilization.csv` row ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md).
 
 **Overview charts:** Fill `OverviewSeries` from product `Sampling.json` `ph:"C"` counters — **one track per distinct counter `name` present** ([DATA-39](../context/decisions/DATA.md)). **Hide** when empty ([DATA-32](../context/decisions/DATA.md)). Do **not** derive from PipeUtilization ratios.
 
@@ -90,7 +90,7 @@ Per-Card dropdown on swimlane Card strips. Normative formula: [gutter-metrics.sp
 | 时钟周期 (`clockCycle`) | Mean pipe **active time (µs)** — UI label says “Clock Cycle”, values are **not** cycle counts | `PipeUtilization.csv` mapped `*_time(us)` only (see gutter-metrics column map) | Label suffix **`µs`**; hide when no mappable time data; **ignore** `*_total_cycles` |
 | 利用率 (`utilization`) | Event coverage % over model time span | `trace.json` | Always when trace exists |
 
-Default: **利用率** when available, else **时钟周期**. Aside PIPE **ratio** bars stay [DATA-33b](../context/decisions/interim/DATA.md); aside in-bar absolute times stay [DATA-33f](../context/decisions/interim/DATA.md) (same `*_time(us)` means as gutter clockCycle raw, different UI). **Product confirmation:** [DATA-38](../context/questions/DATA.md), [DATA-38a](../context/decisions/interim/DATA.md), [UI-46](../context/questions/UI.md), [UI-46a](../context/decisions/interim/UI.md).
+Default: **利用率** when available, else **时钟周期**. Aside PIPE **ratio** bars stay [DATA-28](../context/decisions/DATA.md); aside in-bar absolute times stay [DATA-33f](../context/decisions/interim/DATA.md) (same `*_time(us)` means as gutter clockCycle raw, different UI). **Product confirmation:** [DATA-38](../context/questions/DATA.md), [DATA-38a](../context/decisions/interim/DATA.md), [UI-46](../context/questions/UI.md), [UI-46a](../context/decisions/interim/UI.md).
 
 **Fill / midline:** utilization — red when < 50%, dash at 50%. clockCycle — red on max lane(s) only (all gray when tied); dash at `(mean raw ÷ max raw) × 100`.
 
