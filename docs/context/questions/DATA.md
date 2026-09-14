@@ -66,16 +66,6 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 **Answer so far:** The producer doc maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`) — the pipe-busy-rate mapping [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) flags as wrong. No Product answer. (Interim [DATA-37f](../decisions/interim/DATA.md): hide the tabs.)
 
-### DATA-20 — Peak(%) box colors
-
-<img src="../visual/questions/data-20.png" alt="DATA-20 Peak(%) on the L2 box" width="900" height="900">
-
-**Status:** `partial`
-
-**Question:** Memory-diagram **boxes and edges** can show a **Peak (%)** badge — the unit's usage as a percent of its theoretical maximum, driving a color scale. For **each box** — GM, L2, L1, L0A, L0B, L0C, Cube, FixP, UB, Vec, Scalar — which file and field gives that percent, and what is the box's 100% reference (theoretical peak)? For each **edge** that carries a 理论值 — L0C → L1 and L0C → L2/GM ([DATA-24](../decisions/DATA.md) / [DATA-25](../decisions/DATA.md)) — same question: which field, and what is the 100% reference? The producer doc's 理论值 column is empty for every row.
-
-**Answer so far (2026-09-11):** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)), not a peak-relative percent. The producer's answer sheet for this question is **blank** — every other box and both L0C edges stay unmapped. Rule 2 of the producer doc also asks how the color scale maps when 理论值 is known.
-
 ### DATA-31 — authoritative MVP fixture shape (was: Q4)
 
 **Status:** `partial`
@@ -128,3 +118,17 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **Roots / evidence:** `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts) (`gm-l2-read` / `gm-l2-write` candidate order), the edge table in [VIEW_DATA_MAPPING §11.2.6](../../ui/VIEW_DATA_MAPPING.md), the DATA-8 I/O-bandwidth rule in [view-models.spec.md](../../../specs/core/view-models.spec.md), and the two mockups that show the surfaces apart — the card in [data-8.png](../visual/questions/data-8.png) and the plated diagram in [`v930/memory-load-detail.jpeg`](../../ui/source/v930/memory-load-detail.jpeg).
 
 **Specs when answered:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
+
+### DATA-41 — AIC-row link values and the L0C 理论值
+
+<img src="../visual/questions/data-41.png" alt="DATA-41 AIC-row link values" width="900" height="900">
+
+**Status:** `open`
+
+**Question:** The **AIC row** of the memory diagram (L1 ↔ L0A / L0B ↔ Cube ↔ L0C) carries values in the sketch, and the chrome has a plate for all seven of its plated links — `l2-l1-read`, `l1-l0a`, `l1-l0b`, `l0a-cube`, `l0b-cube`, `cube-l0c`, `l0c-cube` — but on the product fixture [`sample.lite.rep`](../../../data/sample.lite.rep) the whole row paints **blank**: `Memory.csv` `aic_l1_read_bw(GB/s)` / `aic_l1_write_bw(GB/s)` are `NA` in every block of both embedded ops, and "hide `NA`" then hides the labels. So: **(a)** which file and field is authoritative for each AIC-row plated link, and **(b)** is a fixture with non-`NA` AIC-row values available, so the row can be validated against the sketch? **Inherited from [DATA-20](../decisions/DATA.md):** for the slotless edges that carry a **理论值** — L0C → L1 and L0C → L2/GM ([DATA-24](../decisions/DATA.md) / [DATA-25](../decisions/DATA.md)) — which field holds the 理论值, and what is the edge's **100% reference**? The producer doc's 理论值 column is empty for every row.
+
+**Answer so far:** None.
+
+**Roots / evidence:** `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts); the edge table in [VIEW_DATA_MAPPING §11.2.6](../../ui/VIEW_DATA_MAPPING.md); the AIC-row plates of the exported chrome ([memory-topology.svg](../../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg)); the sketch's AIC row in [`v930/report-stats-scrolled.jpeg`](../../ui/source/v930/report-stats-scrolled.jpeg).
+
+**Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).

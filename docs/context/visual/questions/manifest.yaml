@@ -123,11 +123,18 @@ images:
       - label: "DATA-19 详情"
         box: { x: 145, y: 188, w: 1480, h: 382 }
 
-  data-20:
+  data-41:
     source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
     maxWidth: 900
     highlights:
-      - label: "DATA-20 Peak%"
+      - label: "DATA-41 AIC-row links"
+        box: { x: 780, y: 960, w: 900, h: 260 }
+
+  ui-49:
+    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
+    maxWidth: 900
+    highlights:
+      - label: "UI-49 only L2 has a Peak"
         box: { x: 470, y: 1080, w: 180, h: 160 }
 
   data-21:

@@ -285,7 +285,7 @@ GM / L2 / L1 oriented bandwidth and data volumes. Bare `*_read_bw` = leaving the
 | L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv`; `out.rep` NA |
 | L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed**; `out.rep` NA |
 | L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; Product-confirmed field ([DATA-24](../context/decisions/DATA.md)); 理论值 still 待确定 |
-| L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; **confirmed** ([DATA-25](../context/decisions/DATA.md)); 理论值 (Peak %) still open with [DATA-20](../context/questions/DATA.md) |
+| L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; **confirmed** ([DATA-25](../context/decisions/DATA.md)); 理论值 (Peak %) still open with [DATA-41](../context/questions/DATA.md) |
 | L0C → UB | — | — | **TBD** (docx); absent in sample |
 
 Also present in sample (not all listed in docx edge table): MTE instruction/ratio columns, `GM_to_L1_*`, `UB_to_GM_*`, `aiv_ub_to_gm_bw(GB/s)`, `aiv_gm_to_ub_bw(GB/s)`, etc.

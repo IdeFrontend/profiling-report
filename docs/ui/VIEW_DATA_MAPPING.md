@@ -249,14 +249,14 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 | L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | Same |
 | L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` | |
 | Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
-| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | **DATA-24:** Product-confirmed field; 理论值 (Peak %) tracked by [DATA-20](../context/questions/DATA.md) |
-| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | **DATA-25:** Product-confirmed field; 理论值 (Peak %) tracked by [DATA-20](../context/questions/DATA.md) |
+| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | **DATA-24:** Product-confirmed field; 理论值 (Peak %) tracked by [DATA-41](../context/questions/DATA.md) |
+| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | **DATA-25:** Product-confirmed field; 理论值 (Peak %) tracked by [DATA-41](../context/questions/DATA.md) |
 | UB → L2 | `aiv_ub_to_gm_bw(GB/s)` | `Memory.csv` | **DATA-22:** Product answer; `MemoryUB.csv` `aiv_ub_read_bw_gm` is not the collected field |
 | L2 → UB | `aiv_gm_to_ub_bw(GB/s)` | `Memory.csv` | **DATA-23:** Product answer; `MemoryUB.csv` `aiv_ub_write_bw_gm` is not the collected field |
 | Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | `ub_read_*` = leaving UB (`out.rep` add 2:1) |
 | UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
 | L2Cache Hit Rate | total `*_hit_rate(%)` | `L2Cache.csv` / `summary.jsonl` `L2Cache` | **DATA-21:** use the **total** hit rate; fall back to first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, then read rates |
-| **L2 Peak(%)** | same hit-rate columns as above | `L2Cache.csv` | **DATA-20:** L2 box only = hit rate. Other units and the L0C edges still unmapped |
+| **L2 Peak(%)** | same hit-rate columns as above | `L2Cache.csv` | **DATA-20 (resolved):** L2 box only = hit rate, its 100% reference is the hit rate itself (not a peak-relative percent). No other unit carries a Peak(%); whether any *should* is [UI-49](../context/questions/UI.md) |
 
 **NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
 
@@ -264,7 +264,7 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
 - Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
-- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (hit rate, DATA-20; sketch has no “Peak” word and no fill tint). Other units stay without Peak until Product maps them.
+- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (hit rate, DATA-20; sketch has no “Peak” word and no fill tint). **No other unit** carries a Peak(%): the export has no plate for one and the adapter no field ([DATA-20](../context/decisions/DATA.md)); any new badge is [UI-49](../context/questions/UI.md).
 - **Right-click (UI-35):** open memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0), same as **详情**.
 - Labels are **block-scoped** via the same block switcher as memory details ([DATA-19](../context/decisions/DATA.md)).
 
@@ -363,7 +363,7 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Roofline tab names vs pipe-ratio fields; missing axis formulas | Contradictory / incomplete |
 | Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |
 | Dual-Die remote memory right-click details | Explicit product question |
-| Memory Peak (%) per unit | **L2 = hit rate (DATA-20).** Other units still unmapped |
+| Memory Peak (%) per unit | **L2 = hit rate (DATA-20, resolved).** No other unit carries one; a new badge is [UI-49](../context/questions/UI.md) |
 | Topology edge value: one side vs summed aic+aiv | **Open ([DATA-40](../context/questions/DATA.md)).** Interim: first non-`NA` candidate ([DATA-40a](../context/decisions/interim/DATA.md)) — the arrow and the BW card show different GM numbers |
 | L2 hit-rate column choice | **Resolved (DATA-21):** total hit rate from `summary.jsonl` `L2Cache`; fall back to first non-`NA` read rate |
 | L0C → UB edge | 待确定 |

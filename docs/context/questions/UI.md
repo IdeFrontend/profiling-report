@@ -12,6 +12,18 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Specs when answered:** [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models](../../../specs/core/view-models.spec.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md).
 
+### UI-49 — Peak(%) badges beyond L2
+
+<img src="../visual/questions/ui-49.png" alt="UI-49 only L2 carries a Peak badge" width="900" height="900">
+
+**Status:** `open`
+
+**Question:** [DATA-20](../decisions/DATA.md) resolved the **L2** plate: it shows **hit rate**, not a peak-relative percent. The exported chrome gives a Peak(%) plate to **no other unit** — GM, L1, L0A, L0B, L0C, Cube, FixP, UB, Vec and Scalar have no plate to print one in, and the adapter has no field for one. Should any other unit show a **Peak(%)** badge at all? If yes: does the **chrome** need a new (in-box) plate per unit, and what is each unit's **100% reference**?
+
+**Answer so far:** None. Shipped truth today is "L2 only": the diagram paints one in-box value (the L2 plate) and link magnitudes (GB/s, KB) everywhere else; the sketch's other numbers are those link magnitudes on the corridor plates, not Peak badges.
+
+**Specs when answered:** [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [COLOR_TOKENS](../../ui/COLOR_TOKENS.md).
+
 ### UI-51 — Undo zoom scope
 
 **Status:** `open`
