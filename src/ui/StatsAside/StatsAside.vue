@@ -16,8 +16,7 @@ import {
 } from '../../adapters/adaptRep';
 import {
   buildMemoryTopology,
-  buildMemoryTopologyFromCategories,
-  firstLabelledMemoryTopology,
+  blockIdsInOrder,
   hasDrawableTopology,
 } from '../../adapters/memoryTopology';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
@@ -214,13 +213,13 @@ const asideSurface = ref<AsideSurface>('report');
 
 /**
  * One block selector for every widget (DATA-19 / DATA-29): `''` = **All** (`summary.jsonl`
- * aggregate), an id = that block's CSV row. Switcher options come from PipeUtilization only —
- * memory-only blocks must not blank PIPE.
+ * aggregate), an id = that block's CSV row. Options are every `block_id` the report carries
+ * (compute ∪ memory, fixture order), so the aside switcher and the memory overlay switcher — which
+ * share this state — can never disagree about which ids exist.
  */
-const blockIds = computed(() => {
-  const table = props.report?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
-  return table?.blockIds ?? [];
-});
+const blockIds = computed(() =>
+  blockIdsInOrder([...(props.report?.computeTables ?? []), ...(props.report?.memoryTables ?? [])]),
+);
 
 const showBlockSwitcher = computed(() => showPipe.value && blockIds.value.length > 1);
 
@@ -243,9 +242,7 @@ const scopedPipeOccupancy = computed(() => {
 });
 
 /** Overlay row scope: `All` has no single row, so the CSV lists fall back to the first block id. */
-const overlayBlockId = computed(
-  () => blockId.value || (props.report?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv')?.blockIds[0] ?? ''),
-);
+const overlayBlockId = computed(() => blockId.value || blockIds.value[0] || '');
 
 /**
  * DATA-19 / DATA-29: 详情 follows the same selector. With a block picked the CSV field list shows that
@@ -266,19 +263,17 @@ watch(
   },
 );
 
-/** `All` = `summary.jsonl` category mean; a picked id = that block's Memory* CSV row (DATA-29). */
+/**
+ * `All` = the adapter's snapshot (`summary.jsonl` categories, else the first drawable block's CSV);
+ * a picked id = that block's Memory* CSV row (DATA-19 / DATA-29). Rebuilding the `All` aggregate here
+ * would be a second copy of the adapter rule, free to drift from `report.memoryTopology`.
+ */
 const topologyModel = computed(() => {
   const id = blockId.value;
   const tables = props.report?.memoryTables ?? [];
   // A picked block shows only that block's rows — never the All aggregate wearing its label.
   if (id && tables.length > 0) return buildMemoryTopology(tables, id);
-  return (
-    buildMemoryTopologyFromCategories(props.report?.summaryCategories ?? []) ??
-    props.report?.memoryTopology ??
-    // Classic `.rep` / CSV-only pack: no summary.jsonl means no aggregate exists, so the
-    // diagram falls back to the first block that labels an edge (the pre-DATA-29 behavior).
-    firstLabelledMemoryTopology(tables)?.model
-  );
+  return props.report?.memoryTopology;
 });
 
 /**

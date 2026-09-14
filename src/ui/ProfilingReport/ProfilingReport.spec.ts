@@ -4,6 +4,7 @@ import { mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
+import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
@@ -45,17 +46,20 @@ function depsModel(): SwimlaneModel {
 }
 
 function topologyReport() {
+  const memoryTables = [
+    {
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+      rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+      blockIds: ['0'],
+    },
+  ];
   return {
     ...emptyReportViewModel(),
     summary: { taskDurationUs: 1 },
-    memoryTables: [
-      {
-        fileName: 'Memory.csv',
-        headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-        rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
-        blockIds: ['0'],
-      },
-    ],
+    memoryTables,
+    // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
+    memoryTopology: firstLabelledMemoryTopology(memoryTables)!.model,
     csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
   };
 }

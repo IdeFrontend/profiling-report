@@ -104,6 +104,44 @@ describe('PR-VM: report view-models (interim)', () => {
       aiv: 90,
     });
 
+    // A `null` summed field means "not collected", not `0` — it must not suppress the fallback
+    // (that is the `0.00 GB/s` symptom DATA-8 removed from the topology edges).
+    parsed.payloads['summary.jsonl'] = new TextEncoder().encode(
+      [
+        JSON.stringify({
+          category: 'OpInfoSummary',
+          'aicore_gm_bw_theoretical(GB/s)': 1600,
+          'aicore_gm_read_bw(GB/s)': null,
+          'aicore_gm_write_bw(GB/s)': '',
+        }),
+        JSON.stringify({
+          category: 'Memory',
+          'aic_main_mem_read_bw(GB/s)': 560,
+          'aiv_main_mem_read_bw(GB/s)': 532,
+          'aic_main_mem_write_bw(GB/s)': 480,
+          'aiv_main_mem_write_bw(GB/s)': 456,
+        }),
+      ].join('\n'),
+    );
+    const nullSum = adaptRep(parsed).reportModel.bandwidthCards;
+    expect(nullSum).toEqual([
+      {
+        id: 'input',
+        sides: [
+          { side: 'aic', measuredGBs: 560, peakGBs: 1600 },
+          { side: 'aiv', measuredGBs: 532, peakGBs: 1600 },
+        ],
+      },
+      {
+        id: 'output',
+        sides: [
+          { side: 'aic', measuredGBs: 480, peakGBs: 1600 },
+          { side: 'aiv', measuredGBs: 456, peakGBs: 1600 },
+        ],
+      },
+    ]);
+    expect(nullSum!.flatMap((c) => c.sides).every((s) => s.measuredGBs > 0)).toBe(true);
+
     delete parsed.payloads['summary.jsonl'];
     delete parsed.payloads['Memory.csv'];
     expect(adaptRep(parsed).reportModel.bandwidthCards).toBeUndefined();

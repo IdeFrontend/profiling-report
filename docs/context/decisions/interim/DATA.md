@@ -72,7 +72,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-33](../DATA.md)
-**Interim:** **Product confirmed (DATA-18):** `absoluteValue` = **mean of non-`NA` `*_time(us)`** for the same family/side as the ratio (DATA-33b). Omit when all NA. Not cycles.
+**Interim:** **Product confirmed (DATA-18):** `absoluteValue` = **mean of non-`NA` `*_time(us)`** for the same family/side as the ratio (one selector scopes it, [DATA-19](../DATA.md) / [DATA-29](../DATA.md)). Omit when all NA. Not cycles.
 **Implement / test as:** `PR-STATS-013`, adapter unit tests
 **Superseded when:** Product changes in-bar metric
 
@@ -112,7 +112,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-37](../../questions/DATA.md)
-**Interim:** Achieved performance = mean non-`NA` `aiv_vec_fops` / mean non-`NA` `aiv_time(us)` as `fops / timeUs / 1e6` (Cube: `aic_cube_fops` / `aic_time(us)` when Vector fops absent). Aggregate across blocks like DATA-33b.
+**Interim:** Achieved performance = mean non-`NA` `aiv_vec_fops` / mean non-`NA` `aiv_time(us)` as `fops / timeUs / 1e6` (Cube: `aic_cube_fops` / `aic_time(us)` when Vector fops absent). Aggregate across blocks follows the one selector: `All` = the `summary.jsonl` `ArithmeticUtilization` category record, a picked `block_id` = that block's CSV row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).
 **Implement / test as:** `RooflinePanel` / adapter tests
 **Superseded when:** Product DATA-37 formulas
 
@@ -120,7 +120,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-37](../../questions/DATA.md)
-**Interim:** Intensity = same fops / `(mean(read_main_memory_datas(KB)) + mean(write_main_memory_datas(KB))) * 1024` from `Memory.csv`.
+**Interim:** Intensity = same fops / `(mean(read_main_memory_datas(KB)) + mean(write_main_memory_datas(KB))) * 1024` from `Memory.csv`. Under the one selector, `All` reads the `summary.jsonl` `Memory` category record and a picked `block_id` reads that block's `Memory.csv` row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).
 **Implement / test as:** Adapter GM point
 **Superseded when:** Product DATA-37
 
@@ -136,7 +136,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-37](../../questions/DATA.md)
-**Interim:** `peakComputeTops = 1`; `peakBandwidthGBs` = max of non-`NA` `aiv_main_mem_*_bw(GB/s)` / `aic_main_mem_*_bw(GB/s)` (fallback **100** if all NA). Roof TOps/s = `min(peakCompute, peakBW_GBs * intensity / 1000)`.
+**Interim:** `peakComputeTops = 1`; `peakBandwidthGBs` = max of non-`NA` `aiv_main_mem_*_bw(GB/s)` / `aic_main_mem_*_bw(GB/s)` (fallback **100** if all NA) — under the one selector, from the `summary.jsonl` `Memory` category for `All` and from the block's `Memory.csv` row otherwise ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)). Roof TOps/s = `min(peakCompute, peakBW_GBs * intensity / 1000)`.
 **Implement / test as:** Chart roof polyline
 **Superseded when:** Product peak sources
 
@@ -160,6 +160,14 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-38](../../questions/DATA.md)
-**Interim:** **Not** cycle counts and **not** a mean over swimlane events. Raw = mean of non-`NA` mapped `PipeUtilization.csv` `*_time(us)` across `block_id` (DATA-33b pattern; same quantity family as DATA-33f), keyed by `laneColorKey(thread.name)` per the column map in [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md). Folders = mean of child raws. Bar width = \((\mathrm{raw}/\max)\times 100\) within the Card; red = max lane only. Dropdown offers only **clockCycle** + **utilization** (`cacheHit` / `task` withdrawn). Ignore `*_total_cycles`. **Why not PyPTO sum-of-cycles:** PyPTO joins `tilefwk_prof_pmu.csv` → `event.pmu_info['total cycle']` then sums per thread; that input is missing from NPU-Compute embeds and scanned `.npu-rep` / PR #74 fixtures (event-level PMU absent, not merely undocumented).
+**Interim:** **Not** cycle counts and **not** a mean over swimlane events. Raw = mean of non-`NA` mapped `PipeUtilization.csv` `*_time(us)` across `block_id` (same quantity family as DATA-33f, and scoped by the one selector — [DATA-19](../DATA.md) / [DATA-29](../DATA.md)), keyed by `laneColorKey(thread.name)` per the column map in [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md). Folders = mean of child raws. Bar width = \((\mathrm{raw}/\max)\times 100\) within the Card; red = max lane only. Dropdown offers only **clockCycle** + **utilization** (`cacheHit` / `task` withdrawn). Ignore `*_total_cycles`. **Why not PyPTO sum-of-cycles:** PyPTO joins `tilefwk_prof_pmu.csv` → `event.pmu_info['total cycle']` then sums per thread; that input is missing from NPU-Compute embeds and scanned `.npu-rep` / PR #74 fixtures (event-level PMU absent, not merely undocumented).
 **Implement / test as:** `gutterMetrics.ts`, `PR-GMET-*`
 **Superseded when:** Product confirms quantity (µs vs cycles), column map, or event-based / PMU formula ([DATA-38](../../questions/DATA.md)) — and producer ships the required join data
+
+### DATA-40a — Topology edge value candidates
+
+**Status:** `interim`
+**Question:** [DATA-40](../../questions/DATA.md)
+**Interim:** When an edge lists several candidate columns, the **first present non-`NA` candidate in the listed order wins** (`Memory.csv` `aic_main_mem_read_bw(GB/s)` then `aiv_main_mem_read_bw(GB/s)` for GM → L2, and the same shape for GM ← L2) — i.e. a single side, **not** the aic + aiv sum the BW card uses ([DATA-8](../DATA.md)). Values follow the one selector like every other CSV-backed widget: `All` = the `summary.jsonl` category record, a picked `block_id` = that block's CSV row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).
+**Implement / test as:** `EDGE_MAP` in [`memoryTopology.ts`](../../../../src/adapters/memoryTopology.ts); edge table in [VIEW_DATA_MAPPING §11.2.6](../../../ui/VIEW_DATA_MAPPING.md)
+**Superseded when:** Product picks the aggregation ([DATA-40](../../questions/DATA.md)) — this interim is what lets the arrow and the card disagree on one screen.

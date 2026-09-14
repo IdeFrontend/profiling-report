@@ -586,10 +586,26 @@ def enrich_cube_csvs(text_by_name, *, seed, scale=1.0):
     return text_by_name
 
 
+def _is_dimensionless(header):
+    """Ratio / percent columns are magnitudes already — scaling them fabricates impossible data.
+
+    Token-aware so a magnitude column whose *name* merely contains the letters (e.g.
+    `Task Duration(us)`) is not mistaken for a ratio.
+    """
+    h = header.strip().lower()
+    return h.endswith("(%)") or "_ratio" in h or h.endswith("ratio") or "_rate" in h
+
+
 def transform_metric_csv(text, scale, block_offset, sub_label, n_rows):
-    """Rewrite a block_id/sub_block_id CSV with a new block range + scaled values."""
+    """Rewrite a block_id/sub_block_id CSV with a new block range + scaled values.
+
+    The scale tunes the magnitude columns (durations, bytes, counts); dimensionless columns are
+    left alone, so `aiv_total_hit_rate(%)` stays a hit rate instead of the sample's 0.60%.
+    """
     lines = text.rstrip("\n").split("\n")
     header = lines[0]
+    headers = [h.strip() for h in header.split(",")]
+    fixed = {j for j, h in enumerate(headers) if _is_dimensionless(h)}
     data = lines[1:]
     out = [header]
     for i in range(n_rows):
@@ -598,6 +614,8 @@ def transform_metric_csv(text, scale, block_offset, sub_label, n_rows):
             cells[0] = str(block_offset + i)
             cells[1] = sub_label
         for j in range(2, len(cells)):
+            if j in fixed:
+                continue
             c = cells[j].strip()
             if c == "NA" or c == "":
                 continue

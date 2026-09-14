@@ -123,3 +123,20 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **PyPTO reference (not shippable on current npu-rep):** sum of `event.pmu_info['total cycle']` after joining `tilefwk_prof_pmu.csv` onto events. Absent from [NPU-Compute.md](https://gitcode.com/wk0911/npu-tools/blob/main/npu-compute/NPU-Compute.md) embeds and from scanned fixtures (`example.npu.rep`, PR #74 packs) — event traces have no `pmu_info` / `"total cycle"`; PR #74 does not add them. Block CSV `*_total_cycles` ≠ that formula.
 
 **Specs when answered:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md).
+
+### DATA-40 — topology edge value aggregation vs the BW card
+
+**Status:** `open` + `interim`
+
+**Question:** A memory-diagram **edge** and the **带宽利用率 读/写 card** can describe the same GM↔L2 direction and then show different numbers, because the two surfaces use different aggregation rules. The edge takes the **first present non-`NA` candidate** (`aic_main_mem_read_bw` before `aiv_main_mem_read_bw`), while the card shows the **sum** of the aic + aiv sides ([DATA-8](../decisions/DATA.md)). Which one is the plate supposed to show — a single side, or the summed traffic? And more generally, for an edge fed by several candidate columns, is the rule **first non-`NA`**, the **sum**, or the **mean** of the candidates, and does it inherit the block selector ([DATA-19](../decisions/DATA.md) / [DATA-29](../decisions/DATA.md)) the same way the card does?
+
+**Answer so far:** Nothing from Product — the producer's 理论值 column and the edge table say which file/field, not which aggregation. Both rules are currently documented and shipped:
+
+- **Edge (interim, [DATA-40a](../decisions/interim/DATA.md)):** "prefer non-`NA` AIC then AIV" — `aic_main_mem_read_bw(GB/s)` then `aiv_main_mem_read_bw(GB/s)` for GM → L2, and the same shape for GM ← L2.
+- **Card (resolved, [DATA-8](../decisions/DATA.md)):** `OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw`, i.e. the aic + aiv sides summed.
+
+**Why it reads as a contradiction:** on the product fixture [`sample.lite.rep`](../../../data/sample.lite.rep) op1 the GM → L2 arrow prints **560.00 GB/s** (AIC side only) while the 读 card one panel above prints **1092 GB/s** (560 + 532) — write is 480 vs 936. Neither number is wrong under its own rule; the two just never appear together in a mockup, so no sketch decides it.
+
+**Roots / evidence:** `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts) (`gm-l2-read` / `gm-l2-write` candidate order), the edge table in [VIEW_DATA_MAPPING §11.2.6](../../ui/VIEW_DATA_MAPPING.md), the DATA-8 I/O-bandwidth rule in [view-models.spec.md](../../../specs/core/view-models.spec.md), and the two mockups that show the surfaces apart — the card in [data-8.png](../visual/questions/data-8.png) and the plated diagram in [`v930/memory-load-detail.jpeg`](../../ui/source/v930/memory-load-detail.jpeg).
+
+**Specs when answered:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).

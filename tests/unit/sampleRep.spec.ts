@@ -176,6 +176,33 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     }
   });
 
+  it('fixture keeps ratio / percent columns dimensionless — the magnitude scale never touches them', () => {
+    // `transform_metric_csv` scales magnitude columns (durations, bytes, counts). Applying that to a
+    // ratio fabricates impossible data: op2's `aiv_total_hit_rate(%)` was 0.6 × the real value, so
+    // the L2 Peak plate painted a hit rate the data never had.
+    const ratioOrPct = (key: string): boolean => {
+      const k = key.toLowerCase();
+      return k.endsWith('(%)') || k.includes('_ratio') || k.endsWith('ratio') || k.includes('_rate');
+    };
+    let checked = 0;
+    for (const report of [op1, op2]) {
+      for (const category of report.reportModel.summaryCategories ?? []) {
+        for (const field of category.fields) {
+          if (!ratioOrPct(field.key)) continue;
+          const value = Number(field.value);
+          if (!Number.isFinite(value)) continue;
+          checked += 1;
+          const ceiling = field.key.endsWith('(%)') ? 100 : 1;
+          expect(
+            value,
+            `${category.id}.${field.key} = ${field.value} exceeds the ${ceiling} ceiling`,
+          ).toBeLessThanOrEqual(ceiling);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
   it('MemoryUB.csv keeps the producer column names — no invented `*_gm` rename', () => {
     for (const report of [op1, op2]) {
       const ub = report.reportModel.memoryTables.find((t) => t.fileName === 'MemoryUB.csv')!;

@@ -162,6 +162,17 @@ function parseNumber(raw: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/**
+ * JSONL scalar → finite number. `null` / `''` / non-numeric are **absent**, never `0`: a producer
+ * that writes `"aicore_gm_read_bw(GB/s)": null` means "not collected", and reading it as `0` would
+ * suppress the fallback that has the real value (DATA-8).
+ */
+function finiteJsonNumber(v: unknown): number | undefined {
+  if (v == null || v === '') return undefined;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 function optionalText(raw: string | undefined): string | undefined {
   const v = raw?.trim();
   if (!v || v === 'NA') return undefined;
@@ -525,21 +536,19 @@ function bandwidthCardsFromSummary(payload?: Uint8Array): BandwidthCardModel[] {
     }
     const category = obj.category;
     if (category === 'OpInfoSummary') {
-      const peak = typeof obj['aicore_gm_bw_theoretical(GB/s)'] === 'number'
-        ? (obj['aicore_gm_bw_theoretical(GB/s)'] as number)
-        : Number(obj['aicore_gm_bw_theoretical(GB/s)']);
-      if (Number.isFinite(peak) && peak > 0) peakGBs = peak;
+      const peak = finiteJsonNumber(obj['aicore_gm_bw_theoretical(GB/s)']);
+      if (peak != null && peak > 0) peakGBs = peak;
       for (const key of ['aicore_gm_read_bw(GB/s)', 'aicore_gm_write_bw(GB/s)']) {
-        const n = typeof obj[key] === 'number' ? (obj[key] as number) : Number(obj[key]);
-        if (Number.isFinite(n)) mem[stripUnit(key)] = n;
+        const n = finiteJsonNumber(obj[key]);
+        if (n != null) mem[stripUnit(key)] = n;
       }
       continue;
     }
     if (category !== 'Memory') continue;
     for (const [key, value] of Object.entries(obj)) {
       if (key === 'category') continue;
-      const n = typeof value === 'number' ? value : Number(value);
-      if (Number.isFinite(n)) mem[stripUnit(key)] = n;
+      const n = finiteJsonNumber(value);
+      if (n != null) mem[stripUnit(key)] = n;
     }
   }
 
@@ -617,11 +626,7 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
       const s = String(v).trim();
       return s === '' ? undefined : s;
     };
-    const num = (v: unknown): number | undefined => {
-      if (v == null) return undefined;
-      const n = typeof v === 'number' ? v : Number(v);
-      return Number.isFinite(n) ? n : undefined;
-    };
+    const num = finiteJsonNumber;
 
     return {
       opName: text(obj['Op Name']),

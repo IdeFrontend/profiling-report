@@ -239,8 +239,8 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 | Display edge | Field | Source | Notes |
 | --- | --- | --- | --- |
-| GM → L2 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | Prefer non-`NA` AIC then AIV. Read = leaving GM (`out.rep` 16.89) |
-| GM ← L2 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | Write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
+| GM → L2 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | Prefer non-`NA` AIC then AIV ([DATA-40a](../context/decisions/interim/DATA.md)). Read = leaving GM (`out.rep` 16.89). One-side vs summed is open — [DATA-40](../context/questions/DATA.md) |
+| GM ← L2 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | Write = arriving at GM (≡ `aiv_ub_to_gm_bw`). Same aggregation open — [DATA-40](../context/questions/DATA.md) |
 | L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | **Confirmed** file. Keep master L2→cluster; `out.rep` NA |
 | L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | Adapter edge exists; **diagram slot blank** pending UI-48 (export routes this corridor onto FixP) |
 | L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | Keep master L1→L0A (operand buffer); `out.rep` NA |
@@ -364,6 +364,7 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Pipe occupancy: combined mockup vs Cube/Vector tables | Layout conflict |
 | Dual-Die remote memory right-click details | Explicit product question |
 | Memory Peak (%) per unit | **L2 = hit rate (DATA-20).** Other units still unmapped |
+| Topology edge value: one side vs summed aic+aiv | **Open ([DATA-40](../context/questions/DATA.md)).** Interim: first non-`NA` candidate ([DATA-40a](../context/decisions/interim/DATA.md)) — the arrow and the BW card show different GM numbers |
 | L2 hit-rate column choice | **Resolved (DATA-21):** total hit rate from `summary.jsonl` `L2Cache`; fall back to first non-`NA` read rate |
 | L0C → UB edge | 待确定 |
 | UB↔GM | **Closed (DATA-22 / DATA-23):** `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` |

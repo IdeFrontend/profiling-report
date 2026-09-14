@@ -326,7 +326,8 @@ const FILE_CATEGORY: Record<string, string> = {
   'L2Cache.csv': 'L2Cache',
 };
 
-function blockIdsInOrder(tables: CsvTableModel[]): string[] {
+/** Distinct `block_id` values across the given tables, in fixture order (no duplicates). */
+export function blockIdsInOrder(tables: CsvTableModel[]): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
   for (const table of tables) {

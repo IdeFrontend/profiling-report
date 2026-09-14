@@ -117,7 +117,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 
 ## Dependencies
 
-DATA-20 (L2 Peak), DATA-21, DATA-22, DATA-23, DATA-24, DATA-25, UI-35, UI-38, UI-48, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
+DATA-20 (L2 Peak), DATA-21, DATA-22, DATA-23, DATA-24, DATA-25, DATA-40 (edge value aggregation, open — interim DATA-40a), UI-35, UI-38, UI-48, [view-models](../../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
 ## Changelog
 - **2026-09-14** — `hasDrawableTopology` and the plated-edge id tuple (`TOPOLOGY_SLOT_EDGE_IDS`) moved to the adapter next to `firstLabelledMemoryTopology`, so the panel's `show` gate and the default block pick share one definition of "the diagram exists" (PR-VM-018); `SLOTS` is now typed against that tuple.
