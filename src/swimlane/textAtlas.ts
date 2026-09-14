@@ -180,7 +180,7 @@ export class TextAtlas {
   ): TextGlyph | null {
     // Bucket clip width to integer device px before fitting. `eventLabelAnchor` supplies a
     // continuous float (`visibleW - 8`); rounding keeps the draw/shrink/truncate/skip choice
-    // stable across sub-pixel pan/zoom. The glyph key itself does not include this width.
+    // stable across sub-pixel pan/zoom. Draw/truncate omit width; shrink keeps integer maxWidth.
     const widthPx = Math.round(maxWidth);
     if (this.fontPx !== fontSizePx) {
       this.fontPx = fontSizePx;
