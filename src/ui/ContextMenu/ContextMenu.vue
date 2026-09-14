@@ -80,14 +80,19 @@ function activate(index: number) {
   emit('dismiss');
 }
 
-function onDocPointerDown(e: PointerEvent) {
-  if (!props.context) return;
-  if (menuRef.value?.contains(e.target as Node)) return;
+function onScrimPointerDown() {
+  emit('dismiss');
+}
+
+function onScrimContextMenu() {
   emit('dismiss');
 }
 
 function onKeydown(e: KeyboardEvent) {
   if (!props.context) return;
+  // While the menu is open it blocks the rest of the UI: swallow every key so the app's
+  // own window keydown (WASD pan/zoom, Escape measure/marquee clearing) never fires.
+  e.stopPropagation();
   const n = items.value.length;
   if (!n) return;
   if (e.key === 'Escape') { e.preventDefault(); emit('dismiss'); return; }
@@ -112,14 +117,12 @@ function onScrollOrResize(e: Event) {
 }
 
 function bindListeners() {
-  document.addEventListener('pointerdown', onDocPointerDown, true);
   document.addEventListener('keydown', onKeydown, true);
   window.addEventListener('scroll', onScrollOrResize, true);
   window.addEventListener('resize', onScrollOrResize);
 }
 
 function unbindListeners() {
-  document.removeEventListener('pointerdown', onDocPointerDown, true);
   document.removeEventListener('keydown', onKeydown, true);
   window.removeEventListener('scroll', onScrollOrResize, true);
   window.removeEventListener('resize', onScrollOrResize);
@@ -152,6 +155,14 @@ onBeforeUnmount(unbindListeners);
 
 <template>
   <Teleport to="body">
+    <div
+      v-if="context && items.length"
+      class="pr-ctx-scrim"
+      data-testid="context-menu-scrim"
+      @pointerdown="onScrimPointerDown"
+      @contextmenu.prevent="onScrimContextMenu"
+      @wheel.prevent
+    />
     <div
       v-if="context && items.length"
       ref="menuRef"
@@ -196,6 +207,13 @@ onBeforeUnmount(unbindListeners);
 </template>
 
 <style>
+.pr-ctx-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: transparent;
+}
+
 .pr-ctx-menu {
   z-index: 10001;
   box-sizing: border-box;

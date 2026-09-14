@@ -168,24 +168,56 @@ describe('ContextMenu', () => {
     Object.defineProperty(window, 'innerHeight', { value: originalH, configurable: true });
   });
 
-  it('PR-CTXMENU-008: dismisses on outside click, Escape, and viewport scroll', async () => {
+  it('PR-CTXMENU-008: dismisses on outside click and Escape', async () => {
     wrapper = mount(ContextMenu, {
       props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
       attachTo: document.body,
     });
     await wrapper.vm.$nextTick();
-    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    document.querySelector('[data-testid="context-menu-scrim"]')!.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true }),
+    );
     expect(wrapper.emitted('dismiss')).toHaveLength(1);
 
     await wrapper.setProps({ context: { x: 10, y: 10, laneId: 'lane1', target: null } });
     await wrapper.vm.$nextTick();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(wrapper.emitted('dismiss')).toHaveLength(2);
+  });
 
+  it('PR-CTXMENU-015: blocks the rest of the UI while open', async () => {
+    wrapper = mount(ContextMenu, {
+      props: { context: { x: 10, y: 10, laneId: 'lane1', target: null }, pinnedLaneIds: [] },
+      attachTo: document.body,
+    });
+    await wrapper.vm.$nextTick();
+
+    const scrim = document.querySelector('[data-testid="context-menu-scrim"]');
+    expect(scrim).not.toBeNull();
+
+    // Wheel over the scrim is swallowed (default prevented), and does not dismiss the menu.
+    const wheel = new WheelEvent('wheel', { cancelable: true, bubbles: true });
+    scrim!.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(wrapper.emitted('dismiss')).toBeUndefined();
+
+    // Right-click over the scrim is prevented and dismisses (native menu suppressed).
+    const ctx = new MouseEvent('contextmenu', { cancelable: true, bubbles: true });
+    scrim!.dispatchEvent(ctx);
+    expect(ctx.defaultPrevented).toBe(true);
+    expect(wrapper.emitted('dismiss')).toHaveLength(1);
+
+    // Keys do not leak to the app while the menu is open.
     await wrapper.setProps({ context: { x: 10, y: 10, laneId: 'lane1', target: null } });
     await wrapper.vm.$nextTick();
-    window.dispatchEvent(new Event('scroll'));
-    expect(wrapper.emitted('dismiss')).toHaveLength(3);
+    let leaked = false;
+    const onWinKeydown = () => {
+      leaked = true;
+    };
+    window.addEventListener('keydown', onWinKeydown);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true }));
+    window.removeEventListener('keydown', onWinKeydown);
+    expect(leaked).toBe(false);
   });
 
   it('PR-CTXMENU-009: keyboard navigation focuses and activates the next event command', async () => {

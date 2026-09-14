@@ -89,15 +89,10 @@ describe('ProfilingReport scaffold', () => {
       props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
     });
 
-    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
-      clientX: 10,
-      clientY: 20,
-    });
-    await nextTick();
-    expect(document.querySelector('[data-testid="ctx-item-reset"]')).toBeNull();
-
+    // Zoom in while the menu is closed so the W key reaches the app's handler.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
     await nextTick();
+
     await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
       clientX: 10,
       clientY: 20,
@@ -109,6 +104,15 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(wrapper.vm.viewState.startTime).toBe(0);
     expect(wrapper.vm.viewState.endTime).toBe(1000);
+
+    // Back at the full range, a fresh menu omits Reset zoom.
+    await wrapper.get('[data-testid="gutter-lane-t-0"]').trigger('contextmenu', {
+      clientX: 10,
+      clientY: 20,
+    });
+    await nextTick();
+    expect(document.querySelector('[data-testid="ctx-item-reset"]')).toBeNull();
+
     wrapper.unmount();
     vi.unstubAllGlobals();
   });
