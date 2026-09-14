@@ -112,20 +112,6 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Interim:** [`DATA-37a…DATA-37f`](../decisions/interim/DATA.md).
 
-### DATA-38 — Card gutter 时钟周期 formula (was: Q24 / HQ 39)
-
-**Status:** `partial` + `interim`
-
-**Question:** Card-header **时钟周期 / Clock Cycle** gutter bars ([design `entry.jpeg`](../../ui/source/v930/entry.jpeg)) — which file, fields, and formula? Is the value cycle counts, pipe `*_time(us)`, or derived from swimlane events?
-
-**Answer so far (interim):** Quantity = **mean non-`NA` mapped `PipeUtilization.csv` `*_time(us)`** across `block_id`, keyed by `laneColorKey` (not `*_total_cycles`, not per-event average). Relative bar within Card; max-lane red. Selector modes: **clockCycle** + **utilization** only. Interim: [`DATA-38a`](../decisions/interim/DATA.md). Label units: [`UI-46`](UI.md) / [`UI-46a`](../decisions/interim/UI.md). Spec: [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md). **Not** timeline CPU-clocks display ([UI-45](../decisions/UI.md)).
-
-**Product answer (2026-09-11, partial):** the gutter offers **two options — 时钟周期 (clock cycle)** and **耗时占比** (time share: all timeline ÷ total cycle). No file/field/formula is given yet and the answer is numbered `1:` (more may follow), so this stays open; it does confirm the interim's two-mode selector but not the quantity.
-
-**PyPTO reference (not shippable on current npu-rep):** sum of `event.pmu_info['total cycle']` after joining `tilefwk_prof_pmu.csv` onto events. Absent from [NPU-Compute.md](https://gitcode.com/wk0911/npu-tools/blob/main/npu-compute/NPU-Compute.md) embeds and from scanned fixtures (`example.npu.rep`, PR #74 packs) — event traces have no `pmu_info` / `"total cycle"`; PR #74 does not add them. Block CSV `*_total_cycles` ≠ that formula.
-
-**Specs when answered:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md).
-
 ### DATA-40 — topology edge value aggregation vs the BW card
 
 **Status:** `open` + `interim`
