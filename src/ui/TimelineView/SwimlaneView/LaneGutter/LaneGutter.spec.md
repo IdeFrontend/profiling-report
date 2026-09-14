@@ -54,12 +54,12 @@ Each lane **and folder** row optionally shows a util bar whose **width** and **l
 
 #### Label formats per metric
 
-Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (mean `*_time(us)` → µs label; barWidth is relative track fill only).
+Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (absolute `*_total_cycles` → bare cycle label; barWidth = share of report-wide leaf sum).
 
 | Metric | `bar.label` (thick bars) | `barWidth` | Fill color |
 |--------|--------------------------|------------|------------|
-| 时钟周期 (clockCycle) | Formatted mean pipe active time + **`µs`** (not cycle counts; not `%`) | \((\mathrm{raw}/\max)\times 100\) within Card | Red when `relativeMax`; else gray; all gray when tied |
 | 利用率 (utilization) | `NN%` | Equals util % (0–100) | Red when &lt; 50%; gray when ≥ 50% |
+| 时钟周期 (clockCycle) | Bare absolute cycle count (no `µs` / unit suffix) | \((\mathrm{raw}/T)\times 100\) with \(T\) = report-wide leaf sum | Red when `relativeMax`; else gray; all gray when tied |
 | Legacy pipe ratio | `NN%` | `utilization × 100` | true |
 
 **Thin bars** (pipe leaves) show fill width only; **omit in-track text** for all metrics — value appears in a hover tooltip on the **util column** (full lane height hit target; title excluded) (**PR-GUTTER-016**). **Thick bars** show **label** inside track, right-aligned.
