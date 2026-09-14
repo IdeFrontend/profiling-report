@@ -132,3 +132,28 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **Roots / evidence:** `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts); the edge table in [VIEW_DATA_MAPPING §11.2.6](../../ui/VIEW_DATA_MAPPING.md); the AIC-row plates of the exported chrome ([memory-topology.svg](../../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg)); the sketch's AIC row in [`v930/report-stats-scrolled.jpeg`](../../ui/source/v930/report-stats-scrolled.jpeg).
 
 **Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
+
+### DATA-42 — link values the sketch stacks and the export never plates
+
+<img src="../visual/questions/data-42.png" alt="DATA-42 sketch link values with no export plate" width="900" height="900">
+
+**Status:** `open`
+
+**Question:** Running the same audit **sketch-ward** (crop [`visual/memory-topology.png`](../../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) of `v930/report-stats-scrolled.jpeg`, chrome units → sketch px `(100+4u, 108+4v)`, re-cut tall enough to cover the full 540 units) shows the sketch paints **more `GB/s` link values than the export has plates for**. **16 positions** disagree, in three bands:
+
+| Band (chrome units) | Sketch values with no export plate | Export plates in that band |
+|---|---|---|
+| L2↔UB column, AIV0 (`u≈160`) | 2 — `v≈67`, `v≈82`, both `0.00 GB/s` | `l2-ub` `v≈106`, `ub-l2` `v≈121` |
+| L2↔UB column, AIC (`u≈160`) | 1 — `v≈273`, `0.00 GB/s` | `l2-l1-read` `v≈236` |
+| L2↔UB column, AIV1 (`u≈160`) | 2 — `v≈387`, `v≈401`, both `0.00 GB/s` | `l2-ub` `v≈427`, `ub-l2` `v≈441` |
+| UB↔SIMD, AIV0 (`u≈339`) | 5 — `v≈98`, `109`, `126`, `138`, `183` | `ub-vec` `v≈153`, `vec-ub` `v≈165` |
+| UB↔SIMD, AIV1 (`u≈339`) | 5 — `v≈418`, `429`, `446`, `458`, `503` | `ub-vec` `v≈473`, `vec-ub` `v≈485` |
+| row stack below L0C (`u≈375`) | 1 — `v≈273`, `0.00 GB/s` | `cube-l0c` `v≈229`, `l0c-cube` `v≈245` |
+
+So: **(a)** which file and field feeds each of these extra links; **(b)** is the sketch's stack a real requirement — i.e. should the export grow one plate per link — or is it design filler the panel is right to drop? The stack is not a single repeated placeholder: the AIV0 UB↔SIMD strip holds **seven** values in all, two of them non-zero (`1.56 GB/s`, `0.78 GB/s`), the other five `0.00`.
+
+**Answer so far:** None. The panel's position today is the export's: only the 13 plated corridors are drawn, and the sketch's extras were filed as "no slot" — see the `**No slot**` note in [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
+
+**Roots / evidence:** OCR of the sketch at each of the 47 audit positions (nine of them in-box `%` badges — [UI-49](UI.md) — and 16 corridor `GB/s` values with no export plate) against the export's 13 plated corridors in the `**Value slots**` table of [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md). The FixP-routed slot is [UI-48](UI.md); the AIC row's blank-on-`NA` values are [DATA-41](DATA.md).
+
+**Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
