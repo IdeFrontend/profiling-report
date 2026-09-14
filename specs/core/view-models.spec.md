@@ -34,6 +34,8 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (PROC-3).
 
+**Simulator profile.** When adapting a simulator leaf ([adapt-simulator](./adapt-simulator.spec.md)), hardware CSV mappings above do not apply. Fill swimlane from `PipeTrace.json` (µs); thin summary from KernelInfo/summary when available; omit `pipeOccupancy` / memory / roofline until simulator mappers exist ([DATA-45](../../docs/context/decisions/DATA.md)).
+
 **Summary detail categories (product).** When `summary.jsonl` is present, build `summaryCategories` from its metric category lines (block-mean, per spec "默认显示 summary.jsonl 分组数据"), excluding `OpInfoSummary`. The detail surface renders these as the **All** default, falling back to raw CSV tables + block switcher otherwise; a picked `block_id` replaces the category list with that block's CSV row (DATA-19 / DATA-29).
 
 **Roofline (M2 interim DATA-37*).** When the `summary.jsonl` `ArithmeticUtilization` + `Memory` categories (the **All** scope), or else `ArithmeticUtilization.csv` + `Memory.csv` (classic `.rep`), yield a GM point: set `reportModel.roofline`. The `'roofline'` capability is **never** derived — it is a Phase 2 surface outside the current release and the host must opt in, so the card stays hidden even when points exist. Omit `roofline` when undecidable. L2 omitted (DATA-37c). Tabs omitted (DATA-37f).
@@ -80,7 +82,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 ## Dependencies
 
-DATA-8, DATA-19, DATA-25, DATA-28, DATA-29, DATA-33, DATA-33d, DATA-33f, DATA-39, DATA-34a, DATA-37a–f, DATA-40. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
+DATA-8, DATA-19, DATA-25, DATA-28, DATA-29, DATA-33, DATA-33d, DATA-33f, DATA-39, DATA-34a, DATA-37a–f, DATA-45. [rep-format](./rep-format.spec.md), [swimlane-model](./swimlane-model.spec.md).
 
 ## Open
 
@@ -92,6 +94,7 @@ DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; comput
 - **2026-09-15** — Producer DATA-39 row `24` / row `32` slips resolved (DATA-43, PR-VM-024): the AIC-row corridor plate reads `Memory.csv` `aiv_gm_to_ub_bw(GB/s)` — the row's `GM -> UB` field — painted on the chrome's own slot, so `aic_l1_read_bw(GB/s)` feeds no plate and stays a 详情 column; **Main Write** stays the summed `aic_main_mem_write_bw + aiv_main_mem_write_bw` (DATA-40). The table's rows `21`/`22` Cube↔L0C direction flip is filed as DATA-44.
 - **2026-09-14** — `null` / `""` in `OpInfoSummary.aicore_gm_read_bw(GB/s)` / `aicore_gm_write_bw(GB/s)` now means *not collected*, so the `category: Memory` per-side fallback still runs instead of the card rendering `0.00 GB/s` (PR-VM-013). JSONL scalar reads share one `finiteJsonNumber` helper that never coerces `null` to `0`.
 - **2026-09-14** — The fixture's magnitude scale no longer touches ratio / `(%)` columns (`data/build_sample_rep.py`), which had fabricated op2's `aiv_total_hit_rate(%)` at 0.6 × its real value; `sample.lite.rep` regenerated + re-hashed, with a sample test asserting the dimensionless columns stay within their ceilings.
+- **2026-09-14** — Note simulator profile adaptation; hardware CSV mappings unchanged ([DATA-45](../../docs/context/decisions/DATA.md)).
 - **2026-09-14** — Topology "drawable" is one shared rule (PR-VM-018): a plated edge value (`TOPOLOGY_SLOT_EDGE_IDS`) or the L2 plate. The default-block pick and the panel gate both use `hasDrawableTopology`, so the snapshot no longer selects a block whose labels are all plated-less (`l0c-l1` / `l0c-l2` / `l2-l1-write`) and hides the diagram while a sibling block could draw one.
 - **2026-09-14** — `roofline` is out of the current release and opt-in: the adapter sets `reportModel.roofline` but no longer advertises the `roofline` capability, so the card mounts only when a host passes the flag (PR-VM-009).
 - **2026-09-11** — Roofline `All` now reads the `summary.jsonl` `ArithmeticUtilization` + `Memory` categories instead of re-deriving a CSV mean, so PIPE / roofline / topology share one aggregate (DATA-19 / DATA-29; PR-VM-019). 详情 follows the selector — a picked id replaces the category list with that block's CSV row, and a picked block with no data blanks its widget rather than repeating `All`; `computeCardFromRows` gains the All card's chip-level peak as `peakFallback` (PR-VM-021; PR-STATS-014c / 014d). Roofline `peakBandwidthGBs` for `All` becomes the max of the `Memory` category means (interim DATA-37d, until Product closes DATA-37).

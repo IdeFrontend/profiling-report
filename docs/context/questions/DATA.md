@@ -132,3 +132,13 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **Roots / evidence:** the producer's `DATA questions` doc § DATA-39 "Memory", rows `21`/`22` against rows `29`/`30`, and its numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png`; `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts) (`cube-l0c` → `aic_l0c_write_bw_cube`, `l0c-cube` → `aic_l0c_read_bw_cube`); the `**Value slots**` table of [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
 
 **Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
+
+### DATA-47 — Simulator KernelInfo / summary.json → summary cards
+
+**Status:** `open`
+
+**Question:** Which `KernelInfo.csv` attributes / `summary.json` fields map to `ReportViewModel.summary` for simulator Phase 1 (op name, type, `taskDurationUs`, block dim, pid)? Exact formulas for ticks → `taskDurationUs` when frequency is absent?
+
+**Context:** Phase 1 requires thin summary from KernelInfo and/or emulate `summary.json` ([simulator/FORMAT](../../formats/simulator/FORMAT.md)). No hardware `OpBasicInfo.csv` remap ([DATA-45](../decisions/DATA.md)).
+
+**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [adapt-simulator](../../../specs/core/adapt-simulator.spec.md), [view-models](../../../specs/core/view-models.spec.md)

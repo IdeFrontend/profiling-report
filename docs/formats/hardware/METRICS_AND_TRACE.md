@@ -36,7 +36,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | `ResourceConflictRatio.csv` | — | Stall/conflict insights in details |
 | `trace.json` | Swimlane lanes and event intervals | Dependency overlays if args provide them; markers |
 
-Sketches: [`docs/ui/`](../ui/).
+Sketches: [`docs/ui/`](../../ui/).
 
 ---
 
@@ -53,7 +53,7 @@ Sample row (abridged):
 | Mix Block Dim | `NA` | Mix mode (later) |
 | Device Id | `0` | Device label |
 | Pid | process id | Aside **进程** |
-| Current Freq / Rated Freq | e.g. `1650` | Freq in summary / hardware panel; **CPU clocks** display mode ([UI-40](../context/decisions/UI.md) / [UI-45](../context/decisions/UI.md)) uses `currentFreq` when valid, else `ratedFreq` (MHz) as derived `cycles = ns × freqMHz / 1000`. When `PipeUtilization` has both `*_time(us)` and `*_total_cycles`, their ratio matches Current Freq on `out.rep` (1650). |
+| Current Freq / Rated Freq | e.g. `1650` | Freq in summary / hardware panel; **CPU clocks** display mode ([UI-40](../../context/decisions/UI.md) / [UI-45](../../context/decisions/UI.md)) uses `currentFreq` when valid, else `ratedFreq` (MHz) as derived `cycles = ns × freqMHz / 1000`. When `PipeUtilization` has both `*_time(us)` and `*_total_cycles`, their ratio matches Current Freq on `out.rep` (1650). |
 
 ---
 
@@ -65,7 +65,7 @@ Important AIV columns (sample is vector-heavy):
 
 | Column | Role |
 |--------|------|
-| `aiv_time(us)`, `aiv_total_cycles` | Block duration / block-level cycles. Gutter **时钟周期** uses **per-pipe** mapped `*_total_cycles` (e.g. `aiv_vec_total_cycles`), not block-only `aiv_total_cycles` / `aic_total_cycles`, and **not** `*_time(us)` — see [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md) |
+| `aiv_time(us)`, `aiv_total_cycles` | Block duration / block-level cycles. Gutter **时钟周期** uses **per-pipe** mapped `*_total_cycles` (e.g. `aiv_vec_total_cycles`), not block-only `aiv_total_cycles` / `aic_total_cycles`, and **not** `*_time(us)` — see [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md) |
 | `aiv_vec_time(us)`, `aiv_vec_ratio` | Vector pipe |
 | `aiv_mte2_*`, `aiv_mte3_*` | MTE pipes + active BW |
 | `aiv_scalar_*` | Scalar time, stalls, waits |
@@ -73,24 +73,24 @@ Important AIV columns (sample is vector-heavy):
 
 AIC counterparts (`aic_cube_*`, `aic_mte*_*`, `aic_fixpipe_*`, …) populate Cube / FixPipe bars when present.
 
-**Aggregation ([DATA-28](../context/decisions/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), `All` (default) takes the **mean of non-`NA` ratios** across `block_id` rows from `summary.jsonl`; a picked `block_id` takes that block's `PipeUtilization.csv` row ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). Display as horizontal bars matching [COLOR_TOKENS](../ui/COLOR_TOKENS.md).
+**Aggregation ([DATA-28](../../context/decisions/DATA.md)):** for each pipe family (Cube, Vector, MTE1–3, FixP, Scalar), `All` (default) takes the **mean of non-`NA` ratios** across `block_id` rows from `summary.jsonl`; a picked `block_id` takes that block's `PipeUtilization.csv` row ([DATA-19](../../context/decisions/DATA.md) / [DATA-29](../../context/decisions/DATA.md)). Display as horizontal bars matching [COLOR_TOKENS](../../ui/COLOR_TOKENS.md).
 
-**Overview charts:** Fill `OverviewSeries` from product `Sampling.json` `ph:"C"` counters — **one track per distinct counter `name` present** ([DATA-39](../context/decisions/DATA.md)). **Hide** when empty ([DATA-32](../context/decisions/DATA.md)). Do **not** derive from PipeUtilization ratios.
+**Overview charts:** Fill `OverviewSeries` from product `Sampling.json` `ph:"C"` counters — **one track per distinct counter `name` present** ([DATA-39](../../context/decisions/DATA.md)). **Hide** when empty ([DATA-32](../../context/decisions/DATA.md)). Do **not** derive from PipeUtilization ratios.
 
-**Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
+**Lane hierarchy:** Use producer `thread_name` / process names as-is ([DATA-35](../../context/decisions/DATA.md)); do not invent Card/`CoreN.*` hierarchy in the viewer from flat AIV pipe strings. Nested Card → category → Core → pipe trees come from explicit `SwimThread.children` (stress / future producer), not CTEF heuristics.
 
-**Card gutter 时钟周期 ([DATA-38](../context/decisions/DATA.md) / [UI-46](../context/decisions/UI.md)):** **labels** are **absolute clock cycles** from mapped pipe `*_total_cycles`; bare integers; **barWidth** shared with utilization (event coverage). Folders **sum distinct** pipe keys for cycle **labels** (same-key multi-core siblings count once). Dropdown = **利用率** + **时钟周期** only. Normative domain ACs: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md).
+**Card gutter 时钟周期 ([DATA-38](../../context/decisions/DATA.md) / [UI-46](../../context/decisions/UI.md)):** **labels** are **absolute clock cycles** from mapped pipe `*_total_cycles`; bare integers; **barWidth** shared with utilization (event coverage). Folders **sum distinct** pipe keys for cycle **labels** (same-key multi-core siblings count once). Dropdown = **利用率** + **时钟周期** only. Normative domain ACs: [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md).
 
 ### Gutter metric modes (Card-header selector)
 
-Per-Card dropdown on swimlane Card strips — **exactly two** selectable items when both available. Normative formula: [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md) § **clockCycle formula**.
+Per-Card dropdown on swimlane Card strips — **exactly two** selectable items when both available. Normative formula: [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula**.
 
 | Mode | Quantity (label) | Primary embed | Notes |
 |------|----------|---------------|-------|
 | 利用率 (`utilization`) | Event coverage % over model time span | `trace.json` | label `NN%`; bar = coverage |
 | 时钟周期 (`clockCycle`) | Absolute pipe **clock cycles** | `PipeUtilization.csv` mapped `*_total_cycles` | Bare cycle labels; **same barWidth as utilization**; folder labels **sum distinct keys**; hide mode when no mappable cycle data |
 
-Default: **利用率** when available, else **时钟周期**. Aside PIPE **ratio** bars stay [DATA-28](../context/decisions/DATA.md); aside in-bar absolute times stay [DATA-33f](../context/decisions/interim/DATA.md) (`*_time(us)` — **not** the gutter clockCycle label). Decisions: [DATA-38](../context/decisions/DATA.md), [UI-46](../context/decisions/UI.md).
+Default: **利用率** when available, else **时钟周期**. Aside PIPE **ratio** bars stay [DATA-28](../../context/decisions/DATA.md); aside in-bar absolute times stay [DATA-33f](../../context/decisions/interim/DATA.md) (`*_time(us)` — **not** the gutter clockCycle label). Decisions: [DATA-38](../../context/decisions/DATA.md), [UI-46](../../context/decisions/UI.md).
 
 **Fill / midline:** both metrics — red when barWidth &lt; 50%, dash at 50% (shared event-coverage bars).
 
@@ -116,7 +116,7 @@ Used for summary “computing power” tiles and later **roofline** category poi
 | `MemoryUB.csv` | UB vector/scalar R/W BW |
 | `L2Cache.csv` | Write/read hits, miss-allocate, hit rates (%) |
 
-Phase 2 memory diagram (`source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg`): **static SVG** topology with **data-driven edge labels** from these fields ([UI-38](../context/decisions/UI.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
+Phase 2 memory diagram (`source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg`): **static SVG** topology with **data-driven edge labels** from these fields ([UI-38](../../context/decisions/UI.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
 
 ---
 
@@ -170,11 +170,11 @@ The sample `out.rep` trace is a **single-channel AIV pipe-state busy timeline**,
 
 | Expectation | Sample reality | Spec stance |
 |-------------|----------------|-------------|
-| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([DATA-31](../context/questions/DATA.md)); stress emits it; flat CTEF uses **producer names** as-is ([DATA-35](../context/decisions/DATA.md)) |
+| Card → category → Core → pipes | One AIV0 pipe set | **Product target** = Card tree ([DATA-31](../../context/questions/DATA.md)); stress emits it; flat CTEF uses **producer names** as-is ([DATA-35](../../context/decisions/DATA.md)) |
 | Instruction names on bars | Marker / busy names | Show event `name`; richer labels when future traces include them |
 | ProfilerStep bands | Not in sample | Phase 2 / when args or counter tracks exist |
 | Dependencies | Not in sample | Phase 2; parse when predecessor/successor args appear |
-| Overview Cube/Vector series | `Sampling.json` `ph:C` when present ([DATA-39](../context/decisions/DATA.md)); else hide ([DATA-32](../context/decisions/DATA.md)) | One track per counter name; hide if empty |
+| Overview Cube/Vector series | `Sampling.json` `ph:C` when present ([DATA-39](../../context/decisions/DATA.md)); else hide ([DATA-32](../../context/decisions/DATA.md)) | One track per counter name; hide if empty |
 
 Writers of `.rep` files should eventually emit nested models matching the Card hierarchy. Until then, the viewer remains useful on pipe-state traces like the fixture.
 

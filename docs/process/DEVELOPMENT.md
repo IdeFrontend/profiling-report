@@ -50,7 +50,7 @@ Implement in this order unless a blocking dependency forces a temporary exceptio
 
 1. **Tooling scaffold** (next milestone after these process docs) — Vite library package, Vitest, Playwright, playground app, empty failing smoke tests. **No feature code until this is green.**
 2. **Core parse** — [REP_FORMAT](../formats/REP_FORMAT.md) + golden [`data/out.rep`](../../data/out.rep)
-3. **View-models** — [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md) (PIPE bars, report summary)
+3. **View-models** — [METRICS_AND_TRACE](../formats/hardware/METRICS_AND_TRACE.md) / [ADAPTERS](../formats/ADAPTERS.md) (PIPE bars, report summary)
 4. **Swimlane model** — trace → `SwimlaneModel` ([ARCHITECTURE](../architecture/ARCHITECTURE.md))
 5. **UI shell** — panels + interactions ([UI_OVERVIEW](../ui/UI_OVERVIEW.md), [UX_SPEC](../ui/UX_SPEC.md), [INTERACTIONS](../ui/INTERACTIONS.md), [COMPONENTS](../architecture/COMPONENTS.md))
 6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md))

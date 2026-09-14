@@ -146,17 +146,23 @@ Parsed `.rep` file table (name, type, origin, offset, length) before decoding pa
 
 ## Adapters and renderer (non-Vue)
 
-### `RepAdapter` (M)
+### `RepAdapter` / hardware path (M)
 
-`ArrayBuffer` → `{ swimlaneModel, reportModel, capabilities? }`.
+`ArrayBuffer` → `{ swimlaneModel, reportModel, capabilities? }` for **hardware** leaves (and classic fixtures). Entry: `loadReportSource` → `adaptPayloads`.
 
-**Why:** First and only v1 adapter; sole module that knows CSVs + embedded `trace.json`.
+**Why:** Sole module that knows hardware CSVs + `PipeTrace.json` / `trace.json`. Profile detection hub: [ADAPTERS.md](../formats/ADAPTERS.md).
+
+### `adaptSimulator` (M docs / next code)
+
+Simulator leaf payloads (`SimulatorManifest.json` + `PipeTrace.json` + KernelInfo/summary) → same `AdaptedReport`. Phase 1: Timeline + thin summary; omit PIPE/memory until mappers exist ([DATA-45](../context/decisions/DATA.md)).
+
+**Why:** Same UI models; different sources ([simulator/FORMAT.md](../formats/simulator/FORMAT.md)).
 
 ### `ChromeTraceToSwimlane` (M)
 
 Chrome Trace Event Format → `SwimlaneModel`.
 
-**Why:** Shared by `RepAdapter` and any later adapter that already has CTEF (including a thin PyPTO path).
+**Why:** Shared by hardware adapter, simulator adapter, and standalone CTEF (including a thin PyPTO path).
 
 ### `SwimlaneRenderer` interface (M)
 
@@ -322,5 +328,7 @@ Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is im
 - [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) — normative colors
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios and sync model
 - [INTERACTIONS.md](../ui/INTERACTIONS.md) — hover/select/zoom behavior
-- [METRICS_AND_TRACE.md](../formats/METRICS_AND_TRACE.md) — `.rep` embeds → report model fields
+- [METRICS_AND_TRACE.md](../formats/hardware/METRICS_AND_TRACE.md) — hardware embeds → report model fields
+- [ADAPTERS.md](../formats/ADAPTERS.md) — profile detect → adapt
+- [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md) — container hub
 - [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — Canvas vs WebGL

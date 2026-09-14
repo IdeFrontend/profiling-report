@@ -1,20 +1,20 @@
 # Profiling Formats — Semantic Comparison
 
-Compare **what data means** for OP-level profiling across three stacks: MindStudio Insight (operator path), the product **`.npu-rep`** report pack, and PyPTO swimlane inputs.
+Compare **what data means** for OP-level profiling across: MindStudio Insight (operator path), **hardware** `.npu-rep`, **simulator** `.npu-rep`, and PyPTO swimlane inputs.
 
-This document is **not** about binary layouts. Container packing for `.npu-rep` / classic `cann-rep` lives in [REP_FORMAT.md](REP_FORMAT.md). Embed → UI field mapping lives in [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md).
+This document is **not** about binary layouts. Container hub: [INPUT_FORMATS.md](INPUT_FORMATS.md). Classic fixture: [REP_FORMAT.md](REP_FORMAT.md). Hardware embed → UI: [hardware/METRICS_AND_TRACE.md](hardware/METRICS_AND_TRACE.md). Simulator contract: [simulator/FORMAT.md](simulator/FORMAT.md).
 
 ## Scope
 
 | In scope | Out of scope |
 |----------|----------------|
 | Insight **operator** profiling (Timeline / Source / Details / Cache fed by MSTT `.bin` / related op dumps) | Insight **system** profiling (host↔device training/inference timelines, cluster Summary/Communication, Ascend profiler `.db` trees) |
-| `.npu-rep` OP report semantics (metric CSVs + Chrome Trace) | Loose MSTT CSV table preview (unchanged editor) |
+| `.npu-rep` **hardware** and **simulator** profiles (same container, different embeds — [PROC-7](../context/decisions/PROC.md)) | Loose MSTT CSV table preview (unchanged editor) |
 | PyPTO swimlane schedule semantics (after host parse) | PyPTO compute-graph / three-column linkage payloads |
 
 ## Common semantic core
 
-All three can express, in some form:
+All can express, in some form:
 
 1. **Timed activity** on AI Core / pipe-like lanes — name, start, duration
 2. **Operator / kernel identity** and overall duration
@@ -22,75 +22,78 @@ All three can express, in some form:
 4. **Memory / bandwidth / cache-related** metrics (depth varies widely)
 5. **Optional dependency or sync** relationships between timed units
 
-They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates live** (opaque BIN vs CSV pack vs side PMU), and **product goal** (microarchitecture debug vs portable report vs schedule orchestration).
+They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates live**, and **product goal**.
 
 ## Semantic matrix
 
-| Semantic area | Insight operator (`.bin` path) | `.npu-rep` | PyPTO swimlane |
-|---------------|--------------------------------|------------------|----------------|
-| **Timeline grain** | Per-**instruction** Gantt on named pipes (SCALAR, FLOWCTRL, MTE1–3, CUBE, VECTOR, FIXP, CACHEMISS, …) plus SET_FLAG ↔ WAIT_FLAG sync edges | Chrome Trace → process / thread lanes. Sample fixture: **pipe busy/state** intervals on AIV pipes. Product traces may be richer (multi-core instruction-like lanes — see [questions](../context/questions/) DATA-31) | Process → thread → **duration events** (ops/tasks); optional AICPU E2E (scheduler / orchestrator) and counter lanes |
-| **Op / block identity** | Details “base info”: op name, type (`vector`/`cube`/`mix`), duration, block dim, per-block times | `OpBasicInfo.csv` | Usually light: names / args (`seqNo`, `taskId`, hints); no dedicated op-summary CSV |
-| **Pipe utilization aggregates** | Details compute workload: cycles% by pipe/instruction; timeline shows occupancy visually | `PipeUtilization.csv` (`aic_*` / `aiv_*` ratios, MTE, scalar stalls, i-cache, …) | Derived from event spans and/or joined **`tilefwk_prof_pmu.csv`** — not the Ascend OP CSV pack |
-| **Arithmetic / roofline** | Compute workload + Roofline (intensity vs TOPS, memory/transfer ceilings) | `ArithmeticUtilization.csv` (+ Roofline UI later) | Performance side panels only if metrics are fed into the model |
-| **Memory paths** | Memory heatmap: HBM/L2/L1/L0/UB requests, BW, hit rates, peak % of theoretical | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv` | Not core swimlane payload |
-| **L2 cache** | Dedicated Cache view (line hit/miss) linked to Source | `L2Cache.csv` (Phase 2+ UI) | Optional counters / PMU-like fields |
-| **Source ↔ instruction** | First-class Source heatmap (line ↔ insn, PC, cycles, conflicts) | **Not** in sample embeds | Not swimlane core (may jump to compute graph via hashes) |
-| **Deps / sync** | SET_FLAG / WAIT_FLAG between pipes | Only if encoded in `trace.json` args or side embeds ([DATA-36](../context/questions/DATA.md)) | Flow events (`s`/`f`), `dyn_topo.txt`, and/or `deps.json` |
-| **Conflicts / stalls** | Source UB conflicts; wait cycles in Details | `ResourceConflictRatio.csv` (Phase 2+) | Stall/conflict if present in event args or PMU |
-| **Host / NPU inventory** | May appear in Insight detail chrome | Not in sample `.rep` ([DATA-34](../context/decisions/DATA.md)) | Not typical |
-| **Counters / step metrics** | Optional MTE throughput-style counters on Timeline | Not first-class in sample (overview charts data source open — [DATA-32](../context/decisions/DATA.md)) | Chrome Trace `ph: C` lanes (e.g. ready counts, mem usage) |
-| **Primary product question** | “What did this kernel do on the pipes, and how does it map to source?” | “Give me a portable OP report: summary panels + a swimlane-friendly timeline.” | “How did tasks schedule across cores (and AICPU), with deps and optional PMU?” |
+| Semantic area | Insight operator (`.bin`) | `.npu-rep` **hardware** | `.npu-rep` **simulator** | PyPTO swimlane |
+|---------------|---------------------------|-------------------------|--------------------------|----------------|
+| **Timeline grain** | Per-**instruction** Gantt on named pipes + SET_FLAG/WAIT_FLAG | Chrome Trace → process/thread lanes (sample: pipe busy/state; product may be richer — [DATA-31](../context/questions/DATA.md)) | Emulate Chrome Trace (instr/tick events) packed as `PipeTrace.json` (**µs**, [DATA-46](../context/decisions/DATA.md)) | Process → thread → duration events; optional AICPU / counters |
+| **Op / block identity** | Details base info | `OpBasicInfo.csv` (+ `Summary.jsonl`) | `KernelInfo` / emulate `summary.json` (thin Phase 1; [DATA-47](../context/questions/DATA.md)) | Light names/args |
+| **Pipe utilization aggregates** | Details compute workload % | `PipeUtilization.csv` (`aic_*` / `aiv_*`) | `PipesUtilization` / hist — **not** remapped to hardware CSV ([DATA-45](../context/decisions/DATA.md)) | Event spans and/or `tilefwk_prof_pmu.csv` |
+| **Arithmetic / roofline** | Compute + Roofline | `ArithmeticUtilization.csv` + Memory | ArchDiagramMetrics + Functions + VectorUtilizations + SourceInstructions (ELF often required) | Side panels if metrics fed in |
+| **Memory paths** | Heatmap HBM/L2/L1/L0/UB | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv` | Per-access `MemoryRWAccesses` (heatmap); ArchDiagram bandwidth metrics | Not core swimlane |
+| **L2 cache** | Cache view | `L2Cache.csv` | Via analysis / heatmap paths as available | Optional counters |
+| **Source ↔ instruction** | First-class Source heatmap | Not in sample hardware embeds | Source Assembly / AsmMetrics when ELF packed (Phase 2) | Not swimlane core |
+| **Deps / sync** | SET_FLAG / WAIT_FLAG | If in trace args ([DATA-36](../context/questions/DATA.md)) | `PipeDependency` / critical path when analyzers run | Flow events / topo / deps.json |
+| **Conflicts / stalls** | UB conflicts; wait cycles | `ResourceConflictRatio.csv` | UB bank / SIMD stall tables when populated | Event args / PMU |
+| **Host / NPU inventory** | May appear in chrome | `HardwareInfo.jsonl` when present | Usually absent | Not typical |
+| **Counters / overview** | Optional MTE-style | `Sampling.json` `ph:C` ([DATA-39](../context/decisions/DATA.md)) | Optional later (e.g. UnitUtilization → counters) | `ph:C` lanes |
+| **Detection / open path** | `.bin` → Insight | `.npu-rep` leaf without sim marker | `.npu-rep` leaf + `SimulatorManifest.json` ([PROC-8](../context/decisions/PROC.md)) | Swimlane JSON / CTEF / … |
+| **Adapter** | Insight server | Hardware `adaptPayloads` | `adaptSimulator` | Host / future adapter |
+| **Primary product question** | “What did this kernel do on the pipes, and how does it map to source?” | “Portable OP report: summary + swimlane.” | “Cycle-accurate sim: timeline first; biprof-like deep panels Phase 2.” | “How did tasks schedule across cores?” |
 
 ## Why they differ
 
 **Insight operator (`.bin`)**  
-Built for **single-kernel microarchitecture** analysis. The dump is rich enough for instruction PC, source mapping, pipe Gantt, cache-line events, and roofline. MSTT does not interpret the payload; Insight’s server does. That depth is why the format stays opaque and tied to the Insight stack.
+Single-kernel **microarchitecture** dump (PC, source, pipe Gantt, cache). Opaque; Insight + `profiler_server`.
 
-**`.npu-rep`**  
-Built as a **portable report pack**: pre-aggregated **CSV metrics** for summary / PIPE / memory / cache panels, plus a **Chrome Trace** timeline so a Vue library can render a pypto-like swimlane **without** Insight or `profiler_server`. Semantics intentionally overlap Insight’s *report* surfaces (util, memory, op info, timed lanes), not necessarily Insight’s full instruction/Source/Cache event graphs unless embeds grow.
+**`.npu-rep` hardware**  
+Portable **OP report pack**: pre-aggregated CSV metrics + Chrome Trace for Vue swimlane **without** Insight. Schemas: [hardware/FORMAT.md](hardware/FORMAT.md).
+
+**`.npu-rep` simulator**  
+Same **container and host extension** ([PROC-6](../context/decisions/PROC.md)), but **instruction/tick** contract from npu_emulate. Closer in grain to Insight than to hardware CSVs — yet delivered as a report pack, not `.bin`. Schemas: [simulator/FORMAT.md](simulator/FORMAT.md). **No silent remap** into hardware embeds ([DATA-45](../context/decisions/DATA.md)).
 
 **PyPTO swimlane**  
-Built for **schedule orchestration**: processes/threads/events, dependencies, optional AICPU stack, counter tracks, and optional per-task PMU join. It is format-agnostic after parse (Chrome Trace, PerfSwim, MsProf-style JSON). It is **not** an Ascend OP “metric CSV product”; those aggregates are absent unless supplied as side files or event args.
+Schedule orchestration: processes/threads/events, deps, optional AICPU/PMU. Not an Ascend OP metric CSV product.
 
 ## Overlap intent for profiling-report
 
 ```text
-Insight operator report semantics  +  PyPTO-like timeline UX
-                ↘                      ↙
-                 .npu-rep  →  Vue library
+Insight-like microarch depth (sim Phase 2)   +   hardware OP report panels
+                ↘                                      ↙
+              shared Vue UI  ←  SwimlaneModel + ReportViewModel + capabilities
+                ↗                                      ↖
+         hardware adapter                    simulator adapter
 ```
 
-Semantic **overlap** (timed lanes, pipe util concepts, op identity) justifies a **shared Vue swimlane/report UI**. Semantic **differences** (instruction vs task vs pipe-busy grain; CSV packs vs schedule/PMU side files; Insight Source/Cache depth) justify **per-format adapters** into canonical models — not merging all on-disk formats into one uber component. Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) (shared UI + adapters).
-
-- **Aim to cover:** op identity, pipe utilization aggregates, memory/L2 aggregates, timed lane activity for a swimlane UI.
-- **Do not claim by default:** bit-parity with Insight instruction-level Source/Cache graphs or PyPTO AICPU/Mix/wrap schedule features.
-- **Sample gap:** current [`data/out.rep`](../../data/out.rep) `trace.json` is pipe-state busy intervals, thinner than product **target** (sketch-like multi-core instruction Gantt — [DATA-31](../context/questions/DATA.md)). Use sample until a sketch-faithful golden arrives; lane naming follows **producer fixed names** ([DATA-35](../context/decisions/DATA.md)).
+- **Share:** timeline UX, summary cards when adapted fields exist, capability-gated panels.
+- **Do not claim:** bit-parity with Insight Source/Cache, or that hardware and simulator metric numbers are interchangeable.
+- **Sample gap (hardware):** [`data/out.rep`](../../data/out.rep) trace is pipe-state busy intervals ([DATA-31](../context/questions/DATA.md)); lane names are producer-fixed ([DATA-35](../context/decisions/DATA.md)).
 
 ## Delivery note (MSTT viewers)
 
-Semantic payloads above are delivered differently in MSTT:
-
 ```text
 Performance results tree file click
-  ├─ .csv          → CsvEditorProvider (raw table; not this comparison)
-  ├─ .bin          → MindStudio Insight (operator semantics above)
+  ├─ .csv          → CsvEditorProvider (raw table)
+  ├─ .bin          → MindStudio Insight
   ├─ .json         → profiling-report when Chrome Trace ([PROC-3](../context/decisions/PROC.md))
   └─ .npu-rep      → profiling-report Vue panel ([PROC-2](../context/decisions/PROC.md))
+                     ├─ hardware leaf  → adaptPayloads
+                     └─ simulator leaf → adaptSimulator (marker [PROC-8](../context/decisions/PROC.md))
 ```
 
-The official product host extension is **`.npu-rep`** ([PROC-2](../context/decisions/PROC.md)). Classic `cann-rep` / sample `.rep` files are engineering fixtures only — not product aliases. Binary layout: [REP_FORMAT.md](REP_FORMAT.md).
-
-| Axis | Insight operator | `.npu-rep` / profiling-report | PyPTO swimlane |
-|------|------------------|-------------------------------|----------------|
-| Typical on-disk trigger | `.bin` (+ Insight JSON/DB for other modes) | `.npu-rep` container | Swimlane JSON / Chrome Trace / `perf_swimlane` (+ optional PMU/topo) |
-| Who interprets | Insight SPA + `profiler_server` | This Vue library | pypto_toolkit host + swimGraph |
-| Kept in MSTT? | Yes for `.bin` | Primary new OP report path | Not used by MSTT today (UX/code reference) |
+| Axis | Insight | Hardware `.npu-rep` | Simulator `.npu-rep` | PyPTO |
+|------|---------|---------------------|----------------------|-------|
+| On-disk trigger | `.bin` | `.npu-rep` | `.npu-rep` + `SimulatorManifest.json` | Swimlane JSON / CTEF / … |
+| Who interprets | Insight + `profiler_server` | This library | This library | pypto host |
+| Kept in MSTT? | Yes for `.bin` | Primary OP report path | Same extension | UX reference |
 
 ## Related docs
 
-- [DOMAIN_AND_USERS.md](../context/DOMAIN_AND_USERS.md) — OP developer context, pain points, glossary
-- [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — per-view required inputs / hide rules
-- [REP_FORMAT.md](REP_FORMAT.md) — container binary layout
-- [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) — `.npu-rep` embeds → UI panels
-- [questions](../context/questions/) — remaining blockers (esp. DATA-33)
-- [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — renderer tech, not data semantics
+- [INPUT_FORMATS.md](INPUT_FORMATS.md) — container hub + profiles
+- [hardware/FORMAT.md](hardware/FORMAT.md) · [simulator/FORMAT.md](simulator/FORMAT.md)
+- [ADAPTERS.md](ADAPTERS.md) — detect → adapt → view-models
+- [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — adapted VM hide rules
+- [DOMAIN_AND_USERS.md](../context/DOMAIN_AND_USERS.md)
+- [questions](../context/questions/) — PROC-9, DATA-47, …
