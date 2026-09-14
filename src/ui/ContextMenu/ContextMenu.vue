@@ -38,7 +38,7 @@ const emit = defineEmits<{
 
 const menuRef = ref<HTMLElement | null>(null);
 const menuStyle = ref<Record<string, string>>({ position: 'fixed', visibility: 'hidden' });
-const activeIndex = ref(0);
+const activeIndex = ref(-1);
 let restoreFocusEl: HTMLElement | null = null;
 
 const items = computed(() => {
@@ -61,6 +61,12 @@ const items = computed(() => {
 const hasViewportGroup = computed(() => props.canReset);
 const hasEventGroup = computed(() => !!props.context?.target);
 const hasEarlierGroup = computed(() => hasViewportGroup.value || hasEventGroup.value);
+/** aria-activedescendant id; undefined (no active item) while nothing is highlighted. */
+const activeDescendantId = computed(() =>
+  activeIndex.value >= 0 && items.value[activeIndex.value]
+    ? `ctx-item-${items.value[activeIndex.value].command}`
+    : undefined,
+);
 
 function place(x: number, y: number) {
   const { width, height } = menuRef.value?.getBoundingClientRect() ?? { width: 0, height: 0 };
@@ -97,7 +103,7 @@ function onKeydown(e: KeyboardEvent) {
   if (!n) return;
   if (e.key === 'Escape') { e.preventDefault(); emit('dismiss'); return; }
   if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex.value = (activeIndex.value + 1) % n; return; }
-  if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex.value = (activeIndex.value - 1 + n) % n; return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex.value = activeIndex.value <= 0 ? n - 1 : activeIndex.value - 1; return; }
   if (e.key === 'Enter') { e.preventDefault(); activate(activeIndex.value); return; }
   if (e.key.toLowerCase() === 'p' && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     const pinIndex = items.value.findIndex((i) => i.command === 'pin');
@@ -132,7 +138,7 @@ watch(
   () => props.context,
   async (ctx) => {
     if (ctx) {
-      activeIndex.value = 0;
+      activeIndex.value = -1;
       unbindListeners();
       restoreFocusEl = document.activeElement as HTMLElement | null;
       menuStyle.value = { position: 'fixed', visibility: 'hidden' };
@@ -169,7 +175,7 @@ onBeforeUnmount(unbindListeners);
       class="pr-ctx-menu"
       role="menu"
       tabindex="-1"
-      :aria-activedescendant="`ctx-item-${items[activeIndex]?.command}`"
+      :aria-activedescendant="activeDescendantId"
       :style="menuStyle"
       data-testid="context-menu"
       @click.stop

@@ -220,7 +220,7 @@ describe('ContextMenu', () => {
     expect(leaked).toBe(false);
   });
 
-  it('PR-CTXMENU-009: keyboard navigation focuses and activates the next event command', async () => {
+  it('PR-CTXMENU-009: keyboard navigation activates the first command after ArrowDown', async () => {
     wrapper = mount(ContextMenu, {
       props: {
         context: { x: 10, y: 10, laneId: 'lane1', target: event },
@@ -233,7 +233,27 @@ describe('ContextMenu', () => {
     expect(document.activeElement).toBe(document.querySelector('[data-testid="context-menu"]'));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-    expect(wrapper.emitted('action')?.[0]?.[0]).toEqual({ command: 'show', laneId: 'lane1', target: event });
+    expect(wrapper.emitted('action')?.[0]?.[0]).toEqual({ command: 'reset', laneId: 'lane1' });
+  });
+
+  it('PR-CTXMENU-017: no command is highlighted when the menu opens', async () => {
+    wrapper = mount(ContextMenu, {
+      props: {
+        context: { x: 10, y: 10, laneId: 'lane1', target: event },
+        pinnedLaneIds: [],
+        canReset: true,
+      },
+      attachTo: document.body,
+    });
+    await wrapper.vm.$nextTick();
+    expect(document.querySelector('.pr-ctx-menu__item--active')).toBeNull();
+    expect(
+      document.querySelector('[data-testid="context-menu"]')?.getAttribute('aria-activedescendant'),
+    ).toBeNull();
+    // ArrowUp from no highlight wraps to the last command.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+    await wrapper.vm.$nextTick();
+    expect(menuItem('pin')?.className).toContain('pr-ctx-menu__item--active');
   });
 
   it('PR-CTXMENU-010: Alt+P activates pin only when Pin row is available', async () => {
