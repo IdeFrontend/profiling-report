@@ -438,11 +438,12 @@ describe('PR-VM: report view-models (interim)', () => {
     const both: CsvTableModel[] = [
       {
         fileName: 'Memory.csv',
-        headers: ['block_id', 'aic_l1_read_bw(GB/s)', 'aiv_ub_to_gm_bw(GB/s)'],
+        // DATA-43: the AIC-row corridor plate (`l2-l1-read`) reads the producer's `GM -> UB` field.
+        headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)', 'aiv_ub_to_gm_bw(GB/s)'],
         rows: [
           {
             block_id: '0',
-            'aic_l1_read_bw(GB/s)': '0',
+            'aiv_gm_to_ub_bw(GB/s)': '0',
             'aiv_ub_to_gm_bw(GB/s)': '1.11',
           },
         ],
@@ -513,6 +514,115 @@ describe('PR-VM: report view-models (interim)', () => {
     const csvSnapshot = adaptPayloads({ 'Memory.csv': encoder.encode(csv) }).reportModel
       .memoryTopology;
     expect(csvSnapshot?.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
+  });
+
+  it('DATA-40: the GM↔L2 plates show the aic + aiv sides summed, like the 带宽利用率 card', () => {
+    // The producer's DATA-39 rows 31 / 32 — the plates at the `gm-l2-read` / `gm-l2-write` slots
+    // (74.5, 255.9) / (75.3, 277.8) — are "Main Read" and "Main Write", each the sum of the two
+    // sides (`aic_main_mem_read_bw + aiv_main_mem_read_bw`, likewise write). First-present would
+    // print the AIC half alone and disagree with the card one panel above (DATA-8).
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: [
+          'block_id',
+          'aic_main_mem_read_bw(GB/s)',
+          'aiv_main_mem_read_bw(GB/s)',
+          'aic_main_mem_write_bw(GB/s)',
+          'aiv_main_mem_write_bw(GB/s)',
+        ],
+        rows: [
+          {
+            block_id: '0',
+            'aic_main_mem_read_bw(GB/s)': '560',
+            'aiv_main_mem_read_bw(GB/s)': '532',
+            'aic_main_mem_write_bw(GB/s)': '480',
+            'aiv_main_mem_write_bw(GB/s)': '456',
+          },
+        ],
+        blockIds: ['0'],
+      },
+    ];
+    const label = (id: string) =>
+      buildMemoryTopology(tables, '0')?.edges.find((e) => e.id === id)?.label;
+    expect(label('gm-l2-read')).toBe('1092.00 GB/s');
+    expect(label('gm-l2-write')).toBe('936.00 GB/s');
+
+    // One side NA → the present side alone (never `0.00`), and not `undefined`.
+    tables[0]!.rows[0]!['aic_main_mem_read_bw(GB/s)'] = 'NA';
+    expect(label('gm-l2-read')).toBe('532.00 GB/s');
+
+    // Both sides NA → no label, so the plate stays blank.
+    tables[0]!.rows[0]!['aiv_main_mem_read_bw(GB/s)'] = 'NA';
+    expect(label('gm-l2-read')).toBeUndefined();
+  });
+
+  it('PR-VM-023 (UI-49 / DATA-39): in-box Scalar/Vec/Cube badges are the block\'s own pipe ratio, NA stays blank', () => {
+    // The producer's `PipeUtilization` ratios are fractions of each unit's own busy time, so the
+    // badge prints `ratio × 100` at the sketch's two decimals (the pipe rows round to integers).
+    const memory: CsvTableModel = {
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_ub_to_gm_bw(GB/s)'],
+      rows: [
+        { block_id: '0', 'aiv_ub_to_gm_bw(GB/s)': '8.38' },
+        { block_id: '1', 'aiv_ub_to_gm_bw(GB/s)': '1.00' },
+      ],
+      blockIds: ['0', '1'],
+    };
+    const pipe: CsvTableModel = {
+      fileName: 'PipeUtilization.csv',
+      headers: ['block_id', 'aiv_scalar_ratio', 'aiv_vec_ratio', 'aic_cube_ratio'],
+      rows: [
+        {
+          block_id: '0',
+          aiv_scalar_ratio: '0.5790',
+          aiv_vec_ratio: '0.5606',
+          aic_cube_ratio: '0.0218',
+        },
+        { block_id: '1', aiv_scalar_ratio: 'NA', aiv_vec_ratio: '0.3', aic_cube_ratio: '' },
+      ],
+      blockIds: ['0', '1'],
+    };
+    const plates = (id: string) => buildMemoryTopology([memory, pipe], id)?.plates;
+    expect(plates('0')).toEqual([
+      { node: 'aiv_scalar', label: '57.90%' },
+      { node: 'vec', label: '56.06%' },
+      { node: 'cube', label: '2.18%' },
+    ]);
+    // `NA` / empty drop that unit's badge — an absent badge, never `NaN%` or a false `0.00%`.
+    expect(plates('1')).toEqual([{ node: 'vec', label: '30.00%' }]);
+
+    // No PipeUtilization among the tables → no badges at all (the panel supplies that table).
+    expect(buildMemoryTopology([memory], '0')?.plates).toBeUndefined();
+  });
+
+  it('PR-VM-024 (DATA-43): the AIC-row corridor plate carries the producer\'s `GM -> UB` field', () => {
+    // The producer's DATA-39 row 24 puts `aiv_gm_to_ub_bw(GB/s)` on the corridor plate our chrome
+    // draws as `L2 → MTE2 → L1 (AIC)`; Product ruled (2026-09-15) to use that field, painted on
+    // the chrome's own slot. `aic_l1_read_bw` is a decoy here: it must not win the plate even when
+    // it is the only populated column.
+    const memory: CsvTableModel = {
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)', 'aic_l1_read_bw(GB/s)'],
+      rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '532.00', 'aic_l1_read_bw(GB/s)': '12.00' }],
+      blockIds: ['0'],
+    };
+    const plate = (id: string, tables = [memory]) =>
+      buildMemoryTopology(tables, id)?.edges.find((e) => e.id === 'l2-l1-read');
+    // Direction still follows the chrome (the slot is L2 → cluster), only the field changed.
+    expect(plate('0')?.label).toBe('532.00 GB/s');
+    expect(`${plate('0')?.from}->${plate('0')?.to}`).toBe('l2->l1');
+
+    // `aic_l1_read_bw` alone no longer paints any plate — it stays a Memory.csv 详情 column.
+    const decoy: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '12.00' }],
+        blockIds: ['0'],
+      },
+    ];
+    expect(plate('0', decoy)).toBeUndefined();
   });
 
   it('PR-VM-018: the default topology block must be one the chrome can actually paint', () => {
@@ -662,6 +772,8 @@ describe('PR-VM: report view-models (interim)', () => {
     // All = the summary.jsonl category record …
     expect(model.pipeOccupancy.find((p) => p.id === 'vector')?.ratio).toBeCloseTo(0.42, 6);
     expect(model.memoryTopology?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('42.00 GB/s');
+    // UI-49: the in-box badges read the same category (the producer's `NA` units stay absent).
+    expect(model.memoryTopology?.plates).toEqual([{ node: 'vec', label: '42.00%' }]);
     expect(model.summaryCategories!.find((c) => c.id === 'PipeUtilization')!.fields).toContainEqual({
       key: 'aiv_vec_ratio',
       value: '0.42',

@@ -176,6 +176,20 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     }
   });
 
+  it('the fixture GM↔L2 plates print the same summed traffic as the 带宽利用率 card (DATA-40)', () => {
+    // DATA-40 made the edge and the card one quantity; this is the product-level property, not the
+    // resolver's — the two surfaces read the same two `Memory.csv` columns per side.
+    for (const report of [op1, op2]) {
+      const card = (id: string) => report.reportModel.bandwidthCards!.find((c) => c.id === id)!;
+      const label = (id: string) =>
+        report.reportModel.memoryTopology!.edges.find((e) => e.id === id)?.label;
+      const read = card('input').sides[0]!.measuredGBs;
+      const write = card('output').sides[0]!.measuredGBs;
+      expect(label('gm-l2-read')).toBe(`${read.toFixed(2)} GB/s`);
+      expect(label('gm-l2-write')).toBe(`${write.toFixed(2)} GB/s`);
+    }
+  });
+
   it('fixture keeps ratio / percent columns dimensionless — the magnitude scale never touches them', () => {
     // `transform_metric_csv` scales magnitude columns (durations, bytes, counts). Applying that to a
     // ratio fabricates impossible data: op2's `aiv_total_hit_rate(%)` was 0.6 × the real value, so

@@ -3,11 +3,14 @@ import { defineComponent, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import MemoryTopologyPanel, {
   DEFAULT_MAX_W,
+  PLATE_MAX_W,
+  PLATE_SLOTS,
   SLOT_MAX_W,
   ZOOM_STEPS,
   fitFontSize,
 } from './MemoryTopologyPanel.vue';
-import { hasDrawableTopology } from '../../../adapters/memoryTopology';
+import { TOPOLOGY_PLATE_NODE_IDS, hasDrawableTopology } from '../../../adapters/memoryTopology';
+import type { TopologyPlateNodeId } from '../../../adapters/memoryTopology';
 
 const model = {
   nodes: [
@@ -189,6 +192,38 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.find('svg').text()).not.toContain('77.50%77.50%');
   });
 
+  it('PR-MEMTOP-016 (UI-49): paints an in-box unit badge per plated unit, blank otherwise', () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          nodes: [...model.nodes, { id: 'vec', label: 'Vec' }, { id: 'aiv_scalar', label: 'Scalar' }],
+          plates: [
+            { node: 'aiv_scalar', label: '57.90%' },
+            { node: 'vec', label: '56.06%' },
+          ],
+        },
+      },
+    });
+    // One element per slot: the AIV0/AIV1 pair shares the unit's one field (DATA-28), like the
+    // paired link values, and the slot index keeps each testid unique.
+    const scalar = wrapper.findAll('[data-testid^="plate-aiv_scalar-"]');
+    expect(scalar).toHaveLength(2);
+    expect(scalar.every((el) => el.text() === '57.90%')).toBe(true);
+    expect(wrapper.findAll('[data-testid^="plate-vec-"]')).toHaveLength(2);
+    expect(wrapper.get('[data-testid="plate-vec-0"]').classes()).toContain('pr-topo__pct');
+    // Cube / Scalar(AIC) / SIMT / FixP have no producer field (`NA`), so they carry no badge at
+    // all — 4 drawn, not 11.
+    expect(wrapper.findAll('[data-testid^="plate-"]')).toHaveLength(4);
+
+    // The in-box badges join the text alternative, named once per unit.
+    const id = wrapper.get('svg').attributes('aria-describedby')!;
+    const summary = wrapper.get(`[id="${id}"]`);
+    expect(summary.text()).toContain('Scalar (AIV0, AIV1): 57.90%');
+    expect(summary.text()).toContain('Vec (AIV0, AIV1): 56.06%');
+    expect(summary.text().match(/Scalar \(AIV0, AIV1\)/g)).toHaveLength(1);
+  });
+
   it('PR-MEMTOP-008: right-click emits open-details', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
@@ -256,11 +291,23 @@ describe('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-012: suppresses overlays and warns once when chrome fails to load', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+      // In-box badges are value overlays too: they live at sketch coordinates the chrome does not
+      // draw, so they must vanish with the link values rather than float over an empty rectangle.
+      const wrapper = mount(MemoryTopologyPanel, {
+        props: {
+          model: {
+            ...model,
+            nodes: [...model.nodes, { id: 'vec', label: 'Vec' }],
+            plates: [{ node: 'vec', label: '56.06%' }],
+          },
+        },
+      });
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="plate-vec-0"]').exists()).toBe(true);
       expect(wrapper.get('svg').attributes('aria-describedby')).toBeTruthy();
       await wrapper.get('image').trigger('error');
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid^="plate-"]').exists()).toBe(false);
       expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(false);
       expect(wrapper.find('.pr-topo__sr').exists()).toBe(false);
       expect(wrapper.find('[data-testid="topology-controls"]').exists()).toBe(false);
@@ -475,6 +522,45 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     }
   });
 
+  it('keeps every in-box badge bound inside its own unit box', () => {
+    // The sketch's nine in-box badges; only the plated three get a slot (UI-49), and each has to
+    // stay inside its own box wall — these are box interiors, not the corridors between pillars.
+    // Walls measured off the export at each badge's height band: AIV0/AIV1 `Scalar` x266.5–297.5,
+    // AIV0/AIV1 `Vec` x361.5–382.5 (the narrow one), AIC `Cube` x322.5–353.5.
+    const BOXES: Record<TopologyPlateNodeId, [number, number, number]> = {
+      aiv_scalar: [266.5, 282.1, 297.5],
+      vec: [361.5, 372.0, 382.5],
+      cube: [322.5, 338.0, 353.5],
+    };
+    expect(Object.keys(PLATE_MAX_W).sort()).toEqual(Object.keys(BOXES).sort());
+    expect(Object.keys(PLATE_SLOTS).sort()).toEqual([...TOPOLOGY_PLATE_NODE_IDS].sort());
+    for (const node of TOPOLOGY_PLATE_NODE_IDS) {
+      const [left, centre, right] = BOXES[node];
+      const half = PLATE_MAX_W[node] / 2;
+      expect(centre - half, `${node} left`).toBeGreaterThanOrEqual(left);
+      expect(centre + half, `${node} right`).toBeLessThanOrEqual(right);
+    }
+  });
+
+  it('shrinks an in-box badge that outgrows the narrow Vec box', () => {
+    // `100.00%` measures 31.11 units — wider than any unit box at its badge band — so each box
+    // scales it by its own wall, the 22-unit Vec box the most. Badges are not corridor values:
+    // they never consult `SLOT_MAX_W`.
+    expect(fitFontSize(31.11, 'vec', 6.3, PLATE_MAX_W)).toBeCloseTo(
+      (PLATE_MAX_W['vec']! / 31.11) * 6.3,
+      6,
+    );
+    for (const node of ['cube', 'aiv_scalar'] as const) {
+      expect(fitFontSize(31.11, node, 6.3, PLATE_MAX_W), node).toBeLessThan(6.3);
+      expect(fitFontSize(31.11, node, 6.3, PLATE_MAX_W), node).toBeCloseTo(
+        (PLATE_MAX_W[node]! / 31.11) * 6.3,
+        6,
+      );
+    }
+    // A badge the box holds keeps the base size.
+    expect(fitFontSize(15, 'vec', 6.3, PLATE_MAX_W)).toBe(6.3);
+  });
+
   it('shrinks a value that outgrows the tight GM↔L2 corridor', () => {
     const tight = SLOT_MAX_W['gm-l2-read']!;
     expect(fitFontSize(43.19, 'gm-l2-read')).toBeCloseTo((tight / 43.19) * 6.3, 6);
@@ -523,6 +609,24 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       const px = /font-size:\s*([\d.]+)px/.exec(wide.attributes('style') ?? '')?.[1];
       expect(Number(px)).toBeCloseTo((SLOT_MAX_W['gm-l2-read']! / 43.19) * 6.3, 4);
       expect(fits.attributes('style') ?? '').not.toContain('font-size');
+    } finally {
+      restore();
+    }
+  });
+
+  it('PR-MEMTOP-016: applies the fitted size to an over-wide in-box badge', async () => {
+    const restore = stubMetrics();
+    try {
+      const wrapper = mount(MemoryTopologyPanel, {
+        props: {
+          model: { ...model, plates: [{ node: 'vec', label: '100.00%' }] },
+        },
+      });
+      await nextTick();
+      const plate = wrapper.get('[data-testid="plate-vec-0"]');
+      expect(plate.text()).toBe('100.00%');
+      const px = /font-size:\s*([\d.]+)px/.exec(plate.attributes('style') ?? '')?.[1];
+      expect(Number(px)).toBeCloseTo((PLATE_MAX_W['vec']! / 31.11) * 6.3, 4);
     } finally {
       restore();
     }

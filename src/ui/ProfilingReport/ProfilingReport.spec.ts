@@ -50,8 +50,8 @@ function topologyReport() {
   const memoryTables = [
     {
       fileName: 'Memory.csv',
-      headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-      rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+      headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+      rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
       blockIds: ['0'],
     },
   ];
@@ -61,7 +61,7 @@ function topologyReport() {
     memoryTables,
     // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
     memoryTopology: firstLabelledMemoryTopology(memoryTables)!.model,
-    csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+    csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
   };
 }
 

@@ -1,4 +1,9 @@
-import type { CsvTableModel, MemoryTopologyModel, SummaryCategory } from '../domain/types';
+import type {
+  CsvTableModel,
+  MemoryTopologyModel,
+  MemoryTopologyPlateNodeId,
+  SummaryCategory,
+} from '../domain/types';
 
 const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'gm', label: 'GM' },
@@ -35,7 +40,7 @@ const L2_HIT_RATE_COLUMNS = [
 
 type Unit = 'GB/s' | 'KB' | '%';
 
-/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins.
+/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins, unless `aggregate` says otherwise.
  *  Bare `*_read_bw` = leaving the named resource; `*_write_bw` = arriving there.
  *  Counterparty-suffix columns (`_bw_gm` / `_vector` / `_cube`) already name the other end. */
 const EDGE_MAP: {
@@ -43,33 +48,50 @@ const EDGE_MAP: {
   from: string;
   to: string;
   unit: Unit;
-  sources: { file: string; columns: string[] }[];
+  sources: { file: string; columns: string[]; aggregate?: 'sum' }[];
 }[] = [
   {
+    // DATA-40: the plate is the producer's "Main Read" — the aic + aiv sides **summed**, the same
+    // quantity the 带宽利用率 读 card shows (DATA-8). First-present would print one side alone.
     id: 'gm-l2-read',
     from: 'gm',
     to: 'l2',
     unit: 'GB/s',
     sources: [
-      { file: 'Memory.csv', columns: ['aic_main_mem_read_bw(GB/s)', 'aiv_main_mem_read_bw(GB/s)'] },
+      {
+        file: 'Memory.csv',
+        columns: ['aic_main_mem_read_bw(GB/s)', 'aiv_main_mem_read_bw(GB/s)'],
+        aggregate: 'sum',
+      },
     ],
   },
   {
+    // DATA-40: "Main Write", likewise summed (the producer's row 32 lists the AIC read column by
+    // slip; the card's `aicore_gm_write_bw` side is the AIC **write** column).
     id: 'gm-l2-write',
     from: 'l2',
     to: 'gm',
     unit: 'GB/s',
     sources: [
-      { file: 'Memory.csv', columns: ['aic_main_mem_write_bw(GB/s)', 'aiv_main_mem_write_bw(GB/s)'] },
+      {
+        file: 'Memory.csv',
+        columns: ['aic_main_mem_write_bw(GB/s)', 'aiv_main_mem_write_bw(GB/s)'],
+        aggregate: 'sum',
+      },
     ],
   },
   // ponytail: L1/L0 stay at master from/to. out.rep is NA; L0A/L0B are L1→buffer→Cube, so the GM leaving-resource flip does not apply. Verify on an AIC-populated .rep.
   {
+    // DATA-43 (row 24): the producer assigns this plate — the AIC row's corridor slot, drawn
+    // `L2 → MTE2 → L1 (AIC)` — the `GM -> UB` field `aiv_gm_to_ub_bw`, the same field the two AIV
+    // `l2-ub` plates carry (DATA-23). Product ruling 2026-09-15: use the producer's field and
+    // paint it on the chrome's own slot ("display it according to svg spec"). `aic_l1_read_bw` is
+    // therefore read by no plate; it stays visible in the Memory.csv 详情 field list.
     id: 'l2-l1-read',
     from: 'l2',
     to: 'l1',
     unit: 'GB/s',
-    sources: [{ file: 'Memory.csv', columns: ['aic_l1_read_bw(GB/s)'] }],
+    sources: [{ file: 'Memory.csv', columns: ['aiv_gm_to_ub_bw(GB/s)'] }],
   },
   {
     // Drawn blank on the chrome until UI-48: the export routes this corridor onto FixP.
@@ -205,6 +227,33 @@ export type TopologySlotEdgeId = (typeof TOPOLOGY_SLOT_EDGE_IDS)[number];
 export const TOPOLOGY_PEAK_PLATE_EDGE_ID = 'l2-hit';
 
 /**
+ * UI-49 / DATA-39: units whose **in-box** badge is a pipe-utilization ratio, not a peak percent.
+ * The panel types its `PLATE_SLOTS` against this tuple, so a newly plated unit without
+ * coordinates fails typecheck instead of silently drawing nothing (same rule as the link slots).
+ * AIV0/AIV1 share one field and one plate entry — the panel paints it in both AIV rows.
+ * `satisfies` keeps the tuple in step with the domain union: a unit that is not a
+ * `MemoryTopologyPlateNodeId` cannot be listed here.
+ */
+export const TOPOLOGY_PLATE_NODE_IDS = ['aiv_scalar', 'vec', 'cube'] as const satisfies readonly MemoryTopologyPlateNodeId[];
+
+export type TopologyPlateNodeId = (typeof TOPOLOGY_PLATE_NODE_IDS)[number];
+
+/**
+ * UI-49 in-box `%` badges (DATA-39 rows 1/2, 6'/7', 8). `aiv_scalar_ratio` / `aiv_vec_ratio` /
+ * `aic_cube_ratio` are **fractions** of the unit's own busy time (DATA-28) — the same ratio the
+ * 计算负载分析 pipe rows show — and print as `{ratio × 100}%` at the sketch's **two decimals**
+ * (`57.90%`, where the pipe row rounds to `58%`). The producer's six `NA` in-box
+ * rows (AIC `Scalar`, AIV0/AIV1 `SIMT VF`, AIV0/AIV1 `SIMD VF`, `FixP`) cover only **four** badge
+ * positions: the `SIMD VF` rows describe the `Vec` position, which the `Vec` rows (`6'`/`7'`) fill,
+ * so it is painted, and those four positions stay blank.
+ */
+const PLATE_MAP: { node: TopologyPlateNodeId; file: string; columns: string[] }[] = [
+  { node: 'aiv_scalar', file: 'PipeUtilization.csv', columns: ['aiv_scalar_ratio'] },
+  { node: 'vec', file: 'PipeUtilization.csv', columns: ['aiv_vec_ratio'] },
+  { node: 'cube', file: 'PipeUtilization.csv', columns: ['aic_cube_ratio'] },
+];
+
+/**
  * True when the chrome can paint something: a plated link value, the L2 plate (`peakPct` or a
  * `l2-hit` label), or both. A model whose only labels are slotless (`l0c-l1` / `l0c-l2` /
  * `l2-l1-write`) is not drawable — mounting the chrome with every overlay blank is worse than
@@ -255,8 +304,12 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
   for (const spec of EDGE_MAP) {
     let value: number | undefined;
     for (const src of spec.sources) {
-      value = read(src.file, src.columns);
-      if (value != null) break;
+      const present = src.columns
+        .map((column) => read(src.file, [column]))
+        .filter((v): v is number => v != null);
+      if (present.length === 0) continue;
+      value = src.aggregate === 'sum' ? present.reduce((a, b) => a + b, 0) : present[0];
+      break;
     }
     if (value != null) edgeValues.set(spec.id, value);
     edges.push({
@@ -275,7 +328,13 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
     n.id === 'l2' && peakPct != null ? { ...n, peakPct } : { ...n },
   );
 
-  return { nodes, edges };
+  // UI-49: in-box unit-utilization badges. The ratio is a fraction of the unit's own busy time.
+  const plates = PLATE_MAP.flatMap((p) => {
+    const ratio = read(p.file, p.columns);
+    return ratio == null ? [] : [{ node: p.node, label: formatLabel(ratio * 100, '%') }];
+  });
+
+  return { nodes, edges, ...(plates.length > 0 ? { plates } : {}) };
 }
 
 /**
@@ -324,6 +383,8 @@ const FILE_CATEGORY: Record<string, string> = {
   'MemoryL0.csv': 'MemoryL0',
   'MemoryUB.csv': 'MemoryUB',
   'L2Cache.csv': 'L2Cache',
+  // UI-49: the in-box unit-utilization badges (Scalar / Vec / Cube) live in PipeUtilization.
+  'PipeUtilization.csv': 'PipeUtilization',
 };
 
 /** Distinct `block_id` values across the given tables, in fixture order (no duplicates). */
