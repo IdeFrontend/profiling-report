@@ -19,10 +19,10 @@ Contract + leaf pack: [FORMAT.md](FORMAT.md). Sample files: [`data/gelu.npu-rep`
 | Exported | `2026-09-15T08:04:27.476042+00:00` |
 | `total_objects` / tables / views | 122 / 100 / 22 |
 | `total_rows` (all objects) | 169435 |
-| Leaf embeds | `manifest.json` + **34** CSVs (only non-empty objects the packer included) |
+| Leaf embeds | `manifest.json` + **34** populated CSVs + `PipeTrace.json` (+ `aicore_utilization.json`, `core_0_critical_path_report_0.json` in gelu) |
 | Export catalog | `manifest.json` — `{ database, exported_at, total_*, objects[] }` with per-object `name`, `type`, `row_count`, `columns`, `file` |
 
-**Not a separate marker.** `manifest.json` **is** the emulate detection signal ([PROC-8](../../context/decisions/PROC.md)): export catalog shape (`objects[]` with hub tables) or thin `{ profile: "emulate", schemaVersion }`. gelu has **no** `PipeTrace.json` → null swimlane when opened.
+**Export catalog marker.** `manifest.json` **is** the emulate detection signal ([PROC-8](../../context/decisions/PROC.md)): export catalog shape (`objects[]` with hub tables) or thin `{ profile: "emulate", schemaVersion }`. Timeline uses normative **`PipeTrace.json`** (gelu sample renamed from producer `core_*_tracing_report_*.json`; adapter still accepts the native basename as fallback).
 ---
 
 ## 1. Packed embeds in `gelu.npu-rep` (34 CSVs)

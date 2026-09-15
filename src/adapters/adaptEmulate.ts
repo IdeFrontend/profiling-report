@@ -33,6 +33,32 @@ const PIPE_HIST_NAMES = ['PipeUtilizationHist.csv', 'pipeutilizationhist.csv'];
 /** Hub object names that identify an npu_emulate CSV export catalog. */
 const EXPORT_CATALOG_HUBS = new Set(['ExecutedInstructions', 'KernelInfo', 'AnalysisState']);
 
+/**
+ * Prefer PipeTrace.json; else first `*_tracing_report_*.json` (npu_emulate native name).
+ * Skips critical_path reports.
+ */
+function findEmulateTracePayload(
+  payloads: Record<string, Uint8Array>,
+): { bytes: Uint8Array; name: string } | undefined {
+  const preferred = payloadByName(payloads, PIPE_TRACE_NAMES);
+  if (preferred) {
+    const name =
+      Object.keys(payloads).find((k) => PIPE_TRACE_NAMES.some((n) => k.toLowerCase() === n.toLowerCase())) ??
+      'PipeTrace.json';
+    return { bytes: preferred, name };
+  }
+  const native = Object.keys(payloads)
+    .filter(
+      (n) =>
+        /tracing[_-]?report/i.test(n) &&
+        /\.json$/i.test(n) &&
+        !/critical[_-]?path/i.test(n),
+    )
+    .sort((a, b) => a.localeCompare(b));
+  if (native.length === 0) return undefined;
+  return { bytes: payloads[native[0]], name: native[0] };
+}
+
 export interface EmulateManifest {
   profile: string;
   schemaVersion: number;
@@ -379,15 +405,19 @@ export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedRepor
   const utilPipes = pipeOccupancyFromPipesUtilization(payloadByName(payloads, PIPES_UTIL_NAMES));
   const pipeOccupancy = histPipes.length > 0 ? histPipes : utilPipes;
 
-  // PipeTrace optional: absent → null swimlane (metrics-only / export pack); corrupt → throw.
+  // Trace optional: PipeTrace.json or native core_*_tracing_report_*.json.
+  // Absent → null swimlane; corrupt → throw. Values are µs (DATA-41); override
+  // misleading displayTimeUnit:"ns" on native emulate traces.
   let swimlaneModel: SwimlaneModel | null = null;
-  const traceBytes = payloadByName(payloads, PIPE_TRACE_NAMES);
-  if (traceBytes) {
+  const trace = findEmulateTracePayload(payloads);
+  if (trace) {
     let traceJson: unknown;
     try {
-      traceJson = JSON.parse(decodeUtf8(traceBytes));
+      traceJson = JSON.parse(decodeUtf8(trace.bytes));
     } catch {
-      throw new Error('[profiling-report] adaptEmulate: PipeTrace.json is not valid JSON');
+      throw new Error(
+        `[profiling-report] adaptEmulate: ${trace.name} is not valid JSON`,
+      );
     }
     swimlaneModel = withPipeLaneUtilizations(
       chromeTraceToSwimlane(traceJson, { sourceTimeUnit: 'us' }),
