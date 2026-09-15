@@ -58,7 +58,7 @@ Two shapes appear in the wild:
 
 | Shape | Example | Marker | Typical embeds |
 |-------|---------|--------|----------------|
-| **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | Populated contract CSVs; often **no** PipeTrace — opens with null swimlane |
+| **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | Populated contract CSVs + **`PipeTrace.json`** (normative; packer may rename from `core_*_tracing_report_*.json`) + optional `aicore_utilization.json` |
 | **Viewer leaf** (Sept 30+) | [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep) | `manifest.json` thin `{ profile, schemaVersion }` | Manifest + `PipeTrace.json` + KernelInfo/summary + PIPE CSVs (± more contract CSVs) |
 
 gelu shows the export packer **skips** some populated DB objects (`KernelInfo`, `PipesUtilization`, `AiCoreOccupancy`, dictionaries, …). Pack those when thin summary / PIPE UI are expected.
@@ -68,7 +68,7 @@ gelu shows the export packer **skips** some populated DB objects (`KernelInfo`, 
 | Embed | Type | Rules |
 |-------|------|-------|
 | `manifest.json` | json | Required marker. See §4.3. Legacy `EmulateManifest.json` accepted |
-| `PipeTrace.json` | json | **Recommended** for timeline. Chrome Trace Event format; **µs** `ts`/`dur` ([DATA-46](../../context/decisions/DATA.md)). **Absence → null swimlane**, leaf still opens |
+| `PipeTrace.json` | json | **Recommended** for timeline. Chrome Trace Event format; **µs** `ts`/`dur` ([DATA-46](../../context/decisions/DATA.md)). Native npu_emulate `core_*_tracing_report_*.json` is accepted when `PipeTrace.json` is absent (same µs rule; ignore misleading `displayTimeUnit: "ns"`). **Absence of any trace → null swimlane**, leaf still opens |
 | `KernelInfo.csv` and/or `summary.json` | csv / json | Thin duration / identity cards. Interim map [DATA-47a](../../context/decisions/interim/DATA.md); Product [DATA-47](../../context/questions/DATA.md) |
 | `PipesUtilization.csv` and/or `PipeUtilizationHist.csv` | csv | **Recommended** for PIPE occupancy / CSV tab. Keep emulate basenames — **do not** rename to compute `PipeUtilization.csv` ([DATA-45](../../context/decisions/DATA.md)) |
 
@@ -146,7 +146,7 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 
 ## 7. Reference sample (gelu)
 
-Committed producer export: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (+ unpacked [`data/gelu/`](../../../data/gelu/)). Detected as emulate via export-catalog `manifest.json`; opens with **null swimlane** until `PipeTrace.json` is packed. Table set: [TABLES.md](TABLES.md).
+Committed producer export: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (+ unpacked [`data/gelu/`](../../../data/gelu/)). Detected as emulate via export-catalog `manifest.json`; timeline from normative `PipeTrace.json`. Table set: [TABLES.md](TABLES.md).
 
 Minimal viewer fixture (timeline + summary + PIPE): [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep).
 

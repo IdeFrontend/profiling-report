@@ -234,17 +234,27 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
   });
 
-  it('gelu.npu-rep opens as emulate with null swimlane', () => {
+  it('gelu.npu-rep opens as emulate with swimlane from PipeTrace.json', () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(__dirname, '../../data/gelu.npu-rep')),
     );
     const adapted = loadReportSource(bytes);
-    expect(adapted.swimlaneModel).toBeNull();
+    expect(adapted.swimlaneModel).not.toBeNull();
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
+    expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
     expect(adapted.reportModel.memoryTopology).toBeUndefined();
     expect(adapted.reportModel.roofline).toBeUndefined();
   });
-});
 
+  it('PR-ASIM-007: native core_*_tracing_report_*.json used when PipeTrace.json absent', () => {
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(exportCatalogManifest()),
+      'core_0_tracing_report_0.json': enc.encode(minimalTraceUs()),
+    });
+    expect(adapted.swimlaneModel).not.toBeNull();
+    expect(adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime).toBe(100_000);
+  });
+});
 describe('emulate pipe mappers', () => {
   it('maps PipeUtilizationHist PipeName → occupancy', () => {
     const items = pipeOccupancyFromHist(
