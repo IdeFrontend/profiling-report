@@ -10,7 +10,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 
 | Layer | Path | Role |
 |-------|------|------|
-| A – sources | [`source/v930/`](./source/v930/) + [`manifest.yaml`](./source/manifest.yaml) | Full-frame dumps (append-only) |
+| A – sources | [`source/v930/`](./source/v930/) + [`source/v930-sim/`](./source/v930-sim/) + [`manifest.yaml`](./source/manifest.yaml) | Full-frame dumps (append-only) |
 | C – visual packs | nested under `src/ui/{Region}/…/{Component}/visual/` | Crops + `provenance.yaml` next to implementation |
 
 ## Source frames (`v930`)
@@ -34,6 +34,13 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930/task-click-detail` | [`task-click-detail.jpeg`](./source/v930/task-click-detail.jpeg) | Task click → 详情 dock; other tasks 置灰; dep beziers |
 | `v930/change-log` | [`change-log.jpeg`](./source/v930/change-log.jpeg) | Version change notes: measure mode, Cube\|Vector toggle, detail tabs, block switcher + 查看全部, buffer links |
 
+## Source frames (`v930-sim` — 仿真 11.2.3.2)
+
+| Id | File | Typical consumers |
+|----|------|-------------------|
+| `v930-sim/memory-topology-zoom` | [`memory-topology-zoom.jpeg`](./source/v930-sim/memory-topology-zoom.jpeg) | 内存负载分析 zoom bar in the stacked aside (缩小 / % / 放大 / 适应窗口 / 全屏) |
+| `v930-sim/memory-topology-fullscreen` | [`memory-topology-fullscreen.jpeg`](./source/v930-sim/memory-topology-fullscreen.jpeg) | The same diagram in the root 全屏 overlay: fit-window control only, no 全屏, no strip |
+
 ## Component visual packs
 
 | Component | Visual pack | Primary source |
@@ -52,7 +59,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`PipeOccupancyPanel`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/) | PIPE bars, Cube\|Vector tabs | `v930/compute-load` |
 | [`CsvFieldListPanel`](../../src/ui/StatsAside/CsvFieldListPanel/visual/) | tabs, fields, block switcher | `v930/compute-load-detail`, `memory-load-detail` |
 | [`RooflinePanel`](../../src/ui/StatsAside/RooflinePanel/visual/) | roofline chart | `v930/report-stats-open` |
-| [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory topology chrome (nodes/edges) + value slots | `v930/report-stats-scrolled`; official chrome `memory-topology.svg` |
+| [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory topology chrome (nodes/edges) + value slots; zoom / fullscreen bar | `v930/report-stats-scrolled`; official chrome `memory-topology.svg`; bar → `v930-sim/*` |
 | [`HardwareDetailsPanel`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/) | Host/Device info | `v930/hardware-more-detail` |
 | [`DetailPanel`](../../src/ui/DetailPanel/visual/) | dock chrome | `v930/detail-strip-raised` |
 | [`DetailSummary`](../../src/ui/DetailPanel/DetailSummary/visual/) | identity card | `v930/detail-strip-raised` |

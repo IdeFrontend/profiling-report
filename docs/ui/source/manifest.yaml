@@ -85,3 +85,20 @@ batches:
         original_name: "930版本-性能调优_变更记录.jpeg"
         scenes: [change-log, measure, compute-load, csv-tabs, memory-topology]
         components: [SwimlaneCanvas, PipeOccupancyPanel, CsvFieldListPanel, MemoryTopologyPanel]
+
+  # 仿真 11.2.3.2 refresh of the 内存负载分析 panel: the fullscreen/zoom bar (缩放 / 适应窗口 /
+  # 全屏) that supersedes the v930 header 全屏 icon. Same 8K frame as the v930 batch, so the panel
+  # is 2× CSS pixels and the bar's controls measure ~27 px.
+  v930-sim:
+    label: "930 仿真 11.2.3.2（内存负载分析缩放 / 全屏）"
+    files:
+      - id: memory-topology-zoom
+        path: v930-sim/memory-topology-zoom.jpeg
+        original_name: "930版本-仿真_11.2.3.2_内存负载分析缩放+全屏.jpeg"
+        scenes: [memory-load, memory-topology, zoom, aside]
+        components: [StatsAside, MemoryTopologyPanel]
+      - id: memory-topology-fullscreen
+        path: v930-sim/memory-topology-fullscreen.jpeg
+        original_name: "930版本-仿真_11.2.3.2_内存负载分析全屏.jpeg"
+        scenes: [memory-load, memory-topology, fullscreen]
+        components: [MemoryTopologyPanel]
