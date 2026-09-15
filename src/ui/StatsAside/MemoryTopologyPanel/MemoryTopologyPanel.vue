@@ -49,8 +49,10 @@ export const SLOT_MAX_W: Record<string, number> = {
  * (372.0, 168.6) / (372.0, 488.6), `Cube` (338.0, 248.1). AIV0 and AIV1 share one field
  * (`aiv_scalar_ratio` / `aiv_vec_ratio`), so both slots of a pair carry the same string.
  *
- * The other four in-box badges of the sketch — AIV0/AIV1 `SIMT`, AIC `Scalar`, `FixP` — are the
- * producer's `NA` rows and carry no slot (UI-49).
+ * The other four in-box badges of the sketch — AIC `Scalar`, AIV0/AIV1 `SIMT`, `FixP` — are the
+ * producer's `NA` rows and carry no slot (UI-49). The producer also marks the AIV0/AIV1
+ * `SIMD VF` rows `NA`, but those describe the `Vec` position, which the `Vec` rows (`6'`/`7'`)
+ * fill, so it is painted rather than blank.
  */
 export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number, number])[]> = {
   aiv_scalar: [
@@ -95,9 +97,10 @@ export const DEFAULT_MAX_W = 34.7;
  * Chrome slots we intentionally leave blank because the adapter computes no such edge, or
  * Product has not confirmed the assignment (UI-48): the AIV0/AIV1 SIMT in/out pair and the
  * four in-row SIMT links, the UB→VEC run, the two rotated AIV↔AIC trunk labels, AIC
- * L1→MTE1#3→BT, FixP→rail, the lower L2↔AIC corridor that the export routes onto FixP
- * (`l2-l1-write` / `aic_l1_write_bw`), and 9 of the 10 in-box `%` plates (the L2 plate is
- * DATA-20 `peakPct`).
+ * L1→MTE1#3→BT, FixP→rail, and the lower L2↔AIC corridor that the export routes onto FixP
+ * (`l2-l1-write` / `aic_l1_write_bw`). The in-box `%` plates split the same way: the L2 plate is
+ * DATA-20 `peakPct`, five unit badges are painted (UI-49, `PLATE_SLOTS`), and the four badge
+ * positions with no producer field stay blank.
  */
 export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, number])[]> = {
   'gm-l2-read': [[74.5, 255.9]],

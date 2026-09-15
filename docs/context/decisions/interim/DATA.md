@@ -167,7 +167,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 ### DATA-40a — Topology edge value candidates
 
 **Status:** `interim` — **SUPERSEDED** 2026-09-15 by [DATA-40](../DATA.md)
-**Question:** [DATA-40](../../questions/DATA.md)
+**Question:** [DATA-40](../../questions/DATA.md) *(resolved — removed from open list)*
 **Interim:** ~~When an edge lists several candidate columns, the **first present non-`NA` candidate in the listed order wins** (`Memory.csv` `aic_main_mem_read_bw(GB/s)` then `aiv_main_mem_read_bw(GB/s)` for GM → L2, and the same shape for GM ← L2) — i.e. a single side, **not** the aic + aiv sum the BW card uses ([DATA-8](../DATA.md)). Values follow the one selector like every other CSV-backed widget: `All` = the `summary.jsonl` category record, a picked `block_id` = that block's CSV row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).~~ Product [DATA-40](../DATA.md): the GM ↔ L2 plates are the producer's **Main Read** / **Main Write** = the aic + aiv sides **summed**; every other edge keeps first-present-non-`NA`.
 **Implement / test as:** `EDGE_MAP` in [`memoryTopology.ts`](../../../../src/adapters/memoryTopology.ts) (`aggregate: 'sum'` on the two GM↔L2 sources); edge table in [VIEW_DATA_MAPPING §11.2.6](../../../ui/VIEW_DATA_MAPPING.md)
 **Superseded when:** — already superseded by DATA-40

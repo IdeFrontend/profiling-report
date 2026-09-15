@@ -130,20 +130,6 @@ images:
       - label: "DATA-41 AIC-row links"
         box: { x: 780, y: 960, w: 900, h: 260 }
 
-  data-42:
-    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-42 unplated link values"
-        box: { x: 1380, y: 460, w: 190, h: 420 }
-
-  ui-49:
-    source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
-    maxWidth: 900
-    highlights:
-      - label: "UI-49 only L2 has a Peak"
-        box: { x: 470, y: 1080, w: 180, h: 160 }
-
   data-21:
     source_file: src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png
     maxWidth: 900

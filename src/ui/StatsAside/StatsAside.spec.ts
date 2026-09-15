@@ -1217,6 +1217,19 @@ describe('StatsAside', () => {
         report: report({
           summary: { taskDurationUs: 1 },
           memoryTables: tables,
+          // UI-49: the in-box badges live in `PipeUtilization.csv`, so the picked-block rebuild gets
+          // them only because the aside joins the compute table to the Memory* ones.
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.5' },
+                { block_id: '1', aiv_vec_ratio: '0.9' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
           memoryTopology: {
             nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
             edges: [{ id: 'gm-l2-read', from: 'gm', to: 'l2', label: '1.56 GB/s' }],
@@ -1231,6 +1244,14 @@ describe('StatsAside', () => {
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-topology"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('1.56 GB/s');
+
+    // UI-49: the picked-block rebuild joins `PipeUtilization.csv` to the Memory* tables, so block 0
+    // brings its own in-box badge back — the pipe ratio × 100 (DATA-28).
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    await wrapper.get('[data-testid="csv-block"]').setValue('0');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.get('[data-testid="edge-gm-l2-read-0"]').text()).toBe('1.56 GB/s');
+    expect(wrapper.get('[data-testid="plate-vec-0"]').text()).toBe('50.00%');
   });
 
   it('PR-STATS-022: CSV tab fallback does not rewrite topology block', async () => {
