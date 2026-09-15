@@ -438,11 +438,12 @@ describe('PR-VM: report view-models (interim)', () => {
     const both: CsvTableModel[] = [
       {
         fileName: 'Memory.csv',
-        headers: ['block_id', 'aic_l1_read_bw(GB/s)', 'aiv_ub_to_gm_bw(GB/s)'],
+        // DATA-43: the AIC-row corridor plate (`l2-l1-read`) reads the producer's `GM -> UB` field.
+        headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)', 'aiv_ub_to_gm_bw(GB/s)'],
         rows: [
           {
             block_id: '0',
-            'aic_l1_read_bw(GB/s)': '0',
+            'aiv_gm_to_ub_bw(GB/s)': '0',
             'aiv_ub_to_gm_bw(GB/s)': '1.11',
           },
         ],
@@ -593,6 +594,35 @@ describe('PR-VM: report view-models (interim)', () => {
 
     // No PipeUtilization among the tables → no badges at all (the panel supplies that table).
     expect(buildMemoryTopology([memory], '0')?.plates).toBeUndefined();
+  });
+
+  it('PR-VM-024 (DATA-43): the AIC-row corridor plate carries the producer\'s `GM -> UB` field', () => {
+    // The producer's DATA-39 row 24 puts `aiv_gm_to_ub_bw(GB/s)` on the corridor plate our chrome
+    // draws as `L2 → MTE2 → L1 (AIC)`; Product ruled (2026-09-15) to use that field, painted on
+    // the chrome's own slot. `aic_l1_read_bw` is a decoy here: it must not win the plate even when
+    // it is the only populated column.
+    const memory: CsvTableModel = {
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)', 'aic_l1_read_bw(GB/s)'],
+      rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '532.00', 'aic_l1_read_bw(GB/s)': '12.00' }],
+      blockIds: ['0'],
+    };
+    const plate = (id: string, tables = [memory]) =>
+      buildMemoryTopology(tables, id)?.edges.find((e) => e.id === 'l2-l1-read');
+    // Direction still follows the chrome (the slot is L2 → cluster), only the field changed.
+    expect(plate('0')?.label).toBe('532.00 GB/s');
+    expect(`${plate('0')?.from}->${plate('0')?.to}`).toBe('l2->l1');
+
+    // `aic_l1_read_bw` alone no longer paints any plate — it stays a Memory.csv 详情 column.
+    const decoy: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '12.00' }],
+        blockIds: ['0'],
+      },
+    ];
+    expect(plate('0', decoy)).toBeUndefined();
   });
 
   it('PR-VM-018: the default topology block must be one the chrome can actually paint', () => {

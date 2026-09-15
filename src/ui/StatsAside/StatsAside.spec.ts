@@ -355,14 +355,14 @@ describe('StatsAside', () => {
     const memoryTables = [
       {
         fileName: 'Memory.csv',
-        headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-        rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+        headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
         blockIds: ['0'],
       },
     ];
     const csvTexts = {
       'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.1\n',
-      'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n',
+      'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n',
     };
 
     const wrapper = mount(StatsAside, {
@@ -991,8 +991,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1001,10 +1001,10 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ],
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });
@@ -1020,8 +1020,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1030,7 +1030,7 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ],
           // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
@@ -1038,10 +1038,10 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ])!,
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });
@@ -1281,12 +1281,12 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': 'NA' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': 'NA' }],
               blockIds: ['0'],
             },
           ],
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,NA\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,NA\n' },
         }),
       },
     });
@@ -1305,8 +1305,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1326,7 +1326,7 @@ describe('StatsAside', () => {
             },
           ],
           csvTexts: {
-            'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n',
+            'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n',
             'PipeUtilization.csv':
               'block_id,aic_mte1_ratio,aic_mte2_ratio,aiv_mte3_ratio\n0,0.28,0.65,0.14\n',
           },
@@ -1349,7 +1349,7 @@ describe('StatsAside', () => {
         report: report({
           summary: { taskDurationUs: 1 },
           summaryCategories: [
-            { id: 'Memory', title: 'Memory', fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }] },
+            { id: 'Memory', title: 'Memory', fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }] },
             {
               id: 'PipeUtilization',
               title: 'PipeUtilization',
@@ -1359,8 +1359,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1395,8 +1395,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1405,7 +1405,7 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ],
           // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
@@ -1413,10 +1413,10 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ])!,
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });
@@ -1445,8 +1445,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': 'NA' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': 'NA' }],
               blockIds: ['0'],
             },
           ],
@@ -1454,7 +1454,7 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: 'NA' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: 'NA' }],
             },
           ],
         }),
@@ -1474,8 +1474,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1484,7 +1484,7 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ],
           // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
@@ -1492,10 +1492,10 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ])!,
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });

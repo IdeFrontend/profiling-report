@@ -282,10 +282,10 @@ GM / L2 / L1 oriented bandwidth and data volumes. Bare `*_read_bw` = leaving the
 | --- | --- | --- | --- |
 | GM → L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present; the plate is the producer's **Main Read** = both sides **summed** ([DATA-40](../context/decisions/DATA.md)); read = leaving GM (`out.rep` 16.89 tracks `gm_to_ub`) |
 | GM ← L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present; **Main Write** = both sides **summed** ([DATA-40](../context/decisions/DATA.md)); write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
-| L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv`; `out.rep` NA |
+| L2 → L1 | `aiv_gm_to_ub_bw(GB/s)` | `aiv_gm_to_ub_bw(GB/s)` | **DATA-43 (resolved):** the producer's DATA-39 row `24` assigns this plate the `GM -> UB` field; Product ruled 2026-09-15 to use it on the chrome's own AIC-row corridor slot. `aic_l1_read_bw(GB/s)` still exists and stays in the 详情 field list, but no plate reads it; `out.rep` NA |
 | L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed**; `out.rep` NA |
-| L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; Product-confirmed field ([DATA-24](../context/decisions/DATA.md)); 理论值 still 待确定 |
-| L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; **confirmed** ([DATA-25](../context/decisions/DATA.md)); 理论值 (Peak %) still open with [DATA-41](../context/questions/DATA.md) |
+| L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; Product-confirmed field ([DATA-24](../context/decisions/DATA.md)); no 理论值 column exists for it ([DATA-41](../context/questions/DATA.md)) |
+| L0C → L2 / GM | `L0C_to_GM_datas` | `L0C_to_GM_datas(KB)` (+ usage rate) | Present in sample; **confirmed** ([DATA-25](../context/decisions/DATA.md)); no 理论值 (Peak %) field exists ([DATA-41](../context/questions/DATA.md)) |
 | L0C → UB | — | — | **TBD** (docx); absent in sample |
 
 Also present in sample (not all listed in docx edge table): MTE instruction/ratio columns, `GM_to_L1_*`, `UB_to_GM_*`, `aiv_ub_to_gm_bw(GB/s)`, `aiv_gm_to_ub_bw(GB/s)`, etc.
