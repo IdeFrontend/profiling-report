@@ -71,9 +71,10 @@ export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number
  * measured off the export at the badge's height band. Unlike the corridors these are box
  * interiors: Scalar and Cube are ~30 units wide, Vec only ~22 — the sketch's own `2.18%` badge
  * fills 17 of them — so a value is scaled down per box (`fitFontSize`) instead of spilling over
- * the box outline.
+ * the box outline. Keyed by the same `TopologyPlateNodeId` as `PLATE_SLOTS`, so plating a new
+ * unit fails typecheck until it has a bound here as well as coordinates there.
  */
-export const PLATE_MAX_W: Record<string, number> = {
+export const PLATE_MAX_W: Record<TopologyPlateNodeId, number> = {
   aiv_scalar: 26.5,
   vec: 18.5,
   cube: 28.5,

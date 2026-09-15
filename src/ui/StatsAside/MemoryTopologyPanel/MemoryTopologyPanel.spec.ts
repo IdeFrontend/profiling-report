@@ -10,6 +10,7 @@ import MemoryTopologyPanel, {
   fitFontSize,
 } from './MemoryTopologyPanel.vue';
 import { TOPOLOGY_PLATE_NODE_IDS, hasDrawableTopology } from '../../../adapters/memoryTopology';
+import type { TopologyPlateNodeId } from '../../../adapters/memoryTopology';
 
 const model = {
   nodes: [
@@ -526,15 +527,16 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     // stay inside its own box wall — these are box interiors, not the corridors between pillars.
     // Walls measured off the export at each badge's height band: AIV0/AIV1 `Scalar` x266.5–297.5,
     // AIV0/AIV1 `Vec` x361.5–382.5 (the narrow one), AIC `Cube` x322.5–353.5.
-    const BOXES: Record<string, [number, number, number]> = {
+    const BOXES: Record<TopologyPlateNodeId, [number, number, number]> = {
       aiv_scalar: [266.5, 282.1, 297.5],
       vec: [361.5, 372.0, 382.5],
       cube: [322.5, 338.0, 353.5],
     };
     expect(Object.keys(PLATE_MAX_W).sort()).toEqual(Object.keys(BOXES).sort());
     expect(Object.keys(PLATE_SLOTS).sort()).toEqual([...TOPOLOGY_PLATE_NODE_IDS].sort());
-    for (const [node, [left, centre, right]] of Object.entries(BOXES)) {
-      const half = PLATE_MAX_W[node]! / 2;
+    for (const node of TOPOLOGY_PLATE_NODE_IDS) {
+      const [left, centre, right] = BOXES[node];
+      const half = PLATE_MAX_W[node] / 2;
       expect(centre - half, `${node} left`).toBeGreaterThanOrEqual(left);
       expect(centre + half, `${node} right`).toBeLessThanOrEqual(right);
     }
@@ -548,7 +550,7 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       (PLATE_MAX_W['vec']! / 31.11) * 6.3,
       6,
     );
-    for (const node of ['cube', 'aiv_scalar']) {
+    for (const node of ['cube', 'aiv_scalar'] as const) {
       expect(fitFontSize(31.11, node, 6.3, PLATE_MAX_W), node).toBeLessThan(6.3);
       expect(fitFontSize(31.11, node, 6.3, PLATE_MAX_W), node).toBeCloseTo(
         (PLATE_MAX_W[node]! / 31.11) * 6.3,
