@@ -987,40 +987,6 @@ function backToReport() {
               <CannbotIcon />
             </button>
             <button
-              v-if="showTopology"
-              type="button"
-              class="pr-cannbot"
-              data-testid="topology-fullscreen"
-              :aria-label="t('fullscreen', locale)"
-              :title="t('fullscreen', locale)"
-              @click="openTopologyFullscreen"
-            >
-              <svg
-                viewBox="0 0 16 16"
-                width="16"
-                height="16"
-                aria-hidden="true"
-              >
-                <path
-                  d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.4"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <rect
-                  x="5"
-                  y="5"
-                  width="6"
-                  height="6"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.2"
-                />
-              </svg>
-            </button>
-            <button
               v-if="showMemory"
               type="button"
               class="pr-pipe-details"
@@ -1038,7 +1004,9 @@ function backToReport() {
           <MemoryTopologyPanel
             :model="topologyModel"
             :locale="locale"
+            show-fullscreen
             @open-details="openMemoryDetails"
+            @open-fullscreen="openTopologyFullscreen"
           />
         </div>
       </div>

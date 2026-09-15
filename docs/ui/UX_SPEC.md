@@ -106,9 +106,9 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Understand bandwidth / path load across L1/L2/UB/GM |
 | **Trigger** | After S1; topology is on the stacked 报告统计 scroll |
-| **Steps** | View topology under PIPE; **全屏** covers the report with the same diagram; **详情** opens memory CSV field list; correlate with timeline window |
+| **Steps** | View topology under PIPE; the diagram's own bar zooms it (**放大** / **缩小** / **适应窗口**, PR-MEMTOP-015) or opens **全屏**, which covers the report with the same diagram; **详情** opens memory CSV field list; correlate with timeline window |
 | **Success** | User identifies memory-bound paths |
-| **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` |
+| **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930-sim/memory-topology-zoom.jpeg` |
 
 ### S7 — Review hardware context (P2)
 
@@ -194,7 +194,7 @@ Interactivity classes:
 | Event tooltip | interactive (transient) | Hover | Shows timing | M |
 | Detail strip / bottom dock | interactive (selection-driven) | Cleared by empty click | Bound to selection | M / richer P2 |
 | Pipe field list + search | interactive | Type filter, scroll | Filtered rows (no highlight, UI-43) | M1 |
-| Memory topology | semi / interactive | Pan/zoom diagram optional; click nodes P2 | Field highlight | P2 |
+| Memory topology | semi / interactive | Zoom bar (缩小 / 放大 / 适应窗口) on the diagram; click nodes P2 | Field highlight | M2 |
 | Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows (no highlight, UI-43) | M1 |
 | Hardware details | static / semi | Scroll | — | P2 |
 | Dependency link curves | interactive | Toggle visibility; click link | Selection / detail | P2 |
@@ -274,7 +274,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S6–S9
 
-- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → optional **全屏** overlay or details list.
+- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → zoom bar on the diagram (缩小 / 放大 / 适应窗口, PR-MEMTOP-015) → optional **全屏** overlay or details list.
 - **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/decisions/DATA.md)).
 - **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
 - **S9:** 源码 / 详情 / 缓存 remain **disabled** ([UI-37](../context/decisions/UI.md)); Timeline only.
@@ -313,7 +313,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 | S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailPanel` | `v930/task-hover`, `v930/detail-strip-raised` |
 | S4 util compare | Lane gutter util bars, PIPE | `LaneGutter`, `PipeOccupancyPanel` | overview sketches |
 | S5 pipe drill | PIPE bars M; compute/memory field lists M1 | `PipeOccupancyPanel`, `CsvFieldListPanel` | `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` |
-| S6 memory | Memory topology P2 | `MemoryTopologyPanel` | `memory_*` |
+| S6 memory | Memory topology M2 (zoom bar + 全屏) | `MemoryTopologyPanel` | `v930-sim/memory-topology-zoom`, `v930-sim/memory-topology-fullscreen` |
 | S7 hardware | Hardware details P2 | `HardwareDetailsPanel` | `sidebar_details` |
 | S8 deps / multi | Deps, multiselect, context menu P2 | `SwimlaneCanvas` (dep curves in renderer), etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |
 | S9 tabs | Secondary tabs P2 | Host or future tab strip | tab chrome in overviews |

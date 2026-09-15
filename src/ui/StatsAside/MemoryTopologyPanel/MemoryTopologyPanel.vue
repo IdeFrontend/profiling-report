@@ -99,6 +99,19 @@ export function fitFontSize(natural: number, slot: string, base = BASE_FONT_PX):
   const max = SLOT_MAX_W[slot] ?? DEFAULT_MAX_W;
   return natural > max ? (max / natural) * base : base;
 }
+
+/** Zoom ladder (%) for the bar's **+** / **−**. 100 is the design's default readout and means
+ *  *fitted to the box*, not 1:1 units: the panel never has a fixed pixel budget (the stacked
+ *  aside and the root overlay differ), so 100% is the one scale that is correct in both. */
+export const ZOOM_STEPS = [50, 75, 100, 125, 150, 200, 300, 400];
+
+/** Next ladder stop from `current` in `dir` (+1 in, −1 out); clamped at both ends. An unknown
+ *  `current` (should not happen — the ladder is the only writer) falls back to the default. */
+export function nextZoom(current: number, dir: 1 | -1): number {
+  const i = ZOOM_STEPS.indexOf(current);
+  if (i < 0) return 100;
+  return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))]!;
+}
 </script>
 
 <script setup lang="ts">
@@ -119,14 +132,17 @@ const props = withDefaults(
     locale?: string;
     /** UI-35: stacked diagram right-click. Fullscreen overlay turns this off. */
     openDetailsOnContextmenu?: boolean;
+    /** Bar's **全屏** control: the stacked aside asks for it, the root overlay is already full. */
+    showFullscreen?: boolean;
   }>(),
   // `locale: undefined` is what `t()` already does with an absent prop (`resolveLocale` falls
   // back), but the linter needs the key present to see the optional prop as intentional.
-  { openDetailsOnContextmenu: true, locale: undefined },
+  { openDetailsOnContextmenu: true, showFullscreen: false, locale: undefined },
 );
 
 const emit = defineEmits<{
   'open-details': [];
+  'open-fullscreen': [];
 }>();
 
 const show = computed(() => hasDrawableTopology(props.model));
@@ -150,6 +166,10 @@ const l2PeakPct = computed(() => props.model?.nodes.find((n) => n.id === 'l2')?.
 
 function onContextMenu(e: MouseEvent) {
   e.preventDefault();
+  // UI-35's gesture is the diagram's. The bar sits inside this panel too, so a right-click on a
+  // control — or on the strip between them — would otherwise open the memory CSV overlay on top
+  // of the chrome that was clicked. (`?.closest` also covers a non-Element target.)
+  if ((e.target as Element | null)?.closest?.('.pr-topo__bar')) return;
   if (props.openDetailsOnContextmenu) emit('open-details');
 }
 
@@ -230,78 +250,253 @@ function fitStyle(key: string): { fontSize: string } | undefined {
   const px = fitted.value[key];
   return px != null ? { fontSize: `${px}px` } : undefined;
 }
+
+/** Bar state. Per panel instance — the stacked aside and the root overlay each keep their own
+ *  zoom, so covering the report (a re-mount) starts the fullscreen diagram at 100%. */
+const viewport = ref<HTMLElement | null>(null);
+const zoom = ref(100);
+const zoomPct = computed(() => `${zoom.value}%`);
+const zoomMin = ZOOM_STEPS[0]!;
+const zoomMax = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
+
+/** Only a diagram larger than its own box has anywhere to scroll to (PR-MEMTOP-013). */
+const pannable = computed(() => zoom.value > 100);
+
+/** Back to the scroll origin, so a diagram that was panned while zoomed in returns to its
+ *  top-left corner rather than to an offset it can no longer show. */
+function resetPan() {
+  if (viewport.value) {
+    viewport.value.scrollTop = 0;
+    viewport.value.scrollLeft = 0;
+  }
+}
+
+function stepZoom(dir: 1 | -1) {
+  zoom.value = nextZoom(zoom.value, dir);
+  // Stepping back down to a fitted scale has to drop the offset too: the box stops being
+  // scrollable there (`pannable`), and a clip at a stale offset would cut the diagram's corner.
+  if (!pannable.value) resetPan();
+}
+
+/** **适应窗口** — back to the fitted scale, and back to the scroll origin so a diagram that was
+ *  panned while zoomed in returns to its top-left corner rather than to a stale offset. */
+function fitZoom() {
+  zoom.value = 100;
+  resetPan();
+}
 </script>
 
 <template>
   <div
     v-if="show"
     class="pr-topo"
+    :style="{ '--pr-topo-zoom': zoom / 100 }"
     data-testid="memory-topology-panel"
     @contextmenu="onContextMenu"
   >
-    <svg
-      class="pr-topo__svg"
-      viewBox="0 0 448 540"
-      role="img"
-      :aria-label="t('memoryTopology', locale)"
-      :aria-describedby="chromeFailed ? undefined : summaryId"
+    <div
+      ref="viewport"
+      class="pr-topo__viewport"
+      :class="{ 'pr-topo__viewport--pannable': pannable }"
+      data-testid="topology-viewport"
     >
-      <image
-        :href="chromeUrl"
-        x="0"
-        y="0"
-        width="448"
-        height="540"
-        @error="onChromeError"
-      />
+      <div class="pr-topo__stage">
+        <svg
+          class="pr-topo__svg"
+          viewBox="0 0 448 540"
+          role="img"
+          :aria-label="t('memoryTopology', locale)"
+          :aria-describedby="chromeFailed ? undefined : summaryId"
+        >
+          <image
+            :href="chromeUrl"
+            x="0"
+            y="0"
+            width="448"
+            height="540"
+            @error="onChromeError"
+          />
 
-      <template v-if="!chromeFailed">
-        <!-- L2 node anchor: the chrome paints the pillar, this keeps the node addressable. -->
-        <rect
-          data-testid="node-l2"
-          class="pr-topo__l2"
-          x="94"
-          y="16"
-          width="40"
-          height="508"
-        />
+          <template v-if="!chromeFailed">
+            <!-- L2 node anchor: the chrome paints the pillar, this keeps the node addressable. -->
+            <rect
+              data-testid="node-l2"
+              class="pr-topo__l2"
+              x="94"
+              y="16"
+              width="40"
+              height="508"
+            />
 
-        <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
-             `peakPct` when the node carries one, else the `l2-hit` edge label — one plate, so one
-             element; the testid still tells the two sources apart. -->
-        <text
-          v-if="peakText"
-          x="113.8"
-          y="277.1"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          class="pr-topo__pct"
-          :style="fitStyle('peak')"
-          :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
-        >{{ peakText }}</text>
+            <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
+                 `peakPct` when the node carries one, else the `l2-hit` edge label — one plate, so one
+                 element; the testid still tells the two sources apart. -->
+            <text
+              v-if="peakText"
+              x="113.8"
+              y="277.1"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              class="pr-topo__pct"
+              :style="fitStyle('peak')"
+              :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
+            >{{ peakText }}</text>
 
-        <text
-          v-for="v in values"
-          :key="v.key"
-          :x="v.x"
-          :y="v.y"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          class="pr-topo__edge"
-          :style="fitStyle(v.key)"
-          :data-testid="`edge-${v.key}`"
-        >{{ v.text }}</text>
+            <text
+              v-for="v in values"
+              :key="v.key"
+              :x="v.x"
+              :y="v.y"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              class="pr-topo__edge"
+              :style="fitStyle(v.key)"
+              :data-testid="`edge-${v.key}`"
+            >{{ v.text }}</text>
 
-        <text
-          ref="measureTwin"
-          class="pr-topo__edge"
-          x="-1000"
-          y="-1000"
-          opacity="0"
+            <text
+              ref="measureTwin"
+              class="pr-topo__edge"
+              x="-1000"
+              y="-1000"
+              opacity="0"
+              aria-hidden="true"
+            />
+          </template>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Zoom / fullscreen bar (design: `v930/new` 内存负载分析 controls). The whole bar hides with
+         the chrome it scales — a zoom control over a failed asset is dead chrome. -->
+    <div
+      v-if="!chromeFailed"
+      class="pr-topo__bar"
+      data-testid="topology-controls"
+    >
+      <button
+        type="button"
+        class="pr-topo__ctrl"
+        data-testid="topology-zoom-out"
+        :aria-label="t('zoomOut', locale)"
+        :title="t('zoomOut', locale)"
+        :disabled="zoom === zoomMin"
+        @click="stepZoom(-1)"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="16"
+          height="16"
           aria-hidden="true"
-        />
-      </template>
-    </svg>
+        >
+          <path
+            d="M3 8h10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+
+      <span
+        class="pr-topo__zoom"
+        data-testid="topology-zoom-percent"
+        aria-live="polite"
+      >{{ zoomPct }}</span>
+
+      <button
+        type="button"
+        class="pr-topo__ctrl"
+        data-testid="topology-zoom-in"
+        :aria-label="t('zoomIn', locale)"
+        :title="t('zoomIn', locale)"
+        :disabled="zoom === zoomMax"
+        @click="stepZoom(1)"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="16"
+          height="16"
+          aria-hidden="true"
+        >
+          <path
+            d="M8 3v10M3 8h10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+
+      <button
+        type="button"
+        class="pr-topo__ctrl pr-topo__ctrl--accent"
+        data-testid="topology-zoom-fit"
+        :aria-label="t('zoomFit', locale)"
+        :title="t('zoomFit', locale)"
+        @click="fitZoom"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="16"
+          height="16"
+          aria-hidden="true"
+        >
+          <path
+            d="M8 1.4 14.6 8 8 14.6 1.4 8Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linejoin="round"
+          />
+          <circle
+            cx="8"
+            cy="8"
+            r="2.6"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+          />
+        </svg>
+      </button>
+
+      <button
+        v-if="showFullscreen"
+        type="button"
+        class="pr-topo__ctrl"
+        data-testid="topology-fullscreen"
+        :aria-label="t('fullscreen', locale)"
+        :title="t('fullscreen', locale)"
+        @click="emit('open-fullscreen')"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          width="16"
+          height="16"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <rect
+            x="5"
+            y="5"
+            width="6"
+            height="6"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+          />
+        </svg>
+      </button>
+    </div>
 
     <!-- The diagram's accessible text alternative — see `summary` (PR-MEMTOP-011). -->
     <span
@@ -317,17 +512,122 @@ function fitStyle(key: string): { fontSize: string } | undefined {
  * remaps `--pr-bg-panel` to `#f4f4f4`, so this stays the literal dark panel colour rather than
  * the token. Sibling dark-art panels (CsvFieldListPanel, RooflinePanel) do the same. */
 .pr-topo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   min-width: 0;
   background: #262626;
   border-radius: 4px;
   padding: 6px;
 }
 
+/* Fit box for the diagram (PR-MEMTOP-013). `aspect-ratio` is the chrome's own 448×540, so at the
+ * 100% zoom the box is exactly as tall as the diagram was when the `svg` was width-driven.
+ *
+ * `hidden`, not `auto`: the box height comes from `aspect-ratio` while the diagram's comes from
+ * its own intrinsic ratio, and the two agree only to a rounding step (measured in Chrome:
+ * 511 vs 511.0625). A fitted diagram therefore sat a fraction of a pixel over its own box — not
+ * enough for Chromium to treat as scrollable overflow, but enough for a stray permanent scrollbar
+ * wherever a platform does not snap it the same way. Nothing is ever cut off by the clip (at or
+ * below 100% the stage is at most the box), so the fitted state simply does not scroll.
+ *
+ * `place-items: center` is the fitted-state centring only, for a zoomed-*out* diagram; the
+ * pannable state is a plain block, because a centred item that overflows leaves its start edge
+ * unreachable by scrolling. */
+.pr-topo__viewport {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  aspect-ratio: 448 / 540;
+  overflow: hidden;
+}
+
+/* Panning starts past the fit (PR-MEMTOP-015): only a zoomed-in diagram is larger than its box,
+ * so it is the only one with anywhere to scroll to. */
+.pr-topo__viewport--pannable {
+  display: block;
+  overflow: auto;
+}
+
+/* The stage is the *diagram's* own box: `--pr-topo-zoom` (1 = fitted) times the window's height,
+ * with the width following the chrome ratio from that height, so the `svg` fills it exactly.
+ *
+ * Height-driven on purpose. A stage that followed the *window* in both axes is only the diagram's
+ * box where the window already has the chrome ratio — the stacked aside — and in the wide overlay
+ * it was far wider than the drawing inside it: measured there at 125%, a 1955×963 stage around a
+ * 799×963 diagram left 391px of the horizontal scroll range travelling through empty space. From
+ * the height, the distance the window scrolls is the diagram's own overflow in both hosts.
+ *
+ * `margin-inline: auto` centres it while it fits and resolves to 0 once it overflows, so the
+ * scroll origin is the diagram's own left edge rather than a letterbox. */
+.pr-topo__stage {
+  height: calc(100% * var(--pr-topo-zoom, 1));
+  aspect-ratio: 448 / 540;
+  margin-inline: auto;
+}
+
 .pr-topo__svg {
+  max-width: 100%;
+  max-height: 100%;
   width: 100%;
   height: auto;
   display: block;
   overflow: hidden;
+}
+
+/* Zoom / fullscreen bar. `#313131` is the export's 5% white lift over the `#262626` panel (the
+ * design's own strip colour); the bar shrinks to its controls and sits at the panel's right edge. */
+.pr-topo__bar {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 3px 8px;
+  background: #313131;
+  border-radius: 4px;
+}
+
+.pr-topo__ctrl {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #b3b3b3;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.pr-topo__ctrl:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--pr-surface-hover);
+}
+
+.pr-topo__ctrl:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The design marks the fit control with the accent, the way the mockup's strip does. */
+.pr-topo__ctrl--accent {
+  color: #3078f0;
+}
+
+.pr-topo__ctrl--accent:hover:not(:disabled) {
+  color: #5a9bff;
+}
+
+.pr-topo__zoom {
+  min-width: 34px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
 }
 
 /* Transparent anchor — the chrome supplies the pillar's fill. */

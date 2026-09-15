@@ -16,7 +16,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 - **open-hardware-details** — **更多** / More (emit intent).
 - **view-full-csv** — re-emitted from `CsvFieldListPanel` (DATA-33d).
 - **open-pipe-details** — **详情** / Details on the PIPE section; opens compute CSV overlay when compute tables exist, and always emits.
-- **open-topology-fullscreen** — fit-window icon (`title`/`aria-label` **全屏** / Full screen) on the topology section (only when the diagram is shown); parent covers `.pr-root` with the current topology model. Does not open the memory CSV overlay.
+- **open-topology-fullscreen** — the panel bar's **全屏** control (`title`/`aria-label` **全屏** / Full screen, `MemoryTopologyPanel` **showFullscreen**), re-emitted for the parent, which covers `.pr-root` with the current topology model. Does not open the memory CSV overlay.
 - **open-cannbot** — cannbot icon click (right end of the meta row; left of **详情** on the compute and memory section heads) carries the section scope (summary/compute/memory).
 
 ## Behavior
@@ -53,7 +53,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 
 **Roofline (M2 interim — not in the current release).** The card is flag-gated: it mounts on the stack after the summary cards only when the host passes the opt-in `roofline` capability **and** the current points are non-empty (`report.roofline.points` under **All**, `rooflineFromRows` for a picked block) — DATA-37a–f. Without the capability the card never renders, points or not; the panel code and interim math stay in place. Hide on overlays and when absent. No tabs until DATA-37f superseded.
 
-**Topology (M2).** When the current model is drawable — a value on a plated edge, or the L2 plate (`l2.peakPct` / `l2-hit`), per `hasDrawableTopology` (PR-VM-018) — mount `MemoryTopologyPanel` below PIPE with title **内存负载分析**, a fit-window **全屏** icon, and **详情**. Action order: cannbot → **全屏** → **详情**. **全屏** emits **open-topology-fullscreen** (parent covers `.pr-root` with the current `topologyModel`, i.e. the active block scope). **详情** and **right-click** on the stacked diagram (UI-35) open the memory CSV overlay. If memory tables exist but the current block is not drawable — no label at all, or labels only on plated-less edges (`l0c-l1` / `l0c-l2` KB, `l2-l1-write` pending UI-48) — still show the section chrome + **详情** (no diagram, no **全屏**) so the CSV overlay stays reachable. Labels follow the shared block selector (`blockId`): **All** reads the `summary.jsonl` category mean, a picked id rebuilds via `buildMemoryTopology(tables, id)` ([DATA-19](../../../docs/context/decisions/DATA.md) / [DATA-29](../../../docs/context/decisions/DATA.md)). L2 Peak(%) comes from `l2.peakPct` (DATA-20 hit rate). Hide the diagram when the model is absent. On **report** change the selection resets to **All** (nothing stale carries over); `firstLabelledMemoryTopology` still supplies the adapter snapshot for a classic `.rep` with no `summary.jsonl` (PR-VM-012).
+**Topology (M2).** When the current model is drawable — a value on a plated edge, or the L2 plate (`l2.peakPct` / `l2-hit`), per `hasDrawableTopology` (PR-VM-018) — mount `MemoryTopologyPanel` below PIPE with title **内存负载分析**, and **详情**. Action order: cannbot → **详情**. The **全屏** control is not in the header: it is the last control of the panel's own zoom/fullscreen bar ([MemoryTopologyPanel](./MemoryTopologyPanel/MemoryTopologyPanel.spec.md) PR-MEMTOP-014), which this aside turns on with **showFullscreen** and whose `open-fullscreen` it re-emits as **open-topology-fullscreen** (parent covers `.pr-root` with the current `topologyModel`, i.e. the active block scope). **详情** and **right-click** on the stacked diagram (UI-35) open the memory CSV overlay. If memory tables exist but the current block is not drawable — no label at all, or labels only on plated-less edges (`l0c-l1` / `l0c-l2` KB, `l2-l1-write` pending UI-48) — still show the section chrome + **详情** (no diagram, so no bar and no **全屏**) so the CSV overlay stays reachable. Labels follow the shared block selector (`blockId`): **All** reads the `summary.jsonl` category mean, a picked id rebuilds via `buildMemoryTopology(tables, id)` ([DATA-19](../../../docs/context/decisions/DATA.md) / [DATA-29](../../../docs/context/decisions/DATA.md)). L2 Peak(%) comes from `l2.peakPct` (DATA-20 hit rate). Hide the diagram when the model is absent. On **report** change the selection resets to **All** (nothing stale carries over); `firstLabelledMemoryTopology` still supplies the adapter snapshot for a classic `.rep` with no `summary.jsonl` (PR-VM-012).
 
 **CSV-only fallback.** If duration, bandwidth, PIPE, roofline, and topology are all absent but compute/memory tables exist, show those CSV lists on the stack (no overlay required).
 
@@ -92,7 +92,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 19b. **PR-STATS-017b** — Topology right-click opens the same memory CSV overlay (UI-35).
 20. **PR-STATS-018** — 更多 navigates to hardware overlay when hardwareDetails present; back returns.
 21. **PR-STATS-018b** — OpBasicInfo fallback still renders `HardwareDetailsPanel` (not missing copy).
-22. **PR-STATS-019** — Topology section (diagram + **全屏**) when the current `memoryTopology` is drawable — a plated edge value or the L2 plate (see the adapter's `hasDrawableTopology` rule); hidden when absent or when the only labels sit on plated-less edges (`l0c-l1` / `l0c-l2` / `l2-l1-write`). **详情** remains per PR-STATS-023.
+22. **PR-STATS-019** — Topology section (diagram) when the current `memoryTopology` is drawable — a plated edge value or the L2 plate (see the adapter's `hasDrawableTopology` rule); hidden when absent or when the only labels sit on plated-less edges (`l0c-l1` / `l0c-l2` / `l2-l1-write`). **详情** remains per PR-STATS-023.
 23. **PR-STATS-020** — No mode-tab switcher on the stacked report.
 24. **PR-STATS-021** — Overlay returns to stack when report changes or overlay data disappears; the block selection resets to `All` for the new report (nothing stale carries over).
 25. **PR-STATS-022** — Topology labels follow the selected block; no first-block fallback; CSV tab switch does not rewrite the bound id.
@@ -108,8 +108,8 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 35. **PR-STATS-031** — Duration bar = `min(100%, Block Dim / core_count × 100%)` when `coreCount` set; secondary `{blockDim} / {coreCount}`; decorative 15% when `coreCount` absent.
 36. **PR-STATS-032** — Compute card Cube|Vector score bar and TFLOPS subtitle.
 36b. **PR-STATS-032b** — Lone Vector / write columns use secondary bar hue (COLOR_TOKENS semantic, not index).
-37. **PR-STATS-033** — 全屏 icon next to 详情 when topology shown; hidden when diagram hidden.
-38. **PR-STATS-034** — 全屏 emits open-topology-fullscreen; does not open CSV overlay.
+37. **PR-STATS-033** — Header actions are cannbot and **详情** (that order). The topology **全屏** control lives in the diagram's own bar ([panel spec](./MemoryTopologyPanel/MemoryTopologyPanel.spec.md) zoom/fullscreen bar), so it appears exactly when the diagram does and disappears with it; the aside opens the bar with **showFullscreen**.
+38. **PR-STATS-034** — The bar's **全屏** emits open-topology-fullscreen (re-emitted from the panel's `open-fullscreen`); does not open CSV overlay.
 39. **PR-STATS-035** — The memory 详情 **CSV field list** (the `CsvFieldListPanel` rendering, used when no memory summary categories exist — CSV-only reports) also offers the `PipeUtilization` tab when that table is present, so MTE utilizations stay reachable even though the export gives the chrome's MTE blocks no value plate (UI-38). Reports **with** memory summary categories list those categories instead (memory files only); their MTE ratios stay reachable under 计算 详情 → `PipeUtilization`.
 
 ## Edge Cases
@@ -135,8 +135,8 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 | Absolute time all NA | Bar shows ratio/% only; no in-bar absolute |
 | No `roofline` capability / no roofline model / empty points | Roofline section omitted |
 | No memoryTopology | Topology section omitted |
-| Selected block not drawable (no label, or plated-less labels only) | Topology diagram hidden; 详情 remains if memory tables exist; **全屏** hidden |
-| Topology diagram shown | **全屏** fit-window icon sits immediately left of **详情** (cannbot → 全屏 → 详情) |
+| Selected block not drawable (no label, or plated-less labels only) | Topology diagram hidden, so its bar (zoom + 全屏) is hidden too; 详情 remains if memory tables exist |
+| Topology diagram shown | Header actions are cannbot → 详情; zoom/**全屏** controls live in the diagram's own bar |
 | Overlay open, report replaced | Return to stacked report; block selection resets to `All` |
 | CSV tables only | Compute/memory lists on the stack |
 
@@ -160,7 +160,7 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Meta | `12px` / line-height `16px`; label `#8a8a8a`, value `#d0d0d0`; item gap `12px`; title→meta `12px` |
 | 更多 | `12px` / `#8a8a8a` (not playhead blue) |
 | PIPE / topology 详情 | `12px` / `#e6e6e6` |
-| Topology 全屏 | 16×16 fit-window icon (same SVG as toolbar 适应窗口), `#e6e6e6`; `pr-cannbot` chrome |
+| Topology bar | Owned by [`MemoryTopologyPanel`](./MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (PR-MEMTOP-014/015): `#313131` strip, `#b3b3b3` controls, accent **适应窗口** |
 | Header | pinned (`flex-shrink: 0`); body / overlay `flex: 1; min-height: 0`; body `overflow-x: hidden; overflow-y: auto` (no horizontal scrollbar) |
 | Top wash | Absolute `96px` band at the top of `.pr-aside`: `linear-gradient(181.55deg, rgba(244, 132, 12, 0.1) -20.986%, rgba(199, 98, 7, 0) 81.41%)`; `pointer-events: none`; paints under title/meta (`PR-STATS-028`) |
 
@@ -264,6 +264,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 - **2026-09-10** — Summary PIPE **block** select shares the `.pr-block-pill` chrome (`tokens.css`) with the memory overlay switcher — one definition instead of two copies, so they cannot drift. The v930 frames contain no summary block control — it is a DATA-33b addition with no design source.
 - **2026-09-08** — AICore dual **并行使用率** \| **负载均衡度** columns with `%` bars (DATA-9 / DATA-10, PR-STATS-011c).
 - **2026-09-08** — AICore score/bar clamp to [0, 100]; unrounded percent in value `title`; 2dp display precision documented.
+- **2026-09-15** — 内存负载分析 **全屏** moved out of the header into the diagram's own zoom/fullscreen bar (PR-MEMTOP-014): header actions are cannbot → **详情**; the aside passes **showFullscreen** and re-emits the panel's `open-fullscreen` (PR-STATS-033/034).
 - **2026-09-08** — Topology **全屏** is a fit-window icon emitting `open-topology-fullscreen` for the root overlay (PR-STATS-033/034); hidden when the diagram is hidden.
 - **2026-09-04** — UI matches v930 summary-cards **2×2**: AICore parallel placeholder; compute Cube\|Vector; single **带宽利用率** 读\|写 (mean of aic\|aiv per direction); primary/secondary bar hues.
 - **2026-09-04** — v930 summary-cards refresh: sketch **2×2** (duration \| AICore 并行使用率; 算力情况 Cube\|Vector \| 带宽利用率 读\|写). Remap former 平均核利用率 / dual I/O cards.

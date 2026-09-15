@@ -9,6 +9,14 @@ crops:
     source: v930/change-log
     region: "内存负载分析 topology with real buffer-link GB/s data (GM / L2 Cache / XN_IMM)"
     box: { x: 3376, y: 3188, w: 1044, h: 1095 }
+  zoom-bar.png:
+    source: v930-sim/memory-topology-zoom
+    region: "Panel bar in the stacked aside — 缩小 / 100% / 放大 / 适应窗口 / 全屏 on the #313131 strip"
+    box: { x: 6640, y: 3920, w: 900, h: 170 }
+  fullscreen-bar.png:
+    source: v930-sim/memory-topology-fullscreen
+    region: "Same bar in the root fullscreen overlay — 适应窗口 is the last control, no 全屏, no strip"
+    box: { x: 6880, y: 3960, w: 760, h: 170 }
 asset:
   memory-topology.svg:
     source: v930/report-stats-scrolled
