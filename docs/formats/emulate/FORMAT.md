@@ -1,8 +1,8 @@
-# Simulator profile format
+# Emulate profile format
 
-**Profile:** `simulator` (npu_emulate / Ascend cycle-accurate OP simulation).
+**Profile:** `emulate` (npu_emulate / Ascend cycle-accurate OP simulation).
 
-Shared container: [INPUT_FORMATS.md](../INPUT_FORMATS.md). Table inventory: [TABLES.md](TABLES.md). Hardware profile: [../hardware/FORMAT.md](../hardware/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
+Shared container: [INPUT_FORMATS.md](../INPUT_FORMATS.md). Table inventory: [TABLES.md](TABLES.md). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
 
 Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/decisions/PROC.md), [DATA-45](../../context/decisions/DATA.md), [DATA-46](../../context/decisions/DATA.md).
 
@@ -12,12 +12,12 @@ Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/
 
 npu_emulate builds a **contract SQLite database** (or CSV export of that DB) from a simulated kernel run, then generates HTML/JSON/SVG reports. Product delivery into Asc Toolkit is still **`.npu-rep`** ([PROC-6](../../context/decisions/PROC.md)) — a leaf archive whose embeds are **simulator-native**, not hardware OpBasicInfo / PipeUtilization schemas ([DATA-45](../../context/decisions/DATA.md)).
 
-| Concern | Hardware profile | Simulator profile |
+| Concern | Compute profile | Emulate profile |
 |---------|------------------|-------------------|
 | Grain | OP / block aggregates + pipe-busy timeline | Instruction / **tick** events |
 | Hub identity | `OpBasicInfo.csv` | `KernelInfo` + `ExecutedInstructions` |
 | Timeline | `PipeTrace.json` / `trace.json` | Emulate Chrome Trace → packed as `PipeTrace.json` (µs) |
-| Detection | (no marker) | `SimulatorManifest.json` ([PROC-8](../../context/decisions/PROC.md)) |
+| Detection | (no marker) | `EmulateManifest.json` ([PROC-8](../../context/decisions/PROC.md)) |
 
 ---
 
@@ -54,39 +54,40 @@ Profiling-report does **not** re-implement those HTML generators. It consumes a 
 
 ## 4. Leaf pack (inside `.npu-rep`)
 
-### 4.1 Phase 1 (required)
+### 4.1 Sept 30 leaf (required + recommended)
 
 | Embed | Type | Rules |
 |-------|------|-------|
-| `SimulatorManifest.json` | json | Required marker. See §4.3 |
+| `EmulateManifest.json` | json | Required marker. See §4.3 |
 | `PipeTrace.json` | json | Chrome Trace Event format; **µs** `ts`/`dur` ([DATA-46](../../context/decisions/DATA.md)). Prefer packing emulate Chrome Tracing output (rename/normalize to this basename) |
-| `KernelInfo.csv` and/or `summary.json` | csv / json | Enough for thin duration / identity cards. Exact field map: open [DATA-47](../../context/questions/DATA.md) |
+| `KernelInfo.csv` and/or `summary.json` | csv / json | Thin duration / identity cards. Interim map [DATA-47a](../../context/decisions/interim/DATA.md); Product [DATA-47](../../context/questions/DATA.md) |
+| `PipesUtilization.csv` and/or `PipeUtilizationHist.csv` | csv | **Recommended** for PIPE occupancy / CSV tab. Keep emulate basenames — **do not** rename to compute `PipeUtilization.csv` ([DATA-45](../../context/decisions/DATA.md)) |
 
-Optional Phase 1: additional contract CSVs may be packed unused for later phases.
+Optional: additional contract CSVs may be packed unused for later phases.
 
-**Not required for Phase 1:** sqlite3 blob (container type `5` remains reserved). Prefer CSV embeds matching export basenames (`ExecutedInstructions.csv`, …).
+**Not required for Sept 30:** sqlite3 blob (container type `5` remains reserved). Prefer CSV embeds matching export basenames (`ExecutedInstructions.csv`, …).
 
-### 4.2 Phase 2 (capability-driven)
+### 4.2 Post–Sept 30 (capability-driven)
 
-Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [ADAPTERS.md](../ADAPTERS.md)):
+Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [ADAPTERS.md](../ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../VIEW_DATA_REQUIREMENTS.md) gaps):
 
 | Capability (reserved) | Typical embeds |
 |----------------------|----------------|
 | `archDiagram` | `ArchDiagramMetrics.csv`, `ExecutedInstructions.csv` |
 | `memoryHeatmap` | `MemoryRWAccesses.csv` |
 | AiCore occupancy overlay | `AiCoreOccupancy.csv` and/or `aicore_utilization.json` |
-| `pipeOccupancy` (sim) | `PipesUtilization.csv` / `PipeUtilizationHist.csv` — **do not** rename to hardware `PipeUtilization.csv` |
 | `vfIpc` | `VfIPC.csv`, `VfSimtIPC.csv` (need `--vec-ipc`) |
 | `callStacks` | Call* tables (need ELF / `--object-file`) |
-| `roofline` | ArchDiagramMetrics + Functions + ExecutedInstructions + VectorUtilizations + SourceInstructions |
+| `roofline` | ArchDiagramMetrics + Functions + ExecutedInstructions + VectorUtilizations + SourceInstructions (gap vs compute Arithmetic+Memory) |
+| `memoryDiagram` | **gap** — not MemoryRWAccesses; needs aggregate BW map or Product slot names from ArchDiagramMetrics |
 
-### 4.3 `SimulatorManifest.json`
+### 4.3 `EmulateManifest.json`
 
 Minimum shape:
 
 ```json
 {
-  "profile": "simulator",
+  "profile": "emulate",
   "schemaVersion": 1,
   "producer": "npu_emulate",
   "tickToUs": null
@@ -95,7 +96,7 @@ Minimum shape:
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `profile` | yes | Must be `"simulator"` |
+| `profile` | yes | Must be `"emulate"` |
 | `schemaVersion` | yes | Integer; start at `1` |
 | `producer` | no | e.g. `npu_emulate` |
 | `tickToUs` | no | Scale factor used when converting ticks → µs for PipeTrace; informational |
@@ -126,7 +127,7 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 ## 6. Viewer behavior (summary)
 
 1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../INPUT_FORMATS.md)).
-2. If `SimulatorManifest.json` present → **simulator** adapter.
+2. If `EmulateManifest.json` present → **simulator** adapter.
 3. Phase 1: build `SwimlaneModel` from `PipeTrace.json`; thin `ReportViewModel.summary*` from KernelInfo/summary when mappable; omit PIPE/memory/roofline until sources + mappers exist ([DATA-30](../../context/decisions/DATA.md)).
 4. Phase 2: set capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/DATA.md)).
 

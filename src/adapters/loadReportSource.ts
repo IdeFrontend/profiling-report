@@ -1,10 +1,16 @@
 import { adaptPayloads, adaptRep, emptyReportViewModel } from './adaptRep';
+import { adaptEmulate, isEmulateLeaf } from './adaptEmulate';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { parseRep } from './parseRep';
 import { isNestedNpuArchive, isNpuRep, npuArchiveStem, parseNpuRep } from './parseNpuRep';
 import { isNestedNpuArchive160, isNpuRep160, parseNpuRep160 } from './parseNpuRep160';
 import { hasDependencies } from '../domain/dependencies';
 import type { AdaptedReport, ReportOperator } from '../domain/types';
+
+/** Dispatch leaf payloads to compute (`adaptPayloads`) or emulate (`adaptEmulate`). */
+function adaptLeafPayloads(payloads: Record<string, Uint8Array>): AdaptedReport {
+  return isEmulateLeaf(payloads) ? adaptEmulate(payloads) : adaptPayloads(payloads);
+}
 
 const CANN_REP_MAGIC = 'cann-rep';
 
@@ -68,14 +74,14 @@ function adaptNpuRepLike(
   const nested = parsed.files.filter((f) => isNested(f, parsed.payloads[f.name]));
 
   if (nested.length === 0) {
-    return adaptPayloads(parsed.payloads);
+    return adaptLeafPayloads(parsed.payloads);
   }
 
   const operators = operatorsFromNestedNames(nested.map((e) => e.name));
   const operatorReports: Record<string, AdaptedReport> = {};
   for (const entry of nested) {
     const leaf = parse(parsed.payloads[entry.name]);
-    operatorReports[entry.name] = adaptPayloads(leaf.payloads);
+    operatorReports[entry.name] = adaptLeafPayloads(leaf.payloads);
   }
 
   const selectedOperatorId = operators[0].id;

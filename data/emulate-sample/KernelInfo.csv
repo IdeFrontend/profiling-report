@@ -1,0 +1,6 @@
+KernelInfoAttr,KernelInfoVal
+Op Name,emulate_demo_kernel
+Op Type,mix
+Task Duration(us),200
+Pid,42
+Block Dim,8

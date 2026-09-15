@@ -2,11 +2,11 @@
 
 Normative **required vs optional inputs** for each Timeline surface. Missing optional data → **hide** that panel/region (not hard error). See [decisions](../context/decisions/) (DATA-30).
 
-**Entity layer:** Required/Optional columns are **adapted** view-model fields (`SwimlaneModel`, `ReportViewModel`, `capabilities`). Source embeds are **provenance** (“Filled by”) — see [ADAPTERS.md](ADAPTERS.md). Do not fork hide rules into hardware-CSV vs simulator-CSV matrices.
+**Entity layer:** Required/Optional columns are **adapted** view-model fields (`SwimlaneModel`, `ReportViewModel`, `capabilities`). Source embeds are **provenance** (“Filled by”) — see [ADAPTERS.md](ADAPTERS.md). Do not fork hide rules into compute-CSV vs emulate-CSV matrices.
 
 **MVP coding defaults:** [decisions/interim/](../context/decisions/interim/) — Interim ≠ Product-final.
 
-**Related:** [INPUT_FORMATS.md](INPUT_FORMATS.md) · [hardware/METRICS_AND_TRACE.md](hardware/METRICS_AND_TRACE.md) · [simulator/FORMAT.md](simulator/FORMAT.md) · [ADAPTERS.md](ADAPTERS.md) · [COMPONENTS.md](../architecture/COMPONENTS.md) · [UX_SPEC.md](../ui/UX_SPEC.md) · [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
+**Related:** [INPUT_FORMATS.md](INPUT_FORMATS.md) · [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md) · [emulate/FORMAT.md](emulate/FORMAT.md) · [ADAPTERS.md](ADAPTERS.md) · [COMPONENTS.md](../architecture/COMPONENTS.md) · [UX_SPEC.md](../ui/UX_SPEC.md) · [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
 
 **Legend**
 
@@ -18,21 +18,25 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 ---
 
-## Profile fill (hardware vs simulator)
+## Profile fill (compute vs emulate)
 
-| Adapted field / capability | Filled by **hardware** | Filled by **simulator** |
-|----------------------------|------------------------|-------------------------|
-| `SwimlaneModel` | `PipeTrace.json` / `trace.json` / standalone CTEF | `PipeTrace.json` (from emulate CTEF, µs) |
-| `summary.*` (duration, identity) | `OpBasicInfo.csv` + `Summary.jsonl` | `KernelInfo.csv` / `summary.json` (thin; [DATA-47](../context/questions/DATA.md)) |
-| `pipeOccupancy` | `PipeUtilization.csv` | hide until mapper; later `PipesUtilization` (not remapped CSV name) |
-| `overviewSeries` | `Sampling.json` `ph:C` | hide unless counters packed |
-| `memoryTopology` / `memoryDiagram` | Memory*.csv | hide Phase 1 |
-| `roofline` | Arithmetic + Memory | Phase 2+ ELF-dependent sim inputs |
-| `hardwareDetails` | `HardwareInfo.jsonl` / OpBasicInfo | usually omit |
-| `archDiagram` | — | `ArchDiagramMetrics` (+ SVG) Phase 2 |
-| `memoryHeatmap` | — | `MemoryRWAccesses` Phase 2 |
-| `vfIpc` | — | `VfIPC` / `VfSimtIPC` Phase 2 |
-| `callStacks` | — | Call* tables (ELF) Phase 2 |
+Unification status: `same-path` (shared adapter path) · `adapt-mapper` (profile-specific → shared VM) · `gap` (no clean map yet) · `out-of-scope` (new surface / post–Sept 30).
+
+| Adapted field / panel | Compute source | Emulate source | Status | Sept 30 | Blockers |
+|-----------------------|----------------|----------------|--------|---------|----------|
+| `SwimlaneModel` (Timeline) | `PipeTrace.json` / `trace.json` / CTEF | `PipeTrace.json` (µs) | `same-path` (`chromeTraceToSwimlane`) | **in** | Packer tick→µs ([DATA-46](../context/decisions/DATA.md)) |
+| `summary.*` | `OpBasicInfo` + `Summary.jsonl` | `KernelInfo.csv` / `summary.json` | `adapt-mapper` | **in** (thin) | [DATA-47](../context/questions/DATA.md); interim [DATA-47a](decisions/interim/DATA.md) |
+| Gutter util | `PipeUtilization` → lane `utilization` | same VM when `pipeOccupancy` filled | `adapt-mapper` | **in** with PIPE | Column map quality |
+| `pipeOccupancy` / PIPE CSV tab | `PipeUtilization.csv` | `PipesUtilization.csv` / `PipeUtilizationHist.csv` | `adapt-mapper` | **in** | Schema ≠ compute ratios; no invent `PipeUtilization.csv` ([DATA-45](../context/decisions/DATA.md)) |
+| Other compute CSV tabs | Arithmetic / ResourceConflict | none typical | `gap` | **hide** | No emulate contract |
+| `overviewSeries` | `Sampling.json` `ph:C` | none unless packed | `gap` | **hide** | Need counters pack |
+| Memory CSV tabs | `Memory*.csv` / L2Cache | none for topology grain | `gap` | **hide** | — |
+| `memoryTopology` / `memoryDiagram` | Memory* aggregate BW | not `MemoryRWAccesses` (heatmap) | `gap` | **hide** | Needs ArchDiagramMetrics→slot map or compute Memory* |
+| `roofline` | Arithmetic + Memory | ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF | `gap` | **hide** | New mapper; DATA-37; ELF |
+| `hardwareDetails` | HardwareInfo / OpBasicInfo | usually none | `gap` | **hide** | — |
+| `archDiagram` | — | ArchDiagramMetrics | `out-of-scope` | **hide** | New panel |
+| `memoryHeatmap` | — | MemoryRWAccesses | `out-of-scope` | **hide** | New panel |
+| `vfIpc` / `callStacks` | — | VfIPC* / Call* (ELF) | `out-of-scope` | **hide** | New panels / ELF |
 
 ---
 
@@ -86,7 +90,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 |-------|-------------|
 | `SwimProcess` / `SwimThread` names | **Required** (from trace metadata / events / synthetic model) |
 | Hierarchy Card → 通信/计算/储存HBM → `CoreN.*` → pipes | **Producer- or stress-defined nodes** (DATA-35: no viewer heuristics inventing Card/Core from flat AIV names). Nested `SwimThread.children` when present; flat CTEF remains valid |
-| Gutter metric selection (per Card) | **Optional** — Card-header dropdown with **two** modes when available ([gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)): **利用率** and **时钟周期** share event-coverage **barWidth**; utilization label `NN%`; clockCycle label = absolute mapped `*_total_cycles` (bare integers). Default **利用率** when available, else **时钟周期** when mappable cycle data exist ([DATA-38](../context/decisions/DATA.md) / [UI-46](../context/decisions/UI.md)) |
+| Gutter metric selection (per Card) | **Optional** — Card-header dropdown when modes available ([gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)); default **利用率** when available, else **时钟周期** when mappable `PipeUtilization.csv` `*_time(us)` means exist. clockCycle quantity = µs (not cycle counts) |
 | `SwimThread.utilization` or computed **bar** | **Optional** — omit mini-bars when absent; folders and leaves may both carry bars. **bar** shape: `{ barWidth, label, thresholdColor? }` per active metric |
 **Target fidelity (DATA-31):** Product aims at sketch Card → Core → pipe Gantt. **Interim fixture ([DATA-31a](../context/decisions/interim/DATA.md)):** CI uses `data/out.rep` (flat AIV); playground stress presets emit nested Card tree for sketch fidelity. Do not fail MVP acceptance on `out.rep` pixel-parity.
 
@@ -120,7 +124,7 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 | Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Bar/secondary per DATA-33e (DATA-1, UI-32). Op type is not a separate card. `opName` / `blockDim` feed duration secondary; `coreCount` from `HardwareInfo.jsonl` |
 | Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
 | Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` peaks | **DATA-33h** (DATA-2..4, UI-33): `computeCard` with Cube/Vector (aic/aiv) sides when both measured and peak exist; else title + `N/A` when duration present — [DATA-33a](../context/decisions/interim/DATA.md) |
-| Bandwidth utilization tile | `summary.jsonl` `OpInfoSummary` (+ `category: Memory` fallback) | Sketch **带宽利用率** **读 \| 写**. Display **GB/s** (UI-34). Peak SOL **1600 GB/s**, shared by every side ([DATA-6](../context/decisions/DATA.md)). Measured read / write = the producer's summed sides `aicore_gm_read_bw` / `aicore_gm_write_bw`; each direction's score = that direction's measured ÷ peak ([DATA-8](../context/decisions/DATA.md)). **Not** `Report.csv`. |
+| Bandwidth utilization tile | `Memory.csv` / `summary.jsonl` Memory + `aicore_gm_bw_theoretical(GB/s)` | Sketch **带宽利用率** **读 \| 写**. Display **GB/s** (UI-34). Peak SOL **1600 GB/s** ([DATA-5](../context/decisions/DATA.md)–[DATA-7](../context/decisions/DATA.md)); aic/aiv → 读/写 mean until Product defines aggregation |
 | AICore parallel util | `summary.jsonl` `OpInfoSummary` `aicore_parallel_utilization` / `aicore_parallel_balance` | **DATA-9 / DATA-10:** dual **并行使用率** \| **负载均衡度** `%` columns; title + `N/A` when duration present but both absent; omit when BW-only |
 | Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
 | Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
@@ -134,7 +138,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | Input | Requirement |
 |-------|-------------|
 | `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
-| Aggregation | **Confirmed ([DATA-28](../context/decisions/DATA.md)):** `All` (default) = **non-`NA` mean** across `block_id` from `summary.jsonl`; a picked `block_id` = that block's CSV row. One block selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
+| Aggregation | **Interim ([DATA-33b](../context/decisions/interim/DATA.md)):** default **All** = mean of non-`NA` ratios per pipe family across `block_id`. Summary **block** control (when >1 block): pick a `block_id` → PIPE uses that block only |
 | Absolute in-bar | **Confirmed (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)):** mean non-`NA` `*_time(us)` for the family/side (same block scope as Aggregation); omit when all NA |
 | Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
 | Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
@@ -144,23 +148,15 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 
 Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
 
-### 8.1 Block scope matrix (DATA-19 / DATA-28 / DATA-29)
+### 8.1 Block scope matrix (DATA-28 / DATA-29 / DATA-33b / DATA-33c)
 
-**One selector, one scope.** One block selector — **All | 0 | 1 | 2 …** (one per `block_id`), default **All** — scopes every CSV-backed widget. **`All`** reads the aggregate from `summary.jsonl` (the producer's non-`NA` mean across `block_id`, [DATA-28](../context/decisions/DATA.md)); a picked id reads **that block's row** from the per-block CSV. No per-surface exceptions ([DATA-29](../context/decisions/DATA.md)).
-
-| Surface | `All` (default) | Picked `block_id` |
-|---------|-----------------|-------------------|
-| Summary PIPE bars | `summary.jsonl` `category: PipeUtilization` | That block's `PipeUtilization.csv` row |
-| Compute load (Cube \| Vector families) | `summary.jsonl` `PipeUtilization` aggregate | That block's `PipeUtilization.csv` row |
-| BW cards | `OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw` (summed sides, [DATA-8](../context/decisions/DATA.md)) | That block's `Memory.csv` aic + aiv sides summed |
-| Compute card | `OpInfoSummary` `aic_flops` / `aiv_flops` | That block's `ArithmeticUtilization.csv` measured, chip-level peak |
-| Roofline | `summary.jsonl` `ArithmeticUtilization` + `Memory` categories | That block's `ArithmeticUtilization.csv` + `Memory.csv` rows |
-| Memory topology + edge labels | `summary.jsonl` memory categories | That block's Memory* CSV row |
-| Compute / memory CSV **详情** overlays | The `summary.jsonl` category list (product default); the CSV list, when shown, falls back to the first `block_id` (a CSV list has no aggregate row) | The CSV field list replaces the category list and shows that block's row |
-
-Two documented exceptions. (1) Metrics that exist only op-level — `HardwareInfo.jsonl` and the `OpInfoSummary`-only AI Core 并行使用率 / 负载均衡度 and `Task Duration(us)` — do not change with the selection, because no per-block source exists. (2) When `summary.jsonl` is absent (classic `.rep`) there is no aggregate, so `All` reads the CSV data (PIPE mean across rows; roofline from the CSV means; memory diagram from the first labelled block).
-
-A picked `block_id` that has no data for a widget **blanks** that widget (BW card / roofline hidden, compute card `N/A`, PIPE rows empty, topology unlabelled) — it never renders the **All** aggregate under that block's label.
+| Surface | Default | When summary block = `block_id` |
+|---------|---------|----------------------------------|
+| Summary PIPE bars | Mean across blocks (All) | That block only |
+| Summary cards (duration / compute / BW / AICore) | Mean / adapter rules (unchanged) | Unchanged (still All-scope) |
+| Roofline | Mean-style aggregate (DATA-33b) | Unchanged |
+| Memory topology + edge labels | Selected block ([DATA-33c](../context/decisions/interim/DATA.md)); default = first labelled / first id | Syncs to the picked summary block; **All** restores the default topology block |
+| Compute / memory CSV **详情** overlays | Selected block switcher | Independent overlay switcher (memory); compute has no block picker |
 
 ---
 
@@ -169,24 +165,24 @@ A picked `block_id` that has no data for a widget **blanks** that widget (BW car
 | Input | Requirement |
 |-------|-------------|
 | Tabs | `PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio` CSVs |
-| Selected `block_id` | **Required** — one selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); with a picked id the CSV field list replaces the `summary.jsonl` category default and shows that block's row |
+| Selected `block_id` | **Required** — [DATA-33c](../context/decisions/interim/DATA.md) |
 | Search query | UI-only |
 
 Hide tab when CSV missing. Show `NA` values.
 
 ---
 
-### 10. Roofline (`RooflinePanel`) — M2, **not in the current release** (opt-in `roofline` capability)
+### 10. Roofline (`RooflinePanel`) — M2
 
 | Input | Requirement |
 |-------|-------------|
 | Points (intensity, achieved perf) | **Required to show** — interim DATA-37a/b GM point from ArithmeticUtilization + Memory |
 | Op-mix labels (e.g. `Vec_FP32`) | Optional — DATA-37e when mix ratios present |
 | Peak bandwidth / compute ceilings | Interim DATA-37d (constants + Memory BW); Product-final when DATA-37 closes |
-| `ArithmeticUtilization` + `Memory` | Interim sources (DATA-37*): `All` = the `summary.jsonl` categories, a picked `block_id` = that block's CSV rows ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)) |
+| `ArithmeticUtilization.csv` + `Memory.csv` | Interim sources (DATA-37*) |
 | L2 series / tab filters | **Omit** (DATA-37c/f) until DATA-37 |
 
-Hide when no usable GM point. The card mounts only when the host opts in with the `roofline` capability ([FEATURE_MATRIX](../ui/FEATURE_MATRIX.md)); the adapter never derives it, so a report with points alone does not show the card. M3 swaps formulas when Product closes DATA-37.
+Hide when no usable GM point. M3 swaps formulas when Product closes DATA-37.
 
 ---
 
@@ -195,10 +191,10 @@ Hide when no usable GM point. The card mounts only when the host opts in with th
 | Input | Requirement |
 |-------|-------------|
 | Static SVG topology asset | **Provided** — `src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg` (official export: static labels, arrows, value plates; sample values stripped in-repo) |
-| Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) §11.2.6 + selected block. **Hide `NA`; show 0.** L2↔L1 from `Memory.csv`. UB: `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` ([DATA-22](../context/decisions/DATA.md) / [DATA-23](../context/decisions/DATA.md)) — the producer does **not** emit the `MemoryUB.csv` `*_gm` names |
+| Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) §11.2.6 + selected block. **Hide `NA`; show 0.** L2↔L1 from `Memory.csv`. UB: `MemoryUB.csv` names first, then `Memory.csv` sample names |
 | Value **slots** | Fixed positions in the chrome for the edges that have one ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) § Value slots); `L0C → L1/L2` (KB) and the unmodelled SIMT / `%` plates have no slot |
 | Edge **thicknesses** | **Not** data-driven — keep static SVG geometry |
-| Memory* / L2Cache CSVs | **Required to show**; hide the diagram when no block is *drawable* — a plated edge value or the L2 plate (PR-VM-018) — while 详情 stays reachable |
+| Memory* / L2Cache CSVs | **Required to show**; hide diagram if no label data |
 | Field list mode | Optional — same CSVs as memory detail tabs |
 
 ---
@@ -208,7 +204,7 @@ Hide when no usable GM point. The card mounts only when the host opts in with th
 | Input | Requirement |
 |-------|-------------|
 | Tabs | Memory L1 (`Memory.csv`), L2Cache, Memory L0, Memory UB |
-| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); a picked id scopes the field list to that block's row |
+| Block switcher | [DATA-33c](../context/decisions/interim/DATA.md) |
 | 查看全部 | Emit full CSV open ([DATA-33d](../context/decisions/interim/DATA.md)) |
 
 Hide tab when CSV missing.
@@ -249,8 +245,8 @@ Omit panel when neither source yields fields. 更多 navigates in-aside + still 
 | Chrome Trace (`trace.json` or `.json`) | Shell, axis, gutter, swimlane, tooltip/detail, measure overlay |
 | `OpBasicInfo.csv` | Partial summary (identity, duration, freqs); MIX toggle gate |
 | `PipeUtilization.csv` | PIPE bars; Cube/Vector sets; compute detail tab; gutter util if mapped |
-| `ArithmeticUtilization.csv` | Compute detail tab; M2 roofline (opt-in `roofline` capability) |
-| `Memory*.csv` | Memory detail tabs; M2 topology edge labels; DATA-8 I/O bandwidth cards |
+| `ArithmeticUtilization.csv` | Compute detail tab; M2 roofline |
+| `Memory*.csv` | Memory detail tabs; M2 topology edge labels; DATA-33g I/O bandwidth cards |
 | `L2Cache.csv` | Memory detail L2Cache tab; topology hit-rate label |
 | `ResourceConflictRatio.csv` | Compute detail tab |
 | `Sampling.json` → `OverviewSeries` ([DATA-39](../context/decisions/DATA.md)) | Overview charts |

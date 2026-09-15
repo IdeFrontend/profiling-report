@@ -171,3 +171,11 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Interim:** ~~When an edge lists several candidate columns, the **first present non-`NA` candidate in the listed order wins** (`Memory.csv` `aic_main_mem_read_bw(GB/s)` then `aiv_main_mem_read_bw(GB/s)` for GM → L2, and the same shape for GM ← L2) — i.e. a single side, **not** the aic + aiv sum the BW card uses ([DATA-8](../DATA.md)). Values follow the one selector like every other CSV-backed widget: `All` = the `summary.jsonl` category record, a picked `block_id` = that block's CSV row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).~~ Product [DATA-40](../DATA.md): the GM ↔ L2 plates are the producer's **Main Read** / **Main Write** = the aic + aiv sides **summed**; every other edge keeps first-present-non-`NA`.
 **Implement / test as:** `EDGE_MAP` in [`memoryTopology.ts`](../../../../src/adapters/memoryTopology.ts) (`aggregate: 'sum'` on the two GM↔L2 sources); edge table in [VIEW_DATA_MAPPING §11.2.6](../../../ui/VIEW_DATA_MAPPING.md)
 **Superseded when:** — already superseded by DATA-40
+
+### DATA-47a — Emulate KernelInfo / summary.json → summary cards
+
+**Status:** `interim`
+**Question:** [DATA-47](../../questions/DATA.md)
+**Interim:** Map when present: `KernelInfo.csv` rows `KernelInfoAttr`/`KernelInfoVal` with attrs matching `op name` / `kernel name` / `name` → `summary.opName`; `op type` / `type` → `opType`; `task duration(us)` / `duration(us)` / `duration` → `taskDurationUs`; `pid` → `pid`; `block dim` → `blockDim`. Overlay `summary.json` object fields `opName`/`name`, `opType`/`type`, `taskDurationUs`/`duration_us`, `pid`, `blockDim` (json wins on conflict). Unmapped → omit field (hide card chrome via DATA-30). Do **not** invent FLOPS/BW cards from emulate.
+**Implement / test as:** `summaryFromKernelInfo` / `summaryFromEmulateJson` in `adaptEmulate`; `PR-ASIM-003` + summary assertions
+**Superseded when:** Product locks DATA-47 field map

@@ -21,7 +21,7 @@ MSTT and PyPTO both want a **pypto-like timeline UX**, but their on-disk semanti
 ```mermaid
 flowchart LR
   HW["hardware adaptPayloads"] --> Models["SwimlaneModel + ReportViewModel"]
-  SIM["simulator adaptSimulator"] --> Models
+  SIM["simulator adaptEmulate"] --> Models
   Pypto["PyPTO adapter later"] --> Models
   Models --> SharedUI["Shared Vue swimlane + panels"]
   SharedUI --> MsttHost["MSTT host"]
@@ -41,7 +41,7 @@ Adapters must not call `useViewServer()`, `window.vscode`, or host routers. Capa
 **Phasing**
 
 1. **v1 hardware:** `npu-rep` hardware adapter + MSTT host; classic `cann-rep` / sample `.rep` remain engineering fixtures.
-2. **v1 simulator (docs then code):** detect `SimulatorManifest.json` → `adaptSimulator` (Phase 1 Timeline + thin summary).
+2. **v1 simulator (docs then code):** detect `EmulateManifest.json` → `adaptEmulate` (Phase 1 Timeline + thin summary).
 3. **Later (optional):** PyPTO adapter; simulator Phase 2 capability panels.
 
 **Explicit non-goal:** parsing or rendering MindStudio Insight `.bin` inside this library. **Do not** silently remap simulator CSVs into hardware embeds ([DATA-45](../context/decisions/DATA.md)).

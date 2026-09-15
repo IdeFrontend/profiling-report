@@ -5,10 +5,10 @@ Common entrypoint for profiling-report **on-disk inputs**. This hub covers the s
 | Doc | Role |
 |-----|------|
 | **This file** | Container binary + profile index + detection |
-| [hardware/FORMAT.md](hardware/FORMAT.md) | Hardware OP embed schemas (npu-compute) |
-| [hardware/METRICS_AND_TRACE.md](hardware/METRICS_AND_TRACE.md) | Hardware embed → UI panels |
-| [simulator/FORMAT.md](simulator/FORMAT.md) | Simulator contract + leaf pack (npu_emulate) |
-| [simulator/TABLES.md](simulator/TABLES.md) | Simulator table inventory |
+| [compute/FORMAT.md](compute/FORMAT.md) | Compute OP embed schemas (npu-compute) |
+| [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md) | Compute embed → UI panels |
+| [emulate/FORMAT.md](emulate/FORMAT.md) | Emulate contract + leaf pack (npu_emulate) |
+| [emulate/TABLES.md](emulate/TABLES.md) | Emulate table inventory |
 | [FORMATS_COMPARISON.md](FORMATS_COMPARISON.md) | Semantic comparison across stacks |
 | [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) | UI surfaces ↔ adapted view-models |
 | [ADAPTERS.md](ADAPTERS.md) | Detect profile → adapt → view-models |
@@ -23,7 +23,7 @@ Related UI: [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md). Decisions: [PROC
 | Item | Rule |
 | --- | --- |
 | Product / MSTT extension | **`.npu-rep` only** ([PROC-2](../context/decisions/PROC.md)) |
-| Producers | **hardware** leaf: npu-compute. **simulator** leaf: npu_emulate. Both pack into `.npu-rep` ([PROC-6](../context/decisions/PROC.md)) |
+| Producers | **compute** leaf: npu-compute. **emulate** leaf: npu_emulate. Both pack into `.npu-rep` ([PROC-6](../context/decisions/PROC.md)) |
 | File name pattern (product) | `report_<timestamp>_<rand id>.npu-rep` |
 | Classic fixtures | `cann-rep` / sample `.rep` — engineering only; see [REP_FORMAT.md](REP_FORMAT.md) |
 | Standalone Chrome Trace | `.json` → profiling-report ([PROC-3](../context/decisions/PROC.md)); aside analytics hidden without metric embeds |
@@ -40,18 +40,18 @@ Same container binary; **different embed sets** ([PROC-7](../context/decisions/P
 
 | Profile | Producer | Leaf contents (summary) | Adapter |
 | --- | --- | --- | --- |
-| `hardware` | npu-compute | `OpBasicInfo.csv`, `PipeUtilization.csv`, `Memory*.csv`, `PipeTrace.json` / `trace.json`, … | Hardware path in [ADAPTERS.md](ADAPTERS.md) (today `adaptPayloads`) |
-| `simulator` | npu_emulate | `SimulatorManifest.json` + `PipeTrace.json` + KernelInfo/summary (+ contract CSVs) | `adaptSimulator` — see [simulator/FORMAT.md](simulator/FORMAT.md) |
+| `compute` | npu-compute | `OpBasicInfo.csv`, `PipeUtilization.csv`, `Memory*.csv`, `PipeTrace.json` / `trace.json`, … | Hardware path in [ADAPTERS.md](ADAPTERS.md) (today `adaptPayloads`) |
+| `emulate` | npu_emulate | `EmulateManifest.json` + `PipeTrace.json` + KernelInfo/summary (+ contract CSVs) | `adaptEmulate` — see [emulate/FORMAT.md](emulate/FORMAT.md) |
 
-**No silent remap** ([DATA-45](../context/decisions/DATA.md)): do not invent hardware-shaped metric CSVs from simulator tables. Map each profile into shared `SwimlaneModel` + `ReportViewModel` + `capabilities[]`.
+**No silent remap** ([DATA-45](../context/decisions/DATA.md)): do not invent compute-shaped metric CSVs from emulate tables. Map each profile into shared `SwimlaneModel` + `ReportViewModel` + `capabilities[]`.
 
 ### 2.1 Detection
 
 | Signal | Rule |
 | --- | --- |
-| Simulator marker | Leaf embeds **`SimulatorManifest.json`** with `"profile": "simulator"` → **simulator** ([PROC-8](../context/decisions/PROC.md)) |
-| Otherwise | Treat as **hardware** (or Chrome Trace–only if no metric pack) |
-| Head `origin` | Product 160-byte layout uses `origin = 1` (profile) for both until Product assigns a dedicated simulator origin (open [PROC-9](../context/questions/PROC.md)). Parser today rejects `origin ≠ 1`. |
+| Emulate marker | Leaf embeds **`EmulateManifest.json`** with `"profile": "emulate"` → **emulate** ([PROC-8](../context/decisions/PROC.md)) |
+| Otherwise | Treat as **compute** (or Chrome Trace–only if no metric pack) |
+| Head `origin` | Product 160-byte layout uses `origin = 1` (profile) for both until Product assigns a dedicated emulate origin (open [PROC-9](../context/questions/PROC.md)). Parser today rejects `origin ≠ 1`. |
 
 ---
 
@@ -207,4 +207,4 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 | --- | --- |
 | Dedicated head `origin` for simulator | [PROC-9](../context/questions/PROC.md) |
 | KernelInfo → summary field map | [DATA-47](../context/questions/DATA.md) |
-| Hardware-only open items | [hardware/FORMAT.md](hardware/FORMAT.md) § Open / TBD |
+| Hardware-only open items | [compute/FORMAT.md](compute/FORMAT.md) § Open / TBD |

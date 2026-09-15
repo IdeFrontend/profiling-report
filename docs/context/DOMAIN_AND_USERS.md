@@ -31,8 +31,8 @@ Developers write **Ascend / CANN operators** — device kernels that implement m
 Profiling artifacts they open today:
 
 - **`.bin`** — rich Insight operator dump (instruction / Source / Cache depth) — stays in **MindStudio Insight**
-- **`.npu-rep` (hardware profile)** — portable **report pack** from device OP profiling (metric CSVs + Chrome Trace) — [PROC-2](decisions/PROC.md), [PROC-7](decisions/PROC.md)
-- **`.npu-rep` (simulator profile)** — same host extension from **npu_emulate** cycle-accurate simulation (contract CSVs / Chrome Trace + `SimulatorManifest.json`) — [PROC-6](decisions/PROC.md), [simulator/FORMAT](../formats/simulator/FORMAT.md)
+- **`.npu-rep` (compute profile)** — portable **report pack** from device OP profiling (metric CSVs + Chrome Trace) — [PROC-2](decisions/PROC.md), [PROC-7](decisions/PROC.md)
+- **`.npu-rep` (emulate profile)** — same host extension from **npu_emulate** cycle-accurate simulation (contract CSVs / Chrome Trace + `EmulateManifest.json`) — [PROC-6](decisions/PROC.md), [emulate/FORMAT](../formats/emulate/FORMAT.md)
 
 Grain differs: hardware packs **OP-level aggregates**; simulator is **instruction / tick**-level. Do not conflate schemas ([DATA-45](decisions/DATA.md)).
 ---
@@ -54,7 +54,7 @@ flowchart LR
 
 1. Author or edit the OP (C++ / Ascend C / tiling, etc.).
 2. Build and profile on **device** (hardware pack) and/or run **npu_emulate** (simulator pack); MSTT shows results under the performance tree.
-3. Open **`.npu-rep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)); library detects profile via `SimulatorManifest.json` ([PROC-8](decisions/PROC.md)).
+3. Open **`.npu-rep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)); library detects profile via `EmulateManifest.json` ([PROC-8](decisions/PROC.md)).
 4. Answer “how long?”, “which pipes?”, “what’s busy when?” (hardware) or Timeline-first simulator Phase 1 → change code → repeat.
 5. For instruction-level Source / Cache / flag sync on device dumps, open **`.bin`** in Insight (sibling path, not this library). Simulator Source Assembly is a Phase 2 capability when ELF data is packed.
 ---
@@ -112,7 +112,7 @@ Sketches under [`docs/ui/`](../ui/) encode this composition: dense dark timeline
 | As an OP dev, I zoom into a busy region and spot idle gaps | **S2** Find busy / idle regions | M | UX_SPEC, [INTERACTIONS](../ui/INTERACTIONS.md) |
 | As an OP dev, I inspect one interval’s name and timing | **S3** Inspect one event | M | UX_SPEC, INTERACTIONS |
 | As an OP dev, I compare util across cores / pipes | **S4** Compare utilization | M | UX_SPEC, gutter + PIPE |
-| As an OP dev, I rank pipes and search raw counters | **S5** Drill into PIPE metrics | M1 | UX_SPEC, [METRICS_AND_TRACE](../formats/hardware/METRICS_AND_TRACE.md) |
+| As an OP dev, I rank pipes and search raw counters | **S5** Drill into PIPE metrics | M1 | UX_SPEC, [METRICS_AND_TRACE](../formats/compute/METRICS_AND_TRACE.md) |
 | As an OP dev, I check whether memory paths limit the op | **S6** Analyze memory paths | P2 | UX_SPEC, FEATURE_MATRIX |
 | As an OP dev, I confirm NPU / HBM context for the run | **S7** Review hardware context | P2 | UX_SPEC, [DATA-34](decisions/DATA.md) |
 | As an OP dev, I follow deps or aggregate a time slice | **S8** Dependencies / multi-select | P2 | UX_SPEC, [DATA-36](questions/DATA.md) |
@@ -122,7 +122,7 @@ Sketches under [`docs/ui/`](../ui/) encode this composition: dense dark timeline
 
 ## 7. Glossary
 
-Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/hardware/METRICS_AND_TRACE.md). Format roles: [FORMATS_COMPARISON](../formats/FORMATS_COMPARISON.md).
+Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/compute/METRICS_AND_TRACE.md). Format roles: [FORMATS_COMPARISON](../formats/FORMATS_COMPARISON.md).
 
 ### Products and hosts
 

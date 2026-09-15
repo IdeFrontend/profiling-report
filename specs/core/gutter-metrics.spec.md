@@ -46,7 +46,7 @@ When **utilization** is unavailable, default to **clockCycle**. When neither is 
 
 ### clockCycle formula (normative)
 
-Source file: embedded **`PipeUtilization.csv`** inside `.rep` / `.ncrep` ([METRICS_AND_TRACE.md](../../docs/formats/hardware/METRICS_AND_TRACE.md) § PipeUtilization.csv). Decision: [DATA-38](../../docs/context/decisions/DATA.md).
+Source file: embedded **`PipeUtilization.csv`** inside `.rep` / `.ncrep` ([METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md) § PipeUtilization.csv). Decision: [DATA-38](../../docs/context/decisions/DATA.md).
 
 #### Column → `laneColorKey` map
 
@@ -133,7 +133,7 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 
 ## Dependencies
 
-[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/hardware/METRICS_AND_TRACE.md), [DATA-28](../../docs/context/decisions/DATA.md) / [DATA-33f](../../docs/context/decisions/interim/DATA.md) / [DATA-38](../../docs/context/decisions/DATA.md) / [UI-46](../../docs/context/decisions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
+[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/METRICS_AND_TRACE.md), [DATA-28](../../docs/context/decisions/DATA.md) / [DATA-33f](../../docs/context/decisions/interim/DATA.md) / [DATA-38](../../docs/context/decisions/DATA.md) / [UI-46](../../docs/context/decisions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
 ## Open
 
