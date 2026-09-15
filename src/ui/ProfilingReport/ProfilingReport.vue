@@ -50,9 +50,12 @@ import { leafRowCount } from '../../swimlane/layout';
 import {
   buildFolderSummaryEvents,
   collectLeafEventsFromModel,
+  findEventInModel,
   findThreadById,
+  isFolderNode,
 } from '../../domain/swimTree';
 import { t } from '../../i18n';
+import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '../ContextMenu/ContextMenu.vue';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
@@ -195,6 +198,9 @@ const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
+const contextMenuContext = ref<ContextMenuContext | null>(null);
+/** Lane currently under the canvas/gutter pointer — target for the global Shift+P pin shortcut. */
+const hoveredLaneId = ref<string | null>(null);
 /** In-flight collapse/expand tween; null when settled. */
 const collapseAnim = ref<CollapseAnimState | null>(null);
 /** Group id forced expanded while its tween runs (kept separate from `visible` so the
@@ -215,6 +221,14 @@ const gutterMetricByCard = ref<Record<string, GutterMetric>>({});
 
 /** Raw swim model for all consumers — unwrap host deep-reactive props so deps/gutter/collapse skip Proxies. */
 const swim = computed(() => toRaw(props.swimlaneModel ?? internalSwim.value));
+/** Pin row is only offered for a resolvable leaf lane; a summary-bar target carries its
+ *  folder id, which the pin action rejects. */
+const contextMenuCanPin = computed(() => {
+  const ctx = contextMenuContext.value;
+  if (!ctx) return false;
+  const lane = swim.value ? findThreadById(swim.value, ctx.laneId) : null;
+  return !!lane && !isFolderNode(lane);
+});
 const report = computed(() => props.reportModel ?? internalReport.value);
 /** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
 const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
@@ -337,6 +351,10 @@ const bounds = computed(() => {
     minTime: m.minTime,
     maxTime: m.maxTime > m.minTime ? m.maxTime : m.minTime + 1,
   };
+});
+const contextMenuCanReset = computed(() => {
+  const { minTime, maxTime } = bounds.value;
+  return viewState.value.startTime !== minTime || viewState.value.endTime !== maxTime;
 });
 
 /** Log zoom: 0 = fit, 100 = min window (same floor as Ctrl+wheel / zoomAt). */
@@ -814,11 +832,8 @@ function onRootKeydown(e: KeyboardEvent) {
   // WASD must not pan/zoom the hidden view.
   if (topologyFullscreen.value || fullscreenTopology.value != null) return;
   if (!showTimeline.value) return;
-  // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
-  // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
-  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
   const target = e.target as HTMLElement | null;
-  // Ignore while typing — the search box and the dependency-depth field are <input>s.
+  // Ignore shortcuts while typing — search, dependency depth, and editable controls own them.
   if (
     target &&
     (target.tagName === 'INPUT' ||
@@ -828,6 +843,15 @@ function onRootKeydown(e: KeyboardEvent) {
   ) {
     return;
   }
+  // Global pin toggle (Shift+P) — same pin state as the gutter pushpin and the context menu.
+  if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    togglePinLane(hoveredLaneId.value);
+    return;
+  }
+  // No chords: W/S/A/D are bare keys (Ctrl/Cmd/Alt/Shift held → let the browser / other
+  // handlers own the chord). Matches PyPTO's modifier-free keyboard handling.
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
   const key = e.key.toLowerCase();
   if (key === 'w' || key === 's') {
     // Zoom around the cursor (PyPTO anchors on the pointer); center when none is set.
@@ -1078,6 +1102,9 @@ function onMultiSelectSpan(span: MeasureRange | null) {
 }
 
 function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
+  // While the context menu pins an event as highlighted, ignore the canvas clearing
+  // hover (the pointer left for the menu/scrim) — keep the target highlighted.
+  if (contextMenuContext.value?.target && ev == null) return;
   hovered.value = ev;
   viewState.value = { ...viewState.value, hoveredEventId: ev?.id ?? null };
   if (ev) {
@@ -1104,7 +1131,59 @@ function onOverviewWindow(window: { startTime: number; endTime: number }) {
   });
 }
 
+function onContextMenu(payload: { x: number; y: number; laneId: string; target?: SwimEvent | null }): void {
+  contextMenuContext.value = { ...payload, target: payload.target ?? null };
+  // Hide the hover tooltip, then pin the target as highlighted so it stays visibly
+  // highlighted for the whole time the menu is open (the scrim would otherwise drop it).
+  hovered.value = null;
+  if (payload.target) {
+    viewState.value = { ...viewState.value, hoveredEventId: payload.target.id };
+  }
+}
+
+function onHoverLane(laneId: string | null): void {
+  hoveredLaneId.value = laneId;
+}
+
+/** Toggle pin for a leaf lane; ignores folders and unknown ids (global Shift+P + context menu). */
+function togglePinLane(laneId: string | null): void {
+  if (!laneId) return;
+  const lane = swim.value ? findThreadById(swim.value, laneId) : null;
+  if (!lane || isFolderNode(lane)) return;
+  if (viewState.value.pinnedLaneIds.includes(laneId)) onUnpinLane(laneId);
+  else onPinLane(laneId);
+}
+
+function onContextMenuDismiss(): void {
+  contextMenuContext.value = null;
+  viewState.value = { ...viewState.value, hoveredEventId: null };
+}
+function onContextMenuAction(action: ContextMenuAction): void {
+  if (action.command === 'reset') {
+    onZoomToFit();
+    return;
+  }
+  if (action.command === 'show') {
+    // Edge case: target no longer exists → dismiss without selecting. A collapsed-folder
+    // summary bar is never itself selected — resolve to its sole underlying leaf
+    // (taskCount === 1). A multi-task summary has no single event: drop the action
+    // entirely so Show never clears an existing selection.
+    if (action.target?.taskCount != null && action.target.sourceEvent == null) return;
+    const resolved = action.target?.taskCount != null ? (action.target.sourceEvent ?? null) : (action.target ?? null);
+    const stillExists = !resolved || findEventInModel(swim.value, resolved.id) != null;
+    if (stillExists) onSelect(resolved);
+    return;
+  }
+  // Edge case: lane no longer exists or is non-leaf → dismiss without action.
+  const lane = swim.value ? findThreadById(swim.value, action.laneId) : null;
+  if (!lane || isFolderNode(lane)) return;
+  if (viewState.value.pinnedLaneIds.includes(action.laneId)) onUnpinLane(action.laneId);
+  else onPinLane(action.laneId);
+}
 function onScrollY(scrollY: number) {
+  // Only dismiss when open — ordinary wheel scroll-y must not clear hoveredEventId
+  // (canvas does not re-emit hover on wheel).
+  if (contextMenuContext.value) onContextMenuDismiss();
   viewState.value = { ...viewState.value, scrollY: Math.max(0, scrollY) };
 }
 
@@ -1344,6 +1423,17 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom="onZoom"
           @update:measure-range="onMeasureRange"
           @focus-measure="onFocusMeasure"
+          @context-menu="onContextMenu"
+          @hover-lane="onHoverLane"
+        />
+        <ContextMenu
+          :context="contextMenuContext"
+          :pinned-lane-ids="viewState.pinnedLaneIds"
+          :can-pin="contextMenuCanPin"
+          :can-reset="contextMenuCanReset"
+          :locale="locale"
+          @action="onContextMenuAction"
+          @dismiss="onContextMenuDismiss"
         />
         <p
           v-if="!showTimeline"

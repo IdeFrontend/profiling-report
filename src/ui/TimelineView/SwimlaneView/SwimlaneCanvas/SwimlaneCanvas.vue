@@ -24,6 +24,7 @@ import {
   findLaidOutEvent,
   LANE_HEIGHT,
   laneIdAtPoint,
+  leafLaneIdAtPoint,
   nearestEventEdgeAtPoint,
   projectExactEdgeMarks,
   summaryFolderId,
@@ -153,6 +154,7 @@ const emit = defineEmits<{
   'suppress-measure-dt': [suppress: boolean];
   /** Click on a collapsed-group summary bar — expand that grouping node. */
   'toggle-group': [groupId: string];
+  'context-menu': [payload: { x: number; y: number; laneId: string; target: SwimEvent | null }];
 }>();
 
 /**
@@ -1871,8 +1873,22 @@ function activeCanvas(): HTMLCanvasElement | null {
   return useWebGl.value ? overlayCanvasRef.value : fallbackCanvasRef.value;
 }
 
+function onContextMenu(e: MouseEvent): void {
+  const canvas = activeCanvas();
+  if (!canvas || props.measureMode) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const event = eventAtPointer(x, y, null);
+  const laneId = leafLaneIdAtPoint(backend.getLayout(), paintView(), y) ?? summaryGroupIdFor(event?.id ?? null);
+  if (!laneId) return;
+  e.preventDefault();
+  emit('context-menu', { x: e.clientX, y: e.clientY, laneId, target: event });
+}
+
 function onPointerDown(e: PointerEvent): void {
   if (e.button !== 0) return;
+  lastX = e.clientX;
   downX = e.clientX;
   lastPointerClientY = e.clientY;
   measureDragOccurred = false;
@@ -2294,6 +2310,7 @@ defineExpose({
         @pointerup="onPointerUp"
         @pointerleave="onPointerLeave"
         @pointercancel="onPointerLeave"
+        @contextmenu="onContextMenu"
         @wheel="onWheel"
       />
     </template>
@@ -2309,6 +2326,7 @@ defineExpose({
       @pointerup="onPointerUp"
       @pointerleave="onPointerLeave"
       @pointercancel="onPointerLeave"
+      @contextmenu="onContextMenu"
       @wheel="onWheel"
     />
     <div

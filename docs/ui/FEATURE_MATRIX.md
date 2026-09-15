@@ -38,7 +38,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([UI-40](../context/decisions/UI.md)) |
 | Cube / Vector overview charts | M | From `Sampling.json` `ph:C` — all counters present ([DATA-39](../context/decisions/DATA.md)); **hide** if empty ([DATA-32](../context/decisions/DATA.md)); per-track pin → sticky strip above pinned lanes (PyPTO) |
 | Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/decisions/DATA.md)); flat CTEF still valid. Mid-row 统计 control **deferred** ([UI-47](../context/questions/deferred.md)) — do not ship. |
-| Card-header gutter metric selector | M | Per-Card dropdown (时钟周期 / 利用率); clockCycle = mean `*_time(us)` (µs), not cycle counts — [`gutter-metrics.spec.md`](../../specs/core/gutter-metrics.spec.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md); sketch [`v930/entry`](./source/v930/entry.jpeg) |
+| Card-header gutter metric selector | M | Per-Card dropdown (**利用率** + **时钟周期**); shared event-coverage bars; clockCycle labels = absolute `*_total_cycles` — [`gutter-metrics.spec.md`](../../specs/core/gutter-metrics.spec.md), [`DATA-38`](../context/decisions/DATA.md), [`UI-46`](../context/decisions/UI.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md); sketch [`v930/entry`](./source/v930/entry.jpeg) |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |
 | Colored event rectangles | M | Normative colors [COLOR_TOKENS](COLOR_TOKENS.md) |
 | Multi-height lanes (overlapping events) | M | A leaf lane whose events overlap in time splits into non-overlapping sub-rows under one title (`source/v930/task-multi-height.jpeg`); row height grows by `rowCount × 22px` |
@@ -50,7 +50,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | ProfilerStep background bands | P2 | Needs data |
 | Dependency bezier links | P2 | `source/v930/entry.jpeg` |
 | Pin lane (gutter pushpin) | P2 | Leaf only this iteration (`#51`). **Folder pin deferred** — [UI-44](../context/questions/deferred.md); parked on `feat/pin-grouping-nodes` (PR #69). Sketch: `source/v930/hardware-more-detail.jpeg` |
-| Pin lane / context menu | P2 | `source/v930/task-context-menu.jpeg` (Pin row + Ctrl+P; separate from gutter icon) |
+| Pin lane / context menu | P2 | `source/v930/task-context-menu.jpeg` (Pin row + global Shift+P; separate from gutter icon) |
 | Multi-select time slice summary | P2 | Marquee drag; `source/v930/task-marquee.jpeg` |
 
 ## Interactions (see also INTERACTIONS.md)
