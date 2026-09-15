@@ -698,7 +698,10 @@ function backToReport() {
                   <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
                   <span class="pr-card__unit">%</span>
                 </span>
-                <span class="pr-bw-col__side">{{ t(row.labelKey, locale) }}</span>
+                <span
+                  class="pr-bw-col__side"
+                  :title="t(row.labelKey, locale)"
+                >{{ t(row.labelKey, locale) }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -1141,6 +1144,9 @@ function backToReport() {
      a scrollbar gutter or a DPR subpixel and would otherwise open a horizontal bar. */
   overflow-x: hidden;
   overflow-y: auto;
+  /* Query container for the summary grid's narrow-panel rule below. The body's inline size
+     comes from the aside track, so containing it does not change how it lays out. */
+  container-type: inline-size;
 }
 
 .pr-aside__head h3 {
@@ -1312,7 +1318,8 @@ function backToReport() {
 }
 
 /*
- * Sketch: 2×2 equal tiles (duration | AICore; compute | bandwidth).
+ * Sketch: 2×2 equal tiles (duration | AICore; compute | bandwidth); one tile per row below a
+ * 430px well (see the container query below, PR-STATS-036).
  * Bottom pad only so tile edges align with stack islands below.
  */
 .pr-cards {
@@ -1322,6 +1329,17 @@ function backToReport() {
   padding: 0 0 8px;
   border-radius: 0;
   background: var(--pr-bg-aside);
+}
+
+/*
+ * A dragged-narrow aside (or a host too small for the preferred width) squeezes each tile to
+ * ~36px per side column, where a two-column readout has nothing left to show. Below one tile's
+ * worth of well the stack goes single-column and every side gets the full width back.
+ */
+@container (max-width: 430px) {
+  .pr-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .pr-card {
@@ -1349,16 +1367,20 @@ function backToReport() {
   font-size: 11px;
   color: #999999;
   margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: visible;
+  /* Wrap rather than spill: `nowrap` + `overflow: visible` painted a long label outside the
+     tile, where the body's `overflow-x: hidden` cropped it (PR-STATS-036). */
+  white-space: normal;
 }
 
 .pr-card__sub {
   margin-top: 6px;
   font-size: 11px;
   color: #8a8a8a;
-  white-space: nowrap;
-  overflow: visible;
+  /* Same rule as the card label above: wrap inside the tile instead of painting past it. The
+     secondary falls back to `opName`, whose underscores give no break opportunity, so it needs
+     `anywhere` to wrap at all (PR-STATS-036). */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .pr-card__value {
@@ -1436,11 +1458,18 @@ function backToReport() {
 .pr-bw-col {
   flex: 1 1 0;
   min-width: 0;
-  overflow: hidden;
 }
 
+/*
+ * The column label sits beside the score while the two fit on one line, and drops to its own
+ * line when they do not. Both children used to be `flex: 0 0 auto` in a `nowrap` row inside an
+ * `overflow: hidden` column, so a label wider than the column — 并行使用率 / 负载均衡度, or
+ * "Parallel utilization" — was cropped with no cue (PR-STATS-036). Ellipsis is the floor for a
+ * column narrower than the label itself; the `title` on that span carries the full text.
+ */
 .pr-bw-col__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: flex-start;
   gap: 8px;
@@ -1452,7 +1481,11 @@ function backToReport() {
 }
 
 .pr-bw-col__side {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   color: #999999;
   white-space: nowrap;

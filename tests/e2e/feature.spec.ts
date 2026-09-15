@@ -561,3 +561,95 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
   });
 });
+
+type SummaryProbe = {
+  /** Used grid tracks — 2 for the sketch 2×2, 1 once the well drops under 430px. */
+  cols: number;
+  /** Content box of the scroll body: the container the summary grid queries. */
+  well: number;
+  /** Card label / duration secondary text wider than its own box (the old paint-outside-tile bug). */
+  overflowing: string[];
+  /** Column labels whose text run is wider than their column but carries a `title` — allowed. */
+  ellipsized: string[];
+  /** Column labels wider than their column with no `title` — a silent crop, never allowed. */
+  cropped: string[];
+};
+
+/**
+ * Geometry-only probe: jsdom cannot measure wrapping or ellipsis, and the reported bug was text
+ * cropped by an ancestor, so this reads real layout boxes from the mounted aside.
+ */
+async function probeSummary(page: Page): Promise<SummaryProbe> {
+  return page.evaluate(() => {
+    const summary = document.querySelector('[data-testid="stats-summary"]');
+    if (!summary) throw new Error('stats-summary not mounted');
+    const body = document.querySelector('.pr-aside__body');
+    const textOf = (el: Element) => (el.textContent ?? '').trim();
+    const overflows = (el: Element) => el.scrollWidth > el.clientWidth + 1;
+    /**
+     * Text run width. The pre-fix column label grew its own box to its text and was then clipped
+     * by `.pr-bw-col { overflow: hidden }`, so `scrollWidth` cannot see the crop — a range can.
+     */
+    const textRun = (el: Element) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getBoundingClientRect().width;
+    };
+
+    const overflowing: string[] = [];
+    summary.querySelectorAll('.pr-card__label, .pr-card__sub').forEach((el) => {
+      if (overflows(el)) overflowing.push(textOf(el));
+    });
+
+    const ellipsized: string[] = [];
+    const cropped: string[] = [];
+    summary.querySelectorAll('.pr-bw-col').forEach((col) => {
+      col.querySelectorAll('.pr-bw-col__side').forEach((el) => {
+        if (textRun(el) <= col.clientWidth + 1) return;
+        (el.getAttribute('title') ? ellipsized : cropped).push(textOf(el));
+      });
+    });
+
+    return {
+      cols: getComputedStyle(summary).gridTemplateColumns.split(' ').filter(Boolean).length,
+      well: body?.clientWidth ?? 0,
+      overflowing,
+      ellipsized,
+      cropped,
+    };
+  });
+}
+
+test.describe('PR-STATS-036 summary tiles at resized widths', () => {
+  // `en` has the longest column label ("Parallel utilization"); zh-CN is the default shell.
+  for (const [locale, url] of [
+    ['zh', '/'],
+    ['en', '/?locale=en'],
+  ] as const) {
+    test(`PR-STATS-036: ${locale} tile text stays readable as the aside narrows`, async ({ page }) => {
+      const sides = page.locator('[data-testid="stats-summary"] .pr-bw-col__side');
+
+      // Default aside (480px, well 456): sketch 2×2, no card text outside its own box.
+      await page.setViewportSize({ width: 1600, height: 900 });
+      await page.goto(url);
+      await expect(page.getByTestId('stats-summary')).toBeVisible();
+      await expect(sides.first()).toBeVisible();
+
+      const wide = await probeSummary(page);
+      expect(wide.well, 'a 1600px host must keep the aside wide (2×2 regime)').toBeGreaterThan(430);
+      expect(wide.cols).toBe(2);
+      expect(wide.overflowing, 'card label / duration secondary must wrap inside the tile').toEqual([]);
+      expect(wide.cropped, 'a column label wider than its column needs its full text in `title`').toEqual([]);
+
+      // Aside at its 280px minimum: the grid collapses, so nothing needs an ellipsis at all.
+      await page.setViewportSize({ width: 820, height: 900 });
+      await expect.poll(async () => (await probeSummary(page)).cols, { timeout: 5000 }).toBe(1);
+
+      const narrow = await probeSummary(page);
+      expect(narrow.well, 'a 820px host must squeeze the aside under the collapse threshold').toBeLessThanOrEqual(430);
+      expect(narrow.overflowing).toEqual([]);
+      expect(narrow.ellipsized, 'one tile per row must give every column label the full well width').toEqual([]);
+      expect(narrow.cropped).toEqual([]);
+    });
+  }
+});

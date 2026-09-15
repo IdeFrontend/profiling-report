@@ -31,17 +31,22 @@ Overlay surfaces replace the stacked report: header title becomes **计算负载
 
 ### Stacked report
 
-Default surface stacks, hide-if-missing, in order: summary **2×2** card grid (duration, AICore parallel util\|balance, compute Cube\|Vector, bandwidth 读\|写), Roofline (only with the `roofline` capability), PIPE (计算负载分析), memory topology (内存负载分析). No Summary | PIPE | Compute | Memory tabs.
+Default surface stacks, hide-if-missing, in order: summary card grid (sketch **2×2**; one tile per row below a **430px** well — PR-STATS-036), Roofline (only with the `roofline` capability), PIPE (计算负载分析), memory topology (内存负载分析). No Summary | PIPE | Compute | Memory tabs.
 
 ### Summary cards
 
 DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when `taskDurationUs` **or** `bandwidthCards` is present (name/type alone do not open an empty grid).
 
-**Sketch grid (`summary-cards.png`, v930 refresh).** **2×2**: top **整体耗时** | **AICore 并行使用率**; bottom **算力情况** | **带宽利用率**. Do **not** render a standalone op-type card. When duration is present and a card’s data/formula is missing, that cell is title + `N/A` (keeps the grid rectangular). BW-only summaries (no `taskDurationUs`) omit duration-gated placeholders.
+**Sketch grid (`summary-cards.png`, v930 refresh).** **2×2**: top **整体耗时** | **AICore 并行使用率**; bottom **算力情况** | **带宽利用率**. Do **not** render a standalone op-type card. When duration is present and a card’s data/formula is missing, that cell is title + `N/A` (keeps the grid rectangular). BW-only summaries (no `taskDurationUs`) omit duration-gated placeholders. The aside is user-resizable (**280–720**) and the grid follows it: **below a 430px content well the 2×2 collapses to one tile per row** (PR-STATS-036). Two tiles at that width leave each side column ~36px — too little for any label — while a single tile returns the whole well to the card. The **2×2** sketch chrome holds at every width that fits it (the default **480** aside included).
 
-**Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.60` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Progress bar = `min(100%, Block Dim / core_count × 100%)` when `summary.coreCount` is set (UI-32); else decorative ~15% cyan fill (DATA-33e). Secondary (DATA-1): `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`; omit if neither.
+**Tile text never crops silently (PR-STATS-036).** Every label inside a tile has a defined overflow behavior, so resizing the aside cannot hide or paint over text:
+- **Card label + duration secondary** wrap inside the tile. The secondary carries a rounded value and falls back to `opName` (DATA-1), which has no break opportunity — it breaks mid-token rather than leaving the tile.
+- **Column label** (side label) sits beside the score while the two fit on one line and drops to its own line under the score when they do not.
+- A column narrower than the label **itself** (one word wider than the column) ellipsizes it, and the span’s `title` carries the full text. Truncation is never silent: an ellipsis always has a tooltip.
 
-**AICore 并行使用率 (DATA-9 / DATA-10).** Dual columns **并行使用率** | **负载均衡度** from `summary.parallelUtilization` / `parallelBalance` (fractions → `%`). Large score **with** `%` at **2 decimal places** (fraction fields keep sub-percent precision; unlike compute/BW integer `utilScore` ratios). Bar = same clamped score % of track. Clamp display score to **[0, 100]** so label and bar stay in lockstep when balance `1−σ/μ` goes negative or util exceeds 1; value-cell `title` keeps the unrounded `fraction×100` percent with float residue stripped (`toPrecision(12)`). Column label beside the score (same chrome as BW 读\|写). Hide a column when its field is absent; title + `N/A` when duration is present but both absent. Omit the card when BW-only (no `taskDurationUs`). Do not bind `summary.avgCoreUtil`.
+**Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.60` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Progress bar = `min(100%, Block Dim / core_count × 100%)` when `summary.coreCount` is set (UI-32); else decorative ~15% cyan fill (DATA-33e). Secondary (DATA-1): `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`; omit if neither. The secondary **wraps inside the tile** and keeps the full value in its `title` (PR-STATS-036).
+
+**AICore 并行使用率 (DATA-9 / DATA-10).** Dual columns **并行使用率** | **负载均衡度** from `summary.parallelUtilization` / `parallelBalance` (fractions → `%`). Large score **with** `%` at **2 decimal places** (fraction fields keep sub-percent precision; unlike compute/BW integer `utilScore` ratios). Bar = same clamped score % of track. Clamp display score to **[0, 100]** so label and bar stay in lockstep when balance `1−σ/μ` goes negative or util exceeds 1; value-cell `title` keeps the unrounded `fraction×100` percent with float residue stripped (`toPrecision(12)`). Column label beside the score while the two fit on one line, else on its own line under the score; ellipsis + `title` when the column is narrower than the label itself (same chrome as BW 读\|写; PR-STATS-036). Hide a column when its field is absent; title + `N/A` when duration is present but both absent. Omit the card when BW-only (no `taskDurationUs`). Do not bind `summary.avgCoreUtil`.
 
 **算力情况 (DATA-33h).** `computeCard` from adapter. Inner **Cube \| Vector** columns (UI-33; adapter sides `aic`/`aiv`). Large score (**no** `%`), bar fill = score % of track (8px pill hatched track; `min-width: 0` at 0%; distinct fill hues per side in the sketch), subtitle `measured / peak` with `TFLOPS` on the next line. Requires `taskDurationUs`. Hide a side when measured or peak is missing; show **N/A** when duration is present but `computeCard` is absent. Do not bind `summary.computeTflops`.
 
@@ -111,6 +116,11 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 37. **PR-STATS-033** — Header actions are cannbot and **详情** (that order). The topology **全屏** control lives in the diagram's own bar ([panel spec](./MemoryTopologyPanel/MemoryTopologyPanel.spec.md) zoom/fullscreen bar), so it appears exactly when the diagram does and disappears with it; the aside opens the bar with **showFullscreen**.
 38. **PR-STATS-034** — The bar's **全屏** emits open-topology-fullscreen (re-emitted from the panel's `open-fullscreen`); does not open CSV overlay.
 39. **PR-STATS-035** — The memory 详情 **CSV field list** (the `CsvFieldListPanel` rendering, used when no memory summary categories exist — CSV-only reports) also offers the `PipeUtilization` tab when that table is present, so MTE utilizations stay reachable even though the export gives the chrome's MTE blocks no value plate (UI-38). Reports **with** memory summary categories list those categories instead (memory files only); their MTE ratios stay reachable under 计算 详情 → `PipeUtilization`.
+40. **PR-STATS-036** — Summary tiles never crop text silently and never paint outside their tile, at any aside width (**280–720**) and in either locale:
+    - the card label and the duration secondary **wrap inside the tile** (the secondary breaks a no-space `opName` instead of spilling);
+    - the column label sits **beside** the score while the two fit on one line and **under** it when they do not;
+    - a column narrower than the label **itself** ellipsizes it with the full text in the span’s `title` — an ellipsis always has a tooltip;
+    - **below a 430px content well** the 2×2 grid collapses to **one tile per row**, so the side columns keep the full well width instead of ~36px.
 
 ## Edge Cases
 
@@ -129,6 +139,8 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 | `coreCount` absent | Duration bar decorative ~15%; secondary uses blockDim only |
 | `blockDim` = 0 with `coreCount` | Duration bar width 0% (no 2px sliver) |
 | No pid / opType / blockDim | Meta segments hidden; meta row still shows **更多** + cannbot |
+| Aside at its **280px** minimum (well < 430px) | Summary grid is one tile per row; card, secondary and column labels all fit outright |
+| Card / column label wider than its box | Wraps at spaces (secondary also mid-token); a label wider than its column on one word ellipsizes with the full text in `title` |
 | Freq-only summary (`currentFreq` / `ratedFreq`) | No meta segments; meta row still shows **更多** + cannbot |
 | No `hardwareDetails` on model | **更多** opens overlay with **缺少 hardware info** |
 | OpBasicInfo fallback only (`hardwareDetails` present, no jsonl) | **更多** opens `HardwareDetailsPanel` with fallback sections |
@@ -169,17 +181,17 @@ Sampled from `v930/report-stats-open` / `v930/report-stats-scrolled` (aside colu
 | Token | Value |
 |-------|--------|
 | Well | `#1a1a1a` (`--pr-bg-aside`); **bottom** padding `8px` only (band before next stack section); tile left/right edges align with grey islands below |
-| Columns | Sketch **2×2** equal tiles (duration \| AICore parallel; compute \| bandwidth) |
+| Columns | Sketch **2×2** equal tiles (duration \| AICore parallel; compute \| bandwidth); one tile per row below a **430px** well (PR-STATS-036) |
 
 ### Duration card (`summary-cards.png` / `detail-strip-raised` cell)
 
 | Token | Value |
 |-------|--------|
 | Surface | `linear-gradient(225deg, #272f31 0%, #262b2c 35%, #252525 72%)` (detail-strip-raised TR→BL samples) + inset `1px` highlight `rgba(255,255,255,0.04)`; radius `8px`; pad `12px 14px` |
-| Label | `11px` / `#999999`; margin-bottom `6px`; one line, no ellipsis |
+| Label | `11px` / `#999999`; margin-bottom `6px`; wraps when the tile is narrower than the label (PR-STATS-036) |
 | Value | number `20px` / `600` / `#ececec`; unit sibling `12px` / `500` / `#868686` |
 | Bar | height `8px`; pill; fill `--pr-color-duration-bar` = util % when `coreCount` set (UI-32), else ~15%; hatch `#2a2a2a` / `#1f1f1f` on `--pr-bg-aside` track |
-| Sub | `11px` / `#8a8a8a`; one line, no ellipsis; rounded display with full value in `title` |
+| Sub | `11px` / `#8a8a8a`; wraps inside the tile, breaking a no-space `opName` mid-token; rounded display with the full value in `title` (PR-STATS-036) |
 
 ### 算力情况 card (`summary-cards.png`)
 
@@ -189,7 +201,7 @@ Same raised card chrome as duration.
 |-------|--------|
 | Inner | **Cube** \| **Vector** columns (`display: flex; gap: 8px`; equal flex children) |
 | Score | same Value number token; **no** `%` |
-| Side label | `11px` / `#999999`, same row as score; score start / label end (`1fr auto` grid) — sketch gap before `Cube` / `Vector` |
+| Side label | `11px` / `#999999`; beside the score on the same row while both fit (`flex`, `8px` gap — the sketch gap before `Cube` / `Vector`), else its own line under the score; ellipsis + `title` when it is wider than the column on one word (PR-STATS-036) |
 | Bar | same 8px pill hatched track; fill = score %; sketch uses distinct hues per side; 0% fill `min-width: 0` |
 | Sub | `measured / peak` then `TFLOPS` on the next line (magnitude rounding); full value in `title` |
 
@@ -201,7 +213,7 @@ Sketch: one card, **读 \| 写** columns (not separate 输入/输出 cards).
 |-------|--------|
 | Inner | **读** \| **写** columns (equal flex) |
 | Score | same Value number token **with** muted `%` |
-| Side label | `11px` / `#999999`, same row as score; score start / label end (`读` / `写`) |
+| Side label | `11px` / `#999999`; beside the score on the same row while both fit (`flex`, `8px` gap), else its own line under the score; ellipsis + `title` when it is wider than the column on one word (`读` / `写`; PR-STATS-036) |
 | Bar | same 8px pill hatched track; fill = score %; 0% fill `min-width: 0` |
 | Sub | `measured / peak` then unit on the next line (**GB/s**, UI-34; sketch TB/s); full value in `title` |
 
@@ -213,6 +225,7 @@ Mount only when duration is present. Omit when the summary is BW-only.
 |-------|--------|
 | Chrome | same raised tile |
 | Columns | **并行使用率** \| **负载均衡度** (same `pr-bw-cols` chrome as BW) |
+| Side label | `11px` / `#999999`; beside the `%` score while both fit, else under it; ellipsis + `title` when wider than the column on one word (PR-STATS-036) |
 | Score | large number **with** `%`; bar fill = min(100, score)%; util primary / balance secondary hue |
 | Body when empty | label + `N/A` value (`#8a8a8a`); no bar |
 
@@ -256,6 +269,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-15** — Summary tiles stop cropping text when the aside is resized (PR-STATS-036): card label and duration secondary wrap inside the tile (the secondary breaks a no-space `opName`), the column label drops under the score when the two no longer fit on one line, an ellipsis always carries the full text in `title`, and the 2×2 grid collapses to one tile per row below a **430px** well. The grid previously ran `nowrap` inside an `overflow: hidden` column, so a label wider than its column — 并行使用率 / 负载均衡度, or `Parallel utilization` in `en` — was cropped with no cue; at the **280** minimum each side column was left ~36px. The 2×2 sketch chrome is unchanged at the default **480**.
 - **2026-09-14** — Roofline card is out of the current release: it mounts only with the opt-in `roofline` capability, so points alone no longer render it (PR-STATS-015). No roofline code was removed.
 - **2026-09-14** — Block switcher options are every `block_id` in the report (compute ∪ memory, fixture order) instead of `PipeUtilization`-only: the aside switcher and the memory overlay switcher share one state, so a memory-only id picked in the overlay can no longer leave the main `<select>` blank (PR-STATS-014b). The `All` topology model is read straight from `report.memoryTopology` instead of re-deriving the adapter's `summary.jsonl` rule (one definition, no drift).
 - **2026-09-14** — Topology gate wording synced with the code: `showTopology` now asks whether the model is *drawable* (a plated edge value or the L2 plate, PR-VM-018), not merely whether a label exists. The default block pick uses the same predicate, so the snapshot no longer selects a block whose labels are all plated-less and then hides the diagram (PR-STATS-019 / PR-STATS-021).
