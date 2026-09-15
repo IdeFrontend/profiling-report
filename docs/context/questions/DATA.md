@@ -102,13 +102,13 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Interim:** [`DATA-37a…DATA-37f`](../decisions/interim/DATA.md).
 
-### DATA-41 — AIC-row link values and the L0C 理论值
+### DATA-41 — AIC-row link values
 
 <img src="../visual/questions/data-41.png" alt="DATA-41 AIC-row link values" width="900" height="900">
 
 **Status:** `partial` — the field half is answered; only the fixture validation (b), and with it a sketch-ward check of the AIC row, remains.
 
-**Question:** The **AIC row** of the memory diagram (L1 ↔ L0A / L0B ↔ Cube ↔ L0C) carries values in the sketch, and the chrome has a plate for all seven of its plated links — `l2-l1-read`, `l1-l0a`, `l1-l0b`, `l0a-cube`, `l0b-cube`, `cube-l0c`, `l0c-cube` — but on the product fixture [`sample.lite.rep`](../../../data/sample.lite.rep) six of the seven paint **blank**: every `MemoryL0.csv` `aic_l0*_bw(GB/s)` column is `NA` in every block of both embedded ops, and "hide `NA`" then hides the labels. (The seventh, `l2-l1-read`, now carries the producer's `GM -> UB` field — [DATA-43](../decisions/DATA.md).) So: **(a)** which file and field is authoritative for each AIC-row plated link, and **(b)** is a fixture with non-`NA` AIC-row values available, so the row can be validated against the sketch? **Inherited from [DATA-20](../decisions/DATA.md):** for the slotless edges that carry a **理论值** — L0C → L1 and L0C → L2/GM ([DATA-24](../decisions/DATA.md) / [DATA-25](../decisions/DATA.md)) — which field holds the 理论值, and what is the edge's **100% reference**? The producer doc's 理论值 column is empty for every row.
+**Question:** The **AIC row** of the memory diagram (L1 ↔ L0A / L0B ↔ Cube ↔ L0C) carries values in the sketch, and the chrome has a plate for all seven of its plated links — `l2-l1-read`, `l1-l0a`, `l1-l0b`, `l0a-cube`, `l0b-cube`, `cube-l0c`, `l0c-cube`. So: **(a)** which file and field is authoritative for each AIC-row plated link (answered below), and **(b)** is a fixture with non-`NA` AIC-row values available, so the row can be validated against the sketch? **(b)** is the live half, and it is about the six **L0/Cube** plates: on the product fixture [`sample.lite.rep`](../../../data/sample.lite.rep) every `MemoryL0.csv` `aic_l0a_*` / `aic_l0b_*` / `aic_l0c_*_cube` column is `NA` in every block of both embedded ops, and "hide `NA`" then hides the labels. The seventh plate, `l2-l1-read`, is not blank — it carries the producer's `GM -> UB` field ([DATA-43](../decisions/DATA.md)). (The 理论值 / 100% reference this question inherited from [DATA-20](../decisions/DATA.md) is closed: no such field exists, see below.)
 
 **Answer so far (2026-09-15, from the producer's DATA-39 "Memory" table):**
 

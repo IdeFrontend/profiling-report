@@ -370,7 +370,7 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Memory Peak (%) per unit | **L2 = hit rate (DATA-20, resolved).** No other unit carries one — the sketch's other in-box badges are unit utilizations, painted for the three units with a field ([UI-49](../context/decisions/UI.md), resolved) |
 | Topology edge value: one side vs summed aic+aiv | **Resolved ([DATA-40](../context/decisions/DATA.md)):** GM↔L2 plates are the producer's **Main Read / Main Write** = the aic + aiv sides **summed**; every other edge keeps first-present-non-`NA` |
 | AIC-row corridor plate field | **Resolved ([DATA-43](../context/decisions/DATA.md)):** the producer's DATA-39 row `24` `GM -> UB` field `aiv_gm_to_ub_bw` is painted on the chrome's own slot; `aic_l1_read_bw` feeds no plate |
-| AIC-row link values not validated on a fixture | **Open ([DATA-41](../context/questions/DATA.md)):** fields confirmed, but `Memory.csv` `aic_l1_*` is `NA` in every block of `sample.lite.rep`, so the row paints blank |
+| AIC-row link values not validated on a fixture | **Open ([DATA-41](../context/questions/DATA.md)):** the seven plate fields are confirmed; the six **L0/Cube** plates stay blank on `sample.lite.rep` because every `MemoryL0.csv` `aic_l0*_bw` column is `NA` there (DATA-41(b)). The corridor plate is settled ([DATA-43](../context/decisions/DATA.md)) |
 | L2 hit-rate column choice | **Resolved (DATA-21):** total hit rate from `summary.jsonl` `L2Cache`; fall back to first non-`NA` read rate |
 | L0C → UB edge | 待确定 |
 | UB↔GM | **Closed (DATA-22 / DATA-23):** `Memory.csv` `aiv_ub_to_gm_bw` / `aiv_gm_to_ub_bw` |
