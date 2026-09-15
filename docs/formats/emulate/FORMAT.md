@@ -54,6 +54,15 @@ Profiling-report does **not** re-implement those HTML generators. It consumes a 
 
 ## 4. Leaf pack (inside `.npu-rep`)
 
+Two shapes appear in the wild:
+
+| Shape | Example | Marker | Typical embeds |
+|-------|---------|--------|----------------|
+| **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) | `manifest.json` (export catalog; **not** a viewer profile marker) | Populated contract CSVs only — gelu packs **34** tables/views; see [TABLES.md](TABLES.md) |
+| **Viewer leaf** (Sept 30+) | [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep) | **`EmulateManifest.json`** ([PROC-8](../../context/decisions/PROC.md)) | Manifest + `PipeTrace.json` + KernelInfo/summary + PIPE CSVs (± more contract CSVs) |
+
+gelu shows the export packer **skips** some populated DB objects (`KernelInfo`, `PipesUtilization`, `AiCoreOccupancy`, dictionaries, …). A viewer-ready leaf MUST still include the Sept 30 embeds below even when they were omitted from a raw export pack.
+
 ### 4.1 Sept 30 leaf (required + recommended)
 
 | Embed | Type | Rules |
@@ -66,7 +75,6 @@ Profiling-report does **not** re-implement those HTML generators. It consumes a 
 Optional: additional contract CSVs may be packed unused for later phases.
 
 **Not required for Sept 30:** sqlite3 blob (container type `5` remains reserved). Prefer CSV embeds matching export basenames (`ExecutedInstructions.csv`, …).
-
 ### 4.2 Post–Sept 30 (capability-driven)
 
 Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [ADAPTERS.md](../ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../VIEW_DATA_REQUIREMENTS.md) gaps):
@@ -81,7 +89,7 @@ Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../
 | `roofline` | ArchDiagramMetrics + Functions + ExecutedInstructions + VectorUtilizations + SourceInstructions (gap vs compute Arithmetic+Memory) |
 | `memoryDiagram` | **gap** — not MemoryRWAccesses; needs aggregate BW map or Product slot names from ArchDiagramMetrics |
 
-### 4.3 `EmulateManifest.json`
+### 4.3 `EmulateManifest.json` (viewer marker)
 
 Minimum shape:
 
@@ -103,6 +111,7 @@ Minimum shape:
 
 Additional fields allowed; unknown keys ignored by the viewer.
 
+**Do not confuse with `manifest.json`.** Export packs (gelu) embed `manifest.json` listing every contract object (`name`, `type`, `row_count`, `columns`, `file`). That file does **not** satisfy PROC-8 detection; `adaptEmulate` looks only for `EmulateManifest.json` with `profile: "emulate"`.
 ---
 
 ## 5. Product UI mapping (MHTML §11.2.3)
@@ -133,10 +142,20 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 
 ---
 
-## 7. Open
+## 7. Reference sample (gelu)
+
+Committed producer export: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (+ unpacked [`data/gelu/`](../../../data/gelu/)). Use it to validate CSV schemas and table membership; it is **not** a Sept 30 viewer leaf until `EmulateManifest.json` + `PipeTrace.json` (+ recommended KernelInfo / PIPE CSVs) are added. Table set: [TABLES.md](TABLES.md).
+
+Minimal viewer fixture: [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep).
+
+---
+
+## 8. Open
 
 | Item | Id |
 |------|-----|
 | Dedicated head `origin` | [PROC-9](../../context/questions/PROC.md) |
 | KernelInfo / summary.json → summary cards | [DATA-42](../../context/questions/DATA.md) |
 | Exact `tickToUs` default when freq unknown | [DATA-42](../../context/questions/DATA.md) / producer docs |
+| Whether export `manifest.json` alone should detect emulate (today: **no**) | Product / packer alignment with [PROC-8](../../context/decisions/PROC.md) |
+| Export packer omitting populated KernelInfo / PipesUtilization / AiCoreOccupancy | Packer bug vs intentional slim pack — blocks Sept 30 leaf from raw gelu as-is |
