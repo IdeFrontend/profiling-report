@@ -110,6 +110,21 @@ export interface CollapseAnimState {
   summaryEvents?: readonly SwimEvent[];
 }
 
+/** True when two tween payloads are the same fold (hover `sync` re-passes `null` every move). */
+export function sameCollapseAnim(
+  a: CollapseAnimState | null,
+  b: CollapseAnimState | null,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.groupId === b.groupId &&
+    a.visible === b.visible &&
+    a.hiddenHeight === b.hiddenHeight &&
+    a.summaryEvents === b.summaryEvents
+  );
+}
+
 /**
  * Content-space Y of the group's top edge (`Card` header or folder lane) and the fold
  * line just below it. Both -1 when `groupId` is absent from the layout.
@@ -1298,10 +1313,24 @@ export function computeAltMeasureGap(
   };
 }
 
-/** View-invariant: which event edges exactly equal a range bound (scan once per range/model). */
+/**
+ * Visible laid-out events only. `hitLayout.events` stays the expanded array
+ * (paint-only collapse does not clone it), so a full walk would rescan every
+ * rest-collapsed descendant on pointermove magnet marks.
+ */
 function* iterLaidOutEvents(layout: SwimlaneLayout): Iterable<LaidOutEvent> {
-  yield* layout.events;
-  if (layout.summaryExtras) yield* layout.summaryExtras;
+  for (let i = 0; i < layout.lanes.length; i++) {
+    const lane = layout.lanes[i]!;
+    // `applyCollapseFolds` tucks hidden lanes and sets `alpha: 0` (do not re-run
+    // `collapseAlpha` on the already-shifted `lane.y`).
+    if ((lane.alpha ?? 1) <= 0) continue;
+    const laneEvts = layout.eventsByLane[i];
+    if (!laneEvts) continue;
+    for (const item of laneEvts) {
+      if (item.alpha === 0) continue;
+      yield item;
+    }
+  }
 }
 
 function exactEdgeLaneY(layout: SwimlaneLayout, item: LaidOutEvent): number | null {

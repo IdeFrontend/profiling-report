@@ -3,7 +3,9 @@ import {
   applyCollapseAnim,
   collapseFoldsFromLayout,
   collapseHiddenHeight,
+  collapsePaintState,
   eventBlockMetrics,
+  findExactEdgeMatchesAt,
   groupBottomY,
   LANE_HEIGHT,
   rebuildLayout,
@@ -228,5 +230,26 @@ describe('paint-only rest collapse (PR-RENDER-052)', () => {
 
   it('collapseHiddenHeight matches descendant lane rows without filterCollapsedTree', () => {
     expect(collapseHiddenHeight(folderModel(), [], ['core'])).toBe(44);
+  });
+
+  it('PR-RENDER-053: exact-edge scan skips rest-collapsed descendant events', () => {
+    const layout = rebuildLayout(folderModel());
+    const open = collapsePaintState(layout, [], null, new Map()).hitLayout;
+    expect(findExactEdgeMatchesAt(open, 0).some((m) => m.eventId === 'e1')).toBe(true);
+    const folded = collapsePaintState(layout, ['core'], null, new Map()).hitLayout;
+    expect(findExactEdgeMatchesAt(folded, 0).some((m) => m.eventId === 'e1')).toBe(false);
+  });
+
+  it('PR-RENDER-053: setCollapseAnim no-ops when the tween payload is unchanged', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.setModel(folderModel());
+    renderer.resize(200, 400, 1);
+    renderer.setCollapsedIds(['core']);
+    const hit = renderer.getLayout();
+    renderer.setCollapseAnim(null);
+    renderer.setCollapseAnim(null);
+    expect(renderer.getLayout()).toBe(hit);
   });
 });

@@ -14,6 +14,7 @@ import {
   collapsePaintState,
   EMPTY_LAYOUT,
   IDLE_COLLAPSE,
+  sameCollapseAnim,
   LANE_FILL,
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
@@ -537,6 +538,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
+    if (sameCollapseAnim(this.collapseState, state)) return;
     this.collapseState = state;
     this.refreshCollapse();
   }

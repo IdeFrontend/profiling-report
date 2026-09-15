@@ -114,6 +114,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-045**: `hitTestLayout` resolves an event in the correct sub-row (a pointer over sub-row N never hits an event in another sub-row).
 1. **PR-RENDER-046**: WebGL builds one interval mesh per (lane, sub-row) and draws each sub-row at its own Y, so each sub-row is mutually exclusive and the additive fill never saturates an overlap.
 1. **PR-RENDER-052**: `setCollapsedIds` rest-collapses folders as paint-only folds on the expanded meshes (no `setModel` / event clone); summaries hit-test via extras; a Card fold swallows nested Core folds.
+1. **PR-RENDER-053**: Exact-edge magnet scans walk only visible `eventsByLane` rows (skip `alpha === 0` lanes); `setCollapseAnim` is a no-op when the tween payload is unchanged so hover `sync` does not rebuild hit layout / curves.
 
 ## Edge Cases
 
@@ -130,6 +131,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-15** — PR-RENDER-053: pointermove magnet marks skip rest-collapsed descendants; unchanged `setCollapseAnim` does not rebuild folds/curves.
 - **2026-09-11** — PR-RENDER-052: rest collapse is paint-only (`setCollapsedIds` / multi-fold `CollapseTransform`); summaries via extras; no per-toggle `setModel`.
 - **2026-09-10** — WebGL `setSelection` bails its expensive tail (`refreshDepCache`/`rebuildEmphasisSplit`/`rebuildCurveInstances`) on `selectedId` alone again; `hoveredId` updates for live paint without re-walking every event on each pointermove (`PR-RENDER-049`; perf regression on the `op2` fixture, 150k+ events).
 - **2026-09-10** — `eventsIntersectingRect` skips `alpha === 0` mid-collapse-tween events, matching `hitTestLayout`/`findHoverGap`/`leafLaneIdAtPoint` (`PR-RENDER-049`).

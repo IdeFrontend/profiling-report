@@ -27,6 +27,7 @@ import {
   EMPTY_LAYOUT,
   eventPaintRect,
   IDLE_COLLAPSE,
+  sameCollapseAnim,
   LANE_FILL,
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
@@ -250,6 +251,7 @@ export class SwimlaneOverlayPainter {
 
   /** Per-frame collapse/expand transform (see layout.collapseFoldsFromLayout). */
   setCollapseAnim(state: CollapseAnimState | null): void {
+    if (sameCollapseAnim(this.collapseState, state)) return;
     this.collapseState = state;
     this.refreshCollapse();
   }
@@ -517,6 +519,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   /** Per-frame collapse/expand transform applied inline in `render` (no layout rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
+    if (sameCollapseAnim(this.collapseState, state)) return;
     this.collapseState = state;
     this.refreshCollapse();
   }
