@@ -221,7 +221,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
-- **2026-09-15** — Topology 全屏 now arrives from the diagram's own bar (`MemoryTopologyPanel` `showFullscreen` → `open-fullscreen` → StatsAside → root; PR-MEMTOP-014, PR-STATS-033). The overlay keeps the bar's zoom controls, omits 全屏 and drops the bar strip, fits the diagram into the remaining box rather than stretching it (`:deep` overrides on `.pr-topo`), and its fresh panel mount starts at 100% on its own (PR-ROOT-009).
+- **2026-09-15** — Topology 全屏 now arrives from the diagram's own bar (`MemoryTopologyPanel` `showFullscreen` → `open-fullscreen` → StatsAside → root; PR-MEMTOP-014, PR-STATS-033). The overlay keeps the bar's zoom controls and omits 全屏, drops the bar strip, and fits the diagram into the remaining box rather than stretching it (the `:deep` `height: 100%` on `.pr-topo`; the old `svg` stretch override is gone, because the panel's stage already owns that box), and its fresh panel mount starts at 100% on its own (PR-ROOT-009).
 - **2026-09-14** — `roofline` is out of the current release and opt-in: the adapter no longer derives the capability from report data, the aside mounts the card only when the host passes it, and roofline points alone no longer make the aside available (PR-ROOT-004).
 - **2026-09-13** — Empty mid-drag shows nothing-selected (no stale rows); first ≥2 of a new gesture applies immediately over a committed multi (PR-ROOT-016).
 - **2026-09-12** — Live marquee dock preview + content out-in fade (PR-ROOT-016 / PR-ROOT-017); host `select` only on commit; Escape gated while `marqueeLive`.

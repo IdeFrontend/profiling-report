@@ -41,12 +41,21 @@ async function probe(panel: Locator) {
       /** Fitted = the drawing reaches the box on at least one axis without overhanging either. */
       fitsInside: inkW <= box.width + chrome.slop && inkH <= box.height + chrome.slop,
       touchesBox: inkW >= box.width - chrome.slop || inkH >= box.height - chrome.slop,
-      /** The drawing's own excess over the box — the distance panning has to cover. */
-      panX: Math.max(0, inkW - box.width),
-      panY: Math.max(0, inkH - box.height),
+      /**
+       * The drawing's own excess over the *client* box — the distance panning has to cover. Both
+       * sides are in the client box on purpose: `scrollWidth - clientWidth` is measured without a
+       * classic scrollbar's width, so comparing it against the *border* box would differ by the
+       * scrollbar (~15px) on platforms that reserve it, and Chromium's overlay scrollbars here
+       * would hide that. In the client box the two agree either way.
+       */
+      panX: Math.max(0, inkW - viewport.clientWidth),
+      panY: Math.max(0, inkH - viewport.clientHeight),
       /** What the box can actually be scrolled by. */
       scrollX: viewport.scrollWidth - viewport.clientWidth,
       scrollY: viewport.scrollHeight - viewport.clientHeight,
+      /** What the bars reserve: inline-end for the vertical one, block-end for the horizontal. */
+      gutterX: Math.round(box.width - viewport.clientWidth),
+      gutterY: Math.round(box.height - viewport.clientHeight),
     };
   }, { w: CHROME_W, h: CHROME_H, slop: SLOP });
 }
@@ -80,6 +89,20 @@ test('PR-MEMTOP-013: each host fits the diagram, and pans it by its own overflow
   expect(asideZoomed.inkRatio).toBeCloseTo(CHROME_W / CHROME_H, 2);
   expect(Math.abs(asideZoomed.scrollX - asideZoomed.panX)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(asideZoomed.scrollY - asideZoomed.panY)).toBeLessThanOrEqual(SLOP);
+
+  // Both sides of that comparison are in the *client* box, because `scrollWidth - clientWidth`
+  // excludes a classic scrollbar while the border box includes it. Chromium's overlay scrollbars
+  // reserve nothing, which would hide a mismatch — `scrollbar-gutter: stable` reserves the gutter
+  // regardless, so the reserving regime (Windows / a stable gutter) is exercised rather than
+  // assumed. Against the border box this step is off by exactly the gutter.
+  await page.addStyleTag({
+    content: '.pr-topo__viewport--pannable { scrollbar-gutter: stable; }',
+  });
+  const asideReserved = await probe(aside);
+  // Only the inline gutter has a CSS switch — the vertical bar — so the block-end gutter stays 0.
+  expect(asideReserved.gutterX).toBeGreaterThan(0);
+  expect(Math.abs(asideReserved.scrollX - asideReserved.panX)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(asideReserved.scrollY - asideReserved.panY)).toBeLessThanOrEqual(SLOP);
 
   // The overlay is the wide host: its box is the leftover area, far wider than the diagram, so a
   // stage that followed the box would let the pan travel through empty space on both sides.
