@@ -4,6 +4,7 @@ import { mount } from '@vue/test-utils';
 import MemoryTopologyPanel, {
   DEFAULT_MAX_W,
   SLOT_MAX_W,
+  ZOOM_STEPS,
   fitFontSize,
 } from './MemoryTopologyPanel.vue';
 import { hasDrawableTopology } from '../../../adapters/memoryTopology';
@@ -34,6 +35,17 @@ const model = {
 
 /** Chrome geometry (448×540 units): GM x16–56, L2 x94–134, cluster rows x188–432. */
 const CHROME = { gmRight: 56, l2Left: 94, l2Right: 134, clusterLeft: 188 };
+
+/** Two panels in *one* app: the stacked aside and the fullscreen overlay render at the same time,
+ *  which a pair of `mount()` calls cannot reproduce (each is its own app). */
+const TwoPanels = defineComponent({
+  components: { MemoryTopologyPanel },
+  props: { model: { type: Object, required: true } },
+  template: `<div>
+    <MemoryTopologyPanel :model="model" />
+    <MemoryTopologyPanel :model="model" />
+  </div>`,
+});
 
 describe('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-001: renders the chrome asset and the L2 node anchor', () => {
@@ -191,6 +203,18 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.emitted('open-details')).toBeUndefined();
   });
 
+  it('PR-MEMTOP-008c: right-click on the zoom bar is not the diagram gesture', async () => {
+    // The bar lives inside the panel that carries the handler, so without a guard a right-click on
+    // a control opens the memory CSV overlay over the chrome that was clicked.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('contextmenu');
+    await wrapper.get('[data-testid="topology-controls"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toBeUndefined();
+    // The diagram itself still emits.
+    await wrapper.get('[data-testid="topology-viewport"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toHaveLength(1);
+  });
+
   it('PR-MEMTOP-009: edges with no chrome slot are not drawn', () => {
     const wrapper = mount(MemoryTopologyPanel, {
       props: {
@@ -239,6 +263,7 @@ describe('MemoryTopologyPanel', () => {
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(false);
       expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(false);
       expect(wrapper.find('.pr-topo__sr').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="topology-controls"]').exists()).toBe(false);
       expect(wrapper.get('svg').attributes('aria-describedby')).toBeUndefined();
       expect(warn).toHaveBeenCalledTimes(1);
       expect(String(warn.mock.calls[0]?.[0])).toContain('memory-topology.svg');
@@ -249,24 +274,145 @@ describe('MemoryTopologyPanel', () => {
     }
   });
   it('PR-MEMTOP-011: gives each instance its own description id', () => {
-    // The stacked aside and the fullscreen overlay render two panels in the *same* app, so a
-    // hardcoded id would collide and point both diagrams at one description. `useId` is unique
+    // A hardcoded id would collide and point both diagrams at one description. `useId` is unique
     // per app, which two separate `mount()` calls would not reproduce (each is its own app).
-    const Host = defineComponent({
-      components: { MemoryTopologyPanel },
-      props: { model: { type: Object, required: true } },
-      template: `<div>
-        <MemoryTopologyPanel :model="model" />
-        <MemoryTopologyPanel :model="model" />
-      </div>`,
-    });
-    const wrapper = mount(Host, { props: { model } });
-    const ids = wrapper.findAll('svg').map((s) => s.attributes('aria-describedby'));
+    const wrapper = mount(TwoPanels, { props: { model } });
+    const ids = wrapper.findAll('svg[role="img"]').map((s) => s.attributes('aria-describedby'));
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2);
     expect(wrapper.findAll('.pr-topo__sr')).toHaveLength(2);
     expect(wrapper.get(`[id="${ids[0]}"]`).text()).toBe(wrapper.get(`[id="${ids[1]}"]`).text());
     expect(wrapper.get(`[id="${ids[0]}"]`).text().length).toBeGreaterThan(0);
+  });
+});
+
+describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', () => {
+  it('PR-MEMTOP-014: renders 缩小 / readout / 放大 / 适应窗口 in the export order', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const bar = wrapper.get('[data-testid="topology-controls"]');
+    expect(
+      bar.findAll('button, span[data-testid]').map((n) => n.attributes('data-testid')),
+    ).toEqual([
+      'topology-zoom-out',
+      'topology-zoom-percent',
+      'topology-zoom-in',
+      'topology-zoom-fit',
+    ]);
+    expect(wrapper.get('[data-testid="topology-zoom-out"]').attributes('aria-label')).toBe('缩小');
+    expect(wrapper.get('[data-testid="topology-zoom-in"]').attributes('aria-label')).toBe('放大');
+    expect(wrapper.get('[data-testid="topology-zoom-fit"]').attributes('aria-label')).toBe(
+      '适应窗口',
+    );
+    // No host asked for fullscreen here (the overlay is already full).
+    expect(wrapper.find('[data-testid="topology-fullscreen"]').exists()).toBe(false);
+  });
+
+  it('PR-MEMTOP-014: renders 全屏 last only when the host asks for it', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model, showFullscreen: true } });
+    const bar = wrapper.get('[data-testid="topology-controls"]');
+    expect(bar.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
+      'topology-zoom-out',
+      'topology-zoom-in',
+      'topology-zoom-fit',
+      'topology-fullscreen',
+    ]);
+    const fullscreen = wrapper.get('[data-testid="topology-fullscreen"]');
+    expect(fullscreen.attributes('aria-label')).toBe('全屏');
+    // The panel never mounts the overlay itself — it only asks the host.
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    await fullscreen.trigger('click');
+    expect(wrapper.emitted('open-fullscreen')).toHaveLength(1);
+  });
+
+  it('PR-MEMTOP-015: steps the ladder one stop per click and clamps at both ends', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const readout = wrapper.get('[data-testid="topology-zoom-percent"]');
+    const zoomIn = wrapper.get('[data-testid="topology-zoom-in"]');
+    const zoomOut = wrapper.get('[data-testid="topology-zoom-out"]');
+    expect(readout.text()).toBe('100%');
+    // Both ends of the ladder are reachable — and disabled there, not silently no-op.
+    expect(zoomOut.attributes('disabled')).toBeUndefined();
+    await zoomOut.trigger('click');
+    expect(readout.text()).toBe('75%');
+    await zoomOut.trigger('click');
+    expect(readout.text()).toBe('50%');
+    expect(zoomOut.attributes('disabled')).toBeDefined();
+    for (let i = 0; i < ZOOM_STEPS.length; i++) await zoomIn.trigger('click');
+    expect(readout.text()).toBe('400%');
+    expect(zoomIn.attributes('disabled')).toBeDefined();
+  });
+
+  it('PR-MEMTOP-015: 适应窗口 resets the readout and the scroll origin', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    viewport.scrollTop = 120;
+    viewport.scrollLeft = 40;
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('100%');
+    expect(viewport.scrollTop).toBe(0);
+    expect(viewport.scrollLeft).toBe(0);
+  });
+
+  it('PR-MEMTOP-015: each panel instance keeps its own zoom', async () => {
+    const wrapper = mount(TwoPanels, { props: { model } });
+    const bars = wrapper.findAll('[data-testid="topology-zoom-in"]');
+    await bars[0]!.trigger('click');
+    const readouts = wrapper.findAll('[data-testid="topology-zoom-percent"]');
+    expect(readouts[0]!.text()).toBe('125%');
+    expect(readouts[1]!.text()).toBe('100%');
+  });
+
+  it('PR-MEMTOP-013: the diagram sits in a stage of its own, scaled by the zoom', async () => {
+    // The ratio itself is CSS (`aspect-ratio` on the box and the stage, measured in the browser —
+    // see the spec and tests/e2e/topology-zoom-geometry.spec.ts); jsdom has no layout, so what is
+    // checkable here is that the stage is the diagram's own box between the window and the `svg`,
+    // and that the zoom actually reaches it.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]');
+    const viewport = wrapper.get('[data-testid="topology-viewport"]');
+    const stage = viewport.get('.pr-topo__stage');
+    expect(stage.get('svg[role="img"]').attributes('viewBox')).toBe('0 0 448 540');
+    const scale = () => root.attributes('style') ?? '';
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1\.25(;|$)/);
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
+  });
+
+  it('PR-MEMTOP-013: the fit box only scrolls past the fit, so the fitted state has no scrollbar', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const viewport = wrapper.get('[data-testid="topology-viewport"]');
+    // 100% and below: the stage is at most the box, so there is nothing to scroll to.
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
+    await wrapper.get('[data-testid="topology-zoom-out"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('75%');
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
+    // Past the fit the diagram is larger than its box, and panning is the platform's own scroll.
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(viewport.classes()).toContain('pr-topo__viewport--pannable');
+    // 适应窗口 puts it back to the non-scrolling fitted state.
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
+  });
+
+  it('PR-MEMTOP-015: stepping back down to a fitted stop also restores the scroll origin', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    const zoomIn = wrapper.get('[data-testid="topology-zoom-in"]');
+    await zoomIn.trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    // Pan the zoomed diagram, then walk back down to 100% with the ladder — not with 适应窗口.
+    viewport.scrollTop = 120;
+    viewport.scrollLeft = 40;
+    await wrapper.get('[data-testid="topology-zoom-out"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('100%');
+    expect(viewport.scrollTop).toBe(0);
+    expect(viewport.scrollLeft).toBe(0);
   });
 });
 

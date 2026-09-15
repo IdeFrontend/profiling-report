@@ -1387,7 +1387,7 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="csv-tab-PipeUtilization.csv"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-033: 全屏 next to 详情 when topology shown; hidden when diagram hidden', () => {
+  it('PR-STATS-033: header is cannbot + 详情; 全屏 lives in the diagram bar, hidden with it', () => {
     const withTopo = mount(StatsAside, {
       props: {
         report: report({
@@ -1421,12 +1421,20 @@ describe('StatsAside', () => {
       },
     });
     const actions = withTopo.get('[data-testid="stats-topology"] .pr-pipe-head__actions');
-    const fullscreen = withTopo.get('[data-testid="topology-fullscreen"]');
     expect(actions.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
       'cannbot-memory',
-      'topology-fullscreen',
       'topology-details',
     ]);
+    // The bar's 全屏 is the aside's only fullscreen control (MemoryTopologyPanel PR-MEMTOP-014);
+    // it sits inside the panel, after the zoom controls, and only when the aside asks for it.
+    const bar = withTopo.get('[data-testid="topology-controls"]');
+    expect(bar.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
+      'topology-zoom-out',
+      'topology-zoom-in',
+      'topology-zoom-fit',
+      'topology-fullscreen',
+    ]);
+    const fullscreen = bar.get('[data-testid="topology-fullscreen"]');
     expect(fullscreen.find('svg').exists()).toBe(true);
     expect(fullscreen.attributes('aria-label')).toBe('全屏');
 
@@ -1453,6 +1461,8 @@ describe('StatsAside', () => {
       },
     });
     expect(without.find('[data-testid="topology-fullscreen"]').exists()).toBe(false);
+    expect(without.find('[data-testid="topology-controls"]').exists()).toBe(false);
+    expect(without.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
     expect(without.find('[data-testid="topology-details"]').exists()).toBe(true);
   });
 
