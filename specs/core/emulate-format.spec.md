@@ -8,11 +8,11 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 ## Behavior
 
-**Marker.** An emulate leaf MUST embed `EmulateManifest.json` with `profile` equal to `"emulate"` and integer `schemaVersion` ≥ 1 ([PROC-8](../../docs/context/decisions/PROC.md)).
+**Marker.** An emulate leaf MUST embed `manifest.json` that is either (1) thin marker with `profile` equal to `"emulate"` and integer `schemaVersion` ≥ 1, or (2) an export catalog with `objects[]` containing a hub name (`ExecutedInstructions` / `KernelInfo` / `AnalysisState`) ([PROC-8](../../docs/context/decisions/PROC.md)). Legacy `EmulateManifest.json` (thin shape) is accepted.
 
-**Sept 30 required embeds.** In addition to the marker: `PipeTrace.json` (Chrome Trace Event format). At least one of `KernelInfo.csv` or `summary.json` SHOULD be present for thin summary; absence yields timeline-only (null/empty summary cards per DATA-30), not a hard error. `PipesUtilization.csv` / `PipeUtilizationHist.csv` SHOULD be packed when PIPE UI is expected.
+**Sept 30 embeds.** `PipeTrace.json` (Chrome Trace Event format, µs) **SHOULD** be present for timeline; **absence MUST NOT** invalidate the leaf — viewer opens with `swimlaneModel: null` (metrics-only). At least one of `KernelInfo.csv` or `summary.json` SHOULD be present for thin summary; absence yields empty summary cards per DATA-30. `PipesUtilization.csv` / `PipeUtilizationHist.csv` SHOULD be packed when PIPE UI is expected.
 
-**Time unit.** `PipeTrace.json` `ts` / `dur` MUST be in **microseconds** after producer tick→µs conversion ([DATA-46](../../docs/context/decisions/DATA.md)). The viewer MUST NOT treat PipeTrace values as raw ticks.
+**Time unit.** When present, `PipeTrace.json` `ts` / `dur` MUST be in **microseconds** after producer tick→µs conversion ([DATA-46](../../docs/context/decisions/DATA.md)). The viewer MUST NOT treat PipeTrace values as raw ticks.
 
 **No compute remap.** The leaf MUST NOT be required to contain compute-shaped `OpBasicInfo.csv` / `PipeUtilization.csv` / `Memory.csv` for valid open ([DATA-45](../../docs/context/decisions/DATA.md)).
 
@@ -20,16 +20,18 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 ## Acceptance Criteria
 
-1. **PR-SIM-001** — `EmulateManifest.json` with `profile: "emulate"` and `schemaVersion` is required to classify a leaf as emulate.
+1. **PR-SIM-001** — `manifest.json` thin profile+schemaVersion **or** export-catalog hub classifies a leaf as emulate (legacy `EmulateManifest.json` accepted).
 2. **PR-SIM-002** — Leaf with marker + `PipeTrace.json` is a valid emulate pack even without compute metric CSVs.
 3. **PR-SIM-003** — Emulate `PipeTrace.json` is documented/contracted as µs (producer converts ticks); viewer contract matches compute PipeTrace µs rule.
 4. **PR-SIM-004** — Missing KernelInfo/summary does not invalidate the leaf (timeline-only).
+5. **PR-SIM-005** — Missing `PipeTrace.json` does not invalidate the leaf (`swimlaneModel` null).
 
 ## Edge Cases
 
 - Marker present but corrupt JSON → hard error at parse.
 - Marker absent → compute path (not this spec).
-- Empty PipeTrace / no complete events → fail in chromeTraceToSwimlane (same as compute).
+- Present but empty/invalid PipeTrace events → fail in chromeTraceToSwimlane (same as compute).
+- Corrupt PipeTrace JSON → hard error; absent PipeTrace → null swimlane.
 
 ## Dependencies
 
@@ -42,3 +44,4 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 ## Changelog
 - **2026-09-14** — Initial spec (docs pass; tests todo).
 - **2026-09-15** — Rename emulate; Sept 30 PIPE embeds.
+- **2026-09-15** — Marker is `manifest.json` (export catalog or thin profile); PipeTrace optional (PR-SIM-005).

@@ -1,6 +1,6 @@
 # gelu — npu_emulate export sample
 
-Real producer pack from npu_emulate (`0000_gelu_npu_emulated.db`), not the minimal Sept 30 viewer leaf (`emulate-sample`).
+Real producer pack from npu_emulate (`0000_gelu_npu_emulated.db`).
 
 | Item | Value |
 |------|--------|
@@ -19,11 +19,11 @@ python3 data/scripts/unpack_rep.py data/gelu.npu-rep /tmp/gelu-out
 # python3 data/scripts/pack_rep.py data/gelu data/gelu-repacked.npu-rep
 ```
 
-## What this pack is / is not
+## Viewer behavior
 
-**Is:** flat `npu-rep` leaf of contract CSV export + export catalog (`manifest.json`).
+Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/context/decisions/PROC.md)). **No `PipeTrace.json`** → opens with **null swimlane** (empty timeline). KernelInfo / PIPE CSVs were not packed → empty Sept 30 aside. See [docs/formats/emulate/TABLES.md](../docs/formats/emulate/TABLES.md).
 
-**Is not:** viewer Sept 30 leaf. Missing `EmulateManifest.json`, `PipeTrace.json`, and several DB-populated tables that the export packer skipped (e.g. `KernelInfo`, `PipesUtilization`, `AiCoreOccupancy`). See [docs/formats/emulate/TABLES.md](../docs/formats/emulate/TABLES.md) and [FORMAT.md](../docs/formats/emulate/FORMAT.md) §4 / §8.
+Minimal leaf with timeline: [`emulate-sample.npu-rep`](emulate-sample.npu-rep).
 
 ## Packed embeds (35)
 

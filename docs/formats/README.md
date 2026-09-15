@@ -43,7 +43,7 @@ Same container binary; **different embed sets** ([PROC-7](../context/decisions/P
 | Profile | Producer | Leaf contents (summary) | Adapter |
 | --- | --- | --- | --- |
 | `compute` | npu-compute | `OpBasicInfo.csv`, `PipeUtilization.csv`, `Memory*.csv`, `PipeTrace.json` / `trace.json`, … | Hardware path in [ADAPTERS.md](ADAPTERS.md) (today `adaptPayloads`) |
-| `emulate` | npu_emulate | Viewer leaf: `EmulateManifest.json` + `PipeTrace.json` + KernelInfo/summary (+ contract CSVs). Raw CSV export packs (e.g. [`data/gelu.npu-rep`](../../data/gelu.npu-rep)) use `manifest.json` + populated CSVs only — **not** auto-detected as emulate until `EmulateManifest.json` is present | `adaptEmulate` — see [emulate/FORMAT.md](emulate/FORMAT.md), [emulate/TABLES.md](emulate/TABLES.md) |
+| `emulate` | npu_emulate | `manifest.json` (thin profile or export catalog) + optional `PipeTrace.json` + KernelInfo/summary (+ contract CSVs). Raw packs like [`data/gelu.npu-rep`](../../data/gelu.npu-rep) open with null swimlane when Trace absent | `adaptEmulate` — see [emulate/FORMAT.md](emulate/FORMAT.md), [emulate/TABLES.md](emulate/TABLES.md) |
 
 **No silent remap** ([DATA-45](../context/decisions/DATA.md)): do not invent compute-shaped metric CSVs from emulate tables. Map each profile into shared `SwimlaneModel` + `ReportViewModel` + `capabilities[]`.
 
@@ -51,7 +51,7 @@ Same container binary; **different embed sets** ([PROC-7](../context/decisions/P
 
 | Signal | Rule |
 | --- | --- |
-| Emulate marker | Leaf embeds **`EmulateManifest.json`** with `"profile": "emulate"` → **emulate** ([PROC-8](../context/decisions/PROC.md)) |
+| Emulate marker | Leaf embeds **`manifest.json`** (thin `profile: "emulate"` **or** export catalog with hub objects) → **emulate** ([PROC-8](../context/decisions/PROC.md)). Legacy `EmulateManifest.json` accepted |
 | Otherwise | Treat as **compute** (or Chrome Trace–only if no metric pack) |
 | Head `origin` | Product 160-byte layout uses `origin = 1` (profile) for both until Product assigns a dedicated emulate origin (open [PROC-9](../context/questions/PROC.md)). Parser today rejects `origin ≠ 1`. |
 

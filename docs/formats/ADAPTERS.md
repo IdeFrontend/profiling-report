@@ -12,7 +12,7 @@ Container / profiles: [README.md](README.md). Compute schemas: [compute/FORMAT.m
 bytes
   → parse container (npu-rep / cann-rep / standalone CTEF)
   → leaf payloads (name → Uint8Array)
-  → if EmulateManifest.json with profile=="emulate"
+  → if manifest.json (emulate profile or export catalog)
         → adaptEmulate(payloads)
      else
         → adaptCompute(payloads)   // adaptPayloads
@@ -22,7 +22,7 @@ bytes
 | Signal | Profile | Entry |
 |--------|---------|--------|
 | Standalone Chrome Trace `.json` | (trace-only) | `adaptChromeTrace` — empty report model ([PROC-3](../context/decisions/PROC.md)) |
-| Leaf has `EmulateManifest.json` | `emulate` | `adaptEmulate` ([PROC-8](../context/decisions/PROC.md)) |
+| Leaf has emulate `manifest.json` | `emulate` | `adaptEmulate` ([PROC-8](../context/decisions/PROC.md)) |
 | Otherwise | `compute` | `adaptPayloads` / `adaptCompute` |
 
 Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisions/DATA.md)).
@@ -33,7 +33,7 @@ Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisio
 
 | Capability / surface | View packet | Compute | Emulate Sept 30 |
 |----------------------|-------------|---------|-----------------|
-| Timeline | [timeline](../views/timeline.md) | PipeTrace / trace | PipeTrace (µs) **in** |
+| Timeline | [timeline](../views/timeline.md) | PipeTrace / trace | PipeTrace (µs) when present; else null swimlane |
 | Summary cards | [report-summary](../views/report-summary.md) | OpBasicInfo + Summary.jsonl | KernelInfo/summary **in** (thin) |
 | PIPE bars | [pipe-occupancy](../views/pipe-occupancy.md) | PipeUtilization | PipesUtilization / hist **in** |
 | Overview | [overview-charts](../views/overview-charts.md) | Sampling.json | **hide** (gap) |
@@ -50,4 +50,4 @@ Fill tables live in the view packets — do not duplicate them here.
 
 - Code: `loadReportSource` → `isEmulateLeaf` ? `adaptEmulate` : `adaptPayloads`. `parseNpuRep160` requires `origin === 1`.
 - Sample emulate leaf: `data/emulate-sample.npu-rep`.
-- Packer (npu_emulate): emit `EmulateManifest.json`; convert ticks → µs for PipeTrace ([DATA-46](../context/decisions/DATA.md)).
+- Packer (npu_emulate): emit `manifest.json`; convert ticks → µs for PipeTrace ([DATA-46](../context/decisions/DATA.md)).

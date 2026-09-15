@@ -22,8 +22,7 @@ Contract + leaf pack: [FORMAT.md](FORMAT.md). Sample files: [`data/gelu.npu-rep`
 | Leaf embeds | `manifest.json` + **34** CSVs (only non-empty objects the packer included) |
 | Export catalog | `manifest.json` — `{ database, exported_at, total_*, objects[] }` with per-object `name`, `type`, `row_count`, `columns`, `file` |
 
-**Not the viewer marker.** `manifest.json` is the CSV-export inventory. Viewer profile detection still requires **`EmulateManifest.json`** (`profile: "emulate"`) per [PROC-8](../../context/decisions/PROC.md) — see [FORMAT.md](FORMAT.md) §4.3 / §8. gelu has **no** `EmulateManifest.json` and **no** `PipeTrace.json`.
-
+**Not a separate marker.** `manifest.json` **is** the emulate detection signal ([PROC-8](../../context/decisions/PROC.md)): export catalog shape (`objects[]` with hub tables) or thin `{ profile: "emulate", schemaVersion }`. gelu has **no** `PipeTrace.json` → null swimlane when opened.
 ---
 
 ## 1. Packed embeds in `gelu.npu-rep` (34 CSVs)
