@@ -52,7 +52,7 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | `adaptCompute` / `adaptPayloads` | Prefers PipeTrace over trace |
-| emulate | `adaptEmulate` | Requires `EmulateManifest.json` + PipeTrace |
+| emulate | `adaptEmulate` | Requires `manifest.json`; PipeTrace optional (absent → null swimlane) |
 | CTEF-only | `adaptChromeTrace` | Empty report model ([PROC-3](../context/decisions/PROC.md)) |
 
 ## Related

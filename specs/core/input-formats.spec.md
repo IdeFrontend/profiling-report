@@ -12,7 +12,7 @@ Classic `cann-rep` fixture details remain in [rep-format](./rep-format.spec.md).
 
 **Container metadata per embedded file.** Each FileInfo carries: name (basename), type, length, absolute offset (product 160-byte or interim 164-byte layout per [npu-rep](./npu-rep.spec.md)).
 
-**Profiles.** A leaf is `compute` or `emulate`. Emulate leaves MUST include `EmulateManifest.json` with `"profile": "emulate"` ([PROC-8](../../docs/context/decisions/PROC.md)). Otherwise treat as compute (or CTEF-only).
+**Profiles.** A leaf is `compute` or `emulate`. Emulate leaves MUST include `manifest.json` that is either a thin marker with `"profile": "emulate"` or an export catalog with hub objects ([PROC-8](../../docs/context/decisions/PROC.md)). Otherwise treat as compute (or CTEF-only).
 
 **No compute CSV schemas here.** Compute `block_id` / `aic_*` / `aiv_*` / `NA` conventions and file→UI mapping are specified under [compute/FORMAT](../../docs/formats/compute/FORMAT.md) / [view-models](./view-models.spec.md) / [views/](../../docs/views/) / [METRICS_AND_TRACE](../../docs/formats/compute/METRICS_AND_TRACE.md) — not in this hub spec.
 

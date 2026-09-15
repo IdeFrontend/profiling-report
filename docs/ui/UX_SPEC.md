@@ -146,7 +146,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | | |
 |--|--|
 | **Goal** | Open an npu_emulate report with the same host path as compute |
-| **Trigger** | User selects `report_*.npu-rep` packed by emulate (contains `EmulateManifest.json`) |
+| **Trigger** | User selects `report_*.npu-rep` packed by emulate (contains emulate `manifest.json`) |
 | **Steps** | Host opens `.npu-rep` → library detects emulate profile ([PROC-8](../context/decisions/PROC.md)) → Timeline from `PipeTrace.json`; thin summary when KernelInfo/summary map; PIPE when PipesUtilization/hist packed; memory topology / roofline / overview / hardwareDetails **hidden** (gaps — [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)) |
 | **Success** | Swimlane usable; PIPE when util CSVs present; no hard error for missing compute CSVs; no invented OpBasicInfo/PipeUtilization ([DATA-40](../context/decisions/DATA.md)) |
 | **Sketches** | Same Timeline chrome as S1; emulate surfaces per [VIEW_DATA_MAPPING § Emulate](VIEW_DATA_MAPPING.md) |

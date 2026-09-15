@@ -3,6 +3,8 @@
  * @see specs/core/emulate-format.spec.md
  * @see specs/core/adapt-emulate.spec.md
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   adaptEmulate,
@@ -33,29 +35,64 @@ function emulateManifest(): string {
   return JSON.stringify({ profile: 'emulate', schemaVersion: 1, producer: 'npu_emulate' });
 }
 
+function exportCatalogManifest(): string {
+  return JSON.stringify({
+    database: '/tmp/npu_emulate/demo.db',
+    exported_at: '2026-09-15T00:00:00+00:00',
+    total_objects: 3,
+    total_tables: 2,
+    total_views: 1,
+    total_rows: 10,
+    objects: [
+      { name: 'AnalysisState', type: 'table', row_count: 1, columns: [], file: 'AnalysisState.csv' },
+      {
+        name: 'ExecutedInstructions',
+        type: 'table',
+        row_count: 5,
+        columns: [],
+        file: 'ExecutedInstructions.csv',
+      },
+    ],
+  });
+}
+
 function packEmulateLeaf(
   extra: { name: string; type: number; data: Uint8Array }[] = [],
 ): Uint8Array {
   return packNpuRep160([
-    { name: 'EmulateManifest.json', type: NPU160_TYPE_JSON, data: enc.encode(emulateManifest()) },
+    { name: 'manifest.json', type: NPU160_TYPE_JSON, data: enc.encode(emulateManifest()) },
     { name: 'PipeTrace.json', type: NPU160_TYPE_JSON, data: enc.encode(minimalTraceUs()) },
     ...extra,
   ]);
 }
 
 describe('emulate-format (PR-SIM-*)', () => {
-  it('PR-SIM-001: EmulateManifest.json profile+schemaVersion required for emulate leaf', () => {
-    const payloads = {
-      'EmulateManifest.json': enc.encode(emulateManifest()),
-      'PipeTrace.json': enc.encode(minimalTraceUs()),
-    };
-    expect(isEmulateLeaf(payloads)).toBe(true);
+  it('PR-SIM-001: manifest.json thin profile or export catalog classifies emulate leaf', () => {
     expect(
       isEmulateLeaf({
-        'EmulateManifest.json': enc.encode(JSON.stringify({ profile: 'compute', schemaVersion: 1 })),
+        'manifest.json': enc.encode(emulateManifest()),
+        'PipeTrace.json': enc.encode(minimalTraceUs()),
+      }),
+    ).toBe(true);
+    expect(isEmulateLeaf({ 'manifest.json': enc.encode(exportCatalogManifest()) })).toBe(true);
+    expect(
+      isEmulateLeaf({
+        'EmulateManifest.json': enc.encode(emulateManifest()),
+      }),
+    ).toBe(true);
+    expect(
+      isEmulateLeaf({
+        'manifest.json': enc.encode(JSON.stringify({ profile: 'compute', schemaVersion: 1 })),
       }),
     ).toBe(false);
     expect(isEmulateLeaf({ 'PipeTrace.json': enc.encode(minimalTraceUs()) })).toBe(false);
+    expect(
+      isEmulateLeaf({
+        'manifest.json': enc.encode(
+          JSON.stringify({ objects: [{ name: 'Unrelated', type: 'table', row_count: 1 }] }),
+        ),
+      }),
+    ).toBe(false);
   });
 
   it('PR-SIM-002: marker + PipeTrace.json valid without compute metric CSVs', () => {
@@ -68,7 +105,7 @@ describe('emulate-format (PR-SIM-*)', () => {
 
   it('PR-SIM-003: PipeTrace.json contracted as µs (tick conversion is producer-side)', () => {
     const adapted = adaptEmulate({
-      'EmulateManifest.json': enc.encode(emulateManifest()),
+      'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(minimalTraceUs()),
     });
     // 100 µs → 100_000 ns
@@ -80,12 +117,20 @@ describe('emulate-format (PR-SIM-*)', () => {
     const adapted = loadReportSource(packEmulateLeaf());
     expect(adapted.reportModel.summary).toEqual({});
   });
+
+  it('PR-SIM-005: missing PipeTrace → open with null swimlane (no throw)', () => {
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(exportCatalogManifest()),
+    });
+    expect(adapted.swimlaneModel).toBeNull();
+    expect(adapted.reportModel.pipeOccupancy).toEqual([]);
+  });
 });
 
 describe('adapt-emulate (PR-ASIM-*)', () => {
   it('PR-ASIM-001: adaptEmulate builds swimlane from PipeTrace.json (µs)', () => {
     const adapted = adaptEmulate({
-      'EmulateManifest.json': enc.encode(emulateManifest()),
+      'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(minimalTraceUs()),
     });
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
@@ -93,13 +138,13 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
 
   it('PR-ASIM-002: no pipeOccupancy without util embeds; PipesUtilization fills bars', () => {
     const empty = adaptEmulate({
-      'EmulateManifest.json': enc.encode(emulateManifest()),
+      'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(minimalTraceUs()),
     });
     expect(empty.reportModel.pipeOccupancy).toEqual([]);
 
     const withPipes = adaptEmulate({
-      'EmulateManifest.json': enc.encode(emulateManifest()),
+      'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(minimalTraceUs()),
       'PipesUtilization.csv': enc.encode(
         'CoreId,CoreTypeId,InstrQueueTypeId,PipeUtilization\n0,AIC,Cube,0.5\n0,AIC,MTE2,0.25\n',
@@ -110,15 +155,17 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       true,
     );
     // No invented compute PipeUtilization.csv
-    expect(Object.keys(withPipes.reportModel.csvTexts).some((k) => /PipeUtilization\.csv$/i.test(k) && !/Pipes|Hist/i.test(k))).toBe(
-      false,
-    );
+    expect(
+      Object.keys(withPipes.reportModel.csvTexts).some(
+        (k) => /PipeUtilization\.csv$/i.test(k) && !/Pipes|Hist/i.test(k),
+      ),
+    ).toBe(false);
   });
 
   it('PR-ASIM-003: missing KernelInfo/summary does not throw', () => {
     expect(() =>
       adaptEmulate({
-        'EmulateManifest.json': enc.encode(emulateManifest()),
+        'manifest.json': enc.encode(emulateManifest()),
         'PipeTrace.json': enc.encode(minimalTraceUs()),
       }),
     ).not.toThrow();
@@ -126,7 +173,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
 
   it('PR-ASIM-004: does not invent compute-shaped metric CSVs', () => {
     const adapted = adaptEmulate({
-      'EmulateManifest.json': enc.encode(emulateManifest()),
+      'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(minimalTraceUs()),
     });
     expect(adapted.reportModel.memoryTopology).toBeUndefined();
@@ -142,17 +189,31 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       taskDurationUs: 12.5,
     });
     const adapted = adaptEmulate({
-      'EmulateManifest.json': enc.encode(emulateManifest()),
+      'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(minimalTraceUs()),
       'KernelInfo.csv': enc.encode(csv),
     });
     expect(adapted.reportModel.summary.opName).toBe('my_kernel');
     expect(adapted.reportModel.summary.taskDurationUs).toBe(12.5);
   });
+
+  it('PR-ASIM-006: corrupt PipeTrace throws; absent PipeTrace does not', () => {
+    expect(() =>
+      adaptEmulate({
+        'manifest.json': enc.encode(emulateManifest()),
+        'PipeTrace.json': enc.encode('{not-json'),
+      }),
+    ).toThrow(/PipeTrace\.json is not valid JSON/);
+    expect(() =>
+      adaptEmulate({
+        'manifest.json': enc.encode(emulateManifest()),
+      }),
+    ).not.toThrow();
+  });
 });
 
 describe('npu-rep / loadReportSource profile routing', () => {
-  it('PR-NPU-012: EmulateManifest.json leaf classified as emulate; compute CSVs not required', () => {
+  it('PR-NPU-012: manifest.json leaf classified as emulate; compute CSVs not required', () => {
     const adapted = loadReportSource(packEmulateLeaf());
     expect(adapted.swimlaneModel).not.toBeNull();
     expect(adapted.reportModel.summary).toEqual({});
@@ -171,6 +232,16 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.summary.opName).toBe('routed');
     // Would not come from compute OpBasicInfo path
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
+  });
+
+  it('gelu.npu-rep opens as emulate with null swimlane', () => {
+    const bytes = new Uint8Array(
+      readFileSync(resolve(__dirname, '../../data/gelu.npu-rep')),
+    );
+    const adapted = loadReportSource(bytes);
+    expect(adapted.swimlaneModel).toBeNull();
+    expect(adapted.reportModel.memoryTopology).toBeUndefined();
+    expect(adapted.reportModel.roofline).toBeUndefined();
   });
 });
 

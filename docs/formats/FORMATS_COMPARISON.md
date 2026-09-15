@@ -39,7 +39,7 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 | **Conflicts / stalls** | UB conflicts; wait cycles | `ResourceConflictRatio.csv` | UB bank / SIMD stall tables when populated | Event args / PMU |
 | **Host / NPU inventory** | May appear in chrome | `HardwareInfo.jsonl` when present | Usually absent | Not typical |
 | **Counters / overview** | Optional MTE-style | `Sampling.json` `ph:C` ([DATA-39](../context/decisions/DATA.md)) | Optional later (e.g. UnitUtilization → counters) | `ph:C` lanes |
-| **Detection / open path** | `.bin` → Insight | `.npu-rep` leaf without sim marker | `.npu-rep` leaf + `EmulateManifest.json` ([PROC-8](../context/decisions/PROC.md)) | Swimlane JSON / CTEF / … |
+| **Detection / open path** | `.bin` → Insight | `.npu-rep` leaf without sim marker | `.npu-rep` leaf + `manifest.json` ([PROC-8](../context/decisions/PROC.md)) | Swimlane JSON / CTEF / … |
 | **Adapter** | Insight server | Hardware `adaptPayloads` | `adaptEmulate` | Host / future adapter |
 | **Primary product question** | “What did this kernel do on the pipes, and how does it map to source?” | “Portable OP report: summary + swimlane.” | “Cycle-accurate sim: timeline first; biprof-like deep panels Phase 2.” | “How did tasks schedule across cores?” |
 
@@ -85,7 +85,7 @@ Performance results tree file click
 
 | Axis | Insight | Hardware `.npu-rep` | Simulator `.npu-rep` | PyPTO |
 |------|---------|---------------------|----------------------|-------|
-| On-disk trigger | `.bin` | `.npu-rep` | `.npu-rep` + `EmulateManifest.json` | Swimlane JSON / CTEF / … |
+| On-disk trigger | `.bin` | `.npu-rep` | `.npu-rep` + `manifest.json` | Swimlane JSON / CTEF / … |
 | Who interprets | Insight + `profiler_server` | This library | This library | pypto host |
 | Kept in MSTT? | Yes for `.bin` | Primary OP report path | Same extension | UX reference |
 

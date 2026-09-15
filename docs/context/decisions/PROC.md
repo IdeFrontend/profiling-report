@@ -60,7 +60,7 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-14
 - **Question:** Are compute and emulate payloads the same embed set inside `.npu-rep`?
-- **Decision:** No. Two **payload profiles** share the container binary: `compute` (npu-compute OpBasicInfo / PipeUtilization / Memory* / PipeTrace…) and `emulate` (npu_emulate contract CSVs / Chrome Trace / summary + `EmulateManifest.json`). Different adapters fill the same view-models.
+- **Decision:** No. Two **payload profiles** share the container binary: `compute` (npu-compute OpBasicInfo / PipeUtilization / Memory* / PipeTrace…) and `emulate` (npu_emulate contract CSVs / Chrome Trace / summary + `manifest.json`). Different adapters fill the same view-models.
 - **Specs:** [INPUT_FORMATS](../../formats/README.md), [compute/FORMAT](../../formats/compute/FORMAT.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md)
 - **Source:** Engineering + product emulate §11.2.3 (simulator CSV names, not hardware schemas)
 
@@ -68,8 +68,8 @@ Format and statuses: [README.md](README.md).
 
 ## PROC-8
 
-- **Resolved:** 2026-09-14
+- **Resolved:** 2026-09-14 (amended 2026-09-15)
 - **Question:** How does the viewer detect a emulate leaf vs a compute leaf?
-- **Decision:** Require embed **`EmulateManifest.json`** with `"profile": "emulate"` (and `schemaVersion`). Absence → compute (or CTEF-only). Head `origin` remains **`1`** until Product defines a dedicated emulate origin ([PROC-9](../questions/PROC.md)).
+- **Decision:** Require embed **`manifest.json`** that is either (1) a thin marker with `"profile": "emulate"` and integer `schemaVersion`, or (2) an npu_emulate **CSV export catalog** (`objects[]` including a hub name among `ExecutedInstructions` / `KernelInfo` / `AnalysisState`). Legacy **`EmulateManifest.json`** with the thin-marker shape remains accepted. Absence → compute (or CTEF-only). Head `origin` remains **`1`** until Product defines a dedicated emulate origin ([PROC-9](../questions/PROC.md)).
 - **Specs:** [INPUT_FORMATS](../../formats/README.md) §2.1, [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [load-report-source](../../../specs/core/load-report-source.spec.md)
-- **Source:** Engineering default for dual-profile detection without parser origin change
+- **Source:** Engineering default for dual-profile detection without parser origin change; 2026-09-15 Product direction — detect producer `manifest.json` (gelu export catalog)
