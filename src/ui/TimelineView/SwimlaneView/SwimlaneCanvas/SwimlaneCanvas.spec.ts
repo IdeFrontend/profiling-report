@@ -2872,4 +2872,27 @@ describe('SwimlaneCanvas', () => {
     });
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-103: collapsedIds before attach still setModels the live backend', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: eventModel,
+        preferRenderer: 'canvas' as const,
+        collapsedIds: [],
+      },
+      attachTo: document.body,
+    });
+    // Parent onMounted sets defaultCollapsedIds before this canvas's await-nextTick attach.
+    await wrapper.setProps({ collapsedIds: ['p-1'] });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    await fireAllDeviceRo();
+    const vm = wrapper.vm as {
+      renderer: () => { getLayout: () => { events: { id: string }[] } };
+    };
+    expect(vm.renderer().getLayout().events.some((e) => e.id === 'e1')).toBe(true);
+    wrapper.unmount();
+  });
 });
