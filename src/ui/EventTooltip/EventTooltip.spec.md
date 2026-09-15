@@ -43,6 +43,8 @@ Crops: [`visual/tooltip.png`](./visual/tooltip.png), [`visual/tooltip-context.pn
 
 [format-time](../../../specs/core/format-time.spec.md).
 
+**Data SSOT:** [docs/views/timeline.md](../../../docs/views/timeline.md) (tooltip/detail).
+
 **Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
 
 ## Changelog

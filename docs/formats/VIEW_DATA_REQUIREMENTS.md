@@ -1,67 +1,33 @@
 # View and Chart Data Requirements
 
-Normative **required vs optional inputs** for each Timeline surface. Missing optional data → **hide** that panel/region (not hard error). See [decisions](../context/decisions/) (DATA-30).
+**Moved to per-view packets.** Catalog and SSOT rules: [`../views/README.md`](../views/README.md). Template: [`../views/_template.md`](../views/_template.md).
 
-**Entity layer:** Required/Optional columns are **adapted** view-model fields (`SwimlaneModel`, `ReportViewModel`, `capabilities`). Source embeds are **provenance** (“Filled by”) — see [ADAPTERS.md](ADAPTERS.md). Do not fork hide rules into compute-CSV vs emulate-CSV matrices.
+Extracted surfaces (sketches + VM + compute/emulate fill):
 
-**MVP coding defaults:** [decisions/interim/](../context/decisions/interim/) — Interim ≠ Product-final.
+| Id | Packet |
+|----|--------|
+| `timeline` | [../views/timeline.md](../views/timeline.md) |
+| `report-summary` | [../views/report-summary.md](../views/report-summary.md) |
+| `pipe-occupancy` | [../views/pipe-occupancy.md](../views/pipe-occupancy.md) |
+| `overview-charts` | [../views/overview-charts.md](../views/overview-charts.md) |
+| `roofline` | [../views/roofline.md](../views/roofline.md) |
+| `memory-topology` | [../views/memory-topology.md](../views/memory-topology.md) |
 
-**Related:** [INPUT_FORMATS.md](INPUT_FORMATS.md) · [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md) · [emulate/FORMAT.md](emulate/FORMAT.md) · [ADAPTERS.md](ADAPTERS.md) · [COMPONENTS.md](../architecture/COMPONENTS.md) · [UX_SPEC.md](../ui/UX_SPEC.md) · [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
+**Still on this page until a second extract pass** (same hide policy [DATA-30](../context/decisions/DATA.md)): time axis, lane gutter, swimlane canvas, event tooltip/detail strip, compute/memory CSV tabs, hardware details, measure mode, secondary tabs — see historical sections below or [views README stubs](../views/README.md).
 
-**Legend**
-
-| Tag | Meaning |
-|-----|---------|
-| **Required** | Without this, the parent view cannot render usefully (or the surface is hidden) |
-| **Optional** | Surface shown only when present; otherwise hide |
-| **Deferred** | Formula or producer field not yet specified — hide or show placeholders only when Product unblocks |
-
----
-
-## Profile fill (compute vs emulate)
-
-Unification status: `same-path` (shared adapter path) · `adapt-mapper` (profile-specific → shared VM) · `gap` (no clean map yet) · `out-of-scope` (new surface / post–Sept 30).
-
-| Adapted field / panel | Compute source | Emulate source | Status | Sept 30 | Blockers |
-|-----------------------|----------------|----------------|--------|---------|----------|
-| `SwimlaneModel` (Timeline) | `PipeTrace.json` / `trace.json` / CTEF | `PipeTrace.json` (µs) | `same-path` (`chromeTraceToSwimlane`) | **in** | Packer tick→µs ([DATA-41](../context/decisions/DATA.md)) |
-| `summary.*` | `OpBasicInfo` + `Summary.jsonl` | `KernelInfo.csv` / `summary.json` | `adapt-mapper` | **in** (thin) | [DATA-42](../context/questions/DATA.md); interim [DATA-42a](decisions/interim/DATA.md) |
-| Gutter util | `PipeUtilization` → lane `utilization` | same VM when `pipeOccupancy` filled | `adapt-mapper` | **in** with PIPE | Column map quality |
-| `pipeOccupancy` / PIPE CSV tab | `PipeUtilization.csv` | `PipesUtilization.csv` / `PipeUtilizationHist.csv` | `adapt-mapper` | **in** | Schema ≠ compute ratios; no invent `PipeUtilization.csv` ([DATA-40](../context/decisions/DATA.md)) |
-| Other compute CSV tabs | Arithmetic / ResourceConflict | none typical | `gap` | **hide** | No emulate contract |
-| `overviewSeries` | `Sampling.json` `ph:C` | none unless packed | `gap` | **hide** | Need counters pack |
-| Memory CSV tabs | `Memory*.csv` / L2Cache | none for topology grain | `gap` | **hide** | — |
-| `memoryTopology` / `memoryDiagram` | Memory* aggregate BW | not `MemoryRWAccesses` (heatmap) | `gap` | **hide** | Needs ArchDiagramMetrics→slot map or compute Memory* |
-| `roofline` | Arithmetic + Memory | ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF | `gap` | **hide** | New mapper; DATA-37; ELF |
-| `hardwareDetails` | HardwareInfo / OpBasicInfo | usually none | `gap` | **hide** | — |
-| `archDiagram` | — | ArchDiagramMetrics | `out-of-scope` | **hide** | New panel |
-| `memoryHeatmap` | — | MemoryRWAccesses | `out-of-scope` | **hide** | New panel |
-| `vfIpc` / `callStacks` | — | VfIPC* / Call* (ELF) | `out-of-scope` | **hide** | New panels / ELF |
+Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). Docx/sketch index: [`../ui/VIEW_DATA_MAPPING.md`](../ui/VIEW_DATA_MAPPING.md).
 
 ---
 
 ## Global open policy (DATA-30)
 
-1. Open Timeline with **minimal** data: at least a usable `SwimlaneModel` (typically from `PipeTrace.json` / `trace.json` or a standalone Chrome Trace `.json`).
-2. Each panel/chart independently: if its inputs are missing → **hide** that UI (no empty chrome, no hard error for optional analytics).
-3. Hard error only when the **source cannot be parsed at all** (corrupt container / invalid JSON).
+1. Open Timeline with **minimal** data: usable `SwimlaneModel` (typically from `PipeTrace.json` / `trace.json` or standalone Chrome Trace `.json`).
+2. Each panel independently: missing inputs → **hide** (no empty chrome; no hard error for optional analytics).
+3. Hard error only when the **source cannot be parsed**.
 
 ---
 
-## Surfaces
-
-### 1. Timeline shell (`ProfilingReport` / Timeline tab)
-
-| Input | Source | Requirement |
-|-------|--------|-------------|
-| Report bytes or prebuilt models | Host / adapter | **Required** to mount |
-| `SwimlaneModel` (`processes`, `minTime`, `maxTime`) | Adapted from Chrome Trace (hardware or simulator leaf, or standalone `.json`) | **Required** for Timeline |
-| `ReportViewModel` | Adapted from profile embeds via hardware or simulator adapter | **Optional** — Timeline works without aside analytics |
-| `capabilities` | Host / adapter | **Optional** — gates P2 / simulator-native surfaces |
-
-**Minimum to open Timeline:** parseable Chrome Trace → non-empty time range (lanes may be thin).
-
----
+## Surfaces (legacy — pending extract)
 
 ### 2. Time axis + playhead (`TimeAxis`)
 
@@ -69,191 +35,63 @@ Unification status: `same-path` (shared adapter path) · `adapt-mapper` (profile
 |-------|-------------|
 | `SwimlaneModel.minTime` / `maxTime` (ns) | **Required** |
 | `SwimlaneViewState` visible window | **Required** (defaults to full range) |
-| Display unit preference | **Optional** — `TimeDisplayMode` (`'time'` auto-scale / `'cycles'` derived CPU clocks), gated on OpBasicInfo freq when hardware pack provides it ([UI-40](../context/decisions/UI.md), [UI-45](../context/decisions/UI.md)); simulator Phase 1 may omit cycles mode |
-
----
-### 3. Cube / Vector overview charts (`OverviewCharts`)
-
-| Input | Requirement |
-|-------|-------------|
-| `ReportViewModel.overviewSeries[]` (`OverviewSeries` with `{ t, v }[]`) | **Required to show** |
-
-**Product decision (DATA-32):** If no `OverviewSeries` → **hide** the chart region entirely. Do **not** invent series from `PipeUtilization` ratios.
-
-**Producer ([DATA-39](../context/decisions/DATA.md)):** Fill `overviewSeries` from product `Sampling.json` Chrome Trace `ph:"C"` counters — **one track per distinct counter `name` present**, `id`/`label` = `name`, `points[{t,v}]` from `ts` (µs→canonical ns) and `args.value`. Empty when Sampling absent or no counters.
-
----
+| Display unit preference | **Optional** — `TimeDisplayMode`; emulate may omit cycles mode |
 
 ### 4. Lane gutter (`LaneGutter`)
 
 | Input | Requirement |
 |-------|-------------|
-| `SwimProcess` / `SwimThread` names | **Required** (from trace metadata / events / synthetic model) |
-| Hierarchy Card → 通信/计算/储存HBM → `CoreN.*` → pipes | **Producer- or stress-defined nodes** (DATA-35: no viewer heuristics inventing Card/Core from flat AIV names). Nested `SwimThread.children` when present; flat CTEF remains valid |
-| Gutter metric selection (per Card) | **Optional** — Card-header dropdown when modes available ([gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md)); default **利用率** when available, else **时钟周期** when mappable `PipeUtilization.csv` `*_time(us)` means exist. clockCycle quantity = µs (not cycle counts) |
-| `SwimThread.utilization` or computed **bar** | **Optional** — omit mini-bars when absent; folders and leaves may both carry bars. **bar** shape: `{ barWidth, label, thresholdColor? }` per active metric |
-**Target fidelity (DATA-31):** Product aims at sketch Card → Core → pipe Gantt. **Interim fixture ([DATA-31a](../context/decisions/interim/DATA.md)):** CI uses `data/out.rep` (flat AIV); playground stress presets emit nested Card tree for sketch fidelity. Do not fail MVP acceptance on `out.rep` pixel-parity.
-
----
+| `SwimProcess` / `SwimThread` names | **Required** |
+| Hierarchy Card → … → pipes | Producer- or stress-defined ([DATA-35](../context/decisions/DATA.md)) |
+| Gutter metric / bars | **Optional** — see [gutter-metrics.spec.md](../../specs/core/gutter-metrics.spec.md) |
 
 ### 5. Swimlane canvas (`SwimlaneCanvas` / events)
 
 | Input | Requirement |
 |-------|-------------|
-| `SwimEvent` (`id`, `name`, `startTime`, `duration`) | **Required** (empty trace → empty lanes, still valid) |
-| `args` / category for color | **Optional** — fallback palette if missing |
-| `dependencies` | **Optional** — P2 links only when present (DATA-36 still open) |
-| ProfilerStep bands | **Optional** — P2 / when data exists |
-
----
+| `SwimEvent` | **Required** (empty trace → empty lanes) |
+| `dependencies` | **Optional** — P2 |
 
 ### 6. Event tooltip + detail strip
 
 | Input | Requirement |
 |-------|-------------|
-| Hovered/selected `SwimEvent` name + timing | **Required** for tooltip/detail |
-| Time unit for display | **Configurable** ([UI-40](../context/decisions/UI.md) / [UI-45](../context/decisions/UI.md)) |
+| Hovered/selected event name + timing | **Required** for tooltip |
 | Source paths / PC / dep mini-graph | **Optional** — P2 |
 
----
-
-### 7. Report summary (`StatsSummaryPanel`)
-
-| Metric (sketch) | Likely embeds | Requirement |
-|-----------------|---------------|-------------|
-| Op name / type / task duration | `OpBasicInfo.csv` | Duration card when `taskDurationUs` present — **field confirmed** `Task Duration(us)`. Bar/secondary per DATA-33e (DATA-1, UI-32). Op type is not a separate card. `opName` / `blockDim` feed duration secondary; `coreCount` from `HardwareInfo.jsonl` |
-| Current / rated frequency (raw) | `OpBasicInfo.csv` | Parsed onto `currentFreq` / `ratedFreq`. **Not on the aside shell** (v930 header has no freq). Shown in the hardware overlay when OpBasicInfo is the fallback |
-| Compute (e.g. 172/320 TFLOPS) | `ArithmeticUtilization.csv` + `HardwareInfo.jsonl` peaks | **DATA-33h** (DATA-2..4, UI-33): `computeCard` with Cube/Vector (aic/aiv) sides when both measured and peak exist; else title + `N/A` when duration present — [DATA-33a](../context/decisions/interim/DATA.md) |
-| Bandwidth utilization tile | `Memory.csv` / `summary.jsonl` Memory + `aicore_gm_bw_theoretical(GB/s)` | Sketch **带宽利用率** **读 \| 写**. Display **GB/s** (UI-34). Peak SOL **1600 GB/s** ([DATA-5](../context/decisions/DATA.md)–[DATA-7](../context/decisions/DATA.md)); aic/aiv → 读/写 mean until Product defines aggregation |
-| AICore parallel util | `summary.jsonl` `OpInfoSummary` `aicore_parallel_utilization` / `aicore_parallel_balance` | **DATA-9 / DATA-10:** dual **并行使用率** \| **负载均衡度** `%` columns; title + `N/A` when duration present but both absent; omit when BW-only |
-| Hardware one-liner (进程 / 算子类型 / Blocks) | `OpBasicInfo.csv` | **进程** ← `Pid` / `PID`; **算子类型** ← `Op Type`; **Blocks** ← `Block Dim`. Hide a segment when unset; hide the row if all empty. Never invent 核数 / NPU ARCH / aic频率 on this row |
-| Hardware details panel | `HardwareInfo.jsonl` or OpBasicInfo | **Source confirmed:** jsonl categories; OpBasicInfo fallback when jsonl absent; 更多 opens it |
-
-If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card group (PIPE may still show). Meta row is independent of summary cards (may show pid / type / blocks without cards).
-
----
-
-### 8. PIPE occupancy bars (`PipeOccupancyPanel`)
+### 9. Compute-load detail tabs — M1
 
 | Input | Requirement |
 |-------|-------------|
-| `PipeOccupancyItem[]` from `PipeUtilization.csv` | **Required to show** panel |
-| Aggregation | **Interim ([DATA-33b](../context/decisions/interim/DATA.md)):** default **All** = mean of non-`NA` ratios per pipe family across `block_id`. Summary **block** control (when >1 block): pick a `block_id` → PIPE uses that block only |
-| Absolute in-bar | **Confirmed (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)):** mean non-`NA` `*_time(us)` for the family/side (same block scope as Aggregation); omit when all NA |
-| Scale + hatch | **Required** when panel shows — 0–100% axis; hatched remainder |
-| Cube \| Vector toggle | **M1:** show control when `OpType == MIX`; otherwise show relevant side only ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)) |
-| ICache Miss | **Confirmed:** `aic_icache_miss_rate` / `aiv_icache_miss_rate` when the mean is present |
-| Colors | Normative sketch tokens — [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) |
-| 详情 | Navigate to compute `CsvFieldListPanel` + emit `open-pipe-details` |
-
-Missing `PipeUtilization.csv` or all-`NA` for all pipes → **hide** PIPE panel.
-
-### 8.1 Block scope matrix (DATA-28 / DATA-29 / DATA-33b / DATA-33c)
-
-| Surface | Default | When summary block = `block_id` |
-|---------|---------|----------------------------------|
-| Summary PIPE bars | Mean across blocks (All) | That block only |
-| Summary cards (duration / compute / BW / AICore) | Mean / adapter rules (unchanged) | Unchanged (still All-scope) |
-| Roofline | Mean-style aggregate (DATA-33b) | Unchanged |
-| Memory topology + edge labels | Selected block ([DATA-33c](../context/decisions/interim/DATA.md)); default = first labelled / first id | Syncs to the picked summary block; **All** restores the default topology block |
-| Compute / memory CSV **详情** overlays | Selected block switcher | Independent overlay switcher (memory); compute has no block picker |
-
----
-
-### 9. Compute-load detail tabs (`CsvFieldListPanel` / Pipe details) — M1
-
-| Input | Requirement |
-|-------|-------------|
-| Tabs | `PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio` CSVs |
-| Selected `block_id` | **Required** — [DATA-33c](../context/decisions/interim/DATA.md) |
-| Search query | UI-only |
-
-Hide tab when CSV missing. Show `NA` values.
-
----
-
-### 10. Roofline (`RooflinePanel`) — M2
-
-| Input | Requirement |
-|-------|-------------|
-| Points (intensity, achieved perf) | **Required to show** — interim DATA-37a/b GM point from ArithmeticUtilization + Memory |
-| Op-mix labels (e.g. `Vec_FP32`) | Optional — DATA-37e when mix ratios present |
-| Peak bandwidth / compute ceilings | Interim DATA-37d (constants + Memory BW); Product-final when DATA-37 closes |
-| `ArithmeticUtilization.csv` + `Memory.csv` | Interim sources (DATA-37*) |
-| L2 series / tab filters | **Omit** (DATA-37c/f) until DATA-37 |
-
-Hide when no usable GM point. M3 swaps formulas when Product closes DATA-37.
-
----
-
-### 11. Memory topology (`MemoryTopologyPanel`) — M2
-
-| Input | Requirement |
-|-------|-------------|
-| Static SVG topology asset | **Provided** — `src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg` (official export: static labels, arrows, value plates; sample values stripped in-repo) |
-| Edge **labels** (BW, %, KB, …) | **Data-driven** from [VIEW_DATA_MAPPING](../ui/VIEW_DATA_MAPPING.md) §11.2.6 + selected block. **Hide `NA`; show 0.** L2↔L1 from `Memory.csv`. UB: `MemoryUB.csv` names first, then `Memory.csv` sample names |
-| Value **slots** | Fixed positions in the chrome for the edges that have one ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) § Value slots); `L0C → L1/L2` (KB) and the unmodelled SIMT / `%` plates have no slot |
-| Edge **thicknesses** | **Not** data-driven — keep static SVG geometry |
-| Memory* / L2Cache CSVs | **Required to show**; hide diagram if no label data |
-| Field list mode | Optional — same CSVs as memory detail tabs |
-
----
+| Tabs | Compute: `PipeUtilization` / Arithmetic / ResourceConflict; emulate: `PipesUtilization` / hist when packed |
+| Hide | Missing CSV → hide tab |
 
 ### 12. Memory detail tabs — M1
 
 | Input | Requirement |
 |-------|-------------|
-| Tabs | Memory L1 (`Memory.csv`), L2Cache, Memory L0, Memory UB |
-| Block switcher | [DATA-33c](../context/decisions/interim/DATA.md) |
-| 查看全部 | Emit full CSV open ([DATA-33d](../context/decisions/interim/DATA.md)) |
-
-Hide tab when CSV missing.
-
----
+| Tabs | Memory L1 / L2Cache / L0 / UB |
+| Emulate | **hide** Sept 30 (gap) |
 
 ### 13. Timeline time-range measure — M2
 
-| Input | Requirement |
-|-------|-------------|
-| `measureMode` / `measureRange` | Toolbar + canvas overlay |
-| Aside sync | **No** — local overlay only; right panel unchanged for `measureRange` |
+See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
 
----
-
-### 14. Hardware details (`HardwareDetailsPanel`) — M1 interim DATA-34a
+### 14. Hardware details — M1
 
 | Input | Requirement |
 |-------|-------------|
-| `HardwareInfo.jsonl` sections | Preferred when present |
-| OpBasicInfo non-empty columns | Fallback when jsonl absent |
-| Invented cores / HBM / peaks | **Never** |
+| `hardwareDetails` | HardwareInfo.jsonl or OpBasicInfo fallback |
+| Emulate | usually **omit** |
 
-Omit panel when neither source yields fields. 更多 navigates in-aside + still emits `open-hardware-details`.
+### 15. Secondary tabs
 
----
+Chrome only / disabled ([UI-37](../context/decisions/UI.md)).
 
-### 15. Secondary tabs (OP / Source / Details / Cache)
+### Block scope matrix
 
-**源码 / 详情 / 缓存** remain in chrome but are **disabled** ([UI-37](../context/decisions/UI.md)). No tab surfaces or data contracts this product phase. Timeline only.
-
----
-
-## Source → surface matrix (quick)
-
-| Source | Surfaces it can feed |
-|--------|----------------------|
-| Chrome Trace (`trace.json` or `.json`) | Shell, axis, gutter, swimlane, tooltip/detail, measure overlay |
-| `OpBasicInfo.csv` | Partial summary (identity, duration, freqs); MIX toggle gate |
-| `PipeUtilization.csv` | PIPE bars; Cube/Vector sets; compute detail tab; gutter util if mapped |
-| `ArithmeticUtilization.csv` | Compute detail tab; M2 roofline |
-| `Memory*.csv` | Memory detail tabs; M2 topology edge labels; DATA-33g I/O bandwidth cards |
-| `L2Cache.csv` | Memory detail L2Cache tab; topology hit-rate label |
-| `ResourceConflictRatio.csv` | Compute detail tab |
-| `Sampling.json` → `OverviewSeries` ([DATA-39](../context/decisions/DATA.md)) | Overview charts |
-| Host metadata | Theme, locale, time-unit prefs; 查看全部 CSV tab; future hardware |
-
----
+See [pipe-occupancy](../views/pipe-occupancy.md) and [memory-topology](../views/memory-topology.md); full matrix historically DATA-28/29/33b/33c.
 
 ## Standalone `.json` (PROC-3)
 
-Chrome Trace **`.json`** opens in **profiling-report** (same swimlane path as embedded `trace.json`). Aside panels stay hidden without CSV pack. **`.bin`** remains Insight.
+Chrome Trace → timeline only; empty `ReportViewModel` → aside hidden.

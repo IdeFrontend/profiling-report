@@ -10,6 +10,8 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 **report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** (e.g. `hardwareDetails`) gates shell controls that need feature flags.
 
+**Data SSOT:** [docs/views/](../../../docs/views/) — [report-summary](../../../docs/views/report-summary.md), [pipe-occupancy](../../../docs/views/pipe-occupancy.md), [roofline](../../../docs/views/roofline.md), [memory-topology](../../../docs/views/memory-topology.md).
+
 ## Outputs
 
 - **close** — aside close control; parent clears `asideVisible`.

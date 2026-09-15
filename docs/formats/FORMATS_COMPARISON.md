@@ -2,7 +2,7 @@
 
 Compare **what data means** for OP-level profiling across: MindStudio Insight (operator path), **hardware** `.npu-rep`, **simulator** `.npu-rep`, and PyPTO swimlane inputs.
 
-This document is **not** about binary layouts. Container hub: [INPUT_FORMATS.md](INPUT_FORMATS.md). Classic fixture: [REP_FORMAT.md](REP_FORMAT.md). Hardware embed → UI: [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md). Simulator contract: [emulate/FORMAT.md](emulate/FORMAT.md).
+This document is **not** about binary layouts. Container hub: [README.md](README.md). Classic fixture: [REP_FORMAT.md](REP_FORMAT.md). Hardware embed → UI: [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md). Simulator contract: [emulate/FORMAT.md](emulate/FORMAT.md).
 
 ## Scope
 
@@ -91,7 +91,7 @@ Performance results tree file click
 
 ## Related docs
 
-- [INPUT_FORMATS.md](INPUT_FORMATS.md) — container hub + profiles
+- [README.md](README.md) — container hub + profiles
 - [compute/FORMAT.md](compute/FORMAT.md) · [emulate/FORMAT.md](emulate/FORMAT.md)
 - [ADAPTERS.md](ADAPTERS.md) — detect → adapt → view-models
 - [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — adapted VM hide rules

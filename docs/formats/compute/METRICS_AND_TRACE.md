@@ -1,6 +1,6 @@
 # Metrics CSVs and Trace Semantics
 
-**Profile:** `compute`. Schemas: [FORMAT.md](FORMAT.md). Container hub: [INPUT_FORMATS.md](../INPUT_FORMATS.md).
+**Profile:** `compute`. Schemas: [FORMAT.md](FORMAT.md). Container hub: [formats README](../README.md).
 
 How embedded files inside a `.npu-rep` (or classic sample `.rep`) map to UI panels, and what the sample `trace.json` actually contains.
 

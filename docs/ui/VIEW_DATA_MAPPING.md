@@ -2,7 +2,7 @@
 
 Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from product spec §11.2 可视化界面数据关联. Source mockups live under [`docs/ui/source/`](./source/) (``v930/`). Hierarchy: [`DESIGN_INDEX.md`](./DESIGN_INDEX.md).
 
-Container hub: [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md). Hardware schemas: [compute/FORMAT.md](../formats/compute/FORMAT.md). Simulator: [emulate/FORMAT.md](../formats/emulate/FORMAT.md).
+Container hub: [formats/README.md](../formats/README.md). Compute schemas: [compute/FORMAT.md](../formats/compute/FORMAT.md). Emulate: [emulate/FORMAT.md](../formats/emulate/FORMAT.md). **Per-view packets (sketches + fills):** [views/](../views/).
 
 Design reference (docx): [HDesign mock](https://octo-g.hdesign.huawei.com/developerPreview/developer/index.html#edit&uniqueId=Cbt3Yr1Wzd6zfmVfNkJOYQ-50712&pageId=1001695).
 
@@ -369,7 +369,7 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Statistical analysis series schema | Placeholder only |
 | Timeline + event-detail field tables | Empty; mockup-driven |
 | HardwareInfo | Confirmed source; in toolkit `example.rep` (not in git), absent from `out.rep` |
-| Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §3](../formats/INPUT_FORMATS.md#3-report-container) |
+| Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §3](../formats/README.md#3-report-container) |
 | `ResourceConflictRatio.csv` | In sample; no UI mapping |
 | Block-level aggregation for OP summary cards | Unspecified (sample has 8 blocks) |
 
@@ -377,21 +377,17 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 
 ## Emulate profile (MHTML §11.2.3)
 
-Same host file (`.npu-rep`); leaf detected via `EmulateManifest.json` ([PROC-8](../context/decisions/PROC.md)). Source schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md), [emulate/TABLES.md](../formats/emulate/TABLES.md). Unification status: [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md) profile fill.
+Same host file (`.npu-rep`); leaf detected via `EmulateManifest.json` ([PROC-8](../context/decisions/PROC.md)). Source schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md). **Fill + sketches:** [views catalog](../views/README.md) — [timeline](../views/timeline.md), [report-summary](../views/report-summary.md), [pipe-occupancy](../views/pipe-occupancy.md), [overview-charts](../views/overview-charts.md), [roofline](../views/roofline.md), [memory-topology](../views/memory-topology.md).
 
-| § | Feature | Sept 30 | Source embeds | Adapted / notes |
-| --- | --- | --- | --- | --- |
-| — | Timeline swimlane | **in** | `PipeTrace.json` (µs) | `SwimlaneModel` (`same-path`) |
-| — | Thin report summary | **in** | `KernelInfo.csv` / `summary.json` | `summary.*` (interim DATA-42a) |
-| 11.2.3.4 / .6 | PIPE occupancy + CSV | **in** | `PipesUtilization.csv` / `PipeUtilizationHist.csv` | `pipeOccupancy` (`adapt-mapper`; no invent `PipeUtilization.csv`) |
-| 11.2.3.1 | Architecture Diagram | **hide** | `ArchDiagramMetrics.csv` | `out-of-scope` |
-| 11.2.3.2 | Memory heatmap | **hide** | `MemoryRWAccesses.csv` | `out-of-scope` — not topology |
-| — | Memory topology chrome | **hide** | (no Memory* aggregates) | `gap` |
-| 11.2.3.5 | Roofline | **hide** | ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF | `gap` — new mapper |
-| 11.2.3.3 | AICore occupancy | **hide** | `AiCoreOccupancy.csv` | `out-of-scope` |
-| 11.2.3.7 | SIMD/SIMT VF IPC | **hide** | `VfIPC.csv`, `VfSimtIPC.csv` | `out-of-scope` |
-| 11.2.3.8 | Call stacks | **hide** | Call* (ELF) | `out-of-scope` |
-| — | Overview charts | **hide** | Sampling unless packed | `gap` |
+| § | Feature | View packet | Sept 30 |
+| --- | --- | --- | --- |
+| — | Timeline swimlane | [timeline](../views/timeline.md) | **in** |
+| — | Thin report summary | [report-summary](../views/report-summary.md) | **in** |
+| 11.2.3.4 / .6 | PIPE occupancy | [pipe-occupancy](../views/pipe-occupancy.md) | **in** |
+| — | Overview charts | [overview-charts](../views/overview-charts.md) | **hide** |
+| — | Memory topology chrome | [memory-topology](../views/memory-topology.md) | **hide** |
+| 11.2.3.5 | Roofline | [roofline](../views/roofline.md) | **hide** |
+| 11.2.3.1–3,7–8 | Arch / heatmap / AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
 
 ---
 

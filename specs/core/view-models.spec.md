@@ -32,7 +32,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (PROC-3).
 
-**Emulate profile.** When adapting an emulate leaf ([adapt-emulate](./adapt-emulate.spec.md)), compute CSV mappings above do not apply. Fill swimlane from `PipeTrace.json` (µs); thin summary from KernelInfo/summary (interim DATA-42a); PIPE from `PipesUtilization` / hist when present; omit memory topology / roofline / overview until emulate mappers exist ([DATA-40](../../docs/context/decisions/DATA.md)). Gap matrix: [VIEW_DATA_REQUIREMENTS](../../docs/formats/VIEW_DATA_REQUIREMENTS.md).
+**Emulate profile.** When adapting an emulate leaf ([adapt-emulate](./adapt-emulate.spec.md)), compute CSV mappings above do not apply. Fill swimlane from `PipeTrace.json` (µs); thin summary from KernelInfo/summary (interim DATA-42a); PIPE from `PipesUtilization` / hist when present; omit memory topology / roofline / overview until emulate mappers exist ([DATA-40](../../docs/context/decisions/DATA.md)). Gap matrix: [docs/views/](../../docs/views/README.md).
 
 **Summary detail categories (product).** When `summary.jsonl` is present, build `summaryCategories` from its metric category lines (block-mean, per spec "默认显示 summary.jsonl 分组数据"), excluding `OpInfoSummary`. The detail surface renders these when present, falling back to raw CSV tables + block switcher otherwise.
 

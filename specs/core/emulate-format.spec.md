@@ -33,7 +33,7 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 ## Dependencies
 
-[INPUT_FORMATS.md](../../docs/formats/INPUT_FORMATS.md), [emulate/FORMAT.md](../../docs/formats/emulate/FORMAT.md), PROC-6…8, DATA-40, DATA-41. [adapt-emulate](./adapt-emulate.spec.md).
+[INPUT_FORMATS.md](../../docs/formats/README.md), [emulate/FORMAT.md](../../docs/formats/emulate/FORMAT.md), PROC-6…8, DATA-40, DATA-41. [adapt-emulate](./adapt-emulate.spec.md).
 
 ## Open
 
