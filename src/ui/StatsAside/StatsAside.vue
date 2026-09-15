@@ -271,10 +271,15 @@ watch(
  * `All` = the adapter's snapshot (`summary.jsonl` categories, else the first drawable block's CSV);
  * a picked id = that block's Memory* CSV row (DATA-19 / DATA-29). Rebuilding the `All` aggregate here
  * would be a second copy of the adapter rule, free to drift from `report.memoryTopology`.
+ * PipeUtilization joins the tables because UI-49's in-box Scalar/Vec/Cube badges read it; the
+ * builder only looks files up by name, so any other extra table would be inert.
  */
 const topologyModel = computed(() => {
   const id = blockId.value;
-  const tables = props.report?.memoryTables ?? [];
+  const pipe = (props.report?.computeTables ?? []).filter(
+    (t) => t.fileName === 'PipeUtilization.csv',
+  );
+  const tables = [...(props.report?.memoryTables ?? []), ...pipe];
   // A picked block shows only that block's rows — never the All aggregate wearing its label.
   if (id && tables.length > 0) return buildMemoryTopology(tables, id);
   return props.report?.memoryTopology;

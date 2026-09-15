@@ -556,6 +556,45 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(label('gm-l2-read')).toBeUndefined();
   });
 
+  it('PR-VM-023 (UI-49 / DATA-39): in-box Scalar/Vec/Cube badges are the block\'s own pipe ratio, NA stays blank', () => {
+    // The producer's `PipeUtilization` ratios are fractions of each unit's own busy time, so the
+    // badge prints `ratio × 100` — the same rule as the 计算负载分析 pipe rows (DATA-28).
+    const memory: CsvTableModel = {
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_ub_to_gm_bw(GB/s)'],
+      rows: [
+        { block_id: '0', 'aiv_ub_to_gm_bw(GB/s)': '8.38' },
+        { block_id: '1', 'aiv_ub_to_gm_bw(GB/s)': '1.00' },
+      ],
+      blockIds: ['0', '1'],
+    };
+    const pipe: CsvTableModel = {
+      fileName: 'PipeUtilization.csv',
+      headers: ['block_id', 'aiv_scalar_ratio', 'aiv_vec_ratio', 'aic_cube_ratio'],
+      rows: [
+        {
+          block_id: '0',
+          aiv_scalar_ratio: '0.5790',
+          aiv_vec_ratio: '0.5606',
+          aic_cube_ratio: '0.0218',
+        },
+        { block_id: '1', aiv_scalar_ratio: 'NA', aiv_vec_ratio: '0.3', aic_cube_ratio: '' },
+      ],
+      blockIds: ['0', '1'],
+    };
+    const plates = (id: string) => buildMemoryTopology([memory, pipe], id)?.plates;
+    expect(plates('0')).toEqual([
+      { node: 'aiv_scalar', label: '57.90%' },
+      { node: 'vec', label: '56.06%' },
+      { node: 'cube', label: '2.18%' },
+    ]);
+    // `NA` / empty drop that unit's badge — an absent badge, never `NaN%` or a false `0.00%`.
+    expect(plates('1')).toEqual([{ node: 'vec', label: '30.00%' }]);
+
+    // No PipeUtilization among the tables → no badges at all (the panel supplies that table).
+    expect(buildMemoryTopology([memory], '0')?.plates).toBeUndefined();
+  });
+
   it('PR-VM-018: the default topology block must be one the chrome can actually paint', () => {
     // Block 0 carries only a plated-less label: `L0C_to_L1_datas` (KB) shows up in the 详情 tabs,
     // never on the chrome (PR-MEMTOP-009), so its model is not drawable. Block 1 carries a link
@@ -703,6 +742,8 @@ describe('PR-VM: report view-models (interim)', () => {
     // All = the summary.jsonl category record …
     expect(model.pipeOccupancy.find((p) => p.id === 'vector')?.ratio).toBeCloseTo(0.42, 6);
     expect(model.memoryTopology?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('42.00 GB/s');
+    // UI-49: the in-box badges read the same category (the producer's `NA` units stay absent).
+    expect(model.memoryTopology?.plates).toEqual([{ node: 'vec', label: '42.00%' }]);
     expect(model.summaryCategories!.find((c) => c.id === 'PipeUtilization')!.fields).toContainEqual({
       key: 'aiv_vec_ratio',
       value: '0.42',

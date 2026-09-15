@@ -999,7 +999,9 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     );
   const memoryTopology =
     buildMemoryTopologyFromCategories(summaryCategories) ??
-    firstLabelledMemoryTopology(memory.tables)?.model;
+    // UI-49: PipeUtilization joins the classic fallback too, so a CSV-only `.rep` gets the in-box
+    // Scalar/Vec/Cube badges; the builder only looks files up by name.
+    firstLabelledMemoryTopology([...memory.tables, ...compute.tables])?.model;
   const bandwidthCards = summaryJsonl
     ? bandwidthCardsFromSummary(summaryJsonl)
     : bandwidthCardsFromMemory(payloadByName(payloads, ['Memory.csv']));

@@ -217,6 +217,29 @@ export type TopologySlotEdgeId = (typeof TOPOLOGY_SLOT_EDGE_IDS)[number];
 export const TOPOLOGY_PEAK_PLATE_EDGE_ID = 'l2-hit';
 
 /**
+ * UI-49 / DATA-39: units whose **in-box** badge is a pipe-utilization ratio, not a peak percent.
+ * The panel types its `PLATE_SLOTS` against this tuple, so a newly plated unit without
+ * coordinates fails typecheck instead of silently drawing nothing (same rule as the link slots).
+ * AIV0/AIV1 share one field and one plate entry — the panel paints it in both AIV rows.
+ */
+export const TOPOLOGY_PLATE_NODE_IDS = ['aiv_scalar', 'vec', 'cube'] as const;
+
+export type TopologyPlateNodeId = (typeof TOPOLOGY_PLATE_NODE_IDS)[number];
+
+/**
+ * UI-49 in-box `%` badges (DATA-39 rows 1/2, 6'/7', 8). `aiv_scalar_ratio` / `aiv_vec_ratio` /
+ * `aic_cube_ratio` are **fractions** of the unit's own busy time (DATA-28), so they print as
+ * percent, exactly like the 计算负载分析 pipe rows (`ratio × 100`). Every other one of the sketch's
+ * nine in-box badges is `NA` in the producer table (AIC `Scalar`, AIV0/AIV1 `SIMT VF`,
+ * AIV0/AIV1 `SIMD VF`, `FixP`) and stays blank.
+ */
+const PLATE_MAP: { node: TopologyPlateNodeId; file: string; columns: string[] }[] = [
+  { node: 'aiv_scalar', file: 'PipeUtilization.csv', columns: ['aiv_scalar_ratio'] },
+  { node: 'vec', file: 'PipeUtilization.csv', columns: ['aiv_vec_ratio'] },
+  { node: 'cube', file: 'PipeUtilization.csv', columns: ['aic_cube_ratio'] },
+];
+
+/**
  * True when the chrome can paint something: a plated link value, the L2 plate (`peakPct` or a
  * `l2-hit` label), or both. A model whose only labels are slotless (`l0c-l1` / `l0c-l2` /
  * `l2-l1-write`) is not drawable — mounting the chrome with every overlay blank is worse than
@@ -291,7 +314,13 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
     n.id === 'l2' && peakPct != null ? { ...n, peakPct } : { ...n },
   );
 
-  return { nodes, edges };
+  // UI-49: in-box unit-utilization badges. The ratio is a fraction of the unit's own busy time.
+  const plates = PLATE_MAP.flatMap((p) => {
+    const ratio = read(p.file, p.columns);
+    return ratio == null ? [] : [{ node: p.node, label: formatLabel(ratio * 100, '%') }];
+  });
+
+  return { nodes, edges, ...(plates.length > 0 ? { plates } : {}) };
 }
 
 /**
@@ -340,6 +369,8 @@ const FILE_CATEGORY: Record<string, string> = {
   'MemoryL0.csv': 'MemoryL0',
   'MemoryUB.csv': 'MemoryUB',
   'L2Cache.csv': 'L2Cache',
+  // UI-49: the in-box unit-utilization badges (Scalar / Vec / Cube) live in PipeUtilization.
+  'PipeUtilization.csv': 'PipeUtilization',
 };
 
 /** Distinct `block_id` values across the given tables, in fixture order (no duplicates). */

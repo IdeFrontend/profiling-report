@@ -246,10 +246,20 @@ export interface MemoryTopologyEdge {
   label?: string;
 }
 
+/** UI-49: unit-utilization badge painted inside a unit's own box, e.g. Scalar `33.24%`. */
+export interface MemoryTopologyPlate {
+  /** Unit the badge sits in — a `MemoryTopologyNode` id (Scalar / Vec / Cube). */
+  node: string;
+  /** `{n}%` of the unit's own utilization (DATA-28 ratio, not a peak-relative percent). */
+  label: string;
+}
+
 /** M2 memory topology: static node set + data-driven buffer-link labels. */
 export interface MemoryTopologyModel {
   nodes: MemoryTopologyNode[];
   edges: MemoryTopologyEdge[];
+  /** UI-49 in-box badges; omit when none of the mapped ratios is collected. */
+  plates?: MemoryTopologyPlate[];
 }
 
 export interface ReportViewModel {

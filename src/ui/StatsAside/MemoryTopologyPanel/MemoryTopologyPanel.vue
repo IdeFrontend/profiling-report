@@ -1,7 +1,9 @@
 <script lang="ts">
 import {
   hasDrawableTopology,
+  TOPOLOGY_PLATE_NODE_IDS,
   TOPOLOGY_SLOT_EDGE_IDS,
+  type TopologyPlateNodeId,
   type TopologySlotEdgeId,
 } from '../../../adapters/memoryTopology';
 import type { MemoryTopologyModel } from '../../../domain/types';
@@ -36,6 +38,43 @@ export const SLOT_MAX_W: Record<string, number> = {
   'cube-l0c': 37.5,
   'l0c-cube': 37.5,
   'l2-peak': 36,
+};
+
+/**
+ * UI-49 in-box `%` badge slots — the centres of the sketch's unit-utilization badges, which the
+ * export stripped like the link values. Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a
+ * newly plated unit without coordinates fails typecheck; measured off the sketch
+ * (`visual/memory-topology.png`) on the same chrome-unit mapping as `SLOTS`, each badge sitting
+ * under its own box's word: AIV0/AIV1 `Scalar` (282.1, 58.6) / (282.1, 378.6), AIV0/AIV1 `Vec`
+ * (372.0, 168.6) / (372.0, 488.6), `Cube` (338.0, 248.1). AIV0 and AIV1 share one field
+ * (`aiv_scalar_ratio` / `aiv_vec_ratio`), so both slots of a pair carry the same string.
+ *
+ * The other four in-box badges of the sketch — AIV0/AIV1 `SIMT`, AIC `Scalar`, `FixP` — are the
+ * producer's `NA` rows and carry no slot (UI-49).
+ */
+export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number, number])[]> = {
+  aiv_scalar: [
+    [282.1, 58.6],
+    [282.1, 378.6],
+  ],
+  vec: [
+    [372.0, 168.6],
+    [372.0, 488.6],
+  ],
+  cube: [[338.0, 248.1]],
+};
+
+/**
+ * Room an in-box badge has inside its own unit box before it touches a wall, in chrome units,
+ * measured off the export at the badge's height band. Unlike the corridors these are box
+ * interiors: Scalar and Cube are ~30 units wide, Vec only ~22 — the sketch's own `2.18%` badge
+ * fills 17 of them — so a value is scaled down per box (`fitFontSize`) instead of spilling over
+ * the box outline.
+ */
+export const PLATE_MAX_W: Record<string, number> = {
+  aiv_scalar: 26.5,
+  vec: 18.5,
+  cube: 28.5,
 };
 
 /** Fallback for a slot the table above forgets. It is the *tightest* measured bound, so a new
@@ -94,9 +133,16 @@ export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, numbe
  * wider per cap height, and real values are longer (`{n}.{nn} GB/s`, KB volumes), so a value
  * that would spill out of its corridor is scaled down proportionally — same strokes, smaller
  * — instead of overlapping the pillars. Anything that fits keeps the base size.
+ * `bounds` is the wall table for the kind of slot: corridor slots use `SLOT_MAX_W`, in-box
+ * badges `PLATE_MAX_W`.
  */
-export function fitFontSize(natural: number, slot: string, base = BASE_FONT_PX): number {
-  const max = SLOT_MAX_W[slot] ?? DEFAULT_MAX_W;
+export function fitFontSize(
+  natural: number,
+  slot: string,
+  base = BASE_FONT_PX,
+  bounds: Record<string, number> = SLOT_MAX_W,
+): number {
+  const max = bounds[slot] ?? DEFAULT_MAX_W;
   return natural > max ? (max / natural) * base : base;
 }
 
@@ -189,6 +235,20 @@ const peakText = computed(() =>
   l2PeakPct.value != null ? `${l2PeakPct.value.toFixed(2)}%` : label('l2-hit'),
 );
 
+/**
+ * UI-49 in-box unit-utilization badges. Iterates the adapter's node tuple, not the model, so the
+ * ids stay typed; a unit the model gives no value is skipped entirely — an `NA` badge stays blank
+ * rather than drawing an empty `<text>` (the L2 plate's blank-plate rule is for a slot the export
+ * already has).
+ */
+const plates = computed(() =>
+  TOPOLOGY_PLATE_NODE_IDS.flatMap((node) => {
+    const text = props.model?.plates?.find((p) => p.node === node)?.label;
+    if (!text) return [];
+    return PLATE_SLOTS[node].map(([x, y], i) => ({ node, x, y, key: `plate-${node}-${i}`, text }));
+  }),
+);
+
 /** Unique per instance: the panel renders twice at once (stacked + fullscreen overlay). */
 const summaryId = useId();
 
@@ -212,6 +272,13 @@ const summary = computed(() => {
     const to = (edge && names.get(edge.to)) ?? edge?.to ?? '';
     const pair = SLOTS[v.id].length > 1 ? ' (AIV0, AIV1)' : '';
     parts.push(from && to ? `${from} → ${to}${pair}: ${v.text}` : v.text);
+  }
+  // UI-49 in-box badges: one entry per unit, not per slot (the AIV0/AIV1 pair shares a value).
+  for (const p of plates.value) {
+    if (seen.has(p.node)) continue;
+    seen.add(p.node);
+    const pair = PLATE_SLOTS[p.node].length > 1 ? ' (AIV0, AIV1)' : '';
+    parts.push(`${names.get(p.node) ?? p.node}${pair}: ${p.text}`);
   }
   return parts.join('; ');
 });
@@ -238,6 +305,11 @@ watchEffect(() => {
     for (const v of values.value) {
       const px = fitFontSize(measure(v.text), v.id);
       if (px < BASE_FONT_PX) next[v.key] = px;
+    }
+    // In-box badges get their own, tighter wall table — they sit inside a box, not a corridor.
+    for (const p of plates.value) {
+      const px = fitFontSize(measure(p.text), p.node, BASE_FONT_PX, PLATE_MAX_W);
+      if (px < BASE_FONT_PX) next[p.key] = px;
     }
     const peak = measure(peakText.value ?? '');
     const peakPx = fitFontSize(peak, 'l2-peak');
@@ -354,18 +426,33 @@ function fitZoom() {
               :data-testid="`edge-${v.key}`"
             >{{ v.text }}</text>
 
-            <text
-              ref="measureTwin"
-              class="pr-topo__edge"
-              x="-1000"
-              y="-1000"
-              opacity="0"
-              aria-hidden="true"
-            />
-          </template>
-        </svg>
-      </div>
-    </div>
+        <!-- UI-49 in-box unit-utilization badges (`Scalar` / `Vec` / `Cube`), under each box's own
+             word as in the sketch. Only units with a producer field get a slot, so the sketch's
+             six `NA` badges (AIV0/AIV1 `SIMT`, AIC `Scalar`, `FixP`) stay blank. -->
+        <text
+          v-for="p in plates"
+          :key="p.key"
+          :x="p.x"
+          :y="p.y"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          class="pr-topo__pct"
+          :style="fitStyle(p.key)"
+          :data-testid="p.key"
+        >{{ p.text }}</text>
+
+        <text
+          ref="measureTwin"
+          class="pr-topo__edge"
+          x="-1000"
+          y="-1000"
+          opacity="0"
+          aria-hidden="true"
+        />
+      </template>
+    </svg>
+  </div>
+</div>
 
     <!-- Zoom / fullscreen bar (design: `v930/new` 内存负载分析 controls). The whole bar hides with
          the chrome it scales — a zoom control over a failed asset is dead chrome. -->
@@ -648,7 +735,8 @@ function fitZoom() {
 
 /* Same size/weight as the edge values: the export's in-box `%` numbers are the same type
  * (measured cap 4.25 units, ink fill ≈ the 800 weight). Colour is the export's pure white.
- * One rule for the one L2 plate, whichever source fills it (Peak% or `l2-hit`). */
+ * One rule for the L2 plate, whichever source fills it (Peak% or `l2-hit`), and for the UI-49
+ * in-box unit-utilization badges (Scalar / Vec / Cube). */
 .pr-topo__pct {
   fill: #fff;
   font-size: 6.3px;
