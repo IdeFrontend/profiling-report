@@ -290,11 +290,23 @@ describe('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-012: suppresses overlays and warns once when chrome fails to load', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+      // In-box badges are value overlays too: they live at sketch coordinates the chrome does not
+      // draw, so they must vanish with the link values rather than float over an empty rectangle.
+      const wrapper = mount(MemoryTopologyPanel, {
+        props: {
+          model: {
+            ...model,
+            nodes: [...model.nodes, { id: 'vec', label: 'Vec' }],
+            plates: [{ node: 'vec', label: '56.06%' }],
+          },
+        },
+      });
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="plate-vec-0"]').exists()).toBe(true);
       expect(wrapper.get('svg').attributes('aria-describedby')).toBeTruthy();
       await wrapper.get('image').trigger('error');
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid^="plate-"]').exists()).toBe(false);
       expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(false);
       expect(wrapper.find('.pr-topo__sr').exists()).toBe(false);
       expect(wrapper.find('[data-testid="topology-controls"]').exists()).toBe(false);

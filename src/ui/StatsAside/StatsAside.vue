@@ -268,35 +268,35 @@ watch(
 );
 
 /**
+ * Memory* CSVs **plus** `PipeUtilization.csv` — the one table set the memory surface reads. The
+ * adapter's builder looks files up by name, so any other extra table is inert. Two callers need it:
+ * the picked-block topology rebuild (UI-49's in-box Scalar/Vec/Cube badges live in PipeUtilization)
+ * and the memory 详情 CSV field list (UI-38's MTE utilizations do too).
+ */
+const memoryTablesWithPipe = computed(() => [
+  ...(props.report?.memoryTables ?? []),
+  ...(props.report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
+]);
+
+/**
  * `All` = the adapter's snapshot (`summary.jsonl` categories, else the first drawable block's CSV);
  * a picked id = that block's Memory* CSV row (DATA-19 / DATA-29). Rebuilding the `All` aggregate here
  * would be a second copy of the adapter rule, free to drift from `report.memoryTopology`.
- * PipeUtilization joins the tables because UI-49's in-box Scalar/Vec/Cube badges read it; the
- * builder only looks files up by name, so any other extra table would be inert.
  */
 const topologyModel = computed(() => {
   const id = blockId.value;
-  const pipe = (props.report?.computeTables ?? []).filter(
-    (t) => t.fileName === 'PipeUtilization.csv',
-  );
-  const tables = [...(props.report?.memoryTables ?? []), ...pipe];
+  const tables = memoryTablesWithPipe.value;
   // A picked block shows only that block's rows — never the All aggregate wearing its label.
   if (id && tables.length > 0) return buildMemoryTopology(tables, id);
   return props.report?.memoryTopology;
 });
 
 /**
- * UI-38: the chrome's MTE blocks carry no value plate, so their utilizations are not drawn on
- * the diagram. PipeUtilization is the only CSV holding them, so the memory 详情 CSV field list
- * (shown for CSV-only reports) offers that tab next to the memory ones. Reports with memory
- * summary categories render those categories instead — their MTE ratios stay under 计算 详情.
+ * UI-38: the chrome's MTE blocks carry no value plate, so their utilizations are not drawn on the
+ * diagram but are readable in the memory 详情 CSV field list (`memoryTablesWithPipe`, shown for
+ * CSV-only reports). Reports with memory summary categories render those categories instead — their
+ * MTE ratios stay under 计算 详情.
  */
-const memoryDetailTables = computed(() => {
-  const pipe = (props.report?.computeTables ?? []).filter(
-    (t) => t.fileName === 'PipeUtilization.csv',
-  );
-  return [...(props.report?.memoryTables ?? []), ...pipe];
-});
 
 const showTopology = computed(() => hasDrawableTopology(topologyModel.value));
 
@@ -632,7 +632,7 @@ function backToReport() {
       />
       <CsvFieldListPanel
         v-else
-        :tables="memoryDetailTables"
+        :tables="memoryTablesWithPipe"
         :csv-texts="report?.csvTexts ?? {}"
         :selected-block-id="overlayBlockId"
         :locale="locale"
@@ -1090,7 +1090,7 @@ function backToReport() {
           />
           <CsvFieldListPanel
             v-else
-            :tables="memoryDetailTables"
+            :tables="memoryTablesWithPipe"
             :csv-texts="report?.csvTexts ?? {}"
             :selected-block-id="overlayBlockId"
             :locale="locale"

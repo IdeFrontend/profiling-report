@@ -431,7 +431,8 @@ function fitZoom() {
 
         <!-- UI-49 in-box unit-utilization badges (`Scalar` / `Vec` / `Cube`), under each box's own
              word as in the sketch. Only units with a producer field get a slot, so the sketch's
-             six `NA` badges (AIV0/AIV1 `SIMT`, AIC `Scalar`, `FixP`) stay blank. -->
+             four field-less badge positions (AIV0/AIV1 `SIMT`, AIC `Scalar`, `FixP`) stay blank —
+             the producer's `SIMD VF` `NA` rows name the painted `Vec` position. -->
         <text
           v-for="p in plates"
           :key="p.key"

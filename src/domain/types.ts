@@ -246,10 +246,16 @@ export interface MemoryTopologyEdge {
   label?: string;
 }
 
+/** Units that carry a UI-49 in-box utilization badge: the `MemoryTopologyNode` ids with a producer
+ *  field (DATA-39). A subset of the node ids, so a hand-built model cannot smuggle in a unit the
+ *  panel has no badge slot for — the adapter's `TOPOLOGY_PLATE_NODE_IDS` tuple is checked against
+ *  this union, and a new entry here fails typecheck in the panel until it gets coordinates. */
+export type MemoryTopologyPlateNodeId = 'aiv_scalar' | 'vec' | 'cube';
+
 /** UI-49: unit-utilization badge painted inside a unit's own box, e.g. Scalar `33.24%`. */
 export interface MemoryTopologyPlate {
-  /** Unit the badge sits in — a `MemoryTopologyNode` id (Scalar / Vec / Cube). */
-  node: string;
+  /** Unit the badge sits in. */
+  node: MemoryTopologyPlateNodeId;
   /** `{n}%` of the unit's own utilization (DATA-28 ratio, not a peak-relative percent). */
   label: string;
 }

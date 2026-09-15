@@ -999,8 +999,10 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     );
   const memoryTopology =
     buildMemoryTopologyFromCategories(summaryCategories) ??
-    // UI-49: PipeUtilization joins the classic fallback too, so a CSV-only `.rep` gets the in-box
-    // Scalar/Vec/Cube badges; the builder only looks files up by name.
+    // UI-49: PipeUtilization joins the classic fallback too, so a CSV-only `.rep` that has a
+    // drawable link carries its in-box Scalar/Vec/Cube badges as well; the builder only looks files
+    // up by name. Badges alone do not make a model drawable — `hasDrawableTopology` still needs a
+    // plated link or the L2 plate (PR-VM-018), exactly as before.
     firstLabelledMemoryTopology([...memory.tables, ...compute.tables])?.model;
   const bandwidthCards = summaryJsonl
     ? bandwidthCardsFromSummary(summaryJsonl)

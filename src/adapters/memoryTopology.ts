@@ -1,4 +1,9 @@
-import type { CsvTableModel, MemoryTopologyModel, SummaryCategory } from '../domain/types';
+import type {
+  CsvTableModel,
+  MemoryTopologyModel,
+  MemoryTopologyPlateNodeId,
+  SummaryCategory,
+} from '../domain/types';
 
 const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'gm', label: 'GM' },
@@ -226,15 +231,18 @@ export const TOPOLOGY_PEAK_PLATE_EDGE_ID = 'l2-hit';
  * The panel types its `PLATE_SLOTS` against this tuple, so a newly plated unit without
  * coordinates fails typecheck instead of silently drawing nothing (same rule as the link slots).
  * AIV0/AIV1 share one field and one plate entry — the panel paints it in both AIV rows.
+ * `satisfies` keeps the tuple in step with the domain union: a unit that is not a
+ * `MemoryTopologyPlateNodeId` cannot be listed here.
  */
-export const TOPOLOGY_PLATE_NODE_IDS = ['aiv_scalar', 'vec', 'cube'] as const;
+export const TOPOLOGY_PLATE_NODE_IDS = ['aiv_scalar', 'vec', 'cube'] as const satisfies readonly MemoryTopologyPlateNodeId[];
 
 export type TopologyPlateNodeId = (typeof TOPOLOGY_PLATE_NODE_IDS)[number];
 
 /**
  * UI-49 in-box `%` badges (DATA-39 rows 1/2, 6'/7', 8). `aiv_scalar_ratio` / `aiv_vec_ratio` /
- * `aic_cube_ratio` are **fractions** of the unit's own busy time (DATA-28), so they print as
- * percent, exactly like the 计算负载分析 pipe rows (`ratio × 100`). The producer's six `NA` in-box
+ * `aic_cube_ratio` are **fractions** of the unit's own busy time (DATA-28) — the same ratio the
+ * 计算负载分析 pipe rows show — and print as `{ratio × 100}%` at the sketch's **two decimals**
+ * (`57.90%`, where the pipe row rounds to `58%`). The producer's six `NA` in-box
  * rows (AIC `Scalar`, AIV0/AIV1 `SIMT VF`, AIV0/AIV1 `SIMD VF`, `FixP`) cover only **four** badge
  * positions: the `SIMD VF` rows describe the `Vec` position, which the `Vec` rows (`6'`/`7'`) fill,
  * so it is painted, and those four positions stay blank.

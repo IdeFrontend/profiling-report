@@ -559,7 +559,7 @@ describe('PR-VM: report view-models (interim)', () => {
 
   it('PR-VM-023 (UI-49 / DATA-39): in-box Scalar/Vec/Cube badges are the block\'s own pipe ratio, NA stays blank', () => {
     // The producer's `PipeUtilization` ratios are fractions of each unit's own busy time, so the
-    // badge prints `ratio × 100` — the same rule as the 计算负载分析 pipe rows (DATA-28).
+    // badge prints `ratio × 100` at the sketch's two decimals (the pipe rows round to integers).
     const memory: CsvTableModel = {
       fileName: 'Memory.csv',
       headers: ['block_id', 'aiv_ub_to_gm_bw(GB/s)'],
