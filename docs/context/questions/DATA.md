@@ -66,16 +66,6 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 **Answer so far:** The producer doc maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`) — the pipe-busy-rate mapping [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) flags as wrong. No Product answer. (Interim [DATA-37f](../decisions/interim/DATA.md): hide the tabs.)
 
-### DATA-20 — Peak(%) box colors
-
-<img src="../visual/questions/data-20.png" alt="DATA-20 Peak(%) on the L2 box" width="900" height="900">
-
-**Status:** `partial`
-
-**Question:** Memory-diagram **boxes and edges** can show a **Peak (%)** badge — the unit's usage as a percent of its theoretical maximum, driving a color scale. For **each box** — GM, L2, L1, L0A, L0B, L0C, Cube, FixP, UB, Vec, Scalar — which file and field gives that percent, and what is the box's 100% reference (theoretical peak)? For each **edge** that carries a 理论值 — L0C → L1 and L0C → L2/GM ([DATA-24](../decisions/DATA.md) / [DATA-25](../decisions/DATA.md)) — same question: which field, and what is the 100% reference? The producer doc's 理论值 column is empty for every row.
-
-**Answer so far (2026-09-11):** **L2 box only:** Peak(%) = **hit rate** (命中率) from `L2Cache.csv` (total hit rate per [DATA-21](../decisions/DATA.md)), not a peak-relative percent. The producer's answer sheet for this question is **blank** — every other box and both L0C edges stay unmapped. Rule 2 of the producer doc also asks how the color scale maps when 理论值 is known.
-
 ### DATA-31 — authoritative MVP fixture shape (was: Q4)
 
 **Status:** `partial`
@@ -112,19 +102,33 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Interim:** [`DATA-37a…DATA-37f`](../decisions/interim/DATA.md).
 
-### DATA-40 — topology edge value aggregation vs the BW card
+### DATA-41 — AIC-row link values
 
-**Status:** `open` + `interim`
+<img src="../visual/questions/data-41.png" alt="DATA-41 AIC-row link values" width="900" height="900">
 
-**Question:** A memory-diagram **edge** and the **带宽利用率 读/写 card** can describe the same GM↔L2 direction and then show different numbers, because the two surfaces use different aggregation rules. The edge takes the **first present non-`NA` candidate** (`aic_main_mem_read_bw` before `aiv_main_mem_read_bw`), while the card shows the **sum** of the aic + aiv sides ([DATA-8](../decisions/DATA.md)). Which one is the plate supposed to show — a single side, or the summed traffic? And more generally, for an edge fed by several candidate columns, is the rule **first non-`NA`**, the **sum**, or the **mean** of the candidates, and does it inherit the block selector ([DATA-19](../decisions/DATA.md) / [DATA-29](../decisions/DATA.md)) the same way the card does?
+**Status:** `partial` — the field half is answered; only the fixture validation (b), and with it a sketch-ward check of the AIC row, remains.
 
-**Answer so far:** Nothing from Product — the producer's 理论值 column and the edge table say which file/field, not which aggregation. Both rules are currently documented and shipped:
+**Question:** The **AIC row** of the memory diagram (L1 ↔ L0A / L0B ↔ Cube ↔ L0C) carries values in the sketch, and the chrome has a plate for all seven of its plated links — `l2-l1-read`, `l1-l0a`, `l1-l0b`, `l0a-cube`, `l0b-cube`, `cube-l0c`, `l0c-cube`. So: **(a)** which file and field is authoritative for each AIC-row plated link (answered below), and **(b)** is a fixture with non-`NA` AIC-row values available, so the row can be validated against the sketch? **(b)** is the live half, and it is about the six **L0/Cube** plates: on the product fixture [`sample.lite.rep`](../../../data/sample.lite.rep) every `MemoryL0.csv` `aic_l0a_*` / `aic_l0b_*` / `aic_l0c_*_cube` column is `NA` in every block of both embedded ops, and "hide `NA`" then hides the labels. The seventh plate, `l2-l1-read`, is not blank — it carries the producer's `GM -> UB` field ([DATA-43](../decisions/DATA.md)). (The 理论值 / 100% reference this question inherited from [DATA-20](../decisions/DATA.md) is closed: no such field exists, see below.)
 
-- **Edge (interim, [DATA-40a](../decisions/interim/DATA.md)):** "prefer non-`NA` AIC then AIV" — `aic_main_mem_read_bw(GB/s)` then `aiv_main_mem_read_bw(GB/s)` for GM → L2, and the same shape for GM ← L2.
-- **Card (resolved, [DATA-8](../decisions/DATA.md)):** `OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw`, i.e. the aic + aiv sides summed.
+**Answer so far (2026-09-15, from the producer's DATA-39 "Memory" table):**
 
-**Why it reads as a contradiction:** on the product fixture [`sample.lite.rep`](../../../data/sample.lite.rep) op1 the GM → L2 arrow prints **560.00 GB/s** (AIC side only) while the 读 card one panel above prints **1092 GB/s** (560 + 532) — write is 480 vs 936. Neither number is wrong under its own rule; the two just never appear together in a mockup, so no sketch decides it.
+- **(a) AIC-row fields — answered for six of the seven plates here, and for the seventh in the next bullet; all six are the fields already shipped.** The producer numbers the AIC row's slots `25`–`30` and maps each to exactly the field `EDGE_MAP` already uses: `25` L1 → L0A = `aic_l0a_read_bw(GB/s)`, `26` L1 → L0B = `aic_l0b_read_bw(GB/s)`, `27` L0A 写入其他单元 = `aic_l0a_write_bw(GB/s)`, `28` L0B 写入其他单元 = `aic_l0b_write_bw(GB/s)`, `29` Cube → L0C = `aic_l0c_write_bw_cube(GB/s)`, `30` L0C → Cube = `aic_l0c_read_bw_cube(GB/s)` — all `Summary.jsonl` → `MemoryL0`. (Rows `21`/`22` restate the Cube ↔ L0C pair, with the two directions swapped against rows `29`/`30` — [DATA-44](DATA.md).) The numbers were placed against the producer's own annotated figure, where `25`–`30` sit at exactly our `l1-l0a` … `l0c-cube` slot coordinates.
+- **The `l2-l1-read` plate follows the producer's field (resolved 2026-09-15).** Row `24` labels the corridor plate at `(159.7, 235.5)` — our `l2-l1-read` slot, drawn `L2 → MTE2 → L1 (AIC)` — as **`GM -> UB`**, field **`aiv_gm_to_ub_bw(GB/s)`** from `Memory` (the same field [DATA-23](../decisions/DATA.md) gives the `l2-ub` plates). Product ruled to use that field, painted on the chrome's own slot ("display it according to svg spec"), so that plate reads `aiv_gm_to_ub_bw` and `aic_l1_read_bw` feeds no plate — it stays a Memory.csv 详情 column ([DATA-43](../decisions/DATA.md)). **(a) is now answered for all seven plates.**
+- **The 理论值 has no field.** Row `23` — `L0C -> UB + L0C->L1` — is `NA` / `NA`, so the producer defines no 理论值 column for **L0C → L1** or **L0C → L2/GM**: the two slotless KB edges ([DATA-24](../decisions/DATA.md) / [DATA-25](../decisions/DATA.md)) keep their `*_datas(KB)` volume and get no 100% reference. That closes the part inherited from [DATA-20](../decisions/DATA.md).
+- **(b) is still open:** no fixture with non-`NA` `MemoryL0.csv` values (`aic_l0a_read_bw` / `aic_l0b_read_bw` / `aic_l0a_write_bw` / `aic_l0b_write_bw` / `aic_l0c_read_bw_cube` / `aic_l0c_write_bw_cube`) has been offered, so the six L0/Cube plates still cannot be validated against the sketch. The corridor plate's field is settled and covered by `PR-VM-024`.
 
-**Roots / evidence:** `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts) (`gm-l2-read` / `gm-l2-write` candidate order), the edge table in [VIEW_DATA_MAPPING §11.2.6](../../ui/VIEW_DATA_MAPPING.md), the DATA-8 I/O-bandwidth rule in [view-models.spec.md](../../../specs/core/view-models.spec.md), and the two mockups that show the surfaces apart — the card in [data-8.png](../visual/questions/data-8.png) and the plated diagram in [`v930/memory-load-detail.jpeg`](../../ui/source/v930/memory-load-detail.jpeg).
+**Roots / evidence:** `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts); the edge table in [VIEW_DATA_MAPPING §11.2.6](../../ui/VIEW_DATA_MAPPING.md); the AIC-row plates of the exported chrome ([memory-topology.svg](../../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg)); the sketch's AIC row in [`v930/report-stats-scrolled.jpeg`](../../ui/source/v930/report-stats-scrolled.jpeg); the producer's numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png` (OCR-matched slot by slot).
 
-**Specs when answered:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
+**Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
+
+### DATA-44 — the DATA-39 table's Cube↔L0C direction slip
+
+**Status:** `open`
+
+**Question:** The producer's DATA-39 "Memory" table names the Cube ↔ L0C pair **twice, with the two directions swapped**: row `21` `L0C -> Cube` = `aic_l0c_write_bw_cube(GB/s)` and row `22` `Cube->L0C` = `aic_l0c_read_bw_cube(GB/s)`, while rows `29` `Cube -> L0C` and `30` `L0C -> Cube` give the same two fields the opposite way round. Both pairs cannot be right, and the choice decides two shipped plates (`cube-l0c` and `l0c-cube`). Which pair is authoritative for the **direction** — rows `29`/`30`, or rows `21`/`22`?
+
+**Answer so far:** None from the producer. The shipped mapping follows **rows `29`/`30`**, on three grounds: the `*_write_bw_cube` suffix says the transfer is *into* L0C (Cube → L0C) and `*_read_bw_cube` *out of* it (L0C → Cube), which is exactly how [INPUT_FORMATS §3.5](../../formats/INPUT_FORMATS.md) reads the suffix rule; rows `29`/`30` are the numbered continuation of the AIC row's `25`–`28` slot list, which places them on the correct plate coordinates; and the same two rows are what [DATA-41](DATA.md) confirms 1:1 against the chrome's slots. Rows `21`/`22` look like a duplicate of the pair with the direction labels reversed, in the same table that already carries the (now resolved) row `24` and row `32` slips ([DATA-43](../decisions/DATA.md)). No behaviour changes while it is open.
+
+**Roots / evidence:** the producer's `DATA questions` doc § DATA-39 "Memory", rows `21`/`22` against rows `29`/`30`, and its numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png`; `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts) (`cube-l0c` → `aic_l0c_write_bw_cube`, `l0c-cube` → `aic_l0c_read_bw_cube`); the `**Value slots**` table of [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
+
+**Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
