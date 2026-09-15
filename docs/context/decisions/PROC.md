@@ -51,7 +51,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-14
 - **Question:** Does npu_emulate / Ascend simulator profiling use the same host report extension as hardware OP profiling?
 - **Decision:** Yes. Emulate reports ship as **`.npu-rep`** (nested leaf per kernel/OP), same host open contract as npu-compute ([PROC-2](./PROC.md)). No second host extension.
-- **Specs:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [simulator/FORMAT](../../formats/simulator/FORMAT.md), [MSTT_INTEGRATION](../../architecture/MSTT_INTEGRATION.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [PROJECT_GOALS](../PROJECT_GOALS.md)
+- **Specs:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [MSTT_INTEGRATION](../../architecture/MSTT_INTEGRATION.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [PROJECT_GOALS](../PROJECT_GOALS.md)
 - **Source:** Product MHTML npu-emulate 仿真 §11.2.1.2 (`report_<timestamp>_<rand id>.npu-rep`)
 
 ---
@@ -59,9 +59,9 @@ Format and statuses: [README.md](README.md).
 ## PROC-7
 
 - **Resolved:** 2026-09-14
-- **Question:** Are hardware and simulator payloads the same embed set inside `.npu-rep`?
-- **Decision:** No. Two **payload profiles** share the container binary: `hardware` (npu-compute OpBasicInfo / PipeUtilization / Memory* / PipeTrace…) and `simulator` (npu_emulate contract CSVs / Chrome Trace / summary + `SimulatorManifest.json`). Different adapters fill the same view-models.
-- **Specs:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [hardware/FORMAT](../../formats/hardware/FORMAT.md), [simulator/FORMAT](../../formats/simulator/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md)
+- **Question:** Are compute and emulate payloads the same embed set inside `.npu-rep`?
+- **Decision:** No. Two **payload profiles** share the container binary: `compute` (npu-compute OpBasicInfo / PipeUtilization / Memory* / PipeTrace…) and `emulate` (npu_emulate contract CSVs / Chrome Trace / summary + `EmulateManifest.json`). Different adapters fill the same view-models.
+- **Specs:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [compute/FORMAT](../../formats/compute/FORMAT.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md)
 - **Source:** Engineering + product emulate §11.2.3 (simulator CSV names, not hardware schemas)
 
 ---
@@ -69,7 +69,7 @@ Format and statuses: [README.md](README.md).
 ## PROC-8
 
 - **Resolved:** 2026-09-14
-- **Question:** How does the viewer detect a simulator leaf vs a hardware leaf?
-- **Decision:** Require embed **`SimulatorManifest.json`** with `"profile": "simulator"` (and `schemaVersion`). Absence → hardware (or CTEF-only). Head `origin` remains **`1`** until Product defines a dedicated simulator origin ([PROC-9](../questions/PROC.md)).
-- **Specs:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §2.1, [simulator/FORMAT](../../formats/simulator/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [load-report-source](../../../specs/core/load-report-source.spec.md)
+- **Question:** How does the viewer detect a emulate leaf vs a compute leaf?
+- **Decision:** Require embed **`EmulateManifest.json`** with `"profile": "emulate"` (and `schemaVersion`). Absence → compute (or CTEF-only). Head `origin` remains **`1`** until Product defines a dedicated emulate origin ([PROC-9](../questions/PROC.md)).
+- **Specs:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §2.1, [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [load-report-source](../../../specs/core/load-report-source.spec.md)
 - **Source:** Engineering default for dual-profile detection without parser origin change

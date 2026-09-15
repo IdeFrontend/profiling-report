@@ -10,6 +10,8 @@ Log-log roofline bottleneck chart (M2 interim DATA-37*).
 
 **model** is a `RooflineViewModel` (`points`, `mixLabels`, `peakComputeTops`, `peakBandwidthGBs`). Optional **locale** for title/legend.
 
+**Filled by:** compute — `ArithmeticUtilization.csv` + `Memory.csv` (`rooflineFromCsv`). Emulate — **gap / Sept 30 hide** (needs ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF; not the compute CSV path). See [VIEW_DATA_REQUIREMENTS](../../../../docs/formats/VIEW_DATA_REQUIREMENTS.md) profile fill.
+
 ## Behavior
 
 Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws the theoretical roof (`min(peakCompute, peakBW_GBs * intensity / 1000)`), measured points (solid/hollow), and op-mix labels. Hover on a point shows intensity + performance. Parent hides the panel when there are no points — empty `points` renders an empty root (no chart chrome).

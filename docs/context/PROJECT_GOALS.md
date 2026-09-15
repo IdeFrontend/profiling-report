@@ -33,7 +33,7 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 
 | Consumer | Priority | Integration style |
 |----------|----------|-------------------|
-| **MSTT** (`mstt`) | Primary | Import Vue components into existing Vite webview panels; open `.npu-rep` from performance results tree (hardware or simulator profile) |
+| **MSTT** (`mstt`) | Primary | Import Vue components into existing Vite webview panels; open `.npu-rep` from performance results tree (hardware or emulate profile) |
 | **npu_emulate / Asc Toolkit** | Primary (producer) | Packs simulator leaves into `.npu-rep` for the same host open path ([PROC-6](decisions/PROC.md)) |
 | **pypto-tools** | Optional later | May consume the library or remain on its own swimGraph; no pypto changes required for this project’s MVP |
 | Standalone / browser demo | Nice-to-have | Host can feed `ArrayBuffer` or parsed models without VS Code APIs |

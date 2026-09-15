@@ -141,15 +141,15 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Success** | Timeline remains the only active mode ([UI-37](../context/decisions/UI.md)) |
 | **Sketches** | Tab chrome in `source/v930/entry.jpeg` |
 
-### S10 — Open simulator `.npu-rep` (M)
+### S10 — Open emulate `.npu-rep` (M)
 
 | | |
 |--|--|
-| **Goal** | Open an npu_emulate report with the same host path as hardware |
-| **Trigger** | User selects `report_*.npu-rep` packed by emulate (contains `SimulatorManifest.json`) |
-| **Steps** | Host opens `.npu-rep` → library detects simulator profile ([PROC-8](../context/decisions/PROC.md)) → Timeline from `PipeTrace.json`; thin summary when KernelInfo/summary map; PIPE/memory/hardware panels **hidden** until adapted fields exist |
-| **Success** | Swimlane usable; no hard error for missing hardware CSVs; no invented OpBasicInfo/PipeUtilization ([DATA-40](../context/decisions/DATA.md)) |
-| **Sketches** | Same Timeline chrome as S1; Phase 2 surfaces per [VIEW_DATA_MAPPING § Simulator](VIEW_DATA_MAPPING.md) |
+| **Goal** | Open an npu_emulate report with the same host path as compute |
+| **Trigger** | User selects `report_*.npu-rep` packed by emulate (contains `EmulateManifest.json`) |
+| **Steps** | Host opens `.npu-rep` → library detects emulate profile ([PROC-8](../context/decisions/PROC.md)) → Timeline from `PipeTrace.json`; thin summary when KernelInfo/summary map; PIPE when PipesUtilization/hist packed; memory topology / roofline / overview / hardwareDetails **hidden** (gaps — [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)) |
+| **Success** | Swimlane usable; PIPE when util CSVs present; no hard error for missing compute CSVs; no invented OpBasicInfo/PipeUtilization ([DATA-40](../context/decisions/DATA.md)) |
+| **Sketches** | Same Timeline chrome as S1; emulate surfaces per [VIEW_DATA_MAPPING § Emulate](VIEW_DATA_MAPPING.md) |
 
 ---
 

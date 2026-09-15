@@ -10,6 +10,8 @@ Official product memory-path topology chrome with **data-driven link values** (c
 
 **model** — `MemoryTopologyModel` (`nodes` + `edges`; each edge carries an optional data-driven `label`; the `l2` node may carry `peakPct`). Optional **locale**. Optional **openDetailsOnContextmenu** (default true): stacked diagram keeps UI-35; the root fullscreen overlay passes `false`. Parent `StatsAside` owns block switching and rebuilds **model** via `buildMemoryTopology`.
 
+**Filled by:** compute — `Memory*.csv` / `L2Cache.csv` aggregates. Emulate — **gap / Sept 30 hide** (`MemoryRWAccesses` is heatmap, not topology plates). See [VIEW_DATA_REQUIREMENTS](../../../../docs/formats/VIEW_DATA_REQUIREMENTS.md) profile fill.
+
 ## Outputs
 
 **open-details** — UI-35: right-click on the stacked diagram opens the parent memory CSV overlay (same as **详情**). Not emitted when `openDetailsOnContextmenu` is false (fullscreen overlay).

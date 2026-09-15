@@ -32,7 +32,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (PROC-3).
 
-**Simulator profile.** When adapting a simulator leaf ([adapt-simulator](./adapt-simulator.spec.md)), hardware CSV mappings above do not apply. Fill swimlane from `PipeTrace.json` (µs); thin summary from KernelInfo/summary when available; omit `pipeOccupancy` / memory / roofline until simulator mappers exist ([DATA-40](../../docs/context/decisions/DATA.md)).
+**Emulate profile.** When adapting an emulate leaf ([adapt-emulate](./adapt-emulate.spec.md)), compute CSV mappings above do not apply. Fill swimlane from `PipeTrace.json` (µs); thin summary from KernelInfo/summary (interim DATA-42a); PIPE from `PipesUtilization` / hist when present; omit memory topology / roofline / overview until emulate mappers exist ([DATA-40](../../docs/context/decisions/DATA.md)). Gap matrix: [VIEW_DATA_REQUIREMENTS](../../docs/formats/VIEW_DATA_REQUIREMENTS.md).
 
 **Summary detail categories (product).** When `summary.jsonl` is present, build `summaryCategories` from its metric category lines (block-mean, per spec "默认显示 summary.jsonl 分组数据"), excluding `OpInfoSummary`. The detail surface renders these when present, falling back to raw CSV tables + block switcher otherwise.
 
@@ -81,7 +81,7 @@ DATA-33, DATA-33b, DATA-33c, DATA-33d, DATA-33f, DATA-39, DATA-34a, DATA-37a–f
 DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; compute formula given but no chart-axis spec).
 
 ## Changelog
-- **2026-09-14** — Note simulator profile adaptation; hardware CSV mappings unchanged ([DATA-40](../../docs/context/decisions/DATA.md)).
+- **2026-09-14** — Note emulate profile adaptation; hardware CSV mappings unchanged ([DATA-40](../../docs/context/decisions/DATA.md)).
 - **2026-09-14** — Topology "drawable" is one shared rule (PR-VM-018): a plated edge value (`TOPOLOGY_SLOT_EDGE_IDS`) or the L2 plate. The default-block pick and the panel gate both use `hasDrawableTopology`, so the snapshot no longer selects a block whose labels are all plated-less (`l0c-l1` / `l0c-l2` / `l2-l1-write`) and hides the diagram while a sibling block could draw one.
 - **2026-09-07** — L2 `peakPct` on topology nodes (DATA-20 / DATA-21, PR-VM-012b).
 - **2026-09-04** — NPU-Compute: `summary.jsonl` is the canonical source — `OpInfoSummary` derived fields (compute/BW/parallel utilization), summary-first detail categories, `PipeTrace.json` µs timeline, spaced HardwareInfo key normalization, peak 1600 GB/s (SOL), compute score = measured/theoretical (DATA-2, DATA-3, DATA-5, DATA-9, DATA-33, UI-32).

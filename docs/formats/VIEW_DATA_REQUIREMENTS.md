@@ -2,11 +2,11 @@
 
 Normative **required vs optional inputs** for each Timeline surface. Missing optional data → **hide** that panel/region (not hard error). See [decisions](../context/decisions/) (DATA-30).
 
-**Entity layer:** Required/Optional columns are **adapted** view-model fields (`SwimlaneModel`, `ReportViewModel`, `capabilities`). Source embeds are **provenance** (“Filled by”) — see [ADAPTERS.md](ADAPTERS.md). Do not fork hide rules into hardware-CSV vs simulator-CSV matrices.
+**Entity layer:** Required/Optional columns are **adapted** view-model fields (`SwimlaneModel`, `ReportViewModel`, `capabilities`). Source embeds are **provenance** (“Filled by”) — see [ADAPTERS.md](ADAPTERS.md). Do not fork hide rules into compute-CSV vs emulate-CSV matrices.
 
 **MVP coding defaults:** [decisions/interim/](../context/decisions/interim/) — Interim ≠ Product-final.
 
-**Related:** [INPUT_FORMATS.md](INPUT_FORMATS.md) · [hardware/METRICS_AND_TRACE.md](hardware/METRICS_AND_TRACE.md) · [simulator/FORMAT.md](simulator/FORMAT.md) · [ADAPTERS.md](ADAPTERS.md) · [COMPONENTS.md](../architecture/COMPONENTS.md) · [UX_SPEC.md](../ui/UX_SPEC.md) · [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
+**Related:** [INPUT_FORMATS.md](INPUT_FORMATS.md) · [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md) · [emulate/FORMAT.md](emulate/FORMAT.md) · [ADAPTERS.md](ADAPTERS.md) · [COMPONENTS.md](../architecture/COMPONENTS.md) · [UX_SPEC.md](../ui/UX_SPEC.md) · [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)
 
 **Legend**
 
@@ -18,21 +18,25 @@ Normative **required vs optional inputs** for each Timeline surface. Missing opt
 
 ---
 
-## Profile fill (hardware vs simulator)
+## Profile fill (compute vs emulate)
 
-| Adapted field / capability | Filled by **hardware** | Filled by **simulator** |
-|----------------------------|------------------------|-------------------------|
-| `SwimlaneModel` | `PipeTrace.json` / `trace.json` / standalone CTEF | `PipeTrace.json` (from emulate CTEF, µs) |
-| `summary.*` (duration, identity) | `OpBasicInfo.csv` + `Summary.jsonl` | `KernelInfo.csv` / `summary.json` (thin; [DATA-42](../context/questions/DATA.md)) |
-| `pipeOccupancy` | `PipeUtilization.csv` | hide until mapper; later `PipesUtilization` (not remapped CSV name) |
-| `overviewSeries` | `Sampling.json` `ph:C` | hide unless counters packed |
-| `memoryTopology` / `memoryDiagram` | Memory*.csv | hide Phase 1 |
-| `roofline` | Arithmetic + Memory | Phase 2+ ELF-dependent sim inputs |
-| `hardwareDetails` | `HardwareInfo.jsonl` / OpBasicInfo | usually omit |
-| `archDiagram` | — | `ArchDiagramMetrics` (+ SVG) Phase 2 |
-| `memoryHeatmap` | — | `MemoryRWAccesses` Phase 2 |
-| `vfIpc` | — | `VfIPC` / `VfSimtIPC` Phase 2 |
-| `callStacks` | — | Call* tables (ELF) Phase 2 |
+Unification status: `same-path` (shared adapter path) · `adapt-mapper` (profile-specific → shared VM) · `gap` (no clean map yet) · `out-of-scope` (new surface / post–Sept 30).
+
+| Adapted field / panel | Compute source | Emulate source | Status | Sept 30 | Blockers |
+|-----------------------|----------------|----------------|--------|---------|----------|
+| `SwimlaneModel` (Timeline) | `PipeTrace.json` / `trace.json` / CTEF | `PipeTrace.json` (µs) | `same-path` (`chromeTraceToSwimlane`) | **in** | Packer tick→µs ([DATA-41](../context/decisions/DATA.md)) |
+| `summary.*` | `OpBasicInfo` + `Summary.jsonl` | `KernelInfo.csv` / `summary.json` | `adapt-mapper` | **in** (thin) | [DATA-42](../context/questions/DATA.md); interim [DATA-42a](decisions/interim/DATA.md) |
+| Gutter util | `PipeUtilization` → lane `utilization` | same VM when `pipeOccupancy` filled | `adapt-mapper` | **in** with PIPE | Column map quality |
+| `pipeOccupancy` / PIPE CSV tab | `PipeUtilization.csv` | `PipesUtilization.csv` / `PipeUtilizationHist.csv` | `adapt-mapper` | **in** | Schema ≠ compute ratios; no invent `PipeUtilization.csv` ([DATA-40](../context/decisions/DATA.md)) |
+| Other compute CSV tabs | Arithmetic / ResourceConflict | none typical | `gap` | **hide** | No emulate contract |
+| `overviewSeries` | `Sampling.json` `ph:C` | none unless packed | `gap` | **hide** | Need counters pack |
+| Memory CSV tabs | `Memory*.csv` / L2Cache | none for topology grain | `gap` | **hide** | — |
+| `memoryTopology` / `memoryDiagram` | Memory* aggregate BW | not `MemoryRWAccesses` (heatmap) | `gap` | **hide** | Needs ArchDiagramMetrics→slot map or compute Memory* |
+| `roofline` | Arithmetic + Memory | ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF | `gap` | **hide** | New mapper; DATA-37; ELF |
+| `hardwareDetails` | HardwareInfo / OpBasicInfo | usually none | `gap` | **hide** | — |
+| `archDiagram` | — | ArchDiagramMetrics | `out-of-scope` | **hide** | New panel |
+| `memoryHeatmap` | — | MemoryRWAccesses | `out-of-scope` | **hide** | New panel |
+| `vfIpc` / `callStacks` | — | VfIPC* / Call* (ELF) | `out-of-scope` | **hide** | New panels / ELF |
 
 ---
 

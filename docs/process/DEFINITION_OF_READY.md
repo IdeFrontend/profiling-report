@@ -7,7 +7,7 @@ A slice is **Ready** only when every applicable item below is checked.
 ## 1. Spec coverage
 
 - [ ] Goal alignment: the slice supports an MVP (or explicitly Phase 2) item in [PROJECT_GOALS](../context/PROJECT_GOALS.md) / [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md)
-- [ ] Format behavior (if any) is documented in [INPUT_FORMATS](../formats/INPUT_FORMATS.md) (hub) and the relevant profile doc ([hardware/FORMAT](../formats/hardware/FORMAT.md) / [simulator/FORMAT](../formats/simulator/FORMAT.md)), plus [METRICS_AND_TRACE](../formats/hardware/METRICS_AND_TRACE.md) or [ADAPTERS](../formats/ADAPTERS.md) as needed. Classic fixtures: [REP_FORMAT](../formats/REP_FORMAT.md)
+- [ ] Format behavior (if any) is documented in [INPUT_FORMATS](../formats/INPUT_FORMATS.md) (hub) and the relevant profile doc ([compute/FORMAT](../formats/compute/FORMAT.md) / [emulate/FORMAT](../formats/emulate/FORMAT.md)), plus [METRICS_AND_TRACE](../formats/compute/METRICS_AND_TRACE.md) or [ADAPTERS](../formats/ADAPTERS.md) as needed. Classic fixtures: [REP_FORMAT](../formats/REP_FORMAT.md)
 - [ ] UI/interaction behavior (if any) is documented in [UI_OVERVIEW](../ui/UI_OVERVIEW.md), [UX_SPEC](../ui/UX_SPEC.md), and/or [INTERACTIONS](../ui/INTERACTIONS.md)
 - [ ] Public API / component names are consistent with [ARCHITECTURE](../architecture/ARCHITECTURE.md) and [COMPONENTS](../architecture/COMPONENTS.md)
 - [ ] If the slice changes a spec, the spec PR section is drafted **before** coding

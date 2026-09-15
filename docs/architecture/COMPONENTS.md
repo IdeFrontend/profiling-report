@@ -150,11 +150,11 @@ Parsed `.rep` file table (name, type, origin, offset, length) before decoding pa
 
 **Why:** Sole module that knows hardware CSVs + `PipeTrace.json` / `trace.json`. Profile detection hub: [ADAPTERS.md](../formats/ADAPTERS.md).
 
-### `adaptSimulator` (M docs / next code)
+### `adaptEmulate` (M docs / next code)
 
-Simulator leaf payloads (`SimulatorManifest.json` + `PipeTrace.json` + KernelInfo/summary) → same `AdaptedReport`. Phase 1: Timeline + thin summary; omit PIPE/memory until mappers exist ([DATA-40](../context/decisions/DATA.md)).
+Simulator leaf payloads (`EmulateManifest.json` + `PipeTrace.json` + KernelInfo/summary) → same `AdaptedReport`. Phase 1: Timeline + thin summary; omit PIPE/memory until mappers exist ([DATA-40](../context/decisions/DATA.md)).
 
-**Why:** Same UI models; different sources ([simulator/FORMAT.md](../formats/simulator/FORMAT.md)).
+**Why:** Same UI models; different sources ([emulate/FORMAT.md](../formats/emulate/FORMAT.md)).
 
 ### `ChromeTraceToSwimlane` (M)
 
@@ -326,7 +326,7 @@ Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is im
 - [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) — normative colors
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios and sync model
 - [INTERACTIONS.md](../ui/INTERACTIONS.md) — hover/select/zoom behavior
-- [METRICS_AND_TRACE.md](../formats/hardware/METRICS_AND_TRACE.md) — hardware embeds → report model fields
+- [METRICS_AND_TRACE.md](../formats/compute/METRICS_AND_TRACE.md) — hardware embeds → report model fields
 - [ADAPTERS.md](../formats/ADAPTERS.md) — profile detect → adapt
 - [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md) — container hub
 - [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — Canvas vs WebGL

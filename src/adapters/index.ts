@@ -19,6 +19,17 @@ export {
   overviewSeriesFromSampling,
   pipeOccupancyFromRows,
 } from './adaptRep';
+/** Compute profile entry (alias of today's adaptPayloads). */
+export { adaptPayloads as adaptCompute } from './adaptRep';
+export {
+  adaptEmulate,
+  isEmulateLeaf,
+  readEmulateManifest,
+  pipeOccupancyFromPipesUtilization,
+  pipeOccupancyFromHist,
+  summaryFromKernelInfo,
+  summaryFromEmulateJson,
+} from './adaptEmulate';
 export { buildMemoryTopology } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';

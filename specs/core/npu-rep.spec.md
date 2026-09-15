@@ -26,7 +26,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 
 **Loading.** `loadReportSource` detects the `npu-rep` magic, then routes by `fileInfoLength` (`160` → `parseNpuRep160`, otherwise `parseNpuRep`). It returns a multi-operator `AdaptedReport` when nested archives exist (default-selecting the first operator), or a single-operator report for a flat leaf. Operator **id** is the unique FileInfo name (`op1.npu.rep`); **label** is the archive stem (`op1`). Duplicate stems throw (same posture as duplicate embed names).
 
-**Profiles.** After payloads are available for a leaf, if `SimulatorManifest.json` is present with `"profile": "simulator"`, adapt via the **simulator** path ([simulator-format](./simulator-format.spec.md), [adapt-simulator](./adapt-simulator.spec.md)); otherwise use the **hardware** path (`adaptPayloads`). Head `origin` remains `1` until [PROC-9](../../docs/context/questions/PROC.md). Simulator leaves MAY omit hardware metric CSVs ([DATA-40](../../docs/context/decisions/DATA.md)).
+**Profiles.** After payloads are available for a leaf, if `EmulateManifest.json` is present with `"profile": "emulate"`, adapt via the **emulate** path ([emulate-format](./emulate-format.spec.md), [adapt-emulate](./adapt-emulate.spec.md)); otherwise use the **compute** path (`adaptPayloads`). Head `origin` remains `1` until [PROC-9](../../docs/context/questions/PROC.md). Emulate leaves MAY omit compute metric CSVs ([DATA-40](../../docs/context/decisions/DATA.md)).
 
 ## Acceptance Criteria
 
@@ -41,7 +41,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 9. **PR-NPU-009** — A metrics-only 160-byte pack (no `trace.json`) adapts with a **null** `swimlaneModel` and a populated `reportModel` (no hard error), so the viewer renders the aside without a timeline.
 10. **PR-NPU-010** — The product timeline/summary embeds (`PipeTrace.json` + `Summary.jsonl`) map to the swimlane and op identity: `PipeTrace.json` drives the swimlane (µs → ns), `Summary.jsonl` `OpInfoSummary` supplies `opName`/`opType`/`taskDurationUs`/`blockDim`/`pid`.
 11. **PR-NPU-011** — The product report derives compute / bandwidth / utilization and summary categories: `coreCount` resolves from spaced `HardwareInfo.jsonl` keys (`ai vector count`); bandwidth cards prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)`); `parallelUtilization` / `parallelBalance` come from `OpInfoSummary`; and the detail surface is populated from `summary.jsonl` metric categories (excluding `OpInfoSummary`).
-12. **PR-NPU-012** — A leaf whose payloads include `SimulatorManifest.json` with `profile: "simulator"` is classified as simulator and MUST NOT require hardware `OpBasicInfo.csv` / `PipeUtilization.csv` to load ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-40](../../docs/context/decisions/DATA.md)).
+12. **PR-NPU-012** — A leaf whose payloads include `EmulateManifest.json` with `profile: "emulate"` is classified as emulate and MUST NOT require compute `OpBasicInfo.csv` / `PipeUtilization.csv` to load ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-40](../../docs/context/decisions/DATA.md)).
 
 ## Edge Cases
 
@@ -52,7 +52,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
-- **2026-09-14** — PR-NPU-012: simulator leaf detection via `SimulatorManifest.json`; no hardware CSV requirement ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-40](../../docs/context/decisions/DATA.md)).
+- **2026-09-14** — PR-NPU-012: simulator leaf detection via `EmulateManifest.json`; no hardware CSV requirement ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-40](../../docs/context/decisions/DATA.md)).
 - **2026-09-07** — Product host extension is `.npu-rep` only ([PROC-2](../../docs/context/decisions/PROC.md)); nested FileInfo names unchanged.
 - **2026-09-04** — PR-NPU-011: full NPU-Compute support — case-insensitive embed names (`PipeTrace.json`/`trace.json`, `Summary.jsonl`/`summary.jsonl`), spaced `HardwareInfo.jsonl` keys, `OpInfoSummary` compute/BW/utilization fields, summary-first detail categories, and the spec's resolved Product answers (compute power, bandwidth peak/score, parallel utilization, duration `{blockDim} Blocks / {coreCount} 核`).
 - **2026-09-03** — PR-NPU-007/008: product 160-byte layout (`parseNpuRep160` + routing by `fileInfoLength`); 164-byte layout re-labeled as the interim sample format.

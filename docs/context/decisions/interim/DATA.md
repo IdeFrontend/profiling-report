@@ -163,3 +163,11 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Interim:** **Not** cycle counts and **not** a mean over swimlane events. Raw = mean of non-`NA` mapped `PipeUtilization.csv` `*_time(us)` across `block_id` (DATA-33b pattern; same quantity family as DATA-33f), keyed by `laneColorKey(thread.name)` per the column map in [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md). Folders = mean of child raws. Bar width = \((\mathrm{raw}/\max)\times 100\) within the Card; red = max lane only. Dropdown offers only **clockCycle** + **utilization** (`cacheHit` / `task` withdrawn). Ignore `*_total_cycles`. **Why not PyPTO sum-of-cycles:** PyPTO joins `tilefwk_prof_pmu.csv` → `event.pmu_info['total cycle']` then sums per thread; that input is missing from NPU-Compute embeds and scanned `.npu-rep` / PR #74 fixtures (event-level PMU absent, not merely undocumented).
 **Implement / test as:** `gutterMetrics.ts`, `PR-GMET-*`
 **Superseded when:** Product confirms quantity (µs vs cycles), column map, or event-based / PMU formula ([DATA-38](../../questions/DATA.md)) — and producer ships the required join data
+
+### DATA-42a — Emulate KernelInfo / summary.json → summary cards
+
+**Status:** `interim`
+**Question:** [DATA-42](../../questions/DATA.md)
+**Interim:** Map when present: `KernelInfo.csv` rows `KernelInfoAttr`/`KernelInfoVal` with attrs matching `op name` / `kernel name` / `name` → `summary.opName`; `op type` / `type` → `opType`; `task duration(us)` / `duration(us)` / `duration` → `taskDurationUs`; `pid` → `pid`; `block dim` → `blockDim`. Overlay `summary.json` object fields `opName`/`name`, `opType`/`type`, `taskDurationUs`/`duration_us`, `pid`, `blockDim` (json wins on conflict). Unmapped → omit field (hide card chrome via DATA-30). Do **not** invent FLOPS/BW cards from emulate.
+**Implement / test as:** `summaryFromKernelInfo` / `summaryFromEmulateJson` in `adaptEmulate`; `PR-ASIM-003` + summary assertions
+**Superseded when:** Product locks DATA-42 field map

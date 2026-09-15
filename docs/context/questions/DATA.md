@@ -184,14 +184,14 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **PyPTO reference (not shippable on current npu-rep):** sum of `event.pmu_info['total cycle']` after joining `tilefwk_prof_pmu.csv` onto events. Absent from [NPU-Compute.md](https://gitcode.com/wk0911/npu-tools/blob/main/npu-compute/NPU-Compute.md) embeds and from scanned fixtures (`example.npu.rep`, PR #74 packs) — event traces have no `pmu_info` / `"total cycle"`; PR #74 does not add them. Block CSV `*_total_cycles` ≠ that formula.
 
-**Specs when answered:** [METRICS_AND_TRACE](../../formats/hardware/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md).
+**Specs when answered:** [METRICS_AND_TRACE](../../formats/compute/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md).
 
-### DATA-42 — Simulator KernelInfo / summary.json → summary cards
+### DATA-42 — Emulate KernelInfo / summary.json → summary cards
 
 **Status:** `open`
 
-**Question:** Which `KernelInfo.csv` attributes / `summary.json` fields map to `ReportViewModel.summary` for simulator Phase 1 (op name, type, `taskDurationUs`, block dim, pid)? Exact formulas for ticks → `taskDurationUs` when frequency is absent?
+**Question:** Which `KernelInfo.csv` attributes / `summary.json` fields map to `ReportViewModel.summary` for emulate Sept 30 (op name, type, `taskDurationUs`, block dim, pid)? Exact formulas for ticks → `taskDurationUs` when frequency is absent?
 
-**Context:** Phase 1 requires thin summary from KernelInfo and/or emulate `summary.json` ([simulator/FORMAT](../../formats/simulator/FORMAT.md)). No hardware `OpBasicInfo.csv` remap ([DATA-40](../decisions/DATA.md)).
+**Context:** Thin summary from KernelInfo and/or emulate `summary.json` ([emulate/FORMAT](../../formats/emulate/FORMAT.md)). No compute `OpBasicInfo.csv` remap ([DATA-40](../decisions/DATA.md)). Coding uses interim [DATA-42a](../decisions/interim/DATA.md).
 
-**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [adapt-simulator](../../../specs/core/adapt-simulator.spec.md), [view-models](../../../specs/core/view-models.spec.md)
+**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [view-models](../../../specs/core/view-models.spec.md)
