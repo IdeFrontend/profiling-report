@@ -10,6 +10,8 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 **report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** — the only flag this component reads is `roofline`, which mounts the Roofline card (Phase 2, out of the current release — opt-in only). The hardware-details overlay is **not** flag-gated: it keys off `report.hardwareDetails` (`hasHardwareDetails`).
 
+**Data SSOT:** [docs/views/](../../../docs/views/) — [report-summary](../../../docs/views/report-summary.md), [pipe-occupancy](../../../docs/views/pipe-occupancy.md), [roofline](../../../docs/views/roofline.md), [memory-topology](../../../docs/views/memory-topology.md).
+
 ## Outputs
 
 - **close** — aside close control; parent clears `asideVisible`.

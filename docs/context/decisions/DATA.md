@@ -336,7 +336,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-14
 - **Question:** May the viewer or packer invent hardware-shaped metric CSVs (`OpBasicInfo`, `PipeUtilization`, `Memory*.csv`, …) from npu_emulate contract tables?
 - **Decision:** **No.** Do not silently remap simulator tables into hardware embed schemas. Each profile keeps its own sources; adapters map into shared `SwimlaneModel` / `ReportViewModel` / `capabilities[]`. Missing adapted fields → hide panels ([DATA-30](./DATA.md)).
-- **Specs:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md)
+- **Specs:** [INPUT_FORMATS](../../formats/README.md), [FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md)
 - **Source:** Format-fit analysis (simulator grain ≠ hardware OP CSV pack)
 
 ---
@@ -346,5 +346,5 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-14
 - **Question:** What time unit must a simulator leaf use in `PipeTrace.json`?
 - **Decision:** Producer **MUST** convert simulator **ticks → microseconds** when packing `PipeTrace.json`. The viewer keeps the existing product rule: `PipeTrace.json` timestamps/durations are **µs** (same as hardware). The viewer MUST NOT reinterpret PipeTrace as ticks.
-- **Specs:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §4, [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [view-models](../../../specs/core/view-models.spec.md)
+- **Specs:** [INPUT_FORMATS](../../formats/README.md) §4, [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [view-models](../../../specs/core/view-models.spec.md)
 - **Source:** Align with product PipeTrace µs convention in `adaptPayloads`

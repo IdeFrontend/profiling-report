@@ -8,9 +8,9 @@ Log-log roofline bottleneck chart (M2 interim DATA-37*). **Not in the current re
 
 ## Inputs
 
-**model** is a `RooflineViewModel` (`points`, `mixLabels`, `peakComputeTops`, `peakBandwidthGBs`). Optional **locale** for title/legend.
+**Data SSOT:** [docs/views/roofline.md](../../../../docs/views/roofline.md).
 
-**Filled by:** compute — `ArithmeticUtilization.csv` + `Memory.csv` (`rooflineFromCsv`). Emulate — **gap / Sept 30 hide** (needs ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF; not the compute CSV path). See [VIEW_DATA_REQUIREMENTS](../../../../docs/formats/VIEW_DATA_REQUIREMENTS.md) profile fill.
+**model** is a `RooflineViewModel` (`points`, `mixLabels`, `peakComputeTops`, `peakBandwidthGBs`). Optional **locale** for title/legend.
 
 ## Behavior
 

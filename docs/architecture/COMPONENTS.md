@@ -322,11 +322,12 @@ Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is im
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — packaging and adapter strategy
 - [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs P2 features
-- [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md) — per-view inputs
+- [views/README.md](../views/README.md) — per-view sketches + VM + fills
+- [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md) — legacy redirect + unextracted surfaces
 - [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) — normative colors
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios and sync model
 - [INTERACTIONS.md](../ui/INTERACTIONS.md) — hover/select/zoom behavior
-- [METRICS_AND_TRACE.md](../formats/compute/METRICS_AND_TRACE.md) — hardware embeds → report model fields
+- [METRICS_AND_TRACE.md](../formats/compute/METRICS_AND_TRACE.md) — compute embed column detail
 - [ADAPTERS.md](../formats/ADAPTERS.md) — profile detect → adapt
-- [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md) — container hub
+- [formats/README.md](../formats/README.md) — container hub
 - [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — Canvas vs WebGL

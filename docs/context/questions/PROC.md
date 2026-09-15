@@ -18,4 +18,4 @@ Open **PROC** questions (process / tooling / acceptance). Status enum, prefix ta
 
 **Context:** Detection for v1 uses embed `EmulateManifest.json` ([PROC-8](../decisions/PROC.md)) so `origin` can stay `1`.
 
-**Specs when answered:** [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [npu-rep.spec.md](../../../specs/core/npu-rep.spec.md), [parseNpuRep160](../../../src/adapters/parseNpuRep160.ts)
+**Specs when answered:** [INPUT_FORMATS](../../formats/README.md), [npu-rep.spec.md](../../../specs/core/npu-rep.spec.md), [parseNpuRep160](../../../src/adapters/parseNpuRep160.ts)

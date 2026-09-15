@@ -12,9 +12,9 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 **Sept 30 required embeds.** In addition to the marker: `PipeTrace.json` (Chrome Trace Event format). At least one of `KernelInfo.csv` or `summary.json` SHOULD be present for thin summary; absence yields timeline-only (null/empty summary cards per DATA-30), not a hard error. `PipesUtilization.csv` / `PipeUtilizationHist.csv` SHOULD be packed when PIPE UI is expected.
 
-**Time unit.** `PipeTrace.json` `ts` / `dur` MUST be in **microseconds** after producer tick→µs conversion ([DATA-41](../../docs/context/decisions/DATA.md)). The viewer MUST NOT treat PipeTrace values as raw ticks.
+**Time unit.** `PipeTrace.json` `ts` / `dur` MUST be in **microseconds** after producer tick→µs conversion ([DATA-46](../../docs/context/decisions/DATA.md)). The viewer MUST NOT treat PipeTrace values as raw ticks.
 
-**No compute remap.** The leaf MUST NOT be required to contain compute-shaped `OpBasicInfo.csv` / `PipeUtilization.csv` / `Memory.csv` for valid open ([DATA-40](../../docs/context/decisions/DATA.md)).
+**No compute remap.** The leaf MUST NOT be required to contain compute-shaped `OpBasicInfo.csv` / `PipeUtilization.csv` / `Memory.csv` for valid open ([DATA-45](../../docs/context/decisions/DATA.md)).
 
 **Post–Sept 30 embeds.** Optional CSVs listed in FORMAT §4.2 may be packed; capabilities are set only when data is present and mappers exist.
 
@@ -33,11 +33,11 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 ## Dependencies
 
-[INPUT_FORMATS.md](../../docs/formats/INPUT_FORMATS.md), [emulate/FORMAT.md](../../docs/formats/emulate/FORMAT.md), PROC-6…8, DATA-40, DATA-41. [adapt-emulate](./adapt-emulate.spec.md).
+[INPUT_FORMATS.md](../../docs/formats/README.md), [emulate/FORMAT.md](../../docs/formats/emulate/FORMAT.md), PROC-6…8, DATA-45, DATA-46. [adapt-emulate](./adapt-emulate.spec.md).
 
 ## Open
 
-[DATA-42](../../docs/context/questions/DATA.md) — KernelInfo/summary → summary field map.
+[DATA-47](../../docs/context/questions/DATA.md) — KernelInfo/summary → summary field map.
 
 ## Changelog
 - **2026-09-14** — Initial spec (docs pass; tests todo).

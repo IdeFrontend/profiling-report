@@ -2,7 +2,7 @@
 
 **Profile:** `compute` (npu-compute / device OP profiling).
 
-Payload schemas and sample checks for the **hardware** leaf inside a product `.npu-rep` container. Shared container binary layout: [INPUT_FORMATS.md](../INPUT_FORMATS.md). Embed → UI mapping: [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md). Emulate profile: [../emulate/FORMAT.md](../emulate/FORMAT.md).
+Payload schemas and sample checks for the **hardware** leaf inside a product `.npu-rep` container. Shared container binary layout: [formats README](../README.md). Embed → UI mapping: [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md). Emulate profile: [../emulate/FORMAT.md](../emulate/FORMAT.md).
 
 Derived from product spec §11.2 and cross-checked against [`data/out.rep`](../../../../data/out.rep) / packer [`data/pack_rep.py`](../../../../data/pack_rep.py).
 
