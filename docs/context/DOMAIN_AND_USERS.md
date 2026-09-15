@@ -32,7 +32,7 @@ Profiling artifacts they open today:
 
 - **`.bin`** — rich Insight operator dump (instruction / Source / Cache depth) — stays in **MindStudio Insight**
 - **`.npu-rep` (compute profile)** — portable **report pack** from device OP profiling (metric CSVs + Chrome Trace) — [PROC-2](decisions/PROC.md), [PROC-7](decisions/PROC.md)
-- **`.npu-rep` (emulate profile)** — same host extension from **npu_emulate** cycle-accurate simulation (contract CSVs / Chrome Trace + `EmulateManifest.json`) — [PROC-6](decisions/PROC.md), [emulate/FORMAT](../formats/emulate/FORMAT.md)
+- **`.npu-rep` (emulate profile)** — same host extension from **npu_emulate** cycle-accurate simulation (contract CSVs / Chrome Trace + `manifest.json`) — [PROC-6](decisions/PROC.md), [emulate/FORMAT](../formats/emulate/FORMAT.md)
 
 Grain differs: hardware packs **OP-level aggregates**; simulator is **instruction / tick**-level. Do not conflate schemas ([DATA-45](decisions/DATA.md)).
 ---
@@ -54,7 +54,7 @@ flowchart LR
 
 1. Author or edit the OP (C++ / Ascend C / tiling, etc.).
 2. Build and profile on **device** (hardware pack) and/or run **npu_emulate** (simulator pack); MSTT shows results under the performance tree.
-3. Open **`.npu-rep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)); library detects profile via `EmulateManifest.json` ([PROC-8](decisions/PROC.md)).
+3. Open **`.npu-rep`** → host mounts `<ProfilingReport />` ([MSTT_INTEGRATION](../architecture/MSTT_INTEGRATION.md)); library detects profile via `manifest.json` ([PROC-8](decisions/PROC.md)).
 4. Answer “how long?”, “which pipes?”, “what’s busy when?” (hardware) or Timeline-first simulator Phase 1 → change code → repeat.
 5. For instruction-level Source / Cache / flag sync on device dumps, open **`.bin`** in Insight (sibling path, not this library). Simulator Source Assembly is a Phase 2 capability when ELF data is packed.
 ---

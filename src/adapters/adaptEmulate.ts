@@ -17,18 +17,29 @@ import { laneColorKey } from '../domain/laneColors';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { emptyReportViewModel } from './adaptRep';
 
-const MANIFEST_NAMES = ['EmulateManifest.json', 'emulatemanifest.json'];
+/** Primary: producer `manifest.json`; legacy: `EmulateManifest.json` ([PROC-8]). */
+const MANIFEST_NAMES = [
+  'manifest.json',
+  'Manifest.json',
+  'EmulateManifest.json',
+  'emulatemanifest.json',
+];
 const PIPE_TRACE_NAMES = ['PipeTrace.json', 'pipetrace.json'];
 const KERNEL_INFO_NAMES = ['KernelInfo.csv', 'kernelinfo.csv'];
 const SUMMARY_JSON_NAMES = ['summary.json', 'Summary.json'];
 const PIPES_UTIL_NAMES = ['PipesUtilization.csv', 'pipesutilization.csv'];
 const PIPE_HIST_NAMES = ['PipeUtilizationHist.csv', 'pipeutilizationhist.csv'];
 
+/** Hub object names that identify an npu_emulate CSV export catalog. */
+const EXPORT_CATALOG_HUBS = new Set(['ExecutedInstructions', 'KernelInfo', 'AnalysisState']);
+
 export interface EmulateManifest {
   profile: string;
   schemaVersion: number;
   producer?: string;
   tickToUs?: number | null;
+  /** True when detection used export-catalog `objects[]` rather than thin profile marker. */
+  fromExportCatalog?: boolean;
 }
 
 function decodeUtf8(bytes: Uint8Array): string {
@@ -63,11 +74,26 @@ function parseCsv(text: string): { headers: string[]; rows: Record<string, strin
   return { headers, rows };
 }
 
-/** True when leaf payloads include a valid EmulateManifest marker. */
+function isExportCatalog(obj: Record<string, unknown>): boolean {
+  if (!Array.isArray(obj.objects) || obj.objects.length === 0) return false;
+  return obj.objects.some(
+    (entry) =>
+      entry != null &&
+      typeof entry === 'object' &&
+      typeof (entry as { name?: unknown }).name === 'string' &&
+      EXPORT_CATALOG_HUBS.has((entry as { name: string }).name),
+  );
+}
+
+/** True when leaf payloads include a valid emulate `manifest.json` (or legacy EmulateManifest). */
 export function isEmulateLeaf(payloads: Record<string, Uint8Array>): boolean {
   return readEmulateManifest(payloads) != null;
 }
 
+/**
+ * Read emulate marker from `manifest.json` / legacy `EmulateManifest.json`.
+ * Accepts thin `{ profile: "emulate", schemaVersion }` or export-catalog `{ objects: [...] }` with a hub table.
+ */
 export function readEmulateManifest(
   payloads: Record<string, Uint8Array>,
 ): EmulateManifest | null {
@@ -77,25 +103,43 @@ export function readEmulateManifest(
   try {
     parsed = JSON.parse(decodeUtf8(raw));
   } catch {
-    throw new Error('[profiling-report] adaptEmulate: EmulateManifest.json is not valid JSON');
+    throw new Error('[profiling-report] adaptEmulate: manifest.json is not valid JSON');
   }
   if (!parsed || typeof parsed !== 'object') {
-    throw new Error('[profiling-report] adaptEmulate: EmulateManifest.json must be an object');
+    throw new Error('[profiling-report] adaptEmulate: manifest.json must be an object');
   }
   const obj = parsed as Record<string, unknown>;
-  if (obj.profile !== 'emulate') return null;
-  if (typeof obj.schemaVersion !== 'number' || !Number.isFinite(obj.schemaVersion)) {
-    throw new Error('[profiling-report] adaptEmulate: EmulateManifest.json schemaVersion required');
+
+  if (obj.profile === 'emulate') {
+    if (typeof obj.schemaVersion !== 'number' || !Number.isFinite(obj.schemaVersion)) {
+      throw new Error('[profiling-report] adaptEmulate: manifest.json schemaVersion required');
+    }
+    return {
+      profile: 'emulate',
+      schemaVersion: obj.schemaVersion,
+      ...(typeof obj.producer === 'string' ? { producer: obj.producer } : {}),
+      tickToUs: (obj.tickToUs as number | null | undefined) ?? null,
+    };
   }
-  return {
-    profile: 'emulate',
-    schemaVersion: obj.schemaVersion,
-    ...(typeof obj.producer === 'string' ? { producer: obj.producer } : {}),
-    tickToUs: (obj.tickToUs as number | null | undefined) ?? null,
-  };
+
+  // profile present but not emulate → not our leaf (e.g. mistaken compute marker)
+  if (typeof obj.profile === 'string') return null;
+
+  if (isExportCatalog(obj)) {
+    return {
+      profile: 'emulate',
+      schemaVersion: 1,
+      fromExportCatalog: true,
+      ...(typeof obj.database === 'string' && /npu_emulate/i.test(obj.database)
+        ? { producer: 'npu_emulate' }
+        : {}),
+    };
+  }
+
+  return null;
 }
 
-/** Interim DATA-42a: KernelInfo attr/val rows → SummaryMetrics. */
+/** Interim DATA-47a: KernelInfo attr/val rows → SummaryMetrics. */
 export function summaryFromKernelInfo(payload?: Uint8Array): SummaryMetrics {
   if (!payload) return {};
   const { rows } = parseCsv(decodeUtf8(payload));
@@ -134,7 +178,7 @@ export function summaryFromKernelInfo(payload?: Uint8Array): SummaryMetrics {
   return summary;
 }
 
-/** Interim DATA-42a: emulate summary.json loose fields → SummaryMetrics. */
+/** Interim DATA-47a: emulate summary.json loose fields → SummaryMetrics. */
 export function summaryFromEmulateJson(payload?: Uint8Array): SummaryMetrics {
   if (!payload) return {};
   let parsed: unknown;
@@ -316,26 +360,15 @@ function withPipeLaneUtilizations(
 
 /**
  * Adapt an emulate-profile leaf (marker already validated or present).
- * Does not invent compute-shaped metric CSVs (DATA-40).
+ * Does not invent compute-shaped metric CSVs (DATA-45).
  */
 export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport {
   const manifest = readEmulateManifest(payloads);
   if (!manifest) {
-    throw new Error('[profiling-report] adaptEmulate: EmulateManifest.json with profile=emulate required');
+    throw new Error(
+      '[profiling-report] adaptEmulate: manifest.json (emulate profile or export catalog) required',
+    );
   }
-
-  const traceBytes = payloadByName(payloads, PIPE_TRACE_NAMES);
-  if (!traceBytes) {
-    throw new Error('[profiling-report] adaptEmulate: PipeTrace.json required');
-  }
-  let traceJson: unknown;
-  try {
-    traceJson = JSON.parse(decodeUtf8(traceBytes));
-  } catch {
-    throw new Error('[profiling-report] adaptEmulate: PipeTrace.json is not valid JSON');
-  }
-
-  let swimlaneModel = chromeTraceToSwimlane(traceJson, { sourceTimeUnit: 'us' });
 
   const summary = mergeSummary(
     summaryFromKernelInfo(payloadByName(payloads, KERNEL_INFO_NAMES)),
@@ -345,7 +378,22 @@ export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedRepor
   const histPipes = pipeOccupancyFromHist(payloadByName(payloads, PIPE_HIST_NAMES));
   const utilPipes = pipeOccupancyFromPipesUtilization(payloadByName(payloads, PIPES_UTIL_NAMES));
   const pipeOccupancy = histPipes.length > 0 ? histPipes : utilPipes;
-  swimlaneModel = withPipeLaneUtilizations(swimlaneModel, pipeOccupancy);
+
+  // PipeTrace optional: absent → null swimlane (metrics-only / export pack); corrupt → throw.
+  let swimlaneModel: SwimlaneModel | null = null;
+  const traceBytes = payloadByName(payloads, PIPE_TRACE_NAMES);
+  if (traceBytes) {
+    let traceJson: unknown;
+    try {
+      traceJson = JSON.parse(decodeUtf8(traceBytes));
+    } catch {
+      throw new Error('[profiling-report] adaptEmulate: PipeTrace.json is not valid JSON');
+    }
+    swimlaneModel = withPipeLaneUtilizations(
+      chromeTraceToSwimlane(traceJson, { sourceTimeUnit: 'us' }),
+      pipeOccupancy,
+    );
+  }
 
   const computeTables: CsvTableModel[] = [];
   const pipesTable = csvTableFromPayload(payloads, PIPES_UTIL_NAMES);

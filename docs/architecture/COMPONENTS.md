@@ -152,7 +152,7 @@ Parsed `.rep` file table (name, type, origin, offset, length) before decoding pa
 
 ### `adaptEmulate` (M docs / next code)
 
-Simulator leaf payloads (`EmulateManifest.json` + `PipeTrace.json` + KernelInfo/summary) → same `AdaptedReport`. Phase 1: Timeline + thin summary; omit PIPE/memory until mappers exist ([DATA-45](../context/decisions/DATA.md)).
+Simulator leaf payloads (`manifest.json` + `PipeTrace.json` + KernelInfo/summary) → same `AdaptedReport`. Phase 1: Timeline + thin summary; omit PIPE/memory until mappers exist ([DATA-45](../context/decisions/DATA.md)).
 
 **Why:** Same UI models; different sources ([emulate/FORMAT.md](../formats/emulate/FORMAT.md)).
 

@@ -377,7 +377,7 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 
 ## Emulate profile (MHTML §11.2.3)
 
-Same host file (`.npu-rep`); leaf detected via `EmulateManifest.json` ([PROC-8](../context/decisions/PROC.md)). Source schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md). **Fill + sketches:** [views catalog](../views/README.md) — [timeline](../views/timeline.md), [report-summary](../views/report-summary.md), [pipe-occupancy](../views/pipe-occupancy.md), [overview-charts](../views/overview-charts.md), [roofline](../views/roofline.md), [memory-topology](../views/memory-topology.md).
+Same host file (`.npu-rep`); leaf detected via `manifest.json` ([PROC-8](../context/decisions/PROC.md)). Source schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md). **Fill + sketches:** [views catalog](../views/README.md) — [timeline](../views/timeline.md), [report-summary](../views/report-summary.md), [pipe-occupancy](../views/pipe-occupancy.md), [overview-charts](../views/overview-charts.md), [roofline](../views/roofline.md), [memory-topology](../views/memory-topology.md).
 
 | § | Feature | View packet | Sept 30 |
 | --- | --- | --- | --- |

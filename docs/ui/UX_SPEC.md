@@ -95,7 +95,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Rank pipes and inspect raw CSV counters for a selected block |
 | **Trigger** | After S1; user needs more than bar chart |
-| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter field labels; open memory tabs + block switcher; optionally 查看全部 |
+| **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter + highlight field labels; open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
 | **Sketches** | Bars: [`v930/compute-load`](./source/v930/compute-load.jpeg). Details: [`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg) |
 | **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
@@ -106,9 +106,9 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Understand bandwidth / path load across L1/L2/UB/GM |
 | **Trigger** | After S1; topology is on the stacked 报告统计 scroll |
-| **Steps** | View topology under PIPE; the diagram's own bar zooms it (**放大** / **缩小** / **适应窗口**, PR-MEMTOP-015) or opens **全屏**, which covers the report with the same diagram; **详情** opens memory CSV field list; correlate with timeline window |
+| **Steps** | View topology under PIPE; **全屏** covers the report with the same diagram; **详情** opens memory CSV field list; correlate with timeline window |
 | **Success** | User identifies memory-bound paths |
-| **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930-sim/memory-topology-zoom.jpeg` |
+| **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` |
 
 ### S7 — Review hardware context (P2)
 
@@ -140,6 +140,16 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Steps** | Tabs are present and **disabled** — no navigation, no surfaces |
 | **Success** | Timeline remains the only active mode ([UI-37](../context/decisions/UI.md)) |
 | **Sketches** | Tab chrome in `source/v930/entry.jpeg` |
+
+### S10 — Open emulate `.npu-rep` (M)
+
+| | |
+|--|--|
+| **Goal** | Open an npu_emulate report with the same host path as compute |
+| **Trigger** | User selects `report_*.npu-rep` packed by emulate (contains emulate `manifest.json`) |
+| **Steps** | Host opens `.npu-rep` → library detects emulate profile ([PROC-8](../context/decisions/PROC.md)) → Timeline from `PipeTrace.json`; thin summary when KernelInfo/summary map; PIPE when PipesUtilization/hist packed; memory topology / roofline / overview / hardwareDetails **hidden** (gaps — [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)) |
+| **Success** | Swimlane usable; PIPE when util CSVs present; no hard error for missing compute CSVs; no invented OpBasicInfo/PipeUtilization ([DATA-45](../context/decisions/DATA.md)) |
+| **Sketches** | Same Timeline chrome as S1; emulate surfaces per [VIEW_DATA_MAPPING § Emulate](VIEW_DATA_MAPPING.md) |
 
 ---
 
@@ -193,9 +203,9 @@ Interactivity classes:
 | Lane gutter | interactive | Expand/collapse; wheel scroll sync | Row set + `scrollY` | M |
 | Event tooltip | interactive (transient) | Hover | Shows timing | M |
 | Detail strip / bottom dock | interactive (selection-driven) | Cleared by empty click | Bound to selection | M / richer P2 |
-| Pipe field list + search | interactive | Type filter, scroll | Filtered rows (no highlight, UI-43) | M1 |
-| Memory topology | semi / interactive | Zoom bar (缩小 / 放大 / 适应窗口) on the diagram; click nodes P2 | Field highlight | M2 |
-| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows (no highlight, UI-43) | M1 |
+| Pipe field list + search | interactive | Type filter, scroll | Filtered rows + flush substring highlight | M1 |
+| Memory topology | semi / interactive | Pan/zoom diagram optional; click nodes P2 | Field highlight | P2 |
+| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows + flush substring highlight | M1 |
 | Hardware details | static / semi | Scroll | — | P2 |
 | Dependency link curves | interactive | Toggle visibility; click link | Selection / detail | P2 |
 | Context menu | interactive | Right-click | Pin / actions | P2 |
@@ -270,11 +280,11 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S5 (M1)
 
 1. MVP: read PIPE bars in aside.
-2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows (no substring highlight, [UI-43](../context/decisions/UI.md)); inspect values (`source/v930/compute-load-detail.jpeg`).
+2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the substring; inspect values (`source/v930/compute-load-detail.jpeg`).
 
 ### Flow S6–S9
 
-- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → zoom bar on the diagram (缩小 / 放大 / 适应窗口, PR-MEMTOP-015) → optional **全屏** overlay or details list.
+- **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → optional **全屏** overlay or details list.
 - **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/decisions/DATA.md)).
 - **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
 - **S9:** 源码 / 详情 / 缓存 remain **disabled** ([UI-37](../context/decisions/UI.md)); Timeline only.
@@ -287,7 +297,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-----------|-----|
 | No `OverviewSeries` | Hide `OverviewCharts` ([DATA-32](../context/decisions/DATA.md)) |
 | Optional CSV / panel inputs missing | Hide related surface ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)); Timeline still works if trace present |
-| Summary formulas (DATA-33) | **Interim [DATA-33a](../context/decisions/interim/DATA.md):** duration; **[DATA-33h](../context/decisions/interim/DATA.md)** compute Cube\|Vector when `computeCard` exists; **[DATA-8](../context/decisions/DATA.md)** bandwidth 读\|写 (summed sides, score = measured ÷ peak); **DATA-9 / DATA-10** AICore dual 并行\|负载 when `parallelUtilization` / `parallelBalance` exist (else title + `N/A`) |
+| Summary formula unknown (DATA-33) | **Interim [DATA-33a](../context/decisions/interim/DATA.md):** duration; **[DATA-33h](../context/decisions/interim/DATA.md)** compute Cube\|Vector when `computeCard` exists; **[DATA-33g](../context/decisions/interim/DATA.md)** bandwidth 读\|写; **DATA-9 / DATA-10** AICore dual 并行\|负载 when `parallelUtilization` / `parallelBalance` exist (else title + `N/A`) |
 | Trace missing / invalid | Error state on root; emit `error`; do not show broken swimlane |
 | All AIC fields `NA` (vector-only) | Show AIV-derived PIPE; do not invent Cube series |
 | Search no matches | Neutral empty hint in toolbar/results; swimlane unchanged except clear highlights |
@@ -313,7 +323,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 | S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailPanel` | `v930/task-hover`, `v930/detail-strip-raised` |
 | S4 util compare | Lane gutter util bars, PIPE | `LaneGutter`, `PipeOccupancyPanel` | overview sketches |
 | S5 pipe drill | PIPE bars M; compute/memory field lists M1 | `PipeOccupancyPanel`, `CsvFieldListPanel` | `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` |
-| S6 memory | Memory topology M2 (zoom bar + 全屏) | `MemoryTopologyPanel` | `v930-sim/memory-topology-zoom`, `v930-sim/memory-topology-fullscreen` |
+| S6 memory | Memory topology P2 | `MemoryTopologyPanel` | `memory_*` |
 | S7 hardware | Hardware details P2 | `HardwareDetailsPanel` | `sidebar_details` |
 | S8 deps / multi | Deps, multiselect, context menu P2 | `SwimlaneCanvas` (dep curves in renderer), etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |
 | S9 tabs | Secondary tabs P2 | Host or future tab strip | tab chrome in overviews |
@@ -328,6 +338,6 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 |-------|----------|---------------------------|
 | Trace richness | DATA-31, DATA-35 | Lane taxonomy may be thinner than sketches; hierarchy collapses to available threads |
 | Overview series | DATA-32 | Charts hidden if no series |
-| Summary formulas | DATA-33 / [DATA-33a](../context/decisions/interim/DATA.md) / [DATA-8](../context/decisions/DATA.md) / [DATA-33h](../context/decisions/interim/DATA.md) / [DATA-9](../context/decisions/DATA.md) / [DATA-10](../context/decisions/DATA.md) | Duration + compute/BW (BW per DATA-8); AICore dual columns when parallel fields present; BW peak/score via DATA-5–7 (`summary.jsonl` SOL 1600) |
+| Summary formulas | DATA-33 / [DATA-33a](../context/decisions/interim/DATA.md) / [DATA-33g](../context/decisions/interim/DATA.md) / [DATA-33h](../context/decisions/interim/DATA.md) / [DATA-9](../context/decisions/DATA.md) / [DATA-10](../context/decisions/DATA.md) | Duration + interim compute/BW; AICore dual columns when parallel fields present; BW peak/score via DATA-5–7 (`summary.jsonl` SOL 1600) |
 | Hardware aside | DATA-34 / UI-30, UI-31 | **更多** always opens; missing HardwareInfo → **缺少 hardware info** |
 | Dependencies | DATA-36 | S8 dep flows blocked |
