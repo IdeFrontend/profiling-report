@@ -14,11 +14,11 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 7. **[process/PROJECT_STRUCTURE.md](process/PROJECT_STRUCTURE.md)** — canonical project layout: spec locations, per-component folders, test ID conventions, traceability
 8. **[process/TESTING.md](process/TESTING.md)** — Vitest / Playwright pyramid, fixtures, matrix → test ids
 9. **[process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md)** — checklist before implementing a slice
-10. **[formats/INPUT_FORMATS.md](formats/INPUT_FORMATS.md)** — **hub**: `.npu-rep` container + hardware/simulator profile index
+10. **[formats/INPUT_FORMATS.md](formats/INPUT_FORMATS.md)** — **hub**: `.npu-rep` container + compute/emulate profile index
 11. **[formats/FORMATS_COMPARISON.md](formats/FORMATS_COMPARISON.md)** — Insight vs hardware `.npu-rep` vs simulator `.npu-rep` vs PyPTO
-12. **[formats/hardware/FORMAT.md](formats/hardware/FORMAT.md)** — hardware OP embed schemas
-13. **[formats/hardware/METRICS_AND_TRACE.md](formats/hardware/METRICS_AND_TRACE.md)** — hardware embeds → UI
-14. **[formats/simulator/FORMAT.md](formats/simulator/FORMAT.md)** — simulator contract + leaf pack
+12. **[formats/compute/FORMAT.md](formats/compute/FORMAT.md)** — hardware OP embed schemas
+13. **[formats/compute/METRICS_AND_TRACE.md](formats/compute/METRICS_AND_TRACE.md)** — hardware embeds → UI
+14. **[formats/emulate/FORMAT.md](formats/emulate/FORMAT.md)** — simulator contract + leaf pack
 15. **[formats/ADAPTERS.md](formats/ADAPTERS.md)** — detect profile → adapt → view-models
 16. **[formats/REP_FORMAT.md](formats/REP_FORMAT.md)** — classic `cann-rep` fixture only
 17. **[formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md)** — adapted VM required/optional; hide-if-missing

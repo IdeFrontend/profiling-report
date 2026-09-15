@@ -1,0 +1,8 @@
+PipeName,CoreName,Utilization
+Cube,AIC0,0.55
+MTE1,AIC0,0.1
+MTE2,AIC0,0.2
+Scalar,AIC0,0.15
+Vector,AIV0,0.6
+MTE2,AIV0,0.3
+MTE3,AIV0,0.25

@@ -214,7 +214,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.spec.md). [mstt-integration](../../../specs/architecture/mstt-integration.spec.md).
 
-**Input formats:** [REP_FORMAT.md](../../../docs/formats/REP_FORMAT.md) (`.rep` binary container), [INPUT_FORMATS.md](../../../docs/formats/INPUT_FORMATS.md) (container hub), [hardware/FORMAT.md](../../../docs/formats/hardware/FORMAT.md) (hardware schemas), [METRICS_AND_TRACE.md](../../../docs/formats/hardware/METRICS_AND_TRACE.md) (embed → UI).
+**Input formats:** [REP_FORMAT.md](../../../docs/formats/REP_FORMAT.md) (`.rep` binary container), [INPUT_FORMATS.md](../../../docs/formats/INPUT_FORMATS.md) (container hub), [compute/FORMAT.md](../../../docs/formats/compute/FORMAT.md) (compute schemas), [METRICS_AND_TRACE.md](../../../docs/formats/compute/METRICS_AND_TRACE.md) (compute embed → UI), [emulate/FORMAT.md](../../../docs/formats/emulate/FORMAT.md) (emulate leaf), [ADAPTERS.md](../../../docs/formats/ADAPTERS.md) / [VIEW_DATA_REQUIREMENTS.md](../../../docs/formats/VIEW_DATA_REQUIREMENTS.md) (profile fill + gaps).
 
 ## Open
 

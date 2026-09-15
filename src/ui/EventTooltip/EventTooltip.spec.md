@@ -43,7 +43,7 @@ Crops: [`visual/tooltip.png`](./visual/tooltip.png), [`visual/tooltip-context.pn
 
 [format-time](../../../specs/core/format-time.spec.md).
 
-**Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/hardware/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
+**Input formats:** [METRICS_AND_TRACE.md](../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json event schema — name, startTime, duration fields).
 
 ## Changelog
 - **2026-09-09** — Start/end use zoom-aware `nsPerPx` digits (PR-TIME-011); duration stays 4 significant digits.

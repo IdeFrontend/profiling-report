@@ -133,12 +133,12 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
 
-### DATA-47 — Simulator KernelInfo / summary.json → summary cards
+### DATA-47 — Emulate KernelInfo / summary.json → summary cards
 
 **Status:** `open`
 
-**Question:** Which `KernelInfo.csv` attributes / `summary.json` fields map to `ReportViewModel.summary` for simulator Phase 1 (op name, type, `taskDurationUs`, block dim, pid)? Exact formulas for ticks → `taskDurationUs` when frequency is absent?
+**Question:** Which `KernelInfo.csv` attributes / `summary.json` fields map to `ReportViewModel.summary` for emulate Sept 30 (op name, type, `taskDurationUs`, block dim, pid)? Exact formulas for ticks → `taskDurationUs` when frequency is absent?
 
-**Context:** Phase 1 requires thin summary from KernelInfo and/or emulate `summary.json` ([simulator/FORMAT](../../formats/simulator/FORMAT.md)). No hardware `OpBasicInfo.csv` remap ([DATA-45](../decisions/DATA.md)).
+**Context:** Thin summary from KernelInfo and/or emulate `summary.json` ([emulate/FORMAT](../../formats/emulate/FORMAT.md)). No compute `OpBasicInfo.csv` remap ([DATA-45](../decisions/DATA.md)). Coding uses interim [DATA-47a](../decisions/interim/DATA.md).
 
-**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [adapt-simulator](../../../specs/core/adapt-simulator.spec.md), [view-models](../../../specs/core/view-models.spec.md)
+**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [view-models](../../../specs/core/view-models.spec.md)

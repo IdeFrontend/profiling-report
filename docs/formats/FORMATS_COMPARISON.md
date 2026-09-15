@@ -2,7 +2,7 @@
 
 Compare **what data means** for OP-level profiling across: MindStudio Insight (operator path), **hardware** `.npu-rep`, **simulator** `.npu-rep`, and PyPTO swimlane inputs.
 
-This document is **not** about binary layouts. Container hub: [INPUT_FORMATS.md](INPUT_FORMATS.md). Classic fixture: [REP_FORMAT.md](REP_FORMAT.md). Hardware embed → UI: [hardware/METRICS_AND_TRACE.md](hardware/METRICS_AND_TRACE.md). Simulator contract: [simulator/FORMAT.md](simulator/FORMAT.md).
+This document is **not** about binary layouts. Container hub: [INPUT_FORMATS.md](INPUT_FORMATS.md). Classic fixture: [REP_FORMAT.md](REP_FORMAT.md). Hardware embed → UI: [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md). Simulator contract: [emulate/FORMAT.md](emulate/FORMAT.md).
 
 ## Scope
 
@@ -39,8 +39,8 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 | **Conflicts / stalls** | UB conflicts; wait cycles | `ResourceConflictRatio.csv` | UB bank / SIMD stall tables when populated | Event args / PMU |
 | **Host / NPU inventory** | May appear in chrome | `HardwareInfo.jsonl` when present | Usually absent | Not typical |
 | **Counters / overview** | Optional MTE-style | `Sampling.json` `ph:C` ([DATA-39](../context/decisions/DATA.md)) | Optional later (e.g. UnitUtilization → counters) | `ph:C` lanes |
-| **Detection / open path** | `.bin` → Insight | `.npu-rep` leaf without sim marker | `.npu-rep` leaf + `SimulatorManifest.json` ([PROC-8](../context/decisions/PROC.md)) | Swimlane JSON / CTEF / … |
-| **Adapter** | Insight server | Hardware `adaptPayloads` | `adaptSimulator` | Host / future adapter |
+| **Detection / open path** | `.bin` → Insight | `.npu-rep` leaf without sim marker | `.npu-rep` leaf + `EmulateManifest.json` ([PROC-8](../context/decisions/PROC.md)) | Swimlane JSON / CTEF / … |
+| **Adapter** | Insight server | Hardware `adaptPayloads` | `adaptEmulate` | Host / future adapter |
 | **Primary product question** | “What did this kernel do on the pipes, and how does it map to source?” | “Portable OP report: summary + swimlane.” | “Cycle-accurate sim: timeline first; biprof-like deep panels Phase 2.” | “How did tasks schedule across cores?” |
 
 ## Why they differ
@@ -49,10 +49,10 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 Single-kernel **microarchitecture** dump (PC, source, pipe Gantt, cache). Opaque; Insight + `profiler_server`.
 
 **`.npu-rep` hardware**  
-Portable **OP report pack**: pre-aggregated CSV metrics + Chrome Trace for Vue swimlane **without** Insight. Schemas: [hardware/FORMAT.md](hardware/FORMAT.md).
+Portable **OP report pack**: pre-aggregated CSV metrics + Chrome Trace for Vue swimlane **without** Insight. Schemas: [compute/FORMAT.md](compute/FORMAT.md).
 
 **`.npu-rep` simulator**  
-Same **container and host extension** ([PROC-6](../context/decisions/PROC.md)), but **instruction/tick** contract from npu_emulate. Closer in grain to Insight than to hardware CSVs — yet delivered as a report pack, not `.bin`. Schemas: [simulator/FORMAT.md](simulator/FORMAT.md). **No silent remap** into hardware embeds ([DATA-45](../context/decisions/DATA.md)).
+Same **container and host extension** ([PROC-6](../context/decisions/PROC.md)), but **instruction/tick** contract from npu_emulate. Closer in grain to Insight than to hardware CSVs — yet delivered as a report pack, not `.bin`. Schemas: [emulate/FORMAT.md](emulate/FORMAT.md). **No silent remap** into hardware embeds ([DATA-45](../context/decisions/DATA.md)).
 
 **PyPTO swimlane**  
 Schedule orchestration: processes/threads/events, deps, optional AICPU/PMU. Not an Ascend OP metric CSV product.
@@ -80,19 +80,19 @@ Performance results tree file click
   ├─ .json         → profiling-report when Chrome Trace ([PROC-3](../context/decisions/PROC.md))
   └─ .npu-rep      → profiling-report Vue panel ([PROC-2](../context/decisions/PROC.md))
                      ├─ hardware leaf  → adaptPayloads
-                     └─ simulator leaf → adaptSimulator (marker [PROC-8](../context/decisions/PROC.md))
+                     └─ simulator leaf → adaptEmulate (marker [PROC-8](../context/decisions/PROC.md))
 ```
 
 | Axis | Insight | Hardware `.npu-rep` | Simulator `.npu-rep` | PyPTO |
 |------|---------|---------------------|----------------------|-------|
-| On-disk trigger | `.bin` | `.npu-rep` | `.npu-rep` + `SimulatorManifest.json` | Swimlane JSON / CTEF / … |
+| On-disk trigger | `.bin` | `.npu-rep` | `.npu-rep` + `EmulateManifest.json` | Swimlane JSON / CTEF / … |
 | Who interprets | Insight + `profiler_server` | This library | This library | pypto host |
 | Kept in MSTT? | Yes for `.bin` | Primary OP report path | Same extension | UX reference |
 
 ## Related docs
 
 - [INPUT_FORMATS.md](INPUT_FORMATS.md) — container hub + profiles
-- [hardware/FORMAT.md](hardware/FORMAT.md) · [simulator/FORMAT.md](simulator/FORMAT.md)
+- [compute/FORMAT.md](compute/FORMAT.md) · [emulate/FORMAT.md](emulate/FORMAT.md)
 - [ADAPTERS.md](ADAPTERS.md) — detect → adapt → view-models
 - [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — adapted VM hide rules
 - [DOMAIN_AND_USERS.md](../context/DOMAIN_AND_USERS.md)

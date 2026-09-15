@@ -12,10 +12,13 @@ export const LIBRARY_NAME = 'profiling-report' as const;
 
 export {
   adaptChromeTrace,
+  adaptCompute,
+  adaptEmulate,
   adaptPayloads,
   adaptRep,
   chromeTraceToSwimlane,
   emptyReportViewModel,
+  isEmulateLeaf,
   isNpuRep,
   isNestedNpuArchive,
   isNpuRep160,
@@ -27,6 +30,10 @@ export {
   parseNpuRep,
   parseNpuRep160,
   parseRep,
+  pipeOccupancyFromHist,
+  pipeOccupancyFromPipesUtilization,
+  summaryFromEmulateJson,
+  summaryFromKernelInfo,
 } from './adapters';
 
 export type * from './domain/types';

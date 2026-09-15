@@ -1,6 +1,6 @@
-# Simulator table inventory
+# Emulate table inventory
 
-**Profile:** `simulator` (npu_emulate contract SQLite / CSV export).
+**Profile:** `emulate` (npu_emulate contract SQLite / CSV export).
 
 Scoped catalog for profiling-report consumers. Full export may contain ~100 tables + ~22 views; this doc lists tables needed for **Phase 1 leaf pack**, **MHTML §11.2.3** product surfaces, and Chrome Trace packing — plus a short appendix of other populated objects in the transfer sample.
 

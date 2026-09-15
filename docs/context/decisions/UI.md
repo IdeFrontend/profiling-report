@@ -152,7 +152,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-10
 - **Question:** Timeline CPU clocks — true vs derived? Scope for axis / cursor / measure?
 - **Decision:** Use **derived** cycles: `cycles = ns × freqMHz / 1000` with `freqMHz` = OpBasicInfo `Current Freq` when valid, else `Rated Freq` (MHz; not HardwareInfo `ai_core_frequency_MHZ`). Integer, space-grouped, no suffix, no leading zeroes; cycle domain is trace-relative (`ns − model.minTime`). Scope = **event tooltip + event detail strip only**; axis ticks, cursor, and measure Δt stay in wall time. Not per-event `*_total_cycles`; display conversion only. Hide clocks option when freq missing/invalid; fall back to time if freq disappears while in cycles.
-- **Specs:** [format-time.spec.md](../../../specs/core/format-time.spec.md), [METRICS_AND_TRACE](../../formats/hardware/METRICS_AND_TRACE.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [INTERACTIONS](../../ui/INTERACTIONS.md)
+- **Specs:** [format-time.spec.md](../../../specs/core/format-time.spec.md), [METRICS_AND_TRACE](../../formats/compute/METRICS_AND_TRACE.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [INTERACTIONS](../../ui/INTERACTIONS.md)
 - **Source:** Product confirmation of interim choice A (2026-09-10).
 
 ---
