@@ -280,8 +280,8 @@ GM / L2 / L1 oriented bandwidth and data volumes. Bare `*_read_bw` = leaving the
 
 | Docx display edge | Docx field | Sample column | Status |
 | --- | --- | --- | --- |
-| GM → L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present; read = leaving GM (`out.rep` 16.89 tracks `gm_to_ub`) |
-| GM ← L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present; write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
+| GM → L2 | `ai*_main_mem_read_bw` | `aic_main_mem_read_bw(GB/s)`, `aiv_main_mem_read_bw(GB/s)` | Present; the plate is the producer's **Main Read** = both sides **summed** ([DATA-40](../context/decisions/DATA.md)); read = leaving GM (`out.rep` 16.89 tracks `gm_to_ub`) |
+| GM ← L2 | `ai*_main_mem_write_bw` | `aic_main_mem_write_bw(GB/s)`, `aiv_main_mem_write_bw(GB/s)` | Present; **Main Write** = both sides **summed** ([DATA-40](../context/decisions/DATA.md)); write = arriving at GM (≡ `aiv_ub_to_gm_bw`) |
 | L2 → L1 | `aic_l1_read_bw(GB/s)` | `aic_l1_read_bw(GB/s)` | **Confirmed** on `Memory.csv`; no `MemoryL1.csv`; `out.rep` NA |
 | L2 ← L1 | `aic_l1_write_bw(GB/s)` | `aic_l1_write_bw(GB/s)` | **Confirmed**; `out.rep` NA |
 | L0C → L1 | `L0C_to_L1_datas` | `L0C_to_L1_datas(KB)` (+ usage rate) | Present in sample; Product-confirmed field ([DATA-24](../context/decisions/DATA.md)); 理论值 still 待确定 |

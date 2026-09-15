@@ -515,6 +515,47 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(csvSnapshot?.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('4.25 GB/s');
   });
 
+  it('DATA-40: the GM↔L2 plates show the aic + aiv sides summed, like the 带宽利用率 card', () => {
+    // The producer's DATA-39 rows 31 / 32 — the plates at the `gm-l2-read` / `gm-l2-write` slots
+    // (74.5, 255.9) / (75.3, 277.8) — are "Main Read" and "Main Write", each the sum of the two
+    // sides (`aic_main_mem_read_bw + aiv_main_mem_read_bw`, likewise write). First-present would
+    // print the AIC half alone and disagree with the card one panel above (DATA-8).
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'Memory.csv',
+        headers: [
+          'block_id',
+          'aic_main_mem_read_bw(GB/s)',
+          'aiv_main_mem_read_bw(GB/s)',
+          'aic_main_mem_write_bw(GB/s)',
+          'aiv_main_mem_write_bw(GB/s)',
+        ],
+        rows: [
+          {
+            block_id: '0',
+            'aic_main_mem_read_bw(GB/s)': '560',
+            'aiv_main_mem_read_bw(GB/s)': '532',
+            'aic_main_mem_write_bw(GB/s)': '480',
+            'aiv_main_mem_write_bw(GB/s)': '456',
+          },
+        ],
+        blockIds: ['0'],
+      },
+    ];
+    const label = (id: string) =>
+      buildMemoryTopology(tables, '0')?.edges.find((e) => e.id === id)?.label;
+    expect(label('gm-l2-read')).toBe('1092.00 GB/s');
+    expect(label('gm-l2-write')).toBe('936.00 GB/s');
+
+    // One side NA → the present side alone (never `0.00`), and not `undefined`.
+    tables[0]!.rows[0]!['aic_main_mem_read_bw(GB/s)'] = 'NA';
+    expect(label('gm-l2-read')).toBe('532.00 GB/s');
+
+    // Both sides NA → no label, so the plate stays blank.
+    tables[0]!.rows[0]!['aiv_main_mem_read_bw(GB/s)'] = 'NA';
+    expect(label('gm-l2-read')).toBeUndefined();
+  });
+
   it('PR-VM-018: the default topology block must be one the chrome can actually paint', () => {
     // Block 0 carries only a plated-less label: `L0C_to_L1_datas` (KB) shows up in the 详情 tabs,
     // never on the chrome (PR-MEMTOP-009), so its model is not drawable. Block 1 carries a link

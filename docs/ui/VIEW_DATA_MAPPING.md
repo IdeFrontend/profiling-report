@@ -239,9 +239,9 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 | Display edge | Field | Source | Notes |
 | --- | --- | --- | --- |
-| GM → L2 | `aic_main_mem_read_bw(GB/s)` / `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | Prefer non-`NA` AIC then AIV ([DATA-40a](../context/decisions/interim/DATA.md)). Read = leaving GM (`out.rep` 16.89). One-side vs summed is open — [DATA-40](../context/questions/DATA.md) |
-| GM ← L2 | `aic_main_mem_write_bw(GB/s)` / `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | Write = arriving at GM (≡ `aiv_ub_to_gm_bw`). Same aggregation open — [DATA-40](../context/questions/DATA.md) |
-| L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | **Confirmed** file. Keep master L2→cluster; `out.rep` NA |
+| GM → L2 | `aic_main_mem_read_bw(GB/s)` + `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **DATA-40 (resolved):** the producer's **"Main Read"** — both sides **summed**, the same quantity the 带宽利用率 读 card shows (DATA-8). Read = leaving GM (`out.rep` 16.89, aiv-only there). A side that is `NA` contributes nothing; both `NA` → no label |
+| GM ← L2 | `aic_main_mem_write_bw(GB/s)` + `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | **DATA-40 (resolved):** **"Main Write"**, likewise summed. Write = arriving at GM (≡ `aiv_ub_to_gm_bw`). The producer's row 32 lists the AIC **read** column by slip; the card's `aicore_gm_write_bw` side is the write column |
+| L2 → L1 | `aic_l1_read_bw(GB/s)` | `Memory.csv` | **Confirmed** file. Keep master L2→cluster; `out.rep` NA. The producer's DATA-39 row `24` labels this plate `GM -> UB` / `aiv_gm_to_ub_bw` instead — [DATA-43](../context/questions/DATA.md) |
 | L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | Adapter edge exists; **diagram slot blank** pending UI-48 (export routes this corridor onto FixP) |
 | L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | Keep master L1→L0A (operand buffer); `out.rep` NA |
 | L1 → L0B | `aic_l0b_read_bw(GB/s)` | `MemoryL0.csv` | Same |

@@ -35,7 +35,7 @@ const L2_HIT_RATE_COLUMNS = [
 
 type Unit = 'GB/s' | 'KB' | '%';
 
-/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins.
+/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins, unless `aggregate` says otherwise.
  *  Bare `*_read_bw` = leaving the named resource; `*_write_bw` = arriving there.
  *  Counterparty-suffix columns (`_bw_gm` / `_vector` / `_cube`) already name the other end. */
 const EDGE_MAP: {
@@ -43,24 +43,36 @@ const EDGE_MAP: {
   from: string;
   to: string;
   unit: Unit;
-  sources: { file: string; columns: string[] }[];
+  sources: { file: string; columns: string[]; aggregate?: 'sum' }[];
 }[] = [
   {
+    // DATA-40: the plate is the producer's "Main Read" — the aic + aiv sides **summed**, the same
+    // quantity the 带宽利用率 读 card shows (DATA-8). First-present would print one side alone.
     id: 'gm-l2-read',
     from: 'gm',
     to: 'l2',
     unit: 'GB/s',
     sources: [
-      { file: 'Memory.csv', columns: ['aic_main_mem_read_bw(GB/s)', 'aiv_main_mem_read_bw(GB/s)'] },
+      {
+        file: 'Memory.csv',
+        columns: ['aic_main_mem_read_bw(GB/s)', 'aiv_main_mem_read_bw(GB/s)'],
+        aggregate: 'sum',
+      },
     ],
   },
   {
+    // DATA-40: "Main Write", likewise summed (the producer's row 32 lists the AIC read column by
+    // slip; the card's `aicore_gm_write_bw` side is the AIC **write** column).
     id: 'gm-l2-write',
     from: 'l2',
     to: 'gm',
     unit: 'GB/s',
     sources: [
-      { file: 'Memory.csv', columns: ['aic_main_mem_write_bw(GB/s)', 'aiv_main_mem_write_bw(GB/s)'] },
+      {
+        file: 'Memory.csv',
+        columns: ['aic_main_mem_write_bw(GB/s)', 'aiv_main_mem_write_bw(GB/s)'],
+        aggregate: 'sum',
+      },
     ],
   },
   // ponytail: L1/L0 stay at master from/to. out.rep is NA; L0A/L0B are L1→buffer→Cube, so the GM leaving-resource flip does not apply. Verify on an AIC-populated .rep.
@@ -255,8 +267,12 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
   for (const spec of EDGE_MAP) {
     let value: number | undefined;
     for (const src of spec.sources) {
-      value = read(src.file, src.columns);
-      if (value != null) break;
+      const present = src.columns
+        .map((column) => read(src.file, [column]))
+        .filter((v): v is number => v != null);
+      if (present.length === 0) continue;
+      value = src.aggregate === 'sum' ? present.reduce((a, b) => a + b, 0) : present[0];
+      break;
     }
     if (value != null) edgeValues.set(spec.id, value);
     edges.push({
