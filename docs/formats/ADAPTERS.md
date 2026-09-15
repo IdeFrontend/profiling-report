@@ -1,10 +1,8 @@
-# Adapters — detect, dispatch, fill view-models
+# Adapters — detect, dispatch
 
 Hub for **how on-disk payloads become** `SwimlaneModel` + `ReportViewModel` + `capabilities[]`.
 
-Container / profiles: [INPUT_FORMATS.md](INPUT_FORMATS.md). Compute schemas: [compute/FORMAT.md](compute/FORMAT.md). Emulate: [emulate/FORMAT.md](emulate/FORMAT.md). UI hide rules (adapted fields): [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md). Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md).
-
-Split into [compute/ADAPTERS.md](compute/ADAPTERS.md) / [emulate/ADAPTERS.md](emulate/ADAPTERS.md) only if field-fill tables outgrow this hub.
+Container / profiles: [README.md](README.md). Compute schemas: [compute/FORMAT.md](compute/FORMAT.md). Emulate: [emulate/FORMAT.md](emulate/FORMAT.md). **Per-surface fills:** [`../views/`](../views/).
 
 ---
 
@@ -17,7 +15,7 @@ bytes
   → if EmulateManifest.json with profile=="emulate"
         → adaptEmulate(payloads)
      else
-        → adaptCompute(payloads)   // today’s adaptPayloads
+        → adaptCompute(payloads)   // adaptPayloads
   → AdaptedReport { swimlaneModel, reportModel, capabilities, … }
 ```
 
@@ -25,67 +23,31 @@ bytes
 |--------|---------|--------|
 | Standalone Chrome Trace `.json` | (trace-only) | `adaptChromeTrace` — empty report model ([PROC-3](../context/decisions/PROC.md)) |
 | Leaf has `EmulateManifest.json` | `emulate` | `adaptEmulate` ([PROC-8](../context/decisions/PROC.md)) |
-| Otherwise | `compute` | `adaptPayloads` / compute path |
+| Otherwise | `compute` | `adaptPayloads` / `adaptCompute` |
 
 Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisions/DATA.md)).
 
 ---
 
-## 2. Capability matrix
+## 2. Capability → view packet
 
-| Capability | Compute fill | Emulate fill | UI |
-|------------|---------------|----------------|-----|
-| (timeline) | PipeTrace / trace | PipeTrace (µs) | Swimlane |
-| `roofline` | Arithmetic + Memory | Phase 2+ when sim roofline inputs present | RooflinePanel |
-| `hardwareDetails` | HardwareInfo / OpBasicInfo | usually absent → omit | 更多 overlay |
-| `memoryDiagram` | Memory* topology | Phase 1 omit | Memory topology |
-| `dependencies` | trace args when present | PipeDependency when packed | dep links |
-| `archDiagram` | — | ArchDiagramMetrics Phase 2 | reserved |
-| `memoryHeatmap` | — | MemoryRWAccesses Phase 2 | reserved |
-| `vfIpc` | — | VfIPC / VfSimtIPC Phase 2 | reserved |
-| `callStacks` | — | Call* Phase 2 (ELF) | reserved |
+| Capability / surface | View packet | Compute | Emulate Sept 30 |
+|----------------------|-------------|---------|-----------------|
+| Timeline | [timeline](../views/timeline.md) | PipeTrace / trace | PipeTrace (µs) **in** |
+| Summary cards | [report-summary](../views/report-summary.md) | OpBasicInfo + Summary.jsonl | KernelInfo/summary **in** (thin) |
+| PIPE bars | [pipe-occupancy](../views/pipe-occupancy.md) | PipeUtilization | PipesUtilization / hist **in** |
+| Overview | [overview-charts](../views/overview-charts.md) | Sampling.json | **hide** (gap) |
+| `roofline` | [roofline](../views/roofline.md) | Arithmetic + Memory | **hide** (gap) |
+| `memoryDiagram` | [memory-topology](../views/memory-topology.md) | Memory* | **hide** (gap) |
+| `hardwareDetails` | _(stub)_ | HardwareInfo | usually omit |
+| `archDiagram` / `memoryHeatmap` / `vfIpc` / `callStacks` | reserved | — | **out-of-scope** |
 
----
-
-## 3. Compute → view-model (summary)
-
-Normative detail lives in [view-models.spec.md](../../specs/core/view-models.spec.md) and [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md).
-
-| Adapted field | Primary sources |
-|---------------|-----------------|
-| `SwimlaneModel` | `PipeTrace.json` (µs) or `trace.json` (ns) |
-| `summary.*` | `OpBasicInfo.csv`, `Summary.jsonl` `OpInfoSummary` |
-| `pipeOccupancy` | `PipeUtilization.csv` |
-| `overviewSeries` | `Sampling.json` `ph:C` |
-| `bandwidthCards` / `computeCard` | Summary.jsonl / Memory / Arithmetic + HardwareInfo |
-| `memoryTopology` | Memory*.csv |
-| `csvTexts` / detail tables | metric CSV embeds |
+Fill tables live in the view packets — do not duplicate them here.
 
 ---
 
-## 4. Emulate → view-model (Sept 30)
+## 3. Implementation notes
 
-| Adapted field | Sources | Rules |
-|---------------|---------|-------|
-| `SwimlaneModel` | `PipeTrace.json` | Same Chrome Trace → swimlane path; **sourceTimeUnit: `us`** ([DATA-46](../context/decisions/DATA.md)) |
-| `summary.*` | `KernelInfo.csv` and/or `summary.json` | Interim [DATA-47a](../context/decisions/interim/DATA.md); Product-final [DATA-47](../context/questions/DATA.md). Omit cards when unmappable |
-| `pipeOccupancy` + PIPE CSV tab | `PipeUtilizationHist.csv` (prefer) or `PipesUtilization.csv` | Map → shared `PipeOccupancyItem[]` / `computeTables`. **Do not** invent `PipeUtilization.csv` ([DATA-45](../context/decisions/DATA.md)). Prefer hist `PipeName`+`Utilization`; else mean `PipeUtilization` by queue/core |
-| `overviewSeries` | — | **Omit** unless counters packed |
-| `memoryTopology` / `roofline` / `hardwareDetails` | — | **Omit** (gap — see [VIEW_DATA_REQUIREMENTS](VIEW_DATA_REQUIREMENTS.md) profile fill) |
-| `capabilities` | marker + present embeds | Timeline + optional `dependencies`; no `memoryDiagram` / `roofline` until mappers exist |
-
-Missing optional adapted fields → hide UI ([DATA-30](../context/decisions/DATA.md)); do not throw.
-
----
-
-## 5. Emulate post–Sept 30 fills (reserved)
-
-When product packs the embeds in [emulate/FORMAT.md](emulate/FORMAT.md) §4.2, set the matching capability and fill dedicated models (may extend `ReportViewModel` later). Until then, document sources only.
-
----
-
-## 6. Implementation notes
-
-- Dispatch: `loadReportSource` → leaf `isEmulateLeaf` ? `adaptEmulate` : `adaptCompute` (`adaptPayloads`). `parseNpuRep160` requires `origin === 1`.
-- Packer (npu_emulate side): emit leaf with `EmulateManifest.json`; convert ticks → µs for PipeTrace.
-- Sample leaf: `data/emulate-sample/` (+ packed `.npu-rep` via `data/scripts/pack_rep.py`).
+- Code: `loadReportSource` → `isEmulateLeaf` ? `adaptEmulate` : `adaptPayloads`. `parseNpuRep160` requires `origin === 1`.
+- Sample emulate leaf: `data/emulate-sample.npu-rep`.
+- Packer (npu_emulate): emit `EmulateManifest.json`; convert ticks → µs for PipeTrace ([DATA-46](../context/decisions/DATA.md)).

@@ -2,7 +2,7 @@
 
 **Profile:** `emulate` (npu_emulate / Ascend cycle-accurate OP simulation).
 
-Shared container: [INPUT_FORMATS.md](../INPUT_FORMATS.md). Table inventory: [TABLES.md](TABLES.md). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
+Shared container: [formats README](../README.md). Table inventory: [TABLES.md](TABLES.md). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
 
 Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/decisions/PROC.md), [DATA-45](../../context/decisions/DATA.md), [DATA-46](../../context/decisions/DATA.md).
 
@@ -126,7 +126,7 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 
 ## 6. Viewer behavior (summary)
 
-1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../INPUT_FORMATS.md)).
+1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
 2. If `EmulateManifest.json` present → **simulator** adapter.
 3. Phase 1: build `SwimlaneModel` from `PipeTrace.json`; thin `ReportViewModel.summary*` from KernelInfo/summary when mappable; omit PIPE/memory/roofline until sources + mappers exist ([DATA-30](../../context/decisions/DATA.md)).
 4. Phase 2: set capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/DATA.md)).

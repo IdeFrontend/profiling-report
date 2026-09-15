@@ -165,6 +165,8 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 
 [swimlane-renderer](../../../../../specs/core/swimlane-renderer.spec.md), [swimlane-model](../../../../../specs/core/swimlane-model.spec.md).
 
+**Data SSOT:** [docs/views/timeline.md](../../../../../docs/views/timeline.md).
+
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
