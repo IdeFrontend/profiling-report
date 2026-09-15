@@ -746,7 +746,10 @@ function backToReport() {
                 >
                   <span class="pr-card__num">{{ row.score }}</span>
                 </span>
-                <span class="pr-bw-col__side">{{ row.label }}</span>
+                <span
+                  class="pr-bw-col__side"
+                  :title="row.label"
+                >{{ row.label }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -805,7 +808,10 @@ function backToReport() {
                   <span class="pr-card__num">{{ row.score }}</span>
                   <span class="pr-card__unit">%</span>
                 </span>
-                <span class="pr-bw-col__side">{{ t(row.labelKey, locale) }}</span>
+                <span
+                  class="pr-bw-col__side"
+                  :title="t(row.labelKey, locale)"
+                >{{ t(row.labelKey, locale) }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -1465,7 +1471,8 @@ function backToReport() {
  * line when they do not. Both children used to be `flex: 0 0 auto` in a `nowrap` row inside an
  * `overflow: hidden` column, so a label wider than the column — 并行使用率 / 负载均衡度, or
  * "Parallel utilization" — was cropped with no cue (PR-STATS-036). Ellipsis is the floor for a
- * column narrower than the label itself; the `title` on that span carries the full text.
+ * column narrower than the label itself; every `.pr-bw-col__side` carries its full text in
+ * `title` (AICore, compute and BW alike) so an ellipsis is never a silent crop.
  */
 .pr-bw-col__head {
   display: flex;

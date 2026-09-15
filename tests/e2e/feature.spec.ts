@@ -563,21 +563,25 @@ test.describe('PR-E2E feature paths', () => {
 });
 
 type SummaryProbe = {
-  /** Used grid tracks — 2 for the sketch 2×2, 1 once the well drops under 430px. */
+  /** Used grid tracks — 2 for the sketch 2×2, 1 once the well drops under the documented 430px. */
   cols: number;
   /** Content box of the scroll body: the container the summary grid queries. */
   well: number;
   /** Card label / duration secondary text wider than its own box (the old paint-outside-tile bug). */
   overflowing: string[];
-  /** Column labels whose text run is wider than their column but carries a `title` — allowed. */
+  /** Column labels cut by their own box — `text-overflow: ellipsis` paints the cue. Fine when titled. */
   ellipsized: string[];
-  /** Column labels wider than their column with no `title` — a silent crop, never allowed. */
+  /** Column labels hard-clipped by an ancestor instead — no cue, the pre-fix bug shape. Never allowed. */
+  ancestorClipped: string[];
+  /** Column labels cut with no `title` — a silent crop, never allowed. */
   cropped: string[];
+  /** Column labels with no `title` at all, cut or not — the spec's floor is unconditional. */
+  untitled: string[];
 };
 
 /**
- * Geometry-only probe: jsdom cannot measure wrapping or ellipsis, and the reported bug was text
- * cropped by an ancestor, so this reads real layout boxes from the mounted aside.
+ * Geometry-only probe: jsdom cannot measure wrapping or ellipsis, so this reads real layout boxes
+ * from the mounted aside.
  */
 async function probeSummary(page: Page): Promise<SummaryProbe> {
   return page.evaluate(() => {
@@ -586,10 +590,7 @@ async function probeSummary(page: Page): Promise<SummaryProbe> {
     const body = document.querySelector('.pr-aside__body');
     const textOf = (el: Element) => (el.textContent ?? '').trim();
     const overflows = (el: Element) => el.scrollWidth > el.clientWidth + 1;
-    /**
-     * Text run width. The pre-fix column label grew its own box to its text and was then clipped
-     * by `.pr-bw-col { overflow: hidden }`, so `scrollWidth` cannot see the crop — a range can.
-     */
+    /** Text run width, independent of the box that happens to be clipping it. */
     const textRun = (el: Element) => {
       const range = document.createRange();
       range.selectNodeContents(el);
@@ -602,11 +603,22 @@ async function probeSummary(page: Page): Promise<SummaryProbe> {
     });
 
     const ellipsized: string[] = [];
+    const ancestorClipped: string[] = [];
     const cropped: string[] = [];
+    const untitled: string[] = [];
     summary.querySelectorAll('.pr-bw-col').forEach((col) => {
       col.querySelectorAll('.pr-bw-col__side').forEach((el) => {
-        if (textRun(el) <= col.clientWidth + 1) return;
-        (el.getAttribute('title') ? ellipsized : cropped).push(textOf(el));
+        const title = el.getAttribute('title');
+        if (!title) untitled.push(textOf(el));
+        if (overflows(el)) {
+          // The span is its own clipping box, so the browser paints the ellipsis: a visible cue.
+          (title ? ellipsized : cropped).push(textOf(el));
+        } else if (textRun(el) > col.clientWidth + 1) {
+          // Fits its own box but not the column: an ancestor `overflow: hidden` hard-cuts it with
+          // no ellipsis and no cue — the exact shape this PR removed.
+          ancestorClipped.push(textOf(el));
+          if (!title) cropped.push(textOf(el));
+        }
       });
     });
 
@@ -615,10 +627,15 @@ async function probeSummary(page: Page): Promise<SummaryProbe> {
       well: body?.clientWidth ?? 0,
       overflowing,
       ellipsized,
+      ancestorClipped,
       cropped,
+      untitled,
     };
   });
 }
+
+/** PR-STATS-036's documented collapse threshold (content well, px). */
+const SUMMARY_COLLAPSE_MAX_WELL = 430;
 
 test.describe('PR-STATS-036 summary tiles at resized widths', () => {
   // `en` has the longest column label ("Parallel utilization"); zh-CN is the default shell.
@@ -629,27 +646,81 @@ test.describe('PR-STATS-036 summary tiles at resized widths', () => {
     test(`PR-STATS-036: ${locale} tile text stays readable as the aside narrows`, async ({ page }) => {
       const sides = page.locator('[data-testid="stats-summary"] .pr-bw-col__side');
 
-      // Default aside (480px, well 456): sketch 2×2, no card text outside its own box.
+      // Default aside (480px): sketch 2×2, no card text outside its own box.
       await page.setViewportSize({ width: 1600, height: 900 });
       await page.goto(url);
-      await expect(page.getByTestId('stats-summary')).toBeVisible();
-      await expect(sides.first()).toBeVisible();
+      await expect(page.getByTestId('playground-ready')).toBeVisible();
+      // The summary hydrates once the sample report loads, as in the sibling feature paths.
+      await expect(page.getByTestId('stats-summary')).toBeVisible({ timeout: 30_000 });
+      await expect(sides.first()).toBeVisible({ timeout: 30_000 });
 
       const wide = await probeSummary(page);
-      expect(wide.well, 'a 1600px host must keep the aside wide (2×2 regime)').toBeGreaterThan(430);
-      expect(wide.cols).toBe(2);
+      // The track count follows the documented threshold, so a Product change to it fails here.
+      expect(wide.cols, `well ${wide.well}px vs the ${SUMMARY_COLLAPSE_MAX_WELL}px threshold`).toBe(
+        wide.well > SUMMARY_COLLAPSE_MAX_WELL ? 2 : 1,
+      );
       expect(wide.overflowing, 'card label / duration secondary must wrap inside the tile').toEqual([]);
-      expect(wide.cropped, 'a column label wider than its column needs its full text in `title`').toEqual([]);
+      expect(wide.untitled, 'every column label carries its full text in `title`').toEqual([]);
+      expect(
+        wide.ancestorClipped,
+        'a cut label must be cut by its own ellipsis, never hard-clipped by an ancestor',
+      ).toEqual([]);
+      expect(wide.cropped, 'a cut column label must carry its full text in `title`').toEqual([]);
+
+      // `en` is the widest case: at 2 columns its long label is genuinely cut, so the ellipsis +
+      // `title` path above is exercised rather than passing vacuously.
+      if (locale === 'en' && wide.cols === 2) {
+        expect(wide.ellipsized).toContain('Parallel utilization');
+      }
 
       // Aside at its 280px minimum: the grid collapses, so nothing needs an ellipsis at all.
       await page.setViewportSize({ width: 820, height: 900 });
-      await expect.poll(async () => (await probeSummary(page)).cols, { timeout: 5000 }).toBe(1);
+      await expect
+        .poll(async () => (await probeSummary(page)).cols, { timeout: 10_000 })
+        .toBe(1);
 
       const narrow = await probeSummary(page);
-      expect(narrow.well, 'a 820px host must squeeze the aside under the collapse threshold').toBeLessThanOrEqual(430);
+      expect(
+        narrow.well,
+        'a 820px host must squeeze the aside under the collapse threshold',
+      ).toBeLessThanOrEqual(SUMMARY_COLLAPSE_MAX_WELL);
       expect(narrow.overflowing).toEqual([]);
-      expect(narrow.ellipsized, 'one tile per row must give every column label the full well width').toEqual([]);
+      expect(narrow.ellipsized, 'one tile per row gives every column label the full well width').toEqual([]);
+      expect(narrow.ancestorClipped).toEqual([]);
       expect(narrow.cropped).toEqual([]);
+      expect(narrow.untitled).toEqual([]);
     });
   }
+
+  test('PR-STATS-036: a long label or secondary wraps instead of spilling', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?locale=en');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    await expect(page.getByTestId('stats-summary')).toBeVisible({ timeout: 30_000 });
+
+    /*
+     * No fixture carries a label long enough to wrap inside the 2×2, so the wrap rule would pass
+     * vacuously. Stress it with the two shapes it exists for: a long card label, and DATA-1's
+     * duration-secondary `opName` fallback — underscores, so no break opportunity at all.
+     */
+    const measured = await page.evaluate(() => {
+      const sub = document.querySelector<HTMLElement>('[data-testid="stats-duration-secondary"]');
+      const label = document.querySelector<HTMLElement>('.pr-card__label');
+      if (!sub || !label) throw new Error('duration card not mounted');
+      sub.textContent = 'ReduceSum_MatMul_V2_fused_attention_score_split_0_0_1_0_0_0_0_reduce';
+      label.textContent = 'AICore parallel utilization across every launched core in this block';
+      const box = (el: HTMLElement) => ({
+        scrollW: el.scrollWidth,
+        clientW: el.clientWidth,
+        h: el.getBoundingClientRect().height,
+      });
+      return { sub: box(sub), label: box(label) };
+    });
+
+    // Wrapped, not clipped: the text stayed inside the box and the box grew taller to hold it.
+    expect(measured.sub.scrollW).toBeLessThanOrEqual(measured.sub.clientW + 1);
+    expect(measured.label.scrollW).toBeLessThanOrEqual(measured.label.clientW + 1);
+    expect(measured.sub.h, 'the unbreakable secondary must gain lines').toBeGreaterThan(20);
+    expect(measured.label.h, 'the long card label must gain lines').toBeGreaterThan(20);
+  });
 });

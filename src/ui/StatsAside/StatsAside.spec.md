@@ -41,8 +41,8 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 
 **Tile text never crops silently (PR-STATS-036).** Every label inside a tile has a defined overflow behavior, so resizing the aside cannot hide or paint over text:
 - **Card label + duration secondary** wrap inside the tile. The secondary carries a rounded value and falls back to `opName` (DATA-1), which has no break opportunity — it breaks mid-token rather than leaving the tile.
-- **Column label** (side label) sits beside the score while the two fit on one line and drops to its own line under the score when they do not.
-- A column narrower than the label **itself** (one word wider than the column) ellipsizes it, and the span’s `title` carries the full text. Truncation is never silent: an ellipsis always has a tooltip.
+- **Column label** (side label) sits beside the score while the two fit on one line and drops to its own line under the score when they do not. **Every** column label — AICore 并行使用率 / 负载均衡度, compute Cube / Vector, BW 读 / 写 — carries its full text in `title`, unconditionally, so a tooltip is present whether or not the label is currently cut.
+- A column narrower than the label **itself** (one word wider than the column) ellipsizes it, against that `title`. Truncation is never silent: an ellipsis always has a tooltip.
 
 **Duration card (整体耗时).** Localized label; large primary value from formatted `taskDurationUs` with the unit as a muted sibling (sketch `4.60` + `ms`). Display always uses **2 decimal places**; the value cell’s `title` tooltip carries the full unrounded amount. Progress bar = `min(100%, Block Dim / core_count × 100%)` when `summary.coreCount` is set (UI-32); else decorative ~15% cyan fill (DATA-33e). Secondary (DATA-1): `{blockDim} / {coreCount}` iterations/core when both set; else `blockDim` only; else `opName`; omit if neither. The secondary **wraps inside the tile** and keeps the full value in its `title` (PR-STATS-036).
 
@@ -79,7 +79,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing; **更多** always on report shell.
 8. **PR-STATS-008** — More always visible on report shell; missing hardware shows placeholder message.
 9. **PR-STATS-009** — Duration card sketch chrome (raised tile, split value/unit, pill bar).
-10. **PR-STATS-009b** — Summary cards use sketch 2×2 grid.
+10. **PR-STATS-009b** — Summary cards use the sketch 2×2 grid, collapsing to one tile per row below a **430px** well (PR-STATS-036).
 11. **PR-STATS-009c** — Duration display rounds to 2 decimal places; `title` tooltip carries the full value.
 12. **PR-STATS-010** — No type card; secondary hide-if-missing.
 13. **PR-STATS-011** — Duration present, no `computeCard` / parallel fields: compute + AICore-parallel placeholders are `N/A`; BW not from `summary.ioBandwidth`.
@@ -119,7 +119,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 40. **PR-STATS-036** — Summary tiles never crop text silently and never paint outside their tile, at any aside width (**280–720**) and in either locale:
     - the card label and the duration secondary **wrap inside the tile** (the secondary breaks a no-space `opName` instead of spilling);
     - the column label sits **beside** the score while the two fit on one line and **under** it when they do not;
-    - a column narrower than the label **itself** ellipsizes it with the full text in the span’s `title` — an ellipsis always has a tooltip;
+    - a column narrower than the label **itself** ellipsizes it — and **every** column label (AICore, compute, BW) carries its full text in `title` unconditionally, so an ellipsis always has a tooltip;
     - **below a 430px content well** the 2×2 grid collapses to **one tile per row**, so the side columns keep the full well width instead of ~36px.
 
 ## Edge Cases
@@ -270,6 +270,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 ## Changelog
 
 - **2026-09-15** — Summary tiles stop cropping text when the aside is resized (PR-STATS-036): card label and duration secondary wrap inside the tile (the secondary breaks a no-space `opName`), the column label drops under the score when the two no longer fit on one line, an ellipsis always carries the full text in `title`, and the 2×2 grid collapses to one tile per row below a **430px** well. The grid previously ran `nowrap` inside an `overflow: hidden` column, so a label wider than its column — 并行使用率 / 负载均衡度, or `Parallel utilization` in `en` — was cropped with no cue; at the **280** minimum each side column was left ~36px. The 2×2 sketch chrome is unchanged at the default **480**.
+- **2026-09-15** — Every column label (AICore, compute, BW) carries its full text in `title`, not just the AICore pair, so the PR-STATS-036 ellipsis floor holds for all three cards rather than one (PR-STATS-036).
 - **2026-09-14** — Roofline card is out of the current release: it mounts only with the opt-in `roofline` capability, so points alone no longer render it (PR-STATS-015). No roofline code was removed.
 - **2026-09-14** — Block switcher options are every `block_id` in the report (compute ∪ memory, fixture order) instead of `PipeUtilization`-only: the aside switcher and the memory overlay switcher share one state, so a memory-only id picked in the overlay can no longer leave the main `<select>` blank (PR-STATS-014b). The `All` topology model is read straight from `report.memoryTopology` instead of re-deriving the adapter's `summary.jsonl` rule (one definition, no drift).
 - **2026-09-14** — Topology gate wording synced with the code: `showTopology` now asks whether the model is *drawable* (a plated edge value or the L2 plate, PR-VM-018), not merely whether a label exists. The default block pick uses the same predicate, so the snapshot no longer selects a block whose labels are all plated-less and then hides the diagram (PR-STATS-019 / PR-STATS-021).
