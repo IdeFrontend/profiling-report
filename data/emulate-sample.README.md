@@ -9,3 +9,5 @@ python3 data/scripts/pack_rep.py data/emulate-sample data/emulate-sample.npu-rep
 ```
 
 Embeds: `EmulateManifest.json`, `PipeTrace.json` (µs), `KernelInfo.csv`, `PipesUtilization.csv`, `PipeUtilizationHist.csv`.
+
+For a real npu_emulate CSV export pack (34 contract CSVs + `manifest.json`, no viewer marker), see [`gelu.README.md`](gelu.README.md) / [`gelu.npu-rep`](gelu.npu-rep).
