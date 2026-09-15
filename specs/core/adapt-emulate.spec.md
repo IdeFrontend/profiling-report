@@ -14,7 +14,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Dispatch.** Invoked when `loadReportSource` detects emulate `manifest.json` ([PROC-8](../../docs/context/decisions/PROC.md)).
 
-**Swimlane.** When `PipeTrace.json` is present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/DATA.md)). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt PipeTrace JSON → throw.
+**Swimlane.** When `PipeTrace.json` **or** a native `*_tracing_report_*.json` is present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/DATA.md)). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt Trace JSON → throw.
 
 **Thin summary.** When KernelInfo/summary payloads are present and mappable, fill `reportModel.summary` identity/duration fields (interim [DATA-47a](../../docs/context/decisions/interim/DATA.md)); otherwise leave summary empty/partial and let UI hide cards ([DATA-30](../../docs/context/decisions/DATA.md)).
 
@@ -33,7 +33,8 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 3. **PR-ASIM-003** — Missing KernelInfo/summary yields AdaptedReport without hard error (timeline-only aside hide).
 4. **PR-ASIM-004** — Does not invent compute-shaped metric CSV payloads ([DATA-45](../../docs/context/decisions/DATA.md)).
 5. **PR-ASIM-005** — Interim DATA-47a maps KernelInfo/summary.json into `summary.opName` / `taskDurationUs` when attrs present.
-6. **PR-ASIM-006** — Missing `PipeTrace.json` → `swimlaneModel === null` without throw; corrupt PipeTrace JSON → throw.
+6. **PR-ASIM-006** — Missing Trace → `swimlaneModel === null` without throw; corrupt Trace JSON → throw.
+7. **PR-ASIM-007** — Native `core_*_tracing_report_*.json` is used when `PipeTrace.json` is absent.
 
 ## Edge Cases
 
