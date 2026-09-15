@@ -1797,4 +1797,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   width: 100%;
   height: 100%;
 }
+
+/* The export's overlay frame drops the aside's bar strip: covering the report already separates the
+ * controls from everything else, so they sit straight on the card (PR-MEMTOP-014). Padding stays —
+ * it is the control's own hit spacing, not the strip's. */
+.pr-topo-fs__body :deep(.pr-topo__bar) {
+  background: transparent;
+}
 </style>

@@ -203,6 +203,18 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.emitted('open-details')).toBeUndefined();
   });
 
+  it('PR-MEMTOP-008c: right-click on the zoom bar is not the diagram gesture', async () => {
+    // The bar lives inside the panel that carries the handler, so without a guard a right-click on
+    // a control opens the memory CSV overlay over the chrome that was clicked.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('contextmenu');
+    await wrapper.get('[data-testid="topology-controls"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toBeUndefined();
+    // The diagram itself still emits.
+    await wrapper.get('[data-testid="topology-viewport"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toHaveLength(1);
+  });
+
   it('PR-MEMTOP-009: edges with no chrome slot are not drawn', () => {
     const wrapper = mount(MemoryTopologyPanel, {
       props: {
@@ -352,10 +364,22 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     expect(readouts[1]!.text()).toBe('100%');
   });
 
-  it('PR-MEMTOP-013: the diagram keeps the chrome ratio inside the fit box', () => {
+  it('PR-MEMTOP-013: the diagram sits in a stage of its own, scaled by the zoom', async () => {
+    // The ratio itself is CSS (`aspect-ratio` on the box and the stage, measured in the browser —
+    // see the spec and tests/e2e/topology-zoom-geometry.spec.ts); jsdom has no layout, so what is
+    // checkable here is that the stage is the diagram's own box between the window and the `svg`,
+    // and that the zoom actually reaches it.
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]');
     const viewport = wrapper.get('[data-testid="topology-viewport"]');
-    expect(viewport.get('svg[role="img"]').attributes('viewBox')).toBe('0 0 448 540');
+    const stage = viewport.get('.pr-topo__stage');
+    expect(stage.get('svg[role="img"]').attributes('viewBox')).toBe('0 0 448 540');
+    const scale = () => root.attributes('style') ?? '';
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1\.25(;|$)/);
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
   });
 
   it('PR-MEMTOP-013: the fit box only scrolls past the fit, so the fitted state has no scrollbar', async () => {

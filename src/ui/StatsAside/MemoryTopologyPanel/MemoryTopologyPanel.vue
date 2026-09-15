@@ -166,6 +166,10 @@ const l2PeakPct = computed(() => props.model?.nodes.find((n) => n.id === 'l2')?.
 
 function onContextMenu(e: MouseEvent) {
   e.preventDefault();
+  // UI-35's gesture is the diagram's. The bar sits inside this panel too, so a right-click on a
+  // control — or on the strip between them — would otherwise open the memory CSV overlay on top
+  // of the chrome that was clicked. (`?.closest` also covers a non-Element target.)
+  if ((e.target as Element | null)?.closest?.('.pr-topo__bar')) return;
   if (props.openDetailsOnContextmenu) emit('open-details');
 }
 
@@ -518,17 +522,21 @@ function fitZoom() {
 }
 
 /* Fit box for the diagram (PR-MEMTOP-013). `aspect-ratio` is the chrome's own 448×540, so at the
- * 100% zoom the box is exactly as tall as the diagram was when the `svg` was width-driven — and
- * because it is a definite height, the *stage* can grow inside it and be panned by scrolling
- * instead of by a drag handler.
+ * 100% zoom the box is exactly as tall as the diagram was when the `svg` was width-driven.
  *
  * `hidden`, not `auto`: the box height comes from `aspect-ratio` while the diagram's comes from
  * its own intrinsic ratio, and the two agree only to a rounding step (measured in Chrome:
  * 511 vs 511.0625). A fitted diagram therefore sat a fraction of a pixel over its own box — not
  * enough for Chromium to treat as scrollable overflow, but enough for a stray permanent scrollbar
  * wherever a platform does not snap it the same way. Nothing is ever cut off by the clip (at or
- * below 100% the stage is at most the box), so the fitted state simply does not scroll. */
+ * below 100% the stage is at most the box), so the fitted state simply does not scroll.
+ *
+ * `place-items: center` is the fitted-state centring only, for a zoomed-*out* diagram; the
+ * pannable state is a plain block, because a centred item that overflows leaves its start edge
+ * unreachable by scrolling. */
 .pr-topo__viewport {
+  display: grid;
+  place-items: center;
   min-width: 0;
   aspect-ratio: 448 / 540;
   overflow: hidden;
@@ -537,15 +545,25 @@ function fitZoom() {
 /* Panning starts past the fit (PR-MEMTOP-015): only a zoomed-in diagram is larger than its box,
  * so it is the only one with anywhere to scroll to. */
 .pr-topo__viewport--pannable {
+  display: block;
   overflow: auto;
 }
 
-/* `--pr-topo-zoom` (1 = fitted) scales this box; the `svg` keeps the chrome's ratio inside it. */
+/* The stage is the *diagram's* own box: `--pr-topo-zoom` (1 = fitted) times the window's height,
+ * with the width following the chrome ratio from that height, so the `svg` fills it exactly.
+ *
+ * Height-driven on purpose. A stage that followed the *window* in both axes is only the diagram's
+ * box where the window already has the chrome ratio — the stacked aside — and in the wide overlay
+ * it was far wider than the drawing inside it: measured there at 125%, a 1955×963 stage around a
+ * 799×963 diagram left 391px of the horizontal scroll range travelling through empty space. From
+ * the height, the distance the window scrolls is the diagram's own overflow in both hosts.
+ *
+ * `margin-inline: auto` centres it while it fits and resolves to 0 once it overflows, so the
+ * scroll origin is the diagram's own left edge rather than a letterbox. */
 .pr-topo__stage {
-  display: grid;
-  place-items: center;
-  width: calc(100% * var(--pr-topo-zoom, 1));
   height: calc(100% * var(--pr-topo-zoom, 1));
+  aspect-ratio: 448 / 540;
+  margin-inline: auto;
 }
 
 .pr-topo__svg {

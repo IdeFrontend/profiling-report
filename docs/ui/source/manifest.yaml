@@ -87,8 +87,9 @@ batches:
         components: [SwimlaneCanvas, PipeOccupancyPanel, CsvFieldListPanel, MemoryTopologyPanel]
 
   # 仿真 11.2.3.2 refresh of the 内存负载分析 panel: the fullscreen/zoom bar (缩放 / 适应窗口 /
-  # 全屏) that supersedes the v930 header 全屏 icon. Same 8K frame as the v930 batch, so the panel
-  # is 2× CSS pixels and the bar's controls measure ~27 px.
+  # 全屏) that supersedes the v930 header 全屏 icon. The 8K frame is 4× CSS pixels for a 1920×1080
+  # layout: the strip measures 112 device px ≈ 28 px against the implementation's 30 px bar, and the
+  # readout's 36 px ink is a 12 px face — the size the panel uses.
   v930-sim:
     label: "930 仿真 11.2.3.2（内存负载分析缩放 / 全屏）"
     files:
