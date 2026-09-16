@@ -338,6 +338,62 @@ const zoomMax = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
 /** Only a diagram larger than its own box has anywhere to scroll to (PR-MEMTOP-013). */
 const pannable = computed(() => zoom.value > 100);
 
+/** Drag the zoomed diagram (PR-MEMTOP-017). The box is already the scroll container, so a drag
+ *  only writes `scrollLeft` / `scrollTop` — 1:1 with the pointer, no transform and no second copy
+ *  of the offset, so the drag and the scrollbars cannot disagree. */
+const dragging = ref(false);
+let dragFrom = { x: 0, y: 0, left: 0, top: 0 };
+
+/** A press that lands on the platform's own scrollbar must not start a pan: the thumb's press is
+ *  reported on the box too, and driving `scrollLeft` from `clientX` alongside it would fight it.
+ *  A **classic** bar sits in the band between the client box and the border box, so the check is
+ *  measured from the border box — *not* from `offsetX`, which Chromium reports against the
+ *  **content**, i.e. it walks with the pan and reads as a scrollbar once the diagram is scrolled
+ *  right. Modern overlay bars are drawn over the drawing and cannot be told apart from it there;
+ *  a press on one pans, and the drag's `grab` affordance is the same anywhere in the box. A box
+ *  with no layout has no bars at all, so it skips the check rather than refusing every drag.
+ *
+ *  ponytail: mouse and pen only, on purpose. A touch drag is left to the platform — Chromium
+ *  starts its own touch scroll and cancels this gesture (`pointercancel` in the template), which
+ *  is the same pan without a `touch-action: none` that would disable pinch and native touch
+ *  scrolling for everyone else. If touch ever needs the diagram's own 1:1 feel, that is the knob.
+ *  `onPanStart` refuses touch outright so that stays true: a finger also reports `button === 0`,
+ *  and capturing it here is a documented way to delay the `pointercancel` the handover rides on. */
+function pressedScrollbar(el: HTMLElement, e: PointerEvent): boolean {
+  if (el.clientWidth <= 0) return false;
+  const box = el.getBoundingClientRect();
+  return e.clientX - box.left >= el.clientWidth || e.clientY - box.top >= el.clientHeight;
+}
+
+function onPanStart(e: PointerEvent) {
+  const el = viewport.value;
+  // A finger reports `button === 0` too, and capturing it would delay the platform's takeover.
+  if (e.pointerType === 'touch' || !el || !pannable.value || e.button !== 0 || pressedScrollbar(el, e))
+    return;
+  // The chrome is an `<image>` and its values are `<text>`: without this a drag starts the
+  // platform's own image drag / text selection, which outlives the pointer.
+  e.preventDefault();
+  dragging.value = true;
+  dragFrom = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop };
+  el.setPointerCapture?.(e.pointerId);
+}
+
+function onPanMove(e: PointerEvent) {
+  const el = viewport.value;
+  if (!el || !dragging.value) return;
+  // A trusted move with no buttons held means a lost pointerup — recover instead of panning on.
+  if (e.isTrusted && e.buttons === 0) {
+    endPan();
+    return;
+  }
+  el.scrollLeft = dragFrom.left - (e.clientX - dragFrom.x);
+  el.scrollTop = dragFrom.top - (e.clientY - dragFrom.y);
+}
+
+function endPan() {
+  dragging.value = false;
+}
+
 /** Back to the scroll origin, so a diagram that was panned while zoomed in returns to its
  *  top-left corner rather than to an offset it can no longer show. */
 function resetPan() {
@@ -373,8 +429,15 @@ function fitZoom() {
     <div
       ref="viewport"
       class="pr-topo__viewport"
-      :class="{ 'pr-topo__viewport--pannable': pannable }"
+      :class="{
+        'pr-topo__viewport--pannable': pannable,
+        'pr-topo__viewport--dragging': dragging,
+      }"
       data-testid="topology-viewport"
+      @pointerdown="onPanStart"
+      @pointermove="onPanMove"
+      @pointerup="endPan"
+      @pointercancel="endPan"
     >
       <div class="pr-topo__stage">
         <svg
@@ -635,10 +698,21 @@ function fitZoom() {
 }
 
 /* Panning starts past the fit (PR-MEMTOP-015): only a zoomed-in diagram is larger than its box,
- * so it is the only one with anywhere to scroll to. */
+ * so it is the only one with anywhere to scroll to. A zoomed-in diagram can also be dragged
+ * (PR-MEMTOP-017): the `grab` cursor says the surface moves under the pointer, and the drag is
+ * wired to the same scroll offset as the bars. A fitted diagram has nothing to move, so it keeps
+ * the plain cursor and the drag is a no-op there. */
 .pr-topo__viewport--pannable {
   display: block;
   overflow: auto;
+  cursor: grab;
+}
+
+.pr-topo__viewport--dragging {
+  cursor: grabbing;
+  /* Set at pointerdown, before the first move: the chrome's values are text and would otherwise
+   * come out of the drag selected. */
+  user-select: none;
 }
 
 /* The stage is the *diagram's* own box: `--pr-topo-zoom` (1 = fitted) times the window's height,
