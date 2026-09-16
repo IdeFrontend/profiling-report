@@ -463,6 +463,118 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
   });
 });
 
+describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
+  /** happy-dom has no layout: `getBoundingClientRect()` is all zeros and `clientWidth` is 0, so a
+   *  press is given its box coordinates the way the component reads them — `clientX` against the
+   *  border box — and the box's own size is stubbed where the test needs a scrollbar band. */
+  function press(el: Element, type: string, init: PointerEventInit): void {
+    el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, ...init }));
+  }
+
+  it('PR-MEMTOP-017: drags the diagram 1:1 with the pointer, past the fit only', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    const el = viewport.element;
+
+    // Fitted: the box is not a scroll container (PR-MEMTOP-013), so the drag has nowhere to go.
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 260, clientY: 270 });
+    press(el, 'pointerup', { button: 0, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).toContain('pr-topo__viewport--dragging');
+    // 1:1 and in the pointer's direction: 40px left / 30px up moves the drawing with the cursor.
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(40);
+    expect(el.scrollTop).toBe(30);
+
+    // A grab from an already-panned origin, in two legs: every move applies the *whole* travel
+    // from the press point to the origin that press captured, never a per-move delta. Both legs
+    // stay inside the range, so this is what a browser does rather than a clamped hypothetical.
+    el.scrollLeft = 100;
+    press(el, 'pointerup', { button: 0, clientX: 260, clientY: 270 });
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 320, clientY: 300 });
+    expect(el.scrollLeft).toBe(80);
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 340, clientY: 300 });
+    expect(el.scrollLeft).toBe(60);
+    // The vertical origin is whatever the box was at the press — still 30 here, and the pointer
+    // has not moved in y, so it stays there.
+    expect(el.scrollTop).toBe(30);
+
+    press(el, 'pointerup', { button: 0, clientX: 340, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--dragging');
+    // Released: the pan is over, and 适应窗口 still has the scroll origin to return to.
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 100, clientY: 100 });
+    expect(el.scrollLeft).toBe(60);
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+  });
+
+  it('PR-MEMTOP-017: a pointercancel ends the drag, as the platform sends one when it takes over', async () => {
+    // Any platform takeover — a pen handed to the OS scroll, a browser gesture — cancels the
+    // element's pointer, so the `grabbing` state must not survive it. (A finger never gets here:
+    // `onPanStart` refuses touch, leaving it to the platform's own scroll.)
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    const el = viewport.element;
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).toContain('pr-topo__viewport--dragging');
+    press(el, 'pointercancel', { button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--dragging');
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 260, clientY: 300 });
+    expect(el.scrollLeft).toBe(0);
+  });
+
+  it('PR-MEMTOP-017: a press on a scrollbar, a non-primary button, or a finger is not a pan', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    // A box with a size, as a laid-out one has. `clientWidth` is 0 without layout, which is why the
+    // component skips its scrollbar check on a zero-sized box — the same escape hatch this needs.
+    Object.defineProperty(el, 'clientWidth', { value: 380, configurable: true });
+    Object.defineProperty(el, 'clientHeight', { value: 500, configurable: true });
+
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    // Touch: left to the platform's own scroll. Not arming the gesture is what keeps its
+    // `pointercancel` handover on time, and it keeps the `grabbing` cursor off a finger.
+    press(el, 'pointerdown', { pointerType: 'touch', button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--dragging');
+    press(el, 'pointermove', { pointerType: 'touch', button: 0, buttons: 1, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+
+    // Middle button: the platform's own gesture space (autoscroll), never a pan.
+    press(el, 'pointerdown', { button: 1, clientX: 300, clientY: 300 });
+    press(el, 'pointermove', { button: 1, buttons: 4, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+
+    // A classic bar sits past the client box; its press belongs to the platform's thumb.
+    press(el, 'pointerdown', { button: 0, clientX: 396, clientY: 300 });
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 356, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+
+    // …and the drawing still drags in the same box — including while panned, where a test measured
+    // against the content rather than the box would have read the press as a bar (see the component).
+    el.scrollLeft = 100;
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 280, clientY: 300 });
+    expect(el.scrollLeft).toBe(120);
+  });
+});
+
 describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
   /** Natural widths measured in Chrome for this panel's type (6.3px/800, system sans). */
   const WIDTHS: Record<string, number> = {

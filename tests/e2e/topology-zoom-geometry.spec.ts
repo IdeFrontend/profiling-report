@@ -143,3 +143,104 @@ test('PR-MEMTOP-014: the overlay drops the bar strip the aside keeps', async ({ 
   // The export's fullscreen frame has no `#313131` lift: the controls sit straight on the card.
   expect(await barBackground(overlay)).toBe('rgba(0, 0, 0, 0)');
 });
+
+/**
+ * PR-MEMTOP-017's drag is a gesture over a real scroll container: the pointer must move the box's
+ * own `scrollLeft`/`scrollTop`, which only a browser can show. The maths is unit-tested
+ * (`MemoryTopologyPanel.spec.ts`); what this covers is that a press on the diagram reaches the
+ * handler at all, that the grab cursor follows the gesture, and that 100% is not draggable.
+ */
+test('PR-MEMTOP-017: dragging the zoomed diagram pans it', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=sample&renderer=canvas');
+
+  const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
+  const viewport = aside.getByTestId('topology-viewport');
+  await expect(viewport).toBeVisible();
+
+  const scroll = () => viewport.evaluate((el) => ({ x: el.scrollLeft, y: el.scrollTop }));
+  const cursor = () => viewport.evaluate((el) => getComputedStyle(el).cursor);
+  /** Press in the box at a fraction of its size, drag by (dx, dy), release; returns the cursor
+   *  seen mid-gesture. */
+  const drag = async (dx: number, dy: number, at = { x: 0.5, y: 0.5 }) => {
+    await viewport.scrollIntoViewIfNeeded();
+    const box = (await viewport.boundingBox())!;
+    const from = { x: box.x + box.width * at.x, y: box.y + box.height * at.y };
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + dx, from.y + dy, { steps: 5 });
+    const during = await cursor();
+    await page.mouse.up();
+    return during;
+  };
+
+  // Fitted: nothing to pan, and no grab affordance either (PR-MEMTOP-013/017).
+  expect(await cursor()).not.toBe('grab');
+  await drag(-40, -30);
+  expect(await scroll()).toEqual({ x: 0, y: 0 });
+
+  // 200%: the box has its own width and height of drawing to travel through, both axes.
+  for (let i = 0; i < 3; i++) await aside.getByTestId('topology-zoom-in').click();
+  expect(await cursor()).toBe('grab');
+  expect(await drag(-40, -30)).toBe('grabbing');
+
+  const panned = await scroll();
+  expect(Math.abs(panned.x - 40)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(panned.y - 30)).toBeLessThanOrEqual(SLOP);
+
+  // Already panned, and pressed near the box's own right edge: still the drawing's gesture. A
+  // scrollbar test measured from Chromium's `offsetX` (which is reported against the *content* and
+  // so walks with the pan) reads this press as a thumb and drops the drag — hence the box-relative
+  // one the component uses (PR-MEMTOP-017). 0.9 rather than the last pixel: on a platform whose
+  // bars reserve a gutter, the band past the client box is the platform's, and this press has to
+  // stay inside it.
+  expect(await drag(-30, 0, { x: 0.9, y: 0.5 })).toBe('grabbing');
+  const pannedAgain = await scroll();
+  expect(Math.abs(pannedAgain.x - 70)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(pannedAgain.y - 30)).toBeLessThanOrEqual(SLOP);
+
+  // The native bars are still there, and 适应窗口 still returns to the origin.
+  await aside.getByTestId('topology-zoom-fit').click();
+  expect(await scroll()).toEqual({ x: 0, y: 0 });
+});
+
+/**
+ * The guard that keeps a scrollbar's press out of the pan: it only fires where the bars *reserve*
+ * a gutter, which Chromium's overlay bars do not, so the test above never reaches it. A stable
+ * gutter reserves one the way Windows / a classic-bar platform does (the geometry test uses the
+ * same switch), which is where the press of a thumb would otherwise fight the drag.
+ */
+test('PR-MEMTOP-017: a press on a reserved scrollbar gutter does not pan', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=sample&renderer=canvas');
+  await page.addStyleTag({ content: '.pr-topo__viewport--pannable { scrollbar-gutter: stable; }' });
+
+  const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
+  const viewport = aside.getByTestId('topology-viewport');
+  await expect(viewport).toBeVisible();
+  for (let i = 0; i < 3; i++) await aside.getByTestId('topology-zoom-in').click();
+  await viewport.evaluate((el) => { el.scrollLeft = 60; el.scrollTop = 40; });
+  await viewport.scrollIntoViewIfNeeded();
+
+  const box = (await viewport.boundingBox())!;
+  // `offsetWidth` is `HTMLElement`-only while a `Locator` handler's element is `HTMLElement |
+  // SVGElement`, so the handler is typed at the element the testid actually resolves to.
+  const gutter = await viewport.evaluate((el: HTMLElement) => el.offsetWidth - el.clientWidth);
+  // The switch really did reserve one — otherwise this test asserts nothing.
+  expect(gutter).toBeGreaterThan(0);
+
+  const dragFrom = async (x: number) => {
+    await page.mouse.move(x, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(x - 30, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+    return viewport.evaluate((el) => el.scrollLeft);
+  };
+
+  // In the gutter, inside the border box: the platform's thumb, not the diagram's drag. The pan
+  // must not move at all, so this one is exact.
+  expect(await dragFrom(box.x + box.width - 4)).toBe(60);
+  // The drawing just inside it still drags — the same 1:1 pan the test above budgets for `SLOP`,
+  // where Playwright's mouse coordinates and `scrollLeft` both round.
+  expect(Math.abs((await dragFrom(box.x + box.width - gutter - 8)) - 90)).toBeLessThanOrEqual(SLOP);
+});
