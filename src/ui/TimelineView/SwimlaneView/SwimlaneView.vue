@@ -469,7 +469,8 @@ function clearCursor() {
   emit('cursor', null);
 }
 
-/** Keep scroll/zoom/pan working over full-width Card chrome and overview charts. */
+/** Card strips, overview, and gutter: same wheel as the events canvas.
+ * Native gutter overflow must not compositor-scroll ahead of `setView`. */
 function onStripWheel(e: WheelEvent) {
   canvasRef.value?.handleWheel(e);
 }
@@ -685,6 +686,7 @@ defineExpose({
         :locale="locale"
         :collapse-anim="collapseAnim"
         @scroll="onGutterScroll"
+        @wheel.prevent="onStripWheel"
         @toggle-group="emit('toggle-group', $event)"
         @pin-lane="emit('pin-lane', $event)"
         @unpin-lane="emit('unpin-lane', $event)"

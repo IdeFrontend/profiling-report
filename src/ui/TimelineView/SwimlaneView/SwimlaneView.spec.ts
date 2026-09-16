@@ -357,6 +357,32 @@ describe('SwimlaneView', () => {
     expect(canvas.props('multiSelectedIds')).toEqual(['e1', 'e2']);
   });
 
+  it('PR-SWIMVIEW-031: gutter wheel is forwarded to the canvas handleWheel', async () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const canvas = wrapper.findComponent(SwimlaneCanvas);
+    const exposed = (
+      canvas.vm as unknown as { $: { exposed: { handleWheel: (e: WheelEvent) => void } } }
+    ).$.exposed;
+    const spy = vi.spyOn(exposed, 'handleWheel');
+    await wrapper.get('[data-testid="lane-gutter"]').trigger('wheel', { deltaY: 40, deltaX: 0 });
+    expect(spy).toHaveBeenCalled();
+  });
+
   it('PR-SWIMVIEW-008: overlays pin to used grid columns; track has non-zero floor', async () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     expect(src).toMatch(
