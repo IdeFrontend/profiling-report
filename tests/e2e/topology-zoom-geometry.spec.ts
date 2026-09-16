@@ -191,8 +191,10 @@ test('PR-MEMTOP-017: dragging the zoomed diagram pans it', async ({ page }) => {
   // Already panned, and pressed near the box's own right edge: still the drawing's gesture. A
   // scrollbar test measured from Chromium's `offsetX` (which is reported against the *content* and
   // so walks with the pan) reads this press as a thumb and drops the drag — hence the box-relative
-  // one the component uses (PR-MEMTOP-017).
-  expect(await drag(-30, 0, { x: 0.95, y: 0.5 })).toBe('grabbing');
+  // one the component uses (PR-MEMTOP-017). 0.9 rather than the last pixel: on a platform whose
+  // bars reserve a gutter, the band past the client box is the platform's, and this press has to
+  // stay inside it.
+  expect(await drag(-30, 0, { x: 0.9, y: 0.5 })).toBe('grabbing');
   const pannedAgain = await scroll();
   expect(Math.abs(pannedAgain.x - 70)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(pannedAgain.y - 30)).toBeLessThanOrEqual(SLOP);

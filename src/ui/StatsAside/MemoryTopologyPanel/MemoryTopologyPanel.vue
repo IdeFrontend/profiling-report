@@ -346,12 +346,17 @@ let dragFrom = { x: 0, y: 0, left: 0, top: 0 };
 
 /** A press that lands on the platform's own scrollbar must not start a pan: the thumb's press is
  *  reported on the box too, and driving `scrollLeft` from `clientX` alongside it would fight it.
- *  A classic bar sits in the band between the client box and the border box, so the check is
+ *  A **classic** bar sits in the band between the client box and the border box, so the check is
  *  measured from the border box — *not* from `offsetX`, which Chromium reports against the
  *  **content**, i.e. it walks with the pan and reads as a scrollbar once the diagram is scrolled
  *  right. Modern overlay bars are drawn over the drawing and cannot be told apart from it there;
  *  a press on one pans, and the drag's `grab` affordance is the same anywhere in the box. A box
- *  with no layout has no bars at all, so it skips the check rather than refusing every drag. */
+ *  with no layout has no bars at all, so it skips the check rather than refusing every drag.
+ *
+ *  ponytail: mouse and pen only, on purpose. A touch drag is left to the platform — Chromium
+ *  starts its own touch scroll and cancels this gesture (`pointercancel` in the template), which
+ *  is the same pan without a `touch-action: none` that would disable pinch and native touch
+ *  scrolling for everyone else. If touch ever needs the diagram's own 1:1 feel, that is the knob. */
 function pressedScrollbar(el: HTMLElement, e: PointerEvent): boolean {
   if (el.clientWidth <= 0) return false;
   const box = el.getBoundingClientRect();
@@ -366,7 +371,7 @@ function onPanStart(e: PointerEvent) {
   e.preventDefault();
   dragging.value = true;
   dragFrom = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop };
-  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  el.setPointerCapture?.(e.pointerId);
 }
 
 function onPanMove(e: PointerEvent) {
