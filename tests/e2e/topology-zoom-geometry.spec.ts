@@ -203,3 +203,40 @@ test('PR-MEMTOP-017: dragging the zoomed diagram pans it', async ({ page }) => {
   await aside.getByTestId('topology-zoom-fit').click();
   expect(await scroll()).toEqual({ x: 0, y: 0 });
 });
+
+/**
+ * The guard that keeps a scrollbar's press out of the pan: it only fires where the bars *reserve*
+ * a gutter, which Chromium's overlay bars do not, so the test above never reaches it. A stable
+ * gutter reserves one the way Windows / a classic-bar platform does (the geometry test uses the
+ * same switch), which is where the press of a thumb would otherwise fight the drag.
+ */
+test('PR-MEMTOP-017: a press on a reserved scrollbar gutter does not pan', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=sample&renderer=canvas');
+  await page.addStyleTag({ content: '.pr-topo__viewport--pannable { scrollbar-gutter: stable; }' });
+
+  const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
+  const viewport = aside.getByTestId('topology-viewport');
+  await expect(viewport).toBeVisible();
+  for (let i = 0; i < 3; i++) await aside.getByTestId('topology-zoom-in').click();
+  await viewport.evaluate((el) => { el.scrollLeft = 60; el.scrollTop = 40; });
+  await viewport.scrollIntoViewIfNeeded();
+
+  const box = (await viewport.boundingBox())!;
+  const gutter = await viewport.evaluate((el) => el.offsetWidth - el.clientWidth);
+  // The switch really did reserve one — otherwise this test asserts nothing.
+  expect(gutter).toBeGreaterThan(0);
+
+  const dragFrom = async (x: number) => {
+    await page.mouse.move(x, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(x - 30, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+    return viewport.evaluate((el) => el.scrollLeft);
+  };
+
+  // In the gutter, inside the border box: the platform's thumb, not the diagram's drag.
+  expect(await dragFrom(box.x + box.width - 4)).toBe(60);
+  // The drawing just inside it still drags.
+  expect(await dragFrom(box.x + box.width - gutter - 8)).toBe(90);
+});
