@@ -237,8 +237,10 @@ test('PR-MEMTOP-017: a press on a reserved scrollbar gutter does not pan', async
     return viewport.evaluate((el) => el.scrollLeft);
   };
 
-  // In the gutter, inside the border box: the platform's thumb, not the diagram's drag.
+  // In the gutter, inside the border box: the platform's thumb, not the diagram's drag. The pan
+  // must not move at all, so this one is exact.
   expect(await dragFrom(box.x + box.width - 4)).toBe(60);
-  // The drawing just inside it still drags.
-  expect(await dragFrom(box.x + box.width - gutter - 8)).toBe(90);
+  // The drawing just inside it still drags — the same 1:1 pan the test above budgets for `SLOP`,
+  // where Playwright's mouse coordinates and `scrollLeft` both round.
+  expect(Math.abs((await dragFrom(box.x + box.width - gutter - 8)) - 90)).toBeLessThanOrEqual(SLOP);
 });

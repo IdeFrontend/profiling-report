@@ -518,8 +518,9 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
   });
 
   it('PR-MEMTOP-017: a pointercancel ends the drag, as the platform sends one when it takes over', async () => {
-    // A touch drag is handed to the platform: Chromium starts its own scroll and cancels the
-    // element's gesture, so the `grabbing` state must not survive it.
+    // Any platform takeover — a pen handed to the OS scroll, a browser gesture — cancels the
+    // element's pointer, so the `grabbing` state must not survive it. (A finger never gets here:
+    // `onPanStart` refuses touch, leaving it to the platform's own scroll.)
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
     const el = viewport.element;
@@ -534,7 +535,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     expect(el.scrollLeft).toBe(0);
   });
 
-  it('PR-MEMTOP-017: a press on a scrollbar, or a non-primary button, is not a pan', async () => {
+  it('PR-MEMTOP-017: a press on a scrollbar, a non-primary button, or a finger is not a pan', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
     const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
@@ -542,6 +543,16 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     // component skips its scrollbar check on a zero-sized box — the same escape hatch this needs.
     Object.defineProperty(el, 'clientWidth', { value: 380, configurable: true });
     Object.defineProperty(el, 'clientHeight', { value: 500, configurable: true });
+
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    // Touch: left to the platform's own scroll. Not arming the gesture is what keeps its
+    // `pointercancel` handover on time, and it keeps the `grabbing` cursor off a finger.
+    press(el, 'pointerdown', { pointerType: 'touch', button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--dragging');
+    press(el, 'pointermove', { pointerType: 'touch', button: 0, buttons: 1, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
 
     // Middle button: the platform's own gesture space (autoscroll), never a pan.
     press(el, 'pointerdown', { button: 1, clientX: 300, clientY: 300 });

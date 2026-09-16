@@ -356,7 +356,9 @@ let dragFrom = { x: 0, y: 0, left: 0, top: 0 };
  *  ponytail: mouse and pen only, on purpose. A touch drag is left to the platform — Chromium
  *  starts its own touch scroll and cancels this gesture (`pointercancel` in the template), which
  *  is the same pan without a `touch-action: none` that would disable pinch and native touch
- *  scrolling for everyone else. If touch ever needs the diagram's own 1:1 feel, that is the knob. */
+ *  scrolling for everyone else. If touch ever needs the diagram's own 1:1 feel, that is the knob.
+ *  `onPanStart` refuses touch outright so that stays true: a finger also reports `button === 0`,
+ *  and capturing it here is a documented way to delay the `pointercancel` the handover rides on. */
 function pressedScrollbar(el: HTMLElement, e: PointerEvent): boolean {
   if (el.clientWidth <= 0) return false;
   const box = el.getBoundingClientRect();
@@ -365,7 +367,9 @@ function pressedScrollbar(el: HTMLElement, e: PointerEvent): boolean {
 
 function onPanStart(e: PointerEvent) {
   const el = viewport.value;
-  if (!el || !pannable.value || e.button !== 0 || pressedScrollbar(el, e)) return;
+  // A finger reports `button === 0` too, and capturing it would delay the platform's takeover.
+  if (e.pointerType === 'touch' || !el || !pannable.value || e.button !== 0 || pressedScrollbar(el, e))
+    return;
   // The chrome is an `<image>` and its values are `<text>`: without this a drag starts the
   // platform's own image drag / text selection, which outlives the pointer.
   e.preventDefault();
