@@ -223,7 +223,9 @@ test('PR-MEMTOP-017: a press on a reserved scrollbar gutter does not pan', async
   await viewport.scrollIntoViewIfNeeded();
 
   const box = (await viewport.boundingBox())!;
-  const gutter = await viewport.evaluate((el) => el.offsetWidth - el.clientWidth);
+  // `offsetWidth` is `HTMLElement`-only while a `Locator` handler's element is `HTMLElement |
+  // SVGElement`, so the handler is typed at the element the testid actually resolves to.
+  const gutter = await viewport.evaluate((el: HTMLElement) => el.offsetWidth - el.clientWidth);
   // The switch really did reserve one — otherwise this test asserts nothing.
   expect(gutter).toBeGreaterThan(0);
 
