@@ -383,6 +383,59 @@ describe('SwimlaneView', () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  it('PR-SWIMVIEW-032: gutter scrollTop follows canvas scroll-y in the same turn', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      queued.push(cb);
+      return queued.length;
+    });
+    const threads = Array.from({ length: 40 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      events: [] as { id: string; name: string; startTime: number; duration: number }[],
+    }));
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'c0', name: 'C0', threads }],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'c0',
+            name: 'C0',
+            lanes: threads.map((t) => ({ id: t.id, name: t.name, color: '#888' })),
+          },
+        ],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [{ id: 'c0', name: 'C0', threads }] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        preferRenderer: 'canvas',
+      },
+    });
+    const gutter = wrapper.get('[data-testid="lane-gutter"]').element as HTMLElement;
+    await wrapper.get('[data-testid="lane-gutter"]').trigger('wheel', { deltaY: 80, deltaX: 0 });
+    expect(gutter.scrollTop).toBeGreaterThan(0);
+    expect(wrapper.emitted('update:scrollY')).toBeFalsy();
+    for (let i = 0; i < 40 && queued.length > 0; i++) {
+      const batch = queued.splice(0);
+      for (const cb of batch) cb(i);
+    }
+    expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(gutter.scrollTop);
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+  });
+
   it('PR-SWIMVIEW-008: overlays pin to used grid columns; track has non-zero floor', async () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     expect(src).toMatch(

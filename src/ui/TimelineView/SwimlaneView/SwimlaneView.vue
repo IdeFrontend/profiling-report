@@ -146,6 +146,12 @@ const pinnedStripRef = ref<HTMLElement | null>(null);
 const stackRef = ref<HTMLElement | null>(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
+/** Imperative lane scroll during wheel ease — avoids cloning parent viewState every frame. */
+const liveScrollY = ref(props.view.scrollY);
+let gutterScrollSync = false;
+let gutterScrollSyncRaf = 0;
+/** True between an in-flight canvas `scroll-y` and its settle emit. */
+let canvasLiveScroll = false;
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 const localMultiSelectedIds = shallowRef<string[]>(props.multiSelectedIds ?? []);
 /**
@@ -302,7 +308,7 @@ const altMeasureCrossBridge = computed(() => {
   void altMeasureShared.target;
   void altMeasureShared.pinned;
   void altMeasureShared.altKeyHeld;
-  void props.view.scrollY;
+  void liveScrollY.value;
   void props.view.startTime;
   void props.view.endTime;
   void pinnedStripHeight.value;
@@ -365,16 +371,11 @@ const cardHeaders = computed(() => {
 });
 
 const visibleCardStrips = computed(() => {
-  const scrollY = props.view.scrollY;
   const pad = overviewContentPad.value;
-  // 0 until ResizeObserver / mount measures the body; show all and let overflow:hidden clip.
-  const viewportH = bodyViewportH.value > 0 ? bodyViewportH.value : Number.POSITIVE_INFINITY;
-  return cardHeaders.value
-    .map((h) => ({
-      ...h,
-      top: h.y + pad - scrollY,
-    }))
-    .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < viewportH);
+  return cardHeaders.value.map((h) => ({
+    ...h,
+    top: h.y + pad,
+  }));
 });
 
 let bodyResizeObserver: ResizeObserver | null = null;
@@ -392,6 +393,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   cancelOverviewAnim();
+  if (canvasLiveScroll) emit('update:scrollY', liveScrollY.value);
+  if (gutterScrollSyncRaf) cancelAnimationFrame(gutterScrollSyncRaf);
   bodyResizeObserver?.disconnect();
   bodyResizeObserver = null;
 });
@@ -399,15 +402,36 @@ onUnmounted(() => {
 watch(
   () => props.view.scrollY,
   (y) => {
-    const el = gutterRef.value?.root;
-    if (el && Math.abs(el.scrollTop - y) > 0.5) {
-      el.scrollTop = y;
-    }
+    if (canvasLiveScroll) return;
+    liveScrollY.value = y;
+    setGutterScrollTop(y);
   },
 );
 
-function onScrollY(scrollY: number) {
-  emit('update:scrollY', Math.max(0, scrollY));
+function setGutterScrollTop(y: number): void {
+  const el = gutterRef.value?.root;
+  if (!el || Math.abs(el.scrollTop - y) <= 0.5) return;
+  gutterScrollSync = true;
+  el.scrollTop = y;
+  if (gutterScrollSyncRaf) cancelAnimationFrame(gutterScrollSyncRaf);
+  // Native `scroll` from this assignment can fire after this turn; keep the echo
+  // gated until the next frame so it cannot restart a live-scroll session.
+  gutterScrollSyncRaf = requestAnimationFrame(() => {
+    gutterScrollSyncRaf = 0;
+    gutterScrollSync = false;
+  });
+}
+
+function onScrollY(scrollY: number, settled?: boolean) {
+  const y = Math.max(0, scrollY);
+  liveScrollY.value = y;
+  setGutterScrollTop(y);
+  if (settled) {
+    canvasLiveScroll = false;
+    emit('update:scrollY', y);
+    return;
+  }
+  canvasLiveScroll = true;
 }
 
 function onUpdateMultiSelected(newIds: string[]) {
@@ -420,9 +444,10 @@ function onMultiSelectPreview(events: SwimEvent[] | null) {
 }
 
 function onGutterScroll(): void {
+  if (gutterScrollSync) return;
   const el = gutterRef.value?.root;
   if (!el) return;
-  if (Math.abs(el.scrollTop - props.view.scrollY) > 0.5) {
+  if (Math.abs(el.scrollTop - liveScrollY.value) > 0.5) {
     onScrollY(el.scrollTop);
   }
 }
@@ -645,7 +670,7 @@ defineExpose({
       <OverviewCharts
         v-if="scrollOverviewSeries.length"
         class="pr-body-overview"
-        :style="{ transform: `translateY(${-view.scrollY}px)` }"
+        :style="{ transform: `translateY(${-liveScrollY}px)` }"
         :series="scrollOverviewSeries"
         :pinned-overview-ids="pinnedOverviewIds"
         :start-time="view.startTime"
@@ -739,6 +764,7 @@ defineExpose({
         :style="{
           '--pr-card-header-fill': LANE_GROUP_HEADER_FILL,
           '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
+          transform: `translateY(${-liveScrollY}px)`,
         }"
       >
         <div
@@ -750,7 +776,7 @@ defineExpose({
           :data-testid="`card-strip-${strip.id}`"
           :aria-expanded="strip.expanded"
           :aria-label="strip.name"
-          :style="{ top: `${strip.top}px` }"
+          :style="{ top: `${strip.top}px`, height: `${LANE_GROUP_HEADER_HEIGHT}px` }"
           @pointerenter="clearCursor"
           @click="onCardStripActivate(strip.id, $event)"
           @keydown.enter.prevent="onCardStripActivate(strip.id, $event)"

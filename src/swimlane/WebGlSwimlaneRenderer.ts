@@ -446,6 +446,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private paintDependencies = true;
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
+  /** Skip the ClearType label pass while lane-scroll is easing (fills still track scrollY). */
+  private liveScroll = false;
   private depLinks: DependencyLink[] = [];
   private width = 0;
   private height = 0;
@@ -557,6 +559,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   setView(view: SwimlaneViewWindow): void {
     this.view = { ...view };
+  }
+
+  /** In-flight lane scroll: skip `drawEventLabels` (the pan-frame budget killer). */
+  setLiveScroll(on: boolean): void {
+    this.liveScroll = on;
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
@@ -807,10 +814,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    this.drawEventLabels();
+    if (!this.liveScroll) this.drawEventLabels();
 
     // Curves draw last, above event labels — re-enable blend (labels render opaque with no blend).
-    if (this.paintDependencies) {
+    if (this.paintDependencies && !this.liveScroll) {
       gl.enable(gl.BLEND);
       this.drawDependencyCurves(gl);
     }

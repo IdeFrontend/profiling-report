@@ -270,6 +270,13 @@ export class SwimlaneOverlayPainter {
     this.view = { ...view };
   }
 
+  /** Drop stale overlay pixels (labels / hover fills) without walking events. */
+  clear(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.clearRect(0, 0, this.width, this.height);
+  }
+
   setSelection(selectedId: string | null, hoveredId: string | null): void {
     this.hoveredId = hoveredId;
     this.selectedId = selectedId;
@@ -478,6 +485,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private collapsedIds: readonly string[] = [];
   private summaryCache = new Map<string, SwimEvent[]>();
   private paintSummaries: readonly LaidOutEvent[] = [];
+  private liveScroll = false;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -538,6 +546,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
   setView(view: SwimlaneViewWindow): void {
     this.view = { ...view };
+  }
+
+  setLiveScroll(on: boolean): void {
+    this.liveScroll = on;
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
@@ -686,6 +698,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       /** Carried from the fill pass so the label can pick its contrast off what was painted. */
       fill: string;
     }[] = [];
+    const collectLabels = !this.liveScroll;
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       if (collapseAlpha(this.layout.lanes[i]!.y, this.collapse) <= 0) continue;
@@ -712,18 +725,20 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
         ctx.fill();
         ctx.globalAlpha = 1;
-        drawEventLabel(
-          ctx,
-          taskCountLabel(ev.taskCount ?? 0),
-          fr.x,
-          fr.y,
-          fr.w,
-          fr.h,
-          this.width,
-          1,
-          SUMMARY_LABEL_COLOR,
-          dpr,
-        );
+        if (collectLabels) {
+          drawEventLabel(
+            ctx,
+            taskCountLabel(ev.taskCount ?? 0),
+            fr.x,
+            fr.y,
+            fr.w,
+            fr.h,
+            this.width,
+            1,
+            SUMMARY_LABEL_COLOR,
+            dpr,
+          );
+        }
         continue;
       }
 
@@ -743,17 +758,19 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
       ctx.fill();
       ctx.globalAlpha = 1;
-      visible.push({
-        item,
-        x: fr.x,
-        y: fr.y,
-        w: fr.w,
-        h: fr.h,
-        matches,
-        alpha,
-        muted,
-        fill,
-      });
+      if (collectLabels) {
+        visible.push({
+          item,
+          x: fr.x,
+          y: fr.y,
+          w: fr.w,
+          h: fr.h,
+          matches,
+          alpha,
+          muted,
+          fill,
+        });
+      }
       }
     }
 
@@ -769,25 +786,27 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       this.hoveredId,
     );
 
-    for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
-      if (matches) {
-        drawEventLabel(
-          ctx,
-          item.event.name,
-          x,
-          y,
-          w,
-          h,
-          this.width,
-          alpha,
-          muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
-          dpr,
-        );
+    if (collectLabels) {
+      for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
+        if (matches) {
+          drawEventLabel(
+            ctx,
+            item.event.name,
+            x,
+            y,
+            w,
+            h,
+            this.width,
+            alpha,
+            muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
+            dpr,
+          );
+        }
       }
     }
 
     // Dependency curves draw above event labels.
-    if (this.paintDependencies) {
+    if (this.paintDependencies && !this.liveScroll) {
       paintDependencyLinksDevice(
         ctx,
         depLinksForCollapsePaint(this.depLinks, this.collapse),

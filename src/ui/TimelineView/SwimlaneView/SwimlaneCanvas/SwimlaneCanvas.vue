@@ -147,7 +147,8 @@ const emit = defineEmits<{
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
-  'scroll-y': [scrollY: number];
+  /** Second arg is true only on the settle frame (parent may clone viewState then). */
+  'scroll-y': [scrollY: number, settled?: boolean];
   'set-playhead': [time: number];
   'update:measureRange': [range: MeasureRange | null];
   /** Hide axis Δt arrow/label during appear/clear (view↔range) tweens only. */
@@ -302,7 +303,12 @@ let trackWidth = 1;
 let resizeObserver: ResizeObserver | null = null;
 let raf = 0;
 /** Local scroll accumulator so rapid wheel events do not drop deltas waiting on props. */
-let localScrollY = 0;
+let localScrollY = props.view.scrollY;
+/** Wheel destination; eased toward so gutter + canvas share native-like smooth scroll. */
+let scrollTargetY = props.view.scrollY;
+let lastEmittedScrollY = props.view.scrollY;
+let scrollRaf = 0;
+let laneScrollEasing = false;
 /** Last client X across pointermoves — used by the pan branch to compute `dx` per move. */
 let lastX = 0;
 
@@ -379,7 +385,7 @@ function paintView(): SwimlaneViewWindow {
   return {
     startTime: props.view.startTime,
     endTime: props.view.endTime,
-    scrollY: props.view.scrollY - (props.contentTopPad ?? 0),
+    scrollY: (laneScrollEasing ? localScrollY : props.view.scrollY) - (props.contentTopPad ?? 0),
   };
 }
 
@@ -460,8 +466,7 @@ function schedulePaint(): void {
   if (raf) return;
   raf = requestAnimationFrame(() => {
     raf = 0;
-    backend.render();
-    if (useWebGl.value) overlay.render();
+    paintFrame();
   });
 }
 
@@ -472,8 +477,24 @@ function flushPaint(): void {
     cancelAnimationFrame(raf);
     raf = 0;
   }
+  paintFrame();
+}
+
+function paintFrame(): void {
+  if (lastDeviceW < 1 || lastDeviceH < 1) return;
+  applyLiveScrollHint(laneScrollEasing);
   backend.render();
-  if (useWebGl.value) overlay.render();
+  if (useWebGl.value) {
+    // Overlay sits on top of GL fills. Skipping render without a clear leaves the
+    // last labels/hover-rects at the old Y, compositing over the moved events.
+    if (laneScrollEasing) overlay.clear();
+    else overlay.render();
+  }
+}
+
+function applyLiveScrollHint(on: boolean): void {
+  if (backend instanceof WebGlSwimlaneRenderer) backend.setLiveScroll(on);
+  else if (backend instanceof CanvasSwimlaneRenderer) backend.setLiveScroll(on);
 }
 
 function applyViewState(forceModel = false): void {
@@ -722,7 +743,9 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   const maxY = maxScrollY();
   if (localScrollY > maxY) {
     localScrollY = maxY;
-    emit('scroll-y', localScrollY);
+    scrollTargetY = Math.min(scrollTargetY, maxY);
+    lastEmittedScrollY = maxY;
+    emit('scroll-y', localScrollY, !(laneScrollEasing || scrollRaf));
   }
 }
 
@@ -808,6 +831,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onMarqueeKeydown);
   resizeObserver?.disconnect();
   if (raf) cancelAnimationFrame(raf);
+  if (scrollRaf) cancelAnimationFrame(scrollRaf);
+  scrollRaf = 0;
+  laneScrollEasing = false;
   backend.dispose();
   overlay.dispose();
 });
@@ -866,7 +892,13 @@ watch(
 watch(
   () => props.view,
   () => {
-    localScrollY = props.view.scrollY;
+    const y = props.view.scrollY;
+    // Ease owns localScrollY. A delayed parent clone (dropped-frame debounce, settle lag)
+    // must not cancel the rAF or snap to a stale scrollY — that re-runs labels mid-motion.
+    if (laneScrollEasing || scrollRaf) return;
+    localScrollY = y;
+    scrollTargetY = y;
+    lastEmittedScrollY = y;
     sync();
   },
   { deep: true },
@@ -893,6 +925,7 @@ watch(
 watch(
   [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY, () => props.contentTopPad],
   () => {
+    if (laneScrollEasing || scrollRaf) return;
     // Pinned measure dismisses on any visible-range change; ephemeral keeps tracking.
     if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();
@@ -2257,8 +2290,48 @@ function onWheel(e: WheelEvent): void {
     emit('pan', (panPx / w) * span);
     return;
   }
-  localScrollY = clampScrollY(localScrollY + e.deltaY);
-  emit('scroll-y', localScrollY);
+  scrollTargetY = clampScrollY(scrollTargetY + e.deltaY);
+  if (prefersReducedMotion()) {
+    if (scrollRaf) {
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = 0;
+    }
+    finishLaneScroll(scrollTargetY);
+    return;
+  }
+  if (!scrollRaf) tickLaneScroll();
+}
+
+function applyLaneScroll(y: number, settled = false): void {
+  localScrollY = y;
+  lastEmittedScrollY = y;
+  backend.setView(paintView());
+  flushPaint();
+  emit('scroll-y', localScrollY, settled);
+}
+
+function finishLaneScroll(y: number): void {
+  // Keep easing true through setView so paintView still uses localScrollY.
+  laneScrollEasing = true;
+  localScrollY = y;
+  lastEmittedScrollY = y;
+  applyViewState();
+  laneScrollEasing = false;
+  flushPaint();
+  emit('scroll-y', y, true);
+}
+
+/** Exponential catch-up (~Chrome/Edge wheel smoothing). New deltas retarget without restarting. */
+function tickLaneScroll(): void {
+  scrollRaf = 0;
+  laneScrollEasing = true;
+  const next = localScrollY + (scrollTargetY - localScrollY) * 0.25;
+  if (Math.abs(scrollTargetY - next) < 0.5) {
+    finishLaneScroll(scrollTargetY);
+    return;
+  }
+  applyLaneScroll(next);
+  scrollRaf = requestAnimationFrame(tickLaneScroll);
 }
 
 defineExpose({

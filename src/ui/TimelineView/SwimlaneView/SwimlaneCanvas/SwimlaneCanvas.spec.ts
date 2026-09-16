@@ -2895,4 +2895,65 @@ describe('SwimlaneCanvas', () => {
     expect(vm.renderer().getLayout().events.some((e) => e.id === 'e1')).toBe(true);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-104: vertical wheel eases scrollY toward the target (reduced-motion snaps)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      queued.push(cb);
+      return queued.length;
+    });
+    const threads = Array.from({ length: 40 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      events: [] as { id: string; name: string; startTime: number; duration: number }[],
+    }));
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'c0', name: 'C0', threads }],
+        },
+      },
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    await fireAllDeviceRo();
+    const setView = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setView');
+
+    await wrapper.get('[data-testid="swimlane-canvas"]').trigger('wheel', {
+      clientX: 40,
+      clientY: 40,
+      deltaX: 0,
+      deltaY: 120,
+    });
+    const first = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThan(120);
+
+    // Delayed parent view.scrollY must not cancel the ease or snap to a stale Y.
+    await wrapper.setProps({ view: { startTime: 0, endTime: 1000, scrollY: 8 } });
+    await nextTick();
+
+    for (let i = 0; i < 40 && queued.length > 0; i++) {
+      const batch = queued.splice(0);
+      for (const cb of batch) cb(i);
+    }
+    const last = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(last).toBe(120);
+    const lastView = setView.mock.calls.at(-1)![0] as { scrollY: number };
+    expect(lastView.scrollY).toBe(120);
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/if \(laneScrollEasing\) overlay\.clear\(\)/);
+    wrapper.unmount();
+  });
 });
