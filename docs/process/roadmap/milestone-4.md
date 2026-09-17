@@ -46,6 +46,8 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 
 ## Packer exit criteria (demo leaf)
 
+Normative embed → view table: [emulate/FORMAT §4.1](../../formats/emulate/FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4).
+
 1. `manifest.json` (thin or export catalog)
 2. `PipeTrace.json` (µs)
 3. `KernelInfo.csv` and/or `summary.json`

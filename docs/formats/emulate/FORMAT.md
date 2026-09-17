@@ -2,7 +2,7 @@
 
 **Profile:** `emulate` (npu_emulate / Ascend cycle-accurate OP simulation).
 
-Shared container: [formats README](../README.md). Column/type SSOT: [SCHEMA.md](SCHEMA.md). Pack / Phase 1 inventory: [TABLES.md](TABLES.md). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
+Shared container: [formats README](../README.md). Column/type SSOT: [SCHEMA.md](SCHEMA.md). Pack / Phase 1 inventory: [TABLES.md](TABLES.md). **Embed → lit view (Sept 30):** [§4.1](#41-embeds-used-by-report-visualization-sept-30--m4). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
 
 Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/decisions/PROC.md), [DATA-45](../../context/decisions/DATA.md), [DATA-46](../../context/decisions/DATA.md).
 
@@ -63,33 +63,37 @@ Two shapes appear in the wild:
 | **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | Populated contract CSVs + **`PipeTrace.json`** (normative; packer may rename from `core_*_tracing_report_*.json`) + optional `aicore_utilization.json` |
 | **Viewer leaf** (Sept 30+) | [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep) | `manifest.json` thin `{ profile, schemaVersion }` | Manifest + `PipeTrace.json` + KernelInfo/summary + PIPE CSVs (± more contract CSVs) |
 
-gelu shows the export packer **skips** some populated DB objects (`KernelInfo`, `PipesUtilization`, `AiCoreOccupancy`, dictionaries, …). Pack those when thin summary / PIPE UI are expected.
+gelu shows the export packer **skips** some populated DB objects (`KernelInfo`, `PipesUtilization`, `AiCoreOccupancy`, dictionaries, …). Pack those when thin summary / PIPE UI are expected — see [TABLES.md](TABLES.md) §2–3.
 
-### 4.1 Sept 30 leaf (required + recommended)
+### 4.1 Embeds used by report visualization (Sept 30 / M4)
 
-| Embed | Type | Rules |
-|-------|------|-------|
-| `manifest.json` | json | Required marker. See §4.3. Legacy `EmulateManifest.json` accepted |
-| `PipeTrace.json` | json | **Recommended** for timeline. Chrome Trace Event format; **µs** `ts`/`dur` ([DATA-46](../../context/decisions/DATA.md)). Native npu_emulate `core_*_tracing_report_*.json` is accepted when `PipeTrace.json` is absent (same µs rule; ignore misleading `displayTimeUnit: "ns"`). **Absence of any trace → null swimlane**, leaf still opens |
-| `KernelInfo.csv` and/or `summary.json` | csv / json | Thin duration / identity cards. Interim map [DATA-47a](../../context/decisions/interim/DATA.md); Product [DATA-47](../../context/questions/DATA.md) |
-| `PipesUtilization.csv` and/or `PipeUtilizationHist.csv` | csv | **Recommended** for PIPE occupancy / CSV tab. Keep emulate basenames — **do not** rename to compute `PipeUtilization.csv` ([DATA-45](../../context/decisions/DATA.md)) |
+Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds → **hide** that surface ([DATA-30](../../context/decisions/DATA.md)); the leaf still opens. Do **not** invent compute-shaped names ([DATA-45](../../context/decisions/DATA.md)).
 
-Optional: additional contract CSVs may be packed unused for later phases.
+| Embed (basename in `.npu-rep`) | View / surface | Adapter fill | Notes |
+|--------------------------------|----------------|--------------|-------|
+| `manifest.json` | Emulate detection | `isEmulateLeaf` / `adaptEmulate` | Required marker ([PROC-8](../../context/decisions/PROC.md)). Thin `{ profile, schemaVersion }` **or** export catalog. Legacy `EmulateManifest.json` accepted |
+| `PipeTrace.json` | [Timeline](../../views/timeline.md) | `SwimlaneModel` (`sourceTimeUnit: us`) | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/DATA.md)). Native `core_*_tracing_report_*.json` accepted if `PipeTrace.json` absent. Absent → null swimlane |
+| `KernelInfo.csv` and/or `summary.json` | [Report statistics](../../views/report-summary.md) | `reportModel.summary*` | Thin identity / duration ([DATA-47a](../../context/decisions/interim/DATA.md)). Absent → hide cards |
+| `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
+| `ArchDiagramMetrics.csv` | [Architecture Diagram](../../views/arch-diagram.md) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
 
-**Not required for Sept 30:** sqlite3 blob (container type `5` remains reserved). Prefer CSV embeds matching export basenames (`ExecutedInstructions.csv`, …).
-### 4.2 Sept 30+ capability-driven embeds
+**Also lit when the above mount:** StatsAside CANNBot scopes (summary / compute / memory) from the same adapted fields — no extra embeds.
 
-Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [ADAPTERS.md](../ADAPTERS.md), [milestone-4](../../process/roadmap/milestone-4.md)):
+**Reference leaf with all five:** [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep). Roadmap: [milestone-4](../../process/roadmap/milestone-4.md). Per-surface detail: [`../../views/`](../../views/).
 
-| Capability | Typical embeds | Sept 30 |
-|------------|----------------|---------|
-| `archDiagram` | `ArchDiagramMetrics.csv` → Architecture Diagram slots via interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)); VM carrier `memoryTopology`; **not** MemoryRWAccesses | **in** |
-| `memoryDiagram` | compute Memory* only | n/a (emulate) |
-| `memoryHeatmap` | `MemoryRWAccesses.csv` | **out** ([DATA-49](../../context/questions/DATA.md)) |
-| AiCore occupancy overlay | `AiCoreOccupancy.csv` and/or `aicore_utilization.json` | out-of-scope |
-| `vfIpc` | `VfIPC.csv`, `VfSimtIPC.csv` (need `--vec-ipc`) | out-of-scope |
-| `callStacks` | Call* tables (need ELF / `--object-file`) | out-of-scope |
-| `roofline` | ArchDiagramMetrics + Functions + ExecutedInstructions + VectorUtilizations + SourceInstructions | **hide** (gap) |
+### 4.2 Not used for Sept 30 visualization (packed or not)
+
+| Embed / table | Product surface | Status |
+|---------------|-----------------|--------|
+| `MemoryRWAccesses.csv` | Memory Utilization Heatmap | **out** ([DATA-49](../../context/questions/DATA.md)) |
+| compute `Memory*.csv` / `memoryDiagram` | Asc 内存负载 | n/a on emulate |
+| `AiCoreOccupancy.csv` / `aicore_utilization.json` | AICore occupancy overlay | out-of-scope |
+| `VfIPC*.csv` / `VfSimtIPC.csv` | SIMD/SIMT VF IPC | out-of-scope |
+| Call* / CallGraph* | Call stacks | out-of-scope |
+| Roofline inputs (`Functions`, `ExecutedInstructions`, `VectorUtilizations`, …) | Roofline | **hide** (gap) |
+| `Sampling.json` | Overview charts | **hide** (gap) |
+
+Optional: other contract CSVs may be packed unused for later phases. **Not required:** sqlite3 blob (container type `5` reserved).
 
 ### 4.3 `manifest.json` (emulate marker)
 

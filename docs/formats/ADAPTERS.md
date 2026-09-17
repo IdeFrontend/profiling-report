@@ -27,6 +27,8 @@ bytes
 
 Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisions/DATA.md)).
 
+**Emulate embeds → lit views (Sept 30):** [emulate/FORMAT §4.1](emulate/FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4).
+
 ---
 
 ## 2. Capability → view packet

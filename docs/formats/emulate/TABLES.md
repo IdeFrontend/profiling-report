@@ -70,6 +70,8 @@ Plus leaf JSON (not contract tables): `PipeTrace.json`, `aicore_utilization.json
 
 ## 2. Phase 1 + product UI (MHTML §11.2.3) + tracing — pack status on gelu
 
+**Viewer packer SSOT (which embeds light which UI):** [FORMAT.md §4.1](FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4).
+
 | Table / view | Kind | DB rows | In gelu pack? | Used for |
 |---|---|---:|---|---|
 | [`KernelInfo`](SCHEMA.md#kernelinfo) | table | 17 | **no** | Phase 1 thin summary / identity |
