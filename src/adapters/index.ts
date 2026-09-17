@@ -15,9 +15,14 @@ export {
 export {
   adaptRep,
   adaptPayloads,
+  bandwidthCardsFromRows,
+  categoryRow,
+  computeCardFromRows,
   emptyReportViewModel,
   overviewSeriesFromSampling,
   pipeOccupancyFromRows,
+  rooflineFromRows,
+  summaryCategoryRows,
 } from './adaptRep';
 /** Compute profile entry (alias of today's adaptPayloads). */
 export { adaptPayloads as adaptCompute } from './adaptRep';
@@ -31,6 +36,6 @@ export {
   summaryFromEmulateJson,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
-export { buildMemoryTopology } from './memoryTopology';
+export { buildMemoryTopology, buildMemoryTopologyFromCategories } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';
