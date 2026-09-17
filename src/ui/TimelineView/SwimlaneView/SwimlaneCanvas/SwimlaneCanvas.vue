@@ -309,7 +309,6 @@ let raf = 0;
 let localScrollY = props.view.scrollY;
 /** Wheel destination; eased toward so gutter + canvas share native-like smooth scroll. */
 let scrollTargetY = props.view.scrollY;
-let lastEmittedScrollY = props.view.scrollY;
 let scrollRaf = 0;
 let laneScrollEasing = false;
 /** Last client X across pointermoves — used by the pan branch to compute `dx` per move. */
@@ -747,7 +746,6 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   if (localScrollY > maxY) {
     localScrollY = maxY;
     scrollTargetY = Math.min(scrollTargetY, maxY);
-    lastEmittedScrollY = maxY;
     emit('scroll-y', localScrollY, !(laneScrollEasing || scrollRaf));
   }
 }
@@ -926,7 +924,6 @@ watch(
     if (laneScrollEasing || scrollRaf) return;
     localScrollY = y;
     scrollTargetY = y;
-    lastEmittedScrollY = y;
     sync();
   },
   { deep: true },
@@ -2331,7 +2328,6 @@ function onWheel(e: WheelEvent): void {
 
 function applyLaneScroll(y: number, settled = false): void {
   localScrollY = y;
-  lastEmittedScrollY = y;
   const v = paintView();
   backend.setView(v);
   if (useWebGl.value) overlay.setView(v);
@@ -2343,7 +2339,6 @@ function finishLaneScroll(y: number): void {
   // Keep easing true through setView so paintView still uses localScrollY.
   laneScrollEasing = true;
   localScrollY = y;
-  lastEmittedScrollY = y;
   applyViewState();
   laneScrollEasing = false;
   flushPaint();
