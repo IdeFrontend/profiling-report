@@ -13,6 +13,13 @@ describe('emulate sample leaf', () => {
     );
     const adapted = loadReportSource(bytes);
     expect(adapted.swimlaneModel).not.toBeNull();
+    expect(adapted.swimlaneModel!.processes.length).toBeGreaterThanOrEqual(2);
+    const laneNames = adapted.swimlaneModel!.processes.flatMap((p) =>
+      p.threads.map((t) => t.name),
+    );
+    expect(laneNames).toEqual(
+      expect.arrayContaining(['Cube', 'Vector', 'MTE1', 'MTE2', 'MTE3', 'Scalar']),
+    );
     expect(adapted.reportModel.summary.opName).toBe('emulate_demo_kernel');
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
