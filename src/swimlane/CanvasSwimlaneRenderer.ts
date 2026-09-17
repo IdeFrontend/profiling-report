@@ -264,6 +264,7 @@ export class SwimlaneOverlayPainter {
       this.collapsedIds,
       this.collapseState,
       this.summaryCache,
+      this.collapse,
     );
   }
 

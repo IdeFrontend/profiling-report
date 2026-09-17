@@ -472,16 +472,23 @@ export function mergeCollapseSummaries(
   return { ...layout, events, eventsById, eventsByLane };
 }
 
-/** Rest-collapsed folder summaries (α = 1) on the expanded layout; skips `skipGroupId`. */
+/**
+ * Rest-collapsed folder summaries (α = 1) on the expanded layout; skips `skipGroupId`
+ * and folders whose fold was pruned as nested (those extras would tuck onto the
+ * parent row on top of that parent's own summaries).
+ */
 export function restFolderSummaries(
   layout: SwimlaneLayout,
   collapsedIds: readonly string[],
   skipGroupId: string | null,
   cache: Map<string, SwimEvent[]>,
+  collapse: CollapseTransform = IDLE_COLLAPSE,
 ): LaidOutEvent[] {
+  const keep = collapse.active ? new Set(collapse.folds.map((f) => f.groupId)) : null;
   const out: LaidOutEvent[] = [];
   for (const id of collapsedIds) {
     if (id === skipGroupId) continue;
+    if (keep && !keep.has(id)) continue;
     const laneIndex = layout.lanes.findIndex((l) => l.thread.id === id);
     if (laneIndex < 0) continue;
     const lane = layout.lanes[laneIndex]!;
@@ -514,9 +521,10 @@ export function collectCollapseSummaries(
   collapsedIds: readonly string[],
   anim: CollapseAnimState | null,
   cache: Map<string, SwimEvent[]>,
+  collapse: CollapseTransform = collapseFoldsFromLayout(layout, collapsedIds, anim),
 ): LaidOutEvent[] {
   const skip = anim && anim.hiddenHeight > 0 && anim.visible < 1 ? anim.groupId : null;
-  const rest = restFolderSummaries(layout, collapsedIds, skip, cache);
+  const rest = restFolderSummaries(layout, collapsedIds, skip, cache, collapse);
   const ghosts = collapseGhostSummaries(layout, anim);
   if (rest.length === 0) return ghosts;
   if (ghosts.length === 0) return rest;
@@ -590,7 +598,7 @@ export function collapsePaintState(
   cache: Map<string, SwimEvent[]>,
 ): { collapse: CollapseTransform; hitLayout: SwimlaneLayout } {
   const collapse = collapseFoldsFromLayout(layout, collapsedIds, anim);
-  const extras = collectCollapseSummaries(layout, collapsedIds, anim, cache);
+  const extras = collectCollapseSummaries(layout, collapsedIds, anim, cache, collapse);
   return { collapse, hitLayout: applyCollapseFolds(layout, collapse, extras) };
 }
 

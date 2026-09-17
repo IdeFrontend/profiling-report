@@ -3,6 +3,7 @@ import {
   applyCollapseAnim,
   collapseFoldsFromLayout,
   collapseHiddenHeight,
+  collectCollapseSummaries,
   collapsePaintState,
   eventBlockMetrics,
   eventsIntersectingRect,
@@ -227,6 +228,19 @@ describe('paint-only rest collapse (PR-RENDER-052)', () => {
     const layout = rebuildLayout(folderModel());
     const t = collapseFoldsFromLayout(layout, ['card', 'core'], null);
     expect(t.folds.map((f) => f.groupId)).toEqual(['card']);
+    expect(collectCollapseSummaries(layout, ['card', 'core'], null, new Map())).toEqual([]);
+  });
+
+  it('PR-RENDER-052: nested rest summaries do not stack on the parent folder row', () => {
+    const layout = rebuildLayout(folderModel());
+    const extras = collectCollapseSummaries(layout, ['compute', 'core'], null, new Map());
+    expect(extras.map((e) => e.id)).toEqual(['compute/summary/0']);
+    const computeY = layout.lanes.find((l) => l.thread.id === 'compute')!.y;
+    expect(extras[0]!.y).toBe(computeY);
+
+    const folded = collapsePaintState(layout, ['compute', 'core'], null, new Map()).hitLayout;
+    expect(folded.summaryExtras?.map((e) => e.id)).toEqual(['compute/summary/0']);
+    expect(folded.summaryExtras?.some((e) => e.id.startsWith('core/'))).toBe(false);
   });
 
   it('collapseHiddenHeight matches descendant lane rows without filterCollapsedTree', () => {
