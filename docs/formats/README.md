@@ -17,7 +17,7 @@ Hub for profiling-report **on-disk inputs** (shared **`.npu-rep` container**, pa
 | [ADAPTERS.md](ADAPTERS.md) | Detect profile → adapt → view-models |
 | [REP_FORMAT.md](REP_FORMAT.md) | Classic `cann-rep` engineering fixtures only |
 
-Related: [../views/](../views/) · [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md) (docx/sketch index). Decisions: [PROC-6](../context/decisions/PROC.md) … [PROC-8](../context/decisions/PROC.md), [DATA-45](../context/decisions/DATA.md), [DATA-46](../context/decisions/DATA.md).
+Related: [../views/](../views/) · [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md) (docx/sketch index). Decisions: [PROC-6](../context/decisions/PROC.md) … [PROC-8](../context/decisions/PROC.md), [DATA-45](../context/decisions/interim/DATA.md#data-45), [DATA-46](../context/decisions/interim/DATA.md#data-46).
 
 ---
 
@@ -46,7 +46,7 @@ Same container binary; **different embed sets** ([PROC-7](../context/decisions/P
 | `compute` | npu-compute | `OpBasicInfo.csv`, `PipeUtilization.csv`, `Memory*.csv`, `PipeTrace.json` / `trace.json`, … | Hardware path in [ADAPTERS.md](ADAPTERS.md) (today `adaptPayloads`) |
 | `emulate` | npu_emulate | `manifest.json` (thin profile or export catalog) + optional `PipeTrace.json` / `core_*_tracing_report_*.json` + KernelInfo (+ contract CSVs). [`data/gelu.npu-rep`](../../data/gelu.npu-rep) is a full producer dump | `adaptEmulate` — see [emulate/FORMAT.md](emulate/FORMAT.md), [emulate/TABLES.md](emulate/TABLES.md) |
 
-**No silent remap** ([DATA-45](../context/decisions/DATA.md)): do not invent compute-shaped metric CSVs from emulate tables. Map each profile into shared `SwimlaneModel` + `ReportViewModel` + `capabilities[]`.
+**No silent remap** ([DATA-45](../context/decisions/interim/DATA.md#data-45)): do not invent compute-shaped metric CSVs from emulate tables. Map each profile into shared `SwimlaneModel` + `ReportViewModel` + `capabilities[]`.
 
 ### 2.1 Detection
 
@@ -200,7 +200,7 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 | --- | --- |
 | Product `PipeTrace.json` | Timestamps / durations in **µs** (despite possible `displayTimeUnit: "ns"` label) |
 | Classic / sample `trace.json` | **ns** |
-| Simulator `PipeTrace.json` | Must be packed in **µs** — producer converts ticks → µs ([DATA-46](../context/decisions/DATA.md)) |
+| Simulator `PipeTrace.json` | Must be packed in **µs** — producer converts ticks → µs ([DATA-46](../context/decisions/interim/DATA.md#data-46)) |
 
 ---
 

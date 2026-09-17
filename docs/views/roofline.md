@@ -43,7 +43,7 @@ No usable GM point → hide panel ([DATA-30](../context/decisions/DATA.md)). Tab
 |---------------|-------|-----------------|--------|
 | `roofline` | ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF Functions/SourceInstructions | New mapper required; not Arithmetic+Memory | `gap` → hide Sept 30 |
 
-Do **not** invent compute Arithmetic/Memory CSVs ([DATA-45](../context/decisions/DATA.md)).
+Do **not** invent compute Arithmetic/Memory CSVs ([DATA-45](../context/decisions/interim/DATA.md#data-45)).
 
 ## Adapter
 

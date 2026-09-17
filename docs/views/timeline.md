@@ -45,7 +45,7 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `SwimlaneModel` | `PipeTrace.json` (µs) | Producer converts ticks → µs ([DATA-46](../context/decisions/DATA.md)) | `same-path` |
+| `SwimlaneModel` | `PipeTrace.json` (µs) | Producer converts ticks → µs ([DATA-46](../context/decisions/interim/DATA.md#data-46)) | `same-path` |
 
 ## Adapter
 
@@ -61,4 +61,4 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 - FEATURE_MATRIX: Timeline / open `.npu-rep`
 - Specs: [ProfilingReport.spec.md](../../src/ui/ProfilingReport/ProfilingReport.spec.md), [SwimlaneCanvas.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md)
 - Product docx §: 11.2.8
-- Decisions: [DATA-46](../context/decisions/DATA.md), [PROC-3](../context/decisions/PROC.md), [PROC-8](../context/decisions/PROC.md)
+- Decisions: [DATA-46](../context/decisions/interim/DATA.md#data-46), [PROC-3](../context/decisions/PROC.md), [PROC-8](../context/decisions/PROC.md)

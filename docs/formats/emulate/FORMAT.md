@@ -4,13 +4,13 @@
 
 Shared container: [formats README](../README.md). Column/type SSOT: [SCHEMA.md](SCHEMA.md). Pack / Phase 1 inventory: [TABLES.md](TABLES.md). **Embed → lit view (Sept 30):** [§4.1](#41-embeds-used-by-report-visualization-sept-30--m4). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
 
-Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/decisions/PROC.md), [DATA-45](../../context/decisions/DATA.md), [DATA-46](../../context/decisions/DATA.md).
+Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/decisions/PROC.md), [DATA-45](../../context/decisions/interim/DATA.md#data-45), [DATA-46](../../context/decisions/interim/DATA.md#data-46).
 
 ---
 
 ## 1. Role
 
-npu_emulate builds a **contract SQLite database** (or CSV export of that DB) from a simulated kernel run, then generates HTML/JSON/SVG reports. Product delivery into Asc Toolkit is still **`.npu-rep`** ([PROC-6](../../context/decisions/PROC.md)) — a leaf archive whose embeds are **simulator-native**, not hardware OpBasicInfo / PipeUtilization schemas ([DATA-45](../../context/decisions/DATA.md)).
+npu_emulate builds a **contract SQLite database** (or CSV export of that DB) from a simulated kernel run, then generates HTML/JSON/SVG reports. Product delivery into Asc Toolkit is still **`.npu-rep`** ([PROC-6](../../context/decisions/PROC.md)) — a leaf archive whose embeds are **simulator-native**, not hardware OpBasicInfo / PipeUtilization schemas ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
 | Concern | Compute profile | Emulate profile |
 |---------|------------------|-------------------|
@@ -36,7 +36,7 @@ Sources of tables (from npu_emulate docs):
 
 **Hub table:** `ExecutedInstructions` — almost every report joins on `ExecInstrId` (cores, tick ranges, instr names/types). See [SCHEMA § ExecutedInstructions](SCHEMA.md#executedinstructions).
 
-**Time base:** simulation uses integer **ticks**. When packing `PipeTrace.json` for this viewer, the producer **MUST** convert ticks → **µs** ([DATA-46](../../context/decisions/DATA.md)).
+**Time base:** simulation uses integer **ticks**. When packing `PipeTrace.json` for this viewer, the producer **MUST** convert ticks → **µs** ([DATA-46](../../context/decisions/interim/DATA.md#data-46)).
 
 **Flag-gated depth:** many analysis tables stay empty unless analyzers run (`--bubble`, `--vec-ipc`, `--simd-perf`, `--object-file`, …). Packers MUST only claim capabilities for populated embeds.
 
@@ -67,12 +67,12 @@ gelu (2026-09-17) packs **every** `row_count > 0` object, including KernelInfo /
 
 ### 4.1 Embeds used by report visualization (Sept 30 / M4)
 
-Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds → **hide** that surface ([DATA-30](../../context/decisions/DATA.md)); the leaf still opens. Do **not** invent compute-shaped names ([DATA-45](../../context/decisions/DATA.md)).
+Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds → **hide** that surface ([DATA-30](../../context/decisions/DATA.md)); the leaf still opens. Do **not** invent compute-shaped names ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
 | Embed (basename in `.npu-rep`) | View / surface | Adapter fill | Notes |
 |--------------------------------|----------------|--------------|-------|
 | `manifest.json` | Emulate detection | `isEmulateLeaf` / `adaptEmulate` | Required marker ([PROC-8](../../context/decisions/PROC.md)). Thin `{ profile, schemaVersion }` **or** export catalog |
-| `PipeTrace.json` | [Timeline](../../views/timeline.md) | `SwimlaneModel` (`sourceTimeUnit: us`) | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/DATA.md)). Native `core_*_tracing_report_*.json` accepted if `PipeTrace.json` absent. Absent → null swimlane |
+| `PipeTrace.json` | [Timeline](../../views/timeline.md) | `SwimlaneModel` (`sourceTimeUnit: us`) | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/interim/DATA.md#data-46)). Native `core_*_tracing_report_*.json` accepted if `PipeTrace.json` absent. Absent → null swimlane |
 | `KernelInfo.csv` | [Report statistics](../../views/report-summary.md) | `reportModel.summary*` | Thin identity / duration ([DATA-47a](../../context/decisions/interim/DATA.md)). Absent → hide cards |
 | `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
 | `ArchDiagramMetrics.csv` | [Architecture Diagram](../../views/arch-diagram.md) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
@@ -144,7 +144,7 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
 2. If emulate `manifest.json` (thin profile or export catalog) → **emulate** adapter.
 3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); thin `summary*` from KernelInfo; PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline/heatmap gaps ([DATA-30](../../context/decisions/DATA.md)).
-4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/DATA.md)).
+4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
 ---
 
