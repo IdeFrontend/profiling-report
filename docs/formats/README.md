@@ -9,7 +9,8 @@ Hub for profiling-report **on-disk inputs** (shared **`.npu-rep` container**, pa
 | [compute/FORMAT.md](compute/FORMAT.md) | Compute OP embed schemas (npu-compute) |
 | [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md) | Compute embed column detail (UI fills: [../views/](../views/)) |
 | [emulate/FORMAT.md](emulate/FORMAT.md) | Emulate contract + leaf pack (npu_emulate) |
-| [emulate/TABLES.md](emulate/TABLES.md) | Emulate table inventory |
+| [emulate/SCHEMA.md](emulate/SCHEMA.md) | Emulate contract field catalog (all columns + types) |
+| [emulate/TABLES.md](emulate/TABLES.md) | Emulate pack / Phase 1 table inventory |
 | [FORMATS_COMPARISON.md](FORMATS_COMPARISON.md) | Semantic comparison across stacks |
 | [../views/README.md](../views/README.md) | UI surfaces ↔ adapted view-models (per-view packets) |
 | [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) | Legacy redirect → views catalog |
