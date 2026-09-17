@@ -83,7 +83,7 @@ const EDGE_MAP: {
   },
   // ponytail: L1/L0 stay at master from/to. out.rep is NA; L0A/L0B are L1→buffer→Cube, so the GM leaving-resource flip does not apply. Verify on an AIC-populated .rep.
   {
-    // DATA-48 (row 24): the producer assigns this plate — the AIC row's corridor slot, drawn
+    // DATA-43 (row 24): the producer assigns this plate — the AIC row's corridor slot, drawn
     // `L2 → MTE2 → L1 (AIC)` — the `GM -> UB` field `aiv_gm_to_ub_bw`, the same field the two AIV
     // `l2-ub` plates carry (DATA-23). Product ruling 2026-09-15: use the producer's field and
     // paint it on the chrome's own slot ("display it according to svg spec"). `aic_l1_read_bw` is

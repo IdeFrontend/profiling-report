@@ -113,6 +113,28 @@ describe('emulate-format (PR-SIM-*)', () => {
     expect(adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime).toBe(100_000);
   });
 
+  it('PR-SIM-003b: displayTimeUnit ns on emulate Trace still treated as µs (DATA-46)', () => {
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(
+        JSON.stringify({
+          displayTimeUnit: 'ns',
+          traceEvents: [
+            { name: 'process_name', ph: 'M', pid: 1, args: { name: 'AIC0' } },
+            { name: 'thread_name', ph: 'M', pid: 1, tid: 1, args: { name: 'Cube' } },
+            { name: 'op', ph: 'X', pid: 1, tid: 1, ts: 0, dur: 100 },
+          ],
+        }),
+      ),
+    });
+    // Without the us override, chromeTraceToSwimlane would treat dur as ns → 100 ns span.
+    expect(adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime).toBe(100_000);
+  });
+
+  it('corrupt manifest.json does not throw in isEmulateLeaf (falls through)', () => {
+    expect(isEmulateLeaf({ 'manifest.json': enc.encode('{not-json') })).toBe(false);
+  });
+
   it('PR-SIM-004: missing KernelInfo → timeline-only, not invalid', () => {
     expect(() => loadReportSource(packEmulateLeaf())).not.toThrow();
     const adapted = loadReportSource(packEmulateLeaf());
@@ -339,5 +361,20 @@ describe('emulate pipe mappers', () => {
       enc.encode('CoreId,CoreTypeId,InstrQueueTypeId,PipeUtilization\n0,AIC,Scalar,25\n'),
     );
     expect(items.find((i) => i.id === 'scalar')?.ratio).toBe(0.25);
+  });
+
+  it('joins InstrQueueTypes/CoreTypes integer FKs; skips unmapped ids', () => {
+    const queueTypes = enc.encode('InstrQueueTypeId,InstrQueueTypeName\n1,SCALAR\n5,MTE2\n');
+    const coreTypes = enc.encode('CoreTypeId,CoreTypeName\n1,AIC\n2,AIV0\n');
+    const items = pipeOccupancyFromPipesUtilization(
+      enc.encode(
+        'CoreId,CoreTypeId,InstrQueueTypeId,PipeUtilization\n0,1,1,50\n0,2,5,40\n0,1,99,10\n',
+      ),
+      { queueTypes, coreTypes },
+    );
+    expect(items.find((i) => i.id === 'scalar')?.ratio).toBe(0.5);
+    expect(items.find((i) => i.id === 'mte2')?.ratio).toBe(0.4);
+    expect(items.find((i) => i.id === 'mte2')?.side).toBe('cube'); // pipe family side from map
+    expect(items.some((i) => /q99|Queue/.test(i.id) || /q99|Queue/.test(i.label))).toBe(false);
   });
 });

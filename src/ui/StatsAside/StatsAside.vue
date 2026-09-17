@@ -299,6 +299,13 @@ const topologyModel = computed(() => {
  */
 
 const showTopology = computed(() => hasDrawableTopology(topologyModel.value));
+/** DATA-48a: emulate Architecture Diagram reuses topology chrome under a distinct title. */
+const topologySectionTitle = computed(() =>
+  t(
+    (props.capabilities ?? []).includes('archDiagram') ? 'archDiagramAnalysis' : 'memoryAnalysis',
+    props.locale,
+  ),
+);
 
 const csvOnly = computed(
   () =>
@@ -431,7 +438,12 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
 const headerTitle = computed(() => {
   if (asideSurface.value === 'hardware') return t('hardwareDetails', props.locale);
   if (asideSurface.value === 'compute') return t('computeAnalysis', props.locale);
-  if (asideSurface.value === 'memory') return t('memoryAnalysis', props.locale);
+  if (asideSurface.value === 'memory') {
+    return t(
+      (props.capabilities ?? []).includes('archDiagram') ? 'archDiagramAnalysis' : 'memoryAnalysis',
+      props.locale,
+    );
+  }
   return t('summary', props.locale);
 });
 
@@ -987,7 +999,7 @@ function backToReport() {
         :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
       >
         <div class="pr-stack-section__head">
-          <h4>{{ t('memoryAnalysis', locale) }}</h4>
+          <h4>{{ topologySectionTitle }}</h4>
           <div class="pr-pipe-head__actions">
             <button
               v-if="showMemory"

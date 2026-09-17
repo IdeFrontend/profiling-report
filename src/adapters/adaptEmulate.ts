@@ -23,9 +23,10 @@ import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 const MANIFEST_NAMES = ['manifest.json', 'Manifest.json'];
 const PIPE_TRACE_NAMES = ['PipeTrace.json', 'pipetrace.json'];
 const KERNEL_INFO_NAMES = ['KernelInfo.csv', 'kernelinfo.csv'];
-const SUMMARY_JSON_NAMES = ['summary.json', 'Summary.json'];
 const PIPES_UTIL_NAMES = ['PipesUtilization.csv', 'pipesutilization.csv'];
 const PIPE_HIST_NAMES = ['PipeUtilizationHist.csv', 'pipeutilizationhist.csv'];
+const INSTR_QUEUE_TYPE_NAMES = ['InstrQueueTypes.csv', 'instrqueuetypes.csv'];
+const CORE_TYPE_NAMES = ['CoreTypes.csv', 'coretypes.csv'];
 const ARCH_DIAGRAM_NAMES = ['ArchDiagramMetrics.csv', 'archdiagrammetrics.csv'];
 
 /** Hub object names that identify an npu_emulate CSV export catalog. */
@@ -117,6 +118,7 @@ export function isEmulateLeaf(payloads: Record<string, Uint8Array>): boolean {
 /**
  * Read emulate marker from `manifest.json`.
  * Accepts thin `{ profile: "emulate", schemaVersion }` or export-catalog `{ objects: [...] }` with a hub table.
+ * Parse/shape failures return `null` so leaf dispatch can fall through to compute adapt.
  */
 export function readEmulateManifest(
   payloads: Record<string, Uint8Array>,
@@ -127,16 +129,14 @@ export function readEmulateManifest(
   try {
     parsed = JSON.parse(decodeUtf8(raw));
   } catch {
-    throw new Error('[profiling-report] adaptEmulate: manifest.json is not valid JSON');
+    return null;
   }
-  if (!parsed || typeof parsed !== 'object') {
-    throw new Error('[profiling-report] adaptEmulate: manifest.json must be an object');
-  }
+  if (!parsed || typeof parsed !== 'object') return null;
   const obj = parsed as Record<string, unknown>;
 
   if (obj.profile === 'emulate') {
     if (typeof obj.schemaVersion !== 'number' || !Number.isFinite(obj.schemaVersion)) {
-      throw new Error('[profiling-report] adaptEmulate: manifest.json schemaVersion required');
+      return null;
     }
     return {
       profile: 'emulate',
@@ -202,44 +202,10 @@ export function summaryFromKernelInfo(payload?: Uint8Array): SummaryMetrics {
   return summary;
 }
 
-/** Interim DATA-47a: emulate summary.json loose fields → SummaryMetrics. */
-export function summaryFromEmulateJson(payload?: Uint8Array): SummaryMetrics {
-  if (!payload) return {};
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(decodeUtf8(payload));
-  } catch {
-    return {};
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-  const obj = parsed as Record<string, unknown>;
-  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
-  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
-  const summary: SummaryMetrics = {};
-  const opName = str(obj.opName ?? obj.name ?? obj.kernel_name ?? obj['Op Name']);
-  if (opName) summary.opName = opName;
-  const opType = str(obj.opType ?? obj.type ?? obj['Op Type']);
-  if (opType) summary.opType = opType;
-  const dur =
-    num(obj.taskDurationUs) ??
-    num(obj.duration_us) ??
-    num(obj.durationUs) ??
-    num(obj['Task Duration(us)']);
-  if (dur != null) summary.taskDurationUs = dur;
-  const pid = str(obj.pid ?? obj.Pid ?? obj.PID);
-  if (pid) summary.pid = pid;
-  const blockDim = obj.blockDim ?? obj.block_dim ?? obj['Block Dim'];
-  if (typeof blockDim === 'string' || typeof blockDim === 'number') summary.blockDim = blockDim;
-  return summary;
-}
-
-function mergeSummary(a: SummaryMetrics, b: SummaryMetrics): SummaryMetrics {
-  return { ...a, ...b };
-}
-
 const PIPE_NAME_MAP: { match: RegExp; id: string; label: string; colorKey: string; side: 'cube' | 'vector' }[] = [
   { match: /^cube$/i, id: 'cube', label: 'Cube', colorKey: 'cube', side: 'cube' },
-  { match: /^vector$|^vec$/i, id: 'vector', label: 'Vector', colorKey: 'vector', side: 'vector' },
+  { match: /^vector$|^vec$|^simd$/i, id: 'vector', label: 'Vector', colorKey: 'vector', side: 'vector' },
+  { match: /^simt$/i, id: 'simt', label: 'SIMT', colorKey: 'default', side: 'vector' },
   { match: /^mte1$/i, id: 'mte1', label: 'MTE1', colorKey: 'mte1', side: 'cube' },
   { match: /^mte2$/i, id: 'mte2', label: 'MTE2', colorKey: 'mte2', side: 'cube' },
   { match: /^mte3$/i, id: 'mte3', label: 'MTE3', colorKey: 'mte3', side: 'cube' },
@@ -301,22 +267,38 @@ export function pipeOccupancyFromHist(payload?: Uint8Array): PipeOccupancyItem[]
 
 /**
  * Map PipesUtilization.csv (CoreId, CoreTypeId, InstrQueueTypeId, PipeUtilization).
- * When PipeName is absent, InstrQueueTypeId is treated as a pipe name if it matches known labels;
- * otherwise a synthetic `q{id}` bar is emitted (still shows occupancy).
+ * Producer packs INTEGER FKs — join `InstrQueueTypes` / `CoreTypes` when present.
+ * Unmapped integer ids are skipped (no synthetic `Queue N` bars). String labels
+ * (demo fixtures) still map via `mapPipeName`. Prefer `PipeUtilizationHist` when both exist.
  */
-export function pipeOccupancyFromPipesUtilization(payload?: Uint8Array): PipeOccupancyItem[] {
+export function pipeOccupancyFromPipesUtilization(
+  payload?: Uint8Array,
+  dicts?: { queueTypes?: Uint8Array; coreTypes?: Uint8Array },
+): PipeOccupancyItem[] {
   if (!payload) return [];
+  const queueNames = idNameMap(dicts?.queueTypes, [
+    'InstrQueueTypeId',
+    'InstrQueueTypeName',
+  ]);
+  const coreNames = idNameMap(dicts?.coreTypes, ['CoreTypeId', 'CoreTypeName']);
   const { rows } = parseCsv(decodeUtf8(payload));
   const acc = new Map<string, { item: PipeOccupancyItem; sum: number; n: number }>();
   for (const row of rows) {
-    const queue = (row.InstrQueueTypeId ?? row.PipeName ?? '').trim();
-    const mapped = mapPipeName(queue);
-    const coreType = (row.CoreTypeId ?? '').toLowerCase();
+    const queueRaw = (row.InstrQueueTypeId ?? row.PipeName ?? '').trim();
+    if (!queueRaw) continue;
+    const queueLabel = queueNames.get(queueRaw) ?? queueRaw;
+    const mapped = mapPipeName(queueLabel);
+    // Skip bare integer FKs that did not resolve to a known pipe family.
+    if (!mapped && /^\d+$/.test(queueRaw) && !queueNames.has(queueRaw)) continue;
+    if (!mapped && /^\d+$/.test(queueLabel)) continue;
+
+    const coreRaw = (row.CoreTypeId ?? '').trim();
+    const coreLabel = (coreNames.get(coreRaw) ?? coreRaw).toLowerCase();
     const side: 'cube' | 'vector' =
       mapped?.side ??
-      (coreType.includes('aiv') || coreType.includes('vector') ? 'vector' : 'cube');
-    const id = mapped?.id ?? `q${queue || 'unknown'}`;
-    const label = mapped?.label ?? (queue ? `Queue ${queue}` : 'Pipe');
+      (coreLabel.includes('aiv') || coreLabel.includes('vector') ? 'vector' : 'cube');
+    const id = mapped?.id ?? `q${queueLabel}`;
+    const label = mapped?.label ?? queueLabel;
     const colorKey = mapped?.colorKey ?? 'default';
     const ratio = normalizeRatio(Number(row.PipeUtilization ?? row.Utilization));
     if (ratio == null) continue;
@@ -335,6 +317,22 @@ export function pipeOccupancyFromPipesUtilization(payload?: Uint8Array): PipeOcc
     }
   }
   return [...acc.values()].map((v) => v.item);
+}
+
+/** Build id→name map from a two-column dictionary CSV. */
+function idNameMap(
+  payload: Uint8Array | undefined,
+  [idCol, nameCol]: [string, string],
+): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!payload) return out;
+  const { rows } = parseCsv(decodeUtf8(payload));
+  for (const row of rows) {
+    const id = (row[idCol] ?? Object.values(row)[0] ?? '').trim();
+    const name = (row[nameCol] ?? Object.values(row)[1] ?? '').trim();
+    if (id && name) out.set(id, name);
+  }
+  return out;
 }
 
 function csvTableFromPayload(
@@ -394,13 +392,16 @@ export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedRepor
     );
   }
 
-  const summary = mergeSummary(
-    summaryFromKernelInfo(payloadByName(payloads, KERNEL_INFO_NAMES)),
-    summaryFromEmulateJson(payloadByName(payloads, SUMMARY_JSON_NAMES)),
-  );
+  const summary = summaryFromKernelInfo(payloadByName(payloads, KERNEL_INFO_NAMES));
 
   const histPipes = pipeOccupancyFromHist(payloadByName(payloads, PIPE_HIST_NAMES));
-  const utilPipes = pipeOccupancyFromPipesUtilization(payloadByName(payloads, PIPES_UTIL_NAMES));
+  const utilPipes = pipeOccupancyFromPipesUtilization(
+    payloadByName(payloads, PIPES_UTIL_NAMES),
+    {
+      queueTypes: payloadByName(payloads, INSTR_QUEUE_TYPE_NAMES),
+      coreTypes: payloadByName(payloads, CORE_TYPE_NAMES),
+    },
+  );
   const pipeOccupancy = histPipes.length > 0 ? histPipes : utilPipes;
 
   // Trace optional: PipeTrace.json or native core_*_tracing_report_*.json.

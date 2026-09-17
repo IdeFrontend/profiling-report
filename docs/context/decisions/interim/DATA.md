@@ -172,12 +172,12 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Implement / test as:** `EDGE_MAP` in [`memoryTopology.ts`](../../../../src/adapters/memoryTopology.ts) (`aggregate: 'sum'` on the two GM↔L2 sources); edge table in [VIEW_DATA_MAPPING §11.2.6](../../../ui/VIEW_DATA_MAPPING.md)
 **Superseded when:** — already superseded by DATA-40
 
-### DATA-47a — Emulate KernelInfo / summary.json → summary cards
+### DATA-47a — Emulate KernelInfo → summary cards
 
 **Status:** `interim`
 **Question:** [DATA-47](../../questions/DATA.md)
-**Interim:** Map when present: `KernelInfo.csv` rows `KernelInfoAttr`/`KernelInfoVal` with attrs matching `op name` / `kernel name` / `name` → `summary.opName`; `op type` / `type` → `opType`; `task duration(us)` / `duration(us)` / `duration` → `taskDurationUs`; `pid` → `pid`; `block dim` → `blockDim`. Overlay `summary.json` object fields `opName`/`name`, `opType`/`type`, `taskDurationUs`/`duration_us`, `pid`, `blockDim` (json wins on conflict). Unmapped → omit field (hide card chrome via DATA-30). Do **not** invent FLOPS/BW cards from emulate.
-**Implement / test as:** `summaryFromKernelInfo` / `summaryFromEmulateJson` in `adaptEmulate`; `PR-ASIM-003` + summary assertions
+**Interim:** Map when present: `KernelInfo.csv` rows `KernelInfoAttr`/`KernelInfoVal` with attrs matching `op name` / `kernel name` / `name` → `summary.opName`; `op type` / `type` → `opType`; `task duration(us)` / `duration(us)` / `duration` → `taskDurationUs`; `pid` → `pid`; `block dim` → `blockDim`. Unmapped → omit field (hide card chrome via DATA-30). Do **not** invent FLOPS/BW cards from emulate.
+**Implement / test as:** `summaryFromKernelInfo` in `adaptEmulate`; `PR-ASIM-003` + summary assertions
 **Superseded when:** Product locks DATA-47 field map
 
 
@@ -201,6 +201,23 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 | `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
 | L2 `peakPct` | `l2_cached_ratio` |
 
-Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
+Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside section title uses **架构图分析** / Architecture diagram (`archDiagramAnalysis`) when that capability is set — still rendered by `MemoryTopologyPanel` on the interim `memoryTopology` carrier. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
 **Implement / test as:** `topologyFromArchDiagramMetrics` in `adaptEmulate`; `PR-ASIM-008` + `archDiagram` assertions
 **Superseded when:** Product locks DATA-48 slot map and/or DATA-49 dedicated chrome/model
+
+### DATA-45 — Do not invent compute CSVs from emulate
+
+**Status:** `interim` — engineering stamp pending Product
+**Question:** May the viewer or packer invent hardware-shaped metric CSVs (`OpBasicInfo`, `PipeUtilization`, `Memory*.csv`, …) from npu_emulate contract tables?
+**Interim:** **No.** Do not silently remap simulator tables into hardware embed schemas. Each profile keeps its own sources; adapters map into shared `SwimlaneModel` / `ReportViewModel` / `capabilities[]`. Missing adapted fields → hide panels ([DATA-30](../DATA.md)).
+**Implement / test as:** `adaptEmulate` / PR-ASIM-004; [emulate/FORMAT](../../../formats/emulate/FORMAT.md); [ADAPTERS](../../../formats/ADAPTERS.md)
+**Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)
+
+### DATA-46 — Emulate PipeTrace time unit is µs
+
+**Status:** `interim` — engineering stamp pending Product
+**Question:** What time unit must an emulate leaf use in `PipeTrace.json` / native tracing report?
+**Interim:** Producer **MUST** convert simulator **ticks → microseconds** when packing timeline JSON. The viewer keeps the product rule: Trace timestamps/durations are **µs** (same as hardware `PipeTrace.json`). The viewer MUST NOT reinterpret Trace as ticks, and MUST ignore misleading `displayTimeUnit: "ns"` on emulate packs.
+**Implement / test as:** `adaptEmulate` `sourceTimeUnit: 'us'`; PR-SIM-003 / PR-SIM-003b
+**Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)
+
