@@ -2956,4 +2956,12 @@ describe('SwimlaneCanvas', () => {
     expect(src).toMatch(/overlay\.setLiveScroll/);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-105: pointermove does not paint every pixel; lane change does', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    const move = src.slice(src.indexOf('function onPointerMove'), src.indexOf('function onPointerUp'));
+    expect(move).not.toMatch(/schedulePaint\(\)/);
+    expect(src).toMatch(/function applyHoverPaint/);
+    expect(src).toMatch(/if \(id === trackHoveredLaneId\.value\) return/);
+  });
 });

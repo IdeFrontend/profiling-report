@@ -312,6 +312,126 @@ export class SwimlaneOverlayPainter {
     this.multiIds = new Set(ids);
   }
 
+  /** Hover/selected/multi fill + contrast label for one leaf (ClearType overlay lift). */
+  private paintOverlayLeaf(ctx: CanvasRenderingContext2D, item: LaidOutEvent): void {
+    const ev = item.event;
+    if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+      return;
+    }
+    const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const dpr = this.dpr;
+    const laneY = collapseShiftY(item.y, this.collapse);
+    const laneAlpha = collapseAlpha(item.y, this.collapse);
+    if (laneAlpha <= 0) return;
+    const x = ((ev.startTime - this.view.startTime) / span) * this.width;
+    const w = Math.max(2, (ev.duration / span) * this.width);
+    const metrics = eventBlockMetrics(laneY, this.view.scrollY);
+    const y = metrics.y * dpr;
+    const h = metrics.h * dpr;
+    if (y + h < 0 || y > this.height) return;
+    const r = eventPaintRect(x, y, w, h, dpr);
+    const q = this.searchQuery;
+    const hasSearch = q.length > 0;
+    const hasSelection = this.selectionMuted && this.selectedId != null;
+    const hasMulti = this.multiIds.size > 0;
+    const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+    const keepBright = isKeepBright(item.id, this.neighborIds, this.hoveredId, this.multiIds);
+    const { alpha: emphAlpha, muted } = eventEmphasis(
+      matches,
+      keepBright,
+      hasSearch,
+      hasSelection || hasMulti,
+    );
+    const alpha = emphAlpha * laneAlpha;
+    const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
+    const fill = eventFill(item.color, state);
+    if (state !== 'normal') {
+      const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
+      ctx.globalAlpha = laneAlpha;
+      ctx.fillStyle =
+        laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
+      roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
+      ctx.fill();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = fill;
+      roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (matches && (this.drawEventLabels || state !== 'normal')) {
+      drawEventLabel(
+        ctx,
+        ev.name,
+        r.x,
+        r.y,
+        r.w,
+        r.h,
+        this.width,
+        alpha,
+        muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
+        dpr,
+      );
+    }
+  }
+
+  private paintOverlaySummary(ctx: CanvasRenderingContext2D, item: LaidOutEvent): void {
+    const ev = item.event;
+    if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+      return;
+    }
+    const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const dpr = this.dpr;
+    const laneY = collapseShiftY(item.y, this.collapse);
+    const laneAlpha = collapseAlpha(item.y, this.collapse);
+    if (laneAlpha <= 0) return;
+    const x = ((ev.startTime - this.view.startTime) / span) * this.width;
+    const w = Math.max(2, (ev.duration / span) * this.width);
+    const metrics = eventBlockMetrics(laneY, this.view.scrollY);
+    const y = metrics.y * dpr;
+    const h = metrics.h * dpr;
+    if (y + h < 0 || y > this.height) return;
+    const r = eventPaintRect(x, y, w, h, dpr);
+    const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+    const fill = eventFill(item.color, state);
+    if (state !== 'normal') {
+      const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle =
+        laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
+      roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
+      ctx.fill();
+      ctx.fillStyle = fill;
+      roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
+      ctx.fill();
+    }
+    drawEventLabel(
+      ctx,
+      taskCountLabel(ev.taskCount ?? 0),
+      r.x,
+      r.y,
+      r.w,
+      r.h,
+      this.width,
+      1,
+      SUMMARY_LABEL_COLOR,
+      dpr,
+    );
+  }
+
+  /** ClearType path: only lifted leaves (lookup), not every event. */
+  private paintLiftedLeaves(ctx: CanvasRenderingContext2D): void {
+    const seen = new Set<string>();
+    const paint = (id: string | null) => {
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      const item = this.layout.eventsById.get(id) ?? this.layout.summaryById?.get(id);
+      if (!item || item.summary) return;
+      this.paintOverlayLeaf(ctx, item);
+    };
+    paint(this.selectedId);
+    paint(this.hoveredId);
+    for (const id of this.multiIds) paint(id);
+  }
 
   render(): void {
     const ctx = this.ctx;
@@ -334,114 +454,32 @@ export class SwimlaneOverlayPainter {
       return;
     }
 
-    const span = Math.max(1, this.view.endTime - this.view.startTime);
-    const q = this.searchQuery;
-    const hasSearch = q.length > 0;
-    const hasSelection = this.selectionMuted && this.selectedId != null;
-    const hasMulti = this.multiIds.size > 0;
-    const bright = this.neighborIds;
+    if (!this.drawEventLabels) {
+      this.paintLiftedLeaves(ctx);
+      paintCollapseSummaries(
+        ctx,
+        this.paintSummaries,
+        this.collapse,
+        this.view,
+        this.width,
+        this.height,
+        dpr,
+        this.selectedId,
+        this.hoveredId,
+      );
+      return;
+    }
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
       if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
       for (const item of this.layout.eventsByLane[i] ?? []) {
-      const ev = item.event;
-      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
-        continue;
-      }
-      const laneY = collapseShiftY(item.y, this.collapse);
-      const laneAlpha = collapseAlpha(item.y, this.collapse);
-      if (laneAlpha <= 0) continue;
-      const x = ((ev.startTime - this.view.startTime) / span) * this.width;
-      const w = Math.max(2, (ev.duration / span) * this.width);
-      const metrics = eventBlockMetrics(laneY, this.view.scrollY);
-      const y = metrics.y * dpr;
-      const h = metrics.h * dpr;
-      if (y + h < 0 || y > this.height) continue;
-      const r = eventPaintRect(x, y, w, h, dpr);
-
-      // Summary bars: the GL pass painted the resting gray (source-over); repaint the
-      // hover lift and draw the dimmed task-count label. Never dimmed/selected/ringed.
-      if (item.summary) {
-        const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
-        const fill = eventFill(item.color, state);
-        if (state !== 'normal') {
-          const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
-          ctx.globalAlpha = 1;
-          ctx.fillStyle =
-            laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
-          roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = fill;
-          roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
-          ctx.fill();
-          ctx.globalAlpha = 1;
+        if (item.summary) {
+          this.paintOverlaySummary(ctx, item);
+          continue;
         }
-        drawEventLabel(
-          ctx,
-          taskCountLabel(ev.taskCount ?? 0),
-          r.x,
-          r.y,
-          r.w,
-          r.h,
-          this.width,
-          1,
-          SUMMARY_LABEL_COLOR,
-          dpr,
-        );
-        continue;
+        this.paintOverlayLeaf(ctx, item);
       }
-
-      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
-      const { alpha: emphAlpha, muted } = eventEmphasis(
-        matches,
-        keepBright,
-        hasSearch,
-        hasSelection || hasMulti,
-      );
-      const alpha = emphAlpha * laneAlpha;
-
-      // The GL pass laid down the resting fill at this block's own emphasis. Painting a
-      // semi-transparent state fill on top of that would double-composite — Canvas
-      // blends the same state over the lane background instead. Reset to the lane
-      // fill first (hover tint when that row is hovered) so both backends agree.
-      const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
-      const fill = eventFill(item.color, state);
-      if (state !== 'normal') {
-        const laneId = this.layout.lanes[item.laneIndex]?.thread.id;
-        ctx.globalAlpha = laneAlpha;
-        ctx.fillStyle =
-          laneId != null && laneId === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;
-        roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
-        ctx.fill();
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = fill;
-        roundRectPath(ctx, r.x, r.y, r.w, r.h, r.r);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-
-      // Same visibility as Canvas fills: search misses omit labels; muted events gray the rest.
-      // When the WebGL backend owns labels (ClearType), non-resting blocks still get their label
-      // here: the opaque state fill painted above covers the GL label, and the label's contrast
-      // must match that fill.
-      if (matches && (this.drawEventLabels || state !== 'normal')) {
-        drawEventLabel(
-          ctx,
-          ev.name,
-          r.x,
-          r.y,
-          r.w,
-          r.h,
-          this.width,
-          alpha,
-          muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
-          dpr,
-        );
-      }
-    }
     }
 
     // Folder summary ghosts / rest-collapsed bars (PR-RENDER-028 / PR-RENDER-052).

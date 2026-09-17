@@ -1105,14 +1105,18 @@ function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
   // While the context menu pins an event as highlighted, ignore the canvas clearing
   // hover (the pointer left for the menu/scrim) — keep the target highlighted.
   if (contextMenuContext.value?.target && ev == null) return;
-  hovered.value = ev;
-  viewState.value = { ...viewState.value, hoveredEventId: ev?.id ?? null };
+  const nextId = ev?.id ?? null;
   if (ev) {
     tooltipStyle.value = {
       left: `${clientX + 12}px`,
       top: `${clientY + 12}px`,
     };
   }
+  // Same-id moves only chase the tooltip. Cloning viewState every pixel re-renders
+  // the dock while a selection is open.
+  if (nextId === viewState.value.hoveredEventId) return;
+  hovered.value = ev;
+  viewState.value = { ...viewState.value, hoveredEventId: nextId };
 }
 
 function onCursor(payload: { time: number; xRatio: number; snapped?: boolean } | null) {

@@ -131,13 +131,14 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 95. **PR-CANVAS-095** — Ctrl/Cmd-drag pan recovers from a lost pointerup (a trusted pointermove with `buttons === 0`, `pointercancel`, or `pointerleave` all end the pan) instead of latching on indefinitely.
 96. **PR-CANVAS-096** — Ctrl/Cmd+click (or a Ctrl/Cmd-drag that ends within the click threshold) is a no-op in `onPointerUp` — it never falls through to `select` and so never clears an active multi-selection.
 97. **PR-CANVAS-097** — Shift+union/drag on the pinned strip resolves ids through the shared cross-model event resolver, so ids outside the pinned lanes (from the body or a seeded single selection) are not dropped from the committed `multi-select`.
-98. **PR-CANVAS-098** — While any selection is active, a hover-only update rebuilds the WebGL emphasis buckets because both the interval fill and the ClearType label keep the hovered event bright. A hover transition must never leave a bright label on a muted interval or vice versa.
+98. **PR-CANVAS-098** — Hover-only `setSelection` does not rebuild WebGL emphasis buckets while a selection is active. The overlay paints the hover fill and matching contrast label over the muted interval (and ClearType label), so fill and label stay matched.
 99. **PR-CANVAS-099** — A multi-selected event keeps the `selected` fill lift (same `L+0.33`, `C×1.05` as the single selection), not just exemption from muting; it must not fall back to its resting colour and only brighten on hover.
 100. **PR-CANVAS-100** — A pending marquee press (click under the 4px gate) is visually a no-op for hover chrome: it does not emit `lane-hover` null and does not clear the hover-gap Δt overlay on `pointerdown` or under-threshold moves — gutter/header highlight and the gap arrow stay as they were under the pointer for the whole click (no disappear/reappear flicker).
 101. **PR-CANVAS-101** — Once a marquee is live (>4px), every move emits `multi-select-preview` with the same event list commit will use (plain rect, or Shift union). Escape, end-without-rect, and post-commit emit `null`. Commit emits `multi-select` before the clearing `null` preview.
 102. **PR-CANVAS-102** — On marquee commit, `marqueePreviewIds` holds the committed id list through the sync `multi-select` emit and the immediate `sync()` so dim does not flash back to stale `props.multiSelectedIds`; the hold clears on the following `nextTick` once props have flushed.
 103. **PR-CANVAS-103** — Applying `collapsedIds` before canvas attach still `setModel`s on the live backend so event blocks paint.
 104. **PR-CANVAS-104** — Vertical wheel eases `scrollY` toward the stacked target (not a single jump); `prefers-reduced-motion: reduce` snaps. In-flight frames skip leaf event labels (and the overlay's leaf hover/label walk) so stale fills do not sit on moved rects; collapsed-folder summary bars and their dimmed task-count labels still paint. Labels restore when the ease settles. The settle paint keeps the eased Y (does not snap to a stale parent `scrollY`). Gutter-forwarded wheel uses this same path.
+105. **PR-CANVAS-105** — Pointermove does not repaint the swim framebuffer while the hovered lane is unchanged; a hovered-event-only update paints the overlay (not a full GL pass). Lane-row tint paints only when the hovered lane changes.
 
 ## Edge Cases
 
@@ -170,6 +171,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-17** — Hover-while-selected no longer rebuilds WebGL emphasis or repaints every pointer pixel; overlay owns hover lift (`PR-CANVAS-098` / `PR-CANVAS-105`).
 - **2026-09-17** — In-flight overlay still paints collapsed-folder summary bars + task-count labels (`PR-CANVAS-104`).
 - **2026-09-16** — Settle paint keeps the eased `scrollY` so event rects do not snap to a stale parent window (`PR-CANVAS-104`).
 - **2026-09-16** — Vertical wheel eases `scrollY` toward the stacked target so gutter and event rows share one motion (`PR-CANVAS-104`).

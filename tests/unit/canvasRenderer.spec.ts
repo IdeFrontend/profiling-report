@@ -593,7 +593,7 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
-  it.skipIf(!hasWebGl2)('PR-CANVAS-098: WebGL rebuilds emphasis when hover changes under selection', () => {
+  it.skipIf(!hasWebGl2)('PR-CANVAS-098: WebGL hover-only setSelection does not rebuild emphasis', () => {
     const canvas = document.createElement('canvas');
     const renderer = new WebGlSwimlaneRenderer();
     expect(renderer.attach(canvas)).toBe(true);
@@ -607,8 +607,9 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     );
 
     renderer.setSelection('e-long', 'e-short');
+    renderer.setSelection('e-long', null);
 
-    expect(rebuild).toHaveBeenCalledOnce();
+    expect(rebuild).not.toHaveBeenCalled();
     renderer.dispose();
   });
 
@@ -1076,6 +1077,16 @@ describe('PR-RENDER: lane chrome color', () => {
 
     // Hovered: the overlay still draws the label over the lifted state fill, in that fill's contrast.
     expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
+  });
+
+  it('PR-RENDER-054: WebGL meshes ignore hover; ClearType overlay lifts by id', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc.match(/isKeepBright\(item\.id, bright, null, /g)?.length).toBe(2);
+    const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(overlaySrc).toMatch(/private paintLiftedLeaves\(/);
+    expect(overlaySrc).toMatch(/this\.layout\.eventsById\.get\(id\)/);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {

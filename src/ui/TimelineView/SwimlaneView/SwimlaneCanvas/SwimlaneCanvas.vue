@@ -179,8 +179,11 @@ function applyLaneHover(id: string | null): void {
 
 function emitLaneHover(localY: number | null): void {
   const id = localY == null ? null : laneIdAtPoint(backend.getLayout(), paintView(), localY);
+  if (id === trackHoveredLaneId.value) return;
   applyLaneHover(id);
   emit('lane-hover', id);
+  // Row tint lives on the GL background pass — paint only when the lane actually changes.
+  schedulePaint();
 }
 
 watch(
@@ -188,7 +191,7 @@ watch(
   (id) => {
     if (id === trackHoveredLaneId.value) return;
     applyLaneHover(id);
-    // Pointer path already paints in onPointerMove; gutter-driven updates need an explicit paint.
+    // Gutter-driven hover is not on the pointer path; paint the row tint here.
     schedulePaint();
   },
 );
@@ -877,8 +880,30 @@ watch(
   },
 );
 
+/** Hover-only: overlay lift, no GL mesh rebuild / label pass (PR-CANVAS-098 / 105). */
+function applyHoverPaint(): void {
+  if (!attached || !props.model) return;
+  if (laneScrollEasing || scrollRaf) return;
+  if (lastDeviceW < 1 || lastDeviceH < 1) return;
+  const paintSelectedId = marqueePreviewIds != null ? null : props.selectedEventId;
+  backend.setSelection(paintSelectedId, props.hoveredEventId);
+  if (useWebGl.value) {
+    overlay.setSelection(paintSelectedId, props.hoveredEventId);
+    overlay.render();
+    return;
+  }
+  schedulePaint();
+}
+
 watch(
-  () => [props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
+  () => props.hoveredEventId,
+  () => {
+    applyHoverPaint();
+  },
+);
+
+watch(
+  () => [props.selectedEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
   () => {
     sync();
   },
@@ -1966,7 +1991,6 @@ function onPointerMove(e: PointerEvent): void {
     return;
   }
 
-  schedulePaint();
   const mag = magnetizeLocal(x, y);
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
 

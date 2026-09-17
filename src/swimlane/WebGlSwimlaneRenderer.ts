@@ -571,12 +571,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const hoverChanged = hoveredId !== this.hoveredId;
     if (!selectionChanged && !hoverChanged) return;
     this.hoveredId = hoveredId;
-    if (!selectionChanged) {
-      // Emphasis buckets include the hovered event while a selection is active; labels read it
-      // live during render, so the buckets must refresh too.
-      if (this.selectedId || this.multiIds.size > 0) this.rebuildEmphasisSplit();
-      return;
-    }
+    if (!selectionChanged) return;
     this.selectedId = selectedId;
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
@@ -930,7 +925,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       if (!matches) continue;
       const { muted } = eventEmphasis(
         matches,
-        isKeepBright(item.id, bright, this.hoveredId, this.multiIds),
+        // Hover lift is the overlay (PR-RENDER-054); baking hoveredId here would stale
+        // when a hover-only update skips this GL pass.
+        isKeepBright(item.id, bright, null, this.multiIds),
         hasSearch,
         hasSelection || hasMulti,
       );
@@ -1101,7 +1098,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
           const { alpha, muted } = eventEmphasis(
             matches,
-            isKeepBright(item.id, bright, this.hoveredId, multi),
+            isKeepBright(item.id, bright, null, multi),
             hasSearch,
             hasSelection || hasMulti,
           );
